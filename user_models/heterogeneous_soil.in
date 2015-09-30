@@ -1,0 +1,44 @@
+#title: Soil fractals
+#domain: 0.1 0.1 0.2
+#time_window: 10e-9
+#dx_dy_dz: 0.001 0.001 0.001
+
+#soil_peplinski: 0.5 0.5 2.0 2.66 0.1 0.4 mySoil
+#fractal_box: 0.030 0.030 0.030 0.070 0.070 0.070 1.5 1 1 1 10 mySoil mySoilBox
+
+xminus
+add_surface_roughness: 0.030 0.030 0.030 0.030 0.070 0.070 1 1 1 0.025 0.035 mySoilBox
+add_surface_water: 0.030 0.030 0.030 0.030 0.070 0.070 0.027 mySoilBox
+
+xplus
+add_surface_roughness: 0.070 0.030 0.030 0.070 0.070 0.070 1 1 1 0.065 0.075 mySoilBox
+add_surface_water: 0.070 0.030 0.030 0.070 0.070 0.070 0.070 mySoilBox
+add_grass: 0.070 0.030 0.030 0.070 0.070 0.070 1.0 0.065 0.180 50 mySoilBox
+
+yminus
+add_surface_roughness: 0.030 0.030 0.030 0.070 0.030 0.070 1 1 1 0.025 0.035 mySoilBox
+add_surface_water: 0.030 0.030 0.030 0.070 0.030 0.070 0.027 mySoilBox
+
+yplus
+add_surface_roughness: 0.030 0.070 0.030 0.070 0.070 0.070 1 1 1 0.065 0.075 mySoilBox
+add_surface_water: 0.030 0.070 0.030 0.070 0.070 0.070 0.070 mySoilBox
+add_grass: 0.030 0.070 0.030 0.070 0.070 0.070 1.0 0.065 0.180 50 mySoilBox
+
+zminus
+add_surface_roughness: 0.030 0.030 0.030 0.070 0.070 0.030 1 1 1 0.025 0.035 mySoilBox
+add_surface_water: 0.030 0.030 0.030 0.070 0.070 0.030 0.027 mySoilBox
+
+zplus
+#add_surface_roughness: 0.030 0.030 0.070 0.070 0.070 0.070 1 1 1 0.065 0.075 mySoilBox
+add_surface_water: 0.030 0.030 0.070 0.070 0.070 0.070 0.070 mySoilBox
+add_grass: 0.050 0.050 0.070 0.055 0.055 0.070 1.0 0.070 0.180 5 mySoilBox
+#add_grass: 0.030 0.030 0.070 0.070 0.070 0.070 1.0 0.065 0.180 50 mySoilBox
+
+box: 0.080 0.000 0.070 0.120 0.200 0.110 free_space
+
+python:
+from gprMax.lib_antennas import antenna_like_GSSI_1500
+antenna_like_GSSI_1500(0.100, 0.100, 0.110)
+end_python:
+
+#geometry_view: 0 0 0 0.1 0.1 0.2 0.001 0.001 0.001 soil_fractals n

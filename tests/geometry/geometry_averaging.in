@@ -1,0 +1,27 @@
+#title: Test of geometry commands and averaging behaviour
+#domain: 0.1 0.1 0.1
+#time_window: 1
+#dx_dy_dz: 0.001 0.001 0.001
+
+#material: 2 0 1 0 mat2
+#material: 3 0 1 0 mat3
+#material: 4 0 1 0 mat4
+#material: 5 0 1 0 mat5
+
+plate: 0.050 0.010 0.030 0.050 0.030 0.050 mat2
+
+box: 0.020 0.020 0.020 0.040 0.040 0.040 mat2
+
+cylinder: 0.090 0.020 0.010 0.090 0.080 0.010 0.005 mat3
+cylinder: 0.050 0.050 0.020 0.070 0.070 0.080 0.005 mat3
+
+#cylindrical_sector: x 0.050 0.050 0.040 0.050 0.015 0 90 mat3
+
+sphere: 0.100 0.100 0.100 0.040 mat4
+
+#triangle: 0.020 0.020 0.020 0.020 0.035 0.035 0.020 0.050 0.020 0 mat5
+triangle: 0.020 0.020 0.020 0.020 0.035 0.035 0.020 0.050 0.020 0.010 mat5
+
+
+#geometry_view: 0 0 0 0.1 0.1 0.1 0.001 0.001 0.001 geometry_averaging_solid n
+#geometry_view: 0 0 0 0.1 0.1 0.1 0.001 0.001 0.001 geometry_averaging_IDs f

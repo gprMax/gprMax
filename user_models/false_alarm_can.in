@@ -1,0 +1,12 @@
+#title: Metal can false alarm target in free-space
+#domain: 0.076 0.076 0.108
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 6e-9
+
+#python:
+from user_libs.landmines import false_alarm_can
+false_alarm_can(0.038, 0.038, 0.054)
+#end_python:
+
+#geometry_view: 0 0 0 0.076 0.076 0.108 0.001 0.001 0.001 false_alarm_can n
+

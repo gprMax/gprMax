@@ -1,0 +1,10 @@
+#title: GSSI 1.5GHz 'like' antenna in free-space
+#domain: 0.250 0.187 0.183
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 8E-9
+
+#python:
+from user_libs.antennas import antenna_like_GSSI_1500
+antenna_like_GSSI_1500(0.125, 0.094, 0.100)
+#end_python:
+
