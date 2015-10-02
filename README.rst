@@ -63,13 +63,15 @@ Mac OS X and Linux
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
 
-Using the code on Windows is not as simple as for other platforms. Please make sure you install the correct versions of binary packages depending on whether you have 32- or 64-bit Windows. The most straightforward method is to:
+Using the code on Windows is not as straightforward as for other platforms because of the combination of requirements. However, there are number of different ways of installing the required packages. We recommend you use the following procedure, as we have successfully tested it on Windows 7 (32/64-bit) and Windows 10 (64-bit). Please make sure you install the correct versions of binary packages depending on whether you have 32-bit or 64-bit Windows.
 
 * Install Python 3 (https://www.python.org/downloads/)
 * Download and install Microsoft Visual Studio 2015 Community (https://www.visualstudio.com/downloads/download-visual-studio-vs), which is free. Do a custom install and make sure under programming languages Visual C++ is selected, no other options are required.
 * Create a new environment variable :code:`VS100COMNTOOLS` which matches the value of the existing :code:`VS140COMNTOOLS` environment variable. To set an environment variable from the Start Menu, right-click the Computer icon and select Properties. Click the Advanced System Settings link in the left column. In the System Properties window, click on the Advanced tab, then click the Environment Variables button near the bottom of that tab.
 * Use the :code:`pip` package manager, which comes with Python, to install the cython, psutil, pyfiglet, pyparsing, python-dateutil, and pytz packages e.g. :code:`pip install cython`. To check what packages are installed use :code:`pip list`.
 * Download binaries of packages numpy, h5py,  matplotlib (http://www.lfd.uci.edu/~gohlke/pythonlibs/) and install (in the aforementioned order) using ``pip``, e.g. :code:`pip install numpy-1.9.2+mkl-cp35-none-win_amd64.whl`
+
+Please do not be tempted to use Anaconda, a popular Python distribution, to get Python and the required packages. Anaconda (2.3.0) has a bug with the Python HDF5 package (h5py) on 64-bit versions of Windows (https://github.com/h5py/h5py/issues/593)
 
 
 Compile Cython extensions
