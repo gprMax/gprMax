@@ -387,7 +387,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, inputdirectory):
         # Close output file
         f.close()
         tsolveend = perf_counter()
-        print('\n\nSolving took [HH:MM:SS]:'.format(datetime.timedelta(seconds=int(tsolveend - tsolvestart))))
+        print('\n\nSolving took [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsolveend - tsolvestart))))
         if sys.platform != 'win32':
             print('Peak memory (approx) used: {}'.format(human_size(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, False)))
 
