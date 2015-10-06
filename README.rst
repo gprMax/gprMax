@@ -71,7 +71,9 @@ Using the code on Windows is not as straightforward as for other platforms becau
 * Use the :code:`pip` package manager, which comes with Python, to install the cython, psutil, pyfiglet, pyparsing, python-dateutil, and pytz packages e.g. :code:`pip install cython`. To check what packages are installed use :code:`pip list`.
 * Download binaries of packages numpy, h5py,  matplotlib (http://www.lfd.uci.edu/~gohlke/pythonlibs/) and install (in the aforementioned order) using ``pip``, e.g. :code:`pip install numpy-1.9.2+mkl-cp35-none-win_amd64.whl`
 
-Please do not be tempted to use Anaconda, a popular Python distribution, to get Python and the required packages. Anaconda (2.3.0) has a bug with the Python HDF5 package (h5py) on 64-bit versions of Windows (https://github.com/h5py/h5py/issues/593)
+.. warning::
+
+    If you use Anaconda, a popular Python distribution, please be aware that there is currently a bug with the HDF5 package (h5py) that is included with Anaconda (2.3.0). It effects 64-bit versions of Windows (https://github.com/h5py/h5py/issues/593). If you want to use Anaconda you should upgrade the h5py package by downloading and installing the correct binary from http://www.lfd.uci.edu/~gohlke/pythonlibs/, e.g. ``pip install --upgrade h5py‑2.5.0‑cp34‑none‑win_amd64.whl``
 
 
 Compile Cython extensions
