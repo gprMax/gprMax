@@ -86,7 +86,7 @@ Once you have installed the aforementioned tools follow these steps to build the
 
 .. note::
 
-    If you want to remove/clean Cython generated files, e.g. before rebuilding the Cython extensions, yu can use :code:`python setup.py cleanall`.
+    If you want to remove/clean Cython generated files, e.g. before rebuilding the Cython extensions, you can use :code:`python setup.py cleanall`.
 
 You are now ready to run gprMax.
 
