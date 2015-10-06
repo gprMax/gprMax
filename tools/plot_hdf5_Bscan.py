@@ -21,6 +21,8 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 
+from gprMax.exceptions import CmdInputError
+
 """Plots B-scan."""
 
 # Parse command line arguments
@@ -35,6 +37,10 @@ path = '/rxs/rx1'
 
 f = h5py.File(file, 'r')
 data = f[path + '/' + field]
+
+# Check that there is more than one A-scan present
+if data.shape[1] == 1:
+    raise raise CmdInputError('{} contains only a single A-scan.'.format(file))
 
 # Plot B-scan image
 fig = plt.figure(num=file, figsize=(20, 10), facecolor='w', edgecolor='w')
