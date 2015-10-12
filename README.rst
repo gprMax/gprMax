@@ -110,7 +110,7 @@ When the simulation is complete you can plot the A-scan using:
 
 .. code-block:: none
 
-    python -m tools.plot_hdf5Ascan user_models/hertzian_dipole_2D.out
+    python -m tools.plot_hdf5_Ascan user_models/hertzian_dipole_2D.out
 
 Optional command line arguments
 -------------------------------
