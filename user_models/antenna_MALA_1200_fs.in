@@ -5,6 +5,5 @@
 
 #python:
 from user_libs.antennas import antenna_like_MALA_1200
-antenna_like_MALA_1200(0.132, 0.095, 0.100)
+antenna_like_MALA_1200(0.132, 0.095, 0.100, 0.001)
 #end_python:
-
