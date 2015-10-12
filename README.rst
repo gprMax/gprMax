@@ -133,7 +133,7 @@ For example, to run a B-scan with 50 traces using MPI:
 
 .. code-block:: none
 
-    python -m gprMax user_models/GSSI_1500_cylinder_Bscan.in -n 50 -mpi
+    python -m gprMax user_models/GSSI_1500_cylinder_Bscan.in -n 54 -mpi
 
 
 
