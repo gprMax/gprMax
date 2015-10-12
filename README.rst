@@ -104,13 +104,13 @@ For example to run one of the test models, navigate into the top-level gprMax di
 
 .. code-block:: none
 
-    python -m gprMax user_models/hertzian_dipole_2D.in
+    python -m gprMax user_models/cylinder_Ascan_2D.in
 
 When the simulation is complete you can plot the A-scan using:
 
 .. code-block:: none
 
-    python -m tools.plot_hdf5_Ascan user_models/hertzian_dipole_2D.out
+    python -m tools.plot_hdf5_Ascan user_models/cylinder_Ascan_2D.out
 
 Optional command line arguments
 -------------------------------
@@ -127,13 +127,13 @@ For example, to check the geometry of a model:
 
 .. code-block:: none
 
-    python -m gprMax heterogeneous_soil.in --geometry-only
+    python -m gprMax user_models/heterogeneous_soil.in --geometry-only
 
 For example, to run a B-scan with 50 traces using MPI:
 
 .. code-block:: none
 
-    python -m gprMax GSSI_1500_cylinder_Bscan.in -n 50 -mpi
+    python -m gprMax user_models/GSSI_1500_cylinder_Bscan.in -n 50 -mpi
 
 
 
