@@ -1408,13 +1408,15 @@ def process_geometrycmds(geometry, G):
                         for k in range(volume.zs, volume.zf + 1):
                             if volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] == 1:
                                 numID = numIDx = numIDy = numIDz = volume.fractalvolume[i - volume.xs, j - volume.ys, k - volume.zs]
+                                build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, G.solid, G.rigidE, G.rigidH, G.ID)
                             elif volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] == 2:
                                 waternumID = next(x.numID for x in G.materials if x.ID == 'water')
                                 numID = numIDx = numIDy = numIDz = waternumID
+                                build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, G.solid, G.rigidE, G.rigidH, G.ID)
                             elif volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] == 3:
                                 grassnumID = next(x.numID for x in G.materials if x.ID == 'grass')
                                 numID = numIDx = numIDy = numIDz = grassnumID
-                            build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, G.solid, G.rigidE, G.rigidH, G.ID)
+                                build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, G.solid, G.rigidE, G.rigidH, G.ID)
 
             else:
                 if volume.nbins == 1:
