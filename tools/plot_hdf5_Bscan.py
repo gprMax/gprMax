@@ -40,7 +40,7 @@ data = f[path + '/' + field]
 
 # Check that there is more than one A-scan present
 if data.shape[1] == 1:
-    raise raise CmdInputError('{} contains only a single A-scan.'.format(file))
+    raise CmdInputError('{} contains only a single A-scan.'.format(file))
 
 # Plot B-scan image
 fig = plt.figure(num=file, figsize=(20, 10), facecolor='w', edgecolor='w')
