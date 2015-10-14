@@ -119,7 +119,7 @@ There are optional command line arguments for gprMax:
 
 * ``--geometry-only`` will build a model and produce any geometry views but will not run the simulation. This option is useful for checking the geometry of the model is correct.
 * ``-n`` is used along with a integer number to specify the number of times to run the input file. This option can be used to run a series of models, e.g. to create a B-scan that uses an antenna model.
-* ``-mpi`` is a flag to turn on Message Passing Interface (MPI) task farm functionality. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using MPI to compute nodes, e.g. when creating a B-scan each separate trace (model) would run as a separate MPI task.
+* ``-mpi`` is a flag to turn on Message Passing Interface (MPI) task farm functionality. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using MPI. For further details see the :ref:`Parallel performance section <openmp_mpi>`.
 * ``--commands-python`` will write an input file after any Python code blocks in the original input file have been processed.
 * ``-h`` or ``--help`` can be used to get help on command line options.
 
