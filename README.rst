@@ -129,11 +129,11 @@ For example, to check the geometry of a model:
 
     python -m gprMax user_models/heterogeneous_soil.in --geometry-only
 
-For example, to run a B-scan with 50 traces using MPI:
+For example, to run a B-scan with 54 traces:
 
 .. code-block:: none
 
-    python -m gprMax user_models/GSSI_1500_cylinder_Bscan.in -n 54 -mpi
+    python -m gprMax user_models/GSSI_1500_cylinder_Bscan.in -n 54
 
 
 
