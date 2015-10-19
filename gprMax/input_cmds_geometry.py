@@ -1403,9 +1403,9 @@ def process_geometrycmds(geometry, G):
 
 
                 # Build voxels from any true values of the 3D mask array
-                for i in range(volume.xs, volume.xf + 1):
-                    for j in range(volume.ys, volume.yf + 1):
-                        for k in range(volume.zs, volume.zf + 1):
+                for i in range(volume.xs, volume.xf):
+                    for j in range(volume.ys, volume.yf):
+                        for k in range(volume.zs, volume.zf):
                             if volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] == 1:
                                 numID = numIDx = numIDy = numIDz = volume.fractalvolume[i - volume.xs, j - volume.ys, k - volume.zs]
                                 build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, G.solid, G.rigidE, G.rigidH, G.ID)
@@ -1425,9 +1425,9 @@ def process_geometrycmds(geometry, G):
                     volume.generate_fractal_volume(G)
                     volume.fractalvolume += mixingmodel.startmaterialnum
                 
-                for i in range(volume.xs, volume.xf + 1):
-                    for j in range(volume.ys, volume.yf + 1):
-                        for k in range(volume.zs, volume.zf + 1):
+                for i in range(volume.xs, volume.xf):
+                    for j in range(volume.ys, volume.yf):
+                        for k in range(volume.zs, volume.zf):
                             numID = numIDx = numIDy = numIDz = volume.fractalvolume[i - volume.xs, j - volume.ys, k - volume.zs]
                             build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, G.solid, G.rigidE, G.rigidH, G.ID)
 
