@@ -1,0 +1,27 @@
+@import url("theme.css");
+
+/* Main panel */
+.wy-nav-content {
+    max-width: 80%;
+}
+
+
+/* Maths */
+.MathJax_Display {
+    text-align: left !important;
+}
+
+
+/* Citation tables */
+.wy-table-responsive {
+    margin: 0;
+    border-top: 1px dotted rgba(235,235,235,1) ! important;
+}
+
+table.citation td {
+    padding: 5px ! important;
+}
+
+table.citation td.label {
+    width: 100px ! important;
+}

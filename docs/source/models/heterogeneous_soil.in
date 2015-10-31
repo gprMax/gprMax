@@ -1,0 +1,14 @@
+#title: Heterogeneous soil using a stochastic distribution of dielectric properties given by a mixing model from Peplinski
+#domain: 0.15 0.15 0.1
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 6e-9
+
+#waveform: ricker 1 1.5e9 my_ricker
+#hertzian_dipole: y 0.045 0.075 0.085 my_ricker
+#rx: 0.105 0.075 0.085
+
+#soil_peplinski: 0.5 0.5 2.0 2.66 0.001 0.25 my_soil
+#fractal_box: 0 0 0 0.15 0.15 0.070 1.5 1 1 1 50 my_soil my_soil_box
+#add_surface_roughness: 0 0 0.070 0.15 0.15 0.070 1.5 1 1 0.065 0.080 my_soil_box
+
+#geometry_view: 0 0 0 0.15 0.15 0.1 0.001 0.001 0.001 heterogeneous_soil n
