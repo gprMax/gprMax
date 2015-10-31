@@ -68,7 +68,8 @@ author = 'Craig Warren and Antonis Giannopoulos'
 #
 # The short X.Y version.
 # Read version number from gprMax/gprMax.py
-version = re.search('^__version__\s*=\s*\'(.*)\'', open('../../gprMax/gprMax.py').read(), re.M).group(1)
+#version = re.search('^__version__\s*=\s*\'(.*)\'', open('../../gprMax/gprMax.py').read(), re.M).group(1)
+version = '3.0.0b3'
 # The full version, including alpha/beta/rc tags.
 release = version + '(Bowmore)'
 
