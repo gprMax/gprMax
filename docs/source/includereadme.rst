@@ -1,1 +1,1 @@
-.. include:: ../../gprMax/README.rst
+.. include:: ../../README.rst
