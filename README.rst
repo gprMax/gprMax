@@ -15,21 +15,26 @@ gprMax is written in Python 3 (https://www.python.org) and includes performance-
 .. code-block:: none
 
     gprMax/
+        docs/
         gprMax/
+        LICENSE
+        README.rst
+        setup.py
         tests/
         tools/
         user_libs/
         user_models/
-        README.rst
-        setup.py
 
+
+* ``docs`` contains the source files for the User Guide. The documentation is written using reStructuredText (http://docutils.sourceforge.net/rst.html) markup, and is built using Sphinx (http://sphinx-doc.org) and Read the Docs (https://readthedocs.org).
 * ``gprMax`` is the main package. Within this package the main module is ``gprMax.py``
+* ``LICENSE`` contains information on the GNU General Public License v3 or higher (http://www.gnu.org/copyleft/gpl.html).
+* ``README.rst`` contains getting started information on installation, usage, and new features/changes.
+* ``setup.py`` is used to compile the Cython extension modules.
 * ``tests`` is a sub-package which contains test modules and input files.
 * ``tools`` is a sub-package which contains scripts to assist with viewing and post-processing output from models.
 * ``user_libs`` is a sub-package where useful modules contributed by users are stored.
 * ``user_models`` is a sub-package where useful input files contributed by users are stored.
-* ``README.rst`` contains getting started information on installation, usage, and new features/changes.
-* ``setup.py`` is used to compile the Cython extension modules.
 
 Installation
 ============
