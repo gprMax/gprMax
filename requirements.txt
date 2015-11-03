@@ -1,3 +1,5 @@
+freetype
+png
 numpy
 cython
 h5py
