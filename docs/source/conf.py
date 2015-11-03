@@ -33,7 +33,7 @@ extensions = [
 ]
 
 # autodoc mock imports
-autodoc_mock_imports = ['h5py', 'matplotlib', 'pyfiglet', 'cython', 'psutil']
+#autodoc_mock_imports = ['h5py', 'matplotlib', 'pyfiglet', 'cython', 'psutil']
 
 # Options for autodoc
 autodoc_default_flags = ['members']

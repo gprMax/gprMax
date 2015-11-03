@@ -33,11 +33,9 @@ import glob, os, re, shutil, sys
 packagename = 'gprMax'
 
 # Read version number from gprMax/gprMax.py
-#version = re.search('^__version__\s*=\s*\'(.*)\'',
-#                    open(os.path.join(packagename, 'gprMax.py')).read(),
-#                    re.M).group(1)
-
-version = '3.0.0b4'
+version = re.search('^__version__\s*=\s*\'(.*)\'',
+                    open(os.path.join(packagename, 'gprMax.py')).read(),
+                    re.M).group(1)
 
 # Mac OS X - need to install gcc (via HomeBrew) and set it to be used. This is required because the default compiler LLVM (clang) does not support OpenMP
 if sys.platform == 'darwin':
