@@ -311,7 +311,7 @@ epub_publisher = author
 epub_copyright = copyright
 
 # The basename for the epub file. It defaults to the project name.
-#epub_basename = project
+epub_basename = 'gprMax User Guide'
 
 # The HTML theme for the epub output. Since the default themes are not optimized
 # for small screen space, using the same theme for HTML and epub output is
@@ -328,7 +328,7 @@ epub_copyright = copyright
 
 # The unique identifier of the text. This can be a ISBN number
 # or the project homepage.
-#epub_identifier = ''
+epub_identifier = 'www.gprmax.com'
 
 # A unique identification for the text.
 #epub_uid = ''
@@ -360,7 +360,7 @@ epub_exclude_files = ['search.html']
 #epub_tocscope = 'default'
 
 # Fix unsupported image types using the Pillow.
-#epub_fix_images = False
+epub_fix_images = True
 
 # Scale large images.
 #epub_max_image_width = 0
