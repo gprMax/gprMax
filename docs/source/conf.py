@@ -305,7 +305,7 @@ texinfo_documents = [
 # -- Options for Epub output ----------------------------------------------
 
 # Bibliographic Dublin Core info.
-epub_title = project
+epub_title = 'gprMax User Guide'
 epub_author = author
 epub_publisher = author
 epub_copyright = copyright
