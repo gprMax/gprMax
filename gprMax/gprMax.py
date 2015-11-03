@@ -31,20 +31,20 @@ from enum import Enum
 
 import numpy as np
 
-from .constants import e0
-from .exceptions import CmdInputError
-from .fields_output import prepare_output_file, write_output
-from .fields_update import *
-from .grid import FDTDGrid
-from .input_cmds_geometry import process_geometrycmds
-from .input_cmds_file import python_code_blocks, write_python_processed, check_cmd_names
-from .input_cmds_multiuse import process_multicmds
-from .input_cmds_singleuse import process_singlecmds
-from .materials import Material
-from .pml_call_updates import update_pml_electric, update_pml_magnetic
-from .pml import build_pml, calculate_initial_pml_params
-from .utilities import update_progress, logo, human_size
-from .yee_cell_build import build_ex_component, build_ey_component, build_ez_component, build_hx_component, build_hy_component, build_hz_component
+from gprMax.constants import e0
+from gprMax.exceptions import CmdInputError
+from gprMax.fields_output import prepare_output_file, write_output
+from gprMax.fields_update import *
+from gprMax.grid import FDTDGrid
+from gprMax.input_cmds_geometry import process_geometrycmds
+from gprMax.input_cmds_file import python_code_blocks, write_python_processed, check_cmd_names
+from gprMax.input_cmds_multiuse import process_multicmds
+from gprMax.input_cmds_singleuse import process_singlecmds
+from gprMax.materials import Material
+from gprMax.pml_call_updates import update_pml_electric, update_pml_magnetic
+from gprMax.pml import build_pml, calculate_initial_pml_params
+from gprMax.utilities import update_progress, logo, human_size
+from gprMax.yee_cell_build import build_ex_component, build_ey_component, build_ez_component, build_hx_component, build_hy_component, build_hz_component
 
 
 def main():
