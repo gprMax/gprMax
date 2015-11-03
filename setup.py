@@ -74,11 +74,11 @@ if 'cleanall' in sys.argv:
         try:
             os.remove(cfile)
         except OSError:
-            pass
+            print('Could not remove: {}'.format(cfile))
         try:
             os.remove(libfile)
         except OSError:
-            pass
+            print('Could not remove: {}'.format(libfile))
         shutil.rmtree('build', ignore_errors=True)
     # Now do a normal clean
     sys.argv[1] = 'clean'  # this is what distutils understands
