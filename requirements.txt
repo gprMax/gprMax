@@ -1,8 +1,5 @@
-freetype
-png
 numpy
 cython
 h5py
-matplotlib
 psutil
 pyfiglet
