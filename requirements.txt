@@ -1,5 +1,4 @@
 numpy
 cython
-h5py
 psutil
 pyfiglet
