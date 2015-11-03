@@ -19,7 +19,7 @@ import numpy as np
 
 import h5py
 
-from .constants import floattype
+from gprMax.constants import floattype
 
 
 def prepare_output_file(outputfile, G):
