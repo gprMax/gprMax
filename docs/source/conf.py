@@ -20,17 +20,6 @@ import os, re, shlex, sys
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('../..'))
 
-from unittest.mock import MagicMock
-
-class Mock(MagicMock):
-    @classmethod
-    def __getattr__(cls, name):
-        return Mock()
-
-MOCK_MODULES = ['h5py', 'matplotlib']
-sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
-
-
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -42,6 +31,9 @@ sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 extensions = [
     'sphinx.ext.mathjax', 'sphinx.ext.autodoc', 'sphinx.ext.napoleon'
 ]
+
+# autodoc mock imports
+autodoc_mock_imports = ['h5py', 'matplotlib']
 
 # Options for autodoc
 autodoc_default_flags = ['members']
