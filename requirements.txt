@@ -1,6 +1,6 @@
+numpy
 cython
 h5py
 matplotlib
-numpy
 psutil
 pyfiglet
