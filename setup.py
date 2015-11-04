@@ -64,26 +64,24 @@ for root, dirs, files in os.walk(os.path.join(os.getcwd(), 'user_libs')):
 if 'cleanall' in sys.argv:
     USE_CYTHON = False
     print('Deleting Cython files...')
-    for entry in os.scandir(os.path.join(os.getcwd(), packagename)):
-        for file in cythonfiles:
-            tmp = os.path.splitext(file)
-            if entry.name.startswith(tmp[0]):
-                # Remove Cython C files
-                try:
-                    os.remove(tmp[0] + '.c')
-                except OSError:
-                    print('Could not remove: {}'.format(tmp[0] + '.c'))
-                # Remove compiled Cython modules
-                libfilename = entry.name.split('.')[0]
-                if sys.platform == 'win32':
-                    libfile = libfilename + '.pyd'
-                else:
-                    libfile = libfilename + '.so'
-            
-                try:
-                    os.remove(libfile)
-                except OSError:
-                    print('Could not remove: {}'.format(libfile))
+    for file in cythonfiles:
+        filebase = os.path.splitext(file)[0]
+        # Remove Cython C files
+        if os.path.isfile(filebase + '.c'):
+            try:
+                os.remove(filebase + '.c')
+                print('Removed: {}'.format(filebase + '.c'))
+            except OSError:
+                print('Could not remove: {}'.format(filebase + '.c'))
+        # Remove compiled Cython modules
+        libfile = glob.glob(os.path.join(os.getcwd(), os.path.splitext(file)[0]) + '*.pyd') + glob.glob(os.path.join(os.getcwd(), os.path.splitext(file)[0]) + '*.so')
+        if libfile:
+            libfile = libfile[0]
+            try:
+                os.remove(libfile)
+                print('Removed: {}'.format(os.path.join(packagename, os.path.split(libfile)[-1])))
+            except OSError:
+                print('Could not remove: {}'.format(os.path.join(packagename, os.path.split(libfile)[-1])))
     # Remove build directory
     shutil.rmtree(os.path.join(os.getcwd(), 'build'), ignore_errors=True)
     # Now do a normal clean
