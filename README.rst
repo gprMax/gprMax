@@ -12,6 +12,10 @@ gprMax is released under the GNU General Public License v3 or higher (http://www
 
 gprMax is written in Python 3 (https://www.python.org) and includes performance-critical parts written in Cython/OpenMP (http://cython.org).
 
+
+Code structure
+==============
+
 .. code-block:: none
 
     gprMax/
@@ -26,7 +30,7 @@ gprMax is written in Python 3 (https://www.python.org) and includes performance-
         user_models/
 
 
-* ``docs`` contains the source files for the User Guide. The documentation is written using reStructuredText (http://docutils.sourceforge.net/rst.html) markup, and is built using Sphinx (http://sphinx-doc.org) and Read the Docs (https://readthedocs.org).
+* ``docs`` contains source files for the User Guide. The User Guide is written using reStructuredText (http://docutils.sourceforge.net/rst.html) markup, and is built using Sphinx (http://sphinx-doc.org) and Read the Docs (https://readthedocs.org).
 * ``gprMax`` is the main package. Within this package the main module is ``gprMax.py``
 * ``LICENSE`` contains information on the GNU General Public License v3 or higher (http://www.gnu.org/copyleft/gpl.html).
 * ``README.rst`` contains getting started information on installation, usage, and new features/changes.
@@ -36,49 +40,98 @@ gprMax is written in Python 3 (https://www.python.org) and includes performance-
 * ``user_libs`` is a sub-package where useful modules contributed by users are stored.
 * ``user_models`` is a sub-package where useful input files contributed by users are stored.
 
-Installation
-============
+Installation (End users)
+========================
+
+You should use the following guidance if you intend to use gprMax without developing the code. There are 2 main steps to the installation: Getting the code; and installing Python, packages, and a C compiler.
 
 Get the code
 ------------
 
-* Use **Git** (https://git-scm.com) and clone the master branch of the repository: :code:`git clone https://github.com/gprMax/gprMax.git`
+* Download the code from https://github.com/gprMax/gprMax
 
-* or **download a zip archive** of the code from https://github.com/gprMax/gprMax. Choose the ``Download ZIP`` button (right-hand side of the page).
+    * Click on `Releases` from the top header and choose the release you want (latest is at the top).
+    * Download zip files of the `source code` and `binary extensions` for your platform, i.e. ``windows`` for 64-bit versions of Microsoft Windows or ``linux_macosx`` for 64-bit versions of Linux or Mac OS X.
+    * Expand both zip files and copy the contents of the ``windows`` or ``linux_macosx`` directory into the ``gprMax/gprMax`` directory.
 
-
-Install Python and a C compiler
--------------------------------
-
-To build and use the code you will need:
-
-* **Python 3**.
-* Python packages: **cython, h5py, matplotlib, numpy, psutil, pyfiglet**. Optionally **mpi4py** if you want to use the Message Passing Interface (MPI) task farm functionality (requires an installation of OpenMPI).
-* **C compiler which supports OpenMP**
-
-Use the following guidance dependent on your platform.
+Install Python, packages, and C libraries
+-----------------------------------------
 
 Mac OS X and Linux
 ^^^^^^^^^^^^^^^^^^
 
 * Install Python 3 (https://www.python.org/downloads/)
-* Install the aforementioned Python packages, which on Mac OS X can be done using the :code:`pip` package manager which comes with Python, e.g. :code:`pip install cython`. The same goes for Linux, or alternatively you can use the :code:`apt-get` package manager, e.g. :code:`sudo apt-get install python3-cython`. To check what packages are installed use :code:`pip list`.
-* Install a C compiler which supports OpenMP. Linux should have gcc (https://gcc.gnu.org) already installed. With most recent versions of Mac OS X the LLVM (clang) is installed by default which does not support OpenMP. However, gcc is easily installed using the Homebrew package manager (http://brew.sh).
+* Install Python packages: **cython, h5py, matplotlib, numpy, psutil, pyfiglet**. Optionally **mpi4py** if you want to use the Message Passing Interface (MPI) task farm functionality (requires an installation of OpenMPI).
+
+    * Mac OS X: packages can be installed using the :code:`pip` package manager which comes with Python, e.g. :code:`pip install cython`. To check what packages are installed use :code:`pip list`.
+    * Linux: packages can be installed using the :code:`pip` package manager which comes with Python, e.g. :code:`pip install cython`, or alternatively using the :code:`apt-get` package manager, e.g. :code:`sudo apt-get install python3-cython`. To check what packages are installed use :code:`pip list`.
+
+* Install/Check C libraries:
+
+    * Mac OS X: gcc is easily installed using the Homebrew package manager (http://brew.sh). Installations of Xcode on Mac OS X come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must also install gcc.
+    * Linux: gcc (https://gcc.gnu.org) should be already installed so no action is required.
+
 
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
 
-Using the code on Windows is not as straightforward as for other platforms because of the combination of requirements. However, there are number of different ways of installing the required packages. We recommend you use the following procedure, as we have successfully tested it on Windows 7 (32/64-bit) and Windows 10 (64-bit). Please make sure you install the correct versions of binary packages depending on whether you have 32-bit or 64-bit Windows.
+* Install Python 3 (https://www.python.org/downloads/)
+* Install Python packages:
+
+    * Use the :code:`pip` package manager, which comes with Python, to install the **cython, pyfiglet, pyparsing, python-dateutil, and pytz** packages e.g. :code:`pip install cython`. To check what packages are installed use :code:`pip list`.
+    * Download binaries of packages **psutil, numpy, h5py,  matplotlib** (http://www.lfd.uci.edu/~gohlke/pythonlibs/) and then install (in the aforementioned order) using ``pip``, e.g. :code:`pip install numpy-1.9.2+mkl-cp35-none-win_amd64.whl`
+* Install the Microsoft Visual Studio 2015 C++ Redistributable (``vc_redist.x64.exe``) from https://www.microsoft.com/en-us/download/details.aspx?id=48145.
+
+**You are now ready to proceed to the section on running gprMax.**
+
+
+Installation (Developers)
+=========================
+
+You should use the following guidance if you intend to develop the gprMax code. There are 3 main steps to the installation: Getting the code; installing Python, packages, and a C compiler; and compiling the Cython extensions.
+
+Get the code
+------------
+
+* Use **Git** (https://git-scm.com) and clone the master branch of the repository: :code:`git clone https://github.com/gprMax/gprMax.git`
+* or **download a zip archive** of the code from https://github.com/gprMax/gprMax. Choose the ``Download ZIP`` button (right-hand side of the page).
+
+
+Install Python, packages, and a C compiler
+------------------------------------------
+
+Mac OS X and Linux
+^^^^^^^^^^^^^^^^^^
 
 * Install Python 3 (https://www.python.org/downloads/)
-* Download and install Microsoft Visual Studio 2015 Community (https://www.visualstudio.com/downloads/download-visual-studio-vs), which is free. Do a custom install and make sure under programming languages Visual C++ is selected, no other options are required.
-* Create a new environment variable :code:`VS100COMNTOOLS` which matches the value of the existing :code:`VS140COMNTOOLS` environment variable. To set an environment variable from the Start Menu, right-click the Computer icon and select Properties. Click the Advanced System Settings link in the left column. In the System Properties window, click on the Advanced tab, then click the Environment Variables button near the bottom of that tab.
-* Use the :code:`pip` package manager, which comes with Python, to install the **cython, pyfiglet, pyparsing, python-dateutil, and pytz** packages e.g. :code:`pip install cython`. To check what packages are installed use :code:`pip list`.
-* Download binaries of packages **psutil, numpy, h5py,  matplotlib** (http://www.lfd.uci.edu/~gohlke/pythonlibs/) and install (in the aforementioned order) using ``pip``, e.g. :code:`pip install numpy-1.9.2+mkl-cp35-none-win_amd64.whl`
+* Install Python packages: **cython, h5py, matplotlib, numpy, psutil, pyfiglet**. Optionally **mpi4py** if you want to use the Message Passing Interface (MPI) task farm functionality (requires an installation of OpenMPI).
+
+    * On Mac OS X packages can be installed using the :code:`pip` package manager which comes with Python, e.g. :code:`pip install cython`
+    * On Linux packages can be installed using the :code:`pip` package manager which comes with Python, e.g. :code:`pip install cython`, or alternatively using the :code:`apt-get` package manager, e.g. :code:`sudo apt-get install python3-cython`
+    * To check what packages are installed use :code:`pip list`
+* Install a C compiler which supports OpenMP:
+
+    * On Mac OS X gcc is easily installed using the Homebrew package manager (http://brew.sh). Installations of Xcode on Mac OS X come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must also install gcc.
+    * On Linux gcc (https://gcc.gnu.org) should be already installed so no action is required.
+
+
+Microsoft Windows
+^^^^^^^^^^^^^^^^^
+
+* Install Python 3 (https://www.python.org/downloads/)
+* Install a C compiler which supports OpenMP:
+
+    * Download and install Microsoft Visual Studio 2015 Community (https://www.visualstudio.com/downloads/download-visual-studio-vs), which is free. Do a custom install and make sure under programming languages Visual C++ is selected, no other options are required.
+    * Create a new environment variable :code:`VS100COMNTOOLS` which matches the value of the existing :code:`VS140COMNTOOLS` environment variable. To set an environment variable from the Start Menu, right-click the Computer icon and select Properties. Click the Advanced System Settings link in the left column. In the System Properties window, click on the Advanced tab, then click the Environment Variables button near the bottom of that tab.
+
+* Install Python packages:
+
+    * Use the :code:`pip` package manager, which comes with Python, to install the **cython, pyfiglet, pyparsing, python-dateutil, and pytz** packages e.g. :code:`pip install cython`. To check what packages are installed use :code:`pip list`.
+    * Download binaries of packages **psutil, numpy, h5py,  matplotlib** (http://www.lfd.uci.edu/~gohlke/pythonlibs/) and then install (in the aforementioned order) using ``pip``, e.g. :code:`pip install numpy-1.9.2+mkl-cp35-none-win_amd64.whl`
 
 .. warning::
 
-    If you use Anaconda, a popular Python distribution, please be aware that there is currently a bug with the HDF5 package (h5py) that is included with Anaconda (2.3.0). It effects 64-bit versions of Windows (https://github.com/h5py/h5py/issues/593). If you want to use Anaconda you should upgrade the h5py package by downloading and installing the correct binary from http://www.lfd.uci.edu/~gohlke/pythonlibs/, e.g. ``pip install --upgrade h5py‑2.5.0‑cp34‑none‑win_amd64.whl``
+    If you use Anaconda, a popular Python distribution, please be aware that there is currently a bug with the HDF5 package (h5py) that is included with Anaconda (2.3.0). It effects 64-bit versions of Microsoft Windows (https://github.com/h5py/h5py/issues/593). If you want to use Anaconda you should upgrade the h5py package by downloading and installing the correct binary from http://www.lfd.uci.edu/~gohlke/pythonlibs/, e.g. ``pip install --upgrade h5py‑2.5.0‑cp34‑none‑win_amd64.whl``
 
 
 Compile Cython extensions
@@ -93,7 +146,7 @@ Once you have installed the aforementioned tools follow these steps to build the
 
     If you want to remove/clean Cython generated files, e.g. before rebuilding the Cython extensions, you can use :code:`python setup.py cleanall`.
 
-You are now ready to run gprMax.
+**You are now ready to proceed to the section on running gprMax.**
 
 
 Run the code
