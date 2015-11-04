@@ -52,7 +52,7 @@ Get the code
 
     * Click on `Releases` from the top header and choose the release you want (latest is at the top).
     * Download zip files of the `source code` and `binary extensions` for your platform, i.e. ``windows`` for 64-bit versions of Microsoft Windows or ``linux_macosx`` for 64-bit versions of Linux or Mac OS X.
-    * Expand both zip files and copy the contents of the ``windows`` or ``linux_macosx`` directory into the ``gprMax/gprMax`` directory.
+    * Expand both zip files and copy the contents of the ``windows`` or ``linux_macosx`` directory into the ``gprMax-v.X.Y.Z/gprMax`` directory.
 
 Install Python, packages, and C libraries
 -----------------------------------------
