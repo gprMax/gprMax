@@ -12,8 +12,8 @@ gprMax is released under the GNU General Public License v3 or higher (http://www
 
 gprMax is written in Python 3 (https://www.python.org) and includes performance-critical parts written in Cython/OpenMP (http://cython.org).
 
-Cite gprMax
------------
+Using gprMax? Cite us.
+----------------------
 
 If you use gprMax and publish your work we would be grateful if you could cite gprMax using the following references:
 
