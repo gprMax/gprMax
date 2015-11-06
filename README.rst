@@ -20,8 +20,8 @@ If you use gprMax and publish your work we would be grateful if you could cite g
 * Warren, C., Giannopoulos, A., & Giannakis I. (2015). An advanced GPR modelling framework – the next generation of gprMax, In `Proc. 8th Int. Workshop Advanced Ground Penetrating Radar`
 * Giannopoulos, A. (2005). Modelling ground penetrating radar by GprMax, `Construction and Building Materials`, 19(10), 755-762. doi:10.1016/j.conbuildmat.2005.06.007
 
-Code structure
-==============
+Software structure
+==================
 
 .. code-block:: none
 
