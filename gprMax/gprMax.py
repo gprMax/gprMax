@@ -19,7 +19,7 @@
 """gprMax.gprMax: provides entry point main()."""
 
 # Set the version number here
-__version__ = '3.0.0b6'
+__version__ = '3.0.0b7'
 versionname = ' (Bowmore)'
 
 import sys, os, datetime, itertools, argparse
@@ -277,7 +277,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, inputdirectory):
                 snapshot.prepare_file(modelrun, numbermodelruns, G)
 
         # Prepare output file
-        inputfileparts = inputfile.split('.')
+        inputfileparts = os.path.splitext(inputfile)
         if numbermodelruns == 1:
             outputfile = inputfileparts[0] + '.out'
         else:
