@@ -15,7 +15,7 @@ A Gaussian waveform.
 
 where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
 
-.. figure:: images/gaussian.pdf
+.. figure:: images/gaussian.png
 
     Example of the ``gaussian`` waveform - time domain and power spectrum.
 
@@ -29,7 +29,7 @@ First derivative of a Gaussian waveform.
 
 where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
 
-.. figure:: images/gaussiandot.pdf
+.. figure:: images/gaussiandot.png
 
     Example of the ``gaussiandot`` waveform - time domain and power spectrum.
 
@@ -43,7 +43,7 @@ Normalised first derivative of a Gaussian waveform.
 
 where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
 
-.. figure:: images/gaussiandotnorm.pdf
+.. figure:: images/gaussiandotnorm.png
 
     Example of the ``gaussiandotnorm`` waveform - time domain and power spectrum.
 
@@ -57,7 +57,7 @@ Second derivative of a Gaussian waveform.
 
 where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
 
-.. figure:: images/gaussiandotdot.pdf
+.. figure:: images/gaussiandotdot.png
 
     Example of the ``gaussiandotdot`` waveform - time domain and power spectrum.
 
@@ -71,7 +71,7 @@ Normalised second derivative of a Gaussian waveform.
 
 where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
 
-.. figure:: images/gaussiandotdotnorm.pdf
+.. figure:: images/gaussiandotdotnorm.png
 
     Example of the ``gaussiandotdotnorm`` waveform - time domain and power spectrum.
 
@@ -85,7 +85,7 @@ Third derivative of a Gaussian waveform.
 
 where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
 
-.. figure:: images/gaussiandotdotdot.pdf
+.. figure:: images/gaussiandotdotdot.png
 
     Example of the ``gaussiandotdotdot`` waveform - time domain and power spectrum.
 
@@ -99,7 +99,7 @@ A Ricker (or Mexican Hat) waveform which is the negative, normalised second deri
 
 where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
 
-.. figure:: images/ricker.pdf
+.. figure:: images/ricker.png
 
     Example of the ``ricker`` waveform - time domain and power spectrum.
 
@@ -123,7 +123,7 @@ and
 
 :math:`I` is the current, :math:`t` is time and :math:`f` is the frequency.
 
-.. figure:: images/sine.pdf
+.. figure:: images/sine.png
 
     Example of the ``sine`` waveform - time domain and power spectrum.
 
@@ -147,7 +147,7 @@ and
 
 where :math:`I` is the current, :math:`R_c` is set to :math:`0.25`, :math:`t` is time and :math:`f` is the frequency.
 
-.. figure:: images/contsine.pdf
+.. figure:: images/contsine.png
 
     Example of the ``contsine`` waveform - time domain and power spectrum.
 
