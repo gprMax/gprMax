@@ -26,7 +26,7 @@ from gprMax.exceptions import CmdInputError
 """Plots B-scan."""
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Plots B-scan.', usage='cd gprMax; python -m tools.plot_hdf5_Bscan outputfile field')
+parser = argparse.ArgumentParser(description='Plots B-scan.', usage='cd gprMax; python -m tools.plot_Bscan_hdf5 outputfile field')
 parser.add_argument('outputfile', help='name of output file including path')
 parser.add_argument('field', help='name of field to be plotted, i.e. Ex, Ey, Ez')
 args = parser.parse_args()

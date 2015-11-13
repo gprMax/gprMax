@@ -29,7 +29,7 @@ Results
 
 .. _antenna_MALA_1200_fs_results:
 
-.. figure:: images/antenna_MALA_1200_fs_results.pdf
+.. figure:: images/antenna_MALA_1200_fs_results.png
 
     Field outputs from the receiver bowtie of a model of an antenna similar to a MALA 1.2GHz antenna.
 
@@ -64,7 +64,7 @@ Results
 
 .. _GSSI_1500_cylinder_Bscan_results:
 
-.. figure:: images/GSSI_1500_cylinder_Bscan_results.pdf
+.. figure:: images/GSSI_1500_cylinder_Bscan_results.png
 
     B-scan of model of a metal cylinder buried in a dielectric half-space with a model of an antenna similar to a GSSI 1.5GHz antenna.
 

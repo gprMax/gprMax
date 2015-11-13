@@ -24,7 +24,7 @@ from .plot_fields import plot_Ascan
 """Plots electric and magnetic fields from all receiver points in the given output file. Each receiver point is plotted in a new figure window."""
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Plots electric and magnetic fields from all receiver points in the given output file. Each receiver point is plotted in a new figure window.', usage='cd gprMax; python -m tools.plot_hdf5_Ascan outputfile')
+parser = argparse.ArgumentParser(description='Plots electric and magnetic fields from all receiver points in the given output file. Each receiver point is plotted in a new figure window.', usage='cd gprMax; python -m tools.plot_Ascan_hdf5 outputfile')
 parser.add_argument('outputfile', help='name of output file including path')
 args = parser.parse_args()
 

@@ -66,9 +66,9 @@ There are a number of free tools available to read HDF5 files. Also MATLAB has h
 A-scans
 -------
 
-* Plot A-scans using the Python module ``plot_hdf5_Ascan.py``. The module uses matplotlib to plot the time history for the electric and magnetic field components for all receivers in a model (each receiver gets a separate figure window). Usage (from the top-level gprMax directory) is: ``python -m tools.plot_hdf5_Ascan my_outputfile.out``.
+* Plot A-scans using the Python module ``plot_Ascan_hdf5.py``. The module uses matplotlib to plot the time history for the electric and magnetic field components for all receivers in a model (each receiver gets a separate figure window). Usage (from the top-level gprMax directory) is: ``python -m tools.plot_Ascan_hdf5 my_outputfile.out``.
 
-* Plot A-scans using the MATLAB script ``plot_hdf5_Ascan.m``. The script plots the time history for the electric and magnetic field components for all receivers in a model (each receiver gets a separate figure window).
+* Plot A-scans using the MATLAB script ``plot_Ascan_hdf5.m``. The script plots the time history for the electric and magnetic field components for all receivers in a model (each receiver gets a separate figure window).
 
 B-scans
 -------
@@ -76,6 +76,6 @@ B-scans
 gprMax produces a separate output file for each trace (A-scan) in the B-scan.
 
 * Combine the separate output files into one file using the Python module ``outputfiles_mergehdf5.py``. Usage (from the top-level gprMax directory) is: ``python -m tools.outputfiles_mergehdf5 basefilename modelruns``, where ``basefilename`` is the base name file of the output file series, e.g. for ``myoutput1.out``, ``myoutput2.out`` the base file name would be ``myoutput``, and ``modelruns`` is the number of output files to combine.
-* Plot an image of the B-scan using the Python module ``plot_hdf5_Bscan.py``. Usage (from the top-level gprMax directory) is: ``python -m tools.plot_hdf5_Bscan my_outputfile.out field``, where ``field`` is the name of field to plot, e.g. ``Ex``, ``Ey`` or ``Ez``.
+* Plot an image of the B-scan using the Python module ``plot_Bscan_hdf5.py``. Usage (from the top-level gprMax directory) is: ``python -m tools.plot_Bscan_hdf5 my_outputfile.out field``, where ``field`` is the name of field to plot, e.g. ``Ex``, ``Ey`` or ``Ez``.
 
 

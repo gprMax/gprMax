@@ -27,7 +27,7 @@ temporal :math:`\Delta t` steps play a very significant role -- since the smalle
 
 .. _yeecell:
 
-.. figure:: images/yeecell.pdf
+.. figure:: images/yeecell.png
 
     3D FDTD Yee cell
 		
@@ -45,7 +45,7 @@ One of the most challenging issues in modelling *open boundary* problems, such a
 
 .. _abcs:
 
-.. figure:: images/abcs.pdf
+.. figure:: images/abcs.png
 
     GPR forward problem showing computational domain bounded by Absorbing Boundary Conditions (ABCs)
 		
@@ -63,7 +63,7 @@ A right-handed Cartesian coordinate system is used with the origin of space coor
 
 .. _coord3d:
 
-.. figure:: images/coord3d.pdf
+.. figure:: images/coord3d.png
 
     gprMax coordinate system and conventions.
 
