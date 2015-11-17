@@ -639,7 +639,6 @@ Allows you to specify waveforms to use with sources in the model. The syntax of 
     * ``gaussiandotnorm`` which is the normalised first derivative of a Gaussian waveform.
     * ``gaussiandotdot`` which is the second derivative of a Gaussian waveform.
     * ``gaussiandotdotnorm`` which is the normalised second derivative of a Gaussian waveform.
-    * ``gaussiandotdotdot`` which is the third derivative of a Gaussian waveform.
     * ``ricker`` which is a Ricker (or Mexican hat) waveform, i.e. the negative, normalised second derivative of a Gaussian waveform.
     * ``sine`` which is a single cycle of a sine waveform.
     * ``contsine`` which is a continuous sine waveform. In order to avoid introducing noise into the calculation the amplitude of the waveform is modulated for the first cycle of the sine wave (ramp excitation).
