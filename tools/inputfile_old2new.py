@@ -178,8 +178,8 @@ while(lindex < len(inputlines)):
             inputlines.pop(lindex)
 
         elif cmdname == '#snapshot':
-            # Syntax of old command: #snapshot: x1 y1 z1 x2 y2 z2 dx dy dz time filename type
-            replacement = '#snapshot: {} {} {} {} {} {} {} {} {} {} {}'.format(params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7], params[8], params[9], params[10])
+            # Syntax of old command: #snapshot: i1 x1 y1 z1 x2 y2 z2 dx dy dz time filename type
+            replacement = '#snapshot: {} {} {} {} {} {} {} {} {} {} {} n'.format(params[1], params[2], params[3], params[4], params[5], params[6], params[7], params[8], params[9], params[10], params[11])
             print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
             inputlines.pop(lindex)
             inputlines.insert(lindex, replacement)
