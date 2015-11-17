@@ -55,7 +55,7 @@ Second derivative of a Gaussian waveform.
 
 .. math:: I = 2\zeta \left(2\zeta(t-\chi)^2 - 1 \right) e^{-\zeta(t-\chi)^2}
 
-where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
+where :math:`I` is the current, :math:`\zeta = \pi^2f^2`, :math:`\chi=\frac{\sqrt{2}}{f}` and :math:`f` is the frequency.
 
 .. figure:: images/gaussiandotdot.png
 
@@ -69,25 +69,11 @@ Normalised second derivative of a Gaussian waveform.
 
 .. math:: I = \left( 2\zeta (t-\chi)^2 - 1 \right) e^{-\zeta(t-\chi)^2}
 
-where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
+where :math:`I` is the current, :math:`\zeta = \pi^2f^2`, :math:`\chi=\frac{\sqrt{2}}{f}` and :math:`f` is the frequency.
 
 .. figure:: images/gaussiandotdotnorm.png
 
     Example of the ``gaussiandotdotnorm`` waveform - time domain and power spectrum.
-
-
-gaussiandotdotdot
-=================
-
-Third derivative of a Gaussian waveform.
-
-.. math:: I = \zeta^2 \left( 3(t-\chi) - 2\zeta (t-\chi)^3 \right) e^{-\zeta(t-\chi)^2}
-
-where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
-
-.. figure:: images/gaussiandotdotdot.png
-
-    Example of the ``gaussiandotdotdot`` waveform - time domain and power spectrum.
 
 
 ricker
@@ -97,7 +83,7 @@ A Ricker (or Mexican Hat) waveform which is the negative, normalised second deri
 
 .. math:: I = - \left( 2\zeta (t-\chi)^2 -1 \right) e^{-\zeta(t-\chi)^2}
 
-where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
+where :math:`I` is the current, :math:`\zeta = \pi^2f^2`, :math:`\chi=\frac{\sqrt{2}}{f}` and :math:`f` is the frequency.
 
 .. figure:: images/ricker.png
 
