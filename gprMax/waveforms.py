@@ -46,7 +46,7 @@ class Waveform:
         
         if self.type == 'gaussiandotdot' or self.type == 'gaussiandotdotnorm' or self.type == 'ricker':
             chi = np.sqrt(2) / self.freq
-            zeta = 2 * np.pi * np.pi * self.freq * self.freq /2
+            zeta = np.pi * np.pi * self.freq * self.freq
             delay = time - chi
         else:
             chi = 1 / self.freq
