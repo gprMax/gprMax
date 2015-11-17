@@ -24,7 +24,7 @@ from .utilities import rvalue
 class Waveform:
     """Definitions of waveform shapes that can be used with sources."""
     
-    waveformtypes = ['gaussian', 'gaussiandot', 'gaussiandotdot', 'ricker', 'sine', 'contsine', 'impulse', 'user']
+    waveformtypes = ['gaussian', 'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot', 'gaussiandotdotnorm', 'ricker', 'sine', 'contsine', 'impulse', 'user']
     
     def __init__(self):
         self.ID = None
@@ -43,7 +43,8 @@ class Waveform:
         Returns:
             waveform (float): Calculated value for waveform.
         """
-        if self.type == 'gaussiandotdot' or self.type == 'gaussiandotdotnorm' or self.type == "ricker":
+        
+        if self.type == 'gaussiandotdot' or self.type == 'gaussiandotdotnorm' or self.type == 'ricker':
             chi = np.sqrt(2) / self.freq
             zeta = 2 * np.pi * np.pi * self.freq * self.freq /2
             delay = time - chi
@@ -68,9 +69,6 @@ class Waveform:
         elif self.type == 'gaussiandotdotnorm':
             normalise = 1 / (2 * zeta)
             waveform = 2 * zeta * (2 * zeta * delay * delay - 1) * np.exp(-zeta * delay * delay) * normalise
-
-        elif self.type == 'gaussiandotdotdot':
-            waveform = zeta * zeta * (3 * delay - 2 * zeta * delay * delay * delay) * np.exp(-zeta * delay * delay)
 
         elif self.type == 'ricker':
             normalise = 1 / (2 * zeta)
