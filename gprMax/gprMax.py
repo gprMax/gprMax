@@ -258,7 +258,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, inputdirectory):
                 dielectricsmoothing = 'dielectric smoothing permitted.'
             else:
                 dielectricsmoothing = 'dielectric smoothing not permitted.'
-            print('{:3}\t{:12}\tepsr={:4.2f}, sig={:.3e} S/m; mur={:4.2f}, sig*={:.3e} S/m; '.format(material.numID, material.ID, material.er, material.se, material.mr, material.sm) + tmp + dielectricsmoothing)
+            print('{:3}\t{:12}\tepsr={:4.2f}, sig={:.3e} S/m; mur={:4.2f}, sig*={:.3e} Ohms/m; '.format(material.numID, material.ID, material.er, material.se, material.mr, material.sm) + tmp + dielectricsmoothing)
     
     # Write files for any geometry views
     if G.geometryviews:

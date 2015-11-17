@@ -264,7 +264,7 @@ Allows you to introduce a material into the model described by a set of constitu
 * ``f1`` is the relative permittivity, :math:`\epsilon_r`
 * ``f2`` is the conductivity (Siemens/metre), :math:`\sigma`
 * ``f3`` is the relative permeability, :math:`\mu_r`
-* ``f4`` is the magnetic conductivity, :math:`\sigma_*`
+* ``f4`` is the magnetic loss (Ohms/metre), :math:`\sigma_*`
 * ``str1`` is an identifier for the material.
 
 For example ``#material: 3 0.01 1 0 my_sand`` creates a material called ``my_sand`` which has a relative permittivity (frequency independent) of :math:`\epsilon_r = 3`, a conductivity of :math:`\sigma = 0.01` S/m, and is non-magnetic, i.e. :math:`\mu_r = 1` and :math:`\sigma_* = 0`

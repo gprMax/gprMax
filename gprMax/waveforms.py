@@ -43,11 +43,15 @@ class Waveform:
         Returns:
             waveform (float): Calculated value for waveform.
         """
-        
-        chi = 1 / self.freq
-        zeta = 2 * np.pi * np.pi * self.freq * self.freq
-        delay = time - chi
-        
+        if self.type == 'gaussiandotdot' or self.type == 'gaussiandotdotnorm' or self.type == "ricker":
+            chi = np.sqrt(2) / self.freq
+            zeta = 2 * np.pi * np.pi * self.freq * self.freq /2
+            delay = time - chi
+        else:
+            chi = 1 / self.freq
+            zeta = 2 * np.pi * np.pi * self.freq * self.freq
+            delay = time - chi
+
         if self.type == 'gaussian':
             waveform = np.exp(-zeta * delay * delay)
         
