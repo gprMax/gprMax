@@ -58,7 +58,7 @@ Get the code
 * Download the code from https://github.com/gprMax/gprMax
 
     * Click on `Releases` from the top header and choose the release you want (latest is at the top).
-    * Download zip files of the `source code` and `binary extensions` for your platform (``windows`` for 64-bit versions of Microsoft Windows or ``linux_macosx`` for 64-bit versions of Linux or Mac OS X).
+    * Download zip files of the `source code` and `binary extensions` for your platform (``windows`` for 32-bit or 64-bit versions of Microsoft Windows or ``linux_macosx`` for 64-bit versions of Linux or Mac OS X).
     * Expand both zip files and copy the contents of the ``windows`` or ``linux_macosx`` directory into the ``gprMax-v.X.Y.Z/gprMax`` directory.
 
 Install Python, packages, and C libraries
@@ -88,7 +88,7 @@ Microsoft Windows
     * Use the :code:`pip` package manager, which comes with Python, to install the **cython, pyfiglet, pyparsing, python-dateutil, and pytz** packages, e.g. :code:`pip install cython`. To check what packages are installed use :code:`pip list`.
     * Download binaries of packages **psutil, numpy, h5py,  matplotlib** from http://www.lfd.uci.edu/~gohlke/pythonlibs/, and then install (in the aforementioned order) using ``pip``, e.g. :code:`pip install numpy-1.9.2+mkl-cp35-none-win_amd64.whl`
 
-* Install the Microsoft Visual Studio 2015 C++ Redistributable (``vc_redist.x64.exe``) from https://www.microsoft.com/en-us/download/details.aspx?id=48145.
+* Install the Microsoft Visual Studio 2015 C++ Redistributable (``vc_redist.x86.exe`` for 32-bit or ``vc_redist.x64.exe`` for 64-bit) from https://www.microsoft.com/en-us/download/details.aspx?id=48145.
 
 **You are now ready to proceed to the section on running gprMax.**
 
