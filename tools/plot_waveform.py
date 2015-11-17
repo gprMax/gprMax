@@ -50,9 +50,8 @@ while not timeiter.finished:
     timeiter.iternext()
 
 # Calculate frequency spectra of waveform
-fs = 1/dt
-power = 20*np.log10(np.abs(np.fft.rfft(waveform)))
-f = np.linspace(0, fs/2, len(power))
+power = 20 * np.log10(np.abs(np.fft.fft(waveform))**2)
+f = np.fft.fftfreq(power.size, d=dt)
 
 # Shift powers so any spectra with negative DC component will start at zero
 power -= np.amax(power)
@@ -62,10 +61,10 @@ pltrange = np.where(f > (4 * w.freq))[0][0]
 
 # Plot waveform
 fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num=w.type, figsize=(20, 10), facecolor='w', edgecolor='w')
-ax1.plot(time, waveform,'r', lw=2)
+ax1.plot(time, waveform, 'r', lw=2)
 ax1.set_xlabel('Time [ns]')
 ax1.set_ylabel('Amplitude')
-[label.set_bbox(dict(facecolor='white', edgecolor='None', alpha=0.65 )) for label in ax1.get_xticklabels() + ax1.get_yticklabels()]
+[label.set_bbox(dict(facecolor='white', edgecolor='None', alpha=0.65)) for label in ax1.get_xticklabels() + ax1.get_yticklabels()]
 
 # Plot frequency spectra
 ax2.stem(f[0:pltrange]/1e9, power[0:pltrange],'b', lw=2)
