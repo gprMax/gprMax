@@ -32,7 +32,7 @@ file = args.outputfile
 f = h5py.File(file, 'r')
 nrx = f.attrs['nrx']
 time = np.arange(0, f.attrs['dt'] * f.attrs['Iterations'], f.attrs['dt'])
-time = time / 1E-9
+time = time / 1e-9
 
 for rx in range(1, nrx + 1):
     path = '/rxs/rx' + str(rx) + '/'
