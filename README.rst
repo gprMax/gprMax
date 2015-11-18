@@ -68,6 +68,9 @@ Mac OS X and Linux
 ^^^^^^^^^^^^^^^^^^
 
 * Install Python 3 (https://www.python.org/downloads/)
+
+    * Mac OS X: It is recommended to install Python 3 via the Homebrew package manager (http://brew.sh) rather than from the Python website.
+
 * Install Python packages: **cython, h5py, matplotlib, numpy, psutil, pyfiglet**. Optionally **mpi4py** if you want to use the Message Passing Interface (MPI) task farm functionality (requires an installation of OpenMPI).
 
     * Mac OS X: packages can be installed using the :code:`pip` package manager which comes with Python, e.g. :code:`pip install cython`. To check what packages are installed use :code:`pip list`.
@@ -112,6 +115,9 @@ Mac OS X and Linux
 ^^^^^^^^^^^^^^^^^^
 
 * Install Python 3 (https://www.python.org/downloads/)
+
+    * Mac OS X: It is recommended to install Python 3 via the Homebrew package manager (http://brew.sh) rather than from the Python website.
+
 * Install Python packages: **cython, h5py, matplotlib, numpy, psutil, pyfiglet**. Optionally **mpi4py** if you want to use the Message Passing Interface (MPI) task farm functionality (requires an installation of OpenMPI).
 
     * Mac OS X: packages can be installed using the :code:`pip` package manager which comes with Python, e.g. :code:`pip install cython`. To check what packages are installed use :code:`pip list`.
