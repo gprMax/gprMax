@@ -683,7 +683,7 @@ Allows you to specify a current density term at an electric field location (the 
 
 .. code-block:: none
 
-    #hertzian_dipole: c1 f1 f2 f3 [f4 f5] str1
+    #hertzian_dipole: c1 f1 f2 f3 str1 [f4 f5]
 
 * ``c1`` is the polarisation of the source and can be ``x``, ``y``, or ``z``.
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the source in the model.
@@ -699,7 +699,7 @@ This will simulate an infinitesimal magnetic dipole. This is often referred to a
 
 .. code-block:: none
 
-    #magnetic_dipole: c1 f1 f2 f3 [f4 f5] str1
+    #magnetic_dipole: c1 f1 f2 f3 str1 [f4 f5]
 
 * ``c1`` is the polarisation of the source and can be ``x``, ``y``, or ``z``.
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the source in the model.
@@ -713,7 +713,7 @@ Allows you to introduce a voltage source at the position of an electric field co
 
 .. code-block:: none
 
-    #voltage_source: c1 f1 f2 f3 f4 [f5 f6] str1
+    #voltage_source: c1 f1 f2 f3 f4 str1 [f5 f6]
 
 * ``c1`` is the polarisation of the source and can be ``x``, ``y``, or ``z``.
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the source in the model.
