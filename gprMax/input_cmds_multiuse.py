@@ -492,18 +492,17 @@ def process_multicmds(multicmds, G):
                 material.type = 'drude'
                 material.poles = poles
                 material.average = False
-                for pole in range(1, 3 * poles, 3):
-                    if float(tmp[pole]) > 0 and float(tmp[pole + 1]) > G.dt and float(tmp[pole + 2]) > G.dt:
-                        material.deltaer.append(float(tmp[pole]))
-                        material.tau.append(float(tmp[pole + 1]))
-                        material.alpha.append(float(tmp[pole + 2]))
+                for pole in range(1, 2 * poles, 2):
+                    if float(tmp[pole]) > 0 and float(tmp[pole + 1]) > G.dt:
+                        material.tau.append(float(tmp[pole ]))
+                        material.alpha.append(float(tmp[pole + 1]))
                     else:
-                        raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the permittivity difference and relaxation times, and relaxation times that are greater than the time step for the model.')
+                        raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the relaxation times, and relaxation times that are greater than the time step for the model.')
                 if material.poles > Material.maxpoles:
                     Material.maxpoles = material.poles
 
                 if G.messages:
-                    print('Drude-type disperion added to {} with delta_epsr={}, tau1={} secs, and tau2={} secs created.'.format(material.ID, ','.join('%4.2f' % deltaer for deltaer in material.deltaer), ','.join('%4.3e' % tau for tau in material.tau), ','.join('%4.3e' % alpha for alpha in material.alpha)))
+                    print('Drude-type disperion added to {} with tau1={} secs, and tau2={} secs created.'.format(material.ID, ','.join('%4.3e' % tau for tau in material.tau), ','.join('%4.3e' % alpha for alpha in material.alpha)))
 
 
     cmdname = '#soil_peplinski'

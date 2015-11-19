@@ -283,16 +283,24 @@ For example ``#material: 3 0.01 1 0 my_sand`` creates a material called ``my_san
 #add_dispersion_debye:
 ----------------------
 
-Allows you to add dispersive properties to an already defined ``#material`` based on a multiple pole Debye formulation (see :ref:`capabilities` section). The syntax of the command is:
+Allows you to add dispersive properties to an already defined ``#material`` based on a multiple pole Debye formulation (see :ref:`capabilities` section). For example, the susceptability function for a single-pole Debye material is given by:
+
+.. math::
+
+    \chi_p (t) = \frac{\epsilon_{rs} - \epsilon_{r \infty}}{\tau_p} e^{-t/\tau_p} \equiv \frac{\Delta \epsilon_r}{\tau_p} e^{-t/\tau_p},
+
+where :math:`\epsilon_{rs}` is the zero-frequency relative permittivity, :math:`\epsilon_{r \infty}` is the relative permittivity at infinite frequency, and :math:`\tau_p` is the pole relaxation time.
+
+The syntax of the command is:
 
 .. code-block:: none
 
     #add_dispersion_debye: i1 f1 f2 f3 f4 ... str1
 
 * ``i1`` is the number of Debye poles.
-* ``f1`` is the difference between the DC (static) relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_r = \epsilon_{rs} - \epsilon_{r \infty}` , for the first Debye pole.
+* ``f1`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_r = \epsilon_{rs} - \epsilon_{r \infty}` , for the first Debye pole.
 * ``f2`` is the relaxation time (seconds), :math:`\tau`, for the first Debye pole.
-* ``f3`` is the difference between the DC (static) relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_r = \epsilon_{rs} - \epsilon_{r \infty}` , for the second Debye pole.
+* ``f3`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_r = \epsilon_{rs} - \epsilon_{r \infty}` , for the second Debye pole.
 * ``f4`` is the relaxation time (seconds), :math:`\tau`, for the second Debye pole.
 * ``str1`` identifies the material to add the dispersive properties to.
 
@@ -302,23 +310,37 @@ Important notes:
 
 * You can continue to add pairs of values for :math:`\Delta \epsilon_r` and :math:`\tau` for as many Debye poles as you have specified with ``i1``.
 * The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
-* Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model. gprMax checks and verifies this condition and if it does not then will exit raising an error.
+* Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
 
 
 #add_dispersion_lorenz:
 -----------------------
 
-Allows you to add dispersive properties to an already defined ``#material`` based on a multiple pole Lorenz formulation (see :ref:`capabilities` section). The syntax of the command is:
+Allows you to add dispersive properties to an already defined ``#material`` based on a multiple pole Lorenz formulation (see :ref:`capabilities` section). For example, the susceptability function for a single-pole Lorentz material is given by:
+
+.. math::
+
+    \chi_p (t) = \Re \left\{ -j\gamma_p e^{(-\delta_p + j\beta_p)t} \right\},
+
+where
+
+.. math::
+
+    \beta_p = \sqrt{\omega_p^2 - \delta_p^2} \quad \textrm{and} \quad \gamma_p = \frac{\omega_p^2 \Delta \epsilon_r}{\beta_p},
+
+where :math:`\omega_p` is the frequency of the pole pair, :math:`\delta_p` is the damping coefficient, and :math:`j=\sqrt{-1}`.
+
+The syntax of the command is:
 
 .. code-block:: none
 
     #add_dispersion_lorenz: i1 f1 f2 f3 f4 f5 f6 ... str1
 
 * ``i1`` is the number of Lorenz poles.
-* ``f1`` is the difference between the DC (static) relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_r = \epsilon_{rs} - \epsilon_{r \infty}` , for the first Lorenz pole.
+* ``f1`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_r = \epsilon_{rs} - \epsilon_{r \infty}` , for the first Lorenz pole.
 * ``f2`` is the relaxation time (seconds), :math:`\tau`, for the first Lorenz pole.
 * ``f3`` is the damping factor for the first Lorenz pole.
-* ``f4`` is the difference between the DC (static) relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_r = \epsilon_{rs} - \epsilon_{r \infty}` , for the second Lorenz pole.
+* ``f4`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_r = \epsilon_{rs} - \epsilon_{r \infty}` , for the second Lorenz pole.
 * ``f5`` is the relaxation time (seconds), :math:`\tau`, for the second Lorenz pole.
 * ``f6`` is the damping factor for the second Lorenz pole.
 * ``str1`` identifies the material to add the dispersive properties to.
@@ -329,34 +351,40 @@ Important notes:
 
 * You can continue to add triplets of values for :math:`\Delta \epsilon_r` and :math:`\tau` for as many Lorenz poles as you have specified with ``i1``.
 * The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
-* Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model. gprMax checks and verifies this condition and if it does not then will exit raising an error.
+* Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
 
 
 #add_dispersion_drude:
 ----------------------
 
-Allows you to add dispersive properties to an already defined ``#material`` based on a multiple pole Drude formulation (see :ref:`capabilities` section). The syntax of the command is:
+Allows you to add dispersive properties to an already defined ``#material`` based on a multiple pole Drude formulation (see :ref:`capabilities` section). For example, the susceptability function for a single-pole Drude material is given by:
+
+.. math::
+
+    \chi_p (t) = \frac{\omega_p^2}{\gamma_p} (1-e^{-\gamma_p t}),
+
+where :math:`\omega_p` is the frequency of the pole, :math:`\gamma_p` is the inverse of the pole relaxation time.
+
+The syntax of the command is:
 
 .. code-block:: none
 
-    #add_dispersion_drude: i1 f1 f2 f3 f4 f5 f6 ... str1
+    #add_dispersion_drude: i1 f1 f2 f3 f4 ... str1
 
 * ``i1`` is the number of Drude poles.
-* ``f1`` is the difference between the DC (static) relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_r = \epsilon_{rs} - \epsilon_{r \infty}` , for the first Drude pole.
-* ``f2`` is the relaxation time (seconds), :math:`\tau`, for the first Drude pole.
-* ``f3`` is the **x** for the first Drude pole.
-* ``f4`` is the difference between the DC (static) relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_r = \epsilon_{rs} - \epsilon_{r \infty}` , for the second Drude pole.
-* ``f5`` is the relaxation time (seconds), :math:`\tau`, for the second Drude pole.
-* ``f6`` is the **x** for the second Drude pole.
+* ``f1`` is the relaxation time (seconds), :math:`\tau`, for the first Drude pole.
+* ``f2`` is the **x** for the first Drude pole.
+* ``f3`` is the relaxation time (seconds), :math:`\tau`, for the second Drude pole.
+* ``f4`` is the **x** for the second Drude pole.
 * ``str1`` identifies the material to add the dispersive properties to.
 
 *For example...*
 
 Important notes:
 
-* You can continue to add triplets of values for :math:`\Delta \epsilon_r` and :math:`\tau` for as many Drude poles as you have specified with ``i1``.
+* You can continue to add pairs of values for :math:`\tau` and **x** for as many Drude poles as you have specified with ``i1``.
 * The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
-* Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model. gprMax checks and verifies this condition and if it does not then will exit raising an error.
+* Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
 
 
 #soil_peplinski:
