@@ -306,11 +306,11 @@ The syntax of the command is:
 
 For example to create a model of water with a single Debye pole, :math:`\epsilon_{rs} = 80.1`, :math:`\epsilon_{r \inf} = 4.9` and :math:`\tau = 9.231\times 10^{-12}` seconds use: ``#material: 4.9 0.0 1.0 0.0 my_water`` and ``#add_dispersion_debye: 1 75.2 9.231e-12 my_water``.
 
-Important notes:
+.. note::
 
-* You can continue to add pairs of values for :math:`\Delta \epsilon_r` and :math:`\tau` for as many Debye poles as you have specified with ``i1``.
-* The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
-* Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
+    * You can continue to add pairs of values for :math:`\Delta \epsilon_r` and :math:`\tau` for as many Debye poles as you have specified with ``i1``.
+    * The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
+    * Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
 
 
 #add_dispersion_lorenz:
@@ -347,11 +347,11 @@ The syntax of the command is:
 
 *For example...*
 
-Important notes:
+.. note::
 
-* You can continue to add triplets of values for :math:`\Delta \epsilon_r` and :math:`\tau` for as many Lorenz poles as you have specified with ``i1``.
-* The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
-* Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
+    * You can continue to add triplets of values for :math:`\Delta \epsilon_r` and :math:`\tau` for as many Lorenz poles as you have specified with ``i1``.
+    * The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
+    * Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
 
 
 #add_dispersion_drude:
@@ -380,11 +380,11 @@ The syntax of the command is:
 
 *For example...*
 
-Important notes:
+.. note::
 
-* You can continue to add pairs of values for :math:`\tau` and **x** for as many Drude poles as you have specified with ``i1``.
-* The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
-* Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
+    * You can continue to add pairs of values for :math:`\tau` and **x** for as many Drude poles as you have specified with ``i1``.
+    * The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
+    * Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
 
 
 #soil_peplinski:
@@ -526,9 +526,9 @@ Allows you to introduce a spherical object with specific parameters into the mod
 
 For example, to specify a sphere with centre at (0.5, 0.5, 0.5), radius 100 mm, and with constitutive parameters of ``my_sand``, use: ``#sphere: 0.5 0.5 0.5 0.1 my_sand``.
 
-Important notes:
+.. note::
 
-* Sphere objects are permitted to extend outwith the model domain if desired, however, only parts of object inside the domain will be created.
+    * Sphere objects are permitted to extend outwith the model domain if desired, however, only parts of object inside the domain will be created.
 
 #cylinder:
 ----------
@@ -545,9 +545,9 @@ Allows you to introduce a circular cylinder into the model. The orientation of t
 
 For example, to specify a cylinder with its axis in the y direction, a length of 0.7 m, a radius of 100 mm, and that is a perfect electric conductor, use: ``#cylinder: 0.5 0.1 0.5 0.5 0.8 0.5 0.1 pec``.
 
-Important notes:
+.. note::
 
-* Cylinder objects are permitted to extend outwith the model domain if desired, however, only parts of object inside the domain will be created.
+    * Cylinder objects are permitted to extend outwith the model domain if desired, however, only parts of object inside the domain will be created.
 
 
 #cylindrical_sector:
@@ -569,9 +569,9 @@ Allows you to introduce a cylindrical sector (shaped like a slice of pie) into t
 
 For example, to specify a cylindrical sector with its axis in the z direction, radius of 0.25 m, thickness of 2 mm, a starting angle of 330 :math:`^\circ`, a sector angle of 60 :math:`^\circ`, and that is a perfect electric conductor, use: ``#cylindrical_sector: z 0.34 0.24 0.500 0.502 0.25 330 60 pec``.
 
-Important notes:
+.. note::
 
-* Cylindrical sector objects are permitted to extend outwith the model domain if desired, however, only parts of object inside the domain will be created.
+    * Cylindrical sector objects are permitted to extend outwith the model domain if desired, however, only parts of object inside the domain will be created.
 
 .. _fractals:
 
@@ -632,9 +632,9 @@ Allows you to add surface water to a ``#fractal_box`` in the model that has had 
 
 For example, to add surface water that is 5 mm deep to an existing ``#fractal_box`` that has been specified using ``#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 50 my_soil my_fractal_box`` and has had a rough surface applied using ``#add_surface_roughness: 0 0 0.1 0.1 0.1 0.1 1.5 1 1 0.085 0.110 my_fractal_box``, use ``#add_surface_water: 0 0 0.1 0.1 0.1 0.1 0.105 my_fractal_box``.
 
-Important notes:
+.. note::
 
-* The water is modelled using a single-pole Debye formulation with properties :math:`\epsilon_{rs} = 80.1`, :math:`\epsilon_{\infty} = 4.9`, and a relaxation time of :math:`\tau = 9.231 \times 10^{-12}` seconds (http://dx.doi.org/10.1109/TGRS.2006.873208). If you prefer, gprMax will use your own definition for water as long as it is named ``water``.
+    * The water is modelled using a single-pole Debye formulation with properties :math:`\epsilon_{rs} = 80.1`, :math:`\epsilon_{\infty} = 4.9`, and a relaxation time of :math:`\tau = 9.231 \times 10^{-12}` seconds (http://dx.doi.org/10.1109/TGRS.2006.873208). If you prefer, gprMax will use your own definition for water as long as it is named ``water``.
 
 #add_grass:
 -----------
@@ -654,9 +654,9 @@ Allows you to add grass with roots to a ``#fractal_box`` in the model. The blade
 
 For example, to apply 100 blades of grass that vary in height between 100 and 150 mm to the entire surface in the positive z direction of a ``#fractal_box`` that had been specified using ``#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 50 my_soil my_fractal_box``, use: ``#add_grass: 0 0 0.1 0.1 0.1 0.1 1.5 0.2 0.25 100 my_fractal_box``.
 
-Important notes:
+.. note::
 
-* The grass is modelled using a single-pole Debye formulation with properties :math:`\epsilon_{rs} = 18.5087`, :math:`\epsilon_{\infty} = 12.7174`, and a relaxation time of :math:`\tau = 1.0793 \times 10^{-11}` seconds (http://dx.doi.org/10.1007/BF00902994). If you prefer, gprMax will use your own definition for grass if you use a material named ``grass``. The geometry of the blades of grass are defined by the parametric equations: :math:`x = x_c +s_x {\left( \frac{t}{b_x} \right)}^2`, :math:`y = y_c +s_y {\left( \frac{t}{b_y} \right)}^2`, and :math:`z=t`, where :math:`s_x` and :math:`s_y` can be -1 or 1 which are randomly chosen, and where the constants :math:`b_x` and :math:`b_y` are random numbers based on a Gaussian distribution.
+    * The grass is modelled using a single-pole Debye formulation with properties :math:`\epsilon_{rs} = 18.5087`, :math:`\epsilon_{\infty} = 12.7174`, and a relaxation time of :math:`\tau = 1.0793 \times 10^{-11}` seconds (http://dx.doi.org/10.1007/BF00902994). If you prefer, gprMax will use your own definition for grass if you use a material named ``grass``. The geometry of the blades of grass are defined by the parametric equations: :math:`x = x_c +s_x {\left( \frac{t}{b_x} \right)}^2`, :math:`y = y_c +s_y {\left( \frac{t}{b_y} \right)}^2`, and :math:`z=t`, where :math:`s_x` and :math:`s_y` can be -1 or 1 which are randomly chosen, and where the constants :math:`b_x` and :math:`b_y` are random numbers based on a Gaussian distribution.
 
 Excitation commands
 ===================
@@ -686,9 +686,9 @@ Allows you to specify waveforms to use with sources in the model. The syntax of 
 
 For example, to specify a Gaussian waveform with an amplitude of one and a centre frequency of 1.2 GHz, use: ``#waveform: gaussian 1 1.2e9 my_gauss_pulse``.
 
-Important notes:
+.. note::
 
-* The functions used to create the waveforms can be found in the :ref:`waveforms` appendix.
+    * The functions used to create the waveforms can be found in the :ref:`waveforms` appendix.
 
 #excitation_file:
 -----------------
