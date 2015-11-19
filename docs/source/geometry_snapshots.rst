@@ -39,7 +39,7 @@ Snapshot files
 The ``#snapshot:`` command produces an ImageData (.vti) snapshot file for each time instance requested.
 
 .. tip::
-    You can take advantage of Python scripting to easily create a series of snapshots. For example, to create 30 snapshots starting at time 0.1ns until 3ns in intervals of 0.1ns, use the following code snippet in your input file. Replace `x1 y1 z1 x2 y2 z2 dx dy dz` accordingly.
+    You can take advantage of Python scripting to easily create a series of snapshots. For example, to create 30 snapshots starting at time 0.1ns until 3ns in intervals of 0.1ns, use the following code snippet in your input file. Replace ``x1 y1 z1 x2 y2 z2 dx dy dz`` accordingly.
 
     .. code-block:: none
 
