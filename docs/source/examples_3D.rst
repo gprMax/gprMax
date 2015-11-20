@@ -65,6 +65,7 @@ Results
 .. _GSSI_1500_cylinder_Bscan_results:
 
 .. figure:: images/GSSI_1500_cylinder_Bscan_results.png
+    :width: 800px
 
     B-scan of model of a metal cylinder buried in a dielectric half-space with a model of an antenna similar to a GSSI 1.5GHz antenna.
 

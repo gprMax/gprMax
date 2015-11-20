@@ -1,0 +1,27 @@
+**********
+References
+**********
+
+.. [BER1998] Bergmann, T., Robertsson, J. O., & Holliger, K. (1998). Finite-difference modeling of electromagnetic wave propagation in dispersive and attenuating media. Geophysics, 63(3), 856-867. (http://dx.doi.org/10.1190/1.1444396)
+.. [BOU1996] Bourgeois, J. M., & Smith, G. S. (1996). A fully three-dimensional simulation of a ground-penetrating radar: FDTD theory compared with experiment. Geoscience and Remote Sensing, IEEE Transactions on, 34(1), 36-44. (http://dx.doi.org/10.1109/36.481890)
+.. [BUR1981] Burrough, P. A. (1981). Fractal dimensions of landscapes and other environmental data. Nature, 294(5838), 240-242. (http://dx.doi.org/10.1038/294240a0)
+.. [DOB1985] Dobson, M. C., Ulaby, F. T., Hallikainen, M. T., & El-Rayes, M. (1985). Microwave dielectric behavior of wet soil-Part II: Dielectric mixing models. Geoscience and Remote Sensing, IEEE Transactions on, (1), 35-46. (http://dx.doi.org/10.1109/tgrs.1985.289498)
+.. [HILL1998] Hillel, D. (1998). Environmental soil physics: Fundamentals, applications, and environmental considerations. Academic press. (http://dx.doi.org/10.1016/b978-012348525-0/50030-6)
+.. [GED1998] Gedney, S. D. (1998). The perfectly matched layer absorbing medium. Advances in Computational Electrodynamics: The Finite-Difference Time-Domain Method, 263-344.
+.. [GIAK2012] Giannakis, I., Giannopoulos, A., & Davidson, N. (2012). Incorporating dispersive electrical properties in FDTD GPR models using a general Cole-Cole dispersion function. In 2012 14th International Conference on Ground Penetrating Radar (GPR). (http://dx.doi.org/10.1109/icgpr.2012.6254866)
+.. [GIA2014] Giannakis, I., & Giannopoulos, A. (2014). A Novel Piecewise Linear Recursive Convolution Approach for Dispersive Media Using the Finite-Difference Time-Domain Method. Antennas and Propagation, IEEE Transactions on, 62(5), 2669-2678. (http://dx.doi.org/10.1109/tap.2014.2308549)
+.. [GIA1997] Giannopoulos, A. (1997). The investigation of Transmission-Line Matrix and Finite-Difference Time-Domain Methods for the Forward Problem of Ground Probing Radar, D.Phil thesis, Department of Electronics, University of York, UK. (http://etheses.whiterose.ac.uk/id/eprint/2443)
+.. [GIA2012] Giannopoulos, A. (2012). Unsplit implementation of higher order PMLs. Antennas and Propagation, IEEE Transactions on, 60(3), 1479-1485. (http://dx.doi.org/10.1109/tap.2011.2180344)
+.. [IRE2013] Ireland, D., & Abbosh, A. (2013). Modeling human head at microwave frequencies using optimized Debye models and FDTD method. Antennas and Propagation, IEEE Transactions on, 61(4), 2352-2355. (http://dx.doi.org/10.1109/tap.2013.2242037)
+.. [KUN1993] Kunz, K. S., & Luebbers, R. J. (1993). The finite difference time domain method for electromagnetics. CRC press.
+.. [LI2013] Li, J., Guo, L. X., Jiao, Y. C., & Wang, R. (2013). Composite scattering of a plasma-coated target above dispersive sea surface by the ADE-FDTD method. Geoscience and Remote Sensing Letters, IEEE, 10(1), 4-8. (http://dx.doi.org/10.1109/lgrs.2012.2189751)
+.. [LUE1994] Luebbers, R., Steich, D., & Kunz, K. (1993). FDTD calculation of scattering from frequency-dependent materials. Antennas and Propagation, IEEE Transactions on, 41(9), 1249-1257. (http://dx.doi.org/10.1109/8.247751)
+.. [PIE2009] Pieraccini, M., Bicci, A., Mecatti, D., Macaluso, G., & Atzeni, C. (2009). Propagation of large bandwidth microwave signals in water. Antennas and Propagation, IEEE Transactions on, 57(11), 3612-3618. (http://dx.doi.org/10.1109/tap.2009.2025674)
+.. [TAF2005] Taflove, A., & Hagness, S. C. (2005). Computational electrodynamics. Artech house.
+.. [TEI1998] Teixeira, F. L., Chew, W. C., Straka, M., Oristaglio, M. L., & Wang, T. (1998). Finite-difference time-domain simulation of ground penetrating radar on dispersive, inhomogeneous, and conductive soils. Geoscience and Remote Sensing, IEEE Transactions on, 36(6), 1928-1937. (http://dx.doi.org/10.1109/36.729364)
+.. [TUR1987] Turcotte, D. L. (1987). A fractal interpretation of topography and geoid spectra on the Earth, Moon, Venus, and Mars. Journal of Geophysical Research: Solid Earth (1978–2012), 92(B4), E597-E601. (http://dx.doi.org/10.1029/jb092ib04p0e597)
+.. [TUR1997] Turcotte, D. L. (1997). Fractals and chaos in geology and geophysics. Cambridge university press. (http://dx.doi.org/10.1017/cbo9781139174695)
+.. [VIA2005] Vial, A., Grimault, A. S., Macías, D., Barchiesi, D., & de La Chapelle, M. L. (2005). Improved analytical fit of gold dispersion: Application to the modeling of extinction spectra with a finite-difference time-domain method. Physical Review B, 71(8), 085416. (http://dx.doi.org/10.1103/physrevb.71.085416)
+.. [WAR2011] Warren, C., & Giannopoulos, A. (2011). Creating finite-difference time-domain models of commercial ground-penetrating radar antennas using Taguchi’s optimization method. Geophysics, 76(2), G37-G47. (http://dx.doi.org/10.1190/1.3548506)
+.. [YEE1966] Yee, K. S. (1966). Numerical solution of initial boundary value problems involving Maxwell’s equations in isotropic media. IEEE Trans. Antennas Propag, 14(3), 302-307. (http://dx.doi.org/10.1109/TAP.1966.1138693)
+

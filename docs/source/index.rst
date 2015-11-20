@@ -35,3 +35,4 @@ gprMax User Guide
     :caption: Appendices
 
     app_waveforms
+    app_references

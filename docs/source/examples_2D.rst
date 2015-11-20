@@ -170,6 +170,7 @@ You can now view an image of the B-scan using the command:
 .. _cylinder_Bscan_results:
 
 .. figure:: images/cylinder_Bscan_results.png
+    :width: 800px
 
     B-scan of model of a metal cylinder buried in a dielectric half-space.
 

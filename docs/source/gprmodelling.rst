@@ -28,6 +28,7 @@ temporal :math:`\Delta t` steps play a very significant role -- since the smalle
 .. _yeecell:
 
 .. figure:: images/yeecell.png
+    :width: 550px
 
     3D FDTD Yee cell
 		
@@ -46,6 +47,7 @@ One of the most challenging issues in modelling *open boundary* problems, such a
 .. _abcs:
 
 .. figure:: images/abcs.png
+    :width: 600px
 
     GPR forward problem showing computational domain bounded by Absorbing Boundary Conditions (ABCs)
 		
@@ -64,6 +66,7 @@ A right-handed Cartesian coordinate system is used with the origin of space coor
 .. _coord3d:
 
 .. figure:: images/coord3d.png
+    :width: 500px
 
     gprMax coordinate system and conventions.
 
@@ -105,10 +108,3 @@ The cells of the RIPML, which have a user adjustable thickness, very efficiently
 gprMax now offers the ability (for advanced users) to customise the parameters of the PML which allows its performance to be better optimised for specific applications. For further details see the :ref:`PML commands section <pml>`.
 
 This user guide, can not serve as an in depth tutorial and a review of the FDTD method. However, some useful hints and tips are given here in order to cover the most fundamental aspects of using an FDTD based program and avoid the most common errors.
-
-**References**
-
-.. [GIA1997] Giannopoulos, A. (1997). The investigation of Transmission-Line Matrix and Finite-Difference Time-Domain Methods for the Forward Problem of Ground Probing Radar, D.Phil thesis, Department of Electronics, University of York, UK
-.. [KUN1993] Kunz, K. S., & Luebbers, R. J. (1993). The finite difference time domain method for electromagnetics. CRC press.
-.. [TAF2005] Taflove, A., & Hagness, S. C. (2005). Computational electrodynamics. Artech house.
-.. [YEE1966] Yee, K. S. (1966). Numerical solution of initial boundary value problems involving Maxwell’s equations in isotropic media. IEEE Trans. Antennas Propag, 14(3), 302-307.

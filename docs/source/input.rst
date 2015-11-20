@@ -287,9 +287,9 @@ Allows you to add dispersive properties to an already defined ``#material`` base
 
 .. math::
 
-    \chi_p (t) = \frac{\epsilon_{rs} - \epsilon_{r \infty}}{\tau_p} e^{-t/\tau_p} \equiv \frac{\Delta \epsilon_r}{\tau_p} e^{-t/\tau_p},
+    \chi_p (t) = \frac{\Delta \epsilon_{rp}}{\tau_p} e^{-t/\tau_p},
 
-where :math:`\epsilon_{rs}` is the zero-frequency relative permittivity, :math:`\epsilon_{r \infty}` is the relative permittivity at infinite frequency, and :math:`\tau_p` is the pole relaxation time.
+where :math:`\Delta \epsilon_{rp} = \epsilon_{rsp} - \epsilon_{r \infty p}`, :math:`\epsilon_{rsp}` is the zero-frequency relative permittivity, :math:`\epsilon_{r \infty p}` is the relative permittivity at infinite frequency, and :math:`\tau_p` is the pole relaxation time.
 
 The syntax of the command is:
 
@@ -298,19 +298,20 @@ The syntax of the command is:
     #add_dispersion_debye: i1 f1 f2 f3 f4 ... str1
 
 * ``i1`` is the number of Debye poles.
-* ``f1`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_r = \epsilon_{rs} - \epsilon_{r \infty}` , for the first Debye pole.
-* ``f2`` is the relaxation time (seconds), :math:`\tau`, for the first Debye pole.
-* ``f3`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_r = \epsilon_{rs} - \epsilon_{r \infty}` , for the second Debye pole.
-* ``f4`` is the relaxation time (seconds), :math:`\tau`, for the second Debye pole.
+* ``f1`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp1} = \epsilon_{rsp1} - \epsilon_{r \infty p1}` , for the first Debye pole.
+* ``f2`` is the relaxation time (seconds), :math:`\tau_{p1}`, for the first Debye pole.
+* ``f3`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp2} = \epsilon_{rsp2} - \epsilon_{r \infty p2}` , for the second Debye pole.
+* ``f4`` is the relaxation time (seconds), :math:`\tau_{p2}`, for the second Debye pole.
+* ...
 * ``str1`` identifies the material to add the dispersive properties to.
 
-For example to create a model of water with a single Debye pole, :math:`\epsilon_{rs} = 80.1`, :math:`\epsilon_{r \inf} = 4.9` and :math:`\tau = 9.231\times 10^{-12}` seconds use: ``#material: 4.9 0.0 1.0 0.0 my_water`` and ``#add_dispersion_debye: 1 75.2 9.231e-12 my_water``.
+For example to create a model of water with a single Debye pole, :math:`\epsilon_{rsp1} = 80.1`, :math:`\epsilon_{r \infty p1} = 4.9` and :math:`\tau_{p1} = 9.231\times 10^{-12}` seconds use: ``#material: 4.9 0 1 0 my_water`` and ``#add_dispersion_debye: 1 75.2 9.231e-12 my_water``.
 
 .. note::
 
-    * You can continue to add pairs of values for :math:`\Delta \epsilon_r` and :math:`\tau` for as many Debye poles as you have specified with ``i1``.
+    * You can continue to add pairs of values for :math:`\Delta \epsilon_{rp}` and :math:`\tau_p` for as many Debye poles as you have specified with ``i1``.
     * The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
-    * Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
+    * Temporal values associated with pole frequencies and relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
 
 
 #add_dispersion_lorenz:
@@ -328,7 +329,7 @@ where
 
     \beta_p = \sqrt{\omega_p^2 - \delta_p^2} \quad \textrm{and} \quad \gamma_p = \frac{\omega_p^2 \Delta \epsilon_r}{\beta_p},
 
-where :math:`\omega_p` is the frequency of the pole pair, :math:`\delta_p` is the damping coefficient, and :math:`j=\sqrt{-1}`.
+where :math:`\Delta \epsilon_{rp} = \epsilon_{rsp} - \epsilon_{r \infty p}`, :math:`\epsilon_{rsp}` is the zero-frequency relative permittivity, :math:`\epsilon_{r \infty p}` is the relative permittivity at infinite frequency, :math:`\omega_p` is the frequency (Hertz) of the pole pair, :math:`\delta_p` is the damping coefficient (Hertz) , and :math:`j=\sqrt{-1}`.
 
 The syntax of the command is:
 
@@ -337,19 +338,20 @@ The syntax of the command is:
     #add_dispersion_lorenz: i1 f1 f2 f3 f4 f5 f6 ... str1
 
 * ``i1`` is the number of Lorenz poles.
-* ``f1`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_r = \epsilon_{rs} - \epsilon_{r \infty}` , for the first Lorenz pole.
-* ``f2`` is the relaxation time (seconds), :math:`\tau`, for the first Lorenz pole.
-* ``f3`` is the damping factor for the first Lorenz pole.
-* ``f4`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_r = \epsilon_{rs} - \epsilon_{r \infty}` , for the second Lorenz pole.
-* ``f5`` is the relaxation time (seconds), :math:`\tau`, for the second Lorenz pole.
-* ``f6`` is the damping factor for the second Lorenz pole.
+* ``f1`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp1} = \epsilon_{rsp1} - \epsilon_{r \infty p1}` , for the first Lorenz pole.
+* ``f2`` is the frequency (Hertz), :math:`\omega_{p1}`, for the first Lorenz pole.
+* ``f3`` is the damping coefficient (Hertz), :math:`\delta_{p1}`, for the first Lorenz pole.
+* ``f4`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp2} = \epsilon_{rsp2} - \epsilon_{r \infty p2}` , for the second Lorenz pole.
+* ``f5`` is the frequency (Hertz), :math:`\omega_{p2}`, for the second Lorenz pole.
+* ``f6`` is the damping coefficient (Hertz), :math:`\delta_{p2}`, for the second Lorenz pole.
+* ...
 * ``str1`` identifies the material to add the dispersive properties to.
 
 .. note::
 
-* You can continue to add triplets of values for :math:`\Delta \epsilon_r`, :math:`\tau` and :math:`\delta` for as many Lorenz poles as you have specified with ``i1``.
+    * You can continue to add triplets of values for :math:`\Delta \epsilon_{rp}`, :math:`\omega_p` and :math:`\delta_p` for as many Lorenz poles as you have specified with ``i1``.
     * The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
-    * Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
+    * Temporal values associated with pole frequencies and relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
 
 
 #add_dispersion_drude:
@@ -361,7 +363,7 @@ Allows you to add dispersive properties to an already defined ``#material`` base
 
     \chi_p (t) = \frac{\omega_p^2}{\gamma_p} (1-e^{-\gamma_p t}),
 
-where :math:`\omega_p` is the frequency of the pole, :math:`\gamma_p` is the inverse of the pole relaxation time.
+where :math:`\omega_p` is the frequency (Hertz) of the pole, and :math:`\gamma_p` is the inverse of the pole relaxation time (Hertz).
 
 The syntax of the command is:
 
@@ -370,17 +372,17 @@ The syntax of the command is:
     #add_dispersion_drude: i1 f1 f2 f3 f4 ... str1
 
 * ``i1`` is the number of Drude poles.
-* ``f1`` is the relaxation time (seconds), :math:`\tau`, for the first Drude pole.
-* ``f2`` is the **x** for the first Drude pole.
-* ``f3`` is the relaxation time (seconds), :math:`\tau`, for the second Drude pole.
-* ``f4`` is the **x** for the second Drude pole.
+* ``f1`` is the frequency (Hertz), :math:`\omega_{p1}`, for the first Drude pole.
+* ``f2`` is the inverse of the relaxation time (Hertz), :math:`\gamma_{p1}`, for the first Drude pole.
+* ``f3`` is the frequency (Hertz), :math:`\omega_{p2}`, for the second Drude pole.
+* ``f4`` is the inverse of the relaxation time (Hertz), :math:`\gamma_{p2}` for the second Drude pole.
+* ...
 * ``str1`` identifies the material to add the dispersive properties to.
 
 .. note::
 
-    * You can continue to add pairs of values for :math:`\tau` and **x** for as many Drude poles as you have specified with ``i1``.
-    * The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
-    * Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
+    * You can continue to add pairs of values for :math:`\omega_p` and :math:`\gamma_p` for as many Drude poles as you have specified with ``i1``.
+    * Temporal values associated with pole frequencies and relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
 
 
 #soil_peplinski:
@@ -451,11 +453,6 @@ At the boundaries between different materials in the model there is the question
 
     * If an object is anistropic then dielectric smoothing is automatically turned off for that object.
     * Non-volumetric object building commands, ``#edge`` and ``#plate`` cannot have dielectric smoothing.
-
-**References**
-
-.. [LUE1994] Luebbers, R., Steich, D., & Kunz, K. (1993). FDTD calculation of scattering from frequency-dependent materials. Antennas and Propagation, IEEE Transactions on, 41(9), 1249-1257. (http://dx.doi.org/10.1109/8.247751)
-.. [BOU1996] Bourgeois, J. M., & Smith, G. S. (1996). A fully three-dimensional simulation of a ground-penetrating radar: FDTD theory compared with experiment. Geoscience and Remote Sensing, IEEE Transactions on, 34(1), 36-44. (http://dx.doi.org/10.1109/36.481890)
 
 #edge:
 ------
