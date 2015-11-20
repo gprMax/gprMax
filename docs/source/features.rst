@@ -16,7 +16,7 @@ The code has been completely re-written in Python/Cython. In the process a lot o
 * Scripting in the input file.
 * Built-in library of antenna models
 * Anisotropic material modelling.
-* Dispersive material modelling using multiple pole Debye, Lorenz or Drude formulations.
+* Dispersive material modelling using multiple pole Debye, Lorentz or Drude formulations.
 * Building heterogeneous objects using fractal distributions.
 * Building objects with rough surfaces.
 * Modelling soils with realistic dielectric and geometric properties.
@@ -28,7 +28,7 @@ New commands
 * ``#python`` and ``#end_python`` are used to define blocks of the input file where Python code will be executed. This allows the user to use scripting directly in the input file.
 * ``#material`` replaces ``#medium`` with a new syntax.
 * ``#add_dispersion_debye`` is used to add Debye dispersive properties to a ``#material``.
-* ``#add_dispersion_lorenz`` is used to add Lorenz dispersive properties to a ``#material``.
+* ``#add_dispersion_lorentz`` is used to add Lorentz dispersive properties to a ``#material``.
 * ``#add_dispersion_drude`` is used to add Drude dispersive properties to a ``#material``.
 * ``#soil_peplinski`` is a soil mixing model that can be used with ``#fractal_box`` to generate soil(s) with more realistic dielectric and geometric properties.
 * ``#cylindrical_sector`` (like a slice of pie shape) is a new object building command.
@@ -95,7 +95,7 @@ The input file has now been made scriptable by permitting blocks of Python code 
 Dispersive media
 ----------------
 
-gprMax has always included the ability to represent dispersive materials using a single-pole Debye model. Many materials can be adequately represented using this approach for the typical frequency ranges associated with GPR. However, multi-pole Debye, Drude and Lorenz functions are often used to simulate the electric susceptibility of materials such as: water [PIE2009]_, human tissue [IRE2013]_, cold plasma [LI2013]_, gold [VIA2005]_, and soils [BER1998]_, [GIAK2012]_, [TEI1998]_. Electric susceptibility relates the polarization density to the electric field, and includes both the real and imaginary parts of the complex electric permittivity variation. In the new version of gprMax a recursive convolution based method is used to express dispersive properties as apparent current density sources [GIA2014]_. A major advantage of this implementation is that it creates an inclusive susceptibility function that holds, as special cases, Debye, Drude and Lorenz materials. For further details see the :ref:`material commands section <materials>`.
+gprMax has always included the ability to represent dispersive materials using a single-pole Debye model. Many materials can be adequately represented using this approach for the typical frequency ranges associated with GPR. However, multi-pole Debye, Drude and Lorentz functions are often used to simulate the electric susceptibility of materials such as: water [PIE2009]_, human tissue [IRE2013]_, cold plasma [LI2013]_, gold [VIA2005]_, and soils [BER1998]_, [GIAK2012]_, [TEI1998]_. Electric susceptibility relates the polarization density to the electric field, and includes both the real and imaginary parts of the complex electric permittivity variation. In the new version of gprMax a recursive convolution based method is used to express dispersive properties as apparent current density sources [GIA2014]_. A major advantage of this implementation is that it creates an inclusive susceptibility function that holds, as special cases, Debye, Drude and Lorentz materials. For further details see the :ref:`material commands section <materials>`.
 
 Realistic soils, heterogeneous objects and rough surfaces
 ---------------------------------------------------------

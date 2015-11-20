@@ -432,7 +432,7 @@ def process_multicmds(multicmds, G):
                 if G.messages:
                     print('Debye-type disperion added to {} with delta_epsr={}, and tau={} secs created.'.format(material.ID, ','.join('%4.2f' % deltaer for deltaer in material.deltaer), ','.join('%4.3e' % tau for tau in material.tau)))
 
-    cmdname = '#add_dispersion_lorenz'
+    cmdname = '#add_dispersion_lorentz'
     if multicmds[cmdname] != 'None':
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
@@ -452,7 +452,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' material(s) {} do not exist'.format(notfound))
             
             for material in materials:
-                material.type = 'lorenz'
+                material.type = 'lorentz'
                 material.poles = poles
                 material.average = False
                 for pole in range(1, 3 * poles, 3):
@@ -461,12 +461,12 @@ def process_multicmds(multicmds, G):
                         material.tau.append(float(tmp[pole + 1]))
                         material.alpha.append(float(tmp[pole + 2]))
                     else:
-                        raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the permittivity difference and relaxation times, and relaxation times that are greater than the time step for the model.')
+                        raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the permittivity difference and frequencies, and associated times that are greater than the time step for the model.')
                 if material.poles > Material.maxpoles:
                     Material.maxpoles = material.poles
 
                 if G.messages:
-                    print('Lorenz-type disperion added to {} with delta_epsr={}, tau={} secs, and alpha={} created.'.format(material.ID, ','.join('%4.2f' % deltaer for deltaer in material.deltaer), ','.join('%4.3e' % tau for tau in material.tau), ','.join('%4.3e' % alpha for alpha in material.alpha)))
+                    print('Lorentz-type disperion added to {} with delta_epsr={}, omega={} secs, and gamma={} created.'.format(material.ID, ','.join('%4.2f' % deltaer for deltaer in material.deltaer), ','.join('%4.3e' % tau for tau in material.tau), ','.join('%4.3e' % alpha for alpha in material.alpha)))
 
 
     cmdname = '#add_dispersion_drude'
@@ -497,12 +497,12 @@ def process_multicmds(multicmds, G):
                         material.tau.append(float(tmp[pole ]))
                         material.alpha.append(float(tmp[pole + 1]))
                     else:
-                        raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the relaxation times, and relaxation times that are greater than the time step for the model.')
+                        raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the frequencies, and associated times that are greater than the time step for the model.')
                 if material.poles > Material.maxpoles:
                     Material.maxpoles = material.poles
 
                 if G.messages:
-                    print('Drude-type disperion added to {} with tau1={} secs, and tau2={} secs created.'.format(material.ID, ','.join('%4.3e' % tau for tau in material.tau), ','.join('%4.3e' % alpha for alpha in material.alpha)))
+                    print('Drude-type disperion added to {} with omega={} secs, and gamma={} secs created.'.format(material.ID, ','.join('%4.3e' % tau for tau in material.tau), ','.join('%4.3e' % alpha for alpha in material.alpha)))
 
 
     cmdname = '#soil_peplinski'

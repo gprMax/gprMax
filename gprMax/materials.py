@@ -28,7 +28,7 @@ class Material():
     maxpoles = 0
     
     # Types of material
-    types = ['standard', 'debye', 'lorenz', 'drude']
+    types = ['standard', 'debye', 'lorentz', 'drude']
     
     # Properties of water from: http://dx.doi.org/10.1109/TGRS.2006.873208
     waterer = 80.1
@@ -102,12 +102,16 @@ class Material():
                 if self.type == 'debye':
                     self.w[x] = self.deltaer[x] / self.tau[x]
                     self.q[x] = -1 / self.tau[x]
-                elif self.type == 'lorenz':
-                    wp2 = (2 * np.pi * (1 / self.tau[x])) * (2 * np.pi * (1 / self.tau[x]))
+                elif self.type == 'lorentz':
+                    # tau for Lorentz materials are pole frequencies
+                    # alpha for Lorentz materials are the damping coefficients
+                    wp2 = (2 * np.pi * self.tau[x]) * (2 * np.pi * (1 / self.tau[x]))
                     self.w[x] = -(wp2 * self.deltaer[x]) * j / np.sqrt(wp2 - (self.alpha[x] * self.alpha[x]))
                     self.q[x] = -self.alpha[x] + np.sqrt(wp2 - (self.alpha[x] * self.alpha[x])) * j
                 elif self.type == 'drude':
-                    wp2 = (2 * np.pi * (1 / self.tau[x])) * (2 * np.pi * (1 / self.tau[x]))
+                    # tau for Drude materials are pole frequencies
+                    # alpha for Drude materials are the inverse of relaxation times
+                    wp2 = (2 * np.pi * self.tau[x]) * (2 * np.pi * self.tau[x])
                     self.se += wp2 / self.alpha[x]
                     self.w[x] = - (wp2 / self.alpha[x])
                     self.q[x] = - self.alpha[x]

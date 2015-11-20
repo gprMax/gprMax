@@ -43,7 +43,7 @@ newfile += '_oldstyle'
 
 print("Attempting to convert inputfile '{}' to use old syntax...\n".format(inputfile))
 
-newcommands = ['#add_dispersion_lorenz', '#add_dispersion_drude', '#fractal_box', '#soil_peplinski', '#python', '#end_python', '#add_surface_roughness', '#add_surface_water', '#add_grass', '#magnetic_dipole', '#pml_cfs', '#cylindrical_sector', '#time_step_limit_type']
+newcommands = ['#add_dispersion_lorentz', '#add_dispersion_drude', '#fractal_box', '#soil_peplinski', '#python', '#end_python', '#add_surface_roughness', '#add_surface_water', '#add_grass', '#magnetic_dipole', '#pml_cfs', '#cylindrical_sector', '#time_step_limit_type']
 materials = {}
 debyes = []
 waveforms = []

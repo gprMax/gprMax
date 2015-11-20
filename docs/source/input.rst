@@ -314,10 +314,10 @@ For example to create a model of water with a single Debye pole, :math:`\epsilon
     * Temporal values associated with pole frequencies and relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
 
 
-#add_dispersion_lorenz:
+#add_dispersion_lorentz:
 -----------------------
 
-Allows you to add dispersive properties to an already defined ``#material`` based on a multiple pole Lorenz formulation (see :ref:`capabilities` section). For example, the susceptability function for a single-pole Lorentz material is given by:
+Allows you to add dispersive properties to an already defined ``#material`` based on a multiple pole Lorentz formulation (see :ref:`capabilities` section). For example, the susceptability function for a single-pole Lorentz material is given by:
 
 .. math::
 
@@ -335,21 +335,21 @@ The syntax of the command is:
 
 .. code-block:: none
 
-    #add_dispersion_lorenz: i1 f1 f2 f3 f4 f5 f6 ... str1
+    #add_dispersion_lorentz: i1 f1 f2 f3 f4 f5 f6 ... str1
 
-* ``i1`` is the number of Lorenz poles.
-* ``f1`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp1} = \epsilon_{rsp1} - \epsilon_{r \infty p1}` , for the first Lorenz pole.
-* ``f2`` is the frequency (Hertz), :math:`\omega_{p1}`, for the first Lorenz pole.
-* ``f3`` is the damping coefficient (Hertz), :math:`\delta_{p1}`, for the first Lorenz pole.
-* ``f4`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp2} = \epsilon_{rsp2} - \epsilon_{r \infty p2}` , for the second Lorenz pole.
-* ``f5`` is the frequency (Hertz), :math:`\omega_{p2}`, for the second Lorenz pole.
-* ``f6`` is the damping coefficient (Hertz), :math:`\delta_{p2}`, for the second Lorenz pole.
+* ``i1`` is the number of Lorentz poles.
+* ``f1`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp1} = \epsilon_{rsp1} - \epsilon_{r \infty p1}` , for the first Lorentz pole.
+* ``f2`` is the frequency (Hertz), :math:`\omega_{p1}`, for the first Lorentz pole.
+* ``f3`` is the damping coefficient (Hertz), :math:`\delta_{p1}`, for the first Lorentz pole.
+* ``f4`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp2} = \epsilon_{rsp2} - \epsilon_{r \infty p2}` , for the second Lorentz pole.
+* ``f5`` is the frequency (Hertz), :math:`\omega_{p2}`, for the second Lorentz pole.
+* ``f6`` is the damping coefficient (Hertz), :math:`\delta_{p2}`, for the second Lorentz pole.
 * ...
 * ``str1`` identifies the material to add the dispersive properties to.
 
 .. note::
 
-    * You can continue to add triplets of values for :math:`\Delta \epsilon_{rp}`, :math:`\omega_p` and :math:`\delta_p` for as many Lorenz poles as you have specified with ``i1``.
+    * You can continue to add triplets of values for :math:`\Delta \epsilon_{rp}`, :math:`\omega_p` and :math:`\delta_p` for as many Lorentz poles as you have specified with ``i1``.
     * The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
     * Temporal values associated with pole frequencies and relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
 
