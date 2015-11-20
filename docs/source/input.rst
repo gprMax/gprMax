@@ -345,11 +345,9 @@ The syntax of the command is:
 * ``f6`` is the damping factor for the second Lorenz pole.
 * ``str1`` identifies the material to add the dispersive properties to.
 
-*For example...*
-
 .. note::
 
-    * You can continue to add triplets of values for :math:`\Delta \epsilon_r` and :math:`\tau` for as many Lorenz poles as you have specified with ``i1``.
+* You can continue to add triplets of values for :math:`\Delta \epsilon_r`, :math:`\tau` and :math:`\delta` for as many Lorenz poles as you have specified with ``i1``.
     * The relative permittivity in the ``#material`` command should be given as the relative permittivity at infinite frequency, i.e. :math:`\epsilon_{r \infty}`.
     * Values for the relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
 
@@ -377,8 +375,6 @@ The syntax of the command is:
 * ``f3`` is the relaxation time (seconds), :math:`\tau`, for the second Drude pole.
 * ``f4`` is the **x** for the second Drude pole.
 * ``str1`` identifies the material to add the dispersive properties to.
-
-*For example...*
 
 .. note::
 
@@ -449,12 +445,17 @@ As another example, to create a cylinder of radius 10 mm that has the same prope
 Dielectric smoothing
 --------------------
 
-At the boundaries between different materials in the model there is the question of which material properties to use. Should the last object to be defined at that location dictate the properties? Should an average set of properties of the materials of the objects that share that location be used? This latter option is often referred to as dielectric smoothing. To address this question gprMax includes an option to turn dielectric smoothing on or off for volumetric object building commands. The default behaviour (if no option is specified) is for dielectric smoothing to be on. The option can be specified with a single character ``y`` (on) or ``n`` (off) given after the material identifier in each object command. For example to specify a sphere of material ``sand`` with dielectric smoothing turned off use: ``#sphere: 0.5 0.5 0.5 0.1 sand n``.
+At the boundaries between different materials in the model there is the question of which material properties to use. Should the last object to be defined at that location dictate the properties? Should an average set of properties of the materials of the objects that share that location be used? This latter option is often referred to as dielectric smoothing and has been shown to result in more accurate simulations [LUE1994]_ [BOU1996]_. To address this question gprMax includes an option to turn dielectric smoothing on or off for volumetric object building commands. The default behaviour (if no option is specified) is for dielectric smoothing to be on. The option can be specified with a single character ``y`` (on) or ``n`` (off) given after the material identifier in each object command. For example to specify a sphere of material ``sand`` with dielectric smoothing turned off use: ``#sphere: 0.5 0.5 0.5 0.1 sand n``.
 
-Important notes:
+.. note::
 
-* If an object is anistropic then dielectric smoothing is automatically turned off for that object.
-* Non-volumetric object building commands, ``#edge`` and ``#plate`` cannot have dielectric smoothing.
+    * If an object is anistropic then dielectric smoothing is automatically turned off for that object.
+    * Non-volumetric object building commands, ``#edge`` and ``#plate`` cannot have dielectric smoothing.
+
+**References**
+
+.. [LUE1994] Luebbers, R., Steich, D., & Kunz, K. (1993). FDTD calculation of scattering from frequency-dependent materials. Antennas and Propagation, IEEE Transactions on, 41(9), 1249-1257. (http://dx.doi.org/10.1109/8.247751)
+.. [BOU1996] Bourgeois, J. M., & Smith, G. S. (1996). A fully three-dimensional simulation of a ground-penetrating radar: FDTD theory compared with experiment. Geoscience and Remote Sensing, IEEE Transactions on, 34(1), 36-44. (http://dx.doi.org/10.1109/36.481890)
 
 #edge:
 ------

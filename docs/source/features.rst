@@ -126,7 +126,7 @@ At the boundaries between different materials in the model there is the question
 * Should the last object to be defined at that location dictate the properties?
 * Should an average set of properties of the materials of the objects that share that location be used?
 
-This latter option is often referred to as dielectric smoothing. To address this question gprMax includes an option to turn dielectric smoothing on or off for volumetric object building commands. The default behaviour (if no option is specified) is for dielectric smoothing to be on. The option can be specified with a single character ``y`` (on) or ``n`` (off) given after the material identifier in each object command.
+This latter option is often referred to as dielectric smoothing and has been shown to result in more accurate simulations [LUE1994]_ [BOU1996]_.. To address this question gprMax includes an option to turn dielectric smoothing on or off for volumetric object building commands. The default behaviour (if no option is specified) is for dielectric smoothing to be on. The option can be specified with a single character ``y`` (on) or ``n`` (off) given after the material identifier in each object command.
 
 Perfectly Matched Layer (PML) boundary conditions
 -------------------------------------------------
@@ -156,6 +156,8 @@ In addition, the Visualization Toolkit (VTK) (http://www.vtk.org) is being used 
 .. [BUR1981] Burrough, P. A. (1981). Fractal dimensions of landscapes and other environmental data. Nature, 294(5838), 240-242. (http://dx.doi.org/10.1038/294240a0)
 .. [HILL1998] Hillel, D. (1998). Environmental soil physics: Fundamentals, applications, and environmental considerations. Academic press. (http://dx.doi.org/10.1016/b978-012348525-0/50030-6)
 .. [WAR2011] Warren, C., & Giannopoulos, A. (2011). Creating finite-difference time-domain models of commercial ground-penetrating radar antennas using Taguchi’s optimization method. Geophysics, 76(2), G37-G47. (http://dx.doi.org/10.1190/1.3548506)
+.. [LUE1994] Luebbers, R., Steich, D., & Kunz, K. (1993). FDTD calculation of scattering from frequency-dependent materials. Antennas and Propagation, IEEE Transactions on, 41(9), 1249-1257. (http://dx.doi.org/10.1109/8.247751)
+.. [BOU1996] Bourgeois, J. M., & Smith, G. S. (1996). A fully three-dimensional simulation of a ground-penetrating radar: FDTD theory compared with experiment. Geoscience and Remote Sensing, IEEE Transactions on, 34(1), 36-44. (http://dx.doi.org/10.1109/36.481890)
 .. [GED1998] Gedney, S. D. (1998). The perfectly matched layer absorbing medium. Advances in Computational Electrodynamics: The Finite-Difference Time-Domain Method, 263-344.
 .. [GIA2012] Giannopoulos, A. (2012). Unsplit implementation of higher order PMLs. Antennas and Propagation, IEEE Transactions on, 60(3), 1479-1485. (http://dx.doi.org/10.1109/tap.2011.2180344)
 
