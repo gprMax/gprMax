@@ -105,7 +105,7 @@ Get the code
 ------------
 
 * Use **Git** (https://git-scm.com) and clone the master branch of the repository: :code:`git clone https://github.com/gprMax/gprMax.git`
-* or **download a zip archive** of the code from https://github.com/gprMax/gprMax. Choose the ``Download ZIP`` button (right-hand side of the page).
+* or **download a zip archive** of the code from https://github.com/gprMax/gprMax. Choose the ``Download ZIP`` button from the top header.
 
 
 Install Python, packages, and a C compiler
