@@ -44,6 +44,6 @@ for rx in range(1, nrx + 1):
     Hz = f[path + 'Hz'][:]
     fig, plt = plot_Ascan('rx' + str(rx), time, Ex, Ey, Ez, Hx, Hy, Hz)
     #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    plt.show()
 
+plt.show()
 f.close()
