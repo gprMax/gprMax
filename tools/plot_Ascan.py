@@ -19,12 +19,12 @@
 import os, argparse
 import h5py
 import numpy as np
-from .plot_fields import plot_Ascan
+import matplotlib.pyplot as plt
 
 """Plots electric and magnetic fields from all receiver points in the given output file. Each receiver point is plotted in a new figure window."""
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Plots electric and magnetic fields from all receiver points in the given output file. Each receiver point is plotted in a new figure window.', usage='cd gprMax; python -m tools.plot_Ascan_hdf5 outputfile')
+parser = argparse.ArgumentParser(description='Plots electric and magnetic fields from all receiver points in the given output file. Each receiver point is plotted in a new figure window.', usage='cd gprMax; python -m tools.plot_Ascan outputfile')
 parser.add_argument('outputfile', help='name of output file including path')
 args = parser.parse_args()
 
@@ -42,7 +42,23 @@ for rx in range(1, nrx + 1):
     Hx = f[path + 'Hx'][:]
     Hy = f[path + 'Hy'][:]
     Hz = f[path + 'Hz'][:]
-    fig, plt = plot_Ascan('rx' + str(rx), time, Ex, Ey, Ez, Hx, Hy, Hz)
+    
+    fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
+    ax1.plot(time, Ex,'r', lw=2, label='Ex')
+    ax3.plot(time, Ey,'r', lw=2, label='Ey')
+    ax5.plot(time, Ez,'r', lw=2, label='Ez')
+    ax2.plot(time, Hx,'b', lw=2, label='Hx')
+    ax4.plot(time, Hy,'b', lw=2, label='Hy')
+    ax6.plot(time, Hz,'b', lw=2, label='Hz')
+
+    # Set ylabels
+    ylabels = ['$E_x$, field strength [V/m]', '$H_x$, field strength [A/m]', '$E_y$, field strength [V/m]', '$H_y$, field strength [A/m]', '$E_z$, field strength [V/m]', '$H_z$, field strength [A/m]']
+    [ax.set_ylabel(ylabels[index]) for index, ax in enumerate(fig.axes)]
+
+    # Turn on grid
+    [ax.grid() for ax in fig.axes]
+
+    # Save a PDF of the figure
     #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
 
 plt.show()

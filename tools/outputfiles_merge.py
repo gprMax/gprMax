@@ -23,7 +23,7 @@ import numpy as np
 """Merges traces (A-scans) from multiple output files into one new file, then removes the series of output files."""
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Merges traces (A-scans) from multiple output files into one new file, then removes the series of output files.', usage='cd gprMax; python -m tools.outputfiles_mergehdf5 basefilename modelruns')
+parser = argparse.ArgumentParser(description='Merges traces (A-scans) from multiple output files into one new file, then removes the series of output files.', usage='cd gprMax; python -m tools.outputfiles_merge basefilename modelruns')
 parser.add_argument('basefilename', help='base name of output file series including path')
 parser.add_argument('modelruns', type=int, help='number of model runs, i.e. number of output files to merge')
 args = parser.parse_args()

@@ -55,7 +55,20 @@ for ID, name in fields.items():
     print('Total differences in field component {}: {:.1f}%'.format(name, diffsum))
 
 # Plot model
-fig1, plt1 = plot_Ascan(modelfile + ' versus analytical solution', time, model[:,0], model[:,1], model[:,2], model[:,3], model[:,4], model[:,5])
+fig1, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), num=modelfile + ' versus analytical solution', figsize=(20, 10), facecolor='w', edgecolor='w')
+    ax1.plot(time, model[:,0],'r', lw=2, label='Ex')
+    ax3.plot(time, model[:,1],'r', lw=2, label='Ey')
+    ax5.plot(time, model[:,2],'r', lw=2, label='Ez')
+    ax2.plot(time, model[:,3],'b', lw=2, label='Hx')
+    ax4.plot(time, model[:,4],'b', lw=2, label='Hy')
+    ax6.plot(time, model[:,5],'b', lw=2, label='Hz')
+
+# Set ylabels
+ylabels = ['$E_x$, field strength [V/m]', '$H_x$, field strength [A/m]', '$E_y$, field strength [V/m]', '$H_y$, field strength [A/m]', '$E_z$, field strength [V/m]', '$H_z$, field strength [A/m]']
+[ax.set_ylabel(ylabels[index]) for index, ax in enumerate(fig1.axes)]
+
+# Turn on grid
+[ax.grid() for ax in fig1.axes]
 
 # Add analytical solution and set legend
 for index, ax in enumerate(fig1.axes):
@@ -68,16 +81,26 @@ for index, ax in enumerate(fig1.axes):
     ax.legend(handles, ['Model', 'Analytical'])
 
 # Plots of differences
-fig2, plt2 = plot_Ascan('Deltas: ' + modelfile + ' versus analytical solution', time, diffs[:,0], diffs[:,1], diffs[:,2], diffs[:,3], diffs[:,4], diffs[:,5])
-[ax.set_xlim(0, time[-1]) for ax in fig2.axes]
-[ax.set_ylim(0, np.ceil(np.amax(np.abs(diffs)))) for ax in fig2.axes]
+fig2, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), num='Deltas: ' + modelfile + ' versus analytical solution', figsize=(20, 10), facecolor='w', edgecolor='w')
+    ax1.plot(time, diffs[:,0],'r', lw=2, label='Ex')
+    ax3.plot(time, diffs[:,1],'r', lw=2, label='Ey')
+    ax5.plot(time, diffs[:,2],'r', lw=2, label='Ez')
+    ax2.plot(time, diffs[:,3],'b', lw=2, label='Hx')
+    ax4.plot(time, diffs[:,4],'b', lw=2, label='Hy')
+    ax6.plot(time, diffs[:,5],'b', lw=2, label='Hz')
+
+# Set ylabels
 ylabels = ['$E_x$', '$H_x$', '$E_y$', '$H_y$', '$E_z$', '$H_z$']
 ylabels = [ylabel + ', percentage difference [%]' for ylabel in ylabels]
 [ax.set_ylabel(ylabels[index]) for index, ax in enumerate(fig2.axes)]
+
+# Set axes limits and turn on grid
+[ax.grid() for ax in fig2.axes]
+[ax.set_xlim(0, time[-1]) for ax in fig2.axes]
+[ax.set_ylim(0, np.ceil(np.amax(np.abs(diffs)))) for ax in fig2.axes]
 
 # Show/print plots
 savename = os.path.abspath(os.path.dirname(modelfile)) + os.sep + os.path.splitext(os.path.split(modelfile)[1])[0] + '_vs_analytical'
 #fig1.savefig(savename + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
 #fig2.savefig(savename + '_diffs.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-plt1.show()
-plt2.show()
+plt.show()

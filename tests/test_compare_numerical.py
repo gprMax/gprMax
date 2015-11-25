@@ -58,7 +58,20 @@ for ID, name in fields.items():
     print('Total differences in field component {}: {:.1f}%'.format(name, diffsum))
 
 # Plot new
-fig1, plt1 = plot_Ascan(newfile + ' versus ' + oldfile, timenew, new[:,0], new[:,2], new[:,4], new[:,1], new[:,3], new[:,5])
+fig1, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), num=newfile + ' versus ' + oldfile, figsize=(20, 10), facecolor='w', edgecolor='w')
+    ax1.plot(timenew, new[:,0],'r', lw=2, label='Ex')
+    ax3.plot(timenew, new[:,2],'r', lw=2, label='Ey')
+    ax5.plot(timenew, new[:,4],'r', lw=2, label='Ez')
+    ax2.plot(timenew, new[:,1],'b', lw=2, label='Hx')
+    ax4.plot(timenew, new[:,3],'b', lw=2, label='Hy')
+    ax6.plot(timenew, new[:,5],'b', lw=2, label='Hz')
+    
+# Set ylabels
+ylabels = ['$E_x$, field strength [V/m]', '$H_x$, field strength [A/m]', '$E_y$, field strength [V/m]', '$H_y$, field strength [A/m]', '$E_z$, field strength [V/m]', '$H_z$, field strength [A/m]']
+[ax.set_ylabel(ylabels[index]) for index, ax in enumerate(fig1.axes)]
+
+# Turn on grid
+[ax.grid() for ax in fig1.axes]
 
 # Add old and set legend
 for index, ax in enumerate(fig1.axes):
@@ -71,18 +84,27 @@ for index, ax in enumerate(fig1.axes):
     ax.legend(handles, ['Model (new code)', 'Model (old C code)'])
 
 # Plots of differences
-fig2, plt2 = plot_Ascan('Deltas: ' + newfile + ' versus ' + oldfile, timenew[:timesmallest], diffs[:,0], diffs[:,2], diffs[:,4], diffs[:,1], diffs[:,3], diffs[:,5])
-[ax.set_xlim(0, timenew[timesmallest - 1]) for ax in fig2.axes]
-[ax.set_ylim(0, np.ceil(np.amax(np.abs(diffs)))) for ax in fig2.axes]
+fig2, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), num='Deltas: ' + newfile + ' versus ' + oldfile, figsize=(20, 10), facecolor='w', edgecolor='w')
+    ax1.plot(timenew[:timesmallest], diffs[:,0],'r', lw=2, label='Ex')
+    ax3.plot(timenew[:timesmallest], diffs[:,2],'r', lw=2, label='Ey')
+    ax5.plot(timenew[:timesmallest], diffs[:,4],'r', lw=2, label='Ez')
+    ax2.plot(timenew[:timesmallest], diffs[:,1],'b', lw=2, label='Hx')
+    ax4.plot(timenew[:timesmallest], diffs[:,3],'b', lw=2, label='Hy')
+    ax6.plot(timenew[:timesmallest], diffs[:,5],'b', lw=2, label='Hz')
+
+# Set ylabels
 ylabels = ['$E_x$', '$H_x$', '$E_y$', '$H_y$', '$E_z$', '$H_z$']
 ylabels = [ylabel + ', percentage difference [%]' for ylabel in ylabels]
 [ax.set_ylabel(ylabels[index]) for index, ax in enumerate(fig2.axes)]
+
+# Set axes limits and turn on grid
+[ax.grid() for ax in fig2.axes]
+[ax.set_xlim(0, timenew[timesmallest - 1]) for ax in fig2.axes]
+[ax.set_ylim(0, np.ceil(np.amax(np.abs(diffs)))) for ax in fig2.axes]
 
 # Show/print plots
 savename = os.path.abspath(os.path.dirname(newfile)) + os.sep + os.path.splitext(os.path.split(newfile)[1])[0] + '_vs_' + os.path.splitext(os.path.split(oldfile)[1])[0]
 #fig1.savefig(savename + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
 #fig2.savefig(savename + '_diffs.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-plt1.show()
-plt2.show()
-
+plt.show()
 
