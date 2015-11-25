@@ -18,8 +18,8 @@
 
 import numpy as np
 
-from .constants import floattype, complextype
-from .materials import Material
+from gprMax.constants import floattype, complextype
+from gprMax.materials import Material
 
 
 class FDTDGrid():

@@ -18,7 +18,7 @@
 
 import numpy as np
 
-from .utilities import rvalue
+from gprMax.utilities import rvalue
 
 
 class VoltageSource:

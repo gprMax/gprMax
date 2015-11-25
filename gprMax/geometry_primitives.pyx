@@ -19,8 +19,8 @@
 import numpy as np
 cimport numpy as np
 np.seterr(divide='raise')
-from .utilities import rvalue
-from .yee_cell_setget_rigid cimport set_rigid_Ex, set_rigid_Ey, set_rigid_Ez, set_rigid_Hx, set_rigid_Hy, set_rigid_Hz, set_rigid_E, unset_rigid_E, set_rigid_H, unset_rigid_H
+from gprMax.utilities import rvalue
+from gprMax.yee_cell_setget_rigid cimport set_rigid_Ex, set_rigid_Ey, set_rigid_Ez, set_rigid_Hx, set_rigid_Hy, set_rigid_Hz, set_rigid_E, unset_rigid_E, set_rigid_H, unset_rigid_H
 
 
 cpdef bint are_clockwise(float v1x, float v1y, float v2x, float v2y):

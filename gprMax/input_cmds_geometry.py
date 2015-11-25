@@ -19,12 +19,12 @@
 import sys
 import numpy as np
 
-from .constants import floattype
-from .exceptions import CmdInputError
-from .fractals import FractalSurface, FractalVolume, Grass
-from .geometry_primitives import build_edge_x, build_edge_y, build_edge_z, build_face_yz, build_face_xz, build_face_xy, build_triangle, build_voxel, build_box, build_cylinder, build_cylindrical_sector, build_sphere
-from .materials import Material
-from .utilities import rvalue
+from gprMax.constants import floattype
+from gprMax.exceptions import CmdInputError
+from gprMax.fractals import FractalSurface, FractalVolume, Grass
+from gprMax.geometry_primitives import build_edge_x, build_edge_y, build_edge_z, build_face_yz, build_face_xz, build_face_xy, build_triangle, build_voxel, build_box, build_cylinder, build_cylindrical_sector, build_sphere
+from gprMax.materials import Material
+from gprMax.utilities import rvalue
 
 
 def process_geometrycmds(geometry, G):

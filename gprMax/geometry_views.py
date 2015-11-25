@@ -20,7 +20,7 @@ import sys
 import numpy as np
 from struct import pack
 
-from .utilities import rvalue
+from gprMax.utilities import rvalue
 
 
 class GeometryView:

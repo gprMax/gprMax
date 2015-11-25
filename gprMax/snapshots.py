@@ -20,8 +20,8 @@ import sys
 import numpy as np
 from struct import pack
 
-from .constants import floattype
-from .utilities import rvalue
+from gprMax.constants import floattype
+from gprMax.utilities import rvalue
 
 
 class Snapshot:

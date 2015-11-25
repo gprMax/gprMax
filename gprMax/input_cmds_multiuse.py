@@ -16,15 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from .exceptions import CmdInputError
-from .geometry_views import GeometryView
-from .materials import Material, PeplinskiSoil
-from .pml import CFS
-from .receivers import Rx
-from .snapshots import Snapshot
-from .sources import VoltageSource, HertzianDipole, MagneticDipole
-from .utilities import rvalue
-from .waveforms import Waveform
+from gprMax.exceptions import CmdInputError
+from gprMax.geometry_views import GeometryView
+from gprMax.materials import Material, PeplinskiSoil
+from gprMax.pml import CFS
+from gprMax.receivers import Rx
+from gprMax.snapshots import Snapshot
+from gprMax.sources import VoltageSource, HertzianDipole, MagneticDipole
+from gprMax.utilities import rvalue
+from gprMax.waveforms import Waveform
 
 
 def process_multicmds(multicmds, G):

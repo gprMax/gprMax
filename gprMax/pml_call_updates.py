@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from .pml_1order_update import *
-from .pml_2order_update import *
+from gprMax.pml_1order_update import *
+from gprMax.pml_2order_update import *
 
 
 def update_pml_electric(G):

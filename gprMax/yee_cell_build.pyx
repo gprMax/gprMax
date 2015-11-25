@@ -18,8 +18,8 @@
 
 import numpy as np
 cimport numpy as np
-from .materials import Material
-from .yee_cell_setget_rigid cimport get_rigid_Ex, get_rigid_Ey, get_rigid_Ez, get_rigid_Hx, get_rigid_Hy, get_rigid_Hz
+from gprMax.materials import Material
+from gprMax.yee_cell_setget_rigid cimport get_rigid_Ex, get_rigid_Ey, get_rigid_Ez, get_rigid_Hx, get_rigid_Hy, get_rigid_Hz
 
 
 cpdef build_ex_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigidE, np.uint32_t[:, :, :, :] ID, G):

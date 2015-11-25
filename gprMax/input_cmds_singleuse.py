@@ -20,11 +20,11 @@ import os, sys
 import numpy as np
 from psutil import virtual_memory
 
-from .constants import c, floattype
-from .exceptions import CmdInputError
-from .pml import PML, CFS
-from .utilities import rvalue, human_size
-from .waveforms import Waveform
+from gprMax.constants import c, floattype
+from gprMax.exceptions import CmdInputError
+from gprMax.pml import PML, CFS
+from gprMax.utilities import rvalue, human_size
+from gprMax.waveforms import Waveform
 
 
 def process_singlecmds(singlecmds, multicmds, G):

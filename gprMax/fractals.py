@@ -19,8 +19,8 @@
 import numpy as np
 np.seterr(divide='raise')
 
-from .constants import floattype, complextype
-from .utilities import rvalue
+from gprMax.constants import floattype, complextype
+from gprMax.utilities import rvalue
 
 
 class FractalSurface():

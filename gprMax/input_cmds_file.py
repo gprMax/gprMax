@@ -18,9 +18,9 @@
 
 import sys, os
 
-from .constants import c, e0, m0, z0
-from .exceptions import CmdInputError
-from .utilities import ListStream
+from gprMax.constants import c, e0, m0, z0
+from gprMax.exceptions import CmdInputError
+from gprMax.utilities import ListStream
 
 
 def python_code_blocks(inputfile, modelrun, numbermodelruns, inputdirectory):

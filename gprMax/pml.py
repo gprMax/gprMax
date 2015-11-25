@@ -18,7 +18,7 @@
 
 import numpy as np
 
-from .constants import e0, z0, floattype
+from gprMax.constants import e0, z0, floattype
 
 
 class CFS():
