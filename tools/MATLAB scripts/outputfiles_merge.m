@@ -1,4 +1,4 @@
-% outputfiles_mergehdf5.m
+% outputfiles_merge.m
 % Script to merge gprMax output files of A-scans (traces) into a single
 % HDF5 file
 %

@@ -1,4 +1,4 @@
-% plot_Bscan_hdf5.m
+% plot_Bscan.m
 % Script to plot EM fields from a gprMax B-scan
 %
 % Craig Warren

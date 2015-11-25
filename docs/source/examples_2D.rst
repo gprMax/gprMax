@@ -117,7 +117,7 @@ You should have produced an output file ``cylinder_Ascan_2D.out``. You can view 
 
 .. code-block:: none
 
-    python -m tools.plot_Ascan_hdf5 cylinder_Ascan_2D.out
+    python -m tools.plot_Ascan cylinder_Ascan_2D.out
 
 :numref:`cylinder_Ascan_results` shows the time history of the electric and magnetic field components at the receiver location. The :math:`E_z` field component can be converted to voltage which represents the A-scan (trace). The initial part of the signal (<1.5 ns) represents the direct wave from transmitter to receiver. Then comes the reflected wavelet from the metal cylinder.
 
@@ -155,7 +155,7 @@ You should have produced 60 output files, one for each A-scan, with names ``cyli
 
 .. code-block:: none
 
-    python -m tools.outputfiles_mergehdf5 cylinder_Bscan_2D 60
+    python -m tools.outputfiles_merge cylinder_Bscan_2D 60
 
 You should see a combined output file ``cylinder_Bscan_2D_all.out``. The tool will ask you if you want to delete the original single A-scan output files or keep them.
 
@@ -163,7 +163,7 @@ You can now view an image of the B-scan using the command:
 
 .. code-block:: none
 
-    python -m tools.plot_Bscan_hdf5 cylinder_Bscan_2D_all.out Ez
+    python -m tools.plot_Bscan cylinder_Bscan_2D_all.out Ez
 
 :numref:`cylinder_Bscan_results` shows the B-scan (image of the Ez field). As expected a hyperbolic response is present from the metal cylinder.
 

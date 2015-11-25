@@ -1,4 +1,4 @@
-% plot_Ascan_hdf5.m
+% plot_Ascan.m
 % Script to save and plot EM fields from a gprMax A-scan
 %
 % Craig Warren
