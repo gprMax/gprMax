@@ -257,21 +257,12 @@ def process_geometrycmds(geometry, G):
             # yz-plane triangle
             if x1 == x2 and x2 == x3:
                 normal = 'x'
-                if thickness > 0:
-                    thickness = rvalue(thickness/G.dx)
-                    
             # xz-plane triangle
             elif y1 == y2 and y2 == y3:
                 normal = 'y'
-                if thickness > 0:
-                    thickness = rvalue(thickness/G.dy)
-
             # xy-plane triangle
             elif z1 == z2 and z2 == z3:
                 normal = 'z'
-                if thickness > 0:
-                    thickness = rvalue(thickness/G.dz)
-
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the triangle is not specified correctly')
 
@@ -607,24 +598,18 @@ def process_geometrycmds(geometry, G):
                 ctr1 = rvalue(ctr1/G.dy) * G.dy
                 ctr2 = rvalue(ctr2/G.dz) * G.dz
                 level = rvalue(extent1/G.dx)
-                if thickness > 0:
-                    thickness = rvalue(thickness/G.dx)
 
             # xz-plane cylindrical sector
             elif normal == 'y':
                 ctr1 = rvalue(ctr1/G.dx) * G.dx
                 ctr2 = rvalue(ctr2/G.dz) * G.dz
                 level = rvalue(extent1/G.dy)
-                if thickness > 0:
-                    thickness = rvalue(thickness/G.dy)
                 
             # xy-plane cylindrical sector
             elif normal == 'z':
                 ctr1 = rvalue(ctr1/G.dx) * G.dx
                 ctr2 = rvalue(ctr2/G.dy) * G.dy
                 level = rvalue(extent1/G.dz)
-                if thickness > 0:
-                    thickness = rvalue(thickness/G.dz)
 
             build_cylindrical_sector(ctr1, ctr2, level, sectorstartangle, sectorangle, r, normal, thickness, G.dx, G.dy, G.dz, numID, numIDx, numIDy, numIDz, averaging, G.solid, G.rigidE, G.rigidH, G.ID)
 
@@ -634,7 +619,7 @@ def process_geometrycmds(geometry, G):
                         dielectricsmoothing = 'on'
                     else:
                         dielectricsmoothing = 'off'
-                    print('Cylindrical sector with centre {:.3f}m, {:.3f}m, radius {:.3f}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, thickness {:.3f}m, of material(s) {} created, dielectric smoothing is {}.'.format(ctr1, ctr2, r, (sectorstartangle/(2*np.pi))*360, (sectorangle/(2*np.pi))*360, extent2 - extent1, ', '.join(materialsrequested), dielectricsmoothing))
+                    print('Cylindrical sector with centre {:.3f}m, {:.3f}m, radius {:.3f}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, thickness {:.3f}m, of material(s) {} created, dielectric smoothing is {}.'.format(ctr1, ctr2, r, (sectorstartangle/(2*np.pi))*360, (sectorangle/(2*np.pi))*360, thickness, ', '.join(materialsrequested), dielectricsmoothing))
                 else:
                     print('Cylindrical sector with centre {:.3f}m, {:.3f}m, radius {:.3f}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, of material(s) {} created.'.format(ctr1, ctr2, r, (sectorstartangle/(2*np.pi))*360, (sectorangle/(2*np.pi))*360, ', '.join(materialsrequested)))
 

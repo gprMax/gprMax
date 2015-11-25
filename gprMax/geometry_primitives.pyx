@@ -252,20 +252,20 @@ cpdef build_voxel(int i, int j, int k, int numID, int numIDx, int numIDy, int nu
         ID[5, i, j + 1, k] = numIDz
 
 
-cpdef build_triangle(float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, str normal, int thickness, float dx, float dy, float dz, int numID, int numIDx, int numIDy, int numIDz, bint averaging, np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigidE, np.int8_t[:, :, :, :] rigidH, np.uint32_t[:, :, :, :] ID):
+cpdef build_triangle(float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, str normal, float thickness, float dx, float dy, float dz, int numID, int numIDx, int numIDy, int numIDz, bint averaging, np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigidE, np.int8_t[:, :, :, :] rigidH, np.uint32_t[:, :, :, :] ID):
     """Builds #triangle and #triangular_prism commands which sets values in the solid, rigid and ID arrays for a Yee voxel.
         
     Args:
         x1, y1, z1, x2, y2, z2, x3, y3, z3 (float): Coordinates of the vertices of the triangular prism.
         normal (char): Normal direction to the plane of the triangular prism.
-        thickness (int): Thickness of the triangular prism.
+        thickness (float): Thickness of the triangular prism.
         dx, dy, dz (float): Spatial discretisation.
         numID, numIDx, numIDy, numIDz (int): Numeric ID of material.
         averaging (bint): Whether material property averging will occur for the object.
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
     """
     
-    cdef int i, j, k, i1, i2, j1, j2, sign, level
+    cdef int i, j, k, i1, i2, j1, j2, sign, level, thicknesscells
     cdef float area, s, t
     
     # Calculate a bounding box for the triangle
@@ -276,6 +276,7 @@ cpdef build_triangle(float x1, float y1, float z1, float x2, float y2, float z2,
         j1 = rvalue(np.amin([z1, z2, z3]) / dz) - 1
         j2 = rvalue(np.amax([z1, z2, z3]) / dz) + 1
         level = rvalue(x1 / dx)
+        thicknesscells = rvalue(thickness / dx)
     elif normal == 'y':
         area = 0.5 * (-z2 * x3 + z1 * (-x2 + x3) + x1 * (z2 - z3) + x2 * z3)
         i1 = rvalue(np.amin([x1, x2, x3]) / dx) - 1
@@ -283,6 +284,7 @@ cpdef build_triangle(float x1, float y1, float z1, float x2, float y2, float z2,
         j1 = rvalue(np.amin([z1, z2, z3]) / dz) - 1
         j2 = rvalue(np.amax([z1, z2, z3]) / dz) + 1
         level = rvalue(y1 /dy)
+        thicknesscells = rvalue(thickness / dy)
     elif normal == 'z':
         area = 0.5 * (-y2 * x3 + y1 * (-x2 + x3) + x1 * (y2 - y3) + x2 * y3)
         i1 = rvalue(np.amin([x1, x2, x3]) / dx) - 1
@@ -290,6 +292,7 @@ cpdef build_triangle(float x1, float y1, float z1, float x2, float y2, float z2,
         j1 = rvalue(np.amin([y1, y2, y3]) / dy) - 1
         j2 = rvalue(np.amax([y1, y2, y3]) / dy) + 1
         level = rvalue(z1 / dz)
+        thicknesscells = rvalue(thickness / dz)
 
     sign = np.sign(area)
 
@@ -315,7 +318,7 @@ cpdef build_triangle(float x1, float y1, float z1, float x2, float y2, float z2,
 
             # If these conditions are true then point is inside triangle
             if s > 0 and t > 0 and (s + t) < 2 * area * sign:
-                if thickness == 0:
+                if thicknesscells == 0:
                     if normal == 'x':
                         build_face_yz(level, i, j, numIDy, numIDz, rigidE, rigidH, ID)
                     elif normal == 'y':
@@ -323,7 +326,7 @@ cpdef build_triangle(float x1, float y1, float z1, float x2, float y2, float z2,
                     elif normal == 'z':
                         build_face_xy(i, j, level, numIDx, numIDy, rigidE, rigidH, ID)
                 else:
-                    for k in range(level, level + thickness):
+                    for k in range(level, level + thicknesscells):
                         if normal == 'x':
                             build_voxel(k, i, j, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
                         elif normal == 'y':
@@ -332,7 +335,7 @@ cpdef build_triangle(float x1, float y1, float z1, float x2, float y2, float z2,
                             build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
 
 
-cpdef build_cylindrical_sector(float ctr1, float ctr2, int level, float sectorstartangle, float sectorangle, float radius, str normal, int thickness, float dx, float dy, float dz, int numID, int numIDx, int numIDy, int numIDz, bint averaging, np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigidE, np.int8_t[:, :, :, :] rigidH, np.uint32_t[:, :, :, :] ID):
+cpdef build_cylindrical_sector(float ctr1, float ctr2, int level, float sectorstartangle, float sectorangle, float radius, str normal, float thickness, float dx, float dy, float dz, int numID, int numIDx, int numIDy, int numIDz, bint averaging, np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigidE, np.int8_t[:, :, :, :] rigidH, np.uint32_t[:, :, :, :] ID):
     """Builds #cylindrical_sector commands which sets values in the solid, rigid and ID arrays for a Yee voxel. It defines a sector of cylinder given by the direction of the axis of the coordinates of the cylinder face centre, depth coordinates, sector start point, sector angle, and sector radius. N.B Assumes sector start is always clockwise from sector end, i.e. sector defined in an anti-clockwise direction.
         
     Args:
@@ -342,14 +345,14 @@ cpdef build_cylindrical_sector(float ctr1, float ctr2, int level, float sectorst
         sectorangle (float): Angle (in radians) that sector makes.
         radius (float): Radius of the cylindrical sector.
         normal (char): Normal direction to the plane of the cylindrical sector.
-        thickness (int): Thickness of the cylindrical sector.
+        thickness (float): Thickness of the cylindrical sector.
         dx, dy, dz (float): Spatial discretisation.
         numID, numIDx, numIDy, numIDz (int): Numeric ID of material.
         averaging (bint): Whether material property averging will occur for the object.
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
     """
     
-    cdef int x1, x2, y1, y2, z1, z2, x, y, z
+    cdef int x1, x2, y1, y2, z1, z2, x, y, z, thicknesscells
     
     if normal == 'x':
         # Angles are defined from zero degrees on the positive y-axis going towards positive z-axis
@@ -357,14 +360,15 @@ cpdef build_cylindrical_sector(float ctr1, float ctr2, int level, float sectorst
         y2 = rvalue((ctr1 + radius)/dy)
         z1 = rvalue((ctr2 - radius)/dz)
         z2 = rvalue((ctr2 + radius)/dz)
+        thicknesscells = rvalue(thickness/dx)
         
         for y in range(y1, y2):
             for z in range(z1, z2):
                 if is_inside_sector(y * dy + 0.5 * dy, z * dz + 0.5 * dz, ctr1, ctr2, sectorstartangle, sectorangle, radius):
-                    if thickness == 0:
+                    if thicknesscells == 0:
                         build_face_yz(level, y, z, numIDy, numIDz, rigidE, rigidH, ID)
                     else:
-                        for x in range(level, level + thickness):
+                        for x in range(level, level + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
 
     elif normal == 'y':
@@ -373,14 +377,15 @@ cpdef build_cylindrical_sector(float ctr1, float ctr2, int level, float sectorst
         x2 = rvalue((ctr1 + radius)/dx)
         z1 = rvalue((ctr2 - radius)/dz)
         z2 = rvalue((ctr2 + radius)/dz)
+        thicknesscells = rvalue(thickness/dy)
             
         for x in range(x1, x2):
             for z in range(z2, z2):
                 if is_inside_sector(x * dx + 0.5 * dx, z * dz + 0.5 * dz, ctr1, ctr2, sectorstartangle, sectorangle, radius):
-                    if thickness == 0:
+                    if thicknesscells == 0:
                         build_face_xz(x, level, z, numIDx, numIDz, rigidE, rigidH, ID)
                     else:
-                        for y in range(level, level + thickness):
+                        for y in range(level, level + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
 
     elif normal == 'z':
@@ -389,14 +394,15 @@ cpdef build_cylindrical_sector(float ctr1, float ctr2, int level, float sectorst
         x2 = rvalue((ctr1 + radius)/dx)
         y1 = rvalue((ctr2 - radius)/dy)
         y2 = rvalue((ctr2 + radius)/dy)
+        thicknesscells = rvalue(thickness/dz)
             
         for x in range(x1, x2):
             for y in range(y1, y2):
                 if is_inside_sector(x * dx + 0.5 * dx, y * dy + 0.5 * dy, ctr1, ctr2, sectorstartangle, sectorangle, radius):
-                    if thickness == 0:
+                    if thicknesscells == 0:
                         build_face_xy(x, y, level, numIDx, numIDy, rigidE, rigidH, ID)
                     else:
-                        for z in range(level, level + thickness):
+                        for z in range(level, level + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
 
 
