@@ -26,7 +26,7 @@ from gprMax.fields_output import prepare_output_file, write_output
 """Converts old output file to new HDF5 format."""
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Converts old output file to new HDF5 format.', usage='cd gprMax; python -m tools.outputfile_old2hdf5 outputfile')
+parser = argparse.ArgumentParser(description='Converts old output file to new HDF5 format.', usage='cd gprMax; python -m tools.outputfile_old2new outputfile')
 parser.add_argument('outputfile', help='name of output file including path')
 args = parser.parse_args()
 
