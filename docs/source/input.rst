@@ -766,9 +766,15 @@ Allows you to introduce output points into the model. These are locations where 
 
 .. code-block:: none
 
-    #rx: f1 f2 f3
+    #rx: f1 f2 f3 [str1 str2]
 
-``f1 f2 f3`` are the coordinates (x,y,z) of the receiver in the model.
+* ``f1 f2 f3`` are the coordinates (x,y,z) of the receiver in the model.
+* ``str1`` is the identifier of the receiver.
+* ``str2`` is a list of field components to output with this receiver. It can be any selection from ``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, or ``Hz``.
+
+.. note::
+
+    * When the optional parameters ``str1`` and ``str2`` are not given all the electric and magnetic field components will be output with the receiver point.
 
 #rx_box:
 --------
