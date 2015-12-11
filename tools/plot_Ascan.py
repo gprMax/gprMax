@@ -43,7 +43,7 @@ time = time / 1e-9
 # Check for valid field names
 for field in args.fields:
     if field not in fieldslist:
-        raise CmdInputError('{} not allowed. Options are: Ex, Ey, Ez, Hx, Hy, Hz'.format(field))
+        raise CmdInputError('{} not allowed. Options are: Ex Ey Ez Hx Hy Hz'.format(field))
 
 for rx in range(1, nrx + 1):
     path = '/rxs/rx' + str(rx) + '/'
