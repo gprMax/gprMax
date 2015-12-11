@@ -38,7 +38,7 @@ def prepare_output_file(outputfile, G):
     f.attrs['Iterations'] = G.iterations
     f.attrs['dx, dy, dz'] = (G.dx, G.dy, G.dz)
     f.attrs['dt'] = G.dt
-    f.attrs['txsteps'] = (G.txstepx, G.txstepy, G.txstepz)
+    f.attrs['srcsteps'] = (G.srcstepx, G.srcstepy, G.srcstepz)
     f.attrs['rxsteps'] = (G.rxstepx, G.rxstepy, G.rxstepz)
     f.attrs['ntx'] = len(G.voltagesources) + len(G.hertziandipoles) + len(G.magneticdipoles)
     f.attrs['nrx'] = len(G.rxs)

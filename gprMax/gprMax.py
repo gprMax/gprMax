@@ -287,11 +287,11 @@ def run_model(args, modelrun, numbermodelruns, inputfile, inputdirectory):
         f = prepare_output_file(outputfile, G)
 
         # Adjust position of sources and receivers if required
-        if G.txstepx > 0 or G.txstepy > 0 or G.txstepz > 0:
+        if G.srcstepx > 0 or G.srcstepy > 0 or G.srcstepz > 0:
             for source in itertools.chain(G.hertziandipoles, G.magneticdipoles, G.voltagesources):
-                source.positionx += (modelrun - 1) * G.txstepx
-                source.positiony += (modelrun - 1) * G.txstepy
-                source.positionz += (modelrun - 1) * G.txstepz
+                source.positionx += (modelrun - 1) * G.srcstepx
+                source.positiony += (modelrun - 1) * G.srcstepy
+                source.positionz += (modelrun - 1) * G.srcstepz
         if G.rxstepx > 0 or G.rxstepy > 0 or G.rxstepz > 0:
             for receiver in G.rxs:
                 receiver.positionx += (modelrun - 1) * G.rxstepx

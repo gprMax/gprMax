@@ -205,11 +205,11 @@ def process_singlecmds(singlecmds, multicmds, G):
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
             raise CmdInputError(cmd + ' requires exactly three parameters')
-        G.txstepx = rvalue(float(tmp[0])/G.dx)
-        G.txstepy = rvalue(float(tmp[1])/G.dy)
-        G.txstepz = rvalue(float(tmp[2])/G.dz)
+        G.srcstepx = rvalue(float(tmp[0])/G.dx)
+        G.srcstepy = rvalue(float(tmp[1])/G.dy)
+        G.srcstepz = rvalue(float(tmp[2])/G.dz)
         if G.messages:
-            print('All sources will step {:.3f}m, {:.3f}m, {:.3f}m for each model run.'.format(G.txstepx * G.dx, G.txstepy * G.dy, G.txstepz * G.dz))
+            print('All sources will step {:.3f}m, {:.3f}m, {:.3f}m for each model run.'.format(G.srcstepx * G.dx, G.srcstepy * G.dy, G.srcstepz * G.dz))
 
 
     # rx_steps
