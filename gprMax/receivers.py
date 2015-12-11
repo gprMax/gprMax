@@ -19,6 +19,8 @@
 class Rx:
     """Receiever output points."""
     
+    availableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz']
+    
     def __init__(self, positionx=None, positiony=None, positionz=None):
         """
         Args:
@@ -26,6 +28,8 @@ class Rx:
             positiony (float): y-coordinate of location in model.
             positionz (float): z-coordinate of location in model.
         """
+        self.ID = None
+        self.outputs = []
         self.positionx = positionx
         self.positiony = positiony
         self.positionz = positionz

@@ -40,7 +40,7 @@ def prepare_output_file(outputfile, G):
     f.attrs['dt'] = G.dt
     f.attrs['srcsteps'] = (G.srcstepx, G.srcstepy, G.srcstepz)
     f.attrs['rxsteps'] = (G.rxstepx, G.rxstepy, G.rxstepz)
-    f.attrs['ntx'] = len(G.voltagesources) + len(G.hertziandipoles) + len(G.magneticdipoles)
+    f.attrs['ntx'] = len(G.voltagesources + G.hertziandipoles + G.magneticdipoles)
     f.attrs['nrx'] = len(G.rxs)
 
     # Create groups for txs, rxs
@@ -60,12 +60,18 @@ def prepare_output_file(outputfile, G):
     for rxindex, rx in enumerate(G.rxs):
         tmp = f.create_group('/rxs/rx' + str(rxindex + 1))
         tmp['Position'] = (rx.positionx * G.dx, rx.positiony * G.dy, rx.positionz * G.dz)
-        tmp['Ex'] = np.zeros(G.iterations, dtype=floattype)
-        tmp['Ey'] = np.zeros(G.iterations, dtype=floattype)
-        tmp['Ez'] = np.zeros(G.iterations, dtype=floattype)
-        tmp['Hx'] = np.zeros(G.iterations, dtype=floattype)
-        tmp['Hy'] = np.zeros(G.iterations, dtype=floattype)
-        tmp['Hz'] = np.zeros(G.iterations, dtype=floattype)
+        if 'Ex' in rx.outputs:
+            tmp['Ex'] = np.zeros(G.iterations, dtype=floattype)
+        if 'Ey' in rx.outputs:
+            tmp['Ey'] = np.zeros(G.iterations, dtype=floattype)
+        if 'Ez' in rx.outputs:
+            tmp['Ez'] = np.zeros(G.iterations, dtype=floattype)
+        if 'Hx' in rx.outputs:
+            tmp['Hx'] = np.zeros(G.iterations, dtype=floattype)
+        if 'Hy' in rx.outputs:
+            tmp['Hy'] = np.zeros(G.iterations, dtype=floattype)
+        if 'Hz' in rx.outputs:
+            tmp['Hz'] = np.zeros(G.iterations, dtype=floattype)
 
     return f
 
@@ -84,12 +90,18 @@ def write_output(f, timestep, Ex, Ey, Ez, Hx, Hy, Hz, G):
     if type(timestep) is not slice:
         # For each rx, write field component values at current timestep
         for rxindex, rx in enumerate(G.rxs):
-            f['/rxs/rx' + str(rxindex + 1) + '/Ex'][timestep] = Ex[rx.positionx, rx.positiony, rx.positionz]
-            f['/rxs/rx' + str(rxindex + 1) + '/Ey'][timestep] = Ey[rx.positionx, rx.positiony, rx.positionz]
-            f['/rxs/rx' + str(rxindex + 1) + '/Ez'][timestep] = Ez[rx.positionx, rx.positiony, rx.positionz]
-            f['/rxs/rx' + str(rxindex + 1) + '/Hx'][timestep] = Hx[rx.positionx, rx.positiony, rx.positionz]
-            f['/rxs/rx' + str(rxindex + 1) + '/Hy'][timestep] = Hy[rx.positionx, rx.positiony, rx.positionz]
-            f['/rxs/rx' + str(rxindex + 1) + '/Hz'][timestep] = Hz[rx.positionx, rx.positiony, rx.positionz]
+            if 'Ex' in rx.outputs:
+                f['/rxs/rx' + str(rxindex + 1) + '/Ex'][timestep] = Ex[rx.positionx, rx.positiony, rx.positionz]
+            if 'Ey' in rx.outputs:
+                f['/rxs/rx' + str(rxindex + 1) + '/Ey'][timestep] = Ey[rx.positionx, rx.positiony, rx.positionz]
+            if 'Ez' in rx.outputs:
+                f['/rxs/rx' + str(rxindex + 1) + '/Ez'][timestep] = Ez[rx.positionx, rx.positiony, rx.positionz]
+            if 'Hx' in rx.outputs:
+                f['/rxs/rx' + str(rxindex + 1) + '/Hx'][timestep] = Hx[rx.positionx, rx.positiony, rx.positionz]
+            if 'Hy' in rx.outputs:
+                f['/rxs/rx' + str(rxindex + 1) + '/Hy'][timestep] = Hy[rx.positionx, rx.positiony, rx.positionz]
+            if 'Hz' in rx.outputs:
+                f['/rxs/rx' + str(rxindex + 1) + '/Hz'][timestep] = Hz[rx.positionx, rx.positiony, rx.positionz]
 
     # Field writing when converting old style output file to HDF5 format
     else:

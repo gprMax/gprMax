@@ -244,9 +244,9 @@ def process_multicmds(multicmds, G):
     if multicmds[cmdname] != 'None':
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            if len(tmp) != 3:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly three parameters')
-            
+            if len(tmp) != 3 and len(tmp) < 5:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' has an incorrect number of parameters')
+
             # Check position parameters
             positionx = rvalue(float(tmp[0])/G.dx)
             positiony = rvalue(float(tmp[1])/G.dy)
@@ -260,8 +260,20 @@ def process_multicmds(multicmds, G):
             
             r = Rx(positionx=positionx, positiony=positiony, positionz=positionz)
             
+            # If no ID or outputs are specified use default, i.e Ex, Ey, Ez, Hx, Hy, Hz
+            if len(tmp) == 3:
+                r.outputs = Rx.availableoutputs[0:5]
+            else:
+                r.ID = tmp[3]
+                # Check and add field output names
+                for field in tmp[4::]:
+                    if field in Rx.availableoutputs:
+                        r.outputs.append(field)
+                    else:
+                        raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' contains an output type that is not available')
+            
             if G.messages:
-                print('Receiver at {:.3f}m, {:.3f}m, {:.3f}m created.'.format(r.positionx * G.dx, r.positiony * G.dy, r.positionz * G.dz))
+                print('Receiver at {:.3f}m, {:.3f}m, {:.3f}m with field output(s) {} created.'.format(r.positionx * G.dx, r.positiony * G.dy, r.positionz * G.dz, ', '.join(r.outputs)))
             
             G.rxs.append(r)
 
