@@ -31,7 +31,7 @@ fieldslist = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz']
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Plots electric and magnetic fields from all receiver points in the given output file. Each receiver point is plotted in a new figure window.', usage='cd gprMax; python -m tools.plot_Ascan outputfile')
 parser.add_argument('outputfile', help='name of output file including path')
-parser.add_argument('--fields', help="list of fields to be plotted, i.e. ['Ex', 'Ey', 'Ez']", default=fieldslist, nargs='+')
+parser.add_argument('--fields', help='list of fields to be plotted, i.e. Ex Ey Ez', default=fieldslist, nargs='+')
 args = parser.parse_args()
 
 file = args.outputfile
