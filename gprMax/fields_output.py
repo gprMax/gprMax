@@ -59,6 +59,8 @@ def prepare_output_file(outputfile, G):
     # Add positional data for rxs
     for rxindex, rx in enumerate(G.rxs):
         tmp = f.create_group('/rxs/rx' + str(rxindex + 1))
+        if rx.ID:
+            tmp['Name'] = rx.ID
         tmp['Position'] = (rx.positionx * G.dx, rx.positiony * G.dy, rx.positionz * G.dz)
         if 'Ex' in rx.outputs:
             tmp['Ex'] = np.zeros(G.iterations, dtype=floattype)
