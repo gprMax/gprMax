@@ -28,10 +28,11 @@ if sys.platform != 'win32':
 from time import perf_counter
 from copy import deepcopy
 from enum import Enum
+from collections import OrderedDict
 
 import numpy as np
 
-from gprMax.constants import e0
+from gprMax.constants import c, e0, m0, z0, floattype
 from gprMax.exceptions import CmdInputError
 from gprMax.fields_output import prepare_output_file, write_output
 from gprMax.fields_update import *
@@ -59,82 +60,151 @@ def main():
     parser.add_argument('--geometry-only', action='store_true', default=False, help='only build model and produce geometry files')
     parser.add_argument('-n', default=1, type=int, help='number of times to run the input file')
     parser.add_argument('-mpi', action='store_true', default=False, help='switch on MPI')
-    parser.add_argument('--commands-python', action='store_true', default=False, help='write an input file after any Python code blocks in the original input file have been processed')
+    parser.add_argument('--write-python', action='store_true', default=False, help='write an input file after any Python code blocks in the original input file have been processed')
+    parser.add_argument('--opt-taguchi', action='store_true', default=False, help='optimise parameters using the Taguchi optimisation method')
     args = parser.parse_args()
     numbermodelruns = args.n
     inputdirectory = os.path.dirname(os.path.abspath(args.inputfile)) + os.sep
     inputfile = inputdirectory + os.path.basename(args.inputfile)
     
+    # Create a separate namespace that users can access in any Python code blocks in the input file
+    usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': numbermodelruns, 'inputdirectory': inputdirectory}
+    
+    if args.opt_taguchi and numbermodelruns > 1:
+        raise CmdInputError('When a Taguchi optimisation is being carried out the number of model runs argument is not required')
+    
     print('Model input file: {}\n'.format(inputfile))
 
-    # Mixed mode MPI/OpenMP - task farm for model runs with MPI; each model parallelised with OpenMP
-    if args.mpi:        
-        from mpi4py import MPI
+    #############################################
+    #   Main routine for Taguchi optimisation   #
+    #############################################
+    if args.opt_taguchi:
+        
+        from user_libs.optimisations.taguchi import select_OA, calculate_ranges_experiments, calculate_optimal_levels, fitness_max
+        
+        ######## These should be read from #opt_taguchi block from input file
+        # Maximum number of iteration of optimisation to perform; used if the fitness metric is not achieved
+        maxiterations = 2
+        
+        # Dictionary containing name of parameters to optimise and their values
+        optparams = OrderedDict()
+        optparams['rickeramp'] = [0.25, 5]
+#        optparams['sig'] = [0.001, 0.1]
 
-        # Define MPI message tags
-        tags = Enum('tags', {'READY': 0, 'DONE': 1, 'EXIT': 2, 'START': 3})
+        # Dictionary to hold history of optmised values of parameters
+        optparamshist = OrderedDict((key, list()) for key in optparams)
 
-        # Initializations and preliminaries
-        comm = MPI.COMM_WORLD   # get MPI communicator object
-        size = comm.size        # total number of processes
-        rank = comm.rank        # rank of this process
-        status = MPI.Status()   # get MPI status object
-        name = MPI.Get_processor_name()     # get name of processor/host
+        # Dictionary containing name of fitness metric to use and names of associated outputs; should correspond to names of rxs in input file
+        fitnessmetric = {'max': ['myRx']}
+        ########
+        
+        # Select OA
+        OA, N, k, s = select_OA(optparams)
+        
+        # Initialise arrays to store parameters required throughout optimisation
+        # Lower, central, and upper values for each parameter
+        levels = np.zeros((s, k), dtype=floattype)
+        # Lower, central, and upper optimal values for each parameter from previous iteration
+        levelsopt = np.zeros(k, dtype=floattype)
+        # Difference used to set values in levels array
+        levelsdiff = np.zeros(k, dtype=floattype)
+        # Fitness values for each experiment
+        fitness = np.zeros(N, dtype=floattype)
+        # History of fitness values from each confirmation experiment
+        fitnesshist = np.zeros(maxiterations, dtype=floattype)
 
-        if rank == 0:
-            # Master process
-            modelrun = 1
-            numworkers = size - 1
-            closedworkers = 0
-            print('Master: PID {} on {} using {} workers.'.format(os.getpid(), name, numworkers))
-            while closedworkers < numworkers:
-                data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
-                source = status.Get_source()
-                tag = status.Get_tag()
-                if tag == tags.READY.value:
-                    # Worker is ready, so send it a task
-                    if modelrun < numbermodelruns + 1:
-                        comm.send(modelrun, dest=source, tag=tags.START.value)
-                        print('Master: sending model {} to worker {}.'.format(modelrun, source))
-                        modelrun += 1
-                    else:
-                        comm.send(None, dest=source, tag=tags.EXIT.value)
-                elif tag == tags.DONE.value:
-                    print('Worker {}: completed.'.format(source))
-                elif tag == tags.EXIT.value:
-                    print('Worker {}: exited.'.format(source))
-                    closedworkers += 1
-        else:
-            # Worker process
+        i = 0
+        while i < maxiterations:
+            # Set number of model runs to number of experiments for each iteration of optimisation
+            numbermodelruns = N
+            usernamespace['number_model_runs'] = numbermodelruns
             
-            print('Worker {}: PID {} on {} requesting {} OpenMP threads.'.format(rank, os.getpid(), name, os.environ.get('OMP_NUM_THREADS')))
-            while True:
-                comm.send(None, dest=0, tag=tags.READY.value)
-                # Receive a model number to run from the master
-                modelrun = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)
-                tag = status.Get_tag()
-                
-                if tag == tags.START.value:
-                    # Run a model
-                    run_model(args, modelrun, numbermodelruns, inputfile, inputdirectory)
-                    comm.send(None, dest=0, tag=tags.DONE.value)
-                elif tag == tags.EXIT.value:
-                    break
+            # Set parameter ranges and define experiments
+            optparams, levels, levelsdiff = calculate_ranges_experiments(optparams, levels, levelsopt, levelsdiff, OA, N, k, s, i)
+    
+            # Mixed mode MPI/OpenMP - task farm for model runs with MPI; each model parallelised with OpenMP
+            if args.mpi:        
+                mpi_runs(args, numbermodelruns, inputfile, usernamespace)
 
-            comm.send(None, dest=0, tag=tags.EXIT.value)
+            # Standard behaviour - models run serially; each model parallelised with OpenMP
+            else:
+                tsimstart = perf_counter()
+                for modelrun in range(1, numbermodelruns + 1):
+                    # Add specific value for each parameter to optimise, for each experiment to user accessible namespace
+                    optnamespace = usernamespace.copy()
+                    optnamespace.update((key, value[modelrun - 1]) for key, value in optparams.items())
+                    run_model(args, modelrun, numbermodelruns, inputfile, optnamespace)
+                tsimend = perf_counter()
+                print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
+    
+            print('\nTaguchi optimisation, iteration {}, completed initial {} experiments.'.format(i + 1, numbermodelruns))
+            
+            # Calculate fitness metric for each experiment
+            for exp in range(1, numbermodelruns + 1):
+                inputfileparts = os.path.splitext(inputfile)
+                outputfile = inputfileparts[0] + str(exp) + '.out'
+                fitness[exp - 1] = fitness_max(outputfile, ['myRx'])
+            print(fitness)
 
-    # Standard behaviour - models run serially; each model parallelised with OpenMP
+            print('\nTaguchi optimisation, iteration {}, completed calculation of fitness of experiments.'.format(i + 1))
+            
+            # Calculate optimal levels from results of fitness metric by building a response table and update dictionary of parameters with optimal values
+            optparams, levelsopt = calculate_optimal_levels(optparams, levels, levelsopt, fitness, OA, N, k)
+            print(optparams)
+
+            # Run a confirmation experiment
+            numbermodelruns = 1
+            usernamespace['number_model_runs'] = numbermodelruns
+            tsimstart = perf_counter()
+            for modelrun in range(1, numbermodelruns + 1):
+                # Add specific value for each parameter to optimise, for each experiment to user accessible namespace
+                optnamespace = usernamespace.copy()
+                for key, value in optparams.items():
+                    optnamespace[key] = value[modelrun - 1]
+                    optparamshist[key].append(value[modelrun - 1])
+                run_model(args, modelrun, numbermodelruns, inputfile, optnamespace)
+            tsimend = perf_counter()
+            print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
+
+            print(optparamshist)
+
+            print('\nTaguchi optimisation, iteration {}, completed confirmation experiment.'.format(i + 1))
+            
+            # Calculate fitness metric for confirmation experiment
+            inputfileparts = os.path.splitext(inputfile)
+            outputfile = inputfileparts[0] + '.out'
+            fitnesshist[i] = fitness_max(outputfile, ['myRx'])
+            print(fitnesshist)
+            
+            # Stop if fitness criteria have been met
+
+            print('\nTaguchi optimisation, iteration {} completed.\n{}\n'.format(i + 1, 65*'*'))
+            
+            i += 1
+
+    ############################################
+    #   Main routine for standard simulation   #
+    ############################################
     else:
-        tsimstart = perf_counter()
-        for modelrun in range(1, numbermodelruns + 1):
-            run_model(args, modelrun, numbermodelruns, inputfile, inputdirectory)
-        tsimend = perf_counter()
-        print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
+        if args.mpi and numbermodelruns == 1:
+            raise CmdInputError('MPI is not beneficial when there is only one model to run')
 
-    print('\nSimulation completed.\n{}\n'.format(65*'*'))
+        # Mixed mode MPI/OpenMP - task farm for model runs with MPI; each model parallelised with OpenMP
+        if args.mpi:
+            mpi_runs(args, numbermodelruns, inputfile, usernamespace)
+
+        # Standard behaviour - models run serially; each model parallelised with OpenMP
+        else:
+            tsimstart = perf_counter()
+            for modelrun in range(1, numbermodelruns + 1):
+                run_model(args, modelrun, numbermodelruns, inputfile, usernamespace)
+            tsimend = perf_counter()
+            print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
+
+        print('\nSimulation completed.\n{}\n'.format(65*'*'))
 
 
-def run_model(args, modelrun, numbermodelruns, inputfile, inputdirectory):
+def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     """Runs a model - processes the input file; builds the Yee cells; calculates update coefficients; runs main FDTD loop.
         
     Args:
@@ -142,14 +212,18 @@ def run_model(args, modelrun, numbermodelruns, inputfile, inputdirectory):
         modelrun (int): Current model run number.
         numbermodelruns (int): Total number of model runs.
         inputfile (str): Name of the input file to open.
-        inputdirectory (str): Path to the directory containing the inputfile.
+        usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
     """
     
+    # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
+    usernamespace['current_model_run'] = modelrun
+    print('Constants/variables available for Python scripting: {}\n'.format(usernamespace))
+    
     # Process any user input Python commands
-    processedlines = python_code_blocks(inputfile, modelrun, numbermodelruns, inputdirectory)
+    processedlines = python_code_blocks(inputfile, usernamespace)
     
     # Write a file containing the input commands after Python blocks have been processed
-    if args.commands_python:
+    if args.write_python:
         write_python_processed(inputfile, modelrun, numbermodelruns, processedlines)
     
     # Check validity of command names & that essential commands are present
@@ -157,7 +231,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, inputdirectory):
 
     # Initialise an instance of the FDTDGrid class
     G = FDTDGrid()
-    G.inputdirectory = inputdirectory
+    G.inputdirectory = usernamespace['inputdirectory']
 
     # Process parameters for commands that can only occur once in the model
     process_singlecmds(singlecmds, multicmds, G)
@@ -390,6 +464,70 @@ def run_model(args, modelrun, numbermodelruns, inputfile, inputdirectory):
         print('\n\nSolving took [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsolveend - tsolvestart))))
         if sys.platform != 'win32':
             print('Peak memory (approx) used: {}'.format(human_size(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, False)))
+
+
+def mpi_runs(args, numbermodelruns, inputfile, usernamespace):
+    """Runs models in MPI environment - processes the input file; builds the Yee cells; calculates update coefficients; runs main FDTD loop.
+        
+    Args:
+        args (dict): Namespace with command line arguments
+        numbermodelruns (int): Total number of model runs.
+        inputfile (str): Name of the input file to open.
+        usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
+    """
+    
+    from mpi4py import MPI
+
+    # Define MPI message tags
+    tags = Enum('tags', {'READY': 0, 'DONE': 1, 'EXIT': 2, 'START': 3})
+
+    # Initializations and preliminaries
+    comm = MPI.COMM_WORLD   # get MPI communicator object
+    size = comm.size        # total number of processes
+    rank = comm.rank        # rank of this process
+    status = MPI.Status()   # get MPI status object
+    name = MPI.Get_processor_name()     # get name of processor/host
+
+    if rank == 0:
+        # Master process
+        modelrun = 1
+        numworkers = size - 1
+        closedworkers = 0
+        print('Master: PID {} on {} using {} workers.'.format(os.getpid(), name, numworkers))
+        while closedworkers < numworkers:
+            data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+            source = status.Get_source()
+            tag = status.Get_tag()
+            if tag == tags.READY.value:
+                # Worker is ready, so send it a task
+                if modelrun < numbermodelruns + 1:
+                    comm.send(modelrun, dest=source, tag=tags.START.value)
+                    print('Master: sending model {} to worker {}.'.format(modelrun, source))
+                    modelrun += 1
+                else:
+                    comm.send(None, dest=source, tag=tags.EXIT.value)
+            elif tag == tags.DONE.value:
+                print('Worker {}: completed.'.format(source))
+            elif tag == tags.EXIT.value:
+                print('Worker {}: exited.'.format(source))
+                closedworkers += 1
+    else:
+        # Worker process
+        print('Worker {}: PID {} on {} requesting {} OpenMP threads.'.format(rank, os.getpid(), name, os.environ.get('OMP_NUM_THREADS')))
+        while True:
+            comm.send(None, dest=0, tag=tags.READY.value)
+            # Receive a model number to run from the master
+            modelrun = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)
+            tag = status.Get_tag()
+            
+            if tag == tags.START.value:
+                # Run a model
+                run_model(args, modelrun, numbermodelruns, inputfile, usernamespace)
+                comm.send(None, dest=0, tag=tags.DONE.value)
+            elif tag == tags.EXIT.value:
+                break
+
+        comm.send(None, dest=0, tag=tags.EXIT.value)
 
 
 

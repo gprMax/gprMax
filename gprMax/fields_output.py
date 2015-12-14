@@ -54,14 +54,14 @@ def prepare_output_file(outputfile, G):
         txlist = G.voltagesources + G.hertziandipoles + G.magneticdipoles
     for txindex, tx in enumerate(txlist):
         tmp = f.create_group('/txs/tx' + str(txindex + 1))
-        tmp['Position'] = (tx.positionx * G.dx, tx.positiony * G.dy, tx.positionz * G.dz)
+        tmp.attrs['Position'] = (tx.positionx * G.dx, tx.positiony * G.dy, tx.positionz * G.dz)
     
     # Add positional data for rxs
     for rxindex, rx in enumerate(G.rxs):
         tmp = f.create_group('/rxs/rx' + str(rxindex + 1))
         if rx.ID:
-            tmp['Name'] = rx.ID
-        tmp['Position'] = (rx.positionx * G.dx, rx.positiony * G.dy, rx.positionz * G.dz)
+            tmp.attrs['Name'] = rx.ID
+        tmp.attrs['Position'] = (rx.positionx * G.dx, rx.positiony * G.dy, rx.positionz * G.dz)
         if 'Ex' in rx.outputs:
             tmp['Ex'] = np.zeros(G.iterations, dtype=floattype)
         if 'Ey' in rx.outputs:

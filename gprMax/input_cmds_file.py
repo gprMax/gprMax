@@ -18,19 +18,16 @@
 
 import sys, os
 
-from gprMax.constants import c, e0, m0, z0
 from gprMax.exceptions import CmdInputError
 from gprMax.utilities import ListStream
 
 
-def python_code_blocks(inputfile, modelrun, numbermodelruns, inputdirectory):
+def python_code_blocks(inputfile, usernamespace):
     """Looks for and processes any Python code found in the input file. It will ignore any lines that are comments, i.e. begin with a double hash (##), and any blank lines. It will also ignore any lines that do not begin with a hash (#) after it has processed Python commands.
         
     Args:
         inputfile (str): Name of the input file to open.
-        modelrun (int): Current model run number.
-        numbermodelruns (int): Total number of model runs.
-        inputdirectory (str): Directory containing input file.
+        usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
         
     Returns:
         processedlines (list): Input commands after Python processing.
@@ -42,11 +39,6 @@ def python_code_blocks(inputfile, modelrun, numbermodelruns, inputdirectory):
         
     # List to hold final processed commands
     processedlines = []
-    
-    # Separate namespace for users Python code blocks to use; pre-populated some standard constants and the
-    # current model run number and total number of model runs
-    usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'current_model_run': modelrun, 'number_model_runs': numbermodelruns, 'inputdirectory': inputdirectory}
-    print('Constants/variables available for Python scripting: {}\n'.format(usernamespace))
     
     x = 0
     while(x < len(inputlines)):
