@@ -39,6 +39,7 @@ class GeometryView:
             filename (str): Filename to save to.
             type (str): Either 'n' for a per cell geometry view, or 'f' for a per cell edge geometry view.
         """
+        
         self.xs = xs
         self.ys = ys
         self.zs = zs

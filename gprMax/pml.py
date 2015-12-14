@@ -40,6 +40,7 @@ class CFS():
            sigmamin (float): Minimum value for sigma parameter.
            sigmamax (float): Maximum value for sigma parameter.
         """
+        
         self.alphascaling = alphascaling
         self.alphamin = alphamin
         self.alphamax = alphamax
@@ -59,6 +60,7 @@ class CFS():
             mr (float): Average permeability of underlying material.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
+        
         # Get general direction from first letter of PML direction
         if direction[0] == 'x':
             d = G.dx
@@ -84,6 +86,7 @@ class CFS():
             Evalues (float): numpy array holding scaling value for electric PML update.
             Hvalues (float): numpy array holding scaling value for magnetic PML update.
         """
+        
         tmp = max * ((np.linspace(0, (len(Evalues) - 1) + 0.5, num=2*len(Evalues))) / (len(Evalues) - 1)) ** order
         Evalues = tmp[0:-1:2]
         Hvalues = tmp[1::2]
@@ -103,6 +106,7 @@ class CFS():
             Evalues (float): numpy array holding scaling value for electric PML update.
             Hvalues (float): numpy array holding scaling value for magnetic PML update.
         """
+        
         if scaling == 'constant':
             Evalues += max
             Hvalues += max
@@ -126,6 +130,7 @@ class PML():
             xs, xf, ys, yf, zs, zf (float): Extent of the PML volume.
             cfs (list): CFS class instances associated with the PML.
         """
+        
         self.direction = direction
         self.xs = xs
         self.xf = xf
@@ -270,7 +275,7 @@ def build_pml(G):
 def calculate_initial_pml_params(G):
     """ This function calculates the initial parameters and coefficients for PML including setting scaling
         (based on underlying material er and mr from solid array).
-        """
+    """
     
     for pml in G.pmls:
         sumer = 0
