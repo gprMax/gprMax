@@ -54,6 +54,7 @@ GNU General Public License for more details.
                                     
 You should have received a copy of the GNU General Public License
 along with gprMax.  If not, see <http://www.gnu.org/licenses/>."""
+    
     width = 65
     url = 'www.gprmax.com'
     print('\n{} {} {}'.format('*'*round((width - len(url))/2), url, '*'*round((width - len(url))/2)))
@@ -61,7 +62,6 @@ along with gprMax.  If not, see <http://www.gnu.org/licenses/>."""
     print('{}'.format(gprMaxlogo.renderText('gprMax')))
     print('{} v{} {}'.format('*'*round((width - len(version))/2), (version), '*'*round((width - len(version))/2)))
     print(licenseinfo)
-    print('\n{}\n'.format('*'*(width+3)))
 
 
 def update_progress(progress):
