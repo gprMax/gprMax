@@ -22,7 +22,7 @@
 __version__ = '3.0.0b12'
 versionname = ' (Bowmore)'
 
-import sys, os, datetime, itertools, argparse
+import sys, os, datetime, itertools, argparse, importlib
 if sys.platform != 'win32':
     import resource
 from time import perf_counter
@@ -66,6 +66,7 @@ def main():
     numbermodelruns = args.n
     inputdirectory = os.path.dirname(os.path.abspath(args.inputfile)) + os.sep
     inputfile = inputdirectory + os.path.basename(args.inputfile)
+    inputfileparts = os.path.splitext(inputfile)
     
     # Create a separate namespace that users can access in any Python code blocks in the input file
     usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': numbermodelruns, 'inputdirectory': inputdirectory}
@@ -73,49 +74,51 @@ def main():
     if args.opt_taguchi and numbermodelruns > 1:
         raise CmdInputError('When a Taguchi optimisation is being carried out the number of model runs argument is not required')
 
-    #############################################
-    #   Main routine for Taguchi optimisation   #
-    #############################################
+    ########################################
+    #   Process for Taguchi optimisation   #
+    ########################################
     if args.opt_taguchi:
-        from user_libs.optimisations.taguchi import select_OA, calculate_ranges_experiments, calculate_optimal_levels, fitness_max
+        from user_libs.optimisations.taguchi import taguchi_code_blocks, select_OA, calculate_ranges_experiments, calculate_optimal_levels
+
+        # Default maximum number of iterations of optimisation to perform (used if the stopping criterion is not achieved)
+        maxiterations = 10
         
-        ######## These should be read from #opt_taguchi block from input file
-        # Maximum number of iteration of optimisation to perform; used if the fitness metric is not achieved
-        maxiterations = 2
+        # Process Taguchi code blocks in the input file; pass in ordered dictionary to hold parameters to optimise
+        taguchinamespace = taguchi_code_blocks(inputfile, {'optparams': OrderedDict()})
         
-        # Dictionary containing name of parameters to optimise and their values
-        optparams = OrderedDict()
-        optparams['rickeramp'] = [0.25, 5]
-#        optparams['sig'] = [0.001, 0.1]
+        # Extract dictionaries and variables containing initialisation parameters
+        optparams = taguchinamespace['optparams']
+        fitnessparams = taguchinamespace['fitnessparams']
+        if 'maxiterations' in taguchinamespace:
+            maxiterations = taguchinamespace['maxiterations']
 
         # Store initial parameter ranges
         optparamsinit = list(optparams.items())
-
+        
         # Dictionary to hold history of optmised values of parameters
         optparamshist = OrderedDict((key, list()) for key in optparams)
-
-        # Dictionary containing name of fitness metric to use and names of associated outputs; should correspond to names of rxs in input file
-        fitnessmetric = {'max': ['myRx']}
-        ########
         
+        # Import specified fitness function
+        fitness_metric = getattr(importlib.import_module('user_libs.optimisations.taguchi_fitness'), fitnessparams['name'])
+
         # Select OA
         OA, N, k, s = select_OA(optparams)
         
-        # Initialise arrays to store parameters required throughout optimisation
+        # Initialise arrays and lists to store parameters required throughout optimisation
         # Lower, central, and upper values for each parameter
         levels = np.zeros((s, k), dtype=floattype)
-        # Lower, central, and upper optimal values for each parameter from previous iteration
+        # Optimal lower, central, or upper value for each parameter
         levelsopt = np.zeros(k, dtype=floattype)
-        # Difference used to set values in levels array
+        # Difference used to set values for levels
         levelsdiff = np.zeros(k, dtype=floattype)
         # Fitness values for each experiment
-        fitness = np.zeros(N, dtype=floattype)
+        fitnessvalues = []
         # History of fitness values from each confirmation experiment
-        fitnesshist = np.zeros(maxiterations, dtype=floattype)
+        fitnessvalueshist = []
 
         i = 0
         while i < maxiterations:
-            # Set number of model runs to number of experiments for each iteration of optimisation
+            # Set number of model runs to number of experiments
             numbermodelruns = N
             usernamespace['number_model_runs'] = numbermodelruns
             
@@ -170,7 +173,7 @@ def main():
                         
                         if tag == tags.START.value:
                             # Run a model
-                            # Add specific value for each parameter to optimise, for each experiment to user accessible namespace
+                            # Add specific value for each parameter to optimise for each experiment to user accessible namespace
                             optnamespace = usernamespace.copy()
                             optnamespace.update((key, value[modelrun - 1]) for key, value in optparams.items())
                             run_model(args, modelrun, numbermodelruns, inputfile, usernamespace)
@@ -191,18 +194,18 @@ def main():
                 tsimend = perf_counter()
                 print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
 
-            # Calculate fitness metric for each experiment
+            # Calculate fitness value for each experiment
             for exp in range(1, numbermodelruns + 1):
-                inputfileparts = os.path.splitext(inputfile)
                 outputfile = inputfileparts[0] + str(exp) + '.out'
-                fitness[exp - 1] = fitness_max(outputfile, ['myRx'])
-
-            print('\nTaguchi optimisation, iteration {}: completed initial {} experiments completed with fitness values {}.'.format(i + 1, numbermodelruns, fitness))
+                fitnessvalues.append(fitness_metric(outputfile, fitnessparams['args']))
+                os.remove(outputfile)
             
-            # Calculate optimal levels from results of fitness metric by building a response table and update dictionary of parameters with optimal values
-            optparams, levelsopt = calculate_optimal_levels(optparams, levels, levelsopt, fitness, OA, N, k)
+            print('\nTaguchi optimisation, iteration {}: completed initial {} experiments completed with fitness values {}.'.format(i + 1, numbermodelruns, fitnessvalues))
+            
+            # Calculate optimal levels from fitness values by building a response table; update dictionary of parameters with optimal values
+            optparams, levelsopt = calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N, k)
 
-            # Run a confirmation experiment
+            # Run a confirmation experiment with optimal values
             numbermodelruns = 1
             usernamespace['number_model_runs'] = numbermodelruns
             tsimstart = perf_counter()
@@ -216,20 +219,26 @@ def main():
             tsimend = perf_counter()
             print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
 
-            # Calculate fitness metric for confirmation experiment
-            inputfileparts = os.path.splitext(inputfile)
+            # Calculate fitness value for confirmation experiment
             outputfile = inputfileparts[0] + '.out'
-            fitnesshist[i] = fitness_max(outputfile, ['myRx'])
-
-            # Stop if fitness criteria have been met
-
-            print('\nTaguchi optimisation, iteration {} completed with optimal values {} and fitness value {}\n{}\n'.format(i + 1, optparams, fitnesshist[i], 65*'*'))
+            fitnessvalueshist.append(fitness_metric(outputfile, fitnessparams['args']))
+            
+            # Rename confirmation experiment output file so that it is retained for each iteraction
+            os.rename(outputfile, os.path.splitext(outputfile)[0] + '_final' + str(i + 1) + '.out')
+            
+            print('\nTaguchi optimisation, iteration {} completed with optimal values {} and fitness value {}'.format(i + 1, dict(optparams), fitnessvalueshist[i], 68*'*'))
             
             i += 1
 
-    ############################################
-    #   Main routine for standard simulation   #
-    ############################################
+            # Stop optimisation if stopping criterion has been reached
+            if fitnessvalueshist[i - 1] > fitnessparams['stop']:
+                break
+
+        print('\n{}\nTaguchi optimisation completed after {} iteration(s).\nConvergence history of optimal values {} and of fitness values {}\n{}\n'.format(68*'*', i, dict(optparamshist), fitnessvalueshist, 68*'*'))
+
+    #######################################
+    #   Process for standard simulation   #
+    #######################################
     else:
         if args.mpi and numbermodelruns == 1:
             raise CmdInputError('MPI is not beneficial when there is only one model to run')
@@ -297,7 +306,7 @@ def main():
             tsimend = perf_counter()
             print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
 
-        print('\nSimulation completed.\n{}\n'.format(65*'*'))
+        print('\nSimulation completed.\n{}\n'.format(68*'*'))
 
 
 def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
@@ -311,7 +320,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
     """
     
-    print('Model input file: {}\n'.format(inputfile))
+    print('\n{}\n\nModel input file: {}\n'.format(68*'*', inputfile))
     
     # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
     usernamespace['current_model_run'] = modelrun
