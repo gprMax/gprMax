@@ -10,9 +10,16 @@ import h5py
 
 from gprMax.constants import floattype
 
+"""This module contains fitness metric functions that can be used with the Taguchi optimisation method.
+    
+    All fitness functions must take two arguments and return a single fitness value. 
+    The first argument should be the name of the output file 
+    The second argument is a list which can contain any number of additional arguments, e.g. names (IDs) of outputs (rxs) from input file
+"""
+
 
 def fitness_max(filename, outputnames):
-    """Return the maximum value from specific outputs in a file.
+    """Return the maximum value from a specific output in the input file.
         
     Args:
         filename (str): Name of output file
