@@ -64,16 +64,13 @@ def python_code_blocks(inputfile, usernamespace):
             
             # Add processed Python code to list
             processedlines.extend(codeproc)
-            x += 1
     
         elif(inputlines[x].startswith('#')):
             # Add gprMax command to list
             inputlines[x] += ('\n')
             processedlines.append(inputlines[x])
-            x += 1
 
-        else:
-            x += 1
+        x += 1
 
     sys.stdout = sys.__stdout__ # Reset stdio
     
@@ -122,7 +119,7 @@ def check_cmd_names(processedlines):
     singlecmds = dict.fromkeys(['#domain', '#dx_dy_dz', '#time_window', '#title', '#messages', '#num_threads', '#time_step_stability_factor', '#time_step_limit_type', '#pml_cells', '#excitation_file', '#src_steps', '#rx_steps'], 'None')
 
     # Commands that there can be multiple instances of in a model - these will be lists within the dictionary
-    multiplecmds = {key: [] for key in ['#geometry_view', '#material', '#soil_peplinski', '#add_dispersion_debye', '#add_dispersion_lorentz', '#add_dispersion_drude', '#waveform', '#voltage_source', '#hertzian_dipole', '#magnetic_dipole', '#rx', '#rx_box', '#snapshot', '#pml_cfs']}
+    multiplecmds = {key: [] for key in ['#taguchi', '#end_taguchi', '#geometry_view', '#material', '#soil_peplinski', '#add_dispersion_debye', '#add_dispersion_lorentz', '#add_dispersion_drude', '#waveform', '#voltage_source', '#hertzian_dipole', '#magnetic_dipole', '#rx', '#rx_box', '#snapshot', '#pml_cfs']}
     
     # Geometry object building commands that there can be multiple instances of in a model - these will be lists within the dictionary
     geometrycmds = ['#edge', '#plate', '#triangle', '#box', '#sphere', '#cylinder', '#cylindrical_sector', '#fractal_box', '#add_surface_roughness', '#add_surface_water', '#add_grass']
