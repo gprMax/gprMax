@@ -8,8 +8,6 @@
 import numpy as np
 import h5py
 
-from gprMax.constants import floattype
-
 """This module contains fitness metric functions that can be used with the Taguchi optimisation method.
     
     All fitness functions must take two arguments and return a single fitness value. 
