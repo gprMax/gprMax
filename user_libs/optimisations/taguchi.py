@@ -6,15 +6,54 @@
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
 import os
-import numpy as np
 from collections import OrderedDict
 
+import numpy as np
 import h5py
 
 from gprMax.constants import floattype
 from gprMax.exceptions import CmdInputError
 
 moduledirectory = os.path.dirname(os.path.abspath(__file__))
+
+
+def taguchi_code_blocks(inputfile, taguchinamespace):
+    """Looks for and processes a Taguchi code block (containing Python code) in the input file. It will ignore any lines that are comments, i.e. begin with a double hash (##), and any blank lines.
+        
+    Args:
+        inputfile (str): Name of the input file to open.
+        taguchinamespace (dict): Namespace that can be accessed by user a Taguchi code block in input file.
+        
+    Returns:
+        processedlines (list): Input commands after Python processing.
+    """
+        
+    with open(inputfile, 'r') as f:
+        # Strip out any newline characters and comments that must begin with double hashes
+        inputlines = [line.rstrip() for line in f if(not line.startswith('##') and line.rstrip('\n'))]
+    
+    x = 0
+    while(x < len(inputlines)):
+        if(inputlines[x].startswith('#taguchi:')):
+            # String to hold Python code to be executed
+            taguchicode = ''
+            x += 1
+            while not inputlines[x].startswith('#end_taguchi:'):
+                # Add all code in current code block to string
+                taguchicode += inputlines[x] + '\n'
+                x += 1
+                if x == len(inputlines):
+                    raise CmdInputError('Cannot find the end of the Taguchi code block, i.e. missing #end_taguchi: command.')
+        
+            # Compile code for faster execution
+            taguchicompiledcode = compile(taguchicode, '<string>', 'exec')
+
+            # Execute code block & make available only usernamespace
+            exec(taguchicompiledcode, taguchinamespace)
+    
+        x += 1
+    
+    return taguchinamespace
 
 
 def select_OA(optparams):
@@ -120,15 +159,14 @@ def calculate_ranges_experiments(optparams, optparamsinit, levels, levelsopt, le
     return optparams, levels, levelsdiff
 
 
-
-def calculate_optimal_levels(optparams, levels, levelsopt, fitness, OA, N, k):
+def calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N, k):
     """Calculate optimal levels from results of fitness metric by building a response table.
         
     Args:
         optparams (dict): Ordered dictionary containing name of parameters to optimise and their values
         levels (array): Lower, central, and upper values for each parameter
         levelsopt (array): Optimal level for each parameter from previous iteration
-        fitness (array): Values from results of fitness metric
+        fitnessvalues (list): Values from results of fitness metric
         OA (array): Orthogonal array
         N (int): Number of experiments in OA
         k (int): Number of parameters to optimise in OA
@@ -148,13 +186,13 @@ def calculate_optimal_levels(optparams, levels, levelsopt, fitness, OA, N, k):
 
         for exp in range(1, N):
             if OA[exp, p] == 0:
-                responses[0] += fitness[exp]
+                responses[0] += fitnessvalues[exp]
                 cnt1 += 1
             elif OA[exp, p] == 1:
-                responses[1] += fitness[exp]
+                responses[1] += fitnessvalues[exp]
                 cnt2 += 1
             elif OA[exp, p] == 2:
-                responses[2] += fitness[exp]
+                responses[2] += fitnessvalues[exp]
                 cnt3 += 1
 
         responses[0] /= cnt1
@@ -178,35 +216,5 @@ def calculate_optimal_levels(optparams, levels, levelsopt, fitness, OA, N, k):
         p += 1
 
     return optparams, levelsopt
-
-
-def fitness_max(filename, outputnames):
-    """Return the maximum value from specific outputs in a file.
-        
-    Args:
-        filename (dict): Ordered dictionary containing name of parameters to optimise and their values
-        outputnames (list): Names (IDs) of outputs (rxs)
-        
-    Returns:
-        maxvalue (array): Maximum value(s) from specific outputs
-    """
-
-    maxvalue = np.zeros(len(outputnames), dtype=floattype)
-    f = h5py.File(filename, 'r')
-    nrx = f.attrs['nrx']
-
-    i = 0
-    for rx in range(1, nrx + 1):
-        tmp = f['/rxs/rx' + str(rx) + '/']
-        if tmp.attrs['Name'] in outputnames:
-            fieldname = list(tmp.keys())[0]
-            maxvalue[i] = np.amax(tmp[fieldname])
-            i += 1
-
-    return maxvalue
-
-    
-
-
 
     
