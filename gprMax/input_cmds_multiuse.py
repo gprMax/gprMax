@@ -262,7 +262,7 @@ def process_multicmds(multicmds, G):
             
             # If no ID or outputs are specified use default, i.e Ex, Ey, Ez, Hx, Hy, Hz
             if len(tmp) == 3:
-                r.outputs = Rx.availableoutputs[0:5]
+                r.outputs = Rx.availableoutputs[0:6]
             else:
                 r.ID = tmp[3]
                 # Check and add field output names
