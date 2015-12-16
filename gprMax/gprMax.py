@@ -175,7 +175,9 @@ def main():
                             # Run a model
                             # Add specific value for each parameter to optimise for each experiment to user accessible namespace
                             optnamespace = usernamespace.copy()
-                            optnamespace.update((key, value[modelrun - 1]) for key, value in optparams.items())
+                            tmp = {}
+                            tmp.update((key, value[modelrun - 1]) for key, value in optparams.items())
+                            optnamespace.update({'optparams': tmp})
                             run_model(args, modelrun, numbermodelruns, inputfile, usernamespace)
                             comm.send(None, dest=0, tag=tags.DONE.value)
                         elif tag == tags.EXIT.value:
@@ -189,7 +191,9 @@ def main():
                 for modelrun in range(1, numbermodelruns + 1):
                     # Add specific value for each parameter to optimise, for each experiment to user accessible namespace
                     optnamespace = usernamespace.copy()
-                    optnamespace.update((key, value[modelrun - 1]) for key, value in optparams.items())
+                    tmp = {}
+                    tmp.update((key, value[modelrun - 1]) for key, value in optparams.items())
+                    optnamespace.update({'optparams': tmp})
                     run_model(args, modelrun, numbermodelruns, inputfile, optnamespace)
                 tsimend = perf_counter()
                 print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
