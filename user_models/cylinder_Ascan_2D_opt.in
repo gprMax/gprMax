@@ -12,7 +12,7 @@
 optparams['rickeramp'] = [0.25, 5]
 
 ## Dictionary containing name of fitness metric to use, stopping criterion, and names of associated outputs (should correspond to names of rxs in input file)
-fitnessparams = {'name': 'fitness_max', 'stop': 4000, 'args': ['myRx']}
+fitness = {'name': 'fitness_max', 'stop': 4000, 'args': {'outputs': 'myRx'}}
 #end_taguchi:
 
 #python:
