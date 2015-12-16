@@ -7,6 +7,14 @@
 
 #material: 6 0 1 0 half_space
 
+#taguchi:
+## Dictionary containing name of parameters to optimise and their values
+optparams['rickeramp'] = [0.25, 5]
+
+## Dictionary containing name of fitness metric to use, stopping criterion, and names of associated outputs (should correspond to names of rxs in input file)
+fitnessparams = {'name': 'fitness_max', 'stop': 4000, 'args': ['myRx']}
+#end_taguchi:
+
 #python:
 print('#waveform: ricker {} 1.5e9 my_ricker'.format(rickeramp))
 #end_python:
