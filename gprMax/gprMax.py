@@ -81,14 +81,14 @@ def main():
         from user_libs.optimisations.taguchi import taguchi_code_blocks, select_OA, calculate_ranges_experiments, calculate_optimal_levels
 
         # Default maximum number of iterations of optimisation to perform (used if the stopping criterion is not achieved)
-        maxiterations = 10
+        maxiterations = 20
         
         # Process Taguchi code blocks in the input file; pass in ordered dictionary to hold parameters to optimise
         taguchinamespace = taguchi_code_blocks(inputfile, {'optparams': OrderedDict()})
         
         # Extract dictionaries and variables containing initialisation parameters
         optparams = taguchinamespace['optparams']
-        fitnessparams = taguchinamespace['fitnessparams']
+        fitness = taguchinamespace['fitness']
         if 'maxiterations' in taguchinamespace:
             maxiterations = taguchinamespace['maxiterations']
 
@@ -99,7 +99,7 @@ def main():
         optparamshist = OrderedDict((key, list()) for key in optparams)
         
         # Import specified fitness function
-        fitness_metric = getattr(importlib.import_module('user_libs.optimisations.taguchi_fitness'), fitnessparams['name'])
+        fitness_metric = getattr(importlib.import_module('user_libs.optimisations.taguchi_fitness'), fitness['name'])
 
         # Select OA
         OA, N, k, s = select_OA(optparams)
@@ -197,7 +197,7 @@ def main():
             # Calculate fitness value for each experiment
             for exp in range(1, numbermodelruns + 1):
                 outputfile = inputfileparts[0] + str(exp) + '.out'
-                fitnessvalues.append(fitness_metric(outputfile, fitnessparams['args']))
+                fitnessvalues.append(fitness_metric(outputfile, fitness['args']))
                 os.remove(outputfile)
             
             print('\nTaguchi optimisation, iteration {}: completed initial {} experiments completed with fitness values {}.'.format(i + 1, numbermodelruns, fitnessvalues))
@@ -221,7 +221,7 @@ def main():
 
             # Calculate fitness value for confirmation experiment
             outputfile = inputfileparts[0] + '.out'
-            fitnessvalueshist.append(fitness_metric(outputfile, fitnessparams['args']))
+            fitnessvalueshist.append(fitness_metric(outputfile, fitness['args']))
             
             # Rename confirmation experiment output file so that it is retained for each iteraction
             os.rename(outputfile, os.path.splitext(outputfile)[0] + '_final' + str(i + 1) + '.out')
@@ -231,7 +231,7 @@ def main():
             i += 1
 
             # Stop optimisation if stopping criterion has been reached
-            if fitnessvalueshist[i - 1] > fitnessparams['stop']:
+            if fitnessvalueshist[i - 1] > fitness['stop']:
                 break
 
         print('\n{}\nTaguchi optimisation completed after {} iteration(s).\nConvergence history of optimal values {} and of fitness values {}\n{}\n'.format(68*'*', i, dict(optparamshist), fitnessvalueshist, 68*'*'))
