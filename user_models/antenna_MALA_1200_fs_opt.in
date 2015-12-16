@@ -16,10 +16,5 @@ fitness = {'name': 'fitness_xcorr', 'stop': 0.9, 'args': {'refresp': '/Users/cwa
 
 #python:
 from user_libs.antennas import antenna_like_MALA_1200
-
-kwargs = {}
-for i in ['excitationfreq', 'sourceresistance', 'absorberEr', 'absorbersig']:
-    kwargs[i] = locals()[i]
-
-antenna_like_MALA_1200(0.132, 0.095, 0.100, resolution=0.001, **kwargs)
+antenna_like_MALA_1200(0.132, 0.095, 0.100, resolution=0.001, **optparams)
 #end_python:

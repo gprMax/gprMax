@@ -16,7 +16,7 @@ fitness = {'name': 'fitness_max', 'stop': 4000, 'args': {'outputs': 'myRx'}}
 #end_taguchi:
 
 #python:
-print('#waveform: ricker {} 1.5e9 my_ricker'.format(rickeramp))
+print('#waveform: ricker {} 1.5e9 my_ricker'.format(optparams['rickeramp']))
 #end_python:
 
 #hertzian_dipole: z 0.100 0.170 0 my_ricker
