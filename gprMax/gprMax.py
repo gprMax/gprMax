@@ -84,7 +84,9 @@ def main():
         maxiterations = 20
         
         # Process Taguchi code blocks in the input file; pass in ordered dictionary to hold parameters to optimise
-        taguchinamespace = taguchi_code_blocks(inputfile, {'optparams': OrderedDict()})
+        tmp = usernamespace.copy()
+        tmp.update({'optparams': OrderedDict()})
+        taguchinamespace = taguchi_code_blocks(inputfile, tmp)
         
         # Extract dictionaries and variables containing initialisation parameters
         optparams = taguchinamespace['optparams']
@@ -216,9 +218,11 @@ def main():
             for modelrun in range(1, numbermodelruns + 1):
                 # Add specific value for each parameter to optimise, for each experiment to user accessible namespace
                 optnamespace = usernamespace.copy()
+                tmp = {}
                 for key, value in optparams.items():
-                    optnamespace[key] = value[modelrun - 1]
+                    tmp[key] = value[modelrun - 1]
                     optparamshist[key].append(value[modelrun - 1])
+                optnamespace.update({'optparams': tmp})
                 run_model(args, modelrun, numbermodelruns, inputfile, optnamespace)
             tsimend = perf_counter()
             print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
