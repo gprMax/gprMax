@@ -25,7 +25,7 @@ except ImportError:
 try:
     import numpy as np
 except ImportError:
-    raise ImportError('The numpy package is required to build gprMax.')
+    raise ImportError('The NumPy package is required to build gprMax.')
 
 import glob, os, re, shutil, sys
 
@@ -37,12 +37,21 @@ version = re.search('^__version__\s*=\s*\'(.*)\'',
                     open(os.path.join(packagename, 'gprMax.py')).read(),
                     re.M).group(1)
 
-# Mac OS X - need to install gcc (via HomeBrew) and set it to be used. This is required because the default compiler LLVM (clang) does not support OpenMP
-if sys.platform == 'darwin':
-    # Try to find a HomeBrew installed gcc
-    os.environ['CC'] = glob.glob('/usr/local/bin/gcc-[4-5]*')[0].split(os.sep)[-1]
+# Process 'install' command line argument
+if 'install' in sys.argv:
+    print("'install' is not required for this package, running 'build_ext --inplace' instead.")
+    sys.argv.remove('install')
+    sys.argv.append('build_ext')
+    sys.argv.append('--inplace')
 
-# Either Cythonize or just compile the .c files if --no-cython is given
+# Process 'build' command line argument
+if 'build' in sys.argv:
+    print("'build' is not required for this package, running 'build_ext --inplace' instead.")
+    sys.argv.remove('build')
+    sys.argv.append('build_ext')
+    sys.argv.append('--inplace')
+
+# Process '--no-cython' command line argument - either Cythonize or just compile the .c files
 if '--no-cython' in sys.argv:
     USE_CYTHON = False
     sys.argv.remove('--no-cython')
@@ -60,7 +69,7 @@ for root, dirs, files in os.walk(os.path.join(os.getcwd(), 'user_libs')):
         if file.endswith('.pyx'):
             cythonfiles.append(os.path.join('user_libs', file))
 
-# Option to cleanup Cython files
+# Process 'cleanall' command line argument - cleanup Cython files
 if 'cleanall' in sys.argv:
     USE_CYTHON = False
     print('Deleting Cython files...')
@@ -87,14 +96,22 @@ if 'cleanall' in sys.argv:
     # Now do a normal clean
     sys.argv[1] = 'clean'  # this is what distutils understands
 
-# Build a list of all the extensions
+# Set compiler options
+# Windows
 if sys.platform == 'win32':
     compile_args = ['/O2', '/openmp', '/w']
     linker_args = ['/openmp']
+# Mac OS X - needs gcc (usually via HomeBrew) because the default compiler LLVM (clang) does not support OpenMP
+elif sys.platform == 'darwin':
+    os.environ['CC'] = glob.glob('/usr/local/bin/gcc-[4-5]*')[0].split(os.sep)[-1]
+    compile_args = ['-O3', '-fopenmp', '-w']
+    linker_args = ['-fopenmp']
+# Linux
 else:
     compile_args = ['-O3', '-fopenmp', '-w']
     linker_args = ['-fopenmp']
 
+# Build a list of all the extensions
 extensions = []
 for file in cythonfiles:
     tmp = os.path.splitext(file)
@@ -110,6 +127,7 @@ for file in cythonfiles:
                           extra_link_args=linker_args)
     extensions.append(extension)
 
+# Cythonize (build .c files)
 if USE_CYTHON:
     from Cython.Build import cythonize
     extensions = cythonize(extensions,
