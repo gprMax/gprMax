@@ -5,9 +5,9 @@
 #
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
+import h5py
 import numpy as np
 from scipy import signal
-import h5py
 
 """This module contains fitness metric functions that can be used with the Taguchi optimisation method.
     
@@ -18,7 +18,7 @@ import h5py
 
 
 def fitness_max(filename, args):
-    """Return the maximum value from a specific output in the input file.
+    """Maximum value from a response.
         
     Args:
         filename (str): Name of output file
@@ -41,24 +41,25 @@ def fitness_max(filename, args):
 
 
 def fitness_xcorr(filename, args):
-    """Return the maximum value from a specific output in the input file.
+    """Maximum value of a cross-correlation between a response and a reference response.
         
     Args:
         filename (str): Name of output file
-        args (dict): 'refresp' key with path & filename of reference signal (time, amp) stored in a text file; 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
+        args (dict): 'refresp' key with path & filename of reference response (time, amp) stored in a text file; 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
         
     Returns:
         xcorrmax (float): Maximum value from specific outputs
     """
 
-    # Load and normalise the reference response
+    # Load (from text file) and normalise the reference response
     with open(args['refresp'], 'r') as f:
         refdata = np.loadtxt(f)
-    reftime = refdata[:,0]
+    reftime = refdata[:,0] * 1e-9
     refresp = refdata[:,1]
     refresp /= np.amax(np.abs(refresp))
 
     # Load response from output file
+    print(filename)
     f = h5py.File(filename, 'r')
     nrx = f.attrs['nrx']
     modeltime = np.arange(0, f.attrs['dt'] * f.attrs['Iterations'], f.attrs['dt'])
@@ -87,19 +88,64 @@ def fitness_xcorr(filename, args):
         modeltime = np.arange(0, reftime[-1], f.attrs['dt'])
         modelresp = modelresp[0:len(modeltime)]
 
-    # Resample the response with the lower sampling rate
-    if len(modeltime) > len(reftime):
-        reftime = signal.resample(reftime, len(modeltime))
+    # Downsample the response with the higher sampling rate
+    if len(modeltime) < len(reftime):
         refresp = signal.resample(refresp, len(modelresp))
-    elif len(reftime) > len(modeltime):
-        modeltime = signal.resample(modeltime, len(reftime))
+    elif len(reftime) < len(modeltime):
         modelresp = signal.resample(modelresp, len(refresp))
+
+    # Plots responses for checking
+#    fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Voltage [V]'), figsize=(20, 10), facecolor='w', edgecolor='w')
+#    ax.plot(refresp,'r', lw=2, label='refresp')
+#    ax.plot(modelresp,'b', lw=2, label='modelresp')
+#    ax.grid()
+#    plt.show()
 
     # Calculate cross-correlation
     xcorr = signal.correlate(refresp, modelresp)
-    xcorrmax = np.amax(xcorr)
+    # Plot cross-correlation for checking
+#    fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Voltage [V]'), figsize=(20, 10), facecolor='w', edgecolor='w')
+#    ax.plot(xcorr,'r', lw=2, label='xcorr')
+#    ax.grid()
+#    plt.show()
+    xcorrmax = np.amax(xcorr) / 100
 
     return xcorrmax
+
+
+def fitness_diff_dB(filename, args):
+    """Sum of the differences (in dB) between a response and a reference response.
+        
+    Args:
+        filename (str): Name of output file
+        args (dict): 'refresp' key with path & filename of reference response; 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
+        
+    Returns:
+        diffdB (float): Sum of the differences (in dB) between a response and a reference response
+    """
+
+    # Load (from gprMax output file) the reference response
+    f = h5py.File(args['refresp'], 'r')
+    tmp = f['/rxs/rx1/']
+    fieldname = list(tmp.keys())[0]
+    refresp = tmp[fieldname]
+
+    # Load (from gprMax output file) the response
+    f = h5py.File(filename, 'r')
+    nrx = f.attrs['nrx']
+    
+    for rx in range(1, nrx + 1):
+        tmp = f['/rxs/rx' + str(rx) + '/']
+        if tmp.attrs['Name'] in args['outputs']:
+            fieldname = list(tmp.keys())[0]
+            modelresp = tmp[fieldname]
+
+    # Calculate sum of differences
+    diffdB = np.abs(modelresp - refresp) / np.amax(np.abs(refresp))
+    diffdB = 20 * np.log10(np.sum(diffdB))
+
+    return diffdB
+
 
 
 
