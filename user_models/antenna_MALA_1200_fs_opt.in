@@ -11,7 +11,7 @@ optparams['absorberEr'] = [1, 50]
 optparams['absorbersig'] = [0.01, 1]
 
 ## Dictionary containing name of fitness metric to use, stopping criterion, and names of associated outputs (should correspond to names of rxs in input file)
-fitness = {'name': 'fitness_xcorr', 'stop': 0.99, 'args': {'refresp': inputdirectory + 'antenna_MALA_1200_fs_real.txt', 'outputs': 'rxMALA1200'}}
+fitness = {'name': 'fitness_xcorr', 'stop': 0.98, 'args': {'refresp': inputdirectory + 'antenna_MALA_1200_fs_real.txt', 'outputs': 'rxMALA1200'}}
 #end_taguchi:
 
 #python:
