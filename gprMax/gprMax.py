@@ -81,7 +81,7 @@ def main():
         from user_libs.optimisations.taguchi import taguchi_code_blocks, select_OA, calculate_ranges_experiments, calculate_optimal_levels
 
         # Default maximum number of iterations of optimisation to perform (used if the stopping criterion is not achieved)
-        maxiterations = 20
+        maxiterations = 15
         
         # Process Taguchi code blocks in the input file; pass in ordered dictionary to hold parameters to optimise
         tmp = usernamespace.copy()
@@ -113,8 +113,6 @@ def main():
         levelsopt = np.zeros(k, dtype=floattype)
         # Difference used to set values for levels
         levelsdiff = np.zeros(k, dtype=floattype)
-        # Fitness values for each experiment
-        fitnessvalues = []
         # History of fitness values from each confirmation experiment
         fitnessvalueshist = []
 
@@ -124,6 +122,9 @@ def main():
             numbermodelruns = N
             usernamespace['number_model_runs'] = numbermodelruns
             
+            # Fitness values for each experiment
+            fitnessvalues = []
+    
             # Set parameter ranges and define experiments
             optparams, levels, levelsdiff = calculate_ranges_experiments(optparams, optparamsinit, levels, levelsopt, levelsdiff, OA, N, k, s, i)
     
@@ -242,6 +243,10 @@ def main():
             if fitnessvalueshist[i - 1] > fitness['stop']:
                 break
 
+        # Save optimisation parameters history and fitness values history to file
+        opthistfile = inputfileparts[0] + '_hist'
+        np.savez(opthistfile, dict(optparamshist), fitnessvalueshist)
+        
         print('\n{}\nTaguchi optimisation completed after {} iteration(s).\nConvergence history of optimal values {} and of fitness values {}\n{}\n'.format(68*'*', i, dict(optparamshist), fitnessvalueshist, 68*'*'))
 
     #######################################
