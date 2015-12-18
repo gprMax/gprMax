@@ -128,7 +128,7 @@ def fitness_diff_dB(filename, args):
     f = h5py.File(args['refresp'], 'r')
     tmp = f['/rxs/rx1/']
     fieldname = list(tmp.keys())[0]
-    refresp = tmp[fieldname]
+    refresp = np.array(tmp[fieldname])
 
     # Load (from gprMax output file) the response
     f = h5py.File(filename, 'r')
@@ -138,13 +138,13 @@ def fitness_diff_dB(filename, args):
         tmp = f['/rxs/rx' + str(rx) + '/']
         if tmp.attrs['Name'] in args['outputs']:
             fieldname = list(tmp.keys())[0]
-            modelresp = tmp[fieldname]
+            modelresp = np.array(tmp[fieldname])
 
     # Calculate sum of differences
     diffdB = np.abs(modelresp - refresp) / np.amax(np.abs(refresp))
     diffdB = 20 * np.log10(np.sum(diffdB))
 
-    return diffdB
+    return 1 / diffdB
 
 
 
