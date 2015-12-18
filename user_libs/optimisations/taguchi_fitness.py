@@ -7,6 +7,7 @@
 
 import h5py
 import numpy as np
+np.seterr(divide='ignore')
 from scipy import signal
 
 """This module contains fitness metric functions that can be used with the Taguchi optimisation method.
@@ -59,7 +60,6 @@ def fitness_xcorr(filename, args):
     refresp /= np.amax(np.abs(refresp))
 
     # Load response from output file
-    print(filename)
     f = h5py.File(filename, 'r')
     nrx = f.attrs['nrx']
     modeltime = np.arange(0, f.attrs['dt'] * f.attrs['Iterations'], f.attrs['dt'])
@@ -113,7 +113,7 @@ def fitness_xcorr(filename, args):
     return xcorrmax
 
 
-def fitness_diff_dB(filename, args):
+def fitness_diffs(filename, args):
     """Sum of the differences (in dB) between a response and a reference response.
         
     Args:
@@ -141,8 +141,8 @@ def fitness_diff_dB(filename, args):
             modelresp = np.array(tmp[fieldname])
 
     # Calculate sum of differences
-    diffdB = np.abs(modelresp - refresp) / np.amax(np.abs(refresp))
-    diffdB = 1 / (20 * np.log10(np.sum(diffdB)))
+    diffdB = 20 * np.log10(np.abs(modelresp - refresp) / np.amax(np.abs(refresp)))
+    diffdB = np.abs(np.sum(diffdB[-np.isneginf(diffdB)])) / len(diffdB[-np.isneginf(diffdB)])
 
     return diffdB
 
