@@ -627,7 +627,7 @@ def process_multicmds(multicmds, G):
                 cfs.sigmamax = float(tmp[8])
     
             if G.messages:
-                print('CFS parameters: alpha scaling {}, alpha_min {:.2f}, alpha_max {:.2f}, kappa scaling {}, kappa_min {:.2f}, kappa_max {:.2f}, sigma scaling {}, sigma_min {:.2f}, sigma_max {} created.'.format(cfs.alphascaling, cfs.alphamin, cfs.alphamax, cfs.kappascaling, cfs.kappamin, cfs.kappamax, cfs.sigmascaling, cfs.sigmamin, cfs.sigmamax))
+                print('CFS parameters: alpha scaling {}, alpha_min {:.2f}, alpha_max {:.2f}, kappa scaling {}, kappa_min {:.2f}, kappa_max {:.2f}, sigma scaling {}, sigma_min {:.2f}, sigma_max {:.2f} created.'.format(cfs.alphascaling, cfs.alphamin, cfs.alphamax, cfs.kappascaling, cfs.kappamin, cfs.kappamax, cfs.sigmascaling, cfs.sigmamin, cfs.sigmamax))
             
             G.cfs.append(cfs)
 
