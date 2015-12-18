@@ -31,6 +31,7 @@ from enum import Enum
 from collections import OrderedDict
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from gprMax.constants import c, e0, m0, z0, floattype
 from gprMax.exceptions import CmdInputError
@@ -81,7 +82,7 @@ def main():
         from user_libs.optimisations.taguchi import taguchi_code_blocks, select_OA, calculate_ranges_experiments, calculate_optimal_levels
 
         # Default maximum number of iterations of optimisation to perform (used if the stopping criterion is not achieved)
-        maxiterations = 15
+        maxiterations = 20
         
         # Process Taguchi code blocks in the input file; pass in ordered dictionary to hold parameters to optimise
         tmp = usernamespace.copy()
@@ -206,7 +207,7 @@ def main():
                 outputfile = inputfileparts[0] + str(exp) + '.out'
                 fitnessvalues.append(fitness_metric(outputfile, fitness['args']))
                 os.remove(outputfile)
-            
+
             print('\nTaguchi optimisation, iteration {}: completed initial {} experiments completed with fitness values {}.'.format(i + 1, numbermodelruns, fitnessvalues))
             
             # Calculate optimal levels from fitness values by building a response table; update dictionary of parameters with optimal values
@@ -231,23 +232,43 @@ def main():
             # Calculate fitness value for confirmation experiment
             outputfile = inputfileparts[0] + '.out'
             fitnessvalueshist.append(fitness_metric(outputfile, fitness['args']))
-            
+
             # Rename confirmation experiment output file so that it is retained for each iteraction
             os.rename(outputfile, os.path.splitext(outputfile)[0] + '_final' + str(i + 1) + '.out')
             
-            print('\nTaguchi optimisation, iteration {} completed with optimal values {} and fitness value {}'.format(i + 1, dict(optparams), fitnessvalueshist[i], 68*'*'))
+            print('\nTaguchi optimisation, iteration {} completed. History of optimal parameter values {} and of fitness values {}'.format(i + 1, dict(optparamshist), fitnessvalueshist, 68*'*'))
             
             i += 1
 
             # Stop optimisation if stopping criterion has been reached
             if fitnessvalueshist[i - 1] > fitness['stop']:
                 break
+        
+            # Stop optimisation if successive fitness values are close to one another
+            if i > 1 and fitnessvalueshist[i - 1] - fitnessvalueshist[i - 2] < 0.0001:
+                break
 
         # Save optimisation parameters history and fitness values history to file
         opthistfile = inputfileparts[0] + '_hist'
         np.savez(opthistfile, dict(optparamshist), fitnessvalueshist)
-        
-        print('\n{}\nTaguchi optimisation completed after {} iteration(s).\nConvergence history of optimal values {} and of fitness values {}\n{}\n'.format(68*'*', i, dict(optparamshist), fitnessvalueshist, 68*'*'))
+
+        print('\n{}\nTaguchi optimisation completed after {} iteration(s).\nHistory of optimal parameter values {} and of fitness values {}\n{}\n'.format(68*'*', i, dict(optparamshist), fitnessvalueshist, 68*'*'))
+
+        # Plot history of fitness values
+        fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Fitness value'), num='History of fitness values', figsize=(20, 10), facecolor='w', edgecolor='w')
+        ax.plot(fitnessvalueshist, 'r', marker='x', ms=10, lw=2)
+        ax.grid()
+
+        # Plot history of optimisation parameters
+        p = 0
+        for key, value in optparamshist.items():
+            fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Parameter value'), num='History of ' + key + ' parameter', figsize=(20, 10), facecolor='w', edgecolor='w')
+            ax.plot(optparamshist[key], 'r', marker='x', ms=10, lw=2)
+#            ax.set_ylim([optparamsinit[p][1][0], optparamsinit[p][1][1]])
+            ax.grid()
+            p += 1
+        plt.show()
+
 
     #######################################
     #   Process for standard simulation   #
