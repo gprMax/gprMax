@@ -121,7 +121,7 @@ def process_singlecmds(singlecmds, multicmds, G):
     G.ny = ny
     G.nz = nz
     if G.messages:
-        print('Model domain: {:.3f} x {:.3f} x {:.3f} m ({:d} x {:d} x {:d} = {:d} Mcells)'.format(tmp[0], tmp[1], tmp[2], G.nx, G.ny, G.nz, int((G.nx * G.ny * G.nz)/1e6)))
+        print('Model domain: {:.3f} x {:.3f} x {:.3f} m ({:d} x {:d} x {:d} = {:.1f} Mcells)'.format(tmp[0], tmp[1], tmp[2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)/1e6))
         mem = (((G.nx + 1) * (G.ny + 1) * (G.nz + 1) * 13 * np.dtype(floattype).itemsize + (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * 18) * 1.1) + 30e6
         print('Memory (approx) required/available: {} / {}'.format(human_size(mem), human_size(virtual_memory().total)))
 
