@@ -142,9 +142,9 @@ def fitness_diff_dB(filename, args):
 
     # Calculate sum of differences
     diffdB = np.abs(modelresp - refresp) / np.amax(np.abs(refresp))
-    diffdB = 20 * np.log10(np.sum(diffdB))
+    diffdB = 1 / (20 * np.log10(np.sum(diffdB)))
 
-    return 1 / diffdB
+    return diffdB
 
 
 
