@@ -139,7 +139,7 @@ def calculate_ranges_experiments(optparams, optparamsinit, levels, levelsopt, le
 
         # Upper levels set using central level and level differences values; and check they are not outwith initial ranges
         if levels[1, p] + levelsdiff[p] > optparamsinit[p][1][1]:
-            levels[2, p] = optparamslist[p][1][1]
+            levels[2, p] = optparamsinit[p][1][1]
         else:
             levels[2, p] = levels[1, p] + levelsdiff[p]
 
