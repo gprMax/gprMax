@@ -112,18 +112,15 @@ def process_singlecmds(singlecmds, multicmds, G):
     # Domain
     cmd = '#domain'
     tmp = [float(x) for x in singlecmds[cmd].split()]
-    nx = rvalue(tmp[0]/G.dx)
-    ny = rvalue(tmp[1]/G.dy)
-    nz = rvalue(tmp[2]/G.dz)
     if len(tmp) != 3:
         raise CmdInputError(cmd + ' requires exactly three parameters')
-    G.nx = nx
-    G.ny = ny
-    G.nz = nz
+    G.nx = rvalue(tmp[0]/G.dx)
+    G.ny = rvalue(tmp[1]/G.dy)
+    G.nz = rvalue(tmp[2]/G.dz)
     if G.messages:
         print('Model domain: {:.3f} x {:.3f} x {:.3f} m ({:d} x {:d} x {:d} = {:.1f} Mcells)'.format(tmp[0], tmp[1], tmp[2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)/1e6))
         mem = (((G.nx + 1) * (G.ny + 1) * (G.nz + 1) * 13 * np.dtype(floattype).itemsize + (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * 18) * 1.1) + 30e6
-        print('Memory (approx) required/available: {} / {}'.format(human_size(mem), human_size(virtual_memory().total)))
+        print('Memory: ~{} required, {} available'.format(human_size(mem), human_size(virtual_memory().total)))
 
 
     # Time step CFL limit - use either 2D or 3D (default)
