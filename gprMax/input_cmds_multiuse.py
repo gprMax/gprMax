@@ -82,7 +82,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' y-coordinate is not within the model domain')
             if positionz < 0 or positionz >= G.nz:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' z-coordinate is not within the model domain')
-            if positionx <= G.pmlthickness[0] or positionx >= G.nx - G.pmlthickness[3] or positiony <= G.pmlthickness[1] or positiony >= G.ny - G.pmlthickness[4] or positionz <= G.pmlthickness[2] or positionz >= G.nz - G.pmlthickness[5]:
+            if positionx < G.pmlthickness[0] or positionx > G.nx - G.pmlthickness[3] or positiony < G.pmlthickness[1] or positiony > G.ny - G.pmlthickness[4] or positionz < G.pmlthickness[2] or positionz > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.')
             if resistance < 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a source resistance of zero or greater')
@@ -145,7 +145,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' y-coordinate is not within the model domain')
             if positionz < 0 or positionz >= G.nz:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' z-coordinate is not within the model domain')
-            if positionx <= G.pmlthickness[0] or positionx >= G.nx - G.pmlthickness[3] or positiony <= G.pmlthickness[1] or positiony >= G.ny - G.pmlthickness[4] or positionz <= G.pmlthickness[2] or positionz >= G.nz - G.pmlthickness[5]:
+            if positionx < G.pmlthickness[0] or positionx > G.nx - G.pmlthickness[3] or positiony < G.pmlthickness[1] or positiony > G.ny - G.pmlthickness[4] or positionz < G.pmlthickness[2] or positionz > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.')
                     
             # Check if there is a waveformID in the waveforms list
@@ -205,7 +205,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' y-coordinate is not within the model domain')
             if positionz < 0 or positionz >= G.nz:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' z-coordinate is not within the model domain')
-            if positionx <= G.pmlthickness[0] or positionx >= G.nx - G.pmlthickness[3] or positiony <= G.pmlthickness[1] or positiony >= G.ny - G.pmlthickness[4] or positionz <= G.pmlthickness[2] or positionz >= G.nz - G.pmlthickness[5]:
+            if positionx < G.pmlthickness[0] or positionx > G.nx - G.pmlthickness[3] or positiony < G.pmlthickness[1] or positiony > G.ny - G.pmlthickness[4] or positionz < G.pmlthickness[2] or positionz > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.')
                     
             # Check if there is a waveformID in the waveforms list
@@ -263,7 +263,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' y-coordinate is not within the model domain')
             if positionz < 0 or positionz >= G.nz:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' z-coordinate is not within the model domain')
-            if positionx <= G.pmlthickness[0] or positionx >= G.nx - G.pmlthickness[3] or positiony <= G.pmlthickness[1] or positiony >= G.ny - G.pmlthickness[4] or positionz <= G.pmlthickness[2] or positionz >= G.nz - G.pmlthickness[5]:
+            if positionx < G.pmlthickness[0] or positionx > G.nx - G.pmlthickness[3] or positiony < G.pmlthickness[1] or positiony > G.ny - G.pmlthickness[4] or positionz < G.pmlthickness[2] or positionz > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.')
             
             r = Rx(positionx=positionx, positiony=positiony, positionz=positionz)
@@ -316,7 +316,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower z-coordinate {} is not within the model domain'.format(zs))
             if zf < 0 or zf >= G.nz:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the upper z-coordinate {} is not within the model domain'.format(zf))
-            if positionx <= G.pmlthickness[0] or positionx >= G.nx - G.pmlthickness[3] or positiony <= G.pmlthickness[1] or positiony >= G.ny - G.pmlthickness[4] or positionz <= G.pmlthickness[2] or positionz >= G.nz - G.pmlthickness[5]:
+            if positionx < G.pmlthickness[0] or positionx > G.nx - G.pmlthickness[3] or positiony < G.pmlthickness[1] or positiony > G.ny - G.pmlthickness[4] or positionz < G.pmlthickness[2] or positionz > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.')
             if xs >= xf or ys >= yf or zs >= zf:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
