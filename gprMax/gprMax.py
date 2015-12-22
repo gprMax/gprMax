@@ -243,10 +243,6 @@ def main():
             # Stop optimisation if stopping criterion has been reached
             if fitnessvalueshist[i - 1] > fitness['stop']:
                 break
-        
-            # Stop optimisation if successive fitness values are close to one another
-            if i > 1 and fitnessvalueshist[i - 1] - fitnessvalueshist[i - 2] < 0.0001:
-                break
 
         # Save optimisation parameters history and fitness values history to file
         opthistfile = inputfileparts[0] + '_hist'
