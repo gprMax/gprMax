@@ -31,7 +31,6 @@ from enum import Enum
 from collections import OrderedDict
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 from gprMax.constants import c, e0, m0, z0, floattype
 from gprMax.exceptions import CmdInputError
@@ -79,7 +78,7 @@ def main():
     #   Process for Taguchi optimisation   #
     ########################################
     if args.opt_taguchi:
-        from user_libs.optimisations.taguchi import taguchi_code_blocks, select_OA, calculate_ranges_experiments, calculate_optimal_levels
+        from user_libs.optimisations.taguchi import taguchi_code_blocks, select_OA, calculate_ranges_experiments, calculate_optimal_levels, plot_optimisation_history
 
         # Default maximum number of iterations of optimisation to perform (used if the stopping criterion is not achieved)
         maxiterations = 20
@@ -97,7 +96,7 @@ def main():
 
         # Store initial parameter ranges
         optparamsinit = list(optparams.items())
-        
+
         # Dictionary to hold history of optmised values of parameters
         optparamshist = OrderedDict((key, list()) for key in optparams)
         
@@ -250,20 +249,8 @@ def main():
 
         print('\n{}\nTaguchi optimisation completed after {} iteration(s).\nHistory of optimal parameter values {} and of fitness values {}\n{}\n'.format(68*'*', i, dict(optparamshist), fitnessvalueshist, 68*'*'))
 
-        # Plot history of fitness values
-        fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Fitness value'), num='History of fitness values', figsize=(20, 10), facecolor='w', edgecolor='w')
-        ax.plot(fitnessvalueshist, 'r', marker='x', ms=10, lw=2)
-        ax.grid()
-
-        # Plot history of optimisation parameters
-        p = 0
-        for key, value in optparamshist.items():
-            fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Parameter value'), num='History of ' + key + ' parameter', figsize=(20, 10), facecolor='w', edgecolor='w')
-            ax.plot(optparamshist[key], 'r', marker='x', ms=10, lw=2)
-#            ax.set_ylim([optparamsinit[p][1][0], optparamsinit[p][1][1]])
-            ax.grid()
-            p += 1
-        plt.show()
+        # Plot the history of fitness values and each optimised parameter values for the optimisation
+        plot_optimisation_history(fitnessvalueshist, optparamshist, optparamsinit)
 
 
     #######################################
