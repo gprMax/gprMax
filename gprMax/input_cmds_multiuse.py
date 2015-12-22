@@ -19,7 +19,7 @@
 from gprMax.exceptions import CmdInputError
 from gprMax.geometry_views import GeometryView
 from gprMax.materials import Material, PeplinskiSoil
-from gprMax.pml import CFS
+from gprMax.pml import CFSParameter, CFS
 from gprMax.receivers import Rx
 from gprMax.snapshots import Snapshot
 from gprMax.sources import VoltageSource, HertzianDipole, MagneticDipole
@@ -262,7 +262,7 @@ def process_multicmds(multicmds, G):
             
             # If no ID or outputs are specified use default, i.e Ex, Ey, Ez, Hx, Hy, Hz
             if len(tmp) == 3:
-                r.outputs = Rx.availableoutputs[0:5]
+                r.outputs = Rx.availableoutputs[0:6]
             else:
                 r.ID = tmp[3]
                 # Check and add field output names
@@ -605,29 +605,46 @@ def process_multicmds(multicmds, G):
             raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' can only be used up to two times, for up to a 2nd order PML')
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            if len(tmp) != 9:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly nine parameters')
-            if tmp[0] not in CFS.scalingtypes or tmp[3] not in CFS.scalingtypes or tmp[6] not in CFS.scalingtypes:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' must have scaling type {}'.format(','.join(CFS.scalingtypes)))
-            if float(tmp[1]) < 0 or float(tmp[2]) < 0 or float(tmp[4]) < 0 or float(tmp[5]) < 0 or float(tmp[7]) < 0:
+            if len(tmp) != 12:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly twelve parameters')
+            if tmp[0] not in CFSParameter.scalingprofiles.keys() or tmp[4] not in CFSParameter.scalingprofiles.keys() or tmp[8] not in CFSParameter.scalingprofiles.keys():
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' must have scaling type {}'.format(','.join(CFSParameter.scalingprofiles.keys())))
+            if tmp[1] not in CFSParameter.scalingdirections or tmp[5] not in CFSParameter.scalingdirections or tmp[9] not in CFSParameter.scalingdirections:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' must have scaling type {}'.format(','.join(CFSParameter.scalingprofiles.keys())))
+            if float(tmp[2]) < 0 or float(tmp[3]) < 0 or float(tmp[6]) < 0 or float(tmp[7]) < 0 or float(tmp[10]) < 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' minimum and maximum scaling values must be greater than zero')
+            if float(tmp[6]) < 1:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' minimum scaling value for kappa must be greater than zero')
             
             cfs = CFS()
-            cfs.alphascaling = tmp[0]
-            cfs.alphamin = float(tmp[1])
-            cfs.alphamax = float(tmp[2])
-            cfs.kappascaling = tmp[3]
-            cfs.kappamin = float(tmp[4])
-            cfs.kappamax = float(tmp[5])
-            cfs.sigmascaling = tmp[6]
-            cfs.sigmamin = float(tmp[7])
-            if tmp[8] == 'None':
-                cfs.sigmamax = None
+            cfsalpha = CFSParameter()
+            cfsalpha.ID = 'alpha'
+            cfsalpha.scalingprofile = tmp[0]
+            cfsalpha.scalingdirection = tmp[1]
+            cfsalpha.min = float(tmp[2])
+            cfsalpha.max = float(tmp[3])
+            cfskappa = CFSParameter()
+            cfskappa.ID = 'kappa'
+            cfskappa.scalingprofile = tmp[4]
+            cfskappa.scalingdirection = tmp[5]
+            cfskappa.min = float(tmp[6])
+            cfskappa.max = float(tmp[7])
+            cfssigma = CFSParameter()
+            cfssigma.ID = 'sigma'
+            cfssigma.scalingprofile = tmp[8]
+            cfssigma.scalingdirection = tmp[9]
+            cfssigma.min = float(tmp[10])
+            if tmp[11] == 'None':
+                cfssigma.max = None
             else:
-                cfs.sigmamax = float(tmp[8])
+                cfssigma.max = float(tmp[11])
+            cfs = CFS()
+            cfs.alpha = cfsalpha
+            cfs.kappa = cfskappa
+            cfs.sigma = cfssigma
     
             if G.messages:
-                print('CFS parameters: alpha scaling {}, alpha_min {:.2f}, alpha_max {:.2f}, kappa scaling {}, kappa_min {:.2f}, kappa_max {:.2f}, sigma scaling {}, sigma_min {:.2f}, sigma_max {:.2f} created.'.format(cfs.alphascaling, cfs.alphamin, cfs.alphamax, cfs.kappascaling, cfs.kappamin, cfs.kappamax, cfs.sigmascaling, cfs.sigmamin, cfs.sigmamax))
+                print('CFS parameters: alpha (scaling: {}, scaling direction: {}, min: {:.2f}, max: {:.2f}), kappa (scaling: {}, scaling direction: {}, min: {:.2f}, max: {:.2f}), sigma (scaling: {}, scaling direction: {}, min: {:.2f}, max: {:.2f}) created.'.format(cfsalpha.scalingprofile, cfsalpha.scalingdirection, cfsalpha.min, cfsalpha.max, cfskappa.scalingprofile, cfskappa.scalingdirection, cfskappa.min, cfskappa.max, cfssigma.scalingprofile, cfssigma.scalingdirection, cfssigma.min, cfssigma.max))
             
             G.cfs.append(cfs)
 
