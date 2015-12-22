@@ -217,4 +217,32 @@ def calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N,
 
     return optparams, levelsopt
 
+
+def plot_optimisation_history(fitnessvalueshist, optparamshist, optparamsinit):
+    """Plot the history of fitness values and each optimised parameter values for the optimisation.
+        
+    Args:
+        fitnessvalueshist (list): History of fitness values
+        optparamshist (dict): Name of parameters to optimise and history of their values
+    """
+
+    import matplotlib.pyplot as plt
+    
+    # Plot history of fitness values
+    fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Fitness value'), num='History of fitness values', figsize=(20, 10), facecolor='w', edgecolor='w')
+    iterations = np.arange(1, len(fitnessvalueshist) + 1)
+    ax.plot(iterations, fitnessvalueshist, 'r', marker='.', ms=15, lw=1)
+    ax.grid()
+
+    # Plot history of optimisation parameters
+    p = 0
+    for key, value in optparamshist.items():
+        fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Parameter value'), num='History of ' + key + ' parameter', figsize=(20, 10), facecolor='w', edgecolor='w')
+        ax.plot(iterations, optparamshist[key], 'r', marker='.', ms=15, lw=1)
+        ax.set_ylim(optparamsinit[p][1][0], optparamsinit[p][1][1])
+        ax.grid()
+        p += 1
+    plt.show()
+
+
     
