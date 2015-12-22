@@ -21,34 +21,46 @@ import numpy as np
 from gprMax.constants import e0, z0, floattype
 
 
-class CFS():
-    """PML CFS parameters."""
+class CFSParameter():
+    """CFS parameter for PML."""
     
-    # Allowable scaling types
-    scalingtypes = {'constant': 0, 'linear': 1, 'inverselinear': -1, 'quadratic': 2, 'cubic': 3, 'quartic': 4}
+    # Allowable scaling profiles and directions
+    scalingprofiles = {'constant': 0, 'linear': 1, 'quadratic': 2, 'cubic': 3, 'quartic': 4}
+    scalingdirections = ['forward', 'reverse']
     
-    def __init__(self, alphascaling='constant', alphamin=0, alphamax=0, kappascaling='constant', kappamin=1, kappamax=1, sigmascaling='quartic', sigmamin=0, sigmamax=None):
+    def __init__(self, ID=None, scaling='polynomial', scalingprofile=None, scalingdirection='forward', min=0, max=0):
         """
         Args:
-           alphascaling (str): Type of scaling used for alpha parameter. Can be: 'constant', 'linear', 'inverselinear', 'quadratic', 'cubic', 'quartic'.
-           alphamin (float): Minimum value for alpha parameter.
-           alphamax (float): Maximum value for alpha parameter.
-           kappascaling (str): Type of scaling used for kappa parameter. Can be: 'constant', 'linear', 'inverselinear', 'quadratic', 'cubic', 'quartic'.
-           kappamin (float): Minimum value for kappa parameter.
-           kappamax (float): Maximum value for kappa parameter.
-           sigmascaling (str): Type of scaling used for sigma parameter. Can be: 'constant', 'linear', 'inverselinear', 'quadratic', 'cubic', 'quartic'.
-           sigmamin (float): Minimum value for sigma parameter.
-           sigmamax (float): Maximum value for sigma parameter.
+            ID (str): Identifier for CFS parameter, can be: 'alpha', 'kappa' or 'sigma'.
+            scaling (str): Type of scaling, can be: 'polynomial'.
+            scalingprofile (str): Type of scaling profile from scalingprofiles.
+            scalingdirection (str): Direction of scaling profile from scalingdirections.
+            min (float): Minimum value for parameter.
+            max (float): Maximum value for parameter.
         """
-        self.alphascaling = alphascaling
-        self.alphamin = alphamin
-        self.alphamax = alphamax
-        self.kappascaling = kappascaling
-        self.kappamin = kappamin
-        self.kappamax = kappamax
-        self.sigmascaling = sigmascaling
-        self.sigmamin = sigmamin
-        self.sigmamax = sigmamax
+        
+        self.ID = ID
+        self.scaling = scaling
+        self.scalingprofile = scalingprofile
+        self.scalingdirection = scalingdirection
+        self.min = min
+        self.max = max
+
+
+class CFS():
+    """CFS term for PML."""
+    
+    def __init__(self):
+        """
+        Args:
+            alpha (CFSParameter): alpha parameter for CFS.
+            kappa (CFSParameter): kappa parameter for CFS.
+            sigma (CFSParameter): sigma parameter for CFS.
+        """
+        
+        self.alpha = CFSParameter(ID='alpha', scalingprofile='constant')
+        self.kappa = CFSParameter(ID='kappa', scalingprofile='constant', min=1, max=1)
+        self.sigma = CFSParameter(ID='sigma', scalingprofile='quartic', min=0, max=None)
     
     def calculate_sigmamax(self, direction, er, mr, G):
         """Calculates an optimum value for sigma max based on underlying material properties.
@@ -59,61 +71,70 @@ class CFS():
             mr (float): Average permeability of underlying material.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        # Get general direction from first letter of PML direction
-        if direction[0] == 'x':
+        
+        if direction == 'xminus' or direction == 'xplus':
             d = G.dx
-        elif direction[0] == 'y':
+        elif direction == 'yminus' or direction == 'yplus':
             d = G.dy
-        elif direction[0] == 'z':
+        elif direction == 'zminus' or direction == 'zplus':
             d = G.dz
+        
         # Calculation of the maximum value of sigma from http://dx.doi.org/10.1109/8.546249
-        m = CFS.scalingtypes[self.sigmascaling]
-        self.sigmamax = (0.8 * (m + 1)) / (z0 * d * np.sqrt(er * mr))
+        m = CFSParameter.scalingprofiles[self.sigma.scalingprofile]
+        self.sigma.max = (0.8 * (m + 1)) / (z0 * d * np.sqrt(er * mr))
 
-    def scaling_polynomial(self, min, max, order, Evalues, Hvalues):
-        """Applies the polynomial to be used for scaling for electric and magnetic PML updates based on scaling type and minimum and maximum values.
+    def scaling_polynomial(self, order, Evalues, Hvalues):
+        """Applies the polynomial to be used for the scaling profile for electric and magnetic PML updates.
             
         Args:
-            min (float): Minimum value for scaling.
-            max (float): Maximum value for scaling.
-            order (int): Order of polynomial for scaling.
-            Evalues (float): numpy array holding scaling value for electric PML update.
-            Hvalues (float): numpy array holding scaling value for magnetic PML update.
+            order (int): Order of polynomial for scaling profile.
+            Evalues (float): numpy array holding scaling profile values for electric PML update.
+            Hvalues (float): numpy array holding scaling profile values for magnetic PML update.
             
         Returns:
-            Evalues (float): numpy array holding scaling value for electric PML update.
-            Hvalues (float): numpy array holding scaling value for magnetic PML update.
+            Evalues (float): numpy array holding scaling profile values for electric PML update.
+            Hvalues (float): numpy array holding scaling profile values for magnetic PML update.
         """
-        tmp = max * ((np.linspace(0, (len(Evalues) - 1) + 0.5, num=2*len(Evalues))) / (len(Evalues) - 1)) ** order
+        
+        tmp = (np.linspace(0, (len(Evalues) - 1) + 0.5, num=2*len(Evalues)) / (len(Evalues) - 1)) ** order
         Evalues = tmp[0:-1:2]
         Hvalues = tmp[1::2]
         return Evalues, Hvalues
 
-    def calculate_values(self, min, max, scaling, Evalues, Hvalues):
-        """Calculates values for electric and magnetic PML updates based on scaling type and minimum and maximum values.
+    def calculate_values(self, thickness, parameter):
+        """Calculates values for electric and magnetic PML updates based on profile type and minimum and maximum values.
             
         Args:
-            min (float): Minimum value for scaling.
-            max (float): Maximum value for scaling.
-            scaling (int): Type of scaling, can be: 'constant', 'linear', 'inverselinear', 'quadratic', 'cubic', 'quartic'.
-            Evalues (float): numpy array holding scaling value for electric PML update.
-            Hvalues (float): numpy array holding scaling value for magnetic PML update.
+            thickness (int): Thickness of PML in cells.
+            parameter (CFSParameter): Instance of CFSParameter
             
         Returns:
-            Evalues (float): numpy array holding scaling value for electric PML update.
-            Hvalues (float): numpy array holding scaling value for magnetic PML update.
+            Evalues (float): numpy array holding profile value for electric PML update.
+            Hvalues (float): numpy array holding profile value for magnetic PML update.
         """
-        if scaling == 'constant':
-            Evalues += max
-            Hvalues += max
-        else:
-            Evalues, Hvalues = self.scaling_polynomial(min, max, CFS.scalingtypes[scaling], Evalues, Hvalues)
         
-        if scaling == 'inverselinear':
+        Evalues= np.zeros(thickness + 1, dtype=floattype)
+        Hvalues = np.zeros(thickness + 1, dtype=floattype)
+        
+        if parameter.scalingprofile == 'constant':
+            Evalues += parameter.max
+            Hvalues += parameter.max
+        
+        elif parameter.scaling == 'polynomial':
+            Evalues, Hvalues = self.scaling_polynomial(CFSParameter.scalingprofiles[parameter.scalingprofile], Evalues, Hvalues)
+            if parameter.ID == 'alpha':
+                pass
+            elif parameter.ID == 'kappa':
+                Evalues = Evalues * (self.kappa.max - 1) + 1
+                Hvalues = Hvalues * (self.kappa.max - 1) + 1
+            elif parameter.ID == 'sigma':
+                Evalues *= self.sigma.max
+                Hvalues *= self.sigma.max
+            
+        if parameter.scalingdirection == 'reverse':
             Evalues = Evalues[::-1]
             Hvalues = Hvalues[::-1]
-#        print('Evalues: scaling {}, {}'.format(scaling, Evalues))
-#        print('Hvalues: scaling {}, {}'.format(scaling, Hvalues))
+        
         return Evalues, Hvalues
 
 
@@ -126,6 +147,7 @@ class PML():
             xs, xf, ys, yf, zs, zf (float): Extent of the PML volume.
             cfs (list): CFS class instances associated with the PML.
         """
+        
         self.direction = direction
         self.xs = xs
         self.xf = xf
@@ -181,17 +203,11 @@ class PML():
         """
         
         for x, cfs in enumerate(self.CFS):
-            Ealpha = np.zeros(self.thickness + 1, dtype=floattype)
-            Halpha = np.zeros(self.thickness + 1, dtype=floattype)
-            Ekappa = np.zeros(self.thickness + 1, dtype=floattype)
-            Hkappa = np.zeros(self.thickness + 1, dtype=floattype)
-            Esigma = np.zeros(self.thickness + 1, dtype=floattype)
-            Hsigma = np.zeros(self.thickness + 1, dtype=floattype)
-            if not cfs.sigmamax:
+            if not cfs.sigma.max:
                 cfs.calculate_sigmamax(self.direction, er, mr, G)
-            Ealpha, Halpha = cfs.calculate_values(cfs.alphamin, cfs.alphamax, cfs.alphascaling, Ealpha, Halpha)
-            Ekappa, Hkappa = cfs.calculate_values(cfs.kappamin, cfs.kappamax, cfs.kappascaling, Ekappa, Hkappa)
-            Esigma, Hsigma = cfs.calculate_values(cfs.sigmamin, cfs.sigmamax, cfs.sigmascaling, Esigma, Hsigma)
+            Ealpha, Halpha = cfs.calculate_values(self.thickness, cfs.alpha)
+            Ekappa, Hkappa = cfs.calculate_values(self.thickness, cfs.kappa)
+            Esigma, Hsigma = cfs.calculate_values(self.thickness, cfs.sigma)
             
 #            print('Ealpha {}'.format(Ealpha))
 #            print('Halpha {}'.format(Halpha))
@@ -268,9 +284,9 @@ def build_pml(G):
 
 
 def calculate_initial_pml_params(G):
-    """ This function calculates the initial parameters and coefficients for PML including setting scaling
+    """ This function calculates the initial parameters and coefficients for PML including setting profile
         (based on underlying material er and mr from solid array).
-        """
+    """
     
     for pml in G.pmls:
         sumer = 0
