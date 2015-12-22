@@ -837,13 +837,16 @@ Allows you (advanced) control of the parameters that are used to build each orde
 
 .. code-block:: none
 
-    #pml_cfs: str1 f1 f2 str2 f3 f4 str3 f5 f6
+    #pml_cfs: str1 str2 f1 f2 str3 str4 f3 f4 str5 str6 f5 f6
 
-* ``str1`` is the type of scaling to use for the CFS :math:`\alpha` parameter. It can be ``constant``, ``linear``, ``inverselinear``, ``quadratic``, ``cubic``, and ``quartic``.
+* ``str1`` is the type of scaling to use for the CFS :math:`\alpha` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, and ``quartic``.
+* ``str2`` is the direction of the scaling to use for the CFS :math:`\alpha` parameter. It can be ``forward`` or ``reverse``.
 * ``f1 f2`` are the minimum and maximum values for the CFS :math:`\alpha` parameter.
-* ``str2`` is the type of scaling to use for the CFS :math:`\kappa` parameter. It can be ``constant``, ``linear``, ``inverselinear``, ``quadratic``, ``cubic``, and ``quartic``.
+* ``str3`` is the type of scaling to use for the CFS :math:`\kappa` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, and ``quartic``.
+* ``str4`` is the direction of the scaling to use for the CFS :math:`\kappa` parameter. It can be ``forward`` or ``reverse``.
 * ``f3 f4`` are the minimum and maximum values for the CFS :math:`\kappa` parameter.
-* ``str3`` is the type of scaling to use for the CFS :math:`\sigma` parameter. It can be ``constant``, ``linear``, ``inverselinear``, ``quadratic``, ``cubic``, and ``quartic``.
+* ``str5`` is the type of scaling to use for the CFS :math:`\sigma` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, and ``quartic``.
+* ``str6`` is the direction of the scaling to use for the CFS :math:`\sigma` parameter. It can be ``forward`` or ``reverse``.
 * ``f5 f6`` are the minimum and maximum values for the CFS :math:`\sigma` parameter.
 
-The CFS values (which are internally specified) used for the default first order PML are: ``#pml_cfs: constant 0 0 constant 1 1 quartic 0 None``. Specifying 'None' for the maximum value of :math:`\sigma` forces gprMax to calculate it internally based on the relative permittivity and permeability of the underlying materials in the model.
+The CFS values (which are internally specified) used for the default first order PML are: ``#pml_cfs: constant forward 0 0 constant forward 1 1 quartic forward 0 None``. Specifying 'None' for the maximum value of :math:`\sigma` forces gprMax to calculate it internally based on the relative permittivity and permeability of the underlying materials in the model.
