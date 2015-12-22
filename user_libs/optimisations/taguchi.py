@@ -232,6 +232,7 @@ def plot_optimisation_history(fitnessvalueshist, optparamshist, optparamsinit):
     fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Fitness value'), num='History of fitness values', figsize=(20, 10), facecolor='w', edgecolor='w')
     iterations = np.arange(1, len(fitnessvalueshist) + 1)
     ax.plot(iterations, fitnessvalueshist, 'r', marker='.', ms=15, lw=1)
+    ax.set_xlim(1, len(fitnessvalueshist) + 1)
     ax.grid()
 
     # Plot history of optimisation parameters
@@ -239,6 +240,7 @@ def plot_optimisation_history(fitnessvalueshist, optparamshist, optparamsinit):
     for key, value in optparamshist.items():
         fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Parameter value'), num='History of ' + key + ' parameter', figsize=(20, 10), facecolor='w', edgecolor='w')
         ax.plot(iterations, optparamshist[key], 'r', marker='.', ms=15, lw=1)
+        ax.set_xlim(1, len(value) + 1)
         ax.set_ylim(optparamsinit[p][1][0], optparamsinit[p][1][1])
         ax.grid()
         p += 1
