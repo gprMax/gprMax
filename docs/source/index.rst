@@ -18,8 +18,12 @@ gprMax User Guide
     input
     geometry_snapshots
     output
-    openmp_mpi
 
+.. toctree::
+    :maxdepth: 2
+    :caption: Advanced topics
+
+    openmp_mpi
 
 .. toctree::
     :maxdepth: 2

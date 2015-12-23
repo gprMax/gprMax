@@ -4,6 +4,8 @@
 
 This section provides some general example models in 2D that demonstrate how to use certain features of gprMax. Each example comes with an input file which you can download and run.
 
+.. _example-2D-Ascan:
+
 A-scan with a Hertzian dipole source
 ====================================
 

@@ -84,12 +84,12 @@ The actual positions of field components for a given set of space coordinates (x
 Hertzian dipole sources as well as other electric field excitations (i.e. voltage sources, transmission lines) are located at the corresponding electric field components.
 
 
-Discretisation
-==============
+Spatial discretisation
+======================
 
-There is no specific guideline for choosing the right discretization for a given problem. In general, it depends on the required accuracy, the frequency content of the source pulse and the size of the targets. Obviously, all targets present in a model must be adequately resolved. This means, for example, that a cylinder with radius equal to one or two spatial steps does not really look like a cylinder!
+There is no specific guideline for choosing the right spatial discretization for a given problem. In general, it depends on the required accuracy, the frequency content of the source pulse and the size of the targets. Obviously, all targets present in a model must be adequately resolved. This means, for example, that a cylinder with radius equal to one or two spatial steps does not really look like a cylinder!
 
-An other important factor which influences the discretization is the errors associated with numerical induced dispersion. This means that contrary to the real world where electromagnetic waves propagate with the same velocity irrespectively of their direction and frequency (assuming no dispersive media and far-field conditions) in the discrete one this is not the case. This error (details can be found in [GIA1997]_ and [KUN1993]_) can be kept in a minimum if the following *rule-of-thumb* is satisfied:
+An other important factor which influences the spatial discretization is the errors associated with numerically induced dispersion. This means that contrary to the real world where electromagnetic waves propagate with the same velocity irrespectively of their direction and frequency (assuming no dispersive media and far-field conditions) in the discrete one this is not the case. This error (details can be found in [GIA1997]_ and [KUN1993]_) can be kept in a minimum if the following *rule-of-thumb* is satisfied:
 
 **The discretization step should be at least ten times smaller than the smallest wavelength of the propagating electromagnetic fields.**
 

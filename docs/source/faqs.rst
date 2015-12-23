@@ -2,4 +2,31 @@
 FAQs
 ****
 
-This section will provide answers to frequently asked questions about gprMax and its uses.
+This section provides answers to frequently asked questions about gprMax and its uses.
+
+**What applications can gprMax simulate?**
+gprMax is electromagnetic wave simulation software that is based on the Finite-Difference Time-Domain (FDTD) method. Many of its features have been designed to benefit simulating Ground Penetrating Radar (GPR), however it can be used to simulate many other applications in areas such as engineering, geophysics, archaeology, and medicine.
+
+**Why does gprMax not have a GUI?**
+We considered developing a CAD-based graphical user interface (GUI) but, for now, decided against it. There were two guiding principals behind this design decision: firstly, users most often perform a series of related simulations with varying parameters to solve or optimize a particular problem; and secondly, we decided the limited resources we had were best concentrated on developing advanced modelling features for GPR within software that could easily be interfaced with other tools. Although a CAD-based GUI is useful for creating single simulations it becomes increasingly cumbersome for a series of simulations or where simulations contain heterogeneities, e.g. a model of a soil with stochastically varying electrical properties.
+
+**How is gprMax licensed?**
+gprMax is released under the GNU General Public License v3 or higher (http://www.gnu.org/copyleft/gpl.html). This means when distributing derived works, the source code of the work must be made available under the same license.
+
+**Do I need to learn Python to use gprMax?**
+No, but it can be beneficial to know a little Python. We have made it easier to create more complex simulations in gprMax through scripting in the input file. This is achieved by allowing blocks of Python code to be written in the input file which are executed when the file is read by gprMax.
+
+**Can I still do all my pre/post-processing for gprMax in MATLAB?**
+Yes, we have provided tools to help you read the new HDF5-based output file in MATLAB.
+
+**But converting my input file from the old version of gprMax will be really painful**
+Hopefully not! We have provided a Python script to help you convert input files from the old version of gprMax to use syntax introduced in the version.
+
+**How do I choose a spatial resolution for my simulation?**
+Spatial resolution should be chosen to mitigate numerical dispersion and to adequately resolve geometry in your simulation. :ref:`A 2D example of modelling a metal cylinder in a dielectric <example-2D-Ascan>` provides guidance on how to determine spatial resolution.
+
+**I specified a certain piece of geometry but I don’t see when I view my geometry file.**
+gprMax builds objects in a model in the order the objects were specified in the input file, using a layered canvas approach. This means, for example, a cylinder object which comes after a box object in the input file will overwrite the properties of the box object at any locations where they overlap. This approach allows complex geometries to be created using basic object building blocks.
+
+**Can I run gprMax on my HPC/cluster?**
+Yes. gprMax has been parallelised using OpenMP and features a task farm based on MPI. For more information read the :ref:`section on parallelism. <openmp_mpi>`
