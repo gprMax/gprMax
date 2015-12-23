@@ -114,14 +114,14 @@ def fitness_xcorr(filename, args):
 
 
 def fitness_diffs(filename, args):
-    """Sum of the differences (in dB) between a response and a reference response.
+    """Sum of the differences (in dB) between responses and a reference response.
         
     Args:
         filename (str): Name of output file
         args (dict): 'refresp' key with path & filename of reference response; 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
         
     Returns:
-        diffdB (float): Sum of the differences (in dB) between a response and a reference response
+        diffdB (float): Sum of the differences (in dB) between responses and a reference response
     """
 
     # Load (from gprMax output file) the reference response
@@ -134,15 +134,15 @@ def fitness_diffs(filename, args):
     f = h5py.File(filename, 'r')
     nrx = f.attrs['nrx']
     
+    diffdB = 0
     for rx in range(1, nrx + 1):
         tmp = f['/rxs/rx' + str(rx) + '/']
         if tmp.attrs['Name'] in args['outputs']:
             fieldname = list(tmp.keys())[0]
             modelresp = np.array(tmp[fieldname])
-
-    # Calculate sum of differences
-    diffdB = 20 * np.log10(np.abs(modelresp - refresp) / np.amax(np.abs(refresp)))
-    diffdB = np.abs(np.sum(diffdB[-np.isneginf(diffdB)])) / len(diffdB[-np.isneginf(diffdB)])
+            # Calculate sum of differences
+            tmp = 20 * np.log10(np.abs(modelresp - refresp) / np.amax(np.abs(refresp)))
+            tmp = np.abs(np.sum(tmp[-np.isneginf(tmp)])) / len(tmp[-np.isneginf(tmp)])
 
     return diffdB
 
