@@ -243,6 +243,12 @@ def main():
             if fitnessvalueshist[i - 1] > fitness['stop']:
                 break
 
+            # Stop optimisation if successive fitness values are within 1%
+            if i > 2:
+                fitnessvaluesclose = (np.abs(fitnessvalueshist[i - 2] - fitnessvalueshist[i - 1]) / fitnessvalueshist[i - 1]) * 100
+                if fitnessvaluesclose < 1:
+                    break
+
         # Save optimisation parameters history and fitness values history to file
         opthistfile = inputfileparts[0] + '_hist'
         np.savez(opthistfile, dict(optparamshist), fitnessvalueshist)
