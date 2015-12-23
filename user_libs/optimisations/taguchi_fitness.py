@@ -135,6 +135,7 @@ def fitness_diffs(filename, args):
     nrx = f.attrs['nrx']
     
     diffdB = 0
+    outputs = 0
     for rx in range(1, nrx + 1):
         tmp = f['/rxs/rx' + str(rx) + '/']
         if tmp.attrs['Name'] in args['outputs']:
@@ -144,8 +145,9 @@ def fitness_diffs(filename, args):
             tmp = 20 * np.log10(np.abs(modelresp - refresp) / np.amax(np.abs(refresp)))
             tmp = np.abs(np.sum(tmp[-np.isneginf(tmp)])) / len(tmp[-np.isneginf(tmp)])
             diffdB += tmp
+            outputs += 1
 
-    return diffdB
+    return diffdB / outputs
 
 
 
