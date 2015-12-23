@@ -143,6 +143,7 @@ def fitness_diffs(filename, args):
             # Calculate sum of differences
             tmp = 20 * np.log10(np.abs(modelresp - refresp) / np.amax(np.abs(refresp)))
             tmp = np.abs(np.sum(tmp[-np.isneginf(tmp)])) / len(tmp[-np.isneginf(tmp)])
+            diffdB += tmp
 
     return diffdB
 
