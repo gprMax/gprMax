@@ -8,6 +8,11 @@ Plotting
 A-scans
 =======
 
+plot_Ascan.py
+=============
+
+.. automodule:: tools.plot_Ascan
+
 * Plot A-scans using the Python module ``plot_Ascan.py``. The module uses matplotlib to plot the time history for the electric and magnetic field components for all receivers in a model (each receiver gets a separate figure window). Usage (from the top-level gprMax directory) is: ``python -m tools.plot_Ascan my_outputfile.out``.
 
 * Plot A-scans using the MATLAB script ``plot_Ascan.m``. The script plots the time history for the electric and magnetic field components for all receivers in a model (each receiver gets a separate figure window).
