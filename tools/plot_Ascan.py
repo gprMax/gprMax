@@ -26,18 +26,21 @@ from gprMax.exceptions import CmdInputError
 """Plots electric and magnetic fields from all receiver points in the given output file. Each receiver point is plotted in a new figure window."""
 
 # Fields that can be plotted
-fieldslist = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz']
+fieldslist = ['Ex', 'Hx', 'Ey', 'Hy', 'Ez', 'Hz']
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Plots electric and magnetic fields from all receiver points in the given output file. Each receiver point is plotted in a new figure window.', usage='cd gprMax; python -m tools.plot_Ascan outputfile')
 parser.add_argument('outputfile', help='name of output file including path')
 parser.add_argument('--fields', help='list of fields to be plotted, i.e. Ex Ey Ez', default=fieldslist, nargs='+')
+parser.add_argument('-fft', action='store_true', default=False, help='plot FFT (single field component must be specified)')
 args = parser.parse_args()
 
 file = args.outputfile
 f = h5py.File(file, 'r')
 nrx = f.attrs['nrx']
-time = np.arange(0, f.attrs['dt'] * f.attrs['Iterations'], f.attrs['dt'])
+dt = f.attrs['dt']
+iterations = f.attrs['Iterations']
+time = np.arange(0, dt * iterations, dt)
 time = time / 1e-9
 
 # Check for valid field names
@@ -45,46 +48,93 @@ for field in args.fields:
     if field not in fieldslist:
         raise CmdInputError('{} not allowed. Options are: Ex Ey Ez Hx Hy Hz'.format(field))
 
+# Check for single field component when doing a FFT
+if args.fft:
+    if not len(args.fields) == 1:
+        raise CmdInputError('A single field component must be specified when using the -fft option')
+
+# New plot for each receiver
 for rx in range(1, nrx + 1):
     path = '/rxs/rx' + str(rx) + '/'
     
     # If only a single field is required, create one subplot
     if len(args.fields) == 1:
         fielddata = f[path + args.fields[0]][:]
-        if 'E' in args.fields[0]:
-            fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [ns]', ylabel=args.fields[0] + ', field strength [V/m]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
-            ax.plot(time, fielddata,'r', lw=2, label=args.fields[0])
-            ax.grid()
-        elif 'H' in args.fields[0]:
-            fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [ns]', ylabel=args.fields[0] + ', field strength [A/m]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
-            ax.plot(time, fielddata,'b', lw=2, label=args.fields[0])
-            ax.grid()
+        
+        # Plotting if FFT required
+        if args.fft:
+            # Calculate frequency spectra of waveform
+            power = 20 * np.log10(np.abs(np.fft.fft(fielddata))**2)
+            freqs = np.fft.fftfreq(power.size, d=dt)
 
-    # If multiple fields are required, created all six subplots and populate only the specified ones
+            # Shift powers so any spectra with negative DC component will start at zero
+            power -= np.amax(power)
+
+            # Set plotting range to power drop to -140dB
+            pltrange = np.where(power < -140)[0][0] + 1
+
+            # Plot waveform
+            fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
+            line = ax1.plot(time, fielddata, 'r', lw=2, label=args.fields[0])
+            ax1.set_xlabel('Time [ns]')
+            ax1.set_ylabel(args.fields[0] + ' field strength [V/m]')
+            ax1.set_xlim([0, np.amax(time)])
+            ax1.grid()
+
+            # Plot frequency spectra
+            markerline, stemlines, baseline = ax2.stem(freqs[0:pltrange]/1e9, power[0:pltrange], '--')
+            plt.setp(stemlines, 'color', 'r')
+            plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
+            ax2.set_xlabel('Frequency [GHz]')
+            ax2.set_ylabel('Power [dB]')
+            ax2.grid()
+            
+            # Change colours and labels for magnetic field components
+            if 'H' in args.fields[0]:
+                plt.setp(line, color='b')
+                plt.setp(ax1, ylabel=args.fields[0] + ' field strength [A/m]')
+                plt.setp(stemlines, 'color', 'b')
+                plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
+            
+            plt.show()
+    
+        # Plotting if no FFT required
+        else:
+            fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [ns]', ylabel=args.fields[0] + ' field strength [V/m]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
+            line = ax.plot(time, fielddata,'r', lw=2, label=args.fields[0])
+            ax.set_xlim([0, np.amax(time)])
+            ax.grid()
+            
+            if 'H' in args.fields[0]:
+                plt.setp(line, color='b')
+                plt.setp(ax, ylabel=args.fields[0] + ' field strength [A/m]')
+
+    # If multiple fields required, creat all six subplots and populate only the specified ones
     else:
         fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
         for field in args.fields:
             fielddata = f[path + field][:]
             if field == 'Ex':
                 ax1.plot(time, fielddata,'r', lw=2, label=field)
-                ax1.set_ylabel('$E_x$, field strength [V/m]')
+                ax1.set_ylabel(field + ', field strength [V/m]')
             elif field == 'Ey':
                 ax3.plot(time, fielddata,'r', lw=2, label=field)
-                ax3.set_ylabel('$E_y$, field strength [V/m]')
+                ax3.set_ylabel(field + ', field strength [V/m]')
             elif field == 'Ez':
                 ax5.plot(time, fielddata,'r', lw=2, label=field)
-                ax5.set_ylabel('$E_z$, field strength [V/m]')
+                ax5.set_ylabel(field + ', field strength [V/m]')
             elif field == 'Hx':
                 ax2.plot(time, fielddata,'b', lw=2, label=field)
-                ax2.set_ylabel('$H_x$, field strength [A/m]')
+                ax2.set_ylabel(field + ', field strength [A/m]')
             elif field == 'Hy':
                 ax4.plot(time, fielddata,'b', lw=2, label=field)
-                ax4.set_ylabel('$H_y$, field strength [A/m]')
+                ax4.set_ylabel(field + ', field strength [A/m]')
             elif field == 'Hz':
                 ax6.plot(time, fielddata,'b', lw=2, label=field)
-                ax6.set_ylabel('$H_z$, field strength [A/m]')
-        # Turn on grid
-        [ax.grid() for ax in fig.axes]
+                ax6.set_ylabel(field + ', field strength [A/m]')
+        for ax in fig.axes:
+            ax.set_xlim([0, np.amax(time)])
+            ax.grid()
 
     # Save a PDF of the figure
     #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
