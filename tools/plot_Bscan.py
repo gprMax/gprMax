@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 
 from gprMax.exceptions import CmdInputError
 
-"""Plots B-scan."""
+"""Plots a B-scan image."""
 
 # Fields that can be plotted
 fieldslist = ['Ex', 'Hx', 'Ey', 'Hy', 'Ez', 'Hz']

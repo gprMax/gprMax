@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 
 from gprMax.exceptions import CmdInputError
 
-"""Plots electric and magnetic fields from all receiver points in the given output file. Each receiver point is plotted in a new figure window."""
+"""Plots electric and magnetic fields from any receiver points in the given output file. Each receiver point is plotted in a new figure window."""
 
 # Fields that can be plotted
 fieldslist = ['Ex', 'Hx', 'Ey', 'Hy', 'Ez', 'Hz']
