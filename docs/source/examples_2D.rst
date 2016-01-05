@@ -165,7 +165,7 @@ You can now view an image of the B-scan using the command:
 
 .. code-block:: none
 
-    python -m tools.plot_Bscan cylinder_Bscan_2D_all.out Ez
+    python -m tools.plot_Bscan cylinder_Bscan_2D_all.out --field Ez
 
 :numref:`cylinder_Bscan_results` shows the B-scan (image of the Ez field). As expected a hyperbolic response is present from the metal cylinder.
 

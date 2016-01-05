@@ -61,21 +61,6 @@ Within each individual ``tx`` group is the following dataset:
 Viewing output
 ==============
 
-There are a number of free tools available to read HDF5 files. Also MATLAB has high- and low-level functions for reading and writing HDF5 files, i.e. ``h5info`` and ``h5disp`` are useful for returning information and displaying the contents of HDF5 files respectively. gprMax includes some Python modules (in the ``tools`` package) to help you view output data:
-
-A-scans
--------
-
-* Plot A-scans using the Python module ``plot_Ascan.py``. The module uses matplotlib to plot the time history for the electric and magnetic field components for all receivers in a model (each receiver gets a separate figure window). Usage (from the top-level gprMax directory) is: ``python -m tools.plot_Ascan my_outputfile.out``.
-
-* Plot A-scans using the MATLAB script ``plot_Ascan.m``. The script plots the time history for the electric and magnetic field components for all receivers in a model (each receiver gets a separate figure window).
-
-B-scans
--------
-
-gprMax produces a separate output file for each trace (A-scan) in the B-scan.
-
-* Combine the separate output files into one file using the Python module ``outputfiles_merge.py``. Usage (from the top-level gprMax directory) is: ``python -m tools.outputfiles_merge basefilename modelruns``, where ``basefilename`` is the base name file of the output file series, e.g. for ``myoutput1.out``, ``myoutput2.out`` the base file name would be ``myoutput``, and ``modelruns`` is the number of output files to combine.
-* Plot an image of the B-scan using the Python module ``plot_Bscan.py``. Usage (from the top-level gprMax directory) is: ``python -m tools.plot_Bscan my_outputfile.out field``, where ``field`` is the name of field to plot, e.g. ``Ex``, ``Ey`` or ``Ez``.
+There are a number of free tools available to read HDF5 files. Also MATLAB has high- and low-level functions for reading and writing HDF5 files, i.e. ``h5info`` and ``h5disp`` are useful for returning information and displaying the contents of HDF5 files respectively. gprMax includes some Python modules (in the ``tools`` package) to help you view output data. These are documented in the :ref:`tools section <plotting>`.
 
 

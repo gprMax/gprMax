@@ -21,13 +21,20 @@ gprMax User Guide
 
 .. toctree::
     :maxdepth: 2
+    :caption: Tools
+
+    plotting
+    helper
+
+.. toctree::
+    :maxdepth: 2
     :caption: Advanced topics
 
     openmp_mpi
 
 .. toctree::
     :maxdepth: 2
-    :caption: Help and Support
+    :caption: Support
 
     examples_2D
     examples_3D
@@ -38,5 +45,4 @@ gprMax User Guide
     :maxdepth: 2
     :caption: Appendices
 
-    app_waveforms
-    app_references
+    references
