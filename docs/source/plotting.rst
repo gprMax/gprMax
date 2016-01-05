@@ -42,7 +42,7 @@ INSERT DESCRIPTION OF USAGE
 Example plots are shown using the parameters: amplitude of one, frequency of 1GHz, time window of 6ns, and a time step of 1.926ps.
 
 gaussian
---------
+^^^^^^^^
 
 A Gaussian waveform.
 
@@ -56,7 +56,7 @@ where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{
 
 
 gaussiandot
------------
+^^^^^^^^^^^
 
 First derivative of a Gaussian waveform.
 
@@ -70,7 +70,7 @@ where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{
 
 
 gaussiandotnorm
----------------
+^^^^^^^^^^^^^^^
 
 Normalised first derivative of a Gaussian waveform.
 
@@ -84,7 +84,7 @@ where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{
 
 
 gaussiandotdot
---------------
+^^^^^^^^^^^^^^
 
 Second derivative of a Gaussian waveform.
 
@@ -98,7 +98,7 @@ where :math:`I` is the current, :math:`\zeta = \pi^2f^2`, :math:`\chi=\frac{\sqr
 
 
 gaussiandotdotnorm
-------------------
+^^^^^^^^^^^^^^^^^^
 
 Normalised second derivative of a Gaussian waveform.
 
@@ -112,7 +112,7 @@ where :math:`I` is the current, :math:`\zeta = \pi^2f^2`, :math:`\chi=\frac{\sqr
 
 
 ricker
-------
+^^^^^^
 
 A Ricker (or Mexican Hat) waveform which is the negative, normalised second derivative of a Gaussian waveform.
 
@@ -126,7 +126,7 @@ where :math:`I` is the current, :math:`\zeta = \pi^2f^2`, :math:`\chi=\frac{\sqr
 
 
 sine
-----
+^^^^
 
 A single cycle of a sine waveform.
 
@@ -150,7 +150,7 @@ and
 
 
 contsine
---------
+^^^^^^^^
 
 A continuous sine waveform. In order to avoid introducing noise into the calculation the amplitude of the waveform is modulated for the first cycle of the sine wave (ramp excitation).
 
