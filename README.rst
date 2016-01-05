@@ -50,10 +50,13 @@ Software structure
 Installation (End users)
 ========================
 
-You should use the following guidance if you intend to use gprMax `without` developing the code. There are 2 main steps to the installation: Getting the code; and installing Python, packages, and C libraries.
+You should use the following guidance if you intend to use gprMax `without` developing the code. There are 2 main steps to the installation:
 
-Get the code
-------------
+1. Getting the code
+2. Installing Python, packages, and C libraries
+
+1. Get the code
+---------------
 
 * Download the code from https://github.com/gprMax/gprMax
 
@@ -61,8 +64,8 @@ Get the code
     * Download zip files of the `source code` and `binary extensions` for your platform (``windows`` for 32-bit or 64-bit versions of Microsoft Windows or ``linux_macosx`` for 64-bit versions of Linux or Mac OS X).
     * Expand both zip files and copy the contents of the ``windows`` or ``linux_macosx`` directory into the ``gprMax-v.X.Y.Z/gprMax`` directory.
 
-Install Python, packages, and C libraries
------------------------------------------
+2. Install Python, packages, and C libraries
+--------------------------------------------
 
 Mac OS X and Linux
 ^^^^^^^^^^^^^^^^^^
@@ -99,17 +102,21 @@ Microsoft Windows
 Installation (Developers)
 =========================
 
-You should use the following guidance if you intend to develop the gprMax code. There are 3 main steps to the installation: Getting the code; installing Python, packages, and a C compiler; and compiling the Cython extensions.
+You should use the following guidance if you intend to develop the gprMax code. There are 3 main steps to the installation:
 
-Get the code
-------------
+1. Getting the code
+2. Installing Python, packages, and a C compiler
+3. Compiling the Cython extensions
+
+1. Get the code
+---------------
 
 * Use **Git** (https://git-scm.com) and clone the master branch of the repository: :code:`git clone https://github.com/gprMax/gprMax.git`
 * or **download a zip archive** of the code from https://github.com/gprMax/gprMax. Choose the ``Download ZIP`` button from the top header.
 
 
-Install Python, packages, and a C compiler
-------------------------------------------
+2. Install Python, packages, and a C compiler
+---------------------------------------------
 
 Mac OS X and Linux
 ^^^^^^^^^^^^^^^^^^
@@ -148,8 +155,8 @@ Microsoft Windows
     If you use Anaconda, a popular Python distribution, please be aware that there is currently a bug with the HDF5 package (h5py) that is included with Anaconda (2.3.0). It effects 64-bit versions of Microsoft Windows (https://github.com/h5py/h5py/issues/593). If you want to use Anaconda you should upgrade the h5py package by downloading and installing the correct binary from http://www.lfd.uci.edu/~gohlke/pythonlibs/, e.g. ``pip install --upgrade h5py‑2.5.0‑cp34‑none‑win_amd64.whl``
 
 
-Compile Cython extensions
--------------------------
+3. Compile Cython extensions
+----------------------------
 
 Once you have installed the aforementioned tools follow these steps to build the Cython extension modules for gprMax:
 
