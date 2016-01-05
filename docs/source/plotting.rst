@@ -11,9 +11,24 @@ A-scans
 plot_Ascan.py
 -------------
 
-Plot A-scans using the Python module ``plot_Ascan.py``. The module uses matplotlib to plot the time history for the electric and magnetic field components for any receivers in a model (each receiver gets a separate figure window). Usage (from the top-level gprMax directory) is: ``python -m tools.plot_Ascan my_outputfile.out``.
+This module uses matplotlib to plot the time history for the electric and magnetic field components for any receivers in a model (each receiver gets a separate figure window). Usage (from the top-level gprMax directory) is:
 
-UPDATE DESCRIPTION OF USAGE
+.. code-block:: none
+
+    python -m gprMax python -m tools.plot_Ascan outputfile
+
+where ``outputfile`` is the name of output file including the path.
+
+There are optional command line arguments:
+
+* ``--fields`` to specify a subset of the default field components (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy`` or ``Hz``) as a list to plot
+* ``-fft`` to plot the Fast Fourier Transform (FFT) of a single field component
+
+For example to plot the ``Ez`` field component with it's FFT:
+
+.. code-block:: none
+
+    python -m gprMax python -m tools.plot_Ascan my_outputfile.out --fields Ez -fft
 
 B-scans
 =======
@@ -21,9 +36,16 @@ B-scans
 plot_Bscan.py
 -------------
 
-gprMax produces a separate output file for each trace (A-scan) in the B-scan. Plot an image of the B-scan using the Python module ``plot_Bscan.py``. Usage (from the top-level gprMax directory) is: ``python -m tools.plot_Bscan my_outputfile.out --field fieldcomponent``, where ``fieldcomponent`` is the name of field to plot, e.g. ``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy`` or ``Hz``.
+gprMax produces a separate output file for each trace (A-scan) in the B-scan. These must be combined into a single file using the ``outputfiles_merge.py`` module (described in the :ref:`other utilities section <utils>`). This module uses matplotlib to plot an image of the B-scan. Usage (from the top-level gprMax directory) is:
 
-UPDATE DESCRIPTION OF USAGE
+.. code-block:: none
+
+    python -m tools.plot_Bscan outputfile --field fieldcomponent
+
+where:
+
+* ``outputfile`` is the name of output file including the path
+* ``--field`` is the name of field to plot, e.g. ``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy`` or ``Hz``
 
 
 .. _waveforms:
@@ -31,15 +53,30 @@ UPDATE DESCRIPTION OF USAGE
 Built-in waveforms
 ==================
 
-This section provides definitions of the functions that are used to create the built-in waveforms.
+This section describes the definitions of the functions that are used to create the built-in waveforms, and how to plot them.
 
 plot_builtin_wave.py
 --------------------
 
-INSERT DESCRIPTION OF USAGE
+This module uses matplotlib to plot one of the built-in waveforms and it's FFT. Usage (from the top-level gprMax directory) is:
 
+.. code-block:: none
 
-Example plots are shown using the parameters: amplitude of one, frequency of 1GHz, time window of 6ns, and a time step of 1.926ps.
+    python -m tools.plot_builtin_wave type amp freq timewindow dt
+
+where:
+
+* ``type`` is the type of waveform, e.g. gaussian, ricker etc...
+* ``amp`` is the amplitude of the waveform
+* ``freq`` is the centre frequency of the waveform
+* ``timewindow`` is the time window to view the waveform, i.e. the time window of the proposed simulation
+* ``dt`` is the time step to view waveform, i.e. the time step of the proposed simulation
+
+There is an optional command line argument:
+
+* ``-fft`` to plot the FFT of the waveform
+
+Example plots of all the built-in waveforms are shown using the parameters: amplitude of one, frequency of 1GHz, time window of 6ns, and a time step of 1.926ps.
 
 gaussian
 ^^^^^^^^

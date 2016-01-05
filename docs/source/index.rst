@@ -24,7 +24,7 @@ gprMax User Guide
     :caption: Tools
 
     plotting
-    helper
+    utils
 
 .. toctree::
     :maxdepth: 2
