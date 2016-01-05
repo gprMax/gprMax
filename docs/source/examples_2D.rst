@@ -6,8 +6,8 @@ This section provides some general example models in 2D that demonstrate how to 
 
 .. _example-2D-Ascan:
 
-A-scan with a Hertzian dipole source
-====================================
+A-scan from a metal cylinder
+============================
 
 :download:`cylinder_Ascan_2D.in <models/cylinder_Ascan_2D.in>`
 
@@ -130,8 +130,8 @@ You should have produced an output file ``cylinder_Ascan_2D.out``. You can view 
     Field outputs from a model of a metal cylinder buried in a dielectric half-space.
 
 
-B-scan with a Hertzian dipole source
-====================================
+B-scan from a metal cylinder
+============================
 
 :download:`cylinder_Bscan_2D.in <models/cylinder_Bscan_2D.in>`
 
