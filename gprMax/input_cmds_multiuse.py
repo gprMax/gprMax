@@ -97,6 +97,7 @@ def process_multicmds(multicmds, G):
             v.positiony = positiony
             v.positionz = positionz
             v.resistance = resistance
+            v.waveformID = tmp[5]
             
             if len(tmp) > 6:
                 # Check source start & source remove time parameters
@@ -111,16 +112,14 @@ def process_multicmds(multicmds, G):
                 v.start = start
                 if stop > G.timewindow:
                     v.stop = G.timewindow
-                v.waveformID = tmp[8]
-                tmp = ' start time {:.3e} secs, finish time {:.3e} secs '.format(v.start, v.stop)
+                startstop = ' start time {:.3e} secs, finish time {:.3e} secs '.format(v.start, v.stop)
             else:
                 v.start = 0
                 v.stop = G.timewindow
-                v.waveformID = tmp[5]
-                tmp = ' '
+                startstop = ' '
             
             if G.messages:
-                print('Voltage source with polarity {} at {:.3f}m, {:.3f}m, {:.3f}m, resistance {:.1f} Ohms,'.format(v.polarisation, v.positionx * G.dx, v.positiony * G.dy, v.positionz * G.dz, v.resistance) + tmp + 'using waveform {} created.'.format(v.waveformID))
+                print('Voltage source with polarity {} at {:.3f}m, {:.3f}m, {:.3f}m, resistance {:.1f} Ohms,'.format(v.polarisation, v.positionx * G.dx, v.positiony * G.dy, v.positionz * G.dz, v.resistance) + startstop + 'using waveform {} created.'.format(v.waveformID))
             
             G.voltagesources.append(v)
 
@@ -130,7 +129,7 @@ def process_multicmds(multicmds, G):
     if multicmds[cmdname] != 'None':
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            if len(tmp) != 5:
+            if len(tmp) < 5:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
             
             # Check polarity & position parameters
@@ -157,11 +156,12 @@ def process_multicmds(multicmds, G):
             h.positionx = positionx
             h.positiony = positiony
             h.positionz = positionz
+            h.waveformID = tmp[4]
             
-            if len(tmp) > 6:
+            if len(tmp) > 5:
                 # Check source start & source remove time parameters
-                start = float(tmp[6])
-                stop = float(tmp[7])
+                start = float(tmp[5])
+                stop = float(tmp[6])
                 if start < 0:
                     raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' delay of the initiation of the source should not be less than zero')
                 if stop < 0:
@@ -171,16 +171,14 @@ def process_multicmds(multicmds, G):
                 h.start = start
                 if stop > G.timewindow:
                     h.stop = G.timewindow
-                h.waveformID = tmp[7]
-                tmp = ' start time {:.3e} secs, finish time {:.3e} secs '.format(h.start, h.stop)
+                startstop = ' start time {:.3e} secs, finish time {:.3e} secs '.format(h.start, h.stop)
             else:
                 h.start = 0
                 h.stop = G.timewindow
-                h.waveformID = tmp[4]
-                tmp = ' '
+                startstop = ' '
             
             if G.messages:
-                print('Hertzian dipole with polarity {} at {:.3f}m, {:.3f}m, {:.3f}m,'.format(h.polarisation, h.positionx * G.dx, h.positiony * G.dy, h.positionz * G.dz) + tmp + 'using waveform {} created.'.format(h.waveformID))
+                print('Hertzian dipole with polarity {} at {:.3f}m, {:.3f}m, {:.3f}m,'.format(h.polarisation, h.positionx * G.dx, h.positiony * G.dy, h.positionz * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
             
             G.hertziandipoles.append(h)
 
@@ -190,7 +188,7 @@ def process_multicmds(multicmds, G):
     if multicmds[cmdname] != 'None':
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            if len(tmp) != 5:
+            if len(tmp) < 5:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
             
             # Check polarity & position parameters
@@ -217,11 +215,12 @@ def process_multicmds(multicmds, G):
             m.positionx = positionx
             m.positiony = positiony
             m.positionz = positionz
+            m.waveformID = tmp[4]
             
-            if len(tmp) > 6:
+            if len(tmp) > 5:
                 # Check source start & source remove time parameters
-                start = float(tmp[6])
-                stop = float(tmp[7])
+                start = float(tmp[5])
+                stop = float(tmp[6])
                 if start < 0:
                     raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' delay of the initiation of the source should not be less than zero')
                 if stop < 0:
@@ -231,18 +230,83 @@ def process_multicmds(multicmds, G):
                 m.start = start
                 if stop > G.timewindow:
                     m.stop = G.timewindow
-                m.waveformID = tmp[7]
-                tmp = ' start time {:.3e} secs, finish time {:.3e} secs '.format(m.start, m.stop)
+                startstop = ' start time {:.3e} secs, finish time {:.3e} secs '.format(m.start, m.stop)
             else:
                 m.start = 0
                 m.stop = G.timewindow
-                m.waveformID = tmp[4]
-                tmp = ' '
+                startstop = ' '
             
             if G.messages:
-                print('Magnetic dipole with polarity {} at {:.3f}m, {:.3f}m, {:.3f}m,'.format(m.polarisation, m.positionx * G.dx, m.positiony * G.dy, m.positionz * G.dz) + tmp + 'using waveform {} created.'.format(m.waveformID))
+                print('Magnetic dipole with polarity {} at {:.3f}m, {:.3f}m, {:.3f}m,'.format(m.polarisation, m.positionx * G.dx, m.positiony * G.dy, m.positionz * G.dz) + startstop + 'using waveform {} created.'.format(m.waveformID))
             
             G.magneticdipoles.append(m)
+
+
+    # Transmission line
+    cmdname = '#transmission_line'
+    if multicmds[cmdname] != 'None':
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if len(tmp) < 7:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least seven parameters')
+            
+            # Check polarity & position parameters
+            if tmp[0].lower() not in ('x', 'y', 'z'):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
+            positionx = rvalue(float(tmp[1])/G.dx)
+            positiony = rvalue(float(tmp[2])/G.dy)
+            positionz = rvalue(float(tmp[3])/G.dz)
+            resistance = float(tmp[4])
+            length = float(tmp[5])
+            if positionx < 0 or positionx >= G.nx:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' x-coordinate is not within the model domain')
+            if positiony < 0 or positiony >= G.ny:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' y-coordinate is not within the model domain')
+            if positionz < 0 or positionz >= G.nz:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' z-coordinate is not within the model domain')
+            if positionx < G.pmlthickness[0] or positionx > G.nx - G.pmlthickness[3] or positiony < G.pmlthickness[1] or positiony > G.ny - G.pmlthickness[4] or positionz < G.pmlthickness[2] or positionz > G.nz - G.pmlthickness[5]:
+                print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.')
+            if resistance <= 0:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a resistance greater than zero')
+            if length <= 0:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a length greater than zero')
+                    
+            # Check if there is a waveformID in the waveforms list
+            if not any(x.ID == tmp[6] for x in G.waveforms):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[4]))
+            
+            t = TransmissionLine()
+            t.polarisation = tmp[0]
+            t.positionx = positionx
+            t.positiony = positiony
+            t.positionz = positionz
+            t.resistance = resistance
+            t.length = length
+            t.waveformID = tmp[6]
+            
+            if len(tmp) > 7:
+                # Check source start & source remove time parameters
+                start = float(tmp[7])
+                stop = float(tmp[8])
+                if start < 0:
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' delay of the initiation of the source should not be less than zero')
+                if stop < 0:
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' time to remove the source should not be less than zero')
+                if stop - start <= 0:
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' duration of the source should not be zero or less')
+                t.start = start
+                if stop > G.timewindow:
+                    t.stop = G.timewindow
+                startstop = ' start time {:.3e} secs, finish time {:.3e} secs '.format(t.start, t.stop)
+            else:
+                t.start = 0
+                t.stop = G.timewindow
+                startstop = ' '
+            
+            if G.messages:
+                print('Transmission line with polarity {} at {:.3f}m, {:.3f}m, {:.3f}m, resistance {:.1f} Ohms, length {:.3f} Ohms,'.format(t.polarisation, t.positionx * G.dx, t.positiony * G.dy, t.positionz * G.dz, t.resistance, t.length) + tmp + 'using waveform {} created.'.format(t.waveformID))
+            
+            G.transmissionlines.append(t)
 
 
     # Receiver
