@@ -22,7 +22,7 @@ from gprMax.materials import Material, PeplinskiSoil
 from gprMax.pml import CFSParameter, CFS
 from gprMax.receivers import Rx
 from gprMax.snapshots import Snapshot
-from gprMax.sources import VoltageSource, HertzianDipole, MagneticDipole
+from gprMax.sources import VoltageSource, HertzianDipole, MagneticDipole, TransmissionLine
 from gprMax.utilities import rvalue
 from gprMax.waveforms import Waveform
 
@@ -275,13 +275,12 @@ def process_multicmds(multicmds, G):
             if not any(x.ID == tmp[6] for x in G.waveforms):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[4]))
             
-            t = TransmissionLine()
+            t = TransmissionLine(G, length)
             t.polarisation = tmp[0]
             t.positionx = positionx
             t.positiony = positiony
             t.positionz = positionz
             t.resistance = resistance
-            t.length = length
             t.waveformID = tmp[6]
             
             if len(tmp) > 7:
@@ -304,7 +303,7 @@ def process_multicmds(multicmds, G):
                 startstop = ' '
             
             if G.messages:
-                print('Transmission line with polarity {} at {:.3f}m, {:.3f}m, {:.3f}m, resistance {:.1f} Ohms, length {:.3f} Ohms,'.format(t.polarisation, t.positionx * G.dx, t.positiony * G.dy, t.positionz * G.dz, t.resistance, t.length) + tmp + 'using waveform {} created.'.format(t.waveformID))
+                print('Transmission line with polarity {} at {:.3f}m, {:.3f}m, {:.3f}m, resistance {:.1f} Ohms, length {:.3f}m,'.format(t.polarisation, t.positionx * G.dx, t.positiony * G.dy, t.positionz * G.dz, t.resistance, t.length) + startstop + 'using waveform {} created.'.format(t.waveformID))
             
             G.transmissionlines.append(t)
 
