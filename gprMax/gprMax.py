@@ -337,13 +337,16 @@ def run_model(args, modelrun, numbermodelruns, inputfile, inputdirectory):
             # Update electric field components with the PML correction
             update_pml_electric(G)
 
-            # Update electric field components with electric sources
+            # Update electric field components from sources
             if G.voltagesources:
-                for v in G.voltagesources:
-                    v.update_fields(abstime, timestep, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
+                for voltagesource in G.voltagesources:
+                    voltagesource.update_E(abstime, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
+            if G.transmissionlines:
+                for transmissionline in G.transmissionlines:
+                    transmissionline.update_E(abstime, G.Ex, G.Ey, G.Ez, G)
             if G.hertziandipoles:   # Update any Hertzian dipole sources last
-                for h in G.hertziandipoles:
-                    h.update_fields(abstime, timestep, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
+                for hertziandipole in G.hertziandipoles:
+                    hertziandipole.update_E(abstime, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
 
             # If there are any dispersive materials do 2nd part of dispersive update. It is split into two parts as it requires present and updated electric field values. Therefore it can only be completely updated after the electric field has been updated by the PML and source updates.
             if Material.maxpoles == 1:
@@ -366,10 +369,13 @@ def run_model(args, modelrun, numbermodelruns, inputfile, inputdirectory):
             # Update magnetic field components with the PML correction
             update_pml_magnetic(G)
 
-            # Update magnetic field components with magnetic sources
+            # Update magnetic field components from sources
+            if G.transmissionlines:
+                for transmissionline in G.transmissionlines:
+                    transmissionline.update_H(abstime, G.Hx, G.Hy, G.Hz, G)
             if G.magneticdipoles:
-                for m in G.magneticdipoles:
-                    m.update_fields(abstime, timestep, G.updatecoeffsH, G.ID, G.Hx, G.Hy, G.Hz, G)
+                for magneticdipole in G.magneticdipoles:
+                    magneticdipole.update_H(abstime, G.updatecoeffsH, G.ID, G.Hx, G.Hy, G.Hz, G)
         
             # Increment absolute time value
             abstime += 0.5 * G.dt
