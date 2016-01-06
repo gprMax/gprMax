@@ -142,7 +142,7 @@ class Material():
             self.srce = 1 / EA
 
 
-class PeplinskiSoil():
+class PeplinskiSoil:
     """Soil objects that are characterised according to a mixing model by Peplinski (http://dx.doi.org/10.1109/36.387598)."""
     
     def __init__(self, ID, sandfraction, clayfraction, bulkdensity, sandpartdensity, watervolfraction):
