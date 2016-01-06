@@ -21,7 +21,7 @@ import numpy as np
 from gprMax.constants import e0, z0, floattype
 
 
-class CFSParameter():
+class CFSParameter:
     """CFS parameter for PML."""
     
     # Allowable scaling profiles and directions
@@ -47,7 +47,7 @@ class CFSParameter():
         self.max = max
 
 
-class CFS():
+class CFS:
     """CFS term for PML."""
     
     def __init__(self):
@@ -138,7 +138,7 @@ class CFS():
         return Evalues, Hvalues
 
 
-class PML():
+class PML:
     """PML - the implementation comes from the derivation in: http://dx.doi.org/10.1109/TAP.2011.2180344"""
     
     def __init__(self, direction=None, xs=0, ys=0, zs=0, xf=0, yf=0, zf=0, cfs=[]):
