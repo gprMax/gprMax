@@ -23,7 +23,7 @@ from gprMax.constants import floattype, complextype
 from gprMax.utilities import rvalue
 
 
-class FractalSurface():
+class FractalSurface:
     """Fractal surfaces."""
     
     surfaceIDs = ['xminus', 'xplus', 'yminus', 'yplus', 'zminus', 'zplus']
@@ -106,7 +106,7 @@ class FractalSurface():
         self.fractalsurface = self.fractalsurface * ((self.fractalrange[1] - self.fractalrange[0])/fractalrange) + self.fractalrange[0] - ((self.fractalrange[1] - self.fractalrange[0])/fractalrange) * fractalmin
 
 
-class FractalVolume():
+class FractalVolume:
     """Fractal volumes."""
     
     def __init__(self, xs, xf, ys, yf, zs, zf, dimension):
@@ -189,7 +189,7 @@ class FractalVolume():
         self.mask[maskxs:maskxf, maskys:maskyf, maskzs:maskzf] = 1
 
 
-class Grass():
+class Grass:
     """Geometry information for blades of grass."""
     
     def __init__(self, numblades):
