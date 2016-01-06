@@ -22,7 +22,7 @@ from gprMax.constants import floattype, complextype
 from gprMax.materials import Material
 
 
-class FDTDGrid():
+class FDTDGrid:
     """Holds attributes associated with the entire grid. A convenient way for accessing regularly used parameters."""
     
     def __init__(self):
@@ -51,6 +51,7 @@ class FDTDGrid():
         self.voltagesources = []
         self.hertziandipoles = []
         self.magneticdipoles = []
+        self.transmissionlines = []
         self.txs = [] # Only used for converting old output files to HDF5 format
         self.srcstepx = 0
         self.srcstepy = 0
@@ -97,6 +98,57 @@ class FDTDGrid():
         self.Tz = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz), dtype=complextype)
         self.updatecoeffsdispersive = np.zeros((nummaterials, 3 * Material.maxpoles), dtype=complextype)
 
+
+def Ix(x, y, z, Hy, Hz, G):
+    """Calculates the x-component of current at a grid position.
+            
+    Args:
+        x, y, z (float): Coordinates of position in grid.
+        Hy, Hz (memory view): numpy array of magnetic field values.
+        G (class): Grid class instance - holds essential parameters describing the model.
+    """
+
+    if y == 0 or z == 0:
+        Ix = 0
+        return Ix
+    
+    else:
+        Ix = G.dy * (Hy[x, y, z - 1] - Hy[x, y, z]) + G.dz * (Hz[x, y, z] - Hz[x, y - 1, z])
+        return Ix
+
+def Iy(x, y, z, Hx, Hz, G):
+    """Calculates the y-component of current at a grid position.
+            
+    Args:
+        x, y, z (float): Coordinates of position in grid.
+        Hx, Hz (memory view): numpy array of magnetic field values.
+        G (class): Grid class instance - holds essential parameters describing the model.
+    """
+
+    if x == 0 or z == 0:
+        Iy = 0
+        return Iy
+    
+    else:
+        Iy = G.dx * (Hx[x, y, z] - Hx[x, y, z - 1]) + G.dz * (Hz[x - 1, y, z] - Hz[x, y, z])
+        return Iy
+
+def Iz(x, y, z, Hx, Hy, G):
+    """Calculates the z-component of current at a grid position.
+            
+    Args:
+        x, y, z (float): Coordinates of position in grid.
+        Hx, Hy (memory view): numpy array of magnetic field values.
+        G (class): Grid class instance - holds essential parameters describing the model.
+    """
+
+    if x == 0 or y == 0:
+        Iz = 0
+        return Iz
+    
+    else:
+        Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (Hy[x, y, z] - Hy[x - 1, y, z])
+        return Iz
 
 
 
