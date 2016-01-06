@@ -159,10 +159,11 @@ class MagneticDipole:
 class TransmissionLine:
     """The transmission line source is a one-dimensional transmission line which is attached virtually to a grid cell."""
     
-    def __init__(self, G):
+    def __init__(self, G, length=None):
         """
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
+            length (float): Length of the transmission line.
         """
         
         self.polarisation = None
@@ -171,7 +172,7 @@ class TransmissionLine:
         self.positionz = None
         self.start = None
         self.stop = None
-        self.length = None
+        self.length = length
         self.resistance = None
         self.waveformID = None
         
