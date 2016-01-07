@@ -35,6 +35,7 @@ parser.add_argument('--fields', help='list of fields to be plotted, i.e. Ex Ey E
 parser.add_argument('-fft', action='store_true', default=False, help='plot FFT (single field component must be specified)')
 args = parser.parse_args()
 
+# Open output file and read some attributes
 file = args.outputfile
 f = h5py.File(file, 'r')
 nrx = f.attrs['nrx']
@@ -63,17 +64,18 @@ for rx in range(1, nrx + 1):
         
         # Plotting if FFT required
         if args.fft:
-            # Calculate frequency spectra of waveform
-            power = 20 * np.log10(np.abs(np.fft.fft(fielddata))**2)
+            # Calculate magnitude of frequency spectra of waveform
+            power = 10 * np.log10(np.abs(np.fft.fft(fielddata))**2)
             freqs = np.fft.fftfreq(power.size, d=dt)
 
-            # Shift powers so any spectra with negative DC component will start at zero
+            # Shift powers so that frequency with maximum power is at zero decibels
             power -= np.amax(power)
 
             # Set plotting range to power drop to -140dB
             pltrange = np.where(power < -140)[0][0] + 1
+            pltrange = np.s_[0:pltrange]
 
-            # Plot waveform
+            # Plot time history of field component
             fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
             line = ax1.plot(time, fielddata, 'r', lw=2, label=args.fields[0])
             ax1.set_xlabel('Time [ns]')
@@ -82,7 +84,7 @@ for rx in range(1, nrx + 1):
             ax1.grid()
 
             # Plot frequency spectra
-            markerline, stemlines, baseline = ax2.stem(freqs[0:pltrange]/1e9, power[0:pltrange], '--')
+            markerline, stemlines, baseline = ax2.stem(freqs[pltrange]/1e9, power[pltrange], '--')
             plt.setp(stemlines, 'color', 'r')
             plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
             ax2.set_xlabel('Frequency [GHz]')
