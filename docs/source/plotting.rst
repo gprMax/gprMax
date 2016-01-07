@@ -15,7 +15,7 @@ This module uses matplotlib to plot the time history for the electric and magnet
 
 .. code-block:: none
 
-    python -m gprMax python -m tools.plot_Ascan outputfile
+    python -m tools.plot_Ascan outputfile
 
 where ``outputfile`` is the name of output file including the path.
 
@@ -28,7 +28,7 @@ For example to plot the ``Ez`` field component with it's FFT:
 
 .. code-block:: none
 
-    python -m gprMax python -m tools.plot_Ascan my_outputfile.out --fields Ez -fft
+    python -m tools.plot_Ascan my_outputfile.out --fields Ez -fft
 
 B-scans
 =======
