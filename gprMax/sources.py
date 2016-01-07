@@ -184,10 +184,11 @@ class TransmissionLine:
         self.dl = np.sqrt(3) * c * G.dt
         
         # Nodal position of one-way injector excitation in the transmission line
-        self.source = 10
+        self.srcpos = 10
         
         # Number of nodes in the transmission line; add nodes to the length to account for position of one-way injector
-        self.nl = rvalue(self.length/self.dl) + self.source
+#        self.nl = rvalue(self.length/self.dl) + self.srcpos
+        self.nl = 20
 
         self.voltage = np.zeros(self.nl, dtype=floattype)
         self.current = np.zeros(self.nl, dtype=floattype)
@@ -220,7 +221,7 @@ class TransmissionLine:
             self.voltage[i] -= self.resistance * (c * G.dt / self.dl) * (self.current[i] - self.current[i - 1])
         
         # Update the voltage at the position of the one-way injector excitation
-        self.voltage[self.source] += (c * G.dt / self.dl) * waveform.amp * waveform.calculate_value(time - 0.5 * G.dt, G.dt)
+        self.voltage[self.srcpos] += (c * G.dt / self.dl) * waveform.amp * waveform.calculate_value(time - 0.5 * G.dt, G.dt)
 
         # Update ABC before updating current
         self.update_abc(G)
@@ -240,7 +241,7 @@ class TransmissionLine:
             self.current[i] -= (1 / self.resistance) * (c * G.dt / self.dl) * (self.voltage[i + 1] - self.voltage[i])
         
         # Update the current one node before the position of the one-way injector excitation
-        self.current[self.source - 1] += (c * G.dt / self.dl) * waveform.amp * waveform.calculate_value(time - 0.5 * G.dt, G.dt) * (1 / self.resistance)
+        self.current[self.srcpos - 1] += (c * G.dt / self.dl) * waveform.amp * waveform.calculate_value(time - 0.5 * G.dt, G.dt) * (1 / self.resistance)
 
     def update_E(self, abstime, Ex, Ey, Ez, G):
         """Updates electric field value in the main grid from voltage value in the transmission line.
