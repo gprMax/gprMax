@@ -134,6 +134,7 @@ if USE_CYTHON:
                            compiler_directives={
                                'boundscheck': False,
                                'wraparound': False,
+                               'initializedcheck': False,
                                'embedsignature': True,
                                'language_level': 3
                            },
