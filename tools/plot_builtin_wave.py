@@ -51,15 +51,16 @@ while not timeiter.finished:
     timeiter.iternext()
 
 if args.fft:
-    # Calculate frequency spectra of waveform
-    power = 20 * np.log10(np.abs(np.fft.fft(waveform))**2)
+    # Calculate magnitude of frequency spectra of waveform
+    power = 10 * np.log10(np.abs(np.fft.fft(waveform))**2)
     freqs = np.fft.fftfreq(power.size, d=dt)
 
-    # Shift powers so any spectra with negative DC component will start at zero
+    # Shift powers so that frequency with maximum power is at zero decibels
     power -= np.amax(power)
 
     # Set plotting range to 4 * centre frequency
     pltrange = np.where(freqs > (4 * w.freq))[0][0]
+    pltrange = np.s_[0:pltrange]
 
     fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num=w.type, figsize=(20, 10), facecolor='w', edgecolor='w')
     
@@ -69,7 +70,7 @@ if args.fft:
     ax1.set_ylabel('Amplitude')
 
     # Plot frequency spectra
-    markerline, stemlines, baseline = ax2.stem(freqs[0:pltrange]/1e9, power[0:pltrange], '--')
+    markerline, stemlines, baseline = ax2.stem(freqs[pltrange]/1e9, power[pltrange], '--')
     plt.setp(stemlines, 'color', 'r')
     plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
     ax2.set_xlabel('Frequency [GHz]')
