@@ -33,7 +33,6 @@ import numpy as np
 
 from gprMax.constants import e0
 from gprMax.exceptions import CmdInputError
-from gprMax.fields_output import prepare_output_file, write_output
 from gprMax.fields_update import *
 from gprMax.grid import FDTDGrid
 from gprMax.input_cmds_geometry import process_geometrycmds
@@ -41,6 +40,7 @@ from gprMax.input_cmds_file import python_code_blocks, write_python_processed, c
 from gprMax.input_cmds_multiuse import process_multicmds
 from gprMax.input_cmds_singleuse import process_singlecmds
 from gprMax.materials import Material
+from gprMax.output import prepare_output_file, write_output
 from gprMax.pml_call_updates import update_pml_electric, update_pml_magnetic
 from gprMax.pml import build_pml, calculate_initial_pml_params
 from gprMax.utilities import update_progress, logo, human_size
@@ -395,7 +395,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, inputdirectory):
         tsolveend = perf_counter()
         print('\n\nSolving took [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsolveend - tsolvestart))))
         if sys.platform != 'win32':
-            print('Peak memory (approx) used: {}'.format(human_size(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss, False)))
+            print('Peak memory (approx) used: {}'.format(human_size(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)))
 
 
 
