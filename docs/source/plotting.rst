@@ -21,7 +21,7 @@ where ``outputfile`` is the name of output file including the path.
 
 There are optional command line arguments:
 
-* ``--fields`` to specify a subset of the default field components (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy`` or ``Hz``) as a list to plot
+* ``--fields`` to specify a subset of the default field components (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy`` or ``Hz``) as a list to plot. By default all field components are plotted.
 * ``-fft`` to plot the Fast Fourier Transform (FFT) of a single field component
 
 For example to plot the ``Ez`` field component with it's FFT:
@@ -45,7 +45,7 @@ gprMax produces a separate output file for each trace (A-scan) in the B-scan. Th
 where:
 
 * ``outputfile`` is the name of output file including the path
-* ``--field`` is the name of field to plot, e.g. ``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy`` or ``Hz``
+* ``--field`` is the name of field component to plot, e.g. ``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy`` or ``Hz``
 
 
 .. _waveforms:
@@ -74,7 +74,7 @@ where:
 
 There is an optional command line argument:
 
-* ``-fft`` to plot the FFT of the waveform
+* ``-fft`` to plot the Fast Fourier Transform (FFT) of the waveform
 
 Example plots of all the built-in waveforms are shown using the parameters: amplitude of one, frequency of 1GHz, time window of 6ns, and a time step of 1.926ps.
 
