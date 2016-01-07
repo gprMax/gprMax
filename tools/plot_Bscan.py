@@ -38,6 +38,7 @@ args = parser.parse_args()
 if args.field not in fieldslist:
     raise CmdInputError('{} not allowed. Options are: Ex Ey Ez Hx Hy Hz'.format(args.field))
 
+# Open output file and read some attributes
 f = h5py.File(args.outputfile, 'r')
 path = '/rxs/rx1'
 data = f[path + '/' + args.field]
