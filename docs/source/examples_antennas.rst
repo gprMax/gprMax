@@ -33,6 +33,8 @@ Results
 
     Time and frequency domain plots of the incident and reflected (scattered) voltages in the transmission line.
 
+Explanation of figures.
+
 .. _antenna_wire_dipole_fs_ant_params:
 
 .. figure:: images/antenna_wire_dipole_fs_ant_params.png
