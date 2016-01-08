@@ -22,7 +22,7 @@ This example demonstrates a model of a half-wavelength wire dipole antenna in fr
 
     FDTD geometry mesh showing a wire dipole antenna model.
 
-The antenna is fed using the ``#tranmission_line`` command. The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input impedance (:math:`Z_0`) of 73 Ohms specified in the ``#tranmission_line`` command. The transmission line uses a Gaussian waveform with a centre frequency of 1GHz.
+The antenna is fed using the ``#transmission_line`` command. The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input impedance (:math:`Z_0`) of 73 Ohms specified in the ``#transmission_line`` command. The transmission line uses a Gaussian waveform with a centre frequency of 1GHz.
 
 Results
 -------
