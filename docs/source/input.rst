@@ -745,7 +745,9 @@ This will simulate an infinitesimal magnetic dipole. This is often referred to a
 #voltage_source:
 ----------------
 
-Allows you to introduce a voltage source at the position of an electric field component either as a hard source (i.e. replacing the value of electic field component) or, as having an internal lumped resistance. It is useful for exciting GPR antennas when the physical properties of the antenna are included in the model. The syntax of the command is:
+Allows you to introduce a voltage source at an electric field location. It can be a hard source if it's resistance is zero, i.e. the time variation of the specified electric field component is prescribed, or if it's resistance is non-zero it behaves as a resistive voltage source. It is useful for exciting antennas when the physical properties of the antenna are included in the model. The syntax of the command is:
+
+The voltage source
 
 .. code-block:: none
 
@@ -758,6 +760,25 @@ Allows you to introduce a voltage source at the position of an electric field co
 * ``str1`` is the identifier of the waveform that should be used with the source.
 
 For example, to specify a y directed voltage source with an internal resistance of 50 Ohms, an amplitude of five, and a 1.2 GHz centre frequency Gaussian waveform use: ``#waveform: gaussian 5 1.2e9 my_gauss_pulse`` and ``#voltage_source: y 0.05 0.05 0.05 50 my_gauss_pulse``.
+
+#transmission_line:
+-------------------
+
+Allows you to introduce a one-dimensional transmission line model at an electric field location. The transmission line has a specified resistance. It is useful for exciting antennas when the physical properties of the antenna are included in the model. The syntax of the command is:
+
+.. code-block:: none
+
+    #transmission_line: c1 f1 f2 f3 f4 str1 [f5 f6]
+
+* ``c1`` is the polarisation of the transmission line and can be ``x``, ``y``, or ``z``.
+* ``f1 f2 f3`` are the coordinates (x,y,z) of the transmission line in the model.
+* ``f4`` is the characteristic resistance of the transmission line source in Ohms.
+* ``f5 f6`` are optional parameters. ``f5`` is a time delay in starting the excitation of the transmission line. ``f6`` is a time to remove the excitation of the transmission line. If the time window is longer than the excitation of the transmission line removal time then the excitation of the transmission line will stop after the excitation of the transmission line removal time. If the excitation of the transmission line removal time is longer than the time window then the excitation of the transmission line will be active for the entire time window. If ``f5 f6`` are omitted the excitation of the transmission line will start at the beginning of time window and stop at the end of the time window.
+* ``str1`` is the identifier of the waveform that should be used with the source.
+
+Time histories of voltage and current values in the transmission line are saved to the output file. These are documented in the :ref:`output file section <output>`. These parameters are useful for calculating characteristics of an antenna such as the input impedance or S-parameters.
+
+For example, to specify a z directed transmission line source with a resistance of 75 Ohms, an amplitude of five, and a 1.2 GHz centre frequency Gaussian waveform use: ``#waveform: gaussian 5 1.2e9 my_gauss_pulse`` and ``#transmission_line: z 0.05 0.05 0.05 75 my_gauss_pulse``.
 
 #rx:
 ----
