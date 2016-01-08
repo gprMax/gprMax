@@ -71,29 +71,32 @@ for rx in range(1, nrx + 1):
             # Shift powers so that frequency with maximum power is at zero decibels
             power -= np.amax(power)
 
-            # Set plotting range to power drop to -140dB
-            pltrange = np.where(power < -140)[0][0] + 1
+            # Set plotting range to -60dB from maximum power
+            pltrange = np.where((np.amax(power) - power) > 60)[0][0] + 1
             pltrange = np.s_[0:pltrange]
 
             # Plot time history of field component
             fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
-            line = ax1.plot(time, fielddata, 'r', lw=2, label=args.fields[0])
+            line1 = ax1.plot(time, fielddata, 'r', lw=2, label=args.fields[0])
             ax1.set_xlabel('Time [ns]')
             ax1.set_ylabel(args.fields[0] + ' field strength [V/m]')
             ax1.set_xlim([0, np.amax(time)])
             ax1.grid()
 
             # Plot frequency spectra
-            markerline, stemlines, baseline = ax2.stem(freqs[pltrange]/1e9, power[pltrange], '--')
+            markerline, stemlines, baseline = ax2.stem(freqs[pltrange]/1e9, power[pltrange], '-.')
+            plt.setp(baseline, 'linewidth', 0)
             plt.setp(stemlines, 'color', 'r')
             plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
+            line2 = ax2.plot(freqs[pltrange]/1e9, power[pltrange], 'r', lw=2)
             ax2.set_xlabel('Frequency [GHz]')
             ax2.set_ylabel('Power [dB]')
             ax2.grid()
             
             # Change colours and labels for magnetic field components
             if 'H' in args.fields[0]:
-                plt.setp(line, color='b')
+                plt.setp(line1, color='b')
+                plt.setp(line2, color='b')
                 plt.setp(ax1, ylabel=args.fields[0] + ' field strength [A/m]')
                 plt.setp(stemlines, 'color', 'b')
                 plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
