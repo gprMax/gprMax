@@ -1,6 +1,6 @@
-*********
-Simple 2D
-*********
+********
+Basic 2D
+********
 
 This section provides some general example models in 2D that demonstrate how to use certain features of gprMax. Each example comes with an input file which you can download and run.
 
@@ -9,11 +9,11 @@ This section provides some general example models in 2D that demonstrate how to 
 A-scan from a metal cylinder
 ============================
 
-:download:`cylinder_Ascan_2D.in <models/cylinder_Ascan_2D.in>`
+:download:`cylinder_Ascan_2D.in <../../user_models/cylinder_Ascan_2D.in>`
 
 This example is the gprMax equivalent of 'Hello World'! It demonstrates how to simulate a single trace (A-scan) from a metal cylinder buried in a dielectric half-space.
 
-.. literalinclude:: models/cylinder_Ascan_2D.in
+.. literalinclude:: ../../user_models/cylinder_Ascan_2D.in
     :language: none
     :linenos:
 
@@ -133,11 +133,11 @@ You should have produced an output file ``cylinder_Ascan_2D.out``. You can view 
 B-scan from a metal cylinder
 ============================
 
-:download:`cylinder_Bscan_2D.in <models/cylinder_Bscan_2D.in>`
+:download:`cylinder_Bscan_2D.in <../../user_models/cylinder_Bscan_2D.in>`
 
 This example using the same geometry as the previous example but this time a B-scan is created. A B-scan is composed of multiple traces (A-scans) recorded as the source and receiver are moved over the target, in this case the metal cylinder.
 
-.. literalinclude:: models/cylinder_Bscan_2D.in
+.. literalinclude:: ../../user_models/cylinder_Bscan_2D.in
     :language: none
     :linenos:
 

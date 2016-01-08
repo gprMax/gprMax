@@ -11,7 +11,7 @@ Building a heterogeneous soil
 
 This example demonstrates how to build a more realistic soil model using a stochastic distribution of dielectric properties. A mixing model for soils proposed by Peplinski (http://dx.doi.org/10.1109/36.387598) is used to define a series of dispersive material properties for the soil.
 
-.. literalinclude:: models/heterogeneous_soil.in
+.. literalinclude:: ../../user_models/heterogeneous_soil.in
     :language: none
     :linenos:
 

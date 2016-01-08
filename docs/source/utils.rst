@@ -1,8 +1,8 @@
 .. _utils:
 
-***************
-Other utilities
-***************
+**************
+File utilities
+**************
 
 This section provides information on how to use the other Python modules in the ``tools`` package to help manage gprMax files.
 
