@@ -4,7 +4,7 @@ Antennas
 
 This section provides some example models of antennas. Each example comes with an input file which you can download and run.
 
-Wire-dipole antenna model
+Wire dipole antenna model
 =========================
 
 :download:`antenna_wire_dipole_fs.in <models/antenna_wire_dipole_fs.in>`
