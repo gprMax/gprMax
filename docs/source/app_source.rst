@@ -49,12 +49,6 @@ exceptions.py
 .. automodule:: gprMax.exceptions
 
 
-fields_output.py
-================
-
-.. automodule:: gprMax.fields_output
-
-
 fields_update.pyx
 =================
 
@@ -118,6 +112,12 @@ materials.py
 ============
 
 .. automodule:: gprMax.materials
+
+
+output.py
+=========
+
+.. automodule:: gprMax.output
 
 
 pml_1order_update.pyx

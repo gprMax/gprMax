@@ -315,7 +315,7 @@ For example to create a model of water with a single Debye pole, :math:`\epsilon
 
 
 #add_dispersion_lorentz:
------------------------
+------------------------
 
 Allows you to add dispersive properties to an already defined ``#material`` based on a multiple pole Lorentz formulation (see :ref:`capabilities` section). For example, the susceptability function for a single-pole Lorentz material is given by:
 
