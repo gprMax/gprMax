@@ -36,7 +36,7 @@ class VoltageSource:
         self.resistance = None
         self.waveformID = None
 
-    def update_E(self, abstime, updatecoeffsE, ID, Ex, Ey, Ez, G):
+    def update_electric(self, abstime, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a voltage source.
             
         Args:
@@ -86,7 +86,7 @@ class HertzianDipole:
         self.stop = None
         self.waveformID = None
 
-    def update_E(self, abstime, updatecoeffsE, ID, Ex, Ey, Ez, G):
+    def update_electric(self, abstime, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a Hertzian dipole.
             
         Args:
@@ -127,7 +127,7 @@ class MagneticDipole:
         self.stop = None
         self.waveformID = None
 
-    def update_H(self, abstime, updatecoeffsH, ID, Hx, Hy, Hz, G):
+    def update_magnetic(self, abstime, updatecoeffsH, ID, Hx, Hy, Hz, G):
         """Updates magnetic field values for a magnetic dipole.
             
         Args:
@@ -159,11 +159,10 @@ class MagneticDipole:
 class TransmissionLine:
     """The transmission line source is a one-dimensional transmission line which is attached virtually to a grid cell."""
     
-    def __init__(self, G, length=None):
+    def __init__(self, G):
         """
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
-            length (float): Length of the transmission line.
         """
         
         self.polarisation = None
@@ -172,7 +171,6 @@ class TransmissionLine:
         self.positionz = None
         self.start = None
         self.stop = None
-        self.length = length
         self.resistance = None
         self.waveformID = None
         
@@ -183,13 +181,12 @@ class TransmissionLine:
         # Spatial step of transmission line
         self.dl = np.sqrt(3) * c * G.dt
         
-        # Nodal position of one-way injector excitation in the transmission line
-        self.srcpos = 10
+        # Number of nodes in the transmission line
+        self.nl = 10
         
-        # Number of nodes in the transmission line; add nodes to the length to account for position of one-way injector
-#        self.nl = rvalue(self.length/self.dl) + self.srcpos
-        self.nl = 20
-
+        # Node position of the one-way injector excitation in the transmission line
+        self.srcpos = 5
+        
         self.voltage = np.zeros(self.nl, dtype=floattype)
         self.current = np.zeros(self.nl, dtype=floattype)
     
@@ -200,9 +197,9 @@ class TransmissionLine:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
     
-        tmp = (c * G.dt - self.dl) / (c * G.dt + self.dl)
+        h = (c * G.dt - self.dl) / (c * G.dt + self.dl)
     
-        self.voltage[0] = (self.voltage[1] - self.abcv0) + self.abcv1
+        self.voltage[0] = h * (self.voltage[1] - self.abcv0) + self.abcv1
         self.abcv0 = self.voltage[0]
         self.abcv1 = self.voltage[1]
 
@@ -243,7 +240,7 @@ class TransmissionLine:
         # Update the current one node before the position of the one-way injector excitation
         self.current[self.srcpos - 1] += (c * G.dt / self.dl) * waveform.amp * waveform.calculate_value(time - 0.5 * G.dt, G.dt) * (1 / self.resistance)
 
-    def update_E(self, abstime, Ex, Ey, Ez, G):
+    def update_electric(self, abstime, Ex, Ey, Ez, G):
         """Updates electric field value in the main grid from voltage value in the transmission line.
             
         Args:
@@ -270,7 +267,7 @@ class TransmissionLine:
             elif self.polarisation is 'z':
                 Ez[i, j, k] = - self.voltage[self.nl - 1] / G.dz
 
-    def update_H(self, abstime, Hx, Hy, Hz, G):
+    def update_magnetic(self, abstime, Hx, Hy, Hz, G):
         """Updates current value in transmission line from magnetic field values in the main grid.
             
         Args:
