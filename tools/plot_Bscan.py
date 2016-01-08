@@ -58,6 +58,7 @@ if 'E' in args.field:
     cb.set_label('Field strength [V/m]')
 elif 'H' in args.field:
     cb.set_label('Field strength [A/m]')
+
 plt.show()
 #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
 f.close()

@@ -22,6 +22,21 @@ This example demonstrates a model of a half-wavelength wire dipole antenna in fr
 
 The antenna is fed using the ``#tranmission_line`` command. The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input impedance :math:`Z_0` of 73 Ohms specified in the ``#tranmission_line`` command. The transmission line uses a Gaussian waveform with a centre frequency of 1GHz.
 
+Results
+-------
+
+.. _antenna_wire_dipole_fs_tl_params:
+
+.. figure:: images/antenna_wire_dipole_fs_tl_params.png
+
+    Time and frequency domain plots of the incident and reflected (scattered) voltages in the transmission line.
+
+.. _antenna_wire_dipole_fs_ant_params:
+
+    .. figure:: images/antenna_wire_dipole_fs_ant_params.png
+
+    s11 parameter and input impedance (resistance and reactance) of the antenna.
+
 
 Bowtie antenna model
 ====================
