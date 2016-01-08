@@ -7,6 +7,8 @@ This section provides some example models of antennas. Each example comes with a
 Wire dipole antenna model
 =========================
 
+**INFO ON THIS MODEL IN PROGRESS**
+
 :download:`antenna_wire_dipole_fs.in <../../user_models/antenna_wire_dipole_fs.in>`
 
 This example demonstrates a model of a half-wavelength wire dipole antenna in free space. The length of the dipole is 150mm with a diameter of 6mm, and a 1mm gap between the arms.
@@ -20,7 +22,7 @@ This example demonstrates a model of a half-wavelength wire dipole antenna in fr
 
     FDTD geometry mesh showing a wire dipole antenna model.
 
-The antenna is fed using the ``#tranmission_line`` command. The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input impedance :math:`Z_0` of 73 Ohms specified in the ``#tranmission_line`` command. The transmission line uses a Gaussian waveform with a centre frequency of 1GHz.
+The antenna is fed using the ``#tranmission_line`` command. The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input impedance (:math:`Z_0`) of 73 Ohms specified in the ``#tranmission_line`` command. The transmission line uses a Gaussian waveform with a centre frequency of 1GHz.
 
 Results
 -------
@@ -33,7 +35,7 @@ Results
 
 .. _antenna_wire_dipole_fs_ant_params:
 
-    .. figure:: images/antenna_wire_dipole_fs_ant_params.png
+.. figure:: images/antenna_wire_dipole_fs_ant_params.png
 
     s11 parameter and input impedance (resistance and reactance) of the antenna.
 

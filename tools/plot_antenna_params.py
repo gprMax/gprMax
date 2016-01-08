@@ -110,7 +110,7 @@ ax4.grid()
 
 # Plot frequency spectra of s11
 fig2, ax = plt.subplots(num='Antenna parameters', figsize=(20, 10), facecolor='w', edgecolor='w')
-gs2 = gridspec.GridSpec(3, 1, hspace=0.5)
+gs2 = gridspec.GridSpec(2, 2, hspace=0.3)
 ax5 = plt.subplot(gs2[0, 0])
 markerline, stemlines, baseline = ax5.stem(freqs[pltrange]/1e9, s11[pltrange], '-.')
 plt.setp(baseline, 'linewidth', 0)
@@ -136,7 +136,7 @@ ax6.set_ylim(bottom=0)
 ax6.grid()
 
 # Plot input reactance (imaginery part of impedance)
-ax7 = plt.subplot(gs2[2, 0])
+ax7 = plt.subplot(gs2[1, 1])
 markerline, stemlines, baseline = ax7.stem(freqs[pltrange]/1e9, zin[pltrange].imag, '-.')
 plt.setp(baseline, 'linewidth', 0)
 plt.setp(stemlines, 'color', 'r')
