@@ -34,7 +34,7 @@ gprMax User Guide
 
 .. toctree::
     :maxdepth: 2
-    :caption: Example models
+    :caption: Examples
 
     examples_simple_2D
     examples_antennas

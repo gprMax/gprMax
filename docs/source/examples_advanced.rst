@@ -1,6 +1,6 @@
-**************
-Advanced usage
-**************
+******************
+Advanced modelling
+******************
 
 This section provides example models of some of the more advanced features of gprMax. Each example comes with an input file which you can download and run.
 
