@@ -58,8 +58,8 @@ if args.fft:
     # Shift powers so that frequency with maximum power is at zero decibels
     power -= np.amax(power)
 
-    # Set plotting range to 4 * centre frequency
-    pltrange = np.where(freqs > (4 * w.freq))[0][0]
+    # Set plotting range to 4 times centre frequency of waveform
+    pltrange = np.where(freqs > 4 * w.freq)[0][0]
     pltrange = np.s_[0:pltrange]
 
     fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num=w.type, figsize=(20, 10), facecolor='w', edgecolor='w')
@@ -70,9 +70,11 @@ if args.fft:
     ax1.set_ylabel('Amplitude')
 
     # Plot frequency spectra
-    markerline, stemlines, baseline = ax2.stem(freqs[pltrange]/1e9, power[pltrange], '--')
+    markerline, stemlines, baseline = ax2.stem(freqs[pltrange]/1e9, power[pltrange], '-.')
+    plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'r')
     plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
+    ax2.plot(freqs[pltrange]/1e9, power[pltrange], 'r', lw=2)
     ax2.set_xlabel('Frequency [GHz]')
     ax2.set_ylabel('Power [dB]')
 
@@ -89,3 +91,4 @@ plt.show()
 
 # Save a PDF of the figure
 #fig.savefig(os.path.dirname(os.path.abspath(__file__)) + os.sep + w.type + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+
