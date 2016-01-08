@@ -31,18 +31,20 @@ gprMax User Guide
     :caption: Advanced topics
 
     openmp_mpi
+    optimisation
 
 .. toctree::
     :maxdepth: 2
-    :caption: Support
+    :caption: Example models
 
-    examples_2D
-    examples_3D
+    examples_simple_2D
+    examples_antennas
+    examples_advanced
+
+.. toctree::
+    :maxdepth: 2
+    :caption: Help and support
+
     faqs
-
-
-.. toctree::
-    :maxdepth: 2
-    :caption: Appendices
-
     references
+
