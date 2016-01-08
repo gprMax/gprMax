@@ -75,7 +75,7 @@ Retired commands
 Commands yet to be implemented
 ------------------------------
 
-There are commands from previous versions of gprMax that are planned for this version, but are yet to be implemented. These will be introduced in a future update. They are: ``#thin_wire``, ``#transmission_line``, and ``#plane_wave``.
+There are commands from previous versions of gprMax that are planned for this version, but are yet to be implemented. These will be introduced in a future update. They are``#thin_wire`` and ``#plane_wave``.
 
 
 Migrating old input files
