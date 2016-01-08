@@ -41,7 +41,7 @@ from gprMax.input_cmds_multiuse import process_multicmds
 from gprMax.input_cmds_singleuse import process_singlecmds
 from gprMax.materials import Material
 from gprMax.output import prepare_output_file, write_output
-from gprMax.pml_call_updates import update_pml_electric, update_pml_magnetic
+from gprMax.pml_call_updates import update_electric_pml, update_magnetic_pml
 from gprMax.pml import build_pml, calculate_initial_pml_params
 from gprMax.utilities import update_progress, logo, human_size
 from gprMax.yee_cell_build import build_ex_component, build_ey_component, build_ez_component, build_hx_component, build_hy_component, build_hz_component
@@ -335,18 +335,18 @@ def run_model(args, modelrun, numbermodelruns, inputfile, inputdirectory):
                 update_ez(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.ID, G.Ez, G.Hx, G.Hy)
 
             # Update electric field components with the PML correction
-            update_pml_electric(G)
+            update_electric_pml(G)
 
             # Update electric field components from sources
             if G.voltagesources:
                 for voltagesource in G.voltagesources:
-                    voltagesource.update_E(abstime, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
+                    voltagesource.update_electric(abstime, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
             if G.transmissionlines:
                 for transmissionline in G.transmissionlines:
-                    transmissionline.update_E(abstime, G.Ex, G.Ey, G.Ez, G)
+                    transmissionline.update_electric(abstime, G.Ex, G.Ey, G.Ez, G)
             if G.hertziandipoles:   # Update any Hertzian dipole sources last
                 for hertziandipole in G.hertziandipoles:
-                    hertziandipole.update_E(abstime, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
+                    hertziandipole.update_electric(abstime, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
 
             # If there are any dispersive materials do 2nd part of dispersive update. It is split into two parts as it requires present and updated electric field values. Therefore it can only be completely updated after the electric field has been updated by the PML and source updates.
             if Material.maxpoles == 1:
@@ -367,15 +367,15 @@ def run_model(args, modelrun, numbermodelruns, inputfile, inputdirectory):
             update_hz(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsH, G.ID, G.Hz, G.Ex, G.Ey)
 
             # Update magnetic field components with the PML correction
-            update_pml_magnetic(G)
+            update_magnetic_pml(G)
 
             # Update magnetic field components from sources
             if G.transmissionlines:
                 for transmissionline in G.transmissionlines:
-                    transmissionline.update_H(abstime, G.Hx, G.Hy, G.Hz, G)
+                    transmissionline.update_magnetic(abstime, G.Hx, G.Hy, G.Hz, G)
             if G.magneticdipoles:
                 for magneticdipole in G.magneticdipoles:
-                    magneticdipole.update_H(abstime, G.updatecoeffsH, G.ID, G.Hx, G.Hy, G.Hz, G)
+                    magneticdipole.update_magnetic(abstime, G.updatecoeffsH, G.ID, G.Hx, G.Hy, G.Hz, G)
         
             # Increment absolute time value
             abstime += 0.5 * G.dt
