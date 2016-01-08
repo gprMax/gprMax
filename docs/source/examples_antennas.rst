@@ -9,13 +9,18 @@ Wire dipole antenna model
 
 :download:`antenna_wire_dipole_fs.in <../../user_models/antenna_wire_dipole_fs.in>`
 
-This example demonstrates a model of a half-wavelength wire dipole antenna in free space.
+This example demonstrates a model of a half-wavelength wire dipole antenna in free space. The length of the dipole is 136mm with a diameter of 6mm, and a 1mm gap between the arms.
 
 .. literalinclude:: ../../user_models/antenna_wire_dipole_fs.in
     :language: none
     :linenos:
 
-**Details and results to add**
+.. figure:: images/antenna_wire_dipole.png
+    :width: 600 px
+
+    FDTD geometry mesh showing a wire dipole antenna model.
+
+The antenna is fed using the ``#tranmission_line`` command. The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input impedance :math:`Z_0` of 73 ohms specified in the ``#tranmission_line`` command. The transmission line uses a Gaussian waveform with a centre frequency of 1.5~GHz.
 
 
 Bowtie antenna model
