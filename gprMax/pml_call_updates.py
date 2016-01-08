@@ -20,7 +20,7 @@ from gprMax.pml_1order_update import *
 from gprMax.pml_2order_update import *
 
 
-def update_pml_electric(G):
+def update_electric_pml(G):
     """This functions updates electric field components with the PML correction."""
 
     for pml in G.pmls:
@@ -68,7 +68,7 @@ def update_pml_electric(G):
                 update_pml_2order_ey_zplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ey, G.Hx, pml.EPhiyzx, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dz)
 
 
-def update_pml_magnetic(G):
+def update_magnetic_pml(G):
     """This functions updates magnetic field components with the PML correction."""
 
     for pml in G.pmls:
