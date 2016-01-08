@@ -1,0 +1,18 @@
+#title: Wire antenna - half-wavelength dipole in free-space
+#domain: 0.050 0.050 0.200
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 5e-9
+
+#waveform: gaussian 1 1.5e9 mypulse
+#transmission_line: z 0.025 0.025 0.100 73 mypulse
+
+## 136mm length
+#cylinder: 0.025 0.025 0.032 0.025 0.025 0.168 0.003 pec
+#cylinder: 0.025 0.025 0.100 0.025 0.025 0.101 0.003 free_space
+
+geometry_view: 0 0 0 0.050 0.050 0.200 0.001 0.001 0.001 antenna_wire_dipole_fs n
+
+python:
+for i in range(1, 61):
+    print('#snapshot: 0 0 0 0.049 0.049 0.199 0.001 0.001 0.001 {} snapshot{}'.format((i/10)*1e-9, i))
+end_python:
