@@ -23,7 +23,7 @@ from psutil import virtual_memory
 from gprMax.constants import c, floattype
 from gprMax.exceptions import CmdInputError
 from gprMax.pml import PML, CFS
-from gprMax.utilities import rvalue, human_size
+from gprMax.utilities import roundvalue, rounddownmax, human_size
 from gprMax.waveforms import Waveform
 
 
@@ -114,9 +114,9 @@ def process_singlecmds(singlecmds, multicmds, G):
     tmp = [float(x) for x in singlecmds[cmd].split()]
     if len(tmp) != 3:
         raise CmdInputError(cmd + ' requires exactly three parameters')
-    G.nx = rvalue(tmp[0]/G.dx)
-    G.ny = rvalue(tmp[1]/G.dy)
-    G.nz = rvalue(tmp[2]/G.dz)
+    G.nx = roundvalue(tmp[0]/G.dx)
+    G.ny = roundvalue(tmp[1]/G.dy)
+    G.nz = roundvalue(tmp[2]/G.dz)
     if G.messages:
         print('Model domain: {:.3f} x {:.3f} x {:.3f} m ({:d} x {:d} x {:d} = {:.1f} Mcells)'.format(tmp[0], tmp[1], tmp[2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)/1e6))
         mem = (((G.nx + 1) * (G.ny + 1) * (G.nz + 1) * 13 * np.dtype(floattype).itemsize + (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * 18) * 1.1) + 30e6
@@ -144,6 +144,10 @@ def process_singlecmds(singlecmds, multicmds, G):
             raise CmdInputError(cmd + ' requires input values of either 2D or 3D')
     else:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
+
+    # Round down time step to nearest float with precision one less than hardware maximum. Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
+    G.dt = rounddownmax(G.dt)
+
     if G.messages:
         print('Time step: {:.3e} secs'.format(G.dt))
 
@@ -171,7 +175,7 @@ def process_singlecmds(singlecmds, multicmds, G):
     if '.' in tmp or 'e' in tmp:
         if float(tmp) > 0:
             G.timewindow = float(tmp)
-            G.iterations = rvalue((float(tmp) / G.dt)) + 1
+            G.iterations = roundvalue((float(tmp) / G.dt)) + 1
         else:
             raise CmdInputError(cmd + ' must have a value greater than zero')
     # If number of iterations given
@@ -202,9 +206,9 @@ def process_singlecmds(singlecmds, multicmds, G):
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
             raise CmdInputError(cmd + ' requires exactly three parameters')
-        G.srcstepx = rvalue(float(tmp[0])/G.dx)
-        G.srcstepy = rvalue(float(tmp[1])/G.dy)
-        G.srcstepz = rvalue(float(tmp[2])/G.dz)
+        G.srcstepx = roundvalue(float(tmp[0])/G.dx)
+        G.srcstepy = roundvalue(float(tmp[1])/G.dy)
+        G.srcstepz = roundvalue(float(tmp[2])/G.dz)
         if G.messages:
             print('All sources will step {:.3f}m, {:.3f}m, {:.3f}m for each model run.'.format(G.srcstepx * G.dx, G.srcstepy * G.dy, G.srcstepz * G.dz))
 
@@ -215,9 +219,9 @@ def process_singlecmds(singlecmds, multicmds, G):
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
             raise CmdInputError(cmd + ' requires exactly three parameters')
-        G.rxstepx = rvalue(float(tmp[0])/G.dx)
-        G.rxstepy = rvalue(float(tmp[1])/G.dy)
-        G.rxstepz = rvalue(float(tmp[2])/G.dz)
+        G.rxstepx = roundvalue(float(tmp[0])/G.dx)
+        G.rxstepy = roundvalue(float(tmp[1])/G.dy)
+        G.rxstepz = roundvalue(float(tmp[2])/G.dz)
         if G.messages:
             print('All receivers will step {:.3f}m, {:.3f}m, {:.3f}m for each model run.'.format(G.rxstepx * G.dx, G.rxstepy * G.dy, G.rxstepz * G.dz))
 
