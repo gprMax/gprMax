@@ -73,14 +73,27 @@ def update_progress(progress):
     
     # Modify this to change the length of the progress bar
     barLength = 50
-    block = rvalue(barLength * progress)
+    block = roundvalue(barLength * progress)
     text = '\r|{}| {:2.1f}%'.format( '#' * block + '-' * (barLength - block), progress * 100)
     sys.stdout.write(text)
     sys.stdout.flush()
 
 
-def rvalue(value):
-    """Rounds half values downward.
+def roundvalue(value):
+    """Rounds to nearest integer (half values are rounded downwards).
+        
+    Args:
+        value (float): Number to round.
+        
+    Returns:
+        Rounded value (int).
+    """
+    
+    return int(d.Decimal(value).quantize(d.Decimal('1'),rounding=d.ROUND_HALF_DOWN))
+
+
+def rounddownmax(value):
+    """Rounds down to nearest float with precision one less than hardware maximum.
         
     Args:
         value (float): Number to round.
@@ -89,7 +102,11 @@ def rvalue(value):
         Rounded value (float).
     """
     
-    return int(d.Decimal(value).quantize(d.Decimal('1'),rounding=d.ROUND_HALF_DOWN))
+    decimalplaces = d.getcontext().prec
+    decimalplaces -= 1
+    precision = '1.{places}'.format(places='0' * decimalplaces)
+    
+    return float(d.Decimal(value).quantize(d.Decimal(precision),rounding=d.ROUND_FLOOR))
 
 
 def human_size(size, a_kilobyte_is_1024_bytes=True):
