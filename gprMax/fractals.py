@@ -20,7 +20,7 @@ import numpy as np
 np.seterr(divide='raise')
 
 from gprMax.constants import floattype, complextype
-from gprMax.utilities import rvalue
+from gprMax.utilities import roundvalue
 
 
 class FractalSurface:
@@ -229,8 +229,8 @@ class Grass:
 
         x = self.geometryparams[blade, 2] * (height / self.geometryparams[blade, 0]) * (height / self.geometryparams[blade, 0])
         y = self.geometryparams[blade, 3] * (height / self.geometryparams[blade, 1]) * (height / self.geometryparams[blade, 1])
-        x = rvalue(x)
-        y = rvalue(y)
+        x = roundvalue(x)
+        y = roundvalue(y)
 
         return x, y
 
