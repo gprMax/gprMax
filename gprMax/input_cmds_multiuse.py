@@ -23,7 +23,7 @@ from gprMax.pml import CFSParameter, CFS
 from gprMax.receivers import Rx
 from gprMax.snapshots import Snapshot
 from gprMax.sources import VoltageSource, HertzianDipole, MagneticDipole, TransmissionLine
-from gprMax.utilities import rvalue
+from gprMax.utilities import roundvalue
 from gprMax.waveforms import Waveform
 
 
@@ -72,9 +72,9 @@ def process_multicmds(multicmds, G):
             # Check polarity & position parameters
             if tmp[0].lower() not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            positionx = rvalue(float(tmp[1])/G.dx)
-            positiony = rvalue(float(tmp[2])/G.dy)
-            positionz = rvalue(float(tmp[3])/G.dz)
+            positionx = roundvalue(float(tmp[1])/G.dx)
+            positiony = roundvalue(float(tmp[2])/G.dy)
+            positionz = roundvalue(float(tmp[3])/G.dz)
             resistance = float(tmp[4])
             if positionx < 0 or positionx >= G.nx:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' x-coordinate is not within the model domain')
@@ -135,9 +135,9 @@ def process_multicmds(multicmds, G):
             # Check polarity & position parameters
             if tmp[0].lower() not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            positionx = rvalue(float(tmp[1])/G.dx)
-            positiony = rvalue(float(tmp[2])/G.dy)
-            positionz = rvalue(float(tmp[3])/G.dz)
+            positionx = roundvalue(float(tmp[1])/G.dx)
+            positiony = roundvalue(float(tmp[2])/G.dy)
+            positionz = roundvalue(float(tmp[3])/G.dz)
             if positionx < 0 or positionx >= G.nx:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' x-coordinate is not within the model domain')
             if positiony < 0 or positiony >= G.ny:
@@ -194,9 +194,9 @@ def process_multicmds(multicmds, G):
             # Check polarity & position parameters
             if tmp[0].lower() not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            positionx = rvalue(float(tmp[1])/G.dx)
-            positiony = rvalue(float(tmp[2])/G.dy)
-            positionz = rvalue(float(tmp[3])/G.dz)
+            positionx = roundvalue(float(tmp[1])/G.dx)
+            positiony = roundvalue(float(tmp[2])/G.dy)
+            positionz = roundvalue(float(tmp[3])/G.dz)
             if positionx < 0 or positionx >= G.nx:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' x-coordinate is not within the model domain')
             if positiony < 0 or positiony >= G.ny:
@@ -253,9 +253,9 @@ def process_multicmds(multicmds, G):
             # Check polarity & position parameters
             if tmp[0].lower() not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            positionx = rvalue(float(tmp[1])/G.dx)
-            positiony = rvalue(float(tmp[2])/G.dy)
-            positionz = rvalue(float(tmp[3])/G.dz)
+            positionx = roundvalue(float(tmp[1])/G.dx)
+            positiony = roundvalue(float(tmp[2])/G.dy)
+            positionz = roundvalue(float(tmp[3])/G.dz)
             resistance = float(tmp[4])
             if positionx < 0 or positionx >= G.nx:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' x-coordinate is not within the model domain')
@@ -314,9 +314,9 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' has an incorrect number of parameters')
 
             # Check position parameters
-            positionx = rvalue(float(tmp[0])/G.dx)
-            positiony = rvalue(float(tmp[1])/G.dy)
-            positionz = rvalue(float(tmp[2])/G.dz)
+            positionx = roundvalue(float(tmp[0])/G.dx)
+            positiony = roundvalue(float(tmp[1])/G.dy)
+            positionz = roundvalue(float(tmp[2])/G.dz)
             if positionx < 0 or positionx >= G.nx:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' x-coordinate is not within the model domain')
             if positiony < 0 or positiony >= G.ny:
@@ -354,15 +354,15 @@ def process_multicmds(multicmds, G):
             if len(tmp) != 9:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly nine parameters')
 
-            xs = rvalue(float(tmp[0])/G.dx)
-            xf = rvalue(float(tmp[3])/G.dx)
-            ys = rvalue(float(tmp[1])/G.dy)
-            yf = rvalue(float(tmp[4])/G.dy)
-            zs = rvalue(float(tmp[2])/G.dz)
-            zf = rvalue(float(tmp[5])/G.dz)
-            dx = rvalue(float(tmp[6])/G.dx)
-            dy = rvalue(float(tmp[7])/G.dy)
-            dz = rvalue(float(tmp[8])/G.dz)
+            xs = roundvalue(float(tmp[0])/G.dx)
+            xf = roundvalue(float(tmp[3])/G.dx)
+            ys = roundvalue(float(tmp[1])/G.dy)
+            yf = roundvalue(float(tmp[4])/G.dy)
+            zs = roundvalue(float(tmp[2])/G.dz)
+            zf = roundvalue(float(tmp[5])/G.dz)
+            dx = roundvalue(float(tmp[6])/G.dx)
+            dy = roundvalue(float(tmp[7])/G.dy)
+            dz = roundvalue(float(tmp[8])/G.dz)
 
             if xs < 0 or xs >= G.nx:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower x-coordinate {} is not within the model domain'.format(xs))
@@ -403,20 +403,20 @@ def process_multicmds(multicmds, G):
             if len(tmp) != 11:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
 
-            xs = rvalue(float(tmp[0])/G.dx)
-            xf = rvalue(float(tmp[3])/G.dx)
-            ys = rvalue(float(tmp[1])/G.dy)
-            yf = rvalue(float(tmp[4])/G.dy)
-            zs = rvalue(float(tmp[2])/G.dz)
-            zf = rvalue(float(tmp[5])/G.dz)
-            dx = rvalue(float(tmp[6])/G.dx)
-            dy = rvalue(float(tmp[7])/G.dy)
-            dz = rvalue(float(tmp[8])/G.dz)
+            xs = roundvalue(float(tmp[0])/G.dx)
+            xf = roundvalue(float(tmp[3])/G.dx)
+            ys = roundvalue(float(tmp[1])/G.dy)
+            yf = roundvalue(float(tmp[4])/G.dy)
+            zs = roundvalue(float(tmp[2])/G.dz)
+            zf = roundvalue(float(tmp[5])/G.dz)
+            dx = roundvalue(float(tmp[6])/G.dx)
+            dy = roundvalue(float(tmp[7])/G.dy)
+            dz = roundvalue(float(tmp[8])/G.dz)
             
             # If real floating point value given
             if '.' in tmp[9] or 'e' in tmp[9]:
                 if float(tmp[9]) > 0:
-                    time = rvalue((float(tmp[9]) / G.dt)) + 1
+                    time = roundvalue((float(tmp[9]) / G.dt)) + 1
                 else:
                     raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' time value must be greater than zero')
             # If number of iterations given
@@ -640,15 +640,15 @@ def process_multicmds(multicmds, G):
             if len(tmp) != 11:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
 
-            xs = rvalue(float(tmp[0])/G.dx)
-            xf = rvalue(float(tmp[3])/G.dx)
-            ys = rvalue(float(tmp[1])/G.dy)
-            yf = rvalue(float(tmp[4])/G.dy)
-            zs = rvalue(float(tmp[2])/G.dz)
-            zf = rvalue(float(tmp[5])/G.dz)
-            dx = rvalue(float(tmp[6])/G.dx)
-            dy = rvalue(float(tmp[7])/G.dy)
-            dz = rvalue(float(tmp[8])/G.dz)
+            xs = roundvalue(float(tmp[0])/G.dx)
+            xf = roundvalue(float(tmp[3])/G.dx)
+            ys = roundvalue(float(tmp[1])/G.dy)
+            yf = roundvalue(float(tmp[4])/G.dy)
+            zs = roundvalue(float(tmp[2])/G.dz)
+            zf = roundvalue(float(tmp[5])/G.dz)
+            dx = roundvalue(float(tmp[6])/G.dx)
+            dy = roundvalue(float(tmp[7])/G.dy)
+            dz = roundvalue(float(tmp[8])/G.dz)
 
             if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower x-coordinate {} is not within the model domain'.format(xs * G.dx))

@@ -24,7 +24,7 @@ from gprMax.exceptions import CmdInputError
 from gprMax.fractals import FractalSurface, FractalVolume, Grass
 from gprMax.geometry_primitives import build_edge_x, build_edge_y, build_edge_z, build_face_yz, build_face_xz, build_face_xy, build_triangle, build_voxel, build_box, build_cylinder, build_cylindrical_sector, build_sphere
 from gprMax.materials import Material
-from gprMax.utilities import rvalue
+from gprMax.utilities import roundvalue
 
 
 def process_geometrycmds(geometry, G):
@@ -42,12 +42,12 @@ def process_geometrycmds(geometry, G):
             if len(tmp) != 8:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly seven parameters')
             
-            xs = rvalue(float(tmp[1])/G.dx)
-            xf = rvalue(float(tmp[4])/G.dx)
-            ys = rvalue(float(tmp[2])/G.dy)
-            yf = rvalue(float(tmp[5])/G.dy)
-            zs = rvalue(float(tmp[3])/G.dz)
-            zf = rvalue(float(tmp[6])/G.dz)
+            xs = roundvalue(float(tmp[1])/G.dx)
+            xf = roundvalue(float(tmp[4])/G.dx)
+            ys = roundvalue(float(tmp[2])/G.dy)
+            yf = roundvalue(float(tmp[5])/G.dy)
+            zs = roundvalue(float(tmp[3])/G.dz)
+            zf = roundvalue(float(tmp[6])/G.dz)
             
             if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {} is not within the model domain'.format(xs * G.dx))
@@ -113,12 +113,12 @@ def process_geometrycmds(geometry, G):
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
             
-            xs = rvalue(float(tmp[1])/G.dx)
-            xf = rvalue(float(tmp[4])/G.dx)
-            ys = rvalue(float(tmp[2])/G.dy)
-            yf = rvalue(float(tmp[5])/G.dy)
-            zs = rvalue(float(tmp[3])/G.dz)
-            zf = rvalue(float(tmp[6])/G.dz)
+            xs = roundvalue(float(tmp[1])/G.dx)
+            xf = roundvalue(float(tmp[4])/G.dx)
+            ys = roundvalue(float(tmp[2])/G.dy)
+            yf = roundvalue(float(tmp[5])/G.dy)
+            zs = roundvalue(float(tmp[3])/G.dz)
+            zf = roundvalue(float(tmp[6])/G.dz)
             
             if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {} is not within the model domain'.format(xs * G.dx))
@@ -233,15 +233,15 @@ def process_geometrycmds(geometry, G):
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
             
-            x1 = rvalue(float(tmp[1])/G.dx) * G.dx
-            y1 = rvalue(float(tmp[2])/G.dy) * G.dy
-            z1 = rvalue(float(tmp[3])/G.dz) * G.dz
-            x2 = rvalue(float(tmp[4])/G.dx) * G.dx
-            y2 = rvalue(float(tmp[5])/G.dy) * G.dy
-            z2 = rvalue(float(tmp[6])/G.dz) * G.dz
-            x3 = rvalue(float(tmp[7])/G.dx) * G.dx
-            y3 = rvalue(float(tmp[8])/G.dy) * G.dy
-            z3 = rvalue(float(tmp[9])/G.dz) * G.dz
+            x1 = roundvalue(float(tmp[1])/G.dx) * G.dx
+            y1 = roundvalue(float(tmp[2])/G.dy) * G.dy
+            z1 = roundvalue(float(tmp[3])/G.dz) * G.dz
+            x2 = roundvalue(float(tmp[4])/G.dx) * G.dx
+            y2 = roundvalue(float(tmp[5])/G.dy) * G.dy
+            z2 = roundvalue(float(tmp[6])/G.dz) * G.dz
+            x3 = roundvalue(float(tmp[7])/G.dx) * G.dx
+            y3 = roundvalue(float(tmp[8])/G.dy) * G.dy
+            z3 = roundvalue(float(tmp[9])/G.dz) * G.dz
             thickness = float(tmp[10])
             
             if x1 < 0 or x2 < 0 or x3 < 0 or x1 > G.nx or x2 > G.nx or x3 > G.nx:
@@ -353,12 +353,12 @@ def process_geometrycmds(geometry, G):
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
     
-            xs = rvalue(float(tmp[1])/G.dx)
-            xf = rvalue(float(tmp[4])/G.dx)
-            ys = rvalue(float(tmp[2])/G.dy)
-            yf = rvalue(float(tmp[5])/G.dy)
-            zs = rvalue(float(tmp[3])/G.dz)
-            zf = rvalue(float(tmp[6])/G.dz)
+            xs = roundvalue(float(tmp[1])/G.dx)
+            xf = roundvalue(float(tmp[4])/G.dx)
+            ys = roundvalue(float(tmp[2])/G.dy)
+            yf = roundvalue(float(tmp[5])/G.dy)
+            zs = roundvalue(float(tmp[3])/G.dz)
+            zf = roundvalue(float(tmp[6])/G.dz)
             
             if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {} is not within the model domain'.format(xs * G.dx))
@@ -445,12 +445,12 @@ def process_geometrycmds(geometry, G):
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
             
-            x1 = rvalue(float(tmp[1])/G.dx) * G.dx
-            y1 = rvalue(float(tmp[2])/G.dy) * G.dy
-            z1 = rvalue(float(tmp[3])/G.dz) * G.dz
-            x2 = rvalue(float(tmp[4])/G.dx) * G.dx
-            y2 = rvalue(float(tmp[5])/G.dy) * G.dy
-            z2 = rvalue(float(tmp[6])/G.dz) * G.dz
+            x1 = roundvalue(float(tmp[1])/G.dx) * G.dx
+            y1 = roundvalue(float(tmp[2])/G.dy) * G.dy
+            z1 = roundvalue(float(tmp[3])/G.dz) * G.dz
+            x2 = roundvalue(float(tmp[4])/G.dx) * G.dx
+            y2 = roundvalue(float(tmp[5])/G.dy) * G.dy
+            z2 = roundvalue(float(tmp[6])/G.dz) * G.dz
             r = float(tmp[7])
             
             if r <= 0:
@@ -595,21 +595,21 @@ def process_geometrycmds(geometry, G):
 
             # yz-plane cylindrical sector
             if normal == 'x':
-                ctr1 = rvalue(ctr1/G.dy) * G.dy
-                ctr2 = rvalue(ctr2/G.dz) * G.dz
-                level = rvalue(extent1/G.dx)
+                ctr1 = roundvalue(ctr1/G.dy) * G.dy
+                ctr2 = roundvalue(ctr2/G.dz) * G.dz
+                level = roundvalue(extent1/G.dx)
 
             # xz-plane cylindrical sector
             elif normal == 'y':
-                ctr1 = rvalue(ctr1/G.dx) * G.dx
-                ctr2 = rvalue(ctr2/G.dz) * G.dz
-                level = rvalue(extent1/G.dy)
+                ctr1 = roundvalue(ctr1/G.dx) * G.dx
+                ctr2 = roundvalue(ctr2/G.dz) * G.dz
+                level = roundvalue(extent1/G.dy)
                 
             # xy-plane cylindrical sector
             elif normal == 'z':
-                ctr1 = rvalue(ctr1/G.dx) * G.dx
-                ctr2 = rvalue(ctr2/G.dy) * G.dy
-                level = rvalue(extent1/G.dz)
+                ctr1 = roundvalue(ctr1/G.dx) * G.dx
+                ctr2 = roundvalue(ctr2/G.dy) * G.dy
+                level = roundvalue(extent1/G.dz)
 
             build_cylindrical_sector(ctr1, ctr2, level, sectorstartangle, sectorangle, r, normal, thickness, G.dx, G.dy, G.dz, numID, numIDx, numIDy, numIDz, averaging, G.solid, G.rigidE, G.rigidH, G.ID)
 
@@ -651,9 +651,9 @@ def process_geometrycmds(geometry, G):
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
             
             # Centre of sphere
-            xc = rvalue(float(tmp[1])/G.dx)
-            yc = rvalue(float(tmp[2])/G.dy)
-            zc = rvalue(float(tmp[3])/G.dz)
+            xc = roundvalue(float(tmp[1])/G.dx)
+            yc = roundvalue(float(tmp[2])/G.dy)
+            zc = roundvalue(float(tmp[3])/G.dz)
             r = float(tmp[4])
 
             # Look up requested materials in existing list of material instances
@@ -710,12 +710,12 @@ def process_geometrycmds(geometry, G):
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
     
-            xs = rvalue(float(tmp[1])/G.dx)
-            xf = rvalue(float(tmp[4])/G.dx)
-            ys = rvalue(float(tmp[2])/G.dy)
-            yf = rvalue(float(tmp[5])/G.dy)
-            zs = rvalue(float(tmp[3])/G.dz)
-            zf = rvalue(float(tmp[6])/G.dz)
+            xs = roundvalue(float(tmp[1])/G.dx)
+            xf = roundvalue(float(tmp[4])/G.dx)
+            ys = roundvalue(float(tmp[2])/G.dy)
+            yf = roundvalue(float(tmp[5])/G.dy)
+            zs = roundvalue(float(tmp[3])/G.dz)
+            zf = roundvalue(float(tmp[6])/G.dz)
             
             if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {} is not within the model domain'.format(xs * G.dx))
@@ -739,13 +739,13 @@ def process_geometrycmds(geometry, G):
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires a positive value for the fractal weighting in the y direction')
             if float(tmp[10]) < 0:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires a positive value for the fractal weighting in the z direction')
-            if rvalue(tmp[11]) < 0:
+            if roundvalue(tmp[11]) < 0:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires a positive value for the number of bins')
             
             # Find materials to use to build fractal volume, either from mixing models or normal materials
             mixingmodel = next((x for x in G.mixingmodels if x.ID == tmp[12]), None)
             material = next((x for x in G.materials if x.ID == tmp[12]), None)
-            nbins = rvalue(tmp[11])
+            nbins = roundvalue(tmp[11])
 
             if mixingmodel:
                 if nbins == 1:
@@ -783,12 +783,12 @@ def process_geometrycmds(geometry, G):
                     
                     # Only process rough surfaces for this fractal volume
                     if tmp[12] == volume.ID:
-                        xs = rvalue(float(tmp[1])/G.dx)
-                        xf = rvalue(float(tmp[4])/G.dx)
-                        ys = rvalue(float(tmp[2])/G.dy)
-                        yf = rvalue(float(tmp[5])/G.dy)
-                        zs = rvalue(float(tmp[3])/G.dz)
-                        zf = rvalue(float(tmp[6])/G.dz)
+                        xs = roundvalue(float(tmp[1])/G.dx)
+                        xf = roundvalue(float(tmp[4])/G.dx)
+                        ys = roundvalue(float(tmp[2])/G.dy)
+                        yf = roundvalue(float(tmp[5])/G.dy)
+                        zs = roundvalue(float(tmp[3])/G.dz)
+                        zf = roundvalue(float(tmp[6])/G.dz)
                         
                         if xs < 0 or xs > G.nx:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {} is not within the model domain'.format(xs * G.dx))
@@ -817,7 +817,7 @@ def process_geometrycmds(geometry, G):
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
                             if xs != volume.xs and xs != volume.xf:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' can only be used on the external surfaces of a fractal box')
-                            fractalrange = (rvalue(float(tmp[10]) / G.dx), rvalue(float(tmp[11]) / G.dx))
+                            fractalrange = (roundvalue(float(tmp[10]) / G.dx), roundvalue(float(tmp[11]) / G.dx))
                             # xminus surface
                             if xs == volume.xs:
                                 if fractalrange[0] < 0:
@@ -834,7 +834,7 @@ def process_geometrycmds(geometry, G):
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
                             if ys != volume.ys and ys != volume.yf:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' can only be used on the external surfaces of a fractal box')
-                            fractalrange = (rvalue(float(tmp[10]) / G.dy), rvalue(float(tmp[11]) / G.dy))
+                            fractalrange = (roundvalue(float(tmp[10]) / G.dy), roundvalue(float(tmp[11]) / G.dy))
                             # yminus surface
                             if ys == volume.ys:
                                 if fractalrange[0] < 0:
@@ -851,7 +851,7 @@ def process_geometrycmds(geometry, G):
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
                             if zs != volume.zs and zs != volume.zf:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' can only be used on the external surfaces of a fractal box')
-                            fractalrange = (rvalue(float(tmp[10]) / G.dz), rvalue(float(tmp[11]) / G.dz))
+                            fractalrange = (roundvalue(float(tmp[10]) / G.dz), roundvalue(float(tmp[11]) / G.dz))
                             # zminus surface
                             if zs == volume.zs:
                                 if fractalrange[0] < 0:
@@ -890,12 +890,12 @@ def process_geometrycmds(geometry, G):
                     
                     # Only process surfaces for this fractal volume
                     if tmp[8] == volume.ID:
-                        xs = rvalue(float(tmp[1])/G.dx)
-                        xf = rvalue(float(tmp[4])/G.dx)
-                        ys = rvalue(float(tmp[2])/G.dy)
-                        yf = rvalue(float(tmp[5])/G.dy)
-                        zs = rvalue(float(tmp[3])/G.dz)
-                        zf = rvalue(float(tmp[6])/G.dz)
+                        xs = roundvalue(float(tmp[1])/G.dx)
+                        xf = roundvalue(float(tmp[4])/G.dx)
+                        ys = roundvalue(float(tmp[2])/G.dy)
+                        yf = roundvalue(float(tmp[5])/G.dy)
+                        zs = roundvalue(float(tmp[3])/G.dz)
+                        zf = roundvalue(float(tmp[6])/G.dz)
                         depth = float(tmp[7])
                         
                         if xs < 0 or xs > G.nx:
@@ -927,7 +927,7 @@ def process_geometrycmds(geometry, G):
                             # xplus surface
                             elif xf == volume.xf:
                                 requestedsurface = 'xplus'
-                            filldepthcells = rvalue(depth / G.dx)
+                            filldepthcells = roundvalue(depth / G.dx)
                             filldepth = filldepthcells * G.dx
                                     
                         elif ys == yf:
@@ -941,7 +941,7 @@ def process_geometrycmds(geometry, G):
                             # yplus surface
                             elif yf == volume.yf:
                                 requestedsurface = 'yplus'
-                            filldepthcells = rvalue(depth / G.dy)
+                            filldepthcells = roundvalue(depth / G.dy)
                             filldepth = filldepthcells * G.dy
 
                         elif zs == zf:
@@ -955,7 +955,7 @@ def process_geometrycmds(geometry, G):
                             # zplus surface
                             elif zf == volume.zf:
                                 requestedsurface = 'zplus'
-                            filldepthcells = rvalue(depth / G.dz)
+                            filldepthcells = roundvalue(depth / G.dz)
                             filldepth = filldepthcells * G.dz
 
                         else:
@@ -1004,12 +1004,12 @@ def process_geometrycmds(geometry, G):
                     
                     # Only process grass for this fractal volume
                     if tmp[11] == volume.ID:
-                        xs = rvalue(float(tmp[1])/G.dx)
-                        xf = rvalue(float(tmp[4])/G.dx)
-                        ys = rvalue(float(tmp[2])/G.dy)
-                        yf = rvalue(float(tmp[5])/G.dy)
-                        zs = rvalue(float(tmp[3])/G.dz)
-                        zf = rvalue(float(tmp[6])/G.dz)
+                        xs = roundvalue(float(tmp[1])/G.dx)
+                        xf = roundvalue(float(tmp[4])/G.dx)
+                        ys = roundvalue(float(tmp[2])/G.dy)
+                        yf = roundvalue(float(tmp[5])/G.dy)
+                        zs = roundvalue(float(tmp[3])/G.dz)
+                        zf = roundvalue(float(tmp[6])/G.dz)
                         numblades = int(tmp[10])
                         
                         if xs < 0 or xs > G.nx:
@@ -1037,7 +1037,7 @@ def process_geometrycmds(geometry, G):
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
                             if xs != volume.xs and xs != volume.xf:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' must specify external surfaces on a fractal box')
-                            fractalrange = (rvalue(float(tmp[8]) / G.dx), rvalue(float(tmp[9]) / G.dx))
+                            fractalrange = (roundvalue(float(tmp[8]) / G.dx), roundvalue(float(tmp[9]) / G.dx))
                             # xminus surface
                             if xs == volume.xs:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' grass can only be specified on surfaces in the positive axis direction')
@@ -1052,7 +1052,7 @@ def process_geometrycmds(geometry, G):
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
                             if ys != volume.ys and ys != volume.yf:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' must specify external surfaces on a fractal box')
-                            fractalrange = (rvalue(float(tmp[8]) / G.dy), rvalue(float(tmp[9]) / G.dy))
+                            fractalrange = (roundvalue(float(tmp[8]) / G.dy), roundvalue(float(tmp[9]) / G.dy))
                             # yminus surface
                             if ys == volume.ys:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' grass can only be specified on surfaces in the positive axis direction')
@@ -1067,7 +1067,7 @@ def process_geometrycmds(geometry, G):
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
                             if zs != volume.zs and zs != volume.zf:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' must specify external surfaces on a fractal box')
-                            fractalrange = (rvalue(float(tmp[8]) / G.dz), rvalue(float(tmp[9]) / G.dz))
+                            fractalrange = (roundvalue(float(tmp[8]) / G.dz), roundvalue(float(tmp[9]) / G.dz))
                             # zminus surface
                             if zs == volume.zs:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' grass can only be specified on surfaces in the positive axis direction')

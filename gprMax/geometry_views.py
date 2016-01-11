@@ -20,7 +20,7 @@ import sys
 import numpy as np
 from struct import pack
 
-from gprMax.utilities import rvalue
+from gprMax.utilities import roundvalue
 
 
 class GeometryView:
@@ -75,12 +75,12 @@ class GeometryView:
             self.filename += '.vti'
             
             # Calculate number of cells according to requested sampling
-            self.vtk_xscells = rvalue(self.xs / self.dx)
-            self.vtk_xfcells = rvalue(self.xf / self.dx)
-            self.vtk_yscells = rvalue(self.ys / self.dy)
-            self.vtk_yfcells = rvalue(self.yf / self.dy)
-            self.vtk_zscells = rvalue(self.zs / self.dz)
-            self.vtk_zfcells = rvalue(self.zf / self.dz)
+            self.vtk_xscells = roundvalue(self.xs / self.dx)
+            self.vtk_xfcells = roundvalue(self.xf / self.dx)
+            self.vtk_yscells = roundvalue(self.ys / self.dy)
+            self.vtk_yfcells = roundvalue(self.yf / self.dy)
+            self.vtk_zscells = roundvalue(self.zs / self.dz)
+            self.vtk_zfcells = roundvalue(self.zf / self.dz)
             with open(self.filename, 'wb') as f:
                 f.write('<?xml version="1.0"?>\n'.encode('utf-8'))
                 f.write('<VTKFile type="ImageData" version="1.0" byte_order="{}">\n'.format(GeometryView.byteorder).encode('utf-8'))
@@ -91,7 +91,7 @@ class GeometryView:
                 f.write('</CellData>\n</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
                 
                 # Calculate number of bytes of appended data section
-                datasize = rvalue(np.dtype(np.uint32).itemsize * (self.vtk_nx / self.dx) * (self.vtk_ny / self.dy) * (self.vtk_nz / self.dz))
+                datasize = roundvalue(np.dtype(np.uint32).itemsize * (self.vtk_nx / self.dx) * (self.vtk_ny / self.dy) * (self.vtk_nz / self.dz))
                 # Write number of bytes of appended data as UInt32
                 f.write(pack('I', datasize))
                 for k in range(self.zs, self.zf, self.dz):
