@@ -25,39 +25,41 @@ from gprMax.exceptions import CmdInputError
 
 """Plots a B-scan image."""
 
-# Fields that can be plotted
-fieldslist = ['Ex', 'Hx', 'Ey', 'Hy', 'Ez', 'Hz']
+# Outputs that can be plotted
+outputslist = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Plots B-scan.', usage='cd gprMax; python -m tools.plot_Bscan outputfile --field fieldcomponent')
 parser.add_argument('outputfile', help='name of output file including path')
-parser.add_argument('--field', help='name of field to be plotted, i.e. Ex Ey Ez')
+parser.add_argument('--output', help='name of output to be plotted, i.e. Ex Ey Ez')
 args = parser.parse_args()
 
-# Check for valid field name
-if args.field not in fieldslist:
-    raise CmdInputError('{} not allowed. Options are: Ex Ey Ez Hx Hy Hz'.format(args.field))
+# Check for valid output name
+if args.output not in outputslist:
+    raise CmdInputError('{} not allowed. Options are: Ex Ey Ez Hx Hy Hz Ix Iy Iz'.format(args.output))
 
 # Open output file and read some attributes
 f = h5py.File(args.outputfile, 'r')
 path = '/rxs/rx1'
-data = f[path + '/' + args.field]
+outputdata = f[path + '/' + args.output]
 
 # Check that there is more than one A-scan present
-if data.shape[1] == 1:
+if outputdata.shape[1] == 1:
     raise CmdInputError('{} contains only a single A-scan.'.format(args.outputfile))
 
 # Plot B-scan image
 fig = plt.figure(num=args.outputfile, figsize=(20, 10), facecolor='w', edgecolor='w')
-plt.imshow(data, extent=[0, data.shape[1], data.shape[0]*f.attrs['dt']*1e9, 0], interpolation='nearest', aspect='auto', cmap='seismic', vmin=-np.amax(np.abs(data)), vmax=np.amax(np.abs(data)))
+plt.imshow(outputdata, extent=[0, outputdata.shape[1], outputdata.shape[0]*f.attrs['dt']*1e9, 0], interpolation='nearest', aspect='auto', cmap='seismic', vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
 plt.xlabel('Trace number')
 plt.ylabel('Time [ns]')
 plt.grid()
 cb = plt.colorbar()
-if 'E' in args.field:
+if 'E' in args.output:
     cb.set_label('Field strength [V/m]')
-elif 'H' in args.field:
+elif 'H' in args.output:
     cb.set_label('Field strength [A/m]')
+elif 'I' in args.output:
+    cb.set_label('Current [A]')
 
 plt.show()
 #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
