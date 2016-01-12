@@ -2,6 +2,7 @@
 References
 **********
 
+.. [BAL2005] Balanis, C. A. (2005). Antenna theory: analysis and design (Vol. 1). John Wiley & Sons.
 .. [BER1998] Bergmann, T., Robertsson, J. O., & Holliger, K. (1998). Finite-difference modeling of electromagnetic wave propagation in dispersive and attenuating media. Geophysics, 63(3), 856-867. (http://dx.doi.org/10.1190/1.1444396)
 .. [BOU1996] Bourgeois, J. M., & Smith, G. S. (1996). A fully three-dimensional simulation of a ground-penetrating radar: FDTD theory compared with experiment. Geoscience and Remote Sensing, IEEE Transactions on, 34(1), 36-44. (http://dx.doi.org/10.1109/36.481890)
 .. [BUR1981] Burrough, P. A. (1981). Fractal dimensions of landscapes and other environmental data. Nature, 294(5838), 240-242. (http://dx.doi.org/10.1038/294240a0)
@@ -16,6 +17,7 @@ References
 .. [KUN1993] Kunz, K. S., & Luebbers, R. J. (1993). The finite difference time domain method for electromagnetics. CRC press.
 .. [LI2013] Li, J., Guo, L. X., Jiao, Y. C., & Wang, R. (2013). Composite scattering of a plasma-coated target above dispersive sea surface by the ADE-FDTD method. Geoscience and Remote Sensing Letters, IEEE, 10(1), 4-8. (http://dx.doi.org/10.1109/lgrs.2012.2189751)
 .. [LUE1994] Luebbers, R., Steich, D., & Kunz, K. (1993). FDTD calculation of scattering from frequency-dependent materials. Antennas and Propagation, IEEE Transactions on, 41(9), 1249-1257. (http://dx.doi.org/10.1109/8.247751)
+.. [MAL1994] Maloney, J. G., Shlager, K. L., & Smith, G. S. (1994). A simple FDTD model for transient excitation of antennas by transmission lines. Antennas and Propagation, IEEE Transactions on, 42(2), 289-292.
 .. [PIE2009] Pieraccini, M., Bicci, A., Mecatti, D., Macaluso, G., & Atzeni, C. (2009). Propagation of large bandwidth microwave signals in water. Antennas and Propagation, IEEE Transactions on, 57(11), 3612-3618. (http://dx.doi.org/10.1109/tap.2009.2025674)
 .. [TAF2005] Taflove, A., & Hagness, S. C. (2005). Computational electrodynamics. Artech house.
 .. [TEI1998] Teixeira, F. L., Chew, W. C., Straka, M., Oristaglio, M. L., & Wang, T. (1998). Finite-difference time-domain simulation of ground penetrating radar on dispersive, inhomogeneous, and conductive soils. Geoscience and Remote Sensing, IEEE Transactions on, 36(6), 1928-1937. (http://dx.doi.org/10.1109/36.729364)

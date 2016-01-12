@@ -48,6 +48,24 @@ where:
 * ``--field`` is the name of field component to plot, e.g. ``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy`` or ``Hz``
 
 
+Antenna parameters
+==================
+
+plot_antenna_params.py
+----------------------
+
+This module uses matplotlib to plot the input impedance (resistance and reactance) and s11 parameter from an antenna model fed using a transmission line. It also plots the time history of the incident and reflected voltages in the transmission line and their frequency spectra. Usage (from the top-level gprMax directory) is:
+
+.. code-block:: none
+
+    python -m tools.plot_antenna_params outputfile --tln transmissionlinenumber
+
+where:
+
+* ``outputfile`` is the name of output file including the path
+* ``--tln`` is the number of the transmission line (default is one). Transmission lines are numbered (starting at one) in the order they appear in the input file.
+
+
 .. _waveforms:
 
 Built-in waveforms

@@ -20,12 +20,12 @@ No, but it can be beneficial to know a little Python. We have made it easier to 
 Yes, we have provided tools to help you read the new HDF5-based output file in MATLAB.
 
 **But converting my input file from the old version of gprMax will be really painful**
-Hopefully not! We have provided a Python script to help you convert input files from the old version of gprMax to use syntax introduced in the version.
+Hopefully not! We have provided a Python script to help you convert input files from the old version of gprMax to use syntax introduced in version 3.
 
 **How do I choose a spatial resolution for my simulation?**
 Spatial resolution should be chosen to mitigate numerical dispersion and to adequately resolve geometry in your simulation. :ref:`A 2D example of modelling a metal cylinder in a dielectric <example-2D-Ascan>` provides guidance on how to determine spatial resolution.
 
-**I specified a certain piece of geometry but I don’t see when I view my geometry file.**
+**I specified a certain piece of geometry but I don’t see it when I view my geometry file.**
 gprMax builds objects in a model in the order the objects were specified in the input file, using a layered canvas approach. This means, for example, a cylinder object which comes after a box object in the input file will overwrite the properties of the box object at any locations where they overlap. This approach allows complex geometries to be created using basic object building blocks.
 
 **Can I run gprMax on my HPC/cluster?**

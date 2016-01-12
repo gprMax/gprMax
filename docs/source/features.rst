@@ -31,7 +31,7 @@ New commands
 * ``#add_dispersion_lorentz`` is used to add Lorentz dispersive properties to a ``#material``.
 * ``#add_dispersion_drude`` is used to add Drude dispersive properties to a ``#material``.
 * ``#soil_peplinski`` is a soil mixing model that can be used with ``#fractal_box`` to generate soil(s) with more realistic dielectric and geometric properties.
-* ``#cylindrical_sector`` (like a slice of pie shape) is a new object building command.
+* ``#cylindrical_sector`` is a new object building command.
 * ``#geometry_view`` replaces ``#geometry_file`` or ``#geometry_vtk`` and is used to create views of the geometry of the model in open source Visualization ToolKit (VTK) (http://www.vtk.org) format which can be viewed in many free readers, such as Paraview (http://www.paraview.org).
 * ``#fractal_box`` is used to create a volume with a fractal distribution of properties.
 * ``#add_surface_roughness`` is used to add a rough surface to a ``#fractal_box``.
@@ -51,7 +51,7 @@ Changed commands
 * ``#pml_cells`` replaces ``#pml_layers`` and can now be used to control the number of cells of PML on the six faces of the model domain. The number of cells can be set to zero on any of the faces to turn that PML off if desired. The default behaviour (if this command is not specified) is to use 10 cells.
 * ``#hertzian_dipole`` and ``#voltage_source`` now specify polarisation, location, any additional parameters, and an identifier to link to a ``#waveform`` command.
 * ``#snapshot`` no longer requires a type, as only VTK snapshot files are now produced.
-* ``#num_of_procs`` is now called ``#num_omp_threads``.
+* ``#num_of_procs`` is now called ``#num_threads``.
 * ``#tx_steps`` is now called ``#src_steps``.
 
 
@@ -75,7 +75,7 @@ Retired commands
 Commands yet to be implemented
 ------------------------------
 
-There are commands from previous versions of gprMax that are planned for this version, but are yet to be implemented. These will be introduced in a future update. They are``#thin_wire`` and ``#plane_wave``.
+There are commands from previous versions of gprMax that are planned for this version, but are yet to be implemented. These will be introduced in a future update. They are ``#thin_wire`` and ``#plane_wave``.
 
 
 Migrating old input files
