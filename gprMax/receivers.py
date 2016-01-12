@@ -19,7 +19,7 @@
 class Rx:
     """Receiever output points."""
     
-    availableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz']
+    availableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
     
     def __init__(self, positionx=None, positiony=None, positionz=None):
         """
