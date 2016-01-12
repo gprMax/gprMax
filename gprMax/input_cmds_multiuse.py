@@ -279,6 +279,7 @@ def process_multicmds(multicmds, G):
             t.positionz = positionz
             t.resistance = resistance
             t.waveformID = tmp[5]
+            t.calculate_incident_V_I(G)
             
             if len(tmp) > 6:
                 # Check source start & source remove time parameters
@@ -328,9 +329,9 @@ def process_multicmds(multicmds, G):
             
             r = Rx(positionx=positionx, positiony=positiony, positionz=positionz)
             
-            # If no ID or outputs are specified use default, i.e Ex, Ey, Ez, Hx, Hy, Hz
+            # If no ID or outputs are specified, use default i.e Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, Iz
             if len(tmp) == 3:
-                r.outputs = Rx.availableoutputs[0:6]
+                r.outputs = Rx.availableoutputs[0:9]
             else:
                 r.ID = tmp[3]
                 # Check and add field output names
