@@ -62,7 +62,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'gprMax'
-copyright = '2015, The University of Edinburgh. Authors: Craig Warren and Antonis Giannopoulos'
+copyright = '2015-2016, The University of Edinburgh. Authors: Craig Warren and Antonis Giannopoulos'
 author = 'Craig Warren and Antonis Giannopoulos'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -72,7 +72,7 @@ author = 'Craig Warren and Antonis Giannopoulos'
 # The short X.Y version.
 # Read version number from gprMax/gprMax.py
 #version = re.search('^__version__\s*=\s*\'(.*)\'', open('../../gprMax/gprMax.py').read(), re.M).group(1)
-version = '3.0.0b12'
+version = '3.0.0b14'
 # The full version, including alpha/beta/rc tags.
 release = version + '(Bowmore)'
 
