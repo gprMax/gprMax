@@ -1,5 +1,5 @@
-# Copyright (C) 2015: The University of Edinburgh
-#            Authors: Craig Warren and Antonis Giannopoulos
+# Copyright (C) 2015-2016: The University of Edinburgh
+#                 Authors: Craig Warren and Antonis Giannopoulos
 #
 # This file is part of gprMax.
 #

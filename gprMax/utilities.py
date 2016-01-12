@@ -1,5 +1,5 @@
-# Copyright (C) 2015: The University of Edinburgh
-#            Authors: Craig Warren and Antonis Giannopoulos
+# Copyright (C) 2015-2016: The University of Edinburgh
+#                 Authors: Craig Warren and Antonis Giannopoulos
 #
 # This file is part of gprMax.
 #
@@ -39,8 +39,8 @@ def logo(version):
     """
     
     licenseinfo = """
-Copyright (C) 2015: The University of Edinburgh
-           Authors: Craig Warren and Antonis Giannopoulos
+Copyright (C) 2015-2016: The University of Edinburgh
+                Authors: Craig Warren and Antonis Giannopoulos
         
 gprMax is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
