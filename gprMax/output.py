@@ -20,6 +20,7 @@ import h5py
 import numpy as np
 
 from gprMax.constants import floattype
+from gprMax.grid import Ix, Iy, Iz
 
 
 def prepare_output_file(outputfile, G):
@@ -60,17 +61,13 @@ def prepare_output_file(outputfile, G):
     # Create group for transmission lines; add positional data, line resistance and line discretisation attributes; initialise arrays for line voltages and currents
     if G.transmissionlines:
         for tlindex, tl in enumerate(G.transmissionlines):
-            waveform = next(x for x in G.waveforms if x.ID == tl.waveformID)
             tmp = f.create_group('/tls/tl' + str(tlindex + 1))
             tmp.attrs['Position'] = (tl.positionx * G.dx, tl.positiony * G.dy, tl.positionz * G.dz)
             tmp.attrs['Resistance'] = tl.resistance
             tmp.attrs['dl'] = tl.dl
-            Vinc = np.zeros(G.iterations, dtype=floattype)
-            for timestep in range(G.iterations):
-                Vinc[timestep] = waveform.amp * waveform.calculate_value(timestep * G.dt, G.dt)
-            tmp['Vinc'] = Vinc
-            tmp['Vscat'] = np.zeros(G.iterations, dtype=floattype)
-            tmp['Iscat'] = np.zeros(G.iterations, dtype=floattype)
+            # Save incident voltage and current
+            tmp['Vinc'] = tl.Vinc
+            tmp['Iinc'] = tl.Iinc
             tmp['Vtotal'] = np.zeros(G.iterations, dtype=floattype)
             tmp['Itotal'] = np.zeros(G.iterations, dtype=floattype)
     
@@ -92,6 +89,12 @@ def prepare_output_file(outputfile, G):
             tmp['Hy'] = np.zeros(G.iterations, dtype=floattype)
         if 'Hz' in rx.outputs:
             tmp['Hz'] = np.zeros(G.iterations, dtype=floattype)
+        if 'Ix' in rx.outputs:
+            tmp['Ix'] = np.zeros(G.iterations, dtype=floattype)
+        if 'Iy' in rx.outputs:
+            tmp['Iy'] = np.zeros(G.iterations, dtype=floattype)
+        if 'Iz' in rx.outputs:
+            tmp['Iz'] = np.zeros(G.iterations, dtype=floattype)
 
     return f
 
@@ -122,13 +125,17 @@ def write_output(f, timestep, Ex, Ey, Ez, Hx, Hy, Hz, G):
                 f['/rxs/rx' + str(rxindex + 1) + '/Hy'][timestep] = Hy[rx.positionx, rx.positiony, rx.positionz]
             if 'Hz' in rx.outputs:
                 f['/rxs/rx' + str(rxindex + 1) + '/Hz'][timestep] = Hz[rx.positionx, rx.positiony, rx.positionz]
+            if 'Ix' in rx.outputs:
+                f['/rxs/rx' + str(rxindex + 1) + '/Ix'][timestep] = Ix(rx.positionx, rx.positiony, rx.positionz, G.Hy, G.Hz, G)
+            if 'Iy' in rx.outputs:
+                f['/rxs/rx' + str(rxindex + 1) + '/Iy'][timestep] = Iy(rx.positionx, rx.positiony, rx.positionz, G.Hx, G.Hz, G)
+            if 'Iz' in rx.outputs:
+                f['/rxs/rx' + str(rxindex + 1) + '/Iz'][timestep] = Iz(rx.positionx, rx.positiony, rx.positionz, G.Hx, G.Hy, G)
 
         if G.transmissionlines:
             for tlindex, tl in enumerate(G.transmissionlines):
-                f['/tls/tl' + str(tlindex + 1) + '/Vscat'][timestep] = tl.voltage[tl.srcpos - 1]
-                f['/tls/tl' + str(tlindex + 1) + '/Iscat'][timestep] = tl.current[tl.srcpos - 1]
-                f['/tls/tl' + str(tlindex + 1) + '/Vtotal'][timestep] = tl.voltage[-2]
-                f['/tls/tl' + str(tlindex + 1) + '/Itotal'][timestep] = tl.current[-2]
+                f['/tls/tl' + str(tlindex + 1) + '/Vtotal'][timestep] = tl.voltage[tl.antpos - 1]
+                f['/tls/tl' + str(tlindex + 1) + '/Itotal'][timestep] = tl.current[tl.antpos - 1]
 
     # Field writing when converting old style output file to HDF5 format
     else:
