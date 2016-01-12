@@ -20,7 +20,7 @@ import numpy as np
 
 from gprMax.constants import c, floattype
 from gprMax.grid import Ix, Iy, Iz
-from gprMax.utilities import rvalue
+from gprMax.utilities import roundvalue
 
 
 class VoltageSource:
@@ -178,17 +178,41 @@ class TransmissionLine:
         self.abcv0 = 0
         self.abcv1 = 0
 
-        # Spatial step of transmission line
-        self.dl = np.sqrt(3) * c * G.dt
+        # Spatial step of transmission line (based on magic time step for dispersionless behaviour)
+        self.dl = c * G.dt
         
-        # Number of nodes in the transmission line
-        self.nl = 10
+        # Number of nodes in the transmission line (initially a long line to calculate incident voltage and current); consider putting ABCs/PML at end
+        self.nl = roundvalue(0.667 * G.iterations)
         
-        # Node position of the one-way injector excitation in the transmission line
+        # Nodal position of the one-way injector excitation in the transmission line
         self.srcpos = 5
+        
+        # Nodal position of where line connects to antenna/main grid
+        self.antpos = 10
         
         self.voltage = np.zeros(self.nl, dtype=floattype)
         self.current = np.zeros(self.nl, dtype=floattype)
+        self.Vinc = np.zeros(G.iterations, dtype=floattype)
+        self.Iinc = np.zeros(G.iterations, dtype=floattype)
+    
+    def calculate_incident_V_I(self, G):
+        """Calculates the incident voltage and current with a long length transmission line not connected to the main grid.
+            
+        Args:
+            G (class): Grid class instance - holds essential parameters describing the model.
+        """
+        
+        abstime = 0
+        for timestep in range(self.nl):
+            self.Vinc[timestep] = self.voltage[self.antpos - 1]
+            self.Iinc[timestep] = self.current[self.antpos - 1]
+            self.update_voltage(abstime, G)
+            abstime += 0.5 * G.dt
+            self.update_current(abstime, G)
+            abstime += 0.5 * G.dt
+
+        # Shorten number of nodes in the transmission line before use with main grid
+        self.nl = self.antpos
     
     def update_abc(self, G):
         """Updates absorbing boundary condition at end of the transmission line.
@@ -210,14 +234,12 @@ class TransmissionLine:
             time (float): Absolute time.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-            
-        waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
         
         # Update all the voltage values along the line
-        for i in range(1, self.nl):
-            self.voltage[i] -= self.resistance * (c * G.dt / self.dl) * (self.current[i] - self.current[i - 1])
-        
+        self.voltage[1:self.nl] -= self.resistance * (c * G.dt / self.dl) * (self.current[1:self.nl] - self.current[0:self.nl - 1])
+    
         # Update the voltage at the position of the one-way injector excitation
+        waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
         self.voltage[self.srcpos] += (c * G.dt / self.dl) * waveform.amp * waveform.calculate_value(time - 0.5 * G.dt, G.dt)
 
         # Update ABC before updating current
@@ -230,14 +252,12 @@ class TransmissionLine:
             time (float): Absolute time.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-            
-        waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
         
         # Update all the current values along the line
-        for i in range(0, self.nl - 1):
-            self.current[i] -= (1 / self.resistance) * (c * G.dt / self.dl) * (self.voltage[i + 1] - self.voltage[i])
-        
+        self.current[0:self.nl - 1] -= (1 / self.resistance) * (c * G.dt / self.dl) * (self.voltage[1:self.nl] - self.voltage[0:self.nl - 1])
+
         # Update the current one node before the position of the one-way injector excitation
+        waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
         self.current[self.srcpos - 1] += (c * G.dt / self.dl) * waveform.amp * waveform.calculate_value(time - 0.5 * G.dt, G.dt) * (1 / self.resistance)
 
     def update_electric(self, abstime, Ex, Ey, Ez, G):
