@@ -36,7 +36,7 @@ Results
 
     Input admittance and impedance (resistance and reactance) and s11 parameter of the antenna.
 
-:numref:`antenna_wire_dipole_fs_tl_params` shows time histories and frequency spectra of the incident and total (incident + reflected) voltages and currents in the transmission line. :numref:`antenna_wire_dipole_fs_ant_params` shows the input admittance and impedance (resistance and reactance), and s11 parameter of the half-wavelength wire dipole. The s11 parameter shows that the antenna is resonant at 1GHz which is what is expected from the geometry and feeding. The input resistance (the real part of the input impedance) is 73 Ohms which is what is predicted by theory. The input reactance (the imaginery part of the input impedance) is a function of the length of the dipole and is zero in this case.
+:numref:`antenna_wire_dipole_fs_tl_params` shows time histories and frequency spectra of the incident and total (incident + reflected) voltages and currents in the transmission line. :numref:`antenna_wire_dipole_fs_ant_params` shows the input admittance and impedance (resistance and reactance), and s11 parameter of the half-wavelength wire dipole. The s11 parameter shows that the antenna is resonant at 0.9GHz. The input resistance (the real part of the input impedance) is 61 Ohms and the input reactance (the imaginery part of the input impedance) is a function of the length of the dipole and is -50 Ohms in this case. 
 
 
 Bowtie antenna model
