@@ -79,34 +79,27 @@ def update_progress(progress):
     sys.stdout.flush()
 
 
-def roundvalue(value):
-    """Rounds to nearest integer (half values are rounded downwards).
+def roundvalue(value, decimalplaces=0):
+    """Rounding function.
         
     Args:
         value (float): Number to round.
+        decimalplaces (int): Number of decimal places of float to represent rounded value.
         
     Returns:
-        Rounded value (int).
+        rounded (int/float): Rounded value.
     """
     
-    return int(d.Decimal(value).quantize(d.Decimal('1'),rounding=d.ROUND_HALF_DOWN))
-
-
-def rounddownmax(value):
-    """Rounds down to nearest float with precision one less than hardware maximum.
-        
-    Args:
-        value (float): Number to round.
-        
-    Returns:
-        Rounded value (float).
-    """
+    # Rounds to nearest integer (half values are rounded downwards)
+    if decimalplaces == 0:
+        rounded = int(d.Decimal(value).quantize(d.Decimal('1'),rounding=d.ROUND_HALF_DOWN))
     
-    decimalplaces = d.getcontext().prec
-    decimalplaces -= 1
-    precision = '1.{places}'.format(places='0' * decimalplaces)
-    
-    return float(d.Decimal(value).quantize(d.Decimal(precision),rounding=d.ROUND_FLOOR))
+    # Rounds down to nearest float represented by number of decimal places
+    else:
+        precision = '1.{places}'.format(places='0' * decimalplaces)
+        rounded = float(d.Decimal(value).quantize(d.Decimal(precision),rounding=d.ROUND_FLOOR))
+
+    return rounded
 
 
 def human_size(size, a_kilobyte_is_1024_bytes=True):

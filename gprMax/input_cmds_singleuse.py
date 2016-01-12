@@ -17,13 +17,14 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import os, sys
+import decimal as d
 import numpy as np
 from psutil import virtual_memory
 
 from gprMax.constants import c, floattype
 from gprMax.exceptions import CmdInputError
 from gprMax.pml import PML, CFS
-from gprMax.utilities import roundvalue, rounddownmax, human_size
+from gprMax.utilities import roundvalue, human_size
 from gprMax.waveforms import Waveform
 
 
@@ -146,7 +147,7 @@ def process_singlecmds(singlecmds, multicmds, G):
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
 
     # Round down time step to nearest float with precision one less than hardware maximum. Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
-    G.dt = rounddownmax(G.dt)
+    G.dt = roundvalue(G.dt, decimalplaces=d.getcontext().prec - 1)
 
     if G.messages:
         print('Time step: {:.3e} secs'.format(G.dt))
