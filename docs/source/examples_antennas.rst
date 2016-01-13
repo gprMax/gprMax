@@ -11,13 +11,13 @@ Wire dipole antenna model
 
 :download:`antenna_wire_dipole_fs.in <../../user_models/antenna_wire_dipole_fs.in>`
 
-This example demonstrates a model of a half-wavelength wire dipole antenna in free space. It is a balanced antenna and it's characteristics are well known from theory _[BAL2005]. The length of the dipole is 150mm with a 1mm gap between the arms.
+This example demonstrates a model of a half-wavelength wire dipole antenna in free space. It is a balanced antenna and it's characteristics are well known from theory [BAL2005]_. The length of the dipole is 150mm with a 1mm gap between the arms.
 
 .. literalinclude:: ../../user_models/antenna_wire_dipole_fs.in
     :language: none
     :linenos:
 
-The wire is modelled using the ``#edge`` command which specifies properties of the edge of the Yee cell. The antenna is fed using the ``#transmission_line`` command. The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input impedance (:math:`Z_0`) of 73 Ohms specified in the ``#transmission_line`` command, and uses a Gaussian waveform with a centre frequency of 1GHz.
+The wire is modelled using the ``#edge`` command which specifies properties of the edge of the Yee cell. The antenna is fed using the ``#transmission_line`` command. The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input impedance (:math:`Z_0`) of 73 Ohms specified in the ``#transmission_line`` command, and uses a Gaussian waveform with a centre frequency of 1GHz. A time window of 30ns is used: firstly, to give enough time for the response to settle to a steady state; and secondly, to allow a reasonable (33MHz) spacing for the frequency bins when calculating FFTs, as :math:`df=1/T` where :math:`df' is the frequency bin spacing and :math:`T' is the time window.
 
 Time histories of voltage and current values in the transmission line are saved to the output file. These are documented in the :ref:`output file section <output>`. These parameters are useful for calculating characteristics of the antenna such as the input impedance or S-parameters. gprMax includes a Python module (in the ``tools`` package) to help you view the input impedance and admittance and s11 parameter from an antenna model fed using a transmission line. Details of how to use this module is given in the :ref:`tools section <plotting>`.
 
@@ -48,15 +48,15 @@ Results
 Bowtie antenna model
 ====================
 
-:download:`antenna_MALA_1200_fs.in <../../user_models/antenna_MALA_1200_fs.in>`
+:download:`antenna_like_MALA_1200_fs.in <../../user_models/antenna_like_MALA_1200_fs.in>`
 
 This example demonstrates how to use one of the built-in antenna models in a simulation. Using a model of an antenna rather than a simple source, such as a Hertzian dipole, can improve the accuracy of the results of a simulation for many situations. It is especially important when the target is in the near-field of the antenna and there are complex interactions between the antenna and the environment. The simulation uses the model of an antenna similar to a MALA 1.2GHz antenna.
 
-.. literalinclude:: ../../user_models/antenna_MALA_1200_fs.in
+.. literalinclude:: ../../user_models/antenna_like_MALA_1200_fs.in
     :language: none
     :linenos:
 
-.. figure:: images/antenna_MALA_1200.png
+.. figure:: images/antenna_like_MALA_1200.png
     :width: 600 px
 
     FDTD geometry mesh showing an antenna model similar to a MALA 1.2GHz antenna (skid removed for illustrative purposes).
@@ -66,11 +66,11 @@ The antenna model is loaded from a Python module and inserted into the input fil
 Results
 -------
 
-:numref:`antenna_MALA_1200_fs_results` shows the time history of the electric and magnetic field components from the receiver bowtie of the antenna model. The antenna bowties are aligned with the y axis so the output will be the Ey component of the electric field.
+:numref:`antenna_like_MALA_1200_fs_results` shows the time history of the electric and magnetic field components from the receiver bowtie of the antenna model. The antenna bowties are aligned with the y axis so the output will be the Ey component of the electric field.
 
-.. _antenna_MALA_1200_fs_results:
+.. _antenna_like_MALA_1200_fs_results:
 
-.. figure:: images/antenna_MALA_1200_fs_results.png
+.. figure:: images/antenna_like_MALA_1200_fs_results.png
 
     Field outputs from the receiver bowtie of a model of an antenna similar to a MALA 1.2GHz antenna.
 
@@ -78,15 +78,15 @@ Results
 B-scan with a bowtie antenna model
 ==================================
 
-:download:`GSSI_1500_cylinder_Bscan.in <../../user_models/GSSI_1500_cylinder_Bscan.in>`
+:download:`cylinder_Bscan_GSSI_1500.in <../../user_models/cylinder_Bscan_GSSI_1500.in>`
 
 This example demonstrates how to create a B-scan with an antenna model. The scenario is purposely simple to illustrate the method. A metal cylinder of diameter 20mm is buried in a dielectric half-space which has a relative permittivity of six. The simulation uses the model of an antenna similar to a GSSI 1.5GHz antenna.
 
-.. literalinclude:: ../../user_models/GSSI_1500_cylinder_Bscan.in
+.. literalinclude:: ../../user_models/cylinder_Bscan_GSSI_1500.in
     :language: none
     :linenos:
 
-.. figure:: images/GSSI_1500_cylinder.png
+.. figure:: images/cylinder_Bscan_GSSI_1500.png
     :width: 600 px
 
     FDTD geometry mesh showing a metal cylinder buried in a half-space and an antenna model similar to a GSSI 1.5GHz antenna.
@@ -95,18 +95,18 @@ The antenna must be moved to a new position for every single A-scan (trace) in t
 
 .. code-block:: none
 
-    python -m gprMax GSSI_1500_cylinder_Bscan.in -n 54
+    python -m gprMax cylinder_Bscan_GSSI_1500.in -n 54
 
 The total number of runs for a model as well as the number of the current run of the model are stored and can be accessed in Python as ``number_model_runs`` and ``current_model_run``. The ``current_model_run`` can be used to move the position of the antenna for every run of the model as shown in Line 13. The antenna will be moved 5mm in the x direction for every new run of the model.
 
 Results
 -------
 
-:numref:`GSSI_1500_cylinder_Bscan_results` shows the B-scan (image of the Ey field). As expected a hyperbolic response is present from the metal cylinder.
+:numref:`cylinder_Bscan_GSSI_1500_results` shows the B-scan (image of the Ey field). As expected a hyperbolic response is present from the metal cylinder.
 
-.. _GSSI_1500_cylinder_Bscan_results:
+.. _cylinder_Bscan_GSSI_1500n_results:
 
-.. figure:: images/GSSI_1500_cylinder_Bscan_results.png
+.. figure:: images/cylinder_Bscan_GSSI_1500_results.png
     :width: 800px
 
     B-scan of model of a metal cylinder buried in a dielectric half-space with a model of an antenna similar to a GSSI 1.5GHz antenna.
