@@ -122,7 +122,6 @@ for rx in range(1, nrx + 1):
     else:
         fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [ns]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
         gs = gridspec.GridSpec(3, 3, hspace=0.3)
-#        fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
         for output in args.outputs:
             outputdata = f[path + output][:]
             if output == 'Ex':

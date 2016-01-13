@@ -125,7 +125,8 @@ You should have produced an output file ``cylinder_Ascan_2D.out``. You can view 
 
 .. _cylinder_Ascan_results:
 
-.. figure:: images/cylinder_Ascan.png
+.. figure:: images/cylinder_Ascan_results.png
+    :width: 600px
 
     Field outputs from a model of a metal cylinder buried in a dielectric half-space.
 
@@ -172,7 +173,7 @@ You can now view an image of the B-scan using the command:
 .. _cylinder_Bscan_results:
 
 .. figure:: images/cylinder_Bscan_results.png
-    :width: 800px
+    :width: 600px
 
     B-scan of model of a metal cylinder buried in a dielectric half-space.
 

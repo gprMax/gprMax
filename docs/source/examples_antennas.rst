@@ -27,18 +27,21 @@ Results
 .. _antenna_wire_dipole_fs_tl_params:
 
 .. figure:: images/antenna_wire_dipole_fs_tl_params.png
+    :width: 600px
 
     Time and frequency domain plots of the incident and total (incident + reflected) voltages and currents in the transmission line.
 
 .. _antenna_wire_dipole_fs_ant_params:
 
 .. figure:: images/antenna_wire_dipole_fs_ant_params.png
+    :width: 600px
 
     Input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna.
 
 .. _antenna_wire_dipole_fs_ant_params_detail:
 
 .. figure:: images/antenna_wire_dipole_fs_ant_params_detail.png
+    :width: 600px
 
     Detailed view of input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna.
 
@@ -71,7 +74,7 @@ Results
 .. _antenna_like_MALA_1200_fs_results:
 
 .. figure:: images/antenna_like_MALA_1200_fs_results.png
-    :width: 800 px
+    :width: 600 px
 
     Ey field output from the receiver bowtie of a model of an antenna similar to a MALA 1.2GHz antenna.
 
@@ -108,7 +111,7 @@ Results
 .. _cylinder_Bscan_GSSI_1500_results:
 
 .. figure:: images/cylinder_Bscan_GSSI_1500_results.png
-    :width: 800px
+    :width: 600px
 
     B-scan of model of a metal cylinder buried in a dielectric half-space with a model of an antenna similar to a GSSI 1.5GHz antenna.
 
