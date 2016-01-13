@@ -104,7 +104,7 @@ Results
 
 :numref:`cylinder_Bscan_GSSI_1500_results` shows the B-scan (image of the Ey field). As expected a hyperbolic response is present from the metal cylinder.
 
-.. _cylinder_Bscan_GSSI_1500n_results:
+.. _cylinder_Bscan_GSSI_1500_results:
 
 .. figure:: images/cylinder_Bscan_GSSI_1500_results.png
     :width: 800px
