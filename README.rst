@@ -191,6 +191,8 @@ When the simulation is complete you can plot the A-scan using:
 
     python -m tools.plot_Ascan user_models/cylinder_Ascan_2D.out
 
+Your results should like those from the :ref:`A-scan of a metal cylinder <example-2D-Ascan>` example in introductory/basic 2D models section.
+
 Optional command line arguments
 -------------------------------
 
