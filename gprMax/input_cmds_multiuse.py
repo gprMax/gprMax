@@ -47,7 +47,7 @@ def process_multicmds(multicmds, G):
             if float(tmp[2]) <= 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires an excitation frequency value of greater than zero')
             if any(x.ID == tmp[3] for x in G.waveforms):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' with ID {} already exists'.format(tmp[2]))
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' with ID {} already exists'.format(tmp[3]))
             
             w = Waveform()
             w.ID = tmp[3]
