@@ -686,12 +686,14 @@ For example, to specify a Gaussian waveform with an amplitude of one and a centr
 
 .. note::
 
-    * The functions used to create the waveforms can be found in the :ref:`waveforms` appendix.
+    * The functions used to create the waveforms can be found in the :ref:`tools section <waveforms>`.
 
 #excitation_file:
 -----------------
 
-Allows you to specify an ASCII file that contains columns of amplitude values that specify custom waveform shapes that can be used with sources in the model. The first row of each column must begin with a identifier string that will be used as the name of each waveform. There needs to be at least as many amplitude values as the number of iterations that are going to be performed. If there are less than this number then at the end of the sequence of amplitude values zero values will be added to pad the sequence up to the number of iterations. If extra amplitude values are specified than needed then they are ignored. The syntax of the command is:
+Allows you to specify an ASCII file that contains columns of amplitude values that specify custom waveform shapes that can be used with sources in the model. The first row of each column must begin with a identifier string that will be used as the name of each waveform.
+
+If there are less amplitude values than the number of iterations that are going to be performed, the end of the sequence of amplitude values will be padded with zero values up to the number of iterations. If extra amplitude values are specified than needed then they are ignored. The syntax of the command is:
 
 .. code-block:: none
 
@@ -711,6 +713,16 @@ For example, to specify the file ``my_waves.txt``, which contains two custom wav
     ...         ...
     ...         ...
     ...         ...
+
+Then to use ``my_pulse1`` custom waveform shape with, for example, an z polarised Hertzian dipole source:
+
+.. code-block:: none
+
+    #hertzian_dipole: z 0.5 0.5 0.5 my_pulse1
+
+.. note::
+
+    * The ``#waveform`` command is not necessary when using a custom waveform excitation, only the `#excitation_file`` command and whatever source is going to be used with the custom waveform excitation.
 
 #hertzian_dipole:
 -----------------
