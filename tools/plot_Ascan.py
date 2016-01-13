@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 from gprMax.exceptions import CmdInputError
+from gprMax.receivers import Rx
 
 """Plots electric and magnetic fields and currents from all receiver points in the given output file. Each receiver point is plotted in a new figure window."""
 
@@ -72,6 +73,8 @@ for rx in range(1, nrx + 1):
 
             # Set plotting range to -60dB from maximum power
             pltrange = np.where((np.amax(power[1::]) - power[1::]) > 60)[0][0] + 1
+            # To a maximum frequency
+            #pltrange = np.where(freqs > 2e9)[0][0]
             pltrange = np.s_[0:pltrange]
 
             # Plot time history of output component

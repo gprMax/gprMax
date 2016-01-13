@@ -83,9 +83,9 @@ s11 = 20 * np.log10(s11)
 
 # Set plotting range
 # To a certain drop from maximum power
-#pltrange = np.where((np.amax(Vincp) - Vincp) > 30)[0][0] + 1
+pltrange = np.where((np.amax(Vincp[1::]) - Vincp[1::]) > 60)[0][0] + 1
 # To a maximum frequency
-pltrange = np.where(freqs > 2e9)[0][0]
+#pltrange = np.where(freqs > 2e9)[0][0]
 pltrange = np.s_[1:pltrange]
 
 # Figure 1
