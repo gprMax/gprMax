@@ -26,13 +26,10 @@ from gprMax.exceptions import CmdInputError
 
 """Plots electric and magnetic fields and currents from all receiver points in the given output file. Each receiver point is plotted in a new figure window."""
 
-# Outputs that can be plotted
-outputslist = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
-
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Plots electric and magnetic fields and currents from all receiver points in the given output file. Each receiver point is plotted in a new figure window.', usage='cd gprMax; python -m tools.plot_Ascan outputfile')
 parser.add_argument('outputfile', help='name of output file including path')
-parser.add_argument('--outputs', help='list of outputs to be plotted, i.e. Ex Ey Ez', default=outputslist, nargs='+')
+parser.add_argument('--outputs', help='list of outputs to be plotted, i.e. Ex Ey Ez', default=Rx.availableoutputs, nargs='+')
 parser.add_argument('-fft', action='store_true', default=False, help='plot FFT (single output must be specified)')
 args = parser.parse_args()
 
@@ -44,11 +41,6 @@ dt = f.attrs['dt']
 iterations = f.attrs['Iterations']
 time = np.arange(0, dt * iterations, dt)
 time = time / 1e-9
-
-# Check for valid output names
-for output in args.outputs:
-    if output not in outputslist:
-        raise CmdInputError('{} not allowed. Options are: Ex Ey Ez Hx Hy Hz'.format(output))
 
 # Check for single output component when doing a FFT
 if args.fft:
@@ -65,7 +57,7 @@ for rx in range(1, nrx + 1):
         
         # Check if requested output is in file
         if args.outputs[0] not in availablecomponents:
-            raise CmdInputError('Output request to plot {}, but the available output for receiver 1 in the file: {}'.format(args.outputs[0], ', '.join(availablecomponents)))
+            raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(args.outputs[0], ', '.join(availablecomponents)))
         
         outputdata = f[path + args.outputs[0]][:]
         

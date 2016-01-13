@@ -25,22 +25,21 @@ from gprMax.exceptions import CmdInputError
 
 """Plots a B-scan image."""
 
-# Outputs that can be plotted
-outputslist = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
-
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Plots B-scan.', usage='cd gprMax; python -m tools.plot_Bscan outputfile --field fieldcomponent')
+parser = argparse.ArgumentParser(description='Plots a B-scan image.', usage='cd gprMax; python -m tools.plot_Bscan outputfile --field fieldcomponent')
 parser.add_argument('outputfile', help='name of output file including path')
 parser.add_argument('--output', help='name of output to be plotted, i.e. Ex Ey Ez')
 args = parser.parse_args()
 
-# Check for valid output name
-if args.output not in outputslist:
-    raise CmdInputError('{} not allowed. Options are: Ex Ey Ez Hx Hy Hz Ix Iy Iz'.format(args.output))
-
 # Open output file and read some attributes
 f = h5py.File(args.outputfile, 'r')
 path = '/rxs/rx1'
+availablecomponents = list(f[path].keys())
+    
+# Check if requested output is in file
+if args.output[0] not in availablecomponents:
+    raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(args.outputs[0], ', '.join(availablecomponents)))
+
 outputdata = f[path + '/' + args.output]
 f.close()
 
