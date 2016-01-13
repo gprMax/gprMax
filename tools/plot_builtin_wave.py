@@ -20,6 +20,7 @@ import os, argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
+from gprMax.exceptions import CmdInputError
 from gprMax.waveforms import Waveform
 
 
@@ -34,6 +35,12 @@ parser.add_argument('timewindow', type=float, help='time window to view waveform
 parser.add_argument('dt', type=float, help='time step to view waveform')
 parser.add_argument('-fft', action='store_true', default=False, help='plot FFT')
 args = parser.parse_args()
+
+# Check waveform parameters
+if args.type.lower() not in Waveform.waveformtypes:
+    raise CmdInputError('The waveform must have one of the following types {}'.format(','.join(Waveform.waveformtypes)))
+if args.freq <= 0:
+    raise CmdInputError('The waveform requires an excitation frequency value of greater than zero')
 
 w = Waveform()
 w.type = args.type
