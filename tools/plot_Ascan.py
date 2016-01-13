@@ -73,7 +73,7 @@ for rx in range(1, nrx + 1):
             power -= np.amax(power)
 
             # Set plotting range to -60dB from maximum power
-            pltrange = np.where((np.amax(power) - power) > 60)[0][0] + 1
+            pltrange = np.where((np.amax(power[1::]) - power[1::]) > 60)[0][0] + 1
             pltrange = np.s_[0:pltrange]
 
             # Plot time history of output component
