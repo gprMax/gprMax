@@ -34,9 +34,15 @@ Results
 
 .. figure:: images/antenna_wire_dipole_fs_ant_params.png
 
-    Input admittance and impedance (resistance and reactance) and s11 parameter of the antenna.
+    Input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna.
 
-:numref:`antenna_wire_dipole_fs_tl_params` shows time histories and frequency spectra of the incident and total (incident + reflected) voltages and currents in the transmission line. :numref:`antenna_wire_dipole_fs_ant_params` shows the input admittance and impedance (resistance and reactance), and s11 parameter of the half-wavelength wire dipole. The s11 parameter shows that the antenna is resonant at 0.9GHz. The input resistance (the real part of the input impedance) is 61 Ohms and the input reactance (the imaginery part of the input impedance) is a function of the length of the dipole and is -50 Ohms in this case. 
+.. _antenna_wire_dipole_fs_ant_params_detail:
+
+.. figure:: images/antenna_wire_dipole_fs_ant_params_detail.png
+
+    Detailed view of input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna.
+
+:numref:`antenna_wire_dipole_fs_tl_params` shows time histories and frequency spectra of the incident and total (incident + reflected) voltages and currents in the transmission line. :numref:`antenna_wire_dipole_fs_ant_params` shows the input admittance and impedance (resistance and reactance), and s11 parameter of the half-wavelength wire dipole. :numref:`antenna_wire_dipole_fs_ant_params_detail` shows a more detailed view of these parameters. The s11 parameter shows that the first resonance of the antenna is at 933MHz. Depending on the radius of the wire, the length of the dipole for first resonance is about :math:`l=0.47\lambda` to :math:`0.48\lambda`. The thinner the wire the closer the resonance is to :math:`0.48\lambda` [BAL2005]_. In this case, with a first resonance of 933MHz and a length of 150mm, :math:`l/\lambda=0.47`. The input impedance is :math:`z_{in} = 71 - j16~\Omega`. If :math:`l/\lambda=0.5` then the theoretical input impedance would be :math:`z_{in} = 73 + j42.5~\Omega`. The reactive (imaginery) part associated with the input impedance of a dipole is a function of its length.
 
 
 Bowtie antenna model
