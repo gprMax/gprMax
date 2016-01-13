@@ -58,9 +58,15 @@ if args.fft:
 # New plot for each receiver
 for rx in range(1, nrx + 1):
     path = '/rxs/rx' + str(rx) + '/'
+    availablecomponents = list(f[path].keys())
     
     # If only a single output is required, create one subplot
     if len(args.outputs) == 1:
+        
+        # Check if requested output is in file
+        if args.outputs[0] not in availablecomponents:
+            raise CmdInputError('Output request to plot {}, but the available output for receiver 1 in the file: {}'.format(args.outputs[0], ', '.join(availablecomponents)))
+        
         outputdata = f[path + args.outputs[0]][:]
         
         # Plotting if FFT required
@@ -123,6 +129,10 @@ for rx in range(1, nrx + 1):
         fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [ns]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
         gs = gridspec.GridSpec(3, 3, hspace=0.3)
         for output in args.outputs:
+            # Check if requested output is in file
+            if output not in availablecomponents:
+                raise CmdInputError('Output(s) requested to plot: {}, but available output(s) for receiver {} in the file: {}'.format(', '.join(args.outputs), rx, ', '.join(availablecomponents)))
+            
             outputdata = f[path + output][:]
             if output == 'Ex':
                 ax = plt.subplot(gs[0, 0])
