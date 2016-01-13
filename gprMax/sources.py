@@ -196,7 +196,7 @@ class TransmissionLine:
         self.Iinc = np.zeros(G.iterations, dtype=floattype)
     
     def calculate_incident_V_I(self, G):
-        """Calculates the incident voltage and current with a long length transmission line not connected to the main grid.
+        """Calculates the incident voltage and current with a long length transmission line not connected to the main grid from: http://dx.doi.org/10.1002/mop.10415
             
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
