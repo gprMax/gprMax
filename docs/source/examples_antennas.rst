@@ -71,8 +71,9 @@ Results
 .. _antenna_like_MALA_1200_fs_results:
 
 .. figure:: images/antenna_like_MALA_1200_fs_results.png
+    :width: 800 px
 
-    Field outputs from the receiver bowtie of a model of an antenna similar to a MALA 1.2GHz antenna.
+    Ey field output from the receiver bowtie of a model of an antenna similar to a MALA 1.2GHz antenna.
 
 
 B-scan with a bowtie antenna model
