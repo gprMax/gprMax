@@ -248,7 +248,10 @@ def process_singlecmds(singlecmds, multicmds, G):
             w = Waveform()
             w.ID = waveformIDs[waveform]
             w.type = 'user'
-            w.uservalues = waveformvalues[:,waveform]
+            if len(waveformvalues.shape) == 1:
+                w.uservalues = waveformvalues[:]
+            else:
+                w.uservalues = waveformvalues[:,waveform]
         
             if G.messages:
                 print('User waveform {} created.'.format(w.ID))
