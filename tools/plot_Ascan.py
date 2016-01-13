@@ -165,8 +165,9 @@ for rx in range(1, nrx + 1):
             ax.set_xlim([0, np.amax(time)])
             ax.grid()
 
-    # Save a PDF of the figure
+    # Save a PDF/PNG of the figure
     #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
 plt.show()
 f.close()

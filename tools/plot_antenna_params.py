@@ -46,6 +46,7 @@ Vinc = f[path + 'Vinc'][:]
 Iinc = f[path + 'Iinc'][:]
 Vtotal = f[path +'Vtotal'][:]
 Itotal = f[path +'Itotal'][:]
+f.close()
 Vref = Vtotal - Vinc
 Iref = Itotal - Iinc
 
@@ -290,8 +291,9 @@ ax.set_ylabel('Phase [degrees]')
 ax.grid()
 
 plt.show()
+
+# Save a PDF/PNG of the figure
 #fig1.savefig(os.path.splitext(os.path.abspath(file))[0] + '_tl_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 #fig2.savefig(os.path.splitext(os.path.abspath(file))[0] + '_ant_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 #fig1.savefig(os.path.splitext(os.path.abspath(file))[0] + '_tl_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
 #fig2.savefig(os.path.splitext(os.path.abspath(file))[0] + '_ant_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-f.close()

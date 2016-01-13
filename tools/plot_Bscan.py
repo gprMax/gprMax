@@ -42,6 +42,7 @@ if args.output not in outputslist:
 f = h5py.File(args.outputfile, 'r')
 path = '/rxs/rx1'
 outputdata = f[path + '/' + args.output]
+f.close()
 
 # Check that there is more than one A-scan present
 if outputdata.shape[1] == 1:
@@ -62,5 +63,8 @@ elif 'I' in args.output:
     cb.set_label('Current [A]')
 
 plt.show()
+
+# Save a PDF/PNG of the figure
 #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-f.close()
+#fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+
