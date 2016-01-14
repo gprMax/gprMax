@@ -16,10 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
-import decimal as d
 import numpy as np
-from pyfiglet import Figlet
 
 # Data types:
 #   Solid and ID arrays use 32-bit integers (0 to 4294967295)
