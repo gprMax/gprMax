@@ -50,7 +50,7 @@ model = f[path + args.output[0]][:] * -1
 model /= np.amax(np.abs(model))
 f.close()
 
-# Select model field of interest and find max
+# Find location of maximum value from model
 modelmax = np.where(np.abs(model) == 1)[0][0]
 
 # Real results
