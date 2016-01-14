@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
 import numpy as np
 
 from gprMax.constants import floattype
@@ -24,7 +23,7 @@ from gprMax.exceptions import CmdInputError
 from gprMax.fractals import FractalSurface, FractalVolume, Grass
 from gprMax.geometry_primitives import build_edge_x, build_edge_y, build_edge_z, build_face_yz, build_face_xz, build_face_xy, build_triangle, build_voxel, build_box, build_cylinder, build_cylindrical_sector, build_sphere
 from gprMax.materials import Material
-from gprMax.utilities import roundvalue
+from gprMax.utilities import round_value
 
 
 def process_geometrycmds(geometry, G):
@@ -42,25 +41,25 @@ def process_geometrycmds(geometry, G):
             if len(tmp) != 8:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly seven parameters')
             
-            xs = roundvalue(float(tmp[1])/G.dx)
-            xf = roundvalue(float(tmp[4])/G.dx)
-            ys = roundvalue(float(tmp[2])/G.dy)
-            yf = roundvalue(float(tmp[5])/G.dy)
-            zs = roundvalue(float(tmp[3])/G.dz)
-            zf = roundvalue(float(tmp[6])/G.dz)
+            xs = round_value(float(tmp[1])/G.dx)
+            xf = round_value(float(tmp[4])/G.dx)
+            ys = round_value(float(tmp[2])/G.dy)
+            yf = round_value(float(tmp[5])/G.dy)
+            zs = round_value(float(tmp[3])/G.dz)
+            zf = round_value(float(tmp[6])/G.dz)
             
             if xs < 0 or xs > G.nx:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {} is not within the model domain'.format(xs * G.dx))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
             if xf < 0 or xf > G.nx:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper x-coordinate {} is not within the model domain'.format(xf * G.dx))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper x-coordinate {:g}m is not within the model domain'.format(xf * G.dx))
             if ys < 0 or ys > G.ny:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower y-coordinate {} is not within the model domain'.format(ys * G.dy))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower y-coordinate {:g}m is not within the model domain'.format(ys * G.dy))
             if yf < 0 or yf > G.ny:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper y-coordinate {} is not within the model domain'.format(yf * G.dy))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper y-coordinate {:g}m is not within the model domain'.format(yf * G.dy))
             if zs < 0 or zs > G.nz:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower z-coordinate {} is not within the model domain'.format(zs * G.dz))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower z-coordinate {:g}m is not within the model domain'.format(zs * G.dz))
             if zf < 0 or zf > G.nz:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {} is not within the model domain'.format(zf * G.dz))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {:g}m is not within the model domain'.format(zf * G.dz))
             if xs > xf or ys > yf or zs > zf:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
             
@@ -95,7 +94,7 @@ def process_geometrycmds(geometry, G):
                         build_edge_z(xs, ys, k, material.numID, G.rigidE, G.rigidH, G.ID)
         
             if G.messages:
-                print('Edge from {:.3f}m, {:.3f}m, {:.3f}m, to {:.3f}m, {:.3f}m, {:.3f}m of material {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, tmp[7]))
+                print('Edge from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, tmp[7]))
     
     
         elif tmp[0] == '#plate:':
@@ -113,25 +112,25 @@ def process_geometrycmds(geometry, G):
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
             
-            xs = roundvalue(float(tmp[1])/G.dx)
-            xf = roundvalue(float(tmp[4])/G.dx)
-            ys = roundvalue(float(tmp[2])/G.dy)
-            yf = roundvalue(float(tmp[5])/G.dy)
-            zs = roundvalue(float(tmp[3])/G.dz)
-            zf = roundvalue(float(tmp[6])/G.dz)
+            xs = round_value(float(tmp[1])/G.dx)
+            xf = round_value(float(tmp[4])/G.dx)
+            ys = round_value(float(tmp[2])/G.dy)
+            yf = round_value(float(tmp[5])/G.dy)
+            zs = round_value(float(tmp[3])/G.dz)
+            zf = round_value(float(tmp[6])/G.dz)
             
             if xs < 0 or xs > G.nx:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {} is not within the model domain'.format(xs * G.dx))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
             if xf < 0 or xf > G.nx:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper x-coordinate {} is not within the model domain'.format(xf * G.dx))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper x-coordinate {:g}m is not within the model domain'.format(xf * G.dx))
             if ys < 0 or ys > G.ny:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower y-coordinate {} is not within the model domain'.format(ys * G.dy))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower y-coordinate {:g}m is not within the model domain'.format(ys * G.dy))
             if yf < 0 or yf > G.ny:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper y-coordinate {} is not within the model domain'.format(yf * G.dy))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper y-coordinate {:g}m is not within the model domain'.format(yf * G.dy))
             if zs < 0 or zs > G.nz:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower z-coordinate {} is not within the model domain'.format(zs * G.dz))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower z-coordinate {:g}m is not within the model domain'.format(zs * G.dz))
             if zf < 0 or zf > G.nz:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {} is not within the model domain'.format(zf * G.dz))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {:g}m is not within the model domain'.format(zf * G.dz))
             if xs > xf or ys > yf or zs > zf:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
             
@@ -204,7 +203,7 @@ def process_geometrycmds(geometry, G):
                         build_face_xy(i, j, zs, numIDx, numIDy, G.rigidE, G.rigidH, G.ID)
 
             if G.messages:
-                print('Plate from {:.3f}m, {:.3f}m, {:.3f}m, to {:.3f}m, {:.3f}m, {:.3f}m of material(s) {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, ', '.join(materialsrequested)))
+                print('Plate from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material(s) {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, ', '.join(materialsrequested)))
 
 
         elif tmp[0] == '#triangle:':
@@ -233,15 +232,15 @@ def process_geometrycmds(geometry, G):
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
             
-            x1 = roundvalue(float(tmp[1])/G.dx) * G.dx
-            y1 = roundvalue(float(tmp[2])/G.dy) * G.dy
-            z1 = roundvalue(float(tmp[3])/G.dz) * G.dz
-            x2 = roundvalue(float(tmp[4])/G.dx) * G.dx
-            y2 = roundvalue(float(tmp[5])/G.dy) * G.dy
-            z2 = roundvalue(float(tmp[6])/G.dz) * G.dz
-            x3 = roundvalue(float(tmp[7])/G.dx) * G.dx
-            y3 = roundvalue(float(tmp[8])/G.dy) * G.dy
-            z3 = roundvalue(float(tmp[9])/G.dz) * G.dz
+            x1 = round_value(float(tmp[1])/G.dx) * G.dx
+            y1 = round_value(float(tmp[2])/G.dy) * G.dy
+            z1 = round_value(float(tmp[3])/G.dz) * G.dz
+            x2 = round_value(float(tmp[4])/G.dx) * G.dx
+            y2 = round_value(float(tmp[5])/G.dy) * G.dy
+            z2 = round_value(float(tmp[6])/G.dz) * G.dz
+            x3 = round_value(float(tmp[7])/G.dx) * G.dx
+            y3 = round_value(float(tmp[8])/G.dy) * G.dy
+            z3 = round_value(float(tmp[9])/G.dz) * G.dz
             thickness = float(tmp[10])
             
             if x1 < 0 or x2 < 0 or x3 < 0 or x1 > G.nx or x2 > G.nx or x3 > G.nx:
@@ -322,9 +321,9 @@ def process_geometrycmds(geometry, G):
                         dielectricsmoothing = 'on'
                     else:
                         dielectricsmoothing = 'off'
-                    print('Triangle with coordinates {:.3f}m {:.3f}m {:.3f}m, {:.3f}m {:.3f}m {:.3f}m, {:.3f}m {:.3f}m {:.3f}m and thickness {:.3f}m of material(s) {} created, dielectric smoothing is {}.'.format(x1, y1, z1, x2, y2, z2, x3, y3, z3, thickness, ', '.join(materialsrequested), dielectricsmoothing))
+                    print('Triangle with coordinates {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m and thickness {:g}m of material(s) {} created, dielectric smoothing is {}.'.format(x1, y1, z1, x2, y2, z2, x3, y3, z3, thickness, ', '.join(materialsrequested), dielectricsmoothing))
                 else:
-                    print('Triangle with coordinates {:.3f}m {:.3f}m {:.3f}m, {:.3f}m {:.3f}m {:.3f}m, {:.3f}m {:.3f}m {:.3f}m of material(s) {} created.'.format(x1, y1, z1, x2, y2, z2, x3, y3, z3, ', '.join(materialsrequested)))
+                    print('Triangle with coordinates {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m of material(s) {} created.'.format(x1, y1, z1, x2, y2, z2, x3, y3, z3, ', '.join(materialsrequested)))
 
 
         elif tmp[0] == '#box:':
@@ -353,27 +352,27 @@ def process_geometrycmds(geometry, G):
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
     
-            xs = roundvalue(float(tmp[1])/G.dx)
-            xf = roundvalue(float(tmp[4])/G.dx)
-            ys = roundvalue(float(tmp[2])/G.dy)
-            yf = roundvalue(float(tmp[5])/G.dy)
-            zs = roundvalue(float(tmp[3])/G.dz)
-            zf = roundvalue(float(tmp[6])/G.dz)
+            xs = round_value(float(tmp[1])/G.dx)
+            xf = round_value(float(tmp[4])/G.dx)
+            ys = round_value(float(tmp[2])/G.dy)
+            yf = round_value(float(tmp[5])/G.dy)
+            zs = round_value(float(tmp[3])/G.dz)
+            zf = round_value(float(tmp[6])/G.dz)
             
             if xs < 0 or xs > G.nx:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {} is not within the model domain'.format(xs * G.dx))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
             if xf < 0 or xf > G.nx:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper x-coordinate {} is not within the model domain'.format(xf * G.dx))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper x-coordinate {:g}m is not within the model domain'.format(xf * G.dx))
             if ys < 0 or ys > G.ny:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower y-coordinate {} is not within the model domain'.format(ys * G.dy))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower y-coordinate {:g}m is not within the model domain'.format(ys * G.dy))
             if yf < 0 or yf > G.ny:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper y-coordinate {} is not within the model domain'.format(yf * G.dy))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper y-coordinate {:g}m is not within the model domain'.format(yf * G.dy))
             if zs < 0 or zs > G.nz:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower z-coordinate {} is not within the model domain'.format(zs * G.dz))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower z-coordinate {:g}m is not within the model domain'.format(zs * G.dz))
             if zf < 0 or zf > G.nz:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {} is not within the model domain'.format(zf * G.dz))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {:g}m is not within the model domain'.format(zf * G.dz))
             if xs >= xf or ys >= yf or zs >= zf:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates {} {} {} {} {} {}'.format(xs, xf, ys, yf, zs, zf))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
 
             # Look up requested materials in existing list of material instances
             materials = [y for x in materialsrequested for y in G.materials if y.ID == x]
@@ -416,7 +415,7 @@ def process_geometrycmds(geometry, G):
                     dielectricsmoothing = 'on'
                 else:
                     dielectricsmoothing = 'off'
-                print('Box from {:.3f}m, {:.3f}m, {:.3f}m, to {:.3f}m, {:.3f}m, {:.3f}m of material(s) {} created, dielectric smoothing is {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, ', '.join(materialsrequested), dielectricsmoothing))
+                print('Box from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material(s) {} created, dielectric smoothing is {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, ', '.join(materialsrequested), dielectricsmoothing))
 
 
         elif tmp[0] == '#cylinder:':
@@ -445,16 +444,16 @@ def process_geometrycmds(geometry, G):
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
             
-            x1 = roundvalue(float(tmp[1])/G.dx) * G.dx
-            y1 = roundvalue(float(tmp[2])/G.dy) * G.dy
-            z1 = roundvalue(float(tmp[3])/G.dz) * G.dz
-            x2 = roundvalue(float(tmp[4])/G.dx) * G.dx
-            y2 = roundvalue(float(tmp[5])/G.dy) * G.dy
-            z2 = roundvalue(float(tmp[6])/G.dz) * G.dz
+            x1 = round_value(float(tmp[1])/G.dx) * G.dx
+            y1 = round_value(float(tmp[2])/G.dy) * G.dy
+            z1 = round_value(float(tmp[3])/G.dz) * G.dz
+            x2 = round_value(float(tmp[4])/G.dx) * G.dx
+            y2 = round_value(float(tmp[5])/G.dy) * G.dy
+            z2 = round_value(float(tmp[6])/G.dz) * G.dz
             r = float(tmp[7])
             
             if r <= 0:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the radius {:.3f} should be a positive value.'.format(r))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the radius {:g} should be a positive value.'.format(r))
 
             # Look up requested materials in existing list of material instances
             materials = [y for x in materialsrequested for y in G.materials if y.ID == x]
@@ -497,7 +496,7 @@ def process_geometrycmds(geometry, G):
                     dielectricsmoothing = 'on'
                 else:
                     dielectricsmoothing = 'off'
-                print('Cylinder with face centres {:.3f}m, {:.3f}m, {:.3f}m and {:.3f}m, {:.3f}m, {:.3f}m, with radius {:.3f}m, of material(s) {} created, dielectric smoothing is {}.'.format(x1, y1, z1, x2, y2, z2, r, ', '.join(materialsrequested), dielectricsmoothing))
+                print('Cylinder with face centres {:g}m, {:g}m, {:g}m and {:g}m, {:g}m, {:g}m, with radius {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(x1, y1, z1, x2, y2, z2, r, ', '.join(materialsrequested), dielectricsmoothing))
 
 
         elif tmp[0] == '#cylindrical_sector:':
@@ -541,7 +540,7 @@ def process_geometrycmds(geometry, G):
             if ctr1 < 0 or ctr1 > G.nx or ctr1 > G.ny or ctr1 > G.nz or ctr2 < 0 or ctr2 > G.nx or ctr2 > G.ny or ctr2 > G.nz:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the coordinates of the centre of the circle are not within the model domain.')
             if r <= 0:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the radius {:.3f} should be a positive value.'.format(r))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the radius {:g} should be a positive value.'.format(r))
             if sectorstartangle >= 2 * np.pi or sectorangle >= 2 * np.pi:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the starting angle and sector angle must be less than 360 degrees.')
 
@@ -595,21 +594,21 @@ def process_geometrycmds(geometry, G):
 
             # yz-plane cylindrical sector
             if normal == 'x':
-                ctr1 = roundvalue(ctr1/G.dy) * G.dy
-                ctr2 = roundvalue(ctr2/G.dz) * G.dz
-                level = roundvalue(extent1/G.dx)
+                ctr1 = round_value(ctr1/G.dy) * G.dy
+                ctr2 = round_value(ctr2/G.dz) * G.dz
+                level = round_value(extent1/G.dx)
 
             # xz-plane cylindrical sector
             elif normal == 'y':
-                ctr1 = roundvalue(ctr1/G.dx) * G.dx
-                ctr2 = roundvalue(ctr2/G.dz) * G.dz
-                level = roundvalue(extent1/G.dy)
+                ctr1 = round_value(ctr1/G.dx) * G.dx
+                ctr2 = round_value(ctr2/G.dz) * G.dz
+                level = round_value(extent1/G.dy)
                 
             # xy-plane cylindrical sector
             elif normal == 'z':
-                ctr1 = roundvalue(ctr1/G.dx) * G.dx
-                ctr2 = roundvalue(ctr2/G.dy) * G.dy
-                level = roundvalue(extent1/G.dz)
+                ctr1 = round_value(ctr1/G.dx) * G.dx
+                ctr2 = round_value(ctr2/G.dy) * G.dy
+                level = round_value(extent1/G.dz)
 
             build_cylindrical_sector(ctr1, ctr2, level, sectorstartangle, sectorangle, r, normal, thickness, G.dx, G.dy, G.dz, numID, numIDx, numIDy, numIDz, averaging, G.solid, G.rigidE, G.rigidH, G.ID)
 
@@ -619,9 +618,9 @@ def process_geometrycmds(geometry, G):
                         dielectricsmoothing = 'on'
                     else:
                         dielectricsmoothing = 'off'
-                    print('Cylindrical sector with centre {:.3f}m, {:.3f}m, radius {:.3f}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, thickness {:.3f}m, of material(s) {} created, dielectric smoothing is {}.'.format(ctr1, ctr2, r, (sectorstartangle/(2*np.pi))*360, (sectorangle/(2*np.pi))*360, thickness, ', '.join(materialsrequested), dielectricsmoothing))
+                    print('Cylindrical sector with centre {:g}m, {:g}m, radius {:g}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, thickness {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(ctr1, ctr2, r, (sectorstartangle/(2*np.pi))*360, (sectorangle/(2*np.pi))*360, thickness, ', '.join(materialsrequested), dielectricsmoothing))
                 else:
-                    print('Cylindrical sector with centre {:.3f}m, {:.3f}m, radius {:.3f}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, of material(s) {} created.'.format(ctr1, ctr2, r, (sectorstartangle/(2*np.pi))*360, (sectorangle/(2*np.pi))*360, ', '.join(materialsrequested)))
+                    print('Cylindrical sector with centre {:g}m, {:g}m, radius {:g}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, of material(s) {} created.'.format(ctr1, ctr2, r, (sectorstartangle/(2*np.pi))*360, (sectorangle/(2*np.pi))*360, ', '.join(materialsrequested)))
 
 
         elif tmp[0] == '#sphere:':
@@ -651,9 +650,9 @@ def process_geometrycmds(geometry, G):
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
             
             # Centre of sphere
-            xc = roundvalue(float(tmp[1])/G.dx)
-            yc = roundvalue(float(tmp[2])/G.dy)
-            zc = roundvalue(float(tmp[3])/G.dz)
+            xc = round_value(float(tmp[1])/G.dx)
+            yc = round_value(float(tmp[2])/G.dy)
+            zc = round_value(float(tmp[3])/G.dz)
             r = float(tmp[4])
 
             # Look up requested materials in existing list of material instances
@@ -697,7 +696,7 @@ def process_geometrycmds(geometry, G):
                     dielectricsmoothing = 'on'
                 else:
                     dielectricsmoothing = 'off'
-                print('Sphere with centre {:.3f}m, {:.3f}m, {:.3f}m, radius {:.3f}m, of material(s) {} created, dielectric smoothing is {}.'.format(xc * G.dx, yc * G.dy, zc * G.dz, r, ', '.join(materialsrequested), dielectricsmoothing))
+                print('Sphere with centre {:g}m, {:g}m, {:g}m, radius {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(xc * G.dx, yc * G.dy, zc * G.dz, r, ', '.join(materialsrequested), dielectricsmoothing))
 
 
         elif tmp[0] == '#fractal_box:':
@@ -710,25 +709,25 @@ def process_geometrycmds(geometry, G):
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
     
-            xs = roundvalue(float(tmp[1])/G.dx)
-            xf = roundvalue(float(tmp[4])/G.dx)
-            ys = roundvalue(float(tmp[2])/G.dy)
-            yf = roundvalue(float(tmp[5])/G.dy)
-            zs = roundvalue(float(tmp[3])/G.dz)
-            zf = roundvalue(float(tmp[6])/G.dz)
+            xs = round_value(float(tmp[1])/G.dx)
+            xf = round_value(float(tmp[4])/G.dx)
+            ys = round_value(float(tmp[2])/G.dy)
+            yf = round_value(float(tmp[5])/G.dy)
+            zs = round_value(float(tmp[3])/G.dz)
+            zf = round_value(float(tmp[6])/G.dz)
             
             if xs < 0 or xs > G.nx:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {} is not within the model domain'.format(xs * G.dx))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
             if xf < 0 or xf > G.nx:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper x-coordinate {} is not within the model domain'.format(xf * G.dx))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper x-coordinate {:g}m is not within the model domain'.format(xf * G.dx))
             if ys < 0 or ys > G.ny:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower y-coordinate {} is not within the model domain'.format(ys * G.dy))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower y-coordinate {:g}m is not within the model domain'.format(ys * G.dy))
             if yf < 0 or yf > G.ny:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper y-coordinate {} is not within the model domain'.format(yf * G.dy))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper y-coordinate {:g}m is not within the model domain'.format(yf * G.dy))
             if zs < 0 or zs > G.nz:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower z-coordinate {} is not within the model domain'.format(zs * G.dz))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower z-coordinate {:g}m is not within the model domain'.format(zs * G.dz))
             if zf < 0 or zf > G.nz:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {} is not within the model domain'.format(zf * G.dz))
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {:g}m is not within the model domain'.format(zf * G.dz))
             if xs >= xf or ys >= yf or zs >= zf:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
             if float(tmp[7]) < 0:
@@ -739,13 +738,13 @@ def process_geometrycmds(geometry, G):
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires a positive value for the fractal weighting in the y direction')
             if float(tmp[10]) < 0:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires a positive value for the fractal weighting in the z direction')
-            if roundvalue(tmp[11]) < 0:
+            if round_value(tmp[11]) < 0:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires a positive value for the number of bins')
             
             # Find materials to use to build fractal volume, either from mixing models or normal materials
             mixingmodel = next((x for x in G.mixingmodels if x.ID == tmp[12]), None)
             material = next((x for x in G.materials if x.ID == tmp[12]), None)
-            nbins = roundvalue(tmp[11])
+            nbins = round_value(tmp[11])
 
             if mixingmodel:
                 if nbins == 1:
@@ -763,7 +762,7 @@ def process_geometrycmds(geometry, G):
             volume.weighting = (float(tmp[8]), float(tmp[9]), float(tmp[10]))
 
             if G.messages:
-                print('Fractal box {} from {:.3f}m, {:.3f}m, {:.3f}m, to {:.3f}m, {:.3f}m, {:.3f}m with {}, fractal dimension {}, fractal weightings {}, {}, {}, fractal seeding {} and with {} values created.'.format(volume.ID, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, volume.operatingonID, volume.dimension, volume.weighting[0], volume.weighting[1], volume.weighting[2], volume.seed, volume.nbins))
+                print('Fractal box {} from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with {}, fractal dimension {:g}, fractal weightings {:g}, {:g}, {:g}, fractal seeding {:g} and with {} values created.'.format(volume.ID, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, volume.operatingonID, volume.dimension, volume.weighting[0], volume.weighting[1], volume.weighting[2], volume.seed, volume.nbins))
 
             G.fractalvolumes.append(volume)
 
@@ -783,25 +782,25 @@ def process_geometrycmds(geometry, G):
                     
                     # Only process rough surfaces for this fractal volume
                     if tmp[12] == volume.ID:
-                        xs = roundvalue(float(tmp[1])/G.dx)
-                        xf = roundvalue(float(tmp[4])/G.dx)
-                        ys = roundvalue(float(tmp[2])/G.dy)
-                        yf = roundvalue(float(tmp[5])/G.dy)
-                        zs = roundvalue(float(tmp[3])/G.dz)
-                        zf = roundvalue(float(tmp[6])/G.dz)
+                        xs = round_value(float(tmp[1])/G.dx)
+                        xf = round_value(float(tmp[4])/G.dx)
+                        ys = round_value(float(tmp[2])/G.dy)
+                        yf = round_value(float(tmp[5])/G.dy)
+                        zs = round_value(float(tmp[3])/G.dz)
+                        zf = round_value(float(tmp[6])/G.dz)
                         
                         if xs < 0 or xs > G.nx:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {} is not within the model domain'.format(xs * G.dx))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
                         if xf < 0 or xf > G.nx:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper x-coordinate {} is not within the model domain'.format(xf * G.dx))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper x-coordinate {:g}m is not within the model domain'.format(xf * G.dx))
                         if ys < 0 or ys > G.ny:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower y-coordinate {} is not within the model domain'.format(ys * G.dy))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower y-coordinate {:g}m is not within the model domain'.format(ys * G.dy))
                         if yf < 0 or yf > G.ny:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper y-coordinate {} is not within the model domain'.format(yf * G.dy))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper y-coordinate {:g}m is not within the model domain'.format(yf * G.dy))
                         if zs < 0 or zs > G.nz:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower z-coordinate {} is not within the model domain'.format(zs * G.dz))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower z-coordinate {:g}m is not within the model domain'.format(zs * G.dz))
                         if zf < 0 or zf > G.nz:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {} is not within the model domain'.format(zf * G.dz))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {:g}m is not within the model domain'.format(zf * G.dz))
                         if xs > xf or ys > yf or zs > zf:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
                         if float(tmp[7]) < 0:
@@ -817,7 +816,7 @@ def process_geometrycmds(geometry, G):
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
                             if xs != volume.xs and xs != volume.xf:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' can only be used on the external surfaces of a fractal box')
-                            fractalrange = (roundvalue(float(tmp[10]) / G.dx), roundvalue(float(tmp[11]) / G.dx))
+                            fractalrange = (round_value(float(tmp[10]) / G.dx), round_value(float(tmp[11]) / G.dx))
                             # xminus surface
                             if xs == volume.xs:
                                 if fractalrange[0] < 0:
@@ -834,7 +833,7 @@ def process_geometrycmds(geometry, G):
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
                             if ys != volume.ys and ys != volume.yf:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' can only be used on the external surfaces of a fractal box')
-                            fractalrange = (roundvalue(float(tmp[10]) / G.dy), roundvalue(float(tmp[11]) / G.dy))
+                            fractalrange = (round_value(float(tmp[10]) / G.dy), round_value(float(tmp[11]) / G.dy))
                             # yminus surface
                             if ys == volume.ys:
                                 if fractalrange[0] < 0:
@@ -851,7 +850,7 @@ def process_geometrycmds(geometry, G):
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
                             if zs != volume.zs and zs != volume.zf:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' can only be used on the external surfaces of a fractal box')
-                            fractalrange = (roundvalue(float(tmp[10]) / G.dz), roundvalue(float(tmp[11]) / G.dz))
+                            fractalrange = (round_value(float(tmp[10]) / G.dz), round_value(float(tmp[11]) / G.dz))
                             # zminus surface
                             if zs == volume.zs:
                                 if fractalrange[0] < 0:
@@ -882,7 +881,7 @@ def process_geometrycmds(geometry, G):
                         volume.fractalsurfaces.append(surface)
 
                         if G.messages:
-                            print('Fractal surface from {:.3f}m, {:.3f}m, {:.3f}m, to {:.3f}m, {:.3f}m, {:.3f}m with fractal dimension {}, fractal weightings {}, {}, fractal seeding {}, and range {:.3f}m to {:.3f}m, added to {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.weighting[0], surface.weighting[1], surface.seed, float(tmp[10]), float(tmp[11]), surface.operatingonID))
+                            print('Fractal surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}m, fractal weightings {:g}m, {:g}m, fractal seeding {:g}m, and range {:g}m to {:g}m, added to {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.weighting[0], surface.weighting[1], surface.seed, float(tmp[10]), float(tmp[11]), surface.operatingonID))
 
                 if tmp[0] == '#add_surface_water:':
                     if len(tmp) != 9:
@@ -890,26 +889,26 @@ def process_geometrycmds(geometry, G):
                     
                     # Only process surfaces for this fractal volume
                     if tmp[8] == volume.ID:
-                        xs = roundvalue(float(tmp[1])/G.dx)
-                        xf = roundvalue(float(tmp[4])/G.dx)
-                        ys = roundvalue(float(tmp[2])/G.dy)
-                        yf = roundvalue(float(tmp[5])/G.dy)
-                        zs = roundvalue(float(tmp[3])/G.dz)
-                        zf = roundvalue(float(tmp[6])/G.dz)
+                        xs = round_value(float(tmp[1])/G.dx)
+                        xf = round_value(float(tmp[4])/G.dx)
+                        ys = round_value(float(tmp[2])/G.dy)
+                        yf = round_value(float(tmp[5])/G.dy)
+                        zs = round_value(float(tmp[3])/G.dz)
+                        zf = round_value(float(tmp[6])/G.dz)
                         depth = float(tmp[7])
                         
                         if xs < 0 or xs > G.nx:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {} is not within the model domain'.format(xs * G.dx))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
                         if xf < 0 or xf > G.nx:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper x-coordinate {} is not within the model domain'.format(xf * G.dx))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper x-coordinate {:g}m is not within the model domain'.format(xf * G.dx))
                         if ys < 0 or ys > G.ny:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower y-coordinate {} is not within the model domain'.format(ys * G.dy))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower y-coordinate {:g}m is not within the model domain'.format(ys * G.dy))
                         if yf < 0 or yf > G.ny:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper y-coordinate {} is not within the model domain'.format(yf * G.dy))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper y-coordinate {:g}m is not within the model domain'.format(yf * G.dy))
                         if zs < 0 or zs > G.nz:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower z-coordinate {} is not within the model domain'.format(zs * G.dz))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower z-coordinate {:g}m is not within the model domain'.format(zs * G.dz))
                         if zf < 0 or zf > G.nz:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {} is not within the model domain'.format(zf * G.dz))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {:g}m is not within the model domain'.format(zf * G.dz))
                         if xs > xf or ys > yf or zs > zf:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
                         if depth <= 0:
@@ -927,7 +926,7 @@ def process_geometrycmds(geometry, G):
                             # xplus surface
                             elif xf == volume.xf:
                                 requestedsurface = 'xplus'
-                            filldepthcells = roundvalue(depth / G.dx)
+                            filldepthcells = round_value(depth / G.dx)
                             filldepth = filldepthcells * G.dx
                                     
                         elif ys == yf:
@@ -941,7 +940,7 @@ def process_geometrycmds(geometry, G):
                             # yplus surface
                             elif yf == volume.yf:
                                 requestedsurface = 'yplus'
-                            filldepthcells = roundvalue(depth / G.dy)
+                            filldepthcells = round_value(depth / G.dy)
                             filldepth = filldepthcells * G.dy
 
                         elif zs == zf:
@@ -955,7 +954,7 @@ def process_geometrycmds(geometry, G):
                             # zplus surface
                             elif zf == volume.zf:
                                 requestedsurface = 'zplus'
-                            filldepthcells = roundvalue(depth / G.dz)
+                            filldepthcells = round_value(depth / G.dz)
                             filldepth = filldepthcells * G.dz
 
                         else:
@@ -989,7 +988,7 @@ def process_geometrycmds(geometry, G):
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires the time step for the model to be less than the relaxation time required to model water.')
 
                         if G.messages:
-                            print('Water on surface from {:.3f}m, {:.3f}m, {:.3f}m, to {:.3f}m, {:.3f}m, {:.3f}m with depth {:.3f}m, added to {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, filldepth, surface.operatingonID))
+                            print('Water on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with depth {:g}m, added to {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, filldepth, surface.operatingonID))
                                     
                                     
                 if tmp[0] == '#add_grass:':
@@ -1004,26 +1003,26 @@ def process_geometrycmds(geometry, G):
                     
                     # Only process grass for this fractal volume
                     if tmp[11] == volume.ID:
-                        xs = roundvalue(float(tmp[1])/G.dx)
-                        xf = roundvalue(float(tmp[4])/G.dx)
-                        ys = roundvalue(float(tmp[2])/G.dy)
-                        yf = roundvalue(float(tmp[5])/G.dy)
-                        zs = roundvalue(float(tmp[3])/G.dz)
-                        zf = roundvalue(float(tmp[6])/G.dz)
+                        xs = round_value(float(tmp[1])/G.dx)
+                        xf = round_value(float(tmp[4])/G.dx)
+                        ys = round_value(float(tmp[2])/G.dy)
+                        yf = round_value(float(tmp[5])/G.dy)
+                        zs = round_value(float(tmp[3])/G.dz)
+                        zf = round_value(float(tmp[6])/G.dz)
                         numblades = int(tmp[10])
                         
                         if xs < 0 or xs > G.nx:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {} is not within the model domain'.format(xs * G.dx))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
                         if xf < 0 or xf > G.nx:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper x-coordinate {} is not within the model domain'.format(xf * G.dx))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper x-coordinate {:g}m is not within the model domain'.format(xf * G.dx))
                         if ys < 0 or ys > G.ny:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower y-coordinate {} is not within the model domain'.format(ys * G.dy))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower y-coordinate {:g}m is not within the model domain'.format(ys * G.dy))
                         if yf < 0 or yf > G.ny:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper y-coordinate {} is not within the model domain'.format(yf * G.dy))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper y-coordinate {:g}m is not within the model domain'.format(yf * G.dy))
                         if zs < 0 or zs > G.nz:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower z-coordinate {} is not within the model domain'.format(zs * G.dz))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower z-coordinate {:g}m is not within the model domain'.format(zs * G.dz))
                         if zf < 0 or zf > G.nz:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {} is not within the model domain'.format(zf * G.dz))
+                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {:g}m is not within the model domain'.format(zf * G.dz))
                         if xs > xf or ys > yf or zs > zf:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
                         if float(tmp[7]) < 0:
@@ -1037,7 +1036,7 @@ def process_geometrycmds(geometry, G):
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
                             if xs != volume.xs and xs != volume.xf:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' must specify external surfaces on a fractal box')
-                            fractalrange = (roundvalue(float(tmp[8]) / G.dx), roundvalue(float(tmp[9]) / G.dx))
+                            fractalrange = (round_value(float(tmp[8]) / G.dx), round_value(float(tmp[9]) / G.dx))
                             # xminus surface
                             if xs == volume.xs:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' grass can only be specified on surfaces in the positive axis direction')
@@ -1052,7 +1051,7 @@ def process_geometrycmds(geometry, G):
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
                             if ys != volume.ys and ys != volume.yf:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' must specify external surfaces on a fractal box')
-                            fractalrange = (roundvalue(float(tmp[8]) / G.dy), roundvalue(float(tmp[9]) / G.dy))
+                            fractalrange = (round_value(float(tmp[8]) / G.dy), round_value(float(tmp[9]) / G.dy))
                             # yminus surface
                             if ys == volume.ys:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' grass can only be specified on surfaces in the positive axis direction')
@@ -1067,7 +1066,7 @@ def process_geometrycmds(geometry, G):
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
                             if zs != volume.zs and zs != volume.zf:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' must specify external surfaces on a fractal box')
-                            fractalrange = (roundvalue(float(tmp[8]) / G.dz), roundvalue(float(tmp[9]) / G.dz))
+                            fractalrange = (round_value(float(tmp[8]) / G.dz), round_value(float(tmp[9]) / G.dz))
                             # zminus surface
                             if zs == volume.zs:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' grass can only be specified on surfaces in the positive axis direction')
@@ -1139,7 +1138,7 @@ def process_geometrycmds(geometry, G):
                         volume.fractalsurfaces.append(surface)
 
                         if G.messages:
-                            print('{} blades of grass on surface from {:.3f}m, {:.3f}m, {:.3f}m, to {:.3f}m, {:.3f}m, {:.3f}m with fractal dimension {}, fractal seeding {} and range {:.3f}m to {:.3f}m, added to {}.'.format(numblades, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.seed, float(tmp[8]), float(tmp[9]), surface.operatingonID))
+                            print('{} blades of grass on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}m, fractal seeding {:g}m and range {:g}m to {:g}m, added to {}.'.format(numblades, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.seed, float(tmp[8]), float(tmp[9]), surface.operatingonID))
 
                 
             # Process any modifications to the original fractal box then generate it
