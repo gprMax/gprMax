@@ -18,19 +18,16 @@
 
 import sys, os
 
-from gprMax.constants import c, e0, m0, z0
 from gprMax.exceptions import CmdInputError
 from gprMax.utilities import ListStream
 
 
-def python_code_blocks(inputfile, modelrun, numbermodelruns, inputdirectory):
+def python_code_blocks(inputfile, usernamespace):
     """Looks for and processes any Python code found in the input file. It will ignore any lines that are comments, i.e. begin with a double hash (##), and any blank lines. It will also ignore any lines that do not begin with a hash (#) after it has processed Python commands.
         
     Args:
         inputfile (str): Name of the input file to open.
-        modelrun (int): Current model run number.
-        numbermodelruns (int): Total number of model runs.
-        inputdirectory (str): Directory containing input file.
+        usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
         
     Returns:
         processedlines (list): Input commands after Python processing.
@@ -42,11 +39,6 @@ def python_code_blocks(inputfile, modelrun, numbermodelruns, inputdirectory):
         
     # List to hold final processed commands
     processedlines = []
-    
-    # Separate namespace for users Python code blocks to use; pre-populated some standard constants and the
-    # current model run number and total number of model runs
-    usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'current_model_run': modelrun, 'number_model_runs': numbermodelruns, 'inputdirectory': inputdirectory}
-    print('Constants/variables available for Python scripting: {}\n'.format(usernamespace))
     
     x = 0
     while(x < len(inputlines)):
@@ -72,16 +64,13 @@ def python_code_blocks(inputfile, modelrun, numbermodelruns, inputdirectory):
             
             # Add processed Python code to list
             processedlines.extend(codeproc)
-            x += 1
     
         elif(inputlines[x].startswith('#')):
             # Add gprMax command to list
             inputlines[x] += ('\n')
             processedlines.append(inputlines[x])
-            x += 1
 
-        else:
-            x += 1
+        x += 1
 
     sys.stdout = sys.__stdout__ # Reset stdio
     
@@ -127,7 +116,7 @@ def check_cmd_names(processedlines):
     essentialcmds = ['#domain', '#dx_dy_dz', '#time_window']
 
     # Commands that there should only be one instance of in a model
-    singlecmds = dict.fromkeys(['#domain', '#dx_dy_dz', '#time_window', '#title', '#messages', '#num_threads', '#time_step_stability_factor', '#time_step_limit_type', '#pml_cells', '#excitation_file', '#src_steps', '#rx_steps'], 'None')
+    singlecmds = dict.fromkeys(['#domain', '#dx_dy_dz', '#time_window', '#title', '#messages', '#num_threads', '#time_step_stability_factor', '#time_step_limit_type', '#pml_cells', '#excitation_file', '#src_steps', '#rx_steps', '#taguchi', '#end_taguchi'], 'None')
 
     # Commands that there can be multiple instances of in a model - these will be lists within the dictionary
     multiplecmds = {key: [] for key in ['#geometry_view', '#material', '#soil_peplinski', '#add_dispersion_debye', '#add_dispersion_lorentz', '#add_dispersion_drude', '#waveform', '#voltage_source', '#hertzian_dipole', '#magnetic_dipole', '#transmission_line', '#rx', '#rx_box', '#snapshot', '#pml_cfs']}

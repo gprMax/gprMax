@@ -11,12 +11,13 @@ from gprMax.exceptions import CmdInputError
 
 moduledirectory = os.path.dirname(os.path.abspath(__file__))
 
-def antenna_like_GSSI_1500(x, y, z, resolution=0.001):
+def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
     """Inserts a description of an antenna similar to the GSSI 1.5GHz antenna. Can be used with 1mm (default) or 2mm spatial resolution. The external dimensions of the antenna are 170mm x 108mm x 45mm. One output point is defined between the arms of the receiever bowtie. The bowties are aligned with the y axis so the output is the y component of the electric field.
         
     Args:
         x, y, z (float): Coordinates of a location in the model to insert the antenna. Coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction.
         resolution (float): Spatial resolution for the antenna model.
+        kwargs (dict): Optional variables, e.g. can be fed from an optimisation process.
     """
     
     # Antenna geometry properties
@@ -30,10 +31,21 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001):
     bowtieheight = 0.014
     patchheight = 0.015
     
-    excitationfreq = 1.5e9 # GHz
-    # excitationfreq = 1.71e9 # Value from http://hdl.handle.net/1842/4074
-    sourceresistance = 50 # Ohms
-    # sourceresistance = 4 # Value from http://hdl.handle.net/1842/4074
+    # Unknown properties
+    if 'kwargs' in locals():
+        excitationfreq = kwargs['excitationfreq']
+        sourceresistance = kwargs['sourceresistance']
+        absorberEr = kwargs['absorberEr']
+        absorbersig = kwargs['absorbersig']
+    else:
+        excitationfreq = 1.5e9 # GHz
+        # excitationfreq = 1.71e9 # Value from http://hdl.handle.net/1842/4074
+        sourceresistance = 50 # Ohms
+        # sourceresistance = 4 # Value from http://hdl.handle.net/1842/4074
+        absorberEr = 1.7
+        # absorberEr = 1.58 # Value from http://hdl.handle.net/1842/4074
+        absorbersig = 0.59
+        # absorbersig = 0.428 # Value from http://hdl.handle.net/1842/4074
     
     x = x - (casesize[0] / 2)
     y = y - (casesize[1] / 2)
@@ -56,10 +68,9 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001):
         raise CmdInputError('This antenna module can only be used with a spatial discretisation of 1mm or 2mm')
 
     # Material definitions
-    print('#material: 1.7 0.59 1.0 0.0 absorber')
-    # print('#material: 1.58 0.428 1.0 0.0 absorber') # Value from http://hdl.handle.net/1842/4074
-    print('#material: 3.0 0.0 1.0 0.0 pcb')
-    print('#material: 2.35 0.0 1.0 0.0 hdpe')
+    print('#material: {:.2f} {:.3f} 1 0 absorber'.format(absorberEr, absorbersig))
+    print('#material: 3 0 1 0 pcb')
+    print('#material: 2.35 0 1 0 hdpe')
 
     # Antenna geometry
     # Plastic case
@@ -147,12 +158,13 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001):
 
 
 
-def antenna_like_MALA_1200(x, y, z, resolution=0.001):
+def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     """Inserts a description of an antenna similar to the MALA 1.2GHz antenna. Can be used with 1mm (default) or 2mm spatial resolution. The external dimensions of the antenna are 184mm x 109mm x 46mm. One output point is defined between the arms of the receiever bowtie. The bowties are aligned with the y axis so the output is the y component of the electric field.
         
     Args:
         x, y, z (float): Coordinates of a location in the model to insert the antenna. Coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction.
         resolution (float): Spatial resolution for the antenna model.
+        kwargs (dict): Optional variables, e.g. can be fed from an optimisation process.
     """
     
     # Antenna geometry properties
@@ -166,8 +178,17 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001):
     skidthickness = 0.006
     bowtieheight = 0.025
     
-    excitationfreq = 0.978e9 # GHz
-    sourceresistance = 1000 # Ohms
+    # Unknown properties
+    if 'kwargs' in locals():
+        excitationfreq = kwargs['excitationfreq']
+        sourceresistance = kwargs['sourceresistance']
+        absorberEr = kwargs['absorberEr']
+        absorbersig = kwargs['absorbersig']
+    else:
+        excitationfreq = 0.978e9 # GHz
+        sourceresistance = 1000 # Ohms
+        absorberEr = 6.49
+        absorbersig = 0.252
     
     x = x - (casesize[0] / 2)
     y = y - (casesize[1] / 2)
@@ -205,14 +226,14 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001):
     rxsiglower = ((1 / rxrescelllower) * (dy / (dx * dz))) / 2 # Divide by number of parallel edges per resistor
     
     # Material definitions
-    print('#material: 6.49 0.252 1.0 0.0 absorber')
-    print('#material: 3.0 0.0 1.0 0.0 pcb')
-    print('#material: 2.35 0.0 1.0 0.0 hdpe')
-    print('#material: 2.26 0.0 1.0 0.0 polypropylene')
-    print('#material: 3.0 {:.3f} 1.0 0.0 txreslower'.format(txsiglower))
-    print('#material: 3.0 {:.3f} 1.0 0.0 txresupper'.format(txsigupper))
-    print('#material: 3.0 {:.3f} 1.0 0.0 rxreslower'.format(rxsiglower))
-    print('#material: 3.0 {:.3f} 1.0 0.0 rxresupper'.format(rxsigupper))
+    print('#material: {:.2f} {:.3f} 1 0 absorber'.format(absorberEr, absorbersig))
+    print('#material: 3 0 1 0 pcb')
+    print('#material: 2.35 0 1 0 hdpe')
+    print('#material: 2.26 0 1 0 polypropylene')
+    print('#material: 3 {:.3f} 1 0 txreslower'.format(txsiglower))
+    print('#material: 3 {:.3f} 1 0 txresupper'.format(txsigupper))
+    print('#material: 3 {:.3f} 1 0 rxreslower'.format(rxsiglower))
+    print('#material: 3 {:.3f} 1 0 rxresupper'.format(rxsigupper))
     
     # Antenna geometry
     # Shield - metallic enclosure

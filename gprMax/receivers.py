@@ -28,6 +28,7 @@ class Rx:
             positiony (float): y-coordinate of location in model.
             positionz (float): z-coordinate of location in model.
         """
+        
         self.ID = None
         self.outputs = []
         self.positionx = positionx

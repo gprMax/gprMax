@@ -49,6 +49,7 @@ class Material():
             ID (str): Name of the material.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
+        
         self.numID = numID
         self.ID = ID
         self.type = 'standard'
@@ -73,6 +74,7 @@ class Material():
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
+        
         HA = (m0*self.mr / G.dt) + 0.5*self.sm
         HB = (m0*self.mr / G.dt) - 0.5*self.sm
         self.DA = HB / HA
@@ -155,6 +157,7 @@ class PeplinskiSoil:
             sandpartdensity (float): Density of the sand particles in the soil (g/cm3).
             watervolfraction (float): Two numbers that specify a range for the volumetric water fraction of the soil.
         """
+        
         self.ID = ID
         self.S = sandfraction
         self.C = clayfraction

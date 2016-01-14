@@ -49,6 +49,7 @@ class Snapshot:
             time (int): Iteration number to take the snapshot on.
             filename (str): Filename to save to.
         """
+        
         self.xs = xs
         self.ys = ys
         self.zs = zs
