@@ -16,15 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import os, sys
+import os, psutil
 import decimal as d
 import numpy as np
-from psutil import virtual_memory
 
 from gprMax.constants import c, floattype
 from gprMax.exceptions import CmdInputError
 from gprMax.pml import PML, CFS
-from gprMax.utilities import roundvalue, human_size
+from gprMax.utilities import round_value, human_size
 from gprMax.waveforms import Waveform
 
 
@@ -66,28 +65,15 @@ def process_singlecmds(singlecmds, multicmds, G):
     if singlecmds[cmd] != 'None':
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
         if len(tmp) != 1:
-            raise CmdInputError(cmd + ' requires exactly one parameter to specify the number of OpenMP threads to use')
+            raise CmdInputError(cmd + ' requires exactly one parameter to specify the number of threads to use')
         if tmp[0] < 1:
             raise CmdInputError(cmd + ' requires the value to be an integer not less than one')
         G.nthreads = tmp[0]
     elif ompthreads:
         G.nthreads = int(ompthreads)
     else:
-        # Set number of threads to number of physical CPU cores, i.e. avoid hyperthreading with OpenMP for now
-        if sys.platform == 'darwin':
-            G.nthreads = int(os.popen('sysctl hw.physicalcpu').readlines()[0].split(':')[1].strip())
-        elif sys.platform == 'win32':
-            # Consider using wmi tools to check hyperthreading on Windows
-            G.nthreads = os.cpu_count()
-        elif 'linux' in sys.platform:
-            lscpu = os.popen('lscpu').readlines()
-            cpusockets = [item for item in lscpu if item.startswith('Socket(s)')]
-            cpusockets = int(cpusockets[0].split(':')[1].strip())
-            corespersocket = [item for item in lscpu if item.startswith('Core(s) per socket')]
-            corespersocket = int(corespersocket[0].split(':')[1].strip())
-            G.nthreads = cpusockets * corespersocket
-        else:
-            G.nthreads = os.cpu_count()
+        # Set number of threads to number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
+        G.nthreads = psutil.cpu_count(logical=False)
     if G.messages:
             print('Number of threads: {}'.format(G.nthreads))
 
@@ -107,7 +93,7 @@ def process_singlecmds(singlecmds, multicmds, G):
     G.dy = tmp[1]
     G.dz = tmp[2]
     if G.messages:
-        print('Spatial discretisation: {:.3f} x {:.3f} x {:.3f} m'.format(G.dx, G.dy, G.dz))
+        print('Spatial discretisation: {:g} x {:g} x {:g}m'.format(G.dx, G.dy, G.dz))
 
 
     # Domain
@@ -115,13 +101,13 @@ def process_singlecmds(singlecmds, multicmds, G):
     tmp = [float(x) for x in singlecmds[cmd].split()]
     if len(tmp) != 3:
         raise CmdInputError(cmd + ' requires exactly three parameters')
-    G.nx = roundvalue(tmp[0]/G.dx)
-    G.ny = roundvalue(tmp[1]/G.dy)
-    G.nz = roundvalue(tmp[2]/G.dz)
+    G.nx = round_value(tmp[0]/G.dx)
+    G.ny = round_value(tmp[1]/G.dy)
+    G.nz = round_value(tmp[2]/G.dz)
     if G.messages:
-        print('Model domain: {:.3f} x {:.3f} x {:.3f} m ({:d} x {:d} x {:d} = {:.1f} Mcells)'.format(tmp[0], tmp[1], tmp[2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)/1e6))
+        print('Model domain: {:g} x {:g} x {:g}m ({:d} x {:d} x {:d} = {:g} cells)'.format(tmp[0], tmp[1], tmp[2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)))
         mem = (((G.nx + 1) * (G.ny + 1) * (G.nz + 1) * 13 * np.dtype(floattype).itemsize + (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * 18) * 1.1) + 30e6
-        print('Memory (RAM) usage: ~{} required, {} available'.format(human_size(mem), human_size(virtual_memory().total)))
+        print('Memory (RAM) usage: ~{} required, {} available'.format(human_size(mem), human_size(psutil.virtual_memory().total)))
 
 
     # Time step CFL limit - use either 2D or 3D (default)
@@ -147,10 +133,10 @@ def process_singlecmds(singlecmds, multicmds, G):
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
 
     # Round down time step to nearest float with precision one less than hardware maximum. Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
-    G.dt = roundvalue(G.dt, decimalplaces=d.getcontext().prec - 1)
+    G.dt = round_value(G.dt, decimalplaces=d.getcontext().prec - 1)
 
     if G.messages:
-        print('Time step: {:.3e} secs'.format(G.dt))
+        print('Time step: {:g} secs'.format(G.dt))
 
 
     # Time step stability factor
@@ -163,7 +149,7 @@ def process_singlecmds(singlecmds, multicmds, G):
             raise CmdInputError(cmd + ' requires the value of the time step stability factor to be between zero and one')
         G.dt = G.dt * tmp[0]
         if G.messages:
-            print('Time step (modified): {:.3e} secs'.format(G.dt))
+            print('Time step (modified): {:g} secs'.format(G.dt))
 
 
     # Time window
@@ -176,7 +162,7 @@ def process_singlecmds(singlecmds, multicmds, G):
     if '.' in tmp or 'e' in tmp:
         if float(tmp) > 0:
             G.timewindow = float(tmp)
-            G.iterations = roundvalue((float(tmp) / G.dt)) + 1
+            G.iterations = round_value((float(tmp) / G.dt)) + 1
         else:
             raise CmdInputError(cmd + ' must have a value greater than zero')
     # If number of iterations given
@@ -184,7 +170,7 @@ def process_singlecmds(singlecmds, multicmds, G):
         G.timewindow = (int(tmp) - 1) * G.dt
         G.iterations = int(tmp)
     if G.messages:
-        print('Time window: {:.3e} secs ({} iterations)'.format(G.timewindow, G.iterations))
+        print('Time window: {:g} secs ({} iterations)'.format(G.timewindow, G.iterations))
 
 
     # PML
@@ -207,11 +193,11 @@ def process_singlecmds(singlecmds, multicmds, G):
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
             raise CmdInputError(cmd + ' requires exactly three parameters')
-        G.srcstepx = roundvalue(float(tmp[0])/G.dx)
-        G.srcstepy = roundvalue(float(tmp[1])/G.dy)
-        G.srcstepz = roundvalue(float(tmp[2])/G.dz)
+        G.srcstepx = round_value(float(tmp[0])/G.dx)
+        G.srcstepy = round_value(float(tmp[1])/G.dy)
+        G.srcstepz = round_value(float(tmp[2])/G.dz)
         if G.messages:
-            print('All sources will step {:.3f}m, {:.3f}m, {:.3f}m for each model run.'.format(G.srcstepx * G.dx, G.srcstepy * G.dy, G.srcstepz * G.dz))
+            print('All sources will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.srcstepx * G.dx, G.srcstepy * G.dy, G.srcstepz * G.dz))
 
 
     # rx_steps
@@ -220,11 +206,11 @@ def process_singlecmds(singlecmds, multicmds, G):
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
             raise CmdInputError(cmd + ' requires exactly three parameters')
-        G.rxstepx = roundvalue(float(tmp[0])/G.dx)
-        G.rxstepy = roundvalue(float(tmp[1])/G.dy)
-        G.rxstepz = roundvalue(float(tmp[2])/G.dz)
+        G.rxstepx = round_value(float(tmp[0])/G.dx)
+        G.rxstepy = round_value(float(tmp[1])/G.dy)
+        G.rxstepz = round_value(float(tmp[2])/G.dz)
         if G.messages:
-            print('All receivers will step {:.3f}m, {:.3f}m, {:.3f}m for each model run.'.format(G.rxstepx * G.dx, G.rxstepy * G.dy, G.rxstepz * G.dz))
+            print('All receivers will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.rxstepx * G.dx, G.rxstepy * G.dy, G.rxstepz * G.dz))
 
 
     # Excitation file for user-defined source waveforms
