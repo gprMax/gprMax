@@ -32,20 +32,34 @@ parser.add_argument('outputfile', help='name of output file including path')
 parser.add_argument('-tln', default=1, type=int, help='transmission line number')
 args = parser.parse_args()
 
+print("Antenna parameter analysis from file '{}'...".format(args.outputfile))
+
 # Open output file and read some attributes
 file = args.outputfile
 f = h5py.File(file, 'r')
 dt = f.attrs['dt']
 iterations = f.attrs['Iterations']
+
+# Choose a specific frequency bin spacing
+#df = 1.5e6
+#iterations = int((1 / df) / dt)
+
+# Calculate time array and frequency bin spacing
 time = np.arange(0, dt * iterations, dt)
+time = time[0:iterations]
+df = 1 / time[-1]
 time = time / 1e-9
+
+print('Time window: {:.3e} secs ({} iterations)'.format(time[-1] * 1e-9, iterations))
+print('Time step: {:.3e} secs'.format(dt))
+print('Frequency bin spacing: {:.3f} MHz'.format(df / 1e6))
 
 # Read/calculate voltages and currents
 path = '/tls/tl' + str(args.tln) + '/'
-Vinc = f[path + 'Vinc'][:]
-Iinc = f[path + 'Iinc'][:]
-Vtotal = f[path +'Vtotal'][:]
-Itotal = f[path +'Itotal'][:]
+Vinc = f[path + 'Vinc'][0:iterations]
+Iinc = f[path + 'Iinc'][0:iterations]
+Vtotal = f[path +'Vtotal'][0:iterations]
+Itotal = f[path +'Itotal'][0:iterations]
 f.close()
 Vref = Vtotal - Vinc
 Iref = Itotal - Iinc
@@ -87,6 +101,14 @@ pltrange = np.where((np.amax(Vincp[1::]) - Vincp[1::]) > 60)[0][0] + 1
 # To a maximum frequency
 #pltrange = np.where(freqs > 2e9)[0][0]
 pltrange = np.s_[1:pltrange]
+
+# Print some useful values from s11, input impedance and admittance
+s11minfreq = np.where(s11[pltrange] == np.amin(s11[pltrange]))[0][0]
+print('s11 minimum: {:.1f} dB at {:.3f} MHz'.format(np.amin(s11[pltrange]), freqs[s11minfreq] / 1e6))
+print('At {:.3f} MHz...'.format(freqs[s11minfreq] / 1e6))
+print('Input impedance: {:.1f} {:.1f}j Ohms'.format(np.abs(zin[s11minfreq]), zin[s11minfreq].imag))
+print('Input admittance (mag): {:.3f} S'.format(np.abs(yin[s11minfreq])))
+print('Input admittance (phase): {:.0f} deg'.format(np.angle(yin[s11minfreq])))
 
 # Figure 1
 # Plot incident voltage
@@ -231,7 +253,7 @@ ax.set_title('s11')
 ax.set_xlabel('Frequency [GHz]')
 ax.set_ylabel('Power [dB]')
 #ax.set_xlim([0.88, 1.02])
-#ax.set_ylim([-20, -8])
+#ax.set_ylim([-50, -8])
 ax.grid()
 
 # Plot input resistance (real part of impedance)
