@@ -18,7 +18,7 @@
 
 import numpy as np
 
-from gprMax.utilities import roundvalue
+from gprMax.utilities import round_value
 
 
 class Waveform:
@@ -96,7 +96,7 @@ class Waveform:
                 waveform = 0
         
         elif self.type == 'user':
-            index = roundvalue(time / dt)
+            index = round_value(time / dt)
             # Check to see if there are still user specified values and if not use zero
             if index > len(self.uservalues) - 1:
                 waveform = 0
