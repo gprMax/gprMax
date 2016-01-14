@@ -19,7 +19,7 @@
 import numpy as np
 cimport numpy as np
 np.seterr(divide='raise')
-from gprMax.utilities import roundvalue
+from gprMax.utilities import round_value
 from gprMax.yee_cell_setget_rigid cimport set_rigid_Ex, set_rigid_Ey, set_rigid_Ez, set_rigid_Hx, set_rigid_Hy, set_rigid_Hz, set_rigid_E, unset_rigid_E, set_rigid_H, unset_rigid_H
 
 
@@ -271,28 +271,28 @@ cpdef build_triangle(float x1, float y1, float z1, float x2, float y2, float z2,
     # Calculate a bounding box for the triangle
     if normal == 'x':
         area = 0.5 * (-z2 * y3 + z1 * (-y2 + y3) + y1 * (z2 - z3) + y2 * z3)
-        i1 = roundvalue(np.amin([y1, y2, y3]) / dy) - 1
-        i2 = roundvalue(np.amax([y1, y2, y3]) / dy) + 1
-        j1 = roundvalue(np.amin([z1, z2, z3]) / dz) - 1
-        j2 = roundvalue(np.amax([z1, z2, z3]) / dz) + 1
-        level = roundvalue(x1 / dx)
-        thicknesscells = roundvalue(thickness / dx)
+        i1 = round_value(np.amin([y1, y2, y3]) / dy) - 1
+        i2 = round_value(np.amax([y1, y2, y3]) / dy) + 1
+        j1 = round_value(np.amin([z1, z2, z3]) / dz) - 1
+        j2 = round_value(np.amax([z1, z2, z3]) / dz) + 1
+        level = round_value(x1 / dx)
+        thicknesscells = round_value(thickness / dx)
     elif normal == 'y':
         area = 0.5 * (-z2 * x3 + z1 * (-x2 + x3) + x1 * (z2 - z3) + x2 * z3)
-        i1 = roundvalue(np.amin([x1, x2, x3]) / dx) - 1
-        i2 = roundvalue(np.amax([x1, x2, x3]) / dx) + 1
-        j1 = roundvalue(np.amin([z1, z2, z3]) / dz) - 1
-        j2 = roundvalue(np.amax([z1, z2, z3]) / dz) + 1
-        level = roundvalue(y1 /dy)
-        thicknesscells = roundvalue(thickness / dy)
+        i1 = round_value(np.amin([x1, x2, x3]) / dx) - 1
+        i2 = round_value(np.amax([x1, x2, x3]) / dx) + 1
+        j1 = round_value(np.amin([z1, z2, z3]) / dz) - 1
+        j2 = round_value(np.amax([z1, z2, z3]) / dz) + 1
+        level = round_value(y1 /dy)
+        thicknesscells = round_value(thickness / dy)
     elif normal == 'z':
         area = 0.5 * (-y2 * x3 + y1 * (-x2 + x3) + x1 * (y2 - y3) + x2 * y3)
-        i1 = roundvalue(np.amin([x1, x2, x3]) / dx) - 1
-        i2 = roundvalue(np.amax([x1, x2, x3]) / dx) + 1
-        j1 = roundvalue(np.amin([y1, y2, y3]) / dy) - 1
-        j2 = roundvalue(np.amax([y1, y2, y3]) / dy) + 1
-        level = roundvalue(z1 / dz)
-        thicknesscells = roundvalue(thickness / dz)
+        i1 = round_value(np.amin([x1, x2, x3]) / dx) - 1
+        i2 = round_value(np.amax([x1, x2, x3]) / dx) + 1
+        j1 = round_value(np.amin([y1, y2, y3]) / dy) - 1
+        j2 = round_value(np.amax([y1, y2, y3]) / dy) + 1
+        level = round_value(z1 / dz)
+        thicknesscells = round_value(thickness / dz)
 
     sign = np.sign(area)
 
@@ -356,11 +356,11 @@ cpdef build_cylindrical_sector(float ctr1, float ctr2, int level, float sectorst
     
     if normal == 'x':
         # Angles are defined from zero degrees on the positive y-axis going towards positive z-axis
-        y1 = roundvalue((ctr1 - radius)/dy)
-        y2 = roundvalue((ctr1 + radius)/dy)
-        z1 = roundvalue((ctr2 - radius)/dz)
-        z2 = roundvalue((ctr2 + radius)/dz)
-        thicknesscells = roundvalue(thickness/dx)
+        y1 = round_value((ctr1 - radius)/dy)
+        y2 = round_value((ctr1 + radius)/dy)
+        z1 = round_value((ctr2 - radius)/dz)
+        z2 = round_value((ctr2 + radius)/dz)
+        thicknesscells = round_value(thickness/dx)
         
         for y in range(y1, y2):
             for z in range(z1, z2):
@@ -373,11 +373,11 @@ cpdef build_cylindrical_sector(float ctr1, float ctr2, int level, float sectorst
 
     elif normal == 'y':
         # Angles are defined from zero degrees on the positive x-axis going towards positive z-axis
-        x1 = roundvalue((ctr1 - radius)/dx)
-        x2 = roundvalue((ctr1 + radius)/dx)
-        z1 = roundvalue((ctr2 - radius)/dz)
-        z2 = roundvalue((ctr2 + radius)/dz)
-        thicknesscells = roundvalue(thickness/dy)
+        x1 = round_value((ctr1 - radius)/dx)
+        x2 = round_value((ctr1 + radius)/dx)
+        z1 = round_value((ctr2 - radius)/dz)
+        z2 = round_value((ctr2 + radius)/dz)
+        thicknesscells = round_value(thickness/dy)
             
         for x in range(x1, x2):
             for z in range(z2, z2):
@@ -390,11 +390,11 @@ cpdef build_cylindrical_sector(float ctr1, float ctr2, int level, float sectorst
 
     elif normal == 'z':
         # Angles are defined from zero degrees on the positive x-axis going towards positive y-axis
-        x1 = roundvalue((ctr1 - radius)/dx)
-        x2 = roundvalue((ctr1 + radius)/dx)
-        y1 = roundvalue((ctr2 - radius)/dy)
-        y2 = roundvalue((ctr2 + radius)/dy)
-        thicknesscells = roundvalue(thickness/dz)
+        x1 = round_value((ctr1 - radius)/dx)
+        x2 = round_value((ctr1 + radius)/dx)
+        y1 = round_value((ctr2 - radius)/dy)
+        y2 = round_value((ctr2 + radius)/dy)
+        thicknesscells = round_value(thickness/dz)
             
         for x in range(x1, x2):
             for y in range(y1, y2):
@@ -483,23 +483,23 @@ cpdef build_cylinder(float x1, float y1, float z1, float x2, float y2, float z2,
 
     # Calculate a bounding box for the cylinder
     if x1 < x2:
-        xs = roundvalue((x1 - r) / dx) - 1
-        xf = roundvalue((x2 + r) / dx) + 1
+        xs = round_value((x1 - r) / dx) - 1
+        xf = round_value((x2 + r) / dx) + 1
     else:
-        xs = roundvalue((x2 - r) / dx) - 1
-        xf = roundvalue((x1 + r) / dx) + 1
+        xs = round_value((x2 - r) / dx) - 1
+        xf = round_value((x1 + r) / dx) + 1
     if y1 < y2:
-        ys = roundvalue((y1 - r) / dy) - 1
-        yf = roundvalue((y2 + r) / dy) + 1
+        ys = round_value((y1 - r) / dy) - 1
+        yf = round_value((y2 + r) / dy) + 1
     else:
-        ys = roundvalue((y2 - r) / dy) - 1
-        yf = roundvalue((y1 + r) / dy) + 1
+        ys = round_value((y2 - r) / dy) - 1
+        yf = round_value((y1 + r) / dy) + 1
     if z1 < z2:
-        zs = roundvalue((z1 - r) / dz) - 1
-        zf = roundvalue((z2 + r) / dz) + 1
+        zs = round_value((z1 - r) / dz) - 1
+        zf = round_value((z2 + r) / dz) + 1
     else:
-        zs = roundvalue((z2 - r) / dz) - 1
-        zf = roundvalue((z1 + r) / dz) + 1
+        zs = round_value((z2 - r) / dz) - 1
+        zf = round_value((z1 + r) / dz) + 1
 
     # Set bounds to domain if they outside
     if xs < 0:
@@ -577,12 +577,12 @@ cpdef build_sphere(int xc, int yc, int zc, float r, float dx, float dy, float dz
     cdef int i, j, k, xs, xf, ys, yf, zs, zf
     
     # Calculate a bounding box for sphere
-    xs = roundvalue(((xc * dx) - r) / dx) - 1
-    xf = roundvalue(((xc * dx) + r) / dx) + 1
-    ys = roundvalue(((yc * dy) - r) / dy) - 1
-    yf = roundvalue(((yc * dy) + r) / dy) + 1
-    zs = roundvalue(((zc * dz) - r) / dz) - 1
-    zf = roundvalue(((zc * dz) + r) / dz) + 1
+    xs = round_value(((xc * dx) - r) / dx) - 1
+    xf = round_value(((xc * dx) + r) / dx) + 1
+    ys = round_value(((yc * dy) - r) / dy) - 1
+    yf = round_value(((yc * dy) + r) / dy) + 1
+    zs = round_value(((zc * dz) - r) / dz) - 1
+    zf = round_value(((zc * dz) + r) / dz) + 1
     
     # Set bounds to domain if they outside
     if xs < 0:
