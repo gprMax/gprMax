@@ -5,8 +5,11 @@
 #
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
+import os
+
 from gprMax.exceptions import CmdInputError
 
+moduledirectory = os.path.dirname(os.path.abspath(__file__))
 
 def antenna_like_GSSI_1500(x, y, z, resolution=0.001):
     """Inserts a description of an antenna similar to the GSSI 1.5GHz antenna. Can be used with 1mm (default) or 2mm spatial resolution. The external dimensions of the antenna are 170mm x 108mm x 45mm. One output point is defined between the arms of the receiever bowtie. The bowties are aligned with the y axis so the output is the y component of the electric field.
@@ -129,14 +132,18 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001):
     #print('#geometry_view: {} {} {} {} {} {} {} {} {} antenna_like_GSSI_1500 n'.format(x - dx, y - dy, z - dz, x + casesize[0] + dx, y + casesize[1] + dy, z + skidthickness + casesize[2] + dz, dx, dy, dz))
     #print('#geometry_view: {} {} {} {} {} {} {} {} {} antenna_like_GSSI_1500_pcb f'.format(x, y, z, x + casesize[0], y + casesize[1], z + 0.010, dx, dy, dz))
     
-    # Excitation
-    print('#waveform: gaussian 1.0 {} myGaussian'.format(excitationfreq))
+    # Excitation - custom pulse
+#    print('#excitation_file: {}'.format(os.path.join(moduledirectory, 'GSSIgausspulse.txt')))
+#    print('#transmission_line: y {} {} {} {} GSSIgausspulse'.format(tx[0], tx[1], tx[2], sourceresistance))
+
+    # Excitation - Gaussian pulse
+    print('#waveform: gaussian 1 {} myGaussian'.format(excitationfreq))
     print('#voltage_source: y {} {} {} {} myGaussian'.format(tx[0], tx[1], tx[2], sourceresistance))
     
     # Output point - transmitter bowtie
     #print('#rx: {} {} {}'.format(tx[0], tx[1], tx[2]))
     # Output point - receiver bowtie
-    print('#rx: {} {} {}'.format(tx[0] - 0.059, tx[1], tx[2]))
+    print('#rx: {} {} {} rxbowtie Ey'.format(tx[0] - 0.059, tx[1], tx[2]))
 
 
 
@@ -340,5 +347,5 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001):
     # Output point - transmitter bowtie
     #print('#rx: {} {} {}'.format(tx[0], tx[1], tx[2]))
     # Output point - receiver bowtie
-    print('#rx: {} {} {}'.format(tx[0] + 0.076, tx[1], tx[2]))
+    print('#rx: {} {} {} rxbowtie Ey'.format(tx[0] + 0.076, tx[1], tx[2]))
 
