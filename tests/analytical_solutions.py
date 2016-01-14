@@ -1,7 +1,7 @@
 import numpy as np
 
 from gprMax.constants import c, e0
-from gprMax.utilities import roundvalue
+from gprMax.utilities import round_value
 from gprMax.waveforms import Waveform
 
 
@@ -37,7 +37,7 @@ def hertzian_dipole_fs(timewindow, dt, dxdydz, rx):
     wdot.freq = w.freq
 
     # Time
-    iterations = roundvalue(timewindow / dt)
+    iterations = round_value(timewindow / dt)
     time = np.linspace(0, timewindow, iterations)
 
     # Spatial resolution
