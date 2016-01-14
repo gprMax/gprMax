@@ -122,7 +122,7 @@ for rx in range(1, nrx + 1):
     # If multiple fields required, creat all nine subplots and populate only the specified ones
     else:
         fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [ns]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
-        gs = gridspec.GridSpec(3, 3, hspace=0.3)
+        gs = gridspec.GridSpec(3, 3, hspace=0.3, wspace=0.3)
         for output in args.outputs:
             # Check if requested output is in file
             if output not in availablecomponents:
