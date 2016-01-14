@@ -22,8 +22,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-from gprMax.constants import complextype
-
 """Plots antenna parameters (s11 parameter and input impedance and admittance) from an output file containing a transmission line source."""
 
 # Parse command line arguments
@@ -47,12 +45,12 @@ iterations = f.attrs['Iterations']
 # Calculate time array and frequency bin spacing
 time = np.arange(0, dt * iterations, dt)
 time = time[0:iterations]
-df = 1 / time[-1]
+df = 1 / np.amax(time)
 time = time / 1e-9
 
-print('Time window: {:.3e} secs ({} iterations)'.format(time[-1] * 1e-9, iterations))
-print('Time step: {:.3e} secs'.format(dt))
-print('Frequency bin spacing: {:.3f} MHz'.format(df / 1e6))
+print('Time window: {:g} secs ({} iterations)'.format(np.amax(time) * 1e-9, iterations))
+print('Time step: {:g} secs'.format(dt))
+print('Frequency bin spacing: {:g} MHz'.format(df / 1e6))
 
 # Read/calculate voltages and currents
 path = '/tls/tl' + str(args.tln) + '/'
@@ -64,51 +62,45 @@ f.close()
 Vref = Vtotal - Vinc
 Iref = Itotal - Iinc
 
-# Calculate magnitude of FFTs of voltages and currents
-Vincp = np.abs(np.fft.fft(Vinc))
-freqs = np.fft.fftfreq(Vincp.size, d=dt)
-delaycorrection = np.zeros(Vincp.size, dtype=complextype)
-delaycorrection = np.exp(-1j * np.pi * freqs * dt)
-Iincp = np.abs(np.fft.fft(Iinc))
-Vrefp = np.abs(np.fft.fft(Vref))
-Irefp = np.abs(np.fft.fft(Iref))
-Vtotalp = np.abs(np.fft.fft(Vtotal))
-Itotalp = np.abs(np.fft.fft(Itotal))
+# Frequency bins
+freqs = np.fft.fftfreq(Vinc.size, d=dt)
+
+# Delay correction to ensure voltage and current are at same time step
+delaycorrection = np.exp(-1j * 2 * np.pi * freqs * (dt /2 ))
 
 # Calculate s11
-s11 = Vrefp / Vincp
+s11 = np.abs(np.fft.fft(Vref) * delaycorrection) / np.abs(np.fft.fft(Vinc) * delaycorrection)
 
 # Calculate input impedance
-zin = np.zeros(iterations, dtype=complextype)
 zin = (np.fft.fft(Vtotal) * delaycorrection) / np.fft.fft(Itotal)
 
 # Calculate input admittance
-yin = np.zeros(iterations, dtype=complextype)
 yin = np.fft.fft(Itotal) / (np.fft.fft(Vtotal) * delaycorrection)
 
 # Convert to decibels
-Vincp = 20 * np.log10(Vincp)
-Iincp = 20 * np.log10(Iincp)
-Vrefp = 20 * np.log10(Vrefp)
-Irefp = 20 * np.log10(Irefp)
-Vtotalp = 20 * np.log10(Vtotalp)
-Itotalp = 20 * np.log10(Itotalp)
+Vincp = 20 * np.log10(np.abs((np.fft.fft(Vinc) * delaycorrection)))
+Iincp = 20 * np.log10(np.abs(np.fft.fft(Iinc)))
+Vrefp = 20 * np.log10(np.abs((np.fft.fft(Vref) * delaycorrection)))
+Irefp = 20 * np.log10(np.abs(np.fft.fft(Iref)))
+Vtotalp = 20 * np.log10(np.abs((np.fft.fft(Vtotal) * delaycorrection)))
+Itotalp = 20 * np.log10(np.abs(np.fft.fft(Itotal)))
 s11 = 20 * np.log10(s11)
 
 # Set plotting range
+pltrangemin = 1
 # To a certain drop from maximum power
-pltrange = np.where((np.amax(Vincp[1::]) - Vincp[1::]) > 60)[0][0] + 1
+pltrangemax = np.where((np.amax(Vincp[1::]) - Vincp[1::]) > 60)[0][0] + 1
 # To a maximum frequency
-#pltrange = np.where(freqs > 2e9)[0][0]
-pltrange = np.s_[1:pltrange]
+pltrangemax = np.where(freqs > 2e9)[0][0]
+pltrange = np.s_[pltrangemin:pltrangemax]
 
 # Print some useful values from s11, input impedance and admittance
 s11minfreq = np.where(s11[pltrange] == np.amin(s11[pltrange]))[0][0]
-print('s11 minimum: {:.1f} dB at {:.3f} MHz'.format(np.amin(s11[pltrange]), freqs[s11minfreq] / 1e6))
-print('At {:.3f} MHz...'.format(freqs[s11minfreq] / 1e6))
-print('Input impedance: {:.1f} {:.1f}j Ohms'.format(np.abs(zin[s11minfreq]), zin[s11minfreq].imag))
-print('Input admittance (mag): {:.3f} S'.format(np.abs(yin[s11minfreq])))
-print('Input admittance (phase): {:.0f} deg'.format(np.angle(yin[s11minfreq])))
+print('s11 minimum: {:g} dB at {:g} MHz'.format(np.amin(s11[pltrange]), freqs[s11minfreq + pltrangemin] / 1e6))
+print('At {:g} MHz...'.format(freqs[s11minfreq + pltrangemin] / 1e6))
+print('Input impedance: {:.1f}{:+.1f}j Ohms'.format(np.abs(zin[s11minfreq + pltrangemin]), zin[s11minfreq + pltrangemin].imag))
+print('Input admittance (mag): {:g} S'.format(np.abs(yin[s11minfreq + pltrangemin])))
+print('Input admittance (phase): {:.1f} deg'.format(np.angle(yin[s11minfreq + pltrangemin], deg=True)))
 
 # Figure 1
 # Plot incident voltage
@@ -267,7 +259,7 @@ ax.set_title('Input impedance (resistive)')
 ax.set_xlabel('Frequency [GHz]')
 ax.set_ylabel('Resistance [Ohms]')
 #ax.set_xlim([0.88, 1.02])
-#ax.set_ylim([65, 105])
+#ax.set_ylim([0, 1000])
 ax.grid()
 
 # Plot input reactance (imaginery part of impedance)
@@ -281,7 +273,7 @@ ax.set_title('Input impedance (reactive)')
 ax.set_xlabel('Frequency [GHz]')
 ax.set_ylabel('Reactance [Ohms]')
 #ax.set_xlim([0.88, 1.02])
-#ax.set_ylim([-60, 60])
+#ax.set_ylim([-1000, 1000])
 ax.grid()
 
 # Plot input admittance (magnitude)
