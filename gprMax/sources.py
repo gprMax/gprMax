@@ -20,7 +20,7 @@ import numpy as np
 
 from gprMax.constants import c, floattype
 from gprMax.grid import Ix, Iy, Iz
-from gprMax.utilities import roundvalue
+from gprMax.utilities import round_value
 
 
 class VoltageSource:
@@ -182,7 +182,7 @@ class TransmissionLine:
         self.dl = c * G.dt
         
         # Number of nodes in the transmission line (initially a long line to calculate incident voltage and current); consider putting ABCs/PML at end
-        self.nl = roundvalue(0.667 * G.iterations)
+        self.nl = round_value(0.667 * G.iterations)
         
         # Nodal position of the one-way injector excitation in the transmission line
         self.srcpos = 5
