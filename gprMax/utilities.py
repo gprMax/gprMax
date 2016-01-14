@@ -57,6 +57,7 @@ along with gprMax.  If not, see <http://www.gnu.org/licenses/>."""
     
     width = 65
     url = 'www.gprmax.com'
+    print('\nElectromagnetic modelling software based on the Finite-Difference \nTime-Domain (FDTD) method')
     print('\n{} {} {}'.format('*'*round((width - len(url))/2), url, '*'*round((width - len(url))/2)))
     gprMaxlogo = Figlet(font='standard', width=width, justify='center')
     print('{}'.format(gprMaxlogo.renderText('gprMax')))
