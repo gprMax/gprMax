@@ -17,10 +17,9 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-np.seterr(divide='raise')
 
 from gprMax.constants import floattype, complextype
-from gprMax.utilities import roundvalue
+from gprMax.utilities import round_value
 
 
 class FractalSurface:
@@ -229,8 +228,8 @@ class Grass:
 
         x = self.geometryparams[blade, 2] * (height / self.geometryparams[blade, 0]) * (height / self.geometryparams[blade, 0])
         y = self.geometryparams[blade, 3] * (height / self.geometryparams[blade, 1]) * (height / self.geometryparams[blade, 1])
-        x = roundvalue(x)
-        y = roundvalue(y)
+        x = round_value(x)
+        y = round_value(y)
 
         return x, y
 
