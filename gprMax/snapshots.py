@@ -21,7 +21,7 @@ import numpy as np
 from struct import pack
 
 from gprMax.constants import floattype
-from gprMax.utilities import roundvalue
+from gprMax.utilities import round_value
 
 
 class Snapshot:
@@ -83,12 +83,12 @@ class Snapshot:
             self.filename = G.inputdirectory + self.filename + '_' + str(modelrun) + '.vti'
         
         # Calculate number of cells according to requested sampling
-        self.vtk_xscells = roundvalue(self.xs / self.dx)
-        self.vtk_xfcells = roundvalue(self.xf / self.dx)
-        self.vtk_yscells = roundvalue(self.ys / self.dy)
-        self.vtk_yfcells = roundvalue(self.yf / self.dz)
-        self.vtk_zscells = roundvalue(self.zs / self.dz)
-        self.vtk_zfcells = roundvalue(self.zf / self.dz)
+        self.vtk_xscells = round_value(self.xs / self.dx)
+        self.vtk_xfcells = round_value(self.xf / self.dx)
+        self.vtk_yscells = round_value(self.ys / self.dy)
+        self.vtk_yfcells = round_value(self.yf / self.dz)
+        self.vtk_zscells = round_value(self.zs / self.dz)
+        self.vtk_zfcells = round_value(self.zf / self.dz)
         vtk_hfield_offset = 3 * np.dtype(floattype).itemsize * (self.vtk_xfcells - self.vtk_xscells) * (self.vtk_yfcells - self.vtk_yscells) * (self.vtk_zfcells - self.vtk_zscells) + np.dtype(np.uint32).itemsize
 #        vtk_current_offset = 2 * vtk_hfield_offset
 
