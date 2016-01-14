@@ -74,13 +74,13 @@ def update_progress(progress):
     
     # Modify this to change the length of the progress bar
     barLength = 50
-    block = roundvalue(barLength * progress)
+    block = round_value(barLength * progress)
     text = '\r|{}| {:2.1f}%'.format( '#' * block + '-' * (barLength - block), progress * 100)
     sys.stdout.write(text)
     sys.stdout.flush()
 
 
-def roundvalue(value, decimalplaces=0):
+def round_value(value, decimalplaces=0):
     """Rounding function.
         
     Args:
