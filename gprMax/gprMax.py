@@ -22,9 +22,7 @@
 __version__ = '3.0.0b15'
 versionname = ' (Bowmore)'
 
-import sys, os, datetime, itertools, argparse, importlib
-if sys.platform != 'win32':
-    import resource
+import argparse, datetime, importlib, itertools, os, psutil, sys
 from time import perf_counter
 from copy import deepcopy
 from enum import Enum
@@ -343,6 +341,9 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
     """
     
+    # Monitor memory usage
+    p = psutil.Process()
+    
     print('\n{}\n\nModel input file: {}\n'.format(68*'*', inputfile))
     
     # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
@@ -455,14 +456,14 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         
         if G.messages:
             if material.deltaer and material.tau:
-                tmp = 'delta_epsr={}, tau={} secs; '.format(','.join('%4.2f' % deltaer for deltaer in material.deltaer), ','.join('%4.3e' % tau for tau in material.tau))
+                tmp = 'delta_epsr={:g}, tau={:g} secs; '.format(','.join('%g' % deltaer for deltaer in material.deltaer), ','.join('%g' % tau for tau in material.tau))
             else:
                 tmp = ''
             if material.average:
                 dielectricsmoothing = 'dielectric smoothing permitted.'
             else:
                 dielectricsmoothing = 'dielectric smoothing not permitted.'
-            print('{:3}\t{:12}\tepsr={:4.2f}, sig={:.3e} S/m; mur={:4.2f}, sig*={:.3e} Ohms/m; '.format(material.numID, material.ID, material.er, material.se, material.mr, material.sm) + tmp + dielectricsmoothing)
+            print('{:3}\t{:12}\tepsr={:g}, sig={:g} S/m; mur={:g}, sig*={:g} S/m; '.format(material.numID, material.ID, material.er, material.se, material.mr, material.sm) + tmp + dielectricsmoothing)
     
     # Write files for any geometry views
     if G.geometryviews:
@@ -598,8 +599,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         f.close()
         tsolveend = perf_counter()
         print('\n\nSolving took [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsolveend - tsolvestart))))
-        if sys.platform != 'win32':
-            print('Peak memory (approx) used: {}'.format(human_size(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)))
+        print('Peak memory (approx) used: {}'.format(human_size(p.memory_info().rss)))
 
 
 
