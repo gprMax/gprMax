@@ -17,7 +17,7 @@ This example demonstrates a model of a half-wavelength wire dipole antenna in fr
     :language: none
     :linenos:
 
-The wire is modelled using the ``#edge`` command which specifies properties of the edge of the Yee cell. The antenna is fed using the ``#transmission_line`` command. The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input impedance (:math:`Z_0`) of 73 Ohms specified in the ``#transmission_line`` command, and uses a Gaussian waveform with a centre frequency of 1GHz. A time window of 30ns is used: firstly, to give enough time for the response to settle to a steady state; and secondly, to allow a reasonable (33MHz) spacing for the frequency bins when calculating FFTs, as :math:`df=1/T` where :math:`df' is the frequency bin spacing and :math:`T' is the time window.
+The wire is modelled using the ``#edge`` command which specifies properties of the edge of the Yee cell. The antenna is fed using the ``#transmission_line`` command. The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input impedance (:math:`Z_0`) of 73 Ohms specified in the ``#transmission_line`` command, and uses a Gaussian waveform with a centre frequency of 1GHz. A time window of 60ns is used: firstly, to give enough time for the response to settle to a steady state; and secondly, to allow a reasonable (17MHz) spacing for the frequency bins when calculating FFTs, as :math:`\Delta f=1/T` where :math:`\Delta f' is the frequency bin spacing and :math:`T' is the time window.
 
 Time histories of voltage and current values in the transmission line are saved to the output file. These are documented in the :ref:`output file section <output>`. These parameters are useful for calculating characteristics of the antenna such as the input impedance or S-parameters. gprMax includes a Python module (in the ``tools`` package) to help you view the input impedance and admittance and s11 parameter from an antenna model fed using a transmission line. Details of how to use this module is given in the :ref:`tools section <plotting>`.
 
@@ -29,14 +29,14 @@ Results
 .. figure:: images/antenna_wire_dipole_fs_tl_params.png
     :width: 600px
 
-    Time and frequency domain plots of the incident and total (incident + reflected) voltages and currents in the transmission line.
+    Time and frequency domain plots of the incident and total (incident + reflected) voltages and currents in the transmission line (:math:`\Delta f = 17~MHz`).
 
 .. _antenna_wire_dipole_fs_ant_params:
 
 .. figure:: images/antenna_wire_dipole_fs_ant_params.png
     :width: 600px
 
-    Input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna.
+    Input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna (:math:`\Delta f = 17~MHz`).
 
 .. _antenna_wire_dipole_fs_ant_params_detail:
 
@@ -46,6 +46,15 @@ Results
     Detailed view of input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna.
 
 :numref:`antenna_wire_dipole_fs_tl_params` shows time histories and frequency spectra of the incident and total (incident + reflected) voltages and currents in the transmission line. :numref:`antenna_wire_dipole_fs_ant_params` shows the input admittance and impedance (resistance and reactance), and s11 parameter of the half-wavelength wire dipole. :numref:`antenna_wire_dipole_fs_ant_params_detail` shows a more detailed view of these parameters. The s11 parameter shows that the first resonance of the antenna is at 933MHz. Depending on the radius of the wire, the length of the dipole for first resonance is about :math:`l=0.47\lambda` to :math:`0.48\lambda`. The thinner the wire the closer the resonance is to :math:`0.48\lambda` [BAL2005]_. In this case, with a first resonance of 933MHz and a length of 150mm, :math:`l/\lambda=0.47`. The input impedance is :math:`z_{in} = 71 - j16~\Omega`. If :math:`l/\lambda=0.5` then the theoretical input impedance would be :math:`z_{in} = 73 + j42.5~\Omega`. The reactive (imaginery) part associated with the input impedance of a dipole is a function of its length.
+
+:numref:`antenna_wire_dipole_fs_ant_params_detail_1p4MHz` demonstrates the increased frequency resolution (:math:`\Delta f = 1.4~MHz`) when an even longer time window (700ns) is used.
+
+.. _antenna_wire_dipole_fs_ant_params_detail_1p4MHz:
+
+.. figure:: images/antenna_wire_dipole_fs_ant_params_detail_1p4MHz.png
+    :width: 600px
+
+    Detailed view of input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna (:math:`\Delta f = 1.4~MHz`)
 
 
 Bowtie antenna model
