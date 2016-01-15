@@ -32,7 +32,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
     patchheight = 0.015
     
     # Unknown properties
-    if 'kwargs' in locals():
+    if kwargs:
         excitationfreq = kwargs['excitationfreq']
         sourceresistance = kwargs['sourceresistance']
         absorberEr = kwargs['absorberEr']
@@ -144,8 +144,8 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
     #print('#geometry_view: {} {} {} {} {} {} {} {} {} antenna_like_GSSI_1500_pcb f'.format(x, y, z, x + casesize[0], y + casesize[1], z + 0.010, dx, dy, dz))
     
     # Excitation - custom pulse
-#    print('#excitation_file: {}'.format(os.path.join(moduledirectory, 'GSSIgausspulse.txt')))
-#    print('#transmission_line: y {} {} {} {} GSSIgausspulse'.format(tx[0], tx[1], tx[2], sourceresistance))
+    #print('#excitation_file: {}'.format(os.path.join(moduledirectory, 'GSSIgausspulse1.txt')))
+    #print('#transmission_line: y {} {} {} {} GSSIgausspulse1'.format(tx[0], tx[1], tx[2], sourceresistance))
 
     # Excitation - Gaussian pulse
     print('#waveform: gaussian 1 {} myGaussian'.format(excitationfreq))
@@ -179,7 +179,7 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     bowtieheight = 0.025
     
     # Unknown properties
-    if 'kwargs' in locals():
+    if kwargs:
         excitationfreq = kwargs['excitationfreq']
         sourceresistance = kwargs['sourceresistance']
         absorberEr = kwargs['absorberEr']
