@@ -92,8 +92,8 @@ Python scriptable input files
 
 The input file has now been made scriptable by permitting blocks of Python code to be specified between ``#python`` and ``#end_python`` commands. The code is executed when the input file is read by gprMax. You don't need any external tools, such as MATLAB, to generate larger, more complex input files for building intricate models. Python scripting means that gprMax now includes :ref:`libraries of more complex objects, such as antennas <antennas>`, that can be easily inserted into a model. You can also access a number of built-in constants from your Python code. For further details see the :ref:`Python section <python>`.
 
-Dispersive media
-----------------
+Dispersive materials
+--------------------
 
 gprMax has always included the ability to represent dispersive materials using a single-pole Debye model. Many materials can be adequately represented using this approach for the typical frequency ranges associated with GPR. However, multi-pole Debye, Drude and Lorentz functions are often used to simulate the electric susceptibility of materials such as: water [PIE2009]_, human tissue [IRE2013]_, cold plasma [LI2013]_, gold [VIA2005]_, and soils [BER1998]_, [GIAK2012]_, [TEI1998]_. Electric susceptibility relates the polarization density to the electric field, and includes both the real and imaginary parts of the complex electric permittivity variation. In the new version of gprMax a recursive convolution based method is used to express dispersive properties as apparent current density sources [GIA2014]_. A major advantage of this implementation is that it creates an inclusive susceptibility function that holds, as special cases, Debye, Drude and Lorentz materials. For further details see the :ref:`material commands section <materials>`.
 
@@ -113,8 +113,8 @@ Library of antenna models
 
 gprMax now includes Python modules with pre-defined models of antennas that behave similarly to commercial antennas [WAR2011]_. Currently models of antennas similar to Geophysical Survey Systems, Inc. (GSSI) (http://www.geophysical.com) 1.5 GHz (Model 5100) antenna, and MALA Geoscience (http://www.malags.com/) 1.2 GHz antenna are included. By taking advantage of Python scripting in input files, using such complex structures in a model is straightforward without having to be built step-by-step by the user. For further details see the :ref:`Python section <python>`.
 
-Anisotropy
-----------
+Anisotropic materials
+---------------------
 
 It is possible to specify objects that have diagonal anisotropy which allows materials such as wood and fibre-reinforced composites, often imaged with GPR, to be more accurately modelled. Standard isotropic objects specify one material identifier that defines the same properties in x, y, and z directions. However, every volumetric object building command can also be specified with three material identifiers, which allows properties for the x, y, and z directions to be separately defined.
 
