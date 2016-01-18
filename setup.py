@@ -107,7 +107,7 @@ elif sys.platform == 'darwin':
     if gccpath:
         os.environ['CC'] = gccpath[0].split(os.sep)[-1]
     else:
-        raise('Cannot find gcc in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh).')
+        raise('Cannot find gcc in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc won't be installed with OpenMP support at first, reinstall gcc using brew without multilib support')
     compile_args = ['-O3', '-fopenmp', '-w']
     linker_args = ['-fopenmp']
 # Linux
