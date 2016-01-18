@@ -1,0 +1,11 @@
+name: gprMax
+dependencies:
+- python>=3.5.1
+- cython
+- h5py
+- matplotlib
+- numpy
+- psutil
+- pip:
+  - pyfiglet
+
