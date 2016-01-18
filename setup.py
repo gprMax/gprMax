@@ -103,7 +103,11 @@ if sys.platform == 'win32':
     linker_args = ['/openmp']
 # Mac OS X - needs gcc (usually via HomeBrew) because the default compiler LLVM (clang) does not support OpenMP
 elif sys.platform == 'darwin':
-    os.environ['CC'] = glob.glob('/usr/local/bin/gcc-[4-5]*')[0].split(os.sep)[-1]
+    gccpath = glob.glob('/usr/local/bin/gcc-[4-5]*')
+    if gccpath:
+        os.environ['CC'] = gccpath[0].split(os.sep)[-1]
+    else:
+        raise('Cannot find gcc in /usr/local/bin. gprMax requires gcc to be installed.')
     compile_args = ['-O3', '-fopenmp', '-w']
     linker_args = ['-fopenmp']
 # Linux
