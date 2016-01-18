@@ -776,7 +776,7 @@ For example, to specify a y directed voltage source with an internal resistance 
 #transmission_line:
 -------------------
 
-Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at an electric field location. The transmission line has a specified resistance. It is useful for exciting antennas when the physical properties of the antenna are included in the model. The syntax of the command is:
+Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at an electric field location. The transmission line can have a specified resistance greater than zero and less than the impedance of free space (376.73 Ohms). It is useful for exciting antennas when the physical properties of the antenna are included in the model. The syntax of the command is:
 
 .. code-block:: none
 
@@ -784,7 +784,7 @@ Allows you to introduce a one-dimensional transmission line model [MAL1994]_ at 
 
 * ``c1`` is the polarisation of the transmission line and can be ``x``, ``y``, or ``z``.
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the transmission line in the model.
-* ``f4`` is the characteristic resistance of the transmission line source in Ohms.
+* ``f4`` is the characteristic resistance of the transmission line source in Ohms. It can be any value greater than zero and less than the impedance of free space (376.73 Ohms).
 * ``f5 f6`` are optional parameters. ``f5`` is a time delay in starting the excitation of the transmission line. ``f6`` is a time to remove the excitation of the transmission line. If the time window is longer than the excitation of the transmission line removal time then the excitation of the transmission line will stop after the excitation of the transmission line removal time. If the excitation of the transmission line removal time is longer than the time window then the excitation of the transmission line will be active for the entire time window. If ``f5 f6`` are omitted the excitation of the transmission line will start at the beginning of time window and stop at the end of the time window.
 * ``str1`` is the identifier of the waveform that should be used with the source.
 

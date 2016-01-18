@@ -265,8 +265,8 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' z-coordinate is not within the model domain')
             if positionx < G.pmlthickness[0] or positionx > G.nx - G.pmlthickness[3] or positiony < G.pmlthickness[1] or positiony > G.ny - G.pmlthickness[4] or positionz < G.pmlthickness[2] or positionz > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.')
-            if resistance <= 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a resistance greater than zero')
+            if resistance <= 0 or resistance > 376.7:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a resistance greater than zero and less than the impedance of free space, i.e. 376.73 Ohms')
                     
             # Check if there is a waveformID in the waveforms list
             if not any(x.ID == tmp[5] for x in G.waveforms):
