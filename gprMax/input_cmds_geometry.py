@@ -762,7 +762,7 @@ def process_geometrycmds(geometry, G):
             volume.weighting = (float(tmp[8]), float(tmp[9]), float(tmp[10]))
 
             if G.messages:
-                print('Fractal box {} from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with {}, fractal dimension {:g}, fractal weightings {:g}, {:g}, {:g}, fractal seeding {:g} and with {} values created.'.format(volume.ID, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, volume.operatingonID, volume.dimension, volume.weighting[0], volume.weighting[1], volume.weighting[2], volume.seed, volume.nbins))
+                print('Fractal box {} from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with {}, fractal dimension {:g}, fractal weightings {:g}, {:g}, {:g}, fractal seeding {} and with {} values created.'.format(volume.ID, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, volume.operatingonID, volume.dimension, volume.weighting[0], volume.weighting[1], volume.weighting[2], volume.seed, volume.nbins))
 
             G.fractalvolumes.append(volume)
 
@@ -881,7 +881,7 @@ def process_geometrycmds(geometry, G):
                         volume.fractalsurfaces.append(surface)
 
                         if G.messages:
-                            print('Fractal surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}m, fractal weightings {:g}m, {:g}m, fractal seeding {:g}m, and range {:g}m to {:g}m, added to {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.weighting[0], surface.weighting[1], surface.seed, float(tmp[10]), float(tmp[11]), surface.operatingonID))
+                            print('Fractal surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}m, fractal weightings {:g}m, {:g}m, fractal seeding {}, and range {:g}m to {:g}m, added to {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.weighting[0], surface.weighting[1], surface.seed, float(tmp[10]), float(tmp[11]), surface.operatingonID))
 
                 if tmp[0] == '#add_surface_water:':
                     if len(tmp) != 9:
@@ -1138,7 +1138,7 @@ def process_geometrycmds(geometry, G):
                         volume.fractalsurfaces.append(surface)
 
                         if G.messages:
-                            print('{} blades of grass on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}m, fractal seeding {:g}m and range {:g}m to {:g}m, added to {}.'.format(numblades, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.seed, float(tmp[8]), float(tmp[9]), surface.operatingonID))
+                            print('{} blades of grass on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}m, fractal seeding {} and range {:g}m to {:g}m, added to {}.'.format(numblades, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.seed, float(tmp[8]), float(tmp[9]), surface.operatingonID))
 
                 
             # Process any modifications to the original fractal box then generate it
