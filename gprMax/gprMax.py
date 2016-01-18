@@ -456,7 +456,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         
         if G.messages:
             if material.deltaer and material.tau:
-                tmp = 'delta_epsr={:g}, tau={:g} secs; '.format(','.join('%g' % deltaer for deltaer in material.deltaer), ','.join('%g' % tau for tau in material.tau))
+                tmp = 'delta_epsr={}, tau={} secs; '.format(', '.join('{:g}'.format(deltaer) for deltaer in material.deltaer), ', '.join('{:g}'.format(tau) for tau in material.tau))
             else:
                 tmp = ''
             if material.average:
