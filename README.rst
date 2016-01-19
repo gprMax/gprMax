@@ -47,13 +47,15 @@ Software structure
 * ``user_libs`` is a sub-package where useful modules contributed by users are stored.
 * ``user_models`` is a sub-package where useful input files contributed by users are stored.
 
-Installation (End users)
-========================
+Installation
+============
 
-You should use the following guidance if you intend to use gprMax `without` developing the code. There are 2 main steps to the installation:
+You should use the following guidance to install gprMax:
 
-1. Getting the code
-2. Installing Python, packages, and C libraries
+1. Get the code
+2. Install Python and required Python packages
+3. (**Developers only**) Install a C compiler which support OpenMP
+4. (**Developers only**) Compile the Cython extensions
 
 1. Get the code
 ---------------
@@ -64,110 +66,60 @@ You should use the following guidance if you intend to use gprMax `without` deve
     * Download zip files of the `source code` and `binary extensions` for your platform (``windows`` for 32-bit or 64-bit versions of Microsoft Windows or ``linux_macosx`` for 64-bit versions of Linux or Mac OS X).
     * Expand both zip files and copy the contents of the ``windows`` or ``linux_macosx`` directory into the ``gprMax-v.X.Y.Z/gprMax`` directory.
 
-2. Install Python, packages, and C libraries
---------------------------------------------
+* (**Developers only**) Use **Git** (https://git-scm.com) and clone the master branch of the repository: :code:`git clone https://github.com/gprMax/gprMax.git`
 
-Mac OS X and Linux
-^^^^^^^^^^^^^^^^^^
+2. Install Python and required Python packages
+----------------------------------------------
 
-* Install Python 3 (https://www.python.org/downloads/)
+We recommend using Miniconda to install Python and the required Python packages for gprMax. Miniconda is a mini version of Anaconda which is a completely free Python distribution (including for commercial use and redistribution). It includes more than 300 of the most popular Python packages for science, math, engineering, and data analysis. Using Miniconda enables you to create a self-contained Python environment with all the required Python packages for gprMax.
 
-    * Mac OS X: It is recommended to install Python 3 via the Homebrew package manager (http://brew.sh) rather than from the Python website.
-
-* Install Python packages: **cython, h5py, matplotlib, numpy, psutil, pyfiglet**. Optionally **mpi4py** if you want to use the Message Passing Interface (MPI) task farm functionality (requires an installation of OpenMPI).
-
-    * Mac OS X: packages can be installed using the :code:`pip` package manager which comes with Python, e.g. :code:`pip install cython`. To check what packages are installed use :code:`pip list`.
-    * Linux: packages can be installed using the :code:`pip` package manager which comes with Python, e.g. :code:`pip install cython`, or alternatively using the :code:`apt-get` package manager, e.g. :code:`sudo apt-get install python3-cython`. To check what packages are installed use :code:`pip list`.
-
-* Install/Check C libraries:
-
-    * Mac OS X: gcc is easily installed using the Homebrew package manager (http://brew.sh). Installations of Xcode on Mac OS X come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install gcc.
-    * Linux: gcc (https://gcc.gnu.org) should be already installed, so no action is required.
-
-
-Microsoft Windows
-^^^^^^^^^^^^^^^^^
-
-* Install Python 3 (https://www.python.org/downloads/)
-* Install Python packages:
-
-    * Use the :code:`pip` package manager, which comes with Python, to install the **cython, pyfiglet, pyparsing, python-dateutil, and pytz** packages, e.g. :code:`pip install cython`. To check what packages are installed use :code:`pip list`.
-    * Download binaries of packages **psutil, numpy, h5py,  matplotlib** from http://www.lfd.uci.edu/~gohlke/pythonlibs/, and then install (in the aforementioned order) using ``pip``, e.g. :code:`pip install numpy-1.9.2+mkl-cp35-none-win_amd64.whl`
-
-* Install the Microsoft Visual Studio 2015 C++ Redistributable (``vc_redist.x86.exe`` for 32-bit or ``vc_redist.x64.exe`` for 64-bit) from https://www.microsoft.com/en-us/download/details.aspx?id=48145.
+* Install the Python 3.5 version of Miniconda for your platform (http://conda.pydata.org/miniconda.html).  Follow the instructions for your platform (http://conda.pydata.org/docs/install/quick.html) if you are having any trouble.
+* Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the top-level gprMax directory.
+* Update conda :code:`conda update conda`
+* Create an environment (using the supplied environment file) for gprMax with all the necessary Python packages :code:`conda env create -f conda_env.yml`
 
 **You are now ready to proceed to the section on running gprMax.**
 
 
-Installation (Developers)
-=========================
+3. (**Developers only**) Install a C compiler which supports OpenMP
+-------------------------------------------------------------------
 
-You should use the following guidance if you intend to develop the gprMax code. There are 3 main steps to the installation:
+Linux
+^^^^^
 
-1. Getting the code
-2. Installing Python, packages, and a C compiler
-3. Compiling the Cython extensions
-
-1. Get the code
----------------
-
-* Use **Git** (https://git-scm.com) and clone the master branch of the repository: :code:`git clone https://github.com/gprMax/gprMax.git`
-* or **download a zip archive** of the code from https://github.com/gprMax/gprMax. Choose the ``Download ZIP`` button from the top header.
+* gcc (https://gcc.gnu.org) should be already installed, so no action is required.
 
 
-2. Install Python, packages, and a C compiler
----------------------------------------------
+Mac OS X
+^^^^^^^^
 
-Mac OS X and Linux
-^^^^^^^^^^^^^^^^^^
+* gcc (https://gcc.gnu.org) is easily installed using the Homebrew package manager (http://brew.sh) :code:`brew install gcc --without-multilib`.
 
-* Install Python 3 (https://www.python.org/downloads/)
+.. warning::
 
-    * Mac OS X: It is recommended to install Python 3 via the Homebrew package manager (http://brew.sh) rather than from the Python website.
-
-* Install Python packages: **cython, h5py, matplotlib, numpy, psutil, pyfiglet**. Optionally **mpi4py** if you want to use the Message Passing Interface (MPI) task farm functionality (requires an installation of OpenMPI).
-
-    * Mac OS X: packages can be installed using the :code:`pip` package manager which comes with Python, e.g. :code:`pip install cython`. To check what packages are installed use :code:`pip list`.
-    * Linux: packages can be installed using the :code:`pip` package manager which comes with Python, e.g. :code:`pip install cython`, or alternatively using the :code:`apt-get` package manager, e.g. :code:`sudo apt-get install python3-cython`. To check what packages are installed use :code:`pip list`.
-
-* Install a C compiler which supports OpenMP:
-
-    * Mac OS X: gcc is easily installed using the Homebrew package manager (http://brew.sh). Installations of Xcode on Mac OS X come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install gcc.
-    * Linux: gcc (https://gcc.gnu.org) should be already installed, so no action is required.
+    Installations of Xcode on Mac OS X come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install gcc.
 
 
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
 
-* Install Python 3 (https://www.python.org/downloads/)
-* Install a C compiler which supports OpenMP:
-
-    * Download and install Microsoft Visual Studio 2015 Community (https://www.visualstudio.com/downloads/download-visual-studio-vs), which is free. Do a custom install and make sure under programming languages Visual C++ is selected, no other options are required.
-    * Create a new environment variable :code:`VS100COMNTOOLS` which matches the value of the existing :code:`VS140COMNTOOLS` environment variable. To set an environment variable from the Start Menu, right-click the Computer icon and select Properties. Click the Advanced System Settings link in the left column. In the System Properties window, click on the Advanced tab, then click the Environment Variables button near the bottom of that tab.
-
-* Install Python packages:
-
-    * Use the :code:`pip` package manager, which comes with Python, to install the **cython, pyfiglet, pyparsing, python-dateutil, and pytz** packages, e.g. :code:`pip install cython`. To check what packages are installed use :code:`pip list`.
-    * Download binaries of packages **psutil, numpy, h5py,  matplotlib** from http://www.lfd.uci.edu/~gohlke/pythonlibs/, and then install (in the aforementioned order) using ``pip``, e.g. :code:`pip install numpy-1.9.2+mkl-cp35-none-win_amd64.whl`
-
-.. warning::
-
-    If you use Anaconda, a popular Python distribution, please be aware that there is currently a bug with the HDF5 package (h5py) that is included with Anaconda (2.3.0). It effects 64-bit versions of Microsoft Windows (https://github.com/h5py/h5py/issues/593). If you want to use Anaconda you should upgrade the h5py package by downloading and installing the correct binary from http://www.lfd.uci.edu/~gohlke/pythonlibs/, e.g. ``pip install --upgrade h5py‑2.5.0‑cp34‑none‑win_amd64.whl``
+* Download and install Microsoft Visual Studio 2015 Community (https://www.visualstudio.com/downloads/download-visual-studio-vs), which is free. Do a custom install and make sure under programming languages Visual C++ is selected, no other options are required.
+* Create a new environment variable :code:`VS100COMNTOOLS` which matches the value of the existing :code:`VS140COMNTOOLS` environment variable. To set an environment variable from the Start Menu, right-click the Computer icon and select Properties. Click the Advanced System Settings link in the left column. In the System Properties window, click on the Advanced tab, then click the Environment Variables button near the bottom of that tab.
 
 
-3. Compile Cython extensions
-----------------------------
+4. (**Developers only**) Compile the Cython extensions
+------------------------------------------------------
 
 Once you have installed the aforementioned tools follow these steps to build the Cython extension modules for gprMax:
 
-#. Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the gprMax directory.
+#. Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the top-level gprMax directory.
 #. Compile the Cython extension modules using: :code:`python setup.py build_ext --inplace`. You should see a set of :code:`.c` source files and a set of :code:`.so` (Linux/Mac OS X) or :code:`.pyd` (Windows) compiled module files inside the gprMax directory.
 
 .. note::
 
     If you want to remove/clean Cython generated files, e.g. before rebuilding the Cython extensions, you can use :code:`python setup.py cleanall`.
 
-**You are now ready to proceed to the section on running gprMax.**
+**(Developers only) You are now ready to proceed to the section on running gprMax.**
 
 
 Run the code
