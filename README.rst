@@ -123,8 +123,8 @@ Once you have installed the aforementioned tools follow these steps to build the
 **(Developers only) You are now ready to proceed to the section on running gprMax.**
 
 
-Run the code
-============
+Running gprMax
+==============
 
 * Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the top-level gprMax directory. gprMax in designed as a Python package, i.e. a namespace which can contain multiple packages and modules, much like a directory. Basic usage of gprMax is:
 
