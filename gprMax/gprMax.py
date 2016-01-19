@@ -19,7 +19,7 @@
 """gprMax.gprMax: provides entry point main()."""
 
 # Set the version number here
-__version__ = '3.0.0b17'
+__version__ = '3.0.0b18'
 versionname = ' (Bowmore)'
 
 import argparse, datetime, importlib, itertools, os, psutil, sys
