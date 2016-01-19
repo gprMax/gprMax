@@ -113,14 +113,14 @@ Microsoft Windows
 
 Once you have installed the aforementioned tools follow these steps to build the Cython extension modules for gprMax:
 
-#. Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the top-level gprMax directory.
-#. Compile the Cython extension modules using: :code:`python setup.py build_ext --inplace`. You should see a set of :code:`.c` source files and a set of :code:`.so` (Linux/Mac OS X) or :code:`.pyd` (Windows) compiled module files inside the gprMax directory.
+a) Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the top-level gprMax directory.
+b) Compile the Cython extension modules using: :code:`python setup.py build_ext --inplace`. You should see a set of :code:`.c` source files and a set of :code:`.so` (Linux/Mac OS X) or :code:`.pyd` (Windows) compiled module files inside the gprMax directory.
 
 .. note::
 
     If you want to remove/clean Cython generated files, e.g. before rebuilding the Cython extensions, you can use :code:`python setup.py cleanall`.
 
-**(Developers only) You are now ready to proceed to the section on running gprMax.**
+**(*Developers only*) You are now ready to proceed to the section on running gprMax.**
 
 
 Running gprMax
