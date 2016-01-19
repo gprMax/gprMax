@@ -37,6 +37,9 @@ The output file contains HDF5 groups for sources (``srcs``), transmission lines 
                 Hx
                 Hy
                 Hz
+                Ix
+                Iy
+                Iz
             rx2/
                 ...
         srcs/
@@ -56,7 +59,7 @@ Within each individual ``rx`` group are the following attributes:
 * ``Name`` is optional if a name for the receiver is given in the model.
 * ``Position`` is the x, y, z position (in metres) of the receiver in the model.
 
-Within each individual ``rx`` group are the following datasets:
+Within each individual ``rx`` group can be the following datasets:
 
 * ``Ex`` is an array containing the time history (for the model time window) of the values of the x component of the electric field at that receiver position.
 * ``Ey`` is an array containing the time history (for the model time window) of the values of the y component of the electric field at that receiver position.
@@ -64,6 +67,9 @@ Within each individual ``rx`` group are the following datasets:
 * ``Hx`` is an array containing the time history (for the model time window) of the values of the x component of the magnetic field at that receiver position.
 * ``Hy`` is an array containing the time history (for the model time window) of the values of the y component of the magnetic field at that receiver position.
 * ``Hz`` is an array containing the time history (for the model time window) of the values of the z component of the magnetic field at that receiver position.
+* ``Ix`` is an array containing the time history (for the model time window) of the values of the x component of current (calculated around a single cell loop) at that receiver position.
+* ``Iy`` is an array containing the time history (for the model time window) of the values of the y component of current (calculated around a single cell loop) at that receiver position.
+* ``Iz`` is an array containing the time history (for the model time window) of the values of the z component of current (calculated around a single cell loop) at that receiver position.
 
 Within each individual ``src`` group are the following attributes:
 
