@@ -96,7 +96,7 @@ Mac OS X
 
 * gcc (https://gcc.gnu.org) is easily installed using the Homebrew package manager (http://brew.sh) :code:`brew install gcc --without-multilib`.
 
-.. warning::
+.. note::
 
     Installations of Xcode on Mac OS X come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install gcc.
 
