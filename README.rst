@@ -54,8 +54,8 @@ You should use the following guidance to install gprMax:
 
 1. Get the code
 2. Install Python and required Python packages
-3. (**Developers only**) Install a C compiler which support OpenMP
-4. (**Developers only**) Compile the Cython extensions
+3. (*Developers only*) Install a C compiler which support OpenMP
+4. (*Developers only*) Compile the Cython extensions
 
 1. Get the code
 ---------------
@@ -66,7 +66,7 @@ You should use the following guidance to install gprMax:
     * Download zip files of the `source code` and `binary extensions` for your platform (``windows`` for 32-bit or 64-bit versions of Microsoft Windows or ``linux_macosx`` for 64-bit versions of Linux or Mac OS X).
     * Expand both zip files and copy the contents of the ``windows`` or ``linux_macosx`` directory into the ``gprMax-v.X.Y.Z/gprMax`` directory.
 
-* (**Developers only**) Use **Git** (https://git-scm.com) and clone the master branch of the repository: :code:`git clone https://github.com/gprMax/gprMax.git`
+* (*Developers only*) Use **Git** (https://git-scm.com) and clone the master branch of the repository: :code:`git clone https://github.com/gprMax/gprMax.git`
 
 2. Install Python and required Python packages
 ----------------------------------------------
@@ -81,7 +81,7 @@ We recommend using Miniconda to install Python and the required Python packages 
 **You are now ready to proceed to the section on running gprMax.**
 
 
-3. (**Developers only**) Install a C compiler which supports OpenMP
+3. (*Developers only*) Install a C compiler which supports OpenMP
 -------------------------------------------------------------------
 
 Linux
@@ -107,7 +107,7 @@ Microsoft Windows
 * Create a new environment variable :code:`VS100COMNTOOLS` which matches the value of the existing :code:`VS140COMNTOOLS` environment variable. To set an environment variable from the Start Menu, right-click the Computer icon and select Properties. Click the Advanced System Settings link in the left column. In the System Properties window, click on the Advanced tab, then click the Environment Variables button near the bottom of that tab.
 
 
-4. (**Developers only**) Compile the Cython extensions
+4. (*Developers only*) Compile the Cython extensions
 ------------------------------------------------------
 
 Once you have installed the aforementioned tools follow these steps to build the Cython extension modules for gprMax:
