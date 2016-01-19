@@ -11,7 +11,7 @@ A-scans
 plot_Ascan.py
 -------------
 
-This module uses matplotlib to plot the time history for the electric and magnetic field components for any receivers in a model (each receiver gets a separate figure window). Usage (from the top-level gprMax directory) is:
+This module uses matplotlib to plot the time history for the electric and magnetic field components, and currents for all receivers in a model (each receiver gets a separate figure window). Usage (from the top-level gprMax directory) is:
 
 .. code-block:: none
 
@@ -21,14 +21,14 @@ where ``outputfile`` is the name of output file including the path.
 
 There are optional command line arguments:
 
-* ``--fields`` to specify a subset of the default field components (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy`` or ``Hz``) as a list to plot. By default all field components are plotted.
-* ``-fft`` to plot the Fast Fourier Transform (FFT) of a single field component
+* ``--outputs`` to specify a subset of the default output components (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``, ``Ix``, ``Iy`` or ``Iz``) to plot. By default all components are plotted.
+* ``-fft`` to plot the Fast Fourier Transform (FFT) of a single output component
 
-For example to plot the ``Ez`` field component with it's FFT:
+For example to plot the ``Ez`` output component with it's FFT:
 
 .. code-block:: none
 
-    python -m tools.plot_Ascan my_outputfile.out --fields Ez -fft
+    python -m tools.plot_Ascan my_outputfile.out --outputs Ez -fft
 
 B-scans
 =======
@@ -40,12 +40,12 @@ gprMax produces a separate output file for each trace (A-scan) in the B-scan. Th
 
 .. code-block:: none
 
-    python -m tools.plot_Bscan outputfile --field fieldcomponent
+    python -m tools.plot_Bscan outputfile output
 
 where:
 
 * ``outputfile`` is the name of output file including the path
-* ``--field`` is the name of field component to plot, e.g. ``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy`` or ``Hz``
+* ``output`` is the name of output component (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``, ``Ix``, ``Iy`` or ``Iz``) to plot
 
 
 Antenna parameters
