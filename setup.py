@@ -27,7 +27,7 @@ try:
 except ImportError:
     raise ImportError('The NumPy package is required to build gprMax.')
 
-import glob, os, re, shutil, sys
+import glob, os, pwd, re, shutil, sys
 
 # Main package name
 packagename = 'gprMax'
@@ -101,19 +101,27 @@ if 'cleanall' in sys.argv:
 if sys.platform == 'win32':
     compile_args = ['/O2', '/openmp', '/w']
     linker_args = ['/openmp']
+    extra_objects = []
 # Mac OS X - needs gcc (usually via HomeBrew) because the default compiler LLVM (clang) does not support OpenMP
 elif sys.platform == 'darwin':
     gccpath = glob.glob('/usr/local/bin/gcc-[4-5]*')
     if gccpath:
         os.environ['CC'] = gccpath[0].split(os.sep)[-1]
     else:
-        raise('Cannot find gcc in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support must be installed')
+        raise('Cannot find gcc 4.x or gcc 5.x in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support must be installed')
     compile_args = ['-O3', '-fopenmp', '-w']
     linker_args = ['-fopenmp']
+    extra_objects = []
+    
+    # If user is cwarren do static linking as this is for binaries uploaded to GitHub
+    if pwd.getpwuid(os.getuid())[0] == 'cwarren':
+        linker_args = ['-static-libgcc']
+        extra_objects = ['/usr/local/opt/gcc/lib/gcc/5/libgomp.a']
 # Linux
 else:
     compile_args = ['-O3', '-fopenmp', '-w']
     linker_args = ['-fopenmp']
+    extra_objects = []
 
 # Build a list of all the extensions
 extensions = []
@@ -128,7 +136,8 @@ for file in cythonfiles:
                           language='c',
                           include_dirs=[np.get_include()],
                           extra_compile_args=compile_args,
-                          extra_link_args=linker_args)
+                          extra_link_args=linker_args,
+                          extra_objects = extra_objects)
     extensions.append(extension)
 
 # Cythonize (build .c files)
