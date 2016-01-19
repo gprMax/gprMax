@@ -79,9 +79,12 @@ We recommend using Miniconda to install Python and the required Python packages 
 * Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the top-level gprMax directory.
 * Update conda :code:`conda update conda`
 * Create an environment (using the supplied environment file) for gprMax with all the necessary Python packages :code:`conda env create -f conda_env.yml`
-* Activate the new environment (Linux/Mac OS X) :code:`source activate gprMax` or (Windows) :code:`activate gprMax`
+* Activate the new environment (Linux/Mac OS X) :code:`source activate gprMax` or (Windows) :code:`activate gprMax`.
 
 **You are now ready to proceed to the section on running gprMax.**
+
+.. note::
+    When you are finished using gprMax the Miniconda environment can be deactivated using (Linux/Mac OS X) :code:`source deactivate` or (Windows) :code:`deactivate`
 
 
 3. (*Developers only*) Install a C compiler which supports OpenMP
@@ -128,7 +131,9 @@ b) Compile the Cython extension modules using: :code:`python setup.py build_ext 
 Running gprMax
 ==============
 
-* Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the top-level gprMax directory. gprMax in designed as a Python package, i.e. a namespace which can contain multiple packages and modules, much like a directory. Basic usage of gprMax is:
+* Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the top-level gprMax directory.
+* If it is not already active, activate the gprMax Miniconda environment (Linux/Mac OS X) :code:`source activate gprMax` or (Windows) :code:`activate gprMax`
+* gprMax in designed as a Python package, i.e. a namespace which can contain multiple packages and modules, much like a directory. Basic usage is:
 
 .. code-block:: none
 
