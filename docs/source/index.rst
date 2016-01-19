@@ -45,5 +45,6 @@ gprMax User Guide
     :caption: Help and support
 
     faqs
+    screencasts
     references
 
