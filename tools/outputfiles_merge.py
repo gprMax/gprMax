@@ -30,40 +30,34 @@ args = parser.parse_args()
 
 basefilename = args.basefilename
 modelruns = args.modelruns
-outputfile = basefilename + '_all.out'
+outputfile = basefilename + '_merge.out'
 path = '/rxs/rx1'
 
 # Combined output file
 fout = h5py.File(outputfile, 'w')
 
 # Add positional data for rxs
-for rx in range(modelruns):
-    fin = h5py.File(basefilename + str(rx + 1) + '.out', 'r')
-    if rx == 0:
+for model in range(modelruns):
+    fin = h5py.File(basefilename + str(model + 1) + '.out', 'r')
+    availableoutputs = list(fin[path].keys())
+    if model == 0:
         fout.attrs['Iterations'] = fin.attrs['Iterations']
         fout.attrs['dt'] = fin.attrs['dt']
         fields = fout.create_group(path)
-        fields['Ex'] = np.zeros((fout.attrs['Iterations'], modelruns), dtype=fin[path + '/Ex'].dtype)
-        fields['Ey'] = np.zeros((fout.attrs['Iterations'], modelruns), dtype=fin[path + '/Ex'].dtype)
-        fields['Ez'] = np.zeros((fout.attrs['Iterations'], modelruns), dtype=fin[path + '/Ex'].dtype)
-        fields['Hx'] = np.zeros((fout.attrs['Iterations'], modelruns), dtype=fin[path + '/Ex'].dtype)
-        fields['Hy'] = np.zeros((fout.attrs['Iterations'], modelruns), dtype=fin[path + '/Ex'].dtype)
-        fields['Hz'] = np.zeros((fout.attrs['Iterations'], modelruns), dtype=fin[path + '/Ex'].dtype)
-    
-    fields[path + '/Ex'][:,rx] = fin[path + '/Ex'][:]
-    fields[path + '/Ey'][:,rx] = fin[path + '/Ey'][:]
-    fields[path + '/Ez'][:,rx] = fin[path + '/Ez'][:]
-    fields[path + '/Hx'][:,rx] = fin[path + '/Hx'][:]
-    fields[path + '/Hy'][:,rx] = fin[path + '/Hy'][:]
-    fields[path + '/Hz'][:,rx] = fin[path + '/Hz'][:]
+        for output in availableoutputs:
+            fields[output] = np.zeros((fout.attrs['Iterations'], modelruns), dtype=fin[path + '/' + output].dtype)
+
+    for output in availableoutputs:
+        fields[path + '/' + output][:,model] = fin[path + '/' + output][:]
+
     fin.close()
 
 fout.close()
 
 check = input('Do you want to remove the multiple individual output files? [y] or n:')
 if not check or check == 'y':
-    for rx in range(modelruns):
-        file = basefilename + str(rx + 1) + '.out'
+    for model in range(modelruns):
+        file = basefilename + str(model + 1) + '.out'
         os.remove(file)
 
 
