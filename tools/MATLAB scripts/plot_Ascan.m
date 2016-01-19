@@ -16,7 +16,7 @@ if filename ~= 0
     header.dy = tmp(2);
     header.dz = tmp(3);
     header.dt = h5readatt(fullfilename, '/', 'dt');
-    header.ntx = h5readatt(fullfilename, '/', 'ntx');
+    header.nsrc = h5readatt(fullfilename, '/', 'nsrc');
     header.nrx = h5readatt(fullfilename, '/', 'nrx');
     
     % Time vector for plotting
@@ -35,11 +35,12 @@ if filename ~= 0
     
     % Save and plot fields from each receiver
     for n=1:header.nrx
-        path = strcat('/rxs/rx', num2str(n), '/');
-        tmp = h5read(fullfilename, strcat(path, 'Position'));
+        path = strcat('/rxs/rx', num2str(n));
+        tmp = h5readatt(fullfilename, path, 'Position');
         header.rx(n) = tmp(1);
         header.ry(n) = tmp(2);
         header.rz(n) = tmp(3);
+        path = strcat(path, '/');
         fields.ex(:,n) = h5read(fullfilename, strcat(path, 'Ex'));
         fields.ey(:,n) = h5read(fullfilename, strcat(path, 'Ey'));
         fields.ez(:,n) = h5read(fullfilename, strcat(path, 'Ez'));

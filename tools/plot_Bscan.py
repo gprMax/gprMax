@@ -26,22 +26,21 @@ from gprMax.exceptions import CmdInputError
 """Plots a B-scan image."""
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Plots a B-scan image.', usage='cd gprMax; python -m tools.plot_Bscan outputfile --field fieldcomponent')
+parser = argparse.ArgumentParser(description='Plots a B-scan image.', usage='cd gprMax; python -m tools.plot_Bscan outputfile output')
 parser.add_argument('outputfile', help='name of output file including path')
-parser.add_argument('--output', help='name of output to be plotted, i.e. Ex Ey Ez')
+parser.add_argument('output', help='name of output to be plotted, i.e. Ex Ey Ez')
 args = parser.parse_args()
 
 # Open output file and read some attributes
 f = h5py.File(args.outputfile, 'r')
 path = '/rxs/rx1'
 availablecomponents = list(f[path].keys())
-    
+
 # Check if requested output is in file
-if args.output[0] not in availablecomponents:
-    raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(args.outputs[0], ', '.join(availablecomponents)))
+if args.output not in availablecomponents:
+    raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(args.output, ', '.join(availablecomponents)))
 
 outputdata = f[path + '/' + args.output]
-f.close()
 
 # Check that there is more than one A-scan present
 if outputdata.shape[1] == 1:
@@ -61,9 +60,10 @@ elif 'H' in args.output:
 elif 'I' in args.output:
     cb.set_label('Current [A]')
 
-plt.show()
-
 # Save a PDF/PNG of the figure
 #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
 #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+
+plt.show()
+f.close()
 
