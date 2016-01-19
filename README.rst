@@ -62,9 +62,9 @@ You should use the following guidance to install gprMax:
 
 * Download the code from https://github.com/gprMax/gprMax
 
-    * Click on `Releases` from the top header and choose the release you want (latest is at the top).
-    * Download zip files of the `source code` and `binary extensions` for your platform (``windows`` for 32-bit or 64-bit versions of Microsoft Windows or ``linux_macosx`` for 64-bit versions of Linux or Mac OS X).
-    * Expand both zip files and copy the contents of the ``windows`` or ``linux_macosx`` directory into the ``gprMax-v.X.Y.Z/gprMax`` directory.
+    * Click on *Releases* from the top header and choose the release you want (latest is at the top).
+    * Download zip files of the *source code* and *binary extensions* for your platform, ``windows-32bit`` for 32-bit or ``windows-64bit`` for 64-bit versions of Microsoft Windows, ``linux-64bit`` for 64-bit versions of Linux, or ``macosx-64bit`` for 64-bit versions of Mac OS X.
+    * Expand both zip files and copy the contents of the ``windows-32bit``, ``windows-64bit``, ``linux-64bit`` or ``macosx-64bit`` directory into the ``gprMax-v.X.Y.Z/gprMax`` directory.
 
 * (*Developers only*) Use **Git** (https://git-scm.com) and clone the master branch of the repository: :code:`git clone https://github.com/gprMax/gprMax.git`
 
