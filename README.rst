@@ -163,11 +163,11 @@ For example, to check the geometry of a model:
 
     python -m gprMax user_models/heterogeneous_soil.in --geometry-only
 
-For example, to run a B-scan with 54 traces:
+For example, to run a B-scan with 60 traces:
 
 .. code-block:: none
 
-    python -m gprMax user_models/cylinder_Bscan_GSSI_1500.in -n 54
+    python -m gprMax user_models/cylinder_Bscan_2D.in -n 60
 
 
 
