@@ -18,10 +18,6 @@
 
 """gprMax.gprMax: provides entry point main()."""
 
-# Set the version number here
-__version__ = '3.0.0b18'
-versionname = ' (Bowmore)'
-
 import argparse, datetime, importlib, itertools, os, psutil, sys
 from time import perf_counter
 from copy import deepcopy
@@ -30,6 +26,7 @@ from collections import OrderedDict
 
 import numpy as np
 
+import gprMax
 from gprMax.constants import c, e0, m0, z0, floattype
 from gprMax.exceptions import CmdInputError
 from gprMax.fields_update import *
@@ -50,7 +47,7 @@ def main():
     """This is the main function for gprMax."""
     
     # Print gprMax logo, version, and licencing/copyright information
-    logo(__version__ + versionname)
+    logo(gprMax.__version__ + ' (Bowmore)')
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(prog='gprMax', description='Electromagnetic modelling software based on the Finite-Difference Time-Domain (FDTD) method')

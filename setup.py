@@ -27,15 +27,15 @@ try:
 except ImportError:
     raise ImportError('The NumPy package is required to build gprMax.')
 
-import glob, os, pwd, re, shutil, sys
+import glob, os, pwd, shutil, sys
 
-# Main package name
-packagename = 'gprMax'
+import gprMax
 
-# Read version number from gprMax/gprMax.py
-version = re.search('^__version__\s*=\s*\'(.*)\'',
-                    open(os.path.join(packagename, 'gprMax.py')).read(),
-                    re.M).group(1)
+# Package name
+packagename = gprMax.__name__
+
+# Package version
+version = gprMax.__version__
 
 # Process 'install' command line argument
 if 'install' in sys.argv:
