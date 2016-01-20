@@ -30,7 +30,7 @@ from gprMax.receivers import Rx
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Plots electric and magnetic fields and currents from all receiver points in the given output file. Each receiver point is plotted in a new figure window.', usage='cd gprMax; python -m tools.plot_Ascan outputfile')
 parser.add_argument('outputfile', help='name of output file including path')
-parser.add_argument('--outputs', help='list of outputs to be plotted, i.e. Ex Ey Ez', default=Rx.availableoutputs, nargs='+')
+parser.add_argument('--outputs', help='outputs to be plotted (Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, Iz)', default=Rx.availableoutputs, nargs='+')
 parser.add_argument('-fft', action='store_true', default=False, help='plot FFT (single output must be specified)')
 args = parser.parse_args()
 
@@ -51,14 +51,14 @@ if args.fft:
 # New plot for each receiver
 for rx in range(1, nrx + 1):
     path = '/rxs/rx' + str(rx) + '/'
-    availablecomponents = list(f[path].keys())
+    availableoutputs = list(f[path].keys())
     
     # If only a single output is required, create one subplot
     if len(args.outputs) == 1:
         
         # Check if requested output is in file
-        if args.outputs[0] not in availablecomponents:
-            raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(args.outputs[0], ', '.join(availablecomponents)))
+        if args.outputs[0] not in availableoutputs:
+            raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(args.outputs[0], ', '.join(availableoutputs)))
         
         outputdata = f[path + args.outputs[0]][:]
         
@@ -125,8 +125,8 @@ for rx in range(1, nrx + 1):
         gs = gridspec.GridSpec(3, 3, hspace=0.3, wspace=0.3)
         for output in args.outputs:
             # Check if requested output is in file
-            if output not in availablecomponents:
-                raise CmdInputError('Output(s) requested to plot: {}, but available output(s) for receiver {} in the file: {}'.format(', '.join(args.outputs), rx, ', '.join(availablecomponents)))
+            if output not in availableoutputs:
+                raise CmdInputError('Output(s) requested to plot: {}, but available output(s) for receiver {} in the file: {}'.format(', '.join(args.outputs), rx, ', '.join(availableoutputs)))
             
             outputdata = f[path + output][:]
             if output == 'Ex':
