@@ -6,6 +6,7 @@ dependencies:
 - matplotlib
 - numpy
 - psutil
+- scipy
 - pip:
   - pyfiglet
 
