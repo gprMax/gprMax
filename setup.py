@@ -100,7 +100,7 @@ if 'cleanall' in sys.argv:
 # Windows
 if sys.platform == 'win32':
     compile_args = ['/O2', '/openmp', '/w']
-    linker_args = ['/openmp']
+    linker_args = []
     extra_objects = []
 # Mac OS X - needs gcc (usually via HomeBrew) because the default compiler LLVM (clang) does not support OpenMP
 elif sys.platform == 'darwin':
