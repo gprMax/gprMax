@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 """
 
 
-def fitness_max(filename, args):
+def maxvalue(filename, args):
     """Maximum value from a response.
         
     Args:
@@ -42,7 +42,7 @@ def fitness_max(filename, args):
     return maxvalue
 
 
-def fitness_xcorr(filename, args):
+def xcorr(filename, args):
     """Maximum value of a cross-correlation between a response and a reference response.
         
     Args:
@@ -114,7 +114,7 @@ def fitness_xcorr(filename, args):
     return xcorrmax
 
 
-def fitness_diffs(filename, args):
+def min_sum_diffs(filename, args):
     """Sum of the differences (in dB) between responses and a reference response.
         
     Args:
