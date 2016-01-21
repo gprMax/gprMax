@@ -76,7 +76,7 @@ def main():
     #   Process for Taguchi optimisation   #
     ########################################
     if args.opt_taguchi:
-        from user_libs.optimisations.taguchi import taguchi_code_blocks, select_OA, calculate_ranges_experiments, calculate_optimal_levels, plot_optimisation_history
+        from user_libs.optimisations.taguchi import taguchi_code_blocks, construct_OA, calculate_ranges_experiments, calculate_optimal_levels, plot_optimisation_history
 
         # Default maximum number of iterations of optimisation to perform (used if the stopping criterion is not achieved)
         maxiterations = 20
@@ -102,7 +102,7 @@ def main():
         fitness_metric = getattr(importlib.import_module('user_libs.optimisations.taguchi_fitness'), fitness['name'])
 
         # Select OA
-        OA, N, k, s = select_OA(optparams)
+        OA, N, k, s = construct_OA(optparams)
         
         # Initialise arrays and lists to store parameters required throughout optimisation
         # Lower, central, and upper values for each parameter
@@ -241,11 +241,11 @@ def main():
             if fitnessvalueshist[i - 1] > fitness['stop']:
                 break
 
-            # Stop optimisation if successive fitness values are within 1%
-            if i > 2:
-                fitnessvaluesclose = (np.abs(fitnessvalueshist[i - 2] - fitnessvalueshist[i - 1]) / fitnessvalueshist[i - 1]) * 100
-                if fitnessvaluesclose < 1:
-                    break
+#            # Stop optimisation if successive fitness values are within 1%
+#            if i > 2:
+#                fitnessvaluesclose = (np.abs(fitnessvalueshist[i - 2] - fitnessvalueshist[i - 1]) / fitnessvalueshist[i - 1]) * 100
+#                if fitnessvaluesclose < 1:
+#                    break
 
         # Save optimisation parameters history and fitness values history to file
         opthistfile = inputfileparts[0] + '_hist'
