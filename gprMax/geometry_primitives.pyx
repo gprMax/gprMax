@@ -81,6 +81,55 @@ cpdef bint is_inside_sector(float px, float py, float ctrx, float ctry, float se
     return not are_clockwise(sectorstart1, sectorstart2, relpoint1, relpoint2) and are_clockwise(sectorend1, sectorend2, relpoint1, relpoint2) and is_within_radius(relpoint1, relpoint2, radius)
 
 
+cpdef bint point_in_polygon(float px, float py, list polycoords):
+    """Calculates, using a ray casting algorithm, whether a point lies within a polygon.
+            
+    Args:
+        px, py (float): Coordinates of point to test.
+        polycoords (list): x, y tuples of coordinates that define the polygon.
+        
+    Returns:
+        (boolean)
+    """
+
+    cdef int i
+    cdef float p1x, p1y, p2x, p2y, pxints
+    cdef bint inside
+
+    # Check if point is a vertex
+    if (px, py) in polycoords:
+        return True
+
+    # Check if point is on a boundary
+    for i in range(len(polycoords)):
+        p1 = None
+        p2 = None
+        if i == 0:
+            p1x, p1y = polycoords[0]
+            p2x, p2y = polycoords[1]
+        else:
+            p1x, p1y = polycoords[i - 1]
+            p2x, p2y = polycoords[i]
+        if p1y == p2y and p1y == py and px > min(p1x, p2x) and px < max(p1x, p2x):
+            return True
+      
+    inside = False
+
+    p1x, p1y = polycoords[0]
+    for i in range(len(polycoords) + 1):
+        p2x, p2y = polycoords[i % len(polycoords)]
+        if py > min(p1y, p2y):
+            if py <= max(p1y, p2y):
+                if px <= max(p1x, p2x):
+                    if p1y != p2y:
+                        pxints = (py - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+                    if p1x == p2x or px <= pxints:
+                        inside = not inside
+        p1x, p1y = p2x, p2y
+
+    return inside
+
+
 cpdef build_edge_x(int i, int j, int k, int numIDx, np.int8_t[:, :, :, :] rigidE, np.int8_t[:, :, :, :] rigidH, np.uint32_t[:, :, :, :] ID):
     """Set x-orientated edges in the rigid and ID arrays for a Yee voxel.
         
