@@ -27,7 +27,7 @@ try:
 except ImportError:
     raise ImportError('The NumPy package is required to build gprMax.')
 
-import glob, os, pwd, shutil, sys
+import glob, os, shutil, sys
 
 import gprMax
 
@@ -114,7 +114,7 @@ elif sys.platform == 'darwin':
     extra_objects = []
     
     # If user is cwarren do static linking as this is for binaries uploaded to GitHub
-    if pwd.getpwuid(os.getuid())[0] == 'cwarren':
+    if os.getlogin() == 'cwarren':
         linker_args = ['-static-libgcc']
         extra_objects = ['/usr/local/opt/gcc/lib/gcc/5/libgomp.a']
 # Linux
