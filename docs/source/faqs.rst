@@ -17,7 +17,7 @@ gprMax is released under the GNU General Public License v3 or higher (http://www
 No, but it can be beneficial to know a little Python. We have made it easier to create more complex simulations in gprMax through scripting in the input file. This is achieved by allowing blocks of Python code to be written in the input file which are executed when the file is read by gprMax.
 
 **Can I still do all my pre/post-processing for gprMax in MATLAB?**
-Yes, we have provided tools to help you read the new HDF5-based output file in MATLAB.
+Yes, MATLAB has built-in functions to read HDF5 files (http://uk.mathworks.com/help/matlab/high-level-functions.html).
 
 **But converting my input file from the old version of gprMax will be really painful**
 Hopefully not! We have provided a Python script to help you convert input files from the old version of gprMax to use syntax introduced in version 3.
@@ -29,4 +29,4 @@ Spatial resolution should be chosen to mitigate numerical dispersion and to adeq
 gprMax builds objects in a model in the order the objects were specified in the input file, using a layered canvas approach. This means, for example, a cylinder object which comes after a box object in the input file will overwrite the properties of the box object at any locations where they overlap. This approach allows complex geometries to be created using basic object building blocks.
 
 **Can I run gprMax on my HPC/cluster?**
-Yes. gprMax has been parallelised using OpenMP and features a task farm based on MPI. For more information read the :ref:`section on parallelism. <openmp_mpi>`
+Yes. gprMax has been parallelised using OpenMP and features a task farm based on MPI. For more information read the :ref:`section on parallelism. <openmp-mpi>`

@@ -52,7 +52,7 @@ Package overview
 Installation
 ============
 
-You should use the following guidance to install gprMax if you are an end-user (i.e. you don't intend to develop or contribute to the software). Developers should follow the `Installation for developers section of the User guide <install-dev>`:
+You should use the following guidance to install gprMax if you are an end-user (i.e. you don't intend to develop or contribute to the software). Developers should follow the :ref:`Installation for developers section of the User guide <install-dev>`:
 
 1. Get the code
 2. Install Python and required Python packages

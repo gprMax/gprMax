@@ -1,4 +1,4 @@
-.. _openmp_mpi:
+.. _openmp-mpi:
 
 ************************
 Parallelism - OpenMP/MPI
