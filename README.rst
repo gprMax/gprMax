@@ -81,10 +81,15 @@ We recommend using Miniconda to install Python and the required Python packages 
 * Create an environment (using the supplied environment file) for gprMax with all the necessary Python packages :code:`conda env create -f conda_env.yml`
 * Activate the new environment (Linux/Mac OS X) :code:`source activate gprMax` or (Windows) :code:`activate gprMax`.
 
-**You are now ready to proceed to the section on running gprMax.**
-
 .. note::
     When you are finished using gprMax the Miniconda environment can be deactivated using (Linux/Mac OS X) :code:`source deactivate` or (Windows) :code:`deactivate`
+
+(*Microsoft Windows only*) Install a C libraries
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* Install the Microsoft Visual Studio 2015 C++ Redistributable (``vc_redist.x86.exe`` for 32-bit or ``vc_redist.x64.exe`` for 64-bit) from https://www.microsoft.com/en-us/download/details.aspx?id=48145.
+
+**You are now ready to proceed to the section on running gprMax.**
 
 
 3. (*Developers only*) Install a C compiler which supports OpenMP
