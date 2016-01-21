@@ -55,7 +55,11 @@ Microsoft Windows
 ^^^^^^^^^^^^^^^^^
 
 * Download and install Microsoft Visual Studio 2015 Community (https://www.visualstudio.com/downloads/download-visual-studio-vs), which is free. Do a custom install and make sure under programming languages Visual C++ is selected, no other options are required.
-* Create a new environment variable :code:`VS100COMNTOOLS` which matches the value of the existing :code:`VS140COMNTOOLS` environment variable. To set an environment variable from the Start Menu, right-click the Computer icon and select Properties. Click the Advanced System Settings link in the left column. In the System Properties window, click on the Advanced tab, then click the Environment Variables button near the bottom of that tab.
+
+.. figure:: images/MSVS2015_install.png
+    :width: 200 px
+
+    Screenshot of Microsoft Visual Studio 2015 Community custom install settings.
 
 
 4. Compile the Cython extensions
