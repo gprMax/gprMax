@@ -52,7 +52,7 @@ Package overview
 Installation
 ============
 
-You should use the following guidance to install gprMax if you are an end-user (i.e. you don't intend to develop or contribute to the software). Developers should follow the :ref:`Installation for developers section of the User guide <install-dev>`:
+You should use the following guidance to install gprMax if you are an end-user (i.e. you don't intend to develop or contribute to the software). Developers should follow the Installation for developers section (http://docs.gprmax.com/en/latest/includereadme.html#installation-for-developers).
 
 1. Get the code
 2. Install Python and required Python packages
@@ -111,7 +111,7 @@ When the simulation is complete you can plot the A-scan using:
 
     python -m tools.plot_Ascan user_models/cylinder_Ascan_2D.out
 
-Your results should like those from the :ref:`A-scan from a metal cylinder <example-2D-Ascan>` example in introductory/basic 2D models section.
+Your results should like those from the A-scan from a metal cylinder example in introductory/basic 2D models section (http://docs.gprmax.com/en/latest/examples_simple_2D.html#view-the-results).
 
 Optional command line arguments
 -------------------------------
@@ -120,7 +120,7 @@ There are optional command line arguments for gprMax:
 
 * ``--geometry-only`` will build a model and produce any geometry views but will not run the simulation. This option is useful for checking the geometry of the model is correct.
 * ``-n`` is used along with a integer number to specify the number of times to run the input file. This option can be used to run a series of models, e.g. to create a B-scan that uses an antenna model.
-* ``-mpi`` is a flag to turn on Message Passing Interface (MPI) task farm functionality. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using MPI. For further details see the :ref:`Parallel performance section <openmp_mpi>`.
+* ``-mpi`` is a flag to turn on Message Passing Interface (MPI) task farm functionality. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using MPI. For further details see the Parallel performance section (http://docs.gprmax.com/en/latest/openmp_mpi.html#parallelism-openmp-mpi).
 * ``--write-python`` will write an input file after any Python code blocks in the original input file have been processed.
 * ``-h`` or ``--help`` can be used to get help on command line options.
 
