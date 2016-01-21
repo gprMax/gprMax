@@ -65,89 +65,50 @@ def construct_OA(optparams):
     Returns:
         OA (array): Orthogonal array
         N (int): Number of experiments in OA
-        k (int): Number of parameters to optimise in OA
+        cols (int): Number of columns in OA
+        k (int): Number of columns in OA cut down to number of parameters to optimise
         s (int): Number of levels in OA
         t (int): Strength of OA
     """
 
-#    S=3;    % 3 level OA
-#J=3;
-#M=S^J;  % number of experiments
-#
-#for k=1:J  % for basic columns
-#    j=(S^(k-1)-1)/(S-1)+1;
-#    for i=1:M
-#        A(i,j)=mod(floor((i-1)/(S^(J-k))),S);
-#    end
-#end
-#
-#for k=2:J  % for non-basic columns
-#    j=(S^(k-1)-1)/(S-1)+1;
-#    for p=1:j-1
-#        for q=1:S-1
-#            A(:,(j+(p-1)*(S-1)+q))=mod((A(:,p)*q+A(:,j)),S);
-#        end
-#    end
-#end
-#
-#
-#[N,K]=size(A);
-#str1=num2str(N,'%0.1d');
-#str2=num2str(K,'%0.1d');
-#str3=num2str(S,'%0.1d');
-#TT=['OA(' str1 ',' str2 ',' str3 ',2).txt'];
-#fid2=fopen(TT,'wt');
-#
-#for j=1:N
-#    for k=1:K
-#        fprintf(fid2,'%0.1d ',A(j,k));
-#        if k==K
-#            fprintf(fid2,'\n');
-#        end
-#    end
-#end
-
-    s = 3 # Number of levels
-    t = 2 # Strength
-#    p = 2
-#    N = s**p # Number of experiments
-#    a = np.zeros((N, 4), dtype=np.int)
-#    
-#    # Construct basic columns
-#    for ii in range(0, p):
-#        k = int((s**(ii - 1) - 1) / ((s - 1) + 1))
-#        for m in range(0, N):
-#            a[m, k] = np.mod(np.floor((m - 1) / (s**(p - ii))), s)
-#
-#    # Construct non-basic columns
-#    for ii in range(1, p):
-#        k = int((s**(ii - 1) - 1) / ((s - 1) + 1))
-#        for jj in range(0, k - 1):
-#            for kk in range(0, s - 1):
-#                a[:, k +  ((jj - 1) * (s - 1) + kk)] = np.mod(a[:, jj] * kk + a[:, k], s)
-#
-#    print(a)
-
-    # Load the appropriate OA
-    if len(optparams) <= 4:
-        OA = np.load(os.path.join(moduledirectory, 'OA_9_4_3_2.npy'))
-    elif len(optparams) <= 7:
-        OA = np.load(os.path.join(moduledirectory, 'OA_18_7_3_2.npy'))
-    else:
-        raise CmdInputError('Too many parameters to optimise for the available orthogonal arrays (OA). Please find and load a bigger, suitable OA.')
-    print(OA)
-    # Cut down OA columns to number of parameters to optimise
-    OA = OA[:, 0:len(optparams)]
-
-    # Number of experiments
-    N = OA.shape[0]
-
+    # Properties of the orthogonal array (OA)
+    # Strength
+    t = 2
+    
+    # Number of levels
+    s = 3
+    
     # Number of parameters to optimise
-    k = OA.shape[1]
+    k = len(optparams)
+    
+    p = int(np.ceil(np.log(k * (s - 1) + 1) / np.log(s)))
+    
+    # Number of experiments
+    N = s**p
+    
+    # Number of columns
+    cols = int((N - 1) / (s - 1))
+    
+    # Algorithm to construct OA from: http://ieeexplore.ieee.org/xpl/articleDetails.jsp?reload=true&arnumber=6812898
+    OA = np.zeros((N + 1, cols + 1), dtype=np.int8)
+    
+    # Construct basic columns
+    for ii in range(1, p + 1):
+        col = int((s**(ii - 1) - 1) / (s - 1) + 1)
+        for row in range(1, N + 1):
+            OA[row, col] = np.mod(np.floor((row - 1) / (s**(p - ii))), s)
 
+    # Construct non-basic columns
+    for ii in range(2, p + 1):
+        col = int((s**(ii - 1) - 1) / (s - 1) + 1)
+        for jj in range(1, col):
+            for kk in range(1, s):
+                OA[:, col + (jj - 1) * (s - 1) + kk] = np.mod(OA[:, jj] * kk + OA[:, col], s)
 
+    # First row and first columns are unneccessary, only there to match algorithm, and cut down columns to number of parameters to optimise
+    OA = OA[1::, 1::k]
 
-    return OA, N, k, s
+    return OA, N, cols, k, s, t
 
 
 def calculate_ranges_experiments(optparams, optparamsinit, levels, levelsopt, levelsdiff, OA, N, k, s, i):

@@ -73,8 +73,8 @@ def main():
     #   Process for Taguchi optimisation   #
     ########################################
     if args.opt_taguchi:
-        from user_libs.optimisations.taguchi import taguchi_code_blocks, construct_OA, calculate_ranges_experiments, calculate_optimal_levels, plot_optimisation_history
-
+        from gprMax.optimisation_taguchi import taguchi_code_blocks, construct_OA, calculate_ranges_experiments, calculate_optimal_levels, plot_optimisation_history
+        
         # Default maximum number of iterations of optimisation to perform (used if the stopping criterion is not achieved)
         maxiterations = 20
         
@@ -96,10 +96,11 @@ def main():
         optparamshist = OrderedDict((key, list()) for key in optparams)
         
         # Import specified fitness function
-        fitness_metric = getattr(importlib.import_module('user_libs.optimisations.taguchi_fitness'), fitness['name'])
+        fitness_metric = getattr(importlib.import_module('user_libs.optimisation_taguchi_fitness'), fitness['name'])
 
         # Select OA
-        OA, N, k, s = construct_OA(optparams)
+        OA, N, cols, k, s, t = construct_OA(optparams)
+        print('\n{}\n\nTaguchi optimisation: orthogonal array with {} experiments, {} parameters ({} used), {} levels, and strength {} will be used.'.format(68*'*', N, cols, k, s, t))
         
         # Initialise arrays and lists to store parameters required throughout optimisation
         # Lower, central, and upper values for each parameter
@@ -236,13 +237,16 @@ def main():
 
             # Stop optimisation if stopping criterion has been reached
             if fitnessvalueshist[i - 1] > fitness['stop']:
+                print('\nTaguchi optimisation stopped as fitness criteria reached')
                 break
 
-#            # Stop optimisation if successive fitness values are within 1%
-#            if i > 2:
-#                fitnessvaluesclose = (np.abs(fitnessvalueshist[i - 2] - fitnessvalueshist[i - 1]) / fitnessvalueshist[i - 1]) * 100
-#                if fitnessvaluesclose < 1:
-#                    break
+            # Stop optimisation if successive fitness values are within 0.5%
+            if i > 2:
+                fitnessvaluesclose = (np.abs(fitnessvalueshist[i - 2] - fitnessvalueshist[i - 1]) / fitnessvalueshist[i - 1]) * 100
+                fitnessvaluesthres = 0.1
+                if fitnessvaluesclose < fitnessvaluesthres:
+                    print('\nTaguchi optimisation stopped as successive fitness values within {}%'.format(fitnessvaluesthres))
+                    break
 
         # Save optimisation parameters history and fitness values history to file
         opthistfile = inputfileparts[0] + '_hist'
