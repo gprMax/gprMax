@@ -29,7 +29,8 @@ We recommend using Miniconda to install Python and the required Python packages 
 * Activate the new environment (Linux/Mac OS X) :code:`source activate gprMax` or (Windows) :code:`activate gprMax`.
 
 .. note::
-When you are finished using gprMax the Miniconda environment can be deactivated using (Linux/Mac OS X) :code:`source deactivate` or (Windows) :code:`deactivate`
+
+    When you are finished using gprMax the Miniconda environment can be deactivated using (Linux/Mac OS X) :code:`source deactivate` or (Windows) :code:`deactivate`
 
 
 3. Install a C compiler which supports OpenMP
@@ -48,7 +49,7 @@ Mac OS X
 
 .. note::
 
-Installations of Xcode on Mac OS X come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install gcc.
+    Installations of Xcode on Mac OS X come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install gcc.
 
 
 Microsoft Windows
@@ -57,7 +58,7 @@ Microsoft Windows
 * Download and install Microsoft Visual Studio 2015 Community (https://www.visualstudio.com/downloads/download-visual-studio-vs), which is free. Do a custom install and make sure under programming languages Visual C++ is selected, no other options are required.
 
 .. figure:: images/MSVS2015_install.png
-    :width: 200 px
+    :width: 400 px
 
     Screenshot of Microsoft Visual Studio 2015 Community custom install settings.
 
