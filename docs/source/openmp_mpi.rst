@@ -16,11 +16,7 @@ MPI
 
 The Message Passing Interface (MPI) has been utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This can be useful in many GPR simulations where a B-scan (composed of multiple A-scans) is required. Each A-scan can be task-farmed as a independent model. Within each independent model OpenMP threading will continue to be used. Overall this creates what is know as a mixed mode OpenMP/MPI job.
 
-By default the MPI task farm functionality is turned off. It can be switched on using the ``-mpi`` command line flag. MPI requires an installation of OpenMPI (http://www.open-mpi.org) and the mpi4py Python package.
-
-.. note::
-
-        It seems due to a lack of interest there are no binary versions of OpenMPI available for Microsoft Windows (https://www.open-mpi.org/software/ompi/v1.6/ms-windows.php)
+By default the MPI task farm functionality is turned off. It can be switched on using the ``-mpi`` command line flag. MPI requires an installation of the ``mpi4py`` Python package, which itself depends on an underlying MPI installation, usually OpenMPI (http://www.open-mpi.org). On Microsoft Windows ``mpi4py`` requires Microsoft MPI 6 (https://www.microsoft.com/en-us/download/details.aspx?id=47259).
 
 Running gprMax using the MPI task farm functionality is heavily dependent on the configuration of your machine/cluster. The following example is intended as general guidance to help you get started.
 
