@@ -56,7 +56,7 @@ def taguchi_code_blocks(inputfile, taguchinamespace):
     return taguchinamespace
 
 
-def select_OA(optparams):
+def construct_OA(optparams):
     """Load an orthogonal array (OA) from a numpy file. Configure and return OA and properties of OA.
         
     Args:
@@ -70,6 +70,64 @@ def select_OA(optparams):
         t (int): Strength of OA
     """
 
+#    S=3;    % 3 level OA
+#J=3;
+#M=S^J;  % number of experiments
+#
+#for k=1:J  % for basic columns
+#    j=(S^(k-1)-1)/(S-1)+1;
+#    for i=1:M
+#        A(i,j)=mod(floor((i-1)/(S^(J-k))),S);
+#    end
+#end
+#
+#for k=2:J  % for non-basic columns
+#    j=(S^(k-1)-1)/(S-1)+1;
+#    for p=1:j-1
+#        for q=1:S-1
+#            A(:,(j+(p-1)*(S-1)+q))=mod((A(:,p)*q+A(:,j)),S);
+#        end
+#    end
+#end
+#
+#
+#[N,K]=size(A);
+#str1=num2str(N,'%0.1d');
+#str2=num2str(K,'%0.1d');
+#str3=num2str(S,'%0.1d');
+#TT=['OA(' str1 ',' str2 ',' str3 ',2).txt'];
+#fid2=fopen(TT,'wt');
+#
+#for j=1:N
+#    for k=1:K
+#        fprintf(fid2,'%0.1d ',A(j,k));
+#        if k==K
+#            fprintf(fid2,'\n');
+#        end
+#    end
+#end
+
+    s = 3 # Number of levels
+    t = 2 # Strength
+#    p = 2
+#    N = s**p # Number of experiments
+#    a = np.zeros((N, 4), dtype=np.int)
+#    
+#    # Construct basic columns
+#    for ii in range(0, p):
+#        k = int((s**(ii - 1) - 1) / ((s - 1) + 1))
+#        for m in range(0, N):
+#            a[m, k] = np.mod(np.floor((m - 1) / (s**(p - ii))), s)
+#
+#    # Construct non-basic columns
+#    for ii in range(1, p):
+#        k = int((s**(ii - 1) - 1) / ((s - 1) + 1))
+#        for jj in range(0, k - 1):
+#            for kk in range(0, s - 1):
+#                a[:, k +  ((jj - 1) * (s - 1) + kk)] = np.mod(a[:, jj] * kk + a[:, k], s)
+#
+#    print(a)
+
     # Load the appropriate OA
     if len(optparams) <= 4:
         OA = np.load(os.path.join(moduledirectory, 'OA_9_4_3_2.npy'))
@@ -77,7 +135,7 @@ def select_OA(optparams):
         OA = np.load(os.path.join(moduledirectory, 'OA_18_7_3_2.npy'))
     else:
         raise CmdInputError('Too many parameters to optimise for the available orthogonal arrays (OA). Please find and load a bigger, suitable OA.')
-
+    print(OA)
     # Cut down OA columns to number of parameters to optimise
     OA = OA[:, 0:len(optparams)]
 
@@ -87,11 +145,7 @@ def select_OA(optparams):
     # Number of parameters to optimise
     k = OA.shape[1]
 
-    # Number of levels
-    s = 3
 
-    # Strength
-    t = 2
 
     return OA, N, k, s
 
@@ -117,8 +171,9 @@ def calculate_ranges_experiments(optparams, optparamsinit, levels, levelsopt, le
         levelsdiff (array): Difference used to set values in levels array
     """
 
-    # Reducing function used for calculating levels
-    RR = np.exp(-(i/18)**2)
+    # Gaussian reduction function used for calculating levels
+    T = 18 # Usually values between 15 - 20
+    RR = np.exp(-(i/T)**2)
 
     # Calculate levels for each parameter
     for p in range(0, k):
@@ -232,7 +287,7 @@ def plot_optimisation_history(fitnessvalueshist, optparamshist, optparamsinit):
     fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Fitness value'), num='History of fitness values', figsize=(20, 10), facecolor='w', edgecolor='w')
     iterations = np.arange(1, len(fitnessvalueshist) + 1)
     ax.plot(iterations, fitnessvalueshist, 'r', marker='.', ms=15, lw=1)
-    ax.set_xlim(1, len(fitnessvalueshist) + 1)
+    ax.set_xlim(1, len(fitnessvalueshist))
     ax.grid()
 
     # Plot history of optimisation parameters
@@ -240,7 +295,7 @@ def plot_optimisation_history(fitnessvalueshist, optparamshist, optparamsinit):
     for key, value in optparamshist.items():
         fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Parameter value'), num='History of ' + key + ' parameter', figsize=(20, 10), facecolor='w', edgecolor='w')
         ax.plot(iterations, optparamshist[key], 'r', marker='.', ms=15, lw=1)
-        ax.set_xlim(1, len(fitnessvalueshist) + 1)
+        ax.set_xlim(1, len(fitnessvalueshist))
         ax.set_ylim(optparamsinit[p][1][0], optparamsinit[p][1][1])
         ax.grid()
         p += 1
