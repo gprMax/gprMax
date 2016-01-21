@@ -1,20 +1,27 @@
-# Copyright (C) 2015, Craig Warren
+# Copyright (C) 2015-2016: The University of Edinburgh
+#                 Authors: Craig Warren and Antonis Giannopoulos
 #
-# This module is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
-# To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
+# This file is part of gprMax.
 #
-# Please use the attribution at http://dx.doi.org/10.1190/1.3548506
+# gprMax is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# gprMax is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
 from collections import OrderedDict
 
 import numpy as np
-import h5py
 
 from gprMax.constants import floattype
 from gprMax.exceptions import CmdInputError
-
-moduledirectory = os.path.dirname(os.path.abspath(__file__))
 
 
 def taguchi_code_blocks(inputfile, taguchinamespace):
