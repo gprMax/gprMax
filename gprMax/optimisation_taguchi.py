@@ -113,7 +113,7 @@ def construct_OA(optparams):
                 OA[:, col + (jj - 1) * (s - 1) + kk] = np.mod(OA[:, jj] * kk + OA[:, col], s)
 
     # First row and first columns are unneccessary, only there to match algorithm, and cut down columns to number of parameters to optimise
-    OA = OA[1::, 1::k]
+    OA = OA[1:, 1:k + 1]
 
     return OA, N, cols, k, s, t
 
