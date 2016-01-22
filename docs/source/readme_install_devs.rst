@@ -55,7 +55,7 @@ Mac OS X
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
 
-* Download and install Microsoft Visual Studio 2015 Community (https://www.visualstudio.com/downloads/download-visual-studio-vs), which is free. Do a custom install and make sure under programming languages Visual C++ is selected, no other options are required.
+* Download and install Microsoft Visual Studio 2015 Community (https://www.visualstudio.com/downloads/download-visual-studio-vs), which is free. Do a custom install and make sure 'Programming languages|Visual C++|Common Tools for Visual C++ 2015' is selected, no other options are required.
 
 .. figure:: images/MSVS2015_install.png
     :width: 400 px
