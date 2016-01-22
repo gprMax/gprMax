@@ -50,9 +50,9 @@ cpdef build_ex_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigid
                     else:
                         # Averaging is required
                         # Make an ID composed of the names of the four materials that will be averaged
-                        requiredID = G.materials[numID1].ID + '|' + G.materials[numID2].ID + '|' + G.materials[numID3].ID + '|' + G.materials[numID4].ID
+                        requiredID = G.materials[numID1].ID + '+' + G.materials[numID2].ID + '+' + G.materials[numID3].ID + '+' + G.materials[numID4].ID
                         # Check if this material already exists
-                        tmp = requiredID.split('|')
+                        tmp = requiredID.split('+')
                         material = [x for x in G.materials if
                                  x.ID.count(tmp[0]) == requiredID.count(tmp[0]) and
                                  x.ID.count(tmp[1]) == requiredID.count(tmp[1]) and
@@ -103,9 +103,9 @@ cpdef build_ey_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigid
                     else:
                         # Averaging is required
                         # Make an ID composed of the names of the four materials that will be averaged
-                        requiredID = G.materials[numID1].ID + '|' + G.materials[numID2].ID + '|' + G.materials[numID3].ID + '|' + G.materials[numID4].ID
+                        requiredID = G.materials[numID1].ID + '+' + G.materials[numID2].ID + '+' + G.materials[numID3].ID + '+' + G.materials[numID4].ID
                         # Check if this material already exists
-                        tmp = requiredID.split('|')
+                        tmp = requiredID.split('+')
                         material = [x for x in G.materials if
                                  x.ID.count(tmp[0]) == requiredID.count(tmp[0]) and
                                  x.ID.count(tmp[1]) == requiredID.count(tmp[1]) and
@@ -156,9 +156,9 @@ cpdef build_ez_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigid
                     else:
                         # Averaging is required
                         # Make an ID composed of the names of the four materials that will be averaged
-                        requiredID = G.materials[numID1].ID + '|' + G.materials[numID2].ID + '|' + G.materials[numID3].ID + '|' + G.materials[numID4].ID
+                        requiredID = G.materials[numID1].ID + '+' + G.materials[numID2].ID + '+' + G.materials[numID3].ID + '+' + G.materials[numID4].ID
                         # Check if this material already exists
-                        tmp = requiredID.split('|')
+                        tmp = requiredID.split('+')
                         material = [x for x in G.materials if
                                  x.ID.count(tmp[0]) == requiredID.count(tmp[0]) and
                                  x.ID.count(tmp[1]) == requiredID.count(tmp[1]) and
@@ -207,9 +207,9 @@ cpdef build_hx_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigid
                     else:
                         # Averaging is required
                         # Make an ID composed of the names of the four materials that will be averaged
-                        requiredID = G.materials[numID1].ID + '|' + G.materials[numID2].ID
+                        requiredID = G.materials[numID1].ID + '+' + G.materials[numID2].ID
                         # Check if this material already exists
-                        tmp = requiredID.split('|')
+                        tmp = requiredID.split('+')
                         material = [x for x in G.materials if
                                     (x.ID.count(tmp[0]) == requiredID.count(tmp[0]) and
                                      x.ID.count(tmp[1]) == requiredID.count(tmp[1])) or
@@ -257,9 +257,9 @@ cpdef build_hy_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigid
                     else:
                         # Averaging is required
                         # Make an ID composed of the names of the four materials that will be averaged
-                        requiredID = G.materials[numID1].ID + '|' + G.materials[numID2].ID
+                        requiredID = G.materials[numID1].ID + '+' + G.materials[numID2].ID
                         # Check if this material already exists
-                        tmp = requiredID.split('|')
+                        tmp = requiredID.split('+')
                         material = [x for x in G.materials if
                                     (x.ID.count(tmp[0]) == requiredID.count(tmp[0]) and
                                      x.ID.count(tmp[1]) == requiredID.count(tmp[1])) or
@@ -307,9 +307,9 @@ cpdef build_hz_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigid
                     else:
                         # Averaging is required
                         # Make an ID composed of the names of the four materials that will be averaged
-                        requiredID = G.materials[numID1].ID + '|' + G.materials[numID2].ID
+                        requiredID = G.materials[numID1].ID + '+' + G.materials[numID2].ID
                         # Check if this material already exists
-                        tmp = requiredID.split('|')
+                        tmp = requiredID.split('+')
                         material = [x for x in G.materials if
                                     (x.ID.count(tmp[0]) == requiredID.count(tmp[0]) and
                                      x.ID.count(tmp[1]) == requiredID.count(tmp[1])) or

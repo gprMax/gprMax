@@ -284,7 +284,7 @@ def process_geometrycmds(geometry, G):
                     numIDx = materials[0].numID
                     numIDy = materials[1].numID
                     numIDz = materials[2].numID
-                    requiredID = materials[0].ID + '|' + materials[1].ID + '|' + materials[2].ID
+                    requiredID = materials[0].ID + '+' + materials[1].ID + '+' + materials[2].ID
                     averagedmaterial = [x for x in G.materials if x.ID == requiredID]
                     if averagedmaterial:
                         numID = averagedmaterial.numID
@@ -392,7 +392,7 @@ def process_geometrycmds(geometry, G):
                 numIDx = materials[0].numID
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
-                requiredID = materials[0].ID + '|' + materials[1].ID + '|' + materials[2].ID
+                requiredID = materials[0].ID + '+' + materials[1].ID + '+' + materials[2].ID
                 averagedmaterial = [x for x in G.materials if x.ID == requiredID]
                 if averagedmaterial:
                     numID = averagedmaterial.numID
@@ -473,7 +473,7 @@ def process_geometrycmds(geometry, G):
                 numIDx = materials[0].numID
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
-                requiredID = materials[0].ID + '|' + materials[1].ID + '|' + materials[2].ID
+                requiredID = materials[0].ID + '+' + materials[1].ID + '+' + materials[2].ID
                 averagedmaterial = [x for x in G.materials if x.ID == requiredID]
                 if averagedmaterial:
                     numID = averagedmaterial.numID
@@ -563,7 +563,7 @@ def process_geometrycmds(geometry, G):
                     numIDx = materials[0].numID
                     numIDy = materials[1].numID
                     numIDz = materials[2].numID
-                    requiredID = materials[0].ID + '|' + materials[1].ID + '|' + materials[2].ID
+                    requiredID = materials[0].ID + '+' + materials[1].ID + '+' + materials[2].ID
                     averagedmaterial = [x for x in G.materials if x.ID == requiredID]
                     if averagedmaterial:
                         numID = averagedmaterial.numID
@@ -673,7 +673,7 @@ def process_geometrycmds(geometry, G):
                 numIDx = materials[0].numID
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
-                requiredID = materials[0].ID + '|' + materials[1].ID + '|' + materials[2].ID
+                requiredID = materials[0].ID + '+' + materials[1].ID + '+' + materials[2].ID
                 averagedmaterial = [x for x in G.materials if x.ID == requiredID]
                 if averagedmaterial:
                     numID = averagedmaterial.numID
