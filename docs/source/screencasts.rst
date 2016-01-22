@@ -9,4 +9,4 @@ This section provides links to screencasts that explain how to install gprMax, d
 Installation
 ------------
 
-* `How to install gprMax for end users on Microsoft Windows <https://youtu.be/0cCbfHwobMM>`_
+* `How to install gprMax for end users on Microsoft Windows <https://youtu.be/dvC0_7qFVbE>`_
