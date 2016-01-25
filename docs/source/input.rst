@@ -236,7 +236,7 @@ or
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the volume of the snapshot in metres.
 * ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the volume of the snapshot in metres.
 * ``f7 f8 f9`` are the spatial discretisation of the snapshot in metres.
-* ``f10`` or ``i1`` are the snapshot time in seconds (float number) or the iteration number (integer number) respectively which denote the point in time at which the snapshot will be taken.
+* ``f10`` or ``i1`` are the time in seconds (float) or the iteration number (integer) which denote the point in time at which the snapshot will be taken.
 * ``file1`` is the filename of the file where the snapshot will be stored.
 
 For example to save a snapshot of the electromagnetic fields in the model at a simulated time of 3 nanoseconds use: ``#snapshot: 0 0 0 1 1 1 0.1 0.1 0.1 3e-9 snap1``
