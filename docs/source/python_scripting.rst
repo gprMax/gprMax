@@ -24,10 +24,10 @@ You can access the following built-in variables from your Python code:
 Antenna models
 ==============
 
-You can also access a user library of antenna models. This library currently features models of antennas:
+You can also access a user library of antenna models. This library currently features models of antennas similar to:
 
-* Similar to Geophysical Survey Systems, Inc. (GSSI) (http://www.geophysical.com) 1.5 GHz (Model 5100) antenna
-* Simmilar to MALA Geoscience (http://www.malags.com/) 1.2 GHz antenna
+* a Geophysical Survey Systems, Inc. (GSSI) 1.5 GHz (Model 5100) antenna (http://www.geophysical.com)
+* a MALA Geoscience 1.2 GHz antenna (http://www.malags.com/)
 
 These antenna models can be accessed from within a block of Python code in your simulation. For example, to use Python to include an antenna model similar to a GSSI 1.5 GHz antenna at a location 0.125m, 0.094m, 0.100m (x,y,z) using a 1mm spatial resolution:
 
