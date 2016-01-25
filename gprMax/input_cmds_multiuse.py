@@ -343,7 +343,7 @@ def process_multicmds(multicmds, G):
                         raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' contains an output type that is not available')
             
             if G.messages:
-                print('Receiver at {:g}m, {:g}m, {:g}m with field component output(s) {} created.'.format(r.positionx * G.dx, r.positiony * G.dy, r.positionz * G.dz, ', '.join(r.outputs)))
+                print('Receiver at {:g}m, {:g}m, {:g}m with output(s) {} created.'.format(r.positionx * G.dx, r.positiony * G.dy, r.positionz * G.dz, ', '.join(r.outputs)))
             
             G.rxs.append(r)
 
