@@ -39,13 +39,14 @@ Snapshot files
 The ``#snapshot:`` command produces an ImageData (.vti) snapshot file for each time instance requested.
 
 .. tip::
-    You can take advantage of Python scripting to easily create a series of snapshots. For example, to create 30 snapshots starting at time 0.1ns until 3ns in intervals of 0.1ns, use the following code snippet in your input file. Replace ``x1 y1 z1 x2 y2 z2 dx dy dz`` accordingly.
+    You can take advantage of Python scripting to easily create a series of snapshots. For example, to create 30 snapshots starting at time 0.1ns until 3ns in intervals of 0.1ns, use the following code snippet in your input file. Replace ``xs, ys, zs, xf, yf, zf, dx, dy, dz`` accordingly.
 
     .. code-block:: none
 
         #python:
+        from gprMax.input_cmd_funcs import *
         for i in range(1, 31):
-            print('#snapshot: x1 y1 z1 x2 y2 z2 dx dy dz {} snapshot{}'.format((i/10)*1e-9, i))
+            snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, (i/10)*1e-9, 'snapshot' + str(i))
         #end_python:
 
 The following are steps to get started with viewing snapshot files in Paraview:
