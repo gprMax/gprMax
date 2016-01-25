@@ -1,7 +1,7 @@
 .. _guidance:
 
 *************************
-Guidance on GPR Modelling
+Guidance on GPR modelling
 *************************
 
 Basic concepts
