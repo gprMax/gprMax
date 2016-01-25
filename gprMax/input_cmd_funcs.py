@@ -17,7 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 
-"""This module contains functional forms of some of the most commonly used gprMax commands. It can useful to use these within Python scripting in an input file."""
+"""This module contains functional forms of some of the most commonly used gprMax commands. It can be useful to use these within Python scripting in an input file."""
 
 
 def domain(x, y, z):
@@ -71,10 +71,10 @@ def material(permittivity, conductivity, permeability, magconductivity, name):
     """Prints the gprMax #material command.
         
     Args:
-        permittivity (float): Relative permittivity of material.
-        conductivity (float): Conductivity of material.
-        permeability (float): Relative permeability of material.
-        magconductivity (float): Magnetic loss of material.
+        permittivity (float): Relative permittivity of the material.
+        conductivity (float): Conductivity of the material.
+        permeability (float): Relative permeability of the material.
+        magconductivity (float): Magnetic loss of the material.
         name (str): Material identifier.
     """
     
@@ -97,7 +97,7 @@ def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type='n'):
 def snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename):
     """Prints the gprMax #snapshot command.
         
-        Args:
+    Args:
         xs, ys, zs, xf, yf, zf (float): Start and finish coordinates.
         dx, dy, dz (float): Spatial discretisation of geometry view.
         time (float): Time in seconds (float) or the iteration number (integer) which denote the point in time at which the snapshot will be taken.

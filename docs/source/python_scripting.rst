@@ -29,7 +29,7 @@ You can also access a user library of antenna models. This library currently fea
 * Similar to Geophysical Survey Systems, Inc. (GSSI) (http://www.geophysical.com) 1.5 GHz (Model 5100) antenna
 * Simmilar to MALA Geoscience (http://www.malags.com/) 1.2 GHz antenna
 
-These antenna models can be accessed from within a block of Python code in your simulation. For example, to use Python to include one of the antenna models from the built-in library at a location 0.125m, 0.094m, 0.100m (x,y,z) using a 1mm spatial resolution:
+These antenna models can be accessed from within a block of Python code in your simulation. For example, to use Python to include an antenna model similar to a GSSI 1.5 GHz antenna at a location 0.125m, 0.094m, 0.100m (x,y,z) using a 1mm spatial resolution:
 
 .. code-block:: none
 
@@ -52,9 +52,7 @@ To make it easier to create commands within a block of Python code, there is a b
         cylinder(0.02 + x * 0.02, 0.05, 0, 0.020 + x * 0.02, 0.05, domain[2], 0.005, 'pec’)
     #end_python:
 
-The ``domain`` function will print the ``#domain`` command to the input file and return a variable with the extent of the domain that can be used elsewhere in a Python code block, e.g. in this case with the ``cylinder`` function. The ``cylinder`` function is just a functional version of the ``#cylinder`` command and just prints it to the input file.
-
-The following is a list of the functions that are available for input commands:
+The ``domain`` function will print the ``#domain`` command to the input file and return a variable with the extent of the domain that can be used elsewhere in a Python code block, e.g. in this case with the ``cylinder`` function. The ``cylinder`` function is just a functional version of the ``#cylinder`` command which prints it to the input file.
 
 input_cmd_funcs.py
 ------------------

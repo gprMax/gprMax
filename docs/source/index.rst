@@ -30,7 +30,7 @@ gprMax User Guide
     :maxdepth: 2
     :caption: Advanced topics
 
-    python-scripting
+    python_scripting
     openmp_mpi
 
 .. toctree::
