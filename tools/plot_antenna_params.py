@@ -91,7 +91,7 @@ pltrangemin = 1
 # To a certain drop from maximum power
 pltrangemax = np.where((np.amax(Vincp[1::]) - Vincp[1::]) > 60)[0][0] + 1
 # To a maximum frequency
-pltrangemax = np.where(freqs > 2e9)[0][0]
+#pltrangemax = np.where(freqs > 2e9)[0][0]
 pltrange = np.s_[pltrangemin:pltrangemax]
 
 # Print some useful values from s11, input impedance and admittance
