@@ -8,6 +8,7 @@
 import os
 
 from gprMax.exceptions import CmdInputError
+from gprMax.input_cmd_funcs import *
 
 moduledirectory = os.path.dirname(os.path.abspath(__file__))
 
@@ -68,27 +69,27 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
         raise CmdInputError('This antenna module can only be used with a spatial discretisation of 1mm or 2mm')
 
     # Material definitions
-    print('#material: {:.2f} {:.3f} 1 0 absorber'.format(absorberEr, absorbersig))
-    print('#material: 3 0 1 0 pcb')
-    print('#material: 2.35 0 1 0 hdpe')
+    material(absorberEr, absorbersig, 1, 0, 'absorber')
+    material(3, 0, 1, 0, 'pcb')
+    material(2.35, 0, 1, 0, 'hdpe')
 
     # Antenna geometry
     # Plastic case
-    print('#box: {} {} {} {} {} {} hdpe'.format(x, y, z + skidthickness, x + casesize[0], y + casesize[1], z + skidthickness + casesize[2]))
-    print('#box: {} {} {} {} {} {} free_space'.format(x + casethickness, y + casethickness, z + skidthickness, x + casesize[0] - casethickness, y + casesize[1] - casethickness, z + skidthickness + casesize[2] - casethickness))
+    box(x, y, z + skidthickness, x + casesize[0], y + casesize[1], z + skidthickness + casesize[2], 'hdpe')
+    box(x + casethickness, y + casethickness, z + skidthickness, x + casesize[0] - casethickness, y + casesize[1] - casethickness, z + skidthickness + casesize[2] - casethickness, 'free_space')
     
     # Metallic enclosure
-    print('#box: {} {} {} {} {} {} pec'.format(x + 0.025, y + casethickness, z + skidthickness, x + casesize[0] - 0.025, y + casesize[1] - casethickness, z + skidthickness + 0.027))
+    box(x + 0.025, y + casethickness, z + skidthickness, x + casesize[0] - 0.025, y + casesize[1] - casethickness, z + skidthickness + 0.027, 'pec')
     
     # Absorber material, and foam (modelled as PCB material) around edge of absorber
-    print('#box: {} {} {} {} {} {} pcb'.format(x + 0.025 + shieldthickness, y + casethickness + shieldthickness, z + skidthickness, x + 0.025 + shieldthickness + 0.057, y + casesize[1] - casethickness - shieldthickness, z + skidthickness + 0.027 - shieldthickness - 0.001))
-    print('#box: {} {} {} {} {} {} absorber'.format(x + 0.025 + shieldthickness + foamsurroundthickness, y + casethickness + shieldthickness + foamsurroundthickness, z + skidthickness, x + 0.025 + shieldthickness + 0.057 - foamsurroundthickness, y + casesize[1] - casethickness - shieldthickness - foamsurroundthickness, z + skidthickness + 0.027 - shieldthickness))
-    print('#box: {} {} {} {} {} {} pcb'.format(x + 0.086, y + casethickness + shieldthickness, z + skidthickness, x + 0.086 + 0.057, y + casesize[1] - casethickness - shieldthickness, z + skidthickness + 0.027 - shieldthickness - 0.001))
-    print('#box: {} {} {} {} {} {} absorber'.format(x + 0.086 + foamsurroundthickness, y + casethickness + shieldthickness + foamsurroundthickness, z + skidthickness, x + 0.086 + 0.057 - foamsurroundthickness, y + casesize[1] - casethickness - shieldthickness - foamsurroundthickness, z + skidthickness + 0.027 - shieldthickness))
+    box(x + 0.025 + shieldthickness, y + casethickness + shieldthickness, z + skidthickness, x + 0.025 + shieldthickness + 0.057, y + casesize[1] - casethickness - shieldthickness, z + skidthickness + 0.027 - shieldthickness - 0.001, 'pcb')
+    box(x + 0.025 + shieldthickness + foamsurroundthickness, y + casethickness + shieldthickness + foamsurroundthickness, z + skidthickness, x + 0.025 + shieldthickness + 0.057 - foamsurroundthickness, y + casesize[1] - casethickness - shieldthickness - foamsurroundthickness, z + skidthickness + 0.027 - shieldthickness, 'absorber')
+    box(x + 0.086, y + casethickness + shieldthickness, z + skidthickness, x + 0.086 + 0.057, y + casesize[1] - casethickness - shieldthickness, z + skidthickness + 0.027 - shieldthickness - 0.001, 'pcb')
+    box(x + 0.086 + foamsurroundthickness, y + casethickness + shieldthickness + foamsurroundthickness, z + skidthickness, x + 0.086 + 0.057 - foamsurroundthickness, y + casesize[1] - casethickness - shieldthickness - foamsurroundthickness, z + skidthickness + 0.027 - shieldthickness, 'absorber')
     
     # PCB
-    print('#box: {} {} {} {} {} {} pcb'.format(x + 0.025 + shieldthickness + foamsurroundthickness, y + casethickness + shieldthickness + foamsurroundthickness, z + skidthickness, x + 0.086 - shieldthickness - foamsurroundthickness, y + casesize[1] - casethickness - shieldthickness - foamsurroundthickness, z + skidthickness + pcbthickness))
-    print('#box: {} {} {} {} {} {} pcb'.format(x + 0.086 + foamsurroundthickness, y + casethickness + shieldthickness + foamsurroundthickness, z + skidthickness, x + 0.086 + 0.057 - foamsurroundthickness, y + casesize[1] - casethickness - shieldthickness - foamsurroundthickness, z + skidthickness + pcbthickness))
+    box(x + 0.025 + shieldthickness + foamsurroundthickness, y + casethickness + shieldthickness + foamsurroundthickness, z + skidthickness, x + 0.086 - shieldthickness - foamsurroundthickness, y + casesize[1] - casethickness - shieldthickness - foamsurroundthickness, z + skidthickness + pcbthickness, 'pcb')
+    box(x + 0.086 + foamsurroundthickness, y + casethickness + shieldthickness + foamsurroundthickness, z + skidthickness, x + 0.086 + 0.057 - foamsurroundthickness, y + casesize[1] - casethickness - shieldthickness - foamsurroundthickness, z + skidthickness + pcbthickness, 'pcb')
     
     # PCB components
     if resolution == 0.001:
@@ -96,52 +97,52 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
         a = 0
         b = 0
         while b < 13:
-            print('#plate: {} {} {} {} {} {} pec'.format(x + 0.045 + a*dx, y + 0.039 + b*dx, z + skidthickness, x + 0.065 - a*dx, y + 0.039 + b*dx + dy, z + skidthickness))
-            print('#plate: {} {} {} {} {} {} pec'.format(x + 0.045 + a*dx, y + 0.067 - b*dx, z + skidthickness, x + 0.065 - a*dx, y + 0.067 - b*dx + dy, z + skidthickness))
-            print('#plate: {} {} {} {} {} {} pec'.format(x + 0.104 + a*dx, y + 0.039 + b*dx, z + skidthickness, x + 0.124 - a*dx, y + 0.039 + b*dx + dy, z + skidthickness))
-            print('#plate: {} {} {} {} {} {} pec'.format(x + 0.104 + a*dx, y + 0.067 - b*dx, z + skidthickness, x + 0.124 - a*dx, y + 0.067 - b*dx + dy, z + skidthickness))
+            plate(x + 0.045 + a*dx, y + 0.039 + b*dx, z + skidthickness, x + 0.065 - a*dx, y + 0.039 + b*dx + dy, z + skidthickness, 'pec')
+            plate(x + 0.045 + a*dx, y + 0.067 - b*dx, z + skidthickness, x + 0.065 - a*dx, y + 0.067 - b*dx + dy, z + skidthickness, 'pec')
+            plate(x + 0.104 + a*dx, y + 0.039 + b*dx, z + skidthickness, x + 0.124 - a*dx, y + 0.039 + b*dx + dy, z + skidthickness, 'pec')
+            plate(x + 0.104 + a*dx, y + 0.067 - b*dx, z + skidthickness, x + 0.124 - a*dx, y + 0.067 - b*dx + dy, z + skidthickness, 'pec')
             b += 1
             if a == 2 or a == 4 or a == 7:
-                print('#plate: {} {} {} {} {} {} pec'.format(x + 0.045 + a*dx, y + 0.039 + b*dx, z + skidthickness, x + 0.065 - a*dx, y + 0.039 + b*dx + dy, z + skidthickness))
-                print('#plate: {} {} {} {} {} {} pec'.format(x + 0.045 + a*dx, y + 0.067 - b*dx, z + skidthickness, x + 0.065 - a*dx, y + 0.067 - b*dx + dy, z + skidthickness))
-                print('#plate: {} {} {} {} {} {} pec'.format(x + 0.104 + a*dx, y + 0.039 + b*dx, z + skidthickness, x + 0.124 - a*dx, y + 0.039 + b*dx + dy, z + skidthickness))
-                print('#plate: {} {} {} {} {} {} pec'.format(x + 0.104 + a*dx, y + 0.067 - b*dx, z + skidthickness, x + 0.124 - a*dx, y + 0.067 - b*dx + dy, z + skidthickness))
+                plate(x + 0.045 + a*dx, y + 0.039 + b*dx, z + skidthickness, x + 0.065 - a*dx, y + 0.039 + b*dx + dy, z + skidthickness, 'pec')
+                plate(x + 0.045 + a*dx, y + 0.067 - b*dx, z + skidthickness, x + 0.065 - a*dx, y + 0.067 - b*dx + dy, z + skidthickness, 'pec')
+                plate(x + 0.104 + a*dx, y + 0.039 + b*dx, z + skidthickness, x + 0.124 - a*dx, y + 0.039 + b*dx + dy, z + skidthickness, 'pec')
+                plate(x + 0.104 + a*dx, y + 0.067 - b*dx, z + skidthickness, x + 0.124 - a*dx, y + 0.067 - b*dx + dy, z + skidthickness, 'pec')
                 b += 1
             a += 1
         # Rx extension section (upper y)
-        print('#plate: {} {} {} {} {} {} pec'.format(x + 0.044, y + 0.068, z + skidthickness, x + 0.044 + bowtiebase, y + 0.068 + patchheight, z + skidthickness))
+        plate(x + 0.044, y + 0.068, z + skidthickness, x + 0.044 + bowtiebase, y + 0.068 + patchheight, z + skidthickness, 'pec')
         # Tx extension section (upper y)
-        print('#plate: {} {} {} {} {} {} pec'.format(x + 0.103, y + 0.068, z + skidthickness, x + 0.103 + bowtiebase, y + 0.068 + patchheight, z + skidthickness))
+        plate(x + 0.103, y + 0.068, z + skidthickness, x + 0.103 + bowtiebase, y + 0.068 + patchheight, z + skidthickness, 'pec')
         
         # Edges that represent wire between bowtie halves in 1mm model
-        print('#edge: {} {} {} {} {} {} pec'.format(tx[0] - 0.059, tx[1] - dy, tx[2], tx[0] - 0.059, tx[1], tx[2]))
-        print('#edge: {} {} {} {} {} {} pec'.format(tx[0] - 0.059, tx[1] + dy, tx[2], tx[0] - 0.059, tx[1] + 0.002, tx[2]))
-        print('#edge: {} {} {} {} {} {} pec'.format(tx[0], tx[1] - dy, tx[2], tx[0], tx[1], tx[2]))
-        print('#edge: {} {} {} {} {} {} pec'.format(tx[0], tx[1] + dz, tx[2], tx[0], tx[1] + 0.002, tx[2]))
+        edge(tx[0] - 0.059, tx[1] - dy, tx[2], tx[0] - 0.059, tx[1], tx[2], 'pec')
+        edge(tx[0] - 0.059, tx[1] + dy, tx[2], tx[0] - 0.059, tx[1] + 0.002, tx[2], 'pec')
+        edge(tx[0], tx[1] - dy, tx[2], tx[0], tx[1], tx[2], 'pec')
+        edge(tx[0], tx[1] + dz, tx[2], tx[0], tx[1] + 0.002, tx[2], 'pec')
 
     elif resolution == 0.002:
     # Rx & Tx bowties
         for a in range(0,6):
-            print('#plate: {} {} {} {} {} {} pec'.format(x + 0.044 + a*dx, y + 0.040 + a*dx, z + skidthickness, x + 0.066 - a*dx, y + 0.040 + a*dx + dy, z + skidthickness))
-            print('#plate: {} {} {} {} {} {} pec'.format(x + 0.044 + a*dx, y + 0.064 - a*dx, z + skidthickness, x + 0.066 - a*dx, y + 0.064 - a*dx + dy, z + skidthickness))
-            print('#plate: {} {} {} {} {} {} pec'.format(x + 0.103 + a*dx, y + 0.040 + a*dx, z + skidthickness, x + 0.125 - a*dx, y + 0.040 + a*dx + dy, z + skidthickness))
-            print('#plate: {} {} {} {} {} {} pec'.format(x + 0.103 + a*dx, y + 0.064 - a*dx, z + skidthickness, x + 0.125 - a*dx, y + 0.064 - a*dx + dy, z + skidthickness))
+            plate(x + 0.044 + a*dx, y + 0.040 + a*dx, z + skidthickness, x + 0.066 - a*dx, y + 0.040 + a*dx + dy, z + skidthickness, 'pec')
+            plate(x + 0.044 + a*dx, y + 0.064 - a*dx, z + skidthickness, x + 0.066 - a*dx, y + 0.064 - a*dx + dy, z + skidthickness, 'pec')
+            plate(x + 0.103 + a*dx, y + 0.040 + a*dx, z + skidthickness, x + 0.125 - a*dx, y + 0.040 + a*dx + dy, z + skidthickness, 'pec')
+            plate(x + 0.103 + a*dx, y + 0.064 - a*dx, z + skidthickness, x + 0.125 - a*dx, y + 0.064 - a*dx + dy, z + skidthickness, 'pec')
             # Rx extension section (upper y)
-            print('#plate: {} {} {} {} {} {} pec'.format(x + 0.044, y + 0.066, z + skidthickness, x + 0.044 + bowtiebase, y + 0.066 + patchheight, z + skidthickness))
+            plate(x + 0.044, y + 0.066, z + skidthickness, x + 0.044 + bowtiebase, y + 0.066 + patchheight, z + skidthickness, 'pec')
             # Tx extension section (upper y)
-            print('#plate: {} {} {} {} {} {} pec'.format(x + 0.103, y + 0.066, z + skidthickness, x + 0.103 + bowtiebase, y + 0.066 + patchheight, z + skidthickness))
+            plate(x + 0.103, y + 0.066, z + skidthickness, x + 0.103 + bowtiebase, y + 0.066 + patchheight, z + skidthickness, 'pec')
 
     # Rx extension section (lower y)
-    print('#plate: {} {} {} {} {} {} pec'.format(x + 0.044, y + 0.024, z + skidthickness, x + 0.044 + bowtiebase, y + 0.024 + patchheight, z + skidthickness))
+    plate(x + 0.044, y + 0.024, z + skidthickness, x + 0.044 + bowtiebase, y + 0.024 + patchheight, z + skidthickness, 'pec')
     # Tx extension section (lower y)
-    print('#plate: {} {} {} {} {} {} pec'.format(x + 0.103, y + 0.024, z + skidthickness, x + 0.103 + bowtiebase, y + 0.024 + patchheight, z + skidthickness))
+    plate(x + 0.103, y + 0.024, z + skidthickness, x + 0.103 + bowtiebase, y + 0.024 + patchheight, z + skidthickness, 'pec')
 
     # Skid
-    print('#box: {} {} {} {} {} {} hdpe'.format(x, y, z, x + casesize[0], y + casesize[1], z + skidthickness))
+    box(x, y, z, x + casesize[0], y + casesize[1], z + skidthickness, 'hdpe')
     
     # Geometry views
-    #print('#geometry_view: {} {} {} {} {} {} {} {} {} antenna_like_GSSI_1500 n'.format(x - dx, y - dy, z - dz, x + casesize[0] + dx, y + casesize[1] + dy, z + skidthickness + casesize[2] + dz, dx, dy, dz))
-    #print('#geometry_view: {} {} {} {} {} {} {} {} {} antenna_like_GSSI_1500_pcb f'.format(x, y, z, x + casesize[0], y + casesize[1], z + 0.010, dx, dy, dz))
+    #geometry_view(x - dx, y - dy, z - dz, x + casesize[0] + dx, y + casesize[1] + dy, z + skidthickness + casesize[2] + dz, dx, dy, dz, 'antenna_like_GSSI_1500')
+    #geometry_view(x, y, z, x + casesize[0], y + casesize[1], z + 0.010, dx, dy, dz, 'antenna_like_GSSI_1500_pcb', type='f')
     
     # Excitation - custom pulse
     #print('#excitation_file: {}'.format(os.path.join(moduledirectory, 'GSSIgausspulse1.txt')))
@@ -226,140 +227,140 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     rxsiglower = ((1 / rxrescelllower) * (dy / (dx * dz))) / 2 # Divide by number of parallel edges per resistor
     
     # Material definitions
-    print('#material: {:.2f} {:.3f} 1 0 absorber'.format(absorberEr, absorbersig))
-    print('#material: 3 0 1 0 pcb')
-    print('#material: 2.35 0 1 0 hdpe')
-    print('#material: 2.26 0 1 0 polypropylene')
-    print('#material: 3 {:.3f} 1 0 txreslower'.format(txsiglower))
-    print('#material: 3 {:.3f} 1 0 txresupper'.format(txsigupper))
-    print('#material: 3 {:.3f} 1 0 rxreslower'.format(rxsiglower))
-    print('#material: 3 {:.3f} 1 0 rxresupper'.format(rxsigupper))
+    material(absorberEr, absorbersig, 1, 0, 'absorber')
+    material(3, 0, 1, 0, 'pcb')
+    material(2.35, 0, 1, 0, 'hdpe')
+    material(2.26, 0, 1, 0, 'polypropylene')
+    material(3, txsiglower, 1, 0, 'txreslower')
+    material(3, txsigupper, 1, 0, 'txresupper')
+    material(3, rxsiglower, 1, 0, 'rxreslower')
+    material(3, rxsigupper, 1, 0, 'rxresupper')
     
     # Antenna geometry
     # Shield - metallic enclosure
-    print('#box: {} {} {} {} {} {} pec'.format(x, y, z + skidthickness, x + casesize[0], y + casesize[1], z + skidthickness + casesize[2]))
-    print('#box: {} {} {} {} {} {} free_space'.format(x + 0.020, y + casethickness, z + skidthickness, x + 0.100, y + casesize[1] - casethickness, z + skidthickness + casethickness))
-    print('#box: {} {} {} {} {} {} free_space'.format(x + 0.100, y + casethickness, z + skidthickness, x + casesize[0] - casethickness, y + casesize[1] - casethickness, z + skidthickness + casethickness))
+    box(x, y, z + skidthickness, x + casesize[0], y + casesize[1], z + skidthickness + casesize[2], 'pec')
+    box(x + 0.020, y + casethickness, z + skidthickness, x + 0.100, y + casesize[1] - casethickness, z + skidthickness + casethickness, 'free_space')
+    box(x + 0.100, y + casethickness, z + skidthickness, x + casesize[0] - casethickness, y + casesize[1] - casethickness, z + skidthickness + casethickness, 'free_space')
     
     # Absorber material
-    print('#box: {} {} {} {} {} {} absorber'.format(x + 0.020, y + casethickness, z + skidthickness, x + 0.100, y + casesize[1] - casethickness, z + skidthickness + casesize[2] - casethickness))
-    print('#box: {} {} {} {} {} {} absorber'.format(x + 0.100, y + casethickness, z + skidthickness, x + casesize[0] - casethickness, y + casesize[1] - casethickness, z + skidthickness + casesize[2] - casethickness))
+    box(x + 0.020, y + casethickness, z + skidthickness, x + 0.100, y + casesize[1] - casethickness, z + skidthickness + casesize[2] - casethickness, 'absorber')
+    box(x + 0.100, y + casethickness, z + skidthickness, x + casesize[0] - casethickness, y + casesize[1] - casethickness, z + skidthickness + casesize[2] - casethickness, 'absorber')
     
     # Shield - cylindrical sections
-    print('#cylinder: {} {} {} {} {} {} {} pec'.format(x + 0.055, y + casesize[1] - 0.008, z + skidthickness, x + 0.055, y + casesize[1] - 0.008, z + skidthickness + casesize[2] - casethickness, 0.008))
-    print('#cylinder: {} {} {} {} {} {} {} pec'.format(x + 0.055, y + 0.008, z + skidthickness, x + 0.055, y + 0.008, z + skidthickness + casesize[2] - casethickness, 0.008))
-    print('#cylinder: {} {} {} {} {} {} {} pec'.format(x + 0.147, y + casesize[1] - 0.008, z + skidthickness, x + 0.147, y + casesize[1] - 0.008, z + skidthickness + casesize[2] - casethickness, 0.008))
-    print('#cylinder: {} {} {} {} {} {} {} pec'.format(x + 0.147, y + 0.008, z + skidthickness, x + 0.147, y + 0.008, z + skidthickness + casesize[2] - casethickness, 0.008))
-    print('#cylinder: {} {} {} {} {} {} {} free_space'.format(x + 0.055, y + casesize[1] - 0.008, z + skidthickness, x + 0.055, y + casesize[1] - 0.008, z + skidthickness + casesize[2] - casethickness, 0.007))
-    print('#cylinder: {} {} {} {} {} {} {} free_space'.format(x + 0.055, y + 0.008, z + skidthickness, x + 0.055, y + 0.008, z + skidthickness + casesize[2] - casethickness, 0.007))
-    print('#cylinder: {} {} {} {} {} {} {} free_space'.format(x + 0.147, y + casesize[1] - 0.008, z + skidthickness, x + 0.147, y + casesize[1] - 0.008, z + skidthickness + casesize[2] - casethickness, 0.007))
-    print('#cylinder: {} {} {} {} {} {} {} free_space'.format(x + 0.147, y + 0.008, z + skidthickness, x + 0.147, y + 0.008, z + skidthickness + casesize[2] - casethickness, 0.007))
-    print('#box: {} {} {} {} {} {} free_space'.format(x + 0.054, y + casesize[1] - 0.016, z + skidthickness, x + 0.056, y + casesize[1] - 0.014, z + skidthickness + casesize[2] - casethickness))
-    print('#box: {} {} {} {} {} {} free_space'.format(x + 0.054, y + 0.014, z + skidthickness, x + 0.056, y + 0.016, z + skidthickness + casesize[2] - casethickness))
-    print('#box: {} {} {} {} {} {} free_space'.format(x + 0.146, y + casesize[1] - 0.016, z + skidthickness, x + 0.148, y + casesize[1] - 0.014, z + skidthickness + casesize[2] - casethickness))
-    print('#box: {} {} {} {} {} {} free_space'.format(x + 0.146, y + 0.014, z + skidthickness, x + 0.148, y + 0.016, z + skidthickness + casesize[2] - casethickness))
+    cylinder(x + 0.055, y + casesize[1] - 0.008, z + skidthickness, x + 0.055, y + casesize[1] - 0.008, z + skidthickness + casesize[2] - casethickness, 0.008, 'pec')
+    cylinder(x + 0.055, y + 0.008, z + skidthickness, x + 0.055, y + 0.008, z + skidthickness + casesize[2] - casethickness, 0.008, 'pec')
+    cylinder(x + 0.147, y + casesize[1] - 0.008, z + skidthickness, x + 0.147, y + casesize[1] - 0.008, z + skidthickness + casesize[2] - casethickness, 0.008, 'pec')
+    cylinder(x + 0.147, y + 0.008, z + skidthickness, x + 0.147, y + 0.008, z + skidthickness + casesize[2] - casethickness, 0.008, 'pec')
+    cylinder(x + 0.055, y + casesize[1] - 0.008, z + skidthickness, x + 0.055, y + casesize[1] - 0.008, z + skidthickness + casesize[2] - casethickness, 0.007, 'free_space')
+    cylinder(x + 0.055, y + 0.008, z + skidthickness, x + 0.055, y + 0.008, z + skidthickness + casesize[2] - casethickness, 0.007, 'free_space')
+    cylinder(x + 0.147, y + casesize[1] - 0.008, z + skidthickness, x + 0.147, y + casesize[1] - 0.008, z + skidthickness + casesize[2] - casethickness, 0.007, 'free_space')
+    cylinder(x + 0.147, y + 0.008, z + skidthickness, x + 0.147, y + 0.008, z + skidthickness + casesize[2] - casethickness, 0.007, 'free_space')
+    box(x + 0.054, y + casesize[1] - 0.016, z + skidthickness, x + 0.056, y + casesize[1] - 0.014, z + skidthickness + casesize[2] - casethickness, 'free_space')
+    box(x + 0.054, y + 0.014, z + skidthickness, x + 0.056, y + 0.016, z + skidthickness + casesize[2] - casethickness, 'free_space')
+    box(x + 0.146, y + casesize[1] - 0.016, z + skidthickness, x + 0.148, y + casesize[1] - 0.014, z + skidthickness + casesize[2] - casethickness, 'free_space')
+    box(x + 0.146, y + 0.014, z + skidthickness, x + 0.148, y + 0.016, z + skidthickness + casesize[2] - casethickness, 'free_space')
     
     # PCB
-    print('#box: {} {} {} {} {} {} pcb'.format(x + 0.020, y + 0.018, z + skidthickness, x + casesize[0] - casethickness, y + casesize[1] - 0.018, z + skidthickness + pcbthickness))
+    box(x + 0.020, y + 0.018, z + skidthickness, x + casesize[0] - casethickness, y + casesize[1] - 0.018, z + skidthickness + pcbthickness, 'pcb')
     
     # Shield - Tx & Rx cavities
-    print('#box: {} {} {} {} {} {} pec'.format(x + 0.032, y + 0.022, z + skidthickness, x + 0.032 + cavitysize[0], y + 0.022 + cavitysize[1], z + skidthickness + cavitysize[2]))
-    print('#box: {} {} {} {} {} {} absorber'.format(x + 0.032 + cavitythickness, y + 0.022 + cavitythickness, z + skidthickness, x + 0.032 + cavitysize[0] - cavitythickness, y + 0.022 + cavitysize[1] - cavitythickness, z + skidthickness + cavitysize[2]))
-    print('#box: {} {} {} {} {} {} pec'.format(x + 0.108, y + 0.022, z + skidthickness, x + 0.108 + cavitysize[0], y + 0.022 + cavitysize[1], z + skidthickness + cavitysize[2]))
-    print('#box: {} {} {} {} {} {} free_space'.format(x + 0.108 + cavitythickness, y + 0.022 + cavitythickness, z + skidthickness, x + 0.108 + cavitysize[0] - cavitythickness, y + 0.022 + cavitysize[1] - cavitythickness, z + skidthickness + cavitysize[2]))
+    box(x + 0.032, y + 0.022, z + skidthickness, x + 0.032 + cavitysize[0], y + 0.022 + cavitysize[1], z + skidthickness + cavitysize[2], 'pec')
+    box(x + 0.032 + cavitythickness, y + 0.022 + cavitythickness, z + skidthickness, x + 0.032 + cavitysize[0] - cavitythickness, y + 0.022 + cavitysize[1] - cavitythickness, z + skidthickness + cavitysize[2], 'absorber')
+    box(x + 0.108, y + 0.022, z + skidthickness, x + 0.108 + cavitysize[0], y + 0.022 + cavitysize[1], z + skidthickness + cavitysize[2], 'pec')
+    box(x + 0.108 + cavitythickness, y + 0.022 + cavitythickness, z + skidthickness, x + 0.108 + cavitysize[0] - cavitythickness, y + 0.022 + cavitysize[1] - cavitythickness, z + skidthickness + cavitysize[2], 'free_space')
     
     # Shield - Tx & Rx cavities - joining strips
-    print('#box: {} {} {} {} {} {} pec'.format(x + 0.032 + cavitysize[0], y + 0.022 + cavitysize[1] - 0.006, z + skidthickness + cavitysize[2] - casethickness, x + 0.108, y + 0.022 + cavitysize[1], z + skidthickness + cavitysize[2]))
-    print('#box: {} {} {} {} {} {} pec'.format(x + 0.032 + cavitysize[0], y + 0.022, z + skidthickness + cavitysize[2] - casethickness, x + 0.108, y + 0.022 + 0.006, z + skidthickness + cavitysize[2]))
+    box(x + 0.032 + cavitysize[0], y + 0.022 + cavitysize[1] - 0.006, z + skidthickness + cavitysize[2] - casethickness, x + 0.108, y + 0.022 + cavitysize[1], z + skidthickness + cavitysize[2], 'pec')
+    box(x + 0.032 + cavitysize[0], y + 0.022, z + skidthickness + cavitysize[2] - casethickness, x + 0.108, y + 0.022 + 0.006, z + skidthickness + cavitysize[2], 'pec')
     
     # PCB - replace bits chopped by TX & Rx cavities
-    print('#box: {} {} {} {} {} {} pcb'.format(x + 0.032 + cavitythickness, y + 0.022 + cavitythickness, z + skidthickness, x + 0.032 + cavitysize[0] - cavitythickness, y + 0.022 + cavitysize[1] - cavitythickness, z + skidthickness + pcbthickness))
-    print('#box: {} {} {} {} {} {} pcb'.format(x + 0.108 + cavitythickness, y + 0.022 + cavitythickness, z + skidthickness, x + 0.108 + cavitysize[0] - cavitythickness, y + 0.022 + cavitysize[1] - cavitythickness, z + skidthickness + pcbthickness))
+    box(x + 0.032 + cavitythickness, y + 0.022 + cavitythickness, z + skidthickness, x + 0.032 + cavitysize[0] - cavitythickness, y + 0.022 + cavitysize[1] - cavitythickness, z + skidthickness + pcbthickness, 'pcb')
+    box(x + 0.108 + cavitythickness, y + 0.022 + cavitythickness, z + skidthickness, x + 0.108 + cavitysize[0] - cavitythickness, y + 0.022 + cavitysize[1] - cavitythickness, z + skidthickness + pcbthickness, 'pcb')
     
     # PCB components
     # Tx bowtie
-    print('#triangle: {} {} {} {} {} {} {} {} {} 0 pec'.format(tx[0], tx[1] - 0.001, tx[2], tx[0] - 0.026, tx[1] - bowtieheight - 0.001, tx[2], tx[0] + 0.026, tx[1] - bowtieheight - 0.001, tx[2]))
-    print('#edge: {} {} {} {} {} {} pec'.format(tx[0], tx[1] - 0.001, tx[2], tx[0], tx[1], tx[2]))
-    print('#triangle: {} {} {} {} {} {} {} {} {} 0 pec'.format(tx[0], tx[1] + 0.002, tx[2], tx[0] - 0.026, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.026, tx[1] + bowtieheight + 0.002, tx[2]))
-    print('#edge: {} {} {} {} {} {} pec'.format(tx[0], tx[1] + 0.001, tx[2], tx[0], tx[1] + 0.002, tx[2]))
+    triangle(tx[0], tx[1] - 0.001, tx[2], tx[0] - 0.026, tx[1] - bowtieheight - 0.001, tx[2], tx[0] + 0.026, tx[1] - bowtieheight - 0.001, tx[2], 0, 'pec')
+    edge(tx[0], tx[1] - 0.001, tx[2], tx[0], tx[1], tx[2], 'pec')
+    triangle(tx[0], tx[1] + 0.002, tx[2], tx[0] - 0.026, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.026, tx[1] + bowtieheight + 0.002, tx[2], 0, 'pec')
+    edge(tx[0], tx[1] + 0.001, tx[2], tx[0], tx[1] + 0.002, tx[2], 'pec')
     
     # Rx bowtie
-    print('#triangle: {} {} {} {} {} {} {} {} {} 0 pec'.format(tx[0] + 0.076, tx[1] - 0.001, tx[2], tx[0] + 0.076 - 0.026, tx[1] - bowtieheight - 0.001, tx[2], tx[0] + 0.076 + 0.026, tx[1] - bowtieheight - 0.001, tx[2]))
-    print('#edge: {} {} {} {} {} {} pec'.format(tx[0] + 0.076, tx[1] - 0.001, tx[2], tx[0] + 0.076, tx[1], tx[2]))
-    print('#triangle: {} {} {} {} {} {} {} {} {} 0 pec'.format(tx[0] + 0.076, tx[1] + 0.002, tx[2], tx[0] + 0.076 - 0.026, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.076 + 0.026, tx[1] + bowtieheight + 0.002, tx[2]))
-    print('#edge: {} {} {} {} {} {} pec'.format(tx[0] + 0.076, tx[1] + 0.001, tx[2], tx[0] + 0.076, tx[1] + 0.002, tx[2]))
+    triangle(tx[0] + 0.076, tx[1] - 0.001, tx[2], tx[0] + 0.076 - 0.026, tx[1] - bowtieheight - 0.001, tx[2], tx[0] + 0.076 + 0.026, tx[1] - bowtieheight - 0.001, tx[2], 0, 'pec')
+    edge(tx[0] + 0.076, tx[1] - 0.001, tx[2], tx[0] + 0.076, tx[1], tx[2], 'pec')
+    triangle(tx[0] + 0.076, tx[1] + 0.002, tx[2], tx[0] + 0.076 - 0.026, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.076 + 0.026, tx[1] + bowtieheight + 0.002, tx[2], 0, 'pec')
+    edge(tx[0] + 0.076, tx[1] + 0.001, tx[2], tx[0] + 0.076, tx[1] + 0.002, tx[2], 'pec')
     
     # Tx surface mount resistors (lower y coordinate)
     if resolution == 0.001:
-        print('#edge: {} {} {} {} {} {} txreslower'.format(tx[0] - 0.023, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023, tx[1] - bowtieheight - dy, tx[2]))
-        print('#edge: {} {} {} {} {} {} txreslower'.format(tx[0] - 0.023 + dx, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023 + dx, tx[1] - bowtieheight - dy, tx[2]))
-        print('#edge: {} {} {} {} {} {} txreslower'.format(tx[0], tx[1] - bowtieheight - 0.004, tx[2], tx[0], tx[1] - bowtieheight - dy, tx[2]))
-        print('#edge: {} {} {} {} {} {} txreslower'.format(tx[0] + dx, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + dx, tx[1] - bowtieheight - dy, tx[2]))
-        print('#edge: {} {} {} {} {} {} txreslower'.format(tx[0] + 0.022, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.022, tx[1] - bowtieheight - dy, tx[2]))
-        print('#edge: {} {} {} {} {} {} txreslower'.format(tx[0] + 0.022 + dx, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.022 + dx, tx[1] - bowtieheight - dy, tx[2]))
+        edge(tx[0] - 0.023, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023, tx[1] - bowtieheight - dy, tx[2], 'txreslower')
+        edge(tx[0] - 0.023 + dx, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023 + dx, tx[1] - bowtieheight - dy, tx[2], 'txreslower')
+        edge(tx[0], tx[1] - bowtieheight - 0.004, tx[2], tx[0], tx[1] - bowtieheight - dy, tx[2], 'txreslower')
+        edge(tx[0] + dx, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + dx, tx[1] - bowtieheight - dy, tx[2], 'txreslower')
+        edge(tx[0] + 0.022, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.022, tx[1] - bowtieheight - dy, tx[2], 'txreslower')
+        edge(tx[0] + 0.022 + dx, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.022 + dx, tx[1] - bowtieheight - dy, tx[2], 'txreslower')
     elif resolution == 0.002:
-        print('#edge: {} {} {} {} {} {} txreslower'.format(tx[0] - 0.023, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023, tx[1] - bowtieheight, tx[2]))
-        print('#edge: {} {} {} {} {} {} txreslower'.format(tx[0] - 0.023 + dx, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023 + dx, tx[1] - bowtieheight, tx[2]))
-        print('#edge: {} {} {} {} {} {} txreslower'.format(tx[0], tx[1] - bowtieheight - 0.004, tx[2], tx[0], tx[1] - bowtieheight, tx[2]))
-        print('#edge: {} {} {} {} {} {} txreslower'.format(tx[0] + dx, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + dx, tx[1] - bowtieheight, tx[2]))
-        print('#edge: {} {} {} {} {} {} txreslower'.format(tx[0] + 0.020, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.020, tx[1] - bowtieheight, tx[2]))
-        print('#edge: {} {} {} {} {} {} txreslower'.format(tx[0] + 0.020 + dx, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.020 + dx, tx[1] - bowtieheight, tx[2]))
+        edge(tx[0] - 0.023, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023, tx[1] - bowtieheight, tx[2], 'txreslower')
+        edge(tx[0] - 0.023 + dx, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023 + dx, tx[1] - bowtieheight, tx[2], 'txreslower')
+        edge(tx[0], tx[1] - bowtieheight - 0.004, tx[2], tx[0], tx[1] - bowtieheight, tx[2], 'txreslower')
+        edge(tx[0] + dx, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + dx, tx[1] - bowtieheight, tx[2], 'txreslower')
+        edge(tx[0] + 0.020, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.020, tx[1] - bowtieheight, tx[2], 'txreslower')
+        edge(tx[0] + 0.020 + dx, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.020 + dx, tx[1] - bowtieheight, tx[2], 'txreslower')
     
     # Tx surface mount resistors (upper y coordinate)
     if resolution == 0.001:
-        print('#edge: {} {} {} {} {} {} txresupper'.format(tx[0] - 0.023, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} txresupper'.format(tx[0] - 0.023 + dx, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023 + dx, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} txresupper'.format(tx[0], tx[1] + bowtieheight + 0.002, tx[2], tx[0], tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} txresupper'.format(tx[0] + dx, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + dx, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} txresupper'.format(tx[0] + 0.022, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.022, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} txresupper'.format(tx[0] + 0.022 + dx, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.022 + dx, tx[1] + bowtieheight + 0.006, tx[2]))
+        edge(tx[0] - 0.023, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023, tx[1] + bowtieheight + 0.006, tx[2], 'txresupper')
+        edge(tx[0] - 0.023 + dx, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023 + dx, tx[1] + bowtieheight + 0.006, tx[2], 'txresupper')
+        edge(tx[0], tx[1] + bowtieheight + 0.002, tx[2], tx[0], tx[1] + bowtieheight + 0.006, tx[2], 'txresupper')
+        edge(tx[0] + dx, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + dx, tx[1] + bowtieheight + 0.006, tx[2], 'txresupper')
+        edge(tx[0] + 0.022, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.022, tx[1] + bowtieheight + 0.006, tx[2], 'txresupper')
+        edge(tx[0] + 0.022 + dx, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.022 + dx, tx[1] + bowtieheight + 0.006, tx[2], 'txresupper')
     elif resolution == 0.002:
-        print('#edge: {} {} {} {} {} {} txresupper'.format(tx[0] - 0.023, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} txresupper'.format(tx[0] - 0.023 + dx, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023 + dx, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} txresupper'.format(tx[0], tx[1] + bowtieheight + 0.002, tx[2], tx[0], tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} txresupper'.format(tx[0] + dx, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + dx, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} txresupper'.format(tx[0] + 0.020, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.020, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} txresupper'.format(tx[0] + 0.020 + dx, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.020 + dx, tx[1] + bowtieheight + 0.006, tx[2]))
+        edge(tx[0] - 0.023, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023, tx[1] + bowtieheight + 0.006, tx[2], 'txresupper')
+        edge(tx[0] - 0.023 + dx, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023 + dx, tx[1] + bowtieheight + 0.006, tx[2], 'txresupper')
+        edge(tx[0], tx[1] + bowtieheight + 0.002, tx[2], tx[0], tx[1] + bowtieheight + 0.006, tx[2], 'txresupper')
+        edge(tx[0] + dx, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + dx, tx[1] + bowtieheight + 0.006, tx[2], 'txresupper')
+        edge(tx[0] + 0.020, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.020, tx[1] + bowtieheight + 0.006, tx[2], 'txresupper')
+        edge(tx[0] + 0.020 + dx, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.020 + dx, tx[1] + bowtieheight + 0.006, tx[2], 'txresupper')
     
     # Rx surface mount resistors (lower y coordinate)
     if resolution == 0.001:
-        print('#edge: {} {} {} {} {} {} rxreslower'.format(tx[0] - 0.023 + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023 + 0.076, tx[1] - bowtieheight - dy, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxreslower'.format(tx[0] - 0.023 + dx + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023 + dx + 0.076, tx[1] - bowtieheight - dy, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxreslower'.format(tx[0] + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.076, tx[1] - bowtieheight - dy, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxreslower'.format(tx[0] + dx + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + dx + 0.076, tx[1] - bowtieheight - dy, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxreslower'.format(tx[0] + 0.022 + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.022 + 0.076, tx[1] - bowtieheight - dy, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxreslower'.format(tx[0] + 0.022 + dx + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.022 + dx + 0.076, tx[1] - bowtieheight - dy, tx[2]))
+        edge(tx[0] - 0.023 + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023 + 0.076, tx[1] - bowtieheight - dy, tx[2], 'rxreslower')
+        edge(tx[0] - 0.023 + dx + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023 + dx + 0.076, tx[1] - bowtieheight - dy, tx[2], 'rxreslower')
+        edge(tx[0] + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.076, tx[1] - bowtieheight - dy, tx[2], 'rxreslower')
+        edge(tx[0] + dx + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + dx + 0.076, tx[1] - bowtieheight - dy, tx[2], 'rxreslower')
+        edge(tx[0] + 0.022 + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.022 + 0.076, tx[1] - bowtieheight - dy, tx[2], 'rxreslower')
+        edge(tx[0] + 0.022 + dx + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.022 + dx + 0.076, tx[1] - bowtieheight - dy, tx[2], 'rxreslower')
     elif resolution == 0.002:
-        print('#edge: {} {} {} {} {} {} rxreslower'.format(tx[0] - 0.023 + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023 + 0.076, tx[1] - bowtieheight, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxreslower'.format(tx[0] - 0.023 + dx + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023 + dx + 0.076, tx[1] - bowtieheight, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxreslower'.format(tx[0] + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.076, tx[1] - bowtieheight, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxreslower'.format(tx[0] + dx + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + dx + 0.076, tx[1] - bowtieheight, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxreslower'.format(tx[0] + 0.020 + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.020 + 0.076, tx[1] - bowtieheight, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxreslower'.format(tx[0] + 0.020 + dx + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.020 + dx + 0.076, tx[1] - bowtieheight, tx[2]))
+        edge(tx[0] - 0.023 + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023 + 0.076, tx[1] - bowtieheight, tx[2], 'rxreslower')
+        edge(tx[0] - 0.023 + dx + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] - 0.023 + dx + 0.076, tx[1] - bowtieheight, tx[2], 'rxreslower')
+        edge(tx[0] + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.076, tx[1] - bowtieheight, tx[2], 'rxreslower')
+        edge(tx[0] + dx + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + dx + 0.076, tx[1] - bowtieheight, tx[2], 'rxreslower')
+        edge(tx[0] + 0.020 + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.020 + 0.076, tx[1] - bowtieheight, tx[2], 'rxreslower')
+        edge(tx[0] + 0.020 + dx + 0.076, tx[1] - bowtieheight - 0.004, tx[2], tx[0] + 0.020 + dx + 0.076, tx[1] - bowtieheight, tx[2], 'rxreslower')
     
     # Rx surface mount resistors (upper y coordinate)
     if resolution == 0.001:
-        print('#edge: {} {} {} {} {} {} rxresupper'.format(tx[0] - 0.023 + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023 + 0.076, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxresupper'.format(tx[0] - 0.023 + dx + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023 + dx + 0.076, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxresupper'.format(tx[0] + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.076, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxresupper'.format(tx[0] + dx + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + dx + 0.076, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxresupper'.format(tx[0] + 0.022 + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.022 + 0.076, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxresupper'.format(tx[0] + 0.022 + dx + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.022 + dx + 0.076, tx[1] + bowtieheight + 0.006, tx[2]))
+        edge(tx[0] - 0.023 + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023 + 0.076, tx[1] + bowtieheight + 0.006, tx[2], 'rxresupper')
+        edge(tx[0] - 0.023 + dx + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023 + dx + 0.076, tx[1] + bowtieheight + 0.006, tx[2], 'rxresupper')
+        edge(tx[0] + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.076, tx[1] + bowtieheight + 0.006, tx[2], 'rxresupper')
+        edge(tx[0] + dx + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + dx + 0.076, tx[1] + bowtieheight + 0.006, tx[2], 'rxresupper')
+        edge(tx[0] + 0.022 + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.022 + 0.076, tx[1] + bowtieheight + 0.006, tx[2], 'rxresupper')
+        edge(tx[0] + 0.022 + dx + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.022 + dx + 0.076, tx[1] + bowtieheight + 0.006, tx[2], 'rxresupper')
     elif resolution == 0.002:
-        print('#edge: {} {} {} {} {} {} rxresupper'.format(tx[0] - 0.023 + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023 + 0.076, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxresupper'.format(tx[0] - 0.023 + dx + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023 + dx + 0.076, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxresupper'.format(tx[0] + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.076, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxresupper'.format(tx[0] + dx + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + dx + 0.076, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxresupper'.format(tx[0] + 0.020 + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.020 + 0.076, tx[1] + bowtieheight + 0.006, tx[2]))
-        print('#edge: {} {} {} {} {} {} rxresupper'.format(tx[0] + 0.020 + dx + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.020 + dx + 0.076, tx[1] + bowtieheight + 0.006, tx[2]))
+        edge(tx[0] - 0.023 + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023 + 0.076, tx[1] + bowtieheight + 0.006, tx[2], 'rxresupper')
+        edge(tx[0] - 0.023 + dx + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] - 0.023 + dx + 0.076, tx[1] + bowtieheight + 0.006, tx[2], 'rxresupper')
+        edge(tx[0] + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.076, tx[1] + bowtieheight + 0.006, tx[2], 'rxresupper')
+        edge(tx[0] + dx + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + dx + 0.076, tx[1] + bowtieheight + 0.006, tx[2], 'rxresupper')
+        edge(tx[0] + 0.020 + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.020 + 0.076, tx[1] + bowtieheight + 0.006, tx[2], 'rxresupper')
+        edge(tx[0] + 0.020 + dx + 0.076, tx[1] + bowtieheight + 0.002, tx[2], tx[0] + 0.020 + dx + 0.076, tx[1] + bowtieheight + 0.006, tx[2], 'rxresupper')
     
     # Skid
-    print('#box: {} {} {} {} {} {} polypropylene'.format(x, y, z, x + casesize[0], y + casesize[1], z + polypropylenethickness))
-    print('#box: {} {} {} {} {} {} hdpe'.format(x, y, z + polypropylenethickness, x + casesize[0], y + casesize[1], z + polypropylenethickness + hdpethickness))
+    box(x, y, z, x + casesize[0], y + casesize[1], z + polypropylenethickness, 'polypropylene')
+    box(x, y, z + polypropylenethickness, x + casesize[0], y + casesize[1], z + polypropylenethickness + hdpethickness, 'hdpe')
 
     # Geometry views
-    #print('#geometry_view: {} {} {} {} {} {} {} {} {} antenna_like_MALA_1200 n'.format(x - dx, y - dy, z - dz, x + casesize[0] + dx, y + casesize[1] + dy, z + casesize[2] + skidthickness + dz, dx, dy, dz))
-    #print('#geometry_view: {} {} {} {} {} {} {} {} {} antenna_like_MALA_1200_pcb f'.format(x, y, z, x + casesize[0], y + casesize[1], z + 0.010, dx, dy, dz))
+    #geometry_view(x - dx, y - dy, z - dz, x + casesize[0] + dx, y + casesize[1] + dy, z + casesize[2] + skidthickness + dz, dx, dy, dz, 'antenna_like_MALA_1200')
+    #geometry_view(x, y, z, x + casesize[0], y + casesize[1], z + 0.010, dx, dy, dz, 'antenna_like_MALA_1200_pcb', type='f')
     
     # Excitation
     print('#waveform: gaussian 1.0 {} myGaussian'.format(excitationfreq))
