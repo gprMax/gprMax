@@ -16,12 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
 from collections import OrderedDict
 
 import numpy as np
 
 from gprMax.constants import floattype
 from gprMax.exceptions import CmdInputError
+
+moduledirectory = os.path.dirname(os.path.abspath(__file__))
 
 
 def taguchi_code_blocks(inputfile, taguchinamespace):
@@ -88,32 +91,58 @@ def construct_OA(optparams):
     # Number of parameters to optimise
     k = len(optparams)
     
-    p = int(np.ceil(np.log(k * (s - 1) + 1) / np.log(s)))
-    
-    # Number of experiments
-    N = s**p
-    
-    # Number of columns
-    cols = int((N - 1) / (s - 1))
-    
-    # Algorithm to construct OA from: http://ieeexplore.ieee.org/xpl/articleDetails.jsp?reload=true&arnumber=6812898
-    OA = np.zeros((N + 1, cols + 1), dtype=np.int8)
-    
-    # Construct basic columns
-    for ii in range(1, p + 1):
-        col = int((s**(ii - 1) - 1) / (s - 1) + 1)
-        for row in range(1, N + 1):
-            OA[row, col] = np.mod(np.floor((row - 1) / (s**(p - ii))), s)
+    # Load the appropriate OA
+    if k <= 4:
+        OA = np.load(os.path.join(moduledirectory, 'user_libs', 'OA_9_4_3_2.npy'))
 
-    # Construct non-basic columns
-    for ii in range(2, p + 1):
-        col = int((s**(ii - 1) - 1) / (s - 1) + 1)
-        for jj in range(1, col):
-            for kk in range(1, s):
-                OA[:, col + (jj - 1) * (s - 1) + kk] = np.mod(OA[:, jj] * kk + OA[:, col], s)
+        # Number of experiments
+        N = OA.shape[0]
 
-    # First row and first columns are unneccessary, only there to match algorithm, and cut down columns to number of parameters to optimise
-    OA = OA[1:, 1:k + 1]
+        # Number of columns of OA before cut down
+        cols = OA.shape[1]
+
+        # Cut down OA columns to number of parameters to optimise
+        OA = OA[:, 0:k]
+
+    elif k <= 7:
+        OA = np.load(os.path.join(moduledirectory, 'user_libs',  'OA_18_7_3_2.npy'))
+
+        # Number of experiments
+        N = OA.shape[0]
+
+        # Number of columns of OA before cut down
+        cols = OA.shape[1]
+
+        # Cut down OA columns to number of parameters to optimise
+        OA = OA[:, 0:k]
+
+    else:
+        p = int(np.ceil(np.log(k * (s - 1) + 1) / np.log(s)))
+        
+        # Number of experiments
+        N = s**p
+
+        # Number of columns
+        cols = int((N - 1) / (s - 1))
+        
+        # Algorithm to construct OA from: http://ieeexplore.ieee.org/xpl/articleDetails.jsp?reload=true&arnumber=6812898
+        OA = np.zeros((N + 1, cols + 1), dtype=np.int8)
+        
+        # Construct basic columns
+        for ii in range(1, p + 1):
+            col = int((s**(ii - 1) - 1) / (s - 1) + 1)
+            for row in range(1, N + 1):
+                OA[row, col] = np.mod(np.floor((row - 1) / (s**(p - ii))), s)
+
+        # Construct non-basic columns
+        for ii in range(2, p + 1):
+            col = int((s**(ii - 1) - 1) / (s - 1) + 1)
+            for jj in range(1, col):
+                for kk in range(1, s):
+                    OA[:, col + (jj - 1) * (s - 1) + kk] = np.mod(OA[:, jj] * kk + OA[:, col], s)
+
+        # First row and first columns are unneccessary, only there to match algorithm, and cut down columns to number of parameters to optimise
+        OA = OA[1:, 1:k + 1]
 
     return OA, N, cols, k, s, t
 
