@@ -405,7 +405,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
                     requirednumID = G.ID[0, source.positionx, source.positiony, source.positionz]
                     material = next(x for x in G.materials if x.numID == requirednumID)
                     newmaterial = deepcopy(material)
-                    newmaterial.ID = material.ID + '|VoltageSource_' + str(source.resistance)
+                    newmaterial.ID = material.ID + '+VoltageSource_' + str(source.resistance)
                     newmaterial.numID = len(G.materials)
                     newmaterial.se += G.dx / (source.resistance * G.dy * G.dz)
                     newmaterial.average = False
@@ -414,7 +414,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
                     requirednumID = G.ID[1, source.positionx, source.positiony, source.positionz]
                     material = next(x for x in G.materials if x.numID == requirednumID)
                     newmaterial = deepcopy(material)
-                    newmaterial.ID = material.ID + '|VoltageSource_' + str(source.resistance)
+                    newmaterial.ID = material.ID + '+VoltageSource_' + str(source.resistance)
                     newmaterial.numID = len(G.materials)
                     newmaterial.se += G.dy / (source.resistance * G.dx * G.dz)
                     newmaterial.average = False
@@ -423,7 +423,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
                     requirednumID = G.ID[2, source.positionx, source.positiony, source.positionz]
                     material = next(x for x in G.materials if x.numID == requirednumID)
                     newmaterial = deepcopy(material)
-                    newmaterial.ID = material.ID + '|VoltageSource_' + str(source.resistance)
+                    newmaterial.ID = material.ID + '+VoltageSource_' + str(source.resistance)
                     newmaterial.numID = len(G.materials)
                     newmaterial.se += G.dz / (source.resistance * G.dx * G.dy)
                     newmaterial.average = False
