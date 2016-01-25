@@ -78,7 +78,7 @@ The antenna model is loaded from a Python module and inserted into the input fil
 Results
 -------
 
-:numref:`antenna_like_MALA_1200_fs_results` shows the time history of the electric and magnetic field components from the receiver bowtie of the antenna model. The antenna bowties are aligned with the y axis so the output will be the Ey component of the electric field.
+:numref:`antenna_like_MALA_1200_fs_results` shows the time history of the y-component of the electric field from the receiver bowtie of the antenna model (the antenna bowties are aligned with the y axis).
 
 .. _antenna_like_MALA_1200_fs_results:
 
