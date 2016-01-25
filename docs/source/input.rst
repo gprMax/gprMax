@@ -106,41 +106,8 @@ General commands
 #python: and #end_python:
 -------------------------
 
-Allows you to write blocks of Python code between ``#python`` and ``#end_python`` in the input file. The code is executed when the input file is read by gprMax.
+Allows you to write blocks of Python code between ``#python`` and ``#end_python`` in the input file. The code is executed when the input file is read by gprMax. For further details see the :ref:`Python section <python-scripting>`.
 
-For example, to use Python to automatically generate repetitive geometry:
-
-.. code-block:: none
-
-    #python:
-    for x in range(0, 8)
-        print(’#cylinder: z 0.000 0.100 {} 0.050 0.005 pec’.format(0.020 + x * 0.020))
-    #end_python:
-
-You can access the following built-in constants from your Python code:
-
-* ``c`` which is the speed of light in vacuum :math:`c=2.9979245 \times 10^8` m/s
-* ``e0`` which is the permittivity of free space :math:`\epsilon_0=8.854187 \times 10^{-12}` F/m
-* ``m0`` which is the permeability of free space :math:`\mu_0=1.256637 \times 10^{-6}` H/m
-* ``z0`` which is the impedance of free space :math:`z_0=376.7303134` Ohms
-
-You can access the following built-in variables from your Python code:
-
-* ``current_model_run`` which is the current run number of the model that is been executed.
-* ``number_model_runs`` which is the total number of runs specified when the model was initiatially executed.
-
-For example, if you running a model multiple times, e.g. to generate a scan, you can use the syntax: ``python -m gprMax my_input_file -n number_of_model_runs``
-
-You can also access the built-in library of antenna models. Currently models of antennas similar to Geophysical Survey Systems, Inc. (GSSI) (http://www.geophysical.com) 1.5 GHz (Model 5100) antenna, and MALA Geoscience (http://www.malags.com/) 1.2 GHz antenna are included. They can be accessed from within a block of Python code using: ``from user_libs.antennas import antenna_like_GSSI_1500`` or ``from user_libs.antennas import antenna_like_MALA_1200``.
-
-For example, to use Python to include one of the antenna models from the built-in library at a location 0.125m, 0.094m, 0.100m (x,y,z) using a 1mm spatial resolution:
-
-.. code-block:: none
-
-    #python:
-    from user_libs.antennas import antenna_like_GSSI_1500
-    antenna_like_GSSI_1500(0.125, 0.094, 0.100, 0.001)
-    #end_python:
 
 #time_step_limit_type:
 ----------------------------
