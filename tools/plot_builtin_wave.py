@@ -38,7 +38,7 @@ args = parser.parse_args()
 
 # Check waveform parameters
 if args.type.lower() not in Waveform.waveformtypes:
-    raise CmdInputError('The waveform must have one of the following types {}'.format(','.join(Waveform.waveformtypes)))
+    raise CmdInputError('The waveform must have one of the following types {}'.format(', '.join(Waveform.waveformtypes)))
 if args.freq <= 0:
     raise CmdInputError('The waveform requires an excitation frequency value of greater than zero')
 
@@ -56,6 +56,8 @@ timeiter = np.nditer(time, flags=['c_index'])
 while not timeiter.finished:
     waveform[timeiter.index] = w.calculate_value(timeiter[0], dt)
     timeiter.iternext()
+
+time *= 1e9
 
 if args.fft:
     # Calculate magnitude of frequency spectra of waveform
