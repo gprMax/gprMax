@@ -24,8 +24,6 @@ import numpy as np
 from gprMax.constants import floattype
 from gprMax.exceptions import CmdInputError
 
-moduledirectory = os.path.dirname(os.path.abspath(__file__))
-
 
 def taguchi_code_blocks(inputfile, taguchinamespace):
     """Looks for and processes a Taguchi code block (containing Python code) in the input file. It will ignore any lines that are comments, i.e. begin with a double hash (##), and any blank lines.
@@ -93,7 +91,7 @@ def construct_OA(optparams):
     
     # Load the appropriate OA
     if k <= 4:
-        OA = np.load(os.path.join(moduledirectory, 'user_libs', 'OA_9_4_3_2.npy'))
+        OA = np.load(os.path.join('user_libs', 'OA_9_4_3_2.npy'))
 
         # Number of experiments
         N = OA.shape[0]
@@ -105,7 +103,7 @@ def construct_OA(optparams):
         OA = OA[:, 0:k]
 
     elif k <= 7:
-        OA = np.load(os.path.join(moduledirectory, 'user_libs',  'OA_18_7_3_2.npy'))
+        OA = np.load(os.path.join('user_libs',  'OA_18_7_3_2.npy'))
 
         # Number of experiments
         N = OA.shape[0]
