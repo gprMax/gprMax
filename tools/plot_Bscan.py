@@ -48,9 +48,9 @@ if outputdata.shape[1] == 1:
 
 # Plot B-scan image
 fig = plt.figure(num=args.outputfile, figsize=(20, 10), facecolor='w', edgecolor='w')
-plt.imshow(outputdata, extent=[0, outputdata.shape[1], outputdata.shape[0]*f.attrs['dt']*1e9, 0], interpolation='nearest', aspect='auto', cmap='seismic', vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
+plt.imshow(outputdata, extent=[0, outputdata.shape[1], outputdata.shape[0]*f.attrs['dt'], 0], interpolation='nearest', aspect='auto', cmap='seismic', vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
 plt.xlabel('Trace number')
-plt.ylabel('Time [ns]')
+plt.ylabel('Time [s]')
 plt.grid()
 cb = plt.colorbar()
 if 'E' in args.output:
