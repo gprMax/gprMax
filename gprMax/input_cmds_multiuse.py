@@ -425,17 +425,17 @@ def process_multicmds(multicmds, G):
             else:
                 time = int(tmp[9])
             
-            if xs < 0 or xs >= G.nx:
+            if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
-            if xf < 0 or xf >= G.nx:
+            if xf < 0 or xf > G.nx:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the upper x-coordinate {:g}m is not within the model domain'.format(xf * G.dx))
-            if ys < 0 or ys >= G.ny:
+            if ys < 0 or ys > G.ny:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower y-coordinate {:g}m is not within the model domain'.format(ys * G.dy))
-            if yf < 0 or yf >= G.ny:
+            if yf < 0 or yf > G.ny:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the upper y-coordinate {:g}m is not within the model domain'.format(yf * G.dy))
-            if zs < 0 or zs >= G.nz:
+            if zs < 0 or zs > G.nz:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower z-coordinate {:g}m is not within the model domain'.format(zs * G.dz))
-            if zf < 0 or zf >= G.nz:
+            if zf < 0 or zf > G.nz:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the upper z-coordinate {:g}m is not within the model domain'.format(zf * G.dz))
             if xs >= xf or ys >= yf or zs >= zf:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
