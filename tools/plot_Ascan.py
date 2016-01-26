@@ -41,7 +41,6 @@ nrx = f.attrs['nrx']
 dt = f.attrs['dt']
 iterations = f.attrs['Iterations']
 time = np.arange(0, dt * iterations, dt)
-time = time / 1e-9
 
 # Check for single output component when doing a FFT
 if args.fft:
@@ -56,12 +55,20 @@ for rx in range(1, nrx + 1):
     # If only a single output is required, create one subplot
     if len(args.outputs) == 1:
         
-        # Check if requested output is in file
+        # Check for polarity of output and if requested output is in file
+        if args.outputs[0][0] == 'm':
+            polarity = -1
+            outputtext = '-' + args.outputs[0][1:]
+            args.outputs[0] = args.outputs[0][1:]
+        else:
+            polarity = 1
+            outputtext = args.outputs[0]
+        
         if args.outputs[0] not in availableoutputs:
             raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(args.outputs[0], ', '.join(availableoutputs)))
         
-        outputdata = f[path + args.outputs[0]][:]
-        
+        outputdata = f[path + args.outputs[0]][:] * polarity
+
         # Plotting if FFT required
         if args.fft:
             # Calculate magnitude of frequency spectra of waveform
@@ -80,26 +87,32 @@ for rx in range(1, nrx + 1):
             # Plot time history of output component
             fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
             line1 = ax1.plot(time, outputdata, 'r', lw=2, label=args.outputs[0])
-            ax1.set_xlabel('Time [ns]')
-            ax1.set_ylabel(args.outputs[0] + ' field strength [V/m]')
+            ax1.set_xlabel('Time [s]')
+            ax1.set_ylabel(outputtext + ' field strength [V/m]')
             ax1.set_xlim([0, np.amax(time)])
             ax1.grid()
 
             # Plot frequency spectra
-            markerline, stemlines, baseline = ax2.stem(freqs[pltrange]/1e9, power[pltrange], '-.')
+            markerline, stemlines, baseline = ax2.stem(freqs[pltrange], power[pltrange], '-.')
             plt.setp(baseline, 'linewidth', 0)
             plt.setp(stemlines, 'color', 'r')
             plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
             line2 = ax2.plot(freqs[pltrange]/1e9, power[pltrange], 'r', lw=2)
-            ax2.set_xlabel('Frequency [GHz]')
+            ax2.set_xlabel('Frequency [Hz]')
             ax2.set_ylabel('Power [dB]')
             ax2.grid()
             
-            # Change colours and labels for magnetic field components
+            # Change colours and labels for magnetic field components or currents
             if 'H' in args.outputs[0]:
+                plt.setp(line1, color='g')
+                plt.setp(line2, color='g')
+                plt.setp(ax1, ylabel=outputtext + ' field strength [A/m]')
+                plt.setp(stemlines, 'color', 'g')
+                plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
+            elif 'I' in args.outputs[0]:
                 plt.setp(line1, color='b')
                 plt.setp(line2, color='b')
-                plt.setp(ax1, ylabel=args.outputs[0] + ' field strength [A/m]')
+                plt.setp(ax1, ylabel=outputtext + ' current [A]')
                 plt.setp(stemlines, 'color', 'b')
                 plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
             
@@ -107,64 +120,75 @@ for rx in range(1, nrx + 1):
     
         # Plotting if no FFT required
         else:
-            fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [ns]', ylabel=args.outputs[0] + ' field strength [V/m]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
-            line = ax.plot(time, outputdata,'r', lw=2, label=args.outputs[0])
+            fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]', ylabel=outputtext + ' field strength [V/m]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
+            line = ax.plot(time, outputdata,'r', lw=2, label=outputtext)
             ax.set_xlim([0, np.amax(time)])
             ax.grid()
             
             if 'H' in args.outputs[0]:
-                plt.setp(line, color='b')
-                plt.setp(ax, ylabel=args.outputs[0] + ', field strength [A/m]')
+                plt.setp(line, color='g')
+                plt.setp(ax, ylabel=outputtext + ', field strength [A/m]')
             elif 'I' in args.outputs[0]:
                 plt.setp(line, color='b')
-                plt.setp(ax, ylabel=args.outputs[0] + ', current [A]')
+                plt.setp(ax, ylabel=outputtext + ', current [A]')
 
     # If multiple fields required, creat all nine subplots and populate only the specified ones
     else:
-        fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [ns]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
+        fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
         gs = gridspec.GridSpec(3, 3, hspace=0.3, wspace=0.3)
         for output in args.outputs:
+            
+            # Check for polarity of output and if requested output is in file
+            if output[0] == 'm':
+                polarity = -1
+                outputtext = '-' + output[1:]
+                output = output[1:]
+            else:
+                polarity = 1
+                outputtext = output
+            
             # Check if requested output is in file
             if output not in availableoutputs:
                 raise CmdInputError('Output(s) requested to plot: {}, but available output(s) for receiver {} in the file: {}'.format(', '.join(args.outputs), rx, ', '.join(availableoutputs)))
             
-            outputdata = f[path + output][:]
+            outputdata = f[path + output][:] * polarity
+            
             if output == 'Ex':
                 ax = plt.subplot(gs[0, 0])
-                ax.plot(time, outputdata,'r', lw=2, label=output)
-                ax.set_ylabel(output + ', field strength [V/m]')
+                ax.plot(time, outputdata,'r', lw=2, label=outputtext)
+                ax.set_ylabel(outputtext + ', field strength [V/m]')
             elif output == 'Ey':
                 ax = plt.subplot(gs[1, 0])
-                ax.plot(time, outputdata,'r', lw=2, label=output)
-                ax.set_ylabel(output + ', field strength [V/m]')
+                ax.plot(time, outputdata,'r', lw=2, label=outputtext)
+                ax.set_ylabel(outputtext + ', field strength [V/m]')
             elif output == 'Ez':
                 ax = plt.subplot(gs[2, 0])
-                ax.plot(time, outputdata,'r', lw=2, label=output)
-                ax.set_ylabel(output + ', field strength [V/m]')
+                ax.plot(time, outputdata,'r', lw=2, label=outputtext)
+                ax.set_ylabel(outputtext + ', field strength [V/m]')
             elif output == 'Hx':
                 ax = plt.subplot(gs[0, 1])
-                ax.plot(time, outputdata,'b', lw=2, label=output)
-                ax.set_ylabel(output + ', field strength [A/m]')
+                ax.plot(time, outputdata,'g', lw=2, label=outputtext)
+                ax.set_ylabel(outputtext + ', field strength [A/m]')
             elif output == 'Hy':
                 ax = plt.subplot(gs[1, 1])
-                ax.plot(time, outputdata,'b', lw=2, label=output)
-                ax.set_ylabel(output + ', field strength [A/m]')
+                ax.plot(time, outputdata,'g', lw=2, label=outputtext)
+                ax.set_ylabel(outputtext + ', field strength [A/m]')
             elif output == 'Hz':
                 ax = plt.subplot(gs[2, 1])
-                ax.plot(time, outputdata,'b', lw=2, label=output)
-                ax.set_ylabel(output + ', field strength [A/m]')
+                ax.plot(time, outputdata,'g', lw=2, label=outputtext)
+                ax.set_ylabel(outputtext + ', field strength [A/m]')
             elif output == 'Ix':
                 ax = plt.subplot(gs[0, 2])
-                ax.plot(time, outputdata,'b', lw=2, label=output)
-                ax.set_ylabel(output + ', current [A]')
+                ax.plot(time, outputdata,'b', lw=2, label=outputtext)
+                ax.set_ylabel(outputtext + ', current [A]')
             elif output == 'Iy':
                 ax = plt.subplot(gs[1, 2])
-                ax.plot(time, outputdata,'b', lw=2, label=output)
-                ax.set_ylabel(output + ', current [A]')
+                ax.plot(time, outputdata,'b', lw=2, label=outputtext)
+                ax.set_ylabel(outputtext + ', current [A]')
             elif output == 'Iz':
                 ax = plt.subplot(gs[2, 2])
-                ax.plot(time, outputdata,'b', lw=2, label=output)
-                ax.set_ylabel(output + ', current [A]')
+                ax.plot(time, outputdata,'b', lw=2, label=outputtext)
+                ax.set_ylabel(outputtext + ', current [A]')
         for ax in fig.axes:
             ax.set_xlim([0, np.amax(time)])
             ax.grid()
