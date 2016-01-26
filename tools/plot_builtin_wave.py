@@ -18,9 +18,11 @@
 
 import os, argparse
 import numpy as np
+np.seterr(divide='ignore')
 import matplotlib.pyplot as plt
 
 from gprMax.exceptions import CmdInputError
+from gprMax.utilities import round_value
 from gprMax.waveforms import Waveform
 
 
@@ -31,7 +33,7 @@ parser = argparse.ArgumentParser(description='Plot built-in waveforms that can b
 parser.add_argument('type', help='type of waveform, e.g. gaussian, ricker etc...')
 parser.add_argument('amp', type=float, help='amplitude of waveform')
 parser.add_argument('freq', type=float, help='centre frequency of waveform')
-parser.add_argument('timewindow', type=float, help='time window to view waveform')
+parser.add_argument('timewindow', help='time window to view waveform')
 parser.add_argument('dt', type=float, help='time step to view waveform')
 parser.add_argument('-fft', action='store_true', default=False, help='plot FFT')
 args = parser.parse_args()
@@ -46,8 +48,19 @@ w = Waveform()
 w.type = args.type
 w.amp = args.amp
 w.freq = args.freq
-timewindow = args.timewindow
 dt = args.dt
+
+# Check time window
+if '.' in args.timewindow or 'e' in args.timewindow:
+    if float(args.timewindow) > 0:
+        timewindow = float(args.timewindow)
+        iterations = round_value((float(args.timewindow) / dt)) + 1
+    else:
+        raise CmdInputError('Time window must have a value greater than zero')
+    # If number of iterations given
+else:
+    timewindow = (int(args.timewindow) - 1) * dt
+    iterations = int(args.timewindow)
 
 time = np.arange(0, timewindow, dt)
 waveform = np.zeros(len(time))
@@ -57,7 +70,21 @@ while not timeiter.finished:
     waveform[timeiter.index] = w.calculate_value(timeiter[0], dt)
     timeiter.iternext()
 
-time *= 1e9
+print('Waveform characteristics...')
+print('Type: {}'.format(w.type))
+print('Amplitude: {:g}'.format(w.amp))
+print('Centre frequency: {:g} Hz'.format(w.freq))
+print('Time to centre of pulse: {:g} s'.format(1 / w.freq))
+
+# Calculate pulse width for gaussian
+if w.type == 'gaussian':
+    powerdrop = -3 #dB
+    start = np.where((10 * np.log10(waveform / np.amax(waveform))) > powerdrop)[0][0]
+    stop = np.where((10 * np.log10(waveform[start:] / np.amax(waveform))) < powerdrop)[0][0] + start
+    print('Pulse width at {:d}dB, i.e. FWHM: {:g} s'.format(powerdrop, time[stop] - time[start]))
+
+print('Time window: {:g} s ({} iterations)'.format(timewindow, iterations))
+print('Time step: {:g} s'.format(dt))
 
 if args.fft:
     # Calculate magnitude of frequency spectra of waveform
@@ -75,16 +102,16 @@ if args.fft:
     
     # Plot waveform
     ax1.plot(time, waveform, 'r', lw=2)
-    ax1.set_xlabel('Time [ns]')
+    ax1.set_xlabel('Time [s]')
     ax1.set_ylabel('Amplitude')
 
     # Plot frequency spectra
-    markerline, stemlines, baseline = ax2.stem(freqs[pltrange]/1e9, power[pltrange], '-.')
+    markerline, stemlines, baseline = ax2.stem(freqs[pltrange], power[pltrange], '-.')
     plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'r')
     plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
     ax2.plot(freqs[pltrange]/1e9, power[pltrange], 'r', lw=2)
-    ax2.set_xlabel('Frequency [GHz]')
+    ax2.set_xlabel('Frequency [Hz]')
     ax2.set_ylabel('Power [dB]')
 
 else:
@@ -92,7 +119,7 @@ else:
 
     # Plot waveform
     ax1.plot(time, waveform, 'r', lw=2)
-    ax1.set_xlabel('Time [ns]')
+    ax1.set_xlabel('Time [s]')
     ax1.set_ylabel('Amplitude')
 
 [ax.grid() for ax in fig.axes] # Turn on grid
