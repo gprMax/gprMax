@@ -241,12 +241,12 @@ def main():
                 break
 
             # Stop optimisation if successive fitness values are within 0.5%
-            if i > 2:
-                fitnessvaluesclose = (np.abs(fitnessvalueshist[i - 2] - fitnessvalueshist[i - 1]) / fitnessvalueshist[i - 1]) * 100
-                fitnessvaluesthres = 0.1
-                if fitnessvaluesclose < fitnessvaluesthres:
-                    print('\nTaguchi optimisation stopped as successive fitness values within {}%'.format(fitnessvaluesthres))
-                    break
+#            if i > 2:
+#                fitnessvaluesclose = (np.abs(fitnessvalueshist[i - 2] - fitnessvalueshist[i - 1]) / fitnessvalueshist[i - 1]) * 100
+#                fitnessvaluesthres = 0.1
+#                if fitnessvaluesclose < fitnessvaluesthres:
+#                    print('\nTaguchi optimisation stopped as successive fitness values within {}%'.format(fitnessvaluesthres))
+#                    break
 
         # Save optimisation parameters history and fitness values history to file
         opthistfile = inputfileparts[0] + '_hist'
