@@ -183,8 +183,8 @@ def process_singlecmds(singlecmds, multicmds, G):
             G.pmlthickness = (int(tmp[0]), int(tmp[0]), int(tmp[0]), int(tmp[0]), int(tmp[0]), int(tmp[0]))
         else:
             G.pmlthickness = (int(tmp[0]), int(tmp[1]), int(tmp[2]), int(tmp[3]), int(tmp[4]), int(tmp[5]))
-        if 2*G.pmlthickness[0] >= G.nx or 2*G.pmlthickness[1] >= G.ny or 2*G.pmlthickness[2] >= G.nz or 2*G.pmlthickness[3] >= G.nx or 2*G.pmlthickness[4] >= G.ny or 2*G.pmlthickness[5] >= G.nz:
-            raise CmdInputError(cmd + ' has too many cells for the domain size')
+    if 2*G.pmlthickness[0] >= G.nx or 2*G.pmlthickness[1] >= G.ny or 2*G.pmlthickness[2] >= G.nz or 2*G.pmlthickness[3] >= G.nx or 2*G.pmlthickness[4] >= G.ny or 2*G.pmlthickness[5] >= G.nz:
+        raise CmdInputError(cmd + ' has too many cells for the domain size')
 
     
     # src_steps
