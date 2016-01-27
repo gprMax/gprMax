@@ -16,109 +16,113 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys, os
+
+import sys, os, argparse
+
 import h5py
 import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
-from tools.plot_fields import plot_Ascan
+import matplotlib.gridspec as gridspec
+
 from tests.analytical_solutions import hertzian_dipole_fs
 
-"""Compare field outputs
-    
-Usage:
-    cd gprMax
-    python -m tests.test_compare_analytical path_to_model_output
-    
-"""
+"""Plots a comparison of analytical solutions and given simulated output."""
 
-modelfile = sys.argv[1]
-path = '/rxs/rx1/'
-# Key refers to subplot location
-fields = {0: 'Ex', 1: 'Ey', 2: 'Ez', 3: 'Hx', 4: 'Hy', 5: 'Hz'}
-plotorder = {0: 0, 1: 3, 2: 1, 3: 4, 4: 2, 5: 5}
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='Plots a comparison of analytical solutions and given simulated output.', usage='cd gprMax; python -m tests.test_compare_analytical modelfile')
+parser.add_argument('modelfile', help='name of model output file including path')
+args = parser.parse_args()
 
 # Model results
-f = h5py.File(modelfile, 'r')
-# Get model/file attributes
-floattype = f[path + 'Ex'].dtype
+f = h5py.File(args.modelfile, 'r')
+path = '/rxs/rx1/'
+availablecomponents = list(f[path].keys())
+
+floattype = f[path + availablecomponents[0]].dtype
 iterations = f.attrs['Iterations']
 dt = f.attrs['dt']
 dxdydz = f.attrs['dx, dy, dz']
-model = np.zeros((iterations, 6), dtype=floattype)
-time = np.arange(0, dt * iterations, dt) / 1e-9
-rxpos = f[path + 'Position']
-txpos = f['/txs/tx1/Position']
+time = np.linspace(0, 1, iterations)
+time *= (iterations * dt)
+rxpos = f[path].attrs['Position']
+txpos = f['/srcs/src1/'].attrs['Position']
 rxposrelative = ((rxpos[0] - txpos[0]), (rxpos[1] - txpos[1]), (rxpos[2] - txpos[2]))
-# Read fields
-for ID, name in fields.items():
-    model[:,ID] = f[path + str(name)][:]
-f.close()
+model = np.zeros((iterations, len(availablecomponents)), dtype=floattype)
 
 # Analytical solution of a dipole in free space
-analytical = hertzian_dipole_fs(iterations * dt, dt, dxdydz, rxposrelative)
+analytical = hertzian_dipole_fs(iterations, dt, dxdydz, rxposrelative)
 
-# Differences
+# Read modelled fields and calculate differences
 threshold = 1e-4 # Threshold, below which ignore differences
-diffs = np.zeros((iterations, 6), dtype=floattype)
-for ID, name in fields.items():
-    max = np.amax(np.abs(analytical[:,ID]))
+diffs = np.zeros((iterations, len(availablecomponents)), dtype=floattype)
+for index in range(len(availablecomponents)):
+    model[:,index] = f[path + availablecomponents[index]][:]
+    max = np.amax(np.abs(analytical[:,index]))
     if max < threshold:
-        diffs[:,ID] = 0
+        diffs[:,index] = 0
         diffsum = 0
-        print('Detected differences of less than {} when comparing {} field component, therefore set as zero.'.format(threshold, fields[ID]))
+        print('Detected differences of less than threshold {}, when comparing {} field component, therefore set as zero.'.format(threshold, availablecomponents[index]))
     else:
-        diffs[:,ID] = (np.abs(analytical[:,ID] - model[:,ID]) / max) * 100
-        diffsum = (np.sum(np.abs(analytical[:,ID] - model[:,ID])) / np.sum(np.abs(analytical[:,ID]))) * 100
-    print('Total differences in field component {}: {:.1f}%'.format(name, diffsum))
+        diffs[:,index] = (np.abs(analytical[:,index] - model[:,index]) / max) * 100
+        diffsum = (np.sum(np.abs(analytical[:,index] - model[:,index])) / np.sum(np.abs(analytical[:,index]))) * 100
+    print('Total differences in field component {}: {:.1f}%'.format(availablecomponents[index], diffsum))
 
-# Plot model
-fig1, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), num=modelfile + ' versus analytical solution', figsize=(20, 10), facecolor='w', edgecolor='w')
-    ax1.plot(time, model[:,0],'r', lw=2, label='Ex')
-    ax3.plot(time, model[:,1],'r', lw=2, label='Ey')
-    ax5.plot(time, model[:,2],'r', lw=2, label='Ez')
-    ax2.plot(time, model[:,3],'b', lw=2, label='Hx')
-    ax4.plot(time, model[:,4],'b', lw=2, label='Hy')
-    ax6.plot(time, model[:,5],'b', lw=2, label='Hz')
+f.close()
 
-# Set ylabels
-ylabels = ['$E_x$, field strength [V/m]', '$H_x$, field strength [A/m]', '$E_y$, field strength [V/m]', '$H_y$, field strength [A/m]', '$E_z$, field strength [V/m]', '$H_z$, field strength [A/m]']
+# Plot modelled and analytical solutions
+fig1, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]'), num=args.modelfile + ' versus analytical solution', figsize=(20, 10), facecolor='w', edgecolor='w')
+gs1 = gridspec.GridSpec(3, 2, hspace=0.3, wspace=0.3)
+
+for index in range(len(availablecomponents)):
+    i = int(index % 3)
+    j = int((index - i) / 3 % 2)
+    ax = plt.subplot(gs1[i, j])
+    line1, = ax.plot(time, model[:,index],'r', lw=2, label='Model')
+    line2, = ax.plot(time, analytical[:,index],'r', lw=2, ls='--', label='Analytical')
+    ax.set_ylim(1.1 * np.amin(np.amin(model[:, 0:3], axis=1)), 1.1 * np.amax(np.amax(model[:, 0:3], axis=1)))
+    
+    if index > 2:
+        plt.setp(line1, color='g')
+        plt.setp(line2, color='g')
+        ax.set_ylim(1.1 * np.amin(np.amin(model[:, 3:6], axis=1)), 1.1 * np.amax(np.amax(model[:, 3:6], axis=1)))
+
+    ax.set_xlim(0, time[-1])
+    ax.grid()
+    ax.legend()
+
+# Set axes labels, limits and turn on grid
+ylabels = ['Ex, field strength [V/m]', 'Ey, field strength [V/m]', 'Ez, field strength [V/m]', 'Hx, field strength [A/m]', 'Hy, field strength [A/m]', 'Hz, field strength [A/m]']
 [ax.set_ylabel(ylabels[index]) for index, ax in enumerate(fig1.axes)]
 
-# Turn on grid
-[ax.grid() for ax in fig1.axes]
+# Plot differences of modelled and analytical solutions
+fig2, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]'), num=args.modelfile + ' versus analytical solution differences', figsize=(20, 10), facecolor='w', edgecolor='w')
+gs2 = gridspec.GridSpec(3, 2, hspace=0.3, wspace=0.3)
 
-# Add analytical solution and set legend
-for index, ax in enumerate(fig1.axes):
-    if index in [0, 2, 4]:
-        ax.plot(time, analytical[:,plotorder[index]], 'r', label='analytical', lw=2, ls='--')
-    else:
-        ax.plot(time, analytical[:,plotorder[index]], label='analytical', lw=2, ls='--')
+for index in range(len(availablecomponents)):
+    i = int(index % 3)
+    j = int((index - i) / 3 % 2)
+    ax = plt.subplot(gs2[i, j])
+    line1, = ax.plot(time, diffs[:, index],'r', lw=2)
+    ax.set_ylim(0, 1.1 * np.amax(np.amax(diffs[:, 0:3], axis=1)))
+    
+    if index > 2:
+        plt.setp(line1, color='g')
+        ax.set_ylim(0, 1.1 * np.amax(np.amax(diffs[:, 3:6], axis=1)))
+
+    ax.set_ylim(0, 2)
     ax.set_xlim(0, time[-1])
-    handles, existlabels = ax.get_legend_handles_labels()
-    ax.legend(handles, ['Model', 'Analytical'])
+    ax.grid()
 
-# Plots of differences
-fig2, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), num='Deltas: ' + modelfile + ' versus analytical solution', figsize=(20, 10), facecolor='w', edgecolor='w')
-    ax1.plot(time, diffs[:,0],'r', lw=2, label='Ex')
-    ax3.plot(time, diffs[:,1],'r', lw=2, label='Ey')
-    ax5.plot(time, diffs[:,2],'r', lw=2, label='Ez')
-    ax2.plot(time, diffs[:,3],'b', lw=2, label='Hx')
-    ax4.plot(time, diffs[:,4],'b', lw=2, label='Hy')
-    ax6.plot(time, diffs[:,5],'b', lw=2, label='Hz')
-
-# Set ylabels
-ylabels = ['$E_x$', '$H_x$', '$E_y$', '$H_y$', '$E_z$', '$H_z$']
+# Set axes labels, limits and turn on grid
+ylabels = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz']
 ylabels = [ylabel + ', percentage difference [%]' for ylabel in ylabels]
 [ax.set_ylabel(ylabels[index]) for index, ax in enumerate(fig2.axes)]
 
-# Set axes limits and turn on grid
-[ax.grid() for ax in fig2.axes]
-[ax.set_xlim(0, time[-1]) for ax in fig2.axes]
-[ax.set_ylim(0, np.ceil(np.amax(np.abs(diffs)))) for ax in fig2.axes]
-
-# Show/print plots
-savename = os.path.abspath(os.path.dirname(modelfile)) + os.sep + os.path.splitext(os.path.split(modelfile)[1])[0] + '_vs_analytical'
+# Save a PDF/PNG of the figure
+savename = os.path.abspath(os.path.dirname(args.modelfile)) + os.sep + os.path.splitext(os.path.split(args.modelfile)[1])[0] + '_vs_analytical'
 #fig1.savefig(savename + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
 #fig2.savefig(savename + '_diffs.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+fig1.savefig(savename + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+fig2.savefig(savename + '_diffs.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+
 plt.show()
