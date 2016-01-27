@@ -17,7 +17,7 @@ This example is of a Hertzian dipole, i.e. an additive source (electric current 
 
 The following module calculates the analytical solution.
 
-.. automodule:: tests.analytical.analytical_solutions
+.. automodule:: tests.analytical_solutions
 
 Results
 -------
