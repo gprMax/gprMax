@@ -22,7 +22,7 @@ The following module calculates the analytical solution.
 Results
 -------
 
-:numref:`hertzian_dipole_fs_results` shows the shows the time history of the electric and magnetic field components of the modelled and analytical solutions. :numref:`hertzian_dipole_fs_results_diffs` shows the percentage differences between the modelled and analytical solutions.
+:numref:`hertzian_dipole_fs_results` shows the time history of the electric and magnetic field components of the modelled and analytical solutions. Since they are so similar, :numref:`hertzian_dipole_fs_results_diffs` shows the percentage differences.
 
 .. _hertzian_dipole_fs_results:
 
