@@ -1,15 +1,14 @@
 import numpy as np
 
 from gprMax.constants import c, e0
-from gprMax.utilities import round_value
 from gprMax.waveforms import Waveform
 
 
-def hertzian_dipole_fs(timewindow, dt, dxdydz, rx):
+def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
     """Analytical solution of a z-directed Hertzian dipole in free space with a Gaussian current waveform (http://dx.doi.org/10.1016/0021-9991(83)90103-1).
     
     Args:
-        timewindow (float): Length of time window (seconds).
+        iterations (int): Number of time steps.
         dt (float): Time step (seconds).
         dxdydz (float): Tuple of spatial resolution (metres).
         rx (float): Tuple of coordinates of receiver position relative to transmitter position (metres).
@@ -37,8 +36,8 @@ def hertzian_dipole_fs(timewindow, dt, dxdydz, rx):
     wdot.freq = w.freq
 
     # Time
-    iterations = round_value(timewindow / dt)
-    time = np.linspace(0, timewindow, iterations)
+    time = np.linspace(0, 1, iterations)
+    time *= (iterations * dt)
 
     # Spatial resolution
     dx = dxdydz[0]

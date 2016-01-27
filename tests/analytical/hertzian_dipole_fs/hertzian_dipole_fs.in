@@ -3,11 +3,6 @@
 #dx_dy_dz: 0.001 0.001 0.001
 #time_window: 3e-9
 
-#waveform: gaussiandot 1 1e9 myWave
-#hertzian_dipole: z 0.050 0.050 0.050 myWave
-#rx: 0.070 0.070 0.070
-
-python:
-for time in range(1,50):
-    print('#snapshot: 0.001 0.001 0.001 0.099 0.099 0.099 0.001 0.001 0.001 {} {}'.format(0.1e-9 * time, 'snap' + str(time)))
-end_python:
+#waveform: gaussiandot 1 1e9 mypulse
+#hertzian_dipole: z 0.050 0.050 0.050 mypulse
+#rx: 0.070 0.070 0.070 output Ex Ey Ez Hx Hy Hz
