@@ -104,7 +104,7 @@ def snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename):
         filename (str): Filename where geometry file information will be stored.
     """
     
-    if  '.' in time or 'e' in time:
+    if  '.' in str(time) or 'e' in str(time):
         time = float(time)
         print('#snapshot: {:g} {:g} {:g} {:g} {:g} {:g} {:g} {:g} {:g} {:g} {}'.format(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename))
     else:
