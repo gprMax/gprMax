@@ -38,9 +38,9 @@ The commands have been grouped into six categories:
 
 * **Essential** - required to run any model, such as the domain size and spatial discretization
 * **General** - provide further control over the model
-* **Media** - used to introduce different materials into the model
+* **Material** - used to introduce different materials into the model
 * **Object construction** - used to build geometric shapes with different constitutive parameters
-* **Excitation and output** - used to place source and output points in the model
+* **Source and output** - used to place source and output points in the model
 * **PML** - provide advanced customisation and optimisation of the absorbing boundary conditions
 
 Essential commands
@@ -221,8 +221,8 @@ For example to save a snapshot of the electromagnetic fields in the model at a s
 
 .. _materials:
 
-Media commands
-==============
+Material commands
+=================
 
 Built-in materials
 ------------------
@@ -623,8 +623,8 @@ For example, to apply 100 blades of grass that vary in height between 100 and 15
 
     * The grass is modelled using a single-pole Debye formulation with properties :math:`\epsilon_{rs} = 18.5087`, :math:`\epsilon_{\infty} = 12.7174`, and a relaxation time of :math:`\tau = 1.0793 \times 10^{-11}` seconds (http://dx.doi.org/10.1007/BF00902994). If you prefer, gprMax will use your own definition for grass if you use a material named ``grass``. The geometry of the blades of grass are defined by the parametric equations: :math:`x = x_c +s_x {\left( \frac{t}{b_x} \right)}^2`, :math:`y = y_c +s_y {\left( \frac{t}{b_y} \right)}^2`, and :math:`z=t`, where :math:`s_x` and :math:`s_y` can be -1 or 1 which are randomly chosen, and where the constants :math:`b_x` and :math:`b_y` are random numbers based on a Gaussian distribution.
 
-Excitation commands
-===================
+Source and output commands
+==========================
 
 #waveform:
 ----------
