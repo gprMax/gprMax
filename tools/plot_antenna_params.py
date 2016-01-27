@@ -43,8 +43,8 @@ iterations = f.attrs['Iterations']
 #iterations = int((1 / df) / dt)
 
 # Calculate time array and frequency bin spacing
-time = np.arange(0, dt * iterations, dt)
-time = time[0:iterations]
+time = np.linspace(0, 1, iterations)
+time *= (iterations * dt)
 df = 1 / np.amax(time)
 
 print('Time window: {:g} s ({} iterations)'.format(np.amax(time), iterations))

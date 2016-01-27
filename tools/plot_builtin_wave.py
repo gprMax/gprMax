@@ -62,7 +62,8 @@ else:
     timewindow = (int(args.timewindow) - 1) * dt
     iterations = int(args.timewindow)
 
-time = np.arange(0, timewindow, dt)
+time = np.linspace(0, 1, iterations)
+time *= (iterations * dt)
 waveform = np.zeros(len(time))
 timeiter = np.nditer(time, flags=['c_index'])
 

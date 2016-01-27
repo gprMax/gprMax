@@ -40,7 +40,8 @@ f = h5py.File(file, 'r')
 nrx = f.attrs['nrx']
 dt = f.attrs['dt']
 iterations = f.attrs['Iterations']
-time = np.arange(0, dt * iterations, dt)
+time = np.linspace(0, 1, iterations)
+time *= (iterations * dt)
 
 # Check for single output component when doing a FFT
 if args.fft:
