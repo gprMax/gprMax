@@ -53,10 +53,10 @@ print('Frequency bin spacing: {:g} Hz'.format(df))
 
 # Read/calculate voltages and currents
 path = '/tls/tl' + str(args.tln) + '/'
-Vinc = f[path + 'Vinc'][0:iterations]
-Iinc = f[path + 'Iinc'][0:iterations]
-Vtotal = f[path +'Vtotal'][0:iterations]
-Itotal = f[path +'Itotal'][0:iterations]
+Vinc = f[path + 'Vinc'][:]
+Iinc = f[path + 'Iinc'][:]
+Vtotal = f[path +'Vtotal'][:]
+Itotal = f[path +'Itotal'][:]
 f.close()
 Vref = Vtotal - Vinc
 Iref = Itotal - Iinc
@@ -65,7 +65,7 @@ Iref = Itotal - Iinc
 freqs = np.fft.fftfreq(Vinc.size, d=dt)
 
 # Delay correction to ensure voltage and current are at same time step
-delaycorrection = np.exp(-1j * 2 * np.pi * freqs * (dt /2 ))
+delaycorrection = np.exp(-1j * 2 * np.pi * freqs * (dt / 2))
 
 # Calculate s11
 s11 = np.abs(np.fft.fft(Vref) * delaycorrection) / np.abs(np.fft.fft(Vinc) * delaycorrection)
@@ -249,16 +249,16 @@ ax.grid()
 
 # Plot input resistance (real part of impedance)
 ax = plt.subplot(gs2[1, 0])
-markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.abs(zin[pltrange]), '-.')
+markerline, stemlines, baseline = ax.stem(freqs[pltrange], zin[pltrange].real, '-.')
 plt.setp(baseline, 'linewidth', 0)
 plt.setp(stemlines, 'color', 'g')
 plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
-ax.plot(freqs[pltrange], np.abs(zin[pltrange]), 'g', lw=2)
+ax.plot(freqs[pltrange], zin[pltrange].real, 'g', lw=2)
 ax.set_title('Input impedance (resistive)')
 ax.set_xlabel('Frequency [Hz]')
 ax.set_ylabel('Resistance [Ohms]')
 #ax.set_xlim([0.88, 1.02])
-#ax.set_ylim([0, 1000])
+ax.set_ylim(bottom=0)
 ax.grid()
 
 # Plot input reactance (imaginery part of impedance)
