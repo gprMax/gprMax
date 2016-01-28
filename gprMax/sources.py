@@ -203,16 +203,16 @@ class TransmissionLine:
         """
         
         abstime = 0
-        for timestep in range(self.nl):
-            self.Vinc[timestep] = self.voltage[self.antpos - 1]
-            self.Iinc[timestep] = self.current[self.antpos - 1]
+        for timestep in range(G.iterations):
+            self.Vinc[timestep] = self.voltage[self.antpos]
+            self.Iinc[timestep] = self.current[self.antpos]
             self.update_voltage(abstime, G)
             abstime += 0.5 * G.dt
             self.update_current(abstime, G)
             abstime += 0.5 * G.dt
 
         # Shorten number of nodes in the transmission line before use with main grid
-        self.nl = self.antpos
+        self.nl = self.antpos + 1
     
     def update_abc(self, G):
         """Updates absorbing boundary condition at end of the transmission line.
@@ -279,13 +279,13 @@ class TransmissionLine:
             self.update_voltage(time, G)
             
             if self.polarisation is 'x':
-                Ex[i, j, k] = - self.voltage[self.nl - 1] / G.dx
+                Ex[i, j, k] = - self.voltage[self.antpos] / G.dx
 
             elif self.polarisation is 'y':
-                Ey[i, j, k] = - self.voltage[self.nl - 1] / G.dy
+                Ey[i, j, k] = - self.voltage[self.antpos] / G.dy
 
             elif self.polarisation is 'z':
-                Ez[i, j, k] = - self.voltage[self.nl - 1] / G.dz
+                Ez[i, j, k] = - self.voltage[self.antpos] / G.dz
 
     def update_magnetic(self, abstime, Hx, Hy, Hz, G):
         """Updates current value in transmission line from magnetic field values in the main grid.
@@ -304,13 +304,13 @@ class TransmissionLine:
             k = self.positionz
             
             if self.polarisation is 'x':
-                self.current[self.nl - 1] = Ix(i, j, k, G.Hy, G.Hz, G)
+                self.current[self.antpos] = Ix(i, j, k, G.Hy, G.Hz, G)
 
             elif self.polarisation is 'y':
-                self.current[self.nl - 1] = Iy(i, j, k, G.Hx, G.Hz, G)
+                self.current[self.antpos] = Iy(i, j, k, G.Hx, G.Hz, G)
 
             elif self.polarisation is 'z':
-                self.current[self.nl - 1] = Iz(i, j, k, G.Hx, G.Hy, G)
+                self.current[self.antpos] = Iz(i, j, k, G.Hx, G.Hy, G)
 
             self.update_current(time, G)
 
