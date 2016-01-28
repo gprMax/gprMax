@@ -36,18 +36,18 @@ renderview.ResetCamera()
 
 # List to hold material identifiers written in VTK file in tags <gprMax3D> <Material>
 materials = []
-with open(model.FileName[0], 'rb') as f:
+with open(model.FileName[0], 'r') as f:
     for line in f:
         if line.startswith('<Material'):
             line.rstrip('\n')
-            tmp = (float(ET.fromstring(line).text), ET.fromstring(line).attrib.get('name'))
+            tmp = (int(ET.fromstring(line).text), ET.fromstring(line).attrib.get('name'))
             materials.append(tmp)
+
+# Get range of data
+datarange = model.CellData.GetArray(0).GetRange()
 
 # If the geometry file does not contain any information on materials names
 if not materials:
-    # Get range of data and set upper bound
-    datarange = model.CellData.GetArray(0).GetRange()
-    
     for x in range(0, int(datarange[1]) + 1):
         threshold = Threshold(Input=model)
         threshold.ThresholdRange = [x, x]
@@ -66,15 +66,18 @@ if not materials:
 
 else:
     # Create threshold for materials (name and numeric value)
-    for material in range(len(materials)):
-        threshold = Threshold(Input=model)
-        threshold.ThresholdRange = [materials[material][0], materials[material][0]]
-        
-        RenameSource(materials[material][1], threshold)
-        
-        if materials[material][0] != 1:
-            # Show data in view
-            thresholdDisplay = Show(threshold, renderview)
+    for x in range(0, int(datarange[1]) + 1):
+        for y in range(len(materials)):
+            if materials[y][0] == x:
+                threshold = Threshold(Input=model)
+                threshold.ThresholdRange = [materials[y][0], materials[y][0]]
+                
+                RenameSource(materials[y][1], threshold)
+                
+                if materials[y][0] != 1:
+                    # Show data in view
+                    Show(threshold, renderview)
 
+Render()
 # Show color bar/color legend
-# thresholdDisplay.SetScalarBarVisibility(renderview, False)
+#thresholdDisplay.SetScalarBarVisibility(renderview, False)
