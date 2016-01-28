@@ -92,7 +92,7 @@ class GeometryView:
                 f.write('</CellData>\n</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
                 
                 # Calculate number of bytes of appended data section
-                datasize = round_value(np.dtype(np.uint32).itemsize * (self.vtk_nx / self.dx) * (self.vtk_ny / self.dy) * (self.vtk_nz / self.dz))
+                datasize = int(np.dtype(np.uint32).itemsize * (self.vtk_nx / self.dx) * (self.vtk_ny / self.dy) * (self.vtk_nz / self.dz))
                 # Write number of bytes of appended data as UInt32
                 f.write(pack('I', datasize))
                 for k in range(self.zs, self.zf, self.dz):
