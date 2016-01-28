@@ -206,7 +206,7 @@ cpdef build_hx_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigid
                         ID[3, i, j, k] = numID1
                     else:
                         # Averaging is required
-                        # Make an ID composed of the names of the four materials that will be averaged
+                        # Make an ID composed of the names of the two materials that will be averaged
                         requiredID = G.materials[numID1].ID + '+' + G.materials[numID2].ID
                         # Check if this material already exists
                         tmp = requiredID.split('+')
@@ -256,7 +256,7 @@ cpdef build_hy_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigid
                         ID[4, i, j, k] = numID1
                     else:
                         # Averaging is required
-                        # Make an ID composed of the names of the four materials that will be averaged
+                        # Make an ID composed of the names of the two materials that will be averaged
                         requiredID = G.materials[numID1].ID + '+' + G.materials[numID2].ID
                         # Check if this material already exists
                         tmp = requiredID.split('+')
@@ -306,7 +306,7 @@ cpdef build_hz_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigid
                         ID[5, i, j, k] = numID1
                     else:
                         # Averaging is required
-                        # Make an ID composed of the names of the four materials that will be averaged
+                        # Make an ID composed of the names of the two materials that will be averaged
                         requiredID = G.materials[numID1].ID + '+' + G.materials[numID2].ID
                         # Check if this material already exists
                         tmp = requiredID.split('+')
