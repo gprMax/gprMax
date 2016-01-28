@@ -15,14 +15,14 @@ This example is of a Hertzian dipole, i.e. an additive source (electric current 
     :language: none
     :linenos:
 
-The following module calculates the analytical solution.
+The function ``hertzian_dipole_fs`` in the ``analytical solutions`` module in the ``tests`` sub-package was written to compute the analytical solution.
 
-.. automodule:: tests.analytical_solutions
+.. autofunction:: tests.analytical_solutions.hertzian_dipole_fs
 
 Results
 -------
 
-:numref:`hertzian_dipole_fs_results` shows the time history of the electric and magnetic field components of the modelled and analytical solutions. Since they are so similar, :numref:`hertzian_dipole_fs_results_diffs` shows the percentage differences.
+:numref:`hertzian_dipole_fs_results` shows the time history of the electric and magnetic field components of the modelled and analytical solutions. The responses overlap one another due to their similarity. Therefore, :numref:`hertzian_dipole_fs_results_diffs` shows the percentage differences between the solutions.
 
 .. _hertzian_dipole_fs_results:
 

@@ -73,6 +73,6 @@ b) Compile the Cython extension modules using: :code:`python setup.py build_ext 
 
 .. note::
 
-If you want to remove/clean Cython generated files, e.g. before rebuilding the Cython extensions, you can use :code:`python setup.py cleanall`.
+    If you want to remove/clean Cython generated files, e.g. before rebuilding the Cython extensions, you can use :code:`python setup.py cleanall`.
 
 **You are now ready to proceed to running gprMax.**

@@ -37,7 +37,6 @@ gprMax User Guide
     :maxdepth: 2
     :caption: Examples
 
-    examples_analytical
     examples_simple_2D
     examples_antennas
     examples_advanced
@@ -48,5 +47,11 @@ gprMax User Guide
 
     faqs
     screencasts
+
+.. toctree::
+    :maxdepth: 2
+    :caption: Appendices
+
+    analytical_comparisons
     references
 
