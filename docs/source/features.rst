@@ -121,12 +121,12 @@ It is possible to specify objects that have diagonal anisotropy which allows mat
 Dielectric smoothing
 --------------------
 
-At the boundaries between different materials in the model there is the question of which material properties to use?
+At the boundaries between different materials in a model there is the question of what electric and magnetic material properties to use?
 
-* Should the last object to be defined at that location dictate the properties?
-* Should an average set of properties of the materials of the objects that share that location be used?
+* Should the last object to be defined at that location dictate the electric and magnetic properties?
+* Should an average set of electric and magnetic properties of the materials of the objects that share that location be used?
 
-This latter option is often referred to as dielectric smoothing and has been shown to result in more accurate simulations [LUE1994]_ [BOU1996]_.. To address this question gprMax includes an option to turn dielectric smoothing on or off for volumetric object building commands. The default behaviour (if no option is specified) is for dielectric smoothing to be on. The option can be specified with a single character ``y`` (on) or ``n`` (off) given after the material identifier in each object command.
+This latter option is often referred to as dielectric smoothing and has been shown to result in more accurate simulations [LUE1994]_ [BOU1996]_ [WHI2009]_. To address this question gprMax includes an option to turn dielectric smoothing on or off for volumetric object building commands. The default behaviour (if no option is specified) is for dielectric smoothing to be on. The option can be specified with a single character ``y`` (on) or ``n`` (off) given after the material identifier in each object command. When dielectric smoothing is on gprMax calculates the arithmetic mean of the electric and magnetic properties of the surrounding Yee cells, to use for the single Yee cell edge (boundary) of interest.
 
 Perfectly Matched Layer (PML) boundary conditions
 -------------------------------------------------
