@@ -134,8 +134,8 @@ def write_output(f, timestep, Ex, Ey, Ez, Hx, Hy, Hz, G):
 
         if G.transmissionlines:
             for tlindex, tl in enumerate(G.transmissionlines):
-                f['/tls/tl' + str(tlindex + 1) + '/Vtotal'][timestep] = tl.voltage[tl.antpos - 1]
-                f['/tls/tl' + str(tlindex + 1) + '/Itotal'][timestep] = tl.current[tl.antpos - 1]
+                f['/tls/tl' + str(tlindex + 1) + '/Vtotal'][timestep] = tl.voltage[tl.antpos]
+                f['/tls/tl' + str(tlindex + 1) + '/Itotal'][timestep] = tl.current[tl.antpos]
 
     # Field writing when converting old style output file to HDF5 format
     else:
