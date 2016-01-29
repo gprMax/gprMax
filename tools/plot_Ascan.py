@@ -98,7 +98,7 @@ for rx in range(1, nrx + 1):
             plt.setp(baseline, 'linewidth', 0)
             plt.setp(stemlines, 'color', 'r')
             plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
-            line2 = ax2.plot(freqs[pltrange]/1e9, power[pltrange], 'r', lw=2)
+            line2 = ax2.plot(freqs[pltrange], power[pltrange], 'r', lw=2)
             ax2.set_xlabel('Frequency [Hz]')
             ax2.set_ylabel('Power [dB]')
             ax2.grid()
@@ -124,6 +124,7 @@ for rx in range(1, nrx + 1):
             fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]', ylabel=outputtext + ' field strength [V/m]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
             line = ax.plot(time, outputdata,'r', lw=2, label=outputtext)
             ax.set_xlim([0, np.amax(time)])
+            #ax.set_ylim([-25, 25])
             ax.grid()
             
             if 'H' in args.outputs[0]:
@@ -133,7 +134,7 @@ for rx in range(1, nrx + 1):
                 plt.setp(line, color='b')
                 plt.setp(ax, ylabel=outputtext + ', current [A]')
 
-    # If multiple fields required, creat all nine subplots and populate only the specified ones
+    # If multiple fields required, create all nine subplots and populate only the specified ones
     else:
         fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
         gs = gridspec.GridSpec(3, 3, hspace=0.3, wspace=0.3)
@@ -195,8 +196,8 @@ for rx in range(1, nrx + 1):
             ax.grid()
 
     # Save a PDF/PNG of the figure
-    #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '_rx' + str(rx) + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '_rx' + str(rx) + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
 plt.show()
 f.close()
