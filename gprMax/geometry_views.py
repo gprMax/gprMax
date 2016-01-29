@@ -65,7 +65,7 @@ class GeometryView:
         if numbermodelruns == 1:
             self.filename = G.inputdirectory + self.filename
         else:
-            self.filename = G.inputdirectory + self.filename + '_' + str(modelrun)
+            self.filename = G.inputdirectory + self.filename + str(modelrun)
         
         # No Python 3 support for VTK at time of writing (03/2015)
         self.vtk_nx = self.xf - self.xs
