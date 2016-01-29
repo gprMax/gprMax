@@ -324,7 +324,8 @@ def main():
         else:
             tsimstart = perf_counter()
             for modelrun in range(1, numbermodelruns + 1):
-                run_model(args, modelrun, numbermodelruns, inputfile, usernamespace)
+                modelusernamespace = usernamespace.copy()
+                run_model(args, modelrun, numbermodelruns, inputfile, modelusernamespace)
             tsimend = perf_counter()
             print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
 
