@@ -30,7 +30,7 @@ triangle(tx_pos[0], tx_pos[1], tx_pos[2], tx_pos[0] - bowtie_dims[0], tx_pos[1] 
 # Geometry view of entire domain
 geometry_view(0, 0, 0, domain[0], domain[1], domain[2], dxdydz[0], dxdydz[1], dxdydz[2], title)
 
-# Detailed geometry view of PCB and bowties
+# Detailed geometry view around feed position
 geometry_view(tx_pos[0] - bowtie_dims[0] - 2*dxdydz[0], tx_pos[1] - bowtie_dims[1]/2  - 2*dxdydz[1], tx_pos[2] - 2*dxdydz[2], tx_pos[0] + bowtie_dims[0] + 2*dxdydz[0], tx_pos[1] + bowtie_dims[1]/2  + 2*dxdydz[1], tx_pos[2] + 2*dxdydz[2], dxdydz[0], dxdydz[1], dxdydz[2], title + '_pcb', type='f')
 
 #end_python:
