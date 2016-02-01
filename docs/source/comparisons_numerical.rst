@@ -42,14 +42,12 @@ Results
 
 :numref:`antenna_bowtie_fs_ant_params` shows the input impedance (resistive and reactive) for the FDTD (gprMax) and MoM (MATLAB) models. The frequency resolution for the FFT used in both models was :math:`\Delta f = 33.33~MHz`
 
-.. _hertzian_dipole_fs_results:
+.. _antenna_bowtie_fs_ant_params:
 
 .. figure:: ../../tests/numerical/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs_ant_params.png
     :width: 600 px
 
     Input impedance (resistive and reactive) of a bowtie antenna in free space using FDTD (gprMax) and MoM (MATLAB) models.
-
-The match between the FDTD and MoM solutions is generally very good.
 
 
 
