@@ -49,10 +49,5 @@ Results
 
     Input impedance (resistive and reactive) of a bowtie antenna in free space using FDTD (gprMax) and MoM (MATLAB) models.
 
-
-
-
-
-
-
+The match...
 
