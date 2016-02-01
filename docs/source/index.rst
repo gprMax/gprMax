@@ -52,6 +52,7 @@ gprMax User Guide
     :maxdepth: 2
     :caption: Appendices
 
-    analytical_comparisons
+    comparisons_analytical
+    comparisons_numerical
     references
 
