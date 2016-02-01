@@ -40,7 +40,7 @@ The bowtie antenna was created using the antenna toolbox in MATLAB, and the ``bo
 Results
 -------
 
-Shows the input impedance (resistive and reactive) for the FDTD (gprMax) and MoM (MATLAB) models. The frequency resolution for the FFT used in both models was :math:`\Delta f = 33.33~MHz`.
+:numref:`antenna_bowtie_fs_ant_params` shows the input impedance (resistive and reactive) for the FDTD (gprMax) and MoM (MATLAB) models. The frequency resolution for the FFT used in both models was :math:`\Delta f = 33.33~MHz`.
 
 .. _antenna_bowtie_fs_ant_params:
 
