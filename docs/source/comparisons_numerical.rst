@@ -7,20 +7,20 @@ This section presents some comparisons of models using different numerical model
 FDTD/MoM
 ========
 
-The Finite-Difference Time-Domain (FDTD) technique using gprMax is compared with the Method of Moments (MoM) using the MATLAB antenna toolbox (http://uk.mathworks.com/products/antenna/).
+The Finite-Difference Time-Domain (FDTD) method from gprMax is compared with the Method of Moments (MoM) from the MATLAB antenna toolbox (http://uk.mathworks.com/products/antenna/).
 
 Bowtie antenna in free space
 ----------------------------
 
-:download:`hertzian_dipole_fs.in <../../tests/numerical/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs.in>`
+:download:`antenna_bowtie_fs.in <../../tests/numerical/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs.in>`
 
-This example considers the input impedance of a planar bowtie antenna in free space. The length and height of the bowtie are 100mm, giving a flare angle of 90$^\circ$.
+This example considers the input impedance of a planar bowtie antenna in free space. The length and height of the bowtie are 100mm, giving a flare angle of :math:`90^\circ`.
 
 .. literalinclude:: ../../tests/numerical/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs.in
     :language: none
     :linenos:
 
-The MoM was created in MATLAB using the ``bowtieTriangular`` class:
+For the MoM, the bowtie antenna was created in MATLAB using the ``bowtieTriangular`` class:
 
 .. code-block:: matlab
 
