@@ -44,6 +44,7 @@ The output file contains HDF5 groups for sources (``srcs``), transmission lines 
                 ...
         srcs/
             src1/
+                Type
                 Position
             src2/
                 ...
@@ -51,6 +52,12 @@ The output file contains HDF5 groups for sources (``srcs``), transmission lines 
         tls/
             tl1/
                 Position
+                Resistance
+                dl
+                Vinc
+                Iinc
+                Vtotal
+                Itotal
             tl22/
                 ...
 
@@ -85,10 +92,9 @@ Within each individual ``tl`` group are the following attributes:
 Within each individual ``tl`` group are the following datasets:
 
 * ``Vinc`` is an array containing the time history (for the model time window) of the values of the incident voltage in the transmission line.
-* ``Vscat`` is an array containing the time history (for the model time window) of the values of the scattered (field) voltage in the transmission line.
-* ``Iscat`` is an array containing the time history (for the model time window) of the values of the scattered (field) current in the transmission line.
-* ``Vtot`` is an array containing the time history (for the model time window) of the values of the total (field) voltage in the transmission line.
-* ``Itot`` is an array containing the time history (for the model time window) of the values of the total (field) current in the transmission line.
+* ``Iinc`` is an array containing the time history (for the model time window) of the values of the incident current in the transmission line.
+* ``Vtotal`` is an array containing the time history (for the model time window) of the values of the total (field) voltage in the transmission line.
+* ``Itotal`` is an array containing the time history (for the model time window) of the values of the total (field) current in the transmission line.
 
 
 Viewing output
