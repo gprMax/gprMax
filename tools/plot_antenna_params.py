@@ -21,6 +21,9 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+#import scipy.io as sio
+
+moduledirectory = os.path.dirname(os.path.abspath(__file__))
 
 """Plots antenna parameters (s11 parameter and input impedance and admittance) from an output file containing a transmission line source."""
 
@@ -64,7 +67,7 @@ Iref = Itotal - Iinc
 # Frequency bins
 freqs = np.fft.fftfreq(Vinc.size, d=dt)
 
-# Delay correction to ensure voltage and current are at same time step
+# Delay correction - current lags voltage, so delay voltage to match current timestep
 delaycorrection = np.exp(-1j * 2 * np.pi * freqs * (dt / 2))
 
 # Calculate s11
@@ -72,6 +75,10 @@ s11 = np.abs(np.fft.fft(Vref) * delaycorrection) / np.abs(np.fft.fft(Vinc) * del
 
 # Calculate input impedance
 zin = (np.fft.fft(Vtotal) * delaycorrection) / np.fft.fft(Itotal)
+
+# Load MoM zin from MATLAB antenna toolbox
+#MoM = {}
+#sio.loadmat(moduledirectory + '/../tests/numerical/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs_MoM.mat', MoM)
 
 # Calculate input admittance
 yin = np.fft.fft(Itotal) / (np.fft.fft(Vtotal) * delaycorrection)
@@ -90,7 +97,7 @@ pltrangemin = 1
 # To a certain drop from maximum power
 pltrangemax = np.where((np.amax(Vincp[1::]) - Vincp[1::]) > 60)[0][0] + 1
 # To a maximum frequency
-#pltrangemax = np.where(freqs > 2e9)[0][0]
+#pltrangemax = np.where(freqs > 6e9)[0][0]
 pltrange = np.s_[pltrangemin:pltrangemax]
 
 # Print some useful values from s11, input impedance and admittance
@@ -244,7 +251,7 @@ ax.set_title('s11')
 ax.set_xlabel('Frequency [Hz]')
 ax.set_ylabel('Power [dB]')
 #ax.set_xlim([0.88e9, 1.02e9])
-#ax.set_ylim([-50, -8])
+#ax.set_ylim([-20, 0])
 ax.grid()
 
 # Plot input resistance (real part of impedance)
@@ -259,7 +266,7 @@ ax.set_xlabel('Frequency [Hz]')
 ax.set_ylabel('Resistance [Ohms]')
 #ax.set_xlim([0.88e9, 1.02e9])
 ax.set_ylim(bottom=0)
-#ax.set_ylim([55, 95])
+#ax.set_ylim([0, 350])
 ax.grid()
 
 # Plot input reactance (imaginery part of impedance)
@@ -273,7 +280,7 @@ ax.set_title('Input impedance (reactive)')
 ax.set_xlabel('Frequency [Hz]')
 ax.set_ylabel('Reactance [Ohms]')
 #ax.set_xlim([0.88e9, 1.02e9])
-#ax.set_ylim([-60, 60])
+#ax.set_ylim([-1400, 200])
 ax.grid()
 
 # Plot input admittance (magnitude)
@@ -287,7 +294,7 @@ ax.set_title('Input admittance (magnitude)')
 ax.set_xlabel('Frequency [Hz]')
 ax.set_ylabel('Admittance [Siemens]')
 #ax.set_xlim([0.88e9, 1.02e9])
-#ax.set_ylim([0.009, 0.015])
+#ax.set_ylim([0, 0.035])
 ax.grid()
 
 # Plot input admittance (phase)
@@ -301,12 +308,42 @@ ax.set_title('Input admittance (phase)')
 ax.set_xlabel('Frequency [Hz]')
 ax.set_ylabel('Phase [degrees]')
 #ax.set_xlim([0.88e9, 1.02e9])
-#ax.set_ylim([-45, 45])
+#ax.set_ylim([-40, 100])
 ax.grid()
+
+# Figure 3 - Comparison of numerical modelling techniques
+#fig3, ax = plt.subplots(num='FDTD vs MoM', figsize=(20, 5), facecolor='w', edgecolor='w')
+#gs3 = gridspec.GridSpec(1, 2, hspace=0.5)
+#
+## Plot input resistance (real part of impedance)
+#ax = plt.subplot(gs3[0, 0])
+#ax.plot(freqs[pltrange], zin[pltrange].real, 'g', lw=2, label='FDTD')
+#ax.plot(MoM['freqs'], MoM['zin'].real, 'r', lw=2, ls='--', label='MoM')
+#ax.set_title('Input impedance (resistive)')
+#ax.set_xlabel('Frequency [Hz]')
+#ax.set_ylabel('Resistance [Ohms]')
+##ax.set_xlim([0.88e9, 1.02e9])
+#ax.set_ylim(bottom=0)
+#ax.set_ylim([0, 350])
+#ax.grid()
+#ax.legend()
+#
+## Plot input reactance (imaginery part of impedance)
+#ax = plt.subplot(gs3[0, 1])
+#ax.plot(freqs[pltrange], zin[pltrange].imag, 'g', lw=2, label='FDTD')
+#ax.plot(MoM['freqs'], -MoM['zin'].imag, 'r', lw=2, ls='--', label='MoM')
+#ax.set_title('Input impedance (reactive)')
+#ax.set_xlabel('Frequency [Hz]')
+#ax.set_ylabel('Reactance [Ohms]')
+##ax.set_xlim([0.88e9, 1.02e9])
+#ax.set_ylim([-350, 350])
+#ax.grid()
+#ax.legend()
 
 # Save a PDF/PNG of the figure
 #fig1.savefig(os.path.splitext(os.path.abspath(file))[0] + '_tl_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 #fig2.savefig(os.path.splitext(os.path.abspath(file))[0] + '_ant_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+#fig3.savefig(os.path.splitext(os.path.abspath(file))[0] + '_ant_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 #fig1.savefig(os.path.splitext(os.path.abspath(file))[0] + '_tl_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
 #fig2.savefig(os.path.splitext(os.path.abspath(file))[0] + '_ant_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
 
