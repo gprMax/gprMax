@@ -49,5 +49,5 @@ Results
 
     Input impedance (resistive and reactive) of a bowtie antenna in free space using FDTD (gprMax) and MoM (MATLAB) models.
 
-The match...
+The results from the FDTD and MoM modelling techniques are in very good agreement. The biggest mismatch occurs in the resistive part of the input impedance at frequencies above 3GHz.
 

@@ -53,5 +53,6 @@ gprMax User Guide
     :caption: Appendices
 
     comparisons_analytical
+    comparisons_numerical
     references
 
