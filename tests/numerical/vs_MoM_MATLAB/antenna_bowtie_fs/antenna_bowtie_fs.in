@@ -5,7 +5,6 @@ from gprMax.input_cmd_funcs import *
 title = 'antenna_bowtie_fs'
 print('#title: {}'.format(title))
 
-#domain = domain(0.400, 0.300, 0.300)
 domain = domain(0.200, 0.200, 0.100)
 dxdydz = dx_dy_dz(0.001, 0.001, 0.001)
 time_window = time_window(30e-9)
