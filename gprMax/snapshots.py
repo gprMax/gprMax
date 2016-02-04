@@ -21,6 +21,7 @@ import numpy as np
 from struct import pack
 
 from gprMax.constants import floattype
+from gprMax.grid import Ix, Iy, Iz
 from gprMax.utilities import round_value
 
 
@@ -90,18 +91,18 @@ class Snapshot:
         self.vtk_zscells = round_value(self.zs / self.dz)
         self.vtk_zfcells = round_value(self.zf / self.dz)
         vtk_hfield_offset = 3 * np.dtype(floattype).itemsize * (self.vtk_xfcells - self.vtk_xscells) * (self.vtk_yfcells - self.vtk_yscells) * (self.vtk_zfcells - self.vtk_zscells) + np.dtype(np.uint32).itemsize
-#        vtk_current_offset = 2 * vtk_hfield_offset
+        vtk_current_offset = 2 * vtk_hfield_offset
 
         self.filehandle = open(self.filename, 'wb')
         self.filehandle.write('<?xml version="1.0"?>\n'.encode('utf-8'))
         self.filehandle.write('<VTKFile type="ImageData" version="1.0" byte_order="{}">\n'.format(Snapshot.byteorder).encode('utf-8'))
         self.filehandle.write('<ImageData WholeExtent="{} {} {} {} {} {}" Origin="0 0 0" Spacing="{:.3} {:.3} {:.3}">\n'.format(self.vtk_xscells, self.vtk_xfcells, self.vtk_yscells, self.vtk_yfcells, self.vtk_zscells, self.vtk_zfcells, self.dx * G.dx, self.dy * G.dy, self.dz * G.dz).encode('utf-8'))
         self.filehandle.write('<Piece Extent="{} {} {} {} {} {}">\n'.format(self.vtk_xscells, self.vtk_xfcells, self.vtk_yscells, self.vtk_yfcells, self.vtk_zscells, self.vtk_zfcells).encode('utf-8'))
-        self.filehandle.write('<CellData Vectors="E-field H-field">\n'.encode('utf-8'))
-#        self.filehandle.write('<CellData Vectors="E-field H-field Current">\n'.encode('utf-8'))
+        #self.filehandle.write('<CellData Vectors="E-field H-field">\n'.encode('utf-8'))
+        self.filehandle.write('<CellData Vectors="E-field H-field Current">\n'.encode('utf-8'))
         self.filehandle.write('<DataArray type="{}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n'.format(Snapshot.floatname).encode('utf-8'))
         self.filehandle.write('<DataArray type="{}" Name="H-field" NumberOfComponents="3" format="appended" offset="{}" />\n'.format(Snapshot.floatname, vtk_hfield_offset).encode('utf-8'))
-#        self.filehandle.write('<DataArray type="{}" Name="Current" NumberOfComponents="3" format="appended" offset="{}" />\n'.format(Snapshot.floatname, vtk_current_offset).encode('utf-8'))
+        self.filehandle.write('<DataArray type="{}" Name="Current" NumberOfComponents="3" format="appended" offset="{}" />\n'.format(Snapshot.floatname, vtk_current_offset).encode('utf-8'))
         self.filehandle.write('</CellData>\n</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
 
     def write_snapshot(self, Ex, Ey, Ez, Hx, Hy, Hz, G):
@@ -132,13 +133,13 @@ class Snapshot:
                     self.filehandle.write(pack(Snapshot.floatstring, (Hy[i, j, k] + Hy[i, j + 1, k]) / 2))
                     self.filehandle.write(pack(Snapshot.floatstring, (Hz[i, j, k] + Hz[i, j, k + 1]) / 2))
 
-    #    self.filehandle.write(pack('I', datasize))
-    #    for k in range(self.zs, self.zf, self.dz):
-    #        for j in range(self.ys, self.yf, self.dy):
-    #            for i in range(self.xs, self.xf, self.dx):
-    #                self.filehandle.write(pack(Snapshot.floatstring, Ix[i, j, k]))
-    #                self.filehandle.write(pack(Snapshot.floatstring, Iy[i, j, k]))
-    #                self.filehandle.write(pack(Snapshot.floatstring, Iz[i, j, k]))
+        self.filehandle.write(pack('I', datasize))
+        for k in range(self.zs, self.zf, self.dz):
+            for j in range(self.ys, self.yf, self.dy):
+                for i in range(self.xs, self.xf, self.dx):
+                    self.filehandle.write(pack(Snapshot.floatstring, Ix(i, j, k, Hy, Hz, G)))
+                    self.filehandle.write(pack(Snapshot.floatstring, Iy(i, j, k, Hx, Hz, G)))
+                    self.filehandle.write(pack(Snapshot.floatstring, Iz(i, j, k, Hx, Hy, G)))
 
         self.filehandle.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
         self.filehandle.close()
