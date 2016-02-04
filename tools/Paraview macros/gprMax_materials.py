@@ -36,7 +36,7 @@ renderview.ResetCamera()
 
 # List to hold material identifiers written in VTK file in tags <gprMax3D> <Material>
 materials = []
-with open(model.FileName[0], 'r') as f:
+with open(model.FileName[0], 'rb') as f:
     for line in f:
         if line.startswith('<Material'):
             line.rstrip('\n')
