@@ -128,3 +128,18 @@ def human_size(size, a_kilobyte_is_1024_bytes=True):
     raise ValueError('Number is too large.')
 
 
+def zero_crossings(data):
+    """Find location of zero crossings in 1D data array.
+        
+    Args:
+        data (float): 1D array
+        
+    Returns:
+        Array of indices (int).
+    """
+    
+    pos = data > 0
+    npos = ~pos
+    return ((pos[:-1] & npos[1:]) | (npos[:-1] & pos[1:])).nonzero()[0]
+
+
