@@ -52,7 +52,6 @@ class FDTDGrid:
         self.hertziandipoles = []
         self.magneticdipoles = []
         self.transmissionlines = []
-        self.txs = [] # Only used for converting old output files to HDF5 format
         self.srcstepx = 0
         self.srcstepy = 0
         self.srcstepz = 0
