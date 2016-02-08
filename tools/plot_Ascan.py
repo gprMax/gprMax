@@ -60,15 +60,16 @@ for rx in range(1, nrx + 1):
         if args.outputs[0][0] == 'm':
             polarity = -1
             outputtext = '-' + args.outputs[0][1:]
-            args.outputs[0] = args.outputs[0][1:]
+            output = args.outputs[0][1:]
         else:
             polarity = 1
             outputtext = args.outputs[0]
+            output = args.outputs[0]
         
-        if args.outputs[0] not in availableoutputs:
-            raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(args.outputs[0], ', '.join(availableoutputs)))
+        if output not in availableoutputs:
+            raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(output, ', '.join(availableoutputs)))
         
-        outputdata = f[path + args.outputs[0]][:] * polarity
+        outputdata = f[path + output][:] * polarity
 
         # Plotting if FFT required
         if args.fft:
@@ -87,7 +88,7 @@ for rx in range(1, nrx + 1):
 
             # Plot time history of output component
             fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
-            line1 = ax1.plot(time, outputdata, 'r', lw=2, label=args.outputs[0])
+            line1 = ax1.plot(time, outputdata, 'r', lw=2, label=outputtext)
             ax1.set_xlabel('Time [s]')
             ax1.set_ylabel(outputtext + ' field strength [V/m]')
             ax1.set_xlim([0, np.amax(time)])
@@ -124,13 +125,13 @@ for rx in range(1, nrx + 1):
             fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]', ylabel=outputtext + ' field strength [V/m]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
             line = ax.plot(time, outputdata,'r', lw=2, label=outputtext)
             ax.set_xlim([0, np.amax(time)])
-            #ax.set_ylim([-25, 25])
+            ax.set_ylim([-0.25, 0.20])
             ax.grid()
             
-            if 'H' in args.outputs[0]:
+            if 'H' in output:
                 plt.setp(line, color='g')
                 plt.setp(ax, ylabel=outputtext + ', field strength [A/m]')
-            elif 'I' in args.outputs[0]:
+            elif 'I' in output:
                 plt.setp(line, color='b')
                 plt.setp(ax, ylabel=outputtext + ', current [A]')
 
