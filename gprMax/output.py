@@ -48,53 +48,33 @@ def prepare_output_file(outputfile, G):
     
 
     # Create group for sources (except transmission lines); add type and positional data attributes
-    if G.txs: # G.txs will be populated only if this is being used for converting old style output file to HDF5 format
-        srclist = G.txs
-    else:
-        srclist = G.voltagesources + G.hertziandipoles + G.magneticdipoles
-
+    srclist = G.voltagesources + G.hertziandipoles + G.magneticdipoles
     for srcindex, src in enumerate(srclist):
-        tmp = f.create_group('/srcs/src' + str(srcindex + 1))
-        tmp.attrs['Type'] = type(src).__name__
-        tmp.attrs['Position'] = (src.positionx * G.dx, src.positiony * G.dy, src.positionz * G.dz)
+        grp = f.create_group('/srcs/src' + str(srcindex + 1))
+        grp.attrs['Type'] = type(src).__name__
+        grp.attrs['Position'] = (src.positionx * G.dx, src.positiony * G.dy, src.positionz * G.dz)
     
     # Create group for transmission lines; add positional data, line resistance and line discretisation attributes; initialise arrays for line voltages and currents
     if G.transmissionlines:
         for tlindex, tl in enumerate(G.transmissionlines):
-            tmp = f.create_group('/tls/tl' + str(tlindex + 1))
-            tmp.attrs['Position'] = (tl.positionx * G.dx, tl.positiony * G.dy, tl.positionz * G.dz)
-            tmp.attrs['Resistance'] = tl.resistance
-            tmp.attrs['dl'] = tl.dl
+            grp = f.create_group('/tls/tl' + str(tlindex + 1))
+            grp.attrs['Position'] = (tl.positionx * G.dx, tl.positiony * G.dy, tl.positionz * G.dz)
+            grp.attrs['Resistance'] = tl.resistance
+            grp.attrs['dl'] = tl.dl
             # Save incident voltage and current
-            tmp['Vinc'] = tl.Vinc
-            tmp['Iinc'] = tl.Iinc
-            tmp['Vtotal'] = np.zeros(G.iterations, dtype=floattype)
-            tmp['Itotal'] = np.zeros(G.iterations, dtype=floattype)
+            grp['Vinc'] = tl.Vinc
+            grp['Iinc'] = tl.Iinc
+            grp.create_dataset('Vtotal', (G.iterations, ), dtype=floattype)
+            grp.create_dataset('Itotal', (G.iterations, ), dtype=floattype)
     
     # Create group and add positional data and initialise field component arrays for receivers
     for rxindex, rx in enumerate(G.rxs):
-        tmp = f.create_group('/rxs/rx' + str(rxindex + 1))
+        grp = f.create_group('/rxs/rx' + str(rxindex + 1))
         if rx.ID:
-            tmp.attrs['Name'] = rx.ID
-        tmp.attrs['Position'] = (rx.positionx * G.dx, rx.positiony * G.dy, rx.positionz * G.dz)
-        if 'Ex' in rx.outputs:
-            tmp['Ex'] = np.zeros(G.iterations, dtype=floattype)
-        if 'Ey' in rx.outputs:
-            tmp['Ey'] = np.zeros(G.iterations, dtype=floattype)
-        if 'Ez' in rx.outputs:
-            tmp['Ez'] = np.zeros(G.iterations, dtype=floattype)
-        if 'Hx' in rx.outputs:
-            tmp['Hx'] = np.zeros(G.iterations, dtype=floattype)
-        if 'Hy' in rx.outputs:
-            tmp['Hy'] = np.zeros(G.iterations, dtype=floattype)
-        if 'Hz' in rx.outputs:
-            tmp['Hz'] = np.zeros(G.iterations, dtype=floattype)
-        if 'Ix' in rx.outputs:
-            tmp['Ix'] = np.zeros(G.iterations, dtype=floattype)
-        if 'Iy' in rx.outputs:
-            tmp['Iy'] = np.zeros(G.iterations, dtype=floattype)
-        if 'Iz' in rx.outputs:
-            tmp['Iz'] = np.zeros(G.iterations, dtype=floattype)
+            grp.attrs['Name'] = rx.ID
+        grp.attrs['Position'] = (rx.positionx * G.dx, rx.positiony * G.dy, rx.positionz * G.dz)
+        for output in rx.outputs:
+            grp.create_dataset(output, (G.iterations, ), dtype=floattype)
 
     return f
 
@@ -109,49 +89,29 @@ def write_output(f, timestep, Ex, Ey, Ez, Hx, Hy, Hz, G):
         G (class): Grid class instance - holds essential parameters describing the model.
     """
 
-    # Normal field writing from main
-    if type(timestep) is not slice:
-        # For each rx, write field component values at current timestep
-        for rxindex, rx in enumerate(G.rxs):
-            if 'Ex' in rx.outputs:
-                f['/rxs/rx' + str(rxindex + 1) + '/Ex'][timestep] = Ex[rx.positionx, rx.positiony, rx.positionz]
-            if 'Ey' in rx.outputs:
-                f['/rxs/rx' + str(rxindex + 1) + '/Ey'][timestep] = Ey[rx.positionx, rx.positiony, rx.positionz]
-            if 'Ez' in rx.outputs:
-                f['/rxs/rx' + str(rxindex + 1) + '/Ez'][timestep] = Ez[rx.positionx, rx.positiony, rx.positionz]
-            if 'Hx' in rx.outputs:
-                f['/rxs/rx' + str(rxindex + 1) + '/Hx'][timestep] = Hx[rx.positionx, rx.positiony, rx.positionz]
-            if 'Hy' in rx.outputs:
-                f['/rxs/rx' + str(rxindex + 1) + '/Hy'][timestep] = Hy[rx.positionx, rx.positiony, rx.positionz]
-            if 'Hz' in rx.outputs:
-                f['/rxs/rx' + str(rxindex + 1) + '/Hz'][timestep] = Hz[rx.positionx, rx.positiony, rx.positionz]
-            if 'Ix' in rx.outputs:
-                f['/rxs/rx' + str(rxindex + 1) + '/Ix'][timestep] = Ix(rx.positionx, rx.positiony, rx.positionz, G.Hy, G.Hz, G)
-            if 'Iy' in rx.outputs:
-                f['/rxs/rx' + str(rxindex + 1) + '/Iy'][timestep] = Iy(rx.positionx, rx.positiony, rx.positionz, G.Hx, G.Hz, G)
-            if 'Iz' in rx.outputs:
-                f['/rxs/rx' + str(rxindex + 1) + '/Iz'][timestep] = Iz(rx.positionx, rx.positiony, rx.positionz, G.Hx, G.Hy, G)
+    # For each rx, write field component values at current timestep
+    for rxindex, rx in enumerate(G.rxs):
+        if 'Ex' in rx.outputs:
+            f['/rxs/rx' + str(rxindex + 1) + '/Ex'][timestep] = Ex[rx.positionx, rx.positiony, rx.positionz]
+        if 'Ey' in rx.outputs:
+            f['/rxs/rx' + str(rxindex + 1) + '/Ey'][timestep] = Ey[rx.positionx, rx.positiony, rx.positionz]
+        if 'Ez' in rx.outputs:
+            f['/rxs/rx' + str(rxindex + 1) + '/Ez'][timestep] = Ez[rx.positionx, rx.positiony, rx.positionz]
+        if 'Hx' in rx.outputs:
+            f['/rxs/rx' + str(rxindex + 1) + '/Hx'][timestep] = Hx[rx.positionx, rx.positiony, rx.positionz]
+        if 'Hy' in rx.outputs:
+            f['/rxs/rx' + str(rxindex + 1) + '/Hy'][timestep] = Hy[rx.positionx, rx.positiony, rx.positionz]
+        if 'Hz' in rx.outputs:
+            f['/rxs/rx' + str(rxindex + 1) + '/Hz'][timestep] = Hz[rx.positionx, rx.positiony, rx.positionz]
+        if 'Ix' in rx.outputs:
+            f['/rxs/rx' + str(rxindex + 1) + '/Ix'][timestep] = Ix(rx.positionx, rx.positiony, rx.positionz, G.Hy, G.Hz, G)
+        if 'Iy' in rx.outputs:
+            f['/rxs/rx' + str(rxindex + 1) + '/Iy'][timestep] = Iy(rx.positionx, rx.positiony, rx.positionz, G.Hx, G.Hz, G)
+        if 'Iz' in rx.outputs:
+            f['/rxs/rx' + str(rxindex + 1) + '/Iz'][timestep] = Iz(rx.positionx, rx.positiony, rx.positionz, G.Hx, G.Hy, G)
 
-        if G.transmissionlines:
-            for tlindex, tl in enumerate(G.transmissionlines):
-                f['/tls/tl' + str(tlindex + 1) + '/Vtotal'][timestep] = tl.voltage[tl.antpos]
-                f['/tls/tl' + str(tlindex + 1) + '/Itotal'][timestep] = tl.current[tl.antpos]
-
-    # Field writing when converting old style output file to HDF5 format
-    else:
-        if len(G.rxs) == 1:
-            f['/rxs/rx1/Ex'][timestep] = Ex
-            f['/rxs/rx1/Ey'][timestep] = Ey
-            f['/rxs/rx1/Ez'][timestep] = Ez
-            f['/rxs/rx1/Hx'][timestep] = Hx
-            f['/rxs/rx1/Hy'][timestep] = Hy
-            f['/rxs/rx1/Hz'][timestep] = Hz
-        else:
-            for rxindex, rx in enumerate(G.rxs):
-                f['/rxs/rx' + str(rxindex + 1) + '/Ex'][timestep] = Ex[:, rxindex]
-                f['/rxs/rx' + str(rxindex + 1) + '/Ey'][timestep] = Ey[:, rxindex]
-                f['/rxs/rx' + str(rxindex + 1) + '/Ez'][timestep] = Ez[:, rxindex]
-                f['/rxs/rx' + str(rxindex + 1) + '/Hx'][timestep] = Hx[:, rxindex]
-                f['/rxs/rx' + str(rxindex + 1) + '/Hy'][timestep] = Hy[:, rxindex]
-                f['/rxs/rx' + str(rxindex + 1) + '/Hz'][timestep] = Hz[:, rxindex]
+    if G.transmissionlines:
+        for tlindex, tl in enumerate(G.transmissionlines):
+            f['/tls/tl' + str(tlindex + 1) + '/Vtotal'][timestep] = tl.voltage[tl.antpos]
+            f['/tls/tl' + str(tlindex + 1) + '/Itotal'][timestep] = tl.current[tl.antpos]
 
