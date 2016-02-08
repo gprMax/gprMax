@@ -403,32 +403,32 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         for source in G.voltagesources:
             if source.resistance != 0:
                 if source.polarisation == 'x':
-                    requirednumID = G.ID[0, source.positionx, source.positiony, source.positionz]
+                    requirednumID = G.ID[0, source.xcoord, source.ycoord, source.zcoord]
                     material = next(x for x in G.materials if x.numID == requirednumID)
                     newmaterial = deepcopy(material)
                     newmaterial.ID = material.ID + '+VoltageSource_' + str(source.resistance)
                     newmaterial.numID = len(G.materials)
                     newmaterial.se += G.dx / (source.resistance * G.dy * G.dz)
                     newmaterial.average = False
-                    G.ID[0, source.positionx, source.positiony, source.positionz] = newmaterial.numID
+                    G.ID[0, source.xcoord, source.ycoord, source.zcoord] = newmaterial.numID
                 elif source.polarisation == 'y':
-                    requirednumID = G.ID[1, source.positionx, source.positiony, source.positionz]
+                    requirednumID = G.ID[1, source.xcoord, source.ycoord, source.zcoord]
                     material = next(x for x in G.materials if x.numID == requirednumID)
                     newmaterial = deepcopy(material)
                     newmaterial.ID = material.ID + '+VoltageSource_' + str(source.resistance)
                     newmaterial.numID = len(G.materials)
                     newmaterial.se += G.dy / (source.resistance * G.dx * G.dz)
                     newmaterial.average = False
-                    G.ID[1, source.positionx, source.positiony, source.positionz] = newmaterial.numID
+                    G.ID[1, source.xcoord, source.ycoord, source.zcoord] = newmaterial.numID
                 elif source.polarisation == 'z':
-                    requirednumID = G.ID[2, source.positionx, source.positiony, source.positionz]
+                    requirednumID = G.ID[2, source.xcoord, source.ycoord, source.zcoord]
                     material = next(x for x in G.materials if x.numID == requirednumID)
                     newmaterial = deepcopy(material)
                     newmaterial.ID = material.ID + '+VoltageSource_' + str(source.resistance)
                     newmaterial.numID = len(G.materials)
                     newmaterial.se += G.dz / (source.resistance * G.dx * G.dy)
                     newmaterial.average = False
-                    G.ID[2, source.positionx, source.positiony, source.positionz] = newmaterial.numID
+                    G.ID[2, source.xcoord, source.ycoord, source.zcoord] = newmaterial.numID
                 G.materials.append(newmaterial)
 
     # Initialise arrays for storing temporary values if there are any dispersive materials
@@ -496,14 +496,14 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         # Adjust position of sources and receivers if required
         if G.srcstepx > 0 or G.srcstepy > 0 or G.srcstepz > 0:
             for source in itertools.chain(G.hertziandipoles, G.magneticdipoles, G.voltagesources):
-                source.positionx += (modelrun - 1) * G.srcstepx
-                source.positiony += (modelrun - 1) * G.srcstepy
-                source.positionz += (modelrun - 1) * G.srcstepz
+                source.xcoord += (modelrun - 1) * G.srcstepx
+                source.ycoord += (modelrun - 1) * G.srcstepy
+                source.zcoord += (modelrun - 1) * G.srcstepz
         if G.rxstepx > 0 or G.rxstepy > 0 or G.rxstepz > 0:
             for receiver in G.rxs:
-                receiver.positionx += (modelrun - 1) * G.rxstepx
-                receiver.positiony += (modelrun - 1) * G.rxstepy
-                receiver.positionz += (modelrun - 1) * G.rxstepz
+                receiver.xcoord += (modelrun - 1) * G.rxstepx
+                receiver.ycoord += (modelrun - 1) * G.rxstepy
+                receiver.zcoord += (modelrun - 1) * G.rxstepz
 
         ##################################
         #   Main FDTD calculation loop   #

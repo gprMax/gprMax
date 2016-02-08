@@ -52,13 +52,13 @@ def prepare_output_file(outputfile, G):
     for srcindex, src in enumerate(srclist):
         grp = f.create_group('/srcs/src' + str(srcindex + 1))
         grp.attrs['Type'] = type(src).__name__
-        grp.attrs['Position'] = (src.positionx * G.dx, src.positiony * G.dy, src.positionz * G.dz)
+        grp.attrs['Position'] = (src.xcoord * G.dx, src.ycoord * G.dy, src.zcoord * G.dz)
     
     # Create group for transmission lines; add positional data, line resistance and line discretisation attributes; initialise arrays for line voltages and currents
     if G.transmissionlines:
         for tlindex, tl in enumerate(G.transmissionlines):
             grp = f.create_group('/tls/tl' + str(tlindex + 1))
-            grp.attrs['Position'] = (tl.positionx * G.dx, tl.positiony * G.dy, tl.positionz * G.dz)
+            grp.attrs['Position'] = (tl.xcoord * G.dx, tl.ycoord * G.dy, tl.zcoord * G.dz)
             grp.attrs['Resistance'] = tl.resistance
             grp.attrs['dl'] = tl.dl
             # Save incident voltage and current
@@ -72,7 +72,7 @@ def prepare_output_file(outputfile, G):
         grp = f.create_group('/rxs/rx' + str(rxindex + 1))
         if rx.ID:
             grp.attrs['Name'] = rx.ID
-        grp.attrs['Position'] = (rx.positionx * G.dx, rx.positiony * G.dy, rx.positionz * G.dz)
+        grp.attrs['Position'] = (rx.xcoord * G.dx, rx.ycoord * G.dy, rx.zcoord * G.dz)
         for output in rx.outputs:
             grp.create_dataset(output, (G.iterations, ), dtype=floattype)
 
@@ -92,23 +92,23 @@ def write_output(f, timestep, Ex, Ey, Ez, Hx, Hy, Hz, G):
     # For each rx, write field component values at current timestep
     for rxindex, rx in enumerate(G.rxs):
         if 'Ex' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Ex'][timestep] = Ex[rx.positionx, rx.positiony, rx.positionz]
+            f['/rxs/rx' + str(rxindex + 1) + '/Ex'][timestep] = Ex[rx.xcoord, rx.ycoord, rx.zcoord]
         if 'Ey' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Ey'][timestep] = Ey[rx.positionx, rx.positiony, rx.positionz]
+            f['/rxs/rx' + str(rxindex + 1) + '/Ey'][timestep] = Ey[rx.xcoord, rx.ycoord, rx.zcoord]
         if 'Ez' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Ez'][timestep] = Ez[rx.positionx, rx.positiony, rx.positionz]
+            f['/rxs/rx' + str(rxindex + 1) + '/Ez'][timestep] = Ez[rx.xcoord, rx.ycoord, rx.zcoord]
         if 'Hx' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Hx'][timestep] = Hx[rx.positionx, rx.positiony, rx.positionz]
+            f['/rxs/rx' + str(rxindex + 1) + '/Hx'][timestep] = Hx[rx.xcoord, rx.ycoord, rx.zcoord]
         if 'Hy' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Hy'][timestep] = Hy[rx.positionx, rx.positiony, rx.positionz]
+            f['/rxs/rx' + str(rxindex + 1) + '/Hy'][timestep] = Hy[rx.xcoord, rx.ycoord, rx.zcoord]
         if 'Hz' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Hz'][timestep] = Hz[rx.positionx, rx.positiony, rx.positionz]
+            f['/rxs/rx' + str(rxindex + 1) + '/Hz'][timestep] = Hz[rx.xcoord, rx.ycoord, rx.zcoord]
         if 'Ix' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Ix'][timestep] = Ix(rx.positionx, rx.positiony, rx.positionz, G.Hy, G.Hz, G)
+            f['/rxs/rx' + str(rxindex + 1) + '/Ix'][timestep] = Ix(rx.xcoord, rx.ycoord, rx.zcoord, G.Hy, G.Hz, G)
         if 'Iy' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Iy'][timestep] = Iy(rx.positionx, rx.positiony, rx.positionz, G.Hx, G.Hz, G)
+            f['/rxs/rx' + str(rxindex + 1) + '/Iy'][timestep] = Iy(rx.xcoord, rx.ycoord, rx.zcoord, G.Hx, G.Hz, G)
         if 'Iz' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Iz'][timestep] = Iz(rx.positionx, rx.positiony, rx.positionz, G.Hx, G.Hy, G)
+            f['/rxs/rx' + str(rxindex + 1) + '/Iz'][timestep] = Iz(rx.xcoord, rx.ycoord, rx.zcoord, G.Hx, G.Hy, G)
 
     if G.transmissionlines:
         for tlindex, tl in enumerate(G.transmissionlines):

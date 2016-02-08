@@ -28,9 +28,9 @@ class VoltageSource:
     
     def __init__(self):
         self.polarisation = None
-        self.positionx = None
-        self.positiony = None
-        self.positionz = None
+        self.xcoord = None
+        self.ycoord = None
+        self.zcoord = None
         self.start = None
         self.stop = None
         self.resistance = None
@@ -50,9 +50,9 @@ class VoltageSource:
         if abstime >= self.start and abstime <= self.stop:
             # Set the time of the waveform evaluation to account for any delay in the start
             time = abstime - self.start
-            i = self.positionx
-            j = self.positiony
-            k = self.positionz
+            i = self.xcoord
+            j = self.ycoord
+            k = self.zcoord
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             
             if self.polarisation is 'x':
@@ -79,9 +79,9 @@ class HertzianDipole:
     
     def __init__(self):
         self.polarisation = None
-        self.positionx = None
-        self.positiony = None
-        self.positionz = None
+        self.xcoord = None
+        self.ycoord = None
+        self.zcoord = None
         self.start = None
         self.stop = None
         self.waveformID = None
@@ -100,9 +100,9 @@ class HertzianDipole:
         if abstime >= self.start and abstime <= self.stop:
             # Set the time of the waveform evaluation to account for any delay in the start
             time = abstime - self.start
-            i = self.positionx
-            j = self.positiony
-            k = self.positionz
+            i = self.xcoord
+            j = self.ycoord
+            k = self.zcoord
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             
             if self.polarisation is 'x':
@@ -120,9 +120,9 @@ class MagneticDipole:
     
     def __init__(self):
         self.polarisation = None
-        self.positionx = None
-        self.positiony = None
-        self.positionz = None
+        self.xcoord = None
+        self.ycoord = None
+        self.zcoord = None
         self.start = None
         self.stop = None
         self.waveformID = None
@@ -141,9 +141,9 @@ class MagneticDipole:
         if abstime >= self.start and abstime <= self.stop:
             # Set the time of the waveform evaluation to account for any delay in the start
             time = abstime - self.start
-            i = self.positionx
-            j = self.positiony
-            k = self.positionz
+            i = self.xcoord
+            j = self.ycoord
+            k = self.zcoord
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             
             if self.polarisation is 'x':
@@ -166,9 +166,9 @@ class TransmissionLine:
         """
         
         self.polarisation = None
-        self.positionx = None
-        self.positiony = None
-        self.positionz = None
+        self.xcoord = None
+        self.ycoord = None
+        self.zcoord = None
         self.start = None
         self.stop = None
         self.resistance = None
@@ -272,9 +272,9 @@ class TransmissionLine:
         if abstime >= self.start and abstime <= self.stop:
             # Set the time of the waveform evaluation to account for any delay in the start
             time = abstime - self.start
-            i = self.positionx
-            j = self.positiony
-            k = self.positionz
+            i = self.xcoord
+            j = self.ycoord
+            k = self.zcoord
             
             self.update_voltage(time, G)
             
@@ -299,9 +299,9 @@ class TransmissionLine:
         if abstime >= self.start and abstime <= self.stop:
             # Set the time of the waveform evaluation to account for any delay in the start
             time = abstime - self.start
-            i = self.positionx
-            j = self.positiony
-            k = self.positionz
+            i = self.xcoord
+            j = self.ycoord
+            k = self.zcoord
             
             if self.polarisation is 'x':
                 self.current[self.antpos] = Ix(i, j, k, G.Hy, G.Hz, G)

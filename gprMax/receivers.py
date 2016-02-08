@@ -21,16 +21,16 @@ class Rx:
     
     availableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
     
-    def __init__(self, positionx=None, positiony=None, positionz=None):
+    def __init__(self, xcoord=None, ycoord=None, zcoord=None):
         """
         Args:
-            positionx (float): x-coordinate of location in model.
-            positiony (float): y-coordinate of location in model.
-            positionz (float): z-coordinate of location in model.
+            xcoord (float): x-coordinate of location in model.
+            ycoord (float): y-coordinate of location in model.
+            zcoord (float): z-coordinate of location in model.
         """
         
         self.ID = None
         self.outputs = []
-        self.positionx = positionx
-        self.positiony = positiony
-        self.positionz = positionz
+        self.xcoord = xcoord
+        self.ycoord = ycoord
+        self.zcoord = zcoord
