@@ -17,6 +17,12 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
+from scipy.constants import c
+from scipy.constants import mu_0 as m0
+from scipy.constants import epsilon_0 as e0
+
+# Impedance of free space (Ohms)
+z0 = np.sqrt(m0 / e0)
 
 # Data types:
 #   Solid and ID arrays use 32-bit integers (0 to 4294967295)
@@ -26,15 +32,3 @@ import numpy as np
 
 floattype = np.float32
 complextype = np.complex64
-
-# Speed of light in vacuum (m/s)
-c = 2.9979245e8
-
-# Permittivity of free space (F/m)
-e0 = 8.854187e-12
-
-# Permeability of free space (H/m)
-m0 = 1.256637e-6
-
-# Impedance of free space (Ohms)
-z0 = 376.7303134
