@@ -18,3 +18,4 @@
 
 class CmdInputError(ValueError):
     """Handles errors in user specified commands. Subclasses the ValueError class."""
+    pass
