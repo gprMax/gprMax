@@ -1,1 +1,14 @@
+# Python
+*.pyc
+*.pyo
+
+# Cython
+*.c
+*.so
+*.pyd
+
+# Mac OS X
 .DS_Store
+
+# Build directory
+build/
