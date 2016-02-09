@@ -1,7 +1,9 @@
 """gprMax.__main__: executed when gprMax directory is called as script."""
 
-from .gprMax import main
-main()
+import gprMax.gprMax
+
+if __name__ == '__main__':
+    gprMax.gprMax.main()
 
 # Code profiling
 # Time profiling
