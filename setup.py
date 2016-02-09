@@ -25,9 +25,14 @@ except ImportError:
 try:
     import numpy as np
 except ImportError:
-    raise ImportError('The NumPy package is required to build gprMax.')
+    raise ImportError('gprMax requires the NumPy package.')
 
 import glob, os, shutil, sys
+
+# Python version
+if sys.version_info[:2] < (3, 4):
+    print('gprMax requires Python 3.4 or newer')
+    sys.exit(-1)
 
 import gprMax
 
@@ -166,7 +171,8 @@ setup(name=packagename,
                    'Operating System :: Microsoft :: Windows :: Windows 7',
                    'Operating System :: POSIX :: Linux',
                    'Programming Language :: Cython',
-                   'Programming Language :: Python :: 3 :: Only'
+                   'Programming Language :: Python :: 3.4',
+                   'Topic :: Scientific/Engineering'
                    ],
       ext_modules=extensions,
       include_dirs=[np.get_include()])
