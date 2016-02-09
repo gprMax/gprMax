@@ -12,3 +12,9 @@
 
 # Build directory
 build/
+
+# Backup files
+*~
+
+# Hidden files
+.*
