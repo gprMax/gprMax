@@ -2,7 +2,7 @@
 Numerical comparisons
 *********************
 
-This section presents some comparisons of models using different numerical modelling techniques.
+This section presents comparisons of models using different numerical modelling techniques.
 
 FDTD/MoM
 ========

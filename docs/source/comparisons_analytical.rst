@@ -2,7 +2,7 @@
 Analytical comparisons
 **********************
 
-This section presents comparisons between analytical and modelled solutions.
+This section presents comparisons between analytical solutions and modelled solutions using gprMax.
 
 Hertzian dipole in free space
 =============================
