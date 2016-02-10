@@ -47,34 +47,34 @@ class Waveform:
         # Coefficients for certain waveforms
         if self.type == 'gaussian' or self.type == 'gaussiandot' or self.type == 'gaussiandotdot':
             chi = 1 / self.freq
-            zeta = 2 * np.pi * np.pi * self.freq * self.freq
+            zeta = 2 * np.pi**2 * self.freq**2
             delay = time - chi
         elif self.type == 'gaussiandotnorm' or self.type == 'gaussiandotdotnorm' or self.type == 'ricker':
             chi = np.sqrt(2) / self.freq
-            zeta = np.pi * np.pi * self.freq * self.freq
+            zeta = np.pi**2 * self.freq**2
             delay = time - chi
     
         # Waveforms
         if self.type == 'gaussian':
-            waveform = np.exp(-zeta * delay * delay)
+            waveform = np.exp(-zeta * delay**2)
         
         elif self.type == 'gaussiandot':
-            waveform = -2 * zeta * delay * np.exp(-zeta * delay * delay)
+            waveform = -2 * zeta * delay * np.exp(-zeta * delay**2)
         
         elif self.type == 'gaussiandotnorm':
             normalise = np.sqrt(np.exp(1) / (2 * zeta))
-            waveform = -2 * zeta * delay * np.exp(-zeta * delay * delay) * normalise
+            waveform = -2 * zeta * delay * np.exp(-zeta * delay**2) * normalise
         
         elif self.type == 'gaussiandotdot':
-            waveform = 2 * zeta * (2 * zeta * delay * delay - 1) * np.exp(-zeta * delay * delay)
+            waveform = 2 * zeta * (2 * zeta * delay**2 - 1) * np.exp(-zeta * delay**2)
         
         elif self.type == 'gaussiandotdotnorm':
             normalise = 1 / (2 * zeta)
-            waveform = 2 * zeta * (2 * zeta * delay * delay - 1) * np.exp(-zeta * delay * delay) * normalise
+            waveform = 2 * zeta * (2 * zeta * delay**2 - 1) * np.exp(-zeta * delay**2) * normalise
 
         elif self.type == 'ricker':
             normalise = 1 / (2 * zeta)
-            waveform = - (2 * zeta * (2 * zeta * delay * delay - 1) * np.exp(-zeta * delay * delay)) * normalise
+            waveform = - (2 * zeta * (2 * zeta * delay**2 - 1) * np.exp(-zeta * delay**2)) * normalise
 
         elif self.type == 'sine':
             waveform = np.sin(2 * np.pi * self.freq * time)
