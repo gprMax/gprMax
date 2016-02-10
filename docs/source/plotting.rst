@@ -94,7 +94,10 @@ There is an optional command line argument:
 
 * ``-fft`` to plot the Fast Fourier Transform (FFT) of the waveform
 
-Example plots of all the built-in waveforms are shown using the parameters: amplitude of one, frequency of 1GHz, time window of 6ns, and a time step of 1.926ps.
+Definitions
+-----------
+
+Definitions of the built-in waveforms and example plots are shown using the parameters: amplitude of one, frequency of 1GHz, time window of 6ns, and a time step of 1.926ps.
 
 gaussian
 ^^^^^^^^
