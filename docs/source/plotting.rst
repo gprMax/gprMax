@@ -101,9 +101,9 @@ gaussian
 
 A Gaussian waveform.
 
-.. math:: I = e^{-\zeta(t-\chi)^2}
+.. math:: W(t) = e^{-\zeta(t-\chi)^2}
 
-where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
+where :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
 
 .. figure:: images/gaussian.png
 
@@ -115,9 +115,9 @@ gaussiandot
 
 First derivative of a Gaussian waveform.
 
-.. math:: I = -2 \zeta (t-\chi) e^{-\zeta(t-\chi)^2}
+.. math:: W(t) = -2 \zeta (t-\chi) e^{-\zeta(t-\chi)^2}
 
-where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
+where :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
 
 .. figure:: images/gaussiandot.png
 
@@ -129,9 +129,9 @@ gaussiandotnorm
 
 Normalised first derivative of a Gaussian waveform.
 
-.. math:: I = -2 \sqrt{\frac{e}{2\zeta}} \zeta (t-\chi) e^{-\zeta(t-\chi)^2}
+.. math:: W(t) = -2 \sqrt{\frac{e}{2\zeta}} \zeta (t-\chi) e^{-\zeta(t-\chi)^2}
 
-where :math:`I` is the current, :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
+where :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
 
 .. figure:: images/gaussiandotnorm.png
 
@@ -143,9 +143,9 @@ gaussiandotdot
 
 Second derivative of a Gaussian waveform.
 
-.. math:: I = 2\zeta \left(2\zeta(t-\chi)^2 - 1 \right) e^{-\zeta(t-\chi)^2}
+.. math:: W(t) = 2\zeta \left(2\zeta(t-\chi)^2 - 1 \right) e^{-\zeta(t-\chi)^2}
 
-where :math:`I` is the current, :math:`\zeta = \pi^2f^2`, :math:`\chi=\frac{\sqrt{2}}{f}` and :math:`f` is the frequency.
+where :math:`\zeta = \pi^2f^2`, :math:`\chi=\frac{\sqrt{2}}{f}` and :math:`f` is the frequency.
 
 .. figure:: images/gaussiandotdot.png
 
@@ -157,9 +157,9 @@ gaussiandotdotnorm
 
 Normalised second derivative of a Gaussian waveform.
 
-.. math:: I = \left( 2\zeta (t-\chi)^2 - 1 \right) e^{-\zeta(t-\chi)^2}
+.. math:: W(t) = \left( 2\zeta (t-\chi)^2 - 1 \right) e^{-\zeta(t-\chi)^2}
 
-where :math:`I` is the current, :math:`\zeta = \pi^2f^2`, :math:`\chi=\frac{\sqrt{2}}{f}` and :math:`f` is the frequency.
+where :math:`\zeta = \pi^2f^2`, :math:`\chi=\frac{\sqrt{2}}{f}` and :math:`f` is the frequency.
 
 .. figure:: images/gaussiandotdotnorm.png
 
@@ -171,9 +171,9 @@ ricker
 
 A Ricker (or Mexican Hat) waveform which is the negative, normalised second derivative of a Gaussian waveform.
 
-.. math:: I = - \left( 2\zeta (t-\chi)^2 -1 \right) e^{-\zeta(t-\chi)^2}
+.. math:: W(t) = - \left( 2\zeta (t-\chi)^2 -1 \right) e^{-\zeta(t-\chi)^2}
 
-where :math:`I` is the current, :math:`\zeta = \pi^2f^2`, :math:`\chi=\frac{\sqrt{2}}{f}` and :math:`f` is the frequency.
+where :math:`\zeta = \pi^2f^2`, :math:`\chi=\frac{\sqrt{2}}{f}` and :math:`f` is the frequency.
 
 .. figure:: images/ricker.png
 
@@ -185,7 +185,7 @@ sine
 
 A single cycle of a sine waveform.
 
-.. math:: I = R\sin(2\pi ft)
+.. math:: W(t) = R\sin(2\pi ft)
 
 and
 
@@ -197,7 +197,7 @@ and
     0 &\text{if $ft>1$}.
     \end{cases}
 
-:math:`I` is the current, :math:`t` is time and :math:`f` is the frequency.
+:math:`f` is the frequency
 
 .. figure:: images/sine.png
 
@@ -209,7 +209,7 @@ contsine
 
 A continuous sine waveform. In order to avoid introducing noise into the calculation the amplitude of the waveform is modulated for the first cycle of the sine wave (ramp excitation).
 
-.. math:: I = R\sin(2\pi ft)
+.. math:: W(t) = R\sin(2\pi ft)
 
 and
 
@@ -221,7 +221,7 @@ and
     1 &\text{if $R>1$}.
     \end{cases}
 
-where :math:`I` is the current, :math:`R_c` is set to :math:`0.25`, :math:`t` is time and :math:`f` is the frequency.
+where :math:`R_c` is set to :math:`0.25` and :math:`f` is the frequency.
 
 .. figure:: images/contsine.png
 
