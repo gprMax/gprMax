@@ -8,9 +8,9 @@ if __name__ == '__main__':
 # Code profiling
 # Time profiling
 #import cProfile, pstats
-#cProfile.run('main()','stats')
+#cProfile.run('gprMax.gprMax.main()','stats')
 #p = pstats.Stats('stats')
-#p.sort_stats('time').print_stats(50)
+#p.sort_stats('time').print_stats(25)
 
 # Memory profiling - use in gprMax.py
 # from memory profiler import profile
