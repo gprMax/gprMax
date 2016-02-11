@@ -28,7 +28,7 @@ import numpy as np
 
 import gprMax
 from gprMax.constants import c, e0, m0, z0, floattype
-from gprMax.exceptions import CmdInputError
+from gprMax.exceptions import GeneralError
 from gprMax.fields_update import *
 from gprMax.grid import FDTDGrid
 from gprMax.input_cmds_geometry import process_geometrycmds
@@ -67,7 +67,7 @@ def main():
     usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': numbermodelruns, 'inputdirectory': inputdirectory}
     
     if args.opt_taguchi and numbermodelruns > 1:
-        raise CmdInputError('When a Taguchi optimisation is being carried out the number of model runs argument is not required')
+        raise GeneralError('When a Taguchi optimisation is being carried out the number of model runs argument is not required')
 
     ########################################
     #   Process for Taguchi optimisation   #
@@ -263,7 +263,7 @@ def main():
     #######################################
     else:
         if args.mpi and numbermodelruns == 1:
-            raise CmdInputError('MPI is not beneficial when there is only one model to run')
+            raise GeneralError('MPI is not beneficial when there is only one model to run')
 
         # Mixed mode MPI/OpenMP - task farm for model runs with MPI; each model parallelised with OpenMP
         if args.mpi:
@@ -468,7 +468,9 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             print('{:3}\t{:12}\tepsr={:g}, sig={:g} S/m; mur={:g}, sig*={:g} S/m; '.format(material.numID, material.ID, material.er, material.se, material.mr, material.sm) + tmp + dielectricsmoothing)
     
     # Write files for any geometry views
-    if G.geometryviews:
+    if not G.geometryviews and args.geometry_only:
+        raise GeneralError('No geometry views found.')
+    elif G.geometryviews:
         tgeostart = perf_counter()
         for geometryview in G.geometryviews:
             geometryview.write_file(modelrun, numbermodelruns, G)
@@ -495,7 +497,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
         # Adjust position of sources and receivers if required
         if G.srcstepx > 0 or G.srcstepy > 0 or G.srcstepz > 0:
-            for source in itertools.chain(G.hertziandipoles, G.magneticdipoles, G.voltagesources):
+            for source in itertools.chain(G.hertziandipoles, G.magneticdipoles, G.voltagesources, G.transmissionlines):
                 source.xcoord += (modelrun - 1) * G.srcstepx
                 source.ycoord += (modelrun - 1) * G.srcstepy
                 source.zcoord += (modelrun - 1) * G.srcstepz
