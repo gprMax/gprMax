@@ -160,13 +160,13 @@ You should have produced 60 output files, one for each A-scan, with names ``cyli
 
     python -m tools.outputfiles_merge user_models/cylinder_Bscan_2D 60
 
-You should see a combined output file ``cylinder_Bscan_2D_merge.out``. The tool will ask you if you want to delete the original single A-scan output files or keep them.
+You should see a combined output file ``cylinder_Bscan_2D_merged.out``. The tool will ask you if you want to delete the original single A-scan output files or keep them.
 
 You can now view an image of the B-scan using the command:
 
 .. code-block:: none
 
-    python -m tools.plot_Bscan user_models/cylinder_Bscan_2D_merge.out Ez
+    python -m tools.plot_Bscan user_models/cylinder_Bscan_2D_merged.out Ez
 
 :numref:`cylinder_Bscan_results` shows the B-scan (image of the :math:`E_z` field component). As expected a hyperbolic response is present from the metal cylinder.
 
