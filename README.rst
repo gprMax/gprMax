@@ -77,12 +77,12 @@ We recommend using Miniconda to install Python and the required Python packages 
 * Install the Python 3.5 version of Miniconda for your platform (http://conda.pydata.org/miniconda.html).
 * Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the top-level gprMax directory.
 * Update conda :code:`conda update conda`
-* Create an environment (using the supplied environment file) for gprMax with all the necessary Python packages :code:`conda env create -f conda_env.yml`
+* Create an environment (using the supplied ``conda_env.yml`` environment file) for gprMax with all the necessary Python packages :code:`conda env create -f conda_env.yml`
 * Activate the new environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows).
 
 .. note::
-    When you are finished using gprMax the Miniconda environment can be deactivated using :code:`source deactivate` (Linux/Mac OS X)  or :code:`deactivate` (Windows).
-    If you want to install Python and the required Python packages manually, i.e. without using Anaconda/Miniconda, look in the ``conda_env.yml`` file for a list of the requirements.
+    * When you are finished using gprMax the Miniconda environment can be deactivated using :code:`source deactivate` (Linux/Mac OS X)  or :code:`deactivate` (Windows).
+    * If you want to install Python and the required Python packages manually, i.e. without using Anaconda/Miniconda, look in the ``conda_env.yml`` file for a list of the requirements.
 
 3. (*Microsoft Windows only*) Install C libraries
 -------------------------------------------------
