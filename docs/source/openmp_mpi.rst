@@ -26,7 +26,7 @@ HPC environments usually require jobs to be submitted to a queue using a job scr
 OpenMP example
 --------------
 
-Here is an example of a job script for running 100 models, e.g. A-scans to make a B-scan, one after another on a single cluster node. This is not as beneficial as the OpenMP/MPI example, but it can be a helpful starting point when getting the software running in your HPC environment. The behaviour of most of the variables is explained in the comments in the script.
+Here is an example of a job script for running models, e.g. A-scans to make a B-scan, one after another on a single cluster node. This is not as beneficial as the OpenMP/MPI example, but it can be a helpful starting point when getting the software running in your HPC environment. The behaviour of most of the variables is explained in the comments in the script.
 
 .. code-block:: none
 
@@ -65,13 +65,13 @@ Here is an example of a job script for running 100 models, e.g. A-scans to make 
     cd $HOME/gprMax
     python -m gprMax mymodel.in -n 100
 
-In this example 10 models will be run one after another on a single node of the cluster. Each model will be parallelised using 8 OpenMP threads.
+In this example 100 models will be run one after another on a single node of the cluster. Each model will be parallelised using 8 OpenMP threads.
 
 
 OpenMP/MPI example
 ------------------
 
-Here is an example of a job script for running 100 models, e.g. A-scans to make a B-scan, distributed as independent tasks in a HPC environment using MPI. The behaviour of most of the variables is explained in the comments in the script.
+Here is an example of a job script for running models, e.g. A-scans to make a B-scan, distributed as independent tasks in a HPC environment using MPI. The behaviour of most of the variables is explained in the comments in the script.
 
 .. code-block:: none
 
@@ -113,6 +113,6 @@ Here is an example of a job script for running 100 models, e.g. A-scans to make 
     cd $HOME/gprMax
     mpirun -np $NSLOTS python -m gprMax mymodel.in -n 100 -mpi
 
-The ``NSLOTS`` variable is usually the number of MPI tasks multiplied by the number of OpenMP threads per task. In this example the number of MPI tasks is 100 and number of OpenMP threads per task is 8, so 800 slots are required.
+In this example 100 models will be distributed as independent tasks in a HPC environment using MPI. The ``NSLOTS`` variable is usually the number of MPI tasks multiplied by the number of OpenMP threads per task. In this example the number of MPI tasks is 100 and number of OpenMP threads per task is 8, so 800 slots are required.
 
 
