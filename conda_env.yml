@@ -1,6 +1,9 @@
+# This file may be used to create an environment using:
+# $ conda create --name gprMax --file <this file>
+
 name: gprMax
 dependencies:
-- python>=3.5.1
+- python>=3.4
 - cython
 - h5py
 - matplotlib
