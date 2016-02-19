@@ -21,7 +21,7 @@ By default the MPI task farm functionality is turned off. It can be switched on 
 HPC job scripts
 ===============
 
- HPC environments usually require jobs to be submitted to a queue using a job script. The following are examples of job scripts for a HPC environment that uses Oracle (Sun) Grid Engine, and are intended as general guidance to help you get started. Using gprMax in an HPC environment is heavily dependent on the configuration of your specific HPC/cluster, e.g. the names of parallel environments (`-pe`) and compiler modules will depend on how they were defined by your system administrator.
+HPC environments usually require jobs to be submitted to a queue using a job script. The following are examples of job scripts for a HPC environment that uses Oracle (Sun) Grid Engine, and are intended as general guidance to help you get started. Using gprMax in an HPC environment is heavily dependent on the configuration of your specific HPC/cluster, e.g. the names of parallel environments (``-pe``) and compiler modules will depend on how they were defined by your system administrator.
 
 OpenMP example
 --------------
@@ -113,6 +113,6 @@ Here is an example of a job script for running 100 models, e.g. A-scans to make 
     cd $HOME/gprMax
     mpirun -np $NSLOTS python -m gprMax mymodel.in -n 100 -mpi
 
-The `NSLOTS` variable is usually the number of MPI tasks multiplied by the number of OpenMP threads per task. In this example the number of MPI tasks is 100 and number of OpenMP threads per task is 8, so 800 slots are required.
+The ``NSLOTS`` variable is usually the number of MPI tasks multiplied by the number of OpenMP threads per task. In this example the number of MPI tasks is 100 and number of OpenMP threads per task is 8, so 800 slots are required.
 
 
