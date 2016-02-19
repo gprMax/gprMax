@@ -33,36 +33,39 @@ args = parser.parse_args()
 
 # Open output file and read some attributes
 f = h5py.File(args.outputfile, 'r')
-path = '/rxs/rx1'
-availableoutputs = list(f[path].keys())
+nrx = f.attrs['nrx']
 
-# Check if requested output is in file
-if args.output not in availableoutputs:
-    raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(args.output, ', '.join(availableoutputs)))
+for rx in range(1, nrx + 1):
+    path = '/rxs/rx' + str(rx) + '/'
+    availableoutputs = list(f[path].keys())
 
-outputdata = f[path + '/' + args.output]
+    # Check if requested output is in file
+    if args.output not in availableoutputs:
+        raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(args.output, ', '.join(availableoutputs)))
 
-# Check that there is more than one A-scan present
-if outputdata.shape[1] == 1:
-    raise CmdInputError('{} contains only a single A-scan.'.format(args.outputfile))
+    outputdata = f[path + '/' + args.output]
 
-# Plot B-scan image
-fig = plt.figure(num=args.outputfile, figsize=(20, 10), facecolor='w', edgecolor='w')
-plt.imshow(outputdata, extent=[0, outputdata.shape[1], outputdata.shape[0]*f.attrs['dt'], 0], interpolation='nearest', aspect='auto', cmap='seismic', vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
-plt.xlabel('Trace number')
-plt.ylabel('Time [s]')
-plt.grid()
-cb = plt.colorbar()
-if 'E' in args.output:
-    cb.set_label('Field strength [V/m]')
-elif 'H' in args.output:
-    cb.set_label('Field strength [A/m]')
-elif 'I' in args.output:
-    cb.set_label('Current [A]')
+    # Check that there is more than one A-scan present
+    if outputdata.shape[1] == 1:
+        raise CmdInputError('{} contains only a single A-scan.'.format(args.outputfile))
 
-# Save a PDF/PNG of the figure
-#fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-#fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    # Plot B-scan image
+    fig = plt.figure(num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
+    plt.imshow(outputdata, extent=[0, outputdata.shape[1], outputdata.shape[0]*f.attrs['dt'], 0], interpolation='nearest', aspect='auto', cmap='seismic', vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
+    plt.xlabel('Trace number')
+    plt.ylabel('Time [s]')
+    plt.grid()
+    cb = plt.colorbar()
+    if 'E' in args.output:
+        cb.set_label('Field strength [V/m]')
+    elif 'H' in args.output:
+        cb.set_label('Field strength [A/m]')
+    elif 'I' in args.output:
+        cb.set_label('Current [A]')
+
+    # Save a PDF/PNG of the figure
+    #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
 plt.show()
 f.close()

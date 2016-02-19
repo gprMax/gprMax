@@ -30,8 +30,7 @@ args = parser.parse_args()
 
 basefilename = args.basefilename
 modelruns = args.modelruns
-outputfile = basefilename + '_merge.out'
-path = '/rxs/rx1'
+outputfile = basefilename + '_merged.out'
 
 # Combined output file
 fout = h5py.File(outputfile, 'w')
@@ -39,16 +38,27 @@ fout = h5py.File(outputfile, 'w')
 # Add positional data for rxs
 for model in range(modelruns):
     fin = h5py.File(basefilename + str(model + 1) + '.out', 'r')
-    availableoutputs = list(fin[path].keys())
+    nrx = fin.attrs['nrx']
+    
+    # Write properties for merged file on first iteration
     if model == 0:
         fout.attrs['Iterations'] = fin.attrs['Iterations']
         fout.attrs['dt'] = fin.attrs['dt']
-        fields = fout.create_group(path)
-        for output in availableoutputs:
-            fields[output] = np.zeros((fout.attrs['Iterations'], modelruns), dtype=fin[path + '/' + output].dtype)
+        fout.attrs['nrx'] = fin.attrs['nrx']
+        for rx in range(1, nrx + 1):
+            path = '/rxs/rx' + str(rx)
+            grp = fout.create_group(path)
+            availableoutputs = list(fin[path].keys())
+            for output in availableoutputs:
+                grp.create_dataset(output, (fout.attrs['Iterations'], modelruns), dtype=fin[path + '/' + output].dtype)
 
-    for output in availableoutputs:
-        fields[path + '/' + output][:,model] = fin[path + '/' + output][:]
+    # For all receivers
+    for rx in range(1, nrx + 1):
+        path = '/rxs/rx' + str(rx) + '/'
+        availableoutputs = list(fin[path].keys())
+        # For all receiver outputs
+        for output in availableoutputs:
+            fout[path + '/' + output][:,model] = fin[path + '/' + output][:]
 
     fin.close()
 
