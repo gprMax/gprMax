@@ -52,7 +52,9 @@ Package overview
 Installation
 ============
 
-You should use the following guidance to install gprMax if you are an end-user (i.e. you don't intend to develop or contribute to the software). Developers should follow the Installation for developers section (http://docs.gprmax.com/en/latest/includereadme.html#installation-for-developers).
+You should use the following guidance to install gprMax if you are an end-user (i.e. you don't intend to develop or contribute to the software). Developers (or those intending to use gprMax in a HPC environment) should follow the Installation for developers section (http://docs.gprmax.com/en/latest/includereadme.html#installation-for-developers).
+
+The steps are:
 
 1. Get the code
 2. Install Python and required Python packages
@@ -72,14 +74,15 @@ You should use the following guidance to install gprMax if you are an end-user (
 
 We recommend using Miniconda to install Python and the required Python packages for gprMax in a self-contained Python environment. Miniconda is a mini version of Anaconda which is a completely free Python distribution (including for commercial use and redistribution). It includes more than 300 of the most popular Python packages for science, math, engineering, and data analysis.
 
-* Install the Python 3.5 version of Miniconda for your platform (http://conda.pydata.org/miniconda.html).  Follow the instructions (http://conda.pydata.org/docs/install/quick.html) if you are having any trouble.
+* Install the Python 3.5 version of Miniconda for your platform (http://conda.pydata.org/miniconda.html).
 * Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the top-level gprMax directory.
 * Update conda :code:`conda update conda`
 * Create an environment (using the supplied environment file) for gprMax with all the necessary Python packages :code:`conda env create -f conda_env.yml`
-* Activate the new environment (Linux/Mac OS X) :code:`source activate gprMax` or (Windows) :code:`activate gprMax`.
+* Activate the new environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows).
 
 .. note::
-    When you are finished using gprMax the Miniconda environment can be deactivated using (Linux/Mac OS X) :code:`source deactivate` or (Windows) :code:`deactivate`
+    When you are finished using gprMax the Miniconda environment can be deactivated using :code:`source deactivate` (Linux/Mac OS X)  or :code:`deactivate` (Windows).
+    If you want to install Python and the required Python packages manually, i.e. without using Anaconda/Miniconda, look in the ``conda_env.yml`` file for a list of the requirements.
 
 3. (*Microsoft Windows only*) Install C libraries
 -------------------------------------------------
