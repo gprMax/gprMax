@@ -156,7 +156,7 @@ where ``c1`` can be either y (yes) or n (no) which turns on or off the messages 
 #num_threads:
 -----------------
 
-Allows you to control how many OpenMP threads (usually the number of CPU cores available) are used when running the model. The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelised using OpenMP (http://openmp.org) which supports multi-platform shared memory multiprocessing. The syntax of the command is:
+Allows you to control how many OpenMP threads (usually the number of physical CPU cores available) are used when running the model. The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelised using OpenMP (http://openmp.org) which supports multi-platform shared memory multiprocessing. The syntax of the command is:
 
 .. code-block:: none
 
