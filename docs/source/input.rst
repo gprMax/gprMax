@@ -666,7 +666,7 @@ If there are less amplitude values than the number of iterations that are going 
 
     #excitation_file: file1
 
-``str1`` is the name (and optionally full path) of the ASCII file containing the specified waveform. ``str1`` will first be tested as the full path to the file, and if it does not exist it will look for ``str1`` in the same directory as the input file.
+``str1`` can be the name of the file containing the specified waveform in the same directory as the input file, or ``str1`` can be the full path to the file containing the specified waveform (allowing you to specify any location).
 
 For example, to specify the file ``my_waves.txt``, which contains two custom waveform shapes, use: ``#excitation_file: my_waves.txt``. The contents of the file ``my_waves.txt`` would take the form:
 
