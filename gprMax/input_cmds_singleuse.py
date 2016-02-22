@@ -221,7 +221,11 @@ def process_singlecmds(singlecmds, multicmds, G):
             raise CmdInputError(cmd + ' requires exactly one parameter')
         excitationfile = tmp[0]
 
-        # Open file and get waveform names
+        # See if file exists at specified path and if not try input file directory
+        if not os.path.isfile(excitationfile):
+            excitationfile = os.path.join(G.inputdirectory, excitationfile)
+
+        # Get waveform names
         with open(excitationfile, 'r') as f:
             waveformIDs = f.readline().split()
         
