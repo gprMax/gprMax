@@ -74,7 +74,7 @@ The steps are:
 
 We recommend using Miniconda to install Python and the required Python packages for gprMax in a self-contained Python environment. Miniconda is a mini version of Anaconda which is a completely free Python distribution (including for commercial use and redistribution). It includes more than 300 of the most popular Python packages for science, math, engineering, and data analysis.
 
-* Install the Python 3.5 version of Miniconda for your platform (http://conda.pydata.org/miniconda.html).
+* Install the Python 3.5 version of Miniconda for your platform from http://conda.pydata.org/miniconda.html (You can get help with installing Miniconda from http://conda.pydata.org/docs/install/quick.html)
 * Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the top-level gprMax directory.
 * Update conda :code:`conda update conda`
 * Create an environment (using the supplied ``conda_env.yml`` environment file) for gprMax with all the necessary Python packages :code:`conda env create -f conda_env.yml`
