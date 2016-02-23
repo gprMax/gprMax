@@ -18,6 +18,28 @@ import matplotlib.pyplot as plt
     The second argument is a list which can contain any number of additional arguments, e.g. names (IDs) of outputs (rxs) from input file
 """
 
+def minvalue(filename, args):
+    """Minimum value from a response.
+        
+    Args:
+        filename (str): Name of output file
+        args (dict): 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
+        
+    Returns:
+        minvalue (float): Minimum value from specific outputs
+    """
+
+    f = h5py.File(filename, 'r')
+    nrx = f.attrs['nrx']
+
+    for rx in range(1, nrx + 1):
+        tmp = f['/rxs/rx' + str(rx) + '/']
+        if tmp.attrs['Name'] in args['outputs']:
+            fieldname = list(tmp.keys())[0]
+            minvalue = np.amin(tmp[fieldname])
+
+    return minvalue
+
 
 def maxvalue(filename, args):
     """Maximum value from a response.
