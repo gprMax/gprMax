@@ -114,7 +114,7 @@ elif sys.platform == 'darwin':
         os.environ['CC'] = gccpath[0].split(os.sep)[-1]
     else:
         raise('Cannot find gcc 4.x or gcc 5.x in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support must be installed')
-    compile_args = ['-O3', '-fopenmp', '-w']
+    compile_args = ['-O3', '-w', '-fstrict-aliasing', '-fno-common', '-fopenmp']
     linker_args = ['-fopenmp']
     extra_objects = []
     
@@ -124,7 +124,7 @@ elif sys.platform == 'darwin':
         extra_objects = ['/usr/local/opt/gcc/lib/gcc/5/libgomp.a']
 # Linux
 else:
-    compile_args = ['-O3', '-fopenmp', '-w']
+    compile_args = ['-O3', '-w', '-fopenmp']
     linker_args = ['-fopenmp']
     extra_objects = []
 
