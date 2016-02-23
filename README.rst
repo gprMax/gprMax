@@ -95,7 +95,7 @@ Running gprMax
 ==============
 
 * Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the top-level gprMax directory.
-* If it is not already active, activate the gprMax Miniconda environment (Linux/Mac OS X) :code:`source activate gprMax` or (Windows) :code:`activate gprMax`
+* If it is not already active, activate the gprMax Miniconda environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows)
 * gprMax in designed as a Python package, i.e. a namespace which can contain multiple packages and modules, much like a directory. Basic usage is:
 
 .. code-block:: none
