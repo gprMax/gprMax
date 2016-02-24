@@ -54,5 +54,6 @@ gprMax User Guide
 
     comparisons_analytical
     comparisons_numerical
+    benchmarking
     references
 

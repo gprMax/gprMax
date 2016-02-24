@@ -1,4 +1,0 @@
-#domain: 0.1 0.1 0.1
-#dx_dy_dz: 0.001 0.001 0.001
-#time_window: 3e-9
-#num_threads: 4
