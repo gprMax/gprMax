@@ -33,3 +33,5 @@ iMac (Retina 5K, 27-inch, Late 2014), Mac OS X 10.11.3
     Execution time and speed-up factor plots for gprMax (v3b21) and GprMax (v2).
 
 The results demonstrate that the new (v3) code written in Python and Cython is faster, in these two benchmarks, that the old (v2) code which was written in C. It also shows that the performance scaling with multiple OpenMP threads is better with the old (v2) code.
+
+Zero threads signifies that the code was compiled serially, i.e. without using OpenMP. Results from the old (v2) code show that when it is compiled serially the performance is approximately the same as when it is compiled with OpenMP and run with a single thread. With the new (v3) code this is not the case. The overhead in setting up and tearing down the OpenMP threads means that for a single thread the performance is worse than the serially-compiled version.
