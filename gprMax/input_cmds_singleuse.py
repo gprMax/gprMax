@@ -105,7 +105,8 @@ def process_singlecmds(singlecmds, multicmds, G):
     G.ny = round_value(tmp[1]/G.dy)
     G.nz = round_value(tmp[2]/G.dz)
     if G.messages:
-        print('Model domain: {:g} x {:g} x {:g}m ({:d} x {:d} x {:d} = {:g} cells)'.format(tmp[0], tmp[1], tmp[2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)))
+        print('Domain size: {:g} x {:g} x {:g}m ({:d} x {:d} x {:d} = {:g} cells)'.format(tmp[0], tmp[1], tmp[2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)))
+        # Guesstimate at memory usage
         mem = (((G.nx + 1) * (G.ny + 1) * (G.nz + 1) * 13 * np.dtype(floattype).itemsize + (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * 18) * 1.1) + 30e6
         print('Memory (RAM) usage: ~{} required, {} available'.format(human_size(mem), human_size(psutil.virtual_memory().total)))
 
