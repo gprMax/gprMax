@@ -50,3 +50,10 @@ iMac15,1
     Execution time and speed-up factor plots for Python/Cython-based gprMax and previous version C-based code.
 
 The results demonstrate that the Python/Cython-based code is faster, in these two benchmarks, than the previous version which was written in C. It also shows that the performance scaling with multiple OpenMP threads is better with the C-based code. Results from the C-based code show that when it is compiled serially the performance is approximately the same as when it is compiled with OpenMP and run with a single thread. With the Python/Cython-based code this is not the case. The overhead in setting up and tearing down the OpenMP threads means that for a single thread the performance is worse than the serially-compiled version.
+
+
+MacPro1,1
+^^^^^^^^^
+
+.. figure:: ../../tests/benchmarking/results/MacOSX/MacPro1,1.png
+    :width: 600px
