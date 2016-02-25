@@ -39,14 +39,18 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
         absorberEr = kwargs['absorberEr']
         absorbersig = kwargs['absorbersig']
     else:
-        excitationfreq = 1.5e9 # GHz
-        # excitationfreq = 1.71e9 # Value from http://hdl.handle.net/1842/4074
-        sourceresistance = 50 # Ohms
-        # sourceresistance = 4 # Value from http://hdl.handle.net/1842/4074
-        absorberEr = 1.7
-        # absorberEr = 1.58 # Value from http://hdl.handle.net/1842/4074
-        absorbersig = 0.59
-        # absorbersig = 0.428 # Value from http://hdl.handle.net/1842/4074
+        #excitationfreq = 1.5e9 # GHz
+        #sourceresistance = 50 # Ohms
+        #absorberEr = 1.7
+        #absorbersig = 0.59
+        
+        # Values from http://hdl.handle.net/1842/4074
+        excitationfreq = 1.71e9
+        #sourceresistance = 4
+        sourceresistance = 230 # Correction for old (< 123) GprMax3D bug
+        absorberEr = 1.58
+        absorbersig = 0.428
+        rxres = 925 # Resistance at Rx bowtie
     
     x = x - (casesize[0] / 2)
     y = y - (casesize[1] / 2)
@@ -72,6 +76,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
     material(absorberEr, absorbersig, 1, 0, 'absorber')
     material(3, 0, 1, 0, 'pcb')
     material(2.35, 0, 1, 0, 'hdpe')
+    material(3, (1 / rxres) * (dy / (dx * dz)), 1, 0, 'rxres')
 
     # Antenna geometry
     # Plastic case
@@ -150,11 +155,12 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
 
     # Excitation - Gaussian pulse
     print('#waveform: gaussian 1 {} myGaussian'.format(excitationfreq))
-    print('#voltage_source: y {} {} {} {} myGaussian'.format(tx[0], tx[1], tx[2], sourceresistance))
+    print('#transmission_line: y {} {} {} {} myGaussian'.format(tx[0], tx[1], tx[2], sourceresistance))
     
     # Output point - transmitter bowtie
     #print('#rx: {} {} {}'.format(tx[0], tx[1], tx[2]))
     # Output point - receiver bowtie
+    edge(tx[0] - 0.059, tx[1], tx[2], tx[0] - 0.059, tx[1] + dy, tx[2], 'rxres')
     print('#rx: {} {} {} rxbowtie Ey'.format(tx[0] - 0.059, tx[1], tx[2]))
 
 
@@ -186,8 +192,9 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
         absorberEr = kwargs['absorberEr']
         absorbersig = kwargs['absorbersig']
     else:
-        excitationfreq = 0.978e9 # GHz
-        sourceresistance = 1000 # Ohms
+        # Values from http://hdl.handle.net/1842/4074
+        excitationfreq = 0.978e9
+        sourceresistance = 1000
         absorberEr = 6.49
         absorbersig = 0.252
     
