@@ -125,7 +125,7 @@ for rx in range(1, nrx + 1):
             fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]', ylabel=outputtext + ' field strength [V/m]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
             line = ax.plot(time, outputdata,'r', lw=2, label=outputtext)
             ax.set_xlim([0, np.amax(time)])
-            ax.set_ylim([-0.25, 0.20])
+            #ax.set_ylim([-0.25, 0.20])
             ax.grid()
             
             if 'H' in output:
