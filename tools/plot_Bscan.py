@@ -35,6 +35,10 @@ args = parser.parse_args()
 f = h5py.File(args.outputfile, 'r')
 nrx = f.attrs['nrx']
 
+# Check there are any receivers
+if nrx == 0:
+    raise CmdInputError('No receivers found in {}'.format(args.outputfile))
+
 for rx in range(1, nrx + 1):
     path = '/rxs/rx' + str(rx) + '/'
     availableoutputs = list(f[path].keys())

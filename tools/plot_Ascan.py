@@ -43,6 +43,10 @@ iterations = f.attrs['Iterations']
 time = np.linspace(0, 1, iterations)
 time *= (iterations * dt)
 
+# Check there are any receivers
+if nrx == 0:
+    raise CmdInputError('No receivers found in {}'.format(file))
+
 # Check for single output component when doing a FFT
 if args.fft:
     if not len(args.outputs) == 1:
