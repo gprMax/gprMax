@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from copy import deepcopy
 import numpy as np
 
 from gprMax.constants import c, floattype
@@ -72,6 +73,33 @@ class VoltageSource:
                     Ez[i, j, k] -= updatecoeffsE[ID[2, i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (self.resistance * G.dx * G.dy))
                 else:
                     Ez[i, j, k] = -1 * waveform.amp * waveform.calculate_value(time, G.dt) / G.dz
+
+    def create_material(self, G):
+        """Create a new material at the voltage source location that adds the voltage source conductivity to the underlying parameters.
+            
+        Args:
+            G (class): Grid class instance - holds essential parameters describing the model.
+        """
+
+        if self.resistance != 0:
+            ID = 'E' + self.polarisation
+            requirednumID = G.ID[G.IDlookup[ID], self.xcoord, self.ycoord, self.zcoord]
+            material = next(x for x in G.materials if x.numID == requirednumID)
+            newmaterial = deepcopy(material)
+            newmaterial.ID = material.ID + '+VoltageSource_' + str(self.resistance)
+            newmaterial.numID = len(G.materials)
+            newmaterial.average = False
+            
+            # Add conductivity of voltage source to underlying conductivity
+            if self.polarisation == 'x':
+                newmaterial.se += G.dx / (self.resistance * G.dy * G.dz)
+            elif self.polarisation == 'y':
+                newmaterial.se += G.dy / (self.resistance * G.dx * G.dz)
+            elif self.polarisation == 'z':
+                newmaterial.se += G.dz / (self.resistance * G.dx * G.dy)
+
+            G.ID[G.IDlookup[ID], self.xcoord, self.ycoord, self.zcoord] = newmaterial.numID
+            G.materials.append(newmaterial)
 
 
 class HertzianDipole:
