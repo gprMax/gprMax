@@ -18,7 +18,7 @@
 
 import numpy as np
 
-from gprMax.constants import floattype, complextype
+from gprMax.constants import c, floattype, complextype
 from gprMax.materials import Material
 
 
@@ -69,6 +69,7 @@ class FDTDGrid:
         self.solid = np.ones((self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
         self.rigidE = np.zeros((12, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.int8)
         self.rigidH = np.zeros((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.int8)
+        self.IDlookup = {'Ex': 0, 'Ey': 1, 'Ez': 2, 'Hx': 3, 'Hy': 4, 'Hz': 5}
         self.ID = np.ones((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
         self.Ex = np.zeros((self.nx, self.ny + 1, self.nz + 1), dtype=floattype)
         self.Ey = np.zeros((self.nx + 1, self.ny, self.nz + 1), dtype=floattype)
@@ -96,6 +97,62 @@ class FDTDGrid:
         self.Ty = np.zeros((Material.maxpoles, self.nx + 1, self.ny, self.nz + 1), dtype=complextype)
         self.Tz = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz), dtype=complextype)
         self.updatecoeffsdispersive = np.zeros((nummaterials, 3 * Material.maxpoles), dtype=complextype)
+
+
+def dispersion_check(waveforms, materials, dx, dy, dz):
+    """Check for potential numerical dispersion. Is the smallest wavelength present in the simulation discretised by at least a factor of 10
+        
+    Args:
+        waveforms (list): Waveforms present in the model.
+        materials (list): Materials present in the model.
+        dx, dy, dz (float): Spatial discretisation of the model.
+    
+    Returns:
+        dispersionwarning (boolean): Potential numerical dispersion
+    """
+    
+    # Find maximum frequency
+    freqs = [waveform.freq for waveform in waveforms]
+    maxfreq = max(freqs)
+    
+    # Find minimum wavelength
+    ers = [material.er for material in materials]
+    miner = max(ers)
+
+    # Minimum velocity
+    minvelocity = c / np.sqrt(miner)
+
+    # Minimum number of spatial steps to resolve smallest wavelength
+    resolution = 10
+    
+    # Multiplier for centre frequency (2-3 times the centre frequency of a waveform can be present in the simulation)
+    maxfreq *= 3
+    
+    # Minimum wavelength
+    minwavelength = minvelocity / maxfreq
+    
+    # Test for numerical dispersion
+    if max((dx, dy, dz)) > (minwavelength / resolution):
+        dispersionwarning = True
+    else:
+        dispersionwarning = False
+
+    return dispersionwarning
+
+
+def get_other_directions(direction):
+    """Return the two other directions from x, y, z given a single direction
+    
+    Args:
+        direction (str): Component x, y or z
+        
+    Returns:
+        (tuple): Two directions from x, y, z
+    """
+
+    directions = {'x': ('y', 'z'), 'y': ('x', 'z'), 'z': ('x', 'y')}
+
+    return directions[direction]
 
 
 def Ix(x, y, z, Hy, Hz, G):
