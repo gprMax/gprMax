@@ -104,6 +104,8 @@ def process_singlecmds(singlecmds, multicmds, G):
     G.nx = round_value(tmp[0]/G.dx)
     G.ny = round_value(tmp[1]/G.dy)
     G.nz = round_value(tmp[2]/G.dz)
+    if G.nx == 0 or G.ny == 0 or G.nz == 0:
+        raise CmdInputError(cmd + ' requires at least one cell in every dimension')
     if G.messages:
         print('Domain size: {:g} x {:g} x {:g}m ({:d} x {:d} x {:d} = {:g} cells)'.format(tmp[0], tmp[1], tmp[2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)))
         # Guesstimate at memory usage
