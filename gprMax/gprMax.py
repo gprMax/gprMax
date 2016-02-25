@@ -20,7 +20,6 @@
 
 import argparse, datetime, importlib, itertools, os, psutil, sys
 from time import perf_counter
-from copy import deepcopy
 from enum import Enum
 from collections import OrderedDict
 
@@ -29,8 +28,8 @@ import numpy as np
 import gprMax
 from gprMax.constants import c, e0, m0, z0, floattype
 from gprMax.exceptions import GeneralError
-from gprMax.fields_update import *
-from gprMax.grid import FDTDGrid
+from gprMax.fields_update import update_electric, update_magnetic, update_electric_dispersive_multipole_A, update_electric_dispersive_multipole_B, update_electric_dispersive_1pole_A, update_electric_dispersive_1pole_B
+from gprMax.grid import FDTDGrid, dispersion_check
 from gprMax.input_cmds_geometry import process_geometrycmds
 from gprMax.input_cmds_file import python_code_blocks, write_python_processed, check_cmd_names
 from gprMax.input_cmds_multiuse import process_multicmds
@@ -40,7 +39,7 @@ from gprMax.output import prepare_output_file, write_output
 from gprMax.pml_call_updates import update_electric_pml, update_magnetic_pml
 from gprMax.pml import build_pml, calculate_initial_pml_params
 from gprMax.utilities import update_progress, logo, human_size
-from gprMax.yee_cell_build import build_ex_component, build_ey_component, build_ez_component, build_hx_component, build_hy_component, build_hz_component
+from gprMax.yee_cell_build import build_electric_components, build_magnetic_components
 
 
 def main():
@@ -388,72 +387,42 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
     # Build the model, i.e. set the material properties (ID) for every edge of every Yee cell
     tbuildstart = perf_counter()
-    build_ex_component(G.solid, G.rigidE, G.ID, G)
-    build_ey_component(G.solid, G.rigidE, G.ID, G)
-    build_ez_component(G.solid, G.rigidE, G.ID, G)
-    build_hx_component(G.solid, G.rigidH, G.ID, G)
-    build_hy_component(G.solid, G.rigidH, G.ID, G)
-    build_hz_component(G.solid, G.rigidH, G.ID, G)
+    build_electric_components(G.solid, G.rigidE, G.ID, G)
+    build_magnetic_components(G.solid, G.rigidH, G.ID, G)
     tbuildend = perf_counter()
     print('\nModel built in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tbuildend - tbuildstart))))
 
-    # Process any voltage sources that have resistance to create a new material at the source location
-    #  that adds the voltage source conductivity to the underlying parameters
-    if G.voltagesources:
-        for source in G.voltagesources:
-            if source.resistance != 0:
-                if source.polarisation == 'x':
-                    requirednumID = G.ID[0, source.xcoord, source.ycoord, source.zcoord]
-                    material = next(x for x in G.materials if x.numID == requirednumID)
-                    newmaterial = deepcopy(material)
-                    newmaterial.ID = material.ID + '+VoltageSource_' + str(source.resistance)
-                    newmaterial.numID = len(G.materials)
-                    newmaterial.se += G.dx / (source.resistance * G.dy * G.dz)
-                    newmaterial.average = False
-                    G.ID[0, source.xcoord, source.ycoord, source.zcoord] = newmaterial.numID
-                elif source.polarisation == 'y':
-                    requirednumID = G.ID[1, source.xcoord, source.ycoord, source.zcoord]
-                    material = next(x for x in G.materials if x.numID == requirednumID)
-                    newmaterial = deepcopy(material)
-                    newmaterial.ID = material.ID + '+VoltageSource_' + str(source.resistance)
-                    newmaterial.numID = len(G.materials)
-                    newmaterial.se += G.dy / (source.resistance * G.dx * G.dz)
-                    newmaterial.average = False
-                    G.ID[1, source.xcoord, source.ycoord, source.zcoord] = newmaterial.numID
-                elif source.polarisation == 'z':
-                    requirednumID = G.ID[2, source.xcoord, source.ycoord, source.zcoord]
-                    material = next(x for x in G.materials if x.numID == requirednumID)
-                    newmaterial = deepcopy(material)
-                    newmaterial.ID = material.ID + '+VoltageSource_' + str(source.resistance)
-                    newmaterial.numID = len(G.materials)
-                    newmaterial.se += G.dz / (source.resistance * G.dx * G.dy)
-                    newmaterial.average = False
-                    G.ID[2, source.xcoord, source.ycoord, source.zcoord] = newmaterial.numID
-                G.materials.append(newmaterial)
-
-    # Initialise arrays for storing temporary values if there are any dispersive materials
-    if Material.maxpoles != 0:
-        G.initialise_dispersive_arrays(len(G.materials))
+    # Process any voltage sources (that have resistance) to create a new material at the source location
+    for voltagesource in G.voltagesources:
+        voltagesource.create_material(G)
     
     # Initialise arrays of update coefficients to pass to update functions
     G.initialise_std_updatecoeff_arrays(len(G.materials))
+
+    # Initialise arrays of update coefficients and temporary values if there are any dispersive materials
+    if Material.maxpoles != 0:
+        G.initialise_dispersive_arrays(len(G.materials))
 
     # Calculate update coefficients, store in arrays, and list materials in model
     if G.messages:
         print('\nMaterials:\n')
         print('ID\tName\t\tProperties')
         print('{}'.format('-'*50))
-    for x, material in enumerate(G.materials):
+    for material in G.materials:
+        
+        # Calculate update coefficients for material
         material.calculate_update_coeffsE(G)
         material.calculate_update_coeffsH(G)
         
-        G.updatecoeffsE[x, :] = material.CA, material.CBx, material.CBy, material.CBz, material.srce
-        G.updatecoeffsH[x, :] = material.DA, material.DBx, material.DBy, material.DBz, material.srcm
+        # Store all update coefficients together
+        G.updatecoeffsE[material.numID, :] = material.CA, material.CBx, material.CBy, material.CBz, material.srce
+        G.updatecoeffsH[material.numID, :] = material.DA, material.DBx, material.DBy, material.DBz, material.srcm
         
+        # Store coefficients for any dispersive materials
         if Material.maxpoles != 0:
             z = 0
-            for y in range(Material.maxpoles):
-                G.updatecoeffsdispersive[x, z:z+3] = e0 * material.eqt2[y], material.eqt[y], material.zt[y]
+            for pole in range(Material.maxpoles):
+                G.updatecoeffsdispersive[material.numID, z:z+3] = e0 * material.eqt2[pole], material.eqt[pole], material.zt[pole]
                 z += 3
         
         if G.messages:
@@ -466,7 +435,12 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             else:
                 dielectricsmoothing = 'dielectric smoothing not permitted.'
             print('{:3}\t{:12}\tepsr={:g}, sig={:g} S/m; mur={:g}, sig*={:g} S/m; '.format(material.numID, material.ID, material.er, material.se, material.mr, material.sm) + tmp + dielectricsmoothing)
+
+    # Check to see if numerical dispersion might be a problem
+    if dispersion_check(G.waveforms, G.materials, G.dx, G.dy, G.dz):
+        print('\nWARNING: Potential numerical dispersion in the simulation. Check the spatial discretisation against the smallest wavelength present.')
     
+
     # Write files for any geometry views
     if not G.geometryviews and args.geometry_only:
         raise GeneralError('No geometry views found.')
@@ -481,9 +455,8 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     if not args.geometry_only:
         
         # Prepare any snapshot files
-        if G.snapshots:
-            for snapshot in G.snapshots:
-                snapshot.prepare_file(modelrun, numbermodelruns, G)
+        for snapshot in G.snapshots:
+            snapshot.prepare_file(modelrun, numbermodelruns, G)
 
         # Prepare output file
         inputfileparts = os.path.splitext(inputfile)
@@ -522,70 +495,50 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             write_output(f, timestep, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
             
             # Write any snapshots to file
-            if G.snapshots:
-                for snapshot in G.snapshots:
-                    if snapshot.time == timestep + 1:
-                        snapshot.write_snapshot(G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
+            for snapshot in G.snapshots:
+                if snapshot.time == timestep + 1:
+                    snapshot.write_snapshot(G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
             # Update electric field components
-            # If there are any dispersive materials do 1st part of dispersive update. It is split into two parts as it requires present and updated electric field values.
-            if Material.maxpoles == 1:
-                update_ex_dispersive_1pole_A(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ex, G.Hy, G.Hz)
-                update_ey_dispersive_1pole_A(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Ty, G.Ey, G.Hx, G.Hz)
-                update_ez_dispersive_1pole_A(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tz, G.Ez, G.Hx, G.Hy)
+            if Material.maxpoles == 0: # All materials are non-dispersive so do standard update
+                update_electric(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
+            elif Material.maxpoles == 1: # If there are any dispersive materials do 1st part of dispersive update (it is split into two parts as it requires present and updated electric field values).
+                update_electric_dispersive_1pole_A(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
             elif Material.maxpoles > 1:
-                update_ex_dispersive_multipole_A(G.nx, G.ny, G.nz, G.nthreads, Material.maxpoles, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ex, G.Hy, G.Hz)
-                update_ey_dispersive_multipole_A(G.nx, G.ny, G.nz, G.nthreads, Material.maxpoles, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Ty, G.Ey, G.Hx, G.Hz)
-                update_ez_dispersive_multipole_A(G.nx, G.ny, G.nz, G.nthreads, Material.maxpoles, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tz, G.Ez, G.Hx, G.Hy)
-            # Otherwise all materials are non-dispersive so do standard update
-            else:
-                update_ex(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Hy, G.Hz)
-                update_ey(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.ID, G.Ey, G.Hx, G.Hz)
-                update_ez(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.ID, G.Ez, G.Hx, G.Hy)
+                update_electric_dispersive_multipole_A(G.nx, G.ny, G.nz, G.nthreads, Material.maxpoles, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
 
             # Update electric field components with the PML correction
             update_electric_pml(G)
 
             # Update electric field components from sources
-            if G.voltagesources:
-                for voltagesource in G.voltagesources:
-                    voltagesource.update_electric(abstime, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
-            if G.transmissionlines:
-                for transmissionline in G.transmissionlines:
-                    transmissionline.update_electric(abstime, G.Ex, G.Ey, G.Ez, G)
-            if G.hertziandipoles:   # Update any Hertzian dipole sources last
-                for hertziandipole in G.hertziandipoles:
-                    hertziandipole.update_electric(abstime, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
+            for voltagesource in G.voltagesources:
+                voltagesource.update_electric(abstime, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
+            for transmissionline in G.transmissionlines:
+                transmissionline.update_electric(abstime, G.Ex, G.Ey, G.Ez, G)
+            for hertziandipole in G.hertziandipoles: # Update any Hertzian dipole sources last
+                hertziandipole.update_electric(abstime, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
 
-            # If there are any dispersive materials do 2nd part of dispersive update. It is split into two parts as it requires present and updated electric field values. Therefore it can only be completely updated after the electric field has been updated by the PML and source updates.
+            # If there are any dispersive materials do 2nd part of dispersive update (it is split into two parts as it requires present and updated electric field values). Therefore it can only be completely updated after the electric field has been updated by the PML and source updates.
             if Material.maxpoles == 1:
-                update_ex_dispersive_1pole_B(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ex)
-                update_ey_dispersive_1pole_B(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsdispersive, G.ID, G.Ty, G.Ey)
-                update_ez_dispersive_1pole_B(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsdispersive, G.ID, G.Tz, G.Ez)
+                update_electric_dispersive_1pole_B(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez)
             elif Material.maxpoles > 1:
-                update_ex_dispersive_multipole_B(G.nx, G.ny, G.nz, G.nthreads, Material.maxpoles, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ex)
-                update_ey_dispersive_multipole_B(G.nx, G.ny, G.nz, G.nthreads, Material.maxpoles, G.updatecoeffsdispersive, G.ID, G.Ty, G.Ey)
-                update_ez_dispersive_multipole_B(G.nx, G.ny, G.nz, G.nthreads, Material.maxpoles, G.updatecoeffsdispersive, G.ID, G.Tz, G.Ez)
+                update_electric_dispersive_multipole_B(G.nx, G.ny, G.nz, G.nthreads, Material.maxpoles, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez)
 
             # Increment absolute time value
             abstime += 0.5 * G.dt
             
             # Update magnetic field components
-            update_hx(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsH, G.ID, G.Hx, G.Ey, G.Ez)
-            update_hy(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsH, G.ID, G.Hy, G.Ex, G.Ez)
-            update_hz(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsH, G.ID, G.Hz, G.Ex, G.Ey)
+            update_magnetic(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
 
             # Update magnetic field components with the PML correction
             update_magnetic_pml(G)
 
             # Update magnetic field components from sources
-            if G.transmissionlines:
-                for transmissionline in G.transmissionlines:
-                    transmissionline.update_magnetic(abstime, G.Hx, G.Hy, G.Hz, G)
-            if G.magneticdipoles:
-                for magneticdipole in G.magneticdipoles:
-                    magneticdipole.update_magnetic(abstime, G.updatecoeffsH, G.ID, G.Hx, G.Hy, G.Hz, G)
-        
+            for transmissionline in G.transmissionlines:
+                transmissionline.update_magnetic(abstime, G.Hx, G.Hy, G.Hz, G)
+            for magneticdipole in G.magneticdipoles:
+                magneticdipole.update_magnetic(abstime, G.updatecoeffsH, G.ID, G.Hx, G.Hy, G.Hz, G)
+
             # Increment absolute time value
             abstime += 0.5 * G.dt
         
