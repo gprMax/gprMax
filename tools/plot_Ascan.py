@@ -129,7 +129,7 @@ for rx in range(1, nrx + 1):
             fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]', ylabel=outputtext + ' field strength [V/m]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
             line = ax.plot(time, outputdata,'r', lw=2, label=outputtext)
             ax.set_xlim([0, np.amax(time)])
-            #ax.set_ylim([-0.25, 0.20])
+            #ax.set_ylim([-15, 20])
             ax.grid()
             
             if 'H' in output:
@@ -139,7 +139,7 @@ for rx in range(1, nrx + 1):
                 plt.setp(line, color='b')
                 plt.setp(ax, ylabel=outputtext + ', current [A]')
 
-    # If multiple fields required, create all nine subplots and populate only the specified ones
+    # If multiple outputs required, create all nine subplots and populate only the specified ones
     else:
         fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
         gs = gridspec.GridSpec(3, 3, hspace=0.3, wspace=0.3)
@@ -164,26 +164,32 @@ for rx in range(1, nrx + 1):
                 ax = plt.subplot(gs[0, 0])
                 ax.plot(time, outputdata,'r', lw=2, label=outputtext)
                 ax.set_ylabel(outputtext + ', field strength [V/m]')
+            #ax.set_ylim([-15, 20])
             elif output == 'Ey':
                 ax = plt.subplot(gs[1, 0])
                 ax.plot(time, outputdata,'r', lw=2, label=outputtext)
                 ax.set_ylabel(outputtext + ', field strength [V/m]')
+            #ax.set_ylim([-15, 20])
             elif output == 'Ez':
                 ax = plt.subplot(gs[2, 0])
                 ax.plot(time, outputdata,'r', lw=2, label=outputtext)
                 ax.set_ylabel(outputtext + ', field strength [V/m]')
+            #ax.set_ylim([-15, 20])
             elif output == 'Hx':
                 ax = plt.subplot(gs[0, 1])
                 ax.plot(time, outputdata,'g', lw=2, label=outputtext)
                 ax.set_ylabel(outputtext + ', field strength [A/m]')
+            #ax.set_ylim([-0.03, 0.03])
             elif output == 'Hy':
                 ax = plt.subplot(gs[1, 1])
                 ax.plot(time, outputdata,'g', lw=2, label=outputtext)
                 ax.set_ylabel(outputtext + ', field strength [A/m]')
+            #ax.set_ylim([-0.03, 0.03])
             elif output == 'Hz':
                 ax = plt.subplot(gs[2, 1])
                 ax.plot(time, outputdata,'g', lw=2, label=outputtext)
                 ax.set_ylabel(outputtext + ', field strength [A/m]')
+            #ax.set_ylim([-0.03, 0.03])
             elif output == 'Ix':
                 ax = plt.subplot(gs[0, 2])
                 ax.plot(time, outputdata,'b', lw=2, label=outputtext)
