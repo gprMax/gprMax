@@ -1,4 +1,4 @@
-#title: Hertzian dipole in free-space
+#title: Hertzian dipole in water
 #domain: 0.100 0.100 0.100
 #dx_dy_dz: 0.001 0.001 0.001
 #time_window: 3e-9
