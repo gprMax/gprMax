@@ -3,7 +3,7 @@
 #dx_dy_dz: 0.001 0.001 0.001
 #time_window: 3e-9
 
-#waveform: gaussiandot 1.0 1e9 myWave
+#waveform: gaussiandotnorm 1.0 1e9 myWave
 #hertzian_dipole: y 0.050 0.050 0.050 myWave
 #rx: 0.050 0.070 0.050
 
