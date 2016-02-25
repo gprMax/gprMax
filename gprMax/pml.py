@@ -72,11 +72,11 @@ class CFS:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
         
-        if direction == 'xminus' or direction == 'xplus':
+        if direction[0] == 'x':
             d = G.dx
-        elif direction == 'yminus' or direction == 'yplus':
+        elif direction[0] == 'y':
             d = G.dy
-        elif direction == 'zminus' or direction == 'zplus':
+        elif direction[0] == 'z':
             d = G.dz
         
         # Calculation of the maximum value of sigma from http://dx.doi.org/10.1109/8.546249
@@ -165,19 +165,19 @@ class PML:
         # Subscript notation, e.g. 'EPhiyxz' means the electric field Phi vector, of which the
         # component being corrected is y, the stretching direction is x, and field derivative
         # is z direction.
-        if self.direction == 'xminus' or self.direction == 'xplus':
+        if self.direction[0] == 'x':
             self.thickness = self.nx
             self.EPhiyxz = np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz + 1), dtype=floattype)
             self.EPhizxy = np.zeros((len(self.CFS), self.nx + 1, self.ny + 1, self.nz), dtype=floattype)
             self.HPhiyxz = np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz), dtype=floattype)
             self.HPhizxy = np.zeros((len(self.CFS), self.nx, self.ny, self.nz + 1), dtype=floattype)
-        elif self.direction == 'yminus' or self.direction == 'yplus':
+        elif self.direction[0] == 'y':
             self.thickness = self.ny
             self.EPhixyz = np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz + 1), dtype=floattype)
             self.EPhizyx = np.zeros((len(self.CFS), self.nx + 1, self.ny + 1, self.nz), dtype=floattype)
             self.HPhixyz = np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz), dtype=floattype)
             self.HPhizyx = np.zeros((len(self.CFS), self.nx, self.ny, self.nz + 1), dtype=floattype)
-        elif self.direction == 'zminus' or self.direction == 'zplus':
+        elif self.direction[0] == 'z':
             self.thickness = self.nz
             self.EPhixzy = np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz + 1), dtype=floattype)
             self.EPhiyzx = np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz + 1), dtype=floattype)
@@ -291,60 +291,35 @@ def calculate_initial_pml_params(G):
     for pml in G.pmls:
         sumer = 0
         summr = 0
-        if pml.direction == 'xminus':
+        
+        if pml.direction[0] == 'x':
             for j in range(G.ny):
                 for k in range(G.nz):
-                    numID = G.solid[0, j, k]
+                    numID = G.solid[pml.xs, j, k]
                     material = next(x for x in G.materials if x.numID == numID)
                     sumer += material.er
                     summr += material.mr
             averageer = sumer / (G.ny * G.nz)
             averagemr = summr / (G.ny * G.nz)
-        elif pml.direction == 'xplus':
-            for j in range(G.ny):
-                for k in range(G.nz):
-                    numID = G.solid[G.nx - pml.thickness, j, k]
-                    material = next(x for x in G.materials if x.numID == numID)
-                    sumer += material.er
-                    summr += material.mr
-            averageer = sumer / (G.ny * G.nz)
-            averagemr = summr / (G.ny * G.nz)
-        elif pml.direction == 'yminus':
+        elif pml.direction[0] == 'y':
             for i in range(G.nx):
                 for k in range(G.nz):
-                    numID = G.solid[i, 0, k]
+                    numID = G.solid[i, pml.ys, k]
                     material = next(x for x in G.materials if x.numID == numID)
                     sumer += material.er
                     summr += material.mr
             averageer = sumer / (G.nx * G.nz)
             averagemr = summr / (G.nx * G.nz)
-        elif pml.direction == 'yplus':
-            for i in range(G.nx):
-                for k in range(G.nz):
-                    numID = G.solid[i, G.ny - pml.thickness, k]
-                    material = next(x for x in G.materials if x.numID == numID)
-                    sumer += material.er
-                    summr += material.mr
-            averageer = sumer / (G.nx * G.nz)
-            averagemr = summr / (G.nx * G.nz)
-        elif pml.direction == 'zminus':
+        elif pml.direction[0] == 'z':
             for i in range(G.nx):
                 for j in range(G.ny):
-                    numID = G.solid[i, j, 0]
+                    numID = G.solid[i, j, pml.zs]
                     material = next(x for x in G.materials if x.numID == numID)
                     sumer += material.er
                     summr += material.mr
             averageer = sumer / (G.nx * G.ny)
             averagemr = summr / (G.nx * G.ny)
-        elif pml.direction == 'zplus':
-            for i in range(G.nx):
-                for j in range(G.ny):
-                    numID = G.solid[i, j, G.nz - pml.thickness]
-                    material = next(x for x in G.materials if x.numID == numID)
-                    sumer += material.er
-                    summr += material.mr
-            averageer = sumer / (G.nx * G.ny)
-            averagemr = summr / (G.nx * G.ny)
+
         pml.calculate_update_coeffs(averageer, averagemr, G)
 
 
