@@ -22,15 +22,17 @@ from gprMax.materials import Material
 from gprMax.yee_cell_setget_rigid cimport get_rigid_Ex, get_rigid_Ey, get_rigid_Ez, get_rigid_Hx, get_rigid_Hy, get_rigid_Hz
 
 
-cpdef build_ex_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigidE, np.uint32_t[:, :, :, :] ID, G):
-    """This function builds the Ex components in the ID array.
+cpdef void build_electric_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidE, np.uint32_t[:, :, :, ::1] ID, G):
+    """This function builds the electric field components in the ID array.
         
     Args:
         solid, rigid, ID (memoryviews): Access to solid, rigid and ID arrays
     """
     
-    cdef int i, j, k, numID1, numID2, numID3, numID4
+    cdef Py_ssize_t i, j, k
+    cdef int numID1, numID2, numID3, numID4
 
+    # Ex component
     for i in range(0, G.nx):
         for j in range(1, G.ny):
             for k in range(1, G.nz):
@@ -75,15 +77,7 @@ cpdef build_ex_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigid
                             G.materials.append(m)
                             ID[0, i, j, k] = newNumID
 
-cpdef build_ey_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigidE, np.uint32_t[:, :, :, :] ID, G):
-    """This function builds the Ey components in the ID array.
-        
-    Args:
-        solid, rigid, ID (memoryviews): Access to solid, rigid and ID arrays
-    """
-    
-    cdef int i, j, k, numID1, numID2, numID3, numID4
-
+    # Ey component
     for i in range(1, G.nx):
         for j in range(0, G.ny):
             for k in range(1, G.nz):
@@ -128,15 +122,7 @@ cpdef build_ey_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigid
                             G.materials.append(m)
                             ID[1, i, j, k] = newNumID
 
-cpdef build_ez_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigidE, np.uint32_t[:, :, :, :] ID, G):
-    """This function builds the Ez components in the ID array.
-        
-    Args:
-        solid, rigid, ID (memoryviews): Access to solid, rigid and ID arrays
-    """
-    
-    cdef int i, j, k, numID1, numID2, numID3, numID4
-
+    # Ez component
     for i in range(1, G.nx):
         for j in range(1, G.ny):
             for k in range(0, G.nz):
@@ -181,15 +167,18 @@ cpdef build_ez_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigid
                             G.materials.append(m)
                             ID[2, i, j, k] = newNumID
 
-cpdef build_hx_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigidH, np.uint32_t[:, :, :, :] ID, G):
-    """This function builds the Hx components in the ID array.
+
+cpdef void build_magnetic_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID, G):
+    """This function builds the magnetic field components in the ID array.
         
     Args:
         solid, rigid, ID (memoryviews): Access to solid, rigid and ID arrays
     """
     
-    cdef int i, j, k, numID1, numID2
+    cdef Py_ssize_t i, j, k
+    cdef int numID1, numID2
 
+    # Hx component
     for i in range(1, G.nx):
         for j in range(0, G.ny):
             for k in range(0, G.nz):
@@ -231,15 +220,7 @@ cpdef build_hx_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigid
                             G.materials.append(m)
                             ID[3, i, j, k] = newNumID
 
-cpdef build_hy_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigidH, np.uint32_t[:, :, :, :] ID, G):
-    """This function builds the Hy components in the ID array.
-        
-    Args:
-        solid, rigid, ID (memoryviews): Access to solid, rigid and ID arrays
-    """
-    
-    cdef int i, j, k, numID1, numID2
-
+    # Hy component
     for i in range(0, G.nx):
         for j in range(1, G.ny):
             for k in range(0, G.nz):
@@ -281,15 +262,7 @@ cpdef build_hy_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigid
                             G.materials.append(m)
                             ID[4, i, j, k] = newNumID
 
-cpdef build_hz_component(np.uint32_t[:, :, :] solid, np.int8_t[:, :, :, :] rigidH, np.uint32_t[:, :, :, :] ID, G):
-    """This function builds the Hz components in the ID array.
-        
-    Args:
-        solid, rigid, ID (memoryviews): Access to solid, rigid and ID arrays
-    """
-    
-    cdef int i, j, k, numID1, numID2
-
+    # Hz component
     for i in range(0, G.nx):
         for j in range(0, G.ny):
             for k in range(1, G.nz):
