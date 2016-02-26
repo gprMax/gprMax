@@ -25,9 +25,8 @@ gprMax produces a separate output file for each trace (A-scan) in a B-scan. This
 
 .. code-block:: none
 
-    python -m tools.outputfiles_merge basefilename modelruns
+    python -m tools.outputfiles_merge basefilename
 
 where:
 
 * ``basefilename`` is the base name file of the output file series, e.g. for ``myoutput1.out``, ``myoutput2.out`` the base file name would be ``myoutput``
-* ``modelruns`` is the number of output files to combine

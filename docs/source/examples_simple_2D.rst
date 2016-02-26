@@ -158,7 +158,7 @@ You should have produced 60 output files, one for each A-scan, with names ``cyli
 
 .. code-block:: none
 
-    python -m tools.outputfiles_merge user_models/cylinder_Bscan_2D 60
+    python -m tools.outputfiles_merge user_models/cylinder_Bscan_2D
 
 You should see a combined output file ``cylinder_Bscan_2D_merged.out``. The tool will ask you if you want to delete the original single A-scan output files or keep them.
 
