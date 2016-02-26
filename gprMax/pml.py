@@ -22,7 +22,7 @@ from gprMax.constants import e0, z0, floattype
 
 
 class CFSParameter:
-    """CFS parameter for PML."""
+    """Individual CFS parameter (e.g. alpha, kappa, or sigma)."""
     
     # Allowable scaling profiles and directions
     scalingprofiles = {'constant': 0, 'linear': 1, 'quadratic': 2, 'cubic': 3, 'quartic': 4}
@@ -141,7 +141,9 @@ class CFS:
 class PML:
     """PML - the implementation comes from the derivation in: http://dx.doi.org/10.1109/TAP.2011.2180344"""
     
-    def __init__(self, direction=None, xs=0, ys=0, zs=0, xf=0, yf=0, zf=0, cfs=[]):
+    directions = {0: 'xminus', 1: 'yminus', 2: 'zminus', 3: 'xplus', 4: 'yplus', 5: 'zplus'}
+    
+    def __init__(self, direction=None, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0, cfs=[]):
         """
         Args:
             xs, xf, ys, yf, zs, zf (float): Extent of the PML volume.
@@ -208,13 +210,6 @@ class PML:
             Ealpha, Halpha = cfs.calculate_values(self.thickness, cfs.alpha)
             Ekappa, Hkappa = cfs.calculate_values(self.thickness, cfs.kappa)
             Esigma, Hsigma = cfs.calculate_values(self.thickness, cfs.sigma)
-            
-#            print('Ealpha {}'.format(Ealpha))
-#            print('Halpha {}'.format(Halpha))
-#            print('Ekappa {}'.format(Ekappa))
-#            print('Hkappa {}'.format(Hkappa))
-#            print('Esigma {}'.format(Esigma))
-#            print('Hsigma {}'.format(Hsigma))
 
             # Electric PML update coefficients
             tmp = (2*e0*Ekappa) + G.dt * (Ealpha * Ekappa + Esigma)
@@ -230,105 +225,75 @@ class PML:
             self.HRE[x, :] = ((2*e0*Hkappa) - G.dt * (Halpha * Hkappa + Hsigma)) / tmp
             self.HRF[x, :] = (2*Hsigma*G.dt) / (Hkappa * tmp)
 
-#            print('ERA {}'.format(self.ERA))
-#            print('ERB {}'.format(self.ERB))
-#            print('ERE {}'.format(self.ERE))
-#            print('ERF {}'.format(self.ERF))
-#            print('HRA {}'.format(self.HRA))
-#            print('HRB {}'.format(self.HRB))
-#            print('HRE {}'.format(self.HRE))
-#            print('HRF {}'.format(self.HRF))
-
 
 def build_pml(G):
-    """This function builds instances of the PML."""
-    
-    if G.messages:
-        print('')
-    # Create the PML slabs
-    if G.pmlthickness[0] > 0:
-        pml = PML(direction='xminus', xf=G.pmlthickness[0], yf=G.ny, zf=G.nz, cfs=G.cfs)
-        if G.messages and G.pmlthickness.count(G.pmlthickness[0]) != len(G.pmlthickness):
-            print('PML {} slab with {} cells created.'.format(pml.direction, pml.thickness))
-        G.pmls.append(pml)
-    if G.pmlthickness[1] > 0:
-        pml = PML(direction='yminus', xf=G.nx, yf=G.pmlthickness[1], zf=G.nz, cfs=G.cfs)
-        if G.messages and G.pmlthickness.count(G.pmlthickness[0]) != len(G.pmlthickness):
-            print('PML {} slab with {} cells created.'.format(pml.direction, pml.thickness))
-        G.pmls.append(pml)
-    if G.pmlthickness[2] > 0:
-        pml = PML(direction='zminus', xf=G.nx, yf=G.ny, zf=G.pmlthickness[2], cfs=G.cfs)
-        if G.messages and G.pmlthickness.count(G.pmlthickness[0]) != len(G.pmlthickness):
-            print('PML {} slab with {} cells created.'.format(pml.direction, pml.thickness))
-        G.pmls.append(pml)
-    if G.pmlthickness[3] > 0:
-        pml = PML(direction='xplus', xs=G.nx-G.pmlthickness[3], xf=G.nx, yf=G.ny, zf=G.nz, cfs=G.cfs)
-        if G.messages and G.pmlthickness.count(G.pmlthickness[0]) != len(G.pmlthickness):
-            print('PML {} slab with {} cells created.'.format(pml.direction, pml.thickness))
-        G.pmls.append(pml)
-    if G.pmlthickness[4] > 0:
-        pml = PML(direction='yplus', xf=G.nx, ys=G.ny-G.pmlthickness[4], yf=G.ny, zf=G.nz, cfs=G.cfs)
-        if G.messages and G.pmlthickness.count(G.pmlthickness[0]) != len(G.pmlthickness):
-            print('PML {} slab with {} cells created.'.format(pml.direction, pml.thickness))
-        G.pmls.append(pml)
-    if G.pmlthickness[5] > 0:
-        pml = PML(direction='zplus', xf=G.nx, yf=G.ny, zs=G.nz-G.pmlthickness[5], zf=G.nz, cfs=G.cfs)
-        if G.messages and G.pmlthickness.count(G.pmlthickness[0]) != len(G.pmlthickness):
-            print('PML {} slab with {} cells created.'.format(pml.direction, pml.thickness))
-        G.pmls.append(pml)
-    if G.messages and G.pmlthickness.count(G.pmlthickness[0]) == len(G.pmlthickness):
-        if G.pmlthickness[0] == 0:
-            print('PML is switched off')
-        else:
-            print('PML: {} cells'.format(pml.thickness))
-
-
-def calculate_initial_pml_params(G):
-    """ This function calculates the initial parameters and coefficients for PML including setting profile
+    """This function builds instances of the PML and calculates the initial parameters and coefficients including setting profile
         (based on underlying material er and mr from solid array).
     """
     
-    for pml in G.pmls:
-        sumer = 0
-        summr = 0
-        
-        if pml.direction[0] == 'x':
-            for j in range(G.ny):
-                for k in range(G.nz):
-                    numID = G.solid[pml.xs, j, k]
-                    material = next(x for x in G.materials if x.numID == numID)
-                    sumer += material.er
-                    summr += material.mr
-            averageer = sumer / (G.ny * G.nz)
-            averagemr = summr / (G.ny * G.nz)
-        elif pml.direction[0] == 'y':
-            for i in range(G.nx):
-                for k in range(G.nz):
-                    numID = G.solid[i, pml.ys, k]
-                    material = next(x for x in G.materials if x.numID == numID)
-                    sumer += material.er
-                    summr += material.mr
-            averageer = sumer / (G.nx * G.nz)
-            averagemr = summr / (G.nx * G.nz)
-        elif pml.direction[0] == 'z':
-            for i in range(G.nx):
+    if G.messages:
+        print('')
+
+    for index, pmlthickness in enumerate(G.pmlthickness):
+        if pmlthickness > 0:
+            sumer = 0 # Sum of relative permittivities in PML slab
+            summr = 0 # Sum of relative permeabilities in PML slab
+            pmldirection=PML.directions[index]
+            
+            if pmldirection[0] == 'x':
+                if pmldirection == 'xminus':
+                    pml = PML(direction=pmldirection, xf=pmlthickness, yf=G.ny, zf=G.nz)
+                elif pmldirection == 'xplus':
+                    pml = PML(direction=pmldirection, xs=G.nx - pmlthickness, xf=G.nx, yf=G.ny, zf=G.nz)
+                G.pmls.append(pml)
                 for j in range(G.ny):
-                    numID = G.solid[i, j, pml.zs]
-                    material = next(x for x in G.materials if x.numID == numID)
-                    sumer += material.er
-                    summr += material.mr
-            averageer = sumer / (G.nx * G.ny)
-            averagemr = summr / (G.nx * G.ny)
+                    for k in range(G.nz):
+                        numID = G.solid[pml.xs, j, k]
+                        material = next(x for x in G.materials if x.numID == numID)
+                        sumer += material.er
+                        summr += material.mr
+                averageer = sumer / (G.ny * G.nz)
+                averagemr = summr / (G.ny * G.nz)
+                        
+            elif pmldirection[0] == 'y':
+                if pmldirection == 'yminus':
+                    pml = PML(direction=pmldirection, yf=pmlthickness, xf=G.nx, zf=G.nz)
+                elif pmldirection == 'yplus':
+                    pml = PML(direction=pmldirection, ys=G.ny - pmlthickness, xf=G.nx, yf=G.ny, zf=G.nz)
+                G.pmls.append(pml)
+                for i in range(G.nx):
+                    for k in range(G.nz):
+                        numID = G.solid[i, pml.ys, k]
+                        material = next(x for x in G.materials if x.numID == numID)
+                        sumer += material.er
+                        summr += material.mr
+                averageer = sumer / (G.nx * G.nz)
+                averagemr = summr / (G.nx * G.nz)
 
-        pml.calculate_update_coeffs(averageer, averagemr, G)
+            elif pmldirection[0] == 'z':
+                if pmldirection == 'zminus':
+                    pml = PML(direction=pmldirection, zf=pmlthickness, xf=G.nx, yf=G.ny)
+                elif pmldirection == 'zplus':
+                    pml = PML(direction=pmldirection, zs=G.nz - pmlthickness, xf=G.nx, yf=G.ny, zf=G.nz)
+                G.pmls.append(pml)
+                for i in range(G.nx):
+                    for j in range(G.ny):
+                        numID = G.solid[i, j, pml.zs]
+                        material = next(x for x in G.materials if x.numID == numID)
+                        sumer += material.er
+                        summr += material.mr
+                averageer = sumer / (G.nx * G.ny)
+                averagemr = summr / (G.nx * G.ny)
+            
+            if G.messages and G.pmlthickness.count(pmlthickness) != len(G.pmlthickness):
+                print('PML slab ({} direction) with {} cells created.'.format(pml.direction, pml.thickness))
 
-
-
-
-
-
-
-
-
-
+            pml.calculate_update_coeffs(averageer, averagemr, G)
+            
+    # Where all the thicknesses of all the PML slabs are equal
+    if G.messages and G.pmlthickness.count(G.pmlthickness[0]) == len(G.pmlthickness):
+        if G.pmlthickness[0] == 0:
+            print('PML is completely switched off')
+        else:
+            print('PML: {} cells'.format(G.pmlthickness[0]))
 
