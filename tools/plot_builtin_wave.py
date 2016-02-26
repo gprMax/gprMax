@@ -39,8 +39,8 @@ parser.add_argument('-fft', action='store_true', default=False, help='plot FFT')
 args = parser.parse_args()
 
 # Check waveform parameters
-if args.type.lower() not in Waveform.waveformtypes:
-    raise CmdInputError('The waveform must have one of the following types {}'.format(', '.join(Waveform.waveformtypes)))
+if args.type.lower() not in Waveform.types:
+    raise CmdInputError('The waveform must have one of the following types {}'.format(', '.join(Waveform.types)))
 if args.freq <= 0:
     raise CmdInputError('The waveform requires an excitation frequency value of greater than zero')
 
