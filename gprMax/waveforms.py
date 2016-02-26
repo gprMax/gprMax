@@ -24,7 +24,7 @@ from gprMax.utilities import round_value
 class Waveform:
     """Definitions of waveform shapes that can be used with sources."""
     
-    waveformtypes = ['gaussian', 'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot', 'gaussiandotdotnorm', 'ricker', 'sine', 'contsine', 'impulse', 'user']
+    types = ['gaussian', 'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot', 'gaussiandotdotnorm', 'ricker', 'sine', 'contsine', 'impulse', 'user']
     
     def __init__(self):
         self.ID = None
