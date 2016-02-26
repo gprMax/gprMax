@@ -16,21 +16,23 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import os, argparse
+import argparse, glob, os
 import h5py
 import numpy as np
 
 """Merges traces (A-scans) from multiple output files into one new file, then removes the series of output files."""
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Merges traces (A-scans) from multiple output files into one new file, then removes the series of output files.', usage='cd gprMax; python -m tools.outputfiles_merge basefilename modelruns')
+parser = argparse.ArgumentParser(description='Merges traces (A-scans) from multiple output files into one new file, then removes the series of output files.', usage='cd gprMax; python -m tools.outputfiles_merge basefilename')
 parser.add_argument('basefilename', help='base name of output file series including path')
-parser.add_argument('modelruns', type=int, help='number of model runs, i.e. number of output files to merge')
 args = parser.parse_args()
 
 basefilename = args.basefilename
-modelruns = args.modelruns
 outputfile = basefilename + '_merged.out'
+files = glob.glob(basefilename + '*.out')
+outputfiles = [filename for filename in files if '_merged' not in filename]
+modelruns = len(outputfiles)
+print('Found {} files to merge'.format(modelruns))
 
 # Combined output file
 fout = h5py.File(outputfile, 'w')
