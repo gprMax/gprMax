@@ -43,8 +43,8 @@ def process_multicmds(multicmds, G):
             tmp = cmdinstance.split()
             if len(tmp) != 4:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly four parameters')
-            if tmp[0].lower() not in Waveform.waveformtypes:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' must have one of the following types {}'.format(','.join(Waveform.waveformtypes)))
+            if tmp[0].lower() not in Waveform.types:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' must have one of the following types {}'.format(','.join(Waveform.types)))
             if float(tmp[2]) <= 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires an excitation frequency value of greater than zero')
             if any(x.ID == tmp[3] for x in G.waveforms):
