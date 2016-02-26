@@ -26,7 +26,7 @@ def minvalue(filename, args):
         args (dict): 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
         
     Returns:
-        minvalue (float): Minimum value from specific outputs
+        minvalue (float): Magnitude of minimum value from specific outputs
     """
 
     f = h5py.File(filename, 'r')
@@ -38,7 +38,7 @@ def minvalue(filename, args):
             fieldname = list(tmp.keys())[0]
             minvalue = np.amin(tmp[fieldname])
 
-    return minvalue
+    return np.abs(minvalue)
 
 
 def maxvalue(filename, args):
