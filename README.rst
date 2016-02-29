@@ -1,6 +1,6 @@
 .. image:: https://readthedocs.org/projects/gprmax/badge/?version=latest
-:target: http://docs.gprmax.com/en/latest/?badge=latest
-:alt: Documentation Status
+    :target: http://docs.gprmax.com/en/latest/?badge=latest
+    :alt: Documentation Status
 
 ***************
 Getting Started
