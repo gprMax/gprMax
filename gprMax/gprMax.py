@@ -66,7 +66,7 @@ def main():
 
     # Process for Taguchi optimisation
     if args.opt_taguchi:
-        if args.benchmarking:
+        if args.benchmark:
             raise GeneralError('Taguchi optimisation should not be used with benchmarking mode')
         from gprMax.optimisation_taguchi import run_opt_sim
         run_opt_sim(args, numbermodelruns, inputfile, usernamespace)
@@ -79,7 +79,7 @@ def main():
     else:
         # Mixed mode MPI/OpenMP - MPI task farm for models with each model parallelised with OpenMP
         if args.mpi:
-            if args.benchmarking:
+            if args.benchmark:
                 raise GeneralError('MPI should not be used with benchmarking mode')
             if numbermodelruns == 1:
                 raise GeneralError('MPI is not beneficial when there is only one model to run')
