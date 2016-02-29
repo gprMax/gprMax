@@ -23,15 +23,12 @@ The following simple models (found in the ``tests/benchmarking`` sub-package) ca
     :language: none
     :linenos:
 
-The ``#num_threads`` command can be adjusted to benchmark running the code with different numbers of OpenMP threads.
 
-Using the following steps to collect and report benchmarking results:
+Using the following steps to collect and report benchmarking results for each of the models:
 
-1. Run each model with different ``#num_threads`` values - from 1 thread up to the number of physical CPU cores on your machine.
-2. Note the ``Solving took ..`` time reported by the simulation for each model run.
-3. Use the ``save_results.py`` script to enter and save your results in a Numpy archive. You will need to enter some machine identification information in the script.
-4. Use the ``plot_time_speedup.py`` script to create plots of the execution time and speed-up.
-5. Commit the Numpy archive and plot file using Git
+1. Run gprMax in benchmarking mode, e.g. ``python -m gprMax tests/benchmarking/bench_100x100x100.in -benchmark``
+2. Use the ``plot_benchmark`` module to create plots of the execution time and speed-up, e.g. ``python -m tools.benchmarking.plot_benchmark tests/benchmarking/bench_100x100x100.npz``. You will need to enter some machine identification information in the module.
+3. Commit the Numpy archive and plot file to the GitHub repository
 
 Results
 =======
