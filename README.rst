@@ -1,11 +1,10 @@
+.. image:: https://readthedocs.org/projects/gprmax/badge/?version=latest
+:target: http://docs.gprmax.com/en/latest/?badge=latest
+:alt: Documentation Status
 
 ***************
 Getting Started
 ***************
-
-.. image:: https://readthedocs.org/projects/gprmax/badge/?version=latest
-    :target: http://docs.gprmax.com/en/latest/?badge=latest
-    :alt: Documentation Status
 
 What is gprMax?
 ===============
