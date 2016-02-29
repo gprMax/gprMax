@@ -51,7 +51,8 @@ def main():
     parser = argparse.ArgumentParser(prog='gprMax', description='Electromagnetic modelling software based on the Finite-Difference Time-Domain (FDTD) method')
     parser.add_argument('inputfile', help='path to and name of inputfile')
     parser.add_argument('-n', default=1, type=int, help='number of times to run the input file')
-    parser.add_argument('-mpi', action='store_true', default=False, help='switch on MPI')
+    parser.add_argument('-mpi', action='store_true', default=False, help='switch on MPI task farm')
+    parser.add_argument('-benchmark', action='store_true', default=False, help='switch on benchmarking mode')
     parser.add_argument('--geometry-only', action='store_true', default=False, help='only build model and produce geometry file(s)')
     parser.add_argument('--write-python', action='store_true', default=False, help='write an input file after any Python code blocks in the original input file have been processed')
     parser.add_argument('--opt-taguchi', action='store_true', default=False, help='optimise parameters using the Taguchi optimisation method')
@@ -65,16 +66,26 @@ def main():
 
     # Process for Taguchi optimisation
     if args.opt_taguchi:
+        if args.benchmarking:
+            raise GeneralError('Taguchi optimisation should not be used with benchmarking mode')
         from gprMax.optimisation_taguchi import run_opt_sim
         run_opt_sim(args, numbermodelruns, inputfile, usernamespace)
 
+    # Process for benchmarking simulation
+    elif args.benchmark:
+        run_benchmark_sim(args, inputfile, usernamespace)
+
     # Process for standard simulation
     else:
-        if args.mpi: # Mixed mode MPI/OpenMP - MPI task farm for models with each model parallelised with OpenMP
+        # Mixed mode MPI/OpenMP - MPI task farm for models with each model parallelised with OpenMP
+        if args.mpi:
+            if args.benchmarking:
+                raise GeneralError('MPI should not be used with benchmarking mode')
             if numbermodelruns == 1:
                 raise GeneralError('MPI is not beneficial when there is only one model to run')
             run_mpi_sim(args, numbermodelruns, inputfile, usernamespace)
-        else: # Standard behaviour - models run serially with each model parallelised with OpenMP
+        # Standard behaviour - models run serially with each model parallelised with OpenMP
+        else:
             run_std_sim(args, numbermodelruns, inputfile, usernamespace)
 
         print('\nSimulation completed.\n{}\n'.format(68*'*'))
@@ -102,6 +113,40 @@ def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
             modelusernamespace = usernamespace
         run_model(args, modelrun, numbermodelruns, inputfile, modelusernamespace)
     tsimend = perf_counter()
+    print(tsolve)
+    print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
+
+
+def run_benchmark_sim(args, inputfile, usernamespace):
+    """Run standard simulation in benchmarking mode - models are run one after another and each model is parallelised with OpenMP
+        
+    Args:
+        args (dict): Namespace with command line arguments
+        inputfile (str): Name of the input file to open.
+        usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
+    """
+    
+    # Number of threads to test - start from max physical CPU cores and divide in half until 1
+    thread = psutil.cpu_count(logical=False)
+    threads = [thread]
+    while not thread%2:
+        thread /= 2
+        threads.append(int(thread))
+    
+    benchtimes = np.zeros(len(threads))
+
+    numbermodelruns = len(threads)
+    tsimstart = perf_counter()
+    for modelrun in range(1, numbermodelruns + 1):
+        os.environ['OMP_NUM_THREADS'] = str(threads[modelrun - 1])
+        tsolve = run_model(args, modelrun, numbermodelruns, inputfile, usernamespace)
+        benchtimes[modelrun - 1] = tsolve
+    tsimend = perf_counter()
+
+    # Save number of threads and benchmarking times to NumPy archive
+    threads = np.array(threads)
+    np.savez(os.path.splitext(inputfile)[0], threads=threads, benchtimes=benchtimes)
+
     print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
 
 
@@ -188,6 +233,9 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         numbermodelruns (int): Total number of model runs.
         inputfile (str): Name of the input file to open.
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
+        
+    Returns:
+        tsolve (int): Length of time (seconds) of main FDTD calculations
     """
     
     # Monitor memory usage
@@ -401,9 +449,12 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             
         # Close output file
         f.close()
+
         tsolveend = perf_counter()
         print('\n\nSolving took [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsolveend - tsolvestart))))
         print('Peak memory (approx) used: {}'.format(human_size(p.memory_info().rss)))
+
+        return int(tsolveend - tsolvestart)
 
 
 
