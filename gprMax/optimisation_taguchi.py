@@ -107,6 +107,10 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
         # Calculate optimal levels from fitness values by building a response table; update dictionary of parameters with optimal values
         optparams, levelsopt = calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N, k)
 
+        # Update dictionary with history of parameters with optimal values
+        for key, value in optparams.items():
+            optparamshist[key].append(value)
+        
         # Run a confirmation experiment with optimal values
         numbermodelruns = 1
         usernamespace['number_model_runs'] = numbermodelruns
@@ -124,7 +128,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
 
         # Stop optimisation if stopping criterion has been reached
         if fitnessvalueshist[iteration - 1] > fitness['stop']:
-            print('\nTaguchi optimisation stopped as fitness criteria reached')
+            print('\nTaguchi optimisation stopped as fitness criteria reached: {:g} > {:g}'.format(fitnessvalueshist[iteration - 1], fitness['stop']))
             break
 
         # Stop optimisation if successive fitness values are within a percentage threshold
