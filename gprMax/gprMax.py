@@ -113,7 +113,6 @@ def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
             modelusernamespace = usernamespace
         run_model(args, modelrun, numbermodelruns, inputfile, modelusernamespace)
     tsimend = perf_counter()
-    print(tsolve)
     print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
 
 
