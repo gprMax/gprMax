@@ -228,7 +228,7 @@ class PML:
             self.HRF[x, :] = (2*Hsigma*G.dt) / (Hkappa * tmp)
 
 
-def build_pml(G):
+def build_pmls(G):
     """This function builds instances of the PML and calculates the initial parameters and coefficients including setting profile
         (based on underlying material er and mr from solid array).
     """
