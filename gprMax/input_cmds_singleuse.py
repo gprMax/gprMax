@@ -74,8 +74,10 @@ def process_singlecmds(singlecmds, multicmds, G):
     else:
         # Set number of threads to number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
         G.nthreads = psutil.cpu_count(logical=False)
+    if G.nthreads > psutil.cpu_count(logical=False):
+        print('\nWARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, psutil.cpu_count(logical=False)))
     if G.messages:
-            print('Number of threads: {}'.format(G.nthreads))
+        print('Number of threads: {}'.format(G.nthreads))
 
 
     # Spatial discretisation
