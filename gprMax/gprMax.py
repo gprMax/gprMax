@@ -290,11 +290,11 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         voltagesource.create_material(G)
     
     # Initialise arrays of update coefficients to pass to update functions
-    G.initialise_std_updatecoeff_arrays(len(G.materials))
+    G.initialise_std_updatecoeff_arrays()
 
     # Initialise arrays of update coefficients and temporary values if there are any dispersive materials
     if Material.maxpoles != 0:
-        G.initialise_dispersive_arrays(len(G.materials))
+        G.initialise_dispersive_arrays()
 
     # Calculate update coefficients, store in arrays, and list materials in model
     if G.messages:

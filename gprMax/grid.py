@@ -78,25 +78,17 @@ class FDTDGrid:
         self.Hy = np.zeros((self.nx, self.ny + 1, self.nz), dtype=floattype)
         self.Hz = np.zeros((self.nx, self.ny, self.nz + 1), dtype=floattype)
     
-    def initialise_std_updatecoeff_arrays(self, nummaterials):
-        """Initialise arrays for storing update coefficients.
-            
-        Args:
-            nummaterials (int): Number of materials present in the model.
-        """
-        self.updatecoeffsE = np.zeros((nummaterials, 5), dtype=floattype)
-        self.updatecoeffsH = np.zeros((nummaterials, 5), dtype=floattype)
+    def initialise_std_updatecoeff_arrays(self):
+        """Initialise arrays for storing update coefficients."""
+        self.updatecoeffsE = np.zeros((len(self.materials), 5), dtype=floattype)
+        self.updatecoeffsH = np.zeros((len(self.materials), 5), dtype=floattype)
 
-    def initialise_dispersive_arrays(self, nummaterials):
-        """Initialise arrays for storing coefficients when there are dispersive materials present.
-            
-        Args:
-            nummaterials (int): Number of materials present in the model.
-        """
+    def initialise_dispersive_arrays(self):
+        """Initialise arrays for storing coefficients when there are dispersive materials present."""
         self.Tx = np.zeros((Material.maxpoles, self.nx, self.ny + 1, self.nz + 1), dtype=complextype)
         self.Ty = np.zeros((Material.maxpoles, self.nx + 1, self.ny, self.nz + 1), dtype=complextype)
         self.Tz = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz), dtype=complextype)
-        self.updatecoeffsdispersive = np.zeros((nummaterials, 3 * Material.maxpoles), dtype=complextype)
+        self.updatecoeffsdispersive = np.zeros((len(self.materials), 3 * Material.maxpoles), dtype=complextype)
 
 
 def dispersion_check(waveforms, materials, dx, dy, dz):
