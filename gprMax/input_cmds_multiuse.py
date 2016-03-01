@@ -702,7 +702,6 @@ def process_multicmds(multicmds, G):
             if float(tmp[6]) < 1:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' minimum scaling value for kappa must be greater than zero')
             
-            cfs = CFS()
             cfsalpha = CFSParameter()
             cfsalpha.ID = 'alpha'
             cfsalpha.scalingprofile = tmp[0]
