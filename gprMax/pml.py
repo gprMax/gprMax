@@ -19,6 +19,8 @@
 import numpy as np
 
 from gprMax.constants import e0, z0, floattype
+from gprMax.pml_1order_update import *
+from gprMax.pml_2order_update import *
 
 
 class CFSParameter:
@@ -143,7 +145,7 @@ class PML:
     
     directions = {0: 'xminus', 1: 'yminus', 2: 'zminus', 3: 'xplus', 4: 'yplus', 5: 'zplus'}
     
-    def __init__(self, direction=None, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0, cfs=[]):
+    def __init__(self, G, direction=None, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0):
         """
         Args:
             xs, xf, ys, yf, zs, zf (float): Extent of the PML volume.
@@ -160,7 +162,7 @@ class PML:
         self.nx = xf - xs
         self.ny = yf - ys
         self.nz = zf - zs
-        self.CFS = cfs
+        self.CFS = G.cfs
         if not self.CFS:
             self.CFS = [CFS()]
         
@@ -242,9 +244,9 @@ def build_pml(G):
             
             if pmldirection[0] == 'x':
                 if pmldirection == 'xminus':
-                    pml = PML(direction=pmldirection, xf=pmlthickness, yf=G.ny, zf=G.nz)
+                    pml = PML(G, direction=pmldirection, xf=pmlthickness, yf=G.ny, zf=G.nz)
                 elif pmldirection == 'xplus':
-                    pml = PML(direction=pmldirection, xs=G.nx - pmlthickness, xf=G.nx, yf=G.ny, zf=G.nz)
+                    pml = PML(G, direction=pmldirection, xs=G.nx - pmlthickness, xf=G.nx, yf=G.ny, zf=G.nz)
                 G.pmls.append(pml)
                 for j in range(G.ny):
                     for k in range(G.nz):
@@ -257,9 +259,9 @@ def build_pml(G):
                         
             elif pmldirection[0] == 'y':
                 if pmldirection == 'yminus':
-                    pml = PML(direction=pmldirection, yf=pmlthickness, xf=G.nx, zf=G.nz)
+                    pml = PML(G, direction=pmldirection, yf=pmlthickness, xf=G.nx, zf=G.nz)
                 elif pmldirection == 'yplus':
-                    pml = PML(direction=pmldirection, ys=G.ny - pmlthickness, xf=G.nx, yf=G.ny, zf=G.nz)
+                    pml = PML(G, direction=pmldirection, ys=G.ny - pmlthickness, xf=G.nx, yf=G.ny, zf=G.nz)
                 G.pmls.append(pml)
                 for i in range(G.nx):
                     for k in range(G.nz):
@@ -272,9 +274,9 @@ def build_pml(G):
 
             elif pmldirection[0] == 'z':
                 if pmldirection == 'zminus':
-                    pml = PML(direction=pmldirection, zf=pmlthickness, xf=G.nx, yf=G.ny)
+                    pml = PML(G, direction=pmldirection, zf=pmlthickness, xf=G.nx, yf=G.ny)
                 elif pmldirection == 'zplus':
-                    pml = PML(direction=pmldirection, zs=G.nz - pmlthickness, xf=G.nx, yf=G.ny, zf=G.nz)
+                    pml = PML(G, direction=pmldirection, zs=G.nz - pmlthickness, xf=G.nx, yf=G.ny, zf=G.nz)
                 G.pmls.append(pml)
                 for i in range(G.nx):
                     for j in range(G.ny):
@@ -296,4 +298,94 @@ def build_pml(G):
             print('PML is completely switched off')
         else:
             print('PML: {} cells'.format(G.pmlthickness[0]))
+
+
+def update_electric_pml(G):
+    """This functions updates electric field components with the PML correction."""
+
+    for pml in G.pmls:
+        if len(pml.CFS) == 1:
+            if pml.direction == 'xminus':
+                update_pml_1order_ey_xminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ey, G.Hz, pml.EPhiyxz, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dx)
+                update_pml_1order_ez_xminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ez, G.Hy, pml.EPhizxy, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dx)
+            elif pml.direction == 'xplus':
+                update_pml_1order_ey_xplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ey, G.Hz, pml.EPhiyxz, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dx)
+                update_pml_1order_ez_xplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ez, G.Hy, pml.EPhizxy, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dx)
+            elif pml.direction == 'yminus':
+                update_pml_1order_ex_yminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Hz, pml.EPhixyz, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dy)
+                update_pml_1order_ez_yminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ez, G.Hx, pml.EPhizyx, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dy)
+            elif pml.direction == 'yplus':
+                update_pml_1order_ex_yplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Hz, pml.EPhixyz, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dy)
+                update_pml_1order_ez_yplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ez, G.Hx, pml.EPhizyx, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dy)
+            elif pml.direction == 'zminus':
+                update_pml_1order_ex_zminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Hy, pml.EPhixzy, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dz)
+                update_pml_1order_ey_zminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ey, G.Hx, pml.EPhiyzx, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dz)
+            elif pml.direction == 'zplus':
+                update_pml_1order_ex_zplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Hy, pml.EPhixzy, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dz)
+                update_pml_1order_ey_zplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ey, G.Hx, pml.EPhiyzx, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dz)
+
+        elif len(pml.CFS) == 2:
+            if pml.direction == 'xminus':
+                update_pml_2order_ey_xminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ey, G.Hz, pml.EPhiyxz, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dx)
+                update_pml_2order_ez_xminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ez, G.Hy, pml.EPhizxy, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dx)
+            elif pml.direction == 'xplus':
+                update_pml_2order_ey_xplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ey, G.Hz, pml.EPhiyxz, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dx)
+                update_pml_2order_ez_xplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ez, G.Hy, pml.EPhizxy, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dx)
+            elif pml.direction == 'yminus':
+                update_pml_2order_ex_yminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Hz, pml.EPhixyz, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dy)
+                update_pml_2order_ez_yminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ez, G.Hx, pml.EPhizyx, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dy)
+            elif pml.direction == 'yplus':
+                update_pml_2order_ex_yplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Hz, pml.EPhixyz, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dy)
+                update_pml_2order_ez_yplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ez, G.Hx, pml.EPhizyx, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dy)
+            elif pml.direction == 'zminus':
+                update_pml_2order_ex_zminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Hy, pml.EPhixzy, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dz)
+                update_pml_2order_ey_zminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ey, G.Hx, pml.EPhiyzx, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dz)
+            elif pml.direction == 'zplus':
+                update_pml_2order_ex_zplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Hy, pml.EPhixzy, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dz)
+                update_pml_2order_ey_zplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ey, G.Hx, pml.EPhiyzx, pml.ERA, pml.ERB, pml.ERE, pml.ERF, G.dz)
+
+
+def update_magnetic_pml(G):
+    """This functions updates magnetic field components with the PML correction."""
+
+    for pml in G.pmls:
+        if len(pml.CFS) == 1:
+            if pml.direction == 'xminus':
+                update_pml_1order_hy_xminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hy, G.Ez, pml.HPhiyxz, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dx)
+                update_pml_1order_hz_xminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hz, G.Ey, pml.HPhizxy, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dx)
+            elif pml.direction == 'xplus':
+                update_pml_1order_hy_xplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hy, G.Ez, pml.HPhiyxz, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dx)
+                update_pml_1order_hz_xplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hz, G.Ey, pml.HPhizxy, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dx)
+            elif pml.direction == 'yminus':
+                update_pml_1order_hx_yminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hx, G.Ez, pml.HPhixyz, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dy)
+                update_pml_1order_hz_yminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hz, G.Ex, pml.HPhizyx, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dy)
+            elif pml.direction == 'yplus':
+                update_pml_1order_hx_yplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hx, G.Ez, pml.HPhixyz, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dy)
+                update_pml_1order_hz_yplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hz, G.Ex, pml.HPhizyx, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dy)
+            elif pml.direction == 'zminus':
+                update_pml_1order_hx_zminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hx, G.Ey, pml.HPhixzy, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dz)
+                update_pml_1order_hy_zminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hy, G.Ex, pml.HPhiyzx, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dz)
+            elif pml.direction == 'zplus':
+                update_pml_1order_hx_zplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hx, G.Ey, pml.HPhixzy, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dz)
+                update_pml_1order_hy_zplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hy, G.Ex, pml.HPhiyzx, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dz)
+
+        elif len(pml.CFS) == 2:
+            if pml.direction == 'xminus':
+                update_pml_2order_hy_xminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hy, G.Ez, pml.HPhiyxz, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dx)
+                update_pml_2order_hz_xminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hz, G.Ey, pml.HPhizxy, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dx)
+            elif pml.direction == 'xplus':
+                update_pml_2order_hy_xplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hy, G.Ez, pml.HPhiyxz, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dx)
+                update_pml_2order_hz_xplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hz, G.Ey, pml.HPhizxy, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dx)
+            elif pml.direction == 'yminus':
+                update_pml_2order_hx_yminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hx, G.Ez, pml.HPhixyz, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dy)
+                update_pml_2order_hz_yminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hz, G.Ex, pml.HPhizyx, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dy)
+            elif pml.direction == 'yplus':
+                update_pml_2order_hx_yplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hx, G.Ez, pml.HPhixyz, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dy)
+                update_pml_2order_hz_yplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hz, G.Ex, pml.HPhizyx, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dy)
+            elif pml.direction == 'zminus':
+                update_pml_2order_hx_zminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hx, G.Ey, pml.HPhixzy, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dz)
+                update_pml_2order_hy_zminus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hy, G.Ex, pml.HPhiyzx, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dz)
+            elif pml.direction == 'zplus':
+                update_pml_2order_hx_zplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hx, G.Ey, pml.HPhixzy, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dz)
+                update_pml_2order_hy_zplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hy, G.Ex, pml.HPhiyzx, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dz)
 
