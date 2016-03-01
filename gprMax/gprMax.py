@@ -35,8 +35,7 @@ from gprMax.input_cmds_multiuse import process_multicmds
 from gprMax.input_cmds_singleuse import process_singlecmds
 from gprMax.materials import Material
 from gprMax.output import prepare_output_file, write_output
-from gprMax.pml_call_updates import update_electric_pml, update_magnetic_pml
-from gprMax.pml import build_pml
+from gprMax.pml import build_pml, update_electric_pml, update_magnetic_pml
 from gprMax.utilities import update_progress, logo, human_size
 from gprMax.yee_cell_build import build_electric_components, build_magnetic_components
 
