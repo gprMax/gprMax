@@ -141,7 +141,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
 
     # Save optimisation parameters history and fitness values history to file
     opthistfile = inputfileparts[0] + '_hist'
-    np.savez(opthistfile, optparamshist=dict(optparamshist), fitnessvalueshist=fitnessvalueshist, optparamsinit=optparamsinit)
+    np.savez(opthistfile, dict(optparamshist), fitnessvalueshist=fitnessvalueshist, optparamsinit=optparamsinit)
 
     print('\n{}\nTaguchi optimisation completed after {} iteration(s).\nHistory of optimal parameter values {} and of fitness values {}\n{}\n'.format(68*'*', iteration, dict(optparamshist), fitnessvalueshist, 68*'*'))
 
