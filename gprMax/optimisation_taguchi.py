@@ -132,21 +132,18 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
             break
 
         # Stop optimisation if successive fitness values are within a percentage threshold
-        if iteration > 2:
-            fitnessvaluesclose = (np.abs(fitnessvalueshist[iteration - 2] - fitnessvalueshist[iteration - 1]) / fitnessvalueshist[iteration - 1]) * 100
-            fitnessvaluesthres = 0.1
-            if fitnessvaluesclose < fitnessvaluesthres:
-                print('\nTaguchi optimisation stopped as successive fitness values within {}%'.format(fitnessvaluesthres))
-                break
+#        if iteration > 2:
+#            fitnessvaluesclose = (np.abs(fitnessvalueshist[iteration - 2] - fitnessvalueshist[iteration - 1]) / fitnessvalueshist[iteration - 1]) * 100
+#            fitnessvaluesthres = 0.1
+#            if fitnessvaluesclose < fitnessvaluesthres:
+#                print('\nTaguchi optimisation stopped as successive fitness values within {}%'.format(fitnessvaluesthres))
+#                break
 
     # Save optimisation parameters history and fitness values history to file
     opthistfile = inputfileparts[0] + '_hist'
-    np.savez(opthistfile, dict(optparamshist), fitnessvalueshist)
+    np.savez(opthistfile, dict(optparamshist), fitnessvalueshist=fitnessvalueshist, optparamsinit=optparamsinit)
 
     print('\n{}\nTaguchi optimisation completed after {} iteration(s).\nHistory of optimal parameter values {} and of fitness values {}\n{}\n'.format(68*'*', iteration, dict(optparamshist), fitnessvalueshist, 68*'*'))
-
-    # Plot the history of fitness values and each optimised parameter values for the optimisation
-    plot_optimisation_history(fitnessvalueshist, optparamshist, optparamsinit)
 
 
 def taguchi_code_blocks(inputfile, taguchinamespace):
