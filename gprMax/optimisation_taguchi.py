@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import importlib, os
+import importlib, os, pickle
 from collections import OrderedDict
 
 import numpy as np
@@ -140,8 +140,11 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
 #                break
 
     # Save optimisation parameters history and fitness values history to file
-    opthistfile = inputfileparts[0] + '_hist'
-    np.savez(opthistfile, dict(optparamshist), fitnessvalueshist=fitnessvalueshist, optparamsinit=optparamsinit)
+    opthistfile = inputfileparts[0] + '_hist.pickle'
+    with open(opthistfile, 'wb') as f:
+        pickle.dump(optparamshist, f)
+        pickle.dump(fitnessvalueshist, f)
+        pickle.dump(optparamsinit, f)
 
     print('\n{}\nTaguchi optimisation completed after {} iteration(s).\nHistory of optimal parameter values {} and of fitness values {}\n{}\n'.format(68*'*', iteration, dict(optparamshist), fitnessvalueshist, 68*'*'))
 
