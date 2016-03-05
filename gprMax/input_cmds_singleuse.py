@@ -115,27 +115,19 @@ def process_singlecmds(singlecmds, multicmds, G):
         print('Memory (RAM) usage: ~{} required, {} available'.format(human_size(mem), human_size(psutil.virtual_memory().total)))
 
 
-    # Time step CFL limit - use either 2D or 3D (default)
-    cmd = '#time_step_limit_type'
-    if singlecmds[cmd] != 'None':
-        tmp = singlecmds[cmd].split()
-        if len(tmp) != 1:
-            raise CmdInputError(cmd + ' requires exactly one parameter')
-        if singlecmds[cmd].lower() == '2d':
-            if G.nx == 1:
-                G.dt = 1 / (c * np.sqrt((1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
-            elif G.ny == 1:
-                G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dz) * (1 / G.dz)))
-            elif G.nz == 1:
-                G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy)))
-            else:
-                raise CmdInputError(cmd + ' 2D CFL limit can only be used when one dimension of the domain is one cell')
-        elif singlecmds[cmd].lower() == '3d':
-            G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
-        else:
-            raise CmdInputError(cmd + ' requires input values of either 2D or 3D')
+    # Time step CFL limit (use either 2D or 3D) and default PML thickness
+    if G.nx == 1:
+        G.dt = 1 / (c * np.sqrt((1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
+        G.pmlthickness = (0, G.pmlthickness, G.pmlthickness, 0, G.pmlthickness, G.pmlthickness)
+    elif G.ny == 1:
+        G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dz) * (1 / G.dz)))
+        G.pmlthickness = (G.pmlthickness, 0, G.pmlthickness, G.pmlthickness, 0, G.pmlthickness)
+    elif G.nz == 1:
+        G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy)))
+        G.pmlthickness = (G.pmlthickness, G.pmlthickness, 0, G.pmlthickness, G.pmlthickness, 0)
     else:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
+        G.pmlthickness = (G.pmlthickness, G.pmlthickness, G.pmlthickness, G.pmlthickness, G.pmlthickness, G.pmlthickness)
 
     # Round down time step to nearest float with precision one less than hardware maximum. Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
     G.dt = round_value(G.dt, decimalplaces=d.getcontext().prec - 1)

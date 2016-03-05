@@ -2,8 +2,6 @@
 #domain: 0.240 0.190 0.002
 #dx_dy_dz: 0.002 0.002 0.002
 #time_window: 3e-9
-#time_step_limit_type: 2D
-#pml_cells: 10 10 0 10 10 0
 
 #material: 6 0 1 0 half_space
 

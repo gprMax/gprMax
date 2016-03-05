@@ -40,7 +40,7 @@ class FDTDGrid:
         self.timewindow = 0
         self.nthreads = 0
         self.cfs = []
-        self.pmlthickness = (10, 10, 10, 10, 10, 10)
+        self.pmlthickness = 10
         self.pmls = []
         self.materials = []
         self.mixingmodels = []

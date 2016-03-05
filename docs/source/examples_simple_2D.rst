@@ -68,12 +68,6 @@ The domain size should be enough to enclose the volume of interest, plus allow 1
 
     #domain: 0.240 0.190 0.002
 
-Since this is a 2D model the PML should be switched off for the two faces of the domain in the infinite direction (in this case the z direction). This is achieved using the command:
-
-.. code-block:: none
-
-    #pml_cells: 10 10 0 10 10 0
-
 Choose a time window
 --------------------
 
@@ -87,11 +81,7 @@ This is the minimum time required, but the pulse wavelet has a width of 1.2 ns, 
 
     #time_window: 3e-9
 
-gprMax will calculate the time step required for the model using the CFL condition in 3D. However, since this is a 2D model the time step can be relaxed to the CFL condition in 2D. This is achieved using the command:
-
-.. code-block:: none
-
-    #time_step_limit_type: 2D
+gprMax will calculate the time step required for the model using the CFL condition in 2D.
 
 Create the objects
 ------------------
