@@ -118,22 +118,26 @@ def process_singlecmds(singlecmds, multicmds, G):
     # Time step CFL limit (use either 2D or 3D) and default PML thickness
     if G.nx == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
+        G.dtlimit = '2D'
         G.pmlthickness = (0, G.pmlthickness, G.pmlthickness, 0, G.pmlthickness, G.pmlthickness)
     elif G.ny == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dz) * (1 / G.dz)))
+        G.dtlimit = '2D'
         G.pmlthickness = (G.pmlthickness, 0, G.pmlthickness, G.pmlthickness, 0, G.pmlthickness)
     elif G.nz == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy)))
+        G.dtlimit = '2D'
         G.pmlthickness = (G.pmlthickness, G.pmlthickness, 0, G.pmlthickness, G.pmlthickness, 0)
     else:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
+        G.dtlimit = '3D'
         G.pmlthickness = (G.pmlthickness, G.pmlthickness, G.pmlthickness, G.pmlthickness, G.pmlthickness, G.pmlthickness)
 
     # Round down time step to nearest float with precision one less than hardware maximum. Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
     G.dt = round_value(G.dt, decimalplaces=d.getcontext().prec - 1)
 
     if G.messages:
-        print('Time step: {:g} secs'.format(G.dt))
+        print('Time step (at {} CFL limit): {:g} secs'.format(G.dtlimit, G.dt))
 
 
     # Time step stability factor
