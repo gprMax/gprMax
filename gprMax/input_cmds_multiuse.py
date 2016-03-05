@@ -113,6 +113,8 @@ def process_multicmds(multicmds, G):
                 v.start = start
                 if stop > G.timewindow:
                     v.stop = G.timewindow
+                else:
+                    v.stop = stop
                 startstop = ' start time {:g} secs, finish time {:g} secs '.format(v.start, v.stop)
             else:
                 v.start = 0
@@ -172,6 +174,8 @@ def process_multicmds(multicmds, G):
                 h.start = start
                 if stop > G.timewindow:
                     h.stop = G.timewindow
+                else:
+                    h.stop = stop
                 startstop = ' start time {:g} secs, finish time {:g} secs '.format(h.start, h.stop)
             else:
                 h.start = 0
@@ -231,6 +235,8 @@ def process_multicmds(multicmds, G):
                 m.start = start
                 if stop > G.timewindow:
                     m.stop = G.timewindow
+                else:
+                    m.stop = stop
                 startstop = ' start time {:g} secs, finish time {:g} secs '.format(m.start, m.stop)
             else:
                 m.start = 0
@@ -295,6 +301,8 @@ def process_multicmds(multicmds, G):
                 t.start = start
                 if stop > G.timewindow:
                     t.stop = G.timewindow
+                else:
+                    t.stop = stop
                 startstop = ' start time {:g} secs, finish time {:g} secs '.format(t.start, t.stop)
             else:
                 t.start = 0
