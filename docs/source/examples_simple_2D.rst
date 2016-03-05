@@ -11,7 +11,7 @@ A-scan from a metal cylinder
 
 :download:`cylinder_Ascan_2D.in <../../user_models/cylinder_Ascan_2D.in>`
 
-This example is the gprMax equivalent of 'Hello World'! It demonstrates how to simulate a single trace (A-scan) from a metal cylinder buried in a dielectric half-space.
+This example is the GPR modelling equivalent of 'Hello World'! It demonstrates how to simulate a single trace (A-scan) from a metal cylinder buried in a dielectric half-space.
 
 .. literalinclude:: ../../user_models/cylinder_Ascan_2D.in
     :language: none
