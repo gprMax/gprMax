@@ -108,18 +108,6 @@ General commands
 
 Allows you to write blocks of Python code between ``#python`` and ``#end_python`` in the input file. The code is executed when the input file is read by gprMax. For further details see the :ref:`Python section <python-scripting>`.
 
-
-#time_step_limit_type:
-----------------------------
-
-Allows you to choose whether to set the time step based on the 2D or 3D CFL condition. This command is useful when running a 2D model, i.e. when one dimension of the domain is one cell thick, because it allows the time step to be relaxed to the 2D CFL condition. The syntax of the command is:
-
-.. code-block:: none
-
-    #time_step_limit_type: str1
-
-where ``str1`` can be either 2D or 3D.
-
 #time_step_stability_factor:
 ----------------------------
 
