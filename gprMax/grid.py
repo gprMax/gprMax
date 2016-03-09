@@ -100,11 +100,13 @@ def dispersion_check(waveforms, materials, dx, dy, dz):
         dx, dy, dz (float): Spatial discretisation of the model.
     
     Returns:
-        dispersionwarning (boolean): Potential numerical dispersion
+        (boolean): Potential numerical dispersion
     """
     
     # Find maximum frequency
     freqs = [waveform.freq for waveform in waveforms]
+    if not freqs:
+        return False
     maxfreq = max(freqs)
     
     # Find minimum wavelength
@@ -125,11 +127,9 @@ def dispersion_check(waveforms, materials, dx, dy, dz):
     
     # Test for numerical dispersion
     if max((dx, dy, dz)) > (minwavelength / resolution):
-        dispersionwarning = True
+        return True
     else:
-        dispersionwarning = False
-
-    return dispersionwarning
+        return False
 
 
 def get_other_directions(direction):
