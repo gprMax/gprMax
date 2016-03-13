@@ -63,7 +63,7 @@ class Snapshot:
         self.time = time
         self.filename = filename
 
-    def prepare_file(self, modelrun, numbermodelruns, G):
+    def prepare_vtk_imagedata(self, modelrun, numbermodelruns, G):
         """Prepares a VTK ImageData (.vti) file for a snapshot.
             
         Args:
@@ -104,7 +104,7 @@ class Snapshot:
         self.filehandle.write('<DataArray type="{}" Name="Current" NumberOfComponents="3" format="appended" offset="{}" />\n'.format(Snapshot.floatname, vtk_current_offset).encode('utf-8'))
         self.filehandle.write('</CellData>\n</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
 
-    def write_snapshot(self, Ex, Ey, Ez, Hx, Hy, Hz, G):
+    def write_vtk_imagedata(self, Ex, Ey, Ez, Hx, Hy, Hz, G):
         """Writes electric and magnetic field values to VTK ImageData (.vti) file.
             
         Args:
