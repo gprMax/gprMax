@@ -122,7 +122,7 @@ def check_cmd_names(processedlines):
     multiplecmds = {key: [] for key in ['#geometry_view', '#material', '#soil_peplinski', '#add_dispersion_debye', '#add_dispersion_lorentz', '#add_dispersion_drude', '#waveform', '#voltage_source', '#hertzian_dipole', '#magnetic_dipole', '#transmission_line', '#rx', '#rx_box', '#snapshot', '#pml_cfs']}
     
     # Geometry object building commands that there can be multiple instances of in a model - these will be lists within the dictionary
-    geometrycmds = ['#edge', '#plate', '#triangle', '#box', '#sphere', '#cylinder', '#cylindrical_sector', '#fractal_box', '#add_surface_roughness', '#add_surface_water', '#add_grass']
+    geometrycmds = ['#xdmf_geometry_file', '#edge', '#plate', '#triangle', '#box', '#sphere', '#cylinder', '#cylindrical_sector', '#fractal_box', '#add_surface_roughness', '#add_surface_water', '#add_grass']
     # List to store all geometry object commands in order from input file
     geometry = []
     
