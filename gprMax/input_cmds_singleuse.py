@@ -249,6 +249,3 @@ def process_singlecmds(singlecmds, multicmds, G):
 
             G.waveforms.append(w)
 
-
-
-
