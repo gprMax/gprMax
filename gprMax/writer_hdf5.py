@@ -23,7 +23,7 @@ from gprMax.constants import floattype
 from gprMax.grid import Ix, Iy, Iz
 
 
-def prepare_output_file(outputfile, G):
+def prepare_hdf5(outputfile, G):
     """Prepares an output file in HDF5 format for writing.
         
     Args:
@@ -79,7 +79,7 @@ def prepare_output_file(outputfile, G):
     return f
 
 
-def write_output(f, timestep, Ex, Ey, Ez, Hx, Hy, Hz, G):
+def write_hdf5(f, timestep, Ex, Ey, Ez, Hx, Hy, Hz, G):
     """Writes field component values to an output file in HDF5 format.
         
     Args:
