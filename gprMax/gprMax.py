@@ -34,7 +34,7 @@ from gprMax.input_cmds_file import python_code_blocks, write_python_processed, c
 from gprMax.input_cmds_multiuse import process_multicmds
 from gprMax.input_cmds_singleuse import process_singlecmds
 from gprMax.materials import Material
-from gprMax.output import prepare_output_file, write_output
+from gprMax.writer_hdf5 import prepare_hdf5, write_hdf5
 from gprMax.pml import build_pmls, update_electric_pml, update_magnetic_pml
 from gprMax.utilities import update_progress, logo, human_size
 from gprMax.yee_cell_build import build_electric_components, build_magnetic_components
@@ -277,7 +277,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
     # Build the PML and calculate initial coefficients
     build_pmls(G)
-
+    
     # Build the model, i.e. set the material properties (ID) for every edge of every Yee cell
     tbuildstart = perf_counter()
     build_electric_components(G.solid, G.rigidE, G.ID, G)
@@ -333,14 +333,13 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     if dispersion_check(G.waveforms, G.materials, G.dx, G.dy, G.dz):
         print('\nWARNING: Potential numerical dispersion in the simulation. Check the spatial discretisation against the smallest wavelength present.')
     
-
     # Write files for any geometry views
     if not G.geometryviews and args.geometry_only:
         raise GeneralError('No geometry views found.')
     elif G.geometryviews:
         tgeostart = perf_counter()
         for geometryview in G.geometryviews:
-            geometryview.write_file(modelrun, numbermodelruns, G)
+            geometryview.write_vtk(modelrun, numbermodelruns, G)
         tgeoend = perf_counter()
         print('\nGeometry file(s) written in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tgeoend - tgeostart))))
 
@@ -349,7 +348,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         
         # Prepare any snapshot files
         for snapshot in G.snapshots:
-            snapshot.prepare_file(modelrun, numbermodelruns, G)
+            snapshot.prepare_vtk_imagedata(modelrun, numbermodelruns, G)
 
         # Prepare output file
         inputfileparts = os.path.splitext(inputfile)
@@ -359,7 +358,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             outputfile = inputfileparts[0] + str(modelrun) + '.out'
         sys.stdout.write('\nOutput to file: {}\n'.format(outputfile))
         sys.stdout.flush()
-        f = prepare_output_file(outputfile, G)
+        f = prepare_hdf5(outputfile, G)
 
         # Adjust position of sources and receivers if required
         if G.srcstepx > 0 or G.srcstepy > 0 or G.srcstepz > 0:
@@ -385,12 +384,12 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
                 tstepstart = perf_counter()
             
             # Write field outputs to file
-            write_output(f, timestep, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
+            write_hdf5(f, timestep, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
             
             # Write any snapshots to file
             for snapshot in G.snapshots:
                 if snapshot.time == timestep + 1:
-                    snapshot.write_snapshot(G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
+                    snapshot.write_vtk_imagedata(G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
             # Update electric field components
             if Material.maxpoles == 0: # All materials are non-dispersive so do standard update
