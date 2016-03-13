@@ -52,7 +52,7 @@ class GeometryView:
         self.filename = filename
         self.type = type
 
-    def write_file(self, modelrun, numbermodelruns, G):
+    def write_vtk(self, modelrun, numbermodelruns, G):
         """Writes the geometry information to a VTK file. Either ImageData (.vti) for a per cell geometry view, or PolygonalData (.vtp) for a per cell edge geometry view.
             
         Args:
@@ -100,12 +100,8 @@ class GeometryView:
                         for i in range(self.xs, self.xf, self.dx):
                             f.write(pack('I', G.solid[i, j, k]))
                 f.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
-                
-                # Write gprMax specific information which relates material name to material numeric identifier
-                f.write('\n\n<gprMax>\n'.encode('utf-8'))
-                for material in G.materials:
-                    f.write('<Material name="{}">{}</Material>\n'.format(material.ID, material.numID).encode('utf-8'))
-                f.write('</gprMax>\n'.encode('utf-8'))
+            
+                self.write_materials(f, G.materials)
 
         elif self.type == 'f':
             self.filename += '.vtp'
@@ -197,10 +193,19 @@ class GeometryView:
 
                 f.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
 
-                # Write gprMax specific information which relates material name to material numeric identifier
-                f.write('\n\n<gprMax>\n'.encode('utf-8'))
-                for material in G.materials:
-                    f.write('<Material name="{}">{}</Material>\n'.format(material.ID, material.numID).encode('utf-8'))
-                f.write('</gprMax>\n'.encode('utf-8'))
+                self.write_materials(f, G.materials)
+
+    def write_materials(self, f, materials):
+        """Writes gprMax specific information which relates material name to material numeric identifier.
+            
+        Args:
+            f (filehandle): VTK file.
+            materials (list): Materials in the model.
+        """
+
+        f.write('\n\n<gprMax>\n'.encode('utf-8'))
+        for material in materials:
+            f.write('<Material name="{}">{}</Material>\n'.format(material.ID, material.numID).encode('utf-8'))
+        f.write('</gprMax>\n'.encode('utf-8'))
 
 
