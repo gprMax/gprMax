@@ -68,9 +68,10 @@ The steps are:
 
 * Download the code from https://github.com/gprMax/gprMax
 
-    * Click on *Releases* from the top header and choose the release you want (latest is at the top).
-    * Download zip files of the *source code* and *binary extensions* for your platform, ``windows-32bit`` for 32-bit or ``windows-64bit`` for 64-bit versions of Microsoft Windows, ``linux-64bit`` for 64-bit versions of Linux, or ``macosx-64bit`` for 64-bit versions of Mac OS X.
-    * Expand both zip files and copy the contents of the ``windows-32bit``, ``windows-64bit``, ``linux-64bit`` or ``macosx-64bit`` directory into the ``gprMax-v.X.Y.Z/gprMax`` directory.
+    * Click on **Releases** from the top header and choose the release you want (latest is at the top).
+    * Download zip files of the **source code** and **binary extensions** for your platform (``windows-32bit`` for 32-bit or ``windows-64bit`` for 64-bit versions of Microsoft Windows, ``linux-64bit`` for 64-bit versions of Linux, or ``macosx-64bit`` for 64-bit versions of Mac OS X).
+    * Expand both zip files.
+    * Copy the contents (binary extensions) from the ``windows-32bit``, ``windows-64bit``, ``linux-64bit`` or ``macosx-64bit`` directory into the ``gprMax-v.X.Y.Z/gprMax`` directory.
 
 2. Install Python and required Python packages
 ----------------------------------------------
