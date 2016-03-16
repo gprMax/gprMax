@@ -429,7 +429,7 @@ cpdef void build_cylindrical_sector(float ctr1, float ctr2, int level, float sec
         thicknesscells = round_value(thickness/dy)
             
         for x in range(x1, x2):
-            for z in range(z2, z2):
+            for z in range(z1, z2):
                 if is_inside_sector(x * dx + 0.5 * dx, z * dz + 0.5 * dz, ctr1, ctr2, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
                         build_face_xz(x, level, z, numIDx, numIDz, rigidE, rigidH, ID)
