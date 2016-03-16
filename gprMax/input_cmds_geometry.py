@@ -40,63 +40,7 @@ def process_geometrycmds(geometry, G):
     for object in geometry:
         tmp = object.split()
         
-        if tmp[0] == '#xdmf_geometry_file:':
-            if len(tmp) != 2:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly one parameter')
-            xdmffile = tmp[1]
-
-            # See if file exists at specified path and if not try input file directory
-            if not os.path.isfile(xdmffile):
-                xdmffile = os.path.join(G.inputdirectory, xdmffile)
-
-            # Read Xdmf file for information on dataset
-            tree = ET.parse(xdmffile)
-            root = tree.getroot()
-            print(root.tag)
-            data = root.findall('./UnstructuredGrid/Piece/CellData/DataArray')
-            data = data[0].text
-            data = data.split()
-            print(data)
-
-            # Find Geometry element and get information on origin and spatial sampling of data
-#            geoinfo = root.findall('./Domain/Grid/Geometry/DataItem')    
-#            origin = geoinfo[0].text.split()
-#            dxdydz = geoinfo[1].text.split()
-#            origin = [float(item) for item in origin]
-#            dxdydz = [float(item) for item in dxdydz]
-
-            # Get name of dataset stored in HDF5 file
-#            datainfo = root.find('./Domain/Grid/Attribute/DataItem')
-#            datainfo = datainfo.text
-#            datasetname = datainfo.split(':')[1]
-
-            # Load HDF5 file and dataset
-#            xdmfh5file = os.path.splitext(xdmffile)[0] + '_old.h5'
-#            f = h5py.File(xdmfh5file, 'r')
-            nx = 40
-            ny = 70
-            nz = 233
-#            data = f['Data2']
-#
-            for index in range(len(data)):
-                subscripts = np.unravel_index(index, (nz, ny, nx))
-                i = subscripts[0]
-                j = subscripts[1]
-                k = subscripts[2]
-                numIDlocal = int(data[index])
-                for material in G.materials:
-                    try:
-                        material.ID.split('_')[1]
-                        if int(material.ID.split('_')[1]) == numIDlocal:
-                            numID = numIDx = numIDy = numIDz = material.numID
-                            build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, G.solid, G.rigidE, G.rigidH, G.ID)
-                        else:
-                            raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot find material ID {}'.format(numIDlocal))
-                    except:
-                        pass
-
-        
-        elif tmp[0] == '#edge:':
+        if tmp[0] == '#edge:':
             if len(tmp) != 8:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly seven parameters')
             
@@ -641,7 +585,7 @@ def process_geometrycmds(geometry, G):
                 averaging = False
                 # Isotropic case
                 if len(materials) == 1:
-                    numIDx = numIDy = numIDz = materials[0].numID
+                    numID = numIDx = numIDy = numIDz = materials[0].numID
                 
                 # Uniaxial anisotropic case
                 elif len(materials) == 3:
