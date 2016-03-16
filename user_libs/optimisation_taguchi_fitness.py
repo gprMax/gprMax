@@ -174,6 +174,48 @@ def min_sum_diffs(filename, args):
 
 
 
+######################################
+# Helper methods for signal analyses #
+######################################
+
+def spectral_centroid(x, samplerate):
+    """Calculate the spectral centroid of a signal.
+        
+    Args:
+        x (float): 1D array containing time domain signal
+        samplerate (float): Sample rate of signal (Hz)
+        
+    Returns:
+        centroid (float): Weighted mean of the frequencies present in the signal
+    """
+    
+    magnitudes = np.abs(np.fft.rfft(x))
+    length = len(x)
+    
+    # Positive frequencies
+    freqs = np.abs(np.fft.fftfreq(length, 1.0/samplerate)[:length//2+1])
+
+    centroid = np.sum(magnitudes*freqs) / np.sum(magnitudes)
+    return centroid
+
+
+def zero_crossings(x):
+    """Find location of zero crossings in 1D data array.
+        
+    Args:
+        x (float): 1D array
+        
+    Returns:
+        indexzeros (int): Array of indices of zero crossing locations
+    """
+    
+    pos = x > 0
+    npos = ~pos
+    indexzeros = ((pos[:-1] & npos[1:]) | (npos[:-1] & pos[1:])).nonzero()[0]
+    return indexzeros
+
+
+
 
 
 
