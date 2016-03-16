@@ -296,33 +296,37 @@ def calculate_ranges_experiments(optparams, optparamsinit, levels, levelsopt, le
     RR = np.exp(-(i/T)**2)
 
     # Calculate levels for each parameter
-    for p in range(0, k):
-        # Central levels - for first iteration set to midpoint of initial range and don't use RR
+    for p in range(k):
+        # Set central level for first iteration to midpoint of initial range and don't use RR
         if i == 0:
             levels[1, p] = ((optparamsinit[p][1][1] - optparamsinit[p][1][0]) / 2) + optparamsinit[p][1][0]
             levelsdiff[p] = (optparamsinit[p][1][1] - optparamsinit[p][1][0]) / (s + 1)
-        # Central levels - set to optimum from previous iteration
+        # Set central level to optimum from previous iteration
         else:
             levels[1, p] = levels[levelsopt[p], p]
             levelsdiff[p] = RR * levelsdiff[p]
 
-        # Lower levels set using central level and level differences values; and check they are not outwith initial ranges
+        # Set levels if below initial range
         if levels[1, p] - levelsdiff[p] < optparamsinit[p][1][0]:
             levels[0, p] = optparamsinit[p][1][0]
+            levels[1, p] = optparamsinit[p][1][0] + levelsdiff[p]
+            levels[2, p] = optparamsinit[p][1][0] + 2 * levelsdiff[p]
+        # Set levels if above initial range
+        elif levels[1, p] + levelsdiff[p] > optparamsinit[p][1][1]:
+            levels[0, p] = optparamsinit[p][1][1] - 2 * levelsdiff[p]
+            levels[1, p] = optparamsinit[p][1][1] - levelsdiff[p]
+            levels[2, p] = optparamsinit[p][1][1]
+        # Set levels normally
         else:
             levels[0, p] = levels[1, p] - levelsdiff[p]
-
-        # Upper levels set using central level and level differences values; and check they are not outwith initial ranges
-        if levels[1, p] + levelsdiff[p] > optparamsinit[p][1][1]:
-            levels[2, p] = optparamsinit[p][1][1]
-        else:
             levels[2, p] = levels[1, p] + levelsdiff[p]
+            
 
     # Update dictionary of parameters to optimise with lists of new values; clear dictionary first
     optparams = OrderedDict((key, list()) for key in optparams)
     p = 0
     for key, value in optparams.items():
-        for exp in range(0, N):
+        for exp in range(N):
             if OA[exp, p] == 0:
                 optparams[key].append(levels[0, p])
             elif OA[exp, p] == 1:
@@ -352,14 +356,13 @@ def calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N,
     """
 
     # Build a table of responses based on the results of the fitness metric
-    for p in range(0, k):
+    for p in range(k):
         responses = np.zeros(3, dtype=floattype)
-
         cnt1 = 0
         cnt2 = 0
         cnt3 = 0
 
-        for exp in range(1, N):
+        for exp in range(N):
             if OA[exp, p] == 0:
                 responses[0] += fitnessvalues[exp]
                 cnt1 += 1
@@ -375,13 +378,7 @@ def calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N,
         responses[2] /= cnt3
 
         # Calculate optimal level from table of responses
-        tmp = np.where(responses == np.amax(responses))[0]
-
-        # If there is more than one level found use the first
-        if len(tmp) > 1:
-            tmp = tmp[0]
-
-        levelsopt[p] = tmp
+        levelsopt[p] = np.where(responses == np.amax(responses))[0]
 
     # Update dictionary of parameters to optimise with lists of new values; clear dictionary first
     optparams = OrderedDict((key, list()) for key in optparams)
