@@ -33,7 +33,9 @@ Using the following steps to collect and report benchmarking results for each of
 Results
 =======
 
-Zero threads indicates that the code was compiled serially, i.e. without using OpenMP.
+.. note::
+
+    Zero threads indicates that the code was compiled serially, i.e. without using OpenMP.
 
 Mac OS X
 --------
