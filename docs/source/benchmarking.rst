@@ -59,7 +59,7 @@ MacPro1,1
 MacPro3,1
 ^^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/MacOSX/MacPro1,1/MacPro3,1.png
+.. figure:: ../../tests/benchmarking/results/MacOSX/MacPro3,1/MacPro3,1.png
     :width: 600px
 
 
