@@ -27,7 +27,7 @@ The following simple models (found in the ``tests/benchmarking`` sub-package) ca
 Using the following steps to collect and report benchmarking results for each of the models:
 
 1. Run gprMax in benchmarking mode, e.g. ``python -m gprMax tests/benchmarking/bench_100x100x100.in -benchmark``
-2. Use the ``plot_benchmark`` module to create plots of the execution time and speed-up, e.g. ``python -m tools.benchmarking.plot_benchmark tests/benchmarking/bench_100x100x100.npz``. You will need to enter some machine identification information in the module.
+2. Use the ``plot_benchmark`` module to create plots of the execution time and speed-up, e.g. ``python -m tests.benchmarking.plot_benchmark tests/benchmarking/bench_100x100x100.npz``. You will need to enter some machine identification information in the module.
 3. Commit the Numpy archive and plot file to the GitHub repository
 
 Results
@@ -41,7 +41,7 @@ Mac OS X
 iMac15,1
 ^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/MacOSX/iMac15,1+Ccode.png
+.. figure:: ../../tests/benchmarking/results/MacOSX/iMac15,1/iMac15,1+Ccode.png
     :width: 600px
 
     Execution time and speed-up factor plots for Python/Cython-based gprMax and previous version C-based code.
@@ -52,5 +52,29 @@ The results demonstrate that the Python/Cython-based code is faster, in these tw
 MacPro1,1
 ^^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/MacOSX/MacPro1,1.png
+.. figure:: ../../tests/benchmarking/results/MacOSX/MacPro1,1/MacPro1,1.png
+    :width: 600px
+
+
+MacPro3,1
+^^^^^^^^^
+
+.. figure:: ../../tests/benchmarking/results/MacOSX/MacPro1,1/MacPro3,1.png
+    :width: 600px
+
+
+Windows
+-------
+
+Lenovo T430
+^^^^^^^^^^^
+
+.. figure:: ../../tests/benchmarking/results/Windows7/Lenovo_T430/Lenovo_T430.png
+    :width: 600px
+
+
+Dell Z420
+^^^^^^^^^
+
+.. figure:: ../../tests/benchmarking/results/Windows7/Dell_Z420/Dell_Z420.png
     :width: 600px
