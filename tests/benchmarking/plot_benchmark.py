@@ -14,10 +14,11 @@ args = parser.parse_args()
 
 # Machine identifier
 platformID = platform.platform()
-#machineID = 'MacPro1,1'
-#machineIDlong = machineID + ' (2006); 2 x 2.66 GHz Quad-Core Intel Xeon; Mac OS X 10.11.3'
-machineID = 'iMac15,1'
-machineIDlong = machineID + ' (Retina 5K, 27-inch, Late 2014); 4GHz Intel Core i7; Mac OS X 10.11.3'
+machineID = input('Enter manufacturer and short machine description, e.g. Apple_MacPro1,1 or Dell_Z420: ')
+cpuspeed = input ('Enter CPU number, type and speed, e.g. 2 x 2.66GHz Quad-Core Intel Xeon or 1 x 4GHz Quad-Core Intel Core i7: ')
+machineIDextra = '(' + input('Enter any additional machine description, e.g. Retina 5K, 27-inch, Late 2014 or leave empty: ') + ')'
+osversion = input('Enter operating system version, e.g. Windows 7 64-bit: ')
+machineIDlong = machineID + ' ' + machineIDextra + '; ' + cpuspeed + '; ' + osversion
 
 # Load results
 results = np.load(args.numpyfile)
@@ -31,9 +32,10 @@ fig.suptitle(machineIDlong)
 gs = gridspec.GridSpec(1, 2, hspace=0.5)
 ax = plt.subplot(gs[0, 0])
 ax.plot(results['threads'], results['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, label=plotlabel + ' (v' + __version__ + ')')
-#ax.plot(results['threads'], results['bench1c'], color=colors[0], marker='.', ms=10, lw=2, label='1e6 cells (v2)')
-#ax.plot(results['threads'], results['bench2'], color=colors[1], marker='.', ms=10, lw=2, ls='--', label='3.375e6 cells (v' + __version__ + ')')
-#ax.plot(results['threads'], results['bench2c'], color=colors[0], marker='.', ms=10, lw=2, ls='--', label='3.375e6 cells (v2)')
+#ax.plot(results['threads'], results['bench1'], color=colors[1], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v3.0.0b21)')
+#ax.plot(results['threads'], results['bench1c'], color=colors[0], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v2)')
+#ax.plot(results['threads'], results['bench2'], color=colors[1], marker='.', ms=10, lw=2, ls='--', label='bench_150x150x150.in (v3.0.0b21)')
+#ax.plot(results['threads'], results['bench2c'], color=colors[0], marker='.', ms=10, lw=2, ls='--', label='bench_150x150x150.in (v2)')
 
 ax.set_xlabel('Number of threads')
 ax.set_ylabel('Time [s]')
@@ -49,9 +51,10 @@ ax.set_ylim(0, top=ax.get_ylim()[1] * 1.1)
 
 ax = plt.subplot(gs[0, 1])
 ax.plot(results['threads'], results['benchtimes'][-1] / results['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, label=plotlabel + ' (v' + __version__ + ')')
-#ax.plot(results['threads'], results['bench1c'][1] / results['bench1c'], color=colors[0], marker='.', ms=10, lw=2, label='1e6 cells (v2)')
-#ax.plot(results['threads'], results['bench2'][1] / results['bench2'], color=colors[1], marker='.', ms=10, lw=2, ls='--', label='3.375e6 cells (v' + __version__ + ')')
-#ax.plot(results['threads'], results['bench2c'][1] / results['bench2c'], color=colors[0], marker='.', ms=10, lw=2, ls='--', label='3.375e6 cells (v2)')
+#ax.plot(results['threads'], results['bench1'][0] / results['bench1'], color=colors[1], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v3.0.0b21)')
+#ax.plot(results['threads'], results['bench1c'][1] / results['bench1c'], color=colors[0], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v2)')
+#ax.plot(results['threads'], results['bench2'][0] / results['bench2'], color=colors[1], marker='.', ms=10, lw=2, ls='--', label='bench_150x150x150.in (v3.0.0b21)')
+#ax.plot(results['threads'], results['bench2c'][1] / results['bench2c'], color=colors[0], marker='.', ms=10, lw=2, ls='--', label='bench_150x150x150.in (v2)')
 
 ax.set_xlabel('Number of threads')
 ax.set_ylabel('Speed-up factor')
