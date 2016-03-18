@@ -378,7 +378,13 @@ def calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N,
         responses[2] /= cnt3
 
         # Calculate optimal level from table of responses
-        levelsopt[p] = np.where(responses == np.amax(responses))[0]
+        optlevel = np.where(responses == np.amax(responses))[0]
+        
+        # If 2 experiments produce the same fitness value (this shouldn't happen if the fitness function is designed correctly)
+        if len(optlevel):
+            optlevel = optlevel[0]
+        
+        levelsopt[p] = optlevel
 
     # Update dictionary of parameters to optimise with lists of new values; clear dictionary first
     optparams = OrderedDict((key, list()) for key in optparams)
