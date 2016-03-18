@@ -5,6 +5,7 @@
 #
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
+import sys
 import h5py
 import numpy as np
 np.seterr(divide='ignore')
@@ -33,10 +34,10 @@ def minvalue(filename, args):
     nrx = f.attrs['nrx']
 
     for rx in range(1, nrx + 1):
-        tmp = f['/rxs/rx' + str(rx) + '/']
-        if tmp.attrs['Name'] in args['outputs']:
-            fieldname = list(tmp.keys())[0]
-            minvalue = np.amin(tmp[fieldname])
+        output = f['/rxs/rx' + str(rx) + '/']
+        if output.attrs['Name'] in args['outputs']:
+            outputname = list(output.keys())[0]
+            minvalue = np.amin(output[outputname])
 
     return np.abs(minvalue)
 
@@ -56,10 +57,10 @@ def maxvalue(filename, args):
     nrx = f.attrs['nrx']
 
     for rx in range(1, nrx + 1):
-        tmp = f['/rxs/rx' + str(rx) + '/']
-        if tmp.attrs['Name'] in args['outputs']:
-            fieldname = list(tmp.keys())[0]
-            maxvalue = np.amax(tmp[fieldname])
+        output = f['/rxs/rx' + str(rx) + '/']
+        if output.attrs['Name'] in args['outputs']:
+            outputname = list(output.keys())[0]
+            maxvalue = np.amax(output[outputname])
 
     return maxvalue
 
@@ -88,16 +89,16 @@ def xcorr(filename, args):
     modeltime = np.arange(0, f.attrs['dt'] * f.attrs['Iterations'], f.attrs['dt'])
     
     for rx in range(1, nrx + 1):
-        tmp = f['/rxs/rx' + str(rx) + '/']
-        if tmp.attrs['Name'] in args['outputs']:
-            fieldname = list(tmp.keys())[0]
-            modelresp = tmp[fieldname]
+        output = f['/rxs/rx' + str(rx) + '/']
+        if output.attrs['Name'] in args['outputs']:
+            outputname = list(output.keys())[0]
+            modelresp = output[outputname]
             # Convert field value (V/m) to voltage
-            if fieldname == 'Ex':
+            if outputname == 'Ex':
                 modelresp *= -1 * f.attrs['dx, dy, dz'][0]
-            elif fieldname == 'Ey':
+            elif outputname == 'Ey':
                 modelresp *= -1 * f.attrs['dx, dy, dz'][1]
-            if fieldname == 'Ez':
+            if outputname == 'Ez':
                 modelresp *= -1 * f.attrs['dx, dy, dz'][2]
 
     # Normalise respose from output file
@@ -160,10 +161,10 @@ def min_sum_diffs(filename, args):
     diffdB = 0
     outputs = 0
     for rx in range(1, nrx + 1):
-        tmp = f['/rxs/rx' + str(rx) + '/']
-        if tmp.attrs['Name'] in args['outputs']:
-            fieldname = list(tmp.keys())[0]
-            modelresp = np.array(tmp[fieldname])
+        output = f['/rxs/rx' + str(rx) + '/']
+        if output.attrs['Name'] in args['outputs']:
+            outputname = list(output.keys())[0]
+            modelresp = np.array(output[outputname])
             # Calculate sum of differences
             tmp = 20 * np.log10(np.abs(modelresp - refresp) / np.amax(np.abs(refresp)))
             tmp = np.abs(np.sum(tmp[-np.isneginf(tmp)])) / len(tmp[-np.isneginf(tmp)])
@@ -171,6 +172,56 @@ def min_sum_diffs(filename, args):
             outputs += 1
 
     return diffdB / outputs
+
+
+def compactness(filename, args):
+    """A measure of the compactness of a time domain signal.
+        
+    Args:
+        filename (str): Name of output file
+        args (dict): 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
+        
+    Returns:
+        compactness (float): Compactness value of signal
+    """
+    
+    f = h5py.File(filename, 'r')
+    nrx = f.attrs['nrx']
+    dt = f.attrs['dt']
+    iterations = f.attrs['Iterations']
+    time = np.linspace(0, 1, iterations)
+    time *= (iterations * dt)
+
+    for rx in range(1, nrx + 1):
+        output = f['/rxs/rx' + str(rx) + '/']
+        if output.attrs['Name'] in args['outputs']:
+            outputname = list(output.keys())[0]
+            outputdata = output[outputname]
+
+            # Get absolute maximum value in signal
+            peak = np.amax([np.amax(outputdata), np.abs(np.amin(outputdata))])
+
+            # Get peaks and troughs in signal
+            delta = peak / 50 # Considered a peak/trough if it has the max/min value, and was preceded (to the left) by a value lower by delta
+            maxtab, mintab = peakdet(outputdata, delta)
+            peaks = maxtab + mintab
+            peaks.sort()
+            
+            # Remove any peaks smaller than a threshold
+            thresholdpeak = 1e-3
+            peaks = [peak for peak in peaks if np.abs(outputdata[peak]) > thresholdpeak]
+            
+            # Percentage of maximum value to measure compactness of signal
+            durationthreshold = 2
+            # Check if there is a peak/trough smaller than threshold
+            durationthresholdexist = np.where(np.abs(outputdata[peaks]) < (peak * (durationthreshold / 100)))[0]
+            if durationthresholdexist.size == 0:
+                compactness = time[peaks[-1]]
+            else:
+                time2threshold = time[peaks[durationthresholdexist[0]]]
+                compactness = time2threshold - time[min(peaks)]
+
+    return (1 / compactness)
 
 
 
@@ -213,6 +264,70 @@ def zero_crossings(x):
     npos = ~pos
     indexzeros = ((pos[:-1] & npos[1:]) | (npos[:-1] & pos[1:])).nonzero()[0]
     return indexzeros
+                                
+                                
+def peakdet(v, delta, x = None):
+    """Detect peaks and troughs in a vector (adapted from MATLAB script at http://billauer.co.il/peakdet.html). 
+        A point is considered a maximum peak if it has the maximal value, and was preceded (to the left) by a value lower by delta.
+        
+        Eli Billauer, 3.4.05 (Explicitly not copyrighted).
+        This function is released to the public domain; Any use is allowed.
+    
+    Args:
+        v (float): 1D array
+        delta (float): threshold for determining peaks/troughs
+        
+    Returns:
+        maxtab, mintab (list): Indices of peak/trough locations
+    """
+                                
+    maxtab = []
+    mintab = []
+       
+    if x is None:
+        x = np.arange(len(v))
+    
+    v = np.asarray(v)
+    
+    if len(v) != len(x):
+        sys.exit('Input vectors v and x must have same length')
+    
+    if not np.isscalar(delta):
+        sys.exit('Input argument delta must be a scalar')
+    
+    if delta <= 0:
+        sys.exit('Input argument delta must be positive')
+    
+    mn, mx = np.Inf, -np.Inf
+    mnpos, mxpos = np.NaN, np.NaN
+    
+    lookformax = True
+    
+    for i in np.arange(len(v)):
+        this = v[i]
+        if this > mx:
+            mx = this
+            mxpos = x[i]
+        if this < mn:
+            mn = this
+            mnpos = x[i]
+        
+        if lookformax:
+            if this < mx-delta:
+                if int(mxpos) != 0:
+                    maxtab.append(int(mxpos))
+                    mn = this
+                    mnpos = x[i]
+                    lookformax = False
+        else:
+            if this > mn+delta:
+                if int(mnpos) != 0:
+                    mintab.append(int(mnpos))
+                    mx = this
+                    mxpos = x[i]
+                    lookformax = True
+
+    return maxtab, mintab
 
 
 
