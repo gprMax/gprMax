@@ -9,9 +9,9 @@ dependencies:
 - matplotlib
 - mpi4py
 - numpy
-- psutil
 - scipy
 
 - pip:
   - pyfiglet
+  - psutil
 
