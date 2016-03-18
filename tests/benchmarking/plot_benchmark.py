@@ -16,7 +16,9 @@ args = parser.parse_args()
 platformID = platform.platform()
 machineID = input('Enter manufacturer and short machine description, e.g. Apple_MacPro1,1 or Dell_Z420: ')
 cpuspeed = input ('Enter CPU number, type and speed, e.g. 2 x 2.66GHz Quad-Core Intel Xeon or 1 x 4GHz Quad-Core Intel Core i7: ')
-machineIDextra = '(' + input('Enter any additional machine description, e.g. Retina 5K, 27-inch, Late 2014 or leave empty: ') + ')'
+machineIDextra = input('Enter any additional machine description, e.g. Retina 5K, 27-inch, Late 2014 or leave empty: ')
+if machineIDextra:
+    machineIDextra = '(' + machineIDextra + ')'
 osversion = input('Enter operating system version, e.g. Windows 7 64-bit: ')
 machineIDlong = machineID + ' ' + machineIDextra + '; ' + cpuspeed + '; ' + osversion
 
