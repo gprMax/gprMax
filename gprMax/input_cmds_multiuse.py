@@ -97,6 +97,7 @@ def process_multicmds(multicmds, G):
             v.xcoord = xcoord
             v.ycoord = ycoord
             v.zcoord = zcoord
+            v.ID = 'VoltageSource(' + str(v.xcoord) + ',' + str(v.ycoord) + ',' + str(v.zcoord) + ')'
             v.resistance = resistance
             v.waveformID = tmp[5]
             
@@ -159,6 +160,7 @@ def process_multicmds(multicmds, G):
             h.xcoord = xcoord
             h.ycoord = ycoord
             h.zcoord = zcoord
+            h.ID = 'HertzianDipole(' + str(h.xcoord) + ',' + str(h.ycoord) + ',' + str(h.zcoord) + ')'
             h.waveformID = tmp[4]
             
             if len(tmp) > 5:
@@ -220,6 +222,7 @@ def process_multicmds(multicmds, G):
             m.xcoord = xcoord
             m.ycoord = ycoord
             m.zcoord = zcoord
+            m.ID = 'MagneticDipole(' + str(m.xcoord) + ',' + str(m.ycoord) + ',' + str(m.zcoord) + ')'
             m.waveformID = tmp[4]
             
             if len(tmp) > 5:
@@ -284,6 +287,7 @@ def process_multicmds(multicmds, G):
             t.xcoord = xcoord
             t.ycoord = ycoord
             t.zcoord = zcoord
+            t.ID = 'TransmissionLine(' + str(t.xcoord) + ',' + str(t.ycoord) + ',' + str(t.zcoord) + ')'
             t.resistance = resistance
             t.waveformID = tmp[5]
             t.calculate_incident_V_I(G)
@@ -340,6 +344,7 @@ def process_multicmds(multicmds, G):
             
             # If no ID or outputs are specified, use default i.e Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, Iz
             if len(tmp) == 3:
+                r.ID = 'Rx(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'
                 r.outputs = Rx.availableoutputs[0:9]
             else:
                 r.ID = tmp[3]
@@ -399,6 +404,7 @@ def process_multicmds(multicmds, G):
                 for y in range(ys, yf, dy):
                     for z in range(zs, zf, dz):
                         r = Rx(xcoord=x, ycoord=y, zcoord=z)
+                        r.ID = 'Rx(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
                         G.rxs.append(r)
 
             if G.messages:
