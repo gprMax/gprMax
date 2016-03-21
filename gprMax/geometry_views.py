@@ -46,14 +46,20 @@ class GeometryView:
         self.xf = xf
         self.yf = yf
         self.zf = zf
+        self.nx = self.xf - self.xs
+        self.ny = self.yf - self.ys
+        self.nz = self.zf - self.zs
         self.dx = dx
         self.dy = dy
         self.dz = dz
         self.filename = filename
         self.type = type
+        self.srcs_rxs = np.zeros((self.nx / self.dx, self.ny / self.dy, self.nz / self.dz), dtype=np.int8)
 
     def write_vtk(self, modelrun, numbermodelruns, G):
         """Writes the geometry information to a VTK file. Either ImageData (.vti) for a per cell geometry view, or PolygonalData (.vtp) for a per cell edge geometry view.
+            
+            N.B. No Python 3 support for VTK at time of writing (03/2015)
             
         Args:
             modelrun (int): Current model run number.
@@ -67,11 +73,6 @@ class GeometryView:
         else:
             self.filename = G.inputdirectory + self.filename + str(modelrun)
         
-        # No Python 3 support for VTK at time of writing (03/2015)
-        self.vtk_nx = self.xf - self.xs
-        self.vtk_ny = self.yf - self.ys
-        self.vtk_nz = self.zf - self.zs
-        
         if self.type == 'n':
             self.filename += '.vti'
             
@@ -82,6 +83,13 @@ class GeometryView:
             self.vtk_yfcells = round_value(self.yf / self.dy)
             self.vtk_zscells = round_value(self.zs / self.dz)
             self.vtk_zfcells = round_value(self.zf / self.dz)
+            
+            # Add a numeric ID for receivers and sources to an array
+            for index, srcrx in enumerate(G.rxs + G.hertziandipoles + G.magneticdipoles + G.voltagesources + G.transmissionlines):
+                self.srcs_rxs[srcrx.xcoord, srcrx.ycoord, srcrx.zcoord] = index + 1
+            
+            vtk_srcs_rxs_offset = round_value((np.dtype(np.uint32).itemsize * (self.nx / self.dx) * (self.ny / self.dy) * (self.nz / self.dz)) + np.dtype(np.uint32).itemsize)
+            
             with open(self.filename, 'wb') as f:
                 f.write('<?xml version="1.0"?>\n'.encode('utf-8'))
                 f.write('<VTKFile type="ImageData" version="1.0" byte_order="{}">\n'.format(GeometryView.byteorder).encode('utf-8'))
@@ -89,30 +97,40 @@ class GeometryView:
                 f.write('<Piece Extent="{} {} {} {} {} {}">\n'.format(self.vtk_xscells, self.vtk_xfcells, self.vtk_yscells, self.vtk_yfcells, self.vtk_zscells, self.vtk_zfcells).encode('utf-8'))
                 f.write('<CellData Scalars="Material">\n'.encode('utf-8'))
                 f.write('<DataArray type="UInt32" Name="Material" format="appended" offset="0" />\n'.encode('utf-8'))
+                f.write('<DataArray type="Int8" Name="Sources_Receivers" format="appended" offset="{}" />\n'.format(vtk_srcs_rxs_offset).encode('utf-8'))
                 f.write('</CellData>\n</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
                 
                 # Calculate number of bytes of appended data section
-                datasize = int(np.dtype(np.uint32).itemsize * (self.vtk_nx / self.dx) * (self.vtk_ny / self.dy) * (self.vtk_nz / self.dz))
+                datasize = int(np.dtype(np.uint32).itemsize * (self.nx / self.dx) * (self.ny / self.dy) * (self.nz / self.dz))
                 # Write number of bytes of appended data as UInt32
                 f.write(pack('I', datasize))
                 for k in range(self.zs, self.zf, self.dz):
                     for j in range(self.ys, self.yf, self.dy):
                         for i in range(self.xs, self.xf, self.dx):
                             f.write(pack('I', G.solid[i, j, k]))
+            
+                # Calculate number of bytes of appended data section
+                datasize = int(np.dtype(np.int8).itemsize * (self.nx / self.dx) * (self.ny / self.dy) * (self.nz / self.dz))
+                f.write(pack('I', datasize))
+                # Write number of bytes of appended data as UInt32
+                for k in range(self.zs, self.zf, self.dz):
+                    for j in range(self.ys, self.yf, self.dy):
+                        for i in range(self.xs, self.xf, self.dx):
+                            f.write(pack('b', self.srcs_rxs[i, j, k]))
                 f.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
             
-                self.write_materials(f, G.materials)
+                self.write_gprmax_info(f, G)
 
         elif self.type == 'f':
             self.filename += '.vtp'
             
-            vtk_numpoints = (self.vtk_nx + 1) * (self.vtk_ny + 1) * (self.vtk_nz + 1)
+            vtk_numpoints = (self.nx + 1) * (self.ny + 1) * (self.nz + 1)
             vtk_numpoint_components = 3
-            vtk_numlines = 2 * self.vtk_nx * self.vtk_ny + 2 * self.vtk_ny * self.vtk_nz + 2 * self.vtk_nx * self.vtk_nz + 3 * self.vtk_nx * self.vtk_ny * self.vtk_nz + self.vtk_nx + self.vtk_ny + self.vtk_nz
+            vtk_numlines = 2 * self.nx * self.ny + 2 * self.ny * self.nz + 2 * self.nx * self.nz + 3 * self.nx * self.ny * self.nz + self.nx + self.ny + self.nz
             vtk_numline_components  = 2;
-            vtk_connectivity_offset = (vtk_numpoints * vtk_numpoint_components * np.dtype(np.float32).itemsize) + np.dtype(np.uint32).itemsize
-            vtk_offsets_offset = vtk_connectivity_offset + (vtk_numlines * vtk_numline_components * np.dtype(np.uint32).itemsize) + np.dtype(np.uint32).itemsize
-            vtk_id_offset = vtk_offsets_offset + (vtk_numlines * np.dtype(np.uint32).itemsize) + np.dtype(np.uint32).itemsize
+            vtk_connectivity_offset = round_value((vtk_numpoints * vtk_numpoint_components * np.dtype(np.float32).itemsize) + np.dtype(np.uint32).itemsize)
+            vtk_offsets_offset = round_value(vtk_connectivity_offset + (vtk_numlines * vtk_numline_components * np.dtype(np.uint32).itemsize) + np.dtype(np.uint32).itemsize)
+            vtk_id_offset = round_value(vtk_offsets_offset + (vtk_numlines * np.dtype(np.uint32).itemsize) + np.dtype(np.uint32).itemsize)
             vtk_offsets_size = vtk_numlines
             
             with open(self.filename, 'wb') as f:
@@ -136,8 +154,8 @@ class GeometryView:
                 # Write cell type (line) connectivity for x components
                 datasize = np.dtype(np.uint32).itemsize * vtk_numlines * vtk_numline_components
                 f.write(pack('I', datasize))
-                vtk_x2 = (self.vtk_ny + 1) * (self.vtk_nz + 1)
-                for vtk_x1 in range(self.vtk_nx * (self.vtk_ny + 1) * (self.vtk_nz + 1)):
+                vtk_x2 = (self.ny + 1) * (self.nz + 1)
+                for vtk_x1 in range(self.nx * (self.ny + 1) * (self.nz + 1)):
                     f.write(pack('II', vtk_x1, vtk_x2))
                     # print('x {} {}'.format(vtk_x1, vtk_x2))
                     vtk_x2 += 1
@@ -145,26 +163,26 @@ class GeometryView:
                 # Write cell type (line) connectivity for y components
                 vtk_ycnt1 = 1
                 vtk_ycnt2 = 0
-                for vtk_y1 in range((self.vtk_nx + 1) * (self.vtk_ny + 1) * (self.vtk_nz + 1)):
-                    if vtk_y1 >= (vtk_ycnt1 * (self.vtk_ny + 1) * (self.vtk_nz + 1)) - (self.vtk_nz + 1) and vtk_y1 < vtk_ycnt1 * (self.vtk_ny + 1) * (self.vtk_nz + 1):
+                for vtk_y1 in range((self.nx + 1) * (self.ny + 1) * (self.nz + 1)):
+                    if vtk_y1 >= (vtk_ycnt1 * (self.ny + 1) * (self.nz + 1)) - (self.nz + 1) and vtk_y1 < vtk_ycnt1 * (self.ny + 1) * (self.nz + 1):
                         vtk_ycnt2 += 1
                     else:
-                        vtk_y2 = vtk_y1 + self.vtk_nz + 1
+                        vtk_y2 = vtk_y1 + self.nz + 1
                         f.write(pack('II', vtk_y1, vtk_y2))
                         # print('y {} {}'.format(vtk_y1, vtk_y2))
-                    if vtk_ycnt2 == self.vtk_nz + 1:
+                    if vtk_ycnt2 == self.nz + 1:
                         vtk_ycnt1 += 1
                         vtk_ycnt2 = 0
 
                 # Write cell type (line) connectivity for z components
-                vtk_zcnt = self.vtk_nz
-                for vtk_z1 in range((self.vtk_nx + 1) * (self.vtk_ny + 1) * self.vtk_nz + (self.vtk_nx + 1) * (self.vtk_ny + 1)):
+                vtk_zcnt = self.nz
+                for vtk_z1 in range((self.nx + 1) * (self.ny + 1) * self.nz + (self.nx + 1) * (self.ny + 1)):
                     if vtk_z1 != vtk_zcnt:
                         vtk_z2 = vtk_z1 + 1
                         f.write(pack('II', vtk_z1, vtk_z2))
                         # print('z {} {}'.format(vtk_z1, vtk_z2))
                     else:
-                        vtk_zcnt += self.vtk_nz + 1
+                        vtk_zcnt += self.nz + 1
 
                 # Write cell type (line) offsets
                 vtk_cell_pts = 2
@@ -193,19 +211,21 @@ class GeometryView:
 
                 f.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
 
-                self.write_materials(f, G.materials)
+                self.write_gprmax_info(f, G)
 
-    def write_materials(self, f, materials):
-        """Writes gprMax specific information which relates material name to material numeric identifier.
+    def write_gprmax_info(self, f, G):
+        """Writes gprMax specific information relating material, source, and receiver names to numeric identifiers.
             
         Args:
             f (filehandle): VTK file.
-            materials (list): Materials in the model.
+            G (class): Grid class instance - holds essential parameters describing the model.
         """
 
         f.write('\n\n<gprMax>\n'.encode('utf-8'))
-        for material in materials:
+        for material in G.materials:
             f.write('<Material name="{}">{}</Material>\n'.format(material.ID, material.numID).encode('utf-8'))
+        for index, srcrx in enumerate(G.rxs + G.hertziandipoles + G.magneticdipoles + G.voltagesources + G.transmissionlines):
+            f.write('<Sources_Receivers name="{}">{}</Sources_Receivers>\n'.format(srcrx.ID, index + 1).encode('utf-8'))
         f.write('</gprMax>\n'.encode('utf-8'))
 
 
