@@ -260,7 +260,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     G.inputdirectory = usernamespace['inputdirectory']
 
     # Process parameters for commands that can only occur once in the model
-    process_singlecmds(singlecmds, multicmds, G)
+    process_singlecmds(singlecmds, G)
 
     # Process parameters for commands that can occur multiple times in the model
     process_multicmds(multicmds, G)
