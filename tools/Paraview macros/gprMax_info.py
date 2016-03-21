@@ -37,7 +37,7 @@ Show(model, renderview)
 # Reset view to fit data
 renderview.ResetCamera()
 
-# Lists to hold material and sources/receiver identifiers written in VTK file in tags <gprMax3D> <Material> and <gprMax3D> <Sources/Receivers>
+# Lists to hold material and sources/receiver identifiers written in VTK file in tags <gprMax3D> <Material> and <gprMax3D> <Sources_Receivers>
 materials = []
 srcsrxs = []
 with open(model.FileName[0], 'r') as f:
