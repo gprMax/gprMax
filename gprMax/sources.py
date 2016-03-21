@@ -28,6 +28,7 @@ class VoltageSource:
     """The voltage source can be a hard source if it's resistance is zero, i.e. the time variation of the specified electric field component is prescribed. If it's resistance is non-zero it behaves as a resistive voltage source."""
     
     def __init__(self):
+        self.ID = None
         self.polarisation = None
         self.xcoord = None
         self.ycoord = None
@@ -106,6 +107,7 @@ class HertzianDipole:
     """The Hertzian dipole is an additive source (electric current density)."""
     
     def __init__(self):
+        self.ID = None
         self.polarisation = None
         self.xcoord = None
         self.ycoord = None
@@ -147,6 +149,7 @@ class MagneticDipole:
     """The magnetic dipole is an additive source (magnetic current density)."""
     
     def __init__(self):
+        self.ID = None
         self.polarisation = None
         self.xcoord = None
         self.ycoord = None
@@ -193,6 +196,7 @@ class TransmissionLine:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
         
+        self.ID = None
         self.polarisation = None
         self.xcoord = None
         self.ycoord = None
