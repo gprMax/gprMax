@@ -27,12 +27,11 @@ from gprMax.utilities import round_value, human_size
 from gprMax.waveforms import Waveform
 
 
-def process_singlecmds(singlecmds, multicmds, G):
+def process_singlecmds(singlecmds, G):
     """Checks the validity of command parameters and creates instances of classes of parameters.
         
     Args:
         singlecmds (dict): Commands that can only occur once in the model.
-        multicmds (dict): Commands that can have multiple instances in the model (required to pass to process_materials_file function).
         G (class): Grid class instance - holds essential parameters describing the model.
     """
     
