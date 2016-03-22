@@ -68,8 +68,8 @@ for rx in range(1, nrx + 1):
         cb.set_label('Current [A]')
 
     # Save a PDF/PNG of the figure
-    #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    #fig.savefig(os.path.splitext(os.path.abspath(args.outputfile))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    #fig.savefig(os.path.splitext(os.path.abspath(args.outputfile))[0] + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
 plt.show()
 f.close()
