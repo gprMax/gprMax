@@ -66,7 +66,7 @@ The domain size should be enough to enclose the volume of interest, plus allow 1
 
 .. code-block:: none
 
-    #domain: 0.240 0.190 0.002
+    #domain: 0.240 0.210 0.002
 
 Choose a time window
 --------------------
@@ -132,7 +132,7 @@ This example using the same geometry as the previous example but this time a B-s
     :language: none
     :linenos:
 
-The differences between this input file and the one from the A-scan are the x coordinates of the source and receiver (lines 11 adnd 12), and the commands needed to move the source and receiver (lines 13 and 14). The source and receiver are offset by 40mm from each other as before. They are now shifted to the starting position for the scan. The ``#src_steps`` command is used to tell gprMax to move every source in the model by specified steps each time the model is run. Similarly, the ``#rx_steps`` command is used to tell gprMax to move every receiver in the model by specified steps each time the model is run. Note, the same functionality could be achieved by using a block of Python code in the input file to move the source and receiver (for further details see the :ref:`Python section <python>`).
+The differences between this input file and the one from the A-scan are the x coordinates of the source and receiver (lines 11 and 12), and the commands needed to move the source and receiver (lines 13 and 14). The source and receiver are offset by 40mm from each other as before. They are now shifted to the starting position for the scan. The ``#src_steps`` command is used to tell gprMax to move every source in the model by specified steps each time the model is run. Similarly, the ``#rx_steps`` command is used to tell gprMax to move every receiver in the model by specified steps each time the model is run. Note, the same functionality could be achieved by using a block of Python code in the input file to move the source and receiver (for further details see the :ref:`Python section <python>`).
 
 To run the model for a B-scan is slightly different than for a single A-scan. You must pass an optional argument to gprMax to specify the number of times the model should be run, which in this case is the number of A-scans (traces) that will comprise the B-scan. For a B-scan over a distance of 120mm with a step of 2mm that is 60 A-scans.
 
