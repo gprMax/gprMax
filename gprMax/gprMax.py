@@ -349,6 +349,24 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         # Prepare any snapshot files
         for snapshot in G.snapshots:
             snapshot.prepare_vtk_imagedata(modelrun, numbermodelruns, G)
+        
+        # Adjust position of sources and receivers if required
+        if G.srcstepx > 0 or G.srcstepy > 0 or G.srcstepz > 0:
+            for source in itertools.chain(G.hertziandipoles, G.magneticdipoles, G.voltagesources, G.transmissionlines):
+                if modelrun == 1:
+                    if source.xcoord + G.srcstepx * (numbermodelruns - 1) > G.nx or source.ycoord + G.srcstepy * (numbermodelruns - 1) > G.ny or source.zcoord + G.srcstepz * (numbermodelruns - 1) > G.nz:
+                        raise GeneralError('Source(s) will be stepped to a position outside the domain.')
+                source.xcoord += (modelrun - 1) * G.srcstepx
+                source.ycoord += (modelrun - 1) * G.srcstepy
+                source.zcoord += (modelrun - 1) * G.srcstepz
+        if G.rxstepx > 0 or G.rxstepy > 0 or G.rxstepz > 0:
+            for receiver in G.rxs:
+                if modelrun == 1:
+                    if receiver.xcoord + G.rxstepx * (numbermodelruns - 1) > G.nx or receiver.ycoord + G.rxstepy * (numbermodelruns - 1) > G.ny or receiver.zcoord + G.rxstepz * (numbermodelruns - 1) > G.nz:
+                        raise GeneralError('Receiver(s) will be stepped to a position outside the domain.')
+                receiver.xcoord += (modelrun - 1) * G.rxstepx
+                receiver.ycoord += (modelrun - 1) * G.rxstepy
+                receiver.zcoord += (modelrun - 1) * G.rxstepz
 
         # Prepare output file
         inputfileparts = os.path.splitext(inputfile)
@@ -359,18 +377,6 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         sys.stdout.write('\nOutput to file: {}\n'.format(outputfile))
         sys.stdout.flush()
         f = prepare_hdf5(outputfile, G)
-
-        # Adjust position of sources and receivers if required
-        if G.srcstepx > 0 or G.srcstepy > 0 or G.srcstepz > 0:
-            for source in itertools.chain(G.hertziandipoles, G.magneticdipoles, G.voltagesources, G.transmissionlines):
-                source.xcoord += (modelrun - 1) * G.srcstepx
-                source.ycoord += (modelrun - 1) * G.srcstepy
-                source.zcoord += (modelrun - 1) * G.srcstepz
-        if G.rxstepx > 0 or G.rxstepy > 0 or G.rxstepz > 0:
-            for receiver in G.rxs:
-                receiver.xcoord += (modelrun - 1) * G.rxstepx
-                receiver.ycoord += (modelrun - 1) * G.rxstepy
-                receiver.zcoord += (modelrun - 1) * G.rxstepz
 
         ##################################
         #   Main FDTD calculation loop   #
