@@ -35,8 +35,7 @@ parser.add_argument('-fft', action='store_true', default=False, help='plot FFT (
 args = parser.parse_args()
 
 # Open output file and read some attributes
-file = args.outputfile
-f = h5py.File(file, 'r')
+f = h5py.File(args.outputfile, 'r')
 nrx = f.attrs['nrx']
 dt = f.attrs['dt']
 iterations = f.attrs['Iterations']
@@ -45,7 +44,7 @@ time *= (iterations * dt)
 
 # Check there are any receivers
 if nrx == 0:
-    raise CmdInputError('No receivers found in {}'.format(file))
+    raise CmdInputError('No receivers found in {}'.format(args.outputfile))
 
 # Check for single output component when doing a FFT
 if args.fft:
