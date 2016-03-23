@@ -17,7 +17,7 @@ This example demonstrates a model of a half-wavelength wire dipole antenna in fr
     :language: none
     :linenos:
 
-The wire is modelled using the ``#edge`` command which specifies properties of the edge of the Yee cell. The antenna is fed using the ``#transmission_line`` command. The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input resistance :math:`Z_{in} = 73~\Omega` specified in the ``#transmission_line`` command, and uses a Gaussian waveform with a centre frequency of 1GHz. A time window of 60ns is used: firstly, to give enough time for the response to decay down to zero; and secondly, to allow a reasonable (17MHz) spacing for the frequency bins when calculating FFTs, as :math:`\Delta f=1/T` where :math:`\Delta f` is the frequency bin spacing and :math:`T` is the time window.
+The wire is modelled using the ``#edge`` command which specifies properties of the edge of the Yee cell. The antenna is fed using the ``#transmission_line`` command. The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input resistance :math:`Z_{in} = 73~\Omega` specified in the ``#transmission_line`` command, and uses a Gaussian waveform with a centre frequency of 1GHz. A time window of 60ns is used: firstly, to give enough time for the response to decay down to zero; and secondly, to allow a reasonable resolution (17MHz) for calculating antenna parameters that involve taking a FFT (:math:`\Delta f=1/T` where :math:`\Delta f` is the frequency bin spacing and :math:`T` is the time window).
 
 Time histories of voltage and current values in the transmission line are saved to the output file. These are documented in the :ref:`output file section <output>`. These parameters are useful for calculating characteristics of the antenna such as the input impedance or S-parameters. gprMax includes a Python module (in the ``tools`` package) to help you view the input impedance and admittance and s11 parameter from an antenna model fed using a transmission line. Details of how to use this module is given in the :ref:`tools section <plotting>`.
 
@@ -75,12 +75,12 @@ This example demonstrates how to use one of the built-in antenna models in a sim
 
     FDTD geometry mesh showing an antenna model similar to a MALA 1.2GHz antenna (skid removed for illustrative purposes).
 
-The antenna model is loaded from a Python module and inserted into the input file just like another geometry command. The arguments for the ``antenna_like_MALA_1200`` function specify its (x, y, z) location as 0.132m, 0.095m, 0.100m using a 1mm spatial resolution. In this example the antenna is the only object in the model, i.e. the antenna is in free space. When the simulation is run two geometry files for the antenna are produced along with an output file which contains a single receiver (the antenna output). The antenna bowties are aligned with the y axis so the output is the y component of the electric field. More information can be found in the :ref:`Python section <python>`.
+The antenna model is loaded from a Python module and inserted into the input file just like another geometry command. The arguments for the ``antenna_like_MALA_1200`` function specify its (x, y, z) location as 0.132m, 0.095m, 0.100m using a 1mm spatial resolution. In this example the antenna is the only object in the model, i.e. the antenna is in free space. More information on using the built-in antenna models can be found in the :ref:`Python section <python>`.
 
 Results
 -------
 
-:numref:`antenna_like_MALA_1200_fs_results` shows the time history of the y-component of the electric field from the receiver bowtie of the antenna model (the antenna bowties are aligned with the y axis).
+When the simulation is run two geometry files for the antenna are produced along with an output file which contains a single receiver (the antenna output). :numref:`antenna_like_MALA_1200_fs_results` shows the time history of the y-component of the electric field from the receiver bowtie of the antenna model (the antenna bowties are aligned with the y axis).
 
 .. _antenna_like_MALA_1200_fs_results:
 
@@ -117,7 +117,7 @@ The total number of runs for a model as well as the number of the current run of
 Results
 -------
 
-:numref:`cylinder_Bscan_GSSI_1500_results` shows the B-scan (image of the Ey field). As expected a hyperbolic response is present from the metal cylinder.
+:numref:`cylinder_Bscan_GSSI_1500_results` shows the B-scan (of the Ey field component). The initial part of the signal (~1-2 ns) represents the direct wave from transmitter to receiver. Then comes a hyperbolic response from the metal cylinder.
 
 .. _cylinder_Bscan_GSSI_1500_results:
 

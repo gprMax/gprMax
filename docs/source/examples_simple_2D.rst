@@ -2,7 +2,7 @@
 Introductory/basic 2D models
 ****************************
 
-This section provides some general example models in 2D that demonstrate how to use certain features of gprMax. Each example comes with an input file which you can download and run.
+This section provides some introductory example models in 2D that demonstrate basic features of gprMax. Each example comes with an input file which you can download and run.
 
 .. _example-2D-Ascan:
 
@@ -114,7 +114,7 @@ You should have produced an output file ``cylinder_Ascan_2D.out``. You can view 
 
     python -m tools.plot_Ascan user_models/cylinder_Ascan_2D.out
 
-:numref:`cylinder_Ascan_results` shows the time history of the electric and magnetic field components and currents at the receiver location. The :math:`E_z` field component can be converted to voltage which represents the A-scan (trace). The initial part of the signal (<1.5 ns) represents the direct wave from transmitter to receiver. Then comes the reflected wavelet (~1.8-2.6 ns), which has opposite polarity, from the metal cylinder.
+:numref:`cylinder_Ascan_results` shows the time history of the electric and magnetic field components and currents at the receiver location. The :math:`E_z` field component can be converted to voltage which represents the A-scan (trace). The initial part of the signal (~0.5-1.5 ns) represents the direct wave from transmitter to receiver. Then comes the reflected wavelet (~1.8-2.6 ns), which has opposite polarity, from the metal cylinder.
 
 .. _cylinder_Ascan_results:
 
@@ -161,7 +161,7 @@ You can now view an image of the B-scan using the command:
 
     python -m tools.plot_Bscan user_models/cylinder_Bscan_2D_merged.out Ez
 
-:numref:`cylinder_Bscan_results` shows the B-scan (of the :math:`E_z` field component). Again, the initial part of the signal (<1.5 ns) represents the direct wave from transmitter to receiver. Then comes a hyperbolic response from the metal cylinder.
+:numref:`cylinder_Bscan_results` shows the B-scan (of the :math:`E_z` field component). Again, the initial part of the signal (~0.5-1.5 ns) represents the direct wave from transmitter to receiver. Then comes a hyperbolic response from the metal cylinder.
 
 .. _cylinder_Bscan_results:
 
