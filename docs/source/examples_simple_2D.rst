@@ -40,19 +40,19 @@ There will be three different materials in the model representing air, the diele
 Determine the source type and excitation frequency
 --------------------------------------------------
 
-These should generally be known, often based on the GPR system or scenario being modelled. Low frequencies are used where significant penetration depth is important, whereas high frequencies are used where less penetration and better resolution are required. In this case a theoretical Hertzian dipole source fed with a Ricker waveform with a centre frequency of :math:`f_c=1.5~\textrm{GHz}` will be used to simulate the GPR antenna (later examples will demonstrate how to include a model of the actual GPR antenna in the simulation).
+These should generally be known, often based on the GPR system or scenario being modelled. Low frequencies are used where significant penetration depth is important, whereas high frequencies are used where less penetration and better resolution are required. In this case a theoretical Hertzian dipole source fed with a Ricker waveform with a centre frequency of :math:`f_c=1.5~\textrm{GHz}` will be used to simulate the GPR antenna (see the :ref:`bowtie antenna example model <example-bowtie>` for how to include a model of the actual GPR antenna in the simulation).
 
 .. code-block:: none
 
     #waveform: ricker 1 1.5e9 my_ricker
     #hertzian_dipole: z 0.100 0.170 0 my_ricker
 
-The Ricker waveform is created with the ``#waveform`` command, specifying an amplitude of one, centre frequency of 1.5 GHz and picking an arbitrary identifier of ``my_ricker``. The Hertzian dipole source is created using the ``#hertzian_dipole`` command, specifying a z direction polarisation (the survey direction if a B-scan were being created), location on the surface of the slab, and using the Ricker waveform already created.
+The Ricker waveform is created with the ``#waveform`` command, specifying an amplitude of one, centre frequency of 1.5 GHz and picking an arbitrary identifier of ``my_ricker``. The Hertzian dipole source is created using the ``#hertzian_dipole`` command, specifying a z direction polarisation (perpendicular to the survey direction if a B-scan were being created), location on the surface of the slab, and using the Ricker waveform already created.
 
 Calculate a spatial resolution and domain size
 ----------------------------------------------
 
-In the :ref:`guidance` section it was stated that a good *rule-of-thumb* was that the spatial resolution should be one tenth of the smallest wavelength present in the model. To determine the smallest wavelength, the highest frequency present in the model is required. This is not the centre frequency of the Ricker waveform! By examining the spectrum of the Ricker waveform it is evident much higher frequencies are present, 2-3 times as high as the centre frequency. So the highest frequency present in the model is likely to be around 4 GHz. The wavelength at 4 GHz in the half-space would be:
+In the :ref:`guidance` section it was stated that a good *rule-of-thumb* was that the spatial resolution should be one tenth of the smallest wavelength present in the model. To determine the smallest wavelength, the highest frequency and lowest velocity present in the model are required. The highest frequency is not the centre frequency of the Ricker waveform! :ref:`By examining the spectrum of a Ricker waveform <waveforms>` it is evident much higher frequencies are present, i.e. at a level -40dB from the centre frequency, frequencies 2-3 times as high are present. In this case the highest significant frequency present in the model is likely to be around 4 GHz. The wavelength at 4 GHz in the half-space (which has the lowest velocity) would be:
 
 .. math:: \lambda = \frac{c}{f \sqrt{\epsilon_r}} = \frac{299792458}{4\times 10^9 \sqrt{6}} \approx 31~\textrm{mm}
 
@@ -75,18 +75,18 @@ It is desired to see the reflection from the cylinder, therefore the time window
 
 .. math:: t = \frac{0.180}{\frac{c}{\sqrt{6}}} \approx 1.5~\textrm{ns}
 
-This is the minimum time required, but the pulse wavelet has a width of 1.2 ns, to allow for the entire pulse wavelet to be reflected back to the receiver an initial time window of 3 ns will be tested.
+This is the minimum time required, but the source waveform has a width of 1.2 ns, to allow for the entire source waveform to be reflected back to the receiver an initial time window of 3 ns will be tested.
 
 .. code-block:: none
 
     #time_window: 3e-9
 
-gprMax will calculate the time step required for the model using the CFL condition in 2D.
+The time step required for the model is automatically calculated using the :ref:`CFL condition in 2D <guidance>`.
 
 Create the objects
 ------------------
 
-Now physical objects can created for the half-space and the cylinder. First the ``#box`` command will be used to create the half-space and then the ``#cylinder`` command will be given which will overwrite the properties of the half-space with those of the cylinder at the location of the cylinder.
+Now physical objects can be created for the half-space and the cylinder. First the ``#box`` command will be used to create the half-space and then the ``#cylinder`` command will be given which will overwrite the properties of the half-space with those of the cylinder at the location of the cylinder.
 
 .. code-block:: none
 
@@ -102,6 +102,9 @@ You can now run the model:
 
     python -m gprMax user_models/cylinder_Ascan_2D.in
 
+.. tip::
+    * You can use the ``--geometry-only`` command line argument to build a model and produce any geometry views but not run the simulation. This option is useful for checking the geometry of the model is correct.
+
 View the results
 ----------------
 
@@ -111,14 +114,14 @@ You should have produced an output file ``cylinder_Ascan_2D.out``. You can view 
 
     python -m tools.plot_Ascan user_models/cylinder_Ascan_2D.out
 
-:numref:`cylinder_Ascan_results` shows the time history of the electric and magnetic field components and currents at the receiver location. The :math:`E_z` field component can be converted to voltage which represents the A-scan (trace). The initial part of the signal (<1.5 ns) represents the direct wave from transmitter to receiver. Then comes the reflected wavelet from the metal cylinder.
+:numref:`cylinder_Ascan_results` shows the time history of the electric and magnetic field components and currents at the receiver location. The :math:`E_z` field component can be converted to voltage which represents the A-scan (trace). The initial part of the signal (<1.5 ns) represents the direct wave from transmitter to receiver. Then comes the reflected wavelet (~1.8-2.6 ns), which has opposite polarity, from the metal cylinder.
 
 .. _cylinder_Ascan_results:
 
 .. figure:: images/cylinder_Ascan_results.png
     :width: 600px
 
-    Field outputs from a model of a metal cylinder buried in a dielectric half-space.
+    Electric and magnetic field components and currents outputs from a model of a metal cylinder buried in a dielectric half-space.
 
 
 B-scan from a metal cylinder

@@ -57,6 +57,8 @@ Results
     Detailed view of input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna (:math:`\Delta f = 1.4~MHz`)
 
 
+.. _example-bowtie:
+
 Bowtie antenna model
 ====================
 
