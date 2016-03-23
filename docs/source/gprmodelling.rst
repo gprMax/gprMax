@@ -98,6 +98,8 @@ An other important factor which influences the spatial discretization is the err
 Note that in general low-loss media wavelengths are much smaller compared to free space.
 
 
+.. _pml:
+
 Absorbing boundary conditions
 =============================
 

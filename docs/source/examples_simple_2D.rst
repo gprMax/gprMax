@@ -17,7 +17,7 @@ This example is the GPR modelling equivalent of 'Hello World'! It demonstrates h
     :language: none
     :linenos:
 
-The geometry of the scenario is straightforward and is shown in :numref:`cylinder_half_space_geo`.
+The geometry of the scenario is straightforward and is shown in :numref:`cylinder_half_space_geo`. The transparent area around the boundary of the domain represents the :ref:`PML region <pml>`. The red cell is the source and the blue cell is the receiver.
 
 .. _cylinder_half_space_geo:
 
