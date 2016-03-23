@@ -5,7 +5,7 @@
 #
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
-import argparse, pickle
+import argparse, os, pickle
 
 from gprMax.optimisation_taguchi import plot_optimisation_history
 
@@ -20,6 +20,14 @@ f = open(args.picklefile, 'rb')
 optparamshist = pickle.load(f)
 fitnessvalueshist = pickle.load(f)
 optparamsinit = pickle.load(f)
+
+print('Optimisations summary for: {}'.format(os.path.split(args.picklefile)[1]))
+print('Number of iterations: {:g}'.format(len(fitnessvalueshist)))
+print('History of fitness values: {}'.format(fitnessvalueshist))
+print('History of parameter values:')
+for key, value in optparamshist.items():
+    print(key, value)
+      
     
 # Plot the history of fitness values and each optimised parameter values for the optimisation
 plot_optimisation_history(fitnessvalueshist, optparamshist, optparamsinit)
