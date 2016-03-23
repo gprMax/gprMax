@@ -17,7 +17,7 @@ This example is the GPR modelling equivalent of 'Hello World'! It demonstrates h
     :language: none
     :linenos:
 
-The geometry of the scenario is straightforward and is shown in :numref:`cylinder_half_space_geo`. The transparent area around the boundary of the domain represents the :ref:`PML region <pml>`. The red cell is the source and the blue cell is the receiver.
+The geometry of the scenario is straightforward and an image created from the geometry view is shown in :numref:`cylinder_half_space_geo`. The transparent area around the boundary of the domain represents the :ref:`PML region <pml>`. The red cell is the source and the blue cell is the receiver.
 
 .. _cylinder_half_space_geo:
 
@@ -26,7 +26,7 @@ The geometry of the scenario is straightforward and is shown in :numref:`cylinde
 
     Geometry of a 2D model of a metal cylinder buried in a dielectric half-space.
 
-For this initial example a detailed description of what each command in the input file does and why each command was used is given. The following steps explain the steps taken to build the input file:
+For this initial example a detailed description of what each command in the input file does and why each command was used is given. The following steps explain the process of building the input file:
 
 Determine the constitutive parameters for the materials
 -------------------------------------------------------
@@ -129,15 +129,15 @@ B-scan from a metal cylinder
 
 :download:`cylinder_Bscan_2D.in <../../user_models/cylinder_Bscan_2D.in>`
 
-This example using the same geometry as the previous example but this time a B-scan is created. A B-scan is composed of multiple traces (A-scans) recorded as the source and receiver are moved over the target, in this case the metal cylinder.
+This example uses the same geometry as the previous example but this time a B-scan is created. A B-scan is composed of multiple traces (A-scans) recorded as the source and receiver are moved over the target, in this case the metal cylinder.
 
 .. literalinclude:: ../../user_models/cylinder_Bscan_2D.in
     :language: none
     :linenos:
 
-The differences between this input file and the one from the A-scan are the x coordinates of the source and receiver (lines 11 and 12), and the commands needed to move the source and receiver (lines 13 and 14). The source and receiver are offset by 40mm from each other as before. They are now shifted to the starting position for the scan. The ``#src_steps`` command is used to tell gprMax to move every source in the model by specified steps each time the model is run. Similarly, the ``#rx_steps`` command is used to tell gprMax to move every receiver in the model by specified steps each time the model is run. Note, the same functionality could be achieved by using a block of Python code in the input file to move the source and receiver (for further details see the :ref:`Python section <python>`).
+The differences between this input file and the one from the A-scan are the x coordinates of the source and receiver (lines 11 and 12), and the commands needed to move the source and receiver (lines 13 and 14). As before, the source and receiver are offset by 40mm from each other as before but they are now shifted to a starting position for the scan. The ``#src_steps`` command is used to move every source in the model by specified steps each time the model is run. Similarly, the ``#rx_steps`` command is used to move every receiver in the model by specified steps each time the model is run. Note, the same functionality can be achieved by using a block of Python code in the input file to move the source and receiver individually (for further details see the :ref:`Python section <python>`).
 
-To run the model for a B-scan is slightly different than for a single A-scan. You must pass an optional argument to gprMax to specify the number of times the model should be run, which in this case is the number of A-scans (traces) that will comprise the B-scan. For a B-scan over a distance of 120mm with a step of 2mm that is 60 A-scans.
+To run the model to create a B-scan you must pass an optional argument to specify the number of times the model should be run. In this case this is the number of A-scans (traces) that will comprise the B-scan. For a B-scan over a distance of 120mm with a step of 2mm that is 60 A-scans.
 
 .. code-block:: none
 
@@ -161,7 +161,7 @@ You can now view an image of the B-scan using the command:
 
     python -m tools.plot_Bscan user_models/cylinder_Bscan_2D_merged.out Ez
 
-:numref:`cylinder_Bscan_results` shows the B-scan (image of the :math:`E_z` field component). As expected a hyperbolic response is present from the metal cylinder.
+:numref:`cylinder_Bscan_results` shows the B-scan (of the :math:`E_z` field component). Again, the initial part of the signal (<1.5 ns) represents the direct wave from transmitter to receiver. Then comes a hyperbolic response from the metal cylinder.
 
 .. _cylinder_Bscan_results:
 
