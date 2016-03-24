@@ -62,7 +62,7 @@ def process_singlecmds(singlecmds, G):
     cmd = '#num_threads'
     os.environ['OMP_WAIT_POLICY'] = 'active'
     os.environ['OMP_DYNAMIC'] = 'false'
-    os.environ['OMP_PROC_BIND'] = '1'
+    os.environ['OMP_PROC_BIND'] = 'true'
 
     if singlecmds[cmd] != 'None':
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
