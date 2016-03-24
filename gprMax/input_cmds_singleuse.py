@@ -60,7 +60,10 @@ def process_singlecmds(singlecmds, G):
 
     # Number of processors to run on (OpenMP)
     cmd = '#num_threads'
-    ompthreads = os.environ.get('OMP_NUM_THREADS')
+    os.environ['OMP_WAIT_POLICY'] = 'active'
+    os.environ['OMP_DYNAMIC'] = 'false'
+    os.environ['OMP_PROC_BIND'] = '1'
+
     if singlecmds[cmd] != 'None':
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
         if len(tmp) != 1:
@@ -68,15 +71,18 @@ def process_singlecmds(singlecmds, G):
         if tmp[0] < 1:
             raise CmdInputError(cmd + ' requires the value to be an integer not less than one')
         G.nthreads = tmp[0]
-    elif ompthreads:
-        G.nthreads = int(ompthreads)
+        os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
+    elif os.environ.get('OMP_NUM_THREADS'):
+        G.nthreads = int(os.environ.get('OMP_NUM_THREADS'))
     else:
         # Set number of threads to number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
         G.nthreads = psutil.cpu_count(logical=False)
-    if G.nthreads > psutil.cpu_count(logical=False):
-        print('\nWARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, psutil.cpu_count(logical=False)))
+        os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
+
     if G.messages:
         print('Number of threads: {}'.format(G.nthreads))
+    if G.nthreads > psutil.cpu_count(logical=False):
+        print('\nWARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, psutil.cpu_count(logical=False)))
 
 
     # Spatial discretisation
