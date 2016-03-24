@@ -81,7 +81,7 @@ There are commands from previous versions of gprMax that are planned for this ve
 Migrating old input files
 -------------------------
 
-gprMax includes a Python module (in the ``tools`` package) to help you migrate old input files, written for previous versions of gprMax, to the syntax of the new commands. The module has been written for 3D models and will not (currently) work with old input files of 2D models. The module will do its best to convert the old file and write a new one, however, you should still carefully check the new file to make sure it is what you intended! Usage (from the top-level gprMax directory) is: ``python -m tools.inputfile_old2new my_old_inputfile.in``.
+gprMax includes a Python module (in the ``tools`` package) to help you migrate old input files, written for previous versions of gprMax, to the syntax of the new commands. The module will do its best to convert the old file and write a new one, however, you should still carefully check the new file to make sure it is what you intended! Usage (from the top-level gprMax directory) is: ``python -m tools.inputfile_old2new my_old_inputfile.in``.
 
 
 Key features

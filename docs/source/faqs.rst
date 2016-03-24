@@ -20,7 +20,7 @@ No, but it can be beneficial to know a little Python. We have made it easier to 
 Yes, MATLAB has built-in functions to read HDF5 files (http://uk.mathworks.com/help/matlab/high-level-functions.html).
 
 **But converting my input file from the old version of gprMax will be really painful**
-Hopefully not! We have provided a Python module to help you convert input files of 3D models from the old version of gprMax to use syntax introduced in version 3. Please note this module does not currently convert old 2D model input files.
+Hopefully not! We have provided a Python module to help you convert input files from the old version of gprMax to use syntax introduced in version 3.
 
 **How do I choose a spatial resolution for my simulation?**
 Spatial resolution should be chosen to mitigate numerical dispersion and to adequately resolve geometry in your simulation. :ref:`A 2D example of modelling a metal cylinder in a dielectric <example-2D-Ascan>` provides guidance on how to determine spatial resolution.
