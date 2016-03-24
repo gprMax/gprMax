@@ -152,60 +152,6 @@ Allows you to control how many OpenMP threads (usually the number of physical CP
 
 where ``i1`` is the number of OpenMP threads to use. If ``#num_threads`` is not specified gprMax will firstly look to see if the environment variable ``OMP_NUM_THREADS`` exists, and if not will detect and use all available CPU cores on the machine.
 
-.. _geometryview:
-
-#geometry_view:
----------------
-
-Allows you output to file(s) information about the geometry of model. The file(s) use the open source Visualization ToolKit (VTK) (http://www.vtk.org) format which can be viewed in many free readers, such as Paraview (http://www.paraview.org). The command can be used to create several 3D views of the model which are useful for checking that it has been constructed as desired. The syntax of the command is:
-
-.. code-block:: none
-
-    #geometry_view: f1 f2 f3 f4 f5 f6 f7 f8 f9 file1 c1
-
-* ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the volume of the geometry view in metres.
-* ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the volume of the geometry view in metres.
-* ``f7 f8 f9`` are the spatial discretisation of the geometry view in metres. Typically these will be the same as the spatial discretisation of the model but they can be courser if desired.
-* ``file1`` is the filename of the file where the geometry view will be stored.
-* ``c1`` can be either n (normal) or f (fine) which specifies whether to output the geometry information on a per-cell basis (n) or a per-cell-edge basis (f). The fine mode should be reserved for viewing detailed parts of the geometry that occupy small volumes, as using this mode can generate geometry files with large file sizes.
-
-.. tip::
-
-    When you want to just check the geometry of your model, run gprMax using the optional command line argument ``--geometry-only``. This will build the model and produce any geometry view files, but will not run the simulation.
-
-#snapshot:
-----------
-
-Allows you to obtain information about the electromagnetic fields within a volume of the model at a given time instant. The file(s) use the open source Visualization ToolKit (VTK) (http://www.vtk.org) format which can be viewed in many free readers, such as Paraview (http://www.paraview.org). The syntax of this command is:
-
-.. code-block:: none
-
-    #snapshot: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 file1
-
-or
-
-.. code-block:: none
-
-    #snapshot: f1 f2 f3 f4 f5 f6 f7 f8 f9 i1 file1
-
-* ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the volume of the snapshot in metres.
-* ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the volume of the snapshot in metres.
-* ``f7 f8 f9`` are the spatial discretisation of the snapshot in metres.
-* ``f10`` or ``i1`` are the time in seconds (float) or the iteration number (integer) which denote the point in time at which the snapshot will be taken.
-* ``file1`` is the filename of the file where the snapshot will be stored.
-
-For example to save a snapshot of the electromagnetic fields in the model at a simulated time of 3 nanoseconds use: ``#snapshot: 0 0 0 1 1 1 0.1 0.1 0.1 3e-9 snap1``
-
-.. tip::
-    You can take advantage of Python scripting to easily create a series of snapshots. For example, to create 30 snapshots starting at time 0.1ns until 3ns in intervals of 0.1ns, use the following code snippet in your input file. Replace ``x1 y1 z1 x2 y2 z2 dx dy dz`` accordingly.
-
-    .. code-block:: none
-
-        #python:
-        for i in range(1, 31):
-            print('#snapshot: x1 y1 z1 x2 y2 z2 dx dy dz {} snapshot{}'.format((i/10)*1e-9, i))
-        #end_python:
-
 
 .. _materials:
 
@@ -408,6 +354,29 @@ At the boundaries between different materials in the model there is the question
 
     * If an object is anistropic then dielectric smoothing is automatically turned off for that object.
     * Non-volumetric object building commands, ``#edge`` and ``#plate`` cannot have dielectric smoothing.
+
+
+.. _geometryview:
+
+#geometry_view:
+---------------
+
+Allows you output to file(s) information about the geometry of model. The file(s) use the open source Visualization ToolKit (VTK) (http://www.vtk.org) format which can be viewed in many free readers, such as Paraview (http://www.paraview.org). The command can be used to create several 3D views of the model which are useful for checking that it has been constructed as desired. The syntax of the command is:
+
+.. code-block:: none
+
+    #geometry_view: f1 f2 f3 f4 f5 f6 f7 f8 f9 file1 c1
+
+* ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the volume of the geometry view in metres.
+* ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the volume of the geometry view in metres.
+* ``f7 f8 f9`` are the spatial discretisation of the geometry view in metres. Typically these will be the same as the spatial discretisation of the model but they can be courser if desired.
+* ``file1`` is the filename of the file where the geometry view will be stored.
+* ``c1`` can be either n (normal) or f (fine) which specifies whether to output the geometry information on a per-cell basis (n) or a per-cell-edge basis (f). The fine mode should be reserved for viewing detailed parts of the geometry that occupy small volumes, as using this mode can generate geometry files with large file sizes.
+
+.. tip::
+
+    When you want to just check the geometry of your model, run gprMax using the optional command line argument ``--geometry-only``. This will build the model and produce any geometry view files, but will not run the simulation.
+
 
 #edge:
 ------
@@ -789,6 +758,40 @@ Provide a simple method to allow you to move the location of all sources (``#src
     #rx_steps: f1 f2 f3
 
 ``f1 f2 f3`` are increments (x,y,z) to move all sources (``#hertzian_dipole``, ``#magnetic_dipole``, or ``#voltage_source``) or all receivers (created using either ``#rx`` or ``#rx_box`` commands).
+
+#snapshot:
+----------
+
+Allows you to obtain information about the electromagnetic fields within a volume of the model at a given time instant. The file(s) use the open source Visualization ToolKit (VTK) (http://www.vtk.org) format which can be viewed in many free readers, such as Paraview (http://www.paraview.org). The syntax of this command is:
+
+.. code-block:: none
+
+    #snapshot: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 file1
+
+or
+
+.. code-block:: none
+
+    #snapshot: f1 f2 f3 f4 f5 f6 f7 f8 f9 i1 file1
+
+* ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the volume of the snapshot in metres.
+* ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the volume of the snapshot in metres.
+* ``f7 f8 f9`` are the spatial discretisation of the snapshot in metres.
+* ``f10`` or ``i1`` are the time in seconds (float) or the iteration number (integer) which denote the point in time at which the snapshot will be taken.
+* ``file1`` is the filename of the file where the snapshot will be stored.
+
+For example to save a snapshot of the electromagnetic fields in the model at a simulated time of 3 nanoseconds use: ``#snapshot: 0 0 0 1 1 1 0.1 0.1 0.1 3e-9 snap1``
+
+.. tip::
+    You can take advantage of Python scripting to easily create a series of snapshots. For example, to create 30 snapshots starting at time 0.1ns until 3ns in intervals of 0.1ns, use the following code snippet in your input file. Replace ``x1 y1 z1 x2 y2 z2 dx dy dz`` accordingly.
+
+    .. code-block:: none
+
+        #python:
+        for i in range(1, 31):
+            print('#snapshot: x1 y1 z1 x2 y2 z2 dx dy dz {} snapshot{}'.format((i/10)*1e-9, i))
+        #end_python:
+
 
 .. _pml:
 
