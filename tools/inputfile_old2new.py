@@ -37,15 +37,18 @@ with open(inputfile, 'r') as f:
 try:
     newfile = inputfile.split('.')[0]
 except:
-    pass
-newfile += '_newstyle'
+    newfile = inputfile
+newfile += '_v3syntax'
 
 print("Attempting to convert inputfile '{}' to use new syntax...\n".format(inputfile))
 
 txs = []
 badwaveforms = ['gaussiandot', 'gaussiandotdot']
+linesources = []
 voltagesources = []
 hertziandipoles = []
+model2D = False
+
 
 lindex = 0
 while(lindex < len(inputlines)):
@@ -55,14 +58,47 @@ while(lindex < len(inputlines)):
         cmdname = cmd[0].lower()
         params = cmd[1].split()
 
-        if cmdname == '#domain':
-            domain = (float(params[0]), float(params[1]), float(params[2]))
+        if cmdname == '#dx_dy':
+            model2D = True
+            # Syntax of old command: #dx_dy: x y
+            replacement = '#dx_dy_dz: {:g} {:g} {:g}'.format(float(params[0]), float(params[1]), float(params[1]))
+            print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
+            inputlines.pop(lindex)
+            inputlines.insert(lindex, replacement)
             lindex += 1
-
+            dx_dy_dz = (float(params[0]), float(params[1]), float(params[1]))
+        
         elif cmdname == '#dx_dy_dz':
             dx_dy_dz = (float(params[0]), float(params[1]), float(params[2]))
             lindex += 1
+
+        else:
+            lindex += 1
+
+    else:
+        lindex +=1
+
+lindex = 0
+while(lindex < len(inputlines)):
+    
+    if inputlines[lindex].startswith('#') and not inputlines[lindex].startswith('##'):
+        cmd = inputlines[lindex].split(':')
+        cmdname = cmd[0].lower()
+        params = cmd[1].split()
         
+        if cmdname == '#domain':
+            if model2D:
+                # Syntax of old command: #domain: x y
+                replacement = '#domain: {:g} {:g} {:g}'.format(float(params[0]), float(params[1]), dx_dy_dz[2])
+                print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
+                inputlines.pop(lindex)
+                inputlines.insert(lindex, replacement)
+                domain = (float(params[0]), float(params[1]), dx_dy_dz[2])
+            else:
+                domain = (float(params[0]), float(params[1]), float(params[2]))
+
+            lindex += 1
+
         elif cmdname == '#time_window':
             params = params[0].lower()
             if '.' in params[0] or 'e' in params[0].lower():
@@ -83,6 +119,10 @@ while(lindex < len(inputlines)):
             txs.append(inputlines[lindex])
             lindex += 1
 
+        elif cmdname == '#line_source':
+            linesources.append(inputlines[lindex])
+            lindex += 1
+
         elif cmdname == '#voltage_source':
             voltagesources.append(inputlines[lindex])
             lindex += 1
@@ -90,6 +130,42 @@ while(lindex < len(inputlines)):
         elif cmdname == '#hertzian_dipole':
             hertziandipoles.append(inputlines[lindex])
             lindex += 1
+
+        elif cmdname == '#rx':
+            if model2D:
+                # Syntax of old command: #rx: x1 y1
+                replacement = '#rx: {} {} {}'.format(params[0], params[1], 0)
+                print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
+                inputlines.pop(lindex)
+                inputlines.insert(lindex, replacement)
+                lindex += 1
+
+        elif cmdname == '#rx_box':
+            if model2D:
+                # Syntax of old command: #rx_box: x1 y1 x2 y2 dx dy
+                replacement = '#rx_box: {} {} {} {} {} {} {} {} {}'.format(params[0], params[1], 0, params[2], params[3], dx_dy_dz[2], params[4], params[5], dx_dy_dz[2])
+                print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
+                inputlines.pop(lindex)
+                inputlines.insert(lindex, replacement)
+                lindex += 1
+
+        elif cmdname == '#tx_steps':
+            if model2D:
+                # Syntax of old command: #tx_steps: dx dy
+                replacement = '#src_steps: {} {} {}'.format(params[0], params[1], 0)
+                print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
+                inputlines.pop(lindex)
+                inputlines.insert(lindex, replacement)
+                lindex += 1
+
+        elif cmdname == '#rx_steps':
+            if model2D:
+                # Syntax of old command: #rx_steps: dx dy
+                replacement = '#rx_steps: {} {} {}'.format(params[0], params[1], 0)
+                print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
+                inputlines.pop(lindex)
+                inputlines.insert(lindex, replacement)
+                lindex += 1
 
         elif cmdname == '#medium':
             # Syntax of old command: #medium: e_rs e_inf tau sig_e mu_r sig_m ID
@@ -103,9 +179,23 @@ while(lindex < len(inputlines)):
                 inputlines.insert(lindex + 1, replacement)
             lindex += 1
 
+        elif cmdname == '#box':
+            if model2D:
+                # Syntax of old command: #box: x1 y1 x2 y2 ID
+                replacement = '#box: {} {} {} {} {} {} {}'.format(params[0], params[1], 0, params[2], params[3], dx_dy_dz[2], params[4])
+                print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
+                inputlines.pop(lindex)
+                inputlines.insert(lindex, replacement)
+                lindex += 1
+
         elif cmdname == '#triangle':
-            # Syntax of old command: #triangle: x1 y1 z1 x2 y2 z2 x3 y3 z3 ID
-            replacement = '#triangle: {} {} {} {} {} {} {} {} {} {} {}'.format(params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7], params[8], 0, params[9])
+            if model2D:
+                # Syntax of old command: #triangle: x1 y1 x2 y2 x3 y3 ID
+                replacement = '#triangle: {} {} {} {} {} {} {} {} {} {} {}'.format(params[0], params[1], 0, params[2], params[3], 0, params[4], params[5], 0, dx_dy_dz[2], params[6])
+            else:
+                # Syntax of old command: #triangle: x1 y1 z1 x2 y2 z2 x3 y3 z3 ID
+                replacement = '#triangle: {} {} {} {} {} {} {} {} {} {} {}'.format(params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7], params[8], 0, params[9])
+
             print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
             inputlines.pop(lindex)
             inputlines.insert(lindex, replacement)
@@ -124,13 +214,18 @@ while(lindex < len(inputlines)):
             inputlines.pop(lindex)
 
         elif cmdname == '#cylinder':
-            # Syntax of old command: #cylinder: axis axis_start axis_stop f1 f2 radius ID
-            if params[0] == 'x':
-                replacement = '#cylinder: {} {} {} {} {} {} {} {} {} {} {}'.format(params[1], params[3], params[4], params[2], params[3], params[4], params[5], params[6])
-            elif params[0] == 'y':
-                replacement = '#cylinder: {} {} {} {} {} {} {} {} {} {} {}'.format(params[3], params[1], params[4], params[3], params[2], params[4], params[5], params[6])
-            elif params[0] =='z':
-                replacement = '#cylinder: {} {} {} {} {} {} {} {} {} {} {}'.format(params[3], params[4], params[1], params[3], params[4], params[2], params[5], params[6])
+            if model2D:
+                # Syntax of old command: #cylinder: x y radius ID
+                replacement = '#cylinder: {} {} {} {} {} {} {} {}'.format(params[0], params[1], 0, params[0], params[1], dx_dy_dz[2], params[2], params[3])
+            else:
+                # Syntax of old command: #cylinder: axis axis_start axis_stop f1 f2 radius ID
+                if params[0] == 'x':
+                    replacement = '#cylinder: {} {} {} {} {} {} {} {}'.format(params[1], params[3], params[4], params[2], params[3], params[4], params[5], params[6])
+                elif params[0] == 'y':
+                    replacement = '#cylinder: {} {} {} {} {} {} {} {}'.format(params[3], params[1], params[4], params[3], params[2], params[4], params[5], params[6])
+                elif params[0] =='z':
+                    replacement = '#cylinder: {} {} {} {} {} {} {} {}'.format(params[3], params[4], params[1], params[3], params[4], params[2], params[5], params[6])
+
             print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
             inputlines.pop(lindex)
             inputlines.insert(lindex, replacement)
@@ -146,6 +241,10 @@ while(lindex < len(inputlines)):
         
         elif cmdname == '#cylindrical_segment':
             print("Command '{}' has been removed as it is no longer supported. You can create a cylindrical segment by using a #box to cut through a #cylinder.".format(inputlines[lindex]))
+            inputlines.pop(lindex)
+
+        elif cmdname in ['#x_segment', '#y_segment']:
+            print("Command '{}' has been removed. A circular segment can be created by using the #cylinder command and cutting it with a #box. Alternatively the #cylindrical_sector command maybe useful.".format(inputlines[lindex]))
             inputlines.pop(lindex)
 
         elif cmdname == '#media_file':
@@ -178,8 +277,12 @@ while(lindex < len(inputlines)):
             inputlines.pop(lindex)
 
         elif cmdname == '#snapshot':
-            # Syntax of old command: #snapshot: i1 x1 y1 z1 x2 y2 z2 dx dy dz time filename type
-            replacement = '#snapshot: {} {} {} {} {} {} {} {} {} {} {}'.format(params[1], params[2], params[3], params[4], params[5], params[6], params[7], params[8], params[9], params[10], params[11])
+            if model2D:
+                # Syntax of old command: #snapshot: i1 x1 y1 x2 y2 dx dy time filename type
+                replacement = '#snapshot: {} {} {} {} {} {} {} {} {} {} {}'.format(params[1], params[2], 0, params[3], params[4], dx_dy_dz[2], params[5], params[6], dx_dy_dz[2], params[7], params[8])
+            else:
+                # Syntax of old command: #snapshot: i1 x1 y1 z1 x2 y2 z2 dx dy dz time filename type
+                replacement = '#snapshot: {} {} {} {} {} {} {} {} {} {} {}'.format(params[1], params[2], params[3], params[4], params[5], params[6], params[7], params[8], params[9], params[10], params[11])
             print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
             inputlines.pop(lindex)
             inputlines.insert(lindex, replacement)
@@ -211,6 +314,27 @@ while(lindex < len(inputlines)):
 
     else:
         lindex +=1
+
+# Convert separate #line_source and associated #tx to #waveform and #hertzian_dipole
+for source in linesources:
+    params = source.split()
+    if params[3] is badwaveforms:
+        raise CmdInputError("Waveform types {} are not compatible between new and old versions of gprMax.".format(''.join(badwaveforms)))
+    elif params[3] == 'ricker':
+        params[3] = 'gaussiandotnorm'
+    waveform = '#waveform: {} {} {} {}'.format(params[3], params[1], params[2], params[4])
+    tx = next(tx for tx in txs if tx.split()[3] == params[4])
+    hertziantx = tx.split()
+    if float(hertziantx[4]) > 0 or float(hertziantx[5]) != timewindow:
+        hertzian = '#hertzian_dipole: z {} {} {} {} {} {}'.format(hertziantx[1], hertziantx[2], 0, hertziantx[3], hertziantx[4], hertziantx[5])
+    else:
+        hertzian = '#hertzian_dipole: z {} {} {} {}'.format(hertziantx[1], hertziantx[2], 0, hertziantx[3])
+
+    print("Commands '{}' and '{}', replaced with '{}' and '{}'".format(source, tx, waveform, hertzian))
+    inputlines.remove(source)
+    inputlines.remove(tx)
+    inputlines.append(waveform)
+    inputlines.append(hertzian)
 
 # Convert separate #hertzian_dipole and associated #tx to #waveform and #hertzian_dipole
 for source in hertziandipoles:
