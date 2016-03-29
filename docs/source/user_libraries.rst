@@ -23,12 +23,12 @@ These antenna models can be accessed from within a block of Python code in your 
     antenna_like_GSSI_1500(0.125, 0.094, 0.100, 0.001)
     #end_python:
 
+.. figure:: images/antenna_like_GSSI_1500.png
+    :width: 600 px
+
+    FDTD geometry mesh showing an antenna model similar to a GSSI 1.5   GHz antenna (skid removed for illustrative purposes).
+
 .. figure:: images/antenna_like_MALA_1200.png
     :width: 600 px
 
     FDTD geometry mesh showing an antenna model similar to a MALA 1.2GHz antenna (skid removed for illustrative purposes).
-
-.. figure:: images/antenna_like_GSSI_1500.png
-    :width: 600 px
-
-    FDTD geometry mesh showing an antenna model similar to a GSSI 1.5GHz antenna (skid removed for illustrative purposes).
