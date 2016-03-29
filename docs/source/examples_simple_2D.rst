@@ -1,5 +1,5 @@
 ************************
-Introductory models - 2D
+Introductory (2D) models
 ************************
 
 This section provides some introductory example models in 2D that demonstrate basic features of gprMax. Each example comes with an input file which you can download and run.
