@@ -21,7 +21,7 @@ gprMax User Guide
 
 .. toctree::
     :maxdepth: 2
-    :caption: Additional tools
+    :caption: Additional Python tools
 
     plotting
     utils
@@ -31,6 +31,7 @@ gprMax User Guide
     :caption: Advanced topics
 
     python_scripting
+    user_libraries
     openmp_mpi
 
 .. toctree::
