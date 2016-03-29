@@ -15,7 +15,7 @@ This example is of a Hertzian dipole, i.e. an additive source (electric current 
     :language: none
     :linenos:
 
-The function ``hertzian_dipole_fs``, which can be found in the ``analytical solutions`` module in the ``tests`` sub-package, computes the analytical solution.
+The function ``hertzian_dipole_fs``, which can be found in the ``analytical_solutions`` module in the ``tests`` sub-package, computes the analytical solution.
 
 Results
 -------
