@@ -21,7 +21,7 @@ gprMax User Guide
 
 .. toctree::
     :maxdepth: 2
-    :caption: Additional tools
+    :caption: Python tools
 
     plotting
     utils
@@ -32,6 +32,7 @@ gprMax User Guide
 
     python_scripting
     openmp_mpi
+    user_libraries
 
 .. toctree::
     :maxdepth: 2
@@ -50,10 +51,15 @@ gprMax User Guide
 
 .. toctree::
     :maxdepth: 2
-    :caption: Appendices
+    :caption: Accuracy and performance
 
     comparisons_analytical
     comparisons_numerical
     benchmarking
+
+.. toctree::
+    :maxdepth: 2
+    :caption: Appendices
+
     references
 

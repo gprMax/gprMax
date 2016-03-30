@@ -1,8 +1,8 @@
 .. _benchmarking:
 
-************
-Benchmarking
-************
+************************
+Performance benchmarking
+************************
 
 This section provides information and results from performance benchmarking of gprMax.
 

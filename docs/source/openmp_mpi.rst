@@ -1,8 +1,8 @@
 .. _openmp-mpi:
 
-************************
-Parallelism - OpenMP/MPI
-************************
+***********
+Parallelism
+***********
 
 OpenMP
 ======
