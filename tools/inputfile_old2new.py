@@ -42,13 +42,12 @@ newfile += '_v3syntax'
 
 print("Attempting to convert inputfile '{}' to use new syntax...\n".format(inputfile))
 
+model2D = False
 txs = []
 badwaveforms = ['gaussiandot', 'gaussiandotdot']
 linesources = []
 voltagesources = []
 hertziandipoles = []
-model2D = False
-
 
 lindex = 0
 while(lindex < len(inputlines)):
