@@ -30,7 +30,7 @@ from gprMax.exceptions import GeneralError
 from gprMax.fields_update import update_electric, update_magnetic, update_electric_dispersive_multipole_A, update_electric_dispersive_multipole_B, update_electric_dispersive_1pole_A, update_electric_dispersive_1pole_B
 from gprMax.grid import FDTDGrid, dispersion_check
 from gprMax.input_cmds_geometry import process_geometrycmds
-from gprMax.input_cmds_file import python_code_blocks, write_python_processed, check_cmd_names
+from gprMax.input_cmds_file import process_python_include_code, write_processed_file, check_cmd_names
 from gprMax.input_cmds_multiuse import process_multicmds
 from gprMax.input_cmds_singleuse import process_singlecmds
 from gprMax.materials import Material
@@ -53,7 +53,7 @@ def main():
     parser.add_argument('-mpi', action='store_true', default=False, help='switch on MPI task farm')
     parser.add_argument('-benchmark', action='store_true', default=False, help='switch on benchmarking mode')
     parser.add_argument('--geometry-only', action='store_true', default=False, help='only build model and produce geometry file(s)')
-    parser.add_argument('--write-python', action='store_true', default=False, help='write an input file after any Python code blocks in the original input file have been processed')
+    parser.add_argument('--write-processed', action='store_true', default=False, help='write an input file after any Python and #include code in the original input file have been processed')
     parser.add_argument('--opt-taguchi', action='store_true', default=False, help='optimise parameters using the Taguchi optimisation method')
     args = parser.parse_args()
     numbermodelruns = args.n
@@ -246,11 +246,11 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     print('Constants/variables available for Python scripting: {}\n'.format(usernamespace))
     
     # Process any user input Python commands
-    processedlines = python_code_blocks(inputfile, usernamespace)
+    processedlines = process_python_include_code(inputfile, usernamespace)
     
     # Write a file containing the input commands after Python blocks have been processed
-    if args.write_python:
-        write_python_processed(inputfile, modelrun, numbermodelruns, processedlines)
+    if args.write_processed:
+        write_processed_file(inputfile, modelrun, numbermodelruns, processedlines)
     
     # Check validity of command names & that essential commands are present
     singlecmds, multicmds, geometry = check_cmd_names(processedlines)
