@@ -108,6 +108,18 @@ General commands
 
 Allows you to write blocks of Python code between ``#python`` and ``#end_python`` in the input file. The code is executed when the input file is read by gprMax. For further details see the :ref:`Python section <python-scripting>`.
 
+#include:
+-------------------------
+
+Allows you to input include commands from a file. It will insert the commands from the specified file at the location where the ``#include`` commands is placed. The syntax of the command is:
+
+.. code-block:: none
+
+    #include: str1
+
+``str1`` can be the name of the file containing the commands in the same directory as the input file, or ``str1`` can be the full path to the file containing the commands (allowing you to specify any location).
+
+
 #time_step_stability_factor:
 ----------------------------
 
@@ -621,7 +633,7 @@ If there are less amplitude values than the number of iterations that are going 
 
 .. code-block:: none
 
-    #excitation_file: file1
+    #excitation_file: str1
 
 ``str1`` can be the name of the file containing the specified waveform in the same directory as the input file, or ``str1`` can be the full path to the file containing the specified waveform (allowing you to specify any location).
 
