@@ -53,7 +53,7 @@ def main():
     parser.add_argument('-mpi', action='store_true', default=False, help='switch on MPI task farm')
     parser.add_argument('-benchmark', action='store_true', default=False, help='switch on benchmarking mode')
     parser.add_argument('--geometry-only', action='store_true', default=False, help='only build model and produce geometry file(s)')
-    parser.add_argument('--write-processed', action='store_true', default=False, help='write an input file after any Python and #include code in the original input file have been processed')
+    parser.add_argument('--write-processed', action='store_true', default=False, help='write an input file after any Python code and include commands in the original input file have been processed')
     parser.add_argument('--opt-taguchi', action='store_true', default=False, help='optimise parameters using the Taguchi optimisation method')
     args = parser.parse_args()
     numbermodelruns = args.n
