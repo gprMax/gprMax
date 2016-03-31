@@ -40,7 +40,40 @@ def process_geometrycmds(geometry, G):
     for object in geometry:
         tmp = object.split()
         
-        if tmp[0] == '#edge:':
+        if tmp[0] == '#geometry_objects_file:':
+            if len(tmp) != 2:
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly one parameter')
+            geofile = tmp[1]
+
+            # See if file exists at specified path and if not try input file directory
+            if not os.path.isfile(geofile):
+                geofile = os.path.join(G.inputdirectory, geofile)
+
+            data = np.load(geofile)
+            nx = data.shape[0]
+            ny = data.shape[1]
+            nz = data.shape[2]
+            
+            if nx > G.nx or ny > G.ny or nz > G.nz:
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the requested geometry objects do not fit within the model domain')
+            
+            for i in range(nx):
+                for j in range(ny):
+                    for k in range(nz):
+                        numIDlocal = data[i, j, k]
+                        for material in G.materials:
+                            try:
+                                material.ID.split('_')[1]
+                                if int(material.ID.split('_')[1]) == numIDlocal:
+                                    numID = numIDx = numIDy = numIDz = material.numID
+                                    build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, G.solid, G.rigidE, G.rigidH, G.ID)
+                                else:
+                                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot find material ID {}'.format(numIDlocal))
+                            except:
+                                pass
+                                    
+        
+        elif tmp[0] == '#edge:':
             if len(tmp) != 8:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly seven parameters')
             
