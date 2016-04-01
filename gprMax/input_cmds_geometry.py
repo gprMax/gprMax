@@ -19,7 +19,6 @@
 import os
 import h5py
 import numpy as np
-import xml.etree.ElementTree as ET
 
 from gprMax.constants import floattype
 from gprMax.exceptions import CmdInputError
@@ -41,20 +40,30 @@ def process_geometrycmds(geometry, G):
         tmp = object.split()
         
         if tmp[0] == '#geometry_objects_file:':
-            if len(tmp) != 2:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly one parameter')
-            geofile = tmp[1]
+            if len(tmp) != 5:
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly five parameters')
+
+            xs = round_value(float(tmp[1])/G.dx)
+            ys = round_value(float(tmp[2])/G.dy)
+            zs = round_value(float(tmp[3])/G.dz)
+            geofile = tmp[4]
 
             # See if file exists at specified path and if not try input file directory
             if not os.path.isfile(geofile):
                 geofile = os.path.join(G.inputdirectory, geofile)
+            
+            # Open file and read spatial resolution attribute
+            f = h5py.File(geofile, 'r')
+            dx_dy_dz = f.attrs['dx, dy, dz']
+            if dx_dy_dz[0] != G.dx or dx_dy_dz[1] != G.dy or dx_dy_dz[2] != G.dz:
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires the spatial resolution of the objects file to match the spatial resolution of the model')
 
-            data = np.load(geofile)
+            data = f['/data']
             nx = data.shape[0]
             ny = data.shape[1]
             nz = data.shape[2]
             
-            if nx > G.nx or ny > G.ny or nz > G.nz:
+            if (xs + nx) > G.nx or (ys + ny) > G.ny or (zs + nz) > G.nz:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the requested geometry objects do not fit within the model domain')
             
             for i in range(nx):
@@ -66,7 +75,7 @@ def process_geometrycmds(geometry, G):
                                 material.ID.split('_')[1]
                                 if int(material.ID.split('_')[1]) == numIDlocal:
                                     numID = numIDx = numIDy = numIDz = material.numID
-                                    build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, G.solid, G.rigidE, G.rigidH, G.ID)
+                                    build_voxel(i + xs, j + ys, k + zs, numID, numIDx, numIDy, numIDz, False, G.solid, G.rigidE, G.rigidH, G.ID)
                                 else:
                                     raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot find material ID {}'.format(numIDlocal))
                             except:
