@@ -210,4 +210,3 @@ for rx in range(1, nrx + 1):
     #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '_rx' + str(rx) + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
 plt.show()
-f.close()
