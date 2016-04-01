@@ -111,7 +111,7 @@ Allows you to write blocks of Python code between ``#python`` and ``#end_python`
 #include:
 ---------
 
-Allows you to input include commands from a file. It will insert the commands from the specified file at the location where the ``#include`` commands is placed. The syntax of the command is:
+Allows you to include commands from a file. It will insert the commands from the specified file at the location where the ``#include`` command is placed. The syntax of the command is:
 
 .. code-block:: none
 
