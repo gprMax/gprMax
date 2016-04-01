@@ -211,17 +211,20 @@ def compactness(filename, args):
             thresholdpeak = 1e-3
             peaks = [peak for peak in peaks if np.abs(outputdata[peak]) > thresholdpeak]
             
-            # Percentage of maximum value to measure compactness of signal
-            durationthreshold = 2
-            # Check if there is a peak/trough smaller than threshold
-            durationthresholdexist = np.where(np.abs(outputdata[peaks]) < (peak * (durationthreshold / 100)))[0]
-            if durationthresholdexist.size == 0:
-                compactness = time[peaks[-1]]
-            else:
-                time2threshold = time[peaks[durationthresholdexist[0]]]
-                compactness = time2threshold - time[min(peaks)]
+            # Amplitude ratio of the 1st to 3rd peak - hopefully be a measure of a compact envelope
+            compactness = np.abs(outputdata[peaks[0]]) / np.abs(outputdata[peaks[2]])
+            
+#            # Percentage of maximum value to measure compactness of signal
+#            durationthreshold = 2
+#            # Check if there is a peak/trough smaller than threshold
+#            durationthresholdexist = np.where(np.abs(outputdata[peaks]) < (peak * (durationthreshold / 100)))[0]
+#            if durationthresholdexist.size == 0:
+#                compactness = time[peaks[-1]]
+#            else:
+#                time2threshold = time[peaks[durationthresholdexist[0]]]
+#                compactness = time2threshold - time[min(peaks)]
 
-    return (1 / compactness)
+    return compactness
 
 
 
