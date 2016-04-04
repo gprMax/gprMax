@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from gprMax.constants import c, floattype, complextype
 from gprMax.materials import Material
@@ -91,43 +92,68 @@ class FDTDGrid:
         self.updatecoeffsdispersive = np.zeros((len(self.materials), 3 * Material.maxpoles), dtype=complextype)
 
 
-def dispersion_check(waveforms, materials, dx, dy, dz):
+def dispersion_check(G):
     """Check for potential numerical dispersion. Is the smallest wavelength present in the simulation discretised by at least a factor of 10
         
     Args:
-        waveforms (list): Waveforms present in the model.
-        materials (list): Materials present in the model.
-        dx, dy, dz (float): Spatial discretisation of the model.
+        G (class): Grid class instance - holds essential parameters describing the model.
     
     Returns:
         (boolean): Potential numerical dispersion
     """
     
     # Find maximum frequency
-    freqs = [waveform.freq for waveform in waveforms]
-    if not freqs:
-        return False
-    maxfreq = max(freqs)
-    
-    # Find minimum wavelength
-    ers = [material.er for material in materials]
-    miner = max(ers)
+    maxfreqs = []
+    for waveform in G.waveforms:
+        
+        # User-defined waveform
+        if waveform.uservalues is not None:
+            waveformvalues = waveform.uservalues
+        
+        # Built-in waveform
+        else:
+            time = np.linspace(0, 1, G.iterations)
+            time *= (G.iterations * G.dt)
+            waveformvalues = np.zeros(len(time))
+            timeiter = np.nditer(time, flags=['c_index'])
 
-    # Minimum velocity
-    minvelocity = c / np.sqrt(miner)
+            while not timeiter.finished:
+                waveformvalues[timeiter.index] = waveform.calculate_value(timeiter[0], G.dt)
+                timeiter.iternext()
 
-    # Minimum number of spatial steps to resolve smallest wavelength
-    resolution = 10
-    
-    # Multiplier for centre frequency (2-3 times the centre frequency of a waveform can be present in the simulation)
-    maxfreq *= 3
-    
-    # Minimum wavelength
-    minwavelength = minvelocity / maxfreq
-    
-    # Test for numerical dispersion
-    if max((dx, dy, dz)) > (minwavelength / resolution):
-        return True
+        # Calculate magnitude of frequency spectra of waveform
+        power = 20 * np.log10(np.abs(np.fft.fft(waveformvalues))**2)
+        freqs = np.fft.fftfreq(power.size, d=G.dt)
+
+        # Shift powers so that frequency with maximum power is at zero decibels
+        power -= np.amax(power)
+        
+        # Set maximum frequency to -60dB from maximum power
+        freq = np.where((np.amax(power[1::]) - power[1::]) > 60)[0][0] + 1
+        maxfreqs.append(freqs[freq])
+
+    if maxfreqs:
+        maxfreq = max(maxfreqs)
+        
+        # Find minimum wavelength
+        ers = [material.er for material in G.materials]
+        miner = max(ers)
+
+        # Minimum velocity
+        minvelocity = c / np.sqrt(miner)
+
+        # Minimum number of spatial steps to resolve smallest wavelength
+        resolution = 10
+        
+        # Minimum wavelength
+        minwavelength = minvelocity / maxfreq
+        
+        # Test for numerical dispersion
+        if max((G.dx, G.dy, G.dz)) > (minwavelength / resolution):
+            return True
+        else:
+            return False
+
     else:
         return False
 

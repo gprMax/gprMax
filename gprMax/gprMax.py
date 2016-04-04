@@ -330,7 +330,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             print('{:3}\t{:12}\tepsr={:g}, sig={:g} S/m; mur={:g}, sig*={:g} S/m; '.format(material.numID, material.ID, material.er, material.se, material.mr, material.sm) + tmp + dielectricsmoothing)
 
     # Check to see if numerical dispersion might be a problem
-    if dispersion_check(G.waveforms, G.materials, G.dx, G.dy, G.dz):
+    if dispersion_check(G):
         print('\nWARNING: Potential numerical dispersion in the simulation. Check the spatial discretisation against the smallest wavelength present.')
     
     # Write files for any geometry views
