@@ -30,7 +30,7 @@ class Waveform:
         self.ID = None
         self.type = None
         self.amp = 1
-        self.freq = 0
+        self.freq = None
         self.uservalues = None
 
     def calculate_value(self, time, dt):
