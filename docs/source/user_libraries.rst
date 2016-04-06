@@ -4,12 +4,19 @@
 User libaries
 *************
 
-The user libraries sub-package is where useful modules contributed by users are stored.
+User libraries is a sub-package where useful Python modules contributed by users are stored.
 
 antennas.py
 ===========
 
-This library currently features models of antennas similar to:
+# Copyright (C) 2015-2016, Craig Warren
+#
+# This module is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
+# To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
+#
+# Please use the attribution at http://dx.doi.org/10.1190/1.3548506
+
+This module currently features models of antennas similar to:
 
 * a Geophysical Survey Systems, Inc. (GSSI) 1.5 GHz (Model 5100) antenna (http://www.geophysical.com)
 * a MALA Geoscience 1.2 GHz antenna (http://www.malags.com/)
