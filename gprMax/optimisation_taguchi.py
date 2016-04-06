@@ -62,7 +62,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
     optparamshist = OrderedDict((key, list()) for key in optparams)
     
     # Import specified fitness function
-    fitness_metric = getattr(importlib.import_module('user_libs.optimisation_taguchi_fitness'), fitness['name'])
+    fitness_metric = getattr(importlib.import_module('user_libs.optimisation_taguchi.optimisation_taguchi_fitness'), fitness['name'])
 
     # Select OA
     OA, N, cols, k, s, t = construct_OA(optparams)
