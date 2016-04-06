@@ -1,25 +1,27 @@
 .. _user-libs:
 
-*************
-User libaries
-*************
+**************
+User libraries
+**************
 
 User libraries is a sub-package where useful Python modules contributed by users are stored.
 
 antennas.py
 ===========
 
-    # Copyright (C) 2015-2016, Craig Warren
-    #
-    # This module is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
-    # To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
-    #
-    # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
+    Copyright (C) 2015-2016, Craig Warren
+
+    This module is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
+    To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
+
+    Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
 This module currently features models of antennas similar to:
 
 * a Geophysical Survey Systems, Inc. (GSSI) 1.5 GHz (Model 5100) antenna (http://www.geophysical.com)
 * a MALA Geoscience 1.2 GHz antenna (http://www.malags.com/)
+
+Details of how the models were created can be found at http://dx.doi.org/10.1190/1.3548506
 
 These antenna models can be accessed from within a block of Python code in your simulation. For example, to use Python to include an antenna model similar to a GSSI 1.5 GHz antenna at a location 0.125m, 0.094m, 0.100m (x,y,z) using a 1mm spatial resolution:
 
