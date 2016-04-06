@@ -109,4 +109,4 @@ The cells of the RIPML, which have a user adjustable thickness, very efficiently
 
 gprMax now offers the ability (for advanced users) to customise the parameters of the PML which allows its performance to be better optimised for specific applications. For further details see the :ref:`PML commands section <pml>`.
 
-This user guide, can not serve as an in depth tutorial and a review of the FDTD method. However, some useful hints and tips are given here in order to cover the most fundamental aspects of using an FDTD based program and avoid the most common errors.
+This user guide, cannot serve as an in-depth tutorial and review of the FDTD method. However some useful hints and tips are given in order to cover the most fundamental aspects of using a FDTD based solver and to avoid the most common errors.
