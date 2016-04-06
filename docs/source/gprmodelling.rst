@@ -55,7 +55,7 @@ It is assumed that the half-space which contains the target(s) is of infinite ex
 
 All other *boundary conditions* which apply at interfaces between different media in the FDTD model are automatically enforced in gprMax.
 
-In order to make the most of gprMax in modelling GPR responses ultimately you should be familiar with the FDTD method on which these programs are based. There is a very large amount of information available in the relevant literature. Good starting points are [KUN1993]_ and [TAF2005]_ where as the specific application of FDTD to the GPR forward problem is described in [GIA1997]_.
+In order to make the most of gprMax for modelling GPR you should be familiar with the FDTD method on which the software is based. There is a large amount of information available in the relevant literature. Good starting points are [KUN1993]_ and [TAF2005]_, the specific application of FDTD to the GPR forward problem is described in [GIA1997]_.
 
 
 Coordinate system and conventions
