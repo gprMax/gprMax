@@ -9,12 +9,12 @@ User libraries is a sub-package where useful Python modules contributed by users
 antennas.py
 ===========
 
-# Copyright (C) 2015-2016, Craig Warren
-#
-# This module is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
-# To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
-#
-# Please use the attribution at http://dx.doi.org/10.1190/1.3548506
+    # Copyright (C) 2015-2016, Craig Warren
+    #
+    # This module is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
+    # To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
+    #
+    # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
 This module currently features models of antennas similar to:
 
@@ -33,7 +33,7 @@ These antenna models can be accessed from within a block of Python code in your 
 .. figure:: images/antenna_like_GSSI_1500.png
     :width: 600 px
 
-    FDTD geometry mesh showing an antenna model similar to a GSSI 1.5   GHz antenna (skid removed for illustrative purposes).
+    FDTD geometry mesh showing an antenna model similar to a GSSI 1.5 GHz antenna (skid removed for illustrative purposes).
 
 .. figure:: images/antenna_like_MALA_1200.png
     :width: 600 px
