@@ -18,10 +18,10 @@ antennas.py
     #
     # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
-The module currently features models of antennas similar to:
+The module currently features models of antennas similar to commercial antennas models:
 
-* a Geophysical Survey Systems, Inc. (GSSI) 1.5 GHz (Model 5100) antenna (http://www.geophysical.com)
-* a MALA Geoscience 1.2 GHz antenna (http://www.malags.com/)
+* Geophysical Survey Systems, Inc. (GSSI) 1.5 GHz (Model 5100) antenna (http://www.geophysical.com)
+* MALA Geoscience 1.2 GHz antenna (http://www.malags.com/)
 
 A description of how the models were created can be found at http://dx.doi.org/10.1190/1.3548506.
 
