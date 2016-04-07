@@ -122,11 +122,12 @@ def write_processed_file(inputfile, modelrun, numbermodelruns, processedlines):
     print('Written input commands, after processing any Python code and include commands, to file: {}\n'.format(processedfile))
 
 
-def check_cmd_names(processedlines):
+def check_cmd_names(processedlines, checkessential=True):
     """Checks the validity of commands, i.e. are they gprMax commands, and that all essential commands are present.
         
     Args:
         processedlines (list): Input commands after Python processing.
+        checkessential (boolean): Perform check to see that all essential commands are present.
         
     Returns:
         singlecmds (dict): Commands that can only occur once in the model.
@@ -178,9 +179,10 @@ def check_cmd_names(processedlines):
             geometry.append(processedlines[lindex].strip(' \t\n'))
           
         lindex += 1
-                
-    if (countessentialcmds < len(essentialcmds)):
-        raise CmdInputError('Your input file is missing essential gprMax commands required to run a model. Essential commands are: ' + ', '.join(essentialcmds))
+    
+    if checkessential:
+        if (countessentialcmds < len(essentialcmds)):
+            raise CmdInputError('Your input file is missing essential gprMax commands required to run a model. Essential commands are: ' + ', '.join(essentialcmds))
 
     return singlecmds, multiplecmds, geometry
 
