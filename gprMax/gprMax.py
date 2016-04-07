@@ -259,6 +259,13 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     G = FDTDGrid()
     G.inputdirectory = usernamespace['inputdirectory']
 
+    # Create built-in materials
+    m = Material(0, 'pec', G)
+    m.average = False
+    G.materials.append(m)
+    m = Material(1, 'free_space', G)
+    G.materials.append(m)
+
     # Process parameters for commands that can only occur once in the model
     process_singlecmds(singlecmds, G)
 
@@ -330,8 +337,9 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             print('{:3}\t{:12}\tepsr={:g}, sig={:g} S/m; mur={:g}, sig*={:g} S/m; '.format(material.numID, material.ID, material.er, material.se, material.mr, material.sm) + tmp + dielectricsmoothing)
 
     # Check to see if numerical dispersion might be a problem
-    if dispersion_check(G):
-        print('\nWARNING: Potential numerical dispersion in the simulation. Check the spatial discretisation against the smallest wavelength present.')
+    resolution = dispersion_check(G)
+    if resolution != 0 and max((G.dx, G.dy, G.dz)) > resolution:
+        print('\nWARNING: Potential numerical dispersion in the simulation. Check the spatial discretisation against the smallest wavelength present. Suggested resolution should be less than {:g}m'.format(resolution))
     
     # Write files for any geometry views
     if not G.geometryviews and args.geometry_only:
