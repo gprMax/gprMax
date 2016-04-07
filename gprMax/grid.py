@@ -99,8 +99,11 @@ def dispersion_check(G):
         G (class): Grid class instance - holds essential parameters describing the model.
     
     Returns:
-        (boolean): Potential numerical dispersion
+        resolution (float): Potential numerical dispersion
     """
+    
+    # Minimum number of spatial steps to resolve smallest wavelength
+    resolvedsteps = 10
     
     # Find maximum frequency
     maxfreqs = []
@@ -137,25 +140,21 @@ def dispersion_check(G):
         
         # Find minimum wavelength
         ers = [material.er for material in G.materials]
-        miner = max(ers)
+        maxer = max(ers)
 
         # Minimum velocity
-        minvelocity = c / np.sqrt(miner)
-
-        # Minimum number of spatial steps to resolve smallest wavelength
-        resolution = 10
+        minvelocity = c / np.sqrt(maxer)
         
         # Minimum wavelength
         minwavelength = minvelocity / maxfreq
         
-        # Test for numerical dispersion
-        if max((G.dx, G.dy, G.dz)) > (minwavelength / resolution):
-            return True
-        else:
-            return False
+        # Resolution of minimum wavelength
+        resolution = minwavelength / resolvedsteps
 
     else:
-        return False
+        resolution = 0
+
+    return resolution
 
 
 def get_other_directions(direction):
