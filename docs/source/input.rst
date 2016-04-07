@@ -202,7 +202,7 @@ Allows you to add dispersive properties to an already defined ``#material`` base
 
     \chi_p (t) = \frac{\Delta \epsilon_{rp}}{\tau_p} e^{-t/\tau_p},
 
-where :math:`\Delta \epsilon_{rp} = \epsilon_{rsp} - \epsilon_{r \infty p}`, :math:`\epsilon_{rsp}` is the zero-frequency relative permittivity, :math:`\epsilon_{r \infty p}` is the relative permittivity at infinite frequency, and :math:`\tau_p` is the pole relaxation time.
+where :math:`\Delta \epsilon_{rp} = \epsilon_{rsp} - \epsilon_{r \infty}`, :math:`\epsilon_{rsp}` is the zero-frequency relative permittivity for the pole, :math:`\epsilon_{r \infty}` is the relative permittivity at infinite frequency, and :math:`\tau_p` is the pole relaxation time.
 
 The syntax of the command is:
 
@@ -211,14 +211,14 @@ The syntax of the command is:
     #add_dispersion_debye: i1 f1 f2 f3 f4 ... str1
 
 * ``i1`` is the number of Debye poles.
-* ``f1`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp1} = \epsilon_{rsp1} - \epsilon_{r \infty p1}` , for the first Debye pole.
+* ``f1`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp1} = \epsilon_{rsp1} - \epsilon_{r \infty}` , for the first Debye pole.
 * ``f2`` is the relaxation time (seconds), :math:`\tau_{p1}`, for the first Debye pole.
-* ``f3`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp2} = \epsilon_{rsp2} - \epsilon_{r \infty p2}` , for the second Debye pole.
+* ``f3`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp2} = \epsilon_{rsp2} - \epsilon_{r \infty}` , for the second Debye pole.
 * ``f4`` is the relaxation time (seconds), :math:`\tau_{p2}`, for the second Debye pole.
 * ...
 * ``str1`` identifies the material to add the dispersive properties to.
 
-For example to create a model of water with a single Debye pole, :math:`\epsilon_{rsp1} = 80.1`, :math:`\epsilon_{r \infty p1} = 4.9` and :math:`\tau_{p1} = 9.231\times 10^{-12}` seconds use: ``#material: 4.9 0 1 0 my_water`` and ``#add_dispersion_debye: 1 75.2 9.231e-12 my_water``.
+For example to create a model of water with a single Debye pole, :math:`\epsilon_{rsp1} = 80.1`, :math:`\epsilon_{r \infty} = 4.9` and :math:`\tau_{p1} = 9.231\times 10^{-12}` seconds use: ``#material: 4.9 0 1 0 my_water`` and ``#add_dispersion_debye: 1 75.2 9.231e-12 my_water``.
 
 .. note::
 
@@ -240,9 +240,9 @@ where
 
 .. math::
 
-    \beta_p = \sqrt{\omega_p^2 - \delta_p^2} \quad \textrm{and} \quad \gamma_p = \frac{\omega_p^2 \Delta \epsilon_r}{\beta_p},
+    \beta_p = \sqrt{\omega_p^2 - \delta_p^2} \quad \textrm{and} \quad \gamma_p = \frac{\omega_p^2 \Delta \epsilon_{rp}}{\beta_p},
 
-where :math:`\Delta \epsilon_{rp} = \epsilon_{rsp} - \epsilon_{r \infty p}`, :math:`\epsilon_{rsp}` is the zero-frequency relative permittivity, :math:`\epsilon_{r \infty p}` is the relative permittivity at infinite frequency, :math:`\omega_p` is the frequency (Hertz) of the pole pair, :math:`\delta_p` is the damping coefficient (Hertz) , and :math:`j=\sqrt{-1}`.
+where :math:`\Delta \epsilon_{rp} = \epsilon_{rsp} - \epsilon_{r \infty}`, :math:`\epsilon_{rsp}` is the zero-frequency relative permittivity for the pole, :math:`\epsilon_{r \infty}` is the relative permittivity at infinite frequency, :math:`\omega_p` is the frequency (Hertz) of the pole pair, :math:`\delta_p` is the damping coefficient (Hertz) , and :math:`j=\sqrt{-1}`.
 
 The syntax of the command is:
 
@@ -251,10 +251,10 @@ The syntax of the command is:
     #add_dispersion_lorentz: i1 f1 f2 f3 f4 f5 f6 ... str1
 
 * ``i1`` is the number of Lorentz poles.
-* ``f1`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp1} = \epsilon_{rsp1} - \epsilon_{r \infty p1}` , for the first Lorentz pole.
+* ``f1`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp1} = \epsilon_{rsp1} - \epsilon_{r \infty}` , for the first Lorentz pole.
 * ``f2`` is the frequency (Hertz), :math:`\omega_{p1}`, for the first Lorentz pole.
 * ``f3`` is the damping coefficient (Hertz), :math:`\delta_{p1}`, for the first Lorentz pole.
-* ``f4`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp2} = \epsilon_{rsp2} - \epsilon_{r \infty p2}` , for the second Lorentz pole.
+* ``f4`` is the difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency, i.e. :math:`\Delta \epsilon_{rp2} = \epsilon_{rsp2} - \epsilon_{r \infty}` , for the second Lorentz pole.
 * ``f5`` is the frequency (Hertz), :math:`\omega_{p2}`, for the second Lorentz pole.
 * ``f6`` is the damping coefficient (Hertz), :math:`\delta_{p2}`, for the second Lorentz pole.
 * ...
