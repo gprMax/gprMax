@@ -89,7 +89,7 @@ cpdef bint point_in_polygon(float px, float py, list polycoords):
         polycoords (list): x, y tuples of coordinates that define the polygon.
         
     Returns:
-        (boolean)
+        inside (boolean)
     """
 
     cdef int i
@@ -314,7 +314,8 @@ cpdef void build_triangle(float x1, float y1, float z1, float x2, float y2, floa
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
     """
     
-    cdef int i, j, k, i1, i2, j1, j2, sign, level, thicknesscells
+    cdef Py_ssize_t i, j, k
+    cdef int i1, i2, j1, j2, sign, level, thicknesscells
     cdef float area, s, t
     
     # Calculate a bounding box for the triangle
@@ -401,7 +402,8 @@ cpdef void build_cylindrical_sector(float ctr1, float ctr2, int level, float sec
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
     """
     
-    cdef int x1, x2, y1, y2, z1, z2, x, y, z, thicknesscells
+    cdef Py_ssize_t x, y, z
+    cdef int x1, x2, y1, y2, z1, z2, thicknesscells
     
     if normal == 'x':
         # Angles are defined from zero degrees on the positive y-axis going towards positive z-axis
@@ -465,7 +467,7 @@ cpdef void build_box(int xs, int xf, int ys, int yf, int zs, int zf, int numID, 
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
     """
     
-    cdef int i, j, k
+    cdef Py_ssize_t i, j, k
 
     if averaging:
         for i in range(xs, xf):
@@ -525,7 +527,8 @@ cpdef void build_cylinder(float x1, float y1, float z1, float x2, float y2, floa
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
     """
     
-    cdef int i, j, k, xs, xf, ys, yf, zs, zf
+    cdef Py_ssize_t i, j, k
+    cdef int xs, xf, ys, yf, zs, zf
     cdef float f1f2mag, f2f1mag, f1ptmag, f2ptmag, dot1, dot2, factor1, factor2, theta1, theta2, distance1, distance2
     cdef bint build
     cdef np.ndarray f1f2, f2f1, f1pt, f2pt
@@ -623,7 +626,8 @@ cpdef void build_sphere(int xc, int yc, int zc, float r, float dx, float dy, flo
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
     """
     
-    cdef int i, j, k, xs, xf, ys, yf, zs, zf
+    cdef Py_ssize_t i, j, k
+    cdef int xs, xf, ys, yf, zs, zf
     
     # Calculate a bounding box for sphere
     xs = round_value(((xc * dx) - r) / dx) - 1
@@ -652,4 +656,27 @@ cpdef void build_sphere(int xc, int yc, int zc, float r, float dx, float dy, flo
             for k in range(zs, zf):
                 if np.sqrt((i - xc)**2 * dx**2 + (j - yc)**2 * dy**2 + (k - zc)**2 * dz**2) <= r:
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
+
+
+cpdef void build_voxels_from_array(int xs, int ys, int zs, np.uint16_t[:, :, ::1] data, np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
+    """Builds Yee voxels by reading integers from an array.
+        
+    Args:
+        xs, ys, zs (int): Cell coordinates of position of start of array in domain.
+        data (memoryview): Access to array containing numeric IDs of voxels to create.
+        solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
+    """
+
+    cdef Py_ssize_t i, j, k
+    cdef int nx, ny, nz, numID
+    
+    nx = data.shape[0]
+    ny = data.shape[1]
+    nz = data.shape[2]
+
+    for i in range(nx):
+        for j in range(ny):
+            for k in range(nz):
+                numID = data[i, j, k]
+                build_voxel(i + xs, j + ys, k + zs, numID, numID, numID, numID, False, solid, rigidE, rigidH, ID)
 
