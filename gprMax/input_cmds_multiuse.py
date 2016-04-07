@@ -469,15 +469,6 @@ def process_multicmds(multicmds, G):
 
 
     # Materials
-    # Create built-in materials
-    m = Material(0, 'pec', G)
-    m.average = False
-    G.materials.append(m)
-    
-    m = Material(1, 'free_space', G)
-    m.average = True
-    G.materials.append(m)
-
     cmdname = '#material'
     if multicmds[cmdname] != 'None':
         for cmdinstance in multicmds[cmdname]:
