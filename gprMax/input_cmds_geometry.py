@@ -21,9 +21,11 @@ import h5py
 import numpy as np
 
 from gprMax.constants import floattype
+from gprMax.input_cmds_file import check_cmd_names
+from gprMax.input_cmds_multiuse import process_multicmds
 from gprMax.exceptions import CmdInputError
 from gprMax.fractals import FractalSurface, FractalVolume, Grass
-from gprMax.geometry_primitives import build_edge_x, build_edge_y, build_edge_z, build_face_yz, build_face_xz, build_face_xy, build_triangle, build_voxel, build_box, build_cylinder, build_cylindrical_sector, build_sphere
+from gprMax.geometry_primitives import build_edge_x, build_edge_y, build_edge_z, build_face_yz, build_face_xz, build_face_xy, build_triangle, build_voxel, build_box, build_cylinder, build_cylindrical_sector, build_sphere, build_voxels_from_array
 from gprMax.materials import Material
 from gprMax.utilities import round_value
 
@@ -40,47 +42,53 @@ def process_geometrycmds(geometry, G):
         tmp = object.split()
         
         if tmp[0] == '#geometry_objects_file:':
-            if len(tmp) != 5:
+            if len(tmp) != 6:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly five parameters')
 
             xs = round_value(float(tmp[1])/G.dx)
             ys = round_value(float(tmp[2])/G.dy)
             zs = round_value(float(tmp[3])/G.dz)
             geofile = tmp[4]
-
-            # See if file exists at specified path and if not try input file directory
+            matfile = tmp[5]
+            
+            # See if material file exists at specified path and if not try input file directory
+            if not os.path.isfile(matfile):
+                matfile = os.path.join(G.inputdirectory, matfile)
+            
+            # Read materials from file
+            with open(matfile, 'r') as f:
+                # Strip out any newline characters and comments that must begin with double hashes
+                materials = [line.rstrip() + '\n' for line in f if(not line.startswith('##') and line.rstrip('\n'))]
+            
+            numexistmaterials = len(G.materials)
+            
+            # Check validity of command names
+            singlecmds, multicmds, geometry = check_cmd_names(materials, checkessential=False)
+            
+            # Process parameters for commands that can occur multiple times in the model
+            process_multicmds(multicmds, G)
+            
+            # See if geometry object file exists at specified path and if not try input file directory
             if not os.path.isfile(geofile):
                 geofile = os.path.join(G.inputdirectory, geofile)
             
-            # Open file and read spatial resolution attribute
+            # Open geometry object file and read spatial resolution attribute
             f = h5py.File(geofile, 'r')
             dx_dy_dz = f.attrs['dx, dy, dz']
             if dx_dy_dz[0] != G.dx or dx_dy_dz[1] != G.dy or dx_dy_dz[2] != G.dz:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires the spatial resolution of the objects file to match the spatial resolution of the model')
 
-            data = f['/data']
+            data = f['/data'][:]
             nx = data.shape[0]
             ny = data.shape[1]
             nz = data.shape[2]
             
             if (xs + nx) > G.nx or (ys + ny) > G.ny or (zs + nz) > G.nz:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the requested geometry objects do not fit within the model domain')
-            
-            for i in range(nx):
-                for j in range(ny):
-                    for k in range(nz):
-                        numIDlocal = data[i, j, k]
-                        for material in G.materials:
-                            try:
-                                material.ID.split('_')[1]
-                                if int(material.ID.split('_')[1]) == numIDlocal:
-                                    numID = numIDx = numIDy = numIDz = material.numID
-                                    build_voxel(i + xs, j + ys, k + zs, numID, numIDx, numIDy, numIDz, False, G.solid, G.rigidE, G.rigidH, G.ID)
-                                else:
-                                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot find material ID {}'.format(numIDlocal))
-                            except:
-                                pass
-                                    
+        
+            data += numexistmaterials
+            build_voxels_from_array(xs, ys, zs, data, G.solid, G.rigidE, G.rigidH, G.ID)
+    
         
         elif tmp[0] == '#edge:':
             if len(tmp) != 8:
