@@ -13,63 +13,63 @@ A brief summary of what each input command does is given. Please refer to the :r
 
 The code has been completely re-written in Python/Cython. In the process a lot of changes have been made to improve efficiency, speed, and usability. Many new features have been implemented, which have been focussed on the following areas:
 
-* Scripting in the input file.
+* Scripting in the input file
 * Built-in library of antenna models
-* Anisotropic material modelling.
-* Dispersive material modelling using multiple pole Debye, Lorentz or Drude formulations.
-* Building heterogeneous objects using fractal distributions.
-* Building objects with rough surfaces.
-* Modelling soils with realistic dielectric and geometric properties.
-* Improved PML (RIPML) performance.
+* Anisotropic material modelling
+* Dispersive material modelling using multiple pole Debye, Lorentz or Drude formulations
+* Building heterogeneous objects using fractal distributions
+* Building objects with rough surfaces
+* Modelling soils with realistic dielectric and geometric properties
+* Improved PML (RIPML) performance
 
 New commands
 ------------
 
 * ``#python`` and ``#end_python`` are used to define blocks of the input file where Python code will be executed. This allows the user to use scripting directly in the input file.
-* ``#material`` replaces ``#medium`` with a new syntax.
-* ``#add_dispersion_debye`` is used to add Debye dispersive properties to a ``#material``.
-* ``#add_dispersion_lorentz`` is used to add Lorentz dispersive properties to a ``#material``.
-* ``#add_dispersion_drude`` is used to add Drude dispersive properties to a ``#material``.
-* ``#soil_peplinski`` is a soil mixing model that can be used with ``#fractal_box`` to generate soil(s) with more realistic dielectric and geometric properties.
-* ``#cylindrical_sector`` is a new object building command.
-* ``#geometry_view`` replaces ``#geometry_file`` or ``#geometry_vtk`` and is used to create views of the geometry of the model in open source Visualization ToolKit (VTK) (http://www.vtk.org) format which can be viewed in many free readers, such as Paraview (http://www.paraview.org).
-* ``#fractal_box`` is used to create a volume with a fractal distribution of properties.
-* ``#add_surface_roughness`` is used to add a rough surface to a ``#fractal_box``.
-* ``#add_surface_water`` is used to add surface water to a ``#fractal_box`` that has a rough surface.
-* ``#add_grass`` is used to add grass to a ``#fractal_box``.
-* ``#waveform`` is used to specify a waveform shape, and works in conjunction with the changed source commands.
-* ``#magnetic_dipole`` is used to introduce a magnetic dipole source, i.e. current on a small loop.
-* ``#pml_cfs`` is an advanced command for adjusting the CFS parameters used in the new PML.
+* ``#material`` replaces ``#medium`` with a new syntax
+* ``#add_dispersion_debye`` is used to add Debye dispersive properties to a ``#material``
+* ``#add_dispersion_lorentz`` is used to add Lorentz dispersive properties to a ``#material``
+* ``#add_dispersion_drude`` is used to add Drude dispersive properties to a ``#material``
+* ``#soil_peplinski`` is a soil mixing model that can be used with ``#fractal_box`` to generate soil(s) with more realistic dielectric and geometric properties
+* ``#cylindrical_sector`` is a new object building command
+* ``#geometry_view`` replaces ``#geometry_file`` or ``#geometry_vtk`` and is used to create views of the geometry of the model in open source Visualization ToolKit (VTK) (http://www.vtk.org) format which can be viewed in many free readers, such as Paraview (http://www.paraview.org)
+* ``#fractal_box`` is used to create a volume with a fractal distribution of properties
+* ``#add_surface_roughness`` is used to add a rough surface to a ``#fractal_box``
+* ``#add_surface_water`` is used to add surface water to a ``#fractal_box`` that has a rough surface
+* ``#add_grass`` is used to add grass to a ``#fractal_box``
+* ``#waveform`` is used to specify a waveform shape, and works in conjunction with the changed source commands
+* ``#magnetic_dipole`` is used to introduce a magnetic dipole source, i.e. current on a small loop
+* ``#pml_cfs`` is an advanced command for adjusting the CFS parameters used in the new PML
 
 
 Changed commands
 ----------------
 
-* All object building commands support anisotropy via additional material identifiers, e.g. ``#box: 0.0 0.0 0.0 0.1 0.1 0.1 matX matY matZ``.
-* Dielectric smoothing can be turned on (the default setting) or off for any volumetric object building command by specifying a character ``y`` (on) or ``n`` (off) after the material identifier, e.g. ``#sphere: 0.5 0.5 0.5 0.25 sand n``.
-* ``#triangle`` can now create both triangular patches (2D) and triangular prisms (3D) via a thickness parameter.
+* All object building commands support anisotropy via additional material identifiers, e.g. ``#box: 0.0 0.0 0.0 0.1 0.1 0.1 matX matY matZ``
+* Dielectric smoothing can be turned on (the default setting) or off for any volumetric object building command by specifying a character ``y`` (on) or ``n`` (off) after the material identifier, e.g. ``#sphere: 0.5 0.5 0.5 0.25 sand n``
+* ``#triangle`` can now create both triangular patches (2D) and triangular prisms (3D) via a thickness parameter
 * ``#pml_cells`` replaces ``#pml_layers`` and can now be used to control the number of cells of PML on the six faces of the model domain. The number of cells can be set to zero on any of the faces to turn that PML off if desired. The default behaviour (if this command is not specified) is to use 10 cells.
-* ``#hertzian_dipole`` and ``#voltage_source`` now specify polarisation, location, any additional parameters, and an identifier to link to a ``#waveform`` command.
-* ``#snapshot`` no longer requires a type, as only VTK snapshot files are now produced.
-* ``#num_of_procs`` is now called ``#num_threads``.
-* ``#tx_steps`` is now called ``#src_steps``.
+* ``#hertzian_dipole`` and ``#voltage_source`` now specify polarisation, location, any additional parameters, and an identifier to link to a ``#waveform`` command
+* ``#snapshot`` no longer requires a type, as only VTK snapshot files are now produced
+* ``#num_of_procs`` is now called ``#num_threads``
+* ``#tx_steps`` is now called ``#src_steps``
 
 
 Retired commands
 ----------------
 
 * ``#analysis`` and ``#end_analysis`` are no longer required as: sources and receivers can be specified anywhere is the input file; the output file automatically has the same name as the input file with a ``.out`` extension; the format of the output file is now HDF5 (https://www.hdfgroup.org/HDF5/); gprMax can be run with the syntax ``gprMax my_input_file -n number_of_runs``, where ``number_of_runs`` can be used to rerun the model for creating scans and/or moving geometry between runs.
-* ``#tx`` is no longer required as the polarisation and position of a source is now specified in the source command, e.g. ``#hertzian_dipole: y 0.05 0.05 0.05 myPulse``.
-* ``#cylinder_new`` has become ``#cylinder``.
-* ``#cylindrical_segment`` was under-used and its effect can be created by cutting a ``#cylinder`` with a ``#box``.
-* ``#bowtie`` can be created using the new behaviour of ``#triangle``.
-* ``#number_of_media`` is not required with the new Python code.
-* ``#nips_number`` is not required with the new Python code.
-* ``#media_file`` was under-used.
-* ``#geometry_file`` has been replaced with the ``#geometry_view`` command.
-* ``#medium`` has been replaced with the ``#material`` command.
-* ``#abc_type``, ``#abc_order``, ``#abc_stability_factors``, ``#abc_optimization_angles``, and ``#abc_mixing_parameters`` are not required as the Higdon ABCs have been removed.
-* ``#huygens_surface`` will become part of the new ``#plane_wave`` command which is yet to be implemented.
+* ``#tx`` is no longer required as the polarisation and position of a source is now specified in the source command, e.g. ``#hertzian_dipole: y 0.05 0.05 0.05 myPulse``
+* ``#cylinder_new`` has become ``#cylinder``
+* ``#cylindrical_segment`` was under-used and its effect can be created by cutting a ``#cylinder`` with a ``#box``
+* ``#bowtie`` can be created using the new behaviour of ``#triangle``
+* ``#number_of_media`` is not required with the new Python code
+* ``#nips_number`` is not required with the new Python code
+* ``#media_file`` was under-used
+* ``#geometry_file`` has been replaced with the ``#geometry_view`` command
+* ``#medium`` has been replaced with the ``#material`` command
+* ``#abc_type``, ``#abc_order``, ``#abc_stability_factors``, ``#abc_optimization_angles``, and ``#abc_mixing_parameters`` are not required as the Higdon ABCs have been removed
+* ``#huygens_surface`` will become part of the new ``#plane_wave`` command which is yet to be implemented
 
 
 Commands yet to be implemented
