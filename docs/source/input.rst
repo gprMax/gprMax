@@ -829,11 +829,11 @@ Allows you to control the number of cells of PML that are used on the six sides 
 * ``i6`` is the number of cells of PML to use on the side of the model domain in the positive z-axis direction.
 * ``i1 i2 i3 i4 i5 i6`` may be set to zero to turn off the PML on a specific side of the model domain.
 
-To create a 2D model (a one cell slice of 3D) switch off the PML in the one cell (infinite) direction, e.g. to create a 2D model in the x-y plane, with a dimension of one cell in the z direction, and 10 cells of PML elsewhere, use the command:
+For example to use a PML with 20 cells (thicker than the default 10 cells) on only the z-axis sides of the domain use:
 
 .. code-block:: none
 
-    #pml_cells: 10 10 0 10 10 0
+    #pml_cells: 10 10 20 10 10 20
 
 #pml_cfs:
 ---------
