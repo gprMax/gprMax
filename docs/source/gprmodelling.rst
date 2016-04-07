@@ -55,7 +55,7 @@ It is assumed that the half-space which contains the target(s) is of infinite ex
 
 All other *boundary conditions* which apply at interfaces between different media in the FDTD model are automatically enforced in gprMax.
 
-In order to make the most of gprMax in modelling GPR responses ultimately you should be familiar with the FDTD method on which these programs are based. There is a very large amount of information available in the relevant literature. Good starting points are [KUN1993]_ and [TAF2005]_ where as the specific application of FDTD to the GPR forward problem is described in [GIA1997]_.
+In order to make the most of gprMax for modelling GPR you should be familiar with the FDTD method on which the software is based. There is a large amount of information available in the relevant literature. Good starting points are [KUN1993]_ and [TAF2005]_, the specific application of FDTD to the GPR forward problem is described in [GIA1997]_.
 
 
 Coordinate system and conventions
@@ -109,4 +109,4 @@ The cells of the RIPML, which have a user adjustable thickness, very efficiently
 
 gprMax now offers the ability (for advanced users) to customise the parameters of the PML which allows its performance to be better optimised for specific applications. For further details see the :ref:`PML commands section <pml>`.
 
-This user guide, can not serve as an in depth tutorial and a review of the FDTD method. However, some useful hints and tips are given here in order to cover the most fundamental aspects of using an FDTD based program and avoid the most common errors.
+This user guide, cannot serve as an in-depth tutorial and review of the FDTD method. However some useful hints and tips are given in order to cover the most fundamental aspects of using a FDTD based solver and to avoid the most common errors.
