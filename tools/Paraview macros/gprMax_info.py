@@ -88,7 +88,7 @@ if srcs_rxs_pml:
                 if srcs_rxs_pml[y][0] == 1:
                     thresholddisplay.Opacity = 0.5
 
-renderview.CameraParallelProjection = 1
+#renderview.CameraParallelProjection = 1
 RenderAllViews()
 # Show color bar/color legend
 #thresholdDisplay.SetScalarBarVisibility(renderview, False)
