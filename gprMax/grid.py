@@ -27,6 +27,7 @@ class FDTDGrid:
     """Holds attributes associated with the entire grid. A convenient way for accessing regularly used parameters."""
     
     def __init__(self):
+        self.inputfilename = ''
         self.inputdirectory = ''
         self.title = ''
         self.messages = True

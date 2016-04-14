@@ -790,7 +790,7 @@ or
 * ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the volume of the snapshot in metres.
 * ``f7 f8 f9`` are the spatial discretisation of the snapshot in metres.
 * ``f10`` or ``i1`` are the time in seconds (float) or the iteration number (integer) which denote the point in time at which the snapshot will be taken.
-* ``file1`` is the filename of the file where the snapshot will be stored.
+* ``file1`` is the name of the file where the snapshot will be stored. Snapshot files are automatically stored in a directory with the name of the input file appended with '_snaps'. For multiple model runs each model run will have its own directory, i.e. '_snaps1', 'snaps2' etc...
 
 For example to save a snapshot of the electromagnetic fields in the model at a simulated time of 3 nanoseconds use: ``#snapshot: 0 0 0 1 1 1 0.1 0.1 0.1 3e-9 snap1``
 

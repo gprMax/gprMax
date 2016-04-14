@@ -257,6 +257,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
     # Initialise an instance of the FDTDGrid class
     G = FDTDGrid()
+    G.inputfilename = os.path.split(inputfile)[1]
     G.inputdirectory = usernamespace['inputdirectory']
 
     # Create built-in materials

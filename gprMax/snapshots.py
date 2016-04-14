@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
+import os, sys
 import numpy as np
 from struct import pack
 
@@ -77,11 +77,15 @@ class Snapshot:
         self.vtk_ny = self.yf - self.ys
         self.vtk_nz = self.zf - self.zs
         
-        # Construct filename from user-supplied name and model run number
+        # Create directory and construct filename from user-supplied name and model run number
         if numbermodelruns == 1:
-            self.filename = G.inputdirectory + self.filename + '.vti'
+            snapshotdir = os.path.join(G.inputdirectory, os.path.splitext(G.inputfilename)[0] + '_snaps')
         else:
-            self.filename = G.inputdirectory + self.filename + '_' + str(modelrun) + '.vti'
+            snapshotdir = os.path.join(G.inputdirectory, os.path.splitext(G.inputfilename)[0] + '_snaps' + str(modelrun))
+        
+        if not os.path.exists(snapshotdir):
+            os.mkdir(snapshotdir)
+        self.filename = os.path.join(snapshotdir, self.filename + '.vti')
         
         # Calculate number of cells according to requested sampling
         self.vtk_xscells = round_value(self.xs / self.dx)
