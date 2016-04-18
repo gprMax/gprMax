@@ -14,6 +14,7 @@ File structure
 
 The output file has the following HDF5 attributes at the root (``/``):
 
+* ``gprMax`` is the version number of gprMax used to create the output
 * ``Title`` is the title of the model
 * ``Iterations`` is the number of iterations for the time window of the model
 * ``nx, ny, nz`` is a tuple containing the number of cells in each direction of the model
