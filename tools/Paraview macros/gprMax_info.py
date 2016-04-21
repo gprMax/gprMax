@@ -36,7 +36,8 @@ renderview.ResetCamera()
 
 # Lists to hold material and sources/receiver identifiers written in VTK file in tags <gprMax3D> <Material> and <gprMax3D> <Sources/Receivers>
 materials = []
-srcs_rxs_pml = []
+srcs_pml = []
+rxs = []
 with open(model.FileName[0], 'r') as f:
     for line in f:
         if line.startswith('<Material'):
@@ -46,14 +47,18 @@ with open(model.FileName[0], 'r') as f:
         elif line.startswith('<Sources') or line.startswith('<PML'):
             line.rstrip('\n')
             tmp = (int(ET.fromstring(line).text), ET.fromstring(line).attrib.get('name'))
-            srcs_rxs_pml.append(tmp)
+            srcs_pml.append(tmp)
+        elif line.startswith('<Receivers'):
+            line.rstrip('\n')
+            tmp = (int(ET.fromstring(line).text), ET.fromstring(line).attrib.get('name'))
+            rxs.append(tmp)
 
 if materials:
     # Get range of data
-    matdatarange = model.CellData.GetArray(0).GetRange()
-
+    mat_datarange = model.CellData.GetArray('Material').GetRange()
+    
     # Create threshold for materials (name and numeric value)
-    for x in range(0, int(matdatarange[1]) + 1):
+    for x in range(0, int(mat_datarange[1]) + 1):
         for y in range(len(materials)):
             if materials[y][0] == x:
                 threshold = Threshold(Input=model)
@@ -67,26 +72,44 @@ if materials:
                     thresholddisplay = Show(threshold, renderview)
                     thresholddisplay.ColorArrayName = 'Material'
 
-if srcs_rxs_pml:
+if srcs_pml:
     # Get ranges of data
-    srcs_rxs_pml_datarange = model.CellData.GetArray(1).GetRange()
-
-    # Create threshold for sources/receivers (name and numeric value)
-    for x in range(0, int(srcs_rxs_pml_datarange[1]) + 1):
-        for y in range(len(srcs_rxs_pml)):
-            if srcs_rxs_pml[y][0] == x:
+    srcs_pml_datarange = model.CellData.GetArray('Sources_PML').GetRange()
+    
+    # Create threshold for sources/pml (name and numeric value)
+    for x in range(1, int(srcs_pml_datarange[1]) + 1):
+        for y in range(len(srcs_pml)):
+            if srcs_pml[y][0] == x:
                 threshold = Threshold(Input=model)
-                threshold.Scalars = 'Sources_Receivers_PML'
-                threshold.ThresholdRange = [srcs_rxs_pml[y][0], srcs_rxs_pml[y][0]]
+                threshold.Scalars = 'Sources_PML'
+                threshold.ThresholdRange = [srcs_pml[y][0], srcs_pml[y][0]]
                 
-                RenameSource(srcs_rxs_pml[y][1], threshold)
+                RenameSource(srcs_pml[y][1], threshold)
                 
                 # Show data in view
                 thresholddisplay = Show(threshold, renderview)
-                thresholddisplay.ColorArrayName = 'Sources_Receivers_PML'
-
-                if srcs_rxs_pml[y][0] == 1:
+                thresholddisplay.ColorArrayName = 'Sources_PML'
+                
+                if srcs_pml[y][0] == 1:
                     thresholddisplay.Opacity = 0.5
+
+if rxs:
+    # Get ranges of data
+    rxs_datarange = model.CellData.GetArray('Receivers').GetRange()
+    
+    # Create threshold for sources/pml (name and numeric value)
+    for x in range(1, int(rxs_datarange[1]) + 1):
+        for y in range(len(rxs)):
+            if rxs[y][0] == x:
+                threshold = Threshold(Input=model)
+                threshold.Scalars = 'Receivers'
+                threshold.ThresholdRange = [rxs[y][0], rxs[y][0]]
+                
+                RenameSource(rxs[y][1], threshold)
+                
+                # Show data in view
+                thresholddisplay = Show(threshold, renderview)
+                thresholddisplay.ColorArrayName = 'Receivers'
 
 #renderview.CameraParallelProjection = 1
 RenderAllViews()

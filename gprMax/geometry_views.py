@@ -86,14 +86,18 @@ class GeometryView:
             self.vtk_nycells = self.vtk_yfcells - self.vtk_yscells
             self.vtk_nzcells = self.vtk_zfcells - self.vtk_zscells
             
-            # Create an array and add numeric IDs for PML, sources and receivers
-            self.srcs_rxs_pml = np.zeros((G.nx + 1, G.ny + 1, G.nz + 1), dtype=np.int8)
+            # Create arrays and add numeric IDs for PML, sources and receivers (0 is not set, 1 is PML, srcs and rxs numbered thereafter)
+            self.srcs_pml = np.zeros((G.nx + 1, G.ny + 1, G.nz + 1), dtype=np.int8)
+            self.rxs = np.zeros((G.nx + 1, G.ny + 1, G.nz + 1), dtype=np.int8)
             for pml in G.pmls:
-                self.srcs_rxs_pml[pml.xs:pml.xf, pml.ys:pml.yf, pml.zs:pml.zf] = 1
-            for index, srcrx in enumerate(G.rxs + G.hertziandipoles + G.magneticdipoles + G.voltagesources + G.transmissionlines):
-                self.srcs_rxs_pml[srcrx.xcoord, srcrx.ycoord, srcrx.zcoord] = index + 2
+                self.srcs_pml[pml.xs:pml.xf, pml.ys:pml.yf, pml.zs:pml.zf] = 1
+            for index, src in enumerate(G.hertziandipoles + G.magneticdipoles + G.voltagesources + G.transmissionlines):
+                self.srcs_pml[src.xcoord, src.ycoord, src.zcoord] = index + 2
+            for index, rx in enumerate(G.rxs):
+                self.rxs[rx.xcoord, rx.ycoord, rx.zcoord] = index + 1
         
-            vtk_srcs_rxs_pml_offset = round_value((np.dtype(np.uint32).itemsize * self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells) + np.dtype(np.uint32).itemsize)
+            vtk_srcs_pml_offset = round_value((np.dtype(np.uint32).itemsize * self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells) + np.dtype(np.uint32).itemsize)
+            vtk_rxs_offset = round_value((np.dtype(np.uint32).itemsize * self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells) + np.dtype(np.uint32).itemsize + (np.dtype(np.int8).itemsize * self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells) + np.dtype(np.uint32).itemsize)
             
             with open(self.filename, 'wb') as f:
                 f.write('<?xml version="1.0"?>\n'.encode('utf-8'))
@@ -102,7 +106,8 @@ class GeometryView:
                 f.write('<Piece Extent="{} {} {} {} {} {}">\n'.format(self.vtk_xscells, self.vtk_xfcells, self.vtk_yscells, self.vtk_yfcells, self.vtk_zscells, self.vtk_zfcells).encode('utf-8'))
                 f.write('<CellData Scalars="Material">\n'.encode('utf-8'))
                 f.write('<DataArray type="UInt32" Name="Material" format="appended" offset="0" />\n'.encode('utf-8'))
-                f.write('<DataArray type="Int8" Name="Sources_Receivers_PML" format="appended" offset="{}" />\n'.format(vtk_srcs_rxs_pml_offset).encode('utf-8'))
+                f.write('<DataArray type="Int8" Name="Sources_PML" format="appended" offset="{}" />\n'.format(vtk_srcs_pml_offset).encode('utf-8'))
+                f.write('<DataArray type="Int8" Name="Receivers" format="appended" offset="{}" />\n'.format(vtk_rxs_offset).encode('utf-8'))
                 f.write('</CellData>\n'.encode('utf-8'))
                 f.write('</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
                 
@@ -115,13 +120,21 @@ class GeometryView:
                         for i in range(self.xs, self.xf, self.dx):
                             f.write(pack('I', G.solid[i, j, k]))
             
-                # Write source/receiver IDs
+                # Write source/PML IDs
                 datasize = int(np.dtype(np.int8).itemsize * self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells)
                 f.write(pack('I', datasize))
                 for k in range(self.zs, self.zf, self.dz):
                     for j in range(self.ys, self.yf, self.dy):
                         for i in range(self.xs, self.xf, self.dx):
-                            f.write(pack('b', self.srcs_rxs_pml[i, j, k]))
+                            f.write(pack('b', self.srcs_pml[i, j, k]))
+                
+                # Write receiver IDs
+                datasize = int(np.dtype(np.int8).itemsize * self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells)
+                f.write(pack('I', datasize))
+                for k in range(self.zs, self.zf, self.dz):
+                    for j in range(self.ys, self.yf, self.dy):
+                        for i in range(self.xs, self.xf, self.dx):
+                            f.write(pack('b', self.rxs[i, j, k]))
 
                 f.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
             
@@ -239,8 +252,10 @@ class GeometryView:
             f.write('<Material name="{}">{}</Material>\n'.format(material.ID, material.numID).encode('utf-8'))
         if not materialsonly:
             f.write('<PML name="PML boundary region">1</PML>\n'.encode('utf-8'))
-            for index, srcrx in enumerate(G.rxs + G.hertziandipoles + G.magneticdipoles + G.voltagesources + G.transmissionlines):
-                f.write('<Sources_Receivers name="{}">{}</Sources_Receivers>\n'.format(srcrx.ID, index + 2).encode('utf-8'))
+            for index, src in enumerate(G.hertziandipoles + G.magneticdipoles + G.voltagesources + G.transmissionlines):
+                f.write('<Sources name="{}">{}</Sources>\n'.format(src.ID, index + 2).encode('utf-8'))
+            for index, rx in enumerate(G.rxs):
+                f.write('<Receivers name="{}">{}</Receivers>\n'.format(rx.ID, index + 1).encode('utf-8'))
         f.write('</gprMax>\n'.encode('utf-8'))
 
 
