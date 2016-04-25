@@ -429,15 +429,16 @@ def process_multicmds(multicmds, G):
             dy = round_value(float(tmp[7])/G.dy)
             dz = round_value(float(tmp[8])/G.dz)
             
+            # If number of iterations given
+            try:
+                time = int(tmp[9])
             # If real floating point value given
-            if '.' in tmp[9] or 'e' in tmp[9]:
-                if float(tmp[9]) > 0:
-                    time = round_value((float(tmp[9]) / G.dt)) + 1
+            except:
+                time = float(tmp[9])
+                if time > 0:
+                    time = round_value((tmp[9] / G.dt)) + 1
                 else:
                     raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' time value must be greater than zero')
-            # If number of iterations given
-            else:
-                time = int(tmp[9])
             
             if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
