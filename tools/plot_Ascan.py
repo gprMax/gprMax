@@ -30,7 +30,7 @@ from gprMax.receivers import Rx
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Plots electric and magnetic fields and currents from all receiver points in the given output file. Each receiver point is plotted in a new figure window.', usage='cd gprMax; python -m tools.plot_Ascan outputfile')
 parser.add_argument('outputfile', help='name of output file including path')
-parser.add_argument('--outputs', help='outputs to be plotted (Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, Iz)', default=Rx.availableoutputs, nargs='+')
+parser.add_argument('--outputs', help='outputs to be plotted', choices='Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, Iz', default=Rx.availableoutputs, nargs='+')
 parser.add_argument('-fft', action='store_true', default=False, help='plot FFT (single output must be specified)')
 args = parser.parse_args()
 
