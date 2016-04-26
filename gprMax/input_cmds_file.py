@@ -45,6 +45,9 @@ def process_python_include_code(inputfile, usernamespace):
         
         # Process any Python code
         if(inputlines[x].startswith('#python:')):
+            # Save stdout location to restore later
+            stdout = sys.stdout
+            
             # String to hold Python code to be executed
             pythoncode = ''
             x += 1
@@ -66,6 +69,9 @@ def process_python_include_code(inputfile, usernamespace):
             
             # Add processed Python code to list
             processedlines.extend(codeproc)
+    
+            # Reset stdio
+            sys.stdout = stdout
     
         # Process any include commands
         elif(inputlines[x].startswith('#include:')):
@@ -94,8 +100,6 @@ def process_python_include_code(inputfile, usernamespace):
             processedlines.append(inputlines[x])
 
         x += 1
-
-    sys.stdout = sys.__stdout__ # Reset stdio
     
     return processedlines
 
