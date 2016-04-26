@@ -25,8 +25,6 @@ from gprMax.exceptions import CmdInputError
 from gprMax.utilities import round_value
 from gprMax.waveforms import Waveform
 
-"""Plot built-in waveforms that can be used with sources."""
-
 
 def check_timewindow(timewindow, dt):
     """Checks and sets time window and number of iterations.
@@ -58,7 +56,7 @@ def check_timewindow(timewindow, dt):
     return timewindow, iterations
 
 
-def plot_waveform(w, timewindow, dt, iterations, fft=False):
+def make_plot(w, timewindow, dt, iterations, fft=False):
     """Plots waveform and prints useful information about its properties.
             
     Args:
@@ -66,7 +64,7 @@ def plot_waveform(w, timewindow, dt, iterations, fft=False):
         timewindow (float): Time window.
         dt (float): Time discretisation.
         iterations (int): Number of iterations.
-        fft (boolean): Plot FFT of waveform.
+        fft (boolean): Plot FFT switch.
     """
     
     time = np.linspace(0, 1, iterations)
@@ -118,7 +116,7 @@ def plot_waveform(w, timewindow, dt, iterations, fft=False):
         plt.setp(baseline, 'linewidth', 0)
         plt.setp(stemlines, 'color', 'r')
         plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
-        ax2.plot(freqs[pltrange]/1e9, power[pltrange], 'r', lw=2)
+        ax2.plot(freqs[pltrange], power[pltrange], 'r', lw=2)
         ax2.set_xlabel('Frequency [Hz]')
         ax2.set_ylabel('Power [dB]')
 
@@ -148,7 +146,7 @@ if __name__ == "__main__":
     parser.add_argument('freq', type=float, help='centre frequency of waveform')
     parser.add_argument('timewindow', help='time window to view waveform')
     parser.add_argument('dt', type=float, help='time step to view waveform')
-    parser.add_argument('-fft', action='store_true', default=False, help='plot FFT of waveform')
+    parser.add_argument('-fft', action='store_true', help='plot FFT of waveform', default=False)
     args = parser.parse_args()
 
     # Check waveform parameters
@@ -164,7 +162,7 @@ if __name__ == "__main__":
     w.freq = args.freq
 
     timewindow, iterations = check_timewindow(args.timewindow, args.dt)
-    plot_waveform(w, timewindow, args.dt, iterations, args.fft)
+    make_plot(w, timewindow, args.dt, iterations, args.fft)
 
 
 
