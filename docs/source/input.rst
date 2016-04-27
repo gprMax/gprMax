@@ -364,6 +364,7 @@ At the boundaries between different materials in the model there is the question
 
 .. note::
 
+    * If a material has dispersive properties then dielectric smoothing is automatically turned off for that material.
     * If an object is anistropic then dielectric smoothing is automatically turned off for that object.
     * Non-volumetric object building commands, ``#edge`` and ``#plate`` cannot have dielectric smoothing.
 
