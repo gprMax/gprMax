@@ -436,7 +436,7 @@ def process_multicmds(multicmds, G):
             except:
                 time = float(tmp[9])
                 if time > 0:
-                    time = round_value((tmp[9] / G.dt)) + 1
+                    time = round_value((time / G.dt)) + 1
                 else:
                     raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' time value must be greater than zero')
             
