@@ -61,10 +61,10 @@ def make_plot(filename, outputs=Rx.availableoutputs, fft=False):
         if len(outputs) == 1:
             
             # Check for polarity of output and if requested output is in file
-            if outputs[0][0] == 'm':
+            if outputs[0][-1] == '-':
                 polarity = -1
-                outputtext = '-' + outputs[0][1:]
-                output = outputs[0][1:]
+                outputtext = '-' + outputs[0][0:-1]
+                output = outputs[0][0:-1]
             else:
                 polarity = 1
                 outputtext = outputs[0]
@@ -146,10 +146,10 @@ def make_plot(filename, outputs=Rx.availableoutputs, fft=False):
             for output in outputs:
                 
                 # Check for polarity of output and if requested output is in file
-                if output[0] == 'm':
+                if output[-1] == 'm':
                     polarity = -1
-                    outputtext = '-' + output[1:]
-                    output = output[1:]
+                    outputtext = '-' + output[0:-1]
+                    output = output[0:-1]
                 else:
                     polarity = 1
                     outputtext = output
@@ -218,7 +218,7 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Plots electric and magnetic fields and currents from all receiver points in the given output file. Each receiver point is plotted in a new figure window.', usage='cd gprMax; python -m tools.plot_Ascan outputfile')
     parser.add_argument('outputfile', help='name of output file including path')
-    parser.add_argument('--outputs', help='outputs to be plotted', default=Rx.availableoutputs, choices='Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, Iz', nargs='+')
+    parser.add_argument('--outputs', help='outputs to be plotted', default=Rx.availableoutputs, choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz', 'Ex-', 'Ey-', 'Ez-', 'Hx-', 'Hy-', 'Hz-', 'Ix-', 'Iy-', 'Iz-'], nargs='+')
     parser.add_argument('-fft', action='store_true', help='plot FFT (single output must be specified)', default=False)
     args = parser.parse_args()
 

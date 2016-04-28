@@ -80,7 +80,7 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Plots a B-scan image.', usage='cd gprMax; python -m tools.plot_Bscan outputfile output')
     parser.add_argument('outputfile', help='name of output file including path')
-    parser.add_argument('output', help='name of output component to be plotted', choices='Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy or Iz')
+    parser.add_argument('output', help='name of output component to be plotted', choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz'])
     args = parser.parse_args()
 
     make_plot(args.outputfile, args.output)
