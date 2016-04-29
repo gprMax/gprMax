@@ -84,10 +84,10 @@ To use the models with gprMax:
 * Download a HDF5 file (.h5) of AustinMan or AustinWoman at the resolution you wish to use.
 * Download a text file of material descriptions for gprMax, either
 
-    * `AustinManWoman_gprMax_materials.txt` for non-dispersive material properties at 900 MHz (http://niremf.ifac.cnr.it/tissprop/).
-    * `AustinManWoman_gprMax_materials_dispersive.txt` for dispersive material properties that feature a 3-pole Debye model (http://dx.doi.org/10.1109/LMWC.2011.2180371). Not all materials have a dispersive description.
+    * ``AustinManWoman_gprMax_materials.txt`` for non-dispersive material properties at 900 MHz (http://niremf.ifac.cnr.it/tissprop/).
+    * ``AustinManWoman_gprMax_materials_dispersive.txt`` for dispersive material properties that feature a 3-pole Debye model (http://dx.doi.org/10.1109/LMWC.2011.2180371). Not all materials have a dispersive description.
 
-To insert either AustinMan or AustinWoman into a model use the `#geometry_objects_file`. For example, to insert a 2x2x2mm^3 AustinMan with the lower left corner 40mm from the origin of the domain, and using disperive material properties, use the command:
+To insert either AustinMan or AustinWoman into a model use the ``#geometry_objects_file``. For example, to insert a 2x2x2mm^3 AustinMan with the lower left corner 40mm from the origin of the domain, and using disperive material properties, use the command:
 
 .. code-block:: none
 
