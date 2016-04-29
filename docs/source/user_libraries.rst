@@ -45,8 +45,8 @@ The antenna models can be accessed from within a block of Python code in your si
     FDTD geometry mesh showing an antenna model similar to a MALA 1.2GHz antenna (skid removed for illustrative purposes).
 
 
-AustinMan/Woman
-===============
+AustinMan & AustinWoman
+=======================
 
 .. code-block:: python
 
@@ -66,18 +66,18 @@ The AustinMan and AustinWoman models are not currently included in the user libr
 
 The following whole body models are available.
 
-=========== ========== ==================
-Model       Resolution Dimensions (cells)
-=========== ========== ==================
-AustinMan   8x8x8mm^3  86x47x235
-            4x4x4mm^3  171x94x470
-            2x2x2mm^3  342x187x939
-            1x1x1mm^3  683x374x1877
-AustinWoman 8x8x8mm^3  86x47x217
-            4x4x4mm^3  171x94x433
-            2x2x2mm^3  342x187x865
-            1x1x1mm^3
-=========== ========== ==================
+=========== ================= ==================
+Model       Resolution (mm^3) Dimensions (cells)
+=========== ================= ==================
+AustinMan   8x8x8             86x47x235
+AustinMan   4x4x4             171x94x470
+AustinMan   2x2x2             342x187x939
+AustinMan   1x1x1             683x374x1877
+AustinWoman 8x8x8             86x47x217
+AustinWoman 4x4x4             171x94x433
+AustinWoman 2x2x2             342x187x865
+AustinWoman 1x1x1
+=========== ================= ==================
 
 To use the models with gprMax:
 
@@ -96,7 +96,7 @@ To insert either AustinMan or AustinWoman into a model use the `#geometry_object
 For further information on the `#geometry_objects_file` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
 
 .. figure:: images/AustinMan.png
-    :width: 600 px
+    :width: 300 px
 
     FDTD geometry mesh showing the AustinMan body model.
 
