@@ -74,11 +74,11 @@ def process_python_include_code(inputfile, usernamespace):
             sys.stdout = stdout
     
         # Process any include commands
-        elif(inputlines[x].startswith('#include:')):
+        elif(inputlines[x].startswith('#include_file:')):
             includefile = inputlines[x].split()
             
             if len(includefile) != 2:
-                raise CmdInputError('#include requires exactly one parameter')
+                raise CmdInputError('#include_file requires exactly one parameter')
             
             includefile = includefile[1]
             
