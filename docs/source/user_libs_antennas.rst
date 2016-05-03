@@ -7,9 +7,9 @@ Antennas
 Information
 ===========
 
-Author/Contact: Craig Warren (Craig.Warren@ed.ac.uk), University of Edinburgh
+**Author/Contact**: Craig Warren (Craig.Warren@ed.ac.uk), University of Edinburgh
 
-License: Creative Commons Attribution-ShareAlike 4.0 International License (http://creativecommons.org/licenses/by-sa/4.0/)
+**License**: Creative Commons Attribution-ShareAlike 4.0 International License (http://creativecommons.org/licenses/by-sa/4.0/)
 
 .. code-block:: python
 

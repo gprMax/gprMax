@@ -7,11 +7,11 @@ AustinMan & AustinWoman
 Information
 ===========
 
-Authors: Jackson W. Massey, Cemil S. Geyik, Jungwook Choi, Hyun-Jae Lee, Natcha Techachainiran, Che-Lun Hsu, Robin Q. Nguyen, Trevor Latson, Madison Ball, and Ali E. Yılmaz
+**Authors**: Jackson W. Massey, Cemil S. Geyik, Jungwook Choi, Hyun-Jae Lee, Natcha Techachainiran, Che-Lun Hsu, Robin Q. Nguyen, Trevor Latson, Madison Ball, and Ali E. Yılmaz
 
-Contact: Ali E. Yılmaz (ayilmaz@mail.utexas.edu), The University of Texas at Austin
+**Contact**: Ali E. Yılmaz (ayilmaz@mail.utexas.edu), The University of Texas at Austin
 
-License: Creative Commons Attribution-NonCommercial-NoDerivs 3.0 Unported License (http://creativecommons.org/licenses/by-nc-nd/3.0/)
+**License**: Creative Commons Attribution-NonCommercial-NoDerivs 3.0 Unported License (http://creativecommons.org/licenses/by-nc-nd/3.0/)
 
 .. code-block:: python
 

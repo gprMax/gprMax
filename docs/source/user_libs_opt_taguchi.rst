@@ -9,9 +9,9 @@ Optimisation - Taguchi
 Information
 ===========
 
-Author/Contact: Craig Warren (Craig.Warren@ed.ac.uk), University of Edinburgh
+**Author/Contact**: Craig Warren (Craig.Warren@ed.ac.uk), University of Edinburgh
 
-License: Creative Commons Attribution-ShareAlike 4.0 International License (http://creativecommons.org/licenses/by-sa/4.0/)
+**License**: Creative Commons Attribution-ShareAlike 4.0 International License (http://creativecommons.org/licenses/by-sa/4.0/)
 
 .. code-block:: python
 
@@ -54,7 +54,7 @@ Package overview
     optimisation_taguchi_fitness.py
     optimisation_taguchi_plot.py
 
-* `OA_9_4_3_2.npy` and `OA_18_7_3_2.npy` are NumPy archive containing pre-built OAs from http://neilsloane.com/oadir/
+* `OA_9_4_3_2.npy` and `OA_18_7_3_2.npy` are NumPy archives containing pre-built OAs from http://neilsloane.com/oadir/
 * `optimisation_taguchi_fitness.py` is a module containing fitness functions. There are some pre-built ones but users should add their own here.
 * `optimisation_taguchi_plot.py` is a module for plotting the results, such as parameter values and convergence history, from an optimisation process when it has completed.
 
