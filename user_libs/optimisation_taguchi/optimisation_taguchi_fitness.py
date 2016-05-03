@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
     
     All fitness functions must take two arguments and return a single fitness value. 
     The first argument should be the name of the output file 
-    The second argument is a list which can contain any number of additional arguments, e.g. names (IDs) of outputs (rxs) from input file
+    The second argument is a dictionary which can contain any number of additional arguments, e.g. names (IDs) of outputs (rxs) from input file
 """
 
 def minvalue(filename, args):
