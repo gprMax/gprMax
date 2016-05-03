@@ -202,6 +202,9 @@ def construct_OA(optparams):
         s (int): Number of levels in OA
         t (int): Strength of OA
     """
+    
+    oadirectory = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'user_libs', 'optimisation_taguchi')
+    oadirectory = os.path.abspath(oadirectory)
 
     # Properties of the orthogonal array (OA)
     # Strength
@@ -215,7 +218,7 @@ def construct_OA(optparams):
     
     # Load the appropriate OA
     if k <= 4:
-        OA = np.load(os.path.join('user_libs', 'OA_9_4_3_2.npy'))
+        OA = np.load(os.path.join(oadirectory, 'OA_9_4_3_2.npy'))
 
         # Number of experiments
         N = OA.shape[0]
@@ -227,7 +230,7 @@ def construct_OA(optparams):
         OA = OA[:, 0:k]
 
     elif k <= 7:
-        OA = np.load(os.path.join('user_libs',  'OA_18_7_3_2.npy'))
+        OA = np.load(os.path.join(oadirectory, 'OA_18_7_3_2.npy'))
 
         # Number of experiments
         N = OA.shape[0]
