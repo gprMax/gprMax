@@ -241,8 +241,10 @@ def construct_OA(optparams):
         # Cut down OA columns to number of parameters to optimise
         OA = OA[:, 0:k]
 
-    # THIS CASE NEEDS FURTHER TESTING
     else:
+        # THIS CASE NEEDS FURTHER TESTING
+        print('\nTaguchi optimisation, WARNING: Optimising more than 7 parameters is currently an experimental feature!')
+              
         p = int(np.ceil(np.log(k * (s - 1) + 1) / np.log(s)))
         
         # Number of experiments
