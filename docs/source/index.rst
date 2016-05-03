@@ -37,7 +37,8 @@ gprMax User Guide
     :maxdepth: 2
     :caption: User libraries
 
-    user_libraries
+    user_libs_antennas
+    user_libs_austinman
 
 .. toctree::
     :maxdepth: 2
