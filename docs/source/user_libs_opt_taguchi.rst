@@ -59,9 +59,6 @@ Package overview
 * `optimisation_taguchi_plot.py` is a module for plotting the results, such as parameter values and convergence history, from an optimisation process when it has completed.
 
 
-How to use the package
-======================
-
 Parameters to optimise
 ----------------------
 
@@ -76,6 +73,9 @@ A fitness function is required to set a goal against which to compare results fr
 * `filename` a string containing the full path and filename of the output file
 * `args` a dictionary which can contain any number of additional arguments for the function, e.g. names (IDs) of outputs (rxs) from input file
 
+
+How to use the package
+======================
 
 Example
 -------
