@@ -25,6 +25,8 @@ References
 .. [TUR1997] Turcotte, D. L. (1997). Fractals and chaos in geology and geophysics. Cambridge university press. (http://dx.doi.org/10.1017/cbo9781139174695)
 .. [VIA2005] Vial, A., Grimault, A. S., Macías, D., Barchiesi, D., & de La Chapelle, M. L. (2005). Improved analytical fit of gold dispersion: Application to the modeling of extinction spectra with a finite-difference time-domain method. Physical Review B, 71(8), 085416. (http://dx.doi.org/10.1103/physrevb.71.085416)
 .. [WAR2011] Warren, C., & Giannopoulos, A. (2011). Creating finite-difference time-domain models of commercial ground-penetrating radar antennas using Taguchi’s optimization method. Geophysics, 76(2), G37-G47. (http://dx.doi.org/10.1190/1.3548506)
+.. [WEN2007a] Weng, W. C., Yang, F., & Elsherbeni, A. (2007). Electromagnetics and antenna optimization using Taguchi’s method. Synthesis Lectures on Computational Electromagnetics, 2(1), 1-94.
+.. [WEN2007b] Weng, W. C., Yang, F., & Elsherbeni, A. Z. (2007). Linear antenna array synthesis using Taguchi's method: A novel optimization technique in electromagnetics. Antennas and Propagation, IEEE Transactions on, 55(3), 723-730.
 .. [WHI2009] Whittow, W. G., & Edwards, R. M. (2009). Effects of averaging procedures for electrical properties at the interface of dissimilar tissues in the human head with finite-difference time-domain modelling. Science, Measurement & Technology, IET, 3(1), 51-58.
 .. [YEE1966] Yee, K. S. (1966). Numerical solution of initial boundary value problems involving Maxwell’s equations in isotropic media. IEEE Trans. Antennas Propag, 14(3), 302-307. (http://dx.doi.org/10.1109/TAP.1966.1138693)
 

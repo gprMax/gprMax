@@ -1,9 +1,8 @@
-
 User libraries is a sub-package where useful Python modules contributed by users are stored.
 
-***********
-antennas.py
-***********
+********
+Antennas
+********
 
 .. code-block:: python
 
