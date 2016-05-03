@@ -828,7 +828,7 @@ For example to save a snapshot of the electromagnetic fields in the model at a s
         #end_python:
 
 
-.. _pml:
+.. _pml-commands:
 
 PML commands
 ============

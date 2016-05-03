@@ -16,7 +16,6 @@ gprMax User Guide
     :caption: Using gprMax
 
     input
-    geometry_snapshots
     output
 
 .. toctree::
