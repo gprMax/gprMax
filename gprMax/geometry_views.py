@@ -70,7 +70,7 @@ class GeometryView:
         if numbermodelruns == 1:
             self.filename = G.inputdirectory + self.filename
         else:
-            self.filename = G.inputdirectory + self.filename + '_' + str(modelrun)
+            self.filename = G.inputdirectory + self.filename + str(modelrun)
         
         if self.type == 'n':
             self.filename += '.vti'
