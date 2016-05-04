@@ -80,13 +80,16 @@ Parameters and settings for the optimisation process are specified within a spec
 * ``args``, a dictionary containing arguments to be passed to the fitness function. Within ``args`` there must be a key called ``outputs`` which contains a string or list of the names of one or more outputs in the model.
 * ``stop``, a value which when exceeded the optimisation should stop.
 
-Optionally a variable called ``maxiterations`` maybe specified within the ``#taguchi`` block which will set a maximum number of iterations after which the optimisation process will terminate irrespective of any other criteria.
+Optionally a variable called ``maxiterations`` maybe specified within the ``#taguchi``/``#end_taguchi`` block which will set a maximum number of iterations after which the optimisation process will terminate irrespective of any other criteria.
 
 
 How to use the package
 ======================
 
-The package requires ``#python`` and ``#end_python`` to be used in the input file, as well as ``#taguchi`` and ``#end_taguchi`` for specifying parameters and setting for the optimisation process. A Taguchi optimisation is run using the command line option ``--optimisation-taguchi``.
+The package requires ``#python`` and ``#end_python`` to be used in the input file, as well as ``#taguchi`` and ``#end_taguchi`` for specifying parameters and setting for the optimisation process. A Taguchi optimisation is run using the command line option ``--opt-taguchi``.
 
 Example
 -------
+
+The following example demonstrates using the Taguchi optimisation process to optimise values of loading resistors used in a bowtie antenna. The bowtie design features 3 slots in each arm of the bowtie where loading resistors are placed, and a substrate with a perimittivity of 4.8 is used. The antenna is modelled in free space, and an output point (the electric field value) is specified at a distance of 60 mm from the feed of the bowtie.
+

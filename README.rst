@@ -129,7 +129,7 @@ There are optional command line arguments for gprMax:
 * ``-mpi`` is a flag to turn on Message Passing Interface (MPI) task farm functionality. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using MPI. For further details see the Parallel performance section (http://docs.gprmax.com/en/latest/openmp_mpi.html)
 * ``-benchmark`` is a flag to turn on benchmarking mode. This can be used to benchmark the threading (parallel) performance of gprMax on different hardware. For further details see the benchmarking section (http://docs.gprmax.com/en/latest/benchmarking.html)
 * ``--geometry-only`` will build a model and produce any geometry views but will not run the simulation. This option is useful for checking the geometry of the model is correct.
-*``--optimisation-taguchi`` will run a series of simulations using a optimisation process based on Taguchi's method. For further details see the user libraries section (http://docs.gprmax.com/en/latest/user_libs_opt_taguchi.html)
+*``--opt-taguchi`` will run a series of simulations using a optimisation process based on Taguchi's method. For further details see the user libraries section (http://docs.gprmax.com/en/latest/user_libs_opt_taguchi.html)
 * ``--write-processed`` will write an input file after any Python code and include commands in the original input file have been processed.
 * ``-h`` or ``--help`` can be used to get help on command line options.
 
