@@ -64,6 +64,28 @@ def maxvalue(filename, args):
 
     return maxvalue
 
+def maxabsvalue(filename, args):
+    """Maximum absolute value from a response.
+        
+    Args:
+        filename (str): Name of output file
+        args (dict): 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
+        
+    Returns:
+        maxabsvalue (float): Maximum absolute value from specific outputs
+    """
+
+    f = h5py.File(filename, 'r')
+    nrx = f.attrs['nrx']
+
+    for rx in range(1, nrx + 1):
+        output = f['/rxs/rx' + str(rx) + '/']
+        if output.attrs['Name'] in args['outputs']:
+            outputname = list(output.keys())[0]
+            maxabsvalue = np.amax(np.abs(output[outputname]))
+
+    return maxabsvalue
+
 
 def xcorr(filename, args):
     """Maximum value of a cross-correlation between a response and a reference response.
