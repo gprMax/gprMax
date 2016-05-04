@@ -100,5 +100,9 @@ The following example demonstrates using the Taguchi optimisation process to opt
 
     FDTD geometry mesh showing bowtie antenna with slots and loading resistors.
 
-The bowtie design features 3 slots in each arm of the bowtie where 3 different values of loading resistors are placed. In each slot there are 4 resistors of the same value, and each resistor is modelled as two parallel edges of a cell. The bowtie is placed on a lossless substrate that has a perimittivity of 4.8. The antenna is modelled in free space, and an output point (the electric field value) is specified at a distance of 60 mm from the feed of the bowtie (red coloured cell).
+The bowtie design features 3 vertical slots (y-direction) in each arm of the bowtie. Each slot has different loading resistors, but within each slot there are 4 resistors of the same value. A resistor is modelled as two parallel edges of a cell. The bowtie is placed on a lossless substrate of relative perimittivity 4.8. The antenna is modelled free space, and an output point (the electric field value) is specified at a distance of 60 mm from the feed of the bowtie (red coloured cell).
+
+.. literalinclude:: ../../user_libs/optimisation_taguchi/antenna_bowtie_opt.in
+    :language: none
+    :linenos:
 
