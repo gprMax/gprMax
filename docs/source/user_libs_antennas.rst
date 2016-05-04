@@ -30,7 +30,7 @@ A description of how the models were created can be found at http://dx.doi.org/1
 Module overview
 ===============
 
-* `antennas.py` is a module containing the descriptions of the antennas.
+* ``antennas.py`` is a module containing the descriptions of the antennas.
 
 
 How to use the module
