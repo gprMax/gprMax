@@ -90,19 +90,40 @@ How to use the package
 
 The package requires ``#python`` and ``#end_python`` to be used in the input file, as well as ``#taguchi`` and ``#end_taguchi`` for specifying parameters and setting for the optimisation process. A Taguchi optimisation is run using the command line option ``--opt-taguchi``.
 
+.. note::
+
+    A couple of warnings before using this package:
+
+    * It requires a basic knowledge of Python to use the optimisation process and construct models.
+    * It combines a number of advanced features which must be used carefully, and sanity checks made throughout the process.
+
+
 Example
 -------
 
-The following example demonstrates using the Taguchi optimisation process to optimise values of loading resistors used in a bowtie antenna.
+The following example demonstrates using the Taguchi optimisation process to optimise values of loading resistors used in a bowtie antenna. The example is slighty contrived as the goal is simply to find values for the resistors that produce a maximal amplitude response from the antenna. We already know this should occur when the values of the resistors are at a minimum. Nevertheless, it is useful to illustrate the optimisation process and how to use it.
 
 .. figure:: images/user_libs/antenna_bowtie_opt.png
     :width: 600 px
 
     FDTD geometry mesh showing bowtie antenna with slots and loading resistors.
 
-The bowtie design features 3 vertical slots (y-direction) in each arm of the bowtie. Each slot has different loading resistors, but within each slot there are 4 resistors of the same value. A resistor is modelled as two parallel edges of a cell. The bowtie is placed on a lossless substrate of relative perimittivity 4.8. The antenna is modelled free space, and an output point (the electric field value) is specified at a distance of 60 mm from the feed of the bowtie (red coloured cell).
+The bowtie design features 3 vertical slots (y-direction) in each arm of the bowtie. Each slot has different loading resistors, but within each slot there are 4 resistors of the same value. A resistor is modelled as two parallel edges of a cell. The bowtie is placed on a lossless substrate of relative perimittivity 4.8. The antenna is modelled free space, and an output point (the electric field value) is specified at a distance of 60mm from the feed of the bowtie (red coloured cell).
 
 .. literalinclude:: ../../user_libs/optimisation_taguchi/antenna_bowtie_opt.in
     :language: none
     :linenos:
+
+The first part of the input file (lines 1-7) contains the parameters to optimise, their initial ranges, and fitness function information for the optimisation process. Three parameters representing the resistor values are defined with ranges between 0.1:math:`~\Omega` and 5:math:`~k\Omega`. A fitness function called ``maxvalue`` with a stopping criterion of 50V/m. The output point in the model that will be used in the optimisation is specified as the one with the name ``Ex60mm``. Finally a limit of 5 iterations is placed on the optimisation process, i.e. it will stop after 5 iterations irrespectively of whether it has reached the target of 50V/m.
+
+The next part of the input file (lines 9-93) contains the model. For the most part there is nothing special about the way the model is defined - a mixture of Python and functional forms of the input commands (available by importing the module ``input_cmd_funcs``) are used. However, it is worth pointing out how the values of the parameters to optimise are accessed. On line 29 a NumPy of the values of the resistors is created. The values are accessed using their names as keys to the ``optparams`` dictionary. On line 30 the values of the resistors are converted to conductivities, which are used to create new materials (line 34-35). The resistors are then built by applying the materials to cell edges (e.g. lines 55-62).
+
+The optimisation process is run using:
+
+.. code-block:: none
+
+    python -m gprMax user_libs/optimisation_taguchi/antenna_bowtie_opt.in --opt-taguchi
+
+Results
+^^^^^^^
 
