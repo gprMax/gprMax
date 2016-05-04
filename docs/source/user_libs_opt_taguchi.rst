@@ -22,7 +22,7 @@ Information
     #
     # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
-The package features an optimisation technique based on Taguchi's method. It allows the user to define parameters in an input file and optimise their values based on a fitness function.
+The package features an optimisation technique based on Taguchi's method. It allows users to define parameters in an input file and optimise their values based on a fitness function, for example it can be used to optimise material properties or geometry in a simulation.
 
 
 Taguchi's method
@@ -44,11 +44,13 @@ Package overview
 
 .. code-block:: none
 
+    antenna_bowtie_opt.in
     OA_9_4_3_2.npy
     OA_18_7_3_2.npy
     optimisation_taguchi_fitness.py
     optimisation_taguchi_plot.py
 
+* ``antenna_bowtie_opt.in`` is a example model of a bowtie antenna where values of loading resistors are optimised.
 * ``OA_9_4_3_2.npy`` and ``OA_18_7_3_2.npy`` are NumPy archives containing pre-built OAs from http://neilsloane.com/oadir/
 * ``optimisation_taguchi_fitness.py`` is a module containing fitness functions. There are some pre-built ones but users should add their own here.
 * ``optimisation_taguchi_plot.py`` is a module for plotting the results, such as parameter values and convergence history, from an optimisation process when it has completed.
@@ -58,7 +60,7 @@ Implementation
 
 The process by which Taguchi's method optimises parameters is illustrated in the following figure.
 
-.. figure:: images/taguchi_process.png
+.. figure:: images/user_libs/taguchi_process.png
     :width: 300 px
 
     Process associated with Taguchi's method.
@@ -92,4 +94,9 @@ Example
 -------
 
 The following example demonstrates using the Taguchi optimisation process to optimise values of loading resistors used in a bowtie antenna. The bowtie design features 3 slots in each arm of the bowtie where loading resistors are placed, and a substrate with a perimittivity of 4.8 is used. The antenna is modelled in free space, and an output point (the electric field value) is specified at a distance of 60 mm from the feed of the bowtie.
+
+.. figure:: images/user_libs/antenna_bowtie_opt.png
+    :width: 600 px
+
+    FDTD geometry mesh showing bowtie antenna with slots and loading resistors.
 
