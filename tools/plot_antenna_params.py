@@ -16,14 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import os, argparse
+import argparse, os
 import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 #import scipy.io as sio
-
-moduledirectory = os.path.dirname(os.path.abspath(__file__))
 
 """Plots antenna parameters (s11 parameter and input impedance and admittance) from an output file containing a transmission line source."""
 
@@ -60,6 +58,7 @@ Vinc = f[path + 'Vinc'][:]
 Iinc = f[path + 'Iinc'][:]
 Vtotal = f[path +'Vtotal'][:]
 Itotal = f[path +'Itotal'][:]
+Vrec = f['/rxs/rx1/Ex'][:] * -1
 f.close()
 Vref = Vtotal - Vinc
 Iref = Itotal - Iinc
@@ -72,13 +71,14 @@ delaycorrection = np.exp(-1j * 2 * np.pi * freqs * (dt / 2))
 
 # Calculate s11
 s11 = np.abs(np.fft.fft(Vref) * delaycorrection) / np.abs(np.fft.fft(Vinc) * delaycorrection)
+s21 = np.abs(np.fft.fft(Vrec)) / np.abs(np.fft.fft(Vinc) * delaycorrection)
 
 # Calculate input impedance
 zin = (np.fft.fft(Vtotal) * delaycorrection) / np.fft.fft(Itotal)
 
 # Load MoM zin from MATLAB antenna toolbox
 #MoM = {}
-#sio.loadmat(moduledirectory + '/../tests/numerical/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs_MoM.mat', MoM)
+#sio.loadmat('/../tests/numerical/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs_MoM.mat', MoM)
 
 # Calculate input admittance
 yin = np.fft.fft(Itotal) / (np.fft.fft(Vtotal) * delaycorrection)
@@ -91,6 +91,7 @@ Irefp = 20 * np.log10(np.abs(np.fft.fft(Iref)))
 Vtotalp = 20 * np.log10(np.abs((np.fft.fft(Vtotal) * delaycorrection)))
 Itotalp = 20 * np.log10(np.abs(np.fft.fft(Itotal)))
 s11 = 20 * np.log10(s11)
+s21 = 20 * np.log10(s21)
 
 # Set plotting range
 pltrangemin = 1
@@ -240,7 +241,7 @@ ax.grid()
 # Figure 2
 # Plot frequency spectra of s11
 fig2, ax = plt.subplots(num='Antenna parameters', figsize=(20, 12), facecolor='w', edgecolor='w')
-gs2 = gridspec.GridSpec(3, 2, hspace=0.5)
+gs2 = gridspec.GridSpec(2, 2, hspace=0.5)
 ax = plt.subplot(gs2[0, 0])
 markerline, stemlines, baseline = ax.stem(freqs[pltrange], s11[pltrange], '-.')
 plt.setp(baseline, 'linewidth', 0)
@@ -251,7 +252,21 @@ ax.set_title('s11')
 ax.set_xlabel('Frequency [Hz]')
 ax.set_ylabel('Power [dB]')
 #ax.set_xlim([0.88e9, 1.02e9])
-#ax.set_ylim([-20, 0])
+ax.set_ylim([-20, 0])
+ax.grid()
+
+# Plot frequency spectra of s21
+ax = plt.subplot(gs2[0, 1])
+markerline, stemlines, baseline = ax.stem(freqs[pltrange], s21[pltrange], '-.')
+plt.setp(baseline, 'linewidth', 0)
+plt.setp(stemlines, 'color', 'g')
+plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
+ax.plot(freqs[pltrange], s21[pltrange], 'g', lw=2)
+ax.set_title('s21')
+ax.set_xlabel('Frequency [Hz]')
+ax.set_ylabel('Power [dB]')
+#ax.set_xlim([0.88e9, 1.02e9])
+ax.set_ylim([-25, 50])
 ax.grid()
 
 # Plot input resistance (real part of impedance)
@@ -266,7 +281,7 @@ ax.set_xlabel('Frequency [Hz]')
 ax.set_ylabel('Resistance [Ohms]')
 #ax.set_xlim([0.88e9, 1.02e9])
 ax.set_ylim(bottom=0)
-#ax.set_ylim([0, 350])
+ax.set_ylim([0, 300])
 ax.grid()
 
 # Plot input reactance (imaginery part of impedance)
@@ -280,36 +295,36 @@ ax.set_title('Input impedance (reactive)')
 ax.set_xlabel('Frequency [Hz]')
 ax.set_ylabel('Reactance [Ohms]')
 #ax.set_xlim([0.88e9, 1.02e9])
-#ax.set_ylim([-1400, 200])
+ax.set_ylim([-200, 100])
 ax.grid()
 
-# Plot input admittance (magnitude)
-ax = plt.subplot(gs2[2, 0])
-markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.abs(yin[pltrange]), '-.')
-plt.setp(baseline, 'linewidth', 0)
-plt.setp(stemlines, 'color', 'g')
-plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
-ax.plot(freqs[pltrange], np.abs(yin[pltrange]), 'g', lw=2)
-ax.set_title('Input admittance (magnitude)')
-ax.set_xlabel('Frequency [Hz]')
-ax.set_ylabel('Admittance [Siemens]')
-#ax.set_xlim([0.88e9, 1.02e9])
-#ax.set_ylim([0, 0.035])
-ax.grid()
-
-# Plot input admittance (phase)
-ax = plt.subplot(gs2[2, 1])
-markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.angle(yin[pltrange], deg=True), '-.')
-plt.setp(baseline, 'linewidth', 0)
-plt.setp(stemlines, 'color', 'g')
-plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
-ax.plot(freqs[pltrange], np.angle(yin[pltrange], deg=True), 'g', lw=2)
-ax.set_title('Input admittance (phase)')
-ax.set_xlabel('Frequency [Hz]')
-ax.set_ylabel('Phase [degrees]')
-#ax.set_xlim([0.88e9, 1.02e9])
-#ax.set_ylim([-40, 100])
-ax.grid()
+## Plot input admittance (magnitude)
+#ax = plt.subplot(gs2[2, 0])
+#markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.abs(yin[pltrange]), '-.')
+#plt.setp(baseline, 'linewidth', 0)
+#plt.setp(stemlines, 'color', 'g')
+#plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
+#ax.plot(freqs[pltrange], np.abs(yin[pltrange]), 'g', lw=2)
+#ax.set_title('Input admittance (magnitude)')
+#ax.set_xlabel('Frequency [Hz]')
+#ax.set_ylabel('Admittance [Siemens]')
+##ax.set_xlim([0.88e9, 1.02e9])
+##ax.set_ylim([0, 0.035])
+#ax.grid()
+#
+## Plot input admittance (phase)
+#ax = plt.subplot(gs2[2, 1])
+#markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.angle(yin[pltrange], deg=True), '-.')
+#plt.setp(baseline, 'linewidth', 0)
+#plt.setp(stemlines, 'color', 'g')
+#plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
+#ax.plot(freqs[pltrange], np.angle(yin[pltrange], deg=True), 'g', lw=2)
+#ax.set_title('Input admittance (phase)')
+#ax.set_xlabel('Frequency [Hz]')
+#ax.set_ylabel('Phase [degrees]')
+##ax.set_xlim([0.88e9, 1.02e9])
+##ax.set_ylim([-40, 100])
+#ax.grid()
 
 # Figure 3 - Comparison of numerical modelling techniques
 #fig3, ax = plt.subplots(num='FDTD vs MoM', figsize=(20, 5), facecolor='w', edgecolor='w')

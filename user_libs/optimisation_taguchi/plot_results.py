@@ -12,7 +12,7 @@ from gprMax.optimisation_taguchi import plot_optimisation_history
 """Plots the results (pickled to file) from a Taguchi optimisation process."""
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Plots the results (pickled to file) from a Taguchi optimisation process.', usage='cd gprMax; python -m user_libs.optimisation_taguchi_plot picklefile')
+parser = argparse.ArgumentParser(description='Plots the results (pickled to file) from a Taguchi optimisation process.', usage='cd gprMax; python -m user_libs.optimisation_taguchi.plot_results picklefile')
 parser.add_argument('picklefile', help='name of file including path')
 args = parser.parse_args()
 

@@ -2,7 +2,7 @@
 optparams['resinner'] = [0.1, 5000]
 optparams['resmiddle'] = [0.1, 5000]
 optparams['resouter'] = [0.1, 5000]
-fitness = {'name': 'compactness', 'stop': 30, 'args': {'outputs': 'Ex60mm'}}
+fitness = {'name': 'maxvalue', 'stop': 50, 'args': {'outputs': 'Ex60mm'}}
 maxiterations = 5
 #end_taguchi:
 

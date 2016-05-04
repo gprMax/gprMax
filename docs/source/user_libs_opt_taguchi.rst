@@ -45,15 +45,15 @@ Package overview
 .. code-block:: none
 
     antenna_bowtie_opt.in
+    fitness_functions.py
     OA_9_4_3_2.npy
     OA_18_7_3_2.npy
-    optimisation_taguchi_fitness.py
-    optimisation_taguchi_plot.py
+    plot_results.py
 
 * ``antenna_bowtie_opt.in`` is a example model of a bowtie antenna where values of loading resistors are optimised.
+* ``fitness_functions.py`` is a module containing fitness functions. There are some pre-built ones but users should add their own here.
 * ``OA_9_4_3_2.npy`` and ``OA_18_7_3_2.npy`` are NumPy archives containing pre-built OAs from http://neilsloane.com/oadir/
-* ``optimisation_taguchi_fitness.py`` is a module containing fitness functions. There are some pre-built ones but users should add their own here.
-* ``optimisation_taguchi_plot.py`` is a module for plotting the results, such as parameter values and convergence history, from an optimisation process when it has completed.
+* ``plot_results.py`` is a module for plotting the results, such as parameter values and convergence history, from an optimisation process when it has completed.
 
 Implementation
 --------------
@@ -67,7 +67,7 @@ The process by which Taguchi's method optimises parameters is illustrated in the
 
 In stage 1a, one of the 2 pre-built OAs will automatically be chosen depending on the number of parameters to optimise. Currently, up to 7 independent parameters can be optimised, although a method to construct OAs of any size is under testing.
 
-In stage 1b, a fitness function is required to set a goal against which to compare results from the optimisation process. A number of pre-built fitness functions can be found in the ``optimisation_taguchi_fitness.py`` module, e.g. ``minvalue``, ``maxvalue`` and ``xcorr``. Users can also easily add their own fitness functions to this module. All fitness functions must take two arguments:
+In stage 1b, a fitness function is required to set a goal against which to compare results from the optimisation process. A number of pre-built fitness functions can be found in the ``fitness_functions.py`` module, e.g. ``minvalue``, ``maxvalue`` and ``xcorr``. Users can also easily add their own fitness functions to this module. All fitness functions must take two arguments:
 
 * ``filename`` a string containing the full path and filename of the output file
 * ``args`` a dictionary which can contain any number of additional arguments for the function, e.g. names (IDs) of outputs (rxs) from input file
@@ -114,11 +114,11 @@ The bowtie design features 3 vertical slots (y-direction) in each arm of the bow
     :language: none
     :linenos:
 
-The first part of the input file (lines 1-7) contains the parameters to optimise, their initial ranges, and fitness function information for the optimisation process. Three parameters representing the resistor values are defined with ranges between 0.1 :math:`\Omega` and 5 :math:`k\Omega`. A fitness function called ``maxvalue`` with a stopping criterion of 50V/m. The output point in the model that will be used in the optimisation is specified as having the name ``Ex60mm``. Finally, a limit of 5 iterations is placed on the optimisation process, i.e. it will stop after 5 iterations irrespectively of whether it has reached the target of 50V/m.
+The first part of the input file (lines 1-7) contains the parameters to optimise, their initial ranges, and fitness function information for the optimisation process. Three parameters representing the resistor values are defined with ranges between 0.1 :math:`\Omega` and 5 :math:`k\Omega`. A pre-built fitness function called ``maxvalue`` is specified with a stopping criterion of 50V/m. The output point in the model that will be used in the optimisation is specified as having the name ``Ex60mm``. Finally, a limit of 5 iterations is placed on the optimisation process, i.e. it will stop after 5 iterations irrespectively of whether it has reached the target of 50V/m.
 
 The next part of the input file (lines 9-93) contains the model. For the most part there is nothing special about the way the model is defined - a mixture of Python, NumPy and functional forms of the input commands (available by importing the module ``input_cmd_funcs``) are used. However, it is worth pointing out how the values of the parameters to optimise are accessed. On line 29 a NumPy array of the values of the resistors is created. The values are accessed using their names as keys to the ``optparams`` dictionary. On line 30 the values of the resistors are converted to conductivities, which are used to create new materials (line 34-35). The resistors are then built by applying the materials to cell edges (e.g. lines 55-62). The output point in the model in specifed with the name ``Ex60mm`` and as having only an ``Ex`` field output (line 42).
 
-The optimisation process is run on the model using the ``--opt-taguchi`` command line flag:
+The optimisation process is run on the model using the ``--opt-taguchi`` command line flag.
 
 .. code-block:: none
 
@@ -127,3 +127,8 @@ The optimisation process is run on the model using the ``--opt-taguchi`` command
 Results
 ^^^^^^^
 
+When the optimisation has completed a summary will be printed showing histories of the parameter values and the fitness metric. These values are also saved (pickled) to file and can be plotted using the ``plot_results.py`` module, for example:
+
+.. code-block:: none
+
+    python -m user_libs.optimisation_taguchi.plot_results antenna_bowtie_opt_hist.pickle
