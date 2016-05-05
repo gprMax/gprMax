@@ -66,7 +66,13 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
 
     # Select OA
     OA, N, cols, k, s, t = construct_OA(optparams)
-    print('\n{}\n\nTaguchi optimisation: orthogonal array with {} experiments, {} parameters ({} used), {} levels, and strength {} will be used.'.format(68*'*', N, cols, k, s, t))
+    print('\n{}\nTaguchi optimisation...\n'.format(68*'*'))
+    print('\tOrthogonal array: {:g} experiments per iteration, {:g} parameters ({:g} will be used), {:g} levels, and strength {:g}'.format(N, cols, k, s, t))
+    tmp = [(k, v) for k, v in optparams.items()]
+    print('\tParameters to optimise with ranges: {}'.format(str(tmp).strip('[]')))
+    print('\tOutput name(s) from model: {}'.format(fitness['args']['outputs']))
+    print('\tFitness function {} with stopping criterion {:g}'.format(fitness['name'], fitness['stop']))
+    print('\tMaximum iterations: {:g}'.format(maxiterations))
     
     # Initialise arrays and lists to store parameters required throughout optimisation
     # Lower, central, and upper values for each parameter
