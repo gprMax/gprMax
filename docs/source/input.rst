@@ -608,6 +608,7 @@ Allows you to insert pre-defined geometry into a model. The geometry is specifie
 
 .. note::
 
+    * The integer numbers in the HDF5 file must be stored as a NumPy array at the root named ``data`` with type ``np.uint16``.
     * The integer numbers in the HDF5 file correspond to the order of material commands in the materials text file, i.e. if ``#sand: 3 0 1 0`` is the first material in the materials file, it will be associated with any integers that are zero in the HDF5 file.
     * The spatial resolution of the geometry objects must match the spatial resolution defined in the model.
     * The spatial resolution of must be specified as a root attribute of the HDF5 file with the name ``dx, dy, dz`` equal to a tuple of floats, e.g. (0.002, 0.002, 0.002)
@@ -785,14 +786,19 @@ Provides a simple method of defining multiple output points in the model. The sy
 #src_steps: and #rx_steps:
 --------------------------
 
-Provide a simple method to allow you to move the location of all sources (``#src_steps``) or all receivers (``#rx_steps``) between runs of a model. The syntax of the commands is:
+Provides a simple method to allow you to move the location of all simple sources (``#src_steps``) or all receivers (``#rx_steps``) between runs of a model. The syntax of the commands is:
 
 .. code-block:: none
 
     #src_steps: f1 f2 f3
     #rx_steps: f1 f2 f3
 
-``f1 f2 f3`` are increments (x,y,z) to move all sources (``#hertzian_dipole``, ``#magnetic_dipole``, or ``#voltage_source``) or all receivers (created using either ``#rx`` or ``#rx_box`` commands).
+``f1 f2 f3`` are increments (x,y,z) to move all simple sources (``#hertzian_dipole`` or ``#magnetic_dipole``) or all receivers (created using either ``#rx`` or ``#rx_box`` commands).
+
+.. note::
+
+    * ``#src_steps`` and ``#rx_steps`` are not suitable for moving sources which have associated geometry, e.g. antenna models.
+    * Values for ``#src_steps`` and ``#rx_steps`` should not be changed between model runs using Python scripting.
 
 #snapshot:
 ----------
