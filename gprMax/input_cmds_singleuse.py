@@ -232,7 +232,7 @@ def process_singlecmds(singlecmds, G):
 
         # See if file exists at specified path and if not try input file directory
         if not os.path.isfile(excitationfile):
-            excitationfile = os.path.join(G.inputdirectory, excitationfile)
+            excitationfile = os.path.abspath(os.path.join(G.inputdirectory, excitationfile))
 
         # Get waveform names
         with open(excitationfile, 'r') as f:
