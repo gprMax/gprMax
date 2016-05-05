@@ -53,7 +53,7 @@ def process_geometrycmds(geometry, G):
             
             # See if material file exists at specified path and if not try input file directory
             if not os.path.isfile(matfile):
-                matfile = os.path.join(G.inputdirectory, matfile)
+                matfile = os.path.abspath(os.path.join(G.inputdirectory, matfile))
             
             # Read materials from file
             with open(matfile, 'r') as f:
@@ -70,24 +70,20 @@ def process_geometrycmds(geometry, G):
             
             # See if geometry object file exists at specified path and if not try input file directory
             if not os.path.isfile(geofile):
-                geofile = os.path.join(G.inputdirectory, geofile)
+                geofile = os.path.abspath(os.path.join(G.inputdirectory, geofile))
             
-            # Open geometry object file and read spatial resolution attribute
+            # Open geometry object file and read/check spatial resolution attribute
             f = h5py.File(geofile, 'r')
             dx_dy_dz = f.attrs['dx, dy, dz']
             if dx_dy_dz[0] != G.dx or dx_dy_dz[1] != G.dy or dx_dy_dz[2] != G.dz:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires the spatial resolution of the objects file to match the spatial resolution of the model')
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires the spatial resolution of the geometry objects file to match the spatial resolution of the model')
 
             data = f['/data'][:]
-            nx = data.shape[0]
-            ny = data.shape[1]
-            nz = data.shape[2]
-            
-            if (xs + nx) > G.nx or (ys + ny) > G.ny or (zs + nz) > G.nz:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the requested geometry objects do not fit within the model domain')
-        
             data += numexistmaterials
             build_voxels_from_array(xs, ys, zs, data, G.solid, G.rigidE, G.rigidH, G.ID)
+    
+            if G.messages:
+                print('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
     
         
         elif tmp[0] == '#edge:':
