@@ -128,6 +128,9 @@ def dispersion_check(G):
         if waveform.type == 'sine' or waveform.type == 'contsine':
             maxfreqs.append(4 * waveform.freq)
         
+        elif waveform.type =='impulse':
+            pass
+        
         else:
             # Calculate magnitude of frequency spectra of waveform
             power = 20 * np.log10(np.abs(np.fft.fft(waveformvalues))**2)
