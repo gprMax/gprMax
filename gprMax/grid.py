@@ -125,16 +125,20 @@ def dispersion_check(G):
                 waveformvalues[timeiter.index] = waveform.calculate_value(timeiter[0], G.dt)
                 timeiter.iternext()
 
-        # Calculate magnitude of frequency spectra of waveform
-        power = 20 * np.log10(np.abs(np.fft.fft(waveformvalues))**2)
-        freqs = np.fft.fftfreq(power.size, d=G.dt)
-
-        # Shift powers so that frequency with maximum power is at zero decibels
-        power -= np.amax(power)
+        if waveform.type == 'sine' or waveform.type == 'contsine':
+            maxfreqs.append(4 * waveform.freq)
         
-        # Set maximum frequency to -60dB from maximum power
-        freq = np.where((np.amax(power[1::]) - power[1::]) > 60)[0][0] + 1
-        maxfreqs.append(freqs[freq])
+        else:
+            # Calculate magnitude of frequency spectra of waveform
+            power = 20 * np.log10(np.abs(np.fft.fft(waveformvalues))**2)
+            freqs = np.fft.fftfreq(power.size, d=G.dt)
+
+            # Shift powers so that frequency with maximum power is at zero decibels
+            power -= np.amax(power)
+            
+            # Set maximum frequency to -60dB from maximum power
+            freq = np.where((np.amax(power[1::]) - power[1::]) > 60)[0][0] + 1
+            maxfreqs.append(freqs[freq])
 
     if maxfreqs:
         maxfreq = max(maxfreqs)
