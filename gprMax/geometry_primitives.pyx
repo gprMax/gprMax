@@ -668,15 +668,33 @@ cpdef void build_voxels_from_array(int xs, int ys, int zs, np.uint16_t[:, :, ::1
     """
 
     cdef Py_ssize_t i, j, k
-    cdef int nx, ny, nz, numID
+    cdef int xf, yf, zf, numID
     
-    nx = data.shape[0]
-    ny = data.shape[1]
-    nz = data.shape[2]
+    # Set bounds to domain if they outside
+    if xs < 0:
+        xs = 0
+    if xs + data.shape[0] >= solid.shape[0]:
+        xf = solid.shape[0] - 1
+    else:
+        xf = xs + data.shape[0]
 
-    for i in range(nx):
-        for j in range(ny):
-            for k in range(nz):
-                numID = data[i, j, k]
-                build_voxel(i + xs, j + ys, k + zs, numID, numID, numID, numID, False, solid, rigidE, rigidH, ID)
+    if ys < 0:
+        ys = 0
+    if ys + data.shape[1] >= solid.shape[1]:
+        yf = solid.shape[1] - 1
+    else:
+        yf = ys + data.shape[1]
+
+    if zs < 0:
+        zs = 0
+    if zs + data.shape[2] >= solid.shape[2]:
+        zf = solid.shape[2] - 1
+    else:
+        zf = zs + data.shape[2]
+
+    for i in range(xs, xf):
+        for j in range(ys, yf):
+            for k in range(zs, zf):
+                numID = data[i - xs, j - ys, k - zs]
+                build_voxel(i, j, k, numID, numID, numID, numID, False, solid, rigidE, rigidH, ID)
 
