@@ -68,9 +68,9 @@ class GeometryView:
         
         # Construct filename from user-supplied name and model run number
         if numbermodelruns == 1:
-            self.filename = G.inputdirectory + self.filename
+            self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.filename))
         else:
-            self.filename = G.inputdirectory + self.filename + str(modelrun)
+            self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.filename + str(modelrun)))
         
         if self.type == 'n':
             self.filename += '.vti'

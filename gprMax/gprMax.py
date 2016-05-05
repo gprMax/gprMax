@@ -57,8 +57,8 @@ def main():
     parser.add_argument('--opt-taguchi', action='store_true', default=False, help='optimise parameters using the Taguchi optimisation method')
     args = parser.parse_args()
     numbermodelruns = args.n
-    inputdirectory = os.path.dirname(os.path.abspath(args.inputfile)) + os.sep
-    inputfile = inputdirectory + os.path.basename(args.inputfile)
+    inputdirectory = os.path.dirname(os.path.abspath(args.inputfile))
+    inputfile = os.path.abspath(os.path.join(inputdirectory, os.path.basename(args.inputfile)))
     
     # Create a separate namespace that users can access in any Python code blocks in the input file
     usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': numbermodelruns, 'inputdirectory': inputdirectory}

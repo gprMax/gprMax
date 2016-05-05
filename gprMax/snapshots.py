@@ -85,7 +85,7 @@ class Snapshot:
         
         if not os.path.exists(snapshotdir):
             os.mkdir(snapshotdir)
-        self.filename = os.path.join(snapshotdir, self.filename + '.vti')
+        self.filename = os.path.abspath(os.path.join(snapshotdir, self.filename + '.vti'))
         
         # Calculate number of cells according to requested sampling
         self.vtk_xscells = round_value(self.xs / self.dx)
