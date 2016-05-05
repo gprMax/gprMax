@@ -89,7 +89,7 @@ class Waveform:
             waveform = ramp * np.sin(2 * np.pi * self.freq * time)
 
         elif self.type == 'impulse':
-            # time < G.dt condition required to do impulsive magnetic dipole
+            # time < dt condition required to do impulsive magnetic dipole
             if time == 0 or time < dt:
                 waveform = 1
             elif time >= dt:
