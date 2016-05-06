@@ -20,7 +20,7 @@ You can access the following built-in variables from your Python code:
 
 * ``current_model_run`` is the current run number of the model that is been executed.
 * ``number_model_runs`` is the total number of runs specified when the model was initially executed, i.e. from ``python -m gprMax my_input_file -n number_of_model_runs``
-* ``inputdirectory`` is the path to the directory where your input file is located.
+* ``input_directory`` is the path to the directory where your input file is located.
 
 
 Functions for input commands
