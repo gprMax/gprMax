@@ -206,7 +206,7 @@ def process_singlecmds(singlecmds, G):
         G.srcstepy = round_value(float(tmp[1])/G.dy)
         G.srcstepz = round_value(float(tmp[2])/G.dz)
         if G.messages:
-            print('All sources will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.srcstepx * G.dx, G.srcstepy * G.dy, G.srcstepz * G.dz))
+            print('Simple sources will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.srcstepx * G.dx, G.srcstepy * G.dy, G.srcstepz * G.dz))
 
 
     # rx_steps
