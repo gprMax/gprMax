@@ -53,6 +53,7 @@ def main():
     parser.add_argument('-mpi', action='store_true', default=False, help='switch on MPI task farm')
     parser.add_argument('-benchmark', action='store_true', default=False, help='switch on benchmarking mode')
     parser.add_argument('--geometry-only', action='store_true', default=False, help='only build model and produce geometry file(s)')
+    parser.add_argument('--geometry-fixed', action='store_true', default=False, help='do not reprocess model geometry for multiple model runs')
     parser.add_argument('--write-processed', action='store_true', default=False, help='write an input file after any Python code and include commands in the original input file have been processed')
     parser.add_argument('--opt-taguchi', action='store_true', default=False, help='optimise parameters using the Taguchi optimisation method')
     args = parser.parse_args()
@@ -61,7 +62,7 @@ def main():
     inputfile = os.path.abspath(os.path.join(inputdirectory, os.path.basename(args.inputfile)))
     
     # Create a separate namespace that users can access in any Python code blocks in the input file
-    usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': numbermodelruns, 'inputdirectory': inputdirectory}
+    usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': numbermodelruns, 'input_directory': inputdirectory}
 
     # Process for Taguchi optimisation
     if args.opt_taguchi:
@@ -100,7 +101,7 @@ def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
         optparams (dict): Optional argument. For Taguchi optimisation it provides the parameters to optimise and their values.
     """
-    
+
     tsimstart = perf_counter()
     for modelrun in range(1, numbermodelruns + 1):
         if optparams: # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
@@ -239,108 +240,143 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     # Monitor memory usage
     p = psutil.Process()
     
-    print('\n{}\n\nModel input file: {}\n'.format(68*'*', inputfile))
+    # Declare variable to hold FDTDGrid class
+    global G
     
-    # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
-    usernamespace['current_model_run'] = modelrun
-    print('Constants/variables available for Python scripting: {}\n'.format(usernamespace))
-    
-    # Process any user input Python commands
-    processedlines = process_python_include_code(inputfile, usernamespace)
-    
-    # Write a file containing the input commands after Python blocks have been processed
-    if args.write_processed:
-        write_processed_file(inputfile, modelrun, numbermodelruns, processedlines)
-    
-    # Check validity of command names & that essential commands are present
-    singlecmds, multicmds, geometry = check_cmd_names(processedlines)
-
-    # Initialise an instance of the FDTDGrid class
-    G = FDTDGrid()
-    G.inputfilename = os.path.split(inputfile)[1]
-    G.inputdirectory = usernamespace['inputdirectory']
-
-    # Create built-in materials
-    m = Material(0, 'pec', G)
-    m.average = False
-    G.materials.append(m)
-    m = Material(1, 'free_space', G)
-    G.materials.append(m)
-
-    # Process parameters for commands that can only occur once in the model
-    process_singlecmds(singlecmds, G)
-
-    # Process parameters for commands that can occur multiple times in the model
-    process_multicmds(multicmds, G)
-
-    # Initialise an array for volumetric material IDs (solid), boolean arrays for specifying materials not to be averaged (rigid),
-    # an array for cell edge IDs (ID), and arrays for the field components.
-    G.initialise_std_arrays()
-
-    # Process the geometry commands in the order they were given
-    tinputprocstart = perf_counter()
-    process_geometrycmds(geometry, G)
-    tinputprocend = perf_counter()
-    print('\nInput file processed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tinputprocend - tinputprocstart))))
-
-    # Build the PML and calculate initial coefficients
-    build_pmls(G)
-    
-    # Build the model, i.e. set the material properties (ID) for every edge of every Yee cell
-    tbuildstart = perf_counter()
-    build_electric_components(G.solid, G.rigidE, G.ID, G)
-    build_magnetic_components(G.solid, G.rigidH, G.ID, G)
-    tbuildend = perf_counter()
-    print('\nModel built in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tbuildend - tbuildstart))))
-
-    # Process any voltage sources (that have resistance) to create a new material at the source location
-    for voltagesource in G.voltagesources:
-        voltagesource.create_material(G)
-    
-    # Initialise arrays of update coefficients to pass to update functions
-    G.initialise_std_updatecoeff_arrays()
-
-    # Initialise arrays of update coefficients and temporary values if there are any dispersive materials
-    if Material.maxpoles != 0:
-        G.initialise_dispersive_arrays()
-
-    # Calculate update coefficients, store in arrays, and list materials in model
-    if G.messages:
-        print('\nMaterials:\n')
-        print('ID\tName\t\tProperties')
-        print('{}'.format('-'*50))
-    for material in G.materials:
+    # Normal model reading/building process; bypassed if geometry information to be reused
+    if not 'G' in globals():
+        print('\n{}\n\nModel input file: {}\n'.format(68*'*', inputfile))
         
-        # Calculate update coefficients for material
-        material.calculate_update_coeffsE(G)
-        material.calculate_update_coeffsH(G)
+        # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
+        usernamespace['current_model_run'] = modelrun
+        print('Constants/variables available for Python scripting: {}\n'.format(usernamespace))
         
-        # Store all update coefficients together
-        G.updatecoeffsE[material.numID, :] = material.CA, material.CBx, material.CBy, material.CBz, material.srce
-        G.updatecoeffsH[material.numID, :] = material.DA, material.DBx, material.DBy, material.DBz, material.srcm
+        # Read input file and process any Python or include commands
+        processedlines = process_python_include_code(inputfile, usernamespace)
         
-        # Store coefficients for any dispersive materials
+        # Write a file containing the input commands after Python or include commands have been processed
+        if args.write_processed:
+            write_processed_file(inputfile, modelrun, numbermodelruns, processedlines)
+        
+        # Check validity of command names and that essential commands are present
+        singlecmds, multicmds, geometry = check_cmd_names(processedlines)
+
+        # Initialise an instance of the FDTDGrid class
+        G = FDTDGrid()
+        G.inputfilename = os.path.split(inputfile)[1]
+        G.inputdirectory = os.path.dirname(os.path.abspath(inputfile))
+
+        # Create built-in materials
+        m = Material(0, 'pec', G)
+        m.average = False
+        G.materials.append(m)
+        m = Material(1, 'free_space', G)
+        G.materials.append(m)
+
+        # Process parameters for commands that can only occur once in the model
+        process_singlecmds(singlecmds, G)
+
+        # Process parameters for commands that can occur multiple times in the model
+        process_multicmds(multicmds, G)
+
+        # Initialise an array for volumetric material IDs (solid), boolean arrays for specifying materials not to be averaged (rigid),
+        # an array for cell edge IDs (ID)
+        G.initialise_geometry_arrays()
+
+        # Initialise arrays for the field components
+        G.initialise_field_arrays()
+
+        # Process geometry commands in the order they were given
+        tinputprocstart = perf_counter()
+        process_geometrycmds(geometry, G)
+        tinputprocend = perf_counter()
+        print('\nInput file processed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tinputprocend - tinputprocstart))))
+
+        # Build the PML and calculate initial coefficients
+        build_pmls(G)
+        
+        # Build the model, i.e. set the material properties (ID) for every edge of every Yee cell
+        tbuildstart = perf_counter()
+        build_electric_components(G.solid, G.rigidE, G.ID, G)
+        build_magnetic_components(G.solid, G.rigidH, G.ID, G)
+        tbuildend = perf_counter()
+        print('\nModel built in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tbuildend - tbuildstart))))
+
+        # Process any voltage sources (that have resistance) to create a new material at the source location
+        for voltagesource in G.voltagesources:
+            voltagesource.create_material(G)
+        
+        # Initialise arrays of update coefficients to pass to update functions
+        G.initialise_std_update_coeff_arrays()
+
+        # Initialise arrays of update coefficients and temporary values if there are any dispersive materials
         if Material.maxpoles != 0:
-            z = 0
-            for pole in range(Material.maxpoles):
-                G.updatecoeffsdispersive[material.numID, z:z+3] = e0 * material.eqt2[pole], material.eqt[pole], material.zt[pole]
-                z += 3
-        
-        if G.messages:
-            if material.deltaer and material.tau:
-                tmp = 'delta_epsr={}, tau={} secs; '.format(', '.join('{:g}'.format(deltaer) for deltaer in material.deltaer), ', '.join('{:g}'.format(tau) for tau in material.tau))
-            else:
-                tmp = ''
-            if material.average:
-                dielectricsmoothing = 'dielectric smoothing permitted.'
-            else:
-                dielectricsmoothing = 'dielectric smoothing not permitted.'
-            print('{:3}\t{:12}\tepsr={:g}, sig={:g} S/m; mur={:g}, sig*={:g} S/m; '.format(material.numID, material.ID, material.er, material.se, material.mr, material.sm) + tmp + dielectricsmoothing)
+            G.initialise_dispersive_arrays()
 
-    # Check to see if numerical dispersion might be a problem
-    resolution = dispersion_check(G)
-    if resolution != 0 and max((G.dx, G.dy, G.dz)) > resolution:
-        print('\nWARNING: Potential numerical dispersion in the simulation. Check the spatial discretisation against the smallest wavelength present. Suggested resolution should be less than {:g}m'.format(resolution))
+        # Calculate update coefficients, store in arrays, and list materials in model
+        if G.messages:
+            print('\nMaterials:\n')
+            print('ID\tName\t\tProperties')
+            print('{}'.format('-'*50))
+        for material in G.materials:
+            
+            # Calculate update coefficients for material
+            material.calculate_update_coeffsE(G)
+            material.calculate_update_coeffsH(G)
+            
+            # Store all update coefficients together
+            G.updatecoeffsE[material.numID, :] = material.CA, material.CBx, material.CBy, material.CBz, material.srce
+            G.updatecoeffsH[material.numID, :] = material.DA, material.DBx, material.DBy, material.DBz, material.srcm
+            
+            # Store coefficients for any dispersive materials
+            if Material.maxpoles != 0:
+                z = 0
+                for pole in range(Material.maxpoles):
+                    G.updatecoeffsdispersive[material.numID, z:z+3] = e0 * material.eqt2[pole], material.eqt[pole], material.zt[pole]
+                    z += 3
+            
+            if G.messages:
+                if material.deltaer and material.tau:
+                    tmp = 'delta_epsr={}, tau={} secs; '.format(', '.join('{:g}'.format(deltaer) for deltaer in material.deltaer), ', '.join('{:g}'.format(tau) for tau in material.tau))
+                else:
+                    tmp = ''
+                if material.average:
+                    dielectricsmoothing = 'dielectric smoothing permitted.'
+                else:
+                    dielectricsmoothing = 'dielectric smoothing not permitted.'
+                print('{:3}\t{:12}\tepsr={:g}, sig={:g} S/m; mur={:g}, sig*={:g} S/m; '.format(material.numID, material.ID, material.er, material.se, material.mr, material.sm) + tmp + dielectricsmoothing)
+
+        # Check to see if numerical dispersion might be a problem
+        resolution = dispersion_check(G)
+        if resolution and max((G.dx, G.dy, G.dz)) > resolution:
+            print('\nWARNING: Potential numerical dispersion in the simulation. Check the spatial discretisation against the smallest wavelength present. Suggested resolution should be less than {:g}m'.format(resolution))
+
+    # If geometry information to be reused between model runs
+    else:        
+        # Clear arrays for field components
+        G.initialise_field_arrays()
+        
+        # Clear arrays for fields in PML
+        for pml in G.pmls:
+            pml.initialise_field_arrays()
+
+    # Adjust position of simple sources and receivers if required
+    if G.srcstepx > 0 or G.srcstepy > 0 or G.srcstepz > 0:
+        for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
+            if modelrun == 1:
+                if source.xcoord + G.srcstepx * (numbermodelruns - 1) > G.nx or source.ycoord + G.srcstepy * (numbermodelruns - 1) > G.ny or source.zcoord + G.srcstepz * (numbermodelruns - 1) > G.nz:
+                    raise GeneralError('Source(s) will be stepped to a position outside the domain.')
+            source.xcoord = source.xcoordbase + (modelrun - 1) * G.srcstepx
+            source.ycoord = source.ycoordbase + (modelrun - 1) * G.srcstepy
+            source.zcoord = source.zcoordbase + (modelrun - 1) * G.srcstepz
+    if G.rxstepx > 0 or G.rxstepy > 0 or G.rxstepz > 0:
+        for receiver in G.rxs:
+            if modelrun == 1:
+                if receiver.xcoord + G.rxstepx * (numbermodelruns - 1) > G.nx or receiver.ycoord + G.rxstepy * (numbermodelruns - 1) > G.ny or receiver.zcoord + G.rxstepz * (numbermodelruns - 1) > G.nz:
+                    raise GeneralError('Receiver(s) will be stepped to a position outside the domain.')
+            receiver.xcoord = receiver.xcoordbase + (modelrun - 1) * G.rxstepx
+            receiver.ycoord = receiver.ycoordbase + (modelrun - 1) * G.rxstepy
+            receiver.zcoord = receiver.zcoordbase + (modelrun - 1) * G.rxstepz
     
     # Write files for any geometry views
     if not G.geometryviews and args.geometry_only:
@@ -352,31 +388,13 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         tgeoend = perf_counter()
         print('\nGeometry file(s) written in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tgeoend - tgeostart))))
 
-    # Run simulation if not doing only geometry
+    # Run simulation (if not doing geometry only)
     if not args.geometry_only:
         
         # Prepare any snapshot files
         for snapshot in G.snapshots:
             snapshot.prepare_vtk_imagedata(modelrun, numbermodelruns, G)
         
-        # Adjust position of sources and receivers if required
-        if G.srcstepx > 0 or G.srcstepy > 0 or G.srcstepz > 0:
-            for source in itertools.chain(G.hertziandipoles, G.magneticdipoles, G.voltagesources, G.transmissionlines):
-                if modelrun == 1:
-                    if source.xcoord + G.srcstepx * (numbermodelruns - 1) > G.nx or source.ycoord + G.srcstepy * (numbermodelruns - 1) > G.ny or source.zcoord + G.srcstepz * (numbermodelruns - 1) > G.nz:
-                        raise GeneralError('Source(s) will be stepped to a position outside the domain.')
-                source.xcoord += (modelrun - 1) * G.srcstepx
-                source.ycoord += (modelrun - 1) * G.srcstepy
-                source.zcoord += (modelrun - 1) * G.srcstepz
-        if G.rxstepx > 0 or G.rxstepy > 0 or G.rxstepz > 0:
-            for receiver in G.rxs:
-                if modelrun == 1:
-                    if receiver.xcoord + G.rxstepx * (numbermodelruns - 1) > G.nx or receiver.ycoord + G.rxstepy * (numbermodelruns - 1) > G.ny or receiver.zcoord + G.rxstepz * (numbermodelruns - 1) > G.nz:
-                        raise GeneralError('Receiver(s) will be stepped to a position outside the domain.')
-                receiver.xcoord += (modelrun - 1) * G.rxstepx
-                receiver.ycoord += (modelrun - 1) * G.rxstepy
-                receiver.zcoord += (modelrun - 1) * G.rxstepz
-
         # Prepare output file
         inputfileparts = os.path.splitext(inputfile)
         if numbermodelruns == 1:
@@ -465,6 +483,10 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         tsolveend = perf_counter()
         print('\n\nSolving took [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsolveend - tsolvestart))))
         print('Peak memory (approx) used: {}'.format(human_size(p.memory_info().rss)))
+
+        # If geometry information to be reused between model runs then FDTDGrid class instance must be global so that it persists
+        if not args.geometry_fixed:
+            del G
 
         return int(tsolveend - tsolvestart)
 
