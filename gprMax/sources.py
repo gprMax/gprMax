@@ -33,6 +33,9 @@ class Source(object):
         self.xcoord = None
         self.ycoord = None
         self.zcoord = None
+        self.xcoordbase = None
+        self.ycoordbase = None
+        self.zcoordbase = None
         self.start = None
         self.stop = None
         self.waveformID = None
@@ -93,8 +96,12 @@ class VoltageSource(Source):
         """
 
         if self.resistance != 0:
+            i = self.xcoord
+            j = self.ycoord
+            k = self.zcoord
+            
             componentID = 'E' + self.polarisation
-            requirednumID = G.ID[G.IDlookup[componentID], self.xcoord, self.ycoord, self.zcoord]
+            requirednumID = G.ID[G.IDlookup[componentID], i, j, k]
             material = next(x for x in G.materials if x.numID == requirednumID)
             newmaterial = deepcopy(material)
             newmaterial.ID = material.ID + '+VoltageSource_' + str(self.resistance)
@@ -109,7 +116,7 @@ class VoltageSource(Source):
             elif self.polarisation == 'z':
                 newmaterial.se += G.dz / (self.resistance * G.dx * G.dy)
 
-            G.ID[G.IDlookup[componentID], self.xcoord, self.ycoord, self.zcoord] = newmaterial.numID
+            G.ID[G.IDlookup[componentID], i, j, k] = newmaterial.numID
             G.materials.append(newmaterial)
 
 
