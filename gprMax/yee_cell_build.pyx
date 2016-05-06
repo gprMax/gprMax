@@ -108,10 +108,10 @@ cpdef void build_electric_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, 
     """
     
     cdef Py_ssize_t i, j, k
-    cdef int numID1, numID2, numID3, numID4
+    cdef int numID1, numID2, numID3, numID4, componentID
 
     # Ex component
-    componentID = 0
+    componentID = G.IDlookup['Ex']
     for i in range(0, G.nx):
         for j in range(1, G.ny):
             for k in range(1, G.nz):
@@ -133,7 +133,7 @@ cpdef void build_electric_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, 
                         create_electric_average(i, j, k, numID1, numID2, numID3, numID4, componentID, G)
 
     # Ey component
-    componentID = 1
+    componentID = G.IDlookup['Ey']
     for i in range(1, G.nx):
         for j in range(0, G.ny):
             for k in range(1, G.nz):
@@ -155,7 +155,7 @@ cpdef void build_electric_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, 
                         create_electric_average(i, j, k, numID1, numID2, numID3, numID4, componentID, G)
 
     # Ez component
-    componentID = 2
+    componentID = G.IDlookup['Ez']
     for i in range(1, G.nx):
         for j in range(1, G.ny):
             for k in range(0, G.nz):
@@ -185,10 +185,10 @@ cpdef void build_magnetic_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, 
     """
     
     cdef Py_ssize_t i, j, k
-    cdef int numID1, numID2
+    cdef int numID1, numID2, componentID
 
     # Hx component
-    componentID = 3
+    componentID = G.IDlookup['Hx']
     for i in range(1, G.nx):
         for j in range(0, G.ny):
             for k in range(0, G.nz):
@@ -208,7 +208,7 @@ cpdef void build_magnetic_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, 
                         create_magnetic_average(i, j, k, numID1, numID2, componentID, G)
 
     # Hy component
-    componentID = 4
+    componentID = G.IDlookup['Hy']
     for i in range(0, G.nx):
         for j in range(1, G.ny):
             for k in range(0, G.nz):
@@ -228,7 +228,7 @@ cpdef void build_magnetic_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, 
                         create_magnetic_average(i, j, k, numID1, numID2, componentID, G)
 
     # Hz component
-    componentID = 5
+    componentID = G.IDlookup['Hz']
     for i in range(0, G.nx):
         for j in range(0, G.ny):
             for k in range(1, G.nz):
