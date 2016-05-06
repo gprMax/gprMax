@@ -24,9 +24,9 @@ from gprMax.grid import Ix, Iy, Iz
 from gprMax.utilities import round_value
 
 
-class VoltageSource:
-    """The voltage source can be a hard source if it's resistance is zero, i.e. the time variation of the specified electric field component is prescribed. If it's resistance is non-zero it behaves as a resistive voltage source."""
-    
+class Source(object):
+    """Super-class which describes a generic source."""
+
     def __init__(self):
         self.ID = None
         self.polarisation = None
@@ -35,8 +35,15 @@ class VoltageSource:
         self.zcoord = None
         self.start = None
         self.stop = None
-        self.resistance = None
         self.waveformID = None
+
+
+class VoltageSource(Source):
+    """The voltage source can be a hard source if it's resistance is zero, i.e. the time variation of the specified electric field component is prescribed. If it's resistance is non-zero it behaves as a resistive voltage source."""
+    
+    def __init__(self):
+        super(Source, self).__init__()
+        self.resistance = None
 
     def update_electric(self, abstime, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a voltage source.
@@ -103,18 +110,11 @@ class VoltageSource:
             G.materials.append(newmaterial)
 
 
-class HertzianDipole:
+class HertzianDipole(Source):
     """The Hertzian dipole is an additive source (electric current density)."""
     
     def __init__(self):
-        self.ID = None
-        self.polarisation = None
-        self.xcoord = None
-        self.ycoord = None
-        self.zcoord = None
-        self.start = None
-        self.stop = None
-        self.waveformID = None
+        super(Source, self).__init__()
 
     def update_electric(self, abstime, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a Hertzian dipole.
@@ -145,18 +145,11 @@ class HertzianDipole:
                 Ez[i, j, k] -= updatecoeffsE[ID[2, i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dx * G.dy))
 
 
-class MagneticDipole:
+class MagneticDipole(Source):
     """The magnetic dipole is an additive source (magnetic current density)."""
     
     def __init__(self):
-        self.ID = None
-        self.polarisation = None
-        self.xcoord = None
-        self.ycoord = None
-        self.zcoord = None
-        self.start = None
-        self.stop = None
-        self.waveformID = None
+        super(Source, self).__init__()
 
     def update_magnetic(self, abstime, updatecoeffsH, ID, Hx, Hy, Hz, G):
         """Updates magnetic field values for a magnetic dipole.
@@ -187,7 +180,7 @@ class MagneticDipole:
                 Hz[i, j, k] -= waveform.amp  * waveform.calculate_value(time, G.dt) * (G.dt / (G.dx * G.dy * G.dz))
 
 
-class TransmissionLine:
+class TransmissionLine(Source):
     """The transmission line source is a one-dimensional transmission line which is attached virtually to a grid cell."""
     
     def __init__(self, G):
@@ -196,15 +189,8 @@ class TransmissionLine:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
         
-        self.ID = None
-        self.polarisation = None
-        self.xcoord = None
-        self.ycoord = None
-        self.zcoord = None
-        self.start = None
-        self.stop = None
+        super(Source, self).__init__()
         self.resistance = None
-        self.waveformID = None
         
         # Coefficients for ABC termination of end of the transmission line
         self.abcv0 = 0
