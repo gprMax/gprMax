@@ -160,6 +160,9 @@ def process_multicmds(multicmds, G):
             h.xcoord = xcoord
             h.ycoord = ycoord
             h.zcoord = zcoord
+            h.xcoordbase = xcoord
+            h.ycoordbase = ycoord
+            h.zcoordbase = zcoord
             h.ID = 'HertzianDipole(' + str(h.xcoord) + ',' + str(h.ycoord) + ',' + str(h.zcoord) + ')'
             h.waveformID = tmp[4]
             
@@ -222,6 +225,9 @@ def process_multicmds(multicmds, G):
             m.xcoord = xcoord
             m.ycoord = ycoord
             m.zcoord = zcoord
+            m.xcoordbase = xcoord
+            m.ycoordbase = ycoord
+            m.zcoordbase = zcoord
             m.ID = 'MagneticDipole(' + str(m.xcoord) + ',' + str(m.ycoord) + ',' + str(m.zcoord) + ')'
             m.waveformID = tmp[4]
             
@@ -340,7 +346,13 @@ def process_multicmds(multicmds, G):
             if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.\n')
             
-            r = Rx(xcoord=xcoord, ycoord=ycoord, zcoord=zcoord)
+            r = Rx()
+            r.xcoord = xcoord
+            r.ycoord = ycoord
+            r.zcoord = zcoord
+            r.xcoordbase = xcoord
+            r.ycoordbase = ycoord
+            r.zcoordbase = zcoord
             
             # If no ID or outputs are specified, use default i.e Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, Iz
             if len(tmp) == 3:
@@ -403,7 +415,13 @@ def process_multicmds(multicmds, G):
             for x in range(xs, xf, dx):
                 for y in range(ys, yf, dy):
                     for z in range(zs, zf, dz):
-                        r = Rx(xcoord=x, ycoord=y, zcoord=z)
+                        r = Rx()
+                        r.xcoord = x
+                        r.ycoord = y
+                        r.zcoord = z
+                        r.xcoordbase = x
+                        r.ycoordbase = y
+                        r.zcoordbase = z
                         r.ID = 'Rx(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
                         G.rxs.append(r)
 
