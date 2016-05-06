@@ -21,7 +21,7 @@ import numpy as np
 from gprMax.utilities import round_value
 
 
-class Waveform:
+class Waveform(object):
     """Definitions of waveform shapes that can be used with sources."""
     
     types = ['gaussian', 'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot', 'gaussiandotdotnorm', 'ricker', 'sine', 'contsine', 'impulse', 'user']
