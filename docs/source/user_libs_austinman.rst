@@ -38,7 +38,6 @@ AustinMan   8x8x8                      86 x 47 x 235
 AustinMan   4x4x4                      171 x 94 x 470
 AustinMan   2x2x2                      342 x 187 x 939
 AustinMan   1x1x1                      683 x 374 x 1877
-=========== ========================== ==================
 AustinWoman 8x8x8                      86 x 47 x 217
 AustinWoman 4x4x4                      171 x 94 x 433
 AustinWoman 2x2x2                      342 x 187 x 865
