@@ -23,7 +23,7 @@ from struct import pack
 from gprMax.utilities import round_value
 
 
-class GeometryView:
+class GeometryView(object):
     """Views of the geometry of the model."""
     
     if sys.byteorder == 'little':
@@ -52,7 +52,7 @@ class GeometryView:
         self.dx = dx
         self.dy = dy
         self.dz = dz
-        self.filename = filename
+        self.basefilename = filename
         self.type = type
 
     def write_vtk(self, modelrun, numbermodelruns, G):
@@ -68,9 +68,9 @@ class GeometryView:
         
         # Construct filename from user-supplied name and model run number
         if numbermodelruns == 1:
-            self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.filename))
+            self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.basefilename))
         else:
-            self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.filename + str(modelrun)))
+            self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.basefilename + str(modelrun)))
         
         if self.type == 'n':
             self.filename += '.vti'
