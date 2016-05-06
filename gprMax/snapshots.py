@@ -25,7 +25,7 @@ from gprMax.grid import Ix, Iy, Iz
 from gprMax.utilities import round_value
 
 
-class Snapshot:
+class Snapshot(object):
     """Snapshots of the electric and magnetic field values."""
     
     # Set string for byte order
@@ -61,7 +61,7 @@ class Snapshot:
         self.dy = dy
         self.dz = dz
         self.time = time
-        self.filename = filename
+        self.basefilename = filename
 
     def prepare_vtk_imagedata(self, modelrun, numbermodelruns, G):
         """Prepares a VTK ImageData (.vti) file for a snapshot.
@@ -85,7 +85,7 @@ class Snapshot:
         
         if not os.path.exists(snapshotdir):
             os.mkdir(snapshotdir)
-        self.filename = os.path.abspath(os.path.join(snapshotdir, self.filename + '.vti'))
+        self.filename = os.path.abspath(os.path.join(snapshotdir, self.basefilename + '.vti'))
         
         # Calculate number of cells according to requested sampling
         self.vtk_xscells = round_value(self.xs / self.dx)
