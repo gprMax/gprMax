@@ -32,7 +32,9 @@ def process_python_include_code(inputfile, usernamespace):
     Returns:
         processedlines (list): Input commands after Python processing.
     """
-        
+    
+    userpython = False
+    
     with open(inputfile, 'r') as f:
         # Strip out any newline characters and comments that must begin with double hashes
         inputlines = [line.rstrip() for line in f if(not line.startswith('##') and line.rstrip('\n'))]
