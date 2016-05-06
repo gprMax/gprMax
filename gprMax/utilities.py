@@ -21,7 +21,7 @@ import decimal as d
 from pyfiglet import Figlet
 
 
-class ListStream:
+class ListStream(object):
     """A list can be streamed into. Required when temporarily redirecting stdio to capture output from users Python code blocks."""
     
     def __init__(self):
