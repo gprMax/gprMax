@@ -66,19 +66,22 @@ class VoltageSource(Source):
             
             if self.polarisation is 'x':
                 if self.resistance != 0:
-                    Ex[i, j, k] -= updatecoeffsE[ID[0, i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (self.resistance * G.dy * G.dz))
+                    componentID = 'E' + self.polarisation
+                    Ex[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (self.resistance * G.dy * G.dz))
                 else:
                     Ex[i, j, k] = -1 * waveform.amp * waveform.calculate_value(time, G.dt) / G.dx
 
             elif self.polarisation is 'y':
                 if self.resistance != 0:
-                    Ey[i, j, k] -= updatecoeffsE[ID[1, i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (self.resistance * G.dx * G.dz))
+                    componentID = 'E' + self.polarisation
+                    Ey[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (self.resistance * G.dx * G.dz))
                 else:
                     Ey[i, j, k] = -1 * waveform.amp * waveform.calculate_value(time, G.dt) / G.dy
 
             elif self.polarisation is 'z':
                 if self.resistance != 0:
-                    Ez[i, j, k] -= updatecoeffsE[ID[2, i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (self.resistance * G.dx * G.dy))
+                    componentID = 'E' + self.polarisation
+                    Ez[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (self.resistance * G.dx * G.dy))
                 else:
                     Ez[i, j, k] = -1 * waveform.amp * waveform.calculate_value(time, G.dt) / G.dz
 
@@ -90,8 +93,8 @@ class VoltageSource(Source):
         """
 
         if self.resistance != 0:
-            ID = 'E' + self.polarisation
-            requirednumID = G.ID[G.IDlookup[ID], self.xcoord, self.ycoord, self.zcoord]
+            componentID = 'E' + self.polarisation
+            requirednumID = G.ID[G.IDlookup[componentID], self.xcoord, self.ycoord, self.zcoord]
             material = next(x for x in G.materials if x.numID == requirednumID)
             newmaterial = deepcopy(material)
             newmaterial.ID = material.ID + '+VoltageSource_' + str(self.resistance)
@@ -106,7 +109,7 @@ class VoltageSource(Source):
             elif self.polarisation == 'z':
                 newmaterial.se += G.dz / (self.resistance * G.dx * G.dy)
 
-            G.ID[G.IDlookup[ID], self.xcoord, self.ycoord, self.zcoord] = newmaterial.numID
+            G.ID[G.IDlookup[componentID], self.xcoord, self.ycoord, self.zcoord] = newmaterial.numID
             G.materials.append(newmaterial)
 
 
@@ -136,13 +139,16 @@ class HertzianDipole(Source):
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             
             if self.polarisation is 'x':
-                Ex[i, j, k] -= updatecoeffsE[ID[0, i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dy * G.dz))
+                componentID = 'E' + self.polarisation
+                Ex[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dy * G.dz))
 
             elif self.polarisation is 'y':
-                Ey[i, j, k] -= updatecoeffsE[ID[1, i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dx * G.dz))
+                componentID = 'E' + self.polarisation
+                Ey[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dx * G.dz))
 
             elif self.polarisation is 'z':
-                Ez[i, j, k] -= updatecoeffsE[ID[2, i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dx * G.dy))
+                componentID = 'E' + self.polarisation
+                Ez[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dx * G.dy))
 
 
 class MagneticDipole(Source):
