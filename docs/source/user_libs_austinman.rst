@@ -1,8 +1,8 @@
 User libraries is a sub-package where useful Python modules contributed by users are stored.
 
-***********************
-AustinMan & AustinWoman
-***********************
+*********************
+AustinMan/AustinWoman
+*********************
 
 Information
 ===========
