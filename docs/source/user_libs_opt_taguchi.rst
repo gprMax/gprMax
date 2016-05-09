@@ -28,9 +28,9 @@ The package features an optimisation technique based on Taguchi's method. It all
 
     This package combines a number of advanced features and should not be used without knowledge and familiarity of the underlying techniques. It requires:
 
-    * Knowledge of Python to contruct a model input file to use with the optimisation
-    * Understanding of optimisation techniques in general, and in particular Taguchi's method
-    * Care and 'sanity' checking to be made throughout the process
+    * Knowledge of Python to contruct an input file to use with the optimisation
+    * Familiarity of optimisation techniques, and in particular Taguchi's method
+    * Careful sanity checks to be made throughout the process
 
 
 Taguchi's method
@@ -110,7 +110,7 @@ The following example demonstrates using the Taguchi optimisation process to opt
 
     FDTD geometry mesh showing bowtie antenna with slots and loading resistors.
 
-The bowtie design features 3 vertical slots (y-direction) in each arm of the bowtie. Each slot has different loading resistors, but within each slot there are 4 resistors of the same value. A resistor is modelled as two parallel edges of a cell. The bowtie is placed on a lossless substrate of relative permittivity 4.8. The antenna is modelled in free space, and an output point of the electric field (named ``Ex60mm``) is specified at a distance of 60mm from the feed of the bowtie (red coloured cell).
+The bowtie design features three vertical slots (y-direction) in each arm of the bowtie. Each slot has different loading resistors, but within each slot there are four resistors of the same value. A resistor is modelled as two parallel edges of a cell. The bowtie is placed on a lossless substrate of relative permittivity 4.8. The antenna is modelled in free space, and an output point of the electric field (named ``Ex60mm``) is specified at a distance of 60mm from the feed of the bowtie (red coloured cell).
 
 .. literalinclude:: ../../user_libs/optimisation_taguchi/antenna_bowtie_opt.in
     :language: none
@@ -146,13 +146,13 @@ When the optimisation has completed a summary will be printed showing histories 
     resouter [250.07498, 0.87031555, 0.1, 0.1]
 
 .. figure:: images/user_libs/taguchi_fitness_hist.png
-    :width: 300 px
+    :width: 600 px
 
-    History of fitness (``maxabsvalue``) value.
+    History of fitness metric (``maxabsvalue``) value.
 
 .. figure:: images/user_libs/taguchi_parameter_hist.png
-    :width: 300 px
+    :width: 600 px
 
     History of values of parameters, ``resinner``, ``resmiddle``, and ``resouter``.
 
-The optimisation process terminated because succcessive fitness values were within 0.1% of one another.
+The optimisation process terminated after 4 iterations because succcessive fitness values were within 0.1% of one another. A maximum absolute amplitude value of 5.7 V/m was achieved when the three resistors had values of 0.1 :math:`\Omega`.
