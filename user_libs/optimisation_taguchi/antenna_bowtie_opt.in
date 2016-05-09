@@ -25,7 +25,6 @@ tx_pos = (domain[0]/2, domain[1]/2, 0.050)
 vcut_pos = (0.014, 0.027, 0.038)
 
 # Loading resistor values
-#res = np.array([0.1, 0.1, 0.1])
 res = np.array([optparams['resinner'], optparams['resmiddle'], optparams['resouter']])
 rescond = ((1 / res) * (dxdydz[1] / (dxdydz[0] * dxdydz[2]))) / 2 # Divide by number of parallel edges per resistor
 
