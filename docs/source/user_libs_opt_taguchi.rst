@@ -24,6 +24,14 @@ Information
 
 The package features an optimisation technique based on Taguchi's method. It allows users to define parameters in an input file and optimise their values based on a fitness function, for example it can be used to optimise material properties or geometry in a simulation.
 
+.. warning::
+
+    This package combines a number of advanced features and should not be used without knowledge and familiarity of the underlying techniques. It requires:
+
+    * Knowledge of Python to contruct a model input file to use with the optimisation
+    * Understanding of optimisation techniques in general, and in particular Taguchi's method
+    * Care and 'sanity' checking to be made throughout the process
+
 
 Taguchi's method
 ----------------
@@ -84,19 +92,13 @@ Parameters and settings for the optimisation process are specified within a spec
 
 Optionally a variable called ``maxiterations`` maybe specified which will set a maximum number of iterations after which the optimisation process will terminate irrespective of any other criteria. If it is not specified it defaults to a maximum of 20 iterations.
 
+There is also a builtin criterion to terminate the optimisation process is successive fitness values are within 0.1% of one another.
+
 
 How to use the package
 ======================
 
 The package requires ``#python`` and ``#end_python`` to be used in the input file, as well as ``#taguchi`` and ``#end_taguchi`` for specifying parameters and setting for the optimisation process. A Taguchi optimisation is run using the command line option ``--opt-taguchi``.
-
-.. note::
-
-    A couple of warnings before using this package:
-
-    * It requires a basic knowledge of Python to use the optimisation process and construct models.
-    * It combines a number of advanced features which must be used carefully, and sanity checks made throughout the process.
-
 
 Example
 -------
@@ -114,7 +116,7 @@ The bowtie design features 3 vertical slots (y-direction) in each arm of the bow
     :language: none
     :linenos:
 
-The first part of the input file (lines 1-7) contains the parameters to optimise, their initial ranges, and fitness function information for the optimisation process. Three parameters representing the resistor values are defined with ranges between 0.1 :math:`\Omega` and 5 :math:`k\Omega`. A pre-built fitness function called ``maxabsvalue`` is specified with a stopping criterion of 50V/m. The output point in the model that will be used in the optimisation is specified as having the name ``Ex60mm``. Finally, a limit of 5 iterations is placed on the optimisation process, i.e. it will stop after 5 iterations irrespectively of whether it has reached the target of 50V/m.
+The first part of the input file (lines 1-7) contains the parameters to optimise, their initial ranges, and fitness function information for the optimisation process. Three parameters representing the resistor values are defined with ranges between 0.1 :math:`\Omega` and 1 :math:`k\Omega`. A pre-built fitness function called ``maxabsvalue`` is specified with a stopping criterion of 10V/m. The output point in the model that will be used in the optimisation is specified as having the name ``Ex60mm``.
 
 The next part of the input file (lines 9-93) contains the model. For the most part there is nothing special about the way the model is defined - a mixture of Python, NumPy and functional forms of the input commands (available by importing the module ``input_cmd_funcs``) are used. However, it is worth pointing out how the values of the parameters to optimise are accessed. On line 29 a NumPy array of the values of the resistors is created. The values are accessed using their names as keys to the ``optparams`` dictionary. On line 30 the values of the resistors are converted to conductivities, which are used to create new materials (line 34-35). The resistors are then built by applying the materials to cell edges (e.g. lines 55-62). The output point in the model in specifed with the name ``Ex60mm`` and as having only an ``Ex`` field output (line 42).
 
@@ -131,4 +133,26 @@ When the optimisation has completed a summary will be printed showing histories 
 
 .. code-block:: none
 
-    python -m user_libs.optimisation_taguchi.plot_results antenna_bowtie_opt_hist.pickle
+    python -m user_libs.optimisation_taguchi.plot_results user_libs/optimisation_taguchi/antenna_bowtie_opt_hist.pickle
+
+.. code-block:: none
+
+    Optimisations summary for: antenna_bowtie_opt_hist.pickle
+    Number of iterations: 4
+    History of fitness values: [4.2720928, 5.68856, 5.7023263, 5.7023263]
+    History of parameter values:
+    resinner [250.07498, 0.87031555, 0.1, 0.1]
+    resmiddle [250.07498, 0.87031555, 0.1, 0.1]
+    resouter [250.07498, 0.87031555, 0.1, 0.1]
+
+.. figure:: images/user_libs/taguchi_fitness_hist.png
+    :width: 300 px
+
+    History of fitness (``maxabsvalue``) value.
+
+.. figure:: images/user_libs/taguchi_parameter_hist.png
+    :width: 300 px
+
+    History of values of parameters, ``resinner``, ``resmiddle``, and ``resouter``.
+
+The optimisation process terminated because succcessive fitness values were within 0.1% of one another.
