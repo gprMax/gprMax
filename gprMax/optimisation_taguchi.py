@@ -391,8 +391,8 @@ def calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N,
         # Calculate optimal level from table of responses
         optlevel = np.where(responses == np.amax(responses))[0]
         
-        # If 2 experiments produce the same fitness value (this shouldn't happen if the fitness function is designed correctly)
-        if len(optlevel):
+        # If 2 experiments produce the same fitness value (this shouldn't happen if the fitness function is designed correctly) pick first level
+        if len(optlevel) > 1:
             optlevel = optlevel[0]
         
         levelsopt[p] = optlevel
