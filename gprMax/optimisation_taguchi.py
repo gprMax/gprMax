@@ -170,6 +170,9 @@ def taguchi_code_blocks(inputfile, taguchinamespace):
         # Strip out any newline characters and comments that must begin with double hashes
         inputlines = [line.rstrip() for line in f if(not line.startswith('##') and line.rstrip('\n'))]
     
+    # Store length of dict
+    taglength = len(taguchinamespace)
+    
     x = 0
     while(x < len(inputlines)):
         if(inputlines[x].startswith('#taguchi:')):
@@ -190,6 +193,10 @@ def taguchi_code_blocks(inputfile, taguchinamespace):
             exec(taguchicompiledcode, taguchinamespace)
     
         x += 1
+
+    # Check if any Taguchi code blocks were found
+    if len(taguchinamespace) == taglength:
+        raise CmdInputError('No #taguchi and #end_taguchi code blocks found.')
     
     return taguchinamespace
 
