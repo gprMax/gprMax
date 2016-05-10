@@ -37,6 +37,7 @@ def plot_antenna_params(filename, tln=1, rxn=None, rx=None):
 
     # Open output file and read some attributes
     f = h5py.File(filename, 'r')
+    dxdydz = f.attrs['dx, dy, dz']
     dt = f.attrs['dt']
     iterations = f.attrs['Iterations']
 
@@ -68,9 +69,22 @@ def plot_antenna_params(filename, tln=1, rxn=None, rx=None):
     if rxn:
         if rx not in ['Ex', 'Ey', 'Ez']:
             raise CmdInputError('The field component for the receiver antenna output must be Ex, Ey, or Ez')
-        rxpath = '/rxs/rx' + str(rxn) + '/' + rx
+        
+        rxpath = '/rxs/rx' + str(rxn) + '/'
+        availableoutputs = list(f[rxpath].keys())
+        
+        if rx not in availableoutputs:
+            raise CmdInputError('{} output requested, but the available output for receiver {} is {}'.format(rx, rxn, ', '.join(availableoutputs)))
+        
+        rxpath += rx
+        
         # Received voltage
-        Vrec = f[rxpath][:] * -1
+        if rx == 'Ex':
+            Vrec = f[rxpath][:] * -1 * dxdydz[0]
+        elif rx == 'Ey':
+            Vrec = f[rxpath][:] * -1 * dxdydz[1]
+        elif rx == 'Ez':
+            Vrec = f[rxpath][:] * -1 * dxdydz[2]
     f.close()
 
     # Frequency bins
@@ -336,11 +350,10 @@ def plot_antenna_params(filename, tln=1, rxn=None, rx=None):
     #ax.grid()
 
     # Save a PDF/PNG of the figure
-    #fig1.savefig(os.path.splitext(os.path.abspath(file))[0] + '_tl_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
-    #fig2.savefig(os.path.splitext(os.path.abspath(file))[0] + '_ant_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
-    #fig3.savefig(os.path.splitext(os.path.abspath(file))[0] + '_ant_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
-    #fig1.savefig(os.path.splitext(os.path.abspath(file))[0] + '_tl_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    #fig2.savefig(os.path.splitext(os.path.abspath(file))[0] + '_ant_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    #fig1.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_tl_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    #fig2.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_ant_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    #fig1.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_tl_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    #fig2.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_ant_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
 
     plt.show()
 
