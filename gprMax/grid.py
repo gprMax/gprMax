@@ -22,10 +22,33 @@ import matplotlib.pyplot as plt
 from gprMax.constants import c, floattype, complextype
 from gprMax.materials import Material
 
+class Grid():
 
-class FDTDGrid:
+    def __init__(self, grid):
+        self.nx = grid.shape[0]
+        self.ny = grid.shape[1]
+        self.nz = grid.shape[2]
+        self.grid = grid
+
+    def n_edges(self):
+        l = self.nx
+        m = self.ny
+        n = self.nz
+        e = (l * m * (n - 1)) + (m * n * (l - 1)) + (l * n * (m - 1))
+        return e
+
+    def n_nodes(self):
+        return self.nx * self.ny * self.nz
+
+    def n_cells(self):
+        return (self.nx - 1) * (self.ny - 1) * (self.nz - 1)
+
+    def get(self, i, j, k):
+        return self.grid[i, j, k]
+
+class FDTDGrid(Grid):
     """Holds attributes associated with the entire grid. A convenient way for accessing regularly used parameters."""
-    
+
     def __init__(self):
         self.inputdirectory = ''
         self.title = ''
@@ -61,7 +84,7 @@ class FDTDGrid:
         self.rxstepz = 0
         self.rxs = []
         self.snapshots = []
-        
+
     def initialise_std_arrays(self):
         """Initialise an array for volumetric material IDs (solid); boolean arrays for specifying whether materials can have dielectric smoothing (rigid);
             an array for cell edge IDs (ID); and arrays for the electric and magnetic field components. Solid and ID arrays are initialised to free_space (one); rigid arrays
@@ -78,7 +101,7 @@ class FDTDGrid:
         self.Hx = np.zeros((self.nx + 1, self.ny, self.nz), dtype=floattype)
         self.Hy = np.zeros((self.nx, self.ny + 1, self.nz), dtype=floattype)
         self.Hz = np.zeros((self.nx, self.ny, self.nz + 1), dtype=floattype)
-    
+
     def initialise_std_updatecoeff_arrays(self):
         """Initialise arrays for storing update coefficients."""
         self.updatecoeffsE = np.zeros((len(self.materials), 5), dtype=floattype)
@@ -94,25 +117,25 @@ class FDTDGrid:
 
 def dispersion_check(G):
     """Check for potential numerical dispersion. Is the smallest wavelength present in the simulation discretised by at least a factor of 10
-        
+
     Args:
         G (class): Grid class instance - holds essential parameters describing the model.
-    
+
     Returns:
         resolution (float): Potential numerical dispersion
     """
-    
+
     # Minimum number of spatial steps to resolve smallest wavelength
     resolvedsteps = 10
-    
+
     # Find maximum frequency
     maxfreqs = []
     for waveform in G.waveforms:
-        
+
         # User-defined waveform
         if waveform.uservalues is not None:
             waveformvalues = waveform.uservalues
-        
+
         # Built-in waveform
         else:
             time = np.linspace(0, 1, G.iterations)
@@ -130,24 +153,24 @@ def dispersion_check(G):
 
         # Shift powers so that frequency with maximum power is at zero decibels
         power -= np.amax(power)
-        
+
         # Set maximum frequency to -60dB from maximum power
         freq = np.where((np.amax(power[1::]) - power[1::]) > 60)[0][0] + 1
         maxfreqs.append(freqs[freq])
 
     if maxfreqs:
         maxfreq = max(maxfreqs)
-        
+
         # Find minimum wavelength
         ers = [material.er for material in G.materials]
         maxer = max(ers)
 
         # Minimum velocity
         minvelocity = c / np.sqrt(maxer)
-        
+
         # Minimum wavelength
         minwavelength = minvelocity / maxfreq
-        
+
         # Resolution of minimum wavelength
         resolution = minwavelength / resolvedsteps
 
@@ -159,10 +182,10 @@ def dispersion_check(G):
 
 def get_other_directions(direction):
     """Return the two other directions from x, y, z given a single direction
-    
+
     Args:
         direction (str): Component x, y or z
-        
+
     Returns:
         (tuple): Two directions from x, y, z
     """
@@ -174,7 +197,7 @@ def get_other_directions(direction):
 
 def Ix(x, y, z, Hy, Hz, G):
     """Calculates the x-component of current at a grid position.
-            
+
     Args:
         x, y, z (float): Coordinates of position in grid.
         Hy, Hz (memory view): numpy array of magnetic field values.
@@ -184,14 +207,14 @@ def Ix(x, y, z, Hy, Hz, G):
     if y == 0 or z == 0:
         Ix = 0
         return Ix
-    
+
     else:
         Ix = G.dy * (Hy[x, y, z - 1] - Hy[x, y, z]) + G.dz * (Hz[x, y, z] - Hz[x, y - 1, z])
         return Ix
 
 def Iy(x, y, z, Hx, Hz, G):
     """Calculates the y-component of current at a grid position.
-            
+
     Args:
         x, y, z (float): Coordinates of position in grid.
         Hx, Hz (memory view): numpy array of magnetic field values.
@@ -201,14 +224,14 @@ def Iy(x, y, z, Hx, Hz, G):
     if x == 0 or z == 0:
         Iy = 0
         return Iy
-    
+
     else:
         Iy = G.dx * (Hx[x, y, z] - Hx[x, y, z - 1]) + G.dz * (Hz[x - 1, y, z] - Hz[x, y, z])
         return Iy
 
 def Iz(x, y, z, Hx, Hy, G):
     """Calculates the z-component of current at a grid position.
-            
+
     Args:
         x, y, z (float): Coordinates of position in grid.
         Hx, Hy (memory view): numpy array of magnetic field values.
@@ -218,7 +241,7 @@ def Iz(x, y, z, Hx, Hy, G):
     if x == 0 or y == 0:
         Iz = 0
         return Iz
-    
+
     else:
         Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (Hy[x, y, z] - Hy[x - 1, y, z])
         return Iz
