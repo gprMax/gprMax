@@ -61,7 +61,7 @@ The output file contains HDF5 groups for sources (``srcs``), transmission lines 
                 Iinc
                 Vtotal
                 Itotal
-            tl22/
+            tl2/
                 ...
 
 Within each individual ``rx`` group are the following attributes:
