@@ -24,55 +24,75 @@ import matplotlib.pyplot as plt
 from gprMax.exceptions import CmdInputError
 
 
-def make_plot(filename, output):
-    """Plots a B-scan image.
+def get_output_data(filename, rxnumber, rxcomponent):
+    """Gets B-scan output data from a model.
         
-        Args:
+    Args:
         filename (string): Filename (including path) of output file.
-        output (string): Field/current component to plot.
+        rxnumber (int): Receiver output number.
+        rxcomponent (str): Receiver output field/current component.
+        
+    Returns:
+        outputdata (array): Array of A-scans, i.e. B-scan data.
+        dt (float): Temporal resolution of the model.
     """
 
     # Open output file and read some attributes
     f = h5py.File(filename, 'r')
     nrx = f.attrs['nrx']
+    dt = f.attrs['dt']
 
     # Check there are any receivers
     if nrx == 0:
         raise CmdInputError('No receivers found in {}'.format(filename))
 
-    for rx in range(1, nrx + 1):
-        path = '/rxs/rx' + str(rx) + '/'
-        availableoutputs = list(f[path].keys())
+    path = '/rxs/rx' + str(rxnumber) + '/'
+    availableoutputs = list(f[path].keys())
 
-        # Check if requested output is in file
-        if output not in availableoutputs:
-            raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(output, ', '.join(availableoutputs)))
+    # Check if requested output is in file
+    if rxcomponent not in availableoutputs:
+        raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(rxcomponent, ', '.join(availableoutputs)))
 
-        outputdata = f[path + '/' + output]
+    outputdata = f[path + '/' + rxcomponent]
+    outputdata = np.array(outputdata)
 
-        # Check that there is more than one A-scan present
-        if outputdata.shape[1] == 1:
-            raise CmdInputError('{} contains only a single A-scan.'.format(filename))
+    # Check that there is more than one A-scan present
+    if outputdata.shape[1] == 1:
+        raise CmdInputError('{} contains only a single A-scan.'.format(filename))
 
-        # Plot B-scan image
-        fig = plt.figure(num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
-        plt.imshow(outputdata, extent=[0, outputdata.shape[1], outputdata.shape[0]*f.attrs['dt'], 0], interpolation='nearest', aspect='auto', cmap='seismic', vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
-        plt.xlabel('Trace number')
-        plt.ylabel('Time [s]')
-        plt.grid()
-        cb = plt.colorbar()
-        if 'E' in args.output:
-            cb.set_label('Field strength [V/m]')
-        elif 'H' in args.output:
-            cb.set_label('Field strength [A/m]')
-        elif 'I' in args.output:
-            cb.set_label('Current [A]')
+    return outputdata, dt
 
-        # Save a PDF/PNG of the figure
-        #fig.savefig(os.path.splitext(os.path.abspath(args.outputfile))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-        #fig.savefig(os.path.splitext(os.path.abspath(args.outputfile))[0] + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+def mpl_plot(outputdata, dt, rxnumber, rxcomponent):
+    """Creates a plot (with matplotlib) of the B-scan.
+        
+    Args:
+        outputdata (array): Array of A-scans, i.e. B-scan data.
+        dt (float): Temporal resolution of the model.
+        rxnumber (int): Receiver output number.
+        rxcomponent (str): Receiver output field/current component.
+        
+    Returns:
+        plt (object): matplotlib plot object.
+    """
 
-    plt.show()
+    fig = plt.figure(num='rx' + str(rxnumber), figsize=(20, 10), facecolor='w', edgecolor='w')
+    plt.imshow(outputdata, extent=[0, outputdata.shape[1], outputdata.shape[0]*dt, 0], interpolation='nearest', aspect='auto', cmap='seismic', vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
+    plt.xlabel('Trace number')
+    plt.ylabel('Time [s]')
+    plt.grid()
+    cb = plt.colorbar()
+    if 'E' in rxcomponent:
+        cb.set_label('Field strength [V/m]')
+    elif 'H' in rxcomponent:
+        cb.set_label('Field strength [A/m]')
+    elif 'I' in rxcomponent:
+        cb.set_label('Current [A]')
+
+    # Save a PDF/PNG of the figure
+    #fig.savefig('Bscan' + str(rxnumber) + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    #fig.savefig('Bscan' + str(rxnumber) + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+
+    return plt
 
 
 if __name__ == "__main__":
@@ -80,7 +100,20 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Plots a B-scan image.', usage='cd gprMax; python -m tools.plot_Bscan outputfile output')
     parser.add_argument('outputfile', help='name of output file including path')
-    parser.add_argument('output', help='name of output component to be plotted', choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz'])
+    parser.add_argument('rx_component', help='name of output component to be plotted', choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz'])
     args = parser.parse_args()
 
-    make_plot(args.outputfile, args.output)
+    # Open output file and read number of outputs (receivers)
+    f = h5py.File(args.outputfile, 'r')
+    nrx = f.attrs['nrx']
+    f.close()
+
+    # Check there are any receivers
+    if nrx == 0:
+        raise CmdInputError('No receivers found in {}'.format(args.outputfile))
+
+    for rx in range(1, nrx + 1):
+        outputdata, dt = get_output_data(args.outputfile, rx, args.rx_component)
+        plt = mpl_plot(outputdata, dt, rx, args.rx_component)
+
+    plt.show()

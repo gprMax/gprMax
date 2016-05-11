@@ -25,14 +25,14 @@ import matplotlib.gridspec as gridspec
 from gprMax.exceptions import CmdInputError
 
 
-def plot_antenna_params(filename, tln=1, rxn=None, rx=None):
+def plot_antenna_params(filename, tlnumber=1, rxnumber=None, rxcomponent=None):
     """Calculates and plots antenna parameters - s11, (s21) and input impedance.
             
     Args:
         filename (string): Filename (including path) of output file.
-        tln (int): Transmitting antenna - transmission line number
-        rxn (int): Receiver antenna - output number
-        rx (str): Receiver antenna - output electric field component
+        tlnumber (int): Transmitting antenna - transmission line number
+        rxnumber (int): Receiver antenna - output number
+        rxcomponent (str): Receiver antenna - output electric field component
     """
 
     # Open output file and read some attributes
@@ -51,7 +51,7 @@ def plot_antenna_params(filename, tln=1, rxn=None, rx=None):
     print('Frequency bin spacing: {:g} Hz'.format(df))
 
     # Read/calculate voltages and currents
-    tlpath = '/tls/tl' + str(tln) + '/'
+    tlpath = '/tls/tl' + str(tlnumber) + '/'
 
     # Incident voltages/currents
     Vinc = f[tlpath + 'Vinc'][:]
@@ -66,24 +66,21 @@ def plot_antenna_params(filename, tln=1, rxn=None, rx=None):
     Iref = Itotal - Iinc
 
     # If a receiver number for a receiever antenna is given can get received voltage for s21
-    if rxn:
-        if rx not in ['Ex', 'Ey', 'Ez']:
-            raise CmdInputError('The field component for the receiver antenna output must be Ex, Ey, or Ez')
-        
-        rxpath = '/rxs/rx' + str(rxn) + '/'
+    if rxnumber:       
+        rxpath = '/rxs/rx' + str(rxnumber) + '/'
         availableoutputs = list(f[rxpath].keys())
         
-        if rx not in availableoutputs:
-            raise CmdInputError('{} output requested, but the available output for receiver {} is {}'.format(rx, rxn, ', '.join(availableoutputs)))
+        if rxcomponent not in availableoutputs:
+            raise CmdInputError('{} output requested, but the available output for receiver {} is {}'.format(rxcomponent, rxnumber, ', '.join(availableoutputs)))
         
-        rxpath += rx
+        rxpath += rxcomponent
         
         # Received voltage
-        if rx == 'Ex':
+        if rxcomponent == 'Ex':
             Vrec = f[rxpath][:] * -1 * dxdydz[0]
-        elif rx == 'Ey':
+        elif rxcomponent == 'Ey':
             Vrec = f[rxpath][:] * -1 * dxdydz[1]
-        elif rx == 'Ez':
+        elif rxcomponent == 'Ez':
             Vrec = f[rxpath][:] * -1 * dxdydz[2]
     f.close()
 
@@ -95,7 +92,7 @@ def plot_antenna_params(filename, tln=1, rxn=None, rx=None):
 
     # Calculate s11
     s11 = np.abs(np.fft.fft(Vref) * delaycorrection) / np.abs(np.fft.fft(Vinc) * delaycorrection)
-    if rxn:
+    if rxnumber:
         s21 = np.abs(np.fft.fft(Vrec)) / np.abs(np.fft.fft(Vinc) * delaycorrection)
 
     # Calculate input impedance
@@ -112,7 +109,7 @@ def plot_antenna_params(filename, tln=1, rxn=None, rx=None):
     Vtotalp = 20 * np.log10(np.abs((np.fft.fft(Vtotal) * delaycorrection)))
     Itotalp = 20 * np.log10(np.abs(np.fft.fft(Itotal)))
     s11 = 20 * np.log10(s11)
-    if rxn:
+    if rxnumber:
         s21 = 20 * np.log10(s21)
 
     # Set plotting range
@@ -278,7 +275,7 @@ def plot_antenna_params(filename, tln=1, rxn=None, rx=None):
     ax.grid()
 
     # Plot frequency spectra of s21
-    if rxn:
+    if rxnumber:
         ax = plt.subplot(gs2[0, 1])
         markerline, stemlines, baseline = ax.stem(freqs[pltrange], s21[pltrange], '-.')
         plt.setp(baseline, 'linewidth', 0)
@@ -363,10 +360,10 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Plots antenna parameters (s11, s21 parameters and input impedance) from an output file containing a transmission line source.', usage='cd gprMax; python -m tools.plot_antenna_params outputfile')
     parser.add_argument('outputfile', help='name of output file including path')
-    parser.add_argument('-tln', default=1, type=int, help='transmitting antenna - transmission line number')
-    parser.add_argument('-rxn', type=int, help='receiver antenna - output number')
-    parser.add_argument('-rx', type=str, help='receiver antenna - output electric field component')
+    parser.add_argument('--tl-num', default=1, type=int, help='transmitting antenna - transmission line number')
+    parser.add_argument('--rx-num', type=int, help='receiver antenna - output number')
+    parser.add_argument('--rx-component', type=str, help='receiver antenna - output electric field component', choices=['Ex', 'Ey', 'Ez'])
     args = parser.parse_args()
 
-    plot_antenna_params(args.outputfile, args.tln, args.rxn, args.rx)
+    plot_antenna_params(args.outputfile, args.tl_num, args.rx_num, args.rx_component)
 
