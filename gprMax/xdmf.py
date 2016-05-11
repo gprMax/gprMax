@@ -4,6 +4,7 @@ from lxml import etree
 from gprMax.grid import Grid
 import copy
 
+
 class Edges:
 
     def __init__(self, grid):
@@ -25,6 +26,7 @@ class Edges:
         self.edges[self.edge_count] = np.array([in_label, out_label])
         self.edge_count += 1
 
+
 class Coordinates:
 
     def __init__(self, grid):
@@ -35,6 +37,7 @@ class Coordinates:
     def add_coordinate(self, x, y, z):
         self.coordinates[self.coordinate_count] = np.array([x, y, z])
         self.coordinate_count += 1
+
 
 def hexCellPicker(grid, i, j, k):
     """
@@ -70,6 +73,7 @@ def hexCellPicker(grid, i, j, k):
 
     return cell
 
+
 class Solids:
 
     def __init__(self, fdtd_grid):
@@ -82,6 +86,7 @@ class Solids:
 
         self.solids[self.count] = self.fdtd_grid.solid[i][j][k]
         self.count += 1
+
 
 class SolidLabels():
 
@@ -113,6 +118,7 @@ class Materials:
         self.materials[self.material_count] = material
 
         self.material_count += 1
+
 
 def process_grid(fdtd_grid):
 
@@ -213,20 +219,14 @@ def process_grid(fdtd_grid):
                 # Add the coordinates
                 coordinates.add_coordinate(i, j, k)
 
-    #x = np.arange(fdtd_grid.nx)
-    #y = np.arange(fdtd_grid.ny)
-    #z = np.arange(fdtd_grid.nz)
-
     return {
         'coordinates': coordinates,
         'solids': solids,
         'solid_labels': solid_labels,
         'edges': edges,
         'edge_materials': edge_materials,
-        #'x': x,
-        #'y': y,
-        #'z': z
     }
+
 
 def write_output_file(filename, grid):
 
@@ -237,10 +237,12 @@ def write_output_file(filename, grid):
     write_H5file(data)
     write_xml_doc(data)
 
+
 def write_xml_doc(options):
     #write xml to file
     with open(options['filename'] + '.xdmf', 'wb') as xdmf_f:
         xdmf_f.write(options['xml_doc'])
+
 
 def write_H5file(options):
 
@@ -249,12 +251,10 @@ def write_H5file(options):
         coords.create_dataset('coordinates', data=options['coordinates'].coordinates)
         coords.create_dataset('connectivity', data=options['edges'].edges)
         coords.create_dataset('solid_connectivity', data=options['solid_labels'].solid_labels)
-        #coords.create_dataset('x', data=options['x'])
-        #coords.create_dataset('y', data=options['y'])
-        #coords.create_dataset('z', data=options['z'])
         data = f.create_group("data")
         data.create_dataset('materials', data=options['edge_materials'].materials)
         data.create_dataset('solids', data=options['solids'].solids)
+
 
 def create_xdmf_markup(options):
 
@@ -295,39 +295,6 @@ def create_xdmf_markup(options):
     materials_el.text = "{}:/data/materials".format(options['filename'] + '.h5')
     attr_el.append(materials_el)
 
-    """
-    # VOXEL style markup
-    v_grid_el = etree.Element("Grid", Name="Voxel", GridType="Uniform")
-    domain_el.append(v_grid_el)
-
-    noe = "{} {} {}".format(options['x'].size, options['y'].size, options['y'].size)
-    v_topology_el = etree.Element("Topology", TopologyType="3DRectMesh", NumberOfElements=noe)
-    v_grid_el.append(v_topology_el)
-
-    v_geometry = etree.Element("Geometry", GeometryType="VXVYVZ")
-    v_grid_el.append(v_geometry)
-
-    d1 = etree.Element("DataItem", Dimensions=str(options['x'].size), NumberType="Float", Precision="4", Format="HDF")
-    d1.text = "{}:/mesh/x".format(options['filename'] + '.h5')
-    v_geometry.append(d1)
-
-    d2 = etree.Element("DataItem", Dimensions=str(options['y'].size), NumberType="Float", Precision="4", Format="HDF")
-    d2.text = "{}:/mesh/y".format(options['filename'] + '.h5')
-    v_geometry.append(d2)
-
-    d3 = etree.Element("DataItem", Dimensions=str(options['z'].size), NumberType="Float", Precision="4", Format="HDF")
-    d3.text = "{}:/mesh/z".format(options['filename'] + '.h5')
-    v_geometry.append(d3)
-
-    v_attr = etree.Element("Attribute", Name="material-blocks", Center="Cell")
-    v_grid_el.append(v_attr)
-
-    d4 = etree.Element("DataItem", Format="HDF", NumberType="Float", Precision="4", Dimensions=str(options['solids'].solids.size))
-    d4.text = "{}:/data/solids".format(options['filename'] + '.h5')
-    v_attr.append(d4)
-
-    """
-
     v_grid_el = etree.Element("Grid", Name="Voxel", GridType="Uniform")
     domain_el.append(v_grid_el)
 
@@ -358,4 +325,3 @@ def create_xdmf_markup(options):
         encoding="utf-8",  doctype=doc_type, pretty_print=True)
 
     return xml_doc
-
