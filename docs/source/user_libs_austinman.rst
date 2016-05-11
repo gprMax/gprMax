@@ -49,9 +49,11 @@ Package overview
 
     AustinManWoman_gprMax_materials.txt
     AustinManWoman_gprMax_materials_dispersive.txt
+    head_only_hdf5.py
 
 * ``AustinManWoman_gprMax_materials.txt`` is a text file containing non-dispersive material properties at 900 MHz (http://niremf.ifac.cnr.it/tissprop/).
 * ``AustinManWoman_gprMax_materials_dispersive.txt`` is a text file containing dispersive material properties using a 3-pole Debye model (http://dx.doi.org/10.1109/LMWC.2011.2180371). Note the main body tissues are described using a 3-pole Debye model, nbut ot all materials have a dispersive description.
+* ``head_only_hdf5.py`` is a script to assist with creating a model of only the head from a full body AustinMan/Woman model.
 
 How to use the models
 =====================
