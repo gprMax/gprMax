@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
     
     All fitness functions must take two arguments and return a single fitness value. 
     The first argument should be the name of the output file 
-    The second argument is a list which can contain any number of additional arguments, e.g. names (IDs) of outputs (rxs) from input file
+    The second argument is a dictionary which can contain any number of additional arguments, e.g. names (IDs) of outputs (rxs) from input file
 """
 
 def minvalue(filename, args):
@@ -63,6 +63,28 @@ def maxvalue(filename, args):
             maxvalue = np.amax(output[outputname])
 
     return maxvalue
+
+def maxabsvalue(filename, args):
+    """Maximum absolute value from a response.
+        
+    Args:
+        filename (str): Name of output file
+        args (dict): 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
+        
+    Returns:
+        maxabsvalue (float): Maximum absolute value from specific outputs
+    """
+
+    f = h5py.File(filename, 'r')
+    nrx = f.attrs['nrx']
+
+    for rx in range(1, nrx + 1):
+        output = f['/rxs/rx' + str(rx) + '/']
+        if output.attrs['Name'] in args['outputs']:
+            outputname = list(output.keys())[0]
+            maxabsvalue = np.amax(np.abs(output[outputname]))
+
+    return maxabsvalue
 
 
 def xcorr(filename, args):

@@ -21,7 +21,7 @@ import numpy as np
 from gprMax.constants import e0, m0, floattype, complextype
 
 
-class Material():
+class Material(object):
     """Materials, their properties and update coefficients."""
     
     # Maximum number of dispersive material poles in a model
@@ -144,7 +144,7 @@ class Material():
             self.srce = 1 / EA
 
 
-class PeplinskiSoil:
+class PeplinskiSoil(object):
     """Soil objects that are characterised according to a mixing model by Peplinski (http://dx.doi.org/10.1109/36.387598)."""
     
     def __init__(self, ID, sandfraction, clayfraction, bulkdensity, sandpartdensity, watervolfraction):

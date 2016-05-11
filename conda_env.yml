@@ -6,12 +6,13 @@ dependencies:
 - python>=3.4
 - cython
 - h5py
+- jupyter
 - matplotlib
 - mpi4py
 - numpy
 - scipy
+- lxml
 
 - pip:
-  - pyfiglet
   - psutil
-
+  - pyfiglet

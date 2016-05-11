@@ -23,52 +23,64 @@ import matplotlib.pyplot as plt
 
 from gprMax.exceptions import CmdInputError
 
-"""Plots a B-scan image."""
 
-# Parse command line arguments
-parser = argparse.ArgumentParser(description='Plots a B-scan image.', usage='cd gprMax; python -m tools.plot_Bscan outputfile output')
-parser.add_argument('outputfile', help='name of output file including path')
-parser.add_argument('output', help='name of output component to be plotted (Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy or Iz)')
-args = parser.parse_args()
+def make_plot(filename, output):
+    """Plots a B-scan image.
+        
+        Args:
+        filename (string): Filename (including path) of output file.
+        output (string): Field/current component to plot.
+    """
 
-# Open output file and read some attributes
-f = h5py.File(args.outputfile, 'r')
-nrx = f.attrs['nrx']
+    # Open output file and read some attributes
+    f = h5py.File(filename, 'r')
+    nrx = f.attrs['nrx']
 
-# Check there are any receivers
-if nrx == 0:
-    raise CmdInputError('No receivers found in {}'.format(args.outputfile))
+    # Check there are any receivers
+    if nrx == 0:
+        raise CmdInputError('No receivers found in {}'.format(filename))
 
-for rx in range(1, nrx + 1):
-    path = '/rxs/rx' + str(rx) + '/'
-    availableoutputs = list(f[path].keys())
+    for rx in range(1, nrx + 1):
+        path = '/rxs/rx' + str(rx) + '/'
+        availableoutputs = list(f[path].keys())
 
-    # Check if requested output is in file
-    if args.output not in availableoutputs:
-        raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(args.output, ', '.join(availableoutputs)))
+        # Check if requested output is in file
+        if output not in availableoutputs:
+            raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(output, ', '.join(availableoutputs)))
 
-    outputdata = f[path + '/' + args.output]
+        outputdata = f[path + '/' + output]
 
-    # Check that there is more than one A-scan present
-    if outputdata.shape[1] == 1:
-        raise CmdInputError('{} contains only a single A-scan.'.format(args.outputfile))
+        # Check that there is more than one A-scan present
+        if outputdata.shape[1] == 1:
+            raise CmdInputError('{} contains only a single A-scan.'.format(filename))
 
-    # Plot B-scan image
-    fig = plt.figure(num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
-    plt.imshow(outputdata, extent=[0, outputdata.shape[1], outputdata.shape[0]*f.attrs['dt'], 0], interpolation='nearest', aspect='auto', cmap='seismic', vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
-    plt.xlabel('Trace number')
-    plt.ylabel('Time [s]')
-    plt.grid()
-    cb = plt.colorbar()
-    if 'E' in args.output:
-        cb.set_label('Field strength [V/m]')
-    elif 'H' in args.output:
-        cb.set_label('Field strength [A/m]')
-    elif 'I' in args.output:
-        cb.set_label('Current [A]')
+        # Plot B-scan image
+        fig = plt.figure(num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
+        plt.imshow(outputdata, extent=[0, outputdata.shape[1], outputdata.shape[0]*f.attrs['dt'], 0], interpolation='nearest', aspect='auto', cmap='seismic', vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
+        plt.xlabel('Trace number')
+        plt.ylabel('Time [s]')
+        plt.grid()
+        cb = plt.colorbar()
+        if 'E' in args.output:
+            cb.set_label('Field strength [V/m]')
+        elif 'H' in args.output:
+            cb.set_label('Field strength [A/m]')
+        elif 'I' in args.output:
+            cb.set_label('Current [A]')
 
-    # Save a PDF/PNG of the figure
-    #fig.savefig(os.path.splitext(os.path.abspath(args.outputfile))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    #fig.savefig(os.path.splitext(os.path.abspath(args.outputfile))[0] + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+        # Save a PDF/PNG of the figure
+        #fig.savefig(os.path.splitext(os.path.abspath(args.outputfile))[0] + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+        #fig.savefig(os.path.splitext(os.path.abspath(args.outputfile))[0] + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
-plt.show()
+    plt.show()
+
+
+if __name__ == "__main__":
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Plots a B-scan image.', usage='cd gprMax; python -m tools.plot_Bscan outputfile output')
+    parser.add_argument('outputfile', help='name of output file including path')
+    parser.add_argument('output', help='name of output component to be plotted', choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz'])
+    args = parser.parse_args()
+
+    make_plot(args.outputfile, args.output)

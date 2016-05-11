@@ -21,9 +21,6 @@ triangle(tx_pos[0] + dxdydz[0], tx_pos[1], tx_pos[2], tx_pos[0] + bowtie_dims[0]
 # Bowtie - lower x half
 triangle(tx_pos[0] + dxdydz[0], tx_pos[1], tx_pos[2], tx_pos[0] - bowtie_dims[0], tx_pos[1] - bowtie_dims[1]/2, tx_pos[2], tx_pos[0] - bowtie_dims[0], tx_pos[1] + bowtie_dims[1]/2, tx_pos[2], 0, 'pec')
 
-# Uncomment to temporarily check location of source
-#edge(tx_pos[0], tx_pos[1], tx_pos[2], tx_pos[0] + dxdydz[0], tx_pos[1], tx_pos[2], 'pec')
-
 # Detailed geometry view around bowtie and feed position
 geometry_view(tx_pos[0] - bowtie_dims[0] - 2*dxdydz[0], tx_pos[1] - bowtie_dims[1]/2  - 2*dxdydz[1], tx_pos[2] - 2*dxdydz[2], tx_pos[0] + bowtie_dims[0] + 2*dxdydz[0], tx_pos[1] + bowtie_dims[1]/2  + 2*dxdydz[1], tx_pos[2] + 2*dxdydz[2], dxdydz[0], dxdydz[1], dxdydz[2], title + '_pcb', type='f')
 

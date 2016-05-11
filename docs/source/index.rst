@@ -16,7 +16,6 @@ gprMax User Guide
     :caption: Using gprMax
 
     input
-    geometry_snapshots
     output
 
 .. toctree::
@@ -37,7 +36,9 @@ gprMax User Guide
     :maxdepth: 2
     :caption: User libraries
 
-    user_libraries
+    user_libs_antennas
+    user_libs_austinman
+    user_libs_opt_taguchi
 
 .. toctree::
     :maxdepth: 2

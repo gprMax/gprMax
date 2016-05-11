@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 from gprMax.constants import c, floattype, complextype
 from gprMax.materials import Material
 
+
 class Grid():
 
     def __init__(self, grid):
@@ -46,10 +47,12 @@ class Grid():
     def get(self, i, j, k):
         return self.grid[i, j, k]
 
+
 class FDTDGrid(Grid):
     """Holds attributes associated with the entire grid. A convenient way for accessing regularly used parameters."""
 
     def __init__(self):
+        self.inputfilename = ''
         self.inputdirectory = ''
         self.title = ''
         self.messages = True
@@ -76,25 +79,27 @@ class FDTDGrid(Grid):
         self.hertziandipoles = []
         self.magneticdipoles = []
         self.transmissionlines = []
+        self.rxs = []
         self.srcstepx = 0
         self.srcstepy = 0
         self.srcstepz = 0
         self.rxstepx = 0
         self.rxstepy = 0
         self.rxstepz = 0
-        self.rxs = []
         self.snapshots = []
 
-    def initialise_std_arrays(self):
+    def initialise_geometry_arrays(self):
         """Initialise an array for volumetric material IDs (solid); boolean arrays for specifying whether materials can have dielectric smoothing (rigid);
-            an array for cell edge IDs (ID); and arrays for the electric and magnetic field components. Solid and ID arrays are initialised to free_space (one); rigid arrays
-            to allow dielectric smoothing (zero).
+            and an array for cell edge IDs (ID). Solid and ID arrays are initialised to free_space (one); rigid arrays to allow dielectric smoothing (zero).
         """
         self.solid = np.ones((self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
         self.rigidE = np.zeros((12, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.int8)
         self.rigidH = np.zeros((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.int8)
         self.IDlookup = {'Ex': 0, 'Ey': 1, 'Ez': 2, 'Hx': 3, 'Hy': 4, 'Hz': 5}
         self.ID = np.ones((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
+
+    def initialise_field_arrays(self):
+        """Initialise arrays for the electric and magnetic field components."""
         self.Ex = np.zeros((self.nx, self.ny + 1, self.nz + 1), dtype=floattype)
         self.Ey = np.zeros((self.nx + 1, self.ny, self.nz + 1), dtype=floattype)
         self.Ez = np.zeros((self.nx + 1, self.ny + 1, self.nz), dtype=floattype)
@@ -102,7 +107,7 @@ class FDTDGrid(Grid):
         self.Hy = np.zeros((self.nx, self.ny + 1, self.nz), dtype=floattype)
         self.Hz = np.zeros((self.nx, self.ny, self.nz + 1), dtype=floattype)
 
-    def initialise_std_updatecoeff_arrays(self):
+    def initialise_std_update_coeff_arrays(self):
         """Initialise arrays for storing update coefficients."""
         self.updatecoeffsE = np.zeros((len(self.materials), 5), dtype=floattype)
         self.updatecoeffsH = np.zeros((len(self.materials), 5), dtype=floattype)
@@ -132,31 +137,38 @@ def dispersion_check(G):
     maxfreqs = []
     for waveform in G.waveforms:
 
-        # User-defined waveform
-        if waveform.uservalues is not None:
-            waveformvalues = waveform.uservalues
+        if waveform.type == 'sine' or waveform.type == 'contsine':
+            maxfreqs.append(4 * waveform.freq)
 
-        # Built-in waveform
+        elif waveform.type =='impulse':
+            pass
+
         else:
-            time = np.linspace(0, 1, G.iterations)
-            time *= (G.iterations * G.dt)
-            waveformvalues = np.zeros(len(time))
-            timeiter = np.nditer(time, flags=['c_index'])
+            # User-defined waveform
+            if waveform.type == 'user':
+                waveformvalues = waveform.uservalues
 
-            while not timeiter.finished:
-                waveformvalues[timeiter.index] = waveform.calculate_value(timeiter[0], G.dt)
-                timeiter.iternext()
+            # Built-in waveform
+            else:
+                time = np.linspace(0, 1, G.iterations)
+                time *= (G.iterations * G.dt)
+                waveformvalues = np.zeros(len(time))
+                timeiter = np.nditer(time, flags=['c_index'])
 
-        # Calculate magnitude of frequency spectra of waveform
-        power = 20 * np.log10(np.abs(np.fft.fft(waveformvalues))**2)
-        freqs = np.fft.fftfreq(power.size, d=G.dt)
+                while not timeiter.finished:
+                    waveformvalues[timeiter.index] = waveform.calculate_value(timeiter[0], G.dt)
+                    timeiter.iternext()
 
-        # Shift powers so that frequency with maximum power is at zero decibels
-        power -= np.amax(power)
+            # Calculate magnitude of frequency spectra of waveform
+            power = 20 * np.log10(np.abs(np.fft.fft(waveformvalues))**2)
+            freqs = np.fft.fftfreq(power.size, d=G.dt)
 
-        # Set maximum frequency to -60dB from maximum power
-        freq = np.where((np.amax(power[1::]) - power[1::]) > 60)[0][0] + 1
-        maxfreqs.append(freqs[freq])
+            # Shift powers so that frequency with maximum power is at zero decibels
+            power -= np.amax(power)
+
+            # Set maximum frequency to -60dB from maximum power
+            freq = np.where((np.amax(power[1::]) - power[1::]) > 60)[0][0] + 1
+            maxfreqs.append(freqs[freq])
 
     if maxfreqs:
         maxfreq = max(maxfreqs)
@@ -175,7 +187,7 @@ def dispersion_check(G):
         resolution = minwavelength / resolvedsteps
 
     else:
-        resolution = 0
+        resolution = False
 
     return resolution
 

@@ -164,17 +164,20 @@ def process_singlecmds(singlecmds, G):
     if len(tmp) != 1:
         raise CmdInputError(cmd + ' requires exactly one parameter to specify the time window. Either in seconds or number of iterations.')
     tmp = tmp[0].lower()
+
+    # If number of iterations given
+    try:
+        tmp = int(tmp)
+        G.timewindow = (tmp - 1) * G.dt
+        G.iterations = tmp
     # If real floating point value given
-    if '.' in tmp or 'e' in tmp:
-        if float(tmp) > 0:
-            G.timewindow = float(tmp)
-            G.iterations = round_value((float(tmp) / G.dt)) + 1
+    except:
+        tmp = float(tmp)
+        if tmp > 0:
+            G.timewindow = tmp
+            G.iterations = round_value((tmp / G.dt)) + 1
         else:
             raise CmdInputError(cmd + ' must have a value greater than zero')
-    # If number of iterations given
-    else:
-        G.timewindow = (int(tmp) - 1) * G.dt
-        G.iterations = int(tmp)
     if G.messages:
         print('Time window: {:g} secs ({} iterations)'.format(G.timewindow, G.iterations))
 
@@ -203,7 +206,7 @@ def process_singlecmds(singlecmds, G):
         G.srcstepy = round_value(float(tmp[1])/G.dy)
         G.srcstepz = round_value(float(tmp[2])/G.dz)
         if G.messages:
-            print('All sources will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.srcstepx * G.dx, G.srcstepy * G.dy, G.srcstepz * G.dz))
+            print('Simple sources will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.srcstepx * G.dx, G.srcstepy * G.dy, G.srcstepz * G.dz))
 
 
     # rx_steps
@@ -229,7 +232,7 @@ def process_singlecmds(singlecmds, G):
 
         # See if file exists at specified path and if not try input file directory
         if not os.path.isfile(excitationfile):
-            excitationfile = os.path.join(G.inputdirectory, excitationfile)
+            excitationfile = os.path.abspath(os.path.join(G.inputdirectory, excitationfile))
 
         # Get waveform names
         with open(excitationfile, 'r') as f:

@@ -62,11 +62,17 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
     optparamshist = OrderedDict((key, list()) for key in optparams)
     
     # Import specified fitness function
-    fitness_metric = getattr(importlib.import_module('user_libs.optimisation_taguchi.optimisation_taguchi_fitness'), fitness['name'])
+    fitness_metric = getattr(importlib.import_module('user_libs.optimisation_taguchi.fitness_functions'), fitness['name'])
 
     # Select OA
     OA, N, cols, k, s, t = construct_OA(optparams)
-    print('\n{}\n\nTaguchi optimisation: orthogonal array with {} experiments, {} parameters ({} used), {} levels, and strength {} will be used.'.format(68*'*', N, cols, k, s, t))
+    print('\n{}\nTaguchi optimisation...\n'.format(68*'*'))
+    print('\tOrthogonal array: {:g} experiments per iteration, {:g} parameters ({:g} will be used), {:g} levels, and strength {:g}'.format(N, cols, k, s, t))
+    tmp = [(k, v) for k, v in optparams.items()]
+    print('\tParameters to optimise with ranges: {}'.format(str(tmp).strip('[]')))
+    print('\tOutput name(s) from model: {}'.format(fitness['args']['outputs']))
+    print('\tFitness function {} with stopping criterion {:g}'.format(fitness['name'], fitness['stop']))
+    print('\tMaximum iterations: {:g}'.format(maxiterations))
     
     # Initialise arrays and lists to store parameters required throughout optimisation
     # Lower, central, and upper values for each parameter
@@ -132,12 +138,12 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
             break
 
         # Stop optimisation if successive fitness values are within a percentage threshold
-#        if iteration > 2:
-#            fitnessvaluesclose = (np.abs(fitnessvalueshist[iteration - 2] - fitnessvalueshist[iteration - 1]) / fitnessvalueshist[iteration - 1]) * 100
-#            fitnessvaluesthres = 0.1
-#            if fitnessvaluesclose < fitnessvaluesthres:
-#                print('\nTaguchi optimisation stopped as successive fitness values within {}%'.format(fitnessvaluesthres))
-#                break
+        if iteration > 2:
+            fitnessvaluesclose = (np.abs(fitnessvalueshist[iteration - 2] - fitnessvalueshist[iteration - 1]) / fitnessvalueshist[iteration - 1]) * 100
+            fitnessvaluesthres = 0.1
+            if fitnessvaluesclose < fitnessvaluesthres:
+                print('\nTaguchi optimisation stopped as successive fitness values within {}%'.format(fitnessvaluesthres))
+                break
 
     # Save optimisation parameters history and fitness values history to file
     opthistfile = inputfileparts[0] + '_hist.pickle'
@@ -164,6 +170,9 @@ def taguchi_code_blocks(inputfile, taguchinamespace):
         # Strip out any newline characters and comments that must begin with double hashes
         inputlines = [line.rstrip() for line in f if(not line.startswith('##') and line.rstrip('\n'))]
     
+    # Store length of dict
+    taglength = len(taguchinamespace)
+    
     x = 0
     while(x < len(inputlines)):
         if(inputlines[x].startswith('#taguchi:')):
@@ -184,6 +193,10 @@ def taguchi_code_blocks(inputfile, taguchinamespace):
             exec(taguchicompiledcode, taguchinamespace)
     
         x += 1
+
+    # Check if any Taguchi code blocks were found
+    if len(taguchinamespace) == taglength:
+        raise CmdInputError('No #taguchi and #end_taguchi code blocks found.')
     
     return taguchinamespace
 
@@ -202,6 +215,9 @@ def construct_OA(optparams):
         s (int): Number of levels in OA
         t (int): Strength of OA
     """
+    
+    oadirectory = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'user_libs', 'optimisation_taguchi')
+    oadirectory = os.path.abspath(oadirectory)
 
     # Properties of the orthogonal array (OA)
     # Strength
@@ -215,7 +231,7 @@ def construct_OA(optparams):
     
     # Load the appropriate OA
     if k <= 4:
-        OA = np.load(os.path.join('user_libs', 'OA_9_4_3_2.npy'))
+        OA = np.load(os.path.join(oadirectory, 'OA_9_4_3_2.npy'))
 
         # Number of experiments
         N = OA.shape[0]
@@ -227,7 +243,7 @@ def construct_OA(optparams):
         OA = OA[:, 0:k]
 
     elif k <= 7:
-        OA = np.load(os.path.join('user_libs',  'OA_18_7_3_2.npy'))
+        OA = np.load(os.path.join(oadirectory, 'OA_18_7_3_2.npy'))
 
         # Number of experiments
         N = OA.shape[0]
@@ -238,8 +254,10 @@ def construct_OA(optparams):
         # Cut down OA columns to number of parameters to optimise
         OA = OA[:, 0:k]
 
-    # THIS CASE NEEDS FURTHER TESTING
     else:
+        # THIS CASE NEEDS FURTHER TESTING
+        print('\nTaguchi optimisation, WARNING: Optimising more than 7 parameters is currently an experimental feature!')
+              
         p = int(np.ceil(np.log(k * (s - 1) + 1) / np.log(s)))
         
         # Number of experiments
@@ -380,8 +398,8 @@ def calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N,
         # Calculate optimal level from table of responses
         optlevel = np.where(responses == np.amax(responses))[0]
         
-        # If 2 experiments produce the same fitness value (this shouldn't happen if the fitness function is designed correctly)
-        if len(optlevel):
+        # If 2 experiments produce the same fitness value (this shouldn't happen if the fitness function is designed correctly) pick first level
+        if len(optlevel) > 1:
             optlevel = optlevel[0]
         
         levelsopt[p] = optlevel

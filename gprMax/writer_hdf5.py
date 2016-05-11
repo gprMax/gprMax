@@ -19,6 +19,7 @@
 import h5py
 import numpy as np
 
+import gprMax
 from gprMax.constants import floattype
 from gprMax.grid import Ix, Iy, Iz
 
@@ -35,6 +36,7 @@ def prepare_hdf5(outputfile, G):
     """
 
     f = h5py.File(outputfile, 'w')
+    f.attrs['gprMax'] = gprMax.__version__
     f.attrs['Title'] = G.title
     f.attrs['Iterations'] = G.iterations
     f.attrs['nx, ny, nz'] = (G.nx, G.ny, G.nz)

@@ -160,6 +160,9 @@ def process_multicmds(multicmds, G):
             h.xcoord = xcoord
             h.ycoord = ycoord
             h.zcoord = zcoord
+            h.xcoordbase = xcoord
+            h.ycoordbase = ycoord
+            h.zcoordbase = zcoord
             h.ID = 'HertzianDipole(' + str(h.xcoord) + ',' + str(h.ycoord) + ',' + str(h.zcoord) + ')'
             h.waveformID = tmp[4]
             
@@ -222,6 +225,9 @@ def process_multicmds(multicmds, G):
             m.xcoord = xcoord
             m.ycoord = ycoord
             m.zcoord = zcoord
+            m.xcoordbase = xcoord
+            m.ycoordbase = ycoord
+            m.zcoordbase = zcoord
             m.ID = 'MagneticDipole(' + str(m.xcoord) + ',' + str(m.ycoord) + ',' + str(m.zcoord) + ')'
             m.waveformID = tmp[4]
             
@@ -340,7 +346,13 @@ def process_multicmds(multicmds, G):
             if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.\n')
             
-            r = Rx(xcoord=xcoord, ycoord=ycoord, zcoord=zcoord)
+            r = Rx()
+            r.xcoord = xcoord
+            r.ycoord = ycoord
+            r.zcoord = zcoord
+            r.xcoordbase = xcoord
+            r.ycoordbase = ycoord
+            r.zcoordbase = zcoord
             
             # If no ID or outputs are specified, use default i.e Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, Iz
             if len(tmp) == 3:
@@ -403,7 +415,13 @@ def process_multicmds(multicmds, G):
             for x in range(xs, xf, dx):
                 for y in range(ys, yf, dy):
                     for z in range(zs, zf, dz):
-                        r = Rx(xcoord=x, ycoord=y, zcoord=z)
+                        r = Rx()
+                        r.xcoord = x
+                        r.ycoord = y
+                        r.zcoord = z
+                        r.xcoordbase = x
+                        r.ycoordbase = y
+                        r.zcoordbase = z
                         r.ID = 'Rx(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
                         G.rxs.append(r)
 
@@ -429,15 +447,16 @@ def process_multicmds(multicmds, G):
             dy = round_value(float(tmp[7])/G.dy)
             dz = round_value(float(tmp[8])/G.dz)
             
+            # If number of iterations given
+            try:
+                time = int(tmp[9])
             # If real floating point value given
-            if '.' in tmp[9] or 'e' in tmp[9]:
-                if float(tmp[9]) > 0:
-                    time = round_value((float(tmp[9]) / G.dt)) + 1
+            except:
+                time = float(tmp[9])
+                if time > 0:
+                    time = round_value((time / G.dt)) + 1
                 else:
                     raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' time value must be greater than zero')
-            # If number of iterations given
-            else:
-                time = int(tmp[9])
             
             if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
@@ -463,7 +482,7 @@ def process_multicmds(multicmds, G):
             s = Snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, tmp[10])
 
             if G.messages:
-                print('Snapshot from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, at {:g} secs with filename {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dx * G.dy, dx * G.dz, s.time * G.dt, s.filename))
+                print('Snapshot from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, at {:g} secs with filename {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dx * G.dy, dx * G.dz, s.time * G.dt, s.basefilename))
                     
             G.snapshots.append(s)
 
@@ -533,7 +552,7 @@ def process_multicmds(multicmds, G):
                     Material.maxpoles = material.poles
 
                 if G.messages:
-                    print('Debye-type disperion added to {} with delta_epsr={}, and tau={} secs created.'.format(material.ID, ','.join('%4.2f' % deltaer for deltaer in material.deltaer), ','.join('%4.3e' % tau for tau in material.tau)))
+                    print('Debye disperion added to {} with delta_epsr={}, and tau={} secs created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau)))
 
     cmdname = '#add_dispersion_lorentz'
     if multicmds[cmdname] != 'None':
@@ -569,7 +588,7 @@ def process_multicmds(multicmds, G):
                     Material.maxpoles = material.poles
 
                 if G.messages:
-                    print('Lorentz-type disperion added to {} with delta_epsr={}, omega={} secs, and gamma={} created.'.format(material.ID, ','.join('%4.2f' % deltaer for deltaer in material.deltaer), ','.join('%4.3e' % tau for tau in material.tau), ','.join('%4.3e' % alpha for alpha in material.alpha)))
+                    print('Lorentz disperion added to {} with delta_epsr={}, omega={} secs, and gamma={} created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
 
 
     cmdname = '#add_dispersion_drude'
@@ -605,7 +624,7 @@ def process_multicmds(multicmds, G):
                     Material.maxpoles = material.poles
 
                 if G.messages:
-                    print('Drude-type disperion added to {} with omega={} secs, and gamma={} secs created.'.format(material.ID, ','.join('%4.3e' % tau for tau in material.tau), ','.join('%4.3e' % alpha for alpha in material.alpha)))
+                    print('Drude disperion added to {} with omega={} secs, and gamma={} secs created.'.format(material.ID, ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
 
 
     cmdname = '#soil_peplinski'
@@ -685,7 +704,7 @@ def process_multicmds(multicmds, G):
             g = GeometryView(xs, ys, zs, xf, yf, zf, dx, dy, dz, tmp[9], tmp[10].lower())
 
             if G.messages:
-                print('Geometry view from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, filename {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz, g.filename))
+                print('Geometry view from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, filename {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz, g.basefilename))
 
             # Append the new GeometryView object to the geometry views list
             G.geometryviews.append(g)

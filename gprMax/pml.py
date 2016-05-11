@@ -23,7 +23,7 @@ from gprMax.pml_1order_update import *
 from gprMax.pml_2order_update import *
 
 
-class CFSParameter:
+class CFSParameter(object):
     """Individual CFS parameter (e.g. alpha, kappa, or sigma)."""
     
     # Allowable scaling profiles and directions
@@ -49,7 +49,7 @@ class CFSParameter:
         self.max = max
 
 
-class CFS:
+class CFS(object):
     """CFS term for PML."""
     
     def __init__(self):
@@ -140,7 +140,7 @@ class CFS:
         return Evalues, Hvalues
 
 
-class PML:
+class PML(object):
     """PML - the implementation comes from the derivation in: http://dx.doi.org/10.1109/TAP.2011.2180344"""
     
     directions = {0: 'xminus', 1: 'yminus', 2: 'zminus', 3: 'xplus', 4: 'yplus', 5: 'zplus'}
@@ -165,6 +165,10 @@ class PML:
         self.CFS = G.cfs
         if not self.CFS:
             self.CFS = [CFS()]
+        self.initialise_field_arrays()
+        
+    def initialise_field_arrays(self):
+        """Initialise arrays to store fields in PML."""
         
         # Subscript notation, e.g. 'EPhiyxz' means the electric field Phi vector, of which the
         # component being corrected is y, the stretching direction is x, and field derivative
@@ -188,15 +192,6 @@ class PML:
             self.HPhixzy = np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz), dtype=floattype)
             self.HPhiyzx = np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz), dtype=floattype)
 
-        self.ERA = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-        self.ERB = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-        self.ERE = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-        self.ERF = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-        self.HRA = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-        self.HRB = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-        self.HRE = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-        self.HRF = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-                
     def calculate_update_coeffs(self, er, mr, G):
         """Calculates electric and magnetic update coefficients for the PML.
             
@@ -205,6 +200,15 @@ class PML:
             mr (float): Average permeability of underlying material
             G (class): Grid class instance - holds essential parameters describing the model.
         """
+        
+        self.ERA = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
+        self.ERB = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
+        self.ERE = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
+        self.ERF = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
+        self.HRA = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
+        self.HRB = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
+        self.HRE = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
+        self.HRF = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
         
         for x, cfs in enumerate(self.CFS):
             if not cfs.sigma.max:

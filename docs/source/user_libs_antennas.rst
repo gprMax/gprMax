@@ -1,13 +1,15 @@
-.. _user-libs:
-
-**************
-User libraries
-**************
-
 User libraries is a sub-package where useful Python modules contributed by users are stored.
 
-antennas.py
+********
+Antennas
+********
+
+Information
 ===========
+
+**Author/Contact**: Craig Warren (Craig.Warren@ed.ac.uk), University of Edinburgh
+
+**License**: Creative Commons Attribution-ShareAlike 4.0 International License (http://creativecommons.org/licenses/by-sa/4.0/)
 
 .. code-block:: python
 
@@ -25,7 +27,21 @@ The module currently features models of antennas similar to commercial antennas:
 
 A description of how the models were created can be found at http://dx.doi.org/10.1190/1.3548506.
 
-The antenna models can be accessed from within a block of Python code in your simulation. The models must be used with cubic spatial resolutions of either 1mm (default) or 2mm. For example, to use Python to include an antenna model similar to a GSSI 1.5 GHz antenna at a location 0.125m, 0.094m, 0.100m (x,y,z):
+Module overview
+===============
+
+* ``antennas.py`` is a module containing the descriptions of the antennas.
+
+
+How to use the module
+=====================
+
+The antenna models can be accessed from within a block of Python code in an input file. The models must be used with cubic spatial resolutions of either 1mm (default) or 2mm.
+
+Example
+-------
+
+To include an antenna model similar to a GSSI 1.5 GHz antenna at a location 0.125m, 0.094m, 0.100m (x,y,z):
 
 .. code-block:: none
 

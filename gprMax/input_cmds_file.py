@@ -32,7 +32,9 @@ def process_python_include_code(inputfile, usernamespace):
     Returns:
         processedlines (list): Input commands after Python processing.
     """
-        
+    
+    userpython = False
+    
     with open(inputfile, 'r') as f:
         # Strip out any newline characters and comments that must begin with double hashes
         inputlines = [line.rstrip() for line in f if(not line.startswith('##') and line.rstrip('\n'))]
@@ -45,6 +47,9 @@ def process_python_include_code(inputfile, usernamespace):
         
         # Process any Python code
         if(inputlines[x].startswith('#python:')):
+            # Save stdout location to restore later
+            stdout = sys.stdout
+            
             # String to hold Python code to be executed
             pythoncode = ''
             x += 1
@@ -67,12 +72,15 @@ def process_python_include_code(inputfile, usernamespace):
             # Add processed Python code to list
             processedlines.extend(codeproc)
     
+            # Reset stdio
+            sys.stdout = stdout
+    
         # Process any include commands
-        elif(inputlines[x].startswith('#include:')):
+        elif(inputlines[x].startswith('#include_file:')):
             includefile = inputlines[x].split()
             
             if len(includefile) != 2:
-                raise CmdInputError('#include requires exactly one parameter')
+                raise CmdInputError('#include_file requires exactly one parameter')
             
             includefile = includefile[1]
             
@@ -94,8 +102,6 @@ def process_python_include_code(inputfile, usernamespace):
             processedlines.append(inputlines[x])
 
         x += 1
-
-    sys.stdout = sys.__stdout__ # Reset stdio
     
     return processedlines
 

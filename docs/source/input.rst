@@ -108,16 +108,16 @@ General commands
 
 Allows you to write blocks of Python code between ``#python`` and ``#end_python`` in the input file. The code is executed when the input file is read by gprMax. For further details see the :ref:`Python section <python-scripting>`.
 
-#include:
----------
+#include_file:
+--------------
 
-Allows you to include commands from a file. It will insert the commands from the specified file at the location where the ``#include`` command is placed. The syntax of the command is:
+Allows you to include commands from a file. It will insert the commands from the specified file at the location where the ``#include_file`` command is placed. The syntax of the command is:
 
 .. code-block:: none
 
-    #include: str1
+    #include_file: file
 
-``str1`` can be the name of the file containing the commands in the same directory as the input file, or ``str1`` can be the full path to the file containing the commands (allowing you to specify any location).
+``file`` can be the name of the file containing the commands in the same directory as the input file, or ``file`` can be the full path to the file containing the commands (allowing you to specify any location).
 
 
 #time_step_stability_factor:
@@ -364,6 +364,7 @@ At the boundaries between different materials in the model there is the question
 
 .. note::
 
+    * If a material has dispersive properties then dielectric smoothing is automatically turned off for that material.
     * If an object is anistropic then dielectric smoothing is automatically turned off for that object.
     * Non-volumetric object building commands, ``#edge`` and ``#plate`` cannot have dielectric smoothing.
 
@@ -377,12 +378,12 @@ Allows you output to file(s) information about the geometry of model. The file(s
 
 .. code-block:: none
 
-    #geometry_view: f1 f2 f3 f4 f5 f6 f7 f8 f9 file1 c1
+    #geometry_view: f1 f2 f3 f4 f5 f6 f7 f8 f9 file c1
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the volume of the geometry view in metres.
 * ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the volume of the geometry view in metres.
 * ``f7 f8 f9`` are the spatial discretisation of the geometry view in metres. Typically these will be the same as the spatial discretisation of the model but they can be courser if desired.
-* ``file1`` is the filename of the file where the geometry view will be stored.
+* ``file`` is the filename of the file where the geometry view will be stored in the same directory as the input file.
 * ``c1`` can be either n (normal) or f (fine) which specifies whether to output the geometry information on a per-cell basis (n) or a per-cell-edge basis (f). The fine mode should be reserved for viewing detailed parts of the geometry that occupy small volumes, as using this mode can generate geometry files with large file sizes.
 
 .. tip::
@@ -586,11 +587,34 @@ Allows you to add grass with roots to a ``#fractal_box`` in the model. The blade
 * ``str1`` is an identifier for the ``#fractal_box`` that the grass should be applied to.
 * ``i2`` is an optional parameter which controls the seeding of the random number generator used to create the fractals. By default (if you don't specify this parameter) the random number generator will be seeded by trying to read data from ``/dev/urandom`` (or the Windows analogue) if available or from the clock otherwise.
 
-For example, to apply 100 blades of grass that vary in height between 100 and 150 mm to the entire surface in the positive z direction of a ``#fractal_box`` that had been specified using ``#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 50 my_soil my_fractal_box``, use: ``#add_grass: 0 0 0.1 0.1 0.1 0.1 1.5 0.2 0.25 100 my_fractal_box``.
+For example, to apply 100 blades of grass that vary in height between 100 and 150 mm to the entire surface in the positive z direction of a ``#fractal_box`` that had been specified using ``#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 50 my_soil my_fractal_box``, use ``#add_grass: 0 0 0.1 0.1 0.1 0.1 1.5 0.2 0.25 100 my_fractal_box``.
 
 .. note::
 
     * The grass is modelled using a single-pole Debye formulation with properties :math:`\epsilon_{rs} = 18.5087`, :math:`\epsilon_{\infty} = 12.7174`, and a relaxation time of :math:`\tau = 1.0793 \times 10^{-11}` seconds (http://dx.doi.org/10.1007/BF00902994). If you prefer, gprMax will use your own definition for grass if you use a material named ``grass``. The geometry of the blades of grass are defined by the parametric equations: :math:`x = x_c +s_x {\left( \frac{t}{b_x} \right)}^2`, :math:`y = y_c +s_y {\left( \frac{t}{b_y} \right)}^2`, and :math:`z=t`, where :math:`s_x` and :math:`s_y` can be -1 or 1 which are randomly chosen, and where the constants :math:`b_x` and :math:`b_y` are random numbers based on a Gaussian distribution.
+
+#geometry_objects_file:
+-----------------------
+
+Allows you to insert pre-defined geometry into a model. The geometry is specified using a 3D array of integer numbers stored in a HDF5 file. The integer numbers must correspond to the order of a list of ``#material`` commands specified in a text file. The syntax of the command is:
+
+.. code-block:: none
+
+    #geometry_objects_file: f1 f2 f3 file1 file2
+
+* ``f1 f2 f3`` are the lower left (x,y,z) coordinates in the domain where the lower left corner of the geometry array should be placed.
+* ``file1`` is the path to and filename of the HDF5 file that contains an integer array which defines the geometry.
+* ``file2`` is the path to and filename of the text file that contains ``#material`` commands.
+
+.. note::
+
+    * The integer numbers in the HDF5 file must be stored as a NumPy array at the root named ``data`` with type ``np.uint16``.
+    * The integer numbers in the HDF5 file correspond to the order of material commands in the materials text file, i.e. if ``#sand: 3 0 1 0`` is the first material in the materials file, it will be associated with any integers that are zero in the HDF5 file.
+    * The spatial resolution of the geometry objects must match the spatial resolution defined in the model.
+    * The spatial resolution of must be specified as a root attribute of the HDF5 file with the name ``dx, dy, dz`` equal to a tuple of floats, e.g. (0.002, 0.002, 0.002)
+
+For example, to insert a 2x2x2mm^3 AustinMan model with the lower left corner 40mm from the origin of the domain, and using disperive material properties use ``#geometry_objects_file: 0.04 0.04 0.04 ../user_libs/AustinManWoman/AustinMan_v2.3_2x2x2.h5 ../user_libs/AustinManWoman/AustinManWoman_gprMax_materials.txt``
+
 
 Source and output commands
 ==========================
@@ -633,9 +657,9 @@ If there are less amplitude values than the number of iterations that are going 
 
 .. code-block:: none
 
-    #excitation_file: str1
+    #excitation_file: file
 
-``str1`` can be the name of the file containing the specified waveform in the same directory as the input file, or ``str1`` can be the full path to the file containing the specified waveform (allowing you to specify any location).
+``file`` can be the name of the file containing the specified waveform in the same directory as the input file, or ``file`` can be the full path to the file containing the specified waveform (allowing you to specify any location).
 
 For example, to specify the file ``my_waves.txt``, which contains two custom waveform shapes, use: ``#excitation_file: my_waves.txt``. The contents of the file ``my_waves.txt`` would take the form:
 
@@ -762,14 +786,19 @@ Provides a simple method of defining multiple output points in the model. The sy
 #src_steps: and #rx_steps:
 --------------------------
 
-Provide a simple method to allow you to move the location of all sources (``#src_steps``) or all receivers (``#rx_steps``) between runs of a model. The syntax of the commands is:
+Provides a simple method to allow you to move the location of all simple sources (``#src_steps``) or all receivers (``#rx_steps``) between runs of a model. The syntax of the commands is:
 
 .. code-block:: none
 
     #src_steps: f1 f2 f3
     #rx_steps: f1 f2 f3
 
-``f1 f2 f3`` are increments (x,y,z) to move all sources (``#hertzian_dipole``, ``#magnetic_dipole``, or ``#voltage_source``) or all receivers (created using either ``#rx`` or ``#rx_box`` commands).
+``f1 f2 f3`` are increments (x,y,z) to move all simple sources (``#hertzian_dipole`` or ``#magnetic_dipole``) or all receivers (created using either ``#rx`` or ``#rx_box`` commands).
+
+.. note::
+
+    * ``#src_steps`` and ``#rx_steps`` are not suitable for moving sources which have associated geometry, e.g. antenna models.
+    * Values for ``#src_steps`` and ``#rx_steps`` should not be changed between model runs using Python scripting.
 
 #snapshot:
 ----------
@@ -778,19 +807,19 @@ Allows you to obtain information about the electromagnetic fields within a volum
 
 .. code-block:: none
 
-    #snapshot: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 file1
+    #snapshot: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 file
 
 or
 
 .. code-block:: none
 
-    #snapshot: f1 f2 f3 f4 f5 f6 f7 f8 f9 i1 file1
+    #snapshot: f1 f2 f3 f4 f5 f6 f7 f8 f9 i1 file
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the volume of the snapshot in metres.
 * ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the volume of the snapshot in metres.
 * ``f7 f8 f9`` are the spatial discretisation of the snapshot in metres.
 * ``f10`` or ``i1`` are the time in seconds (float) or the iteration number (integer) which denote the point in time at which the snapshot will be taken.
-* ``file1`` is the filename of the file where the snapshot will be stored.
+* ``file`` is the name of the file where the snapshot will be stored. Snapshot files are automatically stored in a directory with the name of the input file appended with '_snaps'. For multiple model runs each model run will have its own directory, i.e. '_snaps1', 'snaps2' etc...
 
 For example to save a snapshot of the electromagnetic fields in the model at a simulated time of 3 nanoseconds use: ``#snapshot: 0 0 0 1 1 1 0.1 0.1 0.1 3e-9 snap1``
 
@@ -805,7 +834,7 @@ For example to save a snapshot of the electromagnetic fields in the model at a s
         #end_python:
 
 
-.. _pml:
+.. _pml-commands:
 
 PML commands
 ============

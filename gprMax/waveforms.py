@@ -21,7 +21,7 @@ import numpy as np
 from gprMax.utilities import round_value
 
 
-class Waveform:
+class Waveform(object):
     """Definitions of waveform shapes that can be used with sources."""
     
     types = ['gaussian', 'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot', 'gaussiandotdotnorm', 'ricker', 'sine', 'contsine', 'impulse', 'user']
@@ -89,7 +89,7 @@ class Waveform:
             waveform = ramp * np.sin(2 * np.pi * self.freq * time)
 
         elif self.type == 'impulse':
-            # time < G.dt condition required to do impulsive magnetic dipole
+            # time < dt condition required to do impulsive magnetic dipole
             if time == 0 or time < dt:
                 waveform = 1
             elif time >= dt:
