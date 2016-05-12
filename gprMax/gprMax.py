@@ -18,33 +18,38 @@
 
 """gprMax.gprMax: provides entry point main()."""
 
-import argparse, datetime, itertools, os, psutil, sys
-from time import perf_counter
-from enum import Enum
+import argparse
+import datetime
+import itertools
+import os
+import psutil
+import sys
 
 import numpy as np
 
-import gprMax
-from gprMax.constants import c, e0, m0, z0, floattype
-from gprMax.exceptions import GeneralError
-from gprMax.fields_update import update_electric, update_magnetic, update_electric_dispersive_multipole_A, update_electric_dispersive_multipole_B, update_electric_dispersive_1pole_A, update_electric_dispersive_1pole_B
-from gprMax.grid import FDTDGrid, dispersion_check
-from gprMax.input_cmds_geometry import process_geometrycmds
-from gprMax.input_cmds_file import process_python_include_code, write_processed_file, check_cmd_names
-from gprMax.input_cmds_multiuse import process_multicmds
-from gprMax.input_cmds_singleuse import process_singlecmds
-from gprMax.materials import Material
-from gprMax.writer_hdf5 import prepare_hdf5, write_hdf5
-from gprMax.pml import build_pmls, update_electric_pml, update_magnetic_pml
-from gprMax.utilities import update_progress, logo, human_size
-from gprMax.yee_cell_build import build_electric_components, build_magnetic_components
+from time import perf_counter
+from enum import Enum
+from ._version import __version__
+from .constants import c, e0, m0, z0
+from .exceptions import GeneralError
+from .fields_update import update_electric, update_magnetic, update_electric_dispersive_multipole_A, update_electric_dispersive_multipole_B, update_electric_dispersive_1pole_A, update_electric_dispersive_1pole_B
+from .grid import FDTDGrid, dispersion_check
+from .input_cmds_geometry import process_geometrycmds
+from .input_cmds_file import process_python_include_code, write_processed_file, check_cmd_names
+from .input_cmds_multiuse import process_multicmds
+from .input_cmds_singleuse import process_singlecmds
+from .materials import Material
+from .writer_hdf5 import prepare_hdf5, write_hdf5
+from .pml import build_pmls, update_electric_pml, update_magnetic_pml
+from .utilities import update_progress, logo, human_size
+from .yee_cell_build import build_electric_components, build_magnetic_components
 
 
 def main():
     """This is the main function for gprMax."""
-    
+
     # Print gprMax logo, version, and licencing/copyright information
-    logo(gprMax.__version__ + ' (Bowmore)')
+    logo(__version__ + ' (Bowmore)')
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(prog='gprMax', description='Electromagnetic modelling software based on the Finite-Difference Time-Domain (FDTD) method')
@@ -57,10 +62,35 @@ def main():
     parser.add_argument('--write-processed', action='store_true', default=False, help='write an input file after any Python code and include commands in the original input file have been processed')
     parser.add_argument('--opt-taguchi', action='store_true', default=False, help='optimise parameters using the Taguchi optimisation method')
     args = parser.parse_args()
+
+    run_main(args)
+
+
+def api(inputfile, n=1, mpi=False, benchmark=False, geometry_only=False, geometry_fixed=False, write_processed=False, opt_taguchi=False):
+    """If you have installed gprMax as a module this is the entry point"""
+    class ImportArguments:
+        pass
+
+    args = ImportArguments()
+
+    args.inputfile = inputfile
+    args.n = n
+    args.mpi = mpi
+    args.benchmark = benchmark
+    args.geometry_only = geometry_only
+    args.geometry_fixed = geometry_fixed
+    args.write_processed = write_processed
+    args.opt_taguchi = opt_taguchi
+
+    run_main(args)
+
+
+def run_main(args):
+
     numbermodelruns = args.n
     inputdirectory = os.path.dirname(os.path.abspath(args.inputfile))
     inputfile = os.path.abspath(os.path.join(inputdirectory, os.path.basename(args.inputfile)))
-    
+
     # Create a separate namespace that users can access in any Python code blocks in the input file
     usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': numbermodelruns, 'input_directory': inputdirectory}
 
@@ -93,7 +123,7 @@ def main():
 
 def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None):
     """Run standard simulation - models are run one after another and each model is parallelised with OpenMP
-        
+
     Args:
         args (dict): Namespace with command line arguments
         numbermodelruns (int): Total number of model runs.
@@ -118,20 +148,20 @@ def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
 
 def run_benchmark_sim(args, inputfile, usernamespace):
     """Run standard simulation in benchmarking mode - models are run one after another and each model is parallelised with OpenMP
-        
+
     Args:
         args (dict): Namespace with command line arguments
         inputfile (str): Name of the input file to open.
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
     """
-    
+
     # Number of threads to test - start from max physical CPU cores and divide in half until 1
     thread = psutil.cpu_count(logical=False)
     threads = [thread]
     while not thread%2:
         thread /= 2
         threads.append(int(thread))
-    
+
     benchtimes = np.zeros(len(threads))
 
     numbermodelruns = len(threads)
@@ -151,7 +181,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
 
 def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None):
     """Run mixed mode MPI/OpenMP simulation - MPI task farm for models with each model parallelised with OpenMP
-        
+
     Args:
         args (dict): Namespace with command line arguments
         numbermodelruns (int): Total number of model runs.
@@ -181,7 +211,7 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
             data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
             source = status.Get_source()
             tag = status.Get_tag()
-            
+
             if tag == tags.READY.value: # Worker is ready, so send it a task
                 if modelrun < numbermodelruns + 1:
                     comm.send(modelrun, dest=source, tag=tags.START.value)
@@ -189,10 +219,10 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
                     modelrun += 1
                 else:
                     comm.send(None, dest=source, tag=tags.EXIT.value)
-        
+
             elif tag == tags.DONE.value:
                 print('Worker {}: completed.'.format(source))
-            
+
             elif tag == tags.EXIT.value:
                 print('Worker {}: exited.'.format(source))
                 closedworkers += 1
@@ -203,7 +233,7 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
             comm.send(None, dest=0, tag=tags.READY.value)
             modelrun = comm.recv(source=0, tag=MPI.ANY_TAG, status=status) # Receive a model number to run from the master
             tag = status.Get_tag()
-            
+
             # Run a model
             if tag == tags.START.value:
                 if optparams: # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
@@ -213,10 +243,10 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
                     modelusernamespace.update({'optparams': tmp})
                 else:
                     modelusernamespace = usernamespace
-                
+
                 run_model(args, modelrun, numbermodelruns, inputfile, modelusernamespace)
                 comm.send(None, dest=0, tag=tags.DONE.value)
-        
+
             elif tag == tags.EXIT.value:
                 break
 
@@ -225,39 +255,39 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
 
 def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     """Runs a model - processes the input file; builds the Yee cells; calculates update coefficients; runs main FDTD loop.
-        
+
     Args:
         args (dict): Namespace with command line arguments
         modelrun (int): Current model run number.
         numbermodelruns (int): Total number of model runs.
         inputfile (str): Name of the input file to open.
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
-        
+
     Returns:
         tsolve (int): Length of time (seconds) of main FDTD calculations
     """
-    
+
     # Monitor memory usage
     p = psutil.Process()
-    
+
     # Declare variable to hold FDTDGrid class
     global G
-    
+
     # Normal model reading/building process; bypassed if geometry information to be reused
     if not 'G' in globals():
         print('\n{}\n\nModel input file: {}\n'.format(68*'*', inputfile))
-        
+
         # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
         usernamespace['current_model_run'] = modelrun
         print('Constants/variables available for Python scripting: {}\n'.format(usernamespace))
-        
+
         # Read input file and process any Python or include commands
         processedlines = process_python_include_code(inputfile, usernamespace)
-        
+
         # Write a file containing the input commands after Python or include commands have been processed
         if args.write_processed:
             write_processed_file(inputfile, modelrun, numbermodelruns, processedlines)
-        
+
         # Check validity of command names and that essential commands are present
         singlecmds, multicmds, geometry = check_cmd_names(processedlines)
 
@@ -294,7 +324,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
         # Build the PML and calculate initial coefficients
         build_pmls(G)
-        
+
         # Build the model, i.e. set the material properties (ID) for every edge of every Yee cell
         tbuildstart = perf_counter()
         build_electric_components(G.solid, G.rigidE, G.ID, G)
@@ -305,7 +335,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         # Process any voltage sources (that have resistance) to create a new material at the source location
         for voltagesource in G.voltagesources:
             voltagesource.create_material(G)
-        
+
         # Initialise arrays of update coefficients to pass to update functions
         G.initialise_std_update_coeff_arrays()
 
@@ -319,22 +349,22 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             print('ID\tName\t\tProperties')
             print('{}'.format('-'*50))
         for material in G.materials:
-            
+
             # Calculate update coefficients for material
             material.calculate_update_coeffsE(G)
             material.calculate_update_coeffsH(G)
-            
+
             # Store all update coefficients together
             G.updatecoeffsE[material.numID, :] = material.CA, material.CBx, material.CBy, material.CBz, material.srce
             G.updatecoeffsH[material.numID, :] = material.DA, material.DBx, material.DBy, material.DBz, material.srcm
-            
+
             # Store coefficients for any dispersive materials
             if Material.maxpoles != 0:
                 z = 0
                 for pole in range(Material.maxpoles):
                     G.updatecoeffsdispersive[material.numID, z:z+3] = e0 * material.eqt2[pole], material.eqt[pole], material.zt[pole]
                     z += 3
-            
+
             if G.messages:
                 if material.deltaer and material.tau:
                     tmp = 'delta_epsr={}, tau={} secs; '.format(', '.join('{:g}'.format(deltaer) for deltaer in material.deltaer), ', '.join('{:g}'.format(tau) for tau in material.tau))
@@ -352,10 +382,10 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             print('\nWARNING: Potential numerical dispersion in the simulation. Check the spatial discretisation against the smallest wavelength present. Suggested resolution should be less than {:g}m'.format(resolution))
 
     # If geometry information to be reused between model runs
-    else:        
+    else:
         # Clear arrays for field components
         G.initialise_field_arrays()
-        
+
         # Clear arrays for fields in PML
         for pml in G.pmls:
             pml.initialise_field_arrays()
@@ -377,7 +407,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             receiver.xcoord = receiver.xcoordbase + (modelrun - 1) * G.rxstepx
             receiver.ycoord = receiver.ycoordbase + (modelrun - 1) * G.rxstepy
             receiver.zcoord = receiver.zcoordbase + (modelrun - 1) * G.rxstepz
-    
+
     # Write files for any geometry views
     if not G.geometryviews and args.geometry_only:
         raise GeneralError('No geometry views found.')
@@ -385,16 +415,17 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         tgeostart = perf_counter()
         for geometryview in G.geometryviews:
             geometryview.write_vtk(modelrun, numbermodelruns, G)
+            geometryview.write_xdmf(modelrun, numbermodelruns, G)
         tgeoend = perf_counter()
         print('\nGeometry file(s) written in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tgeoend - tgeostart))))
 
     # Run simulation (if not doing geometry only)
     if not args.geometry_only:
-        
+
         # Prepare any snapshot files
         for snapshot in G.snapshots:
             snapshot.prepare_vtk_imagedata(modelrun, numbermodelruns, G)
-        
+
         # Prepare output file
         inputfileparts = os.path.splitext(inputfile)
         if numbermodelruns == 1:
@@ -415,10 +446,10 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         for timestep in range(G.iterations):
             if timestep == 0:
                 tstepstart = perf_counter()
-            
+
             # Write field outputs to file
             write_hdf5(f, timestep, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
-            
+
             # Write any snapshots to file
             for snapshot in G.snapshots:
                 if snapshot.time == timestep + 1:
@@ -451,7 +482,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
             # Increment absolute time value
             abstime += 0.5 * G.dt
-            
+
             # Update magnetic field components
             update_magnetic(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
 
@@ -466,7 +497,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
             # Increment absolute time value
             abstime += 0.5 * G.dt
-        
+
             # Calculate time for two iterations, used to estimate overall runtime
             if timestep == 1:
                 tstepend = perf_counter()
@@ -476,7 +507,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
                 sys.stdout.flush()
             elif timestep > 1:
                 update_progress((timestep + 1) / G.iterations)
-            
+
         # Close output file
         f.close()
 

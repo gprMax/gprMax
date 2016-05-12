@@ -17,26 +17,25 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import h5py
-import numpy as np
 
-import gprMax
+from ._version import __version__
 from gprMax.constants import floattype
 from gprMax.grid import Ix, Iy, Iz
 
 
 def prepare_hdf5(outputfile, G):
     """Prepares an output file in HDF5 format for writing.
-        
+
     Args:
         outputfile (str): Name of the output file.
         G (class): Grid class instance - holds essential parameters describing the model.
-        
+
     Returns:
-        f (file object): File object for the file to be written to. 
+        f (file object): File object for the file to be written to.
     """
 
     f = h5py.File(outputfile, 'w')
-    f.attrs['gprMax'] = gprMax.__version__
+    f.attrs['gprMax'] = __version__
     f.attrs['Title'] = G.title
     f.attrs['Iterations'] = G.iterations
     f.attrs['nx, ny, nz'] = (G.nx, G.ny, G.nz)
@@ -47,7 +46,7 @@ def prepare_hdf5(outputfile, G):
     f.attrs['nrx'] = len(G.rxs)
     f.attrs['srcsteps'] = (G.srcstepx, G.srcstepy, G.srcstepz)
     f.attrs['rxsteps'] = (G.rxstepx, G.rxstepy, G.rxstepz)
-    
+
 
     # Create group for sources (except transmission lines); add type and positional data attributes
     srclist = G.voltagesources + G.hertziandipoles + G.magneticdipoles
@@ -55,7 +54,7 @@ def prepare_hdf5(outputfile, G):
         grp = f.create_group('/srcs/src' + str(srcindex + 1))
         grp.attrs['Type'] = type(src).__name__
         grp.attrs['Position'] = (src.xcoord * G.dx, src.ycoord * G.dy, src.zcoord * G.dz)
-    
+
     # Create group for transmission lines; add positional data, line resistance and line discretisation attributes; initialise arrays for line voltages and currents
     if G.transmissionlines:
         for tlindex, tl in enumerate(G.transmissionlines):
@@ -68,7 +67,7 @@ def prepare_hdf5(outputfile, G):
             grp['Iinc'] = tl.Iinc
             grp.create_dataset('Vtotal', (G.iterations, ), dtype=floattype)
             grp.create_dataset('Itotal', (G.iterations, ), dtype=floattype)
-    
+
     # Create group and add positional data and initialise field component arrays for receivers
     for rxindex, rx in enumerate(G.rxs):
         grp = f.create_group('/rxs/rx' + str(rxindex + 1))
@@ -83,7 +82,7 @@ def prepare_hdf5(outputfile, G):
 
 def write_hdf5(f, timestep, Ex, Ey, Ez, Hx, Hy, Hz, G):
     """Writes field component values to an output file in HDF5 format.
-        
+
     Args:
         f (file object): File object for the file to be written to.
         timestep (int): Current iteration number.
@@ -116,4 +115,3 @@ def write_hdf5(f, timestep, Ex, Ey, Ez, Hx, Hy, Hz, G):
         for tlindex, tl in enumerate(G.transmissionlines):
             f['/tls/tl' + str(tlindex + 1) + '/Vtotal'][timestep] = tl.voltage[tl.antpos]
             f['/tls/tl' + str(tlindex + 1) + '/Itotal'][timestep] = tl.current[tl.antpos]
-
