@@ -18,33 +18,38 @@
 
 """gprMax.gprMax: provides entry point main()."""
 
-import argparse, datetime, itertools, os, psutil, sys
-from time import perf_counter
-from enum import Enum
+import argparse
+import datetime
+import itertools
+import os
+import psutil
+import sys
 
 import numpy as np
 
-import gprMax
-from gprMax.constants import c, e0, m0, z0, floattype
-from gprMax.exceptions import GeneralError
-from gprMax.fields_update import update_electric, update_magnetic, update_electric_dispersive_multipole_A, update_electric_dispersive_multipole_B, update_electric_dispersive_1pole_A, update_electric_dispersive_1pole_B
-from gprMax.grid import FDTDGrid, dispersion_check
-from gprMax.input_cmds_geometry import process_geometrycmds
-from gprMax.input_cmds_file import process_python_include_code, write_processed_file, check_cmd_names
-from gprMax.input_cmds_multiuse import process_multicmds
-from gprMax.input_cmds_singleuse import process_singlecmds
-from gprMax.materials import Material
-from gprMax.writer_hdf5 import prepare_hdf5, write_hdf5
-from gprMax.pml import build_pmls, update_electric_pml, update_magnetic_pml
-from gprMax.utilities import update_progress, logo, human_size
-from gprMax.yee_cell_build import build_electric_components, build_magnetic_components
+from time import perf_counter
+from enum import Enum
+from ._version import __version__
+from .constants import c, e0, m0, z0
+from .exceptions import GeneralError
+from .fields_update import update_electric, update_magnetic, update_electric_dispersive_multipole_A, update_electric_dispersive_multipole_B, update_electric_dispersive_1pole_A, update_electric_dispersive_1pole_B
+from .grid import FDTDGrid, dispersion_check
+from .input_cmds_geometry import process_geometrycmds
+from .input_cmds_file import process_python_include_code, write_processed_file, check_cmd_names
+from .input_cmds_multiuse import process_multicmds
+from .input_cmds_singleuse import process_singlecmds
+from .materials import Material
+from .writer_hdf5 import prepare_hdf5, write_hdf5
+from .pml import build_pmls, update_electric_pml, update_magnetic_pml
+from .utilities import update_progress, logo, human_size
+from .yee_cell_build import build_electric_components, build_magnetic_components
 
 
 def main():
     """This is the main function for gprMax."""
 
     # Print gprMax logo, version, and licencing/copyright information
-    logo(gprMax.__version__ + ' (Bowmore)')
+    logo(__version__ + ' (Bowmore)')
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(prog='gprMax', description='Electromagnetic modelling software based on the Finite-Difference Time-Domain (FDTD) method')
@@ -57,6 +62,31 @@ def main():
     parser.add_argument('--write-processed', action='store_true', default=False, help='write an input file after any Python code and include commands in the original input file have been processed')
     parser.add_argument('--opt-taguchi', action='store_true', default=False, help='optimise parameters using the Taguchi optimisation method')
     args = parser.parse_args()
+
+    run_main(args)
+
+
+def api(inputfile, n=1, mpi=False, benchmark=False, geometry_only=False, geometry_fixed=False, write_processed=False, opt_taguchi=False):
+    """If you have installed gprMax as a module this is the entry point"""
+    class ImportArguments:
+        pass
+
+    args = ImportArguments()
+
+    args.inputfile = inputfile
+    args.n = n
+    args.mpi = mpi
+    args.benchmark = benchmark
+    args.geometry_only = geometry_only
+    args.geometry_fixed = geometry_fixed
+    args.write_processed = write_processed
+    args.opt_taguchi = opt_taguchi
+
+    run_main(args)
+
+
+def run_main(args):
+
     numbermodelruns = args.n
     inputdirectory = os.path.dirname(os.path.abspath(args.inputfile))
     inputfile = os.path.abspath(os.path.join(inputdirectory, os.path.basename(args.inputfile)))

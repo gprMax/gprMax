@@ -27,27 +27,29 @@ try:
 except ImportError:
     raise ImportError('gprMax requires the NumPy package.')
 
-import glob, os, shutil, sys
+import glob
+import os
+import shutil
+import sys
+import re
+
+# Importing _version__.py before building can cause issues.
+with open('gprMax/_version.py', 'r') as fd:
+    version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
+        fd.read(), re.MULTILINE).group(1)
+
+"""
+  Parse package name from init file. Importing __init__.py / gprMax will
+  break as gprMax depends on compiled .pyx files.
+"""
+with open('gprMax/__init__.py', 'r') as fd:
+    packagename = re.search(r'^__name__\s*=\s*[\'"]([^\'"]*)[\'"]',
+        fd.read(), re.MULTILINE).group(1)
 
 # Python version
 if sys.version_info[:2] < (3, 4):
     print('gprMax requires Python 3.4 or newer')
     sys.exit(-1)
-
-import gprMax
-
-# Package name
-packagename = gprMax.__name__
-
-# Package version
-version = gprMax.__version__
-
-# Process 'install' command line argument
-if 'install' in sys.argv:
-    print("'install' is not required for this package, running 'build_ext --inplace' instead.")
-    sys.argv.remove('install')
-    sys.argv.append('build_ext')
-    sys.argv.append('--inplace')
 
 # Process 'build' command line argument
 if 'build' in sys.argv:
@@ -118,7 +120,7 @@ elif sys.platform == 'darwin':
     compile_args = ['-O3', '-w', '-fstrict-aliasing', '-fno-common', '-fopenmp']
     linker_args = ['-fopenmp']
     extra_objects = []
-    
+
     # If user is cwarren do static linking as this is for binaries uploaded to GitHub
 #    if os.getlogin() == 'cwarren':
 #        linker_args = ['-static-libgcc']
@@ -176,4 +178,5 @@ setup(name=packagename,
                    'Topic :: Scientific/Engineering'
                    ],
       ext_modules=extensions,
+      packages=['gprMax'],
       include_dirs=[np.get_include()])
