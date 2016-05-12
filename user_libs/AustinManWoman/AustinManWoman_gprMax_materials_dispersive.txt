@@ -1,0 +1,124 @@
+## Tissue properties
+## 3-Pole Debye model (1MHz-100GHz) from http://dx.doi.org/10.1109/LMWC.2011.2180371
+## Non-dispersive properties (900MHz) from http://niremf.ifac.cnr.it/tissprop/htmlclie/htmlclie.php
+
+#material: 1 0 1 0 Air
+#material: 44.77 0.6961 1 0 Aorta
+
+#material: 3.4969 0.2261 1 0 Bladder
+#add_dispersion_debye: 3 370.48 9.1145e-8 21.866 4.6778e-10 15.38 0.94981e-11 Bladder
+
+#material: 7.5425 0.73265 1 0 Blood
+#add_dispersion_debye: 3 3529.4 8.8589e-8 110.21 5.4229e-9 53.637 0.89892 Blood
+
+#material: 44.77 0.6961 1 0 BloodVessel
+#material: 68.9 1.636 1 0 BodyFluid
+
+## Avg. Bone used for BoneCancellous & BoneMarrow
+#material: 3.8518 0.095687 1 0 BoneCancellous
+#add_dispersion_debye: 3 125.82 3.2802e-8 18.125 2.4901e-9 11.748 1.379e-11 BoneCancellous
+
+#material: 3.4498 0.022411 1 0 BoneCortical
+#add_dispersion_debye: 3 118.19 4.6747e-8 9.5114 2.2822e-9 8.807 1.3731e-11 BoneCortical
+
+## Avg. Bone used for BoneCancellous & BoneMarrow
+#material: 3.8518 0.095687 1 0 BoneMarrow
+#add_dispersion_debye: 3 125.82 3.2802e-8 18.125 2.4901e-9 11.748 1.379e-11 BoneMarrow
+
+## Avg. Brain used for BrainGreyMatter & BrainWhiteMatter
+#material: 6.9992 0.17911 1 0 BrainGreyMatter
+#add_dispersion_debye: 3 787.41 2.2589e-8 142.26 2.5012e-9 40.264 0.91939e-11 BrainGreyMatter
+
+#material: 6.9992 0.17911 1 0 BrainWhiteMatter
+#add_dispersion_debye: 3 787.41 2.2589e-8 142.26 2.5012e-9 40.264 0.91939e-11 BrainWhiteMatter
+
+#material: 5.424 0.04896 1 0 BreastFat
+#material: 42.65 0.7824 1 0 Cartilage
+
+#material: 6.9992 0.17911 1 0 Cerebellum
+#add_dispersion_debye: 3 787.41 2.2589e-8 142.26 2.5012e-9 40.264 0.91939e-11 Cerebellum
+
+#material: 5.7772 2.0002 1 0 CerebroSpinalFluid
+#add_dispersion_debye: 3 40.84 0.15293e-8 27.951 0.014519e-9 34.334 0.50631e-11 CerebroSpinalFluid
+
+#material: 49.78 0.9591 1 0 Cervix
+#material: 57.94 1.08 1 0 Colon
+#material: 55.23 1.394 1 0 Cornea
+
+#material: 7.8582 0.55004 1 0 Duodenum
+#add_dispersion_debye: 3 1674.5 6.273e-8 74.699 4.4123e-9 56.797 0.85287e-11 Duodenum
+
+#material: 44.43 0.9611 1 0 Dura
+#material: 55.27 1.167 1 0 EyeSclera
+
+#material: 3.261 0.043999 1 0 Fat
+#add_dispersion_debye: 3 34.522 1.3971e-8 2.2452 0.04806e-9 6.2928 0.60675e-11 Fat
+
+#material: 4.7563 0.90026 1 0 GallBladder
+#add_dispersion_debye: 3 40.681 0.1583e-8 20.066 0.01249e-9 33.876 0.57641e-11 GallBladder
+
+#material: 70.19 1.838 1 0 GallBladderBile
+#material: 59.68 1.038 1 0 Gland
+
+#material: 7.8989 0.27449 1 0 Heart
+#add_dispersion_debye: 3 1935.3 7.9786e-8 138.97 3.2768e-9 50.762 0.93944e-11 Heart
+
+#material: 7.8691 0.23004 1 0 Kidney
+#add_dispersion_debye: 3 2025 6.5466e-8 167.3 3.0341e-9 48.945 0.96655e-11 Kidney
+
+## Avg. Lens
+#material: 5.8421 0.27596 1 0 Lens
+#add_dispersion_debye: 3 630.99 5.9556e-8 62.733 3.6647e-9 30.811 0.89718e-11 Lens
+
+#material: 6.809 0.14243 1 0 Liver
+#add_dispersion_debye: 3 1529.8 8.4314e-8 112.04 3.7562e-9 39.593 1.0293e-11 Liver
+
+## Avg. Lung used for LungDeflated & LungInflated
+#material: 5.5014 0.21296 1 0 LungDeflated
+#add_dispersion_debye: 3 899.49 6.9396e-8 62.733 3.6647e-9 30.811 0.89718e-11 LungDeflated
+
+#material: 5.5014 0.21296 1 0 LungInflated
+#add_dispersion_debye: 3 899.49 6.9396e-8 62.733 3.6647e-9 30.811 0.89718e-11 LungInflated
+
+#material: 59.68 1.038 1 0 Lymph
+#material: 46.08 0.8447 1 0 MucousMembrane
+
+## Avg. Muscle
+#material: 7.5933 0.42066 1 0 Muscle
+#add_dispersion_debye: 3 2646.6 13.044e-8 87.588 6.1808e-9 47.546 0.79767e-11 Muscle
+
+#material: 12.45 0.1433 1 0 Nail
+#material: 32.53 0.5737 1 0 Nerve
+#material: 65.06 1.187 1 0 Oesophagus
+#material: 50.47 1.29 1 0 Ovary
+#material: 59.68 1.038 1 0 Pancreas
+#material: 60.55 1.21 1 0 Prostate
+#material: 55.27 1.167 1 0 Retina
+
+## Avg. Skin used from SkinDry & SkinWet
+#material: 5.8661 0.092415 1 0 SkinDry
+#add_dispersion_debye: 3 1123 5.4817e-8 144.69 4.0078e-9 37.434 0.88726e-11 SkinDry
+
+#material: 5.8661 0.092415 1 0 SkinWet
+#add_dispersion_debye: 3 1123 5.4817e-8 144.69 4.0078e-9 37.434 0.88726e-11 SkinWet
+
+#material: 7.7811 0.6884 1 0 SmallIntestine
+#add_dispersion_debye: 3 6590.7 9.123e-8 211.31 4.2003e-9 50.6 0.92249e-11 SmallIntestine
+
+#material: 32.53 0.5737 1 0 SpinalCord
+#material: 57.18 1.273 1 0 Spleen
+
+#material: 7.8582 0.55004 1 0 Stomach
+#add_dispersion_debye: 3 1674.5 6.273e-8 74.699 4.4123e-9 56.797 0.85287e-11 Stomach
+
+#material: 45.83 0.7184 1 0 Tendon
+#material: 60.55 1.21 1 0 Testis
+#material: 59.68 1.038 1 0 Thymus
+#material: 59.68 1.038 1 0 Thyroid
+#material: 55.27 0.9363 1 0 Tongue
+#material: 12.45 0.1433 1 0 Tooth
+#material: 42.01 0.7711 1 0 Trachea
+#material: 61.12 1.27 1 0 Uterus
+
+#material: 4.0041 1.5001 1 0 VitreousHumor
+#add_dispersion_debye: 3 21.766 12.46e-8 1.364 15.742e-9 65.024 0.72371e-11 VitreousHumor

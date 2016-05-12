@@ -27,8 +27,6 @@ AustinMan and AustinWoman (http://bit.ly/AustinMan) are open source electromagne
 
     FDTD geometry mesh showing the head of the AustinMan model (2x2x2mm :math:`^3`).
 
-The AustinMan and AustinWoman models are not currently included in the user libraries sub-package, however they can be downloaded from http://bit.ly/AustinMan.
-
 The following whole body models are available.
 
 =========== ========================== ==================
@@ -44,16 +42,25 @@ AustinWoman 2x2x2                      342 x 187 x 865
 AustinWoman 1x1x1                      683 x 374 x 1730
 =========== ========================== ==================
 
+Package overview
+================
+
+.. code-block:: none
+
+    AustinManWoman_gprMax_materials.txt
+    AustinManWoman_gprMax_materials_dispersive.txt
+    head_only_hdf5.py
+
+* ``AustinManWoman_gprMax_materials.txt`` is a text file containing non-dispersive material properties at 900 MHz (http://niremf.ifac.cnr.it/tissprop/).
+* ``AustinManWoman_gprMax_materials_dispersive.txt`` is a text file containing dispersive material properties using a 3-pole Debye model (http://dx.doi.org/10.1109/LMWC.2011.2180371). Note the main body tissues are described using a 3-pole Debye model, nbut ot all materials have a dispersive description.
+* ``head_only_hdf5.py`` is a script to assist with creating a model of only the head from a full body AustinMan/Woman model.
+
 How to use the models
 =====================
 
-From http://bit.ly/AustinMan:
+The AustinMan and AustinWoman models themselves are not included in the user libraries sub-package.
 
-* Download a HDF5 file (.h5) of AustinMan or AustinWoman at the resolution you wish to use.
-* Download a text file of material descriptions for gprMax, either
-
-    * ``AustinManWoman_gprMax_materials.txt`` for non-dispersive material properties at 900 MHz (http://niremf.ifac.cnr.it/tissprop/).
-    * ``AustinManWoman_gprMax_materials_dispersive.txt`` for dispersive material properties that feature a 3-pole Debye model (http://dx.doi.org/10.1109/LMWC.2011.2180371). Not all materials have a dispersive description.
+* Download a HDF5 file (.h5) of AustinMan or AustinWoman at the resolution you wish to use from http://bit.ly/AustinMan
 
 To insert either AustinMan or AustinWoman models into a simulation use the ``#geometry_objects_file``.
 
@@ -66,7 +73,7 @@ To insert a 2x2x2mm :math:`^3` AustinMan with the lower left corner 40mm from th
 
     #geometry_objects_file: 0.04 0.04 0.04 ../user_libs/AustinManWoman/AustinMan_v2.3_2x2x2.h5 ../user_libs/AustinManWoman/AustinManWoman_gprMax_materials_dispersive.txt
 
-For further information on the `#geometry_objects_file` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
+For further information on the ``#geometry_objects_file`` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
 
 .. figure:: images/user_libs/AustinMan.png
     :width: 300 px
