@@ -67,7 +67,8 @@ def main():
 
 
 def api(inputfile, n=1, mpi=False, benchmark=False, geometry_only=False, geometry_fixed=False, write_processed=False, opt_taguchi=False):
-    """If you have installed gprMax as a module this is the entry point"""
+    """If installed as a module this is the entry point."""
+    
     class ImportArguments:
         pass
 
@@ -86,7 +87,12 @@ def api(inputfile, n=1, mpi=False, benchmark=False, geometry_only=False, geometr
 
 
 def run_main(args):
-
+    """Top-level function that controls what mode of simulation (standard/optimsation/benchmark etc...) is run.
+        
+    Args:
+        args (dict): Namespace with input arguments from command line or api.
+    """
+        
     numbermodelruns = args.n
     inputdirectory = os.path.dirname(os.path.abspath(args.inputfile))
     inputfile = os.path.abspath(os.path.join(inputdirectory, os.path.basename(args.inputfile)))
