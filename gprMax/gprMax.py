@@ -415,7 +415,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         tgeostart = perf_counter()
         for geometryview in G.geometryviews:
             geometryview.write_vtk(modelrun, numbermodelruns, G)
-            geometryview.write_xdmf(modelrun, numbermodelruns, G)
+        #geometryview.write_xdmf(modelrun, numbermodelruns, G)
         tgeoend = perf_counter()
         print('\nGeometry file(s) written in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tgeoend - tgeostart))))
 
