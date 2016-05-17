@@ -17,14 +17,14 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 from gprMax.constants import c, floattype, complextype
 from gprMax.materials import Material
 
 
-class Grid():
-
+class Grid(object):
+    """Generic grid/mesh."""
+    
     def __init__(self, grid):
         self.nx = grid.shape[0]
         self.ny = grid.shape[1]
