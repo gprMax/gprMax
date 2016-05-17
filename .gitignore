@@ -2,6 +2,9 @@
 *.pyc
 *.pyo
 
+# PyPi
+.pypirc
+
 # Cython
 *.c
 *.so
