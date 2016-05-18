@@ -4,6 +4,8 @@ import h5py
 from lxml import etree
 import numpy as np
 
+import time
+
 from gprMax.grid import Grid
 
 class ListCounter():
@@ -122,13 +124,13 @@ class SolidLabels():
     def add(self, i, j, k):
 
         solid_labels = self.hexCellPicker(self.label_grid.grid, i, j, k)
-        self.label_counter(solid_labels)
+        self.label_counter.add(solid_labels)
 
 class SolidManager(Grid):
 
     def __init__(self, label_grid, fdtd_grid):
 
-        super().__init__(label_grid)
+        super().__init__(label_grid.grid)
         self.solids = Solids(fdtd_grid)
         self.solid_labels = SolidLabels(label_grid)
 
@@ -144,7 +146,7 @@ class EdgeManager(Grid):
     """
 
     def __init__(self, label_grid, fdtd_grid):
-        super().__init__(label_grid)
+        super().__init__(label_grid.grid)
         self.edges = EdgeLabels(label_grid)
         self.edge_materials = EdgeMaterials(fdtd_grid)
 
@@ -235,9 +237,10 @@ def process_grid(fdtd_grid, res):
     solid_manager = SolidManager(label_grid, fdtd_grid)
 
     if res == 'f':
-        edge_manager = EdgeManager()
+        edge_manager = EdgeManager(label_grid, fdtd_grid)
 
     # Iterate through the label and create relevant edges and solids.
+
     for i, ix in enumerate(labels):
         for j, jx in enumerate(ix):
             for k, kx in enumerate(jx):
@@ -259,6 +262,8 @@ def process_grid(fdtd_grid, res):
     if res == 'f':
         data['edges'] = edge_manager.edges
         data['edge_materials'] = edge_manager.edge_materials
+
+    dir(edge_manager.edge_materials)
 
     return data
 
@@ -332,7 +337,7 @@ def create_xdmf_markup(options):
         attr_el = etree.Element("Attribute", Center="Cell", Name="Edge_Materials")
         grid_el.append(attr_el)
 
-        materials_dimensions = "{} 1".format(options['edge_materials'].material_count)
+        materials_dimensions = "{} 1".format(options['edge_materials'].materials.size)
         materials_el = etree.Element("DataItem", Dimensions=materials_dimensions, NumberType="Float", Precision="8", Format="HDF")
         materials_el.text = "{}:/data/materials".format(options['filename'] + '.h5')
         attr_el.append(materials_el)
