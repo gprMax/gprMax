@@ -16,7 +16,7 @@ class ListCounter():
         self.array[self.count] = item
         self.count += 1
 
-class Edges:
+class EdgeLabels:
 
     def __init__(self, grid):
 
@@ -36,6 +36,20 @@ class Edges:
         out_label = self.grid.get(i, j, k)
         edge = np.array([in_label, out_label])
         self.edge_counter.add(edge)
+
+class EdgeMaterials:
+
+    def __init__(self, fdtd_grid):
+        self.fdtd_grid = fdtd_grid
+        self.n_edges = fdtd_grid.n_edges()
+        self.materials = np.zeros((self.n_edges), np.int8)
+        self.materialCounter = ListCounter(self.materials)
+
+    # direction x->0 y->1 z->2
+    def add_material(self, i, j, k, direction):
+
+        material = self.fdtd_grid.ID[direction, i, j, k]
+        self.materialCounter.add(material)
 
 
 class Coordinates:
@@ -110,133 +124,141 @@ class SolidLabels():
         solid_labels = self.hexCellPicker(self.label_grid.grid, i, j, k)
         self.label_counter(solid_labels)
 
+class SolidManager(Grid):
 
-class Materials:
+    def __init__(self, label_grid, fdtd_grid):
 
-    def __init__(self, fdtd_grid):
-        self.fdtd_grid = fdtd_grid
-        self.n_edges = fdtd_grid.n_edges()
-        self.materials = np.zeros((self.n_edges), np.int8)
-        self.materialCounter = ListCounter(self.materials)
+        super().__init__(label_grid)
+        self.solids = Solids(fdtd_grid)
+        self.solid_labels = SolidLabels(label_grid)
 
-    # direction x->0 y->1 z->2
-    def add_material(self, i, j, k, direction):
+    def createSolid(self, i, j, k):
+        if i < self.i_max and j < self.j_max and k < self.k_max:
+            self.solids.add_solid(i, j, k)
+            self.solid_labels.add(i, j, k)
 
-        material = self.fdtd_grid.ID[direction, i, j, k]
-        self.materialCounter.add(material)
+
+class EdgeManager(Grid):
+    """
+    Class to manage the creation of edges and matching edge materials.
+    """
+
+    def __init__(self, label_grid, fdtd_grid):
+        super().__init__(label_grid)
+        self.edges = EdgeLabels(label_grid)
+        self.edge_materials = EdgeMaterials(fdtd_grid)
+
+    def createEdges(self, i, j, k):
+        """
+            Create the relevant edges and corresponding edge materials.
+            Args:
+                i (int): i index of label in labels_grid
+                j (int): j index of label in labels_grid
+                k (int): k index of label in labels_grid
+
+        """
+        edges = self.edges
+        edge_materials = self.edge_materials
+        i_max = self.i_max
+        j_max = self.j_max
+        k_max = self.k_max
+        label = self.edges.grid.get(i, j, k)
+
+        # Each vertex can have varying numbers of edges
+
+        # Type 1 vertex
+        if i < i_max and j < j_max and k < k_max:
+            edges.add_edge(label, i + 1, j, k)
+            edges.add_edge(label, i, j + 1, k)
+            edges.add_edge(label, i, j, k + 1)
+
+            edge_materials.add_material(i, j, k, 0)
+            edge_materials.add_material(i, j, k, 1)
+            edge_materials.add_material(i, j, k, 2)
+
+            # Only this node can support a cell
+
+        # Type 2 vertex
+        elif i < i_max and j == j_max and k == k_max:
+            edges.add_edge(label, i + 1, j, k)
+            edge_materials.add_material(i, j, k, 0)
+
+        # Type 7 vertex
+        elif i < i_max and j == j_max and k < k_max:
+            edges.add_edge(label, i + 1, j, k)
+            edges.add_edge(label, i, j, k + 1)
+            edge_materials.add_material(i, j, k, 0)
+            edge_materials.add_material(i, j, k, 2)
+
+        # Type 6 vertex
+        elif i == i_max and j == j_max and k < k_max:
+            edges.add_edge(label, i, j, k + 1)
+            edge_materials.add_material(i, j, k, 2)
+
+        # Type 5 vertex
+        elif i == i_max and j < j_max and k < k_max:
+            edges.add_edge(label, i, j, k + 1)
+            edges.add_edge(label, i, j + 1, k)
+            edge_materials.add_material(i, j, k, 2)
+            edge_materials.add_material(i, j, k, 1)
+
+        # Type 4 vertex
+        elif i == i_max and j < j_max and k == k_max:
+            edges.add_edge(label, i, j + 1, k)
+            edge_materials.add_material(i, j, k, 1)
+
+        # Type 8 vertex
+        elif i < i_max and j < j_max and k == k_max:
+            edges.add_edge(label, i, j + 1, k)
+            edges.add_edge(label, i + 1, j, k)
+            edge_materials.add_material(i, j, k, 1)
+            edge_materials.add_material(i, j, k, 0)
+
+        # Type 3 vertex
+        # Has no new connectivity
+        elif i == i_max and j == j_max and k == k_max:
+            pass
+        else:
+            print('oh no')
+
 
 def process_grid(fdtd_grid, res):
 
-    # Dimensions of the problem domain.
-    nx = fdtd_grid.nx
-    ny = fdtd_grid.ny
-    nz = fdtd_grid.nz
-
-    # useful indices
-    i_max = nx - 1
-    j_max = ny - 1
-    k_max = nz - 1
-
-    # label each node in the space
-    labels = np.arange(nx * ny * nz).reshape(nx, ny, nz)
+    # Create a grid of labels with equal dimension to fdtd grid
+    labels = np.arange(fdtd_grid.n_nodes()).reshape(fdtd_grid.nx, fdtd_grid.ny, fdtd_grid.nz)
 
     label_grid = Grid(labels)
 
     # Define coordinates for each node
     coordinates = Coordinates(fdtd_grid)
 
-    # Material for each solid
-    solids = Solids(fdtd_grid)
-
-    # Connectivity for hexhahedron grid
-    solid_labels = SolidLabels(label_grid)
+    solid_manager = SolidManager(label_grid, fdtd_grid)
 
     if res == 'f':
-        # Edges define the connectivity of the grid.
-        edges = Edges(label_grid)
+        edge_manager = EdgeManager()
 
-        # Material for each edge
-        edge_materials = Materials(fdtd_grid)
-
+    # Iterate through the label and create relevant edges and solids.
     for i, ix in enumerate(labels):
         for j, jx in enumerate(ix):
             for k, kx in enumerate(jx):
 
-                label = labels[i][j][k]
-
-                if i < i_max and j < j_max and k < k_max:
-                    solids.add_solid(i, j, k)
-                    solid_labels.add(i, j, k)
-
                 if res == 'f':
-                    # Each vertex can have varying numbers of edges
-                    # Type 1 vertex
-                    if i < i_max and j < j_max and k < k_max:
-                        edges.add_edge(label, i + 1, j, k)
-                        edges.add_edge(label, i, j + 1, k)
-                        edges.add_edge(label, i, j, k + 1)
+                    edge_manager.createEdges(i, j, k)
 
-                        edge_materials.add_material(i, j, k, 0)
-                        edge_materials.add_material(i, j, k, 1)
-                        edge_materials.add_material(i, j, k, 2)
-
-                        # Only this node can support a cell
-
-                    # Type 2 vertex
-                    elif i < i_max and j == j_max and k == k_max:
-                        edges.add_edge(label, i + 1, j, k)
-                        edge_materials.add_material(i, j, k, 0)
-
-                    # Type 7 vertex
-                    elif i < i_max and j == j_max and k < k_max:
-                        edges.add_edge(label, i + 1, j, k)
-                        edges.add_edge(label, i, j, k + 1)
-                        edge_materials.add_material(i, j, k, 0)
-                        edge_materials.add_material(i, j, k, 2)
-
-                    # Type 6 vertex
-                    elif i == i_max and j == j_max and k < k_max:
-                        edges.add_edge(label, i, j, k + 1)
-                        edge_materials.add_material(i, j, k, 2)
-
-                    # Type 5 vertex
-                    elif i == i_max and j < j_max and k < k_max:
-                        edges.add_edge(label, i, j, k + 1)
-                        edges.add_edge(label, i, j + 1, k)
-                        edge_materials.add_material(i, j, k, 2)
-                        edge_materials.add_material(i, j, k, 1)
-
-                    # Type 4 vertex
-                    elif i == i_max and j < j_max and k == k_max:
-                        edges.add_edge(label, i, j + 1, k)
-                        edge_materials.add_material(i, j, k, 1)
-
-                    # Type 8 vertex
-                    elif i < i_max and j < j_max and k == k_max:
-                        edges.add_edge(label, i, j + 1, k)
-                        edges.add_edge(label, i + 1, j, k)
-                        edge_materials.add_material(i, j, k, 1)
-                        edge_materials.add_material(i, j, k, 0)
-
-                    # Type 3 vertex
-                    # Has no new connectivity
-                    elif i == i_max and j == j_max and k == k_max:
-                        pass
-                    else:
-                        print('oh no')
+                solid_manager.createSolid(i, j, k)
 
                 # Add the coordinates
                 coordinates.add_coordinate(i, j, k)
 
     data = {
         'coordinates': coordinates,
-        'solids': solids,
-        'solid_labels': solid_labels,
+        'solids': solid_manager.solids,
+        'solid_labels': solid_manager.solid_labels,
     }
 
     if res == 'f':
-        data['edges'] = edges
-        data['edge_materials'] = edge_materials
+        data['edges'] = edge_manager.edges
+        data['edge_materials'] = edge_manager.edge_materials
 
     return data
 

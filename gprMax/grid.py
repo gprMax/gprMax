@@ -24,11 +24,14 @@ from gprMax.materials import Material
 
 class Grid(object):
     """Generic grid/mesh."""
-    
+
     def __init__(self, grid):
         self.nx = grid.shape[0]
         self.ny = grid.shape[1]
         self.nz = grid.shape[2]
+        self.i_max = self.nx - 1
+        self.j_max = self.ny - 1
+        self.k_max = self.nz - 1
         self.grid = grid
 
     def n_edges(self):
