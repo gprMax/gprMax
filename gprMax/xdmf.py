@@ -1,7 +1,7 @@
 import copy
 
 import h5py
-from lxml import etree
+#from lxml import etree
 import numpy as np
 
 from gprMax.grid import Grid
