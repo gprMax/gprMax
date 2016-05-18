@@ -62,6 +62,7 @@ def get_output_data(filename, rxnumber, rxcomponent):
 
     return outputdata, dt
 
+
 def mpl_plot(outputdata, dt, rxnumber, rxcomponent):
     """Creates a plot (with matplotlib) of the B-scan.
         
@@ -117,3 +118,4 @@ if __name__ == "__main__":
         plt = mpl_plot(outputdata, dt, rx, args.rx_component)
 
     plt.show()
+

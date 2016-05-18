@@ -26,13 +26,16 @@ from gprMax.exceptions import CmdInputError
 from gprMax.receivers import Rx
 
 
-def make_plot(filename, outputs=Rx.availableoutputs, fft=False):
+def mpl_plot(filename, outputs=Rx.availableoutputs, fft=False):
     """Plots electric and magnetic fields and currents from all receiver points in the given output file. Each receiver point is plotted in a new figure window.
             
     Args:
         filename (string): Filename (including path) of output file.
         outputs (list): List of field/current components to plot.
         fft (boolean): Plot FFT switch.
+        
+    Returns:
+        plt (object): matplotlib plot object.
     """
     
     # Open output file and read some attributes
@@ -210,7 +213,7 @@ def make_plot(filename, outputs=Rx.availableoutputs, fft=False):
         #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '_rx' + str(rx) + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
         #fig.savefig(os.path.splitext(os.path.abspath(file))[0] + '_rx' + str(rx) + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
-    plt.show()
+    return plt
 
 
 if __name__ == "__main__":
@@ -222,4 +225,6 @@ if __name__ == "__main__":
     parser.add_argument('-fft', action='store_true', help='plot FFT (single output must be specified)', default=False)
     args = parser.parse_args()
 
-    make_plot(args.outputfile, args.outputs, fft=args.fft)
+    plt = mpl_plot(args.outputfile, args.outputs, fft=args.fft)
+    plt.show()
+
