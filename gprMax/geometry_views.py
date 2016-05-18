@@ -16,12 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import os, sys
+import os
+import sys
+
 import numpy as np
 from struct import pack
-from gprMax.xdmf import write_output_file
 
 from gprMax.utilities import round_value
+from gprMax.xdmf import write_output_file
 
 
 class GeometryView(object):

@@ -18,6 +18,7 @@
 
 import sys
 import decimal as d
+
 from pyfiglet import Figlet
 
 

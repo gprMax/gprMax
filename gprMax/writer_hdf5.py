@@ -18,7 +18,7 @@
 
 import h5py
 
-from ._version import __version__
+from gprMax._version import __version__
 from gprMax.constants import floattype
 from gprMax.grid import Ix, Iy, Iz
 

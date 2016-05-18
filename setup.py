@@ -29,9 +29,9 @@ except ImportError:
 
 import glob
 import os
+import re
 import shutil
 import sys
-import re
 
 # Importing _version__.py before building can cause issues.
 with open('gprMax/_version.py', 'r') as fd:
