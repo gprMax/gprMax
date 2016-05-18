@@ -13,7 +13,7 @@
 # build, dist and egg  directories
 build/
 dist/
-.egg-info/
+*.egg-info/
 
 # Backup files
 *~
