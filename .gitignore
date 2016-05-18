@@ -10,7 +10,7 @@
 # Mac OS X
 .DS_Store
 
-# build, dist and egg  directories
+# build, dist and egg-info directories
 build/
 dist/
 *.egg-info/
