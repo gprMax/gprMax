@@ -58,7 +58,7 @@ class GeometryView(object):
 
     def write_xdmf(self, modelrun, numbermodelruns, G):
         filename = self.filename[:-4]
-        write_output_file(filename, G)
+        write_output_file(filename, G, self.type)
 
     def write_vtk(self, modelrun, numbermodelruns, G):
         """Writes the geometry information to a VTK file. Either ImageData (.vti) for a per-cell geometry view, or PolygonalData (.vtp) for a per-cell-edge geometry view.
