@@ -10,7 +10,7 @@ Those that are interested in developing or contributing to gprMax should use the
 1. Get the code
 2. Install Python and required Python packages
 3. Install a C compiler which supports OpenMP
-4. Compile the Cython extensions
+4. Compile the Cython extensions and install packages
 
 1. Get the code
 ---------------
@@ -22,15 +22,15 @@ Those that are interested in developing or contributing to gprMax should use the
 
 We recommend using Miniconda to install Python and the required Python packages for gprMax in a self-contained Python environment. Miniconda is a mini version of Anaconda which is a completely free Python distribution (including for commercial use and redistribution). It includes more than 300 of the most popular Python packages for science, math, engineering, and data analysis.
 
-* Install the Python 3.5 version of Miniconda for your platform (http://conda.pydata.org/miniconda.html).  Follow the instructions (http://conda.pydata.org/docs/install/quick.html) if you are having any trouble.
+* Install the Python 3.5 version of Miniconda for your platform from http://conda.pydata.org/miniconda.html (You can get help with installing Miniconda from http://conda.pydata.org/docs/install/quick.html)
 * Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the top-level gprMax directory.
 * Update conda :code:`conda update conda`
-* Create an environment (using the supplied environment file) for gprMax with all the necessary Python packages :code:`conda env create -f conda_env.yml`
-* Activate the new environment (Linux/Mac OS X) :code:`source activate gprMax` or (Windows) :code:`activate gprMax`.
+* Create an environment (using the supplied ``conda_env.yml`` environment file) for gprMax with all the necessary Python packages :code:`conda env create -f conda_env.yml`
+* Activate the new environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows).
 
 .. note::
-
-    When you are finished using gprMax the Miniconda environment can be deactivated using (Linux/Mac OS X) :code:`source deactivate` or (Windows) :code:`deactivate`
+    * When you are finished using gprMax the Miniconda environment can be deactivated using :code:`source deactivate` (Linux/Mac OS X)  or :code:`deactivate` (Windows).
+    * If you want to install Python and the required Python packages manually, i.e. without using Anaconda/Miniconda, look in the ``conda_env.yml`` file for a list of the requirements.
 
 
 3. Install a C compiler which supports OpenMP
@@ -63,13 +63,13 @@ Microsoft Windows
     Screenshot of Microsoft Visual Studio 2015 Community custom install settings.
 
 
-4. Compile the Cython extensions
---------------------------------
+4. Compile the Cython extensions and install packages
+-----------------------------------------------------
 
 Once you have installed the aforementioned tools follow these steps to build the Cython extension modules for gprMax:
 
 a) Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the top-level gprMax directory.
-b) Compile the Cython extension modules using: :code:`python setup.py build_ext --inplace`. You should see a set of :code:`.c` source files and a set of :code:`.so` (Linux/Mac OS X) or :code:`.pyd` (Windows) compiled module files inside the gprMax directory.
+b) Compile the Cython extension modules and install using: :code:`python setup.py install`. You should see a set of :code:`.c` source files and a set of :code:`.so` (Linux/Mac OS X) or :code:`.pyd` (Windows) compiled module files inside the gprMax directory.
 
 .. note::
 

@@ -10,11 +10,16 @@
 # Mac OS X
 .DS_Store
 
-# Build directory
+# build, dist and egg-info directories
 build/
+dist/
+*.egg-info/
 
 # Backup files
 *~
 
 # Hidden files
 .*
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/

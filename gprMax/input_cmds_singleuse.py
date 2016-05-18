@@ -16,8 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import os, psutil
+import os
+import psutil
 import decimal as d
+
 import numpy as np
 
 from gprMax.constants import c, floattype

@@ -56,7 +56,7 @@ def check_timewindow(timewindow, dt):
     return timewindow, iterations
 
 
-def make_plot(w, timewindow, dt, iterations, fft=False):
+def mpl_plot(w, timewindow, dt, iterations, fft=False):
     """Plots waveform and prints useful information about its properties.
             
     Args:
@@ -65,6 +65,9 @@ def make_plot(w, timewindow, dt, iterations, fft=False):
         dt (float): Time discretisation.
         iterations (int): Number of iterations.
         fft (boolean): Plot FFT switch.
+        
+    Returns:
+        plt (object): matplotlib plot object.
     """
     
     time = np.linspace(0, 1, iterations)
@@ -134,7 +137,7 @@ def make_plot(w, timewindow, dt, iterations, fft=False):
     #fig.savefig(os.path.dirname(os.path.abspath(__file__)) + os.sep + w.type + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
     #fig.savefig(os.path.dirname(os.path.abspath(__file__)) + os.sep + w.type + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
-    plt.show()
+    return plt
 
 
 if __name__ == "__main__":
@@ -162,8 +165,6 @@ if __name__ == "__main__":
     w.freq = args.freq
 
     timewindow, iterations = check_timewindow(args.timewindow, args.dt)
-    make_plot(w, timewindow, args.dt, iterations, args.fft)
-
-
-
+    plt = mpl_plot(w, timewindow, args.dt, iterations, args.fft)
+    plt.show()
 

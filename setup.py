@@ -29,22 +29,21 @@ except ImportError:
 
 import glob
 import os
+import re
 import shutil
 import sys
-import re
 
 # Importing _version__.py before building can cause issues.
 with open('gprMax/_version.py', 'r') as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
         fd.read(), re.MULTILINE).group(1)
 
-"""
-  Parse package name from init file. Importing __init__.py / gprMax will
-  break as gprMax depends on compiled .pyx files.
-"""
+# Parse package name from init file. Importing __init__.py / gprMax will break as gprMax depends on compiled .pyx files.
 with open('gprMax/__init__.py', 'r') as fd:
     packagename = re.search(r'^__name__\s*=\s*[\'"]([^\'"]*)[\'"]',
         fd.read(), re.MULTILINE).group(1)
+
+packages = [packagename, 'tests', 'tools', 'user_libs']
 
 # Python version
 if sys.version_info[:2] < (3, 4):
@@ -178,5 +177,5 @@ setup(name=packagename,
                    'Topic :: Scientific/Engineering'
                    ],
       ext_modules=extensions,
-      packages=['gprMax'],
+      packages=packages,
       include_dirs=[np.get_include()])

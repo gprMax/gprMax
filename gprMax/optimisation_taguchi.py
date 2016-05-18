@@ -16,7 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import importlib, os, pickle
+import importlib
+import os
+import pickle
 from collections import OrderedDict
 
 import numpy as np

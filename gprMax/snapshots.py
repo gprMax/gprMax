@@ -16,9 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import os, sys
-import numpy as np
+import os
+import sys
 from struct import pack
+
+import numpy as np
 
 from gprMax.constants import floattype
 from gprMax.grid import Ix, Iy, Iz
