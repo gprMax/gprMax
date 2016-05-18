@@ -6,7 +6,15 @@ import numpy as np
 
 from gprMax.grid import Grid
 
+class ListCounter():
 
+    def __init__(self, npArray):
+        self.array = npArray
+        self.count = 0
+
+    def add(self, item):
+        self.array[self.count] = item
+        self.count += 1
 
 class Edges:
 
@@ -17,52 +25,50 @@ class Edges:
             grid
         """
         self.total_edges = grid.n_edges()
-        self.edges = np.zeros((self.total_edges, 2), np.float32)
-        self.edge_count = 0
         self.grid = grid
-    """
-        Adds the the edge specified by in_node and the i,j,k position of the outnode
-    """
-    def add_edge(self, in_label, i, j, k):
+        self.edges = np.zeros((self.total_edges, 2), np.float32)
+        self.edge_counter = ListCounter(self.edges)
 
+    def add_edge(self, in_label, i, j, k):
+        """
+        Adds the the edge specified by in_node and the i,j,k position of the outnode
+        """
         out_label = self.grid.get(i, j, k)
-        self.edges[self.edge_count] = np.array([in_label, out_label])
-        self.edge_count += 1
+        edge = np.array([in_label, out_label])
+        self.edge_counter.add(edge)
 
 
 class Coordinates:
 
     def __init__(self, grid):
         self.total_coordinates = grid.nx * grid.ny * grid.nz
-        self.coordinate_count = 0
         self.coordinates = np.zeros((self.total_coordinates, 3), np.float32)
+        self.coord_counter = ListCounter(self.coordinates)
 
     def add_coordinate(self, x, y, z):
-        self.coordinates[self.coordinate_count] = np.array([x, y, z])
-        self.coordinate_count += 1
+        self.coord_counter.add(np.array([x, y, z]))
 
 
 class Solids:
 
     def __init__(self, fdtd_grid):
-        self.count = 0
         self.fdtd_grid = fdtd_grid
         self.total_solids = fdtd_grid.n_cells()
         self.solids = np.zeros((self.total_solids), np.float32)
+        self.solid_counter = ListCounter(self.solids)
 
     def add_solid(self, i, j, k):
 
-        self.solids[self.count] = self.fdtd_grid.solid[i][j][k]
-        self.count += 1
+        self.solid_counter.add(self.fdtd_grid.solid[i][j][k])
 
 
 class SolidLabels():
 
     def __init__(self, label_grid):
-        self.count = 0
         self.label_grid = label_grid
         self.total_solids = label_grid.n_cells()
         self.solid_labels = np.zeros((self.total_solids, 8), np.float32)
+        self.label_counter = ListCounter(self.solid_labels)
 
     def hexCellPicker(self, grid, i, j, k):
 
@@ -102,8 +108,7 @@ class SolidLabels():
     def add(self, i, j, k):
 
         solid_labels = self.hexCellPicker(self.label_grid.grid, i, j, k)
-        self.solid_labels[self.count] = solid_labels
-        self.count += 1
+        self.label_counter(solid_labels)
 
 
 class Materials:
@@ -112,15 +117,13 @@ class Materials:
         self.fdtd_grid = fdtd_grid
         self.n_edges = fdtd_grid.n_edges()
         self.materials = np.zeros((self.n_edges), np.float32)
-        self.material_count = 0
+        self.materialCounter = ListCounter(self.materials)
 
     # direction x->0 y->1 z->2
     def add_material(self, i, j, k, direction):
 
         material = self.fdtd_grid.ID[direction, i, j, k]
-        self.materials[self.material_count] = material
-
-        self.material_count += 1
+        self.materialCounter.add(material)
 
 def process_grid(fdtd_grid, res):
 
