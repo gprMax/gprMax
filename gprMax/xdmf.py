@@ -4,11 +4,21 @@ import h5py
 from lxml import etree
 import numpy as np
 
+import time
+
 from gprMax.grid import Grid
 
+class ListCounter():
 
+    def __init__(self, npArray):
+        self.array = npArray
+        self.count = 0
 
-class Edges:
+    def add(self, item):
+        self.array[self.count] = item
+        self.count += 1
+
+class EdgeLabels:
 
     def __init__(self, grid):
 
@@ -17,33 +27,68 @@ class Edges:
             grid
         """
         self.total_edges = grid.n_edges()
-        self.edges = np.zeros((self.total_edges, 2), np.float32)
-        self.edge_count = 0
         self.grid = grid
-    """
-        Adds the the edge specified by in_node and the i,j,k position of the outnode
-    """
-    def add_edge(self, in_label, i, j, k):
+        self.edges = np.zeros((self.total_edges, 2), np.int8)
+        self.edge_counter = ListCounter(self.edges)
 
+    def add_edge(self, in_label, i, j, k):
+        """
+        Adds the the edge specified by in_node and the i,j,k position of the outnode
+        """
         out_label = self.grid.get(i, j, k)
-        self.edges[self.edge_count] = np.array([in_label, out_label])
-        self.edge_count += 1
+        edge = np.array([in_label, out_label])
+        self.edge_counter.add(edge)
+
+class EdgeMaterials:
+
+    def __init__(self, fdtd_grid):
+        self.fdtd_grid = fdtd_grid
+        self.n_edges = fdtd_grid.n_edges()
+        self.materials = np.zeros((self.n_edges), np.int8)
+        self.materialCounter = ListCounter(self.materials)
+
+    # direction x->0 y->1 z->2
+    def add_material(self, i, j, k, direction):
+
+        material = self.fdtd_grid.ID[direction, i, j, k]
+        self.materialCounter.add(material)
 
 
 class Coordinates:
 
     def __init__(self, grid):
-        self.total_coordinates = grid.nx * grid.ny * grid.nz
-        self.coordinate_count = 0
-        self.coordinates = np.zeros((self.total_coordinates, 3), np.float32)
+        self.total_coordinates = grid.n_nodes()
+        self.coordinates = np.zeros((self.total_coordinates, 3), np.int8)
+        self.coord_counter = ListCounter(self.coordinates)
 
     def add_coordinate(self, x, y, z):
-        self.coordinates[self.coordinate_count] = np.array([x, y, z])
-        self.coordinate_count += 1
+        self.coord_counter.add(np.array([x, y, z]))
 
 
-def hexCellPicker(grid, i, j, k):
-    """
+class Solids:
+
+    def __init__(self, fdtd_grid):
+        self.fdtd_grid = fdtd_grid
+        self.total_solids = fdtd_grid.n_cells()
+        self.solids = np.zeros((self.total_solids), np.int8)
+        self.solid_counter = ListCounter(self.solids)
+
+    def add_solid(self, i, j, k):
+
+        self.solid_counter.add(self.fdtd_grid.solid[i][j][k])
+
+
+class SolidLabels():
+
+    def __init__(self, label_grid):
+        self.label_grid = label_grid
+        self.total_solids = label_grid.n_cells()
+        self.solid_labels = np.zeros((self.total_solids, 8), np.int8)
+        self.label_counter = ListCounter(self.solid_labels)
+
+    def hexCellPicker(self, grid, i, j, k):
+
+        """
         This is the ordering of nodes in the hexahedron cell.
 
                 7 --------- 6
@@ -54,186 +99,178 @@ def hexCellPicker(grid, i, j, k):
               0 --------- 1
 
         0 1 2 3 4 5 6 7
-    """
+        """
 
-    cell = [
-        grid[i][j][k],
-        # 1
-        grid[i + 1][j][k],
-        # 2
-        grid[i + 1][j + 1][k],
-        # 3
-        grid[i][j + 1][k],
-        # 4
-        grid[i][j][k + 1],
-        # 5
-        grid[i + 1][j][k + 1],
-        # 6
-        grid[i + 1][j + 1][k + 1],
-        # 7
-        grid[i][j + 1][k + 1]
-    ]
+        cell = [
+            grid[i][j][k],
+            # 1
+            grid[i + 1][j][k],
+            # 2
+            grid[i + 1][j + 1][k],
+            # 3
+            grid[i][j + 1][k],
+            # 4
+            grid[i][j][k + 1],
+            # 5
+            grid[i + 1][j][k + 1],
+            # 6
+            grid[i + 1][j + 1][k + 1],
+            # 7
+            grid[i][j + 1][k + 1]
+        ]
 
-    return cell
-
-
-class Solids:
-
-    def __init__(self, fdtd_grid):
-        self.count = 0
-        self.fdtd_grid = fdtd_grid
-        self.total_solids = fdtd_grid.n_cells()
-        self.solids = np.zeros((self.total_solids), np.float32)
-
-    def add_solid(self, i, j, k):
-
-        self.solids[self.count] = self.fdtd_grid.solid[i][j][k]
-        self.count += 1
-
-
-class SolidLabels():
-
-    def __init__(self, label_grid):
-        self.count = 0
-        self.label_grid = label_grid
-        self.total_solids = label_grid.n_cells()
-        self.solid_labels = np.zeros((self.total_solids, 8), np.float32)
+        return cell
 
     def add(self, i, j, k):
 
-        solid_labels = hexCellPicker(self.label_grid.grid, i, j, k)
-        self.solid_labels[self.count] = solid_labels
-        self.count += 1
+        solid_labels = self.hexCellPicker(self.label_grid.grid, i, j, k)
+        self.label_counter.add(solid_labels)
+
+class SolidManager(Grid):
+
+    def __init__(self, label_grid, fdtd_grid):
+
+        super().__init__(label_grid.grid)
+        self.solids = Solids(fdtd_grid)
+        self.solid_labels = SolidLabels(label_grid)
+
+    def createSolid(self, i, j, k):
+        if i < self.i_max and j < self.j_max and k < self.k_max:
+            self.solids.add_solid(i, j, k)
+            self.solid_labels.add(i, j, k)
 
 
-class Materials:
+class EdgeManager(Grid):
+    """
+    Class to manage the creation of edges and matching edge materials.
+    """
 
-    def __init__(self, fdtd_grid):
-        self.fdtd_grid = fdtd_grid
-        self.n_edges = fdtd_grid.n_edges()
-        self.materials = np.zeros((self.n_edges), np.float32)
-        self.material_count = 0
+    def __init__(self, label_grid, fdtd_grid):
+        super().__init__(label_grid.grid)
+        self.edges = EdgeLabels(label_grid)
+        self.edge_materials = EdgeMaterials(fdtd_grid)
 
-    # direction x->0 y->1 z->2
-    def add_material(self, i, j, k, direction):
+    def createEdges(self, i, j, k):
+        """
+            Create the relevant edges and corresponding edge materials.
+            Args:
+                i (int): i index of label in labels_grid
+                j (int): j index of label in labels_grid
+                k (int): k index of label in labels_grid
 
-        material = self.fdtd_grid.ID[direction, i, j, k]
-        self.materials[self.material_count] = material
+        """
+        edges = self.edges
+        edge_materials = self.edge_materials
+        i_max = self.i_max
+        j_max = self.j_max
+        k_max = self.k_max
+        label = self.edges.grid.get(i, j, k)
 
-        self.material_count += 1
+        # Each vertex can have varying numbers of edges
+
+        # Type 1 vertex
+        if i < i_max and j < j_max and k < k_max:
+            edges.add_edge(label, i + 1, j, k)
+            edges.add_edge(label, i, j + 1, k)
+            edges.add_edge(label, i, j, k + 1)
+
+            edge_materials.add_material(i, j, k, 0)
+            edge_materials.add_material(i, j, k, 1)
+            edge_materials.add_material(i, j, k, 2)
+
+            # Only this node can support a cell
+
+        # Type 2 vertex
+        elif i < i_max and j == j_max and k == k_max:
+            edges.add_edge(label, i + 1, j, k)
+            edge_materials.add_material(i, j, k, 0)
+
+        # Type 7 vertex
+        elif i < i_max and j == j_max and k < k_max:
+            edges.add_edge(label, i + 1, j, k)
+            edges.add_edge(label, i, j, k + 1)
+            edge_materials.add_material(i, j, k, 0)
+            edge_materials.add_material(i, j, k, 2)
+
+        # Type 6 vertex
+        elif i == i_max and j == j_max and k < k_max:
+            edges.add_edge(label, i, j, k + 1)
+            edge_materials.add_material(i, j, k, 2)
+
+        # Type 5 vertex
+        elif i == i_max and j < j_max and k < k_max:
+            edges.add_edge(label, i, j, k + 1)
+            edges.add_edge(label, i, j + 1, k)
+            edge_materials.add_material(i, j, k, 2)
+            edge_materials.add_material(i, j, k, 1)
+
+        # Type 4 vertex
+        elif i == i_max and j < j_max and k == k_max:
+            edges.add_edge(label, i, j + 1, k)
+            edge_materials.add_material(i, j, k, 1)
+
+        # Type 8 vertex
+        elif i < i_max and j < j_max and k == k_max:
+            edges.add_edge(label, i, j + 1, k)
+            edges.add_edge(label, i + 1, j, k)
+            edge_materials.add_material(i, j, k, 1)
+            edge_materials.add_material(i, j, k, 0)
+
+        # Type 3 vertex
+        # Has no new connectivity
+        elif i == i_max and j == j_max and k == k_max:
+            pass
+        else:
+            print('oh no')
 
 
-def process_grid(fdtd_grid):
+def process_grid(fdtd_grid, res):
 
-    # Dimensions of the problem domain.
-    nx = fdtd_grid.nx
-    ny = fdtd_grid.ny
-    nz = fdtd_grid.nz
-
-    # label each node in the space
-    labels = np.arange(nx * ny * nz).reshape(nx, ny, nz)
+    # Create a grid of labels with equal dimension to fdtd grid
+    labels = np.arange(fdtd_grid.n_nodes()).reshape(fdtd_grid.nx, fdtd_grid.ny, fdtd_grid.nz)
 
     label_grid = Grid(labels)
-
-    # Edges define the connectivity of the grid.
-    edges = Edges(label_grid)
-
-    # Material for each edge
-    edge_materials = Materials(fdtd_grid)
 
     # Define coordinates for each node
     coordinates = Coordinates(fdtd_grid)
 
-    # Material for each solid
-    solids = Solids(fdtd_grid)
+    solid_manager = SolidManager(label_grid, fdtd_grid)
 
-    # Connectivity for hexhahedron grid
-    solid_labels = SolidLabels(label_grid)
+    if res == 'f':
+        edge_manager = EdgeManager(label_grid, fdtd_grid)
 
-    i_max = nx - 1
-    j_max = ny - 1
-    k_max = nz - 1
+    # Iterate through the label and create relevant edges and solids.
 
     for i, ix in enumerate(labels):
         for j, jx in enumerate(ix):
             for k, kx in enumerate(jx):
 
-                label = labels[i][j][k]
+                if res == 'f':
+                    edge_manager.createEdges(i, j, k)
 
-                # Each vertex can have varying numbers of edges
-
-                # Type 1 vertex
-                if i < i_max and j < j_max and k < k_max:
-                    edges.add_edge(label, i + 1, j, k)
-                    edges.add_edge(label, i, j + 1, k)
-                    edges.add_edge(label, i, j, k + 1)
-
-                    edge_materials.add_material(i, j, k, 0)
-                    edge_materials.add_material(i, j, k, 1)
-                    edge_materials.add_material(i, j, k, 2)
-
-                    # Only this node can support a cell
-                    solids.add_solid(i, j, k)
-                    solid_labels.add(i, j, k)
-
-                # Type 2 vertex
-                elif i < i_max and j == j_max and k == k_max:
-                    edges.add_edge(label, i + 1, j, k)
-                    edge_materials.add_material(i, j, k, 0)
-
-                # Type 7 vertex
-                elif i < i_max and j == j_max and k < k_max:
-                    edges.add_edge(label, i + 1, j, k)
-                    edges.add_edge(label, i, j, k + 1)
-                    edge_materials.add_material(i, j, k, 0)
-                    edge_materials.add_material(i, j, k, 2)
-
-                # Type 6 vertex
-                elif i == i_max and j == j_max and k < k_max:
-                    edges.add_edge(label, i, j, k + 1)
-                    edge_materials.add_material(i, j, k, 2)
-
-                # Type 5 vertex
-                elif i == i_max and j < j_max and k < k_max:
-                    edges.add_edge(label, i, j, k + 1)
-                    edges.add_edge(label, i, j + 1, k)
-                    edge_materials.add_material(i, j, k, 2)
-                    edge_materials.add_material(i, j, k, 1)
-
-                # Type 4 vertex
-                elif i == i_max and j < j_max and k == k_max:
-                    edges.add_edge(label, i, j + 1, k)
-                    edge_materials.add_material(i, j, k, 1)
-
-                # Type 8 vertex
-                elif i < i_max and j < j_max and k == k_max:
-                    edges.add_edge(label, i, j + 1, k)
-                    edges.add_edge(label, i + 1, j, k)
-                    edge_materials.add_material(i, j, k, 1)
-                    edge_materials.add_material(i, j, k, 0)
-
-                # Type 3 vertex
-                # Has no new connectivity
-                elif i == i_max and j == j_max and k == k_max:
-                    pass
-                else:
-                    print('oh no')
+                solid_manager.createSolid(i, j, k)
 
                 # Add the coordinates
                 coordinates.add_coordinate(i, j, k)
 
-    return {
+    data = {
         'coordinates': coordinates,
-        'solids': solids,
-        'solid_labels': solid_labels,
-        'edges': edges,
-        'edge_materials': edge_materials,
+        'solids': solid_manager.solids,
+        'solid_labels': solid_manager.solid_labels,
     }
 
+    if res == 'f':
+        data['edges'] = edge_manager.edges
+        data['edge_materials'] = edge_manager.edge_materials
 
-def write_output_file(filename, grid):
+    dir(edge_manager.edge_materials)
 
-    data = process_grid(grid)
+    return data
+
+
+def write_output_file(filename, grid, res):
+
+    data = process_grid(grid, res)
     data['filename'] = filename
     data['xml_doc'] = create_xdmf_markup(data)
 
@@ -249,14 +286,17 @@ def write_xml_doc(options):
 
 def write_H5file(options):
 
-        f = h5py.File(options['filename'] + '.h5', "w")
-        coords = f.create_group("mesh")
-        coords.create_dataset('coordinates', data=options['coordinates'].coordinates)
-        coords.create_dataset('connectivity', data=options['edges'].edges)
-        coords.create_dataset('solid_connectivity', data=options['solid_labels'].solid_labels)
-        data = f.create_group("data")
+    f = h5py.File(options['filename'] + '.h5', "w")
+    coords = f.create_group("mesh")
+    data = f.create_group("data")
+
+    coords.create_dataset('coordinates', data=options['coordinates'].coordinates)
+    coords.create_dataset('solid_connectivity', data=options['solid_labels'].solid_labels)
+    data.create_dataset('solids', data=options['solids'].solids)
+
+    if 'edges' in options:
         data.create_dataset('materials', data=options['edge_materials'].materials)
-        data.create_dataset('solids', data=options['solids'].solids)
+        coords.create_dataset('connectivity', data=options['edges'].edges)
 
 
 def create_xdmf_markup(options):
@@ -267,36 +307,40 @@ def create_xdmf_markup(options):
     domain_el = etree.Element("Domain")
     xdmf_el.append(domain_el)
 
-    grid_el = etree.Element("Grid", Name="Edges", GridType="Uniform")
-    domain_el.append(grid_el)
-
-    # Create the grid node
-    topology_el = etree.Element("Topology", TopologyType="Polyline", NumberOfElements=str(options['edges'].total_edges))
-    grid_el.append(topology_el)
-
-    topology_dimensions = "{} 2".format(options['edges'].total_edges)
-    top_data_el = etree.Element("DataItem", Dimensions=topology_dimensions, NumberType="Float", Precision="8", Format="HDF")
-    top_data_el.text = "{}:/mesh/connectivity".format(options['filename'] + '.h5')
-    topology_el.append(top_data_el)
-
-    # Create the Geometry node
     geometry_el = etree.Element("Geometry", GeometryType="XYZ")
-    grid_el.append(geometry_el)
-
-    # Create the origin coordinates
     coordinates_dimensions = "{} 3".format(options['coordinates'].total_coordinates)
     origin_el = etree.Element("DataItem", Dimensions=coordinates_dimensions, NumberType="Float", Precision="8", Format="HDF")
     origin_el.text = "{}:/mesh/coordinates".format(options['filename'] + '.h5')
     geometry_el.append(origin_el)
 
-    # Create the materials attribute
-    attr_el = etree.Element("Attribute", Center="Cell", Name="Edge_Materials")
-    grid_el.append(attr_el)
+    # Check if there are edges to write
+    if 'edges' in options:
 
-    materials_dimensions = "{} 1".format(options['edge_materials'].material_count)
-    materials_el = etree.Element("DataItem", Dimensions=materials_dimensions, NumberType="Float", Precision="8", Format="HDF")
-    materials_el.text = "{}:/data/materials".format(options['filename'] + '.h5')
-    attr_el.append(materials_el)
+        grid_el = etree.Element("Grid", Name="Edges", GridType="Uniform")
+        domain_el.append(grid_el)
+
+        # Create the grid node
+        topology_el = etree.Element("Topology", TopologyType="Polyline", NumberOfElements=str(options['edges'].total_edges))
+        grid_el.append(topology_el)
+
+        topology_dimensions = "{} 2".format(options['edges'].total_edges)
+        top_data_el = etree.Element("DataItem", Dimensions=topology_dimensions, NumberType="Float", Precision="8", Format="HDF")
+        top_data_el.text = "{}:/mesh/connectivity".format(options['filename'] + '.h5')
+        topology_el.append(top_data_el)
+
+        # Create the Geometry node
+        grid_el.append(copy.deepcopy(geometry_el))
+
+        # Create the origin coordinates
+
+        # Create the materials attribute
+        attr_el = etree.Element("Attribute", Center="Cell", Name="Edge_Materials")
+        grid_el.append(attr_el)
+
+        materials_dimensions = "{} 1".format(options['edge_materials'].materials.size)
+        materials_el = etree.Element("DataItem", Dimensions=materials_dimensions, NumberType="Float", Precision="8", Format="HDF")
+        materials_el.text = "{}:/data/materials".format(options['filename'] + '.h5')
+        attr_el.append(materials_el)
 
     v_grid_el = etree.Element("Grid", Name="Voxel", GridType="Uniform")
     domain_el.append(v_grid_el)
