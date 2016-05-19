@@ -24,9 +24,12 @@ optparamsinit = pickle.load(f)
 print('Optimisations summary for: {}'.format(os.path.split(args.picklefile)[1]))
 print('Number of iterations: {:g}'.format(len(fitnessvalueshist)))
 print('History of fitness values: {}'.format(fitnessvalueshist))
+print('Initial parameter values:')
+for item in optparamsinit:
+    print('\t{}: {}'.format(item[0], item[1]))
 print('History of parameter values:')
 for key, value in optparamshist.items():
-    print(key, value)
+    print('\t{}: {}'.format(key, value))
       
     
 # Plot the history of fitness values and each optimised parameter values for the optimisation
