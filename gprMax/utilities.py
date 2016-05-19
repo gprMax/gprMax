@@ -19,8 +19,6 @@
 import sys
 import decimal as d
 
-from pyfiglet import Figlet
-
 
 class ListStream(object):
     """A list can be streamed into. Required when temporarily redirecting stdio to capture output from users Python code blocks."""
@@ -56,12 +54,21 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with gprMax.  If not, see <http://www.gnu.org/licenses/>."""
     
+    gprMaxlogo = """
+                                 __  __
+                 __ _ _ __  _ __|  \/  | __ ___  __
+                / _` | '_ \| '__| |\/| |/ _` \ \/ /
+               | (_| | |_) | |  | |  | | (_| |>  <
+                \__, | .__/|_|  |_|  |_|\__,_/_/\_\\
+                |___/|_|
+        """
+    
     width = 65
     url = 'www.gprmax.com'
+    
     print('\nElectromagnetic modelling software based on the Finite-Difference \nTime-Domain (FDTD) method')
     print('\n{} {} {}'.format('*'*round((width - len(url))/2), url, '*'*round((width - len(url))/2)))
-    gprMaxlogo = Figlet(font='standard', width=width, justify='center')
-    print('{}'.format(gprMaxlogo.renderText('gprMax')))
+    print('{}'.format(gprMaxlogo))
     print('{} v{} {}'.format('*'*round((width - len(version))/2), (version), '*'*round((width - len(version))/2)))
     print(licenseinfo)
 
