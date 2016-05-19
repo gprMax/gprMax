@@ -55,7 +55,7 @@ Package overview
 Installation
 ============
 
-You should use the following guidance to install gprMax if you are an end-user (i.e. you don't intend to develop or contribute to the software). Developers (or those intending to use gprMax in a HPC environment) should follow the Installation for developers section (http://docs.gprmax.com/en/latest/includereadme.html#installation-for-developers).
+You should use the following guidance to install gprMax if you are an end-user (i.e. you don't intend to develop or contribute to the software). Developers (or those intending to use gprMax in a HPC environment) should follow the Installation for developers section (http://docs.gprmax.com/en/latest/readme_install_devs.html#installation-for-developers).
 
 The steps are:
 
