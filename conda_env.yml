@@ -10,8 +10,6 @@ dependencies:
 - matplotlib
 - mpi4py
 - numpy
+- psutil
 - scipy
 - lxml
-
-- pip:
-  - psutil
