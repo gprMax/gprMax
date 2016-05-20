@@ -32,6 +32,7 @@ Coordinate(x=0.1, y=0.2, z=0.3)
 0.1 0.2 0.3
 """
 import sys
+
 from collections import namedtuple
 Coordinate_tuple = namedtuple('Coordinate', ['x', 'y', 'z'])
 
@@ -39,6 +40,7 @@ class Coordinate(Coordinate_tuple):
     """Subclass of a namedtuple where __str__ outputs 'x y z'"""
     def __str__(self):
         return '{:g} {:g} {:g}'.format(self.x, self.y, self.z)
+
 
 def command(cmd, *parameters):
     """Helper function. Prints the gprMax #<cmd>: <parameters>. None is ignored in the output.
@@ -71,54 +73,51 @@ def command(cmd, *parameters):
 
 def domain(x, y, z):
     """Prints the gprMax #domain command.
-        
+
     Args:
         x, y, z (float): Extent of the domain in the x, y, and z directions.
-        
+
     Returns:
         domain (Coordinate): Namedtuple of the extent of the domain.
     """
-    
     domain = Coordinate(x, y, z)
     command('domain', domain)
-    
+
     return domain
 
 
 def dx_dy_dz(x, y, z):
     """Prints the gprMax #dx_dy_dz command.
-        
+
     Args:
         x, y, z (float): Spatial resolution in the x, y, and z directions.
-        
+
     Returns:
         dx_dy_dz (float): Tuple of the spatial resolutions.
     """
-    
     dx_dy_dz = Coordinate(x, y, z)
     command('dx_dy_dz', dx_dy_dz)
-          
+
     return dx_dy_dz
-          
-    
+
+
 def time_window(time_window):
     """Prints the gprMax #time_window command.
-        
+
     Args:
         time_window (float): Duration of simulation.
-        
+
     Returns:
         time_window (float): Duration of simulation.
     """
-
     command('time_window', time_window)
-    
+
     return time_window
 
 
 def material(permittivity, conductivity, permeability, magconductivity, name):
     """Prints the gprMax #material command.
-        
+
     Args:
         permittivity (float): Relative permittivity of the material.
         conductivity (float): Conductivity of the material.
@@ -126,13 +125,12 @@ def material(permittivity, conductivity, permeability, magconductivity, name):
         magconductivity (float): Magnetic loss of the material.
         name (str): Material identifier.
     """
-    
     command('material', permittivity, conductivity, permeability, magconductivity, name)
 
 
 def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type='n'):
     """Prints the gprMax #geometry_view command.
-        
+
     Args:
         xs, ys, zs, xf, yf, zf (float): Start and finish coordinates.
         dx, dy, dz (float): Spatial discretisation of geometry view.
@@ -151,7 +149,7 @@ def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type='n'):
 
 def snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename):
     """Prints the gprMax #snapshot command.
-        
+
     Args:
         xs, ys, zs, xf, yf, zf (float): Start and finish coordinates.
         dx, dy, dz (float): Spatial discretisation of geometry view.
@@ -163,18 +161,20 @@ def snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename):
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
     d = Coordinate(dx, dy, dz)
-    
+
     if  '.' in str(time) or 'e' in str(time):
         time = '{:g}'.format(float(time))
     else:
         time = '{:d}'.format(int(time))
 
     command('snapshot', *s, *f, *d, time, filename)
+
     return s, f, d
-          
+
+
 def edge(xs, ys, zs, xf, yf, zf, material):
     """Prints the gprMax #edge command.
-        
+
     Args:
         xs, ys, zs, xf, yf, zf (float): Start and finish coordinates.
         material (str): Material identifier.
@@ -183,14 +183,14 @@ def edge(xs, ys, zs, xf, yf, zf, material):
     """
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
-
     command('edge', *s, *f, material)
+
     return s, f
 
-          
+
 def plate(xs, ys, zs, xf, yf, zf, material):
     """Prints the gprMax #plate command.
-        
+
     Args:
         xs, ys, zs, xf, yf, zf (float): Start and finish coordinates.
         material (str): Material identifier(s).
@@ -199,13 +199,14 @@ def plate(xs, ys, zs, xf, yf, zf, material):
     """
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
-
     command('plate', *s, *f, material)
+
     return s, f
-          
+
+
 def triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, thickness, material):
     """Prints the gprMax #triangle command.
-        
+
     Args:
         x1, y1, z1, x2, y2, z2, x3, y3, z3 (float): Coordinates of the vertices.
         thickness (float): Thickness for a triangular prism, or zero for a triangular patch.
@@ -216,14 +217,14 @@ def triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, thickness, material):
     v1 = Coordinate(x1, y1, z1)
     v2 = Coordinate(x2, y2, z2)
     v3 = Coordinate(x3, y3, z3)
-
     command('triangle', *v1, *v2, *v3, thickness, material)
+
     return v1, v2, v3
 
-          
+
 def box(xs, ys, zs, xf, yf, zf, material, averaging=''):
     """Prints the gprMax #box command.
-        
+
     Args:
         xs, ys, zs, xf, yf, zf (float): Start and finish coordinates.
         material (str): Material identifier(s).
@@ -232,17 +233,16 @@ def box(xs, ys, zs, xf, yf, zf, material, averaging=''):
     Returns:
         s, f (tuple): 2 namedtuple Coordinate for the start and finish coordinates
     """
-    
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
-    
     command('box', *s, *f, material, averaging)
+
     return s, f
 
-          
+
 def sphere(x, y, z, radius, material, averaging=''):
     """Prints the gprMax #sphere command.
-        
+
     Args:
         x, y, z (float): Coordinates of the centre of the sphere.
         radius (float): Radius.
@@ -253,33 +253,33 @@ def sphere(x, y, z, radius, material, averaging=''):
         c (tuple): namedtuple Coordinate for the center of the sphere
     """
     c = Coordinate(x, y, z)
-    
     command('sphere', *c, radius, material, averaging)
+
     return c
 
 
 def cylinder(x1, y1, z1, x2, y2, z2, radius, material, averaging=''):
     """Prints the gprMax #cylinder command.
-        
+
     Args:
         x1, y1, z1, x2, y2, z2 (float): Coordinates of the centres of the two faces of the cylinder.
         radius (float): Radius.
         material (str): Material identifier(s).
         averaging (str): Turn averaging on or off.
-    
+
     Returns:
         c1, c2 (tuple): 2 namedtuple Coordinate for the centres of the two faces of the cylinder.
     """
     c1 = Coordinate(x1, y1, z1)
     c2 = Coordinate(x2, y2, z2)
-
     command('cylinder', *c1, *c2, radius, material, averaging)
+
     return c1, c2
 
-          
+
 def cylindrical_sector(axis, ctr1, ctr2, t1, t2, radius, startingangle, sweptangle, material, averaging=''):
     """Prints the gprMax #cylindrical_sector command.
-        
+
     Args:
         axis (str): Axis of the cylinder from which the sector is defined and can be x, y, or z.
         ctr1, ctr2 (float): Coordinates of the centre of the cylindrical sector.
@@ -290,10 +290,9 @@ def cylindrical_sector(axis, ctr1, ctr2, t1, t2, radius, startingangle, sweptang
         material (str): Material identifier(s).
         averaging (str): Turn averaging on or off.
     """
-    
     command('cylindrical_sector', axis, ctr1, ctr2, t1, t2, radius, startingangle, sweptangle, material, averaging)
-    
-          
+
+
 def excitation_file(file1):
     """Prints the #excitation_file: <file1> command.
 
@@ -303,7 +302,9 @@ def excitation_file(file1):
         file1 (str): filename
     """
     command('excitation_file', file1)
+
     return file1
+
 
 def waveform(shape, amplitude, frequency, identifier):
     """Prints the #waveform: shape amplitude frequency identifier
@@ -317,7 +318,9 @@ def waveform(shape, amplitude, frequency, identifier):
         identifier (str): is an identifier for the waveform used to assign it to a source.
     """
     command('waveform', shape, amplitude, frequency, identifier)
+
     return identifier
+
 
 def hertzian_dipole(polarization, f1, f2, f3, identifier, t0=None, t_remove=None):
     """Prints the #hertzian_dipole: polarization, f1, f2, f3, identifier, [t0, t_remove]
@@ -331,11 +334,12 @@ def hertzian_dipole(polarization, f1, f2, f3, identifier, t0=None, t_remove=None
     Returns:
         coordinates (tuple): namedtuple Coordinate of the source location
     """
-
     c = Coordinate(f1, f2, f3)
     # since command ignores None, this is safe:
     command('hertzian_dipole', polarization, str(c), identifier, t0, t_remove)
+
     return c
+
 
 def rx(x, y, z, identifier=None, to_save=None):
     """Prints the #rx: x, y, z, [identifier, to_save] command.
@@ -347,10 +351,11 @@ def rx(x, y, z, identifier=None, to_save=None):
     Returns:
         coordinates (tuple): namedtuple Coordinate of the receiver location
     """
-
     c = Coordinate(x, y, z)
     command('rx', str(c), identifier, to_save)
+
     return c
+
 
 def src_steps(dx=0, dy=0, dz=0):
     """Prints the #src_steps: dx, dy, dz command.
@@ -363,7 +368,9 @@ def src_steps(dx=0, dy=0, dz=0):
 
     c = Coordinate(dx, dy, dz)
     command('src_steps', str(c))
+
     return c
+
 
 def rx_steps(dx=0, dy=0, dz=0):
     """Prints the #rx_steps: dx, dy, dz command.
@@ -377,3 +384,5 @@ def rx_steps(dx=0, dy=0, dz=0):
     c = Coordinate(dx, dy, dz)
     command('rx_steps', str(c))
     return c
+
+
