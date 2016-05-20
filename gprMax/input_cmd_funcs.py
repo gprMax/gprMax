@@ -51,17 +51,17 @@ def command(cmd, *parameters):
         s (str): the printed string
     """
     # remove Nones
-    parameters = filter(None, parameters)
+    filtered = filter(lambda x: x is not None, parameters)
     # convert to str
-    parameters = map(str, parameters)
+    filtered_str = map(str, filtered)
     # convert to list
-    parameters = list(parameters)
+    filtered_list = list(filtered_str)
     try:
-        s = '#{}: {}'.format(cmd, " ".join(parameters))
+        s = '#{}: {}'.format(cmd, " ".join(filtered_list))
     except TypeError as e:
         # append info about cmd and parameters to the exception:
         if not e.args: e.args=('', )
-        additional_info = "Creating cmd = #{} with parameters {} failed".format(cmd, parameters)
+        additional_info = "Creating cmd = #{} with parameters {} -> {} failed".format(cmd, parameters, filtered_list)
         e.args = e.args + (additional_info,)
         raise e
     # and now we can print it:
@@ -127,7 +127,7 @@ def material(permittivity, conductivity, permeability, magconductivity, name):
         name (str): Material identifier.
     """
     
-    print('#material: {:g} {:g} {:g} {:g} {}'.format(permittivity, conductivity, permeability, magconductivity, name))
+    command('material', permittivity, conductivity, permeability, magconductivity, name)
 
 
 def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type='n'):
