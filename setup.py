@@ -105,7 +105,7 @@ if 'cleanall' in sys.argv:
 # Set compiler options
 # Windows
 if sys.platform == 'win32':
-    compile_args = ['/O2', '/openmp', '/w']
+    compile_args = ['/O2', '/openmp', '/w', '/MT'] # Remove /MT flag for dynamic linking
     linker_args = []
     extra_objects = []
 # Mac OS X - needs gcc (usually via HomeBrew) because the default compiler LLVM (clang) does not support OpenMP
