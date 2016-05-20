@@ -59,11 +59,15 @@ def command(cmd, *parameters):
     try:
         s = '#{}: {}'.format(cmd, " ".join(parameters))
     except TypeError as e:
+        # append info about cmd and parameters to the exception:
         if not e.args: e.args=('', )
-        e.args = e.args + ("Creating cmd = #%s with parameters %s failed" % (cmd, parameters),)
+        additional_info = "Creating cmd = #{} with parameters {} failed".format(cmd, parameters)
+        e.args = e.args + (additional_info,)
         raise e
+    # and now we can print it:
     print(s)
     return s
+
 
 def domain(x, y, z):
     """Prints the gprMax #domain command.
@@ -76,8 +80,8 @@ def domain(x, y, z):
     """
     
     domain = Coordinate(x, y, z)
-    print('#domain: {}'.format(domain))
-          
+    command('domain', domain)
+    
     return domain
 
 
@@ -92,7 +96,7 @@ def dx_dy_dz(x, y, z):
     """
     
     dx_dy_dz = Coordinate(x, y, z)
-    print('#dx_dy_dz: {}'.format(dx_dy_dz))
+    command('dx_dy_dz', dx_dy_dz)
           
     return dx_dy_dz
           
@@ -106,8 +110,8 @@ def time_window(time_window):
     Returns:
         time_window (float): Duration of simulation.
     """
-    
-    print('#time_window: {:g}'.format(time_window))
+
+    command('time_window', time_window)
           
     return time_window
 
