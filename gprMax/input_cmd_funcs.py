@@ -17,8 +17,53 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 
-"""This module contains functional forms of some of the most commonly used gprMax commands. It can be useful to use these within Python scripting in an input file."""
+"""This module contains functional forms of some of the most commonly used gprMax commands. It can be useful to use these within Python scripting in an input file.
+For convenience, x, y, z coordinates are lumped in a namedtuple Coordinate:
+>>> c = Coordinate(0.1, 0.2, 0.3)
+>>> c
+Coordinate(x=0.1, y=0.2, z=0.3)
+>>> str(c)
+'0.1 0.2 0.3'
+# which can be accessed as a normal tuple:
+>>> print c[0], c[1], c[2]
+0.1 0.2 0.3
+# or more explicitly
+>>> print c.x, c.y, c.z
+0.1 0.2 0.3
+"""
+import sys
+from collections import namedtuple
+Coordinate_tuple = namedtuple('Coordinate', ['x', 'y', 'z'])
 
+class Coordinate(Coordinate_tuple):
+    """Subclass of a namedtuple where __str__ outputs 'x y z'"""
+    def __str__(self):
+        return '{:g} {:g} {:g}'.format(self.x, self.y, self.z)
+
+def command(cmd, *parameters):
+    """Helper function. Prints the gprMax #<cmd>: <parameters>. None is ignored in the output.
+
+    Args:
+        cmd (str): the gprMax cmd string to be printed
+        *parameters: one or more strings as arguments, any None values are ignored
+
+    Returns:
+        s (str): the printed string
+    """
+    # remove Nones
+    parameters = filter(None, parameters)
+    # convert to str
+    parameters = map(str, parameters)
+    # convert to list
+    parameters = list(parameters)
+    try:
+        s = '#{}: {}'.format(cmd, " ".join(parameters))
+    except TypeError as e:
+        if not e.args: e.args=('', )
+        e.args = e.args + ("Creating cmd = #%s with parameters %s failed" % (cmd, parameters),)
+        raise e
+    print(s)
+    return s
 
 def domain(x, y, z):
     """Prints the gprMax #domain command.
@@ -27,11 +72,11 @@ def domain(x, y, z):
         x, y, z (float): Extent of the domain in the x, y, and z directions.
         
     Returns:
-        domain (float): Tuple of the extent of the domain.
+        domain (Coordinate): Namedtuple of the extent of the domain.
     """
     
-    domain = (x, y, z)
-    print('#domain: {:g} {:g} {:g}'.format(domain[0], domain[1], domain[2]))
+    domain = Coordinate(x, y, z)
+    print('#domain: {}'.format(domain))
           
     return domain
 
@@ -46,8 +91,8 @@ def dx_dy_dz(x, y, z):
         dx_dy_dz (float): Tuple of the spatial resolutions.
     """
     
-    dx_dy_dz = (x, y, z)
-    print('#dx_dy_dz: {:g} {:g} {:g}'.format(dx_dy_dz[0], dx_dy_dz[1], dx_dy_dz[2]))
+    dx_dy_dz = Coordinate(x, y, z)
+    print('#dx_dy_dz: {}'.format(dx_dy_dz))
           
     return dx_dy_dz
           
@@ -153,9 +198,16 @@ def box(xs, ys, zs, xf, yf, zf, material, averaging=''):
         xs, ys, zs, xf, yf, zf (float): Start and finish coordinates.
         material (str): Material identifier(s).
         averaging (str): Turn averaging on or off.
+
+    Returns:
+        s, f (tuple): 2 namedtuple Coordinate for the start and finish coordinates
+
     """
     
-    print('#box: {:g} {:g} {:g} {:g} {:g} {:g} {} {}'.format(xs, ys, zs, xf, yf, zf, material, averaging))
+    s = Coordinate(xs, ys, zs)
+    f = Coordinate(xf, yf, zf)
+    print('#box: {} {} {} {}'.format(s, f, material, averaging))
+    return s, f
           
           
 def sphere(x, y, z, radius, material, averaging=''):
@@ -201,6 +253,86 @@ def cylindrical_sector(axis, ctr1, ctr2, t1, t2, radius, startingangle, sweptang
     print('#cylindrical_sector: {} {:g} {:g} {:g} {:g} {:g} {:g} {:g} {} {}'.format(axis, ctr1, ctr2, t1, t2, radius, startingangle, sweptangle, material, averaging))
           
           
-          
-    
+def excitation_file(file1):
+    """Prints the #excitation_file: <file1> command.
 
+    Args:
+        file1 (str): filename
+    Returns:
+        file1 (str): filename
+    """
+    command('excitation_file', file1)
+    return file1
+
+def waveform(shape, amplitude, frequency, identifier):
+    """Prints the #waveform: shape amplitude frequency identifier
+
+    Args:
+        shape (str): is the type of waveform
+        amplitude (float): is the amplitude of the waveform.
+        frequency (float): is the frequency of the waveform in Hertz.
+        identifier (str): is an identifier for the waveform used to assign it to a source.
+    Returns:
+        identifier (str): is an identifier for the waveform used to assign it to a source.
+    """
+    command('waveform', shape, amplitude, frequency, identifier)
+    return identifier
+
+def hertzian_dipole(polarization, f1, f2, f3, identifier, t0=None, t_remove=None):
+    """Prints the #hertzian_dipole: polarization, f1, f2, f3, identifier, [t0, t_remove]
+
+    Args:
+        polarization (str):  is the polarisation of the source and can be 'x', 'y', or 'z'.
+        f1 f2 f3 (float): are the coordinates (x,y,z) of the source in the model.
+        identifier (str): is the identifier of the waveform that should be used with the source.
+        t0 (float): is an optinal argument for the time delay in starting the source.
+        t_remove (float): is a time to remove the source.
+    Returns:
+        coordinates (tuple): namedtuple Coordinate of the source location
+    """
+
+    c = Coordinate(f1, f2, f3)
+    # since command ignores None, this is safe:
+    command('hertzian_dipole', polarization, str(c), identifier, t0, t_remove)
+    return c
+
+def rx(x, y, z, identifier=None, to_save=None):
+    """Prints the #rx: x, y, z, [identifier, to_save] command.
+
+    Args:
+        x, y, z (float): are the coordinates (x,y,z) of the receiver in the model.
+        identifier (str): is the optional identifier of the receiver
+        to_save (list):  is a list of outputs with this receiver. It can be any selection from 'Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', or 'Iz'.
+    Returns:
+        coordinates (tuple): namedtuple Coordinate of the receiver location
+    """
+
+    c = Coordinate(x, y, z)
+    command('rx', str(c), identifier, to_save)
+    return c
+
+def src_steps(dx=0, dy=0, dz=0):
+    """Prints the #src_steps: dx, dy, dz command.
+
+    Args:
+        dx, dy, dz (float): are the increments in (x, y, z) to move all simple sources or all receivers.
+    Returns:
+        coordinates (tuple): namedtuple Coordinate of the increments
+    """
+
+    c = Coordinate(dx, dy, dz)
+    command('src_steps', str(c))
+    return c
+
+def rx_steps(dx=0, dy=0, dz=0):
+    """Prints the #rx_steps: dx, dy, dz command.
+
+    Args:
+        dx, dy, dz (float): are the increments in (x, y, z) to move all simple sources or all receivers.
+    Returns:
+        coordinates (tuple): namedtuple Coordinate of the increments
+    """
+
+    c = Coordinate(dx, dy, dz)
+    command('rx_steps', str(c))
+    return c
