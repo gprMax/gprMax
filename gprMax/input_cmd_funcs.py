@@ -112,7 +112,7 @@ def time_window(time_window):
     """
 
     command('time_window', time_window)
-          
+    
     return time_window
 
 
@@ -138,9 +138,15 @@ def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type='n'):
         dx, dy, dz (float): Spatial discretisation of geometry view.
         filename (str): Filename where geometry file information will be stored.
         type (str): Can be either n (normal) or f (fine) which specifies whether to output the geometry information on a per-cell basis (n) or a per-cell-edge basis (f).
+    Returns:
+        s, f, d (tuple): 3 namedtuple Coordinate for the start, finish coordinates and spatial discretisation
     """
-    
-    print('#geometry_view: {:g} {:g} {:g} {:g} {:g} {:g} {:g} {:g} {:g} {} {}'.format(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type))
+    s = Coordinate(xs, ys, zs)
+    f = Coordinate(xf, yf, zf)
+    d = Coordinate(dx, dy, dz)
+    command('geometry_view', *s, *f, *d, filename, type)
+
+    return s, f, d
 
 
 def snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename):
@@ -151,15 +157,20 @@ def snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename):
         dx, dy, dz (float): Spatial discretisation of geometry view.
         time (float): Time in seconds (float) or the iteration number (integer) which denote the point in time at which the snapshot will be taken.
         filename (str): Filename where geometry file information will be stored.
+    Returns:
+        s, f, d (tuple): 3 namedtuple Coordinate for the start, finish coordinates and spatial discretisation
     """
+    s = Coordinate(xs, ys, zs)
+    f = Coordinate(xf, yf, zf)
+    d = Coordinate(dx, dy, dz)
     
     if  '.' in str(time) or 'e' in str(time):
-        time = float(time)
-        print('#snapshot: {:g} {:g} {:g} {:g} {:g} {:g} {:g} {:g} {:g} {:g} {}'.format(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename))
+        time = '{:g}'.format(float(time))
     else:
-        time = int(time)
-        print('#snapshot: {:g} {:g} {:g} {:g} {:g} {:g} {:g} {:g} {:g} {:d} {}'.format(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename))
+        time = '{:d}'.format(int(time))
 
+    command('snapshot', *s, *f, *d, time, filename)
+    return s, f, d
           
 def edge(xs, ys, zs, xf, yf, zf, material):
     """Prints the gprMax #edge command.
@@ -167,10 +178,15 @@ def edge(xs, ys, zs, xf, yf, zf, material):
     Args:
         xs, ys, zs, xf, yf, zf (float): Start and finish coordinates.
         material (str): Material identifier.
+    Returns:
+        s, f (tuple): 2 namedtuple Coordinate for the start and finish coordinates
     """
-    
-    print('#edge: {:g} {:g} {:g} {:g} {:g} {:g} {}'.format(xs, ys, zs, xf, yf, zf, material))
-          
+    s = Coordinate(xs, ys, zs)
+    f = Coordinate(xf, yf, zf)
+
+    command('edge', *s, *f, material)
+    return s, f
+
           
 def plate(xs, ys, zs, xf, yf, zf, material):
     """Prints the gprMax #plate command.
@@ -178,10 +194,14 @@ def plate(xs, ys, zs, xf, yf, zf, material):
     Args:
         xs, ys, zs, xf, yf, zf (float): Start and finish coordinates.
         material (str): Material identifier(s).
+    Returns:
+        s, f (tuple): 2 namedtuple Coordinate for the start and finish coordinates
     """
-    
-    print('#plate: {:g} {:g} {:g} {:g} {:g} {:g} {}'.format(xs, ys, zs, xf, yf, zf, material))
-          
+    s = Coordinate(xs, ys, zs)
+    f = Coordinate(xf, yf, zf)
+
+    command('plate', *s, *f, material)
+    return s, f
           
 def triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, thickness, material):
     """Prints the gprMax #triangle command.
@@ -190,10 +210,16 @@ def triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, thickness, material):
         x1, y1, z1, x2, y2, z2, x3, y3, z3 (float): Coordinates of the vertices.
         thickness (float): Thickness for a triangular prism, or zero for a triangular patch.
         material (str): Material identifier(s).
+    Returns:
+        v1, v2, v3 (tuple): 3 namedtuple Coordinate for the vertices
     """
-    
-    print('#triangle: {:g} {:g} {:g} {:g} {:g} {:g} {:g} {:g} {:g} {:g} {}'.format(x1, y1, z1, x2, y2, z2, x3, y3, z3, thickness, material))
-          
+    v1 = Coordinate(x1, y1, z1)
+    v2 = Coordinate(x2, y2, z2)
+    v3 = Coordinate(x3, y3, z3)
+
+    command('triangle', *v1, *v2, *v3, thickness, material)
+    return v1, v2, v3
+
           
 def box(xs, ys, zs, xf, yf, zf, material, averaging=''):
     """Prints the gprMax #box command.
@@ -205,14 +231,14 @@ def box(xs, ys, zs, xf, yf, zf, material, averaging=''):
 
     Returns:
         s, f (tuple): 2 namedtuple Coordinate for the start and finish coordinates
-
     """
     
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
-    print('#box: {} {} {} {}'.format(s, f, material, averaging))
+    
+    command('box', *s, *f, material, averaging)
     return s, f
-          
+
           
 def sphere(x, y, z, radius, material, averaging=''):
     """Prints the gprMax #sphere command.
@@ -222,11 +248,16 @@ def sphere(x, y, z, radius, material, averaging=''):
         radius (float): Radius.
         material (str): Material identifier(s).
         averaging (str): Turn averaging on or off.
+
+    Returns:
+        c (tuple): namedtuple Coordinate for the center of the sphere
     """
+    c = Coordinate(x, y, z)
     
-    print('#sphere: {:g} {:g} {:g} {:g} {} {}'.format(x, y, z, radius, material, averaging))
-          
-          
+    command('sphere', *c, radius, material, averaging)
+    return c
+
+
 def cylinder(x1, y1, z1, x2, y2, z2, radius, material, averaging=''):
     """Prints the gprMax #cylinder command.
         
@@ -235,10 +266,16 @@ def cylinder(x1, y1, z1, x2, y2, z2, radius, material, averaging=''):
         radius (float): Radius.
         material (str): Material identifier(s).
         averaging (str): Turn averaging on or off.
-    """
     
-    print('#cylinder: {:g} {:g} {:g} {:g} {:g} {:g} {:g} {} {}'.format(x1, y1, z1, x2, y2, z2, radius, material, averaging))
-          
+    Returns:
+        c1, c2 (tuple): 2 namedtuple Coordinate for the centres of the two faces of the cylinder.
+    """
+    c1 = Coordinate(x1, y1, z1)
+    c2 = Coordinate(x2, y2, z2)
+
+    command('cylinder', *c1, *c2, radius, material, averaging)
+    return c1, c2
+
           
 def cylindrical_sector(axis, ctr1, ctr2, t1, t2, radius, startingangle, sweptangle, material, averaging=''):
     """Prints the gprMax #cylindrical_sector command.
@@ -254,8 +291,8 @@ def cylindrical_sector(axis, ctr1, ctr2, t1, t2, radius, startingangle, sweptang
         averaging (str): Turn averaging on or off.
     """
     
-    print('#cylindrical_sector: {} {:g} {:g} {:g} {:g} {:g} {:g} {:g} {} {}'.format(axis, ctr1, ctr2, t1, t2, radius, startingangle, sweptangle, material, averaging))
-          
+    command('cylindrical_sector', axis, ctr1, ctr2, t1, t2, radius, startingangle, sweptangle, material, averaging)
+    
           
 def excitation_file(file1):
     """Prints the #excitation_file: <file1> command.
