@@ -40,12 +40,12 @@ gprMax produces a separate output file for each trace (A-scan) in the B-scan. Th
 
 .. code-block:: none
 
-    python -m tools.plot_Bscan outputfile output
+    python -m tools.plot_Bscan outputfile rx-component
 
 where:
 
 * ``outputfile`` is the name of output file including the path
-* ``output`` is the name of output component (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``, ``Ix``, ``Iy`` or ``Iz``) to plot
+* ``rx-component`` is the name of the receiver output component (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``, ``Ix``, ``Iy`` or ``Iz``) to plot
 
 
 Antenna parameters
@@ -58,12 +58,17 @@ This module uses matplotlib to plot the input impedance (resistance and reactanc
 
 .. code-block:: none
 
-    python -m tools.plot_antenna_params outputfile --tln transmissionlinenumber
+    python -m tools.plot_antenna_params outputfile
 
-where:
+where ``outputfile`` is the name of output file including the path.
 
-* ``outputfile`` is the name of output file including the path
-* ``--tln`` is the number of the transmission line (default is one). Transmission lines are numbered (starting at one) in the order they appear in the input file.
+There are optional command line arguments:
+
+* ``--tl-num`` is the number of the transmission line (default is one). Transmission lines are numbered (starting at one) in the order they appear in the input file.
+* ``--rx-num`` is the number of the receiver output (default is None) required if calculating a s21 parameter. Receivers are numbered (starting at one) in the order they appear in the input file.
+* ``--rx-component`` is the electric field component of the receiver output required if calculating a s21 parameter (``Ex``, ``Ey`` or ``Ez``).
+
+receiver antenna - output number
 
 
 .. _waveforms:
