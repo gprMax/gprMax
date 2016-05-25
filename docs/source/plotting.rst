@@ -68,8 +68,6 @@ There are optional command line arguments:
 * ``--rx-num`` is the number of the receiver output (default is None) required if calculating a s21 parameter. Receivers are numbered (starting at one) in the order they appear in the input file.
 * ``--rx-component`` is the electric field component of the receiver output required if calculating a s21 parameter (``Ex``, ``Ey`` or ``Ez``).
 
-receiver antenna - output number
-
 
 .. _waveforms:
 
