@@ -54,7 +54,7 @@ Antenna parameters
 plot_antenna_params.py
 ----------------------
 
-This module uses matplotlib to plot the input impedance (resistance and reactance) and s11 parameter from an antenna model fed using a transmission line. It also plots the time history of the incident and reflected voltages in the transmission line and their frequency spectra. Usage (from the top-level gprMax directory) is:
+This module uses matplotlib to plot the input impedance (resistance and reactance) and s11 parameter from an antenna model fed using a transmission line. It also plots the time history of the incident and reflected voltages in the transmission line and their frequency spectra. The module can optionally plot the s21 parameter if a receiver (``#rx``) is placed on the receiving antenna. Usage (from the top-level gprMax directory) is:
 
 .. code-block:: none
 
