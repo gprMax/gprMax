@@ -54,7 +54,7 @@ Antenna parameters
 plot_antenna_params.py
 ----------------------
 
-This module uses matplotlib to plot the input impedance (resistance and reactance) and s11 parameter from an antenna model fed using a transmission line. It also plots the time history of the incident and reflected voltages in the transmission line and their frequency spectra. The module can optionally plot the s21 parameter if a receiver (``#rx``) is placed on the receiving antenna. Usage (from the top-level gprMax directory) is:
+This module uses matplotlib to plot the input impedance (resistance and reactance) and s11 parameter from an antenna model fed using a transmission line. It also plots the time history of the incident and reflected voltages in the transmission line and their frequency spectra. The module can optionally plot the s21 parameter if another transmission line or a receiver output (``#rx``) is used on the receiver antenna. Usage (from the top-level gprMax directory) is:
 
 .. code-block:: none
 
@@ -64,9 +64,10 @@ where ``outputfile`` is the name of output file including the path.
 
 There are optional command line arguments:
 
-* ``--tl-num`` is the number of the transmission line (default is one). Transmission lines are numbered (starting at one) in the order they appear in the input file.
-* ``--rx-num`` is the number of the receiver output (default is None) required if calculating a s21 parameter. Receivers are numbered (starting at one) in the order they appear in the input file.
-* ``--rx-component`` is the electric field component of the receiver output required if calculating a s21 parameter (``Ex``, ``Ey`` or ``Ez``).
+* ``--tltx-num`` is the number of the transmission line (default is one) for the transmitter antenna. Transmission lines are numbered (starting at one) in the order they appear in the input file.
+* ``--tlrx-num`` is the number of the transmission line (default is None) for the receiver antenna (for a s21 parameter). Transmission lines are numbered (starting at one) in the order they appear in the input file.
+* ``--rx-num`` is the number of the receiver output (default is None) for the receiver antenna (for a s21 parameter). Receivers are numbered (starting at one) in the order they appear in the input file.
+* ``--rx-component`` is the electric field component (``Ex``, ``Ey`` or ``Ez``) of the receiver output for the receiver antenna (for a s21 parameter).
 
 
 .. _waveforms:
