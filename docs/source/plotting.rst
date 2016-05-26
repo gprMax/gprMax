@@ -69,6 +69,12 @@ There are optional command line arguments:
 * ``--rx-num`` is the number of the receiver output (default is None) for the receiver antenna (for a s21 parameter). Receivers are numbered (starting at one) in the order they appear in the input file.
 * ``--rx-component`` is the electric field component (``Ex``, ``Ey`` or ``Ez``) of the receiver output for the receiver antenna (for a s21 parameter).
 
+For example to plot the input impedance, s11 and s21 parameters from a simulation with transmitter and receiver antennas that are attached to transmission lines (the transmission line feeding the transmitter appears first in the input file, and the transmission line attached to the receiver antenna appears after it).
+
+.. code-block:: none
+
+    python -m tools.plot_antenna_params outputfile --tltx-num 1 --tlrx-num 2
+
 
 .. _waveforms:
 
