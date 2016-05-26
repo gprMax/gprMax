@@ -309,7 +309,7 @@ def mpl_plot(time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref, Irefp, Vt
     ax.grid()
 
     # Plot frequency spectra of s21
-    if 's21' in locals() or globals():
+    if s21 is not None:
         ax = plt.subplot(gs2[0, 1])
         markerline, stemlines, baseline = ax.stem(freqs[pltrange], s21[pltrange], '-.')
         plt.setp(baseline, 'linewidth', 0)
