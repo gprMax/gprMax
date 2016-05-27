@@ -130,10 +130,11 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     return antennaparams
 
 
-def mpl_plot(time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref, Irefp, Vtotal, Vtotalp, Itotal, Itotalp, s11, zin, yin, s21=None):
+def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref, Irefp, Vtotal, Vtotalp, Itotal, Itotalp, s11, zin, yin, s21=None):
     """Plots antenna parameters - incident, reflected and total volatges and currents; s11, (s21) and input impedance.
             
     Args:
+        filename (string): Filename (including path) of output file.
         time (array): Simulation time.
         freq (array): Frequencies for FFTs.
         Vinc, Vincp, Iinc, Iincp (array): Time and frequency domain representations of incident voltage and current.
@@ -401,6 +402,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     antennaparams = calculate_antenna_params(args.outputfile, args.tltx_num, args.tlrx_num, args.rx_num, args.rx_component)
-    plt = mpl_plot(**antennaparams)
+    plt = mpl_plot(args.outputfile, **antennaparams)
     plt.show()
 
