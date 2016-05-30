@@ -69,14 +69,17 @@ We recommend using Miniconda to install Python and the required Python packages 
 * Install Miniconda (Python 3.5 version) from http://conda.pydata.org/miniconda.html (help with Miniconda installation from http://conda.pydata.org/docs/install/quick.html)
 * Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and run the following commands:
 
-    * :code:`conda update conda` to make sure conda is up-to-date
-    * :code:`conda install git` so we can use Git to connect to GitHub
-    * :code:`git clone https://github.com/gprMax/gprMax.git` to get the latest gprMax source code from GitHub
-    * Go to the top-level gprMax directory and run :code:`conda env create -f conda_env.yml` to create an environment for gprMax with all the necessary Python packages
+.. code-block:: none
 
-.. note::
+    conda update conda
+    conda install git
+    git clone https://github.com/gprMax/gprMax.git
+    cd gprMax
+    conda env create -f conda_env.yml
 
-    * If you prefer to install Python and the required Python packages manually, i.e. without using Anaconda/Miniconda, look in the ``conda_env.yml`` file for a list of the requirements.
+This will make sure conda is up-to-date, install Git, get the latest gprMax source code from GitHub, and create an environment for gprMax with all the necessary Python packages.
+
+If you prefer to install Python and the required Python packages manually, i.e. without using Anaconda/Miniconda, look in the ``conda_env.yml`` file for a list of the requirements.
 
 2. Install a C compiler which supports OpenMP
 ---------------------------------------------
@@ -90,12 +93,7 @@ Linux
 Mac OS X
 ^^^^^^^^
 
-* gcc (https://gcc.gnu.org) is easily installed using the Homebrew package manager (http://brew.sh) :code:`brew install gcc-6 --without-multilib`.
-
-.. note::
-
-    Installations of Xcode on Mac OS X come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install gcc.
-
+* Installations of Xcode on Mac OS X come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install gcc (https://gcc.gnu.org). This is easily done by installing the Homebrew package manager (http://brew.sh) and running :code:`brew install gcc-6 --without-multilib`.
 
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
@@ -109,12 +107,10 @@ Once you have installed the aforementioned tools follow these steps to build and
 
 * Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows). Run the following commands:
 
-    * :code:`python setup.py build`
-    * :code:`python setup.py install`
+.. code-block:: none
 
-.. note::
-
-    * When you are finished using gprMax, the conda environment can be deactivated using :code:`source deactivate` (Linux/Mac OS X)  or :code:`deactivate` (Windows).
+    python setup.py build
+    python setup.py install
 
 **You are now ready to proceed to running gprMax.**
 
@@ -124,10 +120,14 @@ Updating gprMax
 
 * Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows). Run the following commands:
 
-    * :code:`git pull` to pull the most recent source code from GitHub
-    * :code:`python setup.py cleanall` to remove/clean previously built modules
-    * :code:`python setup.py build`
-    * :code:`python setup.py install`
+.. code-block:: none
+
+    git pull
+    python setup.py cleanall
+    python setup.py build
+    python setup.py install
+
+This will pull the most recentr gprMax source code form GitHub, remove/clean previously built modules, and then build and install the latest version of gprMax.
 
 
 Running gprMax
@@ -156,6 +156,8 @@ When the simulation is complete you can plot the A-scan using:
     python -m tools.plot_Ascan user_models/cylinder_Ascan_2D.out
 
 Your results should like those from the A-scan from a metal cylinder example in introductory/basic 2D models section (http://docs.gprmax.com/en/latest/examples_simple_2D.html#view-the-results).
+
+When you are finished using gprMax, the conda environment can be deactivated using :code:`source deactivate` (Linux/Mac OS X)  or :code:`deactivate` (Windows).
 
 Optional command line arguments
 -------------------------------
