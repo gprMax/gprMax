@@ -52,7 +52,7 @@ if sys.version_info[:2] < (3, 4):
 
 # Process 'build' command line argument
 if 'build' in sys.argv:
-    print("'build' is not required for this package, running 'build_ext --inplace' instead.")
+    print("Running 'build_ext --inplace'")
     sys.argv.remove('build')
     sys.argv.append('build_ext')
     sys.argv.append('--inplace')
