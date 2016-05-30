@@ -57,7 +57,7 @@ Installation
 
 The following steps provide guidance on how to install gprMax:
 
-1. Install Python and required Python packages, and get the gprMax source code from GitHub
+1. Install Python, required Python packages, and get the gprMax source code from GitHub
 2. Install a C compiler which supports OpenMP
 3. Build and install gprMax
 
@@ -66,17 +66,17 @@ The following steps provide guidance on how to install gprMax:
 
 We recommend using Miniconda to install Python and the required Python packages for gprMax in a self-contained Python environment. Miniconda is a mini version of Anaconda which is a completely free Python distribution (including for commercial use and redistribution). It includes more than 300 of the most popular Python packages for science, math, engineering, and data analysis.
 
-* Install the Python 3.5 version of Miniconda for your platform from http://conda.pydata.org/miniconda.html (help is at http://conda.pydata.org/docs/install/quick.html)
+* Install Miniconda (Python 3.5 version) from http://conda.pydata.org/miniconda.html (help with Miniconda installation from http://conda.pydata.org/docs/install/quick.html)
 * Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and run the following commands:
-    * :code:`conda update conda` (to make sure conda is up-to-date)
-    * :code:`conda install git`
-    * :code:`git clone https://github.com/gprMax/gprMax.git` (to get the latest gprMax source code from GitHub)
-    * Go to the top-level gprMax directory and execute :code:`conda env create -f conda_env.yml` (this will create an environment for gprMax with all the necessary Python packages)
-    * Activate the new environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows).
+
+    * :code:`conda update conda` to make sure conda is up-to-date
+    * :code:`conda install git` so we can use Git to connect to GitHub
+    * :code:`git clone https://github.com/gprMax/gprMax.git` to get the latest gprMax source code from GitHub
+    * Go to the top-level gprMax directory and run :code:`conda env create -f conda_env.yml` to create an environment for gprMax with all the necessary Python packages
 
 .. note::
-    * When you are finished using gprMax the Miniconda environment can be deactivated using :code:`source deactivate` (Linux/Mac OS X)  or :code:`deactivate` (Windows).
-    * If you want to install Python and the required Python packages manually, i.e. without using Anaconda/Miniconda, look in the ``conda_env.yml`` file for a list of the requirements.
+
+    * If you prefer to install Python and the required Python packages manually, i.e. without using Anaconda/Miniconda, look in the ``conda_env.yml`` file for a list of the requirements.
 
 2. Install a C compiler which supports OpenMP
 ---------------------------------------------
@@ -90,7 +90,7 @@ Linux
 Mac OS X
 ^^^^^^^^
 
-* gcc (https://gcc.gnu.org) is easily installed using the Homebrew package manager (http://brew.sh) :code:`brew install gcc --without-multilib`.
+* gcc (https://gcc.gnu.org) is easily installed using the Homebrew package manager (http://brew.sh) :code:`brew install gcc-6 --without-multilib`.
 
 .. note::
 
@@ -100,22 +100,21 @@ Mac OS X
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
 
-* Download and install Microsoft Visual C++ Build Tools 2015 directly from http://go.microsoft.com/fwlink/?LinkId=691126 or by going to https://www.visualstudio.com/en-us/downloads/download-visual-studio-vs.aspx and choosing Visual Studio Downloads -> Tools for Visual Studio 2015 -> Microsoft Visual C++ Build Tools 2015. Install using the default options.
+* Download and install Microsoft Visual C++ Build Tools 2015 directly from http://go.microsoft.com/fwlink/?LinkId=691126 or by going to https://www.visualstudio.com/en-us/downloads/download-visual-studio-vs.aspx and choosing Visual Studio Downloads -> Tools for Visual Studio 2015 -> Microsoft Visual C++ Build Tools 2015. Use the default installation options.
 
 3. Build and install gprMax
 ---------------------------
 
 Once you have installed the aforementioned tools follow these steps to build and install gprMax:
 
-* Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows), navigate into the top-level gprMax directory, and run the following commands:
-    * If it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows)
+* Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows). Run the following commands:
+
     * :code:`python setup.py build`
     * :code:`python setup.py install`
 
 .. note::
 
-    * You should see a set of :code:`.c` source files and a set of :code:`.so` (Linux/Mac OS X) or :code:`.pyd` (Windows) compiled module files inside the gprMax directory.
-    * If you want to remove/clean the built modules, e.g. before updating gprMax, you can use :code:`python setup.py cleanall`.
+    * When you are finished using gprMax, the conda environment can be deactivated using :code:`source deactivate` (Linux/Mac OS X)  or :code:`deactivate` (Windows).
 
 **You are now ready to proceed to running gprMax.**
 
@@ -123,10 +122,10 @@ Once you have installed the aforementioned tools follow these steps to build and
 Updating gprMax
 ===============
 
-* Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows), navigate into the top-level gprMax directory, and run the following commands:
-    * If it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows)
-    * :code:`git pull` (this will pull the most recent source code from GitHub)
-    * :code:`python setup.py cleanall`
+* Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows). Run the following commands:
+
+    * :code:`git pull` to pull the most recent source code from GitHub
+    * :code:`python setup.py cleanall` to remove/clean previously built modules
     * :code:`python setup.py build`
     * :code:`python setup.py install`
 
@@ -134,9 +133,11 @@ Updating gprMax
 Running gprMax
 ==============
 
-* Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and navigate into the top-level gprMax directory.
-* If it is not already active, activate the gprMax Miniconda environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows)
-* gprMax in designed as a Python package, i.e. a namespace which can contain multiple packages and modules, much like a directory. Basic usage is:
+gprMax in designed as a Python package, i.e. a namespace which can contain multiple packages and modules, much like a directory.
+
+Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows)
+
+Basic usage of gprMax is:
 
 .. code-block:: none
 
