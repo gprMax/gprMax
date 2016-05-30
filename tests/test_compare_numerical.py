@@ -77,12 +77,12 @@ for ID, name in fields.items():
 
 # Plot new
 fig1, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), num=newfile + ' versus ' + oldfile, figsize=(20, 10), facecolor='w', edgecolor='w')
-    ax1.plot(timenew, new[:,0],'r', lw=2, label='Ex')
-    ax3.plot(timenew, new[:,2],'r', lw=2, label='Ey')
-    ax5.plot(timenew, new[:,4],'r', lw=2, label='Ez')
-    ax2.plot(timenew, new[:,1],'b', lw=2, label='Hx')
-    ax4.plot(timenew, new[:,3],'b', lw=2, label='Hy')
-    ax6.plot(timenew, new[:,5],'b', lw=2, label='Hz')
+ax1.plot(timenew, new[:,0],'r', lw=2, label='Ex')
+ax3.plot(timenew, new[:,2],'r', lw=2, label='Ey')
+ax5.plot(timenew, new[:,4],'r', lw=2, label='Ez')
+ax2.plot(timenew, new[:,1],'b', lw=2, label='Hx')
+ax4.plot(timenew, new[:,3],'b', lw=2, label='Hy')
+ax6.plot(timenew, new[:,5],'b', lw=2, label='Hz')
     
 # Set ylabels
 ylabels = ['$E_x$, field strength [V/m]', '$H_x$, field strength [A/m]', '$E_y$, field strength [V/m]', '$H_y$, field strength [A/m]', '$E_z$, field strength [V/m]', '$H_z$, field strength [A/m]']
@@ -103,12 +103,12 @@ for index, ax in enumerate(fig1.axes):
 
 # Plots of differences
 fig2, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), num='Deltas: ' + newfile + ' versus ' + oldfile, figsize=(20, 10), facecolor='w', edgecolor='w')
-    ax1.plot(timenew[:timesmallest], diffs[:,0],'r', lw=2, label='Ex')
-    ax3.plot(timenew[:timesmallest], diffs[:,2],'r', lw=2, label='Ey')
-    ax5.plot(timenew[:timesmallest], diffs[:,4],'r', lw=2, label='Ez')
-    ax2.plot(timenew[:timesmallest], diffs[:,1],'b', lw=2, label='Hx')
-    ax4.plot(timenew[:timesmallest], diffs[:,3],'b', lw=2, label='Hy')
-    ax6.plot(timenew[:timesmallest], diffs[:,5],'b', lw=2, label='Hz')
+ax1.plot(timenew[:timesmallest], diffs[:,0],'r', lw=2, label='Ex')
+ax3.plot(timenew[:timesmallest], diffs[:,2],'r', lw=2, label='Ey')
+ax5.plot(timenew[:timesmallest], diffs[:,4],'r', lw=2, label='Ez')
+ax2.plot(timenew[:timesmallest], diffs[:,1],'b', lw=2, label='Hx')
+ax4.plot(timenew[:timesmallest], diffs[:,3],'b', lw=2, label='Hy')
+ax6.plot(timenew[:timesmallest], diffs[:,5],'b', lw=2, label='Hz')
 
 # Set ylabels
 ylabels = ['$E_x$', '$H_x$', '$E_y$', '$H_y$', '$E_z$', '$H_z$']
