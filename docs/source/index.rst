@@ -6,7 +6,7 @@ gprMax User Guide
     :maxdepth: 2
     :caption: Introduction
 
-    readme_install_devs
+    include_readme
     features
     gprmodelling
 
