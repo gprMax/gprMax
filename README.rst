@@ -71,11 +71,11 @@ We recommend using Miniconda to install Python and the required Python packages 
 
 .. code-block:: none
 
-    conda update conda
-    conda install git
-    git clone https://github.com/gprMax/gprMax.git
-    cd gprMax
-    conda env create -f conda_env.yml
+    $ conda update conda
+    $ conda install git
+    $ git clone https://github.com/gprMax/gprMax.git
+    $ cd gprMax
+    $ conda env create -f conda_env.yml
 
 This will make sure conda is up-to-date, install Git, get the latest gprMax source code from GitHub, and create an environment for gprMax with all the necessary Python packages.
 
@@ -93,7 +93,11 @@ Linux
 Mac OS X
 ^^^^^^^^
 
-* Installations of Xcode on Mac OS X come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install gcc (https://gcc.gnu.org). This is easily done by installing the Homebrew package manager (http://brew.sh) and running :code:`brew install gcc-6 --without-multilib`.
+* Installations of Xcode on Mac OS X come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install gcc (https://gcc.gnu.org). This is easily done by installing the Homebrew package manager (http://brew.sh) and running:
+
+.. code-block:: bash
+
+    $ brew install gcc-6 --without-multilib
 
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
@@ -107,10 +111,10 @@ Once you have installed the aforementioned tools follow these steps to build and
 
 * Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows). Run the following commands:
 
-.. code-block:: none
+.. code-block:: bash
 
-    python setup.py build
-    python setup.py install
+    (gprMax)$ python setup.py build
+    (gprMax)$ python setup.py install
 
 **You are now ready to proceed to running gprMax.**
 
@@ -120,12 +124,12 @@ Updating gprMax
 
 * Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows). Run the following commands:
 
-.. code-block:: none
+.. code-block:: bash
 
-    git pull
-    python setup.py cleanall
-    python setup.py build
-    python setup.py install
+    (gprMax)$ git pull
+    (gprMax)$ python setup.py cleanall
+    (gprMax)$ python setup.py build
+    (gprMax)$ python setup.py install
 
 This will pull the most recentr gprMax source code form GitHub, remove/clean previously built modules, and then build and install the latest version of gprMax.
 
@@ -139,21 +143,21 @@ Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows), navigate into the 
 
 Basic usage of gprMax is:
 
-.. code-block:: none
+.. code-block:: bash
 
-    python -m gprMax path_to/name_of_input_file
+    (gprMax)$ python -m gprMax path_to/name_of_input_file
 
 For example to run one of the test models:
 
-.. code-block:: none
+.. code-block:: bash
 
-    python -m gprMax user_models/cylinder_Ascan_2D.in
+    (gprMax)$ python -m gprMax user_models/cylinder_Ascan_2D.in
 
 When the simulation is complete you can plot the A-scan using:
 
-.. code-block:: none
+.. code-block:: bash
 
-    python -m tools.plot_Ascan user_models/cylinder_Ascan_2D.out
+    (gprMax)$ python -m tools.plot_Ascan user_models/cylinder_Ascan_2D.out
 
 Your results should like those from the A-scan from a metal cylinder example in introductory/basic 2D models section (http://docs.gprmax.com/en/latest/examples_simple_2D.html#view-the-results).
 
@@ -175,15 +179,15 @@ There are optional command line arguments for gprMax:
 
 For example, to check the geometry of a model:
 
-.. code-block:: none
+.. code-block:: bash
 
-    python -m gprMax user_models/heterogeneous_soil.in --geometry-only
+    (gprMax)$ python -m gprMax user_models/heterogeneous_soil.in --geometry-only
 
 For example, to run a B-scan with 60 traces:
 
-.. code-block:: none
+.. code-block:: bash
 
-    python -m gprMax user_models/cylinder_Bscan_2D.in -n 60
+    (gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60
 
 
 
