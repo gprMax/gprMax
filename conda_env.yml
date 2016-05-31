@@ -7,12 +7,9 @@ dependencies:
 - cython
 - h5py
 - jupyter
+- lxml
 - matplotlib
 - mpi4py
 - numpy
+- psutil
 - scipy
-- lxml
-
-- pip:
-  - psutil
-  - pyfiglet

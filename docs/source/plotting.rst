@@ -40,12 +40,12 @@ gprMax produces a separate output file for each trace (A-scan) in the B-scan. Th
 
 .. code-block:: none
 
-    python -m tools.plot_Bscan outputfile output
+    python -m tools.plot_Bscan outputfile rx-component
 
 where:
 
 * ``outputfile`` is the name of output file including the path
-* ``output`` is the name of output component (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``, ``Ix``, ``Iy`` or ``Iz``) to plot
+* ``rx-component`` is the name of the receiver output component (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``, ``Ix``, ``Iy`` or ``Iz``) to plot
 
 
 Antenna parameters
@@ -54,16 +54,26 @@ Antenna parameters
 plot_antenna_params.py
 ----------------------
 
-This module uses matplotlib to plot the input impedance (resistance and reactance) and s11 parameter from an antenna model fed using a transmission line. It also plots the time history of the incident and reflected voltages in the transmission line and their frequency spectra. Usage (from the top-level gprMax directory) is:
+This module uses matplotlib to plot the input impedance (resistance and reactance) and s11 parameter from an antenna model fed using a transmission line. It also plots the time history of the incident and reflected voltages in the transmission line and their frequency spectra. The module can optionally plot the s21 parameter if another transmission line or a receiver output (``#rx``) is used on the receiver antenna. Usage (from the top-level gprMax directory) is:
 
 .. code-block:: none
 
-    python -m tools.plot_antenna_params outputfile --tln transmissionlinenumber
+    python -m tools.plot_antenna_params outputfile
 
-where:
+where ``outputfile`` is the name of output file including the path.
 
-* ``outputfile`` is the name of output file including the path
-* ``--tln`` is the number of the transmission line (default is one). Transmission lines are numbered (starting at one) in the order they appear in the input file.
+There are optional command line arguments:
+
+* ``--tltx-num`` is the number of the transmission line (default is one) for the transmitter antenna. Transmission lines are numbered (starting at one) in the order they appear in the input file.
+* ``--tlrx-num`` is the number of the transmission line (default is None) for the receiver antenna (for a s21 parameter). Transmission lines are numbered (starting at one) in the order they appear in the input file.
+* ``--rx-num`` is the number of the receiver output (default is None) for the receiver antenna (for a s21 parameter). Receivers are numbered (starting at one) in the order they appear in the input file.
+* ``--rx-component`` is the electric field component (``Ex``, ``Ey`` or ``Ez``) of the receiver output for the receiver antenna (for a s21 parameter).
+
+For example to plot the input impedance, s11 and s21 parameters from a simulation with transmitter and receiver antennas that are attached to transmission lines (the transmission line feeding the transmitter appears first in the input file, and the transmission line attached to the receiver antenna appears after it).
+
+.. code-block:: none
+
+    python -m tools.plot_antenna_params outputfile --tltx-num 1 --tlrx-num 2
 
 
 .. _waveforms:

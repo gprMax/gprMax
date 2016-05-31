@@ -25,12 +25,13 @@ import matplotlib.gridspec as gridspec
 from gprMax.exceptions import CmdInputError
 
 
-def calculate_antenna_params(filename, tlnumber=1, rxnumber=None, rxcomponent=None):
+def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=None, rxcomponent=None):
     """Calculates antenna parameters - incident, reflected and total volatges and currents; s11, (s21) and input impedance.
             
     Args:
         filename (string): Filename (including path) of output file.
-        tlnumber (int): Transmitting antenna - transmission line number
+        tltxnumber (int): Transmitter antenna - transmission line number
+        tlrxnumber (int): Receiver antenna - transmission line number
         rxnumber (int): Receiver antenna - output number
         rxcomponent (str): Receiver antenna - output electric field component
         
@@ -53,23 +54,27 @@ def calculate_antenna_params(filename, tlnumber=1, rxnumber=None, rxcomponent=No
     print('Time step: {:g} s'.format(dt))
     print('Frequency bin spacing: {:g} Hz'.format(df))
 
-    # Read/calculate voltages and currents
-    tlpath = '/tls/tl' + str(tlnumber) + '/'
+    # Read/calculate voltages and currents from transmitter antenna
+    tltxpath = '/tls/tl' + str(tltxnumber) + '/'
 
     # Incident voltages/currents
-    Vinc = f[tlpath + 'Vinc'][:]
-    Iinc = f[tlpath + 'Iinc'][:]
+    Vinc = f[tltxpath + 'Vinc'][:]
+    Iinc = f[tltxpath + 'Iinc'][:]
 
     # Total (incident + reflected) voltages/currents
-    Vtotal = f[tlpath +'Vtotal'][:]
-    Itotal = f[tlpath +'Itotal'][:]
+    Vtotal = f[tltxpath +'Vtotal'][:]
+    Itotal = f[tltxpath +'Itotal'][:]
 
     # Reflected voltages/currents
     Vref = Vtotal - Vinc
     Iref = Itotal - Iinc
 
-    # If a receiver number for a receiever antenna is given can get received voltage for s21
-    if rxnumber:       
+    # If a receiver antenna is used (with a transmission line or receiver), get received voltage for s21
+    if tlrxnumber:
+        tlrxpath = '/tls/tl' + str(tlrxnumber) + '/'
+        Vrec = f[tlrxpath +'Vtotal'][:]
+
+    elif rxnumber:
         rxpath = '/rxs/rx' + str(rxnumber) + '/'
         availableoutputs = list(f[rxpath].keys())
         
@@ -95,7 +100,7 @@ def calculate_antenna_params(filename, tlnumber=1, rxnumber=None, rxcomponent=No
 
     # Calculate s11 and (optionally) s21
     s11 = np.abs(np.fft.fft(Vref) * delaycorrection) / np.abs(np.fft.fft(Vinc) * delaycorrection)
-    if rxnumber:
+    if tlrxnumber or rxnumber:
         s21 = np.abs(np.fft.fft(Vrec)) / np.abs(np.fft.fft(Vinc) * delaycorrection)
 
     # Calculate input impedance
@@ -118,17 +123,18 @@ def calculate_antenna_params(filename, tlnumber=1, rxnumber=None, rxcomponent=No
                     'Vref': Vref, 'Vrefp': Vrefp, 'Iref': Iref, 'Irefp': Irefp,
                     'Vtotal': Vtotal, 'Vtotalp': Vtotalp, 'Itotal': Itotal, 'Itotalp': Itotalp,
                     's11': s11, 'zin': zin, 'yin': yin}
-    if rxnumber:
+    if tlrxnumber or rxnumber:
         s21 = 20 * np.log10(s21)
         antennaparams['s21'] = s21
 
     return antennaparams
 
 
-def mpl_plot(time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref, Irefp, Vtotal, Vtotalp, Itotal, Itotalp, s11, zin, yin, s21=None):
+def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref, Irefp, Vtotal, Vtotalp, Itotal, Itotalp, s11, zin, yin, s21=None):
     """Plots antenna parameters - incident, reflected and total volatges and currents; s11, (s21) and input impedance.
             
     Args:
+        filename (string): Filename (including path) of output file.
         time (array): Simulation time.
         freq (array): Frequencies for FFTs.
         Vinc, Vincp, Iinc, Iincp (array): Time and frequency domain representations of incident voltage and current.
@@ -159,7 +165,7 @@ def mpl_plot(time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref, Irefp, Vt
 
     # Figure 1
     # Plot incident voltage
-    fig1, ax = plt.subplots(num='Transmission line parameters', figsize=(20, 12), facecolor='w', edgecolor='w')
+    fig1, ax = plt.subplots(num='Transmitter transmission line parameters', figsize=(20, 12), facecolor='w', edgecolor='w')
     gs1 = gridspec.GridSpec(4, 2, hspace=0.7)
     ax = plt.subplot(gs1[0, 0])
     ax.plot(time, Vinc, 'r', lw=2, label='Vinc')
@@ -304,7 +310,7 @@ def mpl_plot(time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref, Irefp, Vt
     ax.grid()
 
     # Plot frequency spectra of s21
-    if s21:
+    if s21 is not None:
         ax = plt.subplot(gs2[0, 1])
         markerline, stemlines, baseline = ax.stem(freqs[pltrange], s21[pltrange], '-.')
         plt.setp(baseline, 'linewidth', 0)
@@ -389,12 +395,13 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Plots antenna parameters (s11, s21 parameters and input impedance) from an output file containing a transmission line source.', usage='cd gprMax; python -m tools.plot_antenna_params outputfile')
     parser.add_argument('outputfile', help='name of output file including path')
-    parser.add_argument('--tl-num', default=1, type=int, help='transmitting antenna - transmission line number')
+    parser.add_argument('--tltx-num', default=1, type=int, help='transmitter antenna - transmission line number')
+    parser.add_argument('--tlrx-num', type=int, help='receiver antenna - transmission line number')
     parser.add_argument('--rx-num', type=int, help='receiver antenna - output number')
     parser.add_argument('--rx-component', type=str, help='receiver antenna - output electric field component', choices=['Ex', 'Ey', 'Ez'])
     args = parser.parse_args()
 
-    antennaparams = calculate_antenna_params(args.outputfile, args.tl_num, args.rx_num, args.rx_component)
-    plt = mpl_plot(**antennaparams)
+    antennaparams = calculate_antenna_params(args.outputfile, args.tltx_num, args.tlrx_num, args.rx_num, args.rx_component)
+    plt = mpl_plot(args.outputfile, **antennaparams)
     plt.show()
 

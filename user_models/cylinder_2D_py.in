@@ -1,0 +1,53 @@
+#python:
+from gprMax.input_cmd_funcs import *
+command('title', 'A or B scan from a metal cylinder buried in a dielectric half-space')
+z_dim = 0.002
+resolution = 0.002
+tsim = 3e-9
+B_scan = False
+
+domain = domain(x=64e-2, y=30e-2, z=z_dim)
+dx = dx_dy_dz(resolution, resolution, z_dim)
+time_window(tsim)
+
+material(permittivity=6, conductivity=0,
+         permeability=1, magconductivity=0, name='half_space')
+
+identifier = waveform('ricker', amplitude=1, frequency=1.5e9,
+                      identifier='my_ricker')
+
+if B_scan:
+    x_ant = 8e-2
+else:
+    x_ant = domain.x/2 - 1e-2 # in the middle of the x-axis
+
+tx = hertzian_dipole('z',
+                     x_ant, domain.y - 4e-2, 0, # minus 4 cm in y-direction
+                     identifier)
+rx(tx.x + 2e-2, tx.y, tx.z)     # 2 cm away in x-direction from tx
+
+if B_scan:
+    src_steps(dx=0.8e-2/4)
+    rx_steps(dx=0.8e-2/4)
+
+b0, b1 = box(0, 0, 0,
+             domain.x, domain.y - 4e-2, z_dim, # same as domain, minus 4 cm in y-direction
+             'half_space')
+
+c_x, c_y = (domain.x/2, b1.y - 5e-2) # in the middle of the x-axis and 5 cm down from the half_space
+cylinder(c_x, c_y, 0,
+         c_x, c_y, z_dim,
+         radius=1e-2, material='pec')
+
+# Outputs, geometry and snapshots
+geometry_view(0, 0, 0,
+              domain.x, domain.y, domain.z,
+              dx.x, dx.y, dx.z,
+              'cylinder', 'n')
+
+N = 32
+for i in range(1, N+1):
+    snapshot(0, 0, 0,
+             domain.x, domain.y, domain.z,
+             dx.x, dx.y, dx.z, i*(tsim/N), 'snapshot' + str(i))
+#end_python:
