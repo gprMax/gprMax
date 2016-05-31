@@ -20,6 +20,7 @@ import numpy as np
 
 from gprMax.constants import c, floattype, complextype
 from gprMax.materials import Material
+from gprMax.utilities import round_value
 
 
 class Grid(object):
@@ -29,6 +30,9 @@ class Grid(object):
         self.nx = grid.shape[0]
         self.ny = grid.shape[1]
         self.nz = grid.shape[2]
+        self.dx = 1
+        self.dy = 1
+        self.dz = 1
         self.i_max = self.nx - 1
         self.j_max = self.ny - 1
         self.k_max = self.nz - 1
@@ -50,6 +54,14 @@ class Grid(object):
     def get(self, i, j, k):
         return self.grid[i, j, k]
 
+    def within_bounds(self, **kwargs):
+        for co, val in kwargs.items():
+            if val < 0 or val > getattr(self, 'n' + co):
+                raise ValueError(co)
+
+    def calculate_coord(self, coord, val):
+        co = round_value(float(val) / getattr(self, 'd' + coord))
+        return co
 
 class FDTDGrid(Grid):
     """Holds attributes associated with the entire grid. A convenient way for accessing regularly used parameters."""

@@ -30,11 +30,19 @@ from gprMax.waveforms import Waveform
 
 def process_multicmds(multicmds, G):
     """Checks the validity of command parameters and creates instances of classes of parameters.
-        
+
     Args:
         multicmds (dict): Commands that can have multiple instances in the model.
         G (class): Grid class instance - holds essential parameters describing the model.
     """
+
+    # Check if coordinates are within the bounds of the grid
+    def check_coordinates(x, y, z, name=''):
+        try:
+            G.within_bounds(x=x, y=y, z=z)
+        except ValueError as err:
+            s = "'{}: {} ' {} {}-coordinate is not within the model domain".format(cmdname, ' '.join(tmp), name, err.args[0])
+            raise CmdInputError(s)
 
     # Waveform definitions
     cmdname = '#waveform'
@@ -49,16 +57,16 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires an excitation frequency value of greater than zero')
             if any(x.ID == tmp[3] for x in G.waveforms):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' with ID {} already exists'.format(tmp[3]))
-            
+
             w = Waveform()
             w.ID = tmp[3]
             w.type = tmp[0].lower()
             w.amp = float(tmp[1])
             w.freq = float(tmp[2])
-            
+
             if G.messages:
                 print('Waveform {} of type {} with amplitude {:g}, frequency {:g}Hz created.'.format(w.ID, w.type, w.amp, w.freq))
-            
+
             G.waveforms.append(w)
 
 
@@ -69,29 +77,24 @@ def process_multicmds(multicmds, G):
             tmp = cmdinstance.split()
             if len(tmp) < 6:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
-            
+
             # Check polarity & position parameters
             if tmp[0].lower() not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            xcoord = round_value(float(tmp[1])/G.dx)
-            ycoord = round_value(float(tmp[2])/G.dy)
-            zcoord = round_value(float(tmp[3])/G.dz)
+            xcoord = G.calculate_coord('x', tmp[1])
+            ycoord = G.calculate_coord('y', tmp[2])
+            zcoord = G.calculate_coord('z', tmp[3])
             resistance = float(tmp[4])
-            if xcoord < 0 or xcoord >= G.nx:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' x-coordinate is not within the model domain')
-            if ycoord < 0 or ycoord >= G.ny:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' y-coordinate is not within the model domain')
-            if zcoord < 0 or zcoord >= G.nz:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' z-coordinate is not within the model domain')
+            check_coordinates(xcoord, ycoord, zcoord)
             if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.\n')
             if resistance < 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a source resistance of zero or greater')
-                    
+
             # Check if there is a waveformID in the waveforms list
             if not any(x.ID == tmp[5] for x in G.waveforms):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[5]))
-            
+
             v = VoltageSource()
             v.polarisation= tmp[0]
             v.xcoord = xcoord
@@ -100,7 +103,7 @@ def process_multicmds(multicmds, G):
             v.ID = 'VoltageSource(' + str(v.xcoord) + ',' + str(v.ycoord) + ',' + str(v.zcoord) + ')'
             v.resistance = resistance
             v.waveformID = tmp[5]
-            
+
             if len(tmp) > 6:
                 # Check source start & source remove time parameters
                 start = float(tmp[6])
@@ -121,10 +124,10 @@ def process_multicmds(multicmds, G):
                 v.start = 0
                 v.stop = G.timewindow
                 startstop = ' '
-            
+
             if G.messages:
                 print('Voltage source with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(v.polarisation, v.xcoord * G.dx, v.ycoord * G.dy, v.zcoord * G.dz, v.resistance) + startstop + 'using waveform {} created.'.format(v.waveformID))
-            
+
             G.voltagesources.append(v)
 
 
@@ -135,26 +138,21 @@ def process_multicmds(multicmds, G):
             tmp = cmdinstance.split()
             if len(tmp) < 5:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
-            
+
             # Check polarity & position parameters
             if tmp[0].lower() not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            xcoord = round_value(float(tmp[1])/G.dx)
-            ycoord = round_value(float(tmp[2])/G.dy)
-            zcoord = round_value(float(tmp[3])/G.dz)
-            if xcoord < 0 or xcoord >= G.nx:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' x-coordinate is not within the model domain')
-            if ycoord < 0 or ycoord >= G.ny:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' y-coordinate is not within the model domain')
-            if zcoord < 0 or zcoord >= G.nz:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' z-coordinate is not within the model domain')
+            xcoord = G.calculate_coord('x', tmp[1])
+            ycoord = G.calculate_coord('y', tmp[2])
+            zcoord = G.calculate_coord('z', tmp[3])
+            check_coordinates(xcoord, ycoord, zcoord)
             if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.\n')
-                    
+
             # Check if there is a waveformID in the waveforms list
             if not any(x.ID == tmp[4] for x in G.waveforms):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[4]))
-            
+
             h = HertzianDipole()
             h.polarisation = tmp[0]
             h.xcoord = xcoord
@@ -165,7 +163,7 @@ def process_multicmds(multicmds, G):
             h.zcoordbase = zcoord
             h.ID = 'HertzianDipole(' + str(h.xcoord) + ',' + str(h.ycoord) + ',' + str(h.zcoord) + ')'
             h.waveformID = tmp[4]
-            
+
             if len(tmp) > 5:
                 # Check source start & source remove time parameters
                 start = float(tmp[5])
@@ -186,10 +184,10 @@ def process_multicmds(multicmds, G):
                 h.start = 0
                 h.stop = G.timewindow
                 startstop = ' '
-            
+
             if G.messages:
                 print('Hertzian dipole with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
-            
+
             G.hertziandipoles.append(h)
 
 
@@ -200,26 +198,21 @@ def process_multicmds(multicmds, G):
             tmp = cmdinstance.split()
             if len(tmp) < 5:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
-            
+
             # Check polarity & position parameters
             if tmp[0].lower() not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            xcoord = round_value(float(tmp[1])/G.dx)
-            ycoord = round_value(float(tmp[2])/G.dy)
-            zcoord = round_value(float(tmp[3])/G.dz)
-            if xcoord < 0 or xcoord >= G.nx:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' x-coordinate is not within the model domain')
-            if ycoord < 0 or ycoord >= G.ny:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' y-coordinate is not within the model domain')
-            if zcoord < 0 or zcoord >= G.nz:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' z-coordinate is not within the model domain')
+            xcoord = G.calculate_coord('x', tmp[1])
+            ycoord = G.calculate_coord('y', tmp[2])
+            zcoord = G.calculate_coord('z', tmp[3])
+            check_coordinates(xcoord, ycoord, zcoord)
             if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.\n')
-                    
+
             # Check if there is a waveformID in the waveforms list
             if not any(x.ID == tmp[4] for x in G.waveforms):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[4]))
-            
+
             m = MagneticDipole()
             m.polarisation = tmp[0]
             m.xcoord = xcoord
@@ -230,7 +223,7 @@ def process_multicmds(multicmds, G):
             m.zcoordbase = zcoord
             m.ID = 'MagneticDipole(' + str(m.xcoord) + ',' + str(m.ycoord) + ',' + str(m.zcoord) + ')'
             m.waveformID = tmp[4]
-            
+
             if len(tmp) > 5:
                 # Check source start & source remove time parameters
                 start = float(tmp[5])
@@ -251,12 +244,11 @@ def process_multicmds(multicmds, G):
                 m.start = 0
                 m.stop = G.timewindow
                 startstop = ' '
-            
+
             if G.messages:
                 print('Magnetic dipole with polarity {} at {:g}m, {:g}m, {:g}m,'.format(m.polarisation, m.xcoord * G.dx, m.ycoord * G.dy, m.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(m.waveformID))
-            
-            G.magneticdipoles.append(m)
 
+            G.magneticdipoles.append(m)
 
     # Transmission line
     cmdname = '#transmission_line'
@@ -265,29 +257,27 @@ def process_multicmds(multicmds, G):
             tmp = cmdinstance.split()
             if len(tmp) < 6:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
-            
+
             # Check polarity & position parameters
             if tmp[0].lower() not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            xcoord = round_value(float(tmp[1])/G.dx)
-            ycoord = round_value(float(tmp[2])/G.dy)
-            zcoord = round_value(float(tmp[3])/G.dz)
+
+            xcoord = G.calculate_coord('x', tmp[1])
+            ycoord = G.calculate_coord('y', tmp[2])
+            zcoord = G.calculate_coord('z', tmp[3])
             resistance = float(tmp[4])
-            if xcoord < 0 or xcoord >= G.nx:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' x-coordinate is not within the model domain')
-            if ycoord < 0 or ycoord >= G.ny:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' y-coordinate is not within the model domain')
-            if zcoord < 0 or zcoord >= G.nz:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' z-coordinate is not within the model domain')
+
+            check_coordinates(xcoord, ycoord, zcoord)
+
             if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.\n')
             if resistance <= 0 or resistance > z0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a resistance greater than zero and less than the impedance of free space, i.e. 376.73 Ohms')
-                    
+
             # Check if there is a waveformID in the waveforms list
             if not any(x.ID == tmp[5] for x in G.waveforms):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[4]))
-            
+
             t = TransmissionLine(G)
             t.polarisation = tmp[0]
             t.xcoord = xcoord
@@ -297,7 +287,7 @@ def process_multicmds(multicmds, G):
             t.resistance = resistance
             t.waveformID = tmp[5]
             t.calculate_incident_V_I(G)
-            
+
             if len(tmp) > 6:
                 # Check source start & source remove time parameters
                 start = float(tmp[6])
@@ -318,12 +308,11 @@ def process_multicmds(multicmds, G):
                 t.start = 0
                 t.stop = G.timewindow
                 startstop = ' '
-            
+
             if G.messages:
                 print('Transmission line with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(t.polarisation, t.xcoord * G.dx, t.ycoord * G.dy, t.zcoord * G.dz, t.resistance) + startstop + 'using waveform {} created.'.format(t.waveformID))
-            
-            G.transmissionlines.append(t)
 
+            G.transmissionlines.append(t)
 
     # Receiver
     cmdname = '#rx'
@@ -337,15 +326,10 @@ def process_multicmds(multicmds, G):
             xcoord = round_value(float(tmp[0])/G.dx)
             ycoord = round_value(float(tmp[1])/G.dy)
             zcoord = round_value(float(tmp[2])/G.dz)
-            if xcoord < 0 or xcoord >= G.nx:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' x-coordinate is not within the model domain')
-            if ycoord < 0 or ycoord >= G.ny:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' y-coordinate is not within the model domain')
-            if zcoord < 0 or zcoord >= G.nz:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' z-coordinate is not within the model domain')
+            check_coordinates(xcoord, ycoord, zcoord)
             if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.\n')
-            
+
             r = Rx()
             r.xcoord = xcoord
             r.ycoord = ycoord
@@ -353,7 +337,7 @@ def process_multicmds(multicmds, G):
             r.xcoordbase = xcoord
             r.ycoordbase = ycoord
             r.zcoordbase = zcoord
-            
+
             # If no ID or outputs are specified, use default i.e Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, Iz
             if len(tmp) == 3:
                 r.ID = 'Rx(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'
@@ -366,10 +350,10 @@ def process_multicmds(multicmds, G):
                         r.outputs.append(field)
                     else:
                         raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' contains an output type that is not available')
-            
+
             if G.messages:
                 print('Receiver at {:g}m, {:g}m, {:g}m with output(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))
-            
+
             G.rxs.append(r)
 
 
@@ -381,28 +365,21 @@ def process_multicmds(multicmds, G):
             if len(tmp) != 9:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly nine parameters')
 
-            xs = round_value(float(tmp[0])/G.dx)
-            xf = round_value(float(tmp[3])/G.dx)
-            ys = round_value(float(tmp[1])/G.dy)
-            yf = round_value(float(tmp[4])/G.dy)
-            zs = round_value(float(tmp[2])/G.dz)
-            zf = round_value(float(tmp[5])/G.dz)
-            dx = round_value(float(tmp[6])/G.dx)
-            dy = round_value(float(tmp[7])/G.dy)
-            dz = round_value(float(tmp[8])/G.dz)
+            xs = G.calculate_coord('x', tmp[0])
+            ys = G.calculate_coord('y', tmp[1])
+            zs = G.calculate_coord('z', tmp[2])
 
-            if xs < 0 or xs >= G.nx:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs))
-            if xf < 0 or xf >= G.nx:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the upper x-coordinate {:g}m is not within the model domain'.format(xf))
-            if ys < 0 or ys >= G.ny:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower y-coordinate {:g}m is not within the model domain'.format(ys))
-            if yf < 0 or yf >= G.ny:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the upper y-coordinate {:g}m is not within the model domain'.format(yf))
-            if zs < 0 or zs >= G.nz:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower z-coordinate {:g}m is not within the model domain'.format(zs))
-            if zf < 0 or zf >= G.nz:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the upper z-coordinate {:g}m is not within the model domain'.format(zf))
+            xf = G.calculate_coord('x', tmp[3])
+            yf = G.calculate_coord('y', tmp[4])
+            zf = G.calculate_coord('z', tmp[5])
+
+            dx = G.calculate_coord('x', tmp[6])
+            dy = G.calculate_coord('y', tmp[7])
+            dz = G.calculate_coord('z', tmp[8])
+
+            check_coordinates(xs, ys, zs, name='lower')
+            check_coordinates(xf, yf, zf, name='upper')
+
             if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.\n')
             if xs >= xf or ys >= yf or zs >= zf:
@@ -427,8 +404,8 @@ def process_multicmds(multicmds, G):
 
             if G.messages:
                 print('Receiver box {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with steps {:g}m, {:g}m, {:g} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz))
-                    
-                    
+
+
     # Snapshot
     cmdname = '#snapshot'
     if multicmds[cmdname] != 'None':
@@ -437,16 +414,18 @@ def process_multicmds(multicmds, G):
             if len(tmp) != 11:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
 
-            xs = round_value(float(tmp[0])/G.dx)
-            xf = round_value(float(tmp[3])/G.dx)
-            ys = round_value(float(tmp[1])/G.dy)
-            yf = round_value(float(tmp[4])/G.dy)
-            zs = round_value(float(tmp[2])/G.dz)
-            zf = round_value(float(tmp[5])/G.dz)
-            dx = round_value(float(tmp[6])/G.dx)
-            dy = round_value(float(tmp[7])/G.dy)
-            dz = round_value(float(tmp[8])/G.dz)
-            
+            xs = G.calculate_coord('x', tmp[0])
+            ys = G.calculate_coord('y', tmp[1])
+            zs = G.calculate_coord('z', tmp[2])
+
+            xf = G.calculate_coord('x', tmp[3])
+            yf = G.calculate_coord('y', tmp[4])
+            zf = G.calculate_coord('z', tmp[5])
+
+            dx = G.calculate_coord('x', tmp[6])
+            dy = G.calculate_coord('y', tmp[7])
+            dz = G.calculate_coord('z', tmp[8])
+
             # If number of iterations given
             try:
                 time = int(tmp[9])
@@ -457,19 +436,10 @@ def process_multicmds(multicmds, G):
                     time = round_value((time / G.dt)) + 1
                 else:
                     raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' time value must be greater than zero')
-            
-            if xs < 0 or xs > G.nx:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
-            if xf < 0 or xf > G.nx:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the upper x-coordinate {:g}m is not within the model domain'.format(xf * G.dx))
-            if ys < 0 or ys > G.ny:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower y-coordinate {:g}m is not within the model domain'.format(ys * G.dy))
-            if yf < 0 or yf > G.ny:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the upper y-coordinate {:g}m is not within the model domain'.format(yf * G.dy))
-            if zs < 0 or zs > G.nz:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower z-coordinate {:g}m is not within the model domain'.format(zs * G.dz))
-            if zf < 0 or zf > G.nz:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the upper z-coordinate {:g}m is not within the model domain'.format(zf * G.dz))
+
+            check_coordinates(xs, ys, zs, name='lower')
+            check_coordinates(xf, yf, zf, name='upper')
+
             if xs >= xf or ys >= yf or zs >= zf:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
             if dx < 0 or dy < 0 or dz < 0:
@@ -478,14 +448,13 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
             if time <= 0 or time > G.iterations:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' time value is not valid')
-                    
+
             s = Snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, tmp[10])
 
             if G.messages:
                 print('Snapshot from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, at {:g} secs with filename {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dx * G.dy, dx * G.dz, s.time * G.dt, s.basefilename))
-                    
-            G.snapshots.append(s)
 
+            G.snapshots.append(s)
 
     # Materials
     cmdname = '#material'
@@ -504,17 +473,17 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for magnetic conductivity')
             if any(x.ID == tmp[4] for x in G.materials):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' with ID {} already exists'.format(tmp[4]))
-            
+
             # Create a new instance of the Material class material (start index after pec & free_space)
             m = Material(len(G.materials), tmp[4], G)
             m.er = float(tmp[0])
             m.se = float(tmp[1])
             m.mr = float(tmp[2])
             m.sm = float(tmp[3])
-            
+
             if G.messages:
                 print('Material {} with epsr={:g}, sig={:g} S/m; mur={:g}, sig*={:g} S/m created.'.format(m.ID, m.er, m.se, m.mr, m.sm))
-            
+
             # Append the new material object to the materials list
             G.materials.append(m)
 
@@ -537,7 +506,7 @@ def process_multicmds(multicmds, G):
             if len(materials) != len(materialsrequested):
                 notfound = [x for x in materialsrequested if x not in materials]
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' material(s) {} do not exist'.format(notfound))
-            
+
             for material in materials:
                 material.type = 'debye'
                 material.poles = poles
@@ -572,7 +541,7 @@ def process_multicmds(multicmds, G):
             if len(materials) != len(materialsrequested):
                 notfound = [x for x in materialsrequested if x not in materials]
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' material(s) {} do not exist'.format(notfound))
-            
+
             for material in materials:
                 material.type = 'lorentz'
                 material.poles = poles
@@ -609,7 +578,7 @@ def process_multicmds(multicmds, G):
             if len(materials) != len(materialsrequested):
                 notfound = [x for x in materialsrequested if x not in materials]
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' material(s) {} do not exist'.format(notfound))
-            
+
             for material in materials:
                 material.type = 'drude'
                 material.poles = poles
@@ -647,13 +616,13 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for the upper limit of the water volumetric fraction')
             if any(x.ID == tmp[6] for x in G.mixingmodels):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' with ID {} already exists'.format(tmp[6]))
-            
+
             # Create a new instance of the Material class material (start index after pec & free_space)
             s = PeplinskiSoil(tmp[6], float(tmp[0]), float(tmp[1]), float(tmp[2]), float(tmp[3]), (float(tmp[4]), float(tmp[5])))
-            
+
             if G.messages:
                 print('Mixing model (Peplinski) used to create {} with sand fraction {:g}, clay fraction {:g}, bulk density {:g}g/cm3, sand particle density {:g}g/cm3, and water volumetric fraction {:g} to {:g} created.'.format(s.ID, s.S, s.C, s.rb, s.rs, s.mu[0], s.mu[1]))
-            
+
             # Append the new material object to the materials list
             G.mixingmodels.append(s)
 
@@ -666,28 +635,21 @@ def process_multicmds(multicmds, G):
             if len(tmp) != 11:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
 
-            xs = round_value(float(tmp[0])/G.dx)
-            xf = round_value(float(tmp[3])/G.dx)
-            ys = round_value(float(tmp[1])/G.dy)
-            yf = round_value(float(tmp[4])/G.dy)
-            zs = round_value(float(tmp[2])/G.dz)
-            zf = round_value(float(tmp[5])/G.dz)
-            dx = round_value(float(tmp[6])/G.dx)
-            dy = round_value(float(tmp[7])/G.dy)
-            dz = round_value(float(tmp[8])/G.dz)
+            xs = G.calculate_coord('x', tmp[0])
+            ys = G.calculate_coord('y', tmp[1])
+            zs = G.calculate_coord('z', tmp[2])
 
-            if xs < 0 or xs > G.nx:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
-            if xf < 0 or xf > G.nx:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the upper x-coordinate {:g}m is not within the model domain'.format(xf * G.dx))
-            if ys < 0 or ys > G.ny:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower y-coordinate {:g}m is not within the model domain'.format(ys * G.dy))
-            if yf < 0 or yf > G.ny:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the upper y-coordinate {:g}m is not within the model domain'.format(yf * G.dy))
-            if zs < 0 or zs > G.nz:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower z-coordinate {:g}m is not within the model domain'.format(zs * G.dz))
-            if zf < 0 or zf > G.nz:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the upper z-coordinate {:g}m is not within the model domain'.format(zf * G.dz))
+            xf = G.calculate_coord('x', tmp[3])
+            yf = G.calculate_coord('y', tmp[4])
+            zf = G.calculate_coord('z', tmp[5])
+
+            dx = G.calculate_coord('x', tmp[6])
+            dy = G.calculate_coord('y', tmp[7])
+            dz = G.calculate_coord('z', tmp[8])
+
+            check_coordinates(xs, ys, zs, name='lower')
+            check_coordinates(xf, yf, zf, name='upper')
+
             if xs >= xf or ys >= yf or zs >= zf:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
             if dx < 0 or dy < 0 or dz < 0:
@@ -700,7 +662,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires type to be either n (normal) or f (fine)')
             if tmp[10].lower() == 'f' and (dx * G.dx != G.dx or dy * G.dy != G.dy or dz * G.dz != G.dz):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires the spatial discretisation for the geometry view to be the same as the model for geometry view of type f (fine)')
-            
+
             g = GeometryView(xs, ys, zs, xf, yf, zf, dx, dy, dz, tmp[9], tmp[10].lower())
 
             if G.messages:
@@ -727,7 +689,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' minimum and maximum scaling values must be greater than zero')
             if float(tmp[6]) < 1:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' minimum scaling value for kappa must be greater than zero')
-            
+
             cfsalpha = CFSParameter()
             cfsalpha.ID = 'alpha'
             cfsalpha.scalingprofile = tmp[0]
@@ -753,9 +715,9 @@ def process_multicmds(multicmds, G):
             cfs.alpha = cfsalpha
             cfs.kappa = cfskappa
             cfs.sigma = cfssigma
-    
+
             if G.messages:
                 print('PML CFS parameters: alpha (scaling: {}, scaling direction: {}, min: {:g}, max: {:g}), kappa (scaling: {}, scaling direction: {}, min: {:g}, max: {:g}), sigma (scaling: {}, scaling direction: {}, min: {:g}, max: {:g}) created.'.format(cfsalpha.scalingprofile, cfsalpha.scalingdirection, cfsalpha.min, cfsalpha.max, cfskappa.scalingprofile, cfskappa.scalingdirection, cfskappa.min, cfskappa.max, cfssigma.scalingprofile, cfssigma.scalingdirection, cfssigma.min, cfssigma.max))
-            
+
             G.cfs.append(cfs)
 
