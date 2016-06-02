@@ -1,6 +1,8 @@
 # Copyright (C) 2015-2016: The University of Edinburgh
 #                 Authors: Craig Warren and Antonis Giannopoulos
 #
+# The contents include material subject to (C) Crown copyright (2016), Dstl.
+#
 # This file is part of gprMax.
 #
 # gprMax is free software: you can redistribute it and/or modify
@@ -61,6 +63,8 @@ def main():
     parser.add_argument('--geometry-fixed', action='store_true', default=False, help='flag to not reprocess model geometry for multiple model runs')
     parser.add_argument('--write-processed', action='store_true', default=False, help='flag to write an input file after any Python code and include commands in the original input file have been processed')
     parser.add_argument('--opt-taguchi', action='store_true', default=False, help='flag to optimise parameters using the Taguchi optimisation method')
+    parser.add_argument('-array', action='store_true', default=False, help='run as part of an HPC array job')
+    parser.add_argument('--array-id', default=1, type=int, help="this array task id")
     args = parser.parse_args()
 
     run_main(args)
@@ -121,6 +125,12 @@ def run_main(args):
                 raise GeneralError('MPI is not beneficial when there is only one model to run')
             run_mpi_sim(args, numbermodelruns, inputfile, usernamespace)
         # Standard behaviour - models run serially with each model parallelised with OpenMP
+        if args.array:
+            if args.benchmark:
+                raise GeneralError('Array jobs should not be used with benchmarking mode')
+            if numbermodelruns == 1:
+                raise GeneralError('Array jobs are not beneficial when there is only one model to run')
+            run_array_sim(args, numbermodelruns, inputfile, usernamespace)
         else:
             run_std_sim(args, numbermodelruns, inputfile, usernamespace)
 
@@ -259,6 +269,38 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
         comm.send(None, dest=0, tag=tags.EXIT.value)
 
 
+def run_array_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None):
+    """Run as part of an array job - models run as separate tasks, each parallelised with OpenMP
+    
+    Args:
+        args (dict): Namespace with command line arguments
+        numbermodelruns (int): Total number of model runs.
+        inputfile (str): Name of the input file to open.
+        usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
+        optparams (dict): Optional argument. For Taguchi optimisation it provides the parameters to optimise and their values.
+    """
+    modelrun = args.array_id # get model id to run
+    # check that the model run id is less than the total number of model runs
+    if modelrun > numbermodelruns:
+        raise GeneralError("Model run exceeds number of model runs!")
+
+    tsimstart = perf_counter()         
+    if optparams: # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
+        tmp = {}
+        tmp.update((key, value[modelrun - 1]) for key, value in optparams.items())
+        modelusernamespace = usernamespace.copy()
+        modelusernamespace.update({'optparams': tmp})
+    else:
+        modelusernamespace = usernamespace
+    
+    print("\nRunning model {} out of {}\n".format(modelrun, numbermodelruns))
+
+    run_model(args, modelrun, numbermodelruns, inputfile, modelusernamespace)
+
+    tsimend = perf_counter()
+    print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
+    
+    
 def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     """Runs a model - processes the input file; builds the Yee cells; calculates update coefficients; runs main FDTD loop.
 
