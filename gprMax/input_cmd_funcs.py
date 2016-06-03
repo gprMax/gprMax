@@ -143,7 +143,7 @@ def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type='n'):
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
     d = Coordinate(dx, dy, dz)
-    command('geometry_view', *s, *f, *d, filename, type)
+    command('geometry_view', s, f, d, filename, type)
 
     return s, f, d
 
@@ -169,7 +169,7 @@ def snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename):
     else:
         time = '{:d}'.format(int(time))
 
-    command('snapshot', *s, *f, *d, time, filename)
+    command('snapshot', s, f, d, time, filename)
 
     return s, f, d
 
@@ -186,7 +186,7 @@ def edge(xs, ys, zs, xf, yf, zf, material):
     """
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
-    command('edge', *s, *f, material)
+    command('edge', s, f, material)
 
     return s, f
 
@@ -203,7 +203,7 @@ def plate(xs, ys, zs, xf, yf, zf, material):
     """
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
-    command('plate', *s, *f, material)
+    command('plate', s, f, material)
 
     return s, f
 
@@ -222,7 +222,7 @@ def triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, thickness, material):
     v1 = Coordinate(x1, y1, z1)
     v2 = Coordinate(x2, y2, z2)
     v3 = Coordinate(x3, y3, z3)
-    command('triangle', *v1, *v2, *v3, thickness, material)
+    command('triangle', v1, v2, v3, thickness, material)
 
     return v1, v2, v3
 
@@ -240,7 +240,7 @@ def box(xs, ys, zs, xf, yf, zf, material, averaging=''):
     """
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
-    command('box', *s, *f, material, averaging)
+    command('box', s, f, material, averaging)
 
     return s, f
 
@@ -258,7 +258,7 @@ def sphere(x, y, z, radius, material, averaging=''):
         c (tuple): namedtuple Coordinate for the center of the sphere
     """
     c = Coordinate(x, y, z)
-    command('sphere', *c, radius, material, averaging)
+    command('sphere', c, radius, material, averaging)
 
     return c
 
@@ -277,7 +277,7 @@ def cylinder(x1, y1, z1, x2, y2, z2, radius, material, averaging=''):
     """
     c1 = Coordinate(x1, y1, z1)
     c2 = Coordinate(x2, y2, z2)
-    command('cylinder', *c1, *c2, radius, material, averaging)
+    command('cylinder', c1, c2, radius, material, averaging)
 
     return c1, c2
 
