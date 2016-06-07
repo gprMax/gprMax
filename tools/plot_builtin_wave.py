@@ -83,7 +83,13 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
     print('Type: {}'.format(w.type))
     print('Amplitude: {:g}'.format(w.amp))
     print('Centre frequency: {:g} Hz'.format(w.freq))
-    print('Time to centre of pulse: {:g} s'.format(1 / w.freq))
+
+    if w.type == 'gaussian' or w.type == 'gaussiandot' or w.type == 'gaussiandotdot':
+        delay = 1 / w.freq
+        print('Time to centre of pulse: {:g} s'.format(delay))
+    elif w.type == 'gaussiandotnorm' or w.type == 'gaussiandotdotnorm' or w.type == 'ricker':
+        delay = np.sqrt(2) / w.freq
+        print('Time to centre of pulse: {:g} s'.format(delay))
 
     # Calculate pulse width for gaussian
     if w.type == 'gaussian':
