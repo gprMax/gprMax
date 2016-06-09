@@ -1,0 +1,10 @@
+# Copyright (C) 2015-2016: The University of Edinburgh
+#                 Authors: Craig Warren and Antonis Giannopoulos
+#
+# This is the official list of people who have contributed to the gprMax repository.
+#
+# Please keep the list sorted by surname.
+
+Oystein Bjorndal
+John Hartley
+Rajath Kumar
