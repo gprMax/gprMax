@@ -30,6 +30,7 @@ Package overview
 
     gprMax/
         conda_env.yml
+        CONTRIBUTORS.rst
         docs/
         gprMax/
         LICENSE
@@ -42,6 +43,7 @@ Package overview
 
 
 * ``conda_env.yml`` is a configuration file for Anaconda (Miniconda) that sets up a Python environment with all the required Python packages for gprMax.
+* ``CONTRIBUTORS.rst`` contains a list of names of people who have contributed to the gprMax codebase.
 * ``docs`` contains source files for the User Guide. The User Guide is written using reStructuredText (http://docutils.sourceforge.net/rst.html) markup, and is built using Sphinx (http://sphinx-doc.org) and Read the Docs (https://readthedocs.org).
 * ``gprMax`` is the main package. Within this package the main module is ``gprMax.py``
 * ``LICENSE`` contains information on the GNU General Public License v3 or higher (http://www.gnu.org/copyleft/gpl.html).
