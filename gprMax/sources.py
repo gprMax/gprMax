@@ -20,9 +20,11 @@ from copy import deepcopy
 
 import numpy as np
 
-from gprMax.constants import c, floattype
-from gprMax.grid import Ix, Iy, Iz
-from gprMax.utilities import round_value
+from .constants import c, floattype
+from .grid import Ix, Iy, Iz
+from .utilities import round_value
+from .materials import material_ids
+from .exceptions import GeneralError
 
 
 class Source(object):
@@ -43,15 +45,18 @@ class Source(object):
 
 
 class VoltageSource(Source):
-    """The voltage source can be a hard source if it's resistance is zero, i.e. the time variation of the specified electric field component is prescribed. If it's resistance is non-zero it behaves as a resistive voltage source."""
-    
+    """The voltage source can be a hard source if it's resistance is zero,
+    i.e. the time variation of the specified electric field component is
+    prescribed. If it's resistance is non-zero it behaves as a resistive
+    voltage source."""
+
     def __init__(self):
-        super(Source, self).__init__()
+        super().__init__()
         self.resistance = None
 
     def update_electric(self, abstime, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a voltage source.
-            
+
         Args:
             abstime (float): Absolute time.
             updatecoeffsE (memory view): numpy array of electric field update coefficients.
@@ -59,7 +64,7 @@ class VoltageSource(Source):
             Ex, Ey, Ez (memory view): numpy array of electric field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-            
+
         if abstime >= self.start and abstime <= self.stop:
             # Set the time of the waveform evaluation to account for any delay in the start
             time = abstime - self.start
@@ -67,7 +72,7 @@ class VoltageSource(Source):
             j = self.ycoord
             k = self.zcoord
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-            
+
             if self.polarisation is 'x':
                 if self.resistance != 0:
                     componentID = 'E' + self.polarisation
@@ -91,7 +96,7 @@ class VoltageSource(Source):
 
     def create_material(self, G):
         """Create a new material at the voltage source location that adds the voltage source conductivity to the underlying parameters.
-            
+
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
@@ -100,7 +105,7 @@ class VoltageSource(Source):
             i = self.xcoord
             j = self.ycoord
             k = self.zcoord
-            
+
             componentID = 'E' + self.polarisation
             requirednumID = G.ID[G.IDlookup[componentID], i, j, k]
             material = next(x for x in G.materials if x.numID == requirednumID)
@@ -108,7 +113,7 @@ class VoltageSource(Source):
             newmaterial.ID = material.ID + '+VoltageSource_' + str(self.resistance)
             newmaterial.numID = len(G.materials)
             newmaterial.average = False
-            
+
             # Add conductivity of voltage source to underlying conductivity
             if self.polarisation == 'x':
                 newmaterial.se += G.dx / (self.resistance * G.dy * G.dz)
@@ -123,13 +128,13 @@ class VoltageSource(Source):
 
 class HertzianDipole(Source):
     """The Hertzian dipole is an additive source (electric current density)."""
-    
+
     def __init__(self):
-        super(Source, self).__init__()
+        super().__init__()
 
     def update_electric(self, abstime, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a Hertzian dipole.
-            
+
         Args:
             abstime (float): Absolute time.
             updatecoeffsE (memory view): numpy array of electric field update coefficients.
@@ -137,7 +142,7 @@ class HertzianDipole(Source):
             Ex, Ey, Ez (memory view): numpy array of electric field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        
+
         if abstime >= self.start and abstime <= self.stop:
             # Set the time of the waveform evaluation to account for any delay in the start
             time = abstime - self.start
@@ -145,7 +150,7 @@ class HertzianDipole(Source):
             j = self.ycoord
             k = self.zcoord
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-            
+
             if self.polarisation is 'x':
                 componentID = 'E' + self.polarisation
                 Ex[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dy * G.dz))
@@ -161,13 +166,13 @@ class HertzianDipole(Source):
 
 class MagneticDipole(Source):
     """The magnetic dipole is an additive source (magnetic current density)."""
-    
+
     def __init__(self):
-        super(Source, self).__init__()
+        super().__init__()
 
     def update_magnetic(self, abstime, updatecoeffsH, ID, Hx, Hy, Hz, G):
         """Updates magnetic field values for a magnetic dipole.
-            
+
         Args:
             abstime (float): Absolute time.
             updatecoeffsH (memory view): numpy array of magnetic field update coefficients.
@@ -175,7 +180,7 @@ class MagneticDipole(Source):
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        
+
         if abstime >= self.start and abstime <= self.stop:
             # Set the time of the waveform evaluation to account for any delay in the start
             time = abstime - self.start
@@ -183,7 +188,7 @@ class MagneticDipole(Source):
             j = self.ycoord
             k = self.zcoord
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-            
+
             if self.polarisation is 'x':
                 Hx[i, j, k] -= waveform.amp  * waveform.calculate_value(time, G.dt) * (G.dt / (G.dx * G.dy * G.dz))
 
@@ -195,45 +200,60 @@ class MagneticDipole(Source):
 
 
 class TransmissionLine(Source):
-    """The transmission line source is a one-dimensional transmission line which is attached virtually to a grid cell."""
-    
+    """The transmission line source is a one-dimensional transmission
+    line which is attached virtually to a grid cell.
+    """
+
     def __init__(self, G):
         """
         Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (class): Grid class instance - holds essential parameters
+            describing the model.
         """
-        
-        super(Source, self).__init__()
+
+        super().__init__()
         self.resistance = None
-        
+
         # Coefficients for ABC termination of end of the transmission line
         self.abcv0 = 0
         self.abcv1 = 0
 
-        # Spatial step of transmission line (based on magic time step for dispersionless behaviour)
+        # Spatial step of transmission line (based on magic time step for
+        # dispersionless behaviour)
         self.dl = c * G.dt
-        
-        # Number of nodes in the transmission line (initially a long line to calculate incident voltage and current); consider putting ABCs/PML at end
+
+        # Number of nodes in the transmission line (initially a long line
+        # to calculate incident voltage and current);
+        # consider putting ABCs/PML at end
         self.nl = round_value(0.667 * G.iterations)
-        
-        # Nodal position of the one-way injector excitation in the transmission line
+
+        # Nodal position of the one-way injector excitation in the
+        # transmission line
         self.srcpos = 5
-        
+
         # Nodal position of where line connects to antenna/main grid
         self.antpos = 10
-        
+
         self.voltage = np.zeros(self.nl, dtype=floattype)
         self.current = np.zeros(self.nl, dtype=floattype)
         self.Vinc = np.zeros(G.iterations, dtype=floattype)
         self.Iinc = np.zeros(G.iterations, dtype=floattype)
-    
+
+        self.type_str = 'TransmissionLine'
+
+    def setID(self):
+        self.ID = self.type_str + '(' + str(self.xcoord) + ',' + str(self.ycoord) + ',' + str(self.zcoord) + ')'
+
     def calculate_incident_V_I(self, G):
-        """Calculates the incident voltage and current with a long length transmission line not connected to the main grid from: http://dx.doi.org/10.1002/mop.10415
-            
+        """Calculates the incident voltage and current with a long length
+        transmission line not connected to the main grid from:
+        http://dx.doi.org/10.1002/mop.10415
+
         Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (class): Grid class instance - holds essential parameters
+            describing the model.
         """
-        
+
         abstime = 0
         for timestep in range(G.iterations):
             self.Vinc[timestep] = self.voltage[self.antpos]
@@ -243,33 +263,36 @@ class TransmissionLine(Source):
             self.update_current(abstime, G)
             abstime += 0.5 * G.dt
 
-        # Shorten number of nodes in the transmission line before use with main grid
+        # Shorten number of nodes in the transmission line before use
+        # with main grid
         self.nl = self.antpos + 1
-    
+
     def update_abc(self, G):
         """Updates absorbing boundary condition at end of the transmission line.
-            
+
         Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (class): Grid class instance - holds essential parameters
+            describing the model.
         """
-    
+
         h = (c * G.dt - self.dl) / (c * G.dt + self.dl)
-    
+
         self.voltage[0] = h * (self.voltage[1] - self.abcv0) + self.abcv1
         self.abcv0 = self.voltage[0]
         self.abcv1 = self.voltage[1]
 
     def update_voltage(self, time, G):
         """Updates voltage values along the transmission line.
-            
+
         Args:
             time (float): Absolute time.
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (class): Grid class instance - holds essential parameters
+            describing the model.
         """
-        
+
         # Update all the voltage values along the line
         self.voltage[1:self.nl] -= self.resistance * (c * G.dt / self.dl) * (self.current[1:self.nl] - self.current[0:self.nl - 1])
-    
+
         # Update the voltage at the position of the one-way injector excitation
         waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
         self.voltage[self.srcpos] += (c * G.dt / self.dl) * waveform.amp * waveform.calculate_value(time - 0.5 * G.dt, G.dt)
@@ -279,12 +302,13 @@ class TransmissionLine(Source):
 
     def update_current(self, time, G):
         """Updates current values along the transmission line.
-            
+
         Args:
             time (float): Absolute time.
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (class): Grid class instance - holds essential parameters
+            describing the model.
         """
-        
+
         # Update all the current values along the line
         self.current[0:self.nl - 1] -= (1 / self.resistance) * (c * G.dt / self.dl) * (self.voltage[1:self.nl] - self.voltage[0:self.nl - 1])
 
@@ -293,23 +317,25 @@ class TransmissionLine(Source):
         self.current[self.srcpos - 1] += (c * G.dt / self.dl) * waveform.amp * waveform.calculate_value(time - 0.5 * G.dt, G.dt) * (1 / self.resistance)
 
     def update_electric(self, abstime, Ex, Ey, Ez, G):
-        """Updates electric field value in the main grid from voltage value in the transmission line.
-            
+        """Updates electric field value in the main grid from voltage value
+        in the transmission line.
+
         Args:
             abstime (float): Absolute time.
             Ex, Ey, Ez (memory view): numpy array of electric field values.
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (class): Grid class instance - holds essential parameters
+            describing the model.
         """
-        
         if abstime >= self.start and abstime <= self.stop:
-            # Set the time of the waveform evaluation to account for any delay in the start
+            # Set the time of the waveform evaluation to account
+            # for any delay in the start
             time = abstime - self.start
             i = self.xcoord
             j = self.ycoord
             k = self.zcoord
-            
+
             self.update_voltage(time, G)
-            
+
             if self.polarisation is 'x':
                 Ex[i, j, k] = - self.voltage[self.antpos] / G.dx
 
@@ -320,21 +346,24 @@ class TransmissionLine(Source):
                 Ez[i, j, k] = - self.voltage[self.antpos] / G.dz
 
     def update_magnetic(self, abstime, Hx, Hy, Hz, G):
-        """Updates current value in transmission line from magnetic field values in the main grid.
-            
+        """Updates current value in transmission line from magnetic field
+        values in the main grid.
+
         Args:
             abstime (float): Absolute time.
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (class): Grid class instance - holds essential parameters
+            describing the model.
         """
-        
+
         if abstime >= self.start and abstime <= self.stop:
-            # Set the time of the waveform evaluation to account for any delay in the start
+            # Set the time of the waveform evaluation to account
+            # for any delay in the start
             time = abstime - self.start
             i = self.xcoord
             j = self.ycoord
             k = self.zcoord
-            
+
             if self.polarisation is 'x':
                 self.current[self.antpos] = Ix(i, j, k, G.Hy, G.Hz, G)
 
@@ -346,3 +375,15 @@ class TransmissionLine(Source):
 
             self.update_current(time, G)
 
+
+class TEMTransmissionLine(TransmissionLine):
+
+    def __init__(self, G):
+        super().__init__(G)
+        self.type_str = 'TEMTransmissionLine'
+
+    def update_magnetic(self, abstime, Hx, Hy, Hz, G):
+        pass
+
+    def update_electric(self, abstime, Ex, Ey, Ez, G):
+        pass
