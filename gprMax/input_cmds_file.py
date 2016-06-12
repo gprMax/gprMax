@@ -25,32 +25,32 @@ from gprMax.utilities import ListStream
 
 def process_python_include_code(inputfile, usernamespace):
     """Looks for and processes any Python code found in the input file. It will ignore any lines that are comments, i.e. begin with a double hash (##), and any blank lines. It will also ignore any lines that do not begin with a hash (#) after it has processed Python commands. It will also process any include commands and insert the contents of the included file at that location.
-
+        
     Args:
         inputfile (str): Name of the input file to open.
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
-
+        
     Returns:
         processedlines (list): Input commands after Python processing.
     """
-
+    
     userpython = False
-
+    
     with open(inputfile, 'r') as f:
         # Strip out any newline characters and comments that must begin with double hashes
         inputlines = [line.rstrip() for line in f if(not line.startswith('##') and line.rstrip('\n'))]
-
+        
     # List to hold final processed commands
     processedlines = []
-
+    
     x = 0
     while(x < len(inputlines)):
-
+        
         # Process any Python code
         if(inputlines[x].startswith('#python:')):
             # Save stdout location to restore later
             stdout = sys.stdout
-
+            
             # String to hold Python code to be executed
             pythoncode = ''
             x += 1
@@ -66,36 +66,36 @@ def process_python_include_code(inputfile, usernamespace):
             sys.stdout = codeout = ListStream()
             # Execute code block & make available only usernamespace
             exec(pythoncompiledcode, usernamespace)
-
+            
             # Now strip out any lines that don't begin with a hash command
             codeproc = [line + ('\n') for line in codeout.data if(line.startswith('#'))]
-
+            
             # Add processed Python code to list
             processedlines.extend(codeproc)
-
+    
             # Reset stdio
             sys.stdout = stdout
-
+    
         # Process any include commands
         elif(inputlines[x].startswith('#include_file:')):
             includefile = inputlines[x].split()
-
+            
             if len(includefile) != 2:
                 raise CmdInputError('#include_file requires exactly one parameter')
-
+            
             includefile = includefile[1]
-
+            
             # See if file exists at specified path and if not try input file directory
             if not os.path.isfile(includefile):
                 includefile = os.path.join(usernamespace['inputdirectory'], includefile)
-
+    
             with open(includefile, 'r') as f:
                 # Strip out any newline characters and comments that must begin with double hashes
                 includelines = [includeline.rstrip() + '\n' for includeline in f if(not includeline.startswith('##') and includeline.rstrip('\n'))]
-
+                
             # Add lines from include file to list
             processedlines.extend(includelines)
-
+        
         # Add any other commands to list
         elif(inputlines[x].startswith('#')):
             # Add gprMax command to list
@@ -103,20 +103,20 @@ def process_python_include_code(inputfile, usernamespace):
             processedlines.append(inputlines[x])
 
         x += 1
-
+    
     return processedlines
 
 
 def write_processed_file(inputfile, modelrun, numbermodelruns, processedlines):
     """Writes an input file after any Python code and include commands in the original input file have been processed.
-
+        
     Args:
         inputfile (str): Name of the input file to open.
         modelrun (int): Current model run number.
         numbermodelruns (int): Total number of model runs.
         processedlines (list): Input commands after after processing any Python code and include commands.
     """
-
+    
     if numbermodelruns == 1:
         processedfile = os.path.splitext(inputfile)[0] + '_processed.in'
     else:
@@ -131,11 +131,11 @@ def write_processed_file(inputfile, modelrun, numbermodelruns, processedlines):
 
 def check_cmd_names(processedlines, checkessential=True):
     """Checks the validity of commands, i.e. are they gprMax commands, and that all essential commands are present.
-
+        
     Args:
         processedlines (list): Input commands after Python processing.
         checkessential (boolean): Perform check to see that all essential commands are present.
-
+        
     Returns:
         singlecmds (dict): Commands that can only occur once in the model.
         multiplecmds (dict): Commands that can have multiple instances in the model.
@@ -150,13 +150,13 @@ def check_cmd_names(processedlines, checkessential=True):
     singlecmds = dict.fromkeys(['#domain', '#dx_dy_dz', '#time_window', '#title', '#messages', '#num_threads', '#time_step_stability_factor', '#pml_cells', '#excitation_file', '#src_steps', '#rx_steps', '#taguchi', '#end_taguchi'], 'None')
 
     # Commands that there can be multiple instances of in a model - these will be lists within the dictionary
-    multiplecmds = {key: [] for key in ['#geometry_view', '#material', '#soil_peplinski', '#add_dispersion_debye', '#add_dispersion_lorentz', '#add_dispersion_drude', '#waveform', '#voltage_source', '#hertzian_dipole', '#magnetic_dipole', '#transmission_line', '#tem_transmission_line', '#rx', '#rx_box', '#snapshot', '#pml_cfs']}
-
+    multiplecmds = {key: [] for key in ['#geometry_view', '#material', '#soil_peplinski', '#add_dispersion_debye', '#add_dispersion_lorentz', '#add_dispersion_drude', '#waveform', '#voltage_source', '#hertzian_dipole', '#magnetic_dipole', '#transmission_line', '#rx', '#rx_box', '#snapshot', '#pml_cfs']}
+    
     # Geometry object building commands that there can be multiple instances of in a model - these will be lists within the dictionary
     geometrycmds = ['#geometry_objects_file', '#edge', '#plate', '#triangle', '#box', '#sphere', '#cylinder', '#cylindrical_sector', '#fractal_box', '#add_surface_roughness', '#add_surface_water', '#add_grass']
     # List to store all geometry object commands in order from input file
     geometry = []
-
+    
     # Check if command names are valid, if essential commands are present, and add command parameters to appropriate dictionary values or lists
     countessentialcmds = 0
     lindex = 0
@@ -171,22 +171,22 @@ def check_cmd_names(processedlines, checkessential=True):
         # Count essential commands
         if cmdname in essentialcmds:
             countessentialcmds += 1
-
+        
         # Assign command parameters as values to dictionary keys
         if cmdname in singlecmds:
             if singlecmds[cmdname] == 'None':
                 singlecmds[cmdname] = cmd[1].strip(' \t\n')
             else:
                 raise CmdInputError('You can only have one ' + cmdname + ' commmand in your model')
-
+                    
         elif cmdname in multiplecmds:
             multiplecmds[cmdname].append(cmd[1].strip(' \t\n'))
 
         elif cmdname in geometrycmds:
             geometry.append(processedlines[lindex].strip(' \t\n'))
-
+          
         lindex += 1
-
+    
     if checkessential:
         if (countessentialcmds < len(essentialcmds)):
             raise CmdInputError('Your input file is missing essential gprMax commands required to run a model. Essential commands are: ' + ', '.join(essentialcmds))
