@@ -358,7 +358,7 @@ def process_multicmds(multicmds, G):
 
 
     # Receiver box
-    cmdname = '#rx_box'
+    cmdname = '#rx_array'
     if multicmds[cmdname] != 'None':
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
@@ -382,7 +382,7 @@ def process_multicmds(multicmds, G):
 
             if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.\n')
-            if xs >= xf or ys >= yf or zs >= zf:
+            if xs > xf or ys > yf or zs > zf:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
             if dx < 0 or dy < 0 or dz < 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than zero')

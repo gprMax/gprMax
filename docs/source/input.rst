@@ -771,14 +771,14 @@ Allows you to introduce output points into the model. These are locations where 
 
     * When the optional parameters ``str1`` and ``str2`` are not given all the electric and magnetic field components and currents will be output with the receiver point.
 
-#rx_box:
+#rx_array:
 --------
 
 Provides a simple method of defining multiple output points in the model. The syntax of the command is:
 
 .. code-block:: none
 
-    #rx_box: f1 f2 f3 f4 f5 f6 f7 f8 f9
+    #rx_array: f1 f2 f3 f4 f5 f6 f7 f8 f9
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the output volume, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the output volume.
 * ``f7 f8 f9`` are the increments (x,y,z) which define the number of output points in each direction. The minimum value of ``f7`` is :math:`\Delta x`, the minimum value of ``f8`` is :math:`\Delta y`, and the minimum value of ``f9`` is :math:`\Delta z`.
@@ -793,7 +793,7 @@ Provides a simple method to allow you to move the location of all simple sources
     #src_steps: f1 f2 f3
     #rx_steps: f1 f2 f3
 
-``f1 f2 f3`` are increments (x,y,z) to move all simple sources (``#hertzian_dipole`` or ``#magnetic_dipole``) or all receivers (created using either ``#rx`` or ``#rx_box`` commands).
+``f1 f2 f3`` are increments (x,y,z) to move all simple sources (``#hertzian_dipole`` or ``#magnetic_dipole``) or all receivers (created using either ``#rx`` or ``#rx_array`` commands).
 
 .. note::
 
