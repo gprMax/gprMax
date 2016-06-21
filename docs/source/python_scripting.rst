@@ -33,7 +33,7 @@ To make it easier to create commands within a block of Python code, there is a b
     #python:
     from gprMax.input_cmd_funcs import *
     domain = domain(0.2, 0.2, 0.2)
-    for x in range(0, 8)
+    for x in range(0, 8):
         cylinder(0.02 + x * 0.02, 0.05, 0, 0.020 + x * 0.02, 0.05, domain[2], 0.005, 'pec’)
     #end_python:
 
