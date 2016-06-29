@@ -20,16 +20,6 @@ import sys
 import decimal as d
 
 
-class ListStream(object):
-    """A list can be streamed into. Required when temporarily redirecting stdio to capture output from users Python code blocks."""
-    
-    def __init__(self):
-        self.data = []
-    
-    def write(self, s):
-        self.data.append(s)
-
-
 def logo(version):
     """Print gprMax logo, version, and licencing/copyright information.
         

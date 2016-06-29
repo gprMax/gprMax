@@ -18,9 +18,9 @@
 
 import os
 import sys
+from io import StringIO
 
 from gprMax.exceptions import CmdInputError
-from gprMax.utilities import ListStream
 
 
 def process_python_include_code(inputfile, usernamespace):
@@ -46,8 +46,6 @@ def process_python_include_code(inputfile, usernamespace):
         
         # Process any Python code
         if(inputlines[x].startswith('#python:')):
-            # Save stdout location to restore later
-            stdout = sys.stdout
             
             # String to hold Python code to be executed
             pythoncode = ''
@@ -60,19 +58,32 @@ def process_python_include_code(inputfile, usernamespace):
                     raise CmdInputError('Cannot find the end of the Python code block, i.e. missing #end_python: command.')
             # Compile code for faster execution
             pythoncompiledcode = compile(pythoncode, '<string>', 'exec')
-            # Redirect stdio to a ListStream
-            sys.stdout = codeout = ListStream()
+            # Redirect stdout to a text stream
+            sys.stdout = result = StringIO()
             # Execute code block & make available only usernamespace
             exec(pythoncompiledcode, usernamespace)
+            # String containing buffer of executed code
+            codeout = result.getvalue().split('\n')
+            result.close()
             
-            # Now strip out any lines that don't begin with a hash command
-            codeproc = [line + ('\n') for line in codeout.data if(line.startswith('#'))]
-            
-            # Add processed Python code to list
-            processedlines.extend(codeproc)
-    
             # Reset stdio
-            sys.stdout = stdout
+            sys.stdout = sys.__stdout__
+            
+            # Separate commands from any other generated output
+            hashcmds = []
+            pythonstdout = []
+            for line in codeout:
+                if line.startswith('#'):
+                    hashcmds.append(line + '\n')
+                elif line:
+                    pythonstdout.append(line)
+                        
+            # Add commands to a list
+            processedlines.extend(hashcmds)
+    
+            # Print any generated output that is not commands
+            if pythonstdout:
+                print('Python messages (from stdout): {}\n'.format(pythonstdout))
     
         # Process any include commands
         elif(inputlines[x].startswith('#include_file:')):
