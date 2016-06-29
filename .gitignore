@@ -21,9 +21,5 @@ dist/
 # Hidden files
 .*
 
-<<<<<<< Updated upstream
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
-=======
-*.out
->>>>>>> Stashed changes
