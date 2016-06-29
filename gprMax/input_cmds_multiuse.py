@@ -357,7 +357,7 @@ def process_multicmds(multicmds, G):
             G.rxs.append(r)
 
 
-    # Receiver box
+    # Receiver array
     cmdname = '#rx_array'
     if multicmds[cmdname] != 'None':
         for cmdinstance in multicmds[cmdname]:
@@ -387,8 +387,18 @@ def process_multicmds(multicmds, G):
             if dx < 0 or dy < 0 or dz < 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than zero')
             if dx < G.dx or dy < G.dy or dz < G.dz:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
-
+                if dx == 0:
+                    dx = 1
+                elif dy == 0:
+                    dy = 1
+                elif dz == 0:
+                    dz = 1
+                else:
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
+        
+            if G.messages:
+                print('Receiver array {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with steps {:g}m, {:g}m, {:g} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz))
+            
             for x in range(xs, xf, dx):
                 for y in range(ys, yf, dy):
                     for z in range(zs, zf, dz):
@@ -399,11 +409,11 @@ def process_multicmds(multicmds, G):
                         r.xcoordbase = x
                         r.ycoordbase = y
                         r.zcoordbase = z
+                        r.outputs = Rx.availableoutputs[0:9]
                         r.ID = 'Rx(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
+                        if G.messages:
+                            print('Receiver at {:g}m, {:g}m, {:g}m with output(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))
                         G.rxs.append(r)
-
-            if G.messages:
-                print('Receiver box {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with steps {:g}m, {:g}m, {:g} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz))
 
 
     # Snapshot
