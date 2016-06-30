@@ -780,8 +780,8 @@ Provides a simple method of defining multiple output points in the model. The sy
 
     #rx_array: f1 f2 f3 f4 f5 f6 f7 f8 f9
 
-* ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the output volume, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the output volume.
-* ``f7 f8 f9`` are the increments (x,y,z) which define the number of output points in each direction. The minimum value of ``f7`` is :math:`\Delta x`, the minimum value of ``f8`` is :math:`\Delta y`, and the minimum value of ``f9`` is :math:`\Delta z`.
+* ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the output line/rectangle/volume, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the output line/rectangle/volume.
+* ``f7 f8 f9`` are the increments (x,y,z) which define the number of output points in each direction. ``f7``, ``f8``, or  ``f9`` can be set to zero to prevent any output points in a particular direction. Otherwise, the minimum value of ``f7`` is :math:`\Delta x`, the minimum value of ``f8`` is :math:`\Delta y`, and the minimum value of ``f9`` is :math:`\Delta z`.
 
 #src_steps: and #rx_steps:
 --------------------------
