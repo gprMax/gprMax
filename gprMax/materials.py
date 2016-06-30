@@ -42,12 +42,11 @@ class Material(object):
     grassdeltaer = grasser - grasseri
     grasstau = 1.0793e-11
     
-    def __init__(self, numID, ID, G):
+    def __init__(self, numID, ID):
         """
         Args:
             numID (int): Numeric identifier of the material.
             ID (str): Name of the material.
-            G (class): Grid class instance - holds essential parameters describing the model.
         """
         
         self.numID = numID
