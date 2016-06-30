@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from collections import OrderedDict
+
 import numpy as np
 
 from gprMax.constants import z0, floattype
@@ -343,7 +345,8 @@ def process_multicmds(multicmds, G):
             # If no ID or outputs are specified, use default i.e Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, Iz
             if len(tmp) == 3:
                 r.ID = 'Rx(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'
-                r.outputs = {key: np.zeros(G.iterations, dtype=floattype) for key in Rx.availableoutputs}
+                for key in Rx.availableoutputs:
+                    r.outputs[key] = np.zeros(G.iterations, dtype=floattype)
             else:
                 r.ID = tmp[3]
                 # Check and add field output names
@@ -418,7 +421,8 @@ def process_multicmds(multicmds, G):
                         r.ycoordbase = y
                         r.zcoordbase = z
                         r.ID = 'Rx(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
-                        r.outputs = {key: np.zeros(G.iterations, dtype=floattype) for key in Rx.availableoutputs}
+                        for key in Rx.availableoutputs:
+                            r.outputs[key] = np.zeros(G.iterations, dtype=floattype)
                         if G.messages:
                             print('  Receiver at {:g}m, {:g}m, {:g}m with output(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))
                         G.rxs.append(r)

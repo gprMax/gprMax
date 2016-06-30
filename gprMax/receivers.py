@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from collections import OrderedDict
+
 from gprMax.grid import Ix, Iy, Iz
 
 
@@ -27,7 +29,7 @@ class Rx(object):
     def __init__(self):
         
         self.ID = None
-        self.outputs = dict()
+        self.outputs = OrderedDict()
         self.xcoord = None
         self.ycoord = None
         self.zcoord = None
