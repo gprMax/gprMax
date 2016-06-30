@@ -16,7 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from gprMax.constants import z0
+import numpy as np
+
+from gprMax.constants import z0, floattype
 from gprMax.exceptions import CmdInputError
 from gprMax.geometry_views import GeometryView
 from gprMax.materials import Material, PeplinskiSoil
@@ -341,13 +343,13 @@ def process_multicmds(multicmds, G):
             # If no ID or outputs are specified, use default i.e Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, Iz
             if len(tmp) == 3:
                 r.ID = 'Rx(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'
-                r.outputs = Rx.availableoutputs[0:9]
+                r.outputs = {key: np.zeros(G.iterations, dtype=floattype) for key in Rx.availableoutputs}
             else:
                 r.ID = tmp[3]
                 # Check and add field output names
                 for field in tmp[4::]:
                     if field in Rx.availableoutputs:
-                        r.outputs.append(field)
+                        r.outputs[field] = np.zeros(G.iterations, dtype=floattype)
                     else:
                         raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' contains an output type that is not available')
 
@@ -386,22 +388,28 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
             if dx < 0 or dy < 0 or dz < 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than zero')
-            if dx < G.dx or dy < G.dy or dz < G.dz:
+            if dx < G.dx:
                 if dx == 0:
                     dx = 1
-                elif dy == 0:
+                else:
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
+            if dy < G.dy:
+                if dy == 0:
                     dy = 1
-                elif dz == 0:
+                else:
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
+            if dz < G.dz:
+                if dz == 0:
                     dz = 1
                 else:
                     raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
         
             if G.messages:
-                print('Receiver array {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with steps {:g}m, {:g}m, {:g} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz))
-            
-            for x in range(xs, xf, dx):
-                for y in range(ys, yf, dy):
-                    for z in range(zs, zf, dz):
+                print('Receiver array {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with steps {:g}m, {:g}m, {:g}m'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz))
+
+            for x in range(xs, xf + 1, dx):
+                for y in range(ys, yf + 1, dy):
+                    for z in range(zs, zf + 1, dz):
                         r = Rx()
                         r.xcoord = x
                         r.ycoord = y
@@ -409,10 +417,10 @@ def process_multicmds(multicmds, G):
                         r.xcoordbase = x
                         r.ycoordbase = y
                         r.zcoordbase = z
-                        r.outputs = Rx.availableoutputs[0:9]
                         r.ID = 'Rx(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
+                        r.outputs = {key: np.zeros(G.iterations, dtype=floattype) for key in Rx.availableoutputs}
                         if G.messages:
-                            print('Receiver at {:g}m, {:g}m, {:g}m with output(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))
+                            print('  Receiver at {:g}m, {:g}m, {:g}m with output(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))
                         G.rxs.append(r)
 
 
@@ -485,7 +493,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' with ID {} already exists'.format(tmp[4]))
 
             # Create a new instance of the Material class material (start index after pec & free_space)
-            m = Material(len(G.materials), tmp[4], G)
+            m = Material(len(G.materials), tmp[4])
             m.er = float(tmp[0])
             m.se = float(tmp[1])
             m.mr = float(tmp[2])
