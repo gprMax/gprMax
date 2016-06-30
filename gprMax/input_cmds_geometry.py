@@ -340,7 +340,7 @@ def process_geometrycmds(geometry, G):
                         numID = averagedmaterial.numID
                     else:
                         numID = len(G.materials)
-                        m = Material(numID, requiredID, G)
+                        m = Material(numID, requiredID)
                         # Create averaged constituents for material
                         m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
                         m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
@@ -448,7 +448,7 @@ def process_geometrycmds(geometry, G):
                     numID = averagedmaterial.numID
                 else:
                     numID = len(G.materials)
-                    m = Material(numID, requiredID, G)
+                    m = Material(numID, requiredID)
                     # Create averaged constituents for material
                     m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
                     m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
@@ -529,7 +529,7 @@ def process_geometrycmds(geometry, G):
                     numID = averagedmaterial.numID
                 else:
                     numID = len(G.materials)
-                    m = Material(numID, requiredID, G)
+                    m = Material(numID, requiredID)
                     # Create averaged constituents for material
                     m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
                     m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
@@ -619,7 +619,7 @@ def process_geometrycmds(geometry, G):
                         numID = averagedmaterial.numID
                     else:
                         numID = len(G.materials)
-                        m = Material(numID, requiredID, G)
+                        m = Material(numID, requiredID)
                         # Create averaged constituents for material
                         m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
                         m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
@@ -729,7 +729,7 @@ def process_geometrycmds(geometry, G):
                     numID = averagedmaterial.numID
                 else:
                     numID = len(G.materials)
-                    m = Material(numID, requiredID, G)
+                    m = Material(numID, requiredID)
                     # Create averaged constituents for material
                     m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
                     m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
@@ -1022,7 +1022,7 @@ def process_geometrycmds(geometry, G):
 
                         # Check to see if water has been already defined as a material
                         if not any(x.ID == 'water' for x in G.materials):
-                            m = Material(len(G.materials), 'water', G)
+                            m = Material(len(G.materials), 'water')
                             m.average = False
                             m.er = Material.watereri
                             m.deltaer.append(Material.waterdeltaer)
@@ -1170,7 +1170,7 @@ def process_geometrycmds(geometry, G):
 
                         # Check to see if grass has been already defined as a material
                         if not any(x.ID == 'grass' for x in G.materials):
-                            m = Material(len(G.materials), 'grass', G)
+                            m = Material(len(G.materials), 'grass')
                             m.average = False
                             m.er = Material.grasseri
                             m.deltaer.append(Material.grassdeltaer)
