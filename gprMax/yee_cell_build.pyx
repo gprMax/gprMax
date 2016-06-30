@@ -49,7 +49,7 @@ cpdef void create_electric_average(int i, int j, int k, int numID1, int numID2, 
     else:
         # Create new material
         newNumID = len(G.materials)
-        m = Material(newNumID, requiredID, G)
+        m = Material(newNumID, requiredID)
         # Create averaged constituents for material
         m.er = np.mean((G.materials[numID1].er, G.materials[numID2].er, G.materials[numID3].er, G.materials[numID4].er), axis=0)
         m.se = np.mean((G.materials[numID1].se, G.materials[numID2].se, G.materials[numID3].se, G.materials[numID4].se), axis=0)
@@ -87,7 +87,7 @@ cpdef void create_magnetic_average(int i, int j, int k, int numID1, int numID2, 
     else:
         # Create new material
         newNumID = len(G.materials)
-        m = Material(newNumID, requiredID, G)
+        m = Material(newNumID, requiredID)
         # Create averaged constituents for material
         m.er = np.mean((G.materials[numID1].er, G.materials[numID2].er), axis=0)
         m.se = np.mean((G.materials[numID1].se, G.materials[numID2].se), axis=0)
