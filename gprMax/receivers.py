@@ -16,18 +16,55 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from gprMax.grid import Ix, Iy, Iz
+
+
 class Rx(object):
-    """Receiever output points."""
+    """Receiver output points."""
     
     availableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
     
     def __init__(self):
         
         self.ID = None
-        self.outputs = []
+        self.outputs = dict()
         self.xcoord = None
         self.ycoord = None
         self.zcoord = None
         self.xcoordbase = None
         self.ycoordbase = None
         self.zcoordbase = None
+
+
+def store_outputs(timestep, Ex, Ey, Ez, Hx, Hy, Hz, G):
+    """Stores field component values for every receiver and transmission line.
+
+    Args:
+        timestep (int): Current iteration number.
+        Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic field values.
+        G (class): Grid class instance - holds essential parameters describing the model.
+    """
+
+    for rx in G.rxs:
+        if 'Ex' in rx.outputs:
+            rx.outputs['Ex'][timestep] = Ex[rx.xcoord, rx.ycoord, rx.zcoord]
+        if 'Ey' in rx.outputs:
+            rx.outputs['Ey'][timestep] = Ey[rx.xcoord, rx.ycoord, rx.zcoord]
+        if 'Ez' in rx.outputs:
+            rx.outputs['Ez'][timestep] = Ez[rx.xcoord, rx.ycoord, rx.zcoord]
+        if 'Hx' in rx.outputs:
+            rx.outputs['Hx'][timestep] = Hx[rx.xcoord, rx.ycoord, rx.zcoord]
+        if 'Hy' in rx.outputs:
+            rx.outputs['Hy'][timestep] = Hy[rx.xcoord, rx.ycoord, rx.zcoord]
+        if 'Hz' in rx.outputs:
+            rx.outputs['Hz'][timestep] = Hz[rx.xcoord, rx.ycoord, rx.zcoord]
+        if 'Ix' in rx.outputs:
+            rx.outputs['Ix'][timestep] = Ix(rx.xcoord, rx.ycoord, rx.zcoord, Hy, Hz, G)
+        if 'Iy' in rx.outputs:
+            rx.outputs['Iy'][timestep] = Iy(rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hz, G)
+        if 'Iz' in rx.outputs:
+            rx.outputs['Iz'][timestep] = Iz(rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hy, G)
+
+    for tlindex, tl in enumerate(G.transmissionlines):
+        tl.Vtotal[timestep] = tl.voltage[tl.antpos]
+        tl.Itotal[timestep] = tl.current[tl.antpos]

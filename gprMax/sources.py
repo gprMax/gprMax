@@ -226,6 +226,8 @@ class TransmissionLine(Source):
         self.current = np.zeros(self.nl, dtype=floattype)
         self.Vinc = np.zeros(G.iterations, dtype=floattype)
         self.Iinc = np.zeros(G.iterations, dtype=floattype)
+        self.Vtotal = np.zeros(G.iterations, dtype=floattype)
+        self.Itotal = np.zeros(G.iterations, dtype=floattype)
     
     def calculate_incident_V_I(self, G):
         """Calculates the incident voltage and current with a long length transmission line not connected to the main grid from: http://dx.doi.org/10.1002/mop.10415

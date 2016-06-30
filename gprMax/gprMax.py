@@ -33,15 +33,16 @@ from ._version import __version__
 from .constants import c, e0, m0, z0
 from .exceptions import GeneralError
 from .fields_update import update_electric, update_magnetic, update_electric_dispersive_multipole_A, update_electric_dispersive_multipole_B, update_electric_dispersive_1pole_A, update_electric_dispersive_1pole_B
-from .grid import FDTDGrid, dispersion_check
+from .grid import FDTDGrid, dispersion_check, Ix, Iy, Iz
 from .input_cmds_geometry import process_geometrycmds
 from .input_cmds_file import process_python_include_code, write_processed_file, check_cmd_names
 from .input_cmds_multiuse import process_multicmds
 from .input_cmds_singleuse import process_singlecmds
 from .materials import Material
-from .writer_hdf5 import prepare_hdf5, write_hdf5
 from .pml import build_pmls, update_electric_pml, update_magnetic_pml
+from .receivers import store_outputs
 from .utilities import update_progress, logo, human_size
+from .writer_hdf5 import write_hdf5
 from .yee_cell_build import build_electric_components, build_magnetic_components
 
 
@@ -303,10 +304,10 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         G.inputdirectory = os.path.dirname(os.path.abspath(inputfile))
 
         # Create built-in materials
-        m = Material(0, 'pec', G)
+        m = Material(0, 'pec')
         m.average = False
         G.materials.append(m)
-        m = Material(1, 'free_space', G)
+        m = Material(1, 'free_space')
         G.materials.append(m)
 
         # Process parameters for commands that can only occur once in the model
@@ -440,11 +441,10 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             outputfile = inputfileparts[0] + str(modelrun) + '.out'
         sys.stdout.write('\nOutput to file: {}\n'.format(outputfile))
         sys.stdout.flush()
-        f = prepare_hdf5(outputfile, G)
 
-        ##################################
-        #   Main FDTD calculation loop   #
-        ##################################
+        ####################################
+        #  Start - Main FDTD calculations  #
+        ####################################
         tsolvestart = perf_counter()
         # Absolute time
         abstime = 0
@@ -453,8 +453,8 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             if timestep == 0:
                 tstepstart = perf_counter()
 
-            # Write field outputs to file
-            write_hdf5(f, timestep, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
+            # Store field component values for every receiver and transmission line
+            store_outputs(timestep, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
             # Write any snapshots to file
             for snapshot in G.snapshots:
@@ -514,12 +514,16 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             elif timestep > 1:
                 update_progress((timestep + 1) / G.iterations)
 
-        # Close output file
-        f.close()
+        # Write an output file in HDF5 format
+        write_hdf5(outputfile, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
         tsolveend = perf_counter()
         print('\n\nSolving took [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsolveend - tsolvestart))))
         print('Peak memory (approx) used: {}'.format(human_size(p.memory_info().rss)))
+
+        ##################################
+        #  End - Main FDTD calculations  #
+        ##################################
 
         # If geometry information to be reused between model runs then FDTDGrid class instance must be global so that it persists
         if not args.geometry_fixed:

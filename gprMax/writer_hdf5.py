@@ -20,18 +20,15 @@ import h5py
 
 from gprMax._version import __version__
 from gprMax.constants import floattype
-from gprMax.grid import Ix, Iy, Iz
 
 
-def prepare_hdf5(outputfile, G):
-    """Prepares an output file in HDF5 format for writing.
+def write_hdf5(outputfile, Ex, Ey, Ez, Hx, Hy, Hz, G):
+    """Write an output file in HDF5 format.
 
     Args:
         outputfile (str): Name of the output file.
+        Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic field values.
         G (class): Grid class instance - holds essential parameters describing the model.
-
-    Returns:
-        f (file object): File object for the file to be written to.
     """
 
     f = h5py.File(outputfile, 'w')
@@ -55,7 +52,7 @@ def prepare_hdf5(outputfile, G):
         grp.attrs['Type'] = type(src).__name__
         grp.attrs['Position'] = (src.xcoord * G.dx, src.ycoord * G.dy, src.zcoord * G.dz)
 
-    # Create group for transmission lines; add positional data, line resistance and line discretisation attributes; initialise arrays for line voltages and currents
+    # Create group for transmission lines; add positional data, line resistance and line discretisation attributes; write arrays for line voltages and currents
     if G.transmissionlines:
         for tlindex, tl in enumerate(G.transmissionlines):
             grp = f.create_group('/tls/tl' + str(tlindex + 1))
@@ -65,53 +62,34 @@ def prepare_hdf5(outputfile, G):
             # Save incident voltage and current
             grp['Vinc'] = tl.Vinc
             grp['Iinc'] = tl.Iinc
-            grp.create_dataset('Vtotal', (G.iterations, ), dtype=floattype)
-            grp.create_dataset('Itotal', (G.iterations, ), dtype=floattype)
+            # Save total voltage and current
+            f['/tls/tl' + str(tlindex + 1) + '/Vtotal'] = tl.Vtotal
+            f['/tls/tl' + str(tlindex + 1) + '/Itotal'] = tl.Itotal
 
-    # Create group and add positional data and initialise field component arrays for receivers
+
+    # Create group, add positional data and write field component arrays for receivers
     for rxindex, rx in enumerate(G.rxs):
         grp = f.create_group('/rxs/rx' + str(rxindex + 1))
         if rx.ID:
             grp.attrs['Name'] = rx.ID
         grp.attrs['Position'] = (rx.xcoord * G.dx, rx.ycoord * G.dy, rx.zcoord * G.dz)
-        for output in rx.outputs:
-            grp.create_dataset(output, (G.iterations, ), dtype=floattype)
 
-    return f
-
-
-def write_hdf5(f, timestep, Ex, Ey, Ez, Hx, Hy, Hz, G):
-    """Writes field component values to an output file in HDF5 format.
-
-    Args:
-        f (file object): File object for the file to be written to.
-        timestep (int): Current iteration number.
-        Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic field values.
-        G (class): Grid class instance - holds essential parameters describing the model.
-    """
-
-    # For each rx, write field component values at current timestep
-    for rxindex, rx in enumerate(G.rxs):
         if 'Ex' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Ex'][timestep] = Ex[rx.xcoord, rx.ycoord, rx.zcoord]
+            f['/rxs/rx' + str(rxindex + 1) + '/Ex'] = rx.outputs['Ex']
         if 'Ey' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Ey'][timestep] = Ey[rx.xcoord, rx.ycoord, rx.zcoord]
+            f['/rxs/rx' + str(rxindex + 1) + '/Ey'] = rx.outputs['Ey']
         if 'Ez' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Ez'][timestep] = Ez[rx.xcoord, rx.ycoord, rx.zcoord]
+            f['/rxs/rx' + str(rxindex + 1) + '/Ez'] = rx.outputs['Ez']
         if 'Hx' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Hx'][timestep] = Hx[rx.xcoord, rx.ycoord, rx.zcoord]
+            f['/rxs/rx' + str(rxindex + 1) + '/Hx'] = rx.outputs['Hx']
         if 'Hy' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Hy'][timestep] = Hy[rx.xcoord, rx.ycoord, rx.zcoord]
+            f['/rxs/rx' + str(rxindex + 1) + '/Hy'] = rx.outputs['Hy']
         if 'Hz' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Hz'][timestep] = Hz[rx.xcoord, rx.ycoord, rx.zcoord]
+            f['/rxs/rx' + str(rxindex + 1) + '/Hz'] = rx.outputs['Hz']
         if 'Ix' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Ix'][timestep] = Ix(rx.xcoord, rx.ycoord, rx.zcoord, G.Hy, G.Hz, G)
+            f['/rxs/rx' + str(rxindex + 1) + '/Ix'] = rx.outputs['Ix']
         if 'Iy' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Iy'][timestep] = Iy(rx.xcoord, rx.ycoord, rx.zcoord, G.Hx, G.Hz, G)
+            f['/rxs/rx' + str(rxindex + 1) + '/Iy'] = rx.outputs['Iy']
         if 'Iz' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Iz'][timestep] = Iz(rx.xcoord, rx.ycoord, rx.zcoord, G.Hx, G.Hy, G)
+            f['/rxs/rx' + str(rxindex + 1) + '/Iz'] = rx.outputs['Iz']
 
-    if G.transmissionlines:
-        for tlindex, tl in enumerate(G.transmissionlines):
-            f['/tls/tl' + str(tlindex + 1) + '/Vtotal'][timestep] = tl.voltage[tl.antpos]
-            f['/tls/tl' + str(tlindex + 1) + '/Itotal'][timestep] = tl.current[tl.antpos]
