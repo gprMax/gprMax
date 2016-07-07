@@ -38,6 +38,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
         sourceresistance = kwargs['sourceresistance']
         absorberEr = kwargs['absorberEr']
         absorbersig = kwargs['absorbersig']
+        rxres = 50
     else:
         #excitationfreq = 1.5e9 # GHz
         #sourceresistance = 50 # Ohms
