@@ -218,7 +218,7 @@ class PeplinskiSoil(object):
                 else:
                     self.startmaterialnum = len(G.materials)
             if not material:
-                m = Material(len(G.materials), requiredID, G)
+                m = Material(len(G.materials), requiredID)
                 m.average = False
                 m.er = eri
                 m.se = sig
