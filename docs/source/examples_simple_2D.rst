@@ -123,6 +123,8 @@ You should have produced an output file ``cylinder_Ascan_2D.out``. You can view 
 
     Electric and magnetic field components and currents outputs from a model of a metal cylinder buried in a dielectric half-space.
 
+Check out a `video of the field propagation in this example <https://youtu.be/BpBo0-SFda4>`_. More videos are screencasts can be found in the :ref:`screencasts section <screencasts>`.
+
 
 B-scan from a metal cylinder
 ============================
