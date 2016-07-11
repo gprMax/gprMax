@@ -191,5 +191,21 @@ Updating gprMax
     (gprMax)$ python setup.py build
     (gprMax)$ python setup.py install
 
-This will pull the most recentr gprMax source code form GitHub, remove/clean previously built modules, and then build and install the latest version of gprMax.
+This will pull the most recent gprMax source code form GitHub, remove/clean previously built modules, and then build and install the latest version of gprMax.
+
+
+Updating conda and Python packages
+----------------------------------
+
+Periodly yyou should update conda and the required Python packages. To update conda, with the gprMax environment deactivated, run the following command:
+
+.. code-block:: none
+
+    $ conda update conda
+
+Then you can update all the packages that are part of the gprMax environment by activating the gprMax environment and running the following command:
+
+.. code-block:: none
+
+    (gprMax) $ conda update --all
 
