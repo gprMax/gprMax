@@ -19,4 +19,5 @@ Visualise EM wave propagation
 
 You can use the ``#snapshot`` command and Paraview to visualise how electromagnetic waves propagate in a simulation.
 
-* `PEC cylinder buried in a lossless half-space <https://youtu.be/BpBo0-SFda4>`_
+* `PEC cylinder buried in a lossless half-space (2D) <https://youtu.be/BpBo0-SFda4>`_
+* `PEC cylinder buried in different half-spaces (2D) <https://youtu.be/g744O_wb14I>`_
