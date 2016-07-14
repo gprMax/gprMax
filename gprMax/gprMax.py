@@ -305,6 +305,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
         # Create built-in materials
         m = Material(0, 'pec')
+        m.se = float('inf')
         m.average = False
         G.materials.append(m)
         m = Material(1, 'free_space')
