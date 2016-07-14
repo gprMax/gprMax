@@ -487,8 +487,12 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly five parameters')
             if float(tmp[0]) < 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for static (DC) permittivity')
-            if float(tmp[1]) < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for conductivity')
+            if tmp[1] != 'inf':
+                se = float(tmp[1])
+                if se < 0:
+                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for conductivity')
+            else:
+                se = float('inf')
             if float(tmp[2]) < 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for permeability')
             if float(tmp[3]) < 0:
@@ -499,7 +503,7 @@ def process_multicmds(multicmds, G):
             # Create a new instance of the Material class material (start index after pec & free_space)
             m = Material(len(G.materials), tmp[4])
             m.er = float(tmp[0])
-            m.se = float(tmp[1])
+            m.se = se
             m.mr = float(tmp[2])
             m.sm = float(tmp[3])
 
