@@ -22,10 +22,10 @@ Information
 
 The module currently features models of different anti-personnel (AP) landmines and a metal can which can be used as a false target. They are:
 
-* **PMA-1**: a blast AP landmine with minimum metal content. It was manufactured in former Yugoslavia and was used in the Balkans. It is possible to detect the PMA-1 with a metal detector because it contains a metal fuse, but there are reports of types of PMA-1 with plastic fuses. The PMA-1 contains 200g of high explosive (TNT). The dimensions of the PMA-1 model are: 140x64x34mm.
-* **PMN**: one of the oldest and most widely used landmines. It is a palm shaped cylindrical blast AP landmine that is manufactured in Russia. Similar to PMA-1, the PMN contains a large amount (240g) of high explosive (TNT). It has a minimum metal content which can make it detectable with a metal detector. The dimensions of the PMN model are: 116x156x50mm.
-* **TS-50**: a blast AP landmine with minimum metal content, made in Italy. The dimensions of the TS-50 model are: 90x90x44mm.
-* **Metal can**: a cylindrical metal can which is often found as a false target. The dimensions of the metal can model are: 76x76x108mm.
+* **PMA-1**: a blast AP landmine with minimum metal content, manufactured in the former Yugoslavia. It is possible to detect the PMA-1 with a metal detector because it contains a metal fuse, but there are reports of types of PMA-1 with plastic fuses. The PMA-1 contains 200g of high explosive (TNT). The dimensions of the PMA-1 model are: 140x64x34mm.
+* **PMN**: one of the oldest and most widely used landmines, it is a palm shaped cylindrical blast AP landmine, manufactured in Russia. Similar to PMA-1, the PMN contains a large amount, 240g, of high explosive (TNT). It has a minimum metal content which can make it detectable with a metal detector. The dimensions of the PMN model are: 116x156x50mm.
+* **TS-50**: a blast AP landmine with minimum metal content, manufactured in Italy. The dimensions of the TS-50 model are: 90x90x44mm.
+* **Metal can**: a cylindrical metal can which is can be useful as a false target. The dimensions of the metal can model are: 76x76x108mm.
 
 The landmine models and the metal can must be used with a cubic spatial resolution of 1mm.
 
