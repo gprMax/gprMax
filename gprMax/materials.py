@@ -129,8 +129,7 @@ class Material(object):
             EA = (e0*self.er / G.dt) + 0.5*self.se
             EB = (e0*self.er / G.dt) - 0.5*self.se
 
-        if self.ID == 'pec':
-            self.se = float('inf')
+        if self.ID == 'pec' or self.se == float('inf'):
             self.CA = 0
             self.CBx = 0
             self.CBy = 0
