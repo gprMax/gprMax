@@ -80,8 +80,12 @@ def process_geometrycmds(geometry, G):
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires the spatial resolution of the geometry objects file to match the spatial resolution of the model')
 
             data = f['/data'][:]
-            data += numexistmaterials
-            build_voxels_from_array(xs, ys, zs, data, G.solid, G.rigidE, G.rigidH, G.ID)
+            
+            # Should be int16 to allow for -1 which indicates background, i.e. don't build anything, but AustinMan/Woman maybe uint16
+            if data.dtype != 'int16':
+                data = data.astype('np.int16')
+            
+            build_voxels_from_array(xs, ys, zs, numexistmaterials, data, G.solid, G.rigidE, G.rigidH, G.ID)
     
             if G.messages:
                 print('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
