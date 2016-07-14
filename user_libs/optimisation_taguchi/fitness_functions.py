@@ -64,6 +64,7 @@ def maxvalue(filename, args):
 
     return maxvalue
 
+
 def maxabsvalue(filename, args):
     """Maximum absolute value from a response.
         
@@ -98,12 +99,11 @@ def xcorr(filename, args):
         xcorrmax (float): Maximum value from specific outputs
     """
 
-    # Load (from text file) and normalise the reference response
+    # Load (from text file) the reference response
     with open(args['refresp'], 'r') as f:
         refdata = np.loadtxt(f)
     reftime = refdata[:,0] * 1e-9
     refresp = refdata[:,1]
-    refresp /= np.amax(np.abs(refresp))
 
     # Load response from output file
     f = h5py.File(filename, 'r')
@@ -117,44 +117,54 @@ def xcorr(filename, args):
             modelresp = output[outputname]
             # Convert field value (V/m) to voltage
             if outputname == 'Ex':
-                modelresp *= -1 * f.attrs['dx, dy, dz'][0]
+                modelresp *= -f.attrs['dx, dy, dz'][0]
             elif outputname == 'Ey':
-                modelresp *= -1 * f.attrs['dx, dy, dz'][1]
-            if outputname == 'Ez':
-                modelresp *= -1 * f.attrs['dx, dy, dz'][2]
+                modelresp *= -f.attrs['dx, dy, dz'][1]
+            elif outputname == 'Ez':
+                modelresp *= -f.attrs['dx, dy, dz'][2]
 
-    # Normalise respose from output file
-    modelresp /= np.amax(np.abs(modelresp))
+    # Normalise reference respose and response from output file
+#    refresp /= np.amax(np.abs(refresp))
+#    modelresp /= np.amax(np.abs(modelresp))
 
     # Make both responses the same length in time
-    if reftime[-1] > modeltime[-1]:
-        reftime = np.arange(0, f.attrs['dt'] * f.attrs['Iterations'], reftime[-1] / len(reftime))
-        refresp = refresp[0:len(reftime)]
-    elif modeltime[-1] > reftime[-1]:
-        modeltime = np.arange(0, reftime[-1], f.attrs['dt'])
-        modelresp = modelresp[0:len(modeltime)]
+#    if reftime[-1] > modeltime[-1]:
+#        reftime = np.arange(0, f.attrs['dt'] * f.attrs['Iterations'], reftime[-1] / len(reftime))
+#        refresp = refresp[0:len(reftime)]
+#    elif modeltime[-1] > reftime[-1]:
+#        modeltime = np.arange(0, reftime[-1], f.attrs['dt'])
+#        modelresp = modelresp[0:len(modeltime)]
+#
+#    # Downsample the response with the higher sampling rate
+#    if len(modeltime) < len(reftime):
+#        refresp = signal.resample(refresp, len(modelresp))
+#    elif len(reftime) < len(modeltime):
+#        modelresp = signal.resample(modelresp, len(refresp))
 
-    # Downsample the response with the higher sampling rate
-    if len(modeltime) < len(reftime):
-        refresp = signal.resample(refresp, len(modelresp))
-    elif len(reftime) < len(modeltime):
-        modelresp = signal.resample(modelresp, len(refresp))
+    # Prepare data for normalized cross-correlation
+    refresp = (refresp - np.mean(refresp)) / (np.std(refresp) * len(refresp))
+    modelresp = (modelresp - np.mean(modelresp)) / np.std(modelresp)
 
     # Plots responses for checking
-#    fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Voltage [V]'), figsize=(20, 10), facecolor='w', edgecolor='w')
-#    ax.plot(refresp,'r', lw=2, label='refresp')
-#    ax.plot(modelresp,'b', lw=2, label='modelresp')
-#    ax.grid()
-#    plt.show()
+    #fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Voltage [V]'), figsize=(20, 10), facecolor='w', edgecolor='w')
+    #ax.plot(refresp,'r', lw=2, label='refresp')
+    #ax.plot(modelresp,'b', lw=2, label='modelresp')
+    #ax.grid()
+    #plt.show()
 
     # Calculate cross-correlation
     xcorr = signal.correlate(refresp, modelresp)
+    
+    # Set any NaNs to zero
+    xcorr = np.nan_to_num(xcorr)
+
     # Plot cross-correlation for checking
 #    fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Voltage [V]'), figsize=(20, 10), facecolor='w', edgecolor='w')
 #    ax.plot(xcorr,'r', lw=2, label='xcorr')
 #    ax.grid()
 #    plt.show()
-    xcorrmax = np.amax(xcorr) / 100
+
+    xcorrmax = np.amax(xcorr)
 
     return xcorrmax
 
