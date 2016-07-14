@@ -80,7 +80,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
     # Lower, central, and upper values for each parameter
     levels = np.zeros((s, k), dtype=floattype)
     # Optimal lower, central, or upper value for each parameter
-    levelsopt = np.zeros(k, dtype=floattype)
+    levelsopt = np.zeros(k, dtype=np.uint8)
     # Difference used to set values for levels
     levelsdiff = np.zeros(k, dtype=floattype)
     # History of fitness values from each confirmation experiment
@@ -400,7 +400,7 @@ def calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N,
         # Calculate optimal level from table of responses
         optlevel = np.where(responses == np.amax(responses))[0]
         
-        # If 2 experiments produce the same fitness value (this shouldn't happen if the fitness function is designed correctly) pick first level
+        # If 2 experiments produce the same fitness value pick first level (this shouldn't happen if the fitness function is designed correctly)
         if len(optlevel) > 1:
             optlevel = optlevel[0]
         
