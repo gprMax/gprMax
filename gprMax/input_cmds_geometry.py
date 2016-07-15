@@ -26,7 +26,7 @@ from gprMax.input_cmds_file import check_cmd_names
 from gprMax.input_cmds_multiuse import process_multicmds
 from gprMax.exceptions import CmdInputError
 from gprMax.fractals import FractalSurface, FractalVolume, Grass
-from gprMax.geometry_primitives import build_edge_x, build_edge_y, build_edge_z, build_face_yz, build_face_xz, build_face_xy, build_triangle, build_voxel, build_box, build_cylinder, build_cylindrical_sector, build_sphere, build_voxels_from_array
+from gprMax.geometry_primitives import build_edge_x, build_edge_y, build_edge_z, build_face_yz, build_face_xz, build_face_xy, build_triangle, build_voxel, build_box, build_cylinder, build_cylindrical_sector, build_sphere, build_voxels_from_array, build_voxels_from_array_mask
 from gprMax.materials import Material
 from gprMax.utilities import round_value
 
@@ -83,7 +83,7 @@ def process_geometrycmds(geometry, G):
             
             # Should be int16 to allow for -1 which indicates background, i.e. don't build anything, but AustinMan/Woman maybe uint16
             if data.dtype != 'int16':
-                data = data.astype('np.int16')
+                data = data.astype('int16')
             
             build_voxels_from_array(xs, ys, zs, numexistmaterials, data, G.solid, G.rigidE, G.rigidH, G.ID)
     
@@ -1192,7 +1192,7 @@ def process_geometrycmds(geometry, G):
                         volume.fractalsurfaces.append(surface)
 
                         if G.messages:
-                            print('{} blades of grass on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}, fractal seeding {} and range {:g}m to {:g}m, added to {}.'.format(numblades, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.seed, float(tmp[8]), float(tmp[9]), surface.operatingonID))
+                            print('{} blades of grass on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}, fractal seeding {}, and range {:g}m to {:g}m, added to {}.'.format(numblades, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.seed, float(tmp[8]), float(tmp[9]), surface.operatingonID))
 
                 
             # Process any modifications to the original fractal box then generate it
@@ -1239,7 +1239,7 @@ def process_geometrycmds(geometry, G):
                 else:
                     volume.generate_fractal_volume(G)
                     volume.fractalvolume += mixingmodel.startmaterialnum
-
+                
                 volume.generate_volume_mask()
                 
                 # Apply any rough surfaces and add any surface water to the 3D mask array
@@ -1441,20 +1441,11 @@ def process_geometrycmds(geometry, G):
 
 
                 # Build voxels from any true values of the 3D mask array
-                for i in range(volume.xs, volume.xf):
-                    for j in range(volume.ys, volume.yf):
-                        for k in range(volume.zs, volume.zf):
-                            if volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] == 1:
-                                numID = numIDx = numIDy = numIDz = volume.fractalvolume[i - volume.xs, j - volume.ys, k - volume.zs]
-                                build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, G.solid, G.rigidE, G.rigidH, G.ID)
-                            elif volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] == 2:
-                                waternumID = next(x.numID for x in G.materials if x.ID == 'water')
-                                numID = numIDx = numIDy = numIDz = waternumID
-                                build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, G.solid, G.rigidE, G.rigidH, G.ID)
-                            elif volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] == 3:
-                                grassnumID = next(x.numID for x in G.materials if x.ID == 'grass')
-                                numID = numIDx = numIDy = numIDz = grassnumID
-                                build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, G.solid, G.rigidE, G.rigidH, G.ID)
+                waternumID = next((x.numID for x in G.materials if x.ID == 'water'), 0)
+                grassnumID = next((x.numID for x in G.materials if x.ID == 'grass'), 0)
+                data = volume.fractalvolume.astype('int16', order='C')
+                mask = volume.mask.copy(order='C')
+                build_voxels_from_array_mask(volume.xs, volume.ys, volume.zs, waternumID, grassnumID, mask, data, G.solid, G.rigidE, G.rigidH, G.ID)
 
             else:
                 if volume.nbins == 1:
@@ -1462,17 +1453,7 @@ def process_geometrycmds(geometry, G):
                 else:
                     volume.generate_fractal_volume(G)
                     volume.fractalvolume += mixingmodel.startmaterialnum
-                
-                for i in range(volume.xs, volume.xf):
-                    for j in range(volume.ys, volume.yf):
-                        for k in range(volume.zs, volume.zf):
-                            numID = numIDx = numIDy = numIDz = volume.fractalvolume[i - volume.xs, j - volume.ys, k - volume.zs]
-                            build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, G.solid, G.rigidE, G.rigidH, G.ID)
 
-
-
-
-
-
-
+                data = volume.fractalvolume.astype('int16', order='C')
+                build_voxels_from_array(volume.xs, volume.ys, volume.zs, 0, data, G.solid, G.rigidE, G.rigidH, G.ID)
 
