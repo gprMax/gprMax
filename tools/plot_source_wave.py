@@ -81,8 +81,15 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
 
     print('Waveform characteristics...')
     print('Type: {}'.format(w.type))
-    print('Amplitude: {:g}'.format(w.amp))
-    print('Centre frequency: {:g} Hz'.format(w.freq))
+
+    if w.type == 'user':
+        waveform = w.uservalues
+        w.amp = np.max(np.abs(waveform))
+
+    print('Maximum amplitude: {:g}'.format(w.amp))
+
+    if w.freq:
+        print('Centre frequency: {:g} Hz'.format(w.freq))
 
     if w.type == 'gaussian' or w.type == 'gaussiandot' or w.type == 'gaussiandotdot':
         delay = 1 / w.freq
@@ -110,6 +117,11 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
         power -= np.amax(power)
 
         # Set plotting range to 4 times centre frequency of waveform
+        if w.type == 'user':
+            fmaxpower = np.where(power == 0)[0][0]
+            w.freq = freqs[fmaxpower]
+            print('Centre frequency: {:g} Hz'.format(w.freq))
+
         pltrange = np.where(freqs > 4 * w.freq)[0][0]
         pltrange = np.s_[0:pltrange]
 
@@ -149,7 +161,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
 if __name__ == "__main__":
     
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Plot built-in waveforms that can be used for sources.', usage='cd gprMax; python -m tools.plot_builtin_wave type amp freq timewindow dt')
+    parser = argparse.ArgumentParser(description='Plot built-in waveforms that can be used for sources.', usage='cd gprMax; python -m tools.plot_source_wave type amp freq timewindow dt')
     parser.add_argument('type', help='type of waveform', choices=Waveform.types)
     parser.add_argument('amp', type=float, help='amplitude of waveform')
     parser.add_argument('freq', type=float, help='centre frequency of waveform')

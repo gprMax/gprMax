@@ -83,14 +83,14 @@ Built-in waveforms
 
 This section describes the definitions of the functions that are used to create the built-in waveforms, and how to plot them.
 
-plot_builtin_wave.py
+plot_source_wave.py
 --------------------
 
 This module uses matplotlib to plot one of the built-in waveforms and it's FFT. Usage (from the top-level gprMax directory) is:
 
 .. code-block:: none
 
-    python -m tools.plot_builtin_wave type amp freq timewindow dt
+    python -m tools.plot_source_wave type amp freq timewindow dt
 
 where:
 
