@@ -107,8 +107,8 @@ class Material(object):
                     # tau for Lorentz materials are pole frequencies
                     # alpha for Lorentz materials are the damping coefficients
                     wp2 = (2 * np.pi * self.tau[x]) * (2 * np.pi * (1 / self.tau[x]))
-                    self.w[x] = -(wp2 * self.deltaer[x]) * j / np.sqrt(wp2 - (self.alpha[x] * self.alpha[x]))
-                    self.q[x] = -self.alpha[x] + np.sqrt(wp2 - (self.alpha[x] * self.alpha[x])) * j
+                    self.w[x] = -(wp2 * self.deltaer[x]) * 1j / np.sqrt(wp2 - (self.alpha[x] * self.alpha[x]))
+                    self.q[x] = -self.alpha[x] + np.sqrt(wp2 - (self.alpha[x] * self.alpha[x])) * 1j
                 elif self.type == 'drude':
                     # tau for Drude materials are pole frequencies
                     # alpha for Drude materials are the inverse of relaxation times
