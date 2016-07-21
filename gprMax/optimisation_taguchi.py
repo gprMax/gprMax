@@ -99,9 +99,9 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
         optparams, levels, levelsdiff = calculate_ranges_experiments(optparams, optparamsinit, levels, levelsopt, levelsdiff, OA, N, k, s, iteration)
 
         # Run model for each experiment
-        if args.mpi: # Mixed mode MPI/OpenMP - MPI task farm for models with each model parallelised with OpenMP
+        if args.mpi:  # Mixed mode MPI/OpenMP - MPI task farm for models with each model parallelised with OpenMP
             run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams)
-        else: # Standard behaviour - models run serially with each model parallelised with OpenMP
+        else:  # Standard behaviour - models run serially with each model parallelised with OpenMP
             run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams)
 
         # Calculate fitness value for each experiment
@@ -312,7 +312,7 @@ def calculate_ranges_experiments(optparams, optparamsinit, levels, levelsopt, le
     """
 
     # Gaussian reduction function used for calculating levels
-    T = 18 # Usually values between 15 - 20
+    T = 18  # Usually values between 15 - 20
     RR = np.exp(-(i / T)**2)
 
     # Calculate levels for each parameter

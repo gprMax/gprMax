@@ -242,8 +242,8 @@ def build_pmls(G):
 
     for index, pmlthickness in enumerate(G.pmlthickness):
         if pmlthickness > 0:
-            sumer = 0 # Sum of relative permittivities in PML slab
-            summr = 0 # Sum of relative permeabilities in PML slab
+            sumer = 0  # Sum of relative permittivities in PML slab
+            summr = 0  # Sum of relative permeabilities in PML slab
             pmldirection = PML.directions[index]
 
             if pmldirection[0] == 'x':

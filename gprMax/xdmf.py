@@ -279,7 +279,7 @@ def write_output_file(filename, grid, res):
 
 
 def write_xml_doc(options):
-    #write xml to file
+    # write xml to file
     with open(options['filename'] + '.xdmf', 'wb') as xdmf_f:
         xdmf_f.write(options['xml_doc'])
 

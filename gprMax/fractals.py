@@ -65,13 +65,10 @@ class FractalSurface(object):
 
         if self.xs == self.xf:
             surfacedims = (self.ny + 1, self.nz + 1)
-            d = G.dx
         elif self.ys == self.yf:
             surfacedims = (self.nx + 1, self.nz + 1)
-            d = G.dy
         elif self.zs == self.zf:
             surfacedims = (self.nx + 1, self.ny + 1)
-            d = G.dz
 
         self.fractalsurface = np.zeros(surfacedims, dtype=complextype)
 

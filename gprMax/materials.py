@@ -177,9 +177,9 @@ class PeplinskiSoil(object):
         f = 1.3e9
         w = 2 * np.pi * f
         erealw = Material.watereri + ((Material.waterdeltaer) / (1 + (w * Material.watertau)**2))
-        eimagw = w * Material.watertau * ((Material.waterdeltaer) / (1 + (w * Material.watertau)**2))
+        # eimagw = w * Material.watertau * ((Material.waterdeltaer) / (1 + (w * Material.watertau)**2))
 
-        a = 0.65 # Experimentally derived constant
+        a = 0.65  # Experimentally derived constant
         es = (1.01 + 0.44 * self.rs)**2 - 0.062
         b1 = 1.2748 - 0.519 * self.S - 0.152 * self.C
         b2 = 1.33797 - 0.603 * self.S - 0.166 * self.C
@@ -187,7 +187,7 @@ class PeplinskiSoil(object):
         # For frequencies in the range 0.3GHz to 1.3GHz
         sigf1 = 0.0467 + 0.2204 * self.rb - 0.411 * self.S + 0.6614 * self.C
         # For frequencies in the range 1.4GHz to 18GHz
-        sigf2 = -1.645 + 1.939 * self.rb - 2.25622 * self.S + 1.594 * self.C
+        # sigf2 = -1.645 + 1.939 * self.rb - 2.25622 * self.S + 1.594 * self.C
 
         # Generate a set of bins based on the given volumetric water fraction values
         mubins = np.linspace(self.mu[0], self.mu[1], nbins + 1)

@@ -199,7 +199,7 @@ def dispersion_check(G):
         # Minimum wavelength
         minwavelength = minvelocity / maxfreq
 
-        # Resolution of minimum wavelength
+        # Resolution of minimum wavelength
         resolution = minwavelength / resolvedsteps
 
     else:
