@@ -69,7 +69,7 @@ class Material(object):
 
     def calculate_update_coeffsH(self, G):
         """Calculates the magnetic update coefficients of the material.
-            
+
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
@@ -85,7 +85,7 @@ class Material(object):
     # Calculate electric update coefficients
     def calculate_update_coeffsE(self, G):
         """Calculates the electric update coefficients of the material.
-            
+
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
@@ -167,7 +167,7 @@ class PeplinskiSoil(object):
 
     def calculate_debye_properties(self, nbins, G):
         """Calculates the real and imaginery part of a Debye model for the soil as well as a conductivity. It uses a semi-empirical model (http://dx.doi.org/10.1109/36.387598).
-            
+
         Args:
             nbins (int): Number of bins to use to create the different materials.
             G (class): Grid class instance - holds essential parameters describing the model.

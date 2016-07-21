@@ -67,7 +67,7 @@ class Snapshot(object):
 
     def prepare_vtk_imagedata(self, modelrun, numbermodelruns, G):
         """Prepares a VTK ImageData (.vti) file for a snapshot.
-            
+
         Args:
             modelrun (int): Current model run number.
             numbermodelruns (int): Total number of model runs.
@@ -112,7 +112,7 @@ class Snapshot(object):
 
     def write_vtk_imagedata(self, Ex, Ey, Ez, Hx, Hy, Hz, G):
         """Writes electric and magnetic field values to VTK ImageData (.vti) file.
-            
+
         Args:
             Ex, Ey, Ez, Hx, Hy, Hz (memory view): Electric and magnetic field values.
             G (class): Grid class instance - holds essential parameters describing the model.

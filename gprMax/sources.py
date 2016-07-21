@@ -51,7 +51,7 @@ class VoltageSource(Source):
 
     def update_electric(self, abstime, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a voltage source.
-            
+
         Args:
             abstime (float): Absolute time.
             updatecoeffsE (memory view): numpy array of electric field update coefficients.
@@ -91,7 +91,7 @@ class VoltageSource(Source):
 
     def create_material(self, G):
         """Create a new material at the voltage source location that adds the voltage source conductivity to the underlying parameters.
-            
+
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
@@ -129,7 +129,7 @@ class HertzianDipole(Source):
 
     def update_electric(self, abstime, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a Hertzian dipole.
-            
+
         Args:
             abstime (float): Absolute time.
             updatecoeffsE (memory view): numpy array of electric field update coefficients.
@@ -167,7 +167,7 @@ class MagneticDipole(Source):
 
     def update_magnetic(self, abstime, updatecoeffsH, ID, Hx, Hy, Hz, G):
         """Updates magnetic field values for a magnetic dipole.
-            
+
         Args:
             abstime (float): Absolute time.
             updatecoeffsH (memory view): numpy array of magnetic field update coefficients.
@@ -231,7 +231,7 @@ class TransmissionLine(Source):
 
     def calculate_incident_V_I(self, G):
         """Calculates the incident voltage and current with a long length transmission line not connected to the main grid from: http://dx.doi.org/10.1002/mop.10415
-            
+
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
@@ -250,7 +250,7 @@ class TransmissionLine(Source):
 
     def update_abc(self, G):
         """Updates absorbing boundary condition at end of the transmission line.
-            
+
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
@@ -263,7 +263,7 @@ class TransmissionLine(Source):
 
     def update_voltage(self, time, G):
         """Updates voltage values along the transmission line.
-            
+
         Args:
             time (float): Absolute time.
             G (class): Grid class instance - holds essential parameters describing the model.
@@ -281,7 +281,7 @@ class TransmissionLine(Source):
 
     def update_current(self, time, G):
         """Updates current values along the transmission line.
-            
+
         Args:
             time (float): Absolute time.
             G (class): Grid class instance - holds essential parameters describing the model.
@@ -296,7 +296,7 @@ class TransmissionLine(Source):
 
     def update_electric(self, abstime, Ex, Ey, Ez, G):
         """Updates electric field value in the main grid from voltage value in the transmission line.
-            
+
         Args:
             abstime (float): Absolute time.
             Ex, Ey, Ez (memory view): numpy array of electric field values.
@@ -323,7 +323,7 @@ class TransmissionLine(Source):
 
     def update_magnetic(self, abstime, Hx, Hy, Hz, G):
         """Updates current value in transmission line from magnetic field values in the main grid.
-            
+
         Args:
             abstime (float): Absolute time.
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.

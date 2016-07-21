@@ -22,7 +22,7 @@ import decimal as d
 
 def logo(version):
     """Print gprMax logo, version, and licencing/copyright information.
-        
+
     Args:
         version (str): Version number.
     """
@@ -30,17 +30,17 @@ def logo(version):
     licenseinfo = """
 Copyright (C) 2015-2016: The University of Edinburgh
                 Authors: Craig Warren and Antonis Giannopoulos
-        
+
 gprMax is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
-                    
+
 gprMax is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
-                                    
+
 You should have received a copy of the GNU General Public License
 along with gprMax.  If not, see <http://www.gnu.org/licenses/>."""
 
@@ -65,7 +65,7 @@ along with gprMax.  If not, see <http://www.gnu.org/licenses/>."""
 
 def update_progress(progress):
     """Displays or updates a console progress bar.
-        
+
     Args:
         progress (float): Number between zero and one to signify progress.
     """
@@ -80,11 +80,11 @@ def update_progress(progress):
 
 def round_value(value, decimalplaces=0):
     """Rounding function.
-        
+
     Args:
         value (float): Number to round.
         decimalplaces (int): Number of decimal places of float to represent rounded value.
-        
+
     Returns:
         rounded (int/float): Rounded value.
     """
@@ -103,11 +103,11 @@ def round_value(value, decimalplaces=0):
 
 def human_size(size, a_kilobyte_is_1024_bytes=True):
     """Convert a file size to human-readable form.
-        
+
     Args:
         size (int): file size in bytes
         a_kilobyte_is_1024_bytes (boolean) - true for multiples of 1024, false for multiples of 1000
-        
+
     Returns:
         Human-readable (string).
     """

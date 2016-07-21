@@ -33,10 +33,10 @@ from gprMax.utilities import round_value
 
 def process_geometrycmds(geometry, G):
     """This function checks the validity of command parameters, creates instances of classes of parameters, and calls functions to directly set arrays solid, rigid and ID.
-        
+
     Args:
         geometry (list): Geometry commands in the model
-        
+
     """
 
     for object in geometry:

@@ -137,7 +137,7 @@ def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type='n'):
         dx, dy, dz (float): Spatial discretisation of geometry view.
         filename (str): Filename where geometry file information will be stored.
         type (str): Can be either n (normal) or f (fine) which specifies whether to output the geometry information on a per-cell basis (n) or a per-cell-edge basis (f).
-        
+
     Returns:
         s, f, d (tuple): 3 namedtuple Coordinate for the start, finish coordinates and spatial discretisation
     """
@@ -157,7 +157,7 @@ def snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename):
         dx, dy, dz (float): Spatial discretisation of geometry view.
         time (float): Time in seconds (float) or the iteration number (integer) which denote the point in time at which the snapshot will be taken.
         filename (str): Filename where geometry file information will be stored.
-        
+
     Returns:
         s, f, d (tuple): 3 namedtuple Coordinate for the start, finish coordinates and spatial discretisation
     """
@@ -181,7 +181,7 @@ def edge(xs, ys, zs, xf, yf, zf, material):
     Args:
         xs, ys, zs, xf, yf, zf (float): Start and finish coordinates.
         material (str): Material identifier.
-        
+
     Returns:
         s, f (tuple): 2 namedtuple Coordinate for the start and finish coordinates
     """
@@ -198,7 +198,7 @@ def plate(xs, ys, zs, xf, yf, zf, material):
     Args:
         xs, ys, zs, xf, yf, zf (float): Start and finish coordinates.
         material (str): Material identifier(s).
-        
+
     Returns:
         s, f (tuple): 2 namedtuple Coordinate for the start and finish coordinates
     """
@@ -216,7 +216,7 @@ def triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, thickness, material):
         x1, y1, z1, x2, y2, z2, x3, y3, z3 (float): Coordinates of the vertices.
         thickness (float): Thickness for a triangular prism, or zero for a triangular patch.
         material (str): Material identifier(s).
-        
+
     Returns:
         v1, v2, v3 (tuple): 3 namedtuple Coordinate for the vertices
     """
@@ -304,7 +304,7 @@ def excitation_file(file1):
 
     Args:
         file1 (str): filename
-        
+
     Returns:
         file1 (str): filename
     """
@@ -321,7 +321,7 @@ def waveform(shape, amplitude, frequency, identifier):
         amplitude (float): is the amplitude of the waveform.
         frequency (float): is the frequency of the waveform in Hertz.
         identifier (str): is an identifier for the waveform used to assign it to a source.
-        
+
     Returns:
         identifier (str): is an identifier for the waveform used to assign it to a source.
     """
@@ -339,7 +339,7 @@ def hertzian_dipole(polarization, f1, f2, f3, identifier, t0=None, t_remove=None
         identifier (str): is the identifier of the waveform that should be used with the source.
         t0 (float): is an optinal argument for the time delay in starting the source.
         t_remove (float): is a time to remove the source.
-        
+
     Returns:
         coordinates (tuple): namedtuple Coordinate of the source location
     """
@@ -357,7 +357,7 @@ def rx(x, y, z, identifier=None, to_save=None):
         x, y, z (float): are the coordinates (x,y,z) of the receiver in the model.
         identifier (str): is the optional identifier of the receiver
         to_save (list):  is a list of outputs with this receiver. It can be any selection from 'Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', or 'Iz'.
-        
+
     Returns:
         coordinates (tuple): namedtuple Coordinate of the receiver location
     """
@@ -372,7 +372,7 @@ def src_steps(dx=0, dy=0, dz=0):
 
     Args:
         dx, dy, dz (float): are the increments in (x, y, z) to move all simple sources or all receivers.
-        
+
     Returns:
         coordinates (tuple): namedtuple Coordinate of the increments
     """
@@ -388,7 +388,7 @@ def rx_steps(dx=0, dy=0, dz=0):
 
     Args:
         dx, dy, dz (float): are the increments in (x, y, z) to move all simple sources or all receivers.
-        
+
     Returns:
         coordinates (tuple): namedtuple Coordinate of the increments
     """

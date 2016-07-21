@@ -25,11 +25,11 @@ from gprMax.exceptions import CmdInputError
 
 def process_python_include_code(inputfile, usernamespace):
     """Looks for and processes any Python code found in the input file. It will ignore any lines that are comments, i.e. begin with a double hash (##), and any blank lines. It will also ignore any lines that do not begin with a hash (#) after it has processed Python commands. It will also process any include commands and insert the contents of the included file at that location.
-        
+
     Args:
         inputfile (str): Name of the input file to open.
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
-        
+
     Returns:
         processedlines (list): Input commands after Python processing.
     """
@@ -118,7 +118,7 @@ def process_python_include_code(inputfile, usernamespace):
 
 def write_processed_file(inputfile, modelrun, numbermodelruns, processedlines):
     """Writes an input file after any Python code and include commands in the original input file have been processed.
-        
+
     Args:
         inputfile (str): Name of the input file to open.
         modelrun (int): Current model run number.
@@ -140,11 +140,11 @@ def write_processed_file(inputfile, modelrun, numbermodelruns, processedlines):
 
 def check_cmd_names(processedlines, checkessential=True):
     """Checks the validity of commands, i.e. are they gprMax commands, and that all essential commands are present.
-        
+
     Args:
         processedlines (list): Input commands after Python processing.
         checkessential (boolean): Perform check to see that all essential commands are present.
-        
+
     Returns:
         singlecmds (dict): Commands that can only occur once in the model.
         multiplecmds (dict): Commands that can have multiple instances in the model.

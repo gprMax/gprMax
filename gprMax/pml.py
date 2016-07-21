@@ -66,7 +66,7 @@ class CFS(object):
 
     def calculate_sigmamax(self, direction, er, mr, G):
         """Calculates an optimum value for sigma max based on underlying material properties.
-            
+
         Args:
             direction (str): Direction of PML slab
             er (float): Average permittivity of underlying material.
@@ -87,12 +87,12 @@ class CFS(object):
 
     def scaling_polynomial(self, order, Evalues, Hvalues):
         """Applies the polynomial to be used for the scaling profile for electric and magnetic PML updates.
-            
+
         Args:
             order (int): Order of polynomial for scaling profile.
             Evalues (float): numpy array holding scaling profile values for electric PML update.
             Hvalues (float): numpy array holding scaling profile values for magnetic PML update.
-            
+
         Returns:
             Evalues (float): numpy array holding scaling profile values for electric PML update.
             Hvalues (float): numpy array holding scaling profile values for magnetic PML update.
@@ -105,11 +105,11 @@ class CFS(object):
 
     def calculate_values(self, thickness, parameter):
         """Calculates values for electric and magnetic PML updates based on profile type and minimum and maximum values.
-            
+
         Args:
             thickness (int): Thickness of PML in cells.
             parameter (CFSParameter): Instance of CFSParameter
-            
+
         Returns:
             Evalues (float): numpy array holding profile value for electric PML update.
             Hvalues (float): numpy array holding profile value for magnetic PML update.
@@ -194,7 +194,7 @@ class PML(object):
 
     def calculate_update_coeffs(self, er, mr, G):
         """Calculates electric and magnetic update coefficients for the PML.
-            
+
         Args:
             er (float): Average permittivity of underlying material
             mr (float): Average permeability of underlying material

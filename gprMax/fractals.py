@@ -58,7 +58,7 @@ class FractalSurface(object):
 
     def generate_fractal_surface(self, G):
         """Generate a 2D array with a fractal distribution.
-            
+
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
@@ -135,7 +135,7 @@ class FractalVolume(object):
 
     def generate_fractal_volume(self, G):
         """Generate a 3D volume with a fractal distribution.
-            
+
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
@@ -216,11 +216,11 @@ class Grass(object):
 
     def calculate_blade_geometry(self, blade, height):
         """Calculates the x and y coordinates for a given height of grass blade.
-            
+
         Args:
             blade (int): Numeric ID of grass blade.
             height (float): Height of grass blade.
-        
+
         Returns:
             x, y (float): x and y coordinates of grass blade.
         """
@@ -234,11 +234,11 @@ class Grass(object):
 
     def calculate_root_geometry(self, root, depth):
         """Calculates the x and y coordinates for a given depth of grass root.
-            
+
         Args:
             root (int): Numeric ID of grass root.
             depth (float): Depth of grass root.
-        
+
         Returns:
             x, y (float): x and y coordinates of grass root.
         """

@@ -30,7 +30,7 @@ from gprMax.waveforms import Waveform
 
 def process_singlecmds(singlecmds, G):
     """Checks the validity of command parameters and creates instances of classes of parameters.
-        
+
     Args:
         singlecmds (dict): Commands that can only occur once in the model.
         G (class): Grid class instance - holds essential parameters describing the model.

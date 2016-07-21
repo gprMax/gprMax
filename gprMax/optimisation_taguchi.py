@@ -30,7 +30,7 @@ from gprMax.gprMax import run_std_sim, run_mpi_sim
 
 def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
     """Run a simulation using Taguchi's optmisation process.
-        
+
     Args:
         args (dict): Namespace with command line arguments
         numbermodelruns (int): Total number of model runs.
@@ -159,11 +159,11 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
 
 def taguchi_code_blocks(inputfile, taguchinamespace):
     """Looks for and processes a Taguchi code block (containing Python code) in the input file. It will ignore any lines that are comments, i.e. begin with a double hash (##), and any blank lines.
-        
+
     Args:
         inputfile (str): Name of the input file to open.
         taguchinamespace (dict): Namespace that can be accessed by user a Taguchi code block in input file.
-        
+
     Returns:
         processedlines (list): Input commands after Python processing.
     """
@@ -205,10 +205,10 @@ def taguchi_code_blocks(inputfile, taguchinamespace):
 
 def construct_OA(optparams):
     """Load an orthogonal array (OA) from a numpy file. Configure and return OA and properties of OA.
-        
+
     Args:
         optparams (dict): Dictionary containing name of parameters to optimise and their initial ranges
-        
+
     Returns:
         OA (array): Orthogonal array
         N (int): Number of experiments in OA
@@ -292,7 +292,7 @@ def construct_OA(optparams):
 
 def calculate_ranges_experiments(optparams, optparamsinit, levels, levelsopt, levelsdiff, OA, N, k, s, i):
     """Calculate values for parameters to optimise for a set of experiments.
-        
+
     Args:
         optparams (dict): Ordered dictionary containing name of parameters to optimise and their values
         optparamsinit (list): Initial ranges for parameters to optimise
@@ -304,7 +304,7 @@ def calculate_ranges_experiments(optparams, optparamsinit, levels, levelsopt, le
         k (int): Number of parameters to optimise in OA
         s (int): Number of levels in OA
         i (int): Iteration number
-        
+
     Returns:
         optparams (dict): Ordered dictionary containing name of parameters to optimise and their values
         levels (array): Lower, central, and upper values for each parameter
@@ -359,7 +359,7 @@ def calculate_ranges_experiments(optparams, optparamsinit, levels, levelsopt, le
 
 def calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N, k):
     """Calculate optimal levels from results of fitness metric by building a response table.
-        
+
     Args:
         optparams (dict): Ordered dictionary containing name of parameters to optimise and their values
         levels (array): Lower, central, and upper values for each parameter
@@ -368,7 +368,7 @@ def calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N,
         OA (array): Orthogonal array
         N (int): Number of experiments in OA
         k (int): Number of parameters to optimise in OA
-        
+
     Returns:
         optparams (dict): Ordered dictionary containing name of parameters to optimise and their values
         levelsopt (array): Optimal level for each parameter from previous iteration
@@ -417,7 +417,7 @@ def calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N,
 
 def plot_optimisation_history(fitnessvalueshist, optparamshist, optparamsinit):
     """Plot the history of fitness values and each optimised parameter values for the optimisation.
-        
+
     Args:
         fitnessvalueshist (list): History of fitness values
         optparamshist (dict): Name of parameters to optimise and history of their values

@@ -35,11 +35,11 @@ class Waveform(object):
 
     def calculate_value(self, time, dt):
         """Calculates value of the waveform at a specific time.
-            
+
         Args:
             time (float): Absolute time.
             dt (float): Absolute time discretisation.
-            
+
         Returns:
             waveform (float): Calculated value for waveform.
         """
