@@ -18,12 +18,13 @@
 
 import os, argparse
 import numpy as np
-np.seterr(divide='ignore')
 import matplotlib.pyplot as plt
 
 from gprMax.exceptions import CmdInputError
 from gprMax.utilities import round_value
 from gprMax.waveforms import Waveform
+
+np.seterr(divide='ignore')
 
 
 def check_timewindow(timewindow, dt):

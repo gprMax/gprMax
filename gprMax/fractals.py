@@ -17,10 +17,11 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-np.seterr(divide='raise')
 
 from gprMax.constants import floattype, complextype
 from gprMax.utilities import round_value
+
+np.seterr(divide='raise')
 
 
 class FractalSurface(object):

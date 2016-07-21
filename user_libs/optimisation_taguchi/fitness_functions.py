@@ -8,9 +8,10 @@
 import sys
 import h5py
 import numpy as np
-np.seterr(divide='ignore')
 from scipy import signal
 import matplotlib.pyplot as plt
+
+np.seterr(divide='ignore')
 
 """This module contains fitness metric functions that can be used with the Taguchi optimisation method.
     
