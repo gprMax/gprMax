@@ -18,7 +18,7 @@
 
 import numpy as np
 
-from gprMax.constants import e0, m0, floattype, complextype
+from gprMax.constants import e0, m0, complextype
 
 
 class Material(object):

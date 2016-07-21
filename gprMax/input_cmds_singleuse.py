@@ -24,7 +24,6 @@ import numpy as np
 
 from gprMax.constants import c, floattype
 from gprMax.exceptions import CmdInputError
-from gprMax.pml import PML, CFS
 from gprMax.utilities import round_value, human_size
 from gprMax.waveforms import Waveform
 

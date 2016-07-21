@@ -19,7 +19,6 @@
 import h5py
 
 from gprMax._version import __version__
-from gprMax.constants import floattype
 
 
 def write_hdf5(outputfile, Ex, Ey, Ez, Hx, Hy, Hz, G):

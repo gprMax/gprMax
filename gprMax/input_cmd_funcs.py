@@ -31,7 +31,6 @@ Coordinate(x=0.1, y=0.2, z=0.3)
 >>> print c.x, c.y, c.z
 0.1 0.2 0.3
 """
-import sys
 
 from collections import namedtuple
 Coordinate_tuple = namedtuple('Coordinate', ['x', 'y', 'z'])

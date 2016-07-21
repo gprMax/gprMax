@@ -4,8 +4,6 @@ import h5py
 from lxml import etree
 import numpy as np
 
-import time
-
 from gprMax.grid import Grid
 
 class ListCounter():
