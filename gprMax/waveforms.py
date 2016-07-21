@@ -23,9 +23,9 @@ from gprMax.utilities import round_value
 
 class Waveform(object):
     """Definitions of waveform shapes that can be used with sources."""
-    
+
     types = ['gaussian', 'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot', 'gaussiandotdotnorm', 'ricker', 'sine', 'contsine', 'impulse', 'user']
-    
+
     def __init__(self):
         self.ID = None
         self.type = None
@@ -43,7 +43,7 @@ class Waveform(object):
         Returns:
             waveform (float): Calculated value for waveform.
         """
-        
+
         # Coefficients for certain waveforms
         if self.type == 'gaussian' or self.type == 'gaussiandot' or self.type == 'gaussiandotdot':
             chi = 1 / self.freq
@@ -53,21 +53,21 @@ class Waveform(object):
             chi = np.sqrt(2) / self.freq
             zeta = np.pi**2 * self.freq**2
             delay = time - chi
-    
+
         # Waveforms
         if self.type == 'gaussian':
             waveform = np.exp(-zeta * delay**2)
-        
+
         elif self.type == 'gaussiandot':
             waveform = -2 * zeta * delay * np.exp(-zeta * delay**2)
-        
+
         elif self.type == 'gaussiandotnorm':
             normalise = np.sqrt(np.exp(1) / (2 * zeta))
             waveform = -2 * zeta * delay * np.exp(-zeta * delay**2) * normalise
-        
+
         elif self.type == 'gaussiandotdot':
             waveform = 2 * zeta * (2 * zeta * delay**2 - 1) * np.exp(-zeta * delay**2)
-        
+
         elif self.type == 'gaussiandotdotnorm':
             normalise = 1 / (2 * zeta)
             waveform = 2 * zeta * (2 * zeta * delay**2 - 1) * np.exp(-zeta * delay**2) * normalise
@@ -80,7 +80,7 @@ class Waveform(object):
             waveform = np.sin(2 * np.pi * self.freq * time)
             if time * self.freq > 1:
                 waveform = 0
-                
+
         elif self.type == 'contsine':
             rampamp = 0.25
             ramp = rampamp * time * self.freq
@@ -94,7 +94,7 @@ class Waveform(object):
                 waveform = 1
             elif time >= dt:
                 waveform = 0
-        
+
         elif self.type == 'user':
             index = round_value(time / dt)
             # Check to see if there are still user specified values and if not use zero
@@ -102,5 +102,5 @@ class Waveform(object):
                 waveform = 0
             else:
                 waveform = self.uservalues[index]
-        
+
         return waveform

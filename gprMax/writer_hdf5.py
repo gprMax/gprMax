@@ -91,4 +91,3 @@ def write_hdf5(outputfile, Ex, Ey, Ez, Hx, Hy, Hz, G):
             f['/rxs/rx' + str(rxindex + 1) + '/Iy'] = rx.outputs['Iy']
         if 'Iz' in rx.outputs:
             f['/rxs/rx' + str(rxindex + 1) + '/Iz'] = rx.outputs['Iz']
-

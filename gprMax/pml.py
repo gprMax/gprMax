@@ -25,11 +25,11 @@ from gprMax.pml_2order_update import *
 
 class CFSParameter(object):
     """Individual CFS parameter (e.g. alpha, kappa, or sigma)."""
-    
+
     # Allowable scaling profiles and directions
     scalingprofiles = {'constant': 0, 'linear': 1, 'quadratic': 2, 'cubic': 3, 'quartic': 4}
     scalingdirections = ['forward', 'reverse']
-    
+
     def __init__(self, ID=None, scaling='polynomial', scalingprofile=None, scalingdirection='forward', min=0, max=0):
         """
         Args:
@@ -40,7 +40,7 @@ class CFSParameter(object):
             min (float): Minimum value for parameter.
             max (float): Maximum value for parameter.
         """
-        
+
         self.ID = ID
         self.scaling = scaling
         self.scalingprofile = scalingprofile
@@ -51,7 +51,7 @@ class CFSParameter(object):
 
 class CFS(object):
     """CFS term for PML."""
-    
+
     def __init__(self):
         """
         Args:
@@ -59,11 +59,11 @@ class CFS(object):
             kappa (CFSParameter): kappa parameter for CFS.
             sigma (CFSParameter): sigma parameter for CFS.
         """
-        
+
         self.alpha = CFSParameter(ID='alpha', scalingprofile='constant')
         self.kappa = CFSParameter(ID='kappa', scalingprofile='constant', min=1, max=1)
         self.sigma = CFSParameter(ID='sigma', scalingprofile='quartic', min=0, max=None)
-    
+
     def calculate_sigmamax(self, direction, er, mr, G):
         """Calculates an optimum value for sigma max based on underlying material properties.
             
@@ -73,14 +73,14 @@ class CFS(object):
             mr (float): Average permeability of underlying material.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        
+
         if direction[0] == 'x':
             d = G.dx
         elif direction[0] == 'y':
             d = G.dy
         elif direction[0] == 'z':
             d = G.dz
-        
+
         # Calculation of the maximum value of sigma from http://dx.doi.org/10.1109/8.546249
         m = CFSParameter.scalingprofiles[self.sigma.scalingprofile]
         self.sigma.max = (0.8 * (m + 1)) / (z0 * d * np.sqrt(er * mr))
@@ -97,7 +97,7 @@ class CFS(object):
             Evalues (float): numpy array holding scaling profile values for electric PML update.
             Hvalues (float): numpy array holding scaling profile values for magnetic PML update.
         """
-        
+
         tmp = (np.linspace(0, (len(Evalues) - 1) + 0.5, num=2*len(Evalues)) / (len(Evalues) - 1)) ** order
         Evalues = tmp[0:-1:2]
         Hvalues = tmp[1::2]
@@ -114,14 +114,14 @@ class CFS(object):
             Evalues (float): numpy array holding profile value for electric PML update.
             Hvalues (float): numpy array holding profile value for magnetic PML update.
         """
-        
+
         Evalues= np.zeros(thickness + 1, dtype=floattype)
         Hvalues = np.zeros(thickness + 1, dtype=floattype)
-        
+
         if parameter.scalingprofile == 'constant':
             Evalues += parameter.max
             Hvalues += parameter.max
-        
+
         elif parameter.scaling == 'polynomial':
             Evalues, Hvalues = self.scaling_polynomial(CFSParameter.scalingprofiles[parameter.scalingprofile], Evalues, Hvalues)
             if parameter.ID == 'alpha':
@@ -132,26 +132,26 @@ class CFS(object):
             elif parameter.ID == 'sigma':
                 Evalues *= self.sigma.max
                 Hvalues *= self.sigma.max
-            
+
         if parameter.scalingdirection == 'reverse':
             Evalues = Evalues[::-1]
             Hvalues = Hvalues[::-1]
-        
+
         return Evalues, Hvalues
 
 
 class PML(object):
     """PML - the implementation comes from the derivation in: http://dx.doi.org/10.1109/TAP.2011.2180344"""
-    
+
     directions = {0: 'xminus', 1: 'yminus', 2: 'zminus', 3: 'xplus', 4: 'yplus', 5: 'zplus'}
-    
+
     def __init__(self, G, direction=None, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0):
         """
         Args:
             xs, xf, ys, yf, zs, zf (float): Extent of the PML volume.
             cfs (list): CFS class instances associated with the PML.
         """
-        
+
         self.direction = direction
         self.xs = xs
         self.xf = xf
@@ -166,10 +166,10 @@ class PML(object):
         if not self.CFS:
             self.CFS = [CFS()]
         self.initialise_field_arrays()
-        
+
     def initialise_field_arrays(self):
         """Initialise arrays to store fields in PML."""
-        
+
         # Subscript notation, e.g. 'EPhiyxz' means the electric field Phi vector, of which the
         # component being corrected is y, the stretching direction is x, and field derivative
         # is z direction.
@@ -200,7 +200,7 @@ class PML(object):
             mr (float): Average permeability of underlying material
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        
+
         self.ERA = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
         self.ERB = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
         self.ERE = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
@@ -209,7 +209,7 @@ class PML(object):
         self.HRB = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
         self.HRE = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
         self.HRF = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-        
+
         for x, cfs in enumerate(self.CFS):
             if not cfs.sigma.max:
                 cfs.calculate_sigmamax(self.direction, er, mr, G)
@@ -223,7 +223,7 @@ class PML(object):
             self.ERB[x, :] = (2*e0*Ekappa) / tmp
             self.ERE[x, :] = ((2*e0*Ekappa) - G.dt * (Ealpha * Ekappa + Esigma)) / tmp
             self.ERF[x, :] = (2*Esigma*G.dt) / (Ekappa * tmp)
-            
+
             # Magnetic PML update coefficients
             tmp = (2*e0*Hkappa) + G.dt * (Halpha * Hkappa + Hsigma)
             self.HRA[x, :] = (2*e0 + G.dt*Halpha) / tmp
@@ -236,7 +236,7 @@ def build_pmls(G):
     """This function builds instances of the PML and calculates the initial parameters and coefficients including setting profile
         (based on underlying material er and mr from solid array).
     """
-    
+
     if G.messages:
         print('')
 
@@ -245,7 +245,7 @@ def build_pmls(G):
             sumer = 0 # Sum of relative permittivities in PML slab
             summr = 0 # Sum of relative permeabilities in PML slab
             pmldirection=PML.directions[index]
-            
+
             if pmldirection[0] == 'x':
                 if pmldirection == 'xminus':
                     pml = PML(G, direction=pmldirection, xf=pmlthickness, yf=G.ny, zf=G.nz)
@@ -260,7 +260,7 @@ def build_pmls(G):
                         summr += material.mr
                 averageer = sumer / (G.ny * G.nz)
                 averagemr = summr / (G.ny * G.nz)
-                        
+
             elif pmldirection[0] == 'y':
                 if pmldirection == 'yminus':
                     pml = PML(G, direction=pmldirection, yf=pmlthickness, xf=G.nx, zf=G.nz)
@@ -290,12 +290,12 @@ def build_pmls(G):
                         summr += material.mr
                 averageer = sumer / (G.nx * G.ny)
                 averagemr = summr / (G.nx * G.ny)
-            
+
             if G.messages and G.pmlthickness.count(pmlthickness) != len(G.pmlthickness):
                 print('PML slab ({} direction) with {} cells created.'.format(pml.direction, pml.thickness))
 
             pml.calculate_update_coeffs(averageer, averagemr, G)
-            
+
     # Where all the thicknesses of all the PML slabs are equal
     if G.messages and G.pmlthickness.count(G.pmlthickness[0]) == len(G.pmlthickness):
         if G.pmlthickness[0] == 0:
@@ -392,4 +392,3 @@ def update_magnetic_pml(G):
             elif pml.direction == 'zplus':
                 update_pml_2order_hx_zplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hx, G.Ey, pml.HPhixzy, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dz)
                 update_pml_2order_hy_zplus(pml.xs, pml.xf, pml.ys, pml.yf, pml.zs, pml.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Hy, G.Ex, pml.HPhiyzx, pml.HRA, pml.HRB, pml.HRE, pml.HRF, G.dz)
-

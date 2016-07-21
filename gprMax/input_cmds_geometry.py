@@ -41,7 +41,7 @@ def process_geometrycmds(geometry, G):
 
     for object in geometry:
         tmp = object.split()
-        
+
         if tmp[0] == '#geometry_objects_file:':
             if len(tmp) != 6:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly five parameters')
@@ -51,28 +51,28 @@ def process_geometrycmds(geometry, G):
             zs = round_value(float(tmp[3])/G.dz)
             geofile = tmp[4]
             matfile = tmp[5]
-            
+
             # See if material file exists at specified path and if not try input file directory
             if not os.path.isfile(matfile):
                 matfile = os.path.abspath(os.path.join(G.inputdirectory, matfile))
-            
+
             # Read materials from file
             with open(matfile, 'r') as f:
                 # Strip out any newline characters and comments that must begin with double hashes
                 materials = [line.rstrip() + '\n' for line in f if(not line.startswith('##') and line.rstrip('\n'))]
-            
+
             numexistmaterials = len(G.materials)
-            
+
             # Check validity of command names
             singlecmds, multicmds, geometry = check_cmd_names(materials, checkessential=False)
-            
+
             # Process parameters for commands that can occur multiple times in the model
             process_multicmds(multicmds, G)
-            
+
             # See if geometry object file exists at specified path and if not try input file directory
             if not os.path.isfile(geofile):
                 geofile = os.path.abspath(os.path.join(G.inputdirectory, geofile))
-            
+
             # Open geometry object file and read/check spatial resolution attribute
             f = h5py.File(geofile, 'r')
             dx_dy_dz = f.attrs['dx, dy, dz']
@@ -80,28 +80,28 @@ def process_geometrycmds(geometry, G):
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires the spatial resolution of the geometry objects file to match the spatial resolution of the model')
 
             data = f['/data'][:]
-            
+
             # Should be int16 to allow for -1 which indicates background, i.e. don't build anything, but AustinMan/Woman maybe uint16
             if data.dtype != 'int16':
                 data = data.astype('int16')
-            
+
             build_voxels_from_array(xs, ys, zs, numexistmaterials, data, G.solid, G.rigidE, G.rigidH, G.ID)
-    
+
             if G.messages:
                 print('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
-    
-        
+
+
         elif tmp[0] == '#edge:':
             if len(tmp) != 8:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly seven parameters')
-            
+
             xs = round_value(float(tmp[1])/G.dx)
             xf = round_value(float(tmp[4])/G.dx)
             ys = round_value(float(tmp[2])/G.dy)
             yf = round_value(float(tmp[5])/G.dy)
             zs = round_value(float(tmp[3])/G.dz)
             zf = round_value(float(tmp[6])/G.dz)
-            
+
             if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
             if xf < 0 or xf > G.nx:
@@ -116,12 +116,12 @@ def process_geometrycmds(geometry, G):
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {:g}m is not within the model domain'.format(zf * G.dz))
             if xs > xf or ys > yf or zs > zf:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
-            
+
             material = next((x for x in G.materials if x.ID == tmp[7]), None)
-            
+
             if not material:
                 raise CmdInputError('Material with ID {} does not exist'.format(tmp[7]))
-            
+
             # Check for valid orientations
             # x-orientated wire
             if xs != xf:
@@ -146,33 +146,33 @@ def process_geometrycmds(geometry, G):
                 else:
                     for k in range(zs, zf):
                         build_edge_z(xs, ys, k, material.numID, G.rigidE, G.rigidH, G.ID)
-        
+
             if G.messages:
                 print('Edge from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, tmp[7]))
-    
-    
+
+
         elif tmp[0] == '#plate:':
             if len(tmp) < 8:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least seven parameters')
-            
+
             # Isotropic case
             elif len(tmp) == 8:
                 materialsrequested = [tmp[7]]
-        
+
             # Anisotropic case
             elif len(tmp) == 9:
                 materialsrequested = [tmp[7:]]
 
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
-            
+
             xs = round_value(float(tmp[1])/G.dx)
             xf = round_value(float(tmp[4])/G.dx)
             ys = round_value(float(tmp[2])/G.dy)
             yf = round_value(float(tmp[5])/G.dy)
             zs = round_value(float(tmp[3])/G.dz)
             zf = round_value(float(tmp[6])/G.dz)
-            
+
             if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
             if xf < 0 or xf > G.nx:
@@ -187,7 +187,7 @@ def process_geometrycmds(geometry, G):
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the upper z-coordinate {:g}m is not within the model domain'.format(zf * G.dz))
             if xs > xf or ys > yf or zs > zf:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
-            
+
             # Check for valid orientations
             if xs == xf:
                 if ys == yf or zs == zf:
@@ -196,14 +196,14 @@ def process_geometrycmds(geometry, G):
             elif ys == yf:
                 if xs == xf or zs == zf:
                     raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the plate is not specified correctly')
-                
+
             elif zs == zf:
                 if xs == xf or ys == yf:
                     raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the plate is not specified correctly')
-            
+
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the plate is not specified correctly')
-            
+
             # Look up requested materials in existing list of material instances
             materials = [y for x in materialsrequested for y in G.materials if y.ID == x]
 
@@ -216,7 +216,7 @@ def process_geometrycmds(geometry, G):
                 # Isotropic case
                 if len(materials) == 1:
                     numIDx = numIDy = numIDz = materials[0].numID
-                
+
                 # Uniaxial anisotropic case
                 elif len(materials) == 2:
                     numIDy = materials[0].numID
@@ -231,12 +231,12 @@ def process_geometrycmds(geometry, G):
                 # Isotropic case
                 if len(materials) == 1:
                     numIDx = numIDy = numIDz = materials[0].numID
-                
+
                 # Uniaxial anisotropic case
                 elif len(materials) == 2:
                     numIDx = materials[0].numID
                     numIDz = materials[1].numID
-                
+
                 for i in range(xs, xf):
                     for k in range(zs, zf):
                         build_face_xz(i, ys, k, numIDx, numIDz, G.rigidE, G.rigidH, G.ID)
@@ -251,7 +251,7 @@ def process_geometrycmds(geometry, G):
                 elif len(materials) == 2:
                     numIDx = materials[0].numID
                     numIDy = materials[1].numID
-                
+
                 for i in range(xs, xf):
                     for j in range(ys, yf):
                         build_face_xy(i, j, zs, numIDx, numIDy, G.rigidE, G.rigidH, G.ID)
@@ -263,7 +263,7 @@ def process_geometrycmds(geometry, G):
         elif tmp[0] == '#triangle:':
             if len(tmp) < 12:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least eleven parameters')
-            
+
             # Isotropic case with no user specified averaging
             elif len(tmp) == 12:
                 materialsrequested = [tmp[11]]
@@ -285,7 +285,7 @@ def process_geometrycmds(geometry, G):
 
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
-            
+
             x1 = round_value(float(tmp[1])/G.dx) * G.dx
             y1 = round_value(float(tmp[2])/G.dy) * G.dy
             z1 = round_value(float(tmp[3])/G.dz) * G.dz
@@ -296,7 +296,7 @@ def process_geometrycmds(geometry, G):
             y3 = round_value(float(tmp[8])/G.dy) * G.dy
             z3 = round_value(float(tmp[9])/G.dz) * G.dz
             thickness = float(tmp[10])
-            
+
             if x1 < 0 or x2 < 0 or x3 < 0 or x1 > G.nx or x2 > G.nx or x3 > G.nx:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the one of the x-coordinates is not within the model domain')
             if y1 < 0 or y2 < 0 or y3 < 0 or y1 > G.ny or y2 > G.ny or y3 > G.ny:
@@ -331,7 +331,7 @@ def process_geometrycmds(geometry, G):
                 if len(materials) == 1:
                     averaging = materials[0].average and averagetriangularprism
                     numID = numIDx = numIDy = numIDz = materials[0].numID
-                
+
                 # Uniaxial anisotropic case
                 elif len(materials) == 3:
                     averaging = False
@@ -350,7 +350,7 @@ def process_geometrycmds(geometry, G):
                         m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
                         m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
                         m.sm = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                    
+
                         # Append the new material object to the materials list
                         G.materials.append(m)
             else:
@@ -358,7 +358,7 @@ def process_geometrycmds(geometry, G):
                 # Isotropic case
                 if len(materials) == 1:
                     numID = numIDx = numIDy = numIDz = materials[0].numID
-                
+
                 # Uniaxial anisotropic case
                 elif len(materials) == 3:
                     # numID requires a value but it will not be used
@@ -383,7 +383,7 @@ def process_geometrycmds(geometry, G):
         elif tmp[0] == '#box:':
             if len(tmp) < 8:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least seven parameters')
-            
+
             # Isotropic case with no user specified averaging
             elif len(tmp) == 8:
                 materialsrequested = [tmp[7]]
@@ -405,14 +405,14 @@ def process_geometrycmds(geometry, G):
 
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
-    
+
             xs = round_value(float(tmp[1])/G.dx)
             xf = round_value(float(tmp[4])/G.dx)
             ys = round_value(float(tmp[2])/G.dy)
             yf = round_value(float(tmp[5])/G.dy)
             zs = round_value(float(tmp[3])/G.dz)
             zf = round_value(float(tmp[6])/G.dz)
-            
+
             if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
             if xf < 0 or xf > G.nx:
@@ -434,12 +434,12 @@ def process_geometrycmds(geometry, G):
             if len(materials) != len(materialsrequested):
                 notfound = [x for x in materialsrequested if x not in materials]
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' material(s) {} do not exist'.format(notfound))
-            
+
             # Isotropic case
             if len(materials) == 1:
                 averaging = materials[0].average and averagebox
                 numID = numIDx = numIDy = numIDz = materials[0].numID
-            
+
             # Uniaxial anisotropic case
             elif len(materials) == 3:
                 averaging = False
@@ -458,12 +458,12 @@ def process_geometrycmds(geometry, G):
                     m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
                     m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
                     m.sm = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                
+
                     # Append the new material object to the materials list
                     G.materials.append(m)
 
             build_box(xs, xf, ys, yf, zs, zf, numID, numIDx, numIDy, numIDz, averaging, G.solid, G.rigidE, G.rigidH, G.ID)
-            
+
             if G.messages:
                 if averaging:
                     dielectricsmoothing = 'on'
@@ -475,7 +475,7 @@ def process_geometrycmds(geometry, G):
         elif tmp[0] == '#cylinder:':
             if len(tmp) < 9:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least eight parameters')
-            
+
             # Isotropic case with no user specified averaging
             elif len(tmp) == 9:
                 materialsrequested = [tmp[8]]
@@ -497,7 +497,7 @@ def process_geometrycmds(geometry, G):
 
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
-            
+
             x1 = round_value(float(tmp[1])/G.dx) * G.dx
             y1 = round_value(float(tmp[2])/G.dy) * G.dy
             z1 = round_value(float(tmp[3])/G.dz) * G.dz
@@ -505,7 +505,7 @@ def process_geometrycmds(geometry, G):
             y2 = round_value(float(tmp[5])/G.dy) * G.dy
             z2 = round_value(float(tmp[6])/G.dz) * G.dz
             r = float(tmp[7])
-            
+
             if r <= 0:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the radius {:g} should be a positive value.'.format(r))
 
@@ -515,12 +515,12 @@ def process_geometrycmds(geometry, G):
             if len(materials) != len(materialsrequested):
                 notfound = [x for x in materialsrequested if x not in materials]
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' material(s) {} do not exist'.format(notfound))
-            
+
             # Isotropic case
             if len(materials) == 1:
                 averaging = materials[0].average and averagecylinder
                 numID = numIDx = numIDy = numIDz = materials[0].numID
-            
+
             # Uniaxial anisotropic case
             elif len(materials) == 3:
                 averaging = False
@@ -539,7 +539,7 @@ def process_geometrycmds(geometry, G):
                     m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
                     m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
                     m.sm = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                
+
                     # Append the new material object to the materials list
                     G.materials.append(m)
 
@@ -556,7 +556,7 @@ def process_geometrycmds(geometry, G):
         elif tmp[0] == '#cylindrical_sector:':
             if len(tmp) < 10:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least nine parameters')
-            
+
             # Isotropic case with no user specified averaging
             elif len(tmp) == 10:
                 materialsrequested = [tmp[9]]
@@ -610,7 +610,7 @@ def process_geometrycmds(geometry, G):
                 if len(materials) == 1:
                     averaging = materials[0].average and averagecylindricalsector
                     numID = numIDx = numIDy = numIDz = materials[0].numID
-                
+
                 # Uniaxial anisotropic case
                 elif len(materials) == 3:
                     averaging = False
@@ -629,7 +629,7 @@ def process_geometrycmds(geometry, G):
                         m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
                         m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
                         m.sm = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                    
+
                         # Append the new material object to the materials list
                         G.materials.append(m)
             else:
@@ -637,7 +637,7 @@ def process_geometrycmds(geometry, G):
                 # Isotropic case
                 if len(materials) == 1:
                     numID = numIDx = numIDy = numIDz = materials[0].numID
-                
+
                 # Uniaxial anisotropic case
                 elif len(materials) == 3:
                     # numID requires a value but it will not be used
@@ -657,7 +657,7 @@ def process_geometrycmds(geometry, G):
                 ctr1 = round_value(ctr1/G.dx) * G.dx
                 ctr2 = round_value(ctr2/G.dz) * G.dz
                 level = round_value(extent1/G.dy)
-                
+
             # xy-plane cylindrical sector
             elif normal == 'z':
                 ctr1 = round_value(ctr1/G.dx) * G.dx
@@ -680,7 +680,7 @@ def process_geometrycmds(geometry, G):
         elif tmp[0] == '#sphere:':
             if len(tmp) < 6:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least five parameters')
-            
+
             # Isotropic case with no user specified averaging
             elif len(tmp) == 6:
                 materialsrequested = [tmp[5]]
@@ -702,7 +702,7 @@ def process_geometrycmds(geometry, G):
 
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
-            
+
             # Centre of sphere
             xc = round_value(float(tmp[1])/G.dx)
             yc = round_value(float(tmp[2])/G.dy)
@@ -715,12 +715,12 @@ def process_geometrycmds(geometry, G):
             if len(materials) != len(materialsrequested):
                 notfound = [x for x in materialsrequested if x not in materials]
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' material(s) {} do not exist'.format(notfound))
-            
+
             # Isotropic case
             if len(materials) == 1:
                 averaging = materials[0].average and averagesphere
                 numID = numIDx = numIDy = numIDz = materials[0].numID
-            
+
             # Uniaxial anisotropic case
             elif len(materials) == 3:
                 averaging = False
@@ -739,7 +739,7 @@ def process_geometrycmds(geometry, G):
                     m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
                     m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
                     m.sm = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                
+
                     # Append the new material object to the materials list
                     G.materials.append(m)
 
@@ -762,14 +762,14 @@ def process_geometrycmds(geometry, G):
                 seed = int(tmp[14])
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
-    
+
             xs = round_value(float(tmp[1])/G.dx)
             xf = round_value(float(tmp[4])/G.dx)
             ys = round_value(float(tmp[2])/G.dy)
             yf = round_value(float(tmp[5])/G.dy)
             zs = round_value(float(tmp[3])/G.dz)
             zf = round_value(float(tmp[6])/G.dz)
-            
+
             if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
             if xf < 0 or xf > G.nx:
@@ -794,7 +794,7 @@ def process_geometrycmds(geometry, G):
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires a positive value for the fractal weighting in the z direction')
             if round_value(tmp[11]) < 0:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires a positive value for the number of bins')
-            
+
             # Find materials to use to build fractal volume, either from mixing models or normal materials
             mixingmodel = next((x for x in G.mixingmodels if x.ID == tmp[12]), None)
             material = next((x for x in G.materials if x.ID == tmp[12]), None)
@@ -833,7 +833,7 @@ def process_geometrycmds(geometry, G):
                         seed = int(tmp[13])
                     else:
                         raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
-                    
+
                     # Only process rough surfaces for this fractal volume
                     if tmp[12] == volume.ID:
                         xs = round_value(float(tmp[1])/G.dx)
@@ -842,7 +842,7 @@ def process_geometrycmds(geometry, G):
                         yf = round_value(float(tmp[5])/G.dy)
                         zs = round_value(float(tmp[3])/G.dz)
                         zf = round_value(float(tmp[6])/G.dz)
-                        
+
                         if xs < 0 or xs > G.nx:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
                         if xf < 0 or xf > G.nx:
@@ -863,7 +863,7 @@ def process_geometrycmds(geometry, G):
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires a positive value for the fractal weighting in the first direction of the surface')
                         if float(tmp[9]) < 0:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires a positive value for the fractal weighting in the second direction of the surface')
-                        
+
                         # Check for valid orientations
                         if xs == xf:
                             if ys == yf or zs == zf:
@@ -915,10 +915,10 @@ def process_geometrycmds(geometry, G):
                                 if fractalrange[1] > G.nz:
                                     raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot apply fractal surface to fractal box as it would exceed the domain size in the z direction')
                                 requestedsurface = 'zplus'
-                
+
                         else:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
-                        
+
                         surface = FractalSurface(xs, xf, ys, yf, zs, zf, float(tmp[7]))
                         surface.surfaceID = requestedsurface
                         surface.fractalrange = fractalrange
@@ -940,7 +940,7 @@ def process_geometrycmds(geometry, G):
                 if tmp[0] == '#add_surface_water:':
                     if len(tmp) != 9:
                         raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly eight parameters')
-                    
+
                     # Only process surfaces for this fractal volume
                     if tmp[8] == volume.ID:
                         xs = round_value(float(tmp[1])/G.dx)
@@ -950,7 +950,7 @@ def process_geometrycmds(geometry, G):
                         zs = round_value(float(tmp[3])/G.dz)
                         zf = round_value(float(tmp[6])/G.dz)
                         depth = float(tmp[7])
-                        
+
                         if xs < 0 or xs > G.nx:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
                         if xf < 0 or xf > G.nx:
@@ -967,7 +967,7 @@ def process_geometrycmds(geometry, G):
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
                         if depth <= 0:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires a positive value for the depth of water')
-                        
+
                         # Check for valid orientations
                         if xs == xf:
                             if ys == yf or zs == zf:
@@ -982,7 +982,7 @@ def process_geometrycmds(geometry, G):
                                 requestedsurface = 'xplus'
                             filldepthcells = round_value(depth / G.dx)
                             filldepth = filldepthcells * G.dx
-                                    
+
                         elif ys == yf:
                             if xs == xf or zs == zf:
                                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
@@ -1043,8 +1043,8 @@ def process_geometrycmds(geometry, G):
 
                         if G.messages:
                             print('Water on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with depth {:g}m, added to {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, filldepth, surface.operatingonID))
-                                    
-                                    
+
+
                 if tmp[0] == '#add_grass:':
                     if len(tmp) < 12:
                         raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least eleven parameters')
@@ -1054,7 +1054,7 @@ def process_geometrycmds(geometry, G):
                         seed = int(tmp[12])
                     else:
                         raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
-                    
+
                     # Only process grass for this fractal volume
                     if tmp[11] == volume.ID:
                         xs = round_value(float(tmp[1])/G.dx)
@@ -1064,7 +1064,7 @@ def process_geometrycmds(geometry, G):
                         zs = round_value(float(tmp[3])/G.dz)
                         zf = round_value(float(tmp[6])/G.dz)
                         numblades = int(tmp[10])
-                        
+
                         if xs < 0 or xs > G.nx:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
                         if xf < 0 or xf > G.nx:
@@ -1083,7 +1083,7 @@ def process_geometrycmds(geometry, G):
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires a positive value for the fractal dimension')
                         if float(tmp[8]) < 0 or float(tmp[9]) < 0:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires a positive value for the minimum and maximum heights for grass blades')
-                        
+
                         # Check for valid orientations
                         if xs == xf:
                             if ys == yf or zs == zf:
@@ -1129,10 +1129,10 @@ def process_geometrycmds(geometry, G):
                                 if fractalrange[1] > G.nz:
                                     raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot apply grass to fractal box as it would exceed the domain size in the z direction')
                                 requestedsurface = 'zplus'
-                
+
                         else:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
-                        
+
                         surface = FractalSurface(xs, xf, ys, yf, zs, zf, float(tmp[7]))
                         surface.ID = 'grass'
                         surface.surfaceID = requestedsurface
@@ -1182,7 +1182,7 @@ def process_geometrycmds(geometry, G):
                             G.materials.append(m)
                             if Material.maxpoles == 0:
                                 Material.maxpoles = 1
-                        
+
                         # Check if time step for model is suitable for using grass
                         grass = next((x for x in G.materials if x.ID == 'grass'))
                         testgrass = next((x for x in grass.tau if x < G.dt), None)
@@ -1194,7 +1194,7 @@ def process_geometrycmds(geometry, G):
                         if G.messages:
                             print('{} blades of grass on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}, fractal seeding {}, and range {:g}m to {:g}m, added to {}.'.format(numblades, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.seed, float(tmp[8]), float(tmp[9]), surface.operatingonID))
 
-                
+
             # Process any modifications to the original fractal box then generate it
             if volume.fractalsurfaces:
                 volume.originalxs = volume.xs
@@ -1239,9 +1239,9 @@ def process_geometrycmds(geometry, G):
                 else:
                     volume.generate_fractal_volume(G)
                     volume.fractalvolume += mixingmodel.startmaterialnum
-                
+
                 volume.generate_volume_mask()
-                
+
                 # Apply any rough surfaces and add any surface water to the 3D mask array
                 for surface in volume.fractalsurfaces:
                     if surface.surfaceID == 'xminus':
@@ -1456,4 +1456,3 @@ def process_geometrycmds(geometry, G):
 
                 data = volume.fractalvolume.astype('int16', order='C')
                 build_voxels_from_array(volume.xs, volume.ys, volume.zs, 0, data, G.solid, G.rigidE, G.rigidH, G.ID)
-

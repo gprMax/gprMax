@@ -23,11 +23,11 @@ from gprMax.grid import Ix, Iy, Iz
 
 class Rx(object):
     """Receiver output points."""
-    
+
     availableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
-    
+
     def __init__(self):
-        
+
         self.ID = None
         self.outputs = OrderedDict()
         self.xcoord = None

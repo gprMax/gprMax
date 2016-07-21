@@ -394,5 +394,3 @@ def rx_steps(dx=0, dy=0, dz=0):
     c = Coordinate(dx, dy, dz)
     command('rx_steps', str(c))
     return c
-
-

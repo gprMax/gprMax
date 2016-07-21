@@ -26,7 +26,7 @@ def logo(version):
     Args:
         version (str): Version number.
     """
-    
+
     licenseinfo = """
 Copyright (C) 2015-2016: The University of Edinburgh
                 Authors: Craig Warren and Antonis Giannopoulos
@@ -43,7 +43,7 @@ GNU General Public License for more details.
                                     
 You should have received a copy of the GNU General Public License
 along with gprMax.  If not, see <http://www.gnu.org/licenses/>."""
-    
+
     gprMaxlogo = """
                                  __  __
                  __ _ _ __  _ __|  \/  | __ ___  __
@@ -52,10 +52,10 @@ along with gprMax.  If not, see <http://www.gnu.org/licenses/>."""
                 \__, | .__/|_|  |_|  |_|\__,_/_/\_\\
                 |___/|_|
         """
-    
+
     width = 65
     url = 'www.gprmax.com'
-    
+
     print('\nElectromagnetic modelling software based on the Finite-Difference \nTime-Domain (FDTD) method')
     print('\n{} {} {}'.format('*'*round((width - len(url))/2), url, '*'*round((width - len(url))/2)))
     print('{}'.format(gprMaxlogo))
@@ -69,7 +69,7 @@ def update_progress(progress):
     Args:
         progress (float): Number between zero and one to signify progress.
     """
-    
+
     # Modify this to change the length of the progress bar
     barLength = 50
     block = round_value(barLength * progress)
@@ -88,11 +88,11 @@ def round_value(value, decimalplaces=0):
     Returns:
         rounded (int/float): Rounded value.
     """
-    
+
     # Rounds to nearest integer (half values are rounded downwards)
     if decimalplaces == 0:
         rounded = int(d.Decimal(value).quantize(d.Decimal('1'),rounding=d.ROUND_HALF_DOWN))
-    
+
     # Rounds down to nearest float represented by number of decimal places
     else:
         precision = '1.{places}'.format(places='0' * decimalplaces)
@@ -116,7 +116,7 @@ def human_size(size, a_kilobyte_is_1024_bytes=True):
 
     if size < 0:
         raise ValueError('Number must be non-negative.')
-    
+
     multiple = 1024 if a_kilobyte_is_1024_bytes else 1000
     for suffix in suffixes[multiple]:
         size /= multiple
@@ -124,5 +124,3 @@ def human_size(size, a_kilobyte_is_1024_bytes=True):
             return '{0:.1f}{1}'.format(size, suffix)
 
     raise ValueError('Number is too large.')
-
-

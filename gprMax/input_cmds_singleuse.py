@@ -35,7 +35,7 @@ def process_singlecmds(singlecmds, G):
         singlecmds (dict): Commands that can only occur once in the model.
         G (class): Grid class instance - holds essential parameters describing the model.
     """
-    
+
     # Check validity of command parameters in order needed
     # messages
     cmd = '#messages'
@@ -196,7 +196,7 @@ def process_singlecmds(singlecmds, G):
     if 2*G.pmlthickness[0] >= G.nx or 2*G.pmlthickness[1] >= G.ny or 2*G.pmlthickness[2] >= G.nz or 2*G.pmlthickness[3] >= G.nx or 2*G.pmlthickness[4] >= G.ny or 2*G.pmlthickness[5] >= G.nz:
         raise CmdInputError(cmd + ' has too many cells for the domain size')
 
-    
+
     # src_steps
     cmd = '#src_steps'
     if singlecmds[cmd] != 'None':
@@ -238,7 +238,7 @@ def process_singlecmds(singlecmds, G):
         # Get waveform names
         with open(excitationfile, 'r') as f:
             waveformIDs = f.readline().split()
-        
+
         # Read all waveform values into an array
         waveformvalues = np.loadtxt(excitationfile, skiprows=1, dtype=floattype)
 
@@ -252,9 +252,8 @@ def process_singlecmds(singlecmds, G):
                 w.uservalues = waveformvalues[:]
             else:
                 w.uservalues = waveformvalues[:,waveform]
-        
+
             if G.messages:
                 print('User waveform {} created.'.format(w.ID))
 
             G.waveforms.append(w)
-

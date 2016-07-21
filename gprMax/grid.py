@@ -272,6 +272,3 @@ def Iz(x, y, z, Hx, Hy, G):
     else:
         Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (Hy[x, y, z] - Hy[x - 1, y, z])
         return Iz
-
-
-

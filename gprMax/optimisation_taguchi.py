@@ -40,17 +40,17 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
 
     if numbermodelruns > 1:
         raise CmdInputError('When a Taguchi optimisation is being carried out the number of model runs argument is not required')
-    
+
     inputfileparts = os.path.splitext(inputfile)
 
     # Default maximum number of iterations of optimisation to perform (used if the stopping criterion is not achieved)
     maxiterations = 20
-    
+
     # Process Taguchi code blocks in the input file; pass in ordered dictionary to hold parameters to optimise
     tmp = usernamespace.copy()
     tmp.update({'optparams': OrderedDict()})
     taguchinamespace = taguchi_code_blocks(inputfile, tmp)
-    
+
     # Extract dictionaries and variables containing initialisation parameters
     optparams = taguchinamespace['optparams']
     fitness = taguchinamespace['fitness']
@@ -62,7 +62,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
 
     # Dictionary to hold history of optmised values of parameters
     optparamshist = OrderedDict((key, list()) for key in optparams)
-    
+
     # Import specified fitness function
     fitness_metric = getattr(importlib.import_module('user_libs.optimisation_taguchi.fitness_functions'), fitness['name'])
 
@@ -75,7 +75,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
     print('\tOutput name(s) from model: {}'.format(fitness['args']['outputs']))
     print('\tFitness function {} with stopping criterion {:g}'.format(fitness['name'], fitness['stop']))
     print('\tMaximum iterations: {:g}'.format(maxiterations))
-    
+
     # Initialise arrays and lists to store parameters required throughout optimisation
     # Lower, central, and upper values for each parameter
     levels = np.zeros((s, k), dtype=floattype)
@@ -91,7 +91,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
         # Reset number of model runs to number of experiments
         numbermodelruns = N
         usernamespace['number_model_runs'] = numbermodelruns
-        
+
         # Fitness values for each experiment
         fitnessvalues = []
 
@@ -111,14 +111,14 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
             os.remove(outputfile)
 
         print('\nTaguchi optimisation, iteration {}: {} initial experiments with fitness values {}.'.format(iteration + 1, numbermodelruns, fitnessvalues))
-        
+
         # Calculate optimal levels from fitness values by building a response table; update dictionary of parameters with optimal values
         optparams, levelsopt = calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N, k)
 
         # Update dictionary with history of parameters with optimal values
         for key, value in optparams.items():
             optparamshist[key].append(value[0])
-        
+
         # Run a confirmation experiment with optimal values
         numbermodelruns = 1
         usernamespace['number_model_runs'] = numbermodelruns
@@ -130,7 +130,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
 
         # Rename confirmation experiment output file so that it is retained for each iteraction
         os.rename(outputfile, os.path.splitext(outputfile)[0] + '_final' + str(iteration + 1) + '.out')
-        
+
         print('\nTaguchi optimisation, iteration {} completed. History of optimal parameter values {} and of fitness values {}'.format(iteration + 1, dict(optparamshist), fitnessvalueshist, 68*'*'))
         iteration += 1
 
@@ -167,14 +167,14 @@ def taguchi_code_blocks(inputfile, taguchinamespace):
     Returns:
         processedlines (list): Input commands after Python processing.
     """
-        
+
     with open(inputfile, 'r') as f:
         # Strip out any newline characters and comments that must begin with double hashes
         inputlines = [line.rstrip() for line in f if(not line.startswith('##') and line.rstrip('\n'))]
-    
+
     # Store length of dict
     taglength = len(taguchinamespace)
-    
+
     x = 0
     while(x < len(inputlines)):
         if(inputlines[x].startswith('#taguchi:')):
@@ -187,19 +187,19 @@ def taguchi_code_blocks(inputfile, taguchinamespace):
                 x += 1
                 if x == len(inputlines):
                     raise CmdInputError('Cannot find the end of the Taguchi code block, i.e. missing #end_taguchi: command.')
-        
+
             # Compile code for faster execution
             taguchicompiledcode = compile(taguchicode, '<string>', 'exec')
 
             # Execute code block & make available only usernamespace
             exec(taguchicompiledcode, taguchinamespace)
-    
+
         x += 1
 
     # Check if any Taguchi code blocks were found
     if len(taguchinamespace) == taglength:
         raise CmdInputError('No #taguchi and #end_taguchi code blocks found.')
-    
+
     return taguchinamespace
 
 
@@ -217,20 +217,20 @@ def construct_OA(optparams):
         s (int): Number of levels in OA
         t (int): Strength of OA
     """
-    
+
     oadirectory = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'user_libs', 'optimisation_taguchi')
     oadirectory = os.path.abspath(oadirectory)
 
     # Properties of the orthogonal array (OA)
     # Strength
     t = 2
-    
+
     # Number of levels
     s = 3
-    
+
     # Number of parameters to optimise
     k = len(optparams)
-    
+
     # Load the appropriate OA
     if k <= 4:
         OA = np.load(os.path.join(oadirectory, 'OA_9_4_3_2.npy'))
@@ -259,18 +259,18 @@ def construct_OA(optparams):
     else:
         # THIS CASE NEEDS FURTHER TESTING
         print('\nTaguchi optimisation, WARNING: Optimising more than 7 parameters is currently an experimental feature!')
-              
+
         p = int(np.ceil(np.log(k * (s - 1) + 1) / np.log(s)))
-        
+
         # Number of experiments
         N = s**p
 
         # Number of columns
         cols = int((N - 1) / (s - 1))
-        
+
         # Algorithm to construct OA from: http://ieeexplore.ieee.org/xpl/articleDetails.jsp?reload=true&arnumber=6812898
         OA = np.zeros((N + 1, cols + 1), dtype=np.int8)
-        
+
         # Construct basic columns
         for ii in range(1, p + 1):
             col = int((s**(ii - 1) - 1) / (s - 1) + 1)
@@ -340,7 +340,7 @@ def calculate_ranges_experiments(optparams, optparamsinit, levels, levelsopt, le
         else:
             levels[0, p] = levels[1, p] - levelsdiff[p]
             levels[2, p] = levels[1, p] + levelsdiff[p]
-            
+
 
     # Update dictionary of parameters to optimise with lists of new values; clear dictionary first
     optparams = OrderedDict((key, list()) for key in optparams)
@@ -399,11 +399,11 @@ def calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N,
 
         # Calculate optimal level from table of responses
         optlevel = np.where(responses == np.amax(responses))[0]
-        
+
         # If 2 experiments produce the same fitness value pick first level (this shouldn't happen if the fitness function is designed correctly)
         if len(optlevel) > 1:
             optlevel = optlevel[0]
-        
+
         levelsopt[p] = optlevel
 
     # Update dictionary of parameters to optimise with lists of new values; clear dictionary first
@@ -425,7 +425,7 @@ def plot_optimisation_history(fitnessvalueshist, optparamshist, optparamsinit):
     """
 
     import matplotlib.pyplot as plt
-    
+
     # Plot history of fitness values
     fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Fitness value'), num='History of fitness values', figsize=(20, 10), facecolor='w', edgecolor='w')
     iterations = np.arange(1, len(fitnessvalueshist) + 1)
@@ -443,6 +443,3 @@ def plot_optimisation_history(fitnessvalueshist, optparamshist, optparamsinit):
         ax.grid()
         p += 1
     plt.show()
-
-
-    

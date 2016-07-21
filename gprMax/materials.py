@@ -23,32 +23,32 @@ from gprMax.constants import e0, m0, complextype
 
 class Material(object):
     """Materials, their properties and update coefficients."""
-    
+
     # Maximum number of dispersive material poles in a model
     maxpoles = 0
-    
+
     # Types of material
     types = ['standard', 'debye', 'lorentz', 'drude']
-    
+
     # Properties of water from: http://dx.doi.org/10.1109/TGRS.2006.873208
     waterer = 80.1
     watereri = 4.9
     waterdeltaer = waterer - watereri
     watertau = 9.231e-12
-    
+
     # Properties of grass from: http://dx.doi.org/10.1007/BF00902994
     grasser = 18.5087
     grasseri = 12.7174
     grassdeltaer = grasser - grasseri
     grasstau = 1.0793e-11
-    
+
     def __init__(self, numID, ID):
         """
         Args:
             numID (int): Numeric identifier of the material.
             ID (str): Name of the material.
         """
-        
+
         self.numID = numID
         self.ID = ID
         self.type = 'standard'
@@ -60,20 +60,20 @@ class Material(object):
         self.se = 0.0
         self.mr = 1.0
         self.sm = 0.0
-        
+
         # Parameters for dispersive materials
         self.poles = 0
         self.deltaer = []
         self.tau = []
         self.alpha = []
-    
+
     def calculate_update_coeffsH(self, G):
         """Calculates the magnetic update coefficients of the material.
             
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        
+
         HA = (m0*self.mr / G.dt) + 0.5*self.sm
         HB = (m0*self.mr / G.dt) - 0.5*self.sm
         self.DA = HB / HA
@@ -89,7 +89,7 @@ class Material(object):
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        
+
         # The implementation of the dispersive material modelling comes from the derivation in: http://dx.doi.org/10.1109/TAP.2014.2308549
         if self.maxpoles > 0:
             self.w = np.zeros(self.maxpoles, dtype=complextype)
@@ -98,7 +98,7 @@ class Material(object):
             self.zt2 = np.zeros(self.maxpoles, dtype=complextype)
             self.eqt = np.zeros(self.maxpoles, dtype=complextype)
             self.eqt2 = np.zeros(self.maxpoles, dtype=complextype)
-            
+
             for x in range(self.poles):
                 if self.type == 'debye':
                     self.w[x] = self.deltaer[x] / self.tau[x]
@@ -116,7 +116,7 @@ class Material(object):
                     self.se += wp2 / self.alpha[x]
                     self.w[x] = - (wp2 / self.alpha[x])
                     self.q[x] = - self.alpha[x]
-                
+
                 self.eqt[x] = np.exp(self.q[x] * G.dt)
                 self.eqt2[x] = np.exp(self.q[x] * (G.dt / 2))
                 self.zt[x] = (self.w[x] / self.q[x]) * (1 - self.eqt[x]) / G.dt
@@ -124,7 +124,7 @@ class Material(object):
 
             EA = (e0*self.er / G.dt) + 0.5*self.se - (e0 / G.dt) * np.sum(self.zt2.real)
             EB = (e0*self.er / G.dt) - 0.5*self.se - (e0 / G.dt) * np.sum(self.zt2.real)
-        
+
         else:
             EA = (e0*self.er / G.dt) + 0.5*self.se
             EB = (e0*self.er / G.dt) - 0.5*self.se
@@ -145,7 +145,7 @@ class Material(object):
 
 class PeplinskiSoil(object):
     """Soil objects that are characterised according to a mixing model by Peplinski (http://dx.doi.org/10.1109/36.387598)."""
-    
+
     def __init__(self, ID, sandfraction, clayfraction, bulkdensity, sandpartdensity, watervolfraction):
         """
         Args:
@@ -156,7 +156,7 @@ class PeplinskiSoil(object):
             sandpartdensity (float): Density of the sand particles in the soil (g/cm3).
             watervolfraction (float): Two numbers that specify a range for the volumetric water fraction of the soil.
         """
-        
+
         self.ID = ID
         self.S = sandfraction
         self.C = clayfraction
@@ -172,23 +172,23 @@ class PeplinskiSoil(object):
             nbins (int): Number of bins to use to create the different materials.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        
+
         # Debye model properties of water
         f = 1.3e9
         w = 2 * np.pi * f
         erealw = Material.watereri + ((Material.waterdeltaer) / (1 + (w * Material.watertau)**2))
         eimagw = w * Material.watertau * ((Material.waterdeltaer) / (1 + (w * Material.watertau)**2))
-        
+
         a = 0.65 # Experimentally derived constant
         es = (1.01 + 0.44 * self.rs)**2 - 0.062
         b1 = 1.2748 - 0.519 * self.S - 0.152 * self.C
         b2 = 1.33797 - 0.603 * self.S - 0.166 * self.C
-        
+
         # For frequencies in the range 0.3GHz to 1.3GHz
         sigf1 = 0.0467 + 0.2204 * self.rb - 0.411 * self.S + 0.6614 * self.C
         # For frequencies in the range 1.4GHz to 18GHz
         sigf2 = -1.645 + 1.939 * self.rb - 2.25622 * self.S + 1.594 * self.C
-        
+
         # Generate a set of bins based on the given volumetric water fraction values
         mubins = np.linspace(self.mu[0], self.mu[1], nbins + 1)
         # Generate a range of volumetric water fraction values the mid-point of each bin to make materials from
@@ -201,13 +201,13 @@ class PeplinskiSoil(object):
             er1 = (1 + (self.rb/self.rs) * ((es**a) - 1) + (muiter[0]**b1 * erealw**a) - muiter[0]) ** (1/a)
             # Real part for frequencies in the range 0.3GHz to 1.3GHz
             er2 = 1.15 * er1 - 0.68
-            
+
             # Imaginary part for frequencies in the range 0.3GHz to 1.3GHz
             eri = er2 - (muiter[0]**(b2/a) * Material.waterdeltaer)
-            
+
             # Effective conductivity
             sig = muiter[0]**(b2/a) * ((sigf1 * (self.rs - self.rb)) / (self.rs * muiter[0]))
-            
+
             # Check to see if the material already exists before creating a new one
             requiredID = '|{:.4f}|'.format(float(muiter[0]))
             material = next((x for x in G.materials if x.ID == requiredID), None)
@@ -224,16 +224,5 @@ class PeplinskiSoil(object):
                 m.deltaer.append(er2 - m.er)
                 m.tau.append(Material.watertau)
                 G.materials.append(m)
-        
+
             muiter.iternext()
-
-
-
-
-
-
-
-
-
-
-

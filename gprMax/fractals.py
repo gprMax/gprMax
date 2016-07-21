@@ -26,16 +26,16 @@ np.seterr(divide='raise')
 
 class FractalSurface(object):
     """Fractal surfaces."""
-    
+
     surfaceIDs = ['xminus', 'xplus', 'yminus', 'yplus', 'zminus', 'zplus']
-    
+
     def __init__(self, xs, xf, ys, yf, zs, zf, dimension):
         """
         Args:
             xs, xf, ys, yf, zs, zf (float): Extent of the fractal surface (one pair of coordinates must be equal to correctly define a surface).
             dimension (float): Fractal dimension that controls the fractal distribution.
         """
-        
+
         self.ID = None
         self.surfaceID = None
         self.xs = xs
@@ -62,7 +62,7 @@ class FractalSurface(object):
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        
+
         if self.xs == self.xf:
             surfacedims = (self.ny + 1, self.nz + 1)
             d = G.dx
@@ -74,14 +74,14 @@ class FractalSurface(object):
             d = G.dz
 
         self.fractalsurface = np.zeros(surfacedims, dtype=complextype)
-        
+
         # Positional vector at centre of array, scaled by weighting
         v1 = np.array([self.weighting[0]*(surfacedims[0])/2, self.weighting[1]*(surfacedims[1])/2])
-        
+
         # 2D array of random numbers to be convolved with the fractal function
         R = np.random.RandomState(self.seed)
         A = R.randn(surfacedims[0], surfacedims[1])
-        
+
         # 2D FFT
         A = np.fft.fftn(A)
 
@@ -109,14 +109,14 @@ class FractalSurface(object):
 
 class FractalVolume(object):
     """Fractal volumes."""
-    
+
     def __init__(self, xs, xf, ys, yf, zs, zf, dimension):
         """
         Args:
             xs, xf, ys, yf, zs, zf (float): Extent of the fractal volume.
             dimension (float): Fractal dimension that controls the fractal distribution.
         """
-        
+
         self.ID = None
         self.operatingonID= None
         self.xs = xs
@@ -135,26 +135,26 @@ class FractalVolume(object):
         self.weighting = (1, 1, 1)
         self.nbins = 0
         self.fractalsurfaces = []
-    
+
     def generate_fractal_volume(self, G):
         """Generate a 3D volume with a fractal distribution.
             
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        
+
         self.fractalvolume = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
-        
+
         # Positional vector at centre of array, scaled by weighting
         v1 = np.array([self.weighting[0]*(self.nx + 1)/2, self.weighting[1]*(self.ny + 1)/2, self.weighting[2]*(self.nz + 1)/2])
-        
+
         # 3D array of random numbers to be convolved with the fractal function
         R = np.random.RandomState(self.seed)
         A = R.randn(self.nx + 1, self.ny + 1, self.nz + 1)
-        
+
         # 3D FFT
         A = np.fft.fftn(A)
-        
+
         for i in range(self.nx + 1):
             for j in range(self.ny + 1):
                 for k in range(self.nz + 1):
@@ -166,7 +166,7 @@ class FractalVolume(object):
                     except FloatingPointError:
                         rr = 0.9
                         self.fractalvolume[i, j, k] = A[i, j, k] * 1/(rr**self.b)
-    
+
         # Shift the zero frequency component to the centre of the spectrum
         self.fractalvolume = np.fft.ifftshift(self.fractalvolume)
         # Take the real part (numerical errors can give rise to an imaginary part) of the IFFT
@@ -179,7 +179,7 @@ class FractalVolume(object):
 
     def generate_volume_mask(self):
         """Generate a 3D volume to use as a mask for adding rough surfaces, water and grass/roots. Zero signifies the mask is not set, one signifies the mask is set."""
-        
+
         self.mask = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.int8)
         maskxs = self.originalxs - self.xs
         maskxf = (self.originalxf - self.originalxs) + maskxs + 1
@@ -192,7 +192,7 @@ class FractalVolume(object):
 
 class Grass(object):
     """Geometry information for blades of grass."""
-    
+
     def __init__(self, numblades):
         """
         Args:
@@ -202,7 +202,7 @@ class Grass(object):
         self.numblades = numblades
         self.geometryparams = np.zeros((self.numblades, 6), dtype=floattype)
         self.seed = None
-        
+
         # Randomly defined parameters that will be used to calculate geometry
         self.R1 = np.random.RandomState(self.seed)
         self.R2 = np.random.RandomState(self.seed)
@@ -210,7 +210,7 @@ class Grass(object):
         self.R4 = np.random.RandomState(self.seed)
         self.R5 = np.random.RandomState(self.seed)
         self.R6 = np.random.RandomState(self.seed)
-        
+
         for i in range(self.numblades):
             self.geometryparams[i, 0] = 10 + 20 * self.R1.random_sample()
             self.geometryparams[i, 1] = 10 + 20 * self.R2.random_sample()
@@ -245,22 +245,10 @@ class Grass(object):
         Returns:
             x, y (float): x and y coordinates of grass root.
         """
-        
+
         self.geometryparams[root, 4] += -1 + 2 * self.R5.random_sample()
         self.geometryparams[root, 5] += -1 + 2 * self.R6.random_sample()
         x = round(self.geometryparams[root, 4])
         y = round(self.geometryparams[root, 5])
 
         return x, y
-
-    
-
-
-
-
-
-
-
-
-
-

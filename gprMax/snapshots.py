@@ -29,7 +29,7 @@ from gprMax.utilities import round_value
 
 class Snapshot(object):
     """Snapshots of the electric and magnetic field values."""
-    
+
     # Set string for byte order
     if sys.byteorder == 'little':
         byteorder = 'LittleEndian'
@@ -52,7 +52,7 @@ class Snapshot(object):
             time (int): Iteration number to take the snapshot on.
             filename (str): Filename to save to.
         """
-        
+
         self.xs = xs
         self.ys = ys
         self.zs = zs
@@ -73,22 +73,22 @@ class Snapshot(object):
             numbermodelruns (int): Total number of model runs.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-        
+
         # No Python 3 support for VTK at time of writing (03/2015)
         self.vtk_nx = self.xf - self.xs
         self.vtk_ny = self.yf - self.ys
         self.vtk_nz = self.zf - self.zs
-        
+
         # Create directory and construct filename from user-supplied name and model run number
         if numbermodelruns == 1:
             snapshotdir = os.path.join(G.inputdirectory, os.path.splitext(G.inputfilename)[0] + '_snaps')
         else:
             snapshotdir = os.path.join(G.inputdirectory, os.path.splitext(G.inputfilename)[0] + '_snaps' + str(modelrun))
-        
+
         if not os.path.exists(snapshotdir):
             os.mkdir(snapshotdir)
         self.filename = os.path.abspath(os.path.join(snapshotdir, self.basefilename + '.vti'))
-        
+
         # Calculate number of cells according to requested sampling
         self.vtk_xscells = round_value(self.xs / self.dx)
         self.vtk_xfcells = round_value(self.xf / self.dx)
@@ -148,4 +148,3 @@ class Snapshot(object):
 
         self.filehandle.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
         self.filehandle.close()
-
