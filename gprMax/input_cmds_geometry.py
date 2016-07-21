@@ -46,9 +46,9 @@ def process_geometrycmds(geometry, G):
             if len(tmp) != 6:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly five parameters')
 
-            xs = round_value(float(tmp[1])/G.dx)
-            ys = round_value(float(tmp[2])/G.dy)
-            zs = round_value(float(tmp[3])/G.dz)
+            xs = round_value(float(tmp[1]) / G.dx)
+            ys = round_value(float(tmp[2]) / G.dy)
+            zs = round_value(float(tmp[3]) / G.dz)
             geofile = tmp[4]
             matfile = tmp[5]
 
@@ -90,17 +90,16 @@ def process_geometrycmds(geometry, G):
             if G.messages:
                 print('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
 
-
         elif tmp[0] == '#edge:':
             if len(tmp) != 8:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly seven parameters')
 
-            xs = round_value(float(tmp[1])/G.dx)
-            xf = round_value(float(tmp[4])/G.dx)
-            ys = round_value(float(tmp[2])/G.dy)
-            yf = round_value(float(tmp[5])/G.dy)
-            zs = round_value(float(tmp[3])/G.dz)
-            zf = round_value(float(tmp[6])/G.dz)
+            xs = round_value(float(tmp[1]) / G.dx)
+            xf = round_value(float(tmp[4]) / G.dx)
+            ys = round_value(float(tmp[2]) / G.dy)
+            yf = round_value(float(tmp[5]) / G.dy)
+            zs = round_value(float(tmp[3]) / G.dz)
+            zf = round_value(float(tmp[6]) / G.dz)
 
             if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
@@ -150,7 +149,6 @@ def process_geometrycmds(geometry, G):
             if G.messages:
                 print('Edge from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, tmp[7]))
 
-
         elif tmp[0] == '#plate:':
             if len(tmp) < 8:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least seven parameters')
@@ -166,12 +164,12 @@ def process_geometrycmds(geometry, G):
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
 
-            xs = round_value(float(tmp[1])/G.dx)
-            xf = round_value(float(tmp[4])/G.dx)
-            ys = round_value(float(tmp[2])/G.dy)
-            yf = round_value(float(tmp[5])/G.dy)
-            zs = round_value(float(tmp[3])/G.dz)
-            zf = round_value(float(tmp[6])/G.dz)
+            xs = round_value(float(tmp[1]) / G.dx)
+            xf = round_value(float(tmp[4]) / G.dx)
+            ys = round_value(float(tmp[2]) / G.dy)
+            yf = round_value(float(tmp[5]) / G.dy)
+            zs = round_value(float(tmp[3]) / G.dz)
+            zf = round_value(float(tmp[6]) / G.dz)
 
             if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
@@ -259,7 +257,6 @@ def process_geometrycmds(geometry, G):
             if G.messages:
                 print('Plate from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material(s) {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, ', '.join(materialsrequested)))
 
-
         elif tmp[0] == '#triangle:':
             if len(tmp) < 12:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least eleven parameters')
@@ -286,15 +283,15 @@ def process_geometrycmds(geometry, G):
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
 
-            x1 = round_value(float(tmp[1])/G.dx) * G.dx
-            y1 = round_value(float(tmp[2])/G.dy) * G.dy
-            z1 = round_value(float(tmp[3])/G.dz) * G.dz
-            x2 = round_value(float(tmp[4])/G.dx) * G.dx
-            y2 = round_value(float(tmp[5])/G.dy) * G.dy
-            z2 = round_value(float(tmp[6])/G.dz) * G.dz
-            x3 = round_value(float(tmp[7])/G.dx) * G.dx
-            y3 = round_value(float(tmp[8])/G.dy) * G.dy
-            z3 = round_value(float(tmp[9])/G.dz) * G.dz
+            x1 = round_value(float(tmp[1]) / G.dx) * G.dx
+            y1 = round_value(float(tmp[2]) / G.dy) * G.dy
+            z1 = round_value(float(tmp[3]) / G.dz) * G.dz
+            x2 = round_value(float(tmp[4]) / G.dx) * G.dx
+            y2 = round_value(float(tmp[5]) / G.dy) * G.dy
+            z2 = round_value(float(tmp[6]) / G.dz) * G.dz
+            x3 = round_value(float(tmp[7]) / G.dx) * G.dx
+            y3 = round_value(float(tmp[8]) / G.dy) * G.dy
+            z3 = round_value(float(tmp[9]) / G.dz) * G.dz
             thickness = float(tmp[10])
 
             if x1 < 0 or x2 < 0 or x3 < 0 or x1 > G.nx or x2 > G.nx or x3 > G.nx:
@@ -379,7 +376,6 @@ def process_geometrycmds(geometry, G):
                 else:
                     print('Triangle with coordinates {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m of material(s) {} created.'.format(x1, y1, z1, x2, y2, z2, x3, y3, z3, ', '.join(materialsrequested)))
 
-
         elif tmp[0] == '#box:':
             if len(tmp) < 8:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least seven parameters')
@@ -406,12 +402,12 @@ def process_geometrycmds(geometry, G):
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
 
-            xs = round_value(float(tmp[1])/G.dx)
-            xf = round_value(float(tmp[4])/G.dx)
-            ys = round_value(float(tmp[2])/G.dy)
-            yf = round_value(float(tmp[5])/G.dy)
-            zs = round_value(float(tmp[3])/G.dz)
-            zf = round_value(float(tmp[6])/G.dz)
+            xs = round_value(float(tmp[1]) / G.dx)
+            xf = round_value(float(tmp[4]) / G.dx)
+            ys = round_value(float(tmp[2]) / G.dy)
+            yf = round_value(float(tmp[5]) / G.dy)
+            zs = round_value(float(tmp[3]) / G.dz)
+            zf = round_value(float(tmp[6]) / G.dz)
 
             if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
@@ -471,7 +467,6 @@ def process_geometrycmds(geometry, G):
                     dielectricsmoothing = 'off'
                 print('Box from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material(s) {} created, dielectric smoothing is {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, ', '.join(materialsrequested), dielectricsmoothing))
 
-
         elif tmp[0] == '#cylinder:':
             if len(tmp) < 9:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least eight parameters')
@@ -498,12 +493,12 @@ def process_geometrycmds(geometry, G):
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
 
-            x1 = round_value(float(tmp[1])/G.dx) * G.dx
-            y1 = round_value(float(tmp[2])/G.dy) * G.dy
-            z1 = round_value(float(tmp[3])/G.dz) * G.dz
-            x2 = round_value(float(tmp[4])/G.dx) * G.dx
-            y2 = round_value(float(tmp[5])/G.dy) * G.dy
-            z2 = round_value(float(tmp[6])/G.dz) * G.dz
+            x1 = round_value(float(tmp[1]) / G.dx) * G.dx
+            y1 = round_value(float(tmp[2]) / G.dy) * G.dy
+            z1 = round_value(float(tmp[3]) / G.dz) * G.dz
+            x2 = round_value(float(tmp[4]) / G.dx) * G.dx
+            y2 = round_value(float(tmp[5]) / G.dy) * G.dy
+            z2 = round_value(float(tmp[6]) / G.dz) * G.dz
             r = float(tmp[7])
 
             if r <= 0:
@@ -552,7 +547,6 @@ def process_geometrycmds(geometry, G):
                     dielectricsmoothing = 'off'
                 print('Cylinder with face centres {:g}m, {:g}m, {:g}m and {:g}m, {:g}m, {:g}m, with radius {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(x1, y1, z1, x2, y2, z2, r, ', '.join(materialsrequested), dielectricsmoothing))
 
-
         elif tmp[0] == '#cylindrical_sector:':
             if len(tmp) < 10:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least nine parameters')
@@ -586,8 +580,8 @@ def process_geometrycmds(geometry, G):
             extent2 = float(tmp[5])
             thickness = extent2 - extent1
             r = float(tmp[6])
-            sectorstartangle = 2*np.pi*(float(tmp[7])/360)
-            sectorangle = 2*np.pi*(float(tmp[8])/360)
+            sectorstartangle = 2 * np.pi * (float(tmp[7]) / 360)
+            sectorangle = 2 * np.pi * (float(tmp[8]) / 360)
 
             if normal != 'x' and normal != 'y' and normal != 'z':
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the normal direction must be either x, y or z.')
@@ -648,21 +642,21 @@ def process_geometrycmds(geometry, G):
 
             # yz-plane cylindrical sector
             if normal == 'x':
-                ctr1 = round_value(ctr1/G.dy) * G.dy
-                ctr2 = round_value(ctr2/G.dz) * G.dz
-                level = round_value(extent1/G.dx)
+                ctr1 = round_value(ctr1 / G.dy) * G.dy
+                ctr2 = round_value(ctr2 / G.dz) * G.dz
+                level = round_value(extent1 / G.dx)
 
             # xz-plane cylindrical sector
             elif normal == 'y':
-                ctr1 = round_value(ctr1/G.dx) * G.dx
-                ctr2 = round_value(ctr2/G.dz) * G.dz
-                level = round_value(extent1/G.dy)
+                ctr1 = round_value(ctr1 / G.dx) * G.dx
+                ctr2 = round_value(ctr2 / G.dz) * G.dz
+                level = round_value(extent1 / G.dy)
 
             # xy-plane cylindrical sector
             elif normal == 'z':
-                ctr1 = round_value(ctr1/G.dx) * G.dx
-                ctr2 = round_value(ctr2/G.dy) * G.dy
-                level = round_value(extent1/G.dz)
+                ctr1 = round_value(ctr1 / G.dx) * G.dx
+                ctr2 = round_value(ctr2 / G.dy) * G.dy
+                level = round_value(extent1 / G.dz)
 
             build_cylindrical_sector(ctr1, ctr2, level, sectorstartangle, sectorangle, r, normal, thickness, G.dx, G.dy, G.dz, numID, numIDx, numIDy, numIDz, averaging, G.solid, G.rigidE, G.rigidH, G.ID)
 
@@ -672,10 +666,9 @@ def process_geometrycmds(geometry, G):
                         dielectricsmoothing = 'on'
                     else:
                         dielectricsmoothing = 'off'
-                    print('Cylindrical sector with centre {:g}m, {:g}m, radius {:g}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, thickness {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(ctr1, ctr2, r, (sectorstartangle/(2*np.pi))*360, (sectorangle/(2*np.pi))*360, thickness, ', '.join(materialsrequested), dielectricsmoothing))
+                    print('Cylindrical sector with centre {:g}m, {:g}m, radius {:g}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, thickness {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(ctr1, ctr2, r, (sectorstartangle / (2 * np.pi)) * 360, (sectorangle / (2 * np.pi)) * 360, thickness, ', '.join(materialsrequested), dielectricsmoothing))
                 else:
-                    print('Cylindrical sector with centre {:g}m, {:g}m, radius {:g}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, of material(s) {} created.'.format(ctr1, ctr2, r, (sectorstartangle/(2*np.pi))*360, (sectorangle/(2*np.pi))*360, ', '.join(materialsrequested)))
-
+                    print('Cylindrical sector with centre {:g}m, {:g}m, radius {:g}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, of material(s) {} created.'.format(ctr1, ctr2, r, (sectorstartangle / (2 * np.pi)) * 360, (sectorangle / (2 * np.pi)) * 360, ', '.join(materialsrequested)))
 
         elif tmp[0] == '#sphere:':
             if len(tmp) < 6:
@@ -704,9 +697,9 @@ def process_geometrycmds(geometry, G):
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
 
             # Centre of sphere
-            xc = round_value(float(tmp[1])/G.dx)
-            yc = round_value(float(tmp[2])/G.dy)
-            zc = round_value(float(tmp[3])/G.dz)
+            xc = round_value(float(tmp[1]) / G.dx)
+            yc = round_value(float(tmp[2]) / G.dy)
+            zc = round_value(float(tmp[3]) / G.dz)
             r = float(tmp[4])
 
             # Look up requested materials in existing list of material instances
@@ -752,7 +745,6 @@ def process_geometrycmds(geometry, G):
                     dielectricsmoothing = 'off'
                 print('Sphere with centre {:g}m, {:g}m, {:g}m, radius {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(xc * G.dx, yc * G.dy, zc * G.dz, r, ', '.join(materialsrequested), dielectricsmoothing))
 
-
         elif tmp[0] == '#fractal_box:':
             if len(tmp) < 14:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least thirteen parameters')
@@ -763,12 +755,12 @@ def process_geometrycmds(geometry, G):
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
 
-            xs = round_value(float(tmp[1])/G.dx)
-            xf = round_value(float(tmp[4])/G.dx)
-            ys = round_value(float(tmp[2])/G.dy)
-            yf = round_value(float(tmp[5])/G.dy)
-            zs = round_value(float(tmp[3])/G.dz)
-            zf = round_value(float(tmp[6])/G.dz)
+            xs = round_value(float(tmp[1]) / G.dx)
+            xf = round_value(float(tmp[4]) / G.dx)
+            ys = round_value(float(tmp[2]) / G.dy)
+            yf = round_value(float(tmp[5]) / G.dy)
+            zs = round_value(float(tmp[3]) / G.dz)
+            zf = round_value(float(tmp[6]) / G.dz)
 
             if xs < 0 or xs > G.nx:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
@@ -836,12 +828,12 @@ def process_geometrycmds(geometry, G):
 
                     # Only process rough surfaces for this fractal volume
                     if tmp[12] == volume.ID:
-                        xs = round_value(float(tmp[1])/G.dx)
-                        xf = round_value(float(tmp[4])/G.dx)
-                        ys = round_value(float(tmp[2])/G.dy)
-                        yf = round_value(float(tmp[5])/G.dy)
-                        zs = round_value(float(tmp[3])/G.dz)
-                        zf = round_value(float(tmp[6])/G.dz)
+                        xs = round_value(float(tmp[1]) / G.dx)
+                        xf = round_value(float(tmp[4]) / G.dx)
+                        ys = round_value(float(tmp[2]) / G.dy)
+                        yf = round_value(float(tmp[5]) / G.dy)
+                        zs = round_value(float(tmp[3]) / G.dz)
+                        zf = round_value(float(tmp[6]) / G.dz)
 
                         if xs < 0 or xs > G.nx:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the lower x-coordinate {:g}m is not within the model domain'.format(xs * G.dx))
@@ -943,12 +935,12 @@ def process_geometrycmds(geometry, G):
 
                     # Only process surfaces for this fractal volume
                     if tmp[8] == volume.ID:
-                        xs = round_value(float(tmp[1])/G.dx)
-                        xf = round_value(float(tmp[4])/G.dx)
-                        ys = round_value(float(tmp[2])/G.dy)
-                        yf = round_value(float(tmp[5])/G.dy)
-                        zs = round_value(float(tmp[3])/G.dz)
-                        zf = round_value(float(tmp[6])/G.dz)
+                        xs = round_value(float(tmp[1]) / G.dx)
+                        xf = round_value(float(tmp[4]) / G.dx)
+                        ys = round_value(float(tmp[2]) / G.dy)
+                        yf = round_value(float(tmp[5]) / G.dy)
+                        zs = round_value(float(tmp[3]) / G.dz)
+                        zf = round_value(float(tmp[6]) / G.dz)
                         depth = float(tmp[7])
 
                         if xs < 0 or xs > G.nx:
@@ -1044,7 +1036,6 @@ def process_geometrycmds(geometry, G):
                         if G.messages:
                             print('Water on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with depth {:g}m, added to {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, filldepth, surface.operatingonID))
 
-
                 if tmp[0] == '#add_grass:':
                     if len(tmp) < 12:
                         raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least eleven parameters')
@@ -1057,12 +1048,12 @@ def process_geometrycmds(geometry, G):
 
                     # Only process grass for this fractal volume
                     if tmp[11] == volume.ID:
-                        xs = round_value(float(tmp[1])/G.dx)
-                        xf = round_value(float(tmp[4])/G.dx)
-                        ys = round_value(float(tmp[2])/G.dy)
-                        yf = round_value(float(tmp[5])/G.dy)
-                        zs = round_value(float(tmp[3])/G.dz)
-                        zf = round_value(float(tmp[6])/G.dz)
+                        xs = round_value(float(tmp[1]) / G.dx)
+                        xf = round_value(float(tmp[4]) / G.dx)
+                        ys = round_value(float(tmp[2]) / G.dy)
+                        yf = round_value(float(tmp[5]) / G.dy)
+                        zs = round_value(float(tmp[3]) / G.dz)
+                        zf = round_value(float(tmp[6]) / G.dz)
                         numblades = int(tmp[10])
 
                         if xs < 0 or xs > G.nx:
@@ -1193,7 +1184,6 @@ def process_geometrycmds(geometry, G):
 
                         if G.messages:
                             print('{} blades of grass on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}, fractal seeding {}, and range {:g}m to {:g}m, added to {}.'.format(numblades, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.seed, float(tmp[8]), float(tmp[9]), surface.operatingonID))
-
 
             # Process any modifications to the original fractal box then generate it
             if volume.fractalsurfaces:
@@ -1438,7 +1428,6 @@ def process_geometrycmds(geometry, G):
                                                     volume.mask[xx, yy, k - volume.zs] = 3
                                                     depth += 1
                                             k -= 1
-
 
                 # Build voxels from any true values of the 3D mask array
                 waternumID = next((x.numID for x in G.materials if x.ID == 'water'), 0)

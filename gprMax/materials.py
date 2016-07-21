@@ -74,8 +74,8 @@ class Material(object):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        HA = (m0*self.mr / G.dt) + 0.5*self.sm
-        HB = (m0*self.mr / G.dt) - 0.5*self.sm
+        HA = (m0 * self.mr / G.dt) + 0.5 * self.sm
+        HB = (m0 * self.mr / G.dt) - 0.5 * self.sm
         self.DA = HB / HA
         self.DBx = (1 / G.dx) * 1 / HA
         self.DBy = (1 / G.dy) * 1 / HA
@@ -122,12 +122,12 @@ class Material(object):
                 self.zt[x] = (self.w[x] / self.q[x]) * (1 - self.eqt[x]) / G.dt
                 self.zt2[x] = (self.w[x] / self.q[x]) * (1 - self.eqt2[x])
 
-            EA = (e0*self.er / G.dt) + 0.5*self.se - (e0 / G.dt) * np.sum(self.zt2.real)
-            EB = (e0*self.er / G.dt) - 0.5*self.se - (e0 / G.dt) * np.sum(self.zt2.real)
+            EA = (e0 * self.er / G.dt) + 0.5 * self.se - (e0 / G.dt) * np.sum(self.zt2.real)
+            EB = (e0 * self.er / G.dt) - 0.5 * self.se - (e0 / G.dt) * np.sum(self.zt2.real)
 
         else:
-            EA = (e0*self.er / G.dt) + 0.5*self.se
-            EB = (e0*self.er / G.dt) - 0.5*self.se
+            EA = (e0 * self.er / G.dt) + 0.5 * self.se
+            EB = (e0 * self.er / G.dt) - 0.5 * self.se
 
         if self.ID == 'pec' or self.se == float('inf'):
             self.CA = 0
@@ -198,15 +198,15 @@ class PeplinskiSoil(object):
         muiter = np.nditer(mumaterials, flags=['c_index'])
         while not muiter.finished:
             # Real part for frequencies in the range 1.4GHz to 18GHz
-            er1 = (1 + (self.rb/self.rs) * ((es**a) - 1) + (muiter[0]**b1 * erealw**a) - muiter[0]) ** (1/a)
+            er1 = (1 + (self.rb / self.rs) * ((es**a) - 1) + (muiter[0]**b1 * erealw**a) - muiter[0]) ** (1 / a)
             # Real part for frequencies in the range 0.3GHz to 1.3GHz
             er2 = 1.15 * er1 - 0.68
 
             # Imaginary part for frequencies in the range 0.3GHz to 1.3GHz
-            eri = er2 - (muiter[0]**(b2/a) * Material.waterdeltaer)
+            eri = er2 - (muiter[0]**(b2 / a) * Material.waterdeltaer)
 
             # Effective conductivity
-            sig = muiter[0]**(b2/a) * ((sigf1 * (self.rs - self.rb)) / (self.rs * muiter[0]))
+            sig = muiter[0]**(b2 / a) * ((sigf1 * (self.rs - self.rb)) / (self.rs * muiter[0]))
 
             # Check to see if the material already exists before creating a new one
             requiredID = '|{:.4f}|'.format(float(muiter[0]))

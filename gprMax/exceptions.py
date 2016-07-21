@@ -16,9 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+
 class GeneralError(ValueError):
     """Handles general errors. Subclasses the ValueError class."""
     pass
+
 
 class CmdInputError(ValueError):
     """Handles errors in user specified commands. Subclasses the ValueError class."""

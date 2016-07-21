@@ -185,13 +185,13 @@ class MagneticDipole(Source):
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
 
             if self.polarisation is 'x':
-                Hx[i, j, k] -= waveform.amp  * waveform.calculate_value(time, G.dt) * (G.dt / (G.dx * G.dy * G.dz))
+                Hx[i, j, k] -= waveform.amp * waveform.calculate_value(time, G.dt) * (G.dt / (G.dx * G.dy * G.dz))
 
             elif self.polarisation is 'y':
-                Hy[i, j, k] -= waveform.amp  * waveform.calculate_value(time, G.dt) * (G.dt / (G.dx * G.dy * G.dz))
+                Hy[i, j, k] -= waveform.amp * waveform.calculate_value(time, G.dt) * (G.dt / (G.dx * G.dy * G.dz))
 
             elif self.polarisation is 'z':
-                Hz[i, j, k] -= waveform.amp  * waveform.calculate_value(time, G.dt) * (G.dt / (G.dx * G.dy * G.dz))
+                Hz[i, j, k] -= waveform.amp * waveform.calculate_value(time, G.dt) * (G.dt / (G.dx * G.dy * G.dz))
 
 
 class TransmissionLine(Source):

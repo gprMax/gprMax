@@ -71,7 +71,6 @@ def process_multicmds(multicmds, G):
 
             G.waveforms.append(w)
 
-
     # Voltage source
     cmdname = '#voltage_source'
     if multicmds[cmdname] != 'None':
@@ -98,7 +97,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[5]))
 
             v = VoltageSource()
-            v.polarisation= tmp[0]
+            v.polarisation = tmp[0]
             v.xcoord = xcoord
             v.ycoord = ycoord
             v.zcoord = zcoord
@@ -131,7 +130,6 @@ def process_multicmds(multicmds, G):
                 print('Voltage source with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(v.polarisation, v.xcoord * G.dx, v.ycoord * G.dy, v.zcoord * G.dz, v.resistance) + startstop + 'using waveform {} created.'.format(v.waveformID))
 
             G.voltagesources.append(v)
-
 
     # Hertzian dipole
     cmdname = '#hertzian_dipole'
@@ -191,7 +189,6 @@ def process_multicmds(multicmds, G):
                 print('Hertzian dipole with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
 
             G.hertziandipoles.append(h)
-
 
     # Magnetic dipole
     cmdname = '#magnetic_dipole'
@@ -325,9 +322,9 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' has an incorrect number of parameters')
 
             # Check position parameters
-            xcoord = round_value(float(tmp[0])/G.dx)
-            ycoord = round_value(float(tmp[1])/G.dy)
-            zcoord = round_value(float(tmp[2])/G.dz)
+            xcoord = round_value(float(tmp[0]) / G.dx)
+            ycoord = round_value(float(tmp[1]) / G.dy)
+            zcoord = round_value(float(tmp[2]) / G.dz)
             check_coordinates(xcoord, ycoord, zcoord)
             if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
                 print("WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.\n')
@@ -358,7 +355,6 @@ def process_multicmds(multicmds, G):
                 print('Receiver at {:g}m, {:g}m, {:g}m with output(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))
 
             G.rxs.append(r)
-
 
     # Receiver array
     cmdname = '#rx_array'
@@ -424,7 +420,6 @@ def process_multicmds(multicmds, G):
                         if G.messages:
                             print('  Receiver at {:g}m, {:g}m, {:g}m with output(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))
                         G.rxs.append(r)
-
 
     # Snapshot
     cmdname = '#snapshot'
@@ -511,7 +506,6 @@ def process_multicmds(multicmds, G):
             # Append the new material object to the materials list
             G.materials.append(m)
 
-
     cmdname = '#add_dispersion_debye'
     if multicmds[cmdname] != 'None':
         for cmdinstance in multicmds[cmdname]:
@@ -583,7 +577,6 @@ def process_multicmds(multicmds, G):
                 if G.messages:
                     print('Lorentz disperion added to {} with delta_epsr={}, omega={} secs, and gamma={} created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
 
-
     cmdname = '#add_dispersion_drude'
     if multicmds[cmdname] != 'None':
         for cmdinstance in multicmds[cmdname]:
@@ -619,7 +612,6 @@ def process_multicmds(multicmds, G):
                 if G.messages:
                     print('Drude disperion added to {} with omega={} secs, and gamma={} secs created.'.format(material.ID, ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
 
-
     cmdname = '#soil_peplinski'
     if multicmds[cmdname] != 'None':
         for cmdinstance in multicmds[cmdname]:
@@ -649,7 +641,6 @@ def process_multicmds(multicmds, G):
 
             # Append the new material object to the materials list
             G.mixingmodels.append(s)
-
 
     # Geometry views (creates VTK-based geometry files)
     cmdname = '#geometry_view'
@@ -694,7 +685,6 @@ def process_multicmds(multicmds, G):
 
             # Append the new GeometryView object to the geometry views list
             G.geometryviews.append(g)
-
 
     # Complex frequency shifted (CFS) PML parameter
     cmdname = '#pml_cfs'

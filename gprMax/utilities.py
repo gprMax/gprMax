@@ -57,9 +57,9 @@ along with gprMax.  If not, see <http://www.gnu.org/licenses/>."""
     url = 'www.gprmax.com'
 
     print('\nElectromagnetic modelling software based on the Finite-Difference \nTime-Domain (FDTD) method')
-    print('\n{} {} {}'.format('*'*round((width - len(url))/2), url, '*'*round((width - len(url))/2)))
+    print('\n{} {} {}'.format('*' * round((width - len(url)) / 2), url, '*' * round((width - len(url)) / 2)))
     print('{}'.format(gprMaxlogo))
-    print('{} v{} {}'.format('*'*round((width - len(version))/2), (version), '*'*round((width - len(version))/2)))
+    print('{} v{} {}'.format('*' * round((width - len(version)) / 2), (version), '*' * round((width - len(version)) / 2)))
     print(licenseinfo)
 
 
@@ -91,12 +91,12 @@ def round_value(value, decimalplaces=0):
 
     # Rounds to nearest integer (half values are rounded downwards)
     if decimalplaces == 0:
-        rounded = int(d.Decimal(value).quantize(d.Decimal('1'),rounding=d.ROUND_HALF_DOWN))
+        rounded = int(d.Decimal(value).quantize(d.Decimal('1'), rounding=d.ROUND_HALF_DOWN))
 
     # Rounds down to nearest float represented by number of decimal places
     else:
         precision = '1.{places}'.format(places='0' * decimalplaces)
-        rounded = float(d.Decimal(value).quantize(d.Decimal(precision),rounding=d.ROUND_FLOOR))
+        rounded = float(d.Decimal(value).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR))
 
     return rounded
 

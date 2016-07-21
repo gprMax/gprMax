@@ -43,7 +43,6 @@ def write_hdf5(outputfile, Ex, Ey, Ez, Hx, Hy, Hz, G):
     f.attrs['srcsteps'] = (G.srcstepx, G.srcstepy, G.srcstepz)
     f.attrs['rxsteps'] = (G.rxstepx, G.rxstepy, G.rxstepz)
 
-
     # Create group for sources (except transmission lines); add type and positional data attributes
     srclist = G.voltagesources + G.hertziandipoles + G.magneticdipoles
     for srcindex, src in enumerate(srclist):
@@ -64,7 +63,6 @@ def write_hdf5(outputfile, Ex, Ey, Ez, Hx, Hy, Hz, G):
             # Save total voltage and current
             f['/tls/tl' + str(tlindex + 1) + '/Vtotal'] = tl.Vtotal
             f['/tls/tl' + str(tlindex + 1) + '/Itotal'] = tl.Itotal
-
 
     # Create group, add positional data and write field component arrays for receivers
     for rxindex, rx in enumerate(G.rxs):

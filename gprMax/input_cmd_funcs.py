@@ -35,6 +35,7 @@ Coordinate(x=0.1, y=0.2, z=0.3)
 from collections import namedtuple
 Coordinate_tuple = namedtuple('Coordinate', ['x', 'y', 'z'])
 
+
 class Coordinate(Coordinate_tuple):
     """Subclass of a namedtuple where __str__ outputs 'x y z'"""
     def __str__(self):
@@ -62,7 +63,7 @@ def command(cmd, *parameters):
     except TypeError as e:
         # append info about cmd and parameters to the exception:
         if not e.args:
-            e.args=('', )
+            e.args = ('', )
         additional_info = "Creating cmd = #{} with parameters {} -> {} failed".format(cmd, parameters, filtered_list)
         e.args = e.args + (additional_info,)
         raise e

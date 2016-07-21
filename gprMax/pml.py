@@ -98,7 +98,7 @@ class CFS(object):
             Hvalues (float): numpy array holding scaling profile values for magnetic PML update.
         """
 
-        tmp = (np.linspace(0, (len(Evalues) - 1) + 0.5, num=2*len(Evalues)) / (len(Evalues) - 1)) ** order
+        tmp = (np.linspace(0, (len(Evalues) - 1) + 0.5, num=2 * len(Evalues)) / (len(Evalues) - 1)) ** order
         Evalues = tmp[0:-1:2]
         Hvalues = tmp[1::2]
         return Evalues, Hvalues
@@ -115,7 +115,7 @@ class CFS(object):
             Hvalues (float): numpy array holding profile value for magnetic PML update.
         """
 
-        Evalues= np.zeros(thickness + 1, dtype=floattype)
+        Evalues = np.zeros(thickness + 1, dtype=floattype)
         Hvalues = np.zeros(thickness + 1, dtype=floattype)
 
         if parameter.scalingprofile == 'constant':
@@ -218,18 +218,18 @@ class PML(object):
             Esigma, Hsigma = cfs.calculate_values(self.thickness, cfs.sigma)
 
             # Electric PML update coefficients
-            tmp = (2*e0*Ekappa) + G.dt * (Ealpha * Ekappa + Esigma)
-            self.ERA[x, :] = (2*e0 + G.dt*Ealpha) / tmp
-            self.ERB[x, :] = (2*e0*Ekappa) / tmp
-            self.ERE[x, :] = ((2*e0*Ekappa) - G.dt * (Ealpha * Ekappa + Esigma)) / tmp
-            self.ERF[x, :] = (2*Esigma*G.dt) / (Ekappa * tmp)
+            tmp = (2 * e0 * Ekappa) + G.dt * (Ealpha * Ekappa + Esigma)
+            self.ERA[x, :] = (2 * e0 + G.dt * Ealpha) / tmp
+            self.ERB[x, :] = (2 * e0 * Ekappa) / tmp
+            self.ERE[x, :] = ((2 * e0 * Ekappa) - G.dt * (Ealpha * Ekappa + Esigma)) / tmp
+            self.ERF[x, :] = (2 * Esigma * G.dt) / (Ekappa * tmp)
 
             # Magnetic PML update coefficients
-            tmp = (2*e0*Hkappa) + G.dt * (Halpha * Hkappa + Hsigma)
-            self.HRA[x, :] = (2*e0 + G.dt*Halpha) / tmp
-            self.HRB[x, :] = (2*e0*Hkappa) / tmp
-            self.HRE[x, :] = ((2*e0*Hkappa) - G.dt * (Halpha * Hkappa + Hsigma)) / tmp
-            self.HRF[x, :] = (2*Hsigma*G.dt) / (Hkappa * tmp)
+            tmp = (2 * e0 * Hkappa) + G.dt * (Halpha * Hkappa + Hsigma)
+            self.HRA[x, :] = (2 * e0 + G.dt * Halpha) / tmp
+            self.HRB[x, :] = (2 * e0 * Hkappa) / tmp
+            self.HRE[x, :] = ((2 * e0 * Hkappa) - G.dt * (Halpha * Hkappa + Hsigma)) / tmp
+            self.HRF[x, :] = (2 * Hsigma * G.dt) / (Hkappa * tmp)
 
 
 def build_pmls(G):
@@ -244,7 +244,7 @@ def build_pmls(G):
         if pmlthickness > 0:
             sumer = 0 # Sum of relative permittivities in PML slab
             summr = 0 # Sum of relative permeabilities in PML slab
-            pmldirection=PML.directions[index]
+            pmldirection = PML.directions[index]
 
             if pmldirection[0] == 'x':
                 if pmldirection == 'xminus':

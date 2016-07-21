@@ -68,7 +68,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
 
     # Select OA
     OA, N, cols, k, s, t = construct_OA(optparams)
-    print('\n{}\nTaguchi optimisation...\n'.format(68*'*'))
+    print('\n{}\nTaguchi optimisation...\n'.format(68 * '*'))
     print('\tOrthogonal array: {:g} experiments per iteration, {:g} parameters ({:g} will be used), {:g} levels, and strength {:g}'.format(N, cols, k, s, t))
     tmp = [(k, v) for k, v in optparams.items()]
     print('\tParameters to optimise with ranges: {}'.format(str(tmp).strip('[]')))
@@ -131,7 +131,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
         # Rename confirmation experiment output file so that it is retained for each iteraction
         os.rename(outputfile, os.path.splitext(outputfile)[0] + '_final' + str(iteration + 1) + '.out')
 
-        print('\nTaguchi optimisation, iteration {} completed. History of optimal parameter values {} and of fitness values {}'.format(iteration + 1, dict(optparamshist), fitnessvalueshist, 68*'*'))
+        print('\nTaguchi optimisation, iteration {} completed. History of optimal parameter values {} and of fitness values {}'.format(iteration + 1, dict(optparamshist), fitnessvalueshist, 68 * '*'))
         iteration += 1
 
         # Stop optimisation if stopping criterion has been reached
@@ -154,7 +154,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
         pickle.dump(fitnessvalueshist, f)
         pickle.dump(optparamsinit, f)
 
-    print('\n{}\nTaguchi optimisation completed after {} iteration(s).\nHistory of optimal parameter values {} and of fitness values {}\n{}\n'.format(68*'*', iteration, dict(optparamshist), fitnessvalueshist, 68*'*'))
+    print('\n{}\nTaguchi optimisation completed after {} iteration(s).\nHistory of optimal parameter values {} and of fitness values {}\n{}\n'.format(68 * '*', iteration, dict(optparamshist), fitnessvalueshist, 68 * '*'))
 
 
 def taguchi_code_blocks(inputfile, taguchinamespace):
@@ -313,7 +313,7 @@ def calculate_ranges_experiments(optparams, optparamsinit, levels, levelsopt, le
 
     # Gaussian reduction function used for calculating levels
     T = 18 # Usually values between 15 - 20
-    RR = np.exp(-(i/T)**2)
+    RR = np.exp(-(i / T)**2)
 
     # Calculate levels for each parameter
     for p in range(k):
@@ -340,7 +340,6 @@ def calculate_ranges_experiments(optparams, optparamsinit, levels, levelsopt, le
         else:
             levels[0, p] = levels[1, p] - levelsdiff[p]
             levels[2, p] = levels[1, p] + levelsdiff[p]
-
 
     # Update dictionary of parameters to optimise with lists of new values; clear dictionary first
     optparams = OrderedDict((key, list()) for key in optparams)

@@ -6,6 +6,7 @@ import numpy as np
 
 from gprMax.grid import Grid
 
+
 class ListCounter():
 
     def __init__(self, npArray):
@@ -16,10 +17,10 @@ class ListCounter():
         self.array[self.count] = item
         self.count += 1
 
+
 class EdgeLabels:
 
     def __init__(self, grid):
-
         """
             Class to define some connectivity of for an n x l x m
             grid
@@ -36,6 +37,7 @@ class EdgeLabels:
         out_label = self.grid.get(i, j, k)
         edge = np.array([in_label, out_label])
         self.edge_counter.add(edge)
+
 
 class EdgeMaterials:
 
@@ -85,7 +87,6 @@ class SolidLabels():
         self.label_counter = ListCounter(self.solid_labels)
 
     def hexCellPicker(self, grid, i, j, k):
-
         """
         This is the ordering of nodes in the hexahedron cell.
 
@@ -123,6 +124,7 @@ class SolidLabels():
 
         solid_labels = self.hexCellPicker(self.label_grid.grid, i, j, k)
         self.label_counter.add(solid_labels)
+
 
 class SolidManager(Grid):
 

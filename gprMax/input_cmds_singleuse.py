@@ -50,14 +50,12 @@ def process_singlecmds(singlecmds, G):
         else:
             raise CmdInputError(cmd + ' requires input values of either y or n')
 
-
     # Title
     cmd = '#title'
     if singlecmds[cmd] != 'None':
         G.title = singlecmds[cmd]
         if G.messages:
             print('Model title: {}'.format(G.title))
-
 
     # Number of processors to run on (OpenMP)
     cmd = '#num_threads'
@@ -85,7 +83,6 @@ def process_singlecmds(singlecmds, G):
     if G.nthreads > psutil.cpu_count(logical=False):
         print('\nWARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, psutil.cpu_count(logical=False)))
 
-
     # Spatial discretisation
     cmd = '#dx_dy_dz'
     tmp = [float(x) for x in singlecmds[cmd].split()]
@@ -103,15 +100,14 @@ def process_singlecmds(singlecmds, G):
     if G.messages:
         print('Spatial discretisation: {:g} x {:g} x {:g}m'.format(G.dx, G.dy, G.dz))
 
-
     # Domain
     cmd = '#domain'
     tmp = [float(x) for x in singlecmds[cmd].split()]
     if len(tmp) != 3:
         raise CmdInputError(cmd + ' requires exactly three parameters')
-    G.nx = round_value(tmp[0]/G.dx)
-    G.ny = round_value(tmp[1]/G.dy)
-    G.nz = round_value(tmp[2]/G.dz)
+    G.nx = round_value(tmp[0] / G.dx)
+    G.ny = round_value(tmp[1] / G.dy)
+    G.nz = round_value(tmp[2] / G.dz)
     if G.nx == 0 or G.ny == 0 or G.nz == 0:
         raise CmdInputError(cmd + ' requires at least one cell in every dimension')
     if G.messages:
@@ -119,7 +115,6 @@ def process_singlecmds(singlecmds, G):
         # Guesstimate at memory usage
         mem = (((G.nx + 1) * (G.ny + 1) * (G.nz + 1) * 13 * np.dtype(floattype).itemsize + (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * 18) * 1.1) + 30e6
         print('Memory (RAM) usage: ~{} required, {} available'.format(human_size(mem), human_size(psutil.virtual_memory().total)))
-
 
     # Time step CFL limit (use either 2D or 3D) and default PML thickness
     if G.nx == 1:
@@ -145,7 +140,6 @@ def process_singlecmds(singlecmds, G):
     if G.messages:
         print('Time step (at {} CFL limit): {:g} secs'.format(G.dtlimit, G.dt))
 
-
     # Time step stability factor
     cmd = '#time_step_stability_factor'
     if singlecmds[cmd] != 'None':
@@ -157,7 +151,6 @@ def process_singlecmds(singlecmds, G):
         G.dt = G.dt * tmp[0]
         if G.messages:
             print('Time step (modified): {:g} secs'.format(G.dt))
-
 
     # Time window
     cmd = '#time_window'
@@ -182,7 +175,6 @@ def process_singlecmds(singlecmds, G):
     if G.messages:
         print('Time window: {:g} secs ({} iterations)'.format(G.timewindow, G.iterations))
 
-
     # PML
     cmd = '#pml_cells'
     if singlecmds[cmd] != 'None':
@@ -193,9 +185,8 @@ def process_singlecmds(singlecmds, G):
             G.pmlthickness = (int(tmp[0]), int(tmp[0]), int(tmp[0]), int(tmp[0]), int(tmp[0]), int(tmp[0]))
         else:
             G.pmlthickness = (int(tmp[0]), int(tmp[1]), int(tmp[2]), int(tmp[3]), int(tmp[4]), int(tmp[5]))
-    if 2*G.pmlthickness[0] >= G.nx or 2*G.pmlthickness[1] >= G.ny or 2*G.pmlthickness[2] >= G.nz or 2*G.pmlthickness[3] >= G.nx or 2*G.pmlthickness[4] >= G.ny or 2*G.pmlthickness[5] >= G.nz:
+    if 2 * G.pmlthickness[0] >= G.nx or 2 * G.pmlthickness[1] >= G.ny or 2 * G.pmlthickness[2] >= G.nz or 2 * G.pmlthickness[3] >= G.nx or 2 * G.pmlthickness[4] >= G.ny or 2 * G.pmlthickness[5] >= G.nz:
         raise CmdInputError(cmd + ' has too many cells for the domain size')
-
 
     # src_steps
     cmd = '#src_steps'
@@ -203,12 +194,11 @@ def process_singlecmds(singlecmds, G):
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
             raise CmdInputError(cmd + ' requires exactly three parameters')
-        G.srcstepx = round_value(float(tmp[0])/G.dx)
-        G.srcstepy = round_value(float(tmp[1])/G.dy)
-        G.srcstepz = round_value(float(tmp[2])/G.dz)
+        G.srcstepx = round_value(float(tmp[0]) / G.dx)
+        G.srcstepy = round_value(float(tmp[1]) / G.dy)
+        G.srcstepz = round_value(float(tmp[2]) / G.dz)
         if G.messages:
             print('Simple sources will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.srcstepx * G.dx, G.srcstepy * G.dy, G.srcstepz * G.dz))
-
 
     # rx_steps
     cmd = '#rx_steps'
@@ -216,12 +206,11 @@ def process_singlecmds(singlecmds, G):
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
             raise CmdInputError(cmd + ' requires exactly three parameters')
-        G.rxstepx = round_value(float(tmp[0])/G.dx)
-        G.rxstepy = round_value(float(tmp[1])/G.dy)
-        G.rxstepz = round_value(float(tmp[2])/G.dz)
+        G.rxstepx = round_value(float(tmp[0]) / G.dx)
+        G.rxstepy = round_value(float(tmp[1]) / G.dy)
+        G.rxstepz = round_value(float(tmp[2]) / G.dz)
         if G.messages:
             print('All receivers will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.rxstepx * G.dx, G.rxstepy * G.dy, G.rxstepz * G.dz))
-
 
     # Excitation file for user-defined source waveforms
     cmd = '#excitation_file'
@@ -251,7 +240,7 @@ def process_singlecmds(singlecmds, G):
             if len(waveformvalues.shape) == 1:
                 w.uservalues = waveformvalues[:]
             else:
-                w.uservalues = waveformvalues[:,waveform]
+                w.uservalues = waveformvalues[:, waveform]
 
             if G.messages:
                 print('User waveform {} created.'.format(w.ID))

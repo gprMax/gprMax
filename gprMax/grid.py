@@ -63,6 +63,7 @@ class Grid(object):
         co = round_value(float(val) / getattr(self, 'd' + coord))
         return co
 
+
 class FDTDGrid(Grid):
     """Holds attributes associated with the entire grid. A convenient way for accessing regularly used parameters."""
 
@@ -155,7 +156,7 @@ def dispersion_check(G):
         if waveform.type == 'sine' or waveform.type == 'contsine':
             maxfreqs.append(4 * waveform.freq)
 
-        elif waveform.type =='impulse':
+        elif waveform.type == 'impulse':
             pass
 
         else:
@@ -239,6 +240,7 @@ def Ix(x, y, z, Hy, Hz, G):
         Ix = G.dy * (Hy[x, y, z - 1] - Hy[x, y, z]) + G.dz * (Hz[x, y, z] - Hz[x, y - 1, z])
         return Ix
 
+
 def Iy(x, y, z, Hx, Hz, G):
     """Calculates the y-component of current at a grid position.
 
@@ -255,6 +257,7 @@ def Iy(x, y, z, Hx, Hz, G):
     else:
         Iy = G.dx * (Hx[x, y, z] - Hx[x, y, z - 1]) + G.dz * (Hz[x - 1, y, z] - Hz[x, y, z])
         return Iy
+
 
 def Iz(x, y, z, Hx, Hy, G):
     """Calculates the z-component of current at a grid position.

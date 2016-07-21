@@ -76,7 +76,7 @@ class FractalSurface(object):
         self.fractalsurface = np.zeros(surfacedims, dtype=complextype)
 
         # Positional vector at centre of array, scaled by weighting
-        v1 = np.array([self.weighting[0]*(surfacedims[0])/2, self.weighting[1]*(surfacedims[1])/2])
+        v1 = np.array([self.weighting[0] * (surfacedims[0]) / 2, self.weighting[1] * (surfacedims[1]) / 2])
 
         # 2D array of random numbers to be convolved with the fractal function
         R = np.random.RandomState(self.seed)
@@ -88,13 +88,13 @@ class FractalSurface(object):
         for i in range(surfacedims[0]):
             for j in range(surfacedims[1]):
                 # Positional vector for current position
-                v2 = np.array([self.weighting[0]*i, self.weighting[1]*j])
+                v2 = np.array([self.weighting[0] * i, self.weighting[1] * j])
                 rr = np.linalg.norm(v2 - v1)
                 try:
-                    self.fractalsurface[i, j] = A[i, j] * 1/(rr**self.b)
+                    self.fractalsurface[i, j] = A[i, j] * 1 / (rr**self.b)
                 except FloatingPointError:
                     rr = 0.9
-                    self.fractalsurface[i, j] = A[i, j] * 1/(rr**self.b)
+                    self.fractalsurface[i, j] = A[i, j] * 1 / (rr**self.b)
 
         # Shift the zero frequency component to the centre of the spectrum
         self.fractalsurface = np.fft.ifftshift(self.fractalsurface)
@@ -104,7 +104,7 @@ class FractalSurface(object):
         fractalmin = np.amin(self.fractalsurface)
         fractalmax = np.amax(self.fractalsurface)
         fractalrange = fractalmax - fractalmin
-        self.fractalsurface = self.fractalsurface * ((self.fractalrange[1] - self.fractalrange[0])/fractalrange) + self.fractalrange[0] - ((self.fractalrange[1] - self.fractalrange[0])/fractalrange) * fractalmin
+        self.fractalsurface = self.fractalsurface * ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange) + self.fractalrange[0] - ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange) * fractalmin
 
 
 class FractalVolume(object):
@@ -118,7 +118,7 @@ class FractalVolume(object):
         """
 
         self.ID = None
-        self.operatingonID= None
+        self.operatingonID = None
         self.xs = xs
         self.xf = xf
         self.ys = ys
@@ -146,7 +146,7 @@ class FractalVolume(object):
         self.fractalvolume = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
 
         # Positional vector at centre of array, scaled by weighting
-        v1 = np.array([self.weighting[0]*(self.nx + 1)/2, self.weighting[1]*(self.ny + 1)/2, self.weighting[2]*(self.nz + 1)/2])
+        v1 = np.array([self.weighting[0] * (self.nx + 1) / 2, self.weighting[1] * (self.ny + 1) / 2, self.weighting[2] * (self.nz + 1) / 2])
 
         # 3D array of random numbers to be convolved with the fractal function
         R = np.random.RandomState(self.seed)
@@ -159,13 +159,13 @@ class FractalVolume(object):
             for j in range(self.ny + 1):
                 for k in range(self.nz + 1):
                     # Positional vector for current position
-                    v2 = np.array([self.weighting[0]*i, self.weighting[1]*j, self.weighting[2]*k])
+                    v2 = np.array([self.weighting[0] * i, self.weighting[1] * j, self.weighting[2] * k])
                     rr = np.linalg.norm(v2 - v1)
                     try:
-                        self.fractalvolume[i, j, k] = A[i, j, k] * 1/(rr**self.b)
+                        self.fractalvolume[i, j, k] = A[i, j, k] * 1 / (rr**self.b)
                     except FloatingPointError:
                         rr = 0.9
-                        self.fractalvolume[i, j, k] = A[i, j, k] * 1/(rr**self.b)
+                        self.fractalvolume[i, j, k] = A[i, j, k] * 1 / (rr**self.b)
 
         # Shift the zero frequency component to the centre of the spectrum
         self.fractalvolume = np.fft.ifftshift(self.fractalvolume)
