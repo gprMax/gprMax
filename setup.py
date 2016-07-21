@@ -119,11 +119,6 @@ elif sys.platform == 'darwin':
     compile_args = ['-O3', '-w', '-fstrict-aliasing', '-fno-common', '-fopenmp']
     linker_args = ['-fopenmp']
     extra_objects = []
-
-    # If user is cwarren do static linking as this is for binaries uploaded to GitHub
-#    if os.getlogin() == 'cwarren':
-#        linker_args = ['-static-libgcc']
-#        extra_objects = ['/usr/local/opt/gcc/lib/gcc/5/libgomp.a']
 # Linux
 else:
     compile_args = ['-O3', '-w', '-fopenmp']
