@@ -61,7 +61,8 @@ def command(cmd, *parameters):
         s = '#{}: {}'.format(cmd, " ".join(filtered_list))
     except TypeError as e:
         # append info about cmd and parameters to the exception:
-        if not e.args: e.args=('', )
+        if not e.args:
+            e.args=('', )
         additional_info = "Creating cmd = #{} with parameters {} -> {} failed".format(cmd, parameters, filtered_list)
         e.args = e.args + (additional_info,)
         raise e
@@ -163,7 +164,7 @@ def snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename):
     f = Coordinate(xf, yf, zf)
     d = Coordinate(dx, dy, dz)
 
-    if  '.' in str(time) or 'e' in str(time):
+    if '.' in str(time) or 'e' in str(time):
         time = '{:g}'.format(float(time))
     else:
         time = '{:d}'.format(int(time))

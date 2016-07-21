@@ -153,7 +153,7 @@ class GeometryView(object):
             vtk_numpoints = (self.nx + 1) * (self.ny + 1) * (self.nz + 1)
             vtk_numpoint_components = 3
             vtk_numlines = 2 * self.nx * self.ny + 2 * self.ny * self.nz + 2 * self.nx * self.nz + 3 * self.nx * self.ny * self.nz + self.nx + self.ny + self.nz
-            vtk_numline_components  = 2;
+            vtk_numline_components  = 2
 
             vtk_connectivity_offset = round_value((vtk_numpoints * vtk_numpoint_components * np.dtype(np.float32).itemsize) + np.dtype(np.uint32).itemsize)
             vtk_offsets_offset = round_value(vtk_connectivity_offset + (vtk_numlines * vtk_numline_components * np.dtype(np.uint32).itemsize) + np.dtype(np.uint32).itemsize)

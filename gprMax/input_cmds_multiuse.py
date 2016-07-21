@@ -609,7 +609,7 @@ def process_multicmds(multicmds, G):
                 material.average = False
                 for pole in range(1, 2 * poles, 2):
                     if float(tmp[pole]) > 0 and float(tmp[pole + 1]) > G.dt:
-                        material.tau.append(float(tmp[pole ]))
+                        material.tau.append(float(tmp[pole]))
                         material.alpha.append(float(tmp[pole + 1]))
                     else:
                         raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the frequencies, and associated times that are greater than the time step for the model.')

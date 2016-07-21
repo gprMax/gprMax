@@ -73,7 +73,7 @@ def update_progress(progress):
     # Modify this to change the length of the progress bar
     barLength = 50
     block = round_value(barLength * progress)
-    text = '\r|{}| {:2.1f}%'.format( '#' * block + '-' * (barLength - block), progress * 100)
+    text = '\r|{}| {:2.1f}%'.format('#' * block + '-' * (barLength - block), progress * 100)
     sys.stdout.write(text)
     sys.stdout.flush()
 

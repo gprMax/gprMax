@@ -367,6 +367,6 @@ def create_xdmf_markup(options):
 
     # Serialize elements
     xml_doc = etree.tostring(xdmf_el, xml_declaration=True,
-        encoding="utf-8",  doctype=doc_type, pretty_print=True)
+                             encoding="utf-8", doctype=doc_type, pretty_print=True)
 
     return xml_doc
