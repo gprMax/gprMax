@@ -35,6 +35,7 @@ Package overview
         gprMax/
         LICENSE
         README.rst
+        setup.cfg
         setup.py
         tests/
         tools/
@@ -48,6 +49,7 @@ Package overview
 * ``gprMax`` is the main package. Within this package the main module is ``gprMax.py``
 * ``LICENSE`` contains information on the GNU General Public License v3 or higher (http://www.gnu.org/copyleft/gpl.html).
 * ``README.rst`` contains getting started information on installation, usage, and new features/changes.
+* ``setup.cfg`` is used to set preference for code formatting/styling using flake8.
 * ``setup.py`` is used to compile the Cython extension modules.
 * ``tests`` is a sub-package which contains test modules and input files.
 * ``tools`` is a sub-package which contains scripts to assist with viewing and post-processing output from models.
