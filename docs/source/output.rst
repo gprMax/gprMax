@@ -130,6 +130,8 @@ The following are steps to get started with viewing snapshot files in Paraview:
 
     * Use the Color Map Editor to adjust the Color Scaling.
 
+    * Adjust the default lighting: In the Properties panel click on the gear icon to turn on the advanced properties. Go to the Lights section and click edit. Uncheck the Light Kit check box and click Close.
+
 
 Geometry output
 ===============
