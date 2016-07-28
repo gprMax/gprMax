@@ -9,9 +9,9 @@ Getting Started
 What is gprMax?
 ===============
 
-gprMax (http://www.gprmax.com) is free software that simulates electromagnetic wave propagation. It solves Maxwell's equations in 3D using the Finite-Difference Time-Domain (FDTD) method. gprMax was designed for modelling Ground Penetrating Radar (GPR) but can also be used to model electromagnetic wave propagation for many other applications.
+gprMax (http://www.gprmax.com) is open source software that simulates electromagnetic wave propagation. It solves Maxwell's equations in 3D using the Finite-Difference Time-Domain (FDTD) method. gprMax was designed for modelling Ground Penetrating Radar (GPR) but can also be used to model electromagnetic wave propagation for many other applications.
 
-gprMax is released under the GNU General Public License v3 or higher (http://www.gnu.org/copyleft/gpl.html).
+gprMax is currently released under the GNU General Public License v3 or higher (http://www.gnu.org/copyleft/gpl.html).
 
 gprMax is written in Python 3 (https://www.python.org) and includes performance-critical parts written in Cython/OpenMP (http://cython.org).
 
