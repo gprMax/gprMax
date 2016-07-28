@@ -199,7 +199,7 @@ This will pull the most recent gprMax source code form GitHub, remove/clean prev
 Updating conda and Python packages
 ----------------------------------
 
-Periodly yyou should update conda and the required Python packages. To update conda, with the gprMax environment deactivated, run the following command:
+Periodly you should update conda and the required Python packages. To update conda, with the gprMax environment deactivated, run the following command:
 
 .. code-block:: none
 
