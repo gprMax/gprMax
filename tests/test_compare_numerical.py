@@ -16,11 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys, os
+import os
+import sys
+
 import h5py
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+
 from tools.plot_fields import plot_Ascan
 
 """Compare field outputs
