@@ -885,3 +885,7 @@ Allows you (advanced) control of the parameters that are used to build each orde
 * ``f5 f6`` are the minimum and maximum values for the CFS :math:`\sigma` parameter.
 
 The CFS values (which are internally specified) used for the default standard first order PML are: ``#pml_cfs: constant forward 0 0 constant forward 1 1 quartic forward 0 None``. Specifying 'None' for the maximum value of :math:`\sigma` forces gprMax to calculate it internally based on the relative permittivity and permeability of the underlying materials in the model.
+
+.. tip::
+    ``forward`` direction implies minimum parameter value at the inner boundary of the PML and maximum parameter value at the edge of computational domain, ``reverse`` is the opposite.
+
