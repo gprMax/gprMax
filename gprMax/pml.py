@@ -27,7 +27,7 @@ class CFSParameter(object):
     """Individual CFS parameter (e.g. alpha, kappa, or sigma)."""
 
     # Allowable scaling profiles and directions
-    scalingprofiles = {'constant': 0, 'linear': 1, 'quadratic': 2, 'cubic': 3, 'quartic': 4}
+    scalingprofiles = {'constant': 0, 'linear': 1, 'quadratic': 2, 'cubic': 3, 'quartic': 4, 'quintic': 5, 'sextic': 6}
     scalingdirections = ['forward', 'reverse']
 
     def __init__(self, ID=None, scaling='polynomial', scalingprofile=None, scalingdirection='forward', min=0, max=0):
