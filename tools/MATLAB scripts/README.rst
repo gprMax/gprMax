@@ -1,0 +1,1 @@
+These MATLAB scripts are designed as a base to help you get started with plotting data (A-scans and B-scans) from simulations. They do not feature extensive error checking.
