@@ -14,6 +14,15 @@ These screencasts are demonstrated on Microsoft Windows 7, but the installation 
 * `How to install gprMax on Microsoft Windows <https://youtu.be/YkPWMmJILcI>`_
 * `How to update gprMax on Microsoft Windows <https://youtu.be/e0ROY792s9o>`_
 
+
+Plotting
+--------
+
+How to plot time and frequency domain representations of source waveforms and field outputs.
+
+* `Plotting source waveforms using a Jupyter notebook` <https://youtu.be/zaf0w8Np2cU>`_
+
+
 Visualise EM wave propagation
 -----------------------------
 
