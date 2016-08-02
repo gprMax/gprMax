@@ -20,7 +20,7 @@ Plotting
 
 How to plot time and frequency domain representations of source waveforms and field outputs.
 
-* `Plotting source waveforms using a Jupyter notebook` <https://youtu.be/zaf0w8Np2cU>`_
+* `Plotting source waveforms using a Jupyter notebook <https://youtu.be/zaf0w8Np2cU>`_
 
 
 Visualise EM wave propagation
