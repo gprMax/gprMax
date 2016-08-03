@@ -16,7 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import argparse, glob, os
+import argparse
+import glob
+import os
+
 import h5py
 import numpy as np
 
@@ -71,7 +74,4 @@ if not check or check == 'y':
     for model in range(modelruns):
         file = basefilename + str(model + 1) + '.out'
         os.remove(file)
-
-
-
 
