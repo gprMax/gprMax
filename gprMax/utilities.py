@@ -162,7 +162,7 @@ def get_machine_cpu_os():
         manufacturer = subprocess.check_output("more /sys/class/dmi/id/sys_vendor", shell=True).decode('utf-8').strip()
         model = subprocess.check_output("more /sys/class/dmi/id/product_name", shell=True).decode('utf-8').strip()
         machineID = manufacturer + ' ' + model
-        allcpuinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True).strip()
+        allcpuinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True).decode('utf-8').strip()
         for line in allcpuinfo.split('\n'):
             if 'model name' in line:
                 cpuID = re.sub( '.*model name.*:', '', line, 1)
