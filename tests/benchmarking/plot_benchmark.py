@@ -1,9 +1,12 @@
-import argparse, os, platform
+import argparse
+import os
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 from gprMax._version import __version__
+from gprMax.utilities import get_machine_cpu_os
 
 """Plots execution times and speedup factors from benchmarking models run with different numbers of threads. Results are read from a NumPy archive."""
 
@@ -12,15 +15,9 @@ parser = argparse.ArgumentParser(description='Plots execution times and speedup 
 parser.add_argument('numpyfile', help='name of NumPy archive file including path')
 args = parser.parse_args()
 
-# Machine identifier
-platformID = platform.platform()
-machineID = input('Enter manufacturer and short machine description, e.g. Apple_MacPro1,1 or Dell_Z420: ')
-cpuspeed = input ('Enter CPU number, type and speed, e.g. 2 x 2.66GHz Quad-Core Intel Xeon or 1 x 4GHz Quad-Core Intel Core i7: ')
-machineIDextra = input('Enter any additional machine description, e.g. Retina 5K, 27-inch, Late 2014 or leave empty: ')
-if machineIDextra:
-    machineIDextra = '(' + machineIDextra + ')'
-osversion = input('Enter operating system version, e.g. Windows 7 64-bit: ')
-machineIDlong = machineID + ' ' + machineIDextra + '; ' + cpuspeed + '; ' + osversion
+# Get machine/CPU/OS details
+machineID, cpuID, osversion = get_machine_cpu_os()
+machineIDlong = machineID + '; ' + cpuID + '; ' + osversion
 
 # Load results
 results = np.load(args.numpyfile)
