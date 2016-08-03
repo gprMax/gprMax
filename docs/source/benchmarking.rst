@@ -27,7 +27,7 @@ The following simple models (found in the ``tests/benchmarking`` sub-package) ca
 Using the following steps to collect and report benchmarking results for each of the models:
 
 1. Run gprMax in benchmarking mode, e.g. ``python -m gprMax tests/benchmarking/bench_100x100x100.in -benchmark``
-2. Use the ``plot_benchmark`` module to create plots of the execution time and speed-up, e.g. ``python -m tests.benchmarking.plot_benchmark tests/benchmarking/bench_100x100x100.npz``. You will be prompted to enter information to describe your machine, number and type of CPU/cores, and operating system.
+2. Use the ``plot_benchmark`` module to create plots of the execution time and speed-up, e.g. ``python -m tests.benchmarking.plot_benchmark tests/benchmarking/bench_100x100x100.npz``.
 3. Share your data by emailing us your Numpy archives and plot files to info@gprmax.com
 
 Results
