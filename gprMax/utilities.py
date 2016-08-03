@@ -147,7 +147,11 @@ def get_machine_cpu_os():
         machineID = manufacturer + ' ' + model
         cpuID = subprocess.check_output("wmic cpu get Name", shell=True).decode('utf-8').strip()
         cpuID = cpuID.split('\n')[1]
-        osversion = 'Windows ' + platform.release()
+        if platform.machine().endwith('64'):
+            osbit = '(64-bit)'
+        else:
+            osbit = '(32-bit)'
+        osversion = 'Windows ' + platform.release() + osbit
 
     # Mac OS X
     elif sys.platform == 'darwin':
@@ -155,6 +159,7 @@ def get_machine_cpu_os():
         model = subprocess.check_output("sysctl -n hw.model", shell=True).decode('utf-8').strip()
         machineID = manufacturer + ' ' + model
         cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", shell=True).decode('utf-8').strip()
+        cpuID = ' '.join(cpuID.split())
         osversion = 'Mac OS X (' + platform.mac_ver()[0] + ')'
 
     # Linux
