@@ -16,8 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
 import decimal as d
+import platform
+import re
+import subprocess
+import sys
 
 
 def logo(version):
@@ -105,8 +108,8 @@ def human_size(size, a_kilobyte_is_1024_bytes=True):
     """Convert a file size to human-readable form.
 
     Args:
-        size (int): file size in bytes
-        a_kilobyte_is_1024_bytes (boolean) - true for multiples of 1024, false for multiples of 1000
+        size (int): file size in bytes.
+        a_kilobyte_is_1024_bytes (boolean) - true for multiples of 1024, false for multiples of 1000.
 
     Returns:
         Human-readable (string).
@@ -124,3 +127,49 @@ def human_size(size, a_kilobyte_is_1024_bytes=True):
             return '{0:.1f}{1}'.format(size, suffix)
 
     raise ValueError('Number is too large.')
+
+
+def get_machine_cpu_os():
+    """Get information about the machine, CPU and OS.
+
+    Returns:
+        machineID (str): Manufacturer and model of machine.
+        cpuID (str): Description of CPU type and speed.
+        osversion (str): Name and version of operating system.
+    """
+
+    # Windows
+    if sys.platform == 'win32':
+        manufacturer = subprocess.check_output("wmic csproduct get vendor", shell=True).decode('utf-8').strip()
+        manufacturer = manufacturer.split('\n')[1]
+        model = subprocess.check_output("wmic computersystem get model", shell=True).decode('utf-8').strip()
+        model = model.split('\n')[1]
+        machineID = manufacturer + ' ' + model
+        cpuID = subprocess.check_output("wmic cpu get Name", shell=True).decode('utf-8').strip()
+        cpuID = cpuID.split('\n')[1]
+        osversion = 'Windows ' + platform.release()
+
+    # Mac OS X
+    elif sys.platform == 'darwin':
+        manufacturer = 'Apple'
+        model = subprocess.check_output("sysctl -n hw.model", shell=True).decode('utf-8').strip()
+        machineID = manufacturer + ' ' + model
+        cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", shell=True).decode('utf-8').strip()
+        osversion = 'Mac OS X (' + platform.mac_ver()[0] + ')'
+
+    # Linux
+    elif sys.platform == 'linux':
+        manufacturer = subprocess.check_output("more /sys/class/dmi/id/sys_vendor", shell=True).decode('utf-8').strip()
+        model = subprocess.check_output("more /sys/class/dmi/id/product_name", shell=True).decode('utf-8').strip()
+        machineID = manufacturer + ' ' + model
+        allcpuinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True).strip()
+        for line in allcpuinfo.split('\n'):
+            if 'model name' in line:
+                cpuID = re.sub( '.*model name.*:', '', line, 1)
+        osversion = 'Linux (' + platform.release() + ')'
+
+    return machineID, cpuID, osversion
+
+
+
+
