@@ -24,6 +24,12 @@ Time histories of voltage and current values in the transmission line are saved 
 Results
 -------
 
+You can view the results (see :ref:`output` section) using the command:
+
+.. code-block:: none
+
+    python -m tools.plot_antenna_params user_models/antenna_wire_dipole_fs.out
+
 .. _antenna_wire_dipole_fs_tl_params:
 
 .. figure:: images/antenna_wire_dipole_fs_tl_params.png
@@ -80,7 +86,13 @@ The antenna model is loaded from a Python module and inserted into the input fil
 Results
 -------
 
-When the simulation is run two geometry files for the antenna are produced along with an output file which contains a single receiver (the antenna output). :numref:`antenna_like_MALA_1200_fs_results` shows the time history of the y-component of the electric field from the receiver bowtie of the antenna model (the antenna bowties are aligned with the y axis).
+When the simulation is run two geometry files for the antenna are produced along with an output file which contains a single receiver (the antenna output). You can view the results (see :ref:`output` section) using the command:
+
+.. code-block:: none
+
+    python -m tools.plot_Ascan user_models/antenna_like_MALA_1200_fs.out --outputs Ey
+
+:numref:`antenna_like_MALA_1200_fs_results` shows the time history of the y-component of the electric field from the receiver bowtie of the antenna model (the antenna bowties are aligned with the y axis).
 
 .. _antenna_like_MALA_1200_fs_results:
 
@@ -116,6 +128,12 @@ The total number of runs for a model as well as the number of the current run of
 
 Results
 -------
+
+After merging the A-scans into a single file you can now view an image of the B-scan using the command:
+
+.. code-block:: none
+
+    python -m tools.plot_Bscan user_models/cylinder_Bscan_GSSI_1500_merged.out Ey
 
 :numref:`cylinder_Bscan_GSSI_1500_results` shows the B-scan (of the Ey field component). The initial part of the signal (~1-2 ns) represents the direct wave from transmitter to receiver. Then comes a hyperbolic response from the metal cylinder.
 
