@@ -294,11 +294,13 @@ class TransmissionLine(Source):
         waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
         self.current[self.srcpos - 1] += (c * G.dt / self.dl) * waveform.amp * waveform.calculate_value(time - 0.5 * G.dt, G.dt) * (1 / self.resistance)
 
-    def update_electric(self, abstime, Ex, Ey, Ez, G):
+    def update_electric(self, abstime, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field value in the main grid from voltage value in the transmission line.
 
         Args:
             abstime (float): Absolute time.
+            updatecoeffsE (memory view): numpy array of electric field update coefficients.
+            ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
             Ex, Ey, Ez (memory view): numpy array of electric field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
@@ -321,11 +323,13 @@ class TransmissionLine(Source):
             elif self.polarisation is 'z':
                 Ez[i, j, k] = - self.voltage[self.antpos] / G.dz
 
-    def update_magnetic(self, abstime, Hx, Hy, Hz, G):
+    def update_magnetic(self, abstime, updatecoeffsH, ID, Hx, Hy, Hz, G):
         """Updates current value in transmission line from magnetic field values in the main grid.
 
         Args:
             abstime (float): Absolute time.
+            updatecoeffsH (memory view): numpy array of magnetic field update coefficients.
+            ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
