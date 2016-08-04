@@ -33,7 +33,7 @@ from ._version import __version__
 from .constants import c, e0, m0, z0
 from .exceptions import GeneralError
 from .fields_update import update_electric, update_magnetic, update_electric_dispersive_multipole_A, update_electric_dispersive_multipole_B, update_electric_dispersive_1pole_A, update_electric_dispersive_1pole_B
-from .grid import FDTDGrid, dispersion_check, Ix, Iy, Iz
+from .grid import FDTDGrid, dispersion_check
 from .input_cmds_geometry import process_geometrycmds
 from .input_cmds_file import process_python_include_code, write_processed_file, check_cmd_names
 from .input_cmds_multiuse import process_multicmds
@@ -69,7 +69,7 @@ def main():
 
 def api(inputfile, n=1, mpi=False, benchmark=False, geometry_only=False, geometry_fixed=False, write_processed=False, opt_taguchi=False):
     """If installed as a module this is the entry point."""
-    
+
     class ImportArguments:
         pass
 
@@ -89,11 +89,11 @@ def api(inputfile, n=1, mpi=False, benchmark=False, geometry_only=False, geometr
 
 def run_main(args):
     """Top-level function that controls what mode of simulation (standard/optimsation/benchmark etc...) is run.
-        
+
     Args:
         args (dict): Namespace with input arguments from command line or api.
     """
-        
+
     numbermodelruns = args.n
     inputdirectory = os.path.dirname(os.path.abspath(args.inputfile))
     inputfile = os.path.abspath(os.path.join(inputdirectory, os.path.basename(args.inputfile)))
@@ -125,7 +125,7 @@ def run_main(args):
         else:
             run_std_sim(args, numbermodelruns, inputfile, usernamespace)
 
-        print('\nSimulation completed.\n{}\n'.format(68*'*'))
+        print('\nSimulation completed.\n{}\n'.format(68 * '*'))
 
 
 def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None):
@@ -141,7 +141,7 @@ def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
 
     tsimstart = perf_counter()
     for modelrun in range(1, numbermodelruns + 1):
-        if optparams: # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
+        if optparams:  # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
             tmp = {}
             tmp.update((key, value[modelrun - 1]) for key, value in optparams.items())
             modelusernamespace = usernamespace.copy()
@@ -165,13 +165,14 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     # Number of threads to test - start from max physical CPU cores and divide in half until 1
     thread = psutil.cpu_count(logical=False)
     threads = [thread]
-    while not thread%2:
+    while not thread % 2:
         thread /= 2
         threads.append(int(thread))
 
     benchtimes = np.zeros(len(threads))
 
     numbermodelruns = len(threads)
+    usernamespace['number_model_runs'] = numbermodelruns
     tsimstart = perf_counter()
     for modelrun in range(1, numbermodelruns + 1):
         os.environ['OMP_NUM_THREADS'] = str(threads[modelrun - 1])
@@ -181,7 +182,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
 
     # Save number of threads and benchmarking times to NumPy archive
     threads = np.array(threads)
-    np.savez(os.path.splitext(inputfile)[0], threads=threads, benchtimes=benchtimes)
+    np.savez(os.path.splitext(inputfile)[0], threads=threads, benchtimes=benchtimes, version=__version__)
 
     print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
 
@@ -209,17 +210,17 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
     status = MPI.Status()   # get MPI status object
     name = MPI.Get_processor_name()     # get name of processor/host
 
-    if rank == 0: # Master process
+    if rank == 0:  # Master process
         modelrun = 1
         numworkers = size - 1
         closedworkers = 0
         print('Master: PID {} on {} using {} workers.'.format(os.getpid(), name, numworkers))
         while closedworkers < numworkers:
-            data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+            # data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)  # Check if this line is really needed
             source = status.Get_source()
             tag = status.Get_tag()
 
-            if tag == tags.READY.value: # Worker is ready, so send it a task
+            if tag == tags.READY.value:  # Worker is ready, so send it a task
                 if modelrun < numbermodelruns + 1:
                     comm.send(modelrun, dest=source, tag=tags.START.value)
                     print('Master: sending model {} to worker {}.'.format(modelrun, source))
@@ -234,16 +235,16 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
                 print('Worker {}: exited.'.format(source))
                 closedworkers += 1
 
-    else: # Worker process
+    else:  # Worker process
         print('Worker {}: PID {} on {} requesting {} OpenMP threads.'.format(rank, os.getpid(), name, os.environ.get('OMP_NUM_THREADS')))
         while True:
             comm.send(None, dest=0, tag=tags.READY.value)
-            modelrun = comm.recv(source=0, tag=MPI.ANY_TAG, status=status) # Receive a model number to run from the master
+            modelrun = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)  #  Receive a model number to run from the master
             tag = status.Get_tag()
 
             # Run a model
             if tag == tags.START.value:
-                if optparams: # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
+                if optparams:  # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
                     tmp = {}
                     tmp.update((key, value[modelrun - 1]) for key, value in optparams.items())
                     modelusernamespace = usernamespace.copy()
@@ -281,8 +282,8 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     global G
 
     # Normal model reading/building process; bypassed if geometry information to be reused
-    if not 'G' in globals():
-        print('\n{}\n\nModel input file: {}\n'.format(68*'*', inputfile))
+    if 'G' not in globals():
+        print('\n{}\n\nModel input file: {}\n'.format(68 * '*', inputfile))
 
         # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
         usernamespace['current_model_run'] = modelrun
@@ -355,7 +356,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         if G.messages:
             print('\nMaterials:\n')
             print('ID\tName\t\tProperties')
-            print('{}'.format('-'*50))
+            print('{}'.format('-' * 50))
         for material in G.materials:
 
             # Calculate update coefficients for material
@@ -370,7 +371,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             if Material.maxpoles != 0:
                 z = 0
                 for pole in range(Material.maxpoles):
-                    G.updatecoeffsdispersive[material.numID, z:z+3] = e0 * material.eqt2[pole], material.eqt[pole], material.zt[pole]
+                    G.updatecoeffsdispersive[material.numID, z:z + 3] = e0 * material.eqt2[pole], material.eqt[pole], material.zt[pole]
                     z += 3
 
             if G.messages:
@@ -423,7 +424,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         tgeostart = perf_counter()
         for geometryview in G.geometryviews:
             geometryview.write_vtk(modelrun, numbermodelruns, G)
-        #geometryview.write_xdmf(modelrun, numbermodelruns, G)
+            # geometryview.write_xdmf(modelrun, numbermodelruns, G)
         tgeoend = perf_counter()
         print('\nGeometry file(s) written in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tgeoend - tgeostart))))
 
@@ -449,7 +450,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         tsolvestart = perf_counter()
         # Absolute time
         abstime = 0
-
+        
         for timestep in range(G.iterations):
             if timestep == 0:
                 tstepstart = perf_counter()
@@ -463,9 +464,9 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
                     snapshot.write_vtk_imagedata(G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
             # Update electric field components
-            if Material.maxpoles == 0: # All materials are non-dispersive so do standard update
+            if Material.maxpoles == 0:  # All materials are non-dispersive so do standard update
                 update_electric(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
-            elif Material.maxpoles == 1: # If there are any dispersive materials do 1st part of dispersive update (it is split into two parts as it requires present and updated electric field values).
+            elif Material.maxpoles == 1:  # If there are any dispersive materials do 1st part of dispersive update (it is split into two parts as it requires present and updated electric field values).
                 update_electric_dispersive_1pole_A(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
             elif Material.maxpoles > 1:
                 update_electric_dispersive_multipole_A(G.nx, G.ny, G.nz, G.nthreads, Material.maxpoles, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
@@ -478,7 +479,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
                 voltagesource.update_electric(abstime, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
             for transmissionline in G.transmissionlines:
                 transmissionline.update_electric(abstime, G.Ex, G.Ey, G.Ez, G)
-            for hertziandipole in G.hertziandipoles: # Update any Hertzian dipole sources last
+            for hertziandipole in G.hertziandipoles:  # Update any Hertzian dipole sources last
                 hertziandipole.update_electric(abstime, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
 
             # If there are any dispersive materials do 2nd part of dispersive update (it is split into two parts as it requires present and updated electric field values). Therefore it can only be completely updated after the electric field has been updated by the PML and source updates.
@@ -519,8 +520,8 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         write_hdf5(outputfile, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
         tsolveend = perf_counter()
-        print('\n\nSolving took [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsolveend - tsolvestart))))
-        print('Peak memory (approx) used: {}'.format(human_size(p.memory_info().rss)))
+        print('\n\nSolving took [HH:MM:SS]: {} @ {:g} cells/s'.format(datetime.timedelta(seconds=int(tsolveend - tsolvestart)), (G.nx * G.ny * G.nz) / (tsolveend - tsolvestart)))
+        print('Memory (RAM) usage: ~{}'.format(human_size(p.memory_info().rss)))
 
         ##################################
         #  End - Main FDTD calculations  #
@@ -531,7 +532,3 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             del G
 
         return int(tsolveend - tsolvestart)
-
-
-
-
