@@ -24,7 +24,7 @@ Time histories of voltage and current values in the transmission line are saved 
 Results
 -------
 
-You can view the results (see :ref:`output` section) using the command:
+You can view the results (see :ref:`output` and :ref:`tools<plotting>` sections) using the command:
 
 .. code-block:: none
 
@@ -86,7 +86,7 @@ The antenna model is loaded from a Python module and inserted into the input fil
 Results
 -------
 
-When the simulation is run two geometry files for the antenna are produced along with an output file which contains a single receiver (the antenna output). You can view the results (see :ref:`output` section) using the command:
+When the simulation is run two geometry files for the antenna are produced along with an output file which contains a single receiver (the antenna output). You can view the results (see :ref:`output` and :ref:`tools<plotting>` sections) using the command:
 
 .. code-block:: none
 
@@ -129,7 +129,7 @@ The total number of runs for a model as well as the number of the current run of
 Results
 -------
 
-After merging the A-scans into a single file you can now view an image of the B-scan using the command:
+After merging the A-scans into a single file you can now view an image of the B-scan using the command see :ref:`output` and :ref:`tools<plotting>` sections:
 
 .. code-block:: none
 
