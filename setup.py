@@ -47,8 +47,7 @@ packages = [packagename, 'tests', 'tools', 'user_libs']
 
 # Python version
 if sys.version_info[:2] < (3, 4):
-    print('gprMax requires Python 3.4 or newer')
-    sys.exit(-1)
+    sys.exit('\nExited: Requires Python 3.4 or newer!\n')
 
 # Process 'build' command line argument
 if 'build' in sys.argv:
