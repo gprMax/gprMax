@@ -20,15 +20,17 @@
 
 import argparse
 import datetime
+from enum import Enum
 import itertools
 import os
 import psutil
+from shutil import get_terminal_size
 import sys
+from time import perf_counter
 
 import numpy as np
+from tqdm import tqdm
 
-from time import perf_counter
-from enum import Enum
 from ._version import __version__
 from .constants import c, e0, m0, z0
 from .exceptions import GeneralError
@@ -41,7 +43,7 @@ from .input_cmds_singleuse import process_singlecmds
 from .materials import Material
 from .pml import build_pmls, update_electric_pml, update_magnetic_pml
 from .receivers import store_outputs
-from .utilities import update_progress, logo, human_size
+from .utilities import logo, human_size
 from .writer_hdf5 import write_hdf5
 from .yee_cell_build import build_electric_components, build_magnetic_components
 
@@ -125,7 +127,7 @@ def run_main(args):
         else:
             run_std_sim(args, numbermodelruns, inputfile, usernamespace)
 
-        print('\nSimulation completed.\n{}\n'.format(68 * '*'))
+        print('\nSimulation completed.\n{}\n'.format('-' * get_terminal_size()[0]))
 
 
 def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None):
@@ -283,7 +285,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
     # Normal model reading/building process; bypassed if geometry information to be reused
     if 'G' not in globals():
-        print('\n{}\n\nModel input file: {}\n'.format(68 * '*', inputfile))
+        print('{}\n\nModel input file: {}\n'.format('-' * get_terminal_size()[0], inputfile))
 
         # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
         usernamespace['current_model_run'] = modelrun
@@ -354,9 +356,9 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
         # Calculate update coefficients, store in arrays, and list materials in model
         if G.messages:
-            print('\nMaterials:\n')
+            print('\nMaterials in model:\n')
             print('ID\tName\t\tProperties')
-            print('{}'.format('-' * 50))
+            print('{}'.format('-' * 80))
         for material in G.materials:
 
             # Calculate update coefficients for material
@@ -448,13 +450,11 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         #  Start - Main FDTD calculations  #
         ####################################
         tsolvestart = perf_counter()
+        
         # Absolute time
         abstime = 0
         
-        for timestep in range(G.iterations):
-            if timestep == 0:
-                tstepstart = perf_counter()
-
+        for timestep in tqdm(range(G.iterations)):
             # Store field component values for every receiver and transmission line
             store_outputs(timestep, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
@@ -474,13 +474,9 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             # Update electric field components with the PML correction
             update_electric_pml(G)
 
-            # Update electric field components from sources
-            for voltagesource in G.voltagesources:
-                voltagesource.update_electric(abstime, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
-            for transmissionline in G.transmissionlines:
-                transmissionline.update_electric(abstime, G.Ex, G.Ey, G.Ez, G)
-            for hertziandipole in G.hertziandipoles:  # Update any Hertzian dipole sources last
-                hertziandipole.update_electric(abstime, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
+            # Update electric field components from sources (update any Hertzian dipole sources last)
+            for source in G.voltagesources + G.transmissionlines + G.hertziandipoles:
+                source.update_electric(abstime, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
 
             # If there are any dispersive materials do 2nd part of dispersive update (it is split into two parts as it requires present and updated electric field values). Therefore it can only be completely updated after the electric field has been updated by the PML and source updates.
             if Material.maxpoles == 1:
@@ -498,29 +494,17 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             update_magnetic_pml(G)
 
             # Update magnetic field components from sources
-            for transmissionline in G.transmissionlines:
-                transmissionline.update_magnetic(abstime, G.Hx, G.Hy, G.Hz, G)
-            for magneticdipole in G.magneticdipoles:
-                magneticdipole.update_magnetic(abstime, G.updatecoeffsH, G.ID, G.Hx, G.Hy, G.Hz, G)
+            for source in G.transmissionlines + G.magneticdipoles:
+                source.update_magnetic(abstime, G.updatecoeffsH, G.ID, G.Hx, G.Hy, G.Hz, G)
 
             # Increment absolute time value
             abstime += 0.5 * G.dt
 
-            # Calculate time for two iterations, used to estimate overall runtime
-            if timestep == 1:
-                tstepend = perf_counter()
-                runtime = datetime.timedelta(seconds=int((tstepend - tstepstart) / 2 * G.iterations))
-                sys.stdout.write('Estimated runtime [HH:MM:SS]: {}\n'.format(runtime))
-                sys.stdout.write('Solving for model run {} of {}...\n'.format(modelrun, numbermodelruns))
-                sys.stdout.flush()
-            elif timestep > 1:
-                update_progress((timestep + 1) / G.iterations)
-
+        tsolveend = perf_counter()
+        
         # Write an output file in HDF5 format
         write_hdf5(outputfile, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
-        tsolveend = perf_counter()
-        print('\n\nSolving took [HH:MM:SS]: {} @ {:g} cells/s'.format(datetime.timedelta(seconds=int(tsolveend - tsolvestart)), (G.nx * G.ny * G.nz) / (tsolveend - tsolvestart)))
         print('Memory (RAM) usage: ~{}'.format(human_size(p.memory_info().rss)))
 
         ##################################
