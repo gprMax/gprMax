@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 
 np.seterr(divide='ignore')
 
+from gprMax.exceptions import GeneralError
+
 """This module contains fitness metric functions that can be used with the Taguchi optimisation method.
     
     All fitness functions must take two arguments and return a single fitness value. 
@@ -326,13 +328,13 @@ def peakdet(v, delta, x = None):
     v = np.asarray(v)
     
     if len(v) != len(x):
-        sys.exit('Input vectors v and x must have same length')
-    
+        raise GeneralError('Input vectors v and x must have same length')
+
     if not np.isscalar(delta):
-        sys.exit('Input argument delta must be a scalar')
+        raise GeneralError('Input argument delta must be a scalar')
     
     if delta <= 0:
-        sys.exit('Input argument delta must be positive')
+        raise GeneralError('Input argument delta must be positive')
     
     mn, mx = np.Inf, -np.Inf
     mnpos, mxpos = np.NaN, np.NaN
