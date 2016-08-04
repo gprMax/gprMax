@@ -39,7 +39,7 @@ Mac OS X
 iMac15,1
 ^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/MacOSX/iMac15,1/iMac15,1+Ccode.png
+.. figure:: ../../tests/benchmarking/results/MacOSX/iMac15,1/Apple_iMac15,1+Ccode.png
     :width: 600px
 
     Execution time and speed-up factor plots for Python/Cython-based gprMax and previous (v.2) C-based code.
@@ -50,20 +50,20 @@ The results demonstrate that the Python/Cython-based code is faster, in these tw
 
     Zero threads indicates that the code was compiled serially, i.e. without using OpenMP.
 
-.. figure:: ../../tests/benchmarking/results/MacOSX/iMac15,1/iMac15,1.png
+.. figure:: ../../tests/benchmarking/results/MacOSX/iMac15,1/Apple_iMac15,1.png
     :width: 600px
 
 MacPro1,1
 ^^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/MacOSX/MacPro1,1/MacPro1,1.png
+.. figure:: ../../tests/benchmarking/results/MacOSX/MacPro1,1/Apple_MacPro1,1.png
     :width: 600px
 
 
 MacPro3,1
 ^^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/MacOSX/MacPro3,1/MacPro3,1.png
+.. figure:: ../../tests/benchmarking/results/MacOSX/MacPro3,1/Apple_MacPro3,1.png
     :width: 600px
 
 
