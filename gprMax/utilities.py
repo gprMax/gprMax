@@ -20,8 +20,9 @@ import decimal as d
 import platform
 import re
 import subprocess
+from shutil import get_terminal_size
 import sys
-
+import textwrap
 
 def logo(version):
     """Print gprMax logo, version, and licencing/copyright information.
@@ -29,56 +30,35 @@ def logo(version):
     Args:
         version (str): Version number.
     """
+    
+    description = 'Electromagnetic modelling software based on the Finite-Difference Time-Domain (FDTD) method'
+    copyright = 'Copyright (C) 2015-2016: The University of Edinburgh'
+    authors = 'Authors: Craig Warren and Antonis Giannopoulos'
+    licenseinfo1 = 'gprMax is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.\n'
+    licenseinfo2 = 'gprMax is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.'
+    licenseinfo3 = 'You should have received a copy of the GNU General Public License along with gprMax.  If not, see <http://www.gnu.org/licenses/>.'
 
-    licenseinfo = """
-Copyright (C) 2015-2016: The University of Edinburgh
-                Authors: Craig Warren and Antonis Giannopoulos
+    logo = """    www.gprmax.com   __  __
+     __ _ _ __  _ __|  \/  | __ ___  __
+    / _` | '_ \| '__| |\/| |/ _` \ \/ /
+   | (_| | |_) | |  | |  | | (_| |>  <
+    \__, | .__/|_|  |_|  |_|\__,_/_/\_\\
+    |___/|_|                
+                       v""" + version
 
-gprMax is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-gprMax is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with gprMax.  If not, see <http://www.gnu.org/licenses/>."""
-
-    gprMaxlogo = """
-                                 __  __
-                 __ _ _ __  _ __|  \/  | __ ___  __
-                / _` | '_ \| '__| |\/| |/ _` \ \/ /
-               | (_| | |_) | |  | |  | | (_| |>  <
-                \__, | .__/|_|  |_|  |_|\__,_/_/\_\\
-                |___/|_|
-        """
-
-    width = 65
-    url = 'www.gprmax.com'
-
-    print('\nElectromagnetic modelling software based on the Finite-Difference \nTime-Domain (FDTD) method')
-    print('\n{} {} {}'.format('*' * round((width - len(url)) / 2), url, '*' * round((width - len(url)) / 2)))
-    print('{}'.format(gprMaxlogo))
-    print('{} v{} {}'.format('*' * round((width - len(version)) / 2), (version), '*' * round((width - len(version)) / 2)))
-    print(licenseinfo)
-
-
-def update_progress(progress):
-    """Displays or updates a console progress bar.
-
-    Args:
-        progress (float): Number between zero and one to signify progress.
-    """
-
-    # Modify this to change the length of the progress bar
-    barLength = 50
-    block = round_value(barLength * progress)
-    text = '\r|{}| {:2.1f}%'.format('#' * block + '-' * (barLength - block), progress * 100)
-    sys.stdout.write(text)
-    sys.stdout.flush()
+    print('\n{}'.format('-' * get_terminal_size()[0]))
+    
+    
+    print('{}'.format(logo))
+    print('{}'.format('-' * get_terminal_size()[0]))
+    print(textwrap.fill(description, width=get_terminal_size()[0], initial_indent=' '))
+    print()
+    print(textwrap.fill(copyright, width=get_terminal_size()[0], initial_indent=' '))
+    print(textwrap.fill(authors, width=get_terminal_size()[0], initial_indent=' '))
+    print()
+    print(textwrap.fill(licenseinfo1, width=get_terminal_size()[0], initial_indent=' ', subsequent_indent='  '))
+    print(textwrap.fill(licenseinfo2, width=get_terminal_size()[0], initial_indent=' ', subsequent_indent='  '))
+    print(textwrap.fill(licenseinfo3, width=get_terminal_size()[0], initial_indent=' ', subsequent_indent='  '))
 
 
 def round_value(value, decimalplaces=0):
