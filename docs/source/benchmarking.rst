@@ -33,10 +33,6 @@ Using the following steps to collect and report benchmarking results for each of
 Results
 =======
 
-.. note::
-
-    Zero threads indicates that the code was compiled serially, i.e. without using OpenMP.
-
 Mac OS X
 --------
 
@@ -46,10 +42,16 @@ iMac15,1
 .. figure:: ../../tests/benchmarking/results/MacOSX/iMac15,1/iMac15,1+Ccode.png
     :width: 600px
 
-    Execution time and speed-up factor plots for Python/Cython-based gprMax and previous version C-based code.
+    Execution time and speed-up factor plots for Python/Cython-based gprMax and previous (v.2) C-based code.
 
 The results demonstrate that the Python/Cython-based code is faster, in these two benchmarks, than the previous version which was written in C. It also shows that the performance scaling with multiple OpenMP threads is better with the C-based code. Results from the C-based code show that when it is compiled serially the performance is approximately the same as when it is compiled with OpenMP and run with a single thread. With the Python/Cython-based code this is not the case. The overhead in setting up and tearing down the OpenMP threads means that for a single thread the performance is worse than the serially-compiled version.
 
+.. note::
+
+    Zero threads indicates that the code was compiled serially, i.e. without using OpenMP.
+
+.. figure:: ../../tests/benchmarking/results/MacOSX/iMac15,1/iMac15,1.png
+    :width: 600px
 
 MacPro1,1
 ^^^^^^^^^
@@ -71,18 +73,11 @@ Windows
 Lenovo T430
 ^^^^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/Windows7/Lenovo_T430/bench_100x100x100.png
+.. figure:: ../../tests/benchmarking/results/Windows7/Lenovo_T430/Lenovo_T430.png
     :width: 600px
-
-.. figure:: ../../tests/benchmarking/results/Windows7/Lenovo_T430/bench_150x150x150.png
-    :width: 600px
-
 
 Dell Z420
 ^^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/Windows7/Dell_Z420/bench_100x100x100.png
-    :width: 600px
-
-.. figure:: ../../tests/benchmarking/results/Windows7/Dell_Z420/bench_150x150x150.png
+.. figure:: ../../tests/benchmarking/results/Windows7/Dell_Z420/Dell_Z420.png
     :width: 600px
