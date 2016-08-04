@@ -79,5 +79,5 @@ Lenovo T430
 Dell Z420
 ^^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/Windows7/Dell_Z420/Dell_Z420.png
+.. figure:: ../../tests/benchmarking/results/Windows7/Dell_Z420/DellZ420.png
     :width: 600px
