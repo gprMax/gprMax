@@ -13,3 +13,6 @@ dependencies:
 - numpy
 - psutil
 - scipy
+
+- pip:
+  - tqdm
