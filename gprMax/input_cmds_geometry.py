@@ -20,6 +20,7 @@ import os
 
 import h5py
 import numpy as np
+from tqdm import tqdm
 
 from gprMax.constants import floattype
 from gprMax.input_cmds_file import check_cmd_names
@@ -39,7 +40,8 @@ def process_geometrycmds(geometry, G):
 
     """
 
-    for object in geometry:
+
+    for object in tqdm(geometry, desc='Processing geometry objects'):
         tmp = object.split()
 
         if tmp[0] == '#geometry_objects_file:':
@@ -88,7 +90,7 @@ def process_geometrycmds(geometry, G):
             build_voxels_from_array(xs, ys, zs, numexistmaterials, data, G.solid, G.rigidE, G.rigidH, G.ID)
 
             if G.messages:
-                print('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
+                tqdm.write('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
 
         elif tmp[0] == '#edge:':
             if len(tmp) != 8:
@@ -147,7 +149,7 @@ def process_geometrycmds(geometry, G):
                         build_edge_z(xs, ys, k, material.numID, G.rigidE, G.rigidH, G.ID)
 
             if G.messages:
-                print('Edge from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, tmp[7]))
+                tqdm.write('Edge from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, tmp[7]))
 
         elif tmp[0] == '#plate:':
             if len(tmp) < 8:
@@ -255,7 +257,7 @@ def process_geometrycmds(geometry, G):
                         build_face_xy(i, j, zs, numIDx, numIDy, G.rigidE, G.rigidH, G.ID)
 
             if G.messages:
-                print('Plate from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material(s) {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, ', '.join(materialsrequested)))
+                tqdm.write('Plate from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material(s) {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, ', '.join(materialsrequested)))
 
         elif tmp[0] == '#triangle:':
             if len(tmp) < 12:
@@ -372,9 +374,9 @@ def process_geometrycmds(geometry, G):
                         dielectricsmoothing = 'on'
                     else:
                         dielectricsmoothing = 'off'
-                    print('Triangle with coordinates {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m and thickness {:g}m of material(s) {} created, dielectric smoothing is {}.'.format(x1, y1, z1, x2, y2, z2, x3, y3, z3, thickness, ', '.join(materialsrequested), dielectricsmoothing))
+                    tqdm.write('Triangle with coordinates {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m and thickness {:g}m of material(s) {} created, dielectric smoothing is {}.'.format(x1, y1, z1, x2, y2, z2, x3, y3, z3, thickness, ', '.join(materialsrequested), dielectricsmoothing))
                 else:
-                    print('Triangle with coordinates {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m of material(s) {} created.'.format(x1, y1, z1, x2, y2, z2, x3, y3, z3, ', '.join(materialsrequested)))
+                    tqdm.write('Triangle with coordinates {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m, {:g}m {:g}m {:g}m of material(s) {} created.'.format(x1, y1, z1, x2, y2, z2, x3, y3, z3, ', '.join(materialsrequested)))
 
         elif tmp[0] == '#box:':
             if len(tmp) < 8:
@@ -465,7 +467,7 @@ def process_geometrycmds(geometry, G):
                     dielectricsmoothing = 'on'
                 else:
                     dielectricsmoothing = 'off'
-                print('Box from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material(s) {} created, dielectric smoothing is {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, ', '.join(materialsrequested), dielectricsmoothing))
+                tqdm.write('Box from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material(s) {} created, dielectric smoothing is {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, ', '.join(materialsrequested), dielectricsmoothing))
 
         elif tmp[0] == '#cylinder:':
             if len(tmp) < 9:
@@ -545,7 +547,7 @@ def process_geometrycmds(geometry, G):
                     dielectricsmoothing = 'on'
                 else:
                     dielectricsmoothing = 'off'
-                print('Cylinder with face centres {:g}m, {:g}m, {:g}m and {:g}m, {:g}m, {:g}m, with radius {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(x1, y1, z1, x2, y2, z2, r, ', '.join(materialsrequested), dielectricsmoothing))
+                tqdm.write('Cylinder with face centres {:g}m, {:g}m, {:g}m and {:g}m, {:g}m, {:g}m, with radius {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(x1, y1, z1, x2, y2, z2, r, ', '.join(materialsrequested), dielectricsmoothing))
 
         elif tmp[0] == '#cylindrical_sector:':
             if len(tmp) < 10:
@@ -666,9 +668,9 @@ def process_geometrycmds(geometry, G):
                         dielectricsmoothing = 'on'
                     else:
                         dielectricsmoothing = 'off'
-                    print('Cylindrical sector with centre {:g}m, {:g}m, radius {:g}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, thickness {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(ctr1, ctr2, r, (sectorstartangle / (2 * np.pi)) * 360, (sectorangle / (2 * np.pi)) * 360, thickness, ', '.join(materialsrequested), dielectricsmoothing))
+                    tqdm.write('Cylindrical sector with centre {:g}m, {:g}m, radius {:g}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, thickness {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(ctr1, ctr2, r, (sectorstartangle / (2 * np.pi)) * 360, (sectorangle / (2 * np.pi)) * 360, thickness, ', '.join(materialsrequested), dielectricsmoothing))
                 else:
-                    print('Cylindrical sector with centre {:g}m, {:g}m, radius {:g}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, of material(s) {} created.'.format(ctr1, ctr2, r, (sectorstartangle / (2 * np.pi)) * 360, (sectorangle / (2 * np.pi)) * 360, ', '.join(materialsrequested)))
+                    tqdm.write('Cylindrical sector with centre {:g}m, {:g}m, radius {:g}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, of material(s) {} created.'.format(ctr1, ctr2, r, (sectorstartangle / (2 * np.pi)) * 360, (sectorangle / (2 * np.pi)) * 360, ', '.join(materialsrequested)))
 
         elif tmp[0] == '#sphere:':
             if len(tmp) < 6:
@@ -743,7 +745,7 @@ def process_geometrycmds(geometry, G):
                     dielectricsmoothing = 'on'
                 else:
                     dielectricsmoothing = 'off'
-                print('Sphere with centre {:g}m, {:g}m, {:g}m, radius {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(xc * G.dx, yc * G.dy, zc * G.dz, r, ', '.join(materialsrequested), dielectricsmoothing))
+                tqdm.write('Sphere with centre {:g}m, {:g}m, {:g}m, radius {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(xc * G.dx, yc * G.dy, zc * G.dz, r, ', '.join(materialsrequested), dielectricsmoothing))
 
         elif tmp[0] == '#fractal_box:':
             if len(tmp) < 14:
@@ -808,7 +810,7 @@ def process_geometrycmds(geometry, G):
             volume.weighting = (float(tmp[8]), float(tmp[9]), float(tmp[10]))
 
             if G.messages:
-                print('Fractal box {} from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with {}, fractal dimension {:g}, fractal weightings {:g}, {:g}, {:g}, fractal seeding {} and with {} values created.'.format(volume.ID, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, volume.operatingonID, volume.dimension, volume.weighting[0], volume.weighting[1], volume.weighting[2], volume.seed, volume.nbins))
+                tqdm.write('Fractal box {} from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with {}, fractal dimension {:g}, fractal weightings {:g}, {:g}, {:g}, fractal seeding {} and with {} values created.'.format(volume.ID, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, volume.operatingonID, volume.dimension, volume.weighting[0], volume.weighting[1], volume.weighting[2], volume.seed, volume.nbins))
 
             G.fractalvolumes.append(volume)
 
@@ -927,7 +929,7 @@ def process_geometrycmds(geometry, G):
                         volume.fractalsurfaces.append(surface)
 
                         if G.messages:
-                            print('Fractal surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}, fractal weightings {:g}, {:g}, fractal seeding {}, and range {:g}m to {:g}m, added to {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.weighting[0], surface.weighting[1], surface.seed, float(tmp[10]), float(tmp[11]), surface.operatingonID))
+                            tqdm.write('Fractal surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}, fractal weightings {:g}, {:g}, fractal seeding {}, and range {:g}m to {:g}m, added to {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.weighting[0], surface.weighting[1], surface.seed, float(tmp[10]), float(tmp[11]), surface.operatingonID))
 
                 if tmp[0] == '#add_surface_water:':
                     if len(tmp) != 9:
@@ -1034,7 +1036,7 @@ def process_geometrycmds(geometry, G):
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires the time step for the model to be less than the relaxation time required to model water.')
 
                         if G.messages:
-                            print('Water on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with depth {:g}m, added to {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, filldepth, surface.operatingonID))
+                            tqdm.write('Water on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with depth {:g}m, added to {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, filldepth, surface.operatingonID))
 
                 if tmp[0] == '#add_grass:':
                     if len(tmp) < 12:
@@ -1183,7 +1185,7 @@ def process_geometrycmds(geometry, G):
                         volume.fractalsurfaces.append(surface)
 
                         if G.messages:
-                            print('{} blades of grass on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}, fractal seeding {}, and range {:g}m to {:g}m, added to {}.'.format(numblades, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.seed, float(tmp[8]), float(tmp[9]), surface.operatingonID))
+                            tqdm.write('{} blades of grass on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}, fractal seeding {}, and range {:g}m to {:g}m, added to {}.'.format(numblades, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.seed, float(tmp[8]), float(tmp[9]), surface.operatingonID))
 
             # Process any modifications to the original fractal box then generate it
             if volume.fractalsurfaces:
