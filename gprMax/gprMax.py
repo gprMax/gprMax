@@ -113,6 +113,7 @@ def run_main(args):
     # Process for benchmarking simulation
     elif args.benchmark:
         run_benchmark_sim(args, inputfile, usernamespace)
+        print('\nSimulation completed.\n{}\n'.format('-' * get_terminal_size()[0]))
 
     # Process for standard simulation
     else:
@@ -443,8 +444,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             outputfile = inputfileparts[0] + '.out'
         else:
             outputfile = inputfileparts[0] + str(modelrun) + '.out'
-        sys.stdout.write('\nOutput to file: {}\n'.format(outputfile))
-        sys.stdout.flush()
+        print('\nOutput to file: {}\n'.format(outputfile))
 
         ####################################
         #  Start - Main FDTD calculations  #
