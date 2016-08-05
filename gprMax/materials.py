@@ -82,7 +82,6 @@ class Material(object):
         self.DBz = (1 / G.dz) * 1 / HA
         self.srcm = 1 / HA
 
-    # Calculate electric update coefficients
     def calculate_update_coeffsE(self, G):
         """Calculates the electric update coefficients of the material.
 
@@ -141,6 +140,62 @@ class Material(object):
             self.CBy = (1 / G.dy) * 1 / EA
             self.CBz = (1 / G.dz) * 1 / EA
             self.srce = 1 / EA
+
+
+def process_materials(G):
+    """Process complete list of materials - calculate update coefficients, store in arrays, and build text list of materials/properties
+
+    Args:
+        G (class): Grid class instance - holds essential parameters describing the model.
+        
+    Returns:
+        materialsdata (list): List of material IDs, names, and properties to print a table.
+    """
+
+    if G.messages:
+        print('\nMaterials:')
+        if Material.maxpoles == 0:
+            materialsdata = [['\nID', '\nName', '\neps_r', 'sigma\n[S/m]', '\nmu_r', 'sigma*\n[S/m]', 'Dielectric\nsmoothing']]
+        else:
+            materialsdata = [['\nID', '\nName', '\neps_r', 'sigma\n[S/m]', '\nDelta eps_r', 'tau\n[s]', '\nmu_r', 'sigma*\n[S/m]', 'Dielectric\nsmoothing']]
+
+    for material in G.materials:
+        # Calculate update coefficients for material
+        material.calculate_update_coeffsE(G)
+        material.calculate_update_coeffsH(G)
+
+        # Store all update coefficients together
+        G.updatecoeffsE[material.numID, :] = material.CA, material.CBx, material.CBy, material.CBz, material.srce
+        G.updatecoeffsH[material.numID, :] = material.DA, material.DBx, material.DBy, material.DBz, material.srcm
+
+        # Store coefficients for any dispersive materials
+        if Material.maxpoles > 0:
+            z = 0
+            for pole in range(Material.maxpoles):
+                G.updatecoeffsdispersive[material.numID, z:z + 3] = e0 * material.eqt2[pole], material.eqt[pole], material.zt[pole]
+                z += 3
+
+        if G.messages:
+            materialtext = []
+            materialtext.append(str(material.numID))
+            materialtext.append(material.ID)
+            materialtext.append('{:g}'.format(material.er))
+            materialtext.append('{:g}'.format(material.se))
+            if Material.maxpoles > 0:
+                if material.deltaer and material.tau:
+                    materialtext.append(', '.join('{:g}'.format(deltaer) for deltaer in material.deltaer))
+                    materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
+                else:
+                    materialtext.append('')
+                    materialtext.append('')
+
+            materialtext.append('{:g}'.format(material.mr))
+            materialtext.append('{:g}'.format(material.sm))
+            materialtext.append(material.average)
+            materialsdata.append(materialtext)
+
+    if G.messages:
+        return materialsdata
 
 
 class PeplinskiSoil(object):
