@@ -209,5 +209,5 @@ Then you can update all the packages that are part of the gprMax environment by 
 
 .. code-block:: none
 
-    (gprMax) $ conda update --all
+    (gprMax) $ conda env update -f conda_env.yml
 
