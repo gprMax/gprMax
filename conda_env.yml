@@ -4,6 +4,7 @@
 name: gprMax
 dependencies:
 - python>=3.4
+- colorama
 - cython
 - h5py
 - jupyter
