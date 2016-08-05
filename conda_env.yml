@@ -15,4 +15,5 @@ dependencies:
 - scipy
 
 - pip:
+  - terminaltables
   - tqdm
