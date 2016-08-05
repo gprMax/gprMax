@@ -29,6 +29,7 @@ import sys
 from time import perf_counter
 
 import numpy as np
+from terminaltables import AsciiTable
 from tqdm import tqdm
 
 from ._version import __version__
@@ -40,7 +41,7 @@ from .input_cmds_geometry import process_geometrycmds
 from .input_cmds_file import process_python_include_code, write_processed_file, check_cmd_names
 from .input_cmds_multiuse import process_multicmds
 from .input_cmds_singleuse import process_singlecmds
-from .materials import Material
+from .materials import Material, process_materials
 from .pml import build_pmls, update_electric_pml, update_magnetic_pml
 from .receivers import store_outputs
 from .utilities import logo, human_size
@@ -113,7 +114,6 @@ def run_main(args):
     # Process for benchmarking simulation
     elif args.benchmark:
         run_benchmark_sim(args, inputfile, usernamespace)
-        print('\nSimulation completed.\n{}\n'.format('-' * get_terminal_size()[0]))
 
     # Process for standard simulation
     else:
@@ -127,8 +127,6 @@ def run_main(args):
         # Standard behaviour - models run serially with each model parallelised with OpenMP
         else:
             run_std_sim(args, numbermodelruns, inputfile, usernamespace)
-
-        print('\nSimulation completed.\n{}\n'.format('-' * get_terminal_size()[0]))
 
 
 def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None):
@@ -153,7 +151,8 @@ def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
             modelusernamespace = usernamespace
         run_model(args, modelrun, numbermodelruns, inputfile, modelusernamespace)
     tsimend = perf_counter()
-    print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
+    print('\n{}\nSimulation completed in [HH:MM:SS]: {}'.format('-' * get_terminal_size()[0], datetime.timedelta(seconds=int(tsimend - tsimstart))))
+    print('{}\n'.format('=' * get_terminal_size()[0]))
 
 
 def run_benchmark_sim(args, inputfile, usernamespace):
@@ -173,21 +172,19 @@ def run_benchmark_sim(args, inputfile, usernamespace):
         threads.append(int(thread))
 
     benchtimes = np.zeros(len(threads))
-
     numbermodelruns = len(threads)
     usernamespace['number_model_runs'] = numbermodelruns
-    tsimstart = perf_counter()
+
     for modelrun in range(1, numbermodelruns + 1):
         os.environ['OMP_NUM_THREADS'] = str(threads[modelrun - 1])
         tsolve = run_model(args, modelrun, numbermodelruns, inputfile, usernamespace)
         benchtimes[modelrun - 1] = tsolve
-    tsimend = perf_counter()
 
     # Save number of threads and benchmarking times to NumPy archive
     threads = np.array(threads)
     np.savez(os.path.splitext(inputfile)[0], threads=threads, benchtimes=benchtimes, version=__version__)
 
-    print('\nTotal simulation time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
+    print('\nSimulation completed\n{}\n'.format('=' * get_terminal_size()[0]))
 
 
 def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None):
@@ -212,7 +209,9 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
     rank = comm.rank        # rank of this process
     status = MPI.Status()   # get MPI status object
     name = MPI.Get_processor_name()     # get name of processor/host
-
+    
+    tsimstart = perf_counter()
+    
     if rank == 0:  # Master process
         modelrun = 1
         numworkers = size - 1
@@ -263,6 +262,10 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
 
         comm.send(None, dest=0, tag=tags.EXIT.value)
 
+    tsimend = perf_counter()
+    print('\n{}\nSimulation completed in [HH:MM:SS]: {}'.format('-' * get_terminal_size()[0], datetime.timedelta(seconds=int(tsimend - tsimstart))))
+    print('{}\n'.format('=' * get_terminal_size()[0]))
+
 
 def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     """Runs a model - processes the input file; builds the Yee cells; calculates update coefficients; runs main FDTD loop.
@@ -286,7 +289,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
     # Normal model reading/building process; bypassed if geometry information to be reused
     if 'G' not in globals():
-        print('{}\n\nModel input file: {}\n'.format('-' * get_terminal_size()[0], inputfile))
+        print('{}\n\nInput file: {}\n'.format('-' * get_terminal_size()[0], inputfile))
 
         # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
         usernamespace['current_model_run'] = modelrun
@@ -329,20 +332,20 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         G.initialise_field_arrays()
 
         # Process geometry commands in the order they were given
-        tinputprocstart = perf_counter()
+        print()
         process_geometrycmds(geometry, G)
-        tinputprocend = perf_counter()
-        print('\nInput file processed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tinputprocend - tinputprocstart))))
 
         # Build the PML and calculate initial coefficients
         build_pmls(G)
 
         # Build the model, i.e. set the material properties (ID) for every edge of every Yee cell
-        tbuildstart = perf_counter()
+        print()
+        pbar = tqdm(total=2, desc='Building FDTD grid')
         build_electric_components(G.solid, G.rigidE, G.ID, G)
+        pbar.update()
         build_magnetic_components(G.solid, G.rigidH, G.ID, G)
-        tbuildend = perf_counter()
-        print('\nModel built in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tbuildend - tbuildstart))))
+        pbar.update()
+        pbar.close()
 
         # Process any voltage sources (that have resistance) to create a new material at the source location
         for voltagesource in G.voltagesources:
@@ -355,38 +358,13 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         if Material.maxpoles != 0:
             G.initialise_dispersive_arrays()
 
-        # Calculate update coefficients, store in arrays, and list materials in model
+        # Process complete list of materials - calculate update coefficients, store in arrays, and build text list of materials/properties
+        materialsdata = process_materials(G)
         if G.messages:
-            print('\nMaterials in model:\n')
-            print('ID\tName\t\tProperties')
-            print('{}'.format('-' * 80))
-        for material in G.materials:
-
-            # Calculate update coefficients for material
-            material.calculate_update_coeffsE(G)
-            material.calculate_update_coeffsH(G)
-
-            # Store all update coefficients together
-            G.updatecoeffsE[material.numID, :] = material.CA, material.CBx, material.CBy, material.CBz, material.srce
-            G.updatecoeffsH[material.numID, :] = material.DA, material.DBx, material.DBy, material.DBz, material.srcm
-
-            # Store coefficients for any dispersive materials
-            if Material.maxpoles != 0:
-                z = 0
-                for pole in range(Material.maxpoles):
-                    G.updatecoeffsdispersive[material.numID, z:z + 3] = e0 * material.eqt2[pole], material.eqt[pole], material.zt[pole]
-                    z += 3
-
-            if G.messages:
-                if material.deltaer and material.tau:
-                    tmp = 'delta_epsr={}, tau={} secs; '.format(', '.join('{:g}'.format(deltaer) for deltaer in material.deltaer), ', '.join('{:g}'.format(tau) for tau in material.tau))
-                else:
-                    tmp = ''
-                if material.average:
-                    dielectricsmoothing = 'dielectric smoothing permitted.'
-                else:
-                    dielectricsmoothing = 'dielectric smoothing not permitted.'
-                print('{:3}\t{:12}\tepsr={:g}, sig={:g} S/m; mur={:g}, sig*={:g} S/m; '.format(material.numID, material.ID, material.er, material.se, material.mr, material.sm) + tmp + dielectricsmoothing)
+            materialstable = AsciiTable(materialsdata)
+            materialstable.outer_border = False
+            materialstable.justify_columns[0] = 'right'
+            print(materialstable.table)
 
         # Check to see if numerical dispersion might be a problem
         resolution = dispersion_check(G)
@@ -395,6 +373,8 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
     # If geometry information to be reused between model runs
     else:
+        print('{}\nInput not re-processed.'.format('-' * get_terminal_size()[0]))
+        
         # Clear arrays for field components
         G.initialise_field_arrays()
 
@@ -424,12 +404,10 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     if not G.geometryviews and args.geometry_only:
         raise GeneralError('No geometry views found.')
     elif G.geometryviews:
-        tgeostart = perf_counter()
-        for geometryview in G.geometryviews:
+        print()
+        for geometryview in tqdm(G.geometryviews, desc='Writing geometry file(s)'):
             geometryview.write_vtk(modelrun, numbermodelruns, G)
             # geometryview.write_xdmf(modelrun, numbermodelruns, G)
-        tgeoend = perf_counter()
-        print('\nGeometry file(s) written in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tgeoend - tgeostart))))
 
     # Run simulation (if not doing geometry only)
     if not args.geometry_only:
@@ -438,13 +416,13 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         for snapshot in G.snapshots:
             snapshot.prepare_vtk_imagedata(modelrun, numbermodelruns, G)
 
-        # Prepare output file
+        # Output filename
         inputfileparts = os.path.splitext(inputfile)
         if numbermodelruns == 1:
             outputfile = inputfileparts[0] + '.out'
         else:
             outputfile = inputfileparts[0] + str(modelrun) + '.out'
-        print('\nOutput to file: {}\n'.format(outputfile))
+        print('\nOutput file: {}\n'.format(outputfile))
 
         ####################################
         #  Start - Main FDTD calculations  #
@@ -454,7 +432,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         # Absolute time
         abstime = 0
         
-        for timestep in tqdm(range(G.iterations)):
+        for timestep in tqdm(range(G.iterations), desc='Running simulation, model ' + str(modelrun) + ' of ' + str(numbermodelruns)):
             # Store field component values for every receiver and transmission line
             store_outputs(timestep, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
@@ -505,7 +483,8 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         # Write an output file in HDF5 format
         write_hdf5(outputfile, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
-        print('Memory (RAM) usage: ~{}'.format(human_size(p.memory_info().rss)))
+        if G.messages:
+            print('\nMemory (RAM) used: ~{}'.format(human_size(p.memory_info().rss)))
 
         ##################################
         #  End - Main FDTD calculations  #
