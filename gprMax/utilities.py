@@ -24,6 +24,9 @@ from shutil import get_terminal_size
 import sys
 import textwrap
 
+from colorama import init, Fore, Style
+init()
+
 def logo(version):
     """Print gprMax logo, version, and licencing/copyright information.
 
@@ -49,8 +52,8 @@ def logo(version):
     print('\n{}'.format('=' * get_terminal_size()[0]))
     
     
-    print('{}'.format(logo))
-    print('{}'.format('-' * get_terminal_size()[0]))
+    print(Fore.MAGENTA + '{}'.format(logo))
+    print(Style.RESET_ALL + '{}'.format('-' * get_terminal_size()[0]))
     print(textwrap.fill(description, width=get_terminal_size()[0], initial_indent=' '))
     print()
     print(textwrap.fill(copyright, width=get_terminal_size()[0], initial_indent=' '))
