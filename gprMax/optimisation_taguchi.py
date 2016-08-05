@@ -21,6 +21,7 @@ import importlib
 import os
 import pickle
 from shutil import get_terminal_size
+from time import perf_counter
 
 import numpy as np
 
@@ -39,6 +40,8 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
     """
 
+    tsimstart = perf_counter()
+    
     if numbermodelruns > 1:
         raise CmdInputError('When a Taguchi optimisation is being carried out the number of model runs argument is not required')
 
@@ -148,6 +151,8 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
                 print('\nTaguchi optimisation stopped as successive fitness values within {}%'.format(fitnessvaluesthres))
                 break
 
+    tsimend = perf_counter()
+    
     # Save optimisation parameters history and fitness values history to file
     opthistfile = inputfileparts[0] + '_hist.pickle'
     with open(opthistfile, 'wb') as f:
@@ -155,7 +160,9 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
         pickle.dump(fitnessvalueshist, f)
         pickle.dump(optparamsinit, f)
 
-    print('\n{}\nTaguchi optimisation completed after {} iteration(s).\nHistory of optimal parameter values {} and of fitness values {}\n{}\n'.format('-' * get_terminal_size()[0], iteration, dict(optparamshist), fitnessvalueshist, '-' * get_terminal_size()[0]))
+    print('{}\nTaguchi optimisation completed after {} iteration(s).\nHistory of optimal parameter values {} and of fitness values {}'.format('-' * get_terminal_size()[0], iteration, dict(optparamshist), fitnessvalueshist))
+    print('Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
+    print('{}\n'.format('=' * get_terminal_size()[0]))
 
 
 def taguchi_code_blocks(inputfile, taguchinamespace):
