@@ -317,9 +317,11 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         # Create built-in materials
         m = Material(0, 'pec')
         m.se = float('inf')
+        m.type = 'builtin'
         m.average = False
         G.materials.append(m)
         m = Material(1, 'free_space')
+        m.type = 'builtin'
         G.materials.append(m)
 
         # Process parameters for commands that can only occur once in the model
@@ -437,7 +439,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         # Absolute time
         abstime = 0
         
-        for timestep in tqdm(range(G.iterations), desc='Running model ' + str(modelrun) + ' of ' + str(numbermodelruns), ncols=get_terminal_size()[0] - 1):
+        for timestep in tqdm(range(G.iterations), desc='Calculating model ' + str(modelrun) + ' of ' + str(numbermodelruns), ncols=get_terminal_size()[0] - 1):
             # Store field component values for every receiver and transmission line
             store_outputs(timestep, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 

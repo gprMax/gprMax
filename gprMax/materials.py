@@ -27,9 +27,6 @@ class Material(object):
     # Maximum number of dispersive material poles in a model
     maxpoles = 0
 
-    # Types of material
-    types = ['standard', 'debye', 'lorentz', 'drude']
-
     # Properties of water from: http://dx.doi.org/10.1109/TGRS.2006.873208
     waterer = 80.1
     watereri = 4.9
@@ -51,7 +48,7 @@ class Material(object):
 
         self.numID = numID
         self.ID = ID
-        self.type = 'standard'
+        self.type = 'user-defined'
         # Default material averaging
         self.average = True
 
@@ -99,16 +96,16 @@ class Material(object):
             self.eqt2 = np.zeros(self.maxpoles, dtype=complextype)
 
             for x in range(self.poles):
-                if self.type == 'debye':
+                if 'debye' in self.type:
                     self.w[x] = self.deltaer[x] / self.tau[x]
                     self.q[x] = -1 / self.tau[x]
-                elif self.type == 'lorentz':
+                elif 'lorentz' in self.type:
                     # tau for Lorentz materials are pole frequencies
                     # alpha for Lorentz materials are the damping coefficients
                     wp2 = (2 * np.pi * self.tau[x])**2
                     self.w[x] = -1j * ((wp2 * self.deltaer[x]) / np.sqrt(wp2 - self.alpha[x]**2))
                     self.q[x] = -self.alpha[x] + (1j * np.sqrt(wp2 - self.alpha[x]**2))
-                elif self.type == 'drude':
+                elif 'drude' in self.type:
                     # tau for Drude materials are pole frequencies
                     # alpha for Drude materials are the inverse of relaxation times
                     wp2 = (2 * np.pi * self.tau[x])**2
@@ -155,9 +152,9 @@ def process_materials(G):
     if G.messages:
         print('\nMaterials:')
         if Material.maxpoles == 0:
-            materialsdata = [['\nID', '\nName', '\neps_r', 'sigma\n[S/m]', '\nmu_r', 'sigma*\n[S/m]', 'Dielectric\nsmoothing']]
+            materialsdata = [['\nID', '\nName', '\neps_r', 'sigma\n[S/m]', '\nmu_r', 'sigma*\n[S/m]', 'Dielectric\nsmoothable', '\nType']]
         else:
-            materialsdata = [['\nID', '\nName', '\neps_r', 'sigma\n[S/m]', '\nDelta eps_r', 'tau\n[s]', '\nmu_r', 'sigma*\n[S/m]', 'Dielectric\nsmoothing']]
+            materialsdata = [['\nID', '\nName', '\neps_r', 'sigma\n[S/m]', '\nDelta eps_r', 'tau\n[s]', '\nmu_r', 'sigma*\n[S/m]', 'Dielectric\nsmoothable', '\nType']]
 
     for material in G.materials:
         # Calculate update coefficients for material
@@ -192,6 +189,7 @@ def process_materials(G):
             materialtext.append('{:g}'.format(material.mr))
             materialtext.append('{:g}'.format(material.sm))
             materialtext.append(material.average)
+            materialtext.append(material.type)
             materialsdata.append(materialtext)
 
     if G.messages:
@@ -273,6 +271,7 @@ class PeplinskiSoil(object):
                     self.startmaterialnum = len(G.materials)
             if not material:
                 m = Material(len(G.materials), requiredID)
+                m.type = 'debye'
                 m.average = False
                 m.er = eri
                 m.se = sig

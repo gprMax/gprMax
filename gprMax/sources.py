@@ -108,6 +108,7 @@ class VoltageSource(Source):
             newmaterial.ID = material.ID + '+VoltageSource_' + str(self.resistance)
             newmaterial.numID = len(G.materials)
             newmaterial.average = False
+            newmaterial.type = 'dielectric-smoothed, voltage source'
 
             # Add conductivity of voltage source to underlying conductivity
             if self.polarisation == 'x':
