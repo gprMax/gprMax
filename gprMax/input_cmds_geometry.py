@@ -18,6 +18,7 @@
 
 import os
 from shutil import get_terminal_size
+import sys
 
 import h5py
 import numpy as np
@@ -41,8 +42,13 @@ def process_geometrycmds(geometry, G):
 
     """
 
-
-    for object in tqdm(geometry, desc='Processing geometry cmds', unit='cmds', ncols=get_terminal_size()[0] - 1):
+    # Disable progress bar if on Windows as it does not update properly when messages are printed
+    if sys.platform == 'win32':
+        tqdmbar = True
+    else:
+        tqdmbar = False
+    
+    for object in tqdm(geometry, desc='Processing geometry cmds', unit='cmds', ncols=get_terminal_size()[0] - 1, disable=tqdmbar):
         tmp = object.split()
 
         if tmp[0] == '#geometry_objects_file:':
