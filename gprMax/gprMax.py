@@ -154,7 +154,7 @@ def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
         run_model(args, modelrun, numbermodelruns, inputfile, modelusernamespace)
     tsimend = perf_counter()
     simcompletestr = '\n== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)))
-    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - len(simcompletestr))))
+    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - 1 - len(simcompletestr))))
 
 
 def run_benchmark_sim(args, inputfile, usernamespace):
@@ -187,7 +187,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     np.savez(os.path.splitext(inputfile)[0], threads=threads, benchtimes=benchtimes, version=__version__)
 
     simcompletestr = '\n== Simulation completed'
-    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - len(simcompletestr))))
+    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - 1 - len(simcompletestr))))
 
 
 def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None):
@@ -267,7 +267,7 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
 
     tsimend = perf_counter()
     simcompletestr = '\n== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)))
-    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - len(simcompletestr))))
+    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - 1 - len(simcompletestr))))
 
 
 def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
@@ -293,7 +293,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     # Normal model reading/building process; bypassed if geometry information to be reused
     if 'G' not in globals():
         inputfilestr = '\nModel {} of {}, input file: {}'.format(modelrun, numbermodelruns, inputfile)
-        print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_size()[0] - len(inputfilestr))))
+        print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_size()[0] - 1 - len(inputfilestr))))
 
         # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
         usernamespace['current_model_run'] = modelrun
@@ -344,7 +344,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
         # Build the model, i.e. set the material properties (ID) for every edge of every Yee cell
         print()
-        pbar = tqdm(total=2, desc='Building FDTD grid', ncols=get_terminal_size()[0], leave='False', bar_format='{desc:30}{percentage:3.0f}%|{bar}{r_bar}')
+        pbar = tqdm(total=2, desc='Building FDTD grid', ncols=get_terminal_size()[0] - 1)
         build_electric_components(G.solid, G.rigidE, G.ID, G)
         pbar.update()
         build_magnetic_components(G.solid, G.rigidH, G.ID, G)
@@ -378,7 +378,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     # If geometry information to be reused between model runs
     else:
         inputfilestr = '\nInput file not re-processed'
-        print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_size()[0] - len(inputfilestr))))
+        print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_size()[0] - 1 - len(inputfilestr))))
         
         # Clear arrays for field components
         G.initialise_field_arrays()
@@ -410,7 +410,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         raise GeneralError('No geometry views found.')
     elif G.geometryviews:
         print()
-        for geometryview in tqdm(G.geometryviews, desc='Writing geometry file(s)', unit='files', ncols=get_terminal_size()[0], leave='False', bar_format='{desc:30}{percentage:3.0f}%|{bar}{r_bar}'):
+        for geometryview in tqdm(G.geometryviews, desc='Writing geometry file(s)', unit='files', ncols=get_terminal_size()[0] - 1):
             geometryview.write_vtk(modelrun, numbermodelruns, G)
             # geometryview.write_xdmf(modelrun, numbermodelruns, G)
 
@@ -437,7 +437,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         # Absolute time
         abstime = 0
         
-        for timestep in tqdm(range(G.iterations), desc='Running model ' + str(modelrun) + ' of ' + str(numbermodelruns), ncols=get_terminal_size()[0], leave='False', bar_format='{desc:30}{percentage:3.0f}%|{bar}{r_bar}'):
+        for timestep in tqdm(range(G.iterations), desc='Running model ' + str(modelrun) + ' of ' + str(numbermodelruns), ncols=get_terminal_size()[0] - 1):
             # Store field component values for every receiver and transmission line
             store_outputs(timestep, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 

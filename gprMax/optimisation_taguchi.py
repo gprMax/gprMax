@@ -23,6 +23,8 @@ import pickle
 from shutil import get_terminal_size
 from time import perf_counter
 
+from colorama import init, Fore, Style
+init()
 import numpy as np
 
 from gprMax.constants import floattype
@@ -72,7 +74,9 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
 
     # Select OA
     OA, N, cols, k, s, t = construct_OA(optparams)
-    print('\n{}\nTaguchi optimisation...\n'.format('-' * get_terminal_size()[0]))
+
+    taguchistr = '\nTaguchi optimisation'
+    print('{} {}\n'.format(taguchistr, '-' * (get_terminal_size()[0] - 1 - len(taguchistr))))
     print('\tOrthogonal array: {:g} experiments per iteration, {:g} parameters ({:g} will be used), {:g} levels, and strength {:g}'.format(N, cols, k, s, t))
     tmp = [(k, v) for k, v in optparams.items()]
     print('\tParameters to optimise with ranges: {}'.format(str(tmp).strip('[]')))
@@ -134,8 +138,8 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
 
         # Rename confirmation experiment output file so that it is retained for each iteraction
         os.rename(outputfile, os.path.splitext(outputfile)[0] + '_final' + str(iteration + 1) + '.out')
-
-        print('\nTaguchi optimisation, iteration {} completed. History of optimal parameter values {} and of fitness values {}'.format(iteration + 1, dict(optparamshist), fitnessvalueshist, '-' * get_terminal_size()[0]))
+        
+        print(Fore.GREEN + '\nTaguchi optimisation, iteration {} completed. History of optimal parameter values {} and of fitness values {}'.format(iteration + 1, dict(optparamshist), fitnessvalueshist) + Style.RESET_ALL)
         iteration += 1
 
         # Stop optimisation if stopping criterion has been reached
@@ -162,7 +166,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
 
     print('\nTaguchi optimisation completed after {} iteration(s).\nHistory of optimal parameter values {} and of fitness values {}'.format(iteration, dict(optparamshist), fitnessvalueshist))
     simcompletestr = '\n== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)))
-    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - len(simcompletestr))))
+    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - 1 - len(simcompletestr))))
 
 
 def taguchi_code_blocks(inputfile, taguchinamespace):
