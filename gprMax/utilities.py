@@ -51,12 +51,12 @@ def logo(version):
 
     print('{} {}\n'.format(description, '=' * (get_terminal_size()[0] - len(description) - 1)))
     print(Fore.CYAN + '{}\n'.format(logo))
-    print(Style.RESET_ALL + textwrap.fill(copyright, width=get_terminal_size()[0], initial_indent=' '))
-    print(textwrap.fill(authors, width=get_terminal_size()[0], initial_indent=' '))
+    print(Style.RESET_ALL + textwrap.fill(copyright, width=get_terminal_size()[0] - 1, initial_indent=' '))
+    print(textwrap.fill(authors, width=get_terminal_size()[0] - 1, initial_indent=' '))
     print()
-    print(textwrap.fill(licenseinfo1, width=get_terminal_size()[0], initial_indent=' ', subsequent_indent='  '))
-    print(textwrap.fill(licenseinfo2, width=get_terminal_size()[0], initial_indent=' ', subsequent_indent='  '))
-    print(textwrap.fill(licenseinfo3, width=get_terminal_size()[0], initial_indent=' ', subsequent_indent='  '))
+    print(textwrap.fill(licenseinfo1, width=get_terminal_size()[0] - 1, initial_indent=' ', subsequent_indent='  '))
+    print(textwrap.fill(licenseinfo2, width=get_terminal_size()[0] - 1, initial_indent=' ', subsequent_indent='  '))
+    print(textwrap.fill(licenseinfo3, width=get_terminal_size()[0] - 1, initial_indent=' ', subsequent_indent='  '))
 
 
 def round_value(value, decimalplaces=0):
