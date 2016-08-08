@@ -153,7 +153,7 @@ def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
             modelusernamespace = usernamespace
         run_model(args, modelrun, numbermodelruns, inputfile, modelusernamespace)
     tsimend = perf_counter()
-    simcompletestr = '\n== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)))
+    simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)))
     print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - 1 - len(simcompletestr))))
 
 
@@ -186,7 +186,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     threads = np.array(threads)
     np.savez(os.path.splitext(inputfile)[0], threads=threads, benchtimes=benchtimes, version=__version__)
 
-    simcompletestr = '\n== Simulation completed'
+    simcompletestr = '\n=== Simulation completed'
     print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - 1 - len(simcompletestr))))
 
 
@@ -266,7 +266,7 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
         comm.send(None, dest=0, tag=tags.EXIT.value)
 
     tsimend = perf_counter()
-    simcompletestr = '\n== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)))
+    simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)))
     print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - 1 - len(simcompletestr))))
 
 
@@ -292,12 +292,12 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
     # Normal model reading/building process; bypassed if geometry information to be reused
     if 'G' not in globals():
-        inputfilestr = '\nModel {} of {}, input file: {}'.format(modelrun, numbermodelruns, inputfile)
-        print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_size()[0] - 1 - len(inputfilestr))))
+        inputfilestr = '\n--- Model {} of {}, input file: {}'.format(modelrun, numbermodelruns, inputfile)
+        print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_size()[0] - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
         # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
         usernamespace['current_model_run'] = modelrun
-        print(Style.RESET_ALL + 'Constants/variables available for Python scripting: {}\n'.format(usernamespace))
+        print('Constants/variables available for Python scripting: {}\n'.format(usernamespace))
 
         # Read input file and process any Python or include commands
         processedlines = process_python_include_code(inputfile, usernamespace)

@@ -34,7 +34,7 @@ def logo(version):
         version (str): Version number.
     """
     
-    description = 'Electromagnetic modelling software based on the Finite-Difference Time-Domain (FDTD) method'
+    description = '\n=== Electromagnetic modelling software based on the Finite-Difference Time-Domain (FDTD) method'
     copyright = 'Copyright (C) 2015-2016: The University of Edinburgh'
     authors = 'Authors: Craig Warren and Antonis Giannopoulos'
     licenseinfo1 = 'gprMax is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.\n'
@@ -49,7 +49,7 @@ def logo(version):
     |___/|_|                
                        v""" + version
 
-    print('\n== {} {}\n'.format(description, '=' * (get_terminal_size()[0] - (len(description)) - 4)))
+    print('{} {}\n'.format(description, '=' * (get_terminal_size()[0] - len(description) - 1)))
     print(Fore.CYAN + '{}\n'.format(logo))
     print(Style.RESET_ALL + textwrap.fill(copyright, width=get_terminal_size()[0], initial_indent=' '))
     print(textwrap.fill(authors, width=get_terminal_size()[0], initial_indent=' '))
