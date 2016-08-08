@@ -34,12 +34,12 @@ def logo(version):
         version (str): Version number.
     """
     
-    description = '"Electromagnetic modelling software based on the Finite-Difference Time-Domain (FDTD) method"'
+    description = 'Electromagnetic modelling software based on the Finite-Difference Time-Domain (FDTD) method'
     copyright = 'Copyright (C) 2015-2016: The University of Edinburgh'
     authors = 'Authors: Craig Warren and Antonis Giannopoulos'
     licenseinfo1 = 'gprMax is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.\n'
     licenseinfo2 = 'gprMax is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.'
-    licenseinfo3 = 'You should have received a copy of the GNU General Public License along with gprMax.  If not, see <http://www.gnu.org/licenses/>.'
+    licenseinfo3 = 'You should have received a copy of the GNU General Public License along with gprMax.  If not, see www.gnu.org/licenses.'
 
     logo = """    www.gprmax.com   __  __
      __ _ _ __  _ __|  \/  | __ ___  __
@@ -49,14 +49,9 @@ def logo(version):
     |___/|_|                
                        v""" + version
 
-    print('\n{}'.format('=' * get_terminal_size()[0]))
-    
-    
-    print(Fore.MAGENTA + '{}'.format(logo))
-    print(Style.RESET_ALL + '{}'.format('-' * get_terminal_size()[0]))
-    print(textwrap.fill(description, width=get_terminal_size()[0], initial_indent=' '))
-    print()
-    print(textwrap.fill(copyright, width=get_terminal_size()[0], initial_indent=' '))
+    print('\n== {} {}\n'.format(description, '=' * (get_terminal_size()[0] - (len(description)) - 4)))
+    print(Fore.CYAN + '{}\n'.format(logo))
+    print(Style.RESET_ALL + textwrap.fill(copyright, width=get_terminal_size()[0], initial_indent=' '))
     print(textwrap.fill(authors, width=get_terminal_size()[0], initial_indent=' '))
     print()
     print(textwrap.fill(licenseinfo1, width=get_terminal_size()[0], initial_indent=' ', subsequent_indent='  '))

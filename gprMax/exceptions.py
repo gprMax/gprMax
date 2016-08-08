@@ -17,11 +17,25 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 
+from colorama import init, Fore
+init()
+
+
 class GeneralError(ValueError):
     """Handles general errors. Subclasses the ValueError class."""
-    pass
+
+    def __init__(self, message, *args):
+        
+        self.message = message
+        super(GeneralError, self).__init__(message, *args)
+        print(Fore.RED)
 
 
 class CmdInputError(ValueError):
     """Handles errors in user specified commands. Subclasses the ValueError class."""
-    pass
+    
+    def __init__(self, message, *args):
+        
+        self.message = message
+        super(CmdInputError, self).__init__(message, *args)
+        print(Fore.RED)

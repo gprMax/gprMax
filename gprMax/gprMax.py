@@ -28,6 +28,8 @@ from shutil import get_terminal_size
 import sys
 from time import perf_counter
 
+from colorama import init, Fore, Style
+init()
 import numpy as np
 from terminaltables import AsciiTable
 from tqdm import tqdm
@@ -56,13 +58,13 @@ def main():
     logo(__version__ + ' (Bowmore)')
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(prog='gprMax', description='Electromagnetic modelling software based on the Finite-Difference Time-Domain (FDTD) method')
-    parser.add_argument('inputfile', help='path to and name of inputfile')
-    parser.add_argument('-n', default=1, type=int, help='number of times to run the input file')
+    parser = argparse.ArgumentParser(prog='gprMax')
+    parser.add_argument('inputfile', help='path to, and name of inputfile')
+    parser.add_argument('-n', default=1, type=int, help='number of times to run the input file, e.g. for creating B-scans')
     parser.add_argument('-mpi', action='store_true', default=False, help='flag to switch on MPI task farm')
     parser.add_argument('-benchmark', action='store_true', default=False, help='flag to switch on benchmarking mode')
     parser.add_argument('--geometry-only', action='store_true', default=False, help='flag to only build model and produce geometry file(s)')
-    parser.add_argument('--geometry-fixed', action='store_true', default=False, help='flag to not reprocess model geometry for multiple model runs')
+    parser.add_argument('--geometry-fixed', action='store_true', default=False, help='flag to not reprocess model geometry, e.g. for B-scans where the geometry is fixed')
     parser.add_argument('--write-processed', action='store_true', default=False, help='flag to write an input file after any Python code and include commands in the original input file have been processed')
     parser.add_argument('--opt-taguchi', action='store_true', default=False, help='flag to optimise parameters using the Taguchi optimisation method')
     args = parser.parse_args()
@@ -151,8 +153,8 @@ def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
             modelusernamespace = usernamespace
         run_model(args, modelrun, numbermodelruns, inputfile, modelusernamespace)
     tsimend = perf_counter()
-    print('\n{}\nSimulation completed in [HH:MM:SS]: {}'.format('-' * get_terminal_size()[0], datetime.timedelta(seconds=int(tsimend - tsimstart))))
-    print('{}\n'.format('=' * get_terminal_size()[0]))
+    simcompletestr = '\n== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)))
+    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - len(simcompletestr))))
 
 
 def run_benchmark_sim(args, inputfile, usernamespace):
@@ -184,7 +186,8 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     threads = np.array(threads)
     np.savez(os.path.splitext(inputfile)[0], threads=threads, benchtimes=benchtimes, version=__version__)
 
-    print('\nSimulation completed\n{}\n'.format('=' * get_terminal_size()[0]))
+    simcompletestr = '\n== Simulation completed'
+    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - len(simcompletestr))))
 
 
 def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None):
@@ -263,8 +266,8 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
         comm.send(None, dest=0, tag=tags.EXIT.value)
 
     tsimend = perf_counter()
-    print('\n{}\nSimulation completed in [HH:MM:SS]: {}'.format('-' * get_terminal_size()[0], datetime.timedelta(seconds=int(tsimend - tsimstart))))
-    print('{}\n'.format('=' * get_terminal_size()[0]))
+    simcompletestr = '\n== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)))
+    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - len(simcompletestr))))
 
 
 def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
@@ -289,11 +292,12 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
     # Normal model reading/building process; bypassed if geometry information to be reused
     if 'G' not in globals():
-        print('{}\n\nInput file: {}\n'.format('-' * get_terminal_size()[0], inputfile))
+        inputfilestr = '\nModel {} of {}, input file: {}'.format(modelrun, numbermodelruns, inputfile)
+        print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_size()[0] - len(inputfilestr))))
 
         # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
         usernamespace['current_model_run'] = modelrun
-        print('Constants/variables available for Python scripting: {}\n'.format(usernamespace))
+        print(Style.RESET_ALL + 'Constants/variables available for Python scripting: {}\n'.format(usernamespace))
 
         # Read input file and process any Python or include commands
         processedlines = process_python_include_code(inputfile, usernamespace)
@@ -405,7 +409,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         raise GeneralError('No geometry views found.')
     elif G.geometryviews:
         print()
-        for geometryview in tqdm(G.geometryviews, desc='Writing geometry file(s)'):
+        for geometryview in tqdm(G.geometryviews, desc='Writing geometry file(s)', unit='file'):
             geometryview.write_vtk(modelrun, numbermodelruns, G)
             # geometryview.write_xdmf(modelrun, numbermodelruns, G)
 
@@ -484,7 +488,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         write_hdf5(outputfile, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
         if G.messages:
-            print('\nMemory (RAM) used: ~{}'.format(human_size(p.memory_info().rss)))
+            print('Memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss)))
 
         ##################################
         #  End - Main FDTD calculations  #

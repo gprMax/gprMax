@@ -41,7 +41,7 @@ def process_geometrycmds(geometry, G):
     """
 
 
-    for object in tqdm(geometry, desc='Processing geometry objects'):
+    for object in tqdm(geometry, desc='Processing geometry objects', unit='cmds'):
         tmp = object.split()
 
         if tmp[0] == '#geometry_objects_file:':

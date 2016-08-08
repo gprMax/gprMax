@@ -160,9 +160,9 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
         pickle.dump(fitnessvalueshist, f)
         pickle.dump(optparamsinit, f)
 
-    print('{}\nTaguchi optimisation completed after {} iteration(s).\nHistory of optimal parameter values {} and of fitness values {}'.format('-' * get_terminal_size()[0], iteration, dict(optparamshist), fitnessvalueshist))
-    print('Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart))))
-    print('{}\n'.format('=' * get_terminal_size()[0]))
+    print('\nTaguchi optimisation completed after {} iteration(s).\nHistory of optimal parameter values {} and of fitness values {}'.format(iteration, dict(optparamshist), fitnessvalueshist))
+    simcompletestr = '\n== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)))
+    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - len(simcompletestr))))
 
 
 def taguchi_code_blocks(inputfile, taguchinamespace):
