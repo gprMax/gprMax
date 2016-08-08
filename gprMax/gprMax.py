@@ -344,7 +344,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
         # Build the model, i.e. set the material properties (ID) for every edge of every Yee cell
         print()
-        pbar = tqdm(total=2, desc='Building FDTD grid')
+        pbar = tqdm(total=2, desc='Building FDTD grid', ncols=get_terminal_size()[0])
         build_electric_components(G.solid, G.rigidE, G.ID, G)
         pbar.update()
         build_magnetic_components(G.solid, G.rigidH, G.ID, G)
@@ -409,7 +409,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         raise GeneralError('No geometry views found.')
     elif G.geometryviews:
         print()
-        for geometryview in tqdm(G.geometryviews, desc='Writing geometry file(s)', unit='file'):
+        for geometryview in tqdm(G.geometryviews, desc='Writing geometry file(s)', unit='file', ncols=get_terminal_size()[0]):
             geometryview.write_vtk(modelrun, numbermodelruns, G)
             # geometryview.write_xdmf(modelrun, numbermodelruns, G)
 
@@ -436,7 +436,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         # Absolute time
         abstime = 0
         
-        for timestep in tqdm(range(G.iterations), desc='Running simulation, model ' + str(modelrun) + ' of ' + str(numbermodelruns)):
+        for timestep in tqdm(range(G.iterations), desc='Running simulation, model ' + str(modelrun) + ' of ' + str(numbermodelruns), ncols=get_terminal_size()[0]):
             # Store field component values for every receiver and transmission line
             store_outputs(timestep, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 

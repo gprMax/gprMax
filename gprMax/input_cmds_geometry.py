@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+from shutil import get_terminal_size
 
 import h5py
 import numpy as np
@@ -41,7 +42,7 @@ def process_geometrycmds(geometry, G):
     """
 
 
-    for object in tqdm(geometry, desc='Processing geometry objects', unit='cmds'):
+    for object in tqdm(geometry, desc='Processing geometry objects', unit='cmds', ncols=get_terminal_size()[0]):
         tmp = object.split()
 
         if tmp[0] == '#geometry_objects_file:':
