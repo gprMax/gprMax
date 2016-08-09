@@ -125,7 +125,6 @@ The following are steps to get started with viewing snapshot files in Paraview:
 #. You can step through or play as an animation the time steps using the **time controls** in the toolbar.
 
 .. tip::
-
     * Turn on the Animation View (View->Animation View menu) to control the speed and start/stop points of the animation.
 
     * Use the Color Map Editor to adjust the Color Scaling.
