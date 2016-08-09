@@ -48,7 +48,7 @@ def process_geometrycmds(geometry, G):
     else:
         tqdmbar = False
     
-    for object in tqdm(geometry, desc='Processing geometry cmds', unit='cmds', ncols=get_terminal_size()[0] - 1, disable=tqdmbar):
+    for object in tqdm(geometry, desc='Processing geometry related cmds', unit='cmds', ncols=get_terminal_size()[0] - 1, disable=tqdmbar):
         tmp = object.split()
 
         if tmp[0] == '#geometry_objects_file:':
@@ -97,7 +97,7 @@ def process_geometrycmds(geometry, G):
             build_voxels_from_array(xs, ys, zs, numexistmaterials, data, G.solid, G.rigidE, G.rigidH, G.ID)
 
             if G.messages:
-                tqdm.write('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
+                tqdm.write('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {} (dielectric smoothing will not occur for these objects).'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
 
         elif tmp[0] == '#edge:':
             if len(tmp) != 8:
