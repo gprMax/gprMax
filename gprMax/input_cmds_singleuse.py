@@ -21,6 +21,8 @@ import psutil
 import decimal as d
 import sys
 
+from colorama import init, Fore, Style
+init()
 import numpy as np
 
 from gprMax.constants import c, floattype
@@ -82,7 +84,7 @@ def process_singlecmds(singlecmds, G):
     if G.messages:
         print('Number of threads: {}'.format(G.nthreads))
     if G.nthreads > psutil.cpu_count(logical=False):
-        print('\nWARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, psutil.cpu_count(logical=False)))
+        print(Fore.RED + '\nWARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, psutil.cpu_count(logical=False)) + Style.RESET_ALL)
 
     # Spatial discretisation
     cmd = '#dx_dy_dz'

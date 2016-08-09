@@ -375,7 +375,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         # Check to see if numerical dispersion might be a problem
         resolution = dispersion_check(G)
         if resolution and max((G.dx, G.dy, G.dz)) > resolution:
-            print('\nWARNING: Potential numerical dispersion in the simulation. Check the spatial discretisation against the smallest wavelength present. Suggested resolution should be less than {:g}m'.format(resolution))
+            print(Fore.RED + '\nWARNING: Potential numerical dispersion in the simulation. Check the spatial discretisation against the smallest wavelength present. Suggested resolution should be less than {:g}m'.format(resolution) + Style.RESET_ALL)
 
     # If geometry information to be reused between model runs
     else:

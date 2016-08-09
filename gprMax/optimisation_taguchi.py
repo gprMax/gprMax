@@ -270,7 +270,7 @@ def construct_OA(optparams):
 
     else:
         # THIS CASE NEEDS FURTHER TESTING
-        print('\nTaguchi optimisation, WARNING: Optimising more than 7 parameters is currently an experimental feature!')
+        print(Fore.RED + '\nTaguchi optimisation, WARNING: Optimising more than 7 parameters is currently an experimental feature!' + Style.RESET_ALL)
 
         p = int(np.ceil(np.log(k * (s - 1) + 1) / np.log(s)))
 
