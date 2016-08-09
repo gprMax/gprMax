@@ -412,8 +412,12 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         raise GeneralError('No geometry views found.')
     elif G.geometryviews:
         print()
-        for geometryview in tqdm(G.geometryviews, desc='Writing geometry file(s)', unit='files', ncols=get_terminal_size()[0] - 1):
-            geometryview.write_vtk(modelrun, numbermodelruns, G)
+        for i, geometryview in enumerate(G.geometryviews):
+            geometryview.set_filename(modelrun, numbermodelruns, G)
+            geoiters = 6 * (((geometryview.xf - geometryview.xs) / geometryview.dx) * ((geometryview.yf - geometryview.ys) / geometryview.dy) * ((geometryview.zf - geometryview.zs) / geometryview.dz))
+            pbar = tqdm(total=geoiters, unit='byte', unit_scale=True, desc='Writing geometry file {} of {}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_size()[0] - 1)
+            geometryview.write_vtk(modelrun, numbermodelruns, G, pbar)
+            pbar.close()
             # geometryview.write_xdmf(modelrun, numbermodelruns, G)
 
     # Run simulation (if not doing geometry only)
@@ -439,14 +443,17 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         # Absolute time
         abstime = 0
         
-        for timestep in tqdm(range(G.iterations), desc='Calculating model ' + str(modelrun) + ' of ' + str(numbermodelruns), ncols=get_terminal_size()[0] - 1):
+        for timestep in tqdm(range(G.iterations), desc='Running simulation, model ' + str(modelrun) + ' of ' + str(numbermodelruns), ncols=get_terminal_size()[0] - 1):
             # Store field component values for every receiver and transmission line
             store_outputs(timestep, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
             # Write any snapshots to file
-            for snapshot in G.snapshots:
-                if snapshot.time == timestep + 1:
-                    snapshot.write_vtk_imagedata(G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
+            for i, snap in enumerate(G.snapshots):
+                if snap.time == timestep + 1:
+                    snapiters = 36 * (((snap.xf - snap.xs) / snap.dx) * ((snap.yf - snap.ys) / snap.dy) * ((snap.zf - snap.zs) / snap.dz))
+                    pbar = tqdm(total=snapiters, leave=False, unit='byte', unit_scale=True, desc='  Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_size()[0] - 1)
+                    snap.write_vtk_imagedata(G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G, pbar)
+                    pbar.close()
 
             # Update electric field components
             if Material.maxpoles == 0:  # All materials are non-dispersive so do standard update

@@ -62,7 +62,22 @@ class GeometryView(object):
         filename = self.filename[:-4]
         write_output_file(filename, G, self.type)
 
-    def write_vtk(self, modelrun, numbermodelruns, G):
+    def set_filename(self, modelrun, numbermodelruns, G):
+        """Construct filename from user-supplied name and model run number.
+
+        Args:
+            modelrun (int): Current model run number.
+            numbermodelruns (int): Total number of model runs.
+            G (class): Grid class instance - holds essential parameters describing the model.
+        """
+
+        if numbermodelruns == 1:
+            self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.basefilename))
+        else:
+            self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.basefilename + str(modelrun)))
+        self.filename += self.type
+
+    def write_vtk(self, modelrun, numbermodelruns, G, pbar):
         """Writes the geometry information to a VTK file. Either ImageData (.vti) for a per-cell geometry view, or PolygonalData (.vtp) for a per-cell-edge geometry view.
 
             N.B. No Python 3 support for VTK at time of writing (03/2015)
@@ -71,17 +86,10 @@ class GeometryView(object):
             modelrun (int): Current model run number.
             numbermodelruns (int): Total number of model runs.
             G (class): Grid class instance - holds essential parameters describing the model.
+            pbar (class): Progress bar class instance.
         """
 
-        # Construct filename from user-supplied name and model run number
-        if numbermodelruns == 1:
-            self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.basefilename))
-        else:
-            self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.basefilename + str(modelrun)))
-
-        if self.type == 'n':
-            self.filename += '.vti'
-
+        if self.type == '.vti':
             # Calculate number of cells according to requested sampling for geometry view
             self.vtk_xscells = round_value(self.xs / self.dx)
             self.vtk_xfcells = round_value(self.xf / self.dx)
@@ -125,6 +133,7 @@ class GeometryView(object):
                 for k in range(self.zs, self.zf, self.dz):
                     for j in range(self.ys, self.yf, self.dy):
                         for i in range(self.xs, self.xf, self.dx):
+                            pbar.update(n=4)
                             f.write(pack('I', G.solid[i, j, k]))
 
                 # Write source/PML IDs
@@ -133,6 +142,7 @@ class GeometryView(object):
                 for k in range(self.zs, self.zf, self.dz):
                     for j in range(self.ys, self.yf, self.dy):
                         for i in range(self.xs, self.xf, self.dx):
+                            pbar.update()
                             f.write(pack('b', self.srcs_pml[i, j, k]))
 
                 # Write receiver IDs
@@ -141,15 +151,14 @@ class GeometryView(object):
                 for k in range(self.zs, self.zf, self.dz):
                     for j in range(self.ys, self.yf, self.dy):
                         for i in range(self.xs, self.xf, self.dx):
+                            pbar.update()
                             f.write(pack('b', self.rxs[i, j, k]))
 
                 f.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
 
                 self.write_gprmax_info(f, G)
 
-        elif self.type == 'f':
-            self.filename += '.vtp'
-
+        elif self.type == '.vtp':
             vtk_numpoints = (self.nx + 1) * (self.ny + 1) * (self.nz + 1)
             vtk_numpoint_components = 3
             vtk_numlines = 2 * self.nx * self.ny + 2 * self.ny * self.nz + 2 * self.nx * self.nz + 3 * self.nx * self.ny * self.nz + self.nx + self.ny + self.nz

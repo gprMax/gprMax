@@ -679,8 +679,14 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires type to be either n (normal) or f (fine)')
             if tmp[10].lower() == 'f' and (dx * G.dx != G.dx or dy * G.dy != G.dy or dz * G.dz != G.dz):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires the spatial discretisation for the geometry view to be the same as the model for geometry view of type f (fine)')
+            
+            # Set type of geometry file
+            if tmp[10].lower() == 'n':
+                type = '.vti'
+            else:
+                type = '.vtp'
 
-            g = GeometryView(xs, ys, zs, xf, yf, zf, dx, dy, dz, tmp[9], tmp[10].lower())
+            g = GeometryView(xs, ys, zs, xf, yf, zf, dx, dy, dz, tmp[9], type)
 
             if G.messages:
                 print('Geometry view from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, filename {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz, g.basefilename))

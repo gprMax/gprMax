@@ -110,12 +110,13 @@ class Snapshot(object):
         self.filehandle.write('<DataArray type="{}" Name="Current" NumberOfComponents="3" format="appended" offset="{}" />\n'.format(Snapshot.floatname, vtk_current_offset).encode('utf-8'))
         self.filehandle.write('</CellData>\n</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
 
-    def write_vtk_imagedata(self, Ex, Ey, Ez, Hx, Hy, Hz, G):
+    def write_vtk_imagedata(self, Ex, Ey, Ez, Hx, Hy, Hz, G, pbar):
         """Writes electric and magnetic field values to VTK ImageData (.vti) file.
 
         Args:
             Ex, Ey, Ez, Hx, Hy, Hz (memory view): Electric and magnetic field values.
             G (class): Grid class instance - holds essential parameters describing the model.
+            pbar (class): Progress bar class instance.
         """
 
         datasize = 3 * np.dtype(floattype).itemsize * (self.vtk_xfcells - self.vtk_xscells) * (self.vtk_yfcells - self.vtk_yscells) * (self.vtk_zfcells - self.vtk_zscells)
@@ -124,6 +125,7 @@ class Snapshot(object):
         for k in range(self.zs, self.zf, self.dz):
             for j in range(self.ys, self.yf, self.dy):
                 for i in range(self.xs, self.xf, self.dx):
+                    pbar.update(n=12)
                     # The electric field component value at a point comes from average of the 4 electric field component values in that cell
                     self.filehandle.write(pack(Snapshot.floatstring, (Ex[i, j, k] + Ex[i, j + 1, k] + Ex[i, j, k + 1] + Ex[i, j + 1, k + 1]) / 4))
                     self.filehandle.write(pack(Snapshot.floatstring, (Ey[i, j, k] + Ey[i + 1, j, k] + Ey[i, j, k + 1] + Ey[i + 1, j, k + 1]) / 4))
@@ -133,6 +135,7 @@ class Snapshot(object):
         for k in range(self.zs, self.zf, self.dz):
             for j in range(self.ys, self.yf, self.dy):
                 for i in range(self.xs, self.xf, self.dx):
+                    pbar.update(n=12)
                     # The magnetic field component value at a point comes from average of 2 magnetic field component values in that cell and the following cell
                     self.filehandle.write(pack(Snapshot.floatstring, (Hx[i, j, k] + Hx[i + 1, j, k]) / 2))
                     self.filehandle.write(pack(Snapshot.floatstring, (Hy[i, j, k] + Hy[i, j + 1, k]) / 2))
@@ -142,6 +145,7 @@ class Snapshot(object):
         for k in range(self.zs, self.zf, self.dz):
             for j in range(self.ys, self.yf, self.dy):
                 for i in range(self.xs, self.xf, self.dx):
+                    pbar.update(n=12)
                     self.filehandle.write(pack(Snapshot.floatstring, Ix(i, j, k, Hy, Hz, G)))
                     self.filehandle.write(pack(Snapshot.floatstring, Iy(i, j, k, Hx, Hz, G)))
                     self.filehandle.write(pack(Snapshot.floatstring, Iz(i, j, k, Hx, Hy, G)))
