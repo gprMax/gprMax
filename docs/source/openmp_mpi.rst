@@ -26,11 +26,11 @@ HPC environments usually require jobs to be submitted to a queue using a job scr
 OpenMP example
 --------------
 
-:download:`gprmax_openmp.sh <../../tools/HPC scripts/gprmax_openmp.sh>`
+:download:`gprmax_openmp.sh <../../tools/HPC scripts/gprmax_omp.sh>`
 
 Here is an example of a job script for running models, e.g. A-scans to make a B-scan, one after another on a single cluster node. This is not as beneficial as the OpenMP/MPI example, but it can be a helpful starting point when getting the software running in your HPC environment. The behaviour of most of the variables is explained in the comments in the script.
 
-.. literalinclude:: ../../tools/HPC scripts/gprmax_openmp.sh
+.. literalinclude:: ../../tools/HPC scripts/gprmax_omp.sh
     :language: bash
     :linenos:
 
@@ -40,11 +40,11 @@ In this example 100 models will be run one after another on a single node of the
 OpenMP/MPI example
 ------------------
 
-:download:`gprmax_openmp.sh <../../tools/HPC scripts/gprmax_openmp_mpi.sh>`
+:download:`gprmax_openmp.sh <../../tools/HPC scripts/gprmax_omp_mpi.sh>`
 
 Here is an example of a job script for running models, e.g. A-scans to make a B-scan, distributed as independent tasks in a HPC environment using MPI. The behaviour of most of the variables is explained in the comments in the script.
 
-.. literalinclude:: ../../tools/HPC scripts/gprmax_openmp.sh
+.. literalinclude:: ../../tools/HPC scripts/gprmax_omp_mpi.sh
     :language: bash
     :linenos:
 
