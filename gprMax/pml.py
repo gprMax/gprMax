@@ -292,7 +292,7 @@ def build_pmls(G):
                 averagemr = summr / (G.nx * G.ny)
 
             if G.messages and G.pmlthickness.count(pmlthickness) != len(G.pmlthickness):
-                print('Absorbing boundary: PML ({} slab) using {:g} cells'.format(pml.direction, pml.thickness))
+                print('Absorbing boundary: {} PML slab using {:g} cells'.format(pml.direction, pml.thickness))
 
             pml.calculate_update_coeffs(averageer, averagemr, G)
 
@@ -301,7 +301,7 @@ def build_pmls(G):
         if G.pmlthickness[0] == 0:
             print('Absorbing boundaries are all switched off')
         else:
-            print('Absorbing boundaries: PML with (all slabs) using {:g} cells'.format(G.pmlthickness[0]))
+            print('Absorbing boundaries: all PML slabs using {:g} cells'.format(G.pmlthickness[0]))
 
 
 def update_electric_pml(G):
