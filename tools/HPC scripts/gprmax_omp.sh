@@ -10,7 +10,7 @@
 #$ -m ea -M joe.bloggs@email.com
 
 ### Parallel environment ($NSLOTS):
-#$ -pe sharedmem 16
+#$ -pe sharedmem 8
 
 ### Job script name:
 #$ -N gprmax_omp.sh
