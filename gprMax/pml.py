@@ -292,7 +292,7 @@ def build_pmls(G):
                 averagemr = summr / (G.nx * G.ny)
 
             if G.messages and G.pmlthickness.count(pmlthickness) != len(G.pmlthickness):
-                print('Absorbing boundary: {} PML slab using {:g} cells'.format(pml.direction, pml.thickness))
+                print('Absorbing boundary: PML {} slab using {:g} cells'.format(pml.direction, pml.thickness))
 
             pml.calculate_update_coeffs(averageer, averagemr, G)
 
