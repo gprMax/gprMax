@@ -26,44 +26,13 @@ HPC environments usually require jobs to be submitted to a queue using a job scr
 OpenMP example
 --------------
 
+:download:`gprmax_openmp.sh <../../tools/HPC scripts/gprmax_openmp.sh>`
+
 Here is an example of a job script for running models, e.g. A-scans to make a B-scan, one after another on a single cluster node. This is not as beneficial as the OpenMP/MPI example, but it can be a helpful starting point when getting the software running in your HPC environment. The behaviour of most of the variables is explained in the comments in the script.
 
-.. code-block:: none
-
-    #!/bin/bash
-    #####################################################################################
-    ### Specify bash shell:
-    #$ -S /bin/bash
-
-    ### Change to current working directory:
-    #$ -cwd
-
-    ### Specify runtime (hh:mm:ss):
-    #$ -l h_rt=01:00:00
-
-    ### Email options:
-    #$ -m ea -M joe.bloggs@email.com
-
-    ### Parallel environment ($NSLOTS):
-    #$ -pe OpenMP 8
-
-    ### Job script name:
-    #$ -N test_openmp.sh
-    #####################################################################################
-
-    ### Initialise environment module
-    . /etc/profile.d/modules.sh
-
-    ### Load Anaconda environment for gprMax, i.e. Python 3 and required packages
-    module load anaconda
-    source activate gprMax
-
-    ### Set number of OpenMP threads
-    export OMP_NUM_THREADS=$NSLOTS
-
-    ### Run gprMax with input file
-    cd $HOME/gprMax
-    python -m gprMax mymodel.in -n 100
+.. literalinclude:: ../../tools/HPC scripts/gprmax_openmp.sh
+    :language: bash
+    :linenos:
 
 In this example 100 models will be run one after another on a single node of the cluster. Each model will be parallelised using 8 OpenMP threads.
 
@@ -71,48 +40,17 @@ In this example 100 models will be run one after another on a single node of the
 OpenMP/MPI example
 ------------------
 
+:download:`gprmax_openmp.sh <../../tools/HPC scripts/gprmax_openmp_mpi.sh>`
+
 Here is an example of a job script for running models, e.g. A-scans to make a B-scan, distributed as independent tasks in a HPC environment using MPI. The behaviour of most of the variables is explained in the comments in the script.
 
-.. code-block:: none
-
-    #!/bin/bash
-    #####################################################################################
-    ### Specify bash shell:
-    #$ -S /bin/bash
-
-    ### Change to current working directory:
-    #$ -cwd
-
-    ### Specify runtime (hh:mm:ss):
-    #$ -l h_rt=01:00:00
-
-    ### Email options:
-    #$ -m ea -M joe.bloggs@email.com
-
-    ### Parallel environment ($NSLOTS):
-    #$ -pe openmpi_fillup_mark2 800
-
-    ### Job script name:
-    #$ -N test_mpi.sh
-    #####################################################################################
-
-    ### Initialise environment module
-    . /etc/profile.d/modules.sh
-
-    ### Load Anaconda environment for gprMax, i.e. Python 3 and required packages
-    module load anaconda
-    source activate gprMax
-
-    ### Load OpenMPI
-    module load openmpi-gcc
-
-    ### Set number of OpenMP threads
-    export OMP_NUM_THREADS=8
-
-    ### Run gprMax with input file
-    cd $HOME/gprMax
-    mpirun -np $NSLOTS python -m gprMax mymodel.in -n 100 -mpi
+.. literalinclude:: ../../tools/HPC scripts/gprmax_openmp.sh
+    :language: bash
+    :linenos:
 
 In this example 100 models will be distributed as independent tasks in a HPC environment using MPI. The ``NSLOTS`` variable is usually the number of MPI tasks multiplied by the number of OpenMP threads per task. In this example the number of MPI tasks is 100 and number of OpenMP threads per task is 8, so 800 slots are required.
+
+.. tip::
+    These example scripts can be used directly on Eddie, the Edinburgh Compute and Data Facility (ECDF) - http://www.ed.ac.uk/information-services/research-support/research-computing/ecdf/high-performance-computing
 
 
