@@ -1,8 +1,5 @@
-#!/bin/bash
+#!/bin/sh
 #####################################################################################
-### Specify bash shell:
-#$ -S /bin/bash
-
 ### Change to current working directory:
 #$ -cwd
 
@@ -13,10 +10,10 @@
 #$ -m ea -M joe.bloggs@email.com
 
 ### Parallel environment ($NSLOTS):
-#$ -pe OpenMP 8
+#$ -pe sharedmem 16
 
 ### Job script name:
-#$ -N test_openmp.sh
+#$ -N gprmax_omp.sh
 #####################################################################################
 
 ### Initialise environment module

@@ -1,8 +1,5 @@
-#!/bin/bash
+#!/bin/sh
 #####################################################################################
-### Specify bash shell:
-#$ -S /bin/bash
-
 ### Change to current working directory:
 #$ -cwd
 
@@ -12,11 +9,14 @@
 ### Email options:
 #$ -m ea -M joe.bloggs@email.com
 
+### Resource reservation:
+#$ -R y
+
 ### Parallel environment ($NSLOTS):
-#$ -pe openmpi_fillup_mark2 800
+#$ -pe mpi 800
 
 ### Job script name:
-#$ -N test_mpi.sh
+#$ -N gprmax_omp_mpi.sh
 #####################################################################################
 
 ### Initialise environment module
