@@ -97,7 +97,7 @@ def process_geometrycmds(geometry, G):
             build_voxels_from_array(xs, ys, zs, numexistmaterials, data, G.solid, G.rigidE, G.rigidH, G.ID)
 
             if G.messages:
-                tqdm.write('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {} (dielectric smoothing will not occur for these objects).'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
+                tqdm.write('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}, dielectric smoothing is off for these objects.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
 
         elif tmp[0] == '#edge:':
             if len(tmp) != 8:
