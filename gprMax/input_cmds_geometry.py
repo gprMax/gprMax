@@ -47,7 +47,7 @@ def process_geometrycmds(geometry, G):
         tqdmbar = True
     else:
         tqdmbar = False
-    
+
     for object in tqdm(geometry, desc='Processing geometry related cmds', unit='cmds', ncols=get_terminal_size()[0] - 1, disable=tqdmbar):
         tmp = object.split()
 

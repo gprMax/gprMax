@@ -27,13 +27,14 @@ import textwrap
 from colorama import init, Fore, Style
 init()
 
+
 def logo(version):
     """Print gprMax logo, version, and licencing/copyright information.
 
     Args:
         version (str): Version number.
     """
-    
+
     description = '\n=== Electromagnetic modelling software based on the Finite-Difference Time-Domain (FDTD) method'
     copyright = 'Copyright (C) 2015-2016: The University of Edinburgh'
     authors = 'Authors: Craig Warren and Antonis Giannopoulos'
@@ -46,7 +47,7 @@ def logo(version):
     / _` | '_ \| '__| |\/| |/ _` \ \/ /
    | (_| | |_) | |  | |  | | (_| |>  <
     \__, | .__/|_|  |_|  |_|\__,_/_/\_\\
-    |___/|_|                
+    |___/|_|
                        v""" + version
 
     print('{} {}\n'.format(description, '=' * (get_terminal_size()[0] - len(description) - 1)))
@@ -148,11 +149,7 @@ def get_machine_cpu_os():
         allcpuinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True).decode('utf-8').strip()
         for line in allcpuinfo.split('\n'):
             if 'model name' in line:
-                cpuID = re.sub( '.*model name.*:', '', line, 1)
+                cpuID = re.sub('.*model name.*:', '', line, 1)
         osversion = 'Linux (' + platform.release() + ')'
 
     return machineID, cpuID, osversion
-
-
-
-

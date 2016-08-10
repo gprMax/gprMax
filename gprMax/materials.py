@@ -144,7 +144,7 @@ def process_materials(G):
 
     Args:
         G (class): Grid class instance - holds essential parameters describing the model.
-        
+
     Returns:
         materialsdata (list): List of material IDs, names, and properties to print a table.
     """

@@ -212,9 +212,9 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
     rank = comm.rank        # rank of this process
     status = MPI.Status()   # get MPI status object
     name = MPI.Get_processor_name()     # get name of processor/host
-    
+
     tsimstart = perf_counter()
-    
+
     if rank == 0:  # Master process
         modelrun = 1
         numworkers = size - 1
@@ -381,7 +381,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     else:
         inputfilestr = '\nInput file not re-processed'
         print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_size()[0] - 1 - len(inputfilestr))))
-        
+
         # Clear arrays for field components
         G.initialise_field_arrays()
 
@@ -439,10 +439,10 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         #  Start - Main FDTD calculations  #
         ####################################
         tsolvestart = perf_counter()
-        
+
         # Absolute time
         abstime = 0
-        
+
         for timestep in tqdm(range(G.iterations), desc='Running simulation, model ' + str(modelrun) + ' of ' + str(numbermodelruns), ncols=get_terminal_size()[0] - 1):
             # Store field component values for every receiver and transmission line
             store_outputs(timestep, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
@@ -493,7 +493,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             abstime += 0.5 * G.dt
 
         tsolveend = perf_counter()
-        
+
         # Write an output file in HDF5 format
         write_hdf5(outputfile, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 

@@ -44,7 +44,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
     """
 
     tsimstart = perf_counter()
-    
+
     if numbermodelruns > 1:
         raise CmdInputError('When a Taguchi optimisation is being carried out the number of model runs argument is not required')
 
@@ -139,7 +139,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
 
         # Rename confirmation experiment output file so that it is retained for each iteraction
         os.rename(outputfile, os.path.splitext(outputfile)[0] + '_final' + str(iteration + 1) + '.out')
-        
+
         print(Fore.GREEN + '\nTaguchi optimisation, iteration {} completed. History of optimal parameter values {} and of fitness values {}'.format(iteration + 1, dict(optparamshist), fitnessvalueshist) + Style.RESET_ALL)
         iteration += 1
 
@@ -157,7 +157,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
                 break
 
     tsimend = perf_counter()
-    
+
     # Save optimisation parameters history and fitness values history to file
     opthistfile = inputfileparts[0] + '_hist.pickle'
     with open(opthistfile, 'wb') as f:

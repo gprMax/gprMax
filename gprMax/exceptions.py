@@ -25,7 +25,7 @@ class GeneralError(ValueError):
     """Handles general errors. Subclasses the ValueError class."""
 
     def __init__(self, message, *args):
-        
+
         self.message = message
         super(GeneralError, self).__init__(message, *args)
         print(Fore.RED)
@@ -33,9 +33,9 @@ class GeneralError(ValueError):
 
 class CmdInputError(ValueError):
     """Handles errors in user specified commands. Subclasses the ValueError class."""
-    
+
     def __init__(self, message, *args):
-        
+
         self.message = message
         super(CmdInputError, self).__init__(message, *args)
         print(Fore.RED)
