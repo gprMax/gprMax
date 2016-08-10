@@ -13,12 +13,7 @@ Information
 
 **License**: Creative Commons Attribution-NonCommercial-NoDerivs 3.0 Unported License (http://creativecommons.org/licenses/by-nc-nd/3.0/)
 
-.. code-block:: python
-
-    # This module is licensed under the Creative Commons Attribution-NonCommercial-NoDerivs 3.0 Unported License.
-    # To view a copy of this license, visit http://creativecommons.org/licenses/by-nc-nd/3.0/.
-    #
-    # Please use the attribution at http://web.corral.tacc.utexas.edu/AustinManEMVoxels/AustinMan/citing_the_model/index.html
+**Attribution/cite**: Please follow the instructions at http://web.corral.tacc.utexas.edu/AustinManEMVoxels/AustinMan/citing_the_model/index.html
 
 AustinMan and AustinWoman (http://bit.ly/AustinMan) are open source electromagnetic voxel models of the human body, which are developed by the Computational Electromagnetics Group (http://www.ece.utexas.edu/research/areas/electromagnetics-acoustics) at The University of Texas at Austin (http://www.utexas.edu). The models are based on data from the National Library of Medicine’s Visible Human Project (https://www.nlm.nih.gov/research/visible/visible_human.html).
 

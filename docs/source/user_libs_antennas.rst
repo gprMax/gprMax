@@ -11,14 +11,7 @@ Information
 
 **License**: Creative Commons Attribution-ShareAlike 4.0 International License (http://creativecommons.org/licenses/by-sa/4.0/)
 
-.. code-block:: python
-
-    # Copyright (C) 2015-2016, Craig Warren
-    #
-    # This module is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
-    # To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
-    #
-    # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
+**Attribution/cite**: Warren, C., Giannopoulos, A. (2011). Creating finite-difference time-domain models of commercial ground-penetrating radar antennas using Taguchi's optimization method. *Geophysics*, 76(2), G37-G47. (http://dx.doi.org/10.1190/1.3548506)
 
 The module currently features models of antennas similar to commercial antennas:
 

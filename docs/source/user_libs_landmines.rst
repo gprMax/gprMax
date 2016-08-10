@@ -11,14 +11,7 @@ Information
 
 **License**: Creative Commons Attribution-ShareAlike 4.0 International License (http://creativecommons.org/licenses/by-sa/4.0/)
 
-.. code-block:: python
-
-    # Copyright (C) 2016, Iraklis Giannakis
-    #
-    # This module is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
-    # To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
-    #
-    # Please use the attribution at http://dx.doi.org/10.1109/JSTARS.2015.2468597
+**Attribution/cite**: Giannakis, I., Giannopoulos, A., Warren, C. (2016). A Realistic FDTD Numerical Modeling Framework of Ground Penetrating Radar for Landmine Detection. *IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing*, 9(1), 37-51. (http://dx.doi.org/10.1109/JSTARS.2015.2468597)
 
 The module currently features models of different anti-personnel (AP) landmines and a metal can which can be used as a false target. They are:
 
