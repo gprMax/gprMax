@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from collections import OrderedDict
+import datetime
 import importlib
 import os
 import pickle
