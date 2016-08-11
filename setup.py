@@ -116,12 +116,12 @@ elif sys.platform == 'darwin':
         os.environ['CC'] = gccpath[-1].split(os.sep)[-1]
     else:
         raise('Cannot find gcc 4.x, 5.x or 6.x in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support, i.e. --without-multilib, must be installed')
-    compile_args = ['-O3', '-w', '-fopenmp'] # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
+    compile_args = ['-O3', '-w', '-fopenmp', '-march=native'] # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
     linker_args = ['-fopenmp']
     extra_objects = []
 # Linux
 elif sys.platform == 'linux':
-    compile_args = ['-O3', '-w', '-fopenmp']
+    compile_args = ['-O3', '-w', '-fopenmp', '-march=native']
     linker_args = ['-fopenmp']
     extra_objects = []
 
