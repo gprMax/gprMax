@@ -5,11 +5,13 @@
 #
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
+import os
 import sys
+
 import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy import signal
-import matplotlib.pyplot as plt
 
 np.seterr(divide='ignore')
 
@@ -102,8 +104,11 @@ def xcorr(filename, args):
         xcorrmax (float): Maximum value from specific outputs
     """
 
-    # Load (from text file) the reference response
-    with open(args['refresp'], 'r') as f:
+    # Load (from text file) the reference response. See if file exists at specified path and if not try input file directory
+    refrespfile = os.path.abspath(args['refrespfile'])
+    if not os.path.isfile(refrespfile):
+        raise GeneralError('Cannot load reference response at {}'.format(refrespfile))
+    with open(refresp, 'r') as f:
         refdata = np.loadtxt(f)
     reftime = refdata[:,0] * 1e-9
     refresp = refdata[:,1]
@@ -183,8 +188,11 @@ def min_sum_diffs(filename, args):
         diffdB (float): Sum of the differences (in dB) between responses and a reference response
     """
 
-    # Load (from gprMax output file) the reference response
-    f = h5py.File(args['refresp'], 'r')
+    # Load (from gprMax output file) the reference response. See if file exists at specified path and if not try input file directory
+    refrespfile = os.path.abspath(args['refresp'])
+    if not os.path.isfile(refrespfile):
+        raise GeneralError('Cannot load reference response at {}'.format(refrespfile))
+    f = h5py.File(refrespfile, 'r')
     tmp = f['/rxs/rx1/']
     fieldname = list(tmp.keys())[0]
     refresp = np.array(tmp[fieldname])
