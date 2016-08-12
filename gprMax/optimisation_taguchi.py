@@ -76,14 +76,14 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
     # Select OA
     OA, N, cols, k, s, t = construct_OA(optparams)
 
-    taguchistr = '\nTaguchi optimisation'
+    taguchistr = '\n--- Taguchi optimisation'
     print('{} {}\n'.format(taguchistr, '-' * (get_terminal_size()[0] - 1 - len(taguchistr))))
-    print('\tOrthogonal array: {:g} experiments per iteration, {:g} parameters ({:g} will be used), {:g} levels, and strength {:g}'.format(N, cols, k, s, t))
+    print('Orthogonal array: {:g} experiments per iteration, {:g} parameters ({:g} will be used), {:g} levels, and strength {:g}'.format(N, cols, k, s, t))
     tmp = [(k, v) for k, v in optparams.items()]
-    print('\tParameters to optimise with ranges: {}'.format(str(tmp).strip('[]')))
-    print('\tOutput name(s) from model: {}'.format(fitness['args']['outputs']))
-    print('\tFitness function {} with stopping criterion {:g}'.format(fitness['name'], fitness['stop']))
-    print('\tMaximum iterations: {:g}'.format(maxiterations))
+    print('Parameters to optimise with ranges: {}'.format(str(tmp).strip('[]')))
+    print('Output name(s) from model: {}'.format(fitness['args']['outputs']))
+    print('Fitness function "{}" with stopping criterion {:g}'.format(fitness['name'], fitness['stop']))
+    print('Maximum iterations: {:g}'.format(maxiterations))
 
     # Initialise arrays and lists to store parameters required throughout optimisation
     # Lower, central, and upper values for each parameter
@@ -119,7 +119,8 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
             fitnessvalues.append(fitness_metric(outputfile, fitness['args']))
             os.remove(outputfile)
 
-        print('\nTaguchi optimisation, iteration {}: {} initial experiments with fitness values {}.'.format(iteration + 1, numbermodelruns, fitnessvalues))
+        taguchistr = '\n--- Taguchi optimisation, iteration {}: {} initial experiments with fitness values {}.'.format(iteration + 1, numbermodelruns, fitnessvalues)
+        print('{} {}\n'.format(taguchistr, '-' * (get_terminal_size()[0] - 1 - len(taguchistr))))
 
         # Calculate optimal levels from fitness values by building a response table; update dictionary of parameters with optimal values
         optparams, levelsopt = calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N, k)
@@ -140,12 +141,14 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
         # Rename confirmation experiment output file so that it is retained for each iteraction
         os.rename(outputfile, os.path.splitext(outputfile)[0] + '_final' + str(iteration + 1) + '.out')
 
-        print(Fore.GREEN + '\nTaguchi optimisation, iteration {} completed. History of optimal parameter values {} and of fitness values {}'.format(iteration + 1, dict(optparamshist), fitnessvalueshist) + Style.RESET_ALL)
+        taguchistr = '\n--- Taguchi optimisation, iteration {} completed. History of optimal parameter values {} and of fitness values {}'.format(iteration + 1, dict(optparamshist), fitnessvalueshist)
+        print('{} {}\n'.format(taguchistr, '-' * (get_terminal_size()[0] - 1 - len(taguchistr))))
         iteration += 1
 
         # Stop optimisation if stopping criterion has been reached
         if fitnessvalueshist[iteration - 1] > fitness['stop']:
-            print('\nTaguchi optimisation stopped as fitness criteria reached: {:g} > {:g}'.format(fitnessvalueshist[iteration - 1], fitness['stop']))
+            taguchistr = '\n--- Taguchi optimisation stopped as fitness criteria reached: {:g} > {:g}'.format(fitnessvalueshist[iteration - 1], fitness['stop'])
+            print('{} {}\n'.format(taguchistr, '-' * (get_terminal_size()[0] - 1 - len(taguchistr))))
             break
 
         # Stop optimisation if successive fitness values are within a percentage threshold
@@ -153,7 +156,8 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
             fitnessvaluesclose = (np.abs(fitnessvalueshist[iteration - 2] - fitnessvalueshist[iteration - 1]) / fitnessvalueshist[iteration - 1]) * 100
             fitnessvaluesthres = 0.1
             if fitnessvaluesclose < fitnessvaluesthres:
-                print('\nTaguchi optimisation stopped as successive fitness values within {}%'.format(fitnessvaluesthres))
+                taguchistr = '\n--- Taguchi optimisation stopped as successive fitness values within {}%'.format(fitnessvaluesthres)
+                print('{} {}\n'.format(taguchistr, '-' * (get_terminal_size()[0] - 1 - len(taguchistr))))
                 break
 
     tsimend = perf_counter()
@@ -165,9 +169,9 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
         pickle.dump(fitnessvalueshist, f)
         pickle.dump(optparamsinit, f)
 
-    print('\nTaguchi optimisation completed after {} iteration(s).\nHistory of optimal parameter values {} and of fitness values {}'.format(iteration, dict(optparamshist), fitnessvalueshist))
-    simcompletestr = '\n== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)))
-    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - 1 - len(simcompletestr))))
+    taguchistr = '\n=== Taguchi optimisation completed in [HH:MM:SS]: {} after {} iteration(s)'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)), iteration)
+    print('{} {}\n'.format(taguchistr, '=' * (get_terminal_size()[0] - 1 - len(taguchistr))))
+    print('History of optimal parameter values {} and of fitness values {}\n'.format(dict(optparamshist), fitnessvalueshist))
 
 
 def taguchi_code_blocks(inputfile, taguchinamespace):
@@ -271,7 +275,7 @@ def construct_OA(optparams):
 
     else:
         # THIS CASE NEEDS FURTHER TESTING
-        print(Fore.RED + '\nTaguchi optimisation, WARNING: Optimising more than 7 parameters is currently an experimental feature!' + Style.RESET_ALL)
+        print(Fore.RED + '\nWARNING: Optimising more than 7 parameters is currently an experimental feature!' + Style.RESET_ALL)
 
         p = int(np.ceil(np.log(k * (s - 1) + 1) / np.log(s)))
 
