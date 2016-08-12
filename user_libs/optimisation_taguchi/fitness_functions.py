@@ -105,7 +105,7 @@ def xcorr(filename, args):
     """
 
     # Load (from text file) the reference response. See if file exists at specified path and if not try input file directory
-    refrespfile = os.path.abspath(args['refrespfile'])
+    refrespfile = os.path.abspath(args['refresp'])
     if not os.path.isfile(refrespfile):
         raise GeneralError('Cannot load reference response at {}'.format(refrespfile))
     with open(refresp, 'r') as f:
