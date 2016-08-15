@@ -2,7 +2,7 @@
 optparams['resinner'] = [0.1, 1000]
 optparams['resmiddle'] = [0.1, 1000]
 optparams['resouter'] = [0.1, 1000]
-fitness = {'name': 'maxabsvalue', 'stop': 10, 'args': {'outputs': 'Ex60mm'}}
+fitness = {'name': 'min_max_value', 'stop': 10, 'args': {'type': 'absmax', 'outputs': 'Ex60mm'}}
 #end_taguchi:
 
 #python:
