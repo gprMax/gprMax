@@ -189,7 +189,7 @@ def min_sum_diffs(filename, args):
             outputs += 1
 
     # Check in case no outputs where found
-    if outputs = 0:
+    if outputs == 0:
         raise GeneralError('No outputs matching {} were found'.format(args['outputs']))
 
     return diffdB / outputs
