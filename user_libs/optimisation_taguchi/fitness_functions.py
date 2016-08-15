@@ -18,88 +18,56 @@ np.seterr(divide='ignore')
 from gprMax.exceptions import GeneralError
 
 """This module contains fitness metric functions that can be used with the Taguchi optimisation method.
-    
-    All fitness functions must take two arguments and return a single fitness value. 
-    The first argument should be the name of the output file 
+
+    All fitness functions must take two arguments and return a single fitness value.
+    The first argument should be the name of the output file
     The second argument is a dictionary which can contain any number of additional arguments, e.g. names (IDs) of outputs (rxs) from input file
 """
 
-def minvalue(filename, args):
+def min_max_value(filename, args):
     """Minimum value from a response.
-        
+
     Args:
         filename (str): Name of output file
-        args (dict): 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
-        
+        args (dict): 'type' key with string 'min', 'max' or 'absmax'; 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
+
     Returns:
-        minvalue (float): Magnitude of minimum value from specific outputs
+        value (float): Minimum, maximum, or absolute maximum value from specific outputs
     """
 
     f = h5py.File(filename, 'r')
     nrx = f.attrs['nrx']
 
+    value = 0
+    outputsused = False
     for rx in range(1, nrx + 1):
         output = f['/rxs/rx' + str(rx) + '/']
         if output.attrs['Name'] in args['outputs']:
             outputname = list(output.keys())[0]
-            minvalue = np.amin(output[outputname])
+            if args['type'] == 'min':
+                value += np.abs(np.amin(output[outputname]))
+            elif args['type'] == 'max':
+                value += np.amax(output[outputname])
+            elif args['type'] == 'absmax':
+                value += np.amax(np.abs(output[outputname]))
+            else:
+                raise GeneralError('type must be either min, max, or absmax')
+            outputsused = True
 
-    return np.abs(minvalue)
+    # Check in case no outputs where found
+    if not outputsused:
+        raise GeneralError('No outputs matching {} were found'.format(args['outputs']))
 
-
-def maxvalue(filename, args):
-    """Maximum value from a response.
-        
-    Args:
-        filename (str): Name of output file
-        args (dict): 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
-        
-    Returns:
-        maxvalue (float): Maximum value from specific outputs
-    """
-
-    f = h5py.File(filename, 'r')
-    nrx = f.attrs['nrx']
-
-    for rx in range(1, nrx + 1):
-        output = f['/rxs/rx' + str(rx) + '/']
-        if output.attrs['Name'] in args['outputs']:
-            outputname = list(output.keys())[0]
-            maxvalue = np.amax(output[outputname])
-
-    return maxvalue
-
-
-def maxabsvalue(filename, args):
-    """Maximum absolute value from a response.
-        
-    Args:
-        filename (str): Name of output file
-        args (dict): 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
-        
-    Returns:
-        maxabsvalue (float): Maximum absolute value from specific outputs
-    """
-
-    f = h5py.File(filename, 'r')
-    nrx = f.attrs['nrx']
-
-    for rx in range(1, nrx + 1):
-        output = f['/rxs/rx' + str(rx) + '/']
-        if output.attrs['Name'] in args['outputs']:
-            outputname = list(output.keys())[0]
-            maxabsvalue = np.amax(np.abs(output[outputname]))
-
-    return maxabsvalue
+    return value
 
 
 def xcorr(filename, args):
     """Maximum value of a cross-correlation between a response and a reference response.
-        
+
     Args:
         filename (str): Name of output file
         args (dict): 'refresp' key with path & filename of reference response (time, amp) stored in a text file; 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
-        
+
     Returns:
         xcorrmax (float): Maximum value from specific outputs
     """
@@ -107,8 +75,8 @@ def xcorr(filename, args):
     # Load (from text file) the reference response. See if file exists at specified path and if not try input file directory
     refrespfile = os.path.abspath(args['refresp'])
     if not os.path.isfile(refrespfile):
-        raise GeneralError('Cannot load reference response at {}'.format(refrespfile))
-    with open(refresp, 'r') as f:
+        raise GeneralError('Cannot load reference response from {}'.format(refrespfile))
+    with open(refrespfile, 'r') as f:
         refdata = np.loadtxt(f)
     reftime = refdata[:,0] * 1e-9
     refresp = refdata[:,1]
@@ -117,19 +85,25 @@ def xcorr(filename, args):
     f = h5py.File(filename, 'r')
     nrx = f.attrs['nrx']
     modeltime = np.arange(0, f.attrs['dt'] * f.attrs['Iterations'], f.attrs['dt'])
-    
+
+    outputsused = False
     for rx in range(1, nrx + 1):
         output = f['/rxs/rx' + str(rx) + '/']
         if output.attrs['Name'] in args['outputs']:
             outputname = list(output.keys())[0]
             modelresp = output[outputname]
-            # Convert field value (V/m) to voltage
+            # Convert electric field value (V/m) to voltage (V)
             if outputname == 'Ex':
                 modelresp *= -f.attrs['dx, dy, dz'][0]
             elif outputname == 'Ey':
                 modelresp *= -f.attrs['dx, dy, dz'][1]
             elif outputname == 'Ez':
                 modelresp *= -f.attrs['dx, dy, dz'][2]
+            outputsused = True
+
+    # Check in case no outputs where found
+    if not outputsused:
+        raise GeneralError('No outputs matching {} were found'.format(args['outputs']))
 
     # Normalise reference respose and response from output file
 #    refresp /= np.amax(np.abs(refresp))
@@ -162,7 +136,7 @@ def xcorr(filename, args):
 
     # Calculate cross-correlation
     xcorr = signal.correlate(refresp, modelresp)
-    
+
     # Set any NaNs to zero
     xcorr = np.nan_to_num(xcorr)
 
@@ -179,11 +153,11 @@ def xcorr(filename, args):
 
 def min_sum_diffs(filename, args):
     """Sum of the differences (in dB) between responses and a reference response.
-        
+
     Args:
         filename (str): Name of output file
         args (dict): 'refresp' key with path & filename of reference response; 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
-        
+
     Returns:
         diffdB (float): Sum of the differences (in dB) between responses and a reference response
     """
@@ -200,7 +174,7 @@ def min_sum_diffs(filename, args):
     # Load (from gprMax output file) the response
     f = h5py.File(filename, 'r')
     nrx = f.attrs['nrx']
-    
+
     diffdB = 0
     outputs = 0
     for rx in range(1, nrx + 1):
@@ -214,20 +188,24 @@ def min_sum_diffs(filename, args):
             diffdB += tmp
             outputs += 1
 
+    # Check in case no outputs where found
+    if outputs = 0:
+        raise GeneralError('No outputs matching {} were found'.format(args['outputs']))
+
     return diffdB / outputs
 
 
 def compactness(filename, args):
     """A measure of the compactness of a time domain signal.
-        
+
     Args:
         filename (str): Name of output file
         args (dict): 'outputs' key with a list of names (IDs) of outputs (rxs) from input file
-        
+
     Returns:
         compactness (float): Compactness value of signal
     """
-    
+
     f = h5py.File(filename, 'r')
     nrx = f.attrs['nrx']
     dt = f.attrs['dt']
@@ -235,6 +213,7 @@ def compactness(filename, args):
     time = np.linspace(0, 1, iterations)
     time *= (iterations * dt)
 
+    outputsused = False
     for rx in range(1, nrx + 1):
         output = f['/rxs/rx' + str(rx) + '/']
         if output.attrs['Name'] in args['outputs']:
@@ -249,14 +228,14 @@ def compactness(filename, args):
             maxtab, mintab = peakdet(outputdata, delta)
             peaks = maxtab + mintab
             peaks.sort()
-            
+
             # Remove any peaks smaller than a threshold
             thresholdpeak = 1e-3
             peaks = [peak for peak in peaks if np.abs(outputdata[peak]) > thresholdpeak]
-            
+
             # Amplitude ratio of the 1st to 3rd peak - hopefully be a measure of a compact envelope
             compactness = np.abs(outputdata[peaks[0]]) / np.abs(outputdata[peaks[2]])
-            
+
 #            # Percentage of maximum value to measure compactness of signal
 #            durationthreshold = 2
 #            # Check if there is a peak/trough smaller than threshold
@@ -267,8 +246,11 @@ def compactness(filename, args):
 #                time2threshold = time[peaks[durationthresholdexist[0]]]
 #                compactness = time2threshold - time[min(peaks)]
 
-    return compactness
+    # Check in case no outputs where found
+    if not outputsused:
+        raise GeneralError('No outputs matching {} were found'.format(args['outputs']))
 
+    return compactness
 
 
 ######################################
@@ -277,78 +259,78 @@ def compactness(filename, args):
 
 def spectral_centroid(x, samplerate):
     """Calculate the spectral centroid of a signal.
-        
+
     Args:
         x (float): 1D array containing time domain signal
         samplerate (float): Sample rate of signal (Hz)
-        
+
     Returns:
         centroid (float): Weighted mean of the frequencies present in the signal
     """
-    
+
     magnitudes = np.abs(np.fft.rfft(x))
     length = len(x)
-    
     # Positive frequencies
     freqs = np.abs(np.fft.fftfreq(length, 1.0/samplerate)[:length//2+1])
-
     centroid = np.sum(magnitudes*freqs) / np.sum(magnitudes)
+
     return centroid
 
 
 def zero_crossings(x):
     """Find location of zero crossings in 1D data array.
-        
+
     Args:
         x (float): 1D array
-        
+
     Returns:
         indexzeros (int): Array of indices of zero crossing locations
     """
-    
+
     pos = x > 0
     npos = ~pos
     indexzeros = ((pos[:-1] & npos[1:]) | (npos[:-1] & pos[1:])).nonzero()[0]
+
     return indexzeros
-                                
-                                
+
+
 def peakdet(v, delta, x = None):
-    """Detect peaks and troughs in a vector (adapted from MATLAB script at http://billauer.co.il/peakdet.html). 
+    """Detect peaks and troughs in a vector (adapted from MATLAB script at http://billauer.co.il/peakdet.html).
         A point is considered a maximum peak if it has the maximal value, and was preceded (to the left) by a value lower by delta.
-        
+
         Eli Billauer, 3.4.05 (Explicitly not copyrighted).
         This function is released to the public domain; Any use is allowed.
-    
+
     Args:
         v (float): 1D array
         delta (float): threshold for determining peaks/troughs
-        
+
     Returns:
         maxtab, mintab (list): Indices of peak/trough locations
     """
-                                
+
     maxtab = []
     mintab = []
-       
+
     if x is None:
         x = np.arange(len(v))
-    
+
     v = np.asarray(v)
-    
+
     if len(v) != len(x):
         raise GeneralError('Input vectors v and x must have same length')
 
     if not np.isscalar(delta):
         raise GeneralError('Input argument delta must be a scalar')
-    
+
     if delta <= 0:
         raise GeneralError('Input argument delta must be positive')
-    
+
     mn, mx = np.Inf, -np.Inf
     mnpos, mxpos = np.NaN, np.NaN
-    
+
     lookformax = True
-    
+
     for i in np.arange(len(v)):
         this = v[i]
         if this > mx:
@@ -357,7 +339,7 @@ def peakdet(v, delta, x = None):
         if this < mn:
             mn = this
             mnpos = x[i]
-        
+
         if lookformax:
             if this < mx-delta:
                 if int(mxpos) != 0:
@@ -374,16 +356,3 @@ def peakdet(v, delta, x = None):
                     lookformax = True
 
     return maxtab, mintab
-
-
-
-
-
-
-
-
-
-
-
-
-    
