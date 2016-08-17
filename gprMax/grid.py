@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from colorama import init, Fore, Style
+init()
 import numpy as np
 
 from gprMax.constants import c, floattype, complextype
@@ -175,16 +177,21 @@ def dispersion_check(G):
                     waveformvalues[timeiter.index] = waveform.calculate_value(timeiter[0], G.dt)
                     timeiter.iternext()
 
-            # Calculate magnitude of frequency spectra of waveform
-            power = 20 * np.log10(np.abs(np.fft.fft(waveformvalues))**2)
-            freqs = np.fft.fftfreq(power.size, d=G.dt)
+            # Ensure source waveform is not being overly truncated before attempting any FFT
+            if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:
+                # Calculate magnitude of frequency spectra of waveform
+                power = 20 * np.log10(np.abs(np.fft.fft(waveformvalues))**2)
+                freqs = np.fft.fftfreq(power.size, d=G.dt)
 
-            # Shift powers so that frequency with maximum power is at zero decibels
-            power -= np.amax(power)
+                # Shift powers so that frequency with maximum power is at zero decibels
+                power -= np.amax(power)
 
-            # Set maximum frequency to -60dB from maximum power
-            freq = np.where((np.amax(power[1::]) - power[1::]) > 60)[0][0] + 1
-            maxfreqs.append(freqs[freq])
+                # Set maximum frequency to -60dB from maximum power
+                freq = np.where((np.amax(power[1::]) - power[1::]) > 60)[0][0] + 1
+                maxfreqs.append(freqs[freq])
+
+            else:
+                print(Fore.RED + "\nWARNING: Duration of source waveform '{}' means it does not fit within specified time window and is therefore being truncated.".format(waveform.ID) + Style.RESET_ALL)
 
     if maxfreqs:
         maxfreq = max(maxfreqs)
