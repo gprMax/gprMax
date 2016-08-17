@@ -18,7 +18,7 @@
 
 from collections import OrderedDict
 import datetime
-import importlib
+from importlib import import_module
 import os
 import pickle
 from shutil import get_terminal_size
@@ -71,7 +71,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
     optparamshist = OrderedDict((key, list()) for key in optparams)
 
     # Import specified fitness function
-    fitness_metric = getattr(importlib.import_module('user_libs.optimisation_taguchi.fitness_functions'), fitness['name'])
+    fitness_metric = getattr(import_module('user_libs.optimisation_taguchi.fitness_functions'), fitness['name'])
 
     # Select OA
     OA, N, cols, k, s, t = construct_OA(optparams)
@@ -275,7 +275,7 @@ def construct_OA(optparams):
 
     else:
         # THIS CASE NEEDS FURTHER TESTING
-        print(Fore.RED + '\nWARNING: Optimising more than 7 parameters is currently an experimental feature!' + Style.RESET_ALL)
+        print(Fore.RED + 'WARNING: Optimising more than 7 parameters is currently an experimental feature!' + Style.RESET_ALL)
 
         p = int(np.ceil(np.log(k * (s - 1) + 1) / np.log(s)))
 
