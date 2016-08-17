@@ -84,7 +84,7 @@ def process_singlecmds(singlecmds, G):
     if G.messages:
         print('Number of threads: {}'.format(G.nthreads))
     if G.nthreads > psutil.cpu_count(logical=False):
-        print(Fore.RED + '\nWARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, psutil.cpu_count(logical=False)) + Style.RESET_ALL)
+        print(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, psutil.cpu_count(logical=False)) + Style.RESET_ALL)
 
     # Spatial discretisation
     cmd = '#dx_dy_dz'
@@ -116,12 +116,15 @@ def process_singlecmds(singlecmds, G):
     if G.messages:
         print('Domain size: {:g} x {:g} x {:g}m ({:d} x {:d} x {:d} = {:g} cells)'.format(tmp[0], tmp[1], tmp[2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)))
 
-    # Estimate memory (RAM) usage (currently this is a pretty loose estimate but seems to match reasonably with memory usage reported when model completes)
-    memestimate = (((G.nx + 1) * (G.ny + 1) * (G.nz + 1) * 13 * np.dtype(floattype).itemsize + (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * 18) * 1.1) + 30e6
+    # Estimate memory (RAM) usage
+    stdoverhead = 70e6
+    floatarrays = (6 + 6 + 1) * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(floattype).itemsize  # 6 x field arrays + 6 x ID arrays + 1 x solid array
+    rigidarray = (12 + 6) * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(np.int8).itemsize
+    memestimate = stdoverhead + floatarrays + rigidarray
     if memestimate > psutil.virtual_memory().total:
-        raise GeneralError('Estimated memory (RAM) required ~{} exceeds {} available!\n'.format(human_size(memestimate), human_size(psutil.virtual_memory().total)))
+        raise GeneralError('Estimated memory (RAM) required ~{} exceeds {} available!\n'.format(human_size(memestimate), human_size(psutil.virtual_memory().total, a_kilobyte_is_1024_bytes=True)))
     if G.messages:
-        print('Memory (RAM) required: ~{} ({} detected)'.format(human_size(memestimate), human_size(psutil.virtual_memory().total)))
+        print('Memory (RAM) required: ~{} ({} detected)'.format(human_size(memestimate), human_size(psutil.virtual_memory().total, a_kilobyte_is_1024_bytes=True)))
 
     # Time step CFL limit (use either 2D or 3D) and default PML thickness
     if G.nx == 1:
