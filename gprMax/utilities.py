@@ -83,7 +83,7 @@ def round_value(value, decimalplaces=0):
     return rounded
 
 
-def human_size(size, a_kilobyte_is_1024_bytes=True):
+def human_size(size, a_kilobyte_is_1024_bytes=False):
     """Convert a file size to human-readable form.
 
     Args:
@@ -103,7 +103,7 @@ def human_size(size, a_kilobyte_is_1024_bytes=True):
     for suffix in suffixes[multiple]:
         size /= multiple
         if size < multiple:
-            return '{0:.1f}{1}'.format(size, suffix)
+            return '{:.0f}{}'.format(size, suffix)
 
     raise ValueError('Number is too large.')
 
