@@ -44,9 +44,9 @@ from .input_cmds_file import process_python_include_code, write_processed_file, 
 from .input_cmds_multiuse import process_multicmds
 from .input_cmds_singleuse import process_singlecmds
 from .materials import Material, process_materials
-from .pml import build_pmls, update_electric_pml, update_magnetic_pml
+from .pml import build_pmls
 from .receivers import store_outputs
-from .utilities import logo, human_size
+from .utilities import logo, human_size, get_machine_cpu_os
 from .writer_hdf5 import write_hdf5
 from .yee_cell_build import build_electric_components, build_magnetic_components
 
@@ -184,7 +184,9 @@ def run_benchmark_sim(args, inputfile, usernamespace):
 
     # Save number of threads and benchmarking times to NumPy archive
     threads = np.array(threads)
-    np.savez(os.path.splitext(inputfile)[0], threads=threads, benchtimes=benchtimes, version=__version__)
+    machineID, cpuID, osversion = get_machine_cpu_os()
+    machineIDlong = machineID + '; ' + cpuID + '; ' + osversion
+    np.savez(os.path.splitext(inputfile)[0], threads=threads, benchtimes=benchtimes, machineID=machineIDlong, version=__version__)
 
     simcompletestr = '\n=== Simulation completed'
     print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - 1 - len(simcompletestr))))
@@ -464,7 +466,8 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
                 update_electric_dispersive_multipole_A(G.nx, G.ny, G.nz, G.nthreads, Material.maxpoles, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
 
             # Update electric field components with the PML correction
-            update_electric_pml(G)
+            for pml in G.pmls:
+                pml.update_electric(G)
 
             # Update electric field components from sources (update any Hertzian dipole sources last)
             for source in G.voltagesources + G.transmissionlines + G.hertziandipoles:
@@ -483,7 +486,8 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             update_magnetic(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
 
             # Update magnetic field components with the PML correction
-            update_magnetic_pml(G)
+            for pml in G.pmls:
+                pml.update_magnetic(G)
 
             # Update magnetic field components from sources
             for source in G.transmissionlines + G.magneticdipoles:
