@@ -13,18 +13,33 @@ from gprMax.utilities import get_machine_cpu_os
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Plots execution times and speedup factors from benchmarking models run with different numbers of threads. Results are read from a NumPy archive.', usage='cd gprMax; python -m tests.benchmarking.plot_benchmark numpyfile')
 parser.add_argument('numpyfile1', help='name of NumPy archive file including path')
-parser.add_argument('numpyfile2', default='None', help='name of NumPy archive file including path')
+parser.add_argument('--numpyfile2', default=None, help='name of NumPy archive file including path')
 args = parser.parse_args()
 
-# Get machine/CPU/OS details
-machineID, cpuID, osversion = get_machine_cpu_os()
-machineIDlong = machineID + '; ' + cpuID + '; ' + osversion
-
-# Load results
+# Load results1
 results1 = np.load(args.numpyfile1)
+
+# Get machine/CPU/OS details
+try:
+    machineIDlong = str(results1['machineID'])
+    machineID = machineIDlong.split(';')[0]
+except KeyError:
+    machineID, cpuID, osversion = get_machine_cpu_os()
+    machineIDlong = machineID + '; ' + cpuID + '; ' + osversion
+print('MachineID: {}'.format(machineIDlong))
+
+# Results1 info
+print('Model: {}'.format(args.numpyfile1))
+for thread in range(len(results1['threads'])):
+    print('{} thread(s): {:g} s'.format(results1['threads'][thread], results1['benchtimes'][thread]))
 plotlabel1 = os.path.splitext(os.path.split(args.numpyfile1)[1])[0] + '.in'
-if args.numpyfile2:
+
+# Load results2 and info
+if args.numpyfile2 is not None:
     results2 = np.load(args.numpyfile2)
+    print('Model: {}'.format(args.numpyfile2))
+    for thread in range(len(results2['threads'])):
+        print('{} thread(s): {:g} s'.format(results2['threads'][thread], results2['benchtimes'][thread]))
     plotlabel2 = os.path.splitext(os.path.split(args.numpyfile2)[1])[0] + '.in'
 
 # Get gprMax version
@@ -42,7 +57,7 @@ gs = gridspec.GridSpec(1, 2, hspace=0.5)
 ax = plt.subplot(gs[0, 0])
 ax.plot(results1['threads'], results1['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, label=plotlabel1 + ' (v' + version + ')')
 
-if args.numpyfile2:
+if args.numpyfile2 is not None:
     ax.plot(results2['threads'], results2['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, ls='--', label=plotlabel2 + ' (v' + version + ')')
 
 #ax.plot(results['threads'], results['bench1'], color=colors[1], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v3.0.0b21)')
@@ -65,7 +80,7 @@ ax.set_ylim(0, top=ax.get_ylim()[1] * 1.1)
 ax = plt.subplot(gs[0, 1])
 ax.plot(results1['threads'], results1['benchtimes'][-1] / results1['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, label=plotlabel1 + ' (v' + version + ')')
 
-if args.numpyfile2:
+if args.numpyfile2 is not None:
     ax.plot(results2['threads'], results2['benchtimes'][-1] / results2['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, ls='--', label=plotlabel2 + ' (v' + version + ')')
 
 #ax.plot(results['threads'], results['bench1'][0] / results['bench1'], color=colors[1], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v3.0.0b21)')
