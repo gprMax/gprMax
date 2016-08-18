@@ -74,6 +74,7 @@ class FDTDGrid(Grid):
         self.inputdirectory = ''
         self.title = ''
         self.messages = True
+        self.tqdmdisable = False
         self.nx = 0
         self.ny = 0
         self.nz = 0
