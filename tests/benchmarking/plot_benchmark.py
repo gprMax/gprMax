@@ -22,6 +22,7 @@ baseresult = np.load(args.baseresult)
 # Get machine/CPU/OS details
 try:
     machineIDlong = str(baseresult['machineID'])
+    #machineIDlong = 'Dell PowerEdge R630; Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz; Linux (3.10.0-327.18.2.el7.x86_64)' # Use to manually describe machine
     machineID = machineIDlong.split(';')[0]
 except KeyError:
     machineID, cpuID, osversion = get_machine_cpu_os()
@@ -32,17 +33,18 @@ print('MachineID: {}'.format(machineIDlong))
 print('Model: {}'.format(args.baseresult))
 for thread in range(len(baseresult['threads'])):
     print('{} thread(s): {:g} s'.format(baseresult['threads'][thread], baseresult['benchtimes'][thread]))
-plotlabel1 = os.path.splitext(os.path.split(args.baseresult)[1])[0] + '.in'
+baseplotlabel = os.path.splitext(os.path.split(args.baseresult)[1])[0] + '.in'
 
 # Load other results and info
 otherresults = []
+otherplotlabels = []
 if args.otherresults is not None:
     for i, result in enumerate(args.otherresults):
         otherresults.append(np.load(result))
         print('Model: {}'.format(result))
         for thread in range(len(otherresults[i]['threads'])):
             print('{} thread(s): {:g} s'.format(otherresults[i]['threads'][thread], otherresults[i]['benchtimes'][thread]))
-        plotlabel2 = os.path.splitext(os.path.split(result)[1])[0] + '.in'
+        otherplotlabels.append(os.path.splitext(os.path.split(result)[1])[0] + '.in')
 
 # Get gprMax version
 try:
@@ -58,11 +60,11 @@ fig, ax = plt.subplots(num=machineIDlong, figsize=(20, 10), facecolor='w', edgec
 fig.suptitle(machineIDlong)
 gs = gridspec.GridSpec(1, 2, hspace=0.5)
 ax = plt.subplot(gs[0, 0])
-ax.plot(baseresult['threads'], baseresult['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, label=plotlabel1 + ' (v' + version + ')')
+ax.plot(baseresult['threads'], baseresult['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, label=baseplotlabel + ' (v' + version + ')')
 
 if args.otherresults is not None:
     for i, result in enumerate(otherresults):
-        ax.plot(result['threads'], result['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, ls=lines[i], label=plotlabel2 + ' (v' + version + ')')
+        ax.plot(result['threads'], result['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, ls=lines[i], label=otherplotlabels[i] + ' (v' + version + ')')
 
 #ax.plot(results['threads'], results['bench1'], color=colors[1], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v3.0.0b21)')
 #ax.plot(results['threads'], results['bench1c'], color=colors[0], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v2)')
@@ -82,11 +84,11 @@ ax.set_xticks(np.append(baseresult['threads'], 0))
 ax.set_ylim(0, top=ax.get_ylim()[1] * 1.1)
 
 ax = plt.subplot(gs[0, 1])
-ax.plot(baseresult['threads'], baseresult['benchtimes'][-1] / baseresult['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, label=plotlabel1 + ' (v' + version + ')')
+ax.plot(baseresult['threads'], baseresult['benchtimes'][-1] / baseresult['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, label=baseplotlabel + ' (v' + version + ')')
 
 if args.otherresults is not None:
     for i, result in enumerate(otherresults):
-        ax.plot(result['threads'], result['benchtimes'][-1] / result['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, ls=lines[i], label=plotlabel2 + ' (v' + version + ')')
+        ax.plot(result['threads'], result['benchtimes'][-1] / result['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, ls=lines[i], label=otherplotlabels[i] + ' (v' + version + ')')
 
 #ax.plot(results['threads'], results['bench1'][0] / results['bench1'], color=colors[1], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v3.0.0b21)')
 #ax.plot(results['threads'], results['bench1c'][1] / results['bench1c'], color=colors[0], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v2)')
