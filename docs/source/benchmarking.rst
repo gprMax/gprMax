@@ -11,15 +11,18 @@ How to benchmark?
 
 The following simple models (found in the ``tests/benchmarking`` sub-package) can be used to benchmark gprMax on your own system. The models feature different domain sizes and contain a simple source in free space.
 
-:download:`bench_100x100x100.in <../../tests/benchmarking/bench_100x100x100.in>`
 
 .. literalinclude:: ../../tests/benchmarking/bench_100x100x100.in
     :language: none
     :linenos:
 
-:download:`bench_150x150x150.in <../../tests/benchmarking/bench_150x150x150.in>`
 
 .. literalinclude:: ../../tests/benchmarking/bench_150x150x150.in
+    :language: none
+    :linenos:
+
+
+.. literalinclude:: ../../tests/benchmarking/bench_200x200x200.in
     :language: none
     :linenos:
 
@@ -27,7 +30,7 @@ The following simple models (found in the ``tests/benchmarking`` sub-package) ca
 Using the following steps to collect and report benchmarking results for each of the models:
 
 1. Run gprMax in benchmarking mode, e.g. ``python -m gprMax tests/benchmarking/bench_100x100x100.in -benchmark``
-2. Use the ``plot_benchmark`` module to create plots of the execution time and speed-up, e.g. ``python -m tests.benchmarking.plot_benchmark tests/benchmarking/bench_100x100x100.npz``.
+2. Use the ``plot_benchmark`` module to create plots of the execution time and speed-up, e.g. ``python -m tests.benchmarking.plot_benchmark tests/benchmarking/bench_100x100x100.npz``. You can combine results into a single plot, e.g. e.g. ``python -m tests.benchmarking.plot_benchmark tests/benchmarking/bench_100x100x100.npz --otherresults tests/benchmarking/bench_150x150x150.npz``.
 3. Share your data by emailing us your Numpy archives and plot files to info@gprmax.com
 
 Results
@@ -64,6 +67,16 @@ MacPro3,1
 ^^^^^^^^^
 
 .. figure:: ../../tests/benchmarking/results/MacOSX/MacPro3,1/Apple_MacPro3,1.png
+    :width: 600px
+
+
+Linux
+-----
+
+Dell PowerEdge R630
+^^^^^^^^^^^^^^^^^^^
+
+.. figure:: ../../tests/benchmarking/results/Linux/Dell_PowerEdge_R630/Dell_PowerEdge_R630.png
     :width: 600px
 
 

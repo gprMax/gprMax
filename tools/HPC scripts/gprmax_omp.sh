@@ -23,9 +23,6 @@
 module load anaconda
 source activate gprMax
 
-### Set number of OpenMP threads
-export OMP_NUM_THREADS=$NSLOTS
-
 ### Run gprMax with input file
 cd $HOME/gprMax
 python -m gprMax mymodel.in -n 100
