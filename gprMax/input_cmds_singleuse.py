@@ -62,9 +62,9 @@ def process_singlecmds(singlecmds, G):
 
     # Number of threads (OpenMP) to use
     cmd = '#num_threads'
-#    os.environ['OMP_WAIT_POLICY'] = 'ACTIVE'  # What to do with threads when they are waiting
-#    os.environ['OMP_DYNAMIC'] = 'FALSE'
-#    os.environ['OMP_PROC_BIND'] = 'TRUE'  # Bind threads to physical cores
+    # os.environ['OMP_WAIT_POLICY'] = 'ACTIVE'  # What to do with threads when they are waiting; can drastically effect performance
+    os.environ['OMP_DYNAMIC'] = 'FALSE'
+    os.environ['OMP_PROC_BIND'] = 'TRUE'  # Bind threads to physical cores
 
     if singlecmds[cmd] != 'None':
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
