@@ -16,7 +16,7 @@ parser.add_argument('baseresult', help='name of NumPy archive file including pat
 parser.add_argument('--otherresults', default=None, help='list of NumPy archives file including path', nargs='+')
 args = parser.parse_args()
 
-# Load results1
+# Load base result
 baseresult = np.load(args.baseresult)
 
 # Get machine/CPU/OS details
@@ -34,7 +34,7 @@ for thread in range(len(baseresult['threads'])):
     print('{} thread(s): {:g} s'.format(baseresult['threads'][thread], baseresult['benchtimes'][thread]))
 plotlabel1 = os.path.splitext(os.path.split(args.baseresult)[1])[0] + '.in'
 
-# Load results2 and info
+# Load other and info
 otherresults = []
 if args.otherresults is not None:
     for i, result in enumerate(args.otherresults):
