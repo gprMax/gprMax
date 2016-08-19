@@ -34,7 +34,7 @@ for thread in range(len(baseresult['threads'])):
     print('{} thread(s): {:g} s'.format(baseresult['threads'][thread], baseresult['benchtimes'][thread]))
 plotlabel1 = os.path.splitext(os.path.split(args.baseresult)[1])[0] + '.in'
 
-# Load other and info
+# Load other results and info
 otherresults = []
 if args.otherresults is not None:
     for i, result in enumerate(args.otherresults):
