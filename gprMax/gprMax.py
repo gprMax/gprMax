@@ -24,7 +24,6 @@ from enum import Enum
 import itertools
 import os
 import psutil
-from shutil import get_terminal_size
 import sys
 from time import perf_counter
 
@@ -46,7 +45,7 @@ from .input_cmds_singleuse import process_singlecmds
 from .materials import Material, process_materials
 from .pml import build_pmls
 from .receivers import store_outputs
-from .utilities import logo, human_size, get_machine_cpu_os
+from .utilities import logo, human_size, get_machine_cpu_os, get_terminal_width
 from .writer_hdf5 import write_hdf5
 from .yee_cell_build import build_electric_components, build_magnetic_components
 
@@ -154,7 +153,7 @@ def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
         run_model(args, modelrun, numbermodelruns, inputfile, modelusernamespace)
     tsimend = perf_counter()
     simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)))
-    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - 1 - len(simcompletestr))))
+    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
 
 
 def run_benchmark_sim(args, inputfile, usernamespace):
@@ -189,7 +188,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     np.savez(os.path.splitext(inputfile)[0], threads=threads, benchtimes=benchtimes, machineID=machineIDlong, version=__version__)
 
     simcompletestr = '\n=== Simulation completed'
-    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - 1 - len(simcompletestr))))
+    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
 
 
 def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None):
@@ -269,7 +268,7 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
 
     tsimend = perf_counter()
     simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)))
-    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_size()[0] - 1 - len(simcompletestr))))
+    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
 
 
 def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
@@ -295,7 +294,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     # Normal model reading/building process; bypassed if geometry information to be reused
     if 'G' not in globals():
         inputfilestr = '\n--- Model {} of {}, input file: {}'.format(modelrun, numbermodelruns, inputfile)
-        print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_size()[0] - 1 - len(inputfilestr))) + Style.RESET_ALL)
+        print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
         # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
         usernamespace['current_model_run'] = modelrun
@@ -348,7 +347,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
         # Build the model, i.e. set the material properties (ID) for every edge of every Yee cell
         print()
-        pbar = tqdm(total=2, desc='Building FDTD grid', ncols=get_terminal_size()[0] - 1, file=sys.stdout, disable=G.tqdmdisable)
+        pbar = tqdm(total=2, desc='Building FDTD grid', ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
         build_electric_components(G.solid, G.rigidE, G.ID, G)
         pbar.update()
         build_magnetic_components(G.solid, G.rigidH, G.ID, G)
@@ -382,7 +381,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
     # If geometry information to be reused between model runs
     else:
         inputfilestr = '\nInput file not re-processed'
-        print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_size()[0] - 1 - len(inputfilestr))))
+        print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))))
 
         # Clear arrays for field components
         G.initialise_field_arrays()
@@ -417,7 +416,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         for i, geometryview in enumerate(G.geometryviews):
             geometryview.set_filename(modelrun, numbermodelruns, G)
             geoiters = 6 * (((geometryview.xf - geometryview.xs) / geometryview.dx) * ((geometryview.yf - geometryview.ys) / geometryview.dy) * ((geometryview.zf - geometryview.zs) / geometryview.dz))
-            pbar = tqdm(total=geoiters, unit='byte', unit_scale=True, desc='Writing geometry file {} of {}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_size()[0] - 1, file=sys.stdout, disable=G.tqdmdisable)
+            pbar = tqdm(total=geoiters, unit='byte', unit_scale=True, desc='Writing geometry file {} of {}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
             geometryview.write_vtk(modelrun, numbermodelruns, G, pbar)
             pbar.close()
             # geometryview.write_xdmf(modelrun, numbermodelruns, G)
@@ -445,7 +444,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         # Absolute time
         abstime = 0
 
-        for timestep in tqdm(range(G.iterations), desc='Running simulation, model ' + str(modelrun) + ' of ' + str(numbermodelruns), ncols=get_terminal_size()[0] - 1, file=sys.stdout, disable=G.tqdmdisable):
+        for timestep in tqdm(range(G.iterations), desc='Running simulation, model ' + str(modelrun) + ' of ' + str(numbermodelruns), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable):
             # Store field component values for every receiver and transmission line
             store_outputs(timestep, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
@@ -453,7 +452,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             for i, snap in enumerate(G.snapshots):
                 if snap.time == timestep + 1:
                     snapiters = 36 * (((snap.xf - snap.xs) / snap.dx) * ((snap.yf - snap.ys) / snap.dy) * ((snap.zf - snap.zs) / snap.dz))
-                    pbar = tqdm(total=snapiters, leave=False, unit='byte', unit_scale=True, desc='  Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_size()[0] - 1, file=sys.stdout, disable=G.tqdmdisable)
+                    pbar = tqdm(total=snapiters, leave=False, unit='byte', unit_scale=True, desc='  Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
                     snap.write_vtk_imagedata(G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G, pbar)
                     pbar.close()
 

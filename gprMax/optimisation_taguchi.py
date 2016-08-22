@@ -21,7 +21,6 @@ import datetime
 from importlib import import_module
 import os
 import pickle
-from shutil import get_terminal_size
 from time import perf_counter
 
 from colorama import init, Fore, Style
@@ -31,6 +30,7 @@ import numpy as np
 from gprMax.constants import floattype
 from gprMax.exceptions import CmdInputError
 from gprMax.gprMax import run_std_sim, run_mpi_sim
+from gprMax.utilities import get_terminal_width
 
 
 def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
@@ -77,7 +77,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
     OA, N, cols, k, s, t = construct_OA(optparams)
 
     taguchistr = '\n--- Taguchi optimisation'
-    print('{} {}\n'.format(taguchistr, '-' * (get_terminal_size()[0] - 1 - len(taguchistr))))
+    print('{} {}\n'.format(taguchistr, '-' * (get_terminal_width() - 1 - len(taguchistr))))
     print('Orthogonal array: {:g} experiments per iteration, {:g} parameters ({:g} will be used), {:g} levels, and strength {:g}'.format(N, cols, k, s, t))
     tmp = [(k, v) for k, v in optparams.items()]
     print('Parameters to optimise with ranges: {}'.format(str(tmp).strip('[]')))
@@ -120,7 +120,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
             os.remove(outputfile)
 
         taguchistr = '\n--- Taguchi optimisation, iteration {}: {} initial experiments with fitness values {}.'.format(iteration + 1, numbermodelruns, fitnessvalues)
-        print('{} {}\n'.format(taguchistr, '-' * (get_terminal_size()[0] - 1 - len(taguchistr))))
+        print('{} {}\n'.format(taguchistr, '-' * (get_terminal_width() - 1 - len(taguchistr))))
 
         # Calculate optimal levels from fitness values by building a response table; update dictionary of parameters with optimal values
         optparams, levelsopt = calculate_optimal_levels(optparams, levels, levelsopt, fitnessvalues, OA, N, k)
@@ -142,13 +142,13 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
         os.rename(outputfile, os.path.splitext(outputfile)[0] + '_final' + str(iteration + 1) + '.out')
 
         taguchistr = '\n--- Taguchi optimisation, iteration {} completed. History of optimal parameter values {} and of fitness values {}'.format(iteration + 1, dict(optparamshist), fitnessvalueshist)
-        print('{} {}\n'.format(taguchistr, '-' * (get_terminal_size()[0] - 1 - len(taguchistr))))
+        print('{} {}\n'.format(taguchistr, '-' * (get_terminal_width() - 1 - len(taguchistr))))
         iteration += 1
 
         # Stop optimisation if stopping criterion has been reached
         if fitnessvalueshist[iteration - 1] > fitness['stop']:
             taguchistr = '\n--- Taguchi optimisation stopped as fitness criteria reached: {:g} > {:g}'.format(fitnessvalueshist[iteration - 1], fitness['stop'])
-            print('{} {}\n'.format(taguchistr, '-' * (get_terminal_size()[0] - 1 - len(taguchistr))))
+            print('{} {}\n'.format(taguchistr, '-' * (get_terminal_width() - 1 - len(taguchistr))))
             break
 
         # Stop optimisation if successive fitness values are within a percentage threshold
@@ -157,7 +157,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
             fitnessvaluesthres = 0.1
             if fitnessvaluesclose < fitnessvaluesthres:
                 taguchistr = '\n--- Taguchi optimisation stopped as successive fitness values within {}%'.format(fitnessvaluesthres)
-                print('{} {}\n'.format(taguchistr, '-' * (get_terminal_size()[0] - 1 - len(taguchistr))))
+                print('{} {}\n'.format(taguchistr, '-' * (get_terminal_width() - 1 - len(taguchistr))))
                 break
 
     tsimend = perf_counter()
@@ -170,7 +170,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
         pickle.dump(optparamsinit, f)
 
     taguchistr = '\n=== Taguchi optimisation completed in [HH:MM:SS]: {} after {} iteration(s)'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)), iteration)
-    print('{} {}\n'.format(taguchistr, '=' * (get_terminal_size()[0] - 1 - len(taguchistr))))
+    print('{} {}\n'.format(taguchistr, '=' * (get_terminal_width() - 1 - len(taguchistr))))
     print('History of optimal parameter values {} and of fitness values {}\n'.format(dict(optparamshist), fitnessvalueshist))
 
 

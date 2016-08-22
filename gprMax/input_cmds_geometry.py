@@ -17,7 +17,6 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from shutil import get_terminal_size
 import sys
 
 import h5py
@@ -31,7 +30,7 @@ from gprMax.exceptions import CmdInputError
 from gprMax.fractals import FractalSurface, FractalVolume, Grass
 from gprMax.geometry_primitives import build_edge_x, build_edge_y, build_edge_z, build_face_yz, build_face_xz, build_face_xy, build_triangle, build_box, build_cylinder, build_cylindrical_sector, build_sphere, build_voxels_from_array, build_voxels_from_array_mask
 from gprMax.materials import Material
-from gprMax.utilities import round_value
+from gprMax.utilities import round_value, get_terminal_width
 
 
 def process_geometrycmds(geometry, G):
@@ -48,7 +47,7 @@ def process_geometrycmds(geometry, G):
     else:
         tqdmdisable = G.tqdmdisable
 
-    for object in tqdm(geometry, desc='Processing geometry related cmds', unit='cmds', ncols=get_terminal_size()[0] - 1, file=sys.stdout, disable=tqdmdisable):
+    for object in tqdm(geometry, desc='Processing geometry related cmds', unit='cmds', ncols=get_terminal_width() - 1, file=sys.stdout, disable=tqdmdisable):
         tmp = object.split()
 
         if tmp[0] == '#geometry_objects_file:':
