@@ -10,11 +10,11 @@ dependencies:
 - jupyter
 - lxml
 - matplotlib
-- mpi4py
 - numpy
 - psutil
 - scipy
 
 - pip:
+  - mpi4py
   - terminaltables
   - tqdm
