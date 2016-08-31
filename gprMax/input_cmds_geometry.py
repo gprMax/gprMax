@@ -596,7 +596,13 @@ def process_geometrycmds(geometry, G):
 
             if normal != 'x' and normal != 'y' and normal != 'z':
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the normal direction must be either x, y or z.')
-            if ctr1 < 0 or ctr1 > G.nx or ctr1 > G.ny or ctr1 > G.nz or ctr2 < 0 or ctr2 > G.nx or ctr2 > G.ny or ctr2 > G.nz:
+            if ctr1 < 0 or ctr2 < 0:
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the coordinates of the centre of the circle are not within the model domain.')
+            if normal == 'x' and (ctr1 > G.ny or ctr1 > G.nz or ctr2 > G.ny or ctr2 > G.nz):
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the coordinates of the centre of the circle are not within the model domain.')
+            elif normal == 'y' and (ctr1 > G.nx or ctr1 > G.nz or ctr2 > G.nx or ctr2 > G.nz):
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the coordinates of the centre of the circle are not within the model domain.')
+            elif normal == 'z' and (ctr1 > G.nx or ctr1 > G.ny or ctr2 > G.nx or ctr2 > G.ny):
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the coordinates of the centre of the circle are not within the model domain.')
             if r <= 0:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the radius {:g} should be a positive value.'.format(r))
