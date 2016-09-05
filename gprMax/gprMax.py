@@ -216,13 +216,14 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
 
     tsimstart = perf_counter()
 
-    if rank == 0:  # Master process
+    # Master process
+    if rank == 0:
         modelrun = 1
         numworkers = size - 1
         closedworkers = 0
         print('Master: PID {} on {} using {} workers.'.format(os.getpid(), name, numworkers))
         while closedworkers < numworkers:
-            # data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)  # Check if this line is really needed
+            data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
             source = status.Get_source()
             tag = status.Get_tag()
 
@@ -241,8 +242,9 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
                 print('Worker {}: exited.'.format(source))
                 closedworkers += 1
 
-    else:  # Worker process
-        print('Worker {}: PID {} on {} requesting {} OpenMP threads.'.format(rank, os.getpid(), name, os.environ.get('OMP_NUM_THREADS')))
+    # Worker process
+    else:
+        print('Worker {}: PID {} on {}.'.format(rank, os.getpid(), name))
         while True:
             comm.send(None, dest=0, tag=tags.READY.value)
             modelrun = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)  #  Receive a model number to run from the master
