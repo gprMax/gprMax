@@ -93,7 +93,7 @@ class Snapshot(object):
         self.vtk_xscells = round_value(self.xs / self.dx)
         self.vtk_xfcells = round_value(self.xf / self.dx)
         self.vtk_yscells = round_value(self.ys / self.dy)
-        self.vtk_yfcells = round_value(self.yf / self.dz)
+        self.vtk_yfcells = round_value(self.yf / self.dy)
         self.vtk_zscells = round_value(self.zs / self.dz)
         self.vtk_zfcells = round_value(self.zf / self.dz)
         vtk_hfield_offset = 3 * np.dtype(floattype).itemsize * (self.vtk_xfcells - self.vtk_xscells) * (self.vtk_yfcells - self.vtk_yscells) * (self.vtk_zfcells - self.vtk_zscells) + np.dtype(np.uint32).itemsize
@@ -109,6 +109,7 @@ class Snapshot(object):
         self.filehandle.write('<DataArray type="{}" Name="H-field" NumberOfComponents="3" format="appended" offset="{}" />\n'.format(Snapshot.floatname, vtk_hfield_offset).encode('utf-8'))
         self.filehandle.write('<DataArray type="{}" Name="Current" NumberOfComponents="3" format="appended" offset="{}" />\n'.format(Snapshot.floatname, vtk_current_offset).encode('utf-8'))
         self.filehandle.write('</CellData>\n</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
+        self.filehandle.close()
 
     def write_vtk_imagedata(self, Ex, Ey, Ez, Hx, Hy, Hz, G, pbar):
         """Writes electric and magnetic field values to VTK ImageData (.vti) file.
@@ -119,6 +120,8 @@ class Snapshot(object):
             pbar (class): Progress bar class instance.
         """
 
+        self.filehandle = open(self.filename, 'a')
+        
         datasize = 3 * np.dtype(floattype).itemsize * (self.vtk_xfcells - self.vtk_xscells) * (self.vtk_yfcells - self.vtk_yscells) * (self.vtk_zfcells - self.vtk_zscells)
         # Write number of bytes of appended data as UInt32
         self.filehandle.write(pack('I', datasize))
