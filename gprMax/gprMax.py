@@ -209,8 +209,8 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
 
     # Initializations and preliminaries
     comm = MPI.COMM_WORLD   # get MPI communicator object
-    size = comm.size        # total number of processes
-    rank = comm.rank        # rank of this process
+    size = comm.Get_size()  # total number of processes
+    rank = comm.Get_rank()  # rank of this process
     status = MPI.Status()   # get MPI status object
     name = MPI.Get_processor_name()     # get name of processor/host
 
