@@ -48,7 +48,7 @@ Here is an example of a job script for running models, e.g. A-scans to make a B-
     :language: bash
     :linenos:
 
-In this example 100 models will be distributed as independent tasks in a HPC environment using MPI. The ``NSLOTS`` variable is usually the number of MPI tasks multiplied by the number of OpenMP threads per task. In this example the number of MPI tasks is 100 and number of OpenMP threads per task is 8, so 800 slots are required.
+In this example 100 models will be distributed as independent tasks in a HPC environment using MPI. The ``NSLOTS`` variable (required for the parallel environment ``-pe mpi``) is usually the number of MPI tasks multiplied by the number of OpenMP threads per task. In this example the number of MPI tasks is 100 and number of OpenMP threads per task is 8, so 800 slots are required.
 
 .. tip::
     These example scripts can be used directly on Eddie, the Edinburgh Compute and Data Facility (ECDF) - http://www.ed.ac.uk/information-services/research-support/research-computing/ecdf/high-performance-computing
