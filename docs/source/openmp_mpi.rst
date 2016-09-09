@@ -68,5 +68,7 @@ You should then activate the gprMax Anaconda environment, and build and install 
 
 The previous job submission example scripts for OpenMP and OpenMP/MPI should run on eddie3.
 
-On eddie3 the parameter ``job_is_first_task`` is set to True for the ``mpi`` parallel environment. This means when specifying the number of MPI tasks (``-np``) you must add one to the number of copies of gprMax/number of models you wish to run.
+The parameter ``job_is_first_task`` is set to True for the ``mpi`` parallel environment. This means when specifying the number of MPI tasks (``-np``) you must add one to the number of copies of gprMax/number of models you wish to run.
+
+The ``NSLOTS`` variable for the total number of slots/cores for the parallel environment ``-pe mpi`` must be specified as a multiple of 16 (the total number of cores/threads available on a single node), e.g. 61 MPI tasks each using 4 threads would require a total 244 slots/cores. This must be rounded up to the nearest multiple of 16, e.g. 256.
 
