@@ -13,7 +13,7 @@
 #$ -R y
 
 ### Parallel environment ($NSLOTS):
-#$ -pe mpi 800
+#$ -pe mpi 176
 
 ### Job script name:
 #$ -N gprmax_omp_mpi.sh
@@ -22,16 +22,16 @@
 ### Initialise environment module
 . /etc/profile.d/modules.sh
 
-### Load Anaconda environment for gprMax, i.e. Python 3 and required packages
+### Load and activate Anaconda environment for gprMax, i.e. Python 3 and required packages
 module load anaconda
 source activate gprMax
 
 ### Load OpenMPI
 module load openmpi
 
-### Set number of OpenMP threads
-export OMP_NUM_THREADS=8
+### Set number of OpenMP threads per MPI task (each gprMax model)
+export OMP_NUM_THREADS=16
 
 ### Run gprMax with input file
 cd $HOME/gprMax
-mpiexec -n 100 python -m gprMax mymodel.in -n 100 -mpi
+mpiexec -np 11 -x OMP_NUM_THREADS python -m gprMax mymodel.in -n 10 -mpi
