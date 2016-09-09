@@ -108,7 +108,7 @@ Microsoft Windows
 
 * Download and install Microsoft Visual C++ Build Tools 2015 directly from http://go.microsoft.com/fwlink/?LinkId=691126. Use the default installation options.
 
-You can also download Microsoft Visual C++ Build Tools 2015 by going to https://www.visualstudio.com/en-us/downloads/download-visual-studio-vs.aspx and choosing Visual Studio Downloads -> Tools for Visual Studio 2015 -> Microsoft Visual C++ Build Tools 2015.
+You can also download Microsoft Visual C++ Build Tools 2015 by going to https://www.visualstudio.com/en-us/downloads/download-visual-studio-vs.aspx and choosing Tools for Visual Studio 2015 -> Microsoft Visual C++ Build Tools 2015.
 
 3. Build and install gprMax
 ---------------------------
