@@ -27,7 +27,7 @@ module load anaconda
 source activate gprMax
 
 ### Load OpenMPI
-module load openmpi-gcc
+module load openmpi
 
 ### Set number of OpenMP threads
 export OMP_NUM_THREADS=8
