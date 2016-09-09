@@ -34,4 +34,4 @@ export OMP_NUM_THREADS=8
 
 ### Run gprMax with input file
 cd $HOME/gprMax
-mpirun -np $NSLOTS python -m gprMax mymodel.in -n 100 -mpi
+mpirun -np 100 python -m gprMax mymodel.in -n 100 -mpi
