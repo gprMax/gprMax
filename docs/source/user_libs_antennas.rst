@@ -1,8 +1,8 @@
 User libraries is a sub-package where useful Python modules contributed by users are stored.
 
-********
-Antennas
-********
+******************
+GPR antenna models
+******************
 
 Information
 ===========
@@ -13,7 +13,7 @@ Information
 
 **Attribution/cite**: Warren, C., Giannopoulos, A. (2011). Creating finite-difference time-domain models of commercial ground-penetrating radar antennas using Taguchi's optimization method. *Geophysics*, 76(2), G37-G47. (http://dx.doi.org/10.1190/1.3548506)
 
-The module currently features models of antennas similar to commercial antennas:
+The module currently features models of antennas similar to commercial GPR antennas:
 
 * Geophysical Survey Systems, Inc. (GSSI) 1.5 GHz (Model 5100) antenna (http://www.geophysical.com)
 * MALA Geoscience 1.2 GHz antenna (http://www.malags.com/)
