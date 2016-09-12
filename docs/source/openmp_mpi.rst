@@ -1,8 +1,8 @@
 .. _openmp-mpi:
 
-***********
-Parallelism
-***********
+*******************
+Parallel processing
+*******************
 
 OpenMP
 ======
@@ -58,17 +58,17 @@ The ``NSLOTS`` variable which is required to set the total number of slots/cores
 Eddie
 -----
 
-Eddie is the Edinburgh Compute and Data Facility (ECDF) - http://www.ed.ac.uk/information-services/research-support/research-computing/ecdf/high-performance-computing - run by the University of Edinburgh. The following are useful notes to get gprMax installed and running on eddie3 (the third iteration of the cluster).
+Eddie is the Edinburgh Compute and Data Facility (ECDF) - http://www.ed.ac.uk/information-services/research-support/research-computing/ecdf/high-performance-computing - run by the University of Edinburgh. The following are useful notes to get gprMax installed and running on eddie3 (the third iteration of the cluster):
 
-Git is already installed on eddie3, so you don't need to install it through Anaconda, you can proceed directly to cloning the gprMax GitHub repository with ``git clone https://github.com/gprMax/gprMax.git``
+* Git is already installed on eddie3, so you don't need to install it through Anaconda, you can proceed directly to cloning the gprMax GitHub repository with ``git clone https://github.com/gprMax/gprMax.git``
 
-Anaconda is already installed as an application module on eddie3. You should follow these instructions (https://www.wiki.ed.ac.uk/display/ResearchServices/Anaconda) to ensure Anaconda environments will be created in a suitable location (not your home directory as you will rapidly run out of space). Before you proceed to create the Anaconda environment for gprMax you must make sure the OpenMPI module is loaded with ``module load openmpi``. This is neccessary so that the ``mpi4py`` Python module is correctly linked to OpenMPI. You can then create the Anaconda environment with ``conda env create -f conda_env.yml``
+* Anaconda is already installed as an application module on eddie3. You should follow these instructions (https://www.wiki.ed.ac.uk/display/ResearchServices/Anaconda) to ensure Anaconda environments will be created in a suitable location (not your home directory as you will rapidly run out of space). Before you proceed to create the Anaconda environment for gprMax you must make sure the OpenMPI module is loaded with ``module load openmpi``. This is neccessary so that the ``mpi4py`` Python module is correctly linked to OpenMPI. You can then create the Anaconda environment with ``conda env create -f conda_env.yml``
 
-You should then activate the gprMax Anaconda environment, and build and install gprMax according the standard installation procedure.
+* You should then activate the gprMax Anaconda environment, and build and install gprMax according the standard installation procedure.
 
-The previous job submission example scripts for OpenMP and OpenMP/MPI should run on eddie3.
+* The previous job submission example scripts for OpenMP and OpenMP/MPI should run on eddie3.
 
-The parameter ``job_is_first_task`` is set to True for the ``mpi`` parallel environment. This means when specifying the number of MPI tasks (``-np``) you must add one to the number of copies of gprMax/number of models you wish to run.
+* The parameter ``job_is_first_task`` is set to True for the ``mpi`` parallel environment. This means when specifying the number of MPI tasks (``-np``) you must add one to the number of copies of gprMax/number of models you wish to run.
 
-The ``NSLOTS`` variable for the total number of slots/cores for the parallel environment ``-pe mpi`` must be specified as a multiple of 16 (the total number of cores/threads available on a single node), e.g. 61 MPI tasks each using 4 threads would require a total 244 slots/cores. This must be rounded up to the nearest multiple of 16, e.g. 256.
+* The ``NSLOTS`` variable for the total number of slots/cores for the parallel environment ``-pe mpi`` must be specified as a multiple of 16 (the total number of cores/threads available on a single node), e.g. 61 MPI tasks each using 4 threads would require a total 244 slots/cores. This must be rounded up to the nearest multiple of 16, e.g. 256.
 
