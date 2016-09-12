@@ -37,6 +37,7 @@ gprMax User Guide
     :caption: User libraries
 
     user_libs_antennas
+    user_libs_antenna_patterns
     user_libs_austinman
     user_libs_opt_taguchi
 
