@@ -121,7 +121,7 @@ class Snapshot(object):
         """
 
         self.filehandle = open(self.filename, 'a')
-        
+
         datasize = 3 * np.dtype(floattype).itemsize * (self.vtk_xfcells - self.vtk_xscells) * (self.vtk_yfcells - self.vtk_yscells) * (self.vtk_zfcells - self.vtk_zscells)
         # Write number of bytes of appended data as UInt32
         self.filehandle.write(pack('I', datasize))

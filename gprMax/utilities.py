@@ -30,7 +30,7 @@ init()
 
 def get_terminal_width():
     """Get/set width of terminal being used.
-        
+
     Returns:
         terminalwidth (int): Terminal width
     """
