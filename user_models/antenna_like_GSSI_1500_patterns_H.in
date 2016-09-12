@@ -6,10 +6,11 @@
 import os
 import numpy as np
 from user_libs.antennas import antenna_like_GSSI_1500
+
 timewindows = np.array([4.5e-9]) # For 0.3m max
 radii = np.linspace(0.1, 0.3, 20)
 theta = np.linspace(3, 357, 60)
-materials = ['5 0 1 0 er5']
+materials = ['5 0 1 0 er5'] # Can add more to list and use selector integer to choose
 selector = 0
 
 fs = np.array([0.040, 0.040, 0.040])
@@ -20,13 +21,17 @@ antenna_like_GSSI_1500(antennaposition[0], antennaposition[1], antennaposition[2
 print('#domain: {:.3f} {:.3f} {:.3f}'.format(domain[0], domain[1], domain[2]))
 print('#time_window: {:.3e}'.format(timewindows[selector]))
 
+## Can introduce soil model
 #print('#soil_peplinski: 0.5 0.5 2.0 2.66 0.001 0.25 mySoil')
 #print('#fractal_box: 0 0 0 {} {} {} 1.5 1 1 1 50 mySoil mySoilBox 1'.format(domain[0], domain[1], fs[2] + radii[-1]))
 
 print('#material: {}'.format(materials[selector]))
 print('#box: 0 0 0 {} {} {} {} n'.format(domain[0], domain[1], fs[2] + radii[-1], materials[selector].split()[-1]))
+
+## Save the position of the antenna to file for use when processing results
 np.savetxt(os.path.join(input_directory, 'antenna_like_GSSI_1500_patterns_H_rxsorigin.txt'), antennaposition, fmt="%f")
 
+## Generate receiver points for pattern
 for radius in range(len(radii)):
     ## H-plane circle (xz plane, y=0, phi=0,pi)
     x = radii[radius] * np.sin(theta * np.pi /180) * np.cos(180 * np.pi / 180)
