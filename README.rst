@@ -18,10 +18,12 @@ gprMax is written in Python 3 (https://www.python.org) and includes performance-
 Using gprMax? Cite us
 ---------------------
 
-If you use gprMax and publish your work we would be grateful if you could cite gprMax using the following references:
+If you use gprMax and publish your work we would be grateful if you could cite our work using:
 
-* Warren, C., Giannopoulos, A., & Giannakis I. (2015). An advanced GPR modelling framework – the next generation of gprMax, In `Proc. 8th Int. Workshop Advanced Ground Penetrating Radar` (http://dx.doi.org/10.1109/IWAGPR.2015.7292621)
-* Giannopoulos, A. (2005). Modelling ground penetrating radar by GprMax, `Construction and Building Materials`, 19(10), 755-762 (http://dx.doi.org/10.1016/j.conbuildmat.2005.06.007)
+* Warren, C., Giannopoulos, A., & Giannakis I. (2016). gprMax: Open source software to simulate electromagnetic wave propagation for Ground Penetrating Radar, `Computer Physics Communications` (http://dx.doi.org/10.1016/j.cpc.2016.08.020)
+
+Further information on referencing gprMax (including easy to use BibTeX imports) visit the Publications section of our website (http://www.gprmax.com/publications.shtml)
+
 
 Package overview
 ================
