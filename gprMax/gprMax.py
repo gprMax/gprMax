@@ -61,6 +61,7 @@ def main():
     parser.add_argument('inputfile', help='path to, and name of inputfile')
     parser.add_argument('-n', default=1, type=int, help='number of times to run the input file, e.g. for creating B-scans')
     parser.add_argument('-mpi', action='store_true', default=False, help='flag to switch on MPI task farm')
+    parser.add_argument('-taskid', type=int, help='task identifier for job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)')
     parser.add_argument('-benchmark', action='store_true', default=False, help='flag to switch on benchmarking mode')
     parser.add_argument('--geometry-only', action='store_true', default=False, help='flag to only build model and produce geometry file(s)')
     parser.add_argument('--geometry-fixed', action='store_true', default=False, help='flag to not reprocess model geometry, e.g. for B-scans where the geometry is fixed')
@@ -82,6 +83,7 @@ def api(inputfile, n=1, mpi=False, benchmark=False, geometry_only=False, geometr
     args.inputfile = inputfile
     args.n = n
     args.mpi = mpi
+    args.taskid = taskid
     args.benchmark = benchmark
     args.geometry_only = geometry_only
     args.geometry_fixed = geometry_fixed
@@ -125,6 +127,13 @@ def run_main(args):
             if numbermodelruns == 1:
                 raise GeneralError('MPI is not beneficial when there is only one model to run')
             run_mpi_sim(args, numbermodelruns, inputfile, usernamespace)
+        # Standard behaviour - part of a job array on Open Grid Scheduler/Grid Engine with each model parallelised with OpenMP
+        elif args.taskid:
+            if args.benchmark:
+                raise GeneralError('A job array should not be used with benchmarking mode')
+            if numbermodelruns == 1:
+                raise GeneralError('A job array is not beneficial when there is only one model to run')
+            run_job_array_sim(args, numbermodelruns, inputfile, usernamespace)
         # Standard behaviour - models run serially with each model parallelised with OpenMP
         else:
             run_std_sim(args, numbermodelruns, inputfile, usernamespace)
@@ -151,6 +160,33 @@ def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
         else:
             modelusernamespace = usernamespace
         run_model(args, modelrun, numbermodelruns, inputfile, modelusernamespace)
+    tsimend = perf_counter()
+    simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)))
+    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
+
+
+def run_job_array_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None):
+    """Run standard simulation as part of a job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html) - each model is parallelised with OpenMP
+
+    Args:
+        args (dict): Namespace with command line arguments
+        numbermodelruns (int): Total number of model runs.
+        inputfile (str): Name of the input file to open.
+        usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
+        optparams (dict): Optional argument. For Taguchi optimisation it provides the parameters to optimise and their values.
+    """
+
+    modelrun = args.taskid
+    
+    tsimstart = perf_counter()
+    if optparams:  # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
+        tmp = {}
+        tmp.update((key, value[modelrun - 1]) for key, value in optparams.items())
+        modelusernamespace = usernamespace.copy()
+        modelusernamespace.update({'optparams': tmp})
+    else:
+        modelusernamespace = usernamespace
+    run_model(args, modelrun, numbermodelruns, inputfile, modelusernamespace)
     tsimend = perf_counter()
     simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=int(tsimend - tsimstart)))
     print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
