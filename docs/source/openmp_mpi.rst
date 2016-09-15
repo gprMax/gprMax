@@ -1,8 +1,8 @@
 .. _openmp-mpi:
 
-*******************
-Parallel processing
-*******************
+******************
+Parallel execution
+******************
 
 OpenMP
 ======
@@ -61,11 +61,15 @@ Job array example
 
 :download:`gprmax_omp_jobarray.sh <../../tools/HPC scripts/gprmax_omp_jobarray.sh>`
 
-Here is an example of a job script for running models, e.g. A-scans to make a B-scan, using the job array functionality of Open Grid Scheduler/Grid Engine. A job array is a method of using a single submit script to submit multiple similar jobs. It has similar functionality, for gprMax, to using the aforementioned MPI task farm. The behaviour of most of the variables is explained in the comments in the script.
+Here is an example of a job script for running models, e.g. A-scans to make a B-scan, using the job array functionality of Open Grid Scheduler/Grid Engine. A job array is a single submit script that is run multiple times. It has similar functionality, for gprMax, to using the aforementioned MPI task farm. The behaviour of most of the variables is explained in the comments in the script.
 
 .. literalinclude:: ../../tools/HPC scripts/gprmax_omp_jobarray.sh
     :language: bash
     :linenos:
+
+The ``-t`` tells Grid Engine that we are using a job array followed by a range of integers which will be the IDs for each individual task (model). Task IDs must start from 1, and the total number of tasks in the range should correspond to the number of models you want to run, i.e. the integer with the ``-n`` flag passed to gprMax. The ``-taskid`` flag is given to gprMax to tell it we are using a job array, along with the specific number of the task (model) with the environment variable ``$SGE_TASK_ID``.
+
+A job array means that exactly the same submit script is going to be run multiple times, the only difference between each run is the environment variable ``$SGE_TASK_ID``.
 
 
 Eddie
