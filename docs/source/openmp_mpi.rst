@@ -55,6 +55,19 @@ The ``-np`` flag passed to ``mpiexec`` takes the number of MPI tasks (copies of 
 
 The ``NSLOTS`` variable which is required to set the total number of slots/cores for the parallel environment ``-pe mpi`` is usually the number of MPI tasks multiplied by the number of OpenMP threads per task. In this example the number of MPI tasks is 11 and number of OpenMP threads per task is 16, so 176 slots are required.
 
+
+Job array example
+-----------------
+
+:download:`gprmax_omp_jobarray.sh <../../tools/HPC scripts/gprmax_omp_jobarray.sh>`
+
+Here is an example of a job script for running models, e.g. A-scans to make a B-scan, using the job array functionality of Open Grid Scheduler/Grid Engine. A job array is a method of using a single submit script to submit multiple similar jobs. It has similar functionality, for gprMax, to using the aforementioned MPI task farm. The behaviour of most of the variables is explained in the comments in the script.
+
+.. literalinclude:: ../../tools/HPC scripts/gprmax_omp_jobarray.sh
+    :language: bash
+    :linenos:
+
+
 Eddie
 -----
 

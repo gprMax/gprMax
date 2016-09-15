@@ -162,12 +162,13 @@ Optional command line arguments
 There are optional command line arguments for gprMax:
 
 * ``-n`` is used along with a integer number to specify the number of times to run the input file. This option can be used to run a series of models, e.g. to create a B-scan.
-* ``-mpi`` is a flag to turn on Message Passing Interface (MPI) task farm functionality. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using MPI. For further details see the Parallel performance section (http://docs.gprmax.com/en/latest/openmp_mpi.html)
-* ``-benchmark`` is a flag to turn on benchmarking mode. This can be used to benchmark the threading (parallel) performance of gprMax on different hardware. For further details see the benchmarking section (http://docs.gprmax.com/en/latest/benchmarking.html)
-* ``--geometry-only`` will build a model and produce any geometry views but will not run the simulation. This option is useful for checking the geometry of the model is correct.
-* ``--geometry-fixed`` can be used when running a series of models where the geometry does not change between runs, e.g. a B-scan where only sources and receivers, moved using ``#src_steps`` and ``#rx_steps``, change from run to run.
-* ``--opt-taguchi`` will run a series of simulations using a optimisation process based on Taguchi's method. For further details see the user libraries section (http://docs.gprmax.com/en/latest/user_libs_opt_taguchi.html)
-* ``--write-processed`` will write an input file after any Python code and include commands in the original input file have been processed.
+* ``-mpi`` is a flag to switch on the Message Passing Interface (MPI) task farm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using MPI. For further details see the Parallel performance section (http://docs.gprmax.com/en/latest/openmp_mpi.html)
+* ``-taskid``, is used along with a integer number to specify the task identifier for job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)')
+* ``-benchmark`` is a flag to switch on benchmarking mode. This can be used to benchmark the threading (parallel) performance of gprMax on different hardware. For further details see the benchmarking section (http://docs.gprmax.com/en/latest/benchmarking.html)
+* ``--geometry-only`` is a flag to build a model and produce any geometry views but not run the simulation. This option is useful for checking the geometry of the model is correct.
+* ``--geometry-fixed`` is a flag that can be used when running a series of models where the geometry does not change between runs, e.g. a B-scan where only sources and receivers, moved using ``#src_steps`` and ``#rx_steps``, change from run to run.
+* ``--opt-taguchi`` is a flag used to run a series of simulations using a optimisation process based on Taguchi's method. For further details see the user libraries section (http://docs.gprmax.com/en/latest/user_libs_opt_taguchi.html)
+* ``--write-processed`` is a flag to write an extra input file after any Python code and include commands in the original input file have been processed.
 * ``-h`` or ``--help`` can be used to get help on command line options.
 
 For example, to check the geometry of a model:
