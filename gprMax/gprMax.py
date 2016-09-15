@@ -59,7 +59,7 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(prog='gprMax')
     parser.add_argument('inputfile', help='path to, and name of inputfile')
-    parser.add_argument('-n', default=1, type=int, help='number of times to run the input file, e.g. for creating B-scans')
+    parser.add_argument('-n', default=1, type=int, help='number of times to run the input file, e.g. to create a B-scan')
     parser.add_argument('-mpi', action='store_true', default=False, help='flag to switch on MPI task farm')
     parser.add_argument('-taskid', type=int, help='task identifier for job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)')
     parser.add_argument('-benchmark', action='store_true', default=False, help='flag to switch on benchmarking mode')
