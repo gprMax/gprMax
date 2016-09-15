@@ -719,9 +719,9 @@ cpdef void build_voxels_from_array_mask(int xs, int ys, int zs, int waternumID, 
     cdef int xf, yf, zf, numID, numIDx, numIDy, numIDz
     
     # Set upper bounds
-    xf = xs + data.shape[0]
-    yf = ys + data.shape[1]
-    zf = zs + data.shape[2]
+    xf = xs + data.shape[0] - 1
+    yf = ys + data.shape[1] - 1
+    zf = zs + data.shape[2] - 1
 
     for i in range(xs, xf):
         for j in range(ys, yf):
