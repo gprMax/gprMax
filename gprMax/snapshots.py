@@ -120,7 +120,7 @@ class Snapshot(object):
             pbar (class): Progress bar class instance.
         """
 
-        self.filehandle = open(self.filename, 'a')
+        self.filehandle = open(self.filename, 'ab')
 
         datasize = 3 * np.dtype(floattype).itemsize * (self.vtk_xfcells - self.vtk_xscells) * (self.vtk_yfcells - self.vtk_yscells) * (self.vtk_zfcells - self.vtk_zscells)
         # Write number of bytes of appended data as UInt32
