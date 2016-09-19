@@ -23,7 +23,6 @@ import numpy as np
 from struct import pack
 
 from gprMax.utilities import round_value
-from gprMax.xdmf import write_output_file
 
 
 class GeometryView(object):
@@ -57,10 +56,6 @@ class GeometryView(object):
         self.dz = dz
         self.basefilename = filename
         self.type = type
-
-    def write_xdmf(self, modelrun, numbermodelruns, G):
-        filename = self.filename[:-4]
-        write_output_file(filename, G, self.type)
 
     def set_filename(self, modelrun, numbermodelruns, G):
         """Construct filename from user-supplied name and model run number.
