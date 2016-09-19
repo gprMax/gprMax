@@ -9,6 +9,10 @@ import os
 import sys
 
 import h5py
+import matplotlib
+# Make sure QT5 is used if not on Mac OS X
+if sys.platform != 'darwin':
+    matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import signal
