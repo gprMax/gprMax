@@ -8,7 +8,6 @@ dependencies:
 - cython
 - h5py
 - jupyter
-- lxml
 - matplotlib
 - numpy
 - psutil
