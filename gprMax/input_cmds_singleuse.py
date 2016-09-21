@@ -123,7 +123,7 @@ def process_singlecmds(singlecmds, G):
     rigidarray = (12 + 6) * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(np.int8).itemsize
     memestimate = stdoverhead + floatarrays + rigidarray
     if memestimate > psutil.virtual_memory().total:
-        raise GeneralError('Estimated memory (RAM) required ~{} exceeds {} available!\n'.format(human_size(memestimate), human_size(psutil.virtual_memory().total, a_kilobyte_is_1024_bytes=True)))
+        print(Fore.RED + 'WARNING: Estimated memory (RAM) required ~{} exceeds {} available!\n'.format(human_size(memestimate), human_size(psutil.virtual_memory().total, a_kilobyte_is_1024_bytes=True)) + Style.RESET_ALL)
     if G.messages:
         print('Memory (RAM) required: ~{} ({} detected)'.format(human_size(memestimate), human_size(psutil.virtual_memory().total, a_kilobyte_is_1024_bytes=True)))
 
