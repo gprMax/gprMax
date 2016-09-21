@@ -20,7 +20,7 @@ The module currently features models of different anti-personnel (AP) landmines 
 * **TS-50**: a blast AP landmine with minimum metal content, manufactured in Italy. The dimensions of the TS-50 model are: 90x90x44mm.
 * **Metal can**: a cylindrical metal can which is can be useful as a false target. The dimensions of the metal can model are: 76x76x108mm.
 
-The landmine models and the metal can must be used with a cubic spatial resolution of 1mm.
+The landmine models and the metal can be used with a cubic spatial resolution of either 1mm or 2mm.
 
 The dielectric properties of the landmines were obtained through an iterative process of matching numerical and laboratory measurements of scattered electromagnetic fields in free space. A full description of how the models were created can be found at http://dx.doi.org/10.1109/JSTARS.2015.2468597.
 
@@ -29,23 +29,23 @@ Package overview
 
 .. code-block:: none
 
+    can_1x1x1.h5
     can_gprMax_materials.txt
-    can.h5
+    PMA_1x1x1.h5
     PMA_gprMax_materials.txt
-    PMA.h5
+    PMN_1x1x1.h5
     PMN_gprMax_materials.txt
-    PMN.h5
+    TS50_1x1x1.h5
     TS50_gprMax_materials.txt
-    TS50.h5
 
+* ``can_1x1x1.h5`` is a HDF5 file containing a description of the geometry of the metal can (false target) with a cubic spatial resolution of 1mm
 * ``can_gprMax_materials.txt`` is a text file containing material properties associated with the metal can
-* ``can.h5`` is a HDF5 file containing a description of the geometry of the metal can (false target)
+* ``PMA_1x1x1.h5`` is a HDF5 file containing a description of the geometry of the PMA landmine with a cubic spatial resolution of 1mm
 * ``PMA_gprMax_materials.txt`` is a text file containing material properties associated with the PMA landmine
-* ``PMA.h5`` is a HDF5 file containing a description of the geometry of the PMA landmine
+* ``PMN_1x1x1.h5`` is a HDF5 file containing a description of the geometry of the PMN landmine with a cubic spatial resolution of 1mm
 * ``PMN_gprMax_materials.txt`` is a text file containing material properties associated with the PMN landmine
-* ``PMN.h5`` is a HDF5 file containing a description of the geometry of the PMN landmine
+* ``TS50_1x1x1.h5`` is a HDF5 file containing a description of the geometry of the TS-50 landmine with a cubic spatial resolution of 1mm
 * ``TS50_gprMax_materials.txt`` is a text file containing material properties associated with the TS-50 landmine
-* ``TS50.h5`` is a HDF5 file containing a description of the geometry of the TS-50 landmine
 
 How to use the models
 =====================
@@ -63,7 +63,7 @@ The input file for inserting the PMN landmine, with the lower left corner 10mm f
     #domain: 0.136 0.176 0.070
     #dx_dy_dz: 0.001 0.001 0.001
     #time_window: 5e-9
-    #geometry_objects_file: 0.010 0.010 0.010 ../user_libs/landmines/PMN.h5 ../user_libs/landmines/PMN_gprMax_materials.txt
+    #geometry_objects_file: 0.010 0.010 0.010 ../user_libs/landmines/PMN_1x1x1.h5 ../user_libs/landmines/PMN_gprMax_materials.txt
     #geometry_view: 0 0 0 0.136 0.176 0.070 0.001 0.001 0.001 landmine_PMN_fs n
 
 For further information on the ``#geometry_objects_file`` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
