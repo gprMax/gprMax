@@ -67,6 +67,8 @@ The following steps provide guidance on how to install gprMax:
 2. Install a C compiler which supports OpenMP
 3. Build and install gprMax
 
+You can watch screencasts that demonstrate the installation and update processes at http://docs.gprmax.com/en/latest/screencasts.html
+
 1. Install Python, required Python packages, and get gprMax source
 ------------------------------------------------------------------
 
