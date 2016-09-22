@@ -11,6 +11,7 @@ dependencies:
 - matplotlib
 - numpy
 - psutil
+- pyqt=4.11.4
 - scipy
 
 - pip:

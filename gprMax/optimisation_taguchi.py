@@ -441,10 +441,6 @@ def plot_optimisation_history(fitnessvalueshist, optparamshist, optparamsinit):
         optparamshist (dict): Name of parameters to optimise and history of their values
     """
 
-    import matplotlib
-    # Make sure QT5 is used if not on Mac OS X
-    if sys.platform != 'darwin':
-        matplotlib.use('Qt5Agg')
     import matplotlib.pyplot as plt
 
     # Plot history of fitness values

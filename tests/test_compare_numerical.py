@@ -21,10 +21,6 @@ import sys
 
 import h5py
 import numpy as np
-import matplotlib
-# Make sure QT5 is used if not on Mac OS X
-if sys.platform != 'darwin':
-    matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 
 from tools.plot_fields import plot_Ascan
