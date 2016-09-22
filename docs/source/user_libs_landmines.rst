@@ -30,22 +30,22 @@ Package overview
 .. code-block:: none
 
     can_1x1x1.h5
-    can_gprMax_materials.txt
+    can_materials.txt
     PMA_1x1x1.h5
-    PMA_gprMax_materials.txt
+    PMA_materials.txt
     PMN_1x1x1.h5
-    PMN_gprMax_materials.txt
+    PMN_materials.txt
     TS50_1x1x1.h5
-    TS50_gprMax_materials.txt
+    TS50_materials.txt
 
 * ``can_1x1x1.h5`` is a HDF5 file containing a description of the geometry of the metal can (false target) with a cubic spatial resolution of 1mm
-* ``can_gprMax_materials.txt`` is a text file containing material properties associated with the metal can
+* ``can_materials.txt`` is a text file containing material properties associated with the metal can
 * ``PMA_1x1x1.h5`` is a HDF5 file containing a description of the geometry of the PMA landmine with a cubic spatial resolution of 1mm
-* ``PMA_gprMax_materials.txt`` is a text file containing material properties associated with the PMA landmine
+* ``PMA_materials.txt`` is a text file containing material properties associated with the PMA landmine
 * ``PMN_1x1x1.h5`` is a HDF5 file containing a description of the geometry of the PMN landmine with a cubic spatial resolution of 1mm
-* ``PMN_gprMax_materials.txt`` is a text file containing material properties associated with the PMN landmine
+* ``PMN_materials.txt`` is a text file containing material properties associated with the PMN landmine
 * ``TS50_1x1x1.h5`` is a HDF5 file containing a description of the geometry of the TS-50 landmine with a cubic spatial resolution of 1mm
-* ``TS50_gprMax_materials.txt`` is a text file containing material properties associated with the TS-50 landmine
+* ``TS50_materials.txt`` is a text file containing material properties associated with the TS-50 landmine
 
 How to use the models
 =====================
@@ -63,7 +63,7 @@ The input file for inserting the PMN landmine, with the lower left corner 10mm f
     #domain: 0.136 0.176 0.070
     #dx_dy_dz: 0.001 0.001 0.001
     #time_window: 5e-9
-    #geometry_objects_file: 0.010 0.010 0.010 ../user_libs/landmines/PMN_1x1x1.h5 ../user_libs/landmines/PMN_gprMax_materials.txt
+    #geometry_objects_file: 0.010 0.010 0.010 ../user_libs/landmines/PMN_1x1x1.h5 ../user_libs/landmines/PMN_materials.txt
     #geometry_view: 0 0 0 0.136 0.176 0.070 0.001 0.001 0.001 landmine_PMN_fs n
 
 For further information on the ``#geometry_objects_file`` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
