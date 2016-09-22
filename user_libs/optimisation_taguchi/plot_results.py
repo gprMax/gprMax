@@ -5,7 +5,7 @@
 #
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
-import argparse,
+import argparse
 import os
 import pickle
 
