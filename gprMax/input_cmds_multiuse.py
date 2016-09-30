@@ -22,7 +22,7 @@ import numpy as np
 
 from gprMax.constants import z0, floattype
 from gprMax.exceptions import CmdInputError
-from gprMax.geometry_views import GeometryView
+from gprMax.geometry_outputs import GeometryView, GeometryObjects
 from gprMax.materials import Material, PeplinskiSoil
 from gprMax.pml import CFSParameter, CFS
 from gprMax.receivers import Rx
@@ -103,7 +103,7 @@ def process_multicmds(multicmds, G):
             v.xcoord = xcoord
             v.ycoord = ycoord
             v.zcoord = zcoord
-            v.ID = 'VoltageSource(' + str(v.xcoord) + ',' + str(v.ycoord) + ',' + str(v.zcoord) + ')'
+            v.ID = v.__class__.__name__ + '(' + str(v.xcoord) + ',' + str(v.ycoord) + ',' + str(v.zcoord) + ')'
             v.resistance = resistance
             v.waveformID = tmp[5]
 
@@ -163,7 +163,7 @@ def process_multicmds(multicmds, G):
             h.xcoordbase = xcoord
             h.ycoordbase = ycoord
             h.zcoordbase = zcoord
-            h.ID = 'HertzianDipole(' + str(h.xcoord) + ',' + str(h.ycoord) + ',' + str(h.zcoord) + ')'
+            h.ID = h.__class__.__name__ + '(' + str(h.xcoord) + ',' + str(h.ycoord) + ',' + str(h.zcoord) + ')'
             h.waveformID = tmp[4]
 
             if len(tmp) > 5:
@@ -222,7 +222,7 @@ def process_multicmds(multicmds, G):
             m.xcoordbase = xcoord
             m.ycoordbase = ycoord
             m.zcoordbase = zcoord
-            m.ID = 'MagneticDipole(' + str(m.xcoord) + ',' + str(m.ycoord) + ',' + str(m.zcoord) + ')'
+            m.ID = m.__class__.__name__ + '(' + str(m.xcoord) + ',' + str(m.ycoord) + ',' + str(m.zcoord) + ')'
             m.waveformID = tmp[4]
 
             if len(tmp) > 5:
@@ -284,7 +284,7 @@ def process_multicmds(multicmds, G):
             t.xcoord = xcoord
             t.ycoord = ycoord
             t.zcoord = zcoord
-            t.ID = 'TransmissionLine(' + str(t.xcoord) + ',' + str(t.ycoord) + ',' + str(t.zcoord) + ')'
+            t.ID = t.__class__.__name__ + '(' + str(t.xcoord) + ',' + str(t.ycoord) + ',' + str(t.zcoord) + ')'
             t.resistance = resistance
             t.waveformID = tmp[5]
             t.calculate_incident_V_I(G)
@@ -341,7 +341,7 @@ def process_multicmds(multicmds, G):
 
             # If no ID or outputs are specified, use default i.e Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, Iz
             if len(tmp) == 3:
-                r.ID = 'Rx(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'
+                r.ID = r.__class__.__name__ + '(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'
                 for key in Rx.availableoutputs:
                     r.outputs[key] = np.zeros(G.iterations, dtype=floattype)
             else:
@@ -416,7 +416,7 @@ def process_multicmds(multicmds, G):
                         r.xcoordbase = x
                         r.ycoordbase = y
                         r.zcoordbase = z
-                        r.ID = 'Rx(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
+                        r.ID = r.__class__.__name__ + '(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
                         for key in Rx.availableoutputs:
                             r.outputs[key] = np.zeros(G.iterations, dtype=floattype)
                         if G.messages:
@@ -530,7 +530,7 @@ def process_multicmds(multicmds, G):
             for material in materials:
                 material.type = 'user-defined, debye'
                 material.poles = poles
-                material.average = False
+                material.averagable = False
                 for pole in range(1, 2 * poles, 2):
                     if float(tmp[pole]) > 0 and float(tmp[pole + 1]) > G.dt:
                         material.deltaer.append(float(tmp[pole]))
@@ -565,7 +565,7 @@ def process_multicmds(multicmds, G):
             for material in materials:
                 material.type = 'user-defined, lorentz'
                 material.poles = poles
-                material.average = False
+                material.averagable = False
                 for pole in range(1, 3 * poles, 3):
                     if float(tmp[pole]) > 0 and float(tmp[pole + 1]) > G.dt and float(tmp[pole + 2]) > G.dt:
                         material.deltaer.append(float(tmp[pole]))
@@ -601,7 +601,7 @@ def process_multicmds(multicmds, G):
             for material in materials:
                 material.type = 'user-defined, drude'
                 material.poles = poles
-                material.average = False
+                material.averagable = False
                 for pole in range(1, 2 * poles, 2):
                     if float(tmp[pole]) > 0 and float(tmp[pole + 1]) > G.dt:
                         material.tau.append(float(tmp[pole]))
@@ -693,6 +693,36 @@ def process_multicmds(multicmds, G):
 
             # Append the new GeometryView object to the geometry views list
             G.geometryviews.append(g)
+
+    # Geometry object(s) output
+    cmdname = '#geometry_objects_write'
+    if multicmds[cmdname] != 'None':
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if len(tmp) != 7:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly seven parameters')
+
+            xs = G.calculate_coord('x', tmp[0])
+            ys = G.calculate_coord('y', tmp[1])
+            zs = G.calculate_coord('z', tmp[2])
+
+            xf = G.calculate_coord('x', tmp[3])
+            yf = G.calculate_coord('y', tmp[4])
+            zf = G.calculate_coord('z', tmp[5])
+
+            check_coordinates(xs, ys, zs, name='lower')
+            check_coordinates(xf, yf, zf, name='upper')
+
+            if xs >= xf or ys >= yf or zs >= zf:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
+
+            g = GeometryObjects(xs, ys, zs, xf, yf, zf, tmp[6])
+
+            if G.messages:
+                print('Geometry objects in the volume from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, will be written to {}, with materials written to {}'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, g.filename, g.materialsfilename))
+
+            # Append the new GeometryView object to the geometry objects to write list
+            G.geometryobjectswrite.append(g)
 
     # Complex frequency shifted (CFS) PML parameter
     cmdname = '#pml_cfs'
