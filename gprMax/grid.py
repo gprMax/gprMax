@@ -93,18 +93,15 @@ class FDTDGrid(Grid):
         self.averagevolumeobjects = True
         self.fractalvolumes = []
         self.geometryviews = []
+        self.geometryobjectswrite = []
         self.waveforms = []
         self.voltagesources = []
         self.hertziandipoles = []
         self.magneticdipoles = []
         self.transmissionlines = []
         self.rxs = []
-        self.srcstepx = 0
-        self.srcstepy = 0
-        self.srcstepz = 0
-        self.rxstepx = 0
-        self.rxstepy = 0
-        self.rxstepz = 0
+        self.srcsteps = (0, 0, 0)
+        self.rxsteps = (0, 0, 0)
         self.snapshots = []
 
     def initialise_geometry_arrays(self):
@@ -181,13 +178,13 @@ def dispersion_check(G):
             # Ensure source waveform is not being overly truncated before attempting any FFT
             if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:
                 # Calculate magnitude of frequency spectra of waveform
-                power = 20 * np.log10(np.abs(np.fft.fft(waveformvalues))**2)
+                power = 10 * np.log10(np.abs(np.fft.fft(waveformvalues))**2)
                 freqs = np.fft.fftfreq(power.size, d=G.dt)
 
                 # Shift powers so that frequency with maximum power is at zero decibels
                 power -= np.amax(power)
 
-                # Set maximum frequency to -60dB from maximum power
+                # Set maximum frequency to -60dB from maximum power, ignoring DC value
                 freq = np.where((np.amax(power[1::]) - power[1::]) > 60)[0][0] + 1
                 maxfreqs.append(freqs[freq])
 
@@ -242,11 +239,11 @@ def Ix(x, y, z, Hy, Hz, G):
 
     if y == 0 or z == 0:
         Ix = 0
-        return Ix
 
     else:
         Ix = G.dy * (Hy[x, y, z - 1] - Hy[x, y, z]) + G.dz * (Hz[x, y, z] - Hz[x, y - 1, z])
-        return Ix
+
+    return Ix
 
 
 def Iy(x, y, z, Hx, Hz, G):
@@ -260,11 +257,11 @@ def Iy(x, y, z, Hx, Hz, G):
 
     if x == 0 or z == 0:
         Iy = 0
-        return Iy
 
     else:
         Iy = G.dx * (Hx[x, y, z] - Hx[x, y, z - 1]) + G.dz * (Hz[x - 1, y, z] - Hz[x, y, z])
-        return Iy
+
+    return Iy
 
 
 def Iz(x, y, z, Hx, Hy, G):
@@ -278,8 +275,8 @@ def Iz(x, y, z, Hx, Hy, G):
 
     if x == 0 or y == 0:
         Iz = 0
-        return Iz
 
     else:
         Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (Hy[x, y, z] - Hy[x - 1, y, z])
-        return Iz
+
+    return Iz
