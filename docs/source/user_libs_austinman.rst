@@ -57,18 +57,18 @@ The AustinMan and AustinWoman models themselves are not included in the user lib
 
 * Download a HDF5 file (.h5) of AustinMan or AustinWoman at the resolution you wish to use from http://bit.ly/AustinMan
 
-To insert either AustinMan or AustinWoman models into a simulation use the ``#geometry_objects_file``.
+To insert either AustinMan or AustinWoman models into a simulation use the ``#geometry_objects_read``.
 
 Example
 -------
 
-To insert a 2x2x2mm :math:`^3` AustinMan with the lower left corner 40mm from the origin of the domain, and using disperive material properties, use the command:
+To insert a 2x2x2mm :math:`^3` AustinMan with the lower left corner 40mm from the origin of the domain, using disperive material properties, and with no dielectric smoothing, use the command:
 
 .. code-block:: none
 
-    #geometry_objects_file: 0.04 0.04 0.04 ../user_libs/AustinManWoman/AustinMan_v2.3_2x2x2.h5 ../user_libs/AustinManWoman/AustinManWoman_materials_dispersive.txt
+    #geometry_objects_read: 0.04 0.04 0.04 ../user_libs/AustinManWoman/AustinMan_v2.3_2x2x2.h5 ../user_libs/AustinManWoman/AustinManWoman_materials_dispersive.txt n
 
-For further information on the ``#geometry_objects_file`` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
+For further information on the ``#geometry_objects_read`` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
 
 .. figure:: images/user_libs/AustinMan.png
     :width: 300 px
