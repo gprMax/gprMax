@@ -125,6 +125,7 @@ class FractalVolume(object):
         self.nx = xf - xs
         self.ny = yf - ys
         self.nz = zf - zs
+        self.averaging = False
         self.seed = None
         self.dimension = dimension
         # Constant related to fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
