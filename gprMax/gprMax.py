@@ -36,6 +36,7 @@ from tqdm import tqdm
 from ._version import __version__
 from .constants import c, e0, m0, z0
 from .exceptions import GeneralError
+from .fields_outputs import write_hdf5_outputfile
 from .fields_update import update_electric, update_magnetic, update_electric_dispersive_multipole_A, update_electric_dispersive_multipole_B, update_electric_dispersive_1pole_A, update_electric_dispersive_1pole_B
 from .grid import FDTDGrid, dispersion_check
 from .input_cmds_geometry import process_geometrycmds
@@ -46,7 +47,6 @@ from .materials import Material, process_materials
 from .pml import build_pmls
 from .receivers import store_outputs
 from .utilities import logo, human_size, get_machine_cpu_os, get_terminal_width
-from .writer_hdf5 import write_hdf5
 from .yee_cell_build import build_electric_components, build_magnetic_components
 
 
@@ -72,7 +72,7 @@ def main():
     run_main(args)
 
 
-def api(inputfile, n=1, mpi=False, benchmark=False, geometry_only=False, geometry_fixed=False, write_processed=False, opt_taguchi=False):
+def api(inputfile, n=1, mpi=False, taskid=False, benchmark=False, geometry_only=False, geometry_fixed=False, write_processed=False, opt_taguchi=False):
     """If installed as a module this is the entry point."""
 
     class ImportArguments:
@@ -177,7 +177,7 @@ def run_job_array_sim(args, numbermodelruns, inputfile, usernamespace, optparams
     """
 
     modelrun = args.taskid
-    
+
     tsimstart = perf_counter()
     if optparams:  # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
         tmp = {}
@@ -336,10 +336,16 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
         # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
         usernamespace['current_model_run'] = modelrun
-        print('Constants/variables available for Python scripting: {}\n'.format(usernamespace))
 
         # Read input file and process any Python or include commands
         processedlines = process_python_include_code(inputfile, usernamespace)
+
+        # Print constants/variables in user-accessable namespace
+        uservars = ''
+        for key, value in sorted(usernamespace.items()):
+            if key != '__builtins__':
+                uservars += '{}: {}, '.format(key, value)
+        print('Constants/variables used/available for Python scripting: {{{}}}\n'.format(uservars[:-2]))
 
         # Write a file containing the input commands after Python or include commands have been processed
         if args.write_processed:
@@ -357,7 +363,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         m = Material(0, 'pec')
         m.se = float('inf')
         m.type = 'builtin'
-        m.average = False
+        m.averagable = False
         G.materials.append(m)
         m = Material(1, 'free_space')
         m.type = 'builtin'
@@ -414,7 +420,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         # Check to see if numerical dispersion might be a problem
         resolution = dispersion_check(G)
         if resolution and max((G.dx, G.dy, G.dz)) > resolution:
-            print(Fore.RED + '\nWARNING: Potential numerical dispersion in the simulation. Check the spatial discretisation against the smallest wavelength present. Suggested resolution should be less than {:g}m'.format(resolution) + Style.RESET_ALL)
+            print(Fore.RED + '\nWARNING: Potential numerical dispersion in the simulation. Check the spatial discretisation against the smallest wavelength present. Suggested resolution <{:g}m'.format(resolution) + Style.RESET_ALL)
 
     # If geometry information to be reused between model runs
     else:
@@ -429,27 +435,27 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             pml.initialise_field_arrays()
 
     # Adjust position of simple sources and receivers if required
-    if G.srcstepx > 0 or G.srcstepy > 0 or G.srcstepz > 0:
+    if G.srcsteps[0] > 0 or G.srcsteps[1] > 0 or G.srcsteps[2] > 0:
         for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
             if modelrun == 1:
-                if source.xcoord + G.srcstepx * (numbermodelruns - 1) > G.nx or source.ycoord + G.srcstepy * (numbermodelruns - 1) > G.ny or source.zcoord + G.srcstepz * (numbermodelruns - 1) > G.nz:
+                if source.xcoord + G.srcsteps[0] * (numbermodelruns - 1) > G.nx or source.ycoord + G.srcsteps[1] * (numbermodelruns - 1) > G.ny or source.zcoord + G.srcsteps[2] * (numbermodelruns - 1) > G.nz:
                     raise GeneralError('Source(s) will be stepped to a position outside the domain.')
-            source.xcoord = source.xcoordbase + (modelrun - 1) * G.srcstepx
-            source.ycoord = source.ycoordbase + (modelrun - 1) * G.srcstepy
-            source.zcoord = source.zcoordbase + (modelrun - 1) * G.srcstepz
-    if G.rxstepx > 0 or G.rxstepy > 0 or G.rxstepz > 0:
+            source.xcoord = source.xcoordbase + (modelrun - 1) * G.srcsteps[0]
+            source.ycoord = source.ycoordbase + (modelrun - 1) * G.srcsteps[1]
+            source.zcoord = source.zcoordbase + (modelrun - 1) * G.srcsteps[2]
+    if G.rxsteps[0] > 0 or G.rxsteps[1] > 0 or G.rxsteps[2] > 0:
         for receiver in G.rxs:
             if modelrun == 1:
-                if receiver.xcoord + G.rxstepx * (numbermodelruns - 1) > G.nx or receiver.ycoord + G.rxstepy * (numbermodelruns - 1) > G.ny or receiver.zcoord + G.rxstepz * (numbermodelruns - 1) > G.nz:
+                if receiver.xcoord + G.rxsteps[0] * (numbermodelruns - 1) > G.nx or receiver.ycoord + G.rxsteps[1] * (numbermodelruns - 1) > G.ny or receiver.zcoord + G.rxsteps[2] * (numbermodelruns - 1) > G.nz:
                     raise GeneralError('Receiver(s) will be stepped to a position outside the domain.')
-            receiver.xcoord = receiver.xcoordbase + (modelrun - 1) * G.rxstepx
-            receiver.ycoord = receiver.ycoordbase + (modelrun - 1) * G.rxstepy
-            receiver.zcoord = receiver.zcoordbase + (modelrun - 1) * G.rxstepz
+            receiver.xcoord = receiver.xcoordbase + (modelrun - 1) * G.rxsteps[0]
+            receiver.ycoord = receiver.ycoordbase + (modelrun - 1) * G.rxsteps[1]
+            receiver.zcoord = receiver.zcoordbase + (modelrun - 1) * G.rxsteps[2]
 
-    # Write files for any geometry views
-    if not G.geometryviews and args.geometry_only:
-        raise GeneralError('No geometry views found.')
-    elif G.geometryviews:
+    # Write files for any geometry views and geometry object outputs
+    if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only:
+        raise GeneralError('No geometry views or geometry objects to output found.')
+    if G.geometryviews:
         print()
         for i, geometryview in enumerate(G.geometryviews):
             geometryview.set_filename(modelrun, numbermodelruns, G)
@@ -457,7 +463,9 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             pbar = tqdm(total=geoiters, unit='byte', unit_scale=True, desc='Writing geometry file {} of {}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
             geometryview.write_vtk(modelrun, numbermodelruns, G, pbar)
             pbar.close()
-            # geometryview.write_xdmf(modelrun, numbermodelruns, G)
+    if G.geometryobjectswrite:
+        for geometryobject in G.geometryobjectswrite:
+            geometryobject.write_hdf5(G)
 
     # Run simulation (if not doing geometry only)
     if not args.geometry_only:
@@ -536,7 +544,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         tsolveend = perf_counter()
 
         # Write an output file in HDF5 format
-        write_hdf5(outputfile, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
+        write_hdf5_outputfile(outputfile, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
         if G.messages:
             print('Memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss)))
