@@ -115,9 +115,9 @@ Allows you to include commands from a file. It will insert the commands from the
 
 .. code-block:: none
 
-    #include_file: file
+    #include_file: file1
 
-``file`` can be the name of the file containing the commands in the same directory as the input file, or ``file`` can be the full path to the file containing the commands (allowing you to specify any location).
+``file1`` can be the name of the file containing the commands in the same directory as the input file, or ``file`` can be the full path to the file containing the commands (allowing you to specify any location).
 
 
 #time_step_stability_factor:
@@ -366,7 +366,7 @@ At the boundaries between different materials in the model there is the question
 
     * If a material has dispersive properties then dielectric smoothing is automatically turned off for that material.
     * If an object is anistropic then dielectric smoothing is automatically turned off for that object.
-    * Non-volumetric object building commands, ``#edge`` and ``#plate`` cannot have dielectric smoothing.
+    * Non-volumetric object building commands, ``#edge``, ``#plate``, and ``#triangle`` (applies to triangular path not triangular prism) cannot have dielectric smoothing.
 
 
 .. _geometryview:
@@ -378,12 +378,12 @@ Allows you output to file(s) information about the geometry of model. The file(s
 
 .. code-block:: none
 
-    #geometry_view: f1 f2 f3 f4 f5 f6 f7 f8 f9 file c1
+    #geometry_view: f1 f2 f3 f4 f5 f6 f7 f8 f9 file1 c1
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the volume of the geometry view in metres.
 * ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the volume of the geometry view in metres.
 * ``f7 f8 f9`` are the spatial discretisation of the geometry view in metres. Typically these will be the same as the spatial discretisation of the model but they can be courser if desired.
-* ``file`` is the filename of the file where the geometry view will be stored in the same directory as the input file.
+* ``file1`` is the filename of the file where the geometry view will be stored in the same directory as the input file.
 * ``c1`` can be either n (normal) or f (fine) which specifies whether to output the geometry information on a per-cell basis (n) or a per-cell-edge basis (f). The fine mode should be reserved for viewing detailed parts of the geometry that occupy small volumes, as using this mode can generate geometry files with large file sizes.
 
 .. tip::
@@ -426,11 +426,12 @@ Allows you to introduce a triangular patch or a triangular prism with specific p
 
 .. code-block:: none
 
-    #triangle: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 str1
+    #triangle: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 str1 [c1]
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the first apex of the triangle, ``f4 f5 f6`` the coordinates (x,y,z) of the second apex, and ``f7 f8 f9`` the coordinates (x,y,z) of the third apex.
 * ``f10`` is the thickness of the triangular prism. If the thickness is zero then a triangular patch is created.
 * ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials ``pec`` or ``free_space``.
+* ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing. For use only when creating a triangular prism, not a triangular patch.
 
 For example, to specify a xy orientated triangular patch that is a perfect electric conductor, use: ``#triangle: 0.5 0.5 0.5 0.6 0.4 0.5 0.7 0.9 0.5 0.0 pec``. Note that the z coordinates are identical and the thickness is zero.
 
@@ -441,10 +442,11 @@ Allows you to introduce an orthogonal parallelepiped with specific properties in
 
 .. code-block:: none
 
-    #box: f1 f2 f3 f4 f5 f6 str1
+    #box: f1 f2 f3 f4 f5 f6 str1 [c1]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the parallelepiped, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the parallelepiped.
 * ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials ``pec`` or ``free_space``.
+* ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing.
 
 #sphere:
 --------
@@ -453,11 +455,12 @@ Allows you to introduce a spherical object with specific parameters into the mod
 
 .. code-block:: none
 
-    #sphere: f1 f2 f3 f4 str1
+    #sphere: f1 f2 f3 f4 str1 [c1]
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of the sphere.
 * ``f4`` is its radius.
 * ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials ``pec`` or ``free_space``.
+* ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing.
 
 For example, to specify a sphere with centre at (0.5, 0.5, 0.5), radius 100 mm, and with constitutive parameters of ``my_sand``, use: ``#sphere: 0.5 0.5 0.5 0.1 my_sand``.
 
@@ -472,11 +475,12 @@ Allows you to introduce a circular cylinder into the model. The orientation of t
 
 .. code-block:: none
 
-    #cylinder: f1 f2 f3 f4 f5 f6 f7 str1
+    #cylinder: f1 f2 f3 f4 f5 f6 f7 str1 [c1]
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of one face of the cylinder, and ``f4 f5 f6`` are the coordinates (x,y,z) of the centre of the other face.
 * ``f7`` is the radius of the cylinder.
 * ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials ``pec`` or ``free_space``.
+* ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing.
 
 For example, to specify a cylinder with its axis in the y direction, a length of 0.7 m, a radius of 100 mm, and that is a perfect electric conductor, use: ``#cylinder: 0.5 0.1 0.5 0.5 0.8 0.5 0.1 pec``.
 
@@ -492,7 +496,7 @@ Allows you to introduce a cylindrical sector (shaped like a slice of pie) into t
 
 .. code-block:: none
 
-    #cylindrical_sector: c1 f1 f2 f3 f4 f5 f6 f7 str1
+    #cylindrical_sector: c1 f1 f2 f3 f4 f5 f6 f7 str1 [c1]
 
 * ``c1`` is the direction of the axis of the cylinder from which the sector is defined and can be ``x``, ``y``, or ``z``.
 * ``f1 f2`` are the coordinates of the centre of the cylindrical sector.
@@ -501,6 +505,7 @@ Allows you to introduce a cylindrical sector (shaped like a slice of pie) into t
 * ``f6`` is the starting angle (in degrees) for the cylindrical sector (with zero degrees defined on the positive first axis of the plane of the cylindrical sector).
 * ``f7`` is the angle (in degrees) swept by the cylindrical sector (the finishing angle of the sector is always anti-clockwise from the starting angle).
 * ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials ``pec`` or ``free_space``.
+* ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing.
 
 For example, to specify a cylindrical sector with its axis in the z direction, radius of 0.25 m, thickness of 2 mm, a starting angle of 330 :math:`^\circ`, a sector angle of 60 :math:`^\circ`, and that is a perfect electric conductor, use: ``#cylindrical_sector: z 0.34 0.24 0.500 0.502 0.25 330 60 pec``.
 
@@ -517,7 +522,7 @@ Allows you to introduce an orthogonal parallelepiped with fractal distributed pr
 
 .. code-block:: none
 
-    #fractal_box: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 i1 str1 str2 [i2]
+    #fractal_box: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 i1 str1 str2 [i2] [c1]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the parallelepiped, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the parallelepiped.
 * ``f7`` is the fractal dimension which, for an orthogonal parallelepiped, should take values between zero and three.
@@ -528,6 +533,7 @@ Allows you to introduce an orthogonal parallelepiped with fractal distributed pr
 * ``str1`` is an identifier for the associated mixing model or material.
 * ``str2`` is an identifier for the fractal box itself.
 * ``i2`` is an optional parameter which controls the seeding of the random number generator used to create the fractals. By default (if you don't specify this parameter) the random number generator will be seeded by trying to read data from ``/dev/urandom`` (or the Windows analogue) if available or from the clock otherwise.
+* ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing. If ``c1`` is specified then a value for ``i2`` must also be present.
 
 For example, to create an orthogonal parallelepiped with fractal distributed properties using a Peplinski mixing model for soil, with 50 different materials over a range of water volumetric fractions from 0.001 - 0.25, you should first define the mixing model using: ``#soil_peplinski: 0.5 0.5 2.0 2.66 0.001 0.25 my_soil`` and then specify the fractal box using ``#fractal_box: 0 0 0 0.1 0.1 0.1 1.5 1 1 1 50 my_soil my_fractal_box``.
 
@@ -593,29 +599,47 @@ For example, to apply 100 blades of grass that vary in height between 100 and 15
 
     * The grass is modelled using a single-pole Debye formulation with properties :math:`\epsilon_{rs} = 18.5087`, :math:`\epsilon_{\infty} = 12.7174`, and a relaxation time of :math:`\tau = 1.0793 \times 10^{-11}` seconds (http://dx.doi.org/10.1007/BF00902994). If you prefer, gprMax will use your own definition for grass if you use a material named ``grass``. The geometry of the blades of grass are defined by the parametric equations: :math:`x = x_c +s_x {\left( \frac{t}{b_x} \right)}^2`, :math:`y = y_c +s_y {\left( \frac{t}{b_y} \right)}^2`, and :math:`z=t`, where :math:`s_x` and :math:`s_y` can be -1 or 1 which are randomly chosen, and where the constants :math:`b_x` and :math:`b_y` are random numbers based on a Gaussian distribution.
 
-#geometry_objects_file:
+#geometry_objects_read:
 -----------------------
 
 Allows you to insert pre-defined geometry into a model. The geometry is specified using a 3D array of integer numbers stored in a HDF5 file. The integer numbers must correspond to the order of a list of ``#material`` commands specified in a text file. The syntax of the command is:
 
 .. code-block:: none
 
-    #geometry_objects_file: f1 f2 f3 file1 file2
+    #geometry_objects_read: f1 f2 f3 file1 file2 [c1]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates in the domain where the lower left corner of the geometry array should be placed.
 * ``file1`` is the path to and filename of the HDF5 file that contains an integer array which defines the geometry.
 * ``file2`` is the path to and filename of the text file that contains ``#material`` commands.
+* ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing. Dielectric smoothing can only be turned on if the geometry objects that are being read were originally generated by gprMax, i.e. via the ``#geometry_objects_write`` command.
 
 .. note::
 
     * The integer numbers in the HDF5 file must be stored as a NumPy array at the root named ``data`` with type ``np.int16``.
     * The integer numbers in the HDF5 file correspond to the order of material commands in the materials text file, i.e. if ``#sand: 3 0 1 0`` is the first material in the materials file, it will be associated with any integers that are zero in the HDF5 file.
     * You can use an integer of -1 in the HDF5 file to indicate not to build any material at that location, i.e. whatever material is already in the model at that location.
-    * Dielectric smoothing will not occur for materials imported from a materials text file.
     * The spatial resolution of the geometry objects must match the spatial resolution defined in the model.
-    * The spatial resolution of must be specified as a root attribute of the HDF5 file with the name ``dx, dy, dz`` equal to a tuple of floats, e.g. (0.002, 0.002, 0.002)
+    * The spatial resolution must be specified as a root attribute of the HDF5 file with the name ``dx, dy, dz`` equal to a tuple of floats, e.g. (0.002, 0.002, 0.002)
 
-For example, to insert a 2x2x2mm^3 AustinMan model with the lower left corner 40mm from the origin of the domain, and using disperive material properties use ``#geometry_objects_file: 0.04 0.04 0.04 ../user_libs/AustinManWoman/AustinMan_v2.3_2x2x2.h5 ../user_libs/AustinManWoman/AustinManWoman_gprMax_materials.txt``
+For example, to insert a 2x2x2mm^3 AustinMan model with the lower left corner 40mm from the origin of the domain, and using disperive material properties use ``#geometry_objects_read: 0.04 0.04 0.04 ../user_libs/AustinManWoman/AustinMan_v2.3_2x2x2.h5 ../user_libs/AustinManWoman/AustinManWoman_materials_dispersive.txt``
+
+#geometry_objects_write:
+------------------------
+
+Allows you to write geometry generated in a model to file. The file can be read back into gprMax using the ``#geometry_objects_read`` command. This allows complex geometry that can take some time to generate to be saved to file and more quickly imported into subsequent models. The geometry information is saved as a 3D array of integer numbers stored in a HDF5 file, and corresponding material information is stored in a text file. The integer numbers correspond to the order of a list of ``#material`` commands specified in the text file. The syntax of the command is:
+
+.. code-block:: none
+
+    #geometry_objects_write: f1 f2 f3 f4 f5 f6 file1
+
+* ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the parallelepiped, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the parallelepiped.
+* ``file1`` is the basename for the files where geometry and material information will be stored.
+
+.. note::
+
+    * The structure of the HDF5 file is the same as that described for the ``#geometry_objects_read`` command.
+    * Objects are stored using spatial resolution defined in the model.
+    * Only volumetric objects are saved to file, i.e. not objects generated with ``#edge``, ``#plate`` or ``#triangle`` (triangular patch) commands.
 
 
 Source and output commands
@@ -659,9 +683,9 @@ If there are less amplitude values than the number of iterations that are going 
 
 .. code-block:: none
 
-    #excitation_file: file
+    #excitation_file: file1
 
-``file`` can be the name of the file containing the specified waveform in the same directory as the input file, or ``file`` can be the full path to the file containing the specified waveform (allowing you to specify any location).
+``file1`` can be the name of the file containing the specified waveform in the same directory as the input file, or ``file`` can be the full path to the file containing the specified waveform (allowing you to specify any location).
 
 For example, to specify the file ``my_waves.txt``, which contains two custom waveform shapes, use: ``#excitation_file: my_waves.txt``. The contents of the file ``my_waves.txt`` would take the form:
 
@@ -809,19 +833,19 @@ Allows you to obtain information about the electromagnetic fields within a volum
 
 .. code-block:: none
 
-    #snapshot: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 file
+    #snapshot: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 file1
 
 or
 
 .. code-block:: none
 
-    #snapshot: f1 f2 f3 f4 f5 f6 f7 f8 f9 i1 file
+    #snapshot: f1 f2 f3 f4 f5 f6 f7 f8 f9 i1 file1
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the volume of the snapshot in metres.
 * ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the volume of the snapshot in metres.
 * ``f7 f8 f9`` are the spatial discretisation of the snapshot in metres.
 * ``f10`` or ``i1`` are the time in seconds (float) or the iteration number (integer) which denote the point in time at which the snapshot will be taken.
-* ``file`` is the name of the file where the snapshot will be stored. Snapshot files are automatically stored in a directory with the name of the input file appended with '_snaps'. For multiple model runs each model run will have its own directory, i.e. '_snaps1', 'snaps2' etc...
+* ``file1`` is the name of the file where the snapshot will be stored. Snapshot files are automatically stored in a directory with the name of the input file appended with '_snaps'. For multiple model runs each model run will have its own directory, i.e. '_snaps1', 'snaps2' etc...
 
 For example to save a snapshot of the electromagnetic fields in the model at a simulated time of 3 nanoseconds use: ``#snapshot: 0 0 0 1 1 1 0.1 0.1 0.1 3e-9 snap1``
 
