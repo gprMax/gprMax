@@ -17,11 +17,14 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+from random import randrange
 import sys
 
+import h5py
 import numpy as np
 from struct import pack
 
+from gprMax._version import __version__
 from gprMax.utilities import round_value
 
 
@@ -267,3 +270,72 @@ class GeometryView(object):
             for index, rx in enumerate(G.rxs):
                 f.write('<Receivers name="{}">{}</Receivers>\n'.format(rx.ID, index + 1).encode('utf-8'))
         f.write('</gprMax>\n'.encode('utf-8'))
+
+
+class GeometryObjects(object):
+    """Geometry objects to be written to file."""
+
+    def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None, basefilename=None):
+        """
+        Args:
+            xs, xf, ys, yf, zs, zf (int): Extent of the volume in cells.
+            filename (str): Filename to save to.
+        """
+
+        self.xs = xs
+        self.ys = ys
+        self.zs = zs
+        self.xf = xf
+        self.yf = yf
+        self.zf = zf
+        self.nx = self.xf - self.xs
+        self.ny = self.yf - self.ys
+        self.nz = self.zf - self.zs
+        self.filename = basefilename + '.h5'
+        self.materialsfilename = basefilename + '_materials.txt'
+
+    def write_hdf5(self, G):
+        """Write a geometry objects file in HDF5 format.
+
+        Args:
+            G (class): Grid class instance - holds essential parameters describing the model.
+        """
+
+        # Write the geometry objects to a HDF5 file
+        fdata = h5py.File(os.path.abspath(os.path.join(G.inputdirectory, self.filename)), 'w')
+        fdata.attrs['gprMax'] = __version__
+        fdata.attrs['Title'] = G.title
+        fdata.attrs['dx, dy, dz'] = (G.dx, G.dy, G.dz)
+
+        # Get minimum and maximum integers of materials in geometry objects volume
+        minmat = np.amin(G.solid[self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1])
+        maxmat = np.amax(G.solid[self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1])
+        fdata['/data'] = G.solid[self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1].astype('int16') - minmat
+        fdata['/rigidE'] = G.rigidE[:, self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1]
+        fdata['/rigidH'] = G.rigidH[:, self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1]
+
+        # Randomly generated ID to make imported material IDs unique
+        randID = '{' + str(randrange(10**5, 10**6)) + '}'
+
+        # Write materials list to a text file
+        # This includes all materials in range whether used in volume or not; also append a 6-digit random number to the material ID to make it unique
+        fmaterials = open(os.path.abspath(os.path.join(G.inputdirectory, self.materialsfilename)), 'w')
+        for numID in range(minmat, maxmat + 1):
+            for material in G.materials:
+                if material.numID == numID:
+                    fmaterials.write('#material: {:g} {:g} {:g} {:g} {}\n'.format(material.er, material.se, material.mr, material.sm, material.ID + randID))
+                    if material.poles > 0:
+                        if 'debye' in material.type:
+                            dispersionstr = '#add_dispersion_debye: {:g} '.format(material.poles)
+                            for pole in range(material.poles):
+                                dispersionstr += '{:g} {:g} '.format(material.deltaer[pole], material.tau[pole])
+                        elif 'lorenz' in material.type:
+                            dispersionstr = '#add_dispersion_lorenz: {:g} '.format(material.poles)
+                            for pole in range(material.poles):
+                                dispersionstr += '{:g} {:g} {:g} '.format(material.deltaer[pole], material.tau[pole], material.alpha[pole])
+                        elif 'drude' in material.type:
+                            dispersionstr = '#add_dispersion_drude: {:g} '.format(material.poles)
+                            for pole in range(material.poles):
+                                dispersionstr += '{:g} {:g} '.format(material.tau[pole], material.alpha[pole])
+                        dispersionstr += (material.ID + randID)
+                        fmaterials.write(dispersionstr + '\n')

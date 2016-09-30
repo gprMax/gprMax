@@ -21,7 +21,7 @@ import h5py
 from gprMax._version import __version__
 
 
-def write_hdf5(outputfile, Ex, Ey, Ez, Hx, Hy, Hz, G):
+def write_hdf5_outputfile(outputfile, Ex, Ey, Ez, Hx, Hy, Hz, G):
     """Write an output file in HDF5 format.
 
     Args:
@@ -40,8 +40,8 @@ def write_hdf5(outputfile, Ex, Ey, Ez, Hx, Hy, Hz, G):
     nsrc = len(G.voltagesources + G.hertziandipoles + G.magneticdipoles + G.transmissionlines)
     f.attrs['nsrc'] = nsrc
     f.attrs['nrx'] = len(G.rxs)
-    f.attrs['srcsteps'] = (G.srcstepx, G.srcstepy, G.srcstepz)
-    f.attrs['rxsteps'] = (G.rxstepx, G.rxstepy, G.rxstepz)
+    f.attrs['srcsteps'] = G.srcsteps
+    f.attrs['rxsteps'] = G.rxsteps
 
     # Create group for sources (except transmission lines); add type and positional data attributes
     srclist = G.voltagesources + G.hertziandipoles + G.magneticdipoles
