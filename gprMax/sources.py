@@ -107,7 +107,7 @@ class VoltageSource(Source):
             newmaterial = deepcopy(material)
             newmaterial.ID = material.ID + '+VoltageSource_' + str(self.resistance)
             newmaterial.numID = len(G.materials)
-            newmaterial.average = False
+            newmaterial.averagable = False
             newmaterial.type = 'dielectric-smoothed, voltage source'
 
             # Add conductivity of voltage source to underlying conductivity
