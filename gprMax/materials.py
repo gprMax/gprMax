@@ -50,7 +50,7 @@ class Material(object):
         self.ID = ID
         self.type = 'user-defined'
         # Default material averaging
-        self.average = True
+        self.averagable = True
 
         # Default material constitutive parameters (free_space)
         self.er = 1.0
@@ -188,7 +188,7 @@ def process_materials(G):
 
             materialtext.append('{:g}'.format(material.mr))
             materialtext.append('{:g}'.format(material.sm))
-            materialtext.append(material.average)
+            materialtext.append(material.averagable)
             materialtext.append(material.type)
             materialsdata.append(materialtext)
 
@@ -272,7 +272,10 @@ class PeplinskiSoil(object):
             if not material:
                 m = Material(len(G.materials), requiredID)
                 m.type = 'debye'
-                m.average = False
+                m.averagable = False
+                m.poles = 1
+                if m.poles > Material.maxpoles:
+                    Material.maxpoles = m.poles
                 m.er = eri
                 m.se = sig
                 m.deltaer.append(er2 - m.er)
