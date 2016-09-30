@@ -50,9 +50,22 @@ def process_geometrycmds(geometry, G):
     for object in tqdm(geometry, desc='Processing geometry related cmds', unit='cmds', ncols=get_terminal_width() - 1, file=sys.stdout, disable=tqdmdisable):
         tmp = object.split()
 
-        if tmp[0] == '#geometry_objects_file:':
-            if len(tmp) != 6:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly five parameters')
+        if tmp[0] == '#geometry_objects_read:':
+            averaging = G.averagevolumeobjects
+
+            if len(tmp) < 6:
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least five parameters')
+
+            elif len(tmp) == 7:
+                if tmp[6].lower() == 'y':
+                    averaging = True
+                elif tmp[6].lower() == 'n':
+                    averaging = False
+                else:
+                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires averaging to be either y or n')
+
+            elif len(tmp) > 7:
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
 
             xs = round_value(float(tmp[1]) / G.dx)
             ys = round_value(float(tmp[2]) / G.dy)
@@ -77,6 +90,11 @@ def process_geometrycmds(geometry, G):
             # Process parameters for commands that can occur multiple times in the model
             process_multicmds(multicmds, G)
 
+            # Update material type
+            for material in G.materials:
+                if material.numID >= numexistmaterials:
+                    material.type += ', imported'
+
             # See if geometry object file exists at specified path and if not try input file directory
             if not os.path.isfile(geofile):
                 geofile = os.path.abspath(os.path.join(G.inputdirectory, geofile))
@@ -93,10 +111,23 @@ def process_geometrycmds(geometry, G):
             if data.dtype != 'int16':
                 data = data.astype('int16')
 
-            build_voxels_from_array(xs, ys, zs, numexistmaterials, data, G.solid, G.rigidE, G.rigidH, G.ID)
+            # Look rigid arrays if present (these should be present if the original geometry objects were written from gprMax)
+            try:
+                rigidE = f['/rigidE'][:]
+                rigidH = f['/rigidH'][:]
+                G.rigidE[:, xs:xs + rigidE.shape[1], ys:ys + rigidE.shape[2], zs:zs + rigidE.shape[3]] = rigidE
+                G.rigidH[:, xs:xs + rigidH.shape[1], ys:ys + rigidH.shape[2], zs:zs + rigidH.shape[3]] = rigidH
+            except KeyError:
+                averaging = False
+
+            build_voxels_from_array(xs, ys, zs, numexistmaterials, averaging, data, G.solid, G.rigidE, G.rigidH, G.ID)
 
             if G.messages:
-                tqdm.write('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}, dielectric smoothing is off for these objects.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
+                if averaging:
+                    dielectricsmoothing = 'on'
+                else:
+                    dielectricsmoothing = 'off'
+                tqdm.write('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}, dielectric smoothing is {} for these objects.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile, dielectricsmoothing))
 
         elif tmp[0] == '#edge:':
             if len(tmp) != 8:
@@ -334,7 +365,7 @@ def process_geometrycmds(geometry, G):
             if thickness > 0:
                 # Isotropic case
                 if len(materials) == 1:
-                    averaging = materials[0].average and averagetriangularprism
+                    averaging = materials[0].averagable and averagetriangularprism
                     numID = numIDx = numIDy = numIDz = materials[0].numID
 
                 # Uniaxial anisotropic case
@@ -442,7 +473,7 @@ def process_geometrycmds(geometry, G):
 
             # Isotropic case
             if len(materials) == 1:
-                averaging = materials[0].average and averagebox
+                averaging = materials[0].averagable and averagebox
                 numID = numIDx = numIDy = numIDz = materials[0].numID
 
             # Uniaxial anisotropic case
@@ -523,7 +554,7 @@ def process_geometrycmds(geometry, G):
 
             # Isotropic case
             if len(materials) == 1:
-                averaging = materials[0].average and averagecylinder
+                averaging = materials[0].averagable and averagecylinder
                 numID = numIDx = numIDy = numIDz = materials[0].numID
 
             # Uniaxial anisotropic case
@@ -619,7 +650,7 @@ def process_geometrycmds(geometry, G):
             if thickness > 0:
                 # Isotropic case
                 if len(materials) == 1:
-                    averaging = materials[0].average and averagecylindricalsector
+                    averaging = materials[0].averagable and averagecylindricalsector
                     numID = numIDx = numIDy = numIDz = materials[0].numID
 
                 # Uniaxial anisotropic case
@@ -729,7 +760,7 @@ def process_geometrycmds(geometry, G):
 
             # Isotropic case
             if len(materials) == 1:
-                averaging = materials[0].average and averagesphere
+                averaging = materials[0].averagable and averagesphere
                 numID = numIDx = numIDy = numIDz = materials[0].numID
 
             # Uniaxial anisotropic case
@@ -765,12 +796,23 @@ def process_geometrycmds(geometry, G):
                 tqdm.write('Sphere with centre {:g}m, {:g}m, {:g}m, radius {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(xc * G.dx, yc * G.dy, zc * G.dz, r, ', '.join(materialsrequested), dielectricsmoothing))
 
         elif tmp[0] == '#fractal_box:':
+            # Default is no dielectric smoothing for a fractal box
+            averagefractalbox = False
+
             if len(tmp) < 14:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least thirteen parameters')
             elif len(tmp) == 14:
                 seed = None
             elif len(tmp) == 15:
                 seed = int(tmp[14])
+            elif len(tmp) == 16:
+                seed = int(tmp[14])
+                if tmp[15].lower() == 'y':
+                    averagefractalbox = True
+                elif tmp[15].lower() == 'n':
+                    averagefractalbox = False
+                else:
+                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires averaging to be either y or n')
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
 
@@ -825,9 +867,17 @@ def process_geometrycmds(geometry, G):
             volume.nbins = nbins
             volume.seed = seed
             volume.weighting = (float(tmp[8]), float(tmp[9]), float(tmp[10]))
+            try:
+                volume.averaging = averagefractalbox
+            except:
+                pass
 
             if G.messages:
-                tqdm.write('Fractal box {} from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with {}, fractal dimension {:g}, fractal weightings {:g}, {:g}, {:g}, fractal seeding {} and with {} values created.'.format(volume.ID, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, volume.operatingonID, volume.dimension, volume.weighting[0], volume.weighting[1], volume.weighting[2], volume.seed, volume.nbins))
+                if volume.averaging:
+                    dielectricsmoothing = 'on'
+                else:
+                    dielectricsmoothing = 'off'
+                tqdm.write('Fractal box {} from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with {}, fractal dimension {:g}, fractal weightings {:g}, {:g}, {:g}, fractal seeding {}, with {} material(s) created, dielectric smoothing is {}.'.format(volume.ID, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, volume.operatingonID, volume.dimension, volume.weighting[0], volume.weighting[1], volume.weighting[2], volume.seed, volume.nbins, dielectricsmoothing))
 
             G.fractalvolumes.append(volume)
 
@@ -1038,7 +1088,7 @@ def process_geometrycmds(geometry, G):
                         # Check to see if water has been already defined as a material
                         if not any(x.ID == 'water' for x in G.materials):
                             m = Material(len(G.materials), 'water')
-                            m.average = False
+                            m.averagable = False
                             m.type = 'builtin, debye'
                             m.er = Material.watereri
                             m.deltaer.append(Material.waterdeltaer)
@@ -1186,7 +1236,7 @@ def process_geometrycmds(geometry, G):
                         # Check to see if grass has been already defined as a material
                         if not any(x.ID == 'grass' for x in G.materials):
                             m = Material(len(G.materials), 'grass')
-                            m.average = False
+                            m.averagable = False
                             m.type = 'builtin, debye'
                             m.er = Material.grasseri
                             m.deltaer.append(Material.grassdeltaer)
@@ -1455,7 +1505,7 @@ def process_geometrycmds(geometry, G):
                 grassnumID = next((x.numID for x in G.materials if x.ID == 'grass'), 0)
                 data = volume.fractalvolume.astype('int16', order='C')
                 mask = volume.mask.copy(order='C')
-                build_voxels_from_array_mask(volume.xs, volume.ys, volume.zs, waternumID, grassnumID, mask, data, G.solid, G.rigidE, G.rigidH, G.ID)
+                build_voxels_from_array_mask(volume.xs, volume.ys, volume.zs, waternumID, grassnumID, volume.averaging, mask, data, G.solid, G.rigidE, G.rigidH, G.ID)
 
             else:
                 if volume.nbins == 1:
@@ -1465,4 +1515,4 @@ def process_geometrycmds(geometry, G):
                     volume.fractalvolume += mixingmodel.startmaterialnum
 
                 data = volume.fractalvolume.astype('int16', order='C')
-                build_voxels_from_array(volume.xs, volume.ys, volume.zs, 0, data, G.solid, G.rigidE, G.rigidH, G.ID)
+                build_voxels_from_array(volume.xs, volume.ys, volume.zs, 0, volume.averaging, data, G.solid, G.rigidE, G.rigidH, G.ID)
