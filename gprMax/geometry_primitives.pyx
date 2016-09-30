@@ -660,12 +660,13 @@ cpdef void build_sphere(int xc, int yc, int zc, float r, float dx, float dy, flo
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
 
 
-cpdef void build_voxels_from_array(int xs, int ys, int zs, int numexistmaterials, np.int16_t[:, :, ::1] data, np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
+cpdef void build_voxels_from_array(int xs, int ys, int zs, int numexistmaterials, bint averaging, np.int16_t[:, :, ::1] data, np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
     """Builds Yee voxels by reading integers from an array.
         
     Args:
         xs, ys, zs (int): Cell coordinates of position of start of array in domain.
         numexistmaterials (int): Number of existing materials in model prior to building voxels.
+        averaging (bint): Whether material property averging will occur for the object.
         data (memoryview): Access to array containing numeric IDs of voxels to create.
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
     """
@@ -701,15 +702,16 @@ cpdef void build_voxels_from_array(int xs, int ys, int zs, int numexistmaterials
                 numID = data[i - xs, j - ys, k - zs]
                 if numID >= 0:
                     numID += numexistmaterials
-                    build_voxel(i, j, k, numID, numID, numID, numID, False, solid, rigidE, rigidH, ID)
+                    build_voxel(i, j, k, numID, numID, numID, numID, averaging, solid, rigidE, rigidH, ID)
 
 
-cpdef void build_voxels_from_array_mask(int xs, int ys, int zs, int waternumID, int grassnumID, np.int8_t[:, :, ::1] mask, np.int16_t[:, :, ::1] data, np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
+cpdef void build_voxels_from_array_mask(int xs, int ys, int zs, int waternumID, int grassnumID, bint averaging, np.int8_t[:, :, ::1] mask, np.int16_t[:, :, ::1] data, np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
     """Builds Yee voxels by reading integers from an array.
         
     Args:
         xs, ys, zs (int): Cell coordinates of position of start of array in domain.
         waternumID, grassnumID (int): Numeric ID of water and grass materials.
+        averaging (bint): Whether material property averging will occur for the object.
         data (memoryview): Access to array containing numeric IDs of voxels to create.
         mask (memoryview): Access to array containing a mask of voxels to create.
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
@@ -728,11 +730,11 @@ cpdef void build_voxels_from_array_mask(int xs, int ys, int zs, int waternumID, 
             for k in range(zs, zf):
                 if mask[i - xs, j - ys, k - zs] == 1:
                     numID = numIDx = numIDy = numIDz = data[i - xs, j - ys, k - zs]
-                    build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, solid, rigidE, rigidH, ID)
+                    build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
                 elif mask[i - xs, j - ys, k - zs] == 2:
                     numID = numIDx = numIDy = numIDz = waternumID
-                    build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, solid, rigidE, rigidH, ID)
+                    build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
                 elif mask[i - xs, j - ys, k - zs] == 3:
                     numID = numIDx = numIDy = numIDz = grassnumID
-                    build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, False, solid, rigidE, rigidH, ID)
+                    build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
 
