@@ -205,11 +205,11 @@ def process_singlecmds(singlecmds, G):
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
             raise CmdInputError(cmd + ' requires exactly three parameters')
-        G.srcstepx = round_value(float(tmp[0]) / G.dx)
-        G.srcstepy = round_value(float(tmp[1]) / G.dy)
-        G.srcstepz = round_value(float(tmp[2]) / G.dz)
+        G.srcsteps[0] = round_value(float(tmp[0]) / G.dx)
+        G.srcsteps[1] = round_value(float(tmp[1]) / G.dy)
+        G.srcsteps[2] = round_value(float(tmp[2]) / G.dz)
         if G.messages:
-            print('Simple sources will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.srcstepx * G.dx, G.srcstepy * G.dy, G.srcstepz * G.dz))
+            print('Simple sources will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.srcsteps[0] * G.dx, G.srcsteps[1] * G.dy, G.srcsteps[2] * G.dz))
 
     # rx_steps
     cmd = '#rx_steps'
@@ -217,11 +217,11 @@ def process_singlecmds(singlecmds, G):
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
             raise CmdInputError(cmd + ' requires exactly three parameters')
-        G.rxstepx = round_value(float(tmp[0]) / G.dx)
-        G.rxstepy = round_value(float(tmp[1]) / G.dy)
-        G.rxstepz = round_value(float(tmp[2]) / G.dz)
+        G.rxsteps[0] = round_value(float(tmp[0]) / G.dx)
+        G.rxsteps[1] = round_value(float(tmp[1]) / G.dy)
+        G.rxsteps[2] = round_value(float(tmp[2]) / G.dz)
         if G.messages:
-            print('All receivers will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.rxstepx * G.dx, G.rxstepy * G.dy, G.rxstepz * G.dz))
+            print('All receivers will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.rxsteps[0] * G.dx, G.rxsteps[1] * G.dy, G.rxsteps[2] * G.dz))
 
     # Excitation file for user-defined source waveforms
     cmd = '#excitation_file'
