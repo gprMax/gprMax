@@ -48,7 +48,7 @@ class Material(object):
 
         self.numID = numID
         self.ID = ID
-        self.type = 'user-defined'
+        self.type = ''
         # Default material averaging
         self.averagable = True
 
@@ -152,9 +152,9 @@ def process_materials(G):
     if G.messages:
         print('\nMaterials:')
         if Material.maxpoles == 0:
-            materialsdata = [['\nID', '\nName', '\neps_r', 'sigma\n[S/m]', '\nmu_r', 'sigma*\n[S/m]', 'Dielectric\nsmoothable', '\nType']]
+            materialsdata = [['\nID', '\nName', '\nType', '\neps_r', 'sigma\n[S/m]', '\nmu_r', 'sigma*\n[S/m]', 'Dielectric\nsmoothable']]
         else:
-            materialsdata = [['\nID', '\nName', '\neps_r', 'sigma\n[S/m]', '\nDelta eps_r', 'tau\n[s]', '\nmu_r', 'sigma*\n[S/m]', 'Dielectric\nsmoothable', '\nType']]
+            materialsdata = [['\nID', '\nName', '\nType', '\neps_r', 'sigma\n[S/m]', '\nDelta eps_r', 'tau\n[s]', 'omega\n[Hz]', 'delta\n[Hz]', 'gamma\n[Hz]', '\nmu_r', 'sigma*\n[S/m]', 'Dielectric\nsmoothable']]
 
     for material in G.materials:
         # Calculate update coefficients for material
@@ -176,20 +176,38 @@ def process_materials(G):
             materialtext = []
             materialtext.append(str(material.numID))
             materialtext.append(material.ID)
+            materialtext.append(material.type)
             materialtext.append('{:g}'.format(material.er))
             materialtext.append('{:g}'.format(material.se))
             if Material.maxpoles > 0:
-                if material.deltaer and material.tau:
+                if 'debye' in material.type:
                     materialtext.append(', '.join('{:g}'.format(deltaer) for deltaer in material.deltaer))
                     materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
+                    materialtext.append('')
+                    materialtext.append('')
+                    materialtext.append('')
+                elif 'lorentz' in material.type:
+                    materialtext.append(', '.join('{:g}'.format(deltaer) for deltaer in material.deltaer))
+                    materialtext.append('')
+                    materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
+                    materialtext.append(', '.join('{:g}'.format(alpha) for alpha in material.alpha))
+                    materialtext.append('')
+                elif 'drude' in material.type:
+                    materialtext.append('')
+                    materialtext.append('')
+                    materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
+                    materialtext.append('')
+                    materialtext.append(', '.join('{:g}'.format(alpha) for tau in material.alpha))
                 else:
+                    materialtext.append('')
+                    materialtext.append('')
+                    materialtext.append('')
                     materialtext.append('')
                     materialtext.append('')
 
             materialtext.append('{:g}'.format(material.mr))
             materialtext.append('{:g}'.format(material.sm))
             materialtext.append(material.averagable)
-            materialtext.append(material.type)
             materialsdata.append(materialtext)
 
     if G.messages:

@@ -528,7 +528,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' material(s) {} do not exist'.format(notfound))
 
             for material in materials:
-                material.type = 'user-defined, debye'
+                material.type = 'debye'
                 material.poles = poles
                 material.averagable = False
                 for pole in range(1, 2 * poles, 2):
@@ -563,7 +563,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' material(s) {} do not exist'.format(notfound))
 
             for material in materials:
-                material.type = 'user-defined, lorentz'
+                material.type = 'lorentz'
                 material.poles = poles
                 material.averagable = False
                 for pole in range(1, 3 * poles, 3):
@@ -599,7 +599,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' material(s) {} do not exist'.format(notfound))
 
             for material in materials:
-                material.type = 'user-defined, drude'
+                material.type = 'drude'
                 material.poles = poles
                 material.averagable = False
                 for pole in range(1, 2 * poles, 2):
