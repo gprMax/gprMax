@@ -459,8 +459,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         print()
         for i, geometryview in enumerate(G.geometryviews):
             geometryview.set_filename(modelrun, numbermodelruns, G)
-            geoiters = 6 * (((geometryview.xf - geometryview.xs) / geometryview.dx) * ((geometryview.yf - geometryview.ys) / geometryview.dy) * ((geometryview.zf - geometryview.zs) / geometryview.dz))
-            pbar = tqdm(total=geoiters, unit='byte', unit_scale=True, desc='Writing geometry file {} of {}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
+            pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry file {} of {}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
             geometryview.write_vtk(modelrun, numbermodelruns, G, pbar)
             pbar.close()
     if G.geometryobjectswrite:
