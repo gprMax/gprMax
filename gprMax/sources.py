@@ -214,13 +214,13 @@ class TransmissionLine(Source):
         # Spatial step of transmission line (based on magic time step for dispersionless behaviour)
         self.dl = c * G.dt
 
-        # Number of nodes in the transmission line (initially a long line to calculate incident voltage and current); consider putting ABCs/PML at end
+        # Number of cells in the transmission line (initially a long line to calculate incident voltage and current); consider putting ABCs/PML at end
         self.nl = round_value(0.667 * G.iterations)
 
-        # Nodal position of the one-way injector excitation in the transmission line
+        # Cell position of the one-way injector excitation in the transmission line
         self.srcpos = 5
 
-        # Nodal position of where line connects to antenna/main grid
+        # Cell position of where line connects to antenna/main grid
         self.antpos = 10
 
         self.voltage = np.zeros(self.nl, dtype=floattype)
@@ -246,7 +246,7 @@ class TransmissionLine(Source):
             self.update_current(abstime, G)
             abstime += 0.5 * G.dt
 
-        # Shorten number of nodes in the transmission line before use with main grid
+        # Shorten number of cells in the transmission line before use with main grid
         self.nl = self.antpos + 1
 
     def update_abc(self, G):
@@ -291,7 +291,7 @@ class TransmissionLine(Source):
         # Update all the current values along the line
         self.current[0:self.nl - 1] -= (1 / self.resistance) * (c * G.dt / self.dl) * (self.voltage[1:self.nl] - self.voltage[0:self.nl - 1])
 
-        # Update the current one node before the position of the one-way injector excitation
+        # Update the current one cell before the position of the one-way injector excitation
         waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
         self.current[self.srcpos - 1] += (c * G.dt / self.dl) * waveform.amp * waveform.calculate_value(time - 0.5 * G.dt, G.dt) * (1 / self.resistance)
 
