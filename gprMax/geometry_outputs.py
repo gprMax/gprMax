@@ -71,7 +71,6 @@ class GeometryView(object):
             self.vtk_nycells = self.vtk_yfcells - self.vtk_yscells
             self.vtk_nzcells = self.vtk_zfcells - self.vtk_zscells
             self.datawritesize = int(np.dtype(np.uint32).itemsize * self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells) + 2 * (int(np.dtype(np.int8).itemsize * self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells))
-            print(self.datawritesize)
         elif self.type == '.vtp':
             self.vtk_numpoints = (self.nx + 1) * (self.ny + 1) * (self.nz + 1)
             self.vtk_numpoint_components = 3
@@ -81,7 +80,6 @@ class GeometryView(object):
             self.vtk_offsets_offset = round_value(self.vtk_connectivity_offset + (self.vtk_numlines * self.vtk_numline_components * np.dtype(np.uint32).itemsize) + np.dtype(np.uint32).itemsize)
             self.vtk_materials_offset = round_value(self.vtk_offsets_offset + (self.vtk_numlines * np.dtype(np.uint32).itemsize) + np.dtype(np.uint32).itemsize)
             self.datawritesize = np.dtype(np.float32).itemsize * self.vtk_numpoints * self.vtk_numpoint_components + np.dtype(np.uint32).itemsize * self.vtk_numlines * self.vtk_numline_components + np.dtype(np.uint32).itemsize * self.vtk_numlines + np.dtype(np.uint32).itemsize * self.vtk_numlines
-            print(self.datawritesize)
 
     def set_filename(self, modelrun, numbermodelruns, G):
         """Construct filename from user-supplied name and model run number.
