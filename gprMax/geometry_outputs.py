@@ -36,13 +36,13 @@ class GeometryView(object):
     else:
         byteorder = 'BigEndian'
 
-    def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None, dx=None, dy=None, dz=None, filename=None, type=None):
+    def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None, dx=None, dy=None, dz=None, filename=None, fileext=None):
         """
         Args:
             xs, xf, ys, yf, zs, zf (int): Extent of the volume in cells.
             dx, dy, dz (int): Spatial discretisation in cells.
             filename (str): Filename to save to.
-            type (str): Either 'n' for a per cell geometry view, or 'f' for a per cell edge geometry view.
+            fileext (str): File extension of VTK file - either '.vti' for a per cell geometry view, or '.vtp' for a per cell edge geometry view.
         """
 
         self.xs = xs
@@ -58,8 +58,9 @@ class GeometryView(object):
         self.dy = dy
         self.dz = dz
         self.basefilename = filename
-        self.type = type
-        if self.type == '.vti':
+        self.fileext = fileext
+        
+        if self.fileext == '.vti':
             # Calculate number of cells according to requested sampling for geometry view
             self.vtk_xscells = round_value(self.xs / self.dx)
             self.vtk_xfcells = round_value(self.xf / self.dx)
@@ -71,7 +72,8 @@ class GeometryView(object):
             self.vtk_nycells = self.vtk_yfcells - self.vtk_yscells
             self.vtk_nzcells = self.vtk_zfcells - self.vtk_zscells
             self.datawritesize = int(np.dtype(np.uint32).itemsize * self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells) + 2 * (int(np.dtype(np.int8).itemsize * self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells))
-        elif self.type == '.vtp':
+        
+        elif self.fileext == '.vtp':
             self.vtk_numpoints = (self.nx + 1) * (self.ny + 1) * (self.nz + 1)
             self.vtk_numpoint_components = 3
             self.vtk_numlines = 2 * self.nx * self.ny + 2 * self.ny * self.nz + 2 * self.nx * self.nz + 3 * self.nx * self.ny * self.nz + self.nx + self.ny + self.nz
@@ -94,7 +96,7 @@ class GeometryView(object):
             self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.basefilename))
         else:
             self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.basefilename + str(modelrun)))
-        self.filename += self.type
+        self.filename += self.fileext
 
     def write_vtk(self, modelrun, numbermodelruns, G, pbar):
         """Writes the geometry information to a VTK file. Either ImageData (.vti) for a per-cell geometry view, or PolygonalData (.vtp) for a per-cell-edge geometry view.
@@ -108,7 +110,7 @@ class GeometryView(object):
             pbar (class): Progress bar class instance.
         """
 
-        if self.type == '.vti':
+        if self.fileext == '.vti':
             # Create arrays and add numeric IDs for PML, sources and receivers (0 is not set, 1 is PML, srcs and rxs numbered thereafter)
             self.srcs_pml = np.zeros((G.nx + 1, G.ny + 1, G.nz + 1), dtype=np.int8)
             self.rxs = np.zeros((G.nx + 1, G.ny + 1, G.nz + 1), dtype=np.int8)
@@ -166,7 +168,7 @@ class GeometryView(object):
 
                 self.write_gprmax_info(f, G)
 
-        elif self.type == '.vtp':
+        elif self.fileext == '.vtp':
             with open(self.filename, 'wb') as f:
                 f.write('<?xml version="1.0"?>\n'.encode('utf-8'))
                 f.write('<VTKFile type="PolyData" version="1.0" byte_order="{}">\n'.format(GeometryView.byteorder).encode('utf-8'))

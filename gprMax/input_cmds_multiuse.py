@@ -682,14 +682,14 @@ def process_multicmds(multicmds, G):
 
             # Set type of geometry file
             if tmp[10].lower() == 'n':
-                type = '.vti'
+                fileext = '.vti'
             else:
-                type = '.vtp'
+                fileext = '.vtp'
 
-            g = GeometryView(xs, ys, zs, xf, yf, zf, dx, dy, dz, tmp[9], type)
+            g = GeometryView(xs, ys, zs, xf, yf, zf, dx, dy, dz, tmp[9], fileext)
 
             if G.messages:
-                print('Geometry view from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, filename {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz, g.basefilename))
+                print('Geometry view from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, with filename base {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz, g.basefilename))
 
             # Append the new GeometryView object to the geometry views list
             G.geometryviews.append(g)
