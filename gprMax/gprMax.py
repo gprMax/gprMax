@@ -38,7 +38,7 @@ from .constants import c, e0, m0, z0
 from .exceptions import GeneralError
 from .fields_outputs import write_hdf5_outputfile
 from .fields_update import update_electric, update_magnetic, update_electric_dispersive_multipole_A, update_electric_dispersive_multipole_B, update_electric_dispersive_1pole_A, update_electric_dispersive_1pole_B
-from .grid import FDTDGrid, dispersion_check
+from .grid import FDTDGrid, dispersion_analysis
 from .input_cmds_geometry import process_geometrycmds
 from .input_cmds_file import process_python_include_code, write_processed_file, check_cmd_names
 from .input_cmds_multiuse import process_multicmds
@@ -46,7 +46,7 @@ from .input_cmds_singleuse import process_singlecmds
 from .materials import Material, process_materials
 from .pml import build_pmls
 from .receivers import store_outputs
-from .utilities import logo, human_size, get_machine_cpu_os, get_terminal_width
+from .utilities import logo, human_size, get_machine_cpu_os, get_terminal_width, round_value
 from .yee_cell_build import build_electric_components, build_magnetic_components
 
 
@@ -418,9 +418,11 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             print(materialstable.table)
 
         # Check to see if numerical dispersion might be a problem
-        resolution = dispersion_check(G)
-        if resolution and max((G.dx, G.dy, G.dz)) > resolution:
-            print(Fore.RED + '\nWARNING: Potential numerical dispersion in the simulation. Check the spatial discretisation against the smallest wavelength present. Suggested resolution <{:g}m'.format(resolution) + Style.RESET_ALL)
+        deltavp, N, material, maxfreq = dispersion_analysis(G)
+        if deltavp and np.abs(deltavp) > G.maxnumericaldisp:
+            print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Largest physical phase-velocity error is {:.2f}% in material '{}' with wavelength sampled by {} cells (maximum significant frequency {:g}Hz)".format(deltavp, material.ID, round_value(N), maxfreq) + Style.RESET_ALL)
+        elif deltavp:
+            print("\nNumerical dispersion analysis: largest physical phase-velocity error is {:.2f}% in material '{}' with wavelength sampled by {} cells (maximum significant frequency {:g}Hz)".format(deltavp, material.ID, round_value(N), maxfreq))
 
     # If geometry information to be reused between model runs
     else:

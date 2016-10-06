@@ -75,6 +75,12 @@ class FDTDGrid(Grid):
         self.title = ''
         self.messages = True
         self.tqdmdisable = False
+        
+        # Threshold (dB) down from maximum power (0dB) of main frequency used to calculate highest frequency for disperion analysis
+        self.highestfreqthres = 60
+        # Maximum allowable percentage physical phase-velocity phase error
+        self.maxnumericaldisp = 2
+        
         self.nx = 0
         self.ny = 0
         self.nz = 0
@@ -136,18 +142,15 @@ class FDTDGrid(Grid):
         self.updatecoeffsdispersive = np.zeros((len(self.materials), 3 * Material.maxpoles), dtype=complextype)
 
 
-def dispersion_check(G):
-    """Check for potential numerical dispersion. Is the smallest wavelength present in the simulation discretised by at least a factor of 10
+def dispersion_analysis(G):
+    """Analysis of numerical dispersion (Taflove et al, 2005, p112) - worse case of maximum frequency and minimum wavelength
 
     Args:
         G (class): Grid class instance - holds essential parameters describing the model.
 
     Returns:
-        resolution (float): Potential numerical dispersion
+        deltavp (float): Percentage difference between true and numerical phase velocity
     """
-
-    # Minimum number of spatial steps to resolve smallest wavelength
-    resolvedsteps = 10
 
     # Find maximum frequency
     maxfreqs = []
@@ -185,7 +188,7 @@ def dispersion_check(G):
                 power -= np.amax(power)
 
                 # Set maximum frequency to -60dB from maximum power, ignoring DC value
-                freq = np.where((np.amax(power[1::]) - power[1::]) > 60)[0][0] + 1
+                freq = np.where((np.amax(power[1::]) - power[1::]) > G.highestfreqthres)[0][0] + 1
                 maxfreqs.append(freqs[freq])
 
             else:
@@ -194,23 +197,36 @@ def dispersion_check(G):
     if maxfreqs:
         maxfreq = max(maxfreqs)
 
-        # Find minimum wavelength
-        ers = [material.er for material in G.materials]
+        # Find minimum wavelength (material with maximum permittivity)
+        ers = [x.er for x in G.materials if x.ID != 'pec']
         maxer = max(ers)
+        material = next(x for x in G.materials if x.er == maxer and x.ID != 'pec')
 
         # Minimum velocity
         minvelocity = c / np.sqrt(maxer)
 
         # Minimum wavelength
         minwavelength = minvelocity / maxfreq
-
-        # Resolution of minimum wavelength
-        resolution = minwavelength / resolvedsteps
+        
+        # Maximum spatial step
+        delta = max(G.dx, G.dy, G.dz)
+        
+        # Courant stability factor
+        S = (c * G.dt) / delta
+        
+        # Grid sampling density
+        N = minwavelength / delta
+        
+        # Numerical phase velocity
+        vp = np.pi / (N * np.arcsin((1 / S) * np.sin((np.pi * S) / N)))
+        
+        # Physical phase velocity error (percentage)
+        deltavp = (((vp * c) - c) / c) * 100
 
     else:
-        resolution = False
+        deltavp, N, material, maxfreq = False
 
-    return resolution
+    return deltavp, N, material, maxfreq
 
 
 def get_other_directions(direction):
