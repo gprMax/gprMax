@@ -16,7 +16,7 @@ print('#waveform: gaussian 1 1.5e9 mypulse')
 print('#transmission_line: x {:g} {:g} {:g} 50 mypulse'.format(tx_pos[0], tx_pos[1], tx_pos[2]))
 
 # Bowtie - upper x half
-triangle(tx_pos[0] + dxdydz[0], tx_pos[1], tx_pos[2], tx_pos[0] + bowtie_dims[0] + dxdydz[0], tx_pos[1] - bowtie_dims[1]/2, tx_pos[2], tx_pos[0] + bowtie_dims[0] + dxdydz[0], tx_pos[1] + bowtie_dims[1]/2, tx_pos[2], 0, 'pec')
+triangle(tx_pos[0], tx_pos[1], tx_pos[2], tx_pos[0] + bowtie_dims[0] + 2 * dxdydz[0], tx_pos[1] - bowtie_dims[1]/2, tx_pos[2], tx_pos[0] + bowtie_dims[0] + 2 * dxdydz[0], tx_pos[1] + bowtie_dims[1]/2, tx_pos[2], 0, 'pec')
 
 # Bowtie - lower x half
 triangle(tx_pos[0] + dxdydz[0], tx_pos[1], tx_pos[2], tx_pos[0] - bowtie_dims[0], tx_pos[1] - bowtie_dims[1]/2, tx_pos[2], tx_pos[0] - bowtie_dims[0], tx_pos[1] + bowtie_dims[1]/2, tx_pos[2], 0, 'pec')
