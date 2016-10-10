@@ -15,8 +15,8 @@ Information
 
 The module currently features models of antennas similar to commercial GPR antennas:
 
-* Geophysical Survey Systems, Inc. (GSSI) 1.5 GHz (Model 5100) antenna (http://www.geophysical.com)
-* MALA Geoscience 1.2 GHz antenna (http://www.malags.com/)
+* Geophysical Survey Systems, Inc. (GSSI) 1.5 GHz (Model 5100) antenna (http://www.geophysical.com). The dimensions of the GSSI 1.5GHz antenna model are: 170x108x45mm.
+* MALA Geoscience 1.2 GHz antenna (http://www.malags.com/). The dimensions of the MALA 1.2GHz antenna model are: 184x109x46mm.
 
 A description of how the models were created can be found at http://dx.doi.org/10.1190/1.3548506.
 

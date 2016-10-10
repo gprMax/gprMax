@@ -30,27 +30,35 @@ Package overview
 .. code-block:: none
 
     can_1x1x1.h5
+    can_2x2x2.h5
     can_materials.txt
     PMA_1x1x1.h5
+    PMA_2x2x2.h5
     PMA_materials.txt
     PMN_1x1x1.h5
+    PMN_2x2x2.h5
     PMN_materials.txt
     TS50_1x1x1.h5
+    TS50_2x2x2.h5
     TS50_materials.txt
 
 * ``can_1x1x1.h5`` is a HDF5 file containing a description of the geometry of the metal can (false target) with a cubic spatial resolution of 1mm
+* ``can_2x2x2.h5`` is a HDF5 file containing a description of the geometry of the metal can (false target) with a cubic spatial resolution of 2mm
 * ``can_materials.txt`` is a text file containing material properties associated with the metal can
 * ``PMA_1x1x1.h5`` is a HDF5 file containing a description of the geometry of the PMA landmine with a cubic spatial resolution of 1mm
+* ``PMA_2x2x2.h5`` is a HDF5 file containing a description of the geometry of the PMA landmine with a cubic spatial resolution of 2mm
 * ``PMA_materials.txt`` is a text file containing material properties associated with the PMA landmine
 * ``PMN_1x1x1.h5`` is a HDF5 file containing a description of the geometry of the PMN landmine with a cubic spatial resolution of 1mm
+* ``PMN_2x2x2.h5`` is a HDF5 file containing a description of the geometry of the PMN landmine with a cubic spatial resolution of 2mm
 * ``PMN_materials.txt`` is a text file containing material properties associated with the PMN landmine
 * ``TS50_1x1x1.h5`` is a HDF5 file containing a description of the geometry of the TS-50 landmine with a cubic spatial resolution of 1mm
+* ``TS50_2x2x2.h5`` is a HDF5 file containing a description of the geometry of the TS-50 landmine with a cubic spatial resolution of 2mm
 * ``TS50_materials.txt`` is a text file containing material properties associated with the TS-50 landmine
 
 How to use the models
 =====================
 
-To insert any of the landmine models or metal can into a simulation use the ``#geometry_objects_file`` command.
+To insert any of the landmine models or metal can into a simulation use the ``#geometry_objects_read`` command.
 
 Example
 -------
@@ -63,10 +71,10 @@ The input file for inserting the PMN landmine, with the lower left corner 10mm f
     #domain: 0.136 0.176 0.070
     #dx_dy_dz: 0.001 0.001 0.001
     #time_window: 5e-9
-    #geometry_objects_file: 0.010 0.010 0.010 ../user_libs/landmines/PMN_1x1x1.h5 ../user_libs/landmines/PMN_materials.txt
+    #geometry_objects_read: 0.010 0.010 0.010 ../user_libs/landmines/PMN_1x1x1.h5 ../user_libs/landmines/PMN_materials.txt
     #geometry_view: 0 0 0 0.136 0.176 0.070 0.001 0.001 0.001 landmine_PMN_fs n
 
-For further information on the ``#geometry_objects_file`` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
+For further information on the ``#geometry_objects_read`` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
 
 .. figure:: images/user_libs/PMA.png
     :width: 600 px
