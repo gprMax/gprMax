@@ -93,7 +93,10 @@ def process_geometrycmds(geometry, G):
             # Update material type
             for material in G.materials:
                 if material.numID >= numexistmaterials:
-                    material.type += ', imported'
+                    if material.type:
+                        material.type += ', imported'
+                    else:
+                        material.type = 'imported'
 
             # See if geometry object file exists at specified path and if not try input file directory
             if not os.path.isfile(geofile):
