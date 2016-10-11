@@ -639,7 +639,6 @@ Allows you to write geometry generated in a model to file. The file can be read 
 
     * The structure of the HDF5 file is the same as that described for the ``#geometry_objects_read`` command.
     * Objects are stored using spatial resolution defined in the model.
-    * Only volumetric objects are saved to file, i.e. not objects generated with ``#edge``, ``#plate`` or ``#triangle`` (triangular patch) commands.
 
 
 Source and output commands
