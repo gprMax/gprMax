@@ -86,7 +86,7 @@ def process_geometrycmds(geometry, G):
 
             # Check validity of command names
             singlecmds, multicmds, geometry = check_cmd_names(materials, checkessential=False)
-
+            
             # Process parameters for commands that can occur multiple times in the model
             process_multicmds(multicmds, G)
 
@@ -118,12 +118,16 @@ def process_geometrycmds(geometry, G):
             try:
                 rigidE = f['/rigidE'][:]
                 rigidH = f['/rigidH'][:]
+                ID = f['/ID'][:]
+                G.solid[xs:xs + data.shape[0], ys:ys + data.shape[1], zs:zs + data.shape[2]] = data + numexistmaterials
                 G.rigidE[:, xs:xs + rigidE.shape[1], ys:ys + rigidE.shape[2], zs:zs + rigidE.shape[3]] = rigidE
                 G.rigidH[:, xs:xs + rigidH.shape[1], ys:ys + rigidH.shape[2], zs:zs + rigidH.shape[3]] = rigidH
+                G.ID[:, xs:xs + ID.shape[1], ys:ys + ID.shape[2], zs:zs + ID.shape[3]] = ID
             except KeyError:
                 averaging = False
 
-            build_voxels_from_array(xs, ys, zs, numexistmaterials, averaging, data, G.solid, G.rigidE, G.rigidH, G.ID)
+            if not averaging:
+                build_voxels_from_array(xs, ys, zs, numexistmaterials, averaging, data, G.solid, G.rigidE, G.rigidH, G.ID)
 
             if G.messages:
                 if averaging:
