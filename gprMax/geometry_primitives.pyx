@@ -258,7 +258,7 @@ cpdef void build_voxel(int i, int j, int k, int numID, int numIDx, int numIDy, i
     Args:
         i, j, k (int): Cell coordinates of voxel.
         numID, numIDx, numIDy, numIDz (int): Numeric ID of material.
-        averaging (bint): Whether material property averging will occur for the object.
+        averaging (bint): Whether material property averaging will occur for the object.
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
     """
     
@@ -312,7 +312,7 @@ cpdef void build_triangle(float x1, float y1, float z1, float x2, float y2, floa
         thickness (float): Thickness of the triangular prism.
         dx, dy, dz (float): Spatial discretisation.
         numID, numIDx, numIDy, numIDz (int): Numeric ID of material.
-        averaging (bint): Whether material property averging will occur for the object.
+        averaging (bint): Whether material property averaging will occur for the object.
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
     """
     
@@ -400,7 +400,7 @@ cpdef void build_cylindrical_sector(float ctr1, float ctr2, int level, float sec
         thickness (float): Thickness of the cylindrical sector.
         dx, dy, dz (float): Spatial discretisation.
         numID, numIDx, numIDy, numIDz (int): Numeric ID of material.
-        averaging (bint): Whether material property averging will occur for the object.
+        averaging (bint): Whether material property averaging will occur for the object.
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
     """
     
@@ -465,7 +465,7 @@ cpdef void build_box(int xs, int xf, int ys, int yf, int zs, int zf, int numID, 
     Args:
         xs, xf, ys, yf, zs, zf (int): Cell coordinates of entire box.
         numID, numIDx, numIDy, numIDz (int): Numeric ID of material.
-        averaging (bint): Whether material property averging will occur for the object.
+        averaging (bint): Whether material property averaging will occur for the object.
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
     """
     
@@ -525,7 +525,7 @@ cpdef void build_cylinder(float x1, float y1, float z1, float x2, float y2, floa
         r (float): Radius of the cylinder.
         dx, dy, dz (float): Spatial discretisation.
         numID, numIDx, numIDy, numIDz (int): Numeric ID of material.
-        averaging (bint): Whether material property averging will occur for the object.
+        averaging (bint): Whether material property averaging will occur for the object.
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
     """
     
@@ -624,7 +624,7 @@ cpdef void build_sphere(int xc, int yc, int zc, float r, float dx, float dy, flo
         r (float): Radius of the sphere.
         dx, dy, dz (float): Spatial discretisation.
         numID, numIDx, numIDy, numIDz (int): Numeric ID of material.
-        averaging (bint): Whether material property averging will occur for the object.
+        averaging (bint): Whether material property averaging will occur for the object.
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
     """
     
@@ -666,7 +666,7 @@ cpdef void build_voxels_from_array(int xs, int ys, int zs, int numexistmaterials
     Args:
         xs, ys, zs (int): Cell coordinates of position of start of array in domain.
         numexistmaterials (int): Number of existing materials in model prior to building voxels.
-        averaging (bint): Whether material property averging will occur for the object.
+        averaging (bint): Whether material property averaging will occur for the object.
         data (memoryview): Access to array containing numeric IDs of voxels to create.
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
     """
@@ -711,7 +711,7 @@ cpdef void build_voxels_from_array_mask(int xs, int ys, int zs, int waternumID, 
     Args:
         xs, ys, zs (int): Cell coordinates of position of start of array in domain.
         waternumID, grassnumID (int): Numeric ID of water and grass materials.
-        averaging (bint): Whether material property averging will occur for the object.
+        averaging (bint): Whether material property averaging will occur for the object.
         data (memoryview): Access to array containing numeric IDs of voxels to create.
         mask (memoryview): Access to array containing a mask of voxels to create.
         solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
