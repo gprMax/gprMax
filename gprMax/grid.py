@@ -149,9 +149,12 @@ def dispersion_analysis(G):
         G (class): Grid class instance - holds essential parameters describing the model.
 
     Returns:
-        deltavp (float): Percentage difference between true and numerical phase velocity
+        results (dict): Results from dispersion analysis
     """
 
+    # Physical phase velocity error (percentage); grid sampling density; material with maximum permittivity; maximum frequency of interest
+    results = {'deltavp': False, 'N': False, 'material': False, 'maxfreq': False}
+    
     # Find maximum frequency
     maxfreqs = []
     for waveform in G.waveforms:
@@ -223,10 +226,7 @@ def dispersion_analysis(G):
         # Physical phase velocity error (percentage)
         deltavp = (((vp * c) - c) / c) * 100
 
-    else:
-        deltavp, N, material, maxfreq = False
-
-    return deltavp, N, material, maxfreq
+    return results
 
 
 def get_other_directions(direction):
