@@ -201,15 +201,17 @@ def dispersion_analysis(G):
         results['maxfreq'] = max(maxfreqs)
 
         # Find minimum wavelength (material with maximum permittivity)
-        ers = []
+        maxer = 0
+        matmaxer = ''
         for x in G.materials:
             if x.se != float('inf'):
                 er = x.er
                 if x.deltaer:
                     er += max(x.deltaer)
-                ers.append(er)
-        maxer = max(ers)
-        results['material'] = next(x for x in G.materials if x.er == maxer and x.ID != 'pec')
+                if er > maxer:
+                    maxer = er
+                    matmaxer = x.ID
+        results['material'] = next(x for x in G.materials if x.ID == matmaxer)
 
         # Minimum velocity
         minvelocity = c / np.sqrt(maxer)
