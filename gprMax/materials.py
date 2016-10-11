@@ -157,6 +157,10 @@ def process_materials(G):
             materialsdata = [['\nID', '\nName', '\nType', '\neps_r', 'sigma\n[S/m]', '\nDelta eps_r', 'tau\n[s]', 'omega\n[Hz]', 'delta\n[Hz]', 'gamma\n[Hz]', '\nmu_r', 'sigma*\n[S/m]', 'Dielectric\nsmoothable']]
 
     for material in G.materials:
+        # Set material averaging to False if infinite conductivity, i.e. pec
+        if material.se == float('inf'):
+            material.averagable = False
+        
         # Calculate update coefficients for material
         material.calculate_update_coeffsE(G)
         material.calculate_update_coeffsH(G)
