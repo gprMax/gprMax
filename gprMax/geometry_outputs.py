@@ -319,11 +319,12 @@ class GeometryObjects(object):
         fdata.attrs['dx, dy, dz'] = (G.dx, G.dy, G.dz)
 
         # Get minimum and maximum integers of materials in geometry objects volume
-        minmat = np.amin(G.solid[self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1])
-        maxmat = np.amax(G.solid[self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1])
+        minmat = np.amin(G.ID[:, self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1])
+        maxmat = np.amax(G.ID[:, self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1])
         fdata['/data'] = G.solid[self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1].astype('int16') - minmat
         fdata['/rigidE'] = G.rigidE[:, self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1]
         fdata['/rigidH'] = G.rigidH[:, self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1]
+        fdata['/ID'] = G.ID[:, self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1] - minmat
 
         # Randomly generated ID to make imported material IDs unique
         randID = '{' + str(randrange(10**5, 10**6)) + '}'
