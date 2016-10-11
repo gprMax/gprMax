@@ -19,6 +19,9 @@ No, but it can be beneficial to know a little Python. We have made it easier to 
 **Can I still do all my pre/post-processing for gprMax in MATLAB?**
 Yes, MATLAB has built-in functions to read HDF5 files (http://uk.mathworks.com/help/matlab/high-level-functions.html).
 
+**Can I convert my output file to a text file, e.g. to import into Microsoft Excel**
+Yes, we recommend you download HDFView (https://support.hdfgroup.org/products/java/hdfview/) which is free viewer for HDF files. You can then export any of datasets in the output file to a text (ASCII) file that can be imported into Microsoft Excel. To do so right-click on the dataset in HDFView and choose Export Dataset -> Export Data to Text File.
+
 **But converting my input file from the old version of gprMax will be really painful**
 Hopefully not! We have provided a Python module to help you convert input files from the old version of gprMax to use syntax introduced in version 3.
 
