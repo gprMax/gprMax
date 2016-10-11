@@ -198,18 +198,24 @@ def dispersion_analysis(G):
                 print(Fore.RED + "\nWARNING: Duration of source waveform '{}' means it does not fit within specified time window and is therefore being truncated.".format(waveform.ID) + Style.RESET_ALL)
 
     if maxfreqs:
-        maxfreq = max(maxfreqs)
+        results['maxfreq'] = max(maxfreqs)
 
         # Find minimum wavelength (material with maximum permittivity)
-        ers = [x.er for x in G.materials if x.ID != 'pec']
+        ers = []
+        for x in G.materials:
+            if x.se != float('inf'):
+                er = x.er
+                if x.deltaer:
+                    er += max(x.deltaer)
+                ers.append(er)
         maxer = max(ers)
-        material = next(x for x in G.materials if x.er == maxer and x.ID != 'pec')
+        results['material'] = next(x for x in G.materials if x.er == maxer and x.ID != 'pec')
 
         # Minimum velocity
         minvelocity = c / np.sqrt(maxer)
 
         # Minimum wavelength
-        minwavelength = minvelocity / maxfreq
+        minwavelength = minvelocity / results['maxfreq']
         
         # Maximum spatial step
         delta = max(G.dx, G.dy, G.dz)
@@ -218,13 +224,13 @@ def dispersion_analysis(G):
         S = (c * G.dt) / delta
         
         # Grid sampling density
-        N = minwavelength / delta
+        results['N'] = minwavelength / delta
         
         # Numerical phase velocity
-        vp = np.pi / (N * np.arcsin((1 / S) * np.sin((np.pi * S) / N)))
+        vp = np.pi / (results['N'] * np.arcsin((1 / S) * np.sin((np.pi * S) / results['N'])))
         
         # Physical phase velocity error (percentage)
-        deltavp = (((vp * c) - c) / c) * 100
+        results['deltavp'] = (((vp * c) - c) / c) * 100
 
     return results
 
