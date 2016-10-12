@@ -158,12 +158,13 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
     print('#waveform: gaussian 1 {} myGaussian'.format(excitationfreq))
     print('#transmission_line: y {} {} {} {} myGaussian'.format(tx[0], tx[1], tx[2], sourceresistance))
     
-    # Output point - transmitter bowtie
-    #print('#rx: {} {} {}'.format(tx[0], tx[1], tx[2]))
     # Output point - receiver bowtie
-    edge(tx[0] - 0.059, tx[1], tx[2], tx[0] - 0.059, tx[1] + dy, tx[2], 'rxres')
-    print('#rx: {} {} {} rxbowtie Ey'.format(tx[0] - 0.059, tx[1], tx[2]))
-
+    if resolution == 0.001:
+        edge(tx[0] - 0.059, tx[1], tx[2], tx[0] - 0.059, tx[1] + dy, tx[2], 'rxres')
+        print('#rx: {} {} {} rxbowtie Ey'.format(tx[0] - 0.059, tx[1], tx[2]))
+    elif resolution == 0.002:
+        edge(tx[0] - 0.058, tx[1], tx[2], tx[0] - 0.058, tx[1] + dy, tx[2], 'rxres')
+        print('#rx: {} {} {} rxbowtie Ey'.format(tx[0] - 0.058, tx[1], tx[2]))
 
 
 def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
@@ -374,8 +375,6 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     print('#waveform: gaussian 1.0 {} myGaussian'.format(excitationfreq))
     print('#voltage_source: y {} {} {} {} myGaussian'.format(tx[0], tx[1], tx[2], sourceresistance))
     
-    # Output point - transmitter bowtie
-    #print('#rx: {} {} {}'.format(tx[0], tx[1], tx[2]))
     # Output point - receiver bowtie
     print('#rx: {} {} {} rxbowtie Ey'.format(tx[0] + 0.076, tx[1], tx[2]))
 
