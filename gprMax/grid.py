@@ -106,8 +106,8 @@ class FDTDGrid(Grid):
         self.magneticdipoles = []
         self.transmissionlines = []
         self.rxs = []
-        self.srcsteps = (0, 0, 0)
-        self.rxsteps = (0, 0, 0)
+        self.srcsteps = [0, 0, 0]
+        self.rxsteps = [0, 0, 0]
         self.snapshots = []
 
     def initialise_geometry_arrays(self):
