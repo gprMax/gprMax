@@ -117,7 +117,7 @@ def human_size(size, a_kilobyte_is_1024_bytes=False):
     for suffix in suffixes[multiple]:
         size /= multiple
         if size < multiple:
-            return '{:.0f}{}'.format(size, suffix)
+            return '{:.3g}{}'.format(size, suffix)
 
     raise ValueError('Number is too large.')
 
