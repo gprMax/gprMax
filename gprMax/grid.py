@@ -16,12 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from collections import OrderedDict
+
 from colorama import init, Fore, Style
 init()
 import numpy as np
 
 from gprMax.constants import c, floattype, complextype
 from gprMax.materials import Material
+from gprMax.pml import PML
 from gprMax.utilities import round_value
 
 
@@ -92,7 +95,7 @@ class FDTDGrid(Grid):
         self.timewindow = 0
         self.nthreads = 0
         self.cfs = []
-        self.pmlthickness = 10
+        self.pmlthickness = OrderedDict((key, 10) for key in PML.slabs)
         self.pmls = []
         self.materials = []
         self.mixingmodels = []
