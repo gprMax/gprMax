@@ -33,9 +33,9 @@ class Rx(object):
         self.xcoord = None
         self.ycoord = None
         self.zcoord = None
-        self.xcoordbase = None
-        self.ycoordbase = None
-        self.zcoordbase = None
+        self.xcoordorigin = None
+        self.ycoordorigin = None
+        self.zcoordorigin = None
 
 
 def store_outputs(timestep, Ex, Ey, Ez, Hx, Hy, Hz, G):
