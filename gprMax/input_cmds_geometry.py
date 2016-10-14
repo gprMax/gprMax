@@ -38,7 +38,6 @@ def process_geometrycmds(geometry, G):
 
     Args:
         geometry (list): Geometry commands in the model
-
     """
 
     # Disable progress bar if on Windows as it does not update properly when messages are printed
@@ -51,21 +50,8 @@ def process_geometrycmds(geometry, G):
         tmp = object.split()
 
         if tmp[0] == '#geometry_objects_read:':
-            averaging = G.averagevolumeobjects
-
-            if len(tmp) < 6:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least five parameters')
-
-            elif len(tmp) == 7:
-                if tmp[6].lower() == 'y':
-                    averaging = True
-                elif tmp[6].lower() == 'n':
-                    averaging = False
-                else:
-                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires averaging to be either y or n')
-
-            elif len(tmp) > 7:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+            if len(tmp) != 6:
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly five parameters')
 
             xs = round_value(float(tmp[1]) / G.dx)
             ys = round_value(float(tmp[2]) / G.dy)
@@ -77,12 +63,13 @@ def process_geometrycmds(geometry, G):
             if not os.path.isfile(matfile):
                 matfile = os.path.abspath(os.path.join(G.inputdirectory, matfile))
 
+            matstr = os.path.splitext(os.path.split(matfile)[1])[0]
+            numexistmaterials = len(G.materials)
+            
             # Read materials from file
             with open(matfile, 'r') as f:
                 # Strip out any newline characters and comments that must begin with double hashes
-                materials = [line.rstrip() + '\n' for line in f if(not line.startswith('##') and line.rstrip('\n'))]
-
-            numexistmaterials = len(G.materials)
+                materials = [line.rstrip() + '{' + matstr + '}\n' for line in f if(not line.startswith('##') and line.rstrip('\n'))]
 
             # Check validity of command names
             singlecmds, multicmds, geometry = check_cmd_names(materials, checkessential=False)
@@ -114,7 +101,7 @@ def process_geometrycmds(geometry, G):
             if data.dtype != 'int16':
                 data = data.astype('int16')
 
-            # Look rigid arrays if present (these should be present if the original geometry objects were written from gprMax)
+            # Look to see if rigid and ID arrays are present (these should be present if the original geometry objects were written from gprMax)
             try:
                 rigidE = f['/rigidE'][:]
                 rigidH = f['/rigidH'][:]
@@ -123,18 +110,13 @@ def process_geometrycmds(geometry, G):
                 G.rigidE[:, xs:xs + rigidE.shape[1], ys:ys + rigidE.shape[2], zs:zs + rigidE.shape[3]] = rigidE
                 G.rigidH[:, xs:xs + rigidH.shape[1], ys:ys + rigidH.shape[2], zs:zs + rigidH.shape[3]] = rigidH
                 G.ID[:, xs:xs + ID.shape[1], ys:ys + ID.shape[2], zs:zs + ID.shape[3]] = ID
+                if G.messages:
+                    tqdm.write('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
             except KeyError:
                 averaging = False
-
-            if not averaging:
                 build_voxels_from_array(xs, ys, zs, numexistmaterials, averaging, data, G.solid, G.rigidE, G.rigidH, G.ID)
-
-            if G.messages:
-                if averaging:
-                    dielectricsmoothing = 'on'
-                else:
-                    dielectricsmoothing = 'off'
-                tqdm.write('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}, dielectric smoothing is {} for these objects.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile, dielectricsmoothing))
+                if G.messages:
+                    tqdm.write('Geometry objects from file (voxels only) {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
 
         elif tmp[0] == '#edge:':
             if len(tmp) != 8:
