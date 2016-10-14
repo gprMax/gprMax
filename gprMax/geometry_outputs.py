@@ -17,7 +17,6 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from random import randrange
 import sys
 
 import h5py
@@ -304,12 +303,17 @@ class GeometryObjects(object):
         self.nz = self.zf - self.zs
         self.filename = basefilename + '.h5'
         self.materialsfilename = basefilename + '_materials.txt'
+        self.solidsize = (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(np.int16).itemsize
+        self.rigidsize = 18 * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(np.int8).itemsize
+        self.IDsize = 6 * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(np.uint32).itemsize
+        self.datawritesize = self.solidsize + self.rigidsize + self.IDsize
 
-    def write_hdf5(self, G):
+    def write_hdf5(self, G, pbar):
         """Write a geometry objects file in HDF5 format.
 
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
+            pbar (class): Progress bar class instance.
         """
 
         # Write the geometry objects to a HDF5 file
@@ -322,12 +326,12 @@ class GeometryObjects(object):
         minmat = np.amin(G.ID[:, self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1])
         maxmat = np.amax(G.ID[:, self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1])
         fdata['/data'] = G.solid[self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1].astype('int16') - minmat
+        pbar.update(self.solidsize)
         fdata['/rigidE'] = G.rigidE[:, self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1]
         fdata['/rigidH'] = G.rigidH[:, self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1]
+        pbar.update(self.rigidsize)
         fdata['/ID'] = G.ID[:, self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1] - minmat
-
-        # Randomly generated ID to make imported material IDs unique
-        randID = '{' + str(randrange(10**5, 10**6)) + '}'
+        pbar.update(self.IDsize)
 
         # Write materials list to a text file
         # This includes all materials in range whether used in volume or not; also append a 6-digit random number to the material ID to make it unique
@@ -335,7 +339,7 @@ class GeometryObjects(object):
         for numID in range(minmat, maxmat + 1):
             for material in G.materials:
                 if material.numID == numID:
-                    fmaterials.write('#material: {:g} {:g} {:g} {:g} {}\n'.format(material.er, material.se, material.mr, material.sm, material.ID + randID))
+                    fmaterials.write('#material: {:g} {:g} {:g} {:g} {}\n'.format(material.er, material.se, material.mr, material.sm, material.ID))
                     if material.poles > 0:
                         if 'debye' in material.type:
                             dispersionstr = '#add_dispersion_debye: {:g} '.format(material.poles)
