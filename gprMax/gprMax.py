@@ -44,7 +44,7 @@ from .input_cmds_file import process_python_include_code, write_processed_file, 
 from .input_cmds_multiuse import process_multicmds
 from .input_cmds_singleuse import process_singlecmds
 from .materials import Material, process_materials
-from .pml import build_pmls
+from .pml import PML, build_pmls
 from .receivers import store_outputs
 from .utilities import logo, human_size, get_machine_cpu_os, get_terminal_width, round_value
 from .yee_cell_build import build_electric_components, build_magnetic_components
@@ -373,6 +373,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         process_singlecmds(singlecmds, G)
 
         # Process parameters for commands that can occur multiple times in the model
+        print()
         process_multicmds(multicmds, G)
 
         # Initialise an array for volumetric material IDs (solid), boolean arrays for specifying materials not to be averaged (rigid),
@@ -383,15 +384,31 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         G.initialise_field_arrays()
 
         # Process geometry commands in the order they were given
-        print()
         process_geometrycmds(geometry, G)
 
-        # Build the PML and calculate initial coefficients
-        build_pmls(G)
+        # Build the PMLs and calculate initial coefficients
+        print()
+        if all(value == 0 for value in G.pmlthickness.values()):
+            if G.messages:
+                print('PML boundaries: switched off')
+            pass # If all the PMLs are switched off don't need to build anything
+        else:
+            if G.messages:
+                if all(value == G.pmlthickness['xminus'] for value in G.pmlthickness.values()):
+                    pmlinfo = G.pmlthickness['xminus']
+                else:
+                    pmlinfo = ''
+                    for key, value in G.pmlthickness.items():
+                        pmlinfo += '{}: {}, '.format(key, value)
+                    pmlinfo = pmlinfo[:-2]
+                print('PML boundaries: {} cells'.format(pmlinfo))
+            pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
+            build_pmls(G, pbar)
+            pbar.close()
 
         # Build the model, i.e. set the material properties (ID) for every edge of every Yee cell
         print()
-        pbar = tqdm(total=2, desc='Building FDTD grid', ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
+        pbar = tqdm(total=2, desc='Building main grid', ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
         build_electric_components(G.solid, G.rigidE, G.ID, G)
         pbar.update()
         build_magnetic_components(G.solid, G.rigidH, G.ID, G)
@@ -442,31 +459,34 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             if modelrun == 1:
                 if source.xcoord + G.srcsteps[0] * (numbermodelruns - 1) > G.nx or source.ycoord + G.srcsteps[1] * (numbermodelruns - 1) > G.ny or source.zcoord + G.srcsteps[2] * (numbermodelruns - 1) > G.nz:
                     raise GeneralError('Source(s) will be stepped to a position outside the domain.')
-            source.xcoord = source.xcoordbase + (modelrun - 1) * G.srcsteps[0]
-            source.ycoord = source.ycoordbase + (modelrun - 1) * G.srcsteps[1]
-            source.zcoord = source.zcoordbase + (modelrun - 1) * G.srcsteps[2]
+            source.xcoord = source.xcoordorigin + (modelrun - 1) * G.srcsteps[0]
+            source.ycoord = source.ycoordorigin + (modelrun - 1) * G.srcsteps[1]
+            source.zcoord = source.zcoordorigin + (modelrun - 1) * G.srcsteps[2]
     if G.rxsteps[0] > 0 or G.rxsteps[1] > 0 or G.rxsteps[2] > 0:
         for receiver in G.rxs:
             if modelrun == 1:
                 if receiver.xcoord + G.rxsteps[0] * (numbermodelruns - 1) > G.nx or receiver.ycoord + G.rxsteps[1] * (numbermodelruns - 1) > G.ny or receiver.zcoord + G.rxsteps[2] * (numbermodelruns - 1) > G.nz:
                     raise GeneralError('Receiver(s) will be stepped to a position outside the domain.')
-            receiver.xcoord = receiver.xcoordbase + (modelrun - 1) * G.rxsteps[0]
-            receiver.ycoord = receiver.ycoordbase + (modelrun - 1) * G.rxsteps[1]
-            receiver.zcoord = receiver.zcoordbase + (modelrun - 1) * G.rxsteps[2]
+            receiver.xcoord = receiver.xcoordorigin + (modelrun - 1) * G.rxsteps[0]
+            receiver.ycoord = receiver.ycoordorigin + (modelrun - 1) * G.rxsteps[1]
+            receiver.zcoord = receiver.zcoordorigin + (modelrun - 1) * G.rxsteps[2]
 
     # Write files for any geometry views and geometry object outputs
     if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only:
-        raise GeneralError('No geometry views or geometry objects to output found.')
+        print(Fore.RED + '\nWARNING: No geometry views or geometry objects to output found.' + Style.RESET_ALL)
     if G.geometryviews:
         print()
         for i, geometryview in enumerate(G.geometryviews):
             geometryview.set_filename(modelrun, numbermodelruns, G)
-            pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry file {} of {}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
+            pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {} of {}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
             geometryview.write_vtk(modelrun, numbermodelruns, G, pbar)
             pbar.close()
     if G.geometryobjectswrite:
-        for geometryobject in G.geometryobjectswrite:
-            geometryobject.write_hdf5(G)
+        
+        for i, geometryobject in enumerate(G.geometryobjectswrite):
+            pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {} of {}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
+            geometryobject.write_hdf5(G, pbar)
+            pbar.close()
 
     # Run simulation (if not doing geometry only)
     if not args.geometry_only:
@@ -542,20 +562,22 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             # Increment absolute time value
             abstime += 0.5 * G.dt
 
-        tsolveend = perf_counter()
+        tsolve = int(perf_counter() - tsolvestart)
 
         # Write an output file in HDF5 format
         write_hdf5_outputfile(outputfile, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
-
-        if G.messages:
-            print('Memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss)))
 
         ##################################
         #  End - Main FDTD calculations  #
         ##################################
 
-        # If geometry information to be reused between model runs then FDTDGrid class instance must be global so that it persists
-        if not args.geometry_fixed:
-            del G
+    if G.messages:
+        print('Memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss)))
 
-        return int(tsolveend - tsolvestart)
+    # If geometry information to be reused between model runs then FDTDGrid class instance must be global so that it persists
+    if not args.geometry_fixed:
+        del G
+
+    # Return time to complete solving if in benchmarking mode
+    if args.benchmark:
+        return tsolve
