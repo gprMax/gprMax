@@ -185,6 +185,7 @@ cpdef void build_magnetic_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, 
         
     Args:
         solid, rigid, ID (memoryviews): Access to solid, rigid and ID arrays
+        G (class): Grid class instance - holds essential parameters describing the model.
     """
     
     cdef Py_ssize_t i, j, k
@@ -249,4 +250,3 @@ cpdef void build_magnetic_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, 
                     else:
                         # Averaging is required
                         create_magnetic_average(i, j, k, numID1, numID2, componentID, G)
-
