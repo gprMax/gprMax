@@ -16,9 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from collections import OrderedDict
 from importlib import import_module
 
 import numpy as np
+from tqdm import tqdm
 
 from gprMax.constants import e0, z0, floattype
 import gprMax.pml_1order_update
@@ -145,7 +147,7 @@ class CFS(object):
 class PML(object):
     """PML - the implementation comes from the derivation in: http://dx.doi.org/10.1109/TAP.2011.2180344"""
 
-    directions = {0: 'xminus', 1: 'yminus', 2: 'zminus', 3: 'xplus', 4: 'yplus', 5: 'zplus'}
+    slabs = ['xminus', 'yminus', 'zminus', 'xplus', 'yplus', 'zplus']
 
     def __init__(self, G, direction=None, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0):
         """
@@ -257,25 +259,25 @@ class PML(object):
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.HPhi1, self.HPhi2, self.HRA, self.HRB, self.HRE, self.HRF, self.d)
 
 
-def build_pmls(G):
+def build_pmls(G, pbar):
     """This function builds instances of the PML and calculates the initial parameters and coefficients including setting profile
         (based on underlying material er and mr from solid array).
+        
+    Args:
+        G (class): Grid class instance - holds essential parameters describing the model.
+        pbar (class): Progress bar class instance.
     """
 
-    if G.messages:
-        print('')
-
-    for index, pmlthickness in enumerate(G.pmlthickness):
-        if pmlthickness > 0:
+    for key, value in G.pmlthickness.items():
+        if value > 0:
             sumer = 0  # Sum of relative permittivities in PML slab
             summr = 0  # Sum of relative permeabilities in PML slab
-            pmldirection = PML.directions[index]
 
-            if pmldirection[0] == 'x':
-                if pmldirection == 'xminus':
-                    pml = PML(G, direction=pmldirection, xf=pmlthickness, yf=G.ny, zf=G.nz)
-                elif pmldirection == 'xplus':
-                    pml = PML(G, direction=pmldirection, xs=G.nx - pmlthickness, xf=G.nx, yf=G.ny, zf=G.nz)
+            if key[0] == 'x':
+                if key == 'xminus':
+                    pml = PML(G, direction=key, xf=value, yf=G.ny, zf=G.nz)
+                elif key == 'xplus':
+                    pml = PML(G, direction=key, xs=G.nx - value, xf=G.nx, yf=G.ny, zf=G.nz)
                 G.pmls.append(pml)
                 for j in range(G.ny):
                     for k in range(G.nz):
@@ -286,11 +288,11 @@ def build_pmls(G):
                 averageer = sumer / (G.ny * G.nz)
                 averagemr = summr / (G.ny * G.nz)
 
-            elif pmldirection[0] == 'y':
-                if pmldirection == 'yminus':
-                    pml = PML(G, direction=pmldirection, yf=pmlthickness, xf=G.nx, zf=G.nz)
-                elif pmldirection == 'yplus':
-                    pml = PML(G, direction=pmldirection, ys=G.ny - pmlthickness, xf=G.nx, yf=G.ny, zf=G.nz)
+            elif key[0] == 'y':
+                if key == 'yminus':
+                    pml = PML(G, direction=key, yf=value, xf=G.nx, zf=G.nz)
+                elif key == 'yplus':
+                    pml = PML(G, direction=key, ys=G.ny - value, xf=G.nx, yf=G.ny, zf=G.nz)
                 G.pmls.append(pml)
                 for i in range(G.nx):
                     for k in range(G.nz):
@@ -301,11 +303,11 @@ def build_pmls(G):
                 averageer = sumer / (G.nx * G.nz)
                 averagemr = summr / (G.nx * G.nz)
 
-            elif pmldirection[0] == 'z':
-                if pmldirection == 'zminus':
-                    pml = PML(G, direction=pmldirection, zf=pmlthickness, xf=G.nx, yf=G.ny)
-                elif pmldirection == 'zplus':
-                    pml = PML(G, direction=pmldirection, zs=G.nz - pmlthickness, xf=G.nx, yf=G.ny, zf=G.nz)
+            elif key[0] == 'z':
+                if key == 'zminus':
+                    pml = PML(G, direction=key, zf=value, xf=G.nx, yf=G.ny)
+                elif key == 'zplus':
+                    pml = PML(G, direction=key, zs=G.nz - value, xf=G.nx, yf=G.ny, zf=G.nz)
                 G.pmls.append(pml)
                 for i in range(G.nx):
                     for j in range(G.ny):
@@ -315,15 +317,6 @@ def build_pmls(G):
                         summr += material.mr
                 averageer = sumer / (G.nx * G.ny)
                 averagemr = summr / (G.nx * G.ny)
-
-            if G.messages and G.pmlthickness.count(pmlthickness) != len(G.pmlthickness):
-                print('Absorbing boundary: PML {} slab using {:g} cells'.format(pml.direction, pml.thickness))
-
+            
             pml.calculate_update_coeffs(averageer, averagemr, G)
-
-    # Where all the thicknesses of all the PML slabs are equal
-    if G.messages and G.pmlthickness.count(G.pmlthickness[0]) == len(G.pmlthickness):
-        if G.pmlthickness[0] == 0:
-            print('Absorbing boundaries are all switched off')
-        else:
-            print('Absorbing boundaries: all PML slabs using {:g} cells'.format(G.pmlthickness[0]))
+            pbar.update()
