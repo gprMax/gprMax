@@ -19,6 +19,7 @@
 from colorama import init, Fore, Style
 init()
 import numpy as np
+from tqdm import tqdm
 
 from gprMax.constants import z0, floattype
 from gprMax.exceptions import CmdInputError
@@ -89,7 +90,7 @@ def process_multicmds(multicmds, G):
             zcoord = G.calculate_coord('z', tmp[3])
             resistance = float(tmp[4])
             check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
+            if xcoord < G.pmlthickness['xminus'] or xcoord > G.nx - G.pmlthickness['xplus'] or ycoord < G.pmlthickness['yminus'] or ycoord > G.ny - G.pmlthickness['yplus'] or zcoord < G.pmlthickness['zminus'] or zcoord > G.nz - G.pmlthickness['zplus']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
             if resistance < 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a source resistance of zero or greater')
@@ -148,7 +149,7 @@ def process_multicmds(multicmds, G):
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
             check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
+            if xcoord < G.pmlthickness['xminus'] or xcoord > G.nx - G.pmlthickness['xplus'] or ycoord < G.pmlthickness['yminus'] or ycoord > G.ny - G.pmlthickness['yplus'] or zcoord < G.pmlthickness['zminus'] or zcoord > G.nz - G.pmlthickness['zplus']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
 
             # Check if there is a waveformID in the waveforms list
@@ -160,9 +161,9 @@ def process_multicmds(multicmds, G):
             h.xcoord = xcoord
             h.ycoord = ycoord
             h.zcoord = zcoord
-            h.xcoordbase = xcoord
-            h.ycoordbase = ycoord
-            h.zcoordbase = zcoord
+            h.xcoordorigin = xcoord
+            h.ycoordorigin = ycoord
+            h.zcoordorigin = zcoord
             h.ID = h.__class__.__name__ + '(' + str(h.xcoord) + ',' + str(h.ycoord) + ',' + str(h.zcoord) + ')'
             h.waveformID = tmp[4]
 
@@ -207,7 +208,7 @@ def process_multicmds(multicmds, G):
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
             check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
+            if xcoord < G.pmlthickness['xminus'] or xcoord > G.nx - G.pmlthickness['xplus'] or ycoord < G.pmlthickness['yminus'] or ycoord > G.ny - G.pmlthickness['yplus'] or zcoord < G.pmlthickness['zminus'] or zcoord > G.nz - G.pmlthickness['zplus']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
 
             # Check if there is a waveformID in the waveforms list
@@ -219,9 +220,9 @@ def process_multicmds(multicmds, G):
             m.xcoord = xcoord
             m.ycoord = ycoord
             m.zcoord = zcoord
-            m.xcoordbase = xcoord
-            m.ycoordbase = ycoord
-            m.zcoordbase = zcoord
+            m.xcoordorigin = xcoord
+            m.ycoordorigin = ycoord
+            m.zcoordorigin = zcoord
             m.ID = m.__class__.__name__ + '(' + str(m.xcoord) + ',' + str(m.ycoord) + ',' + str(m.zcoord) + ')'
             m.waveformID = tmp[4]
 
@@ -270,7 +271,7 @@ def process_multicmds(multicmds, G):
 
             check_coordinates(xcoord, ycoord, zcoord)
 
-            if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
+            if xcoord < G.pmlthickness['xminus'] or xcoord > G.nx - G.pmlthickness['xplus'] or ycoord < G.pmlthickness['yminus'] or ycoord > G.ny - G.pmlthickness['yplus'] or zcoord < G.pmlthickness['zminus'] or zcoord > G.nz - G.pmlthickness['zplus']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
             if resistance <= 0 or resistance >= z0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a resistance greater than zero and less than the impedance of free space, i.e. 376.73 Ohms')
@@ -328,16 +329,16 @@ def process_multicmds(multicmds, G):
             ycoord = round_value(float(tmp[1]) / G.dy)
             zcoord = round_value(float(tmp[2]) / G.dz)
             check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
+            if xcoord < G.pmlthickness['xminus'] or xcoord > G.nx - G.pmlthickness['xplus'] or ycoord < G.pmlthickness['yminus'] or ycoord > G.ny - G.pmlthickness['yplus'] or zcoord < G.pmlthickness['zminus'] or zcoord > G.nz - G.pmlthickness['zplus']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
 
             r = Rx()
             r.xcoord = xcoord
             r.ycoord = ycoord
             r.zcoord = zcoord
-            r.xcoordbase = xcoord
-            r.ycoordbase = ycoord
-            r.zcoordbase = zcoord
+            r.xcoordorigin = xcoord
+            r.ycoordorigin = ycoord
+            r.zcoordorigin = zcoord
 
             # If no ID or outputs are specified, use default i.e Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, Iz
             if len(tmp) == 3:
@@ -381,7 +382,7 @@ def process_multicmds(multicmds, G):
             check_coordinates(xs, ys, zs, name='lower')
             check_coordinates(xf, yf, zf, name='upper')
 
-            if xcoord < G.pmlthickness[0] or xcoord > G.nx - G.pmlthickness[3] or ycoord < G.pmlthickness[1] or ycoord > G.ny - G.pmlthickness[4] or zcoord < G.pmlthickness[2] or zcoord > G.nz - G.pmlthickness[5]:
+            if xcoord < G.pmlthickness['xminus'] or xcoord > G.nx - G.pmlthickness['xplus'] or ycoord < G.pmlthickness['yminus'] or ycoord > G.ny - G.pmlthickness['yplus'] or zcoord < G.pmlthickness['zminus'] or zcoord > G.nz - G.pmlthickness['zplus']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
             if xs > xf or ys > yf or zs > zf:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
@@ -413,9 +414,9 @@ def process_multicmds(multicmds, G):
                         r.xcoord = x
                         r.ycoord = y
                         r.zcoord = z
-                        r.xcoordbase = x
-                        r.ycoordbase = y
-                        r.zcoordbase = z
+                        r.xcoordorigin = x
+                        r.ycoordorigin = y
+                        r.zcoordorigin = z
                         r.ID = r.__class__.__name__ + '(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
                         for key in Rx.availableoutputs:
                             r.outputs[key] = np.zeros(G.iterations, dtype=floattype)
@@ -501,9 +502,13 @@ def process_multicmds(multicmds, G):
             m.se = se
             m.mr = float(tmp[2])
             m.sm = float(tmp[3])
-
+            
+            # Set material averaging to False if infinite conductivity, i.e. pec
+            if m.se == float('inf'):
+                m.averagable = False
+            
             if G.messages:
-                print('Material {} with epsr={:g}, sig={:g} S/m; mur={:g}, sig*={:g} S/m created.'.format(m.ID, m.er, m.se, m.mr, m.sm))
+                tqdm.write('Material {} with epsr={:g}, sig={:g} S/m; mur={:g}, sig*={:g} S/m created.'.format(m.ID, m.er, m.se, m.mr, m.sm))
 
             # Append the new material object to the materials list
             G.materials.append(m)
@@ -541,7 +546,7 @@ def process_multicmds(multicmds, G):
                     Material.maxpoles = material.poles
 
                 if G.messages:
-                    print('Debye disperion added to {} with delta_epsr={}, and tau={} secs created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau)))
+                    tqdm.write('Debye disperion added to {} with delta_epsr={}, and tau={} secs created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau)))
 
     cmdname = '#add_dispersion_lorentz'
     if multicmds[cmdname] != 'None':
@@ -577,7 +582,7 @@ def process_multicmds(multicmds, G):
                     Material.maxpoles = material.poles
 
                 if G.messages:
-                    print('Lorentz disperion added to {} with delta_epsr={}, omega={} secs, and gamma={} created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
+                    tqdm.write('Lorentz disperion added to {} with delta_epsr={}, omega={} secs, and gamma={} created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
 
     cmdname = '#add_dispersion_drude'
     if multicmds[cmdname] != 'None':
@@ -612,7 +617,7 @@ def process_multicmds(multicmds, G):
                     Material.maxpoles = material.poles
 
                 if G.messages:
-                    print('Drude disperion added to {} with omega={} secs, and gamma={} secs created.'.format(material.ID, ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
+                    tqdm.write('Drude disperion added to {} with omega={} secs, and gamma={} secs created.'.format(material.ID, ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
 
     cmdname = '#soil_peplinski'
     if multicmds[cmdname] != 'None':
