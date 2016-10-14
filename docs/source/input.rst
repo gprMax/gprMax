@@ -794,7 +794,7 @@ Allows you to introduce output points into the model. These are locations where 
 
 .. note::
 
-    * When the optional parameters ``str1`` and ``str2`` are not given all the electric and magnetic field components and currents will be output with the receiver point.
+    * When the optional parameters ``str1`` and ``str2`` are not given all the electric and magnetic field components will be output with the receiver point.
 
 #rx_array:
 ----------

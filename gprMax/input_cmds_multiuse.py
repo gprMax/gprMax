@@ -343,7 +343,7 @@ def process_multicmds(multicmds, G):
             # If no ID or outputs are specified, use default i.e Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, Iz
             if len(tmp) == 3:
                 r.ID = r.__class__.__name__ + '(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'
-                for key in Rx.availableoutputs:
+                for key in Rx.defaultoutputs:
                     r.outputs[key] = np.zeros(G.iterations, dtype=floattype)
             else:
                 r.ID = tmp[3]
@@ -418,7 +418,7 @@ def process_multicmds(multicmds, G):
                         r.ycoordorigin = y
                         r.zcoordorigin = z
                         r.ID = r.__class__.__name__ + '(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
-                        for key in Rx.availableoutputs:
+                        for key in Rx.defaultoutputs:
                             r.outputs[key] = np.zeros(G.iterations, dtype=floattype)
                         if G.messages:
                             print('  Receiver at {:g}m, {:g}m, {:g}m with output component(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))

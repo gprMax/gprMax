@@ -21,7 +21,7 @@ where ``outputfile`` is the name of output file including the path.
 
 There are optional command line arguments:
 
-* ``--outputs`` to specify a subset of the default output components (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``, ``Ix``, ``Iy`` or ``Iz``) to plot. By default all components are plotted.
+* ``--outputs`` to specify a subset of the default output components (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``, ``Ix``, ``Iy`` or ``Iz``) to plot. By default all electric and magnetic field components are plotted.
 * ``-fft`` to plot the Fast Fourier Transform (FFT) of a single output component
 
 For example to plot the ``Ez`` output component with it's FFT:

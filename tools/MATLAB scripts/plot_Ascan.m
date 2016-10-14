@@ -29,9 +29,6 @@ if filename ~= 0
     fields.hx = zeros(header.iterations, header.nrx);
     fields.hy = zeros(header.iterations, header.nrx);
     fields.hz = zeros(header.iterations, header.nrx);
-    fields.ix = zeros(header.iterations, header.nrx);
-    fields.iy = zeros(header.iterations, header.nrx);
-    fields.iz = zeros(header.iterations, header.nrx);
     
     % Save and plot fields from each receiver
     for n=1:header.nrx
@@ -47,29 +44,15 @@ if filename ~= 0
         fields.hx(:,n) = h5read(fullfilename, strcat(path, 'Hx'));
         fields.hy(:,n) = h5read(fullfilename, strcat(path, 'Hy'));
         fields.hz(:,n) = h5read(fullfilename, strcat(path, 'Hz'));
-        fields.ix(:,n) = h5read(fullfilename, strcat(path, 'Ix'));
-        fields.iy(:,n) = h5read(fullfilename, strcat(path, 'Iy'));
-        fields.iz(:,n) = h5read(fullfilename, strcat(path, 'Iz'));
         
         fh1=figure('Name', strcat('rx', num2str(n)));
-        ax1 = subplot(3,3,1); plot(time, fields.ex(:,n), 'r', 'LineWidth', 2), grid on, xlabel('Time [ns]'), ylabel('Field strength [V/m]'), title('E_x')
-        ax2 = subplot(3,3,4); plot(time, fields.ey(:,n), 'r', 'LineWidth', 2), grid on, xlabel('Time [ns]'), ylabel('Field strength [V/m]'), title('E_y')
-        ax3 = subplot(3,3,7); plot(time, fields.ez(:,n), 'r', 'LineWidth', 2), grid on, xlabel('Time [ns]'), ylabel('Field strength [V/m]'), title('E_z')
-        ax4 = subplot(3,3,2); plot(time, fields.hx(:,n), 'b', 'LineWidth', 2), grid on, xlabel('Time [ns]'), ylabel('Field strength [A/m]'), title('H_x')
-        ax5 = subplot(3,3,5); plot(time, fields.hy(:,n), 'b', 'LineWidth', 2), grid on, xlabel('Time [ns]'), ylabel('Field strength [A/m]'), title('H_y')
-        ax6 = subplot(3,3,8); plot(time, fields.hz(:,n), 'b', 'LineWidth', 2), grid on, xlabel('Time [ns]'), ylabel('Field strength [A/m]'), title('H_z')
-        ax7 = subplot(3,3,3); plot(time, fields.ix(:,n), 'g', 'LineWidth', 2), grid on, xlabel('Time [ns]'), ylabel('Current [A]'), title('I_x')
-        ax8 = subplot(3,3,6); plot(time, fields.iy(:,n), 'g', 'LineWidth', 2), grid on, xlabel('Time [ns]'), ylabel('Current [A]'), title('I_y')
-        ax9 = subplot(3,3,9); plot(time, fields.iz(:,n), 'g', 'LineWidth', 2), grid on, xlabel('Time [ns]'), ylabel('Current [A]'), title('I_z')
-        ax1.FontSize = 16;
-        ax2.FontSize = ax1.FontSize;
-        ax3.FontSize = ax1.FontSize;
-        ax4.FontSize = ax1.FontSize;
-        ax5.FontSize = ax1.FontSize;
-        ax6.FontSize = ax1.FontSize;
-        ax7.FontSize = ax1.FontSize;
-        ax8.FontSize = ax1.FontSize;
-        ax9.FontSize = ax1.FontSize;
+        ax(1) = subplot(3,2,1); plot(time, fields.ex(:,n), 'r', 'LineWidth', 2), grid on, xlabel('Time [ns]'), ylabel('Field strength [V/m]'), title('E_x')
+        ax(2) = subplot(3,2,3); plot(time, fields.ey(:,n), 'r', 'LineWidth', 2), grid on, xlabel('Time [ns]'), ylabel('Field strength [V/m]'), title('E_y')
+        ax(3) = subplot(3,2,5); plot(time, fields.ez(:,n), 'r', 'LineWidth', 2), grid on, xlabel('Time [ns]'), ylabel('Field strength [V/m]'), title('E_z')
+        ax(4) = subplot(3,2,2); plot(time, fields.hx(:,n), 'b', 'LineWidth', 2), grid on, xlabel('Time [ns]'), ylabel('Field strength [A/m]'), title('H_x')
+        ax(5) = subplot(3,2,4); plot(time, fields.hy(:,n), 'b', 'LineWidth', 2), grid on, xlabel('Time [ns]'), ylabel('Field strength [A/m]'), title('H_y')
+        ax(6) = subplot(3,2,6); plot(time, fields.hz(:,n), 'b', 'LineWidth', 2), grid on, xlabel('Time [ns]'), ylabel('Field strength [A/m]'), title('H_z')
+        set(ax,'FontSize', 16, 'xlim', [0 time(end)]);
         
         % Options to create a nice looking figure for display and printing
         set(fh1,'Color','white','Menubar','none');

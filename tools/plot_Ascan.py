@@ -29,7 +29,7 @@ from gprMax.exceptions import CmdInputError
 from gprMax.receivers import Rx
 
 
-def mpl_plot(filename, outputs=Rx.availableoutputs, fft=False):
+def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
     """Plots electric and magnetic fields and currents from all receiver points in the given output file. Each receiver point is plotted in a new figure window.
             
     Args:
@@ -121,12 +121,12 @@ def mpl_plot(filename, outputs=Rx.availableoutputs, fft=False):
                     plt.setp(ax1, ylabel=outputtext + ' field strength [A/m]')
                     plt.setp(stemlines, 'color', 'g')
                     plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
-                elif 'I' in outputs[0]:
-                    plt.setp(line1, color='b')
-                    plt.setp(line2, color='b')
-                    plt.setp(ax1, ylabel=outputtext + ' current [A]')
-                    plt.setp(stemlines, 'color', 'b')
-                    plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
+#                elif 'I' in outputs[0]:
+#                    plt.setp(line1, color='b')
+#                    plt.setp(line2, color='b')
+#                    plt.setp(ax1, ylabel=outputtext + ' current [A]')
+#                    plt.setp(stemlines, 'color', 'b')
+#                    plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
                 
                 plt.show()
         
@@ -141,14 +141,14 @@ def mpl_plot(filename, outputs=Rx.availableoutputs, fft=False):
                 if 'H' in output:
                     plt.setp(line, color='g')
                     plt.setp(ax, ylabel=outputtext + ', field strength [A/m]')
-                elif 'I' in output:
-                    plt.setp(line, color='b')
-                    plt.setp(ax, ylabel=outputtext + ', current [A]')
+#                elif 'I' in output:
+#                    plt.setp(line, color='b')
+#                    plt.setp(ax, ylabel=outputtext + ', current [A]')
 
         # If multiple outputs required, create all nine subplots and populate only the specified ones
         else:
             fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
-            gs = gridspec.GridSpec(3, 3, hspace=0.3, wspace=0.3)
+            gs = gridspec.GridSpec(3, 2, hspace=0.3, wspace=0.3)
             for output in outputs:
                 
                 # Check for polarity of output and if requested output is in file
@@ -196,25 +196,25 @@ def mpl_plot(filename, outputs=Rx.availableoutputs, fft=False):
                     ax.plot(time, outputdata,'g', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', field strength [A/m]')
                 #ax.set_ylim([-0.03, 0.03])
-                elif output == 'Ix':
-                    ax = plt.subplot(gs[0, 2])
-                    ax.plot(time, outputdata,'b', lw=2, label=outputtext)
-                    ax.set_ylabel(outputtext + ', current [A]')
-                elif output == 'Iy':
-                    ax = plt.subplot(gs[1, 2])
-                    ax.plot(time, outputdata,'b', lw=2, label=outputtext)
-                    ax.set_ylabel(outputtext + ', current [A]')
-                elif output == 'Iz':
-                    ax = plt.subplot(gs[2, 2])
-                    ax.plot(time, outputdata,'b', lw=2, label=outputtext)
-                    ax.set_ylabel(outputtext + ', current [A]')
+#                elif output == 'Ix':
+#                    ax = plt.subplot(gs[0, 2])
+#                    ax.plot(time, outputdata,'b', lw=2, label=outputtext)
+#                    ax.set_ylabel(outputtext + ', current [A]')
+#                elif output == 'Iy':
+#                    ax = plt.subplot(gs[1, 2])
+#                    ax.plot(time, outputdata,'b', lw=2, label=outputtext)
+#                    ax.set_ylabel(outputtext + ', current [A]')
+#                elif output == 'Iz':
+#                    ax = plt.subplot(gs[2, 2])
+#                    ax.plot(time, outputdata,'b', lw=2, label=outputtext)
+#                    ax.set_ylabel(outputtext + ', current [A]')
             for ax in fig.axes:
                 ax.set_xlim([0, np.amax(time)])
                 ax.grid()
 
         # Save a PDF/PNG of the figure
-        #fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-        #fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+#        fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+#        fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
     return plt
 

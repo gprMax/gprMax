@@ -25,6 +25,7 @@ class Rx(object):
     """Receiver output points."""
 
     availableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
+    defaultoutputs = availableoutputs[:-3]
 
     def __init__(self):
 
