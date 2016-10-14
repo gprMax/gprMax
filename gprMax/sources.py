@@ -34,16 +34,16 @@ class Source(object):
         self.xcoord = None
         self.ycoord = None
         self.zcoord = None
-        self.xcoordbase = None
-        self.ycoordbase = None
-        self.zcoordbase = None
+        self.xcoordorigin = None
+        self.ycoordorigin = None
+        self.zcoordorigin = None
         self.start = None
         self.stop = None
         self.waveformID = None
 
 
 class VoltageSource(Source):
-    """The voltage source can be a hard source if it's resistance is zero, i.e. the time variation of the specified electric field component is prescribed. If it's resistance is non-zero it behaves as a resistive voltage source."""
+    """A voltage source can be a hard source if it's resistance is zero, i.e. the time variation of the specified electric field component is prescribed. If it's resistance is non-zero it behaves as a resistive voltage source."""
 
     def __init__(self):
         super(Source, self).__init__()
@@ -123,7 +123,7 @@ class VoltageSource(Source):
 
 
 class HertzianDipole(Source):
-    """The Hertzian dipole is an additive source (electric current density)."""
+    """A Hertzian dipole is an additive source (electric current density)."""
 
     def __init__(self):
         super(Source, self).__init__()
@@ -161,7 +161,7 @@ class HertzianDipole(Source):
 
 
 class MagneticDipole(Source):
-    """The magnetic dipole is an additive source (magnetic current density)."""
+    """A magnetic dipole is an additive source (magnetic current density)."""
 
     def __init__(self):
         super(Source, self).__init__()
@@ -196,7 +196,7 @@ class MagneticDipole(Source):
 
 
 class TransmissionLine(Source):
-    """The transmission line source is a one-dimensional transmission line which is attached virtually to a grid cell."""
+    """A transmission line source is a one-dimensional transmission line which is attached virtually to a grid cell."""
 
     def __init__(self, G):
         """
@@ -352,3 +352,106 @@ class TransmissionLine(Source):
                 self.current[self.antpos] = Iz(i, j, k, G.Hx, G.Hy, G)
 
             self.update_current(time, G)
+
+
+class PlaneWave(Source):
+    """A plane wave source. It uses a total-field/scattered-field (TF/SF) formulation."""
+
+    def __init__(self, G):
+        """
+        Args:
+            G (class): Grid class instance - holds essential parameters describing the model.
+        """
+
+        super(Source, self).__init__()
+        
+        # Coordinates defining Huygen's surface
+        self.xs = 0
+        self.xf = 0
+        self.ys = 0
+        self.yf = 0
+        self.zs = 0
+        self.zf = 0
+        
+        # Spherical coordinates defining incident unit wavevector (k)
+        self.theta = 0 # 0 <= theta <= 180
+        self.phi = 0 # 0 <= phi <= 360
+        
+        # Angle that incident electric field makes with k cross z
+        self.psi = 0 # 0 <= psi <= 360
+    
+    def calculate_origin(self, G):
+        """Calculate origin of TF/SF interface with incident wavefront."""
+        
+        if self.theta >= 0 and self.theta <= 90:
+            if self.phi >= 0 and self.phi <= 90:
+                self.xcoordorigin = 0
+                self.ycoordorigin = 0
+                self.zcoordorigin = 0
+            
+            elif self.phi > 90 and self.phi <= 180:
+                self.xcoordorigin = G.nx
+                self.ycoordorigin = 0
+                self.zcoordorigin = 0
+            
+            elif self.phi > 180 and self.phi <= 270:
+                self.xcoordorigin = G.nx
+                self.ycoordorigin = G.ny
+                self.zcoordorigin = 0
+            
+            elif self.phi > 270 and self.phi <= 360:
+                self.xcoordorigin = 0
+                self.ycoordorigin = G.ny
+                self.zcoordorigin = 0
+    
+        elif self.theta > 90 and self.theta <= 180:
+            if self.phi >= 0 and self.phi <= 90:
+                self.xcoordorigin = 0
+                self.ycoordorigin = 0
+                self.zcoordorigin = G.nz
+            
+            elif self.phi > 90 and self.phi <= 180:
+                self.xcoordorigin = G.nx
+                self.ycoordorigin = 0
+                self.zcoordorigin = G.nz
+            
+            elif self.phi > 180 and self.phi <= 270:
+                self.xcoordorigin = G.nx
+                self.ycoordorigin = G.ny
+                self.zcoordorigin = G.nz
+            
+            elif self.phi > 270 and self.phi <= 360:
+                self.xcoordorigin = 0
+                self.ycoordorigin = G.ny
+                self.zcoordorigin = G.nz
+
+    def calculate_vector_components(self):
+        """Calculate components of incident fields."""
+        
+        self.theta = np.deg2rad(self.theta)
+        self.phi = np.deg2rad(self.phi)
+        self.psi = np.deg2rad(self.psi)
+
+        # Components of incident unit wavevector
+        self.kx = np.sin(theta) * np.cos(phi)
+        self.ky = np.sin(theta) * np.sin(phi)
+        self.kz = np.cos(theta)
+
+        # Components of incident field vectors
+        self.Exinc = np.cos(psi) * np.sin(phi) - np.sin(psi) * np.cos(theta) * np.cos(phi)
+        self.Eyinc = -np.cos(psi) * np.cos(phi) - np.sin(psi) * np.cos(theta) * np.sin(phi)
+        self.Ezinc = np.sin(psi) * np.sin(theta)
+        self.Hxinc = np.sin(psi) * np.sin(phi) + np.cos(psi) * np.cos(theta) * np.cos(phi)
+        self.Hyinc = -np.sin(psi) * np.cos(phi) + np.cos(psi) * np.cos(theta) * np.sin(phi)
+        self.Hzinc = -np.cos(psi) * np.sin(theta)
+
+
+
+
+
+
+
+
+
+
+
