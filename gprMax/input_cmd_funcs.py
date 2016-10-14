@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from collections import namedtuple
 
 """This module contains functional forms of some of the most commonly used gprMax commands. It can be useful to use these within Python scripting in an input file.
 For convenience, x, y, z coordinates are lumped in a namedtuple Coordinate:
@@ -32,7 +33,6 @@ Coordinate(x=0.1, y=0.2, z=0.3)
 0.1 0.2 0.3
 """
 
-from collections import namedtuple
 Coordinate_tuple = namedtuple('Coordinate', ['x', 'y', 'z'])
 
 
