@@ -175,7 +175,7 @@ def process_materials(G):
         if G.messages:
             materialtext = []
             materialtext.append(str(material.numID))
-            materialtext.append(material.ID)
+            materialtext.append(material.ID[:75] if len(material.ID) > 75 else material.ID)
             materialtext.append(material.type)
             materialtext.append('{:g}'.format(material.er))
             materialtext.append('{:g}'.format(material.se))
