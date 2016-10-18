@@ -174,7 +174,7 @@ def check_cmd_names(processedlines, checkessential=True):
         cmdname = cmd[0]
         cmdparams = cmd[1]
         
-        # Check if there is space between command name and parameters
+        # Check if there is space between command name and parameters, i.e. check first character of parameter string
         if ' ' not in cmdparams[0]:
             raise CmdInputError('There must be a space between the command name and parameters in ' + processedlines[lindex])
 
