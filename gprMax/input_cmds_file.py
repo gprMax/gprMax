@@ -171,11 +171,16 @@ def check_cmd_names(processedlines, checkessential=True):
     lindex = 0
     while(lindex < len(processedlines)):
         cmd = processedlines[lindex].split(':')
-        cmdname = cmd[0].lower()
+        cmdname = cmd[0]
+        cmdparams = cmd[1]
+        
+        # Check if there is space between command name and parameters
+        if ' ' not in cmdparams[0]:
+            raise CmdInputError('There must be a space between the command name and parameters in ' + processedlines[lindex])
 
         # Check if command name is valid
         if cmdname not in essentialcmds and cmdname not in singlecmds and cmdname not in multiplecmds and cmdname not in geometrycmds:
-            raise CmdInputError('Your input file contains the invalid command: ' + cmdname)
+            raise CmdInputError('Your input file contains an invalid command: ' + cmdname)
 
         # Count essential commands
         if cmdname in essentialcmds:
@@ -186,7 +191,7 @@ def check_cmd_names(processedlines, checkessential=True):
             if singlecmds[cmdname] == 'None':
                 singlecmds[cmdname] = cmd[1].strip(' \t\n')
             else:
-                raise CmdInputError('You can only have one ' + cmdname + ' commmand in your model')
+                raise CmdInputError('You can only have instance of ' + cmdname + ' in your model')
 
         elif cmdname in multiplecmds:
             multiplecmds[cmdname].append(cmd[1].strip(' \t\n'))
@@ -198,6 +203,6 @@ def check_cmd_names(processedlines, checkessential=True):
 
     if checkessential:
         if (countessentialcmds < len(essentialcmds)):
-            raise CmdInputError('Your input file is missing essential gprMax commands required to run a model. Essential commands are: ' + ', '.join(essentialcmds))
+            raise CmdInputError('Your input file is missing essential commands required to run a model. Essential commands are: ' + ', '.join(essentialcmds))
 
     return singlecmds, multiplecmds, geometry
