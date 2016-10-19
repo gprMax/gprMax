@@ -353,5 +353,5 @@ class GeometryObjects(object):
                             dispersionstr = '#add_dispersion_drude: {:g} '.format(material.poles)
                             for pole in range(material.poles):
                                 dispersionstr += '{:g} {:g} '.format(material.tau[pole], material.alpha[pole])
-                        dispersionstr += (material.ID + randID)
+                        dispersionstr += material.ID
                         fmaterials.write(dispersionstr + '\n')
