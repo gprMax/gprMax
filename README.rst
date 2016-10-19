@@ -105,7 +105,7 @@ Mac OS X
 
 .. code-block:: none
 
-    $ brew install gcc-6 --without-multilib
+    $ brew install gcc --without-multilib
 
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
