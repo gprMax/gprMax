@@ -29,18 +29,18 @@ Module overview
 How to use the module
 =====================
 
-The antenna models can be accessed from within a block of Python code in an input file. The models must be used with cubic spatial resolutions of either 1mm (default) or 2mm.
+The antenna models can be accessed from within a block of Python code in an input file. The models must be used with cubic spatial resolutions of either 1mm (default) or 2mm by setting the keyword argument, e.g. ``resolution=0.002``. The antenna models can be rotated 90 degrees counter-clockwise (CCW) in the x-y plane by setting the keyword argument ``rotate90=True``.
 
 Example
 -------
 
-To include an antenna model similar to a GSSI 1.5 GHz antenna at a location 0.125m, 0.094m, 0.100m (x,y,z):
+To include an antenna model similar to a GSSI 1.5 GHz antenna at a location 0.125m, 0.094m, 0.100m (x,y,z) using a 2mm cubic spatial resolution:
 
 .. code-block:: none
 
     #python:
     from user_libs.antennas import antenna_like_GSSI_1500
-    antenna_like_GSSI_1500(0.125, 0.094, 0.100)
+    antenna_like_GSSI_1500(0.125, 0.094, 0.100, resolution=0.002)
     #end_python:
 
 .. figure:: images/antenna_like_GSSI_1500.png
