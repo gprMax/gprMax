@@ -72,10 +72,10 @@ def process_geometrycmds(geometry, G):
                 materials = [line.rstrip() + '{' + matstr + '}\n' for line in f if(not line.startswith('##') and line.rstrip('\n'))]
 
             # Check validity of command names
-            singlecmds, multicmds, geometry = check_cmd_names(materials, checkessential=False)
+            singlecmdsimport, multicmdsimport, geometryimport = check_cmd_names(materials, checkessential=False)
             
             # Process parameters for commands that can occur multiple times in the model
-            process_multicmds(multicmds, G)
+            process_multicmds(multicmdsimport, G)
 
             # Update material type
             for material in G.materials:
@@ -873,7 +873,7 @@ def process_geometrycmds(geometry, G):
             # Search and process any modifiers for the fractal box
             for object in geometry:
                 tmp = object.split()
-
+                
                 if tmp[0] == '#add_surface_roughness:':
                     if len(tmp) < 13:
                         raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least twelve parameters')
