@@ -725,6 +725,11 @@ Allows you to specify a current density term at an electric field location (the 
 
 For example, to use a x polarised Hertzian dipole with unit amplitude and a 600 MHz centre frequency Ricker waveform, use: ``#waveform: ricker 1 600e6 my_ricker_pulse`` and ``#hertzian_dipole: x 0.05 0.05 0.05 my_ricker_pulse``.
 
+.. note::
+
+    * When a ``#hertzian_dipole`` is used in a 2D simulation it acts as a line source of current in the infinite direction of the simulation.
+
+
 #magnetic_dipole:
 -----------------
 
