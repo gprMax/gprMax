@@ -99,12 +99,12 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     freqs = np.fft.fftfreq(Vinc.size, d=dt)
 
     # Delay correction - current lags voltage, so delay voltage to match current timestep
-    delaycorrection = np.exp(-1j * 2 * np.pi * freqs * (dt / 2))
+    delaycorrection = np.exp(1j * 2 * np.pi * freqs * (dt / 2))
 
     # Calculate s11 and (optionally) s21
-    s11 = np.abs(np.fft.fft(Vref) * delaycorrection) / np.abs(np.fft.fft(Vinc) * delaycorrection)
+    s11 = np.abs(np.fft.fft(Vref) / np.fft.fft(Vinc))
     if tlrxnumber or rxnumber:
-        s21 = np.abs(np.fft.fft(Vrec)) / np.abs(np.fft.fft(Vinc) * delaycorrection)
+        s21 = np.abs(np.fft.fft(Vrec) / np.fft.fft(Vinc))
 
     # Calculate input impedance
     zin = (np.fft.fft(Vtotal) * delaycorrection) / np.fft.fft(Itotal)
@@ -241,7 +241,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     ax.set_xlim([0, np.amax(time)])
     ax.grid()
 
-    # Plot frequency spectra of reflected current
+    # Plot frequency spectra of total current
     ax = plt.subplot(gs1[3, 1])
     markerline, stemlines, baseline = ax.stem(freqs[pltrange], Itotalp[pltrange], '-.')
     plt.setp(baseline, 'linewidth', 0)
@@ -308,8 +308,8 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     ax.set_title('s11')
     ax.set_xlabel('Frequency [Hz]')
     ax.set_ylabel('Power [dB]')
-    #ax.set_xlim([0.88e9, 1.02e9])
-    #ax.set_ylim([-20, 0])
+    #ax.set_xlim([0, 5e9])
+    #ax.set_ylim([-25, 0])
     ax.grid()
 
     # Plot frequency spectra of s21
@@ -353,7 +353,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     ax.set_xlabel('Frequency [Hz]')
     ax.set_ylabel('Reactance [Ohms]')
     #ax.set_xlim([0.88e9, 1.02e9])
-    #ax.set_ylim([-200, 100])
+    #ax.set_ylim([-300, 300])
     ax.grid()
 
     ## Plot input admittance (magnitude)
