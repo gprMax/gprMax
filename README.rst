@@ -22,7 +22,7 @@ If you use gprMax and publish your work we would be grateful if you could cite o
 
 * Warren, C., Giannopoulos, A., & Giannakis I. (2016). gprMax: Open source software to simulate electromagnetic wave propagation for Ground Penetrating Radar, `Computer Physics Communications` (http://dx.doi.org/10.1016/j.cpc.2016.08.020)
 
-For further information on referencing gprMax (including easy to use BibTeX imports) visit the Publications section of our website (http://www.gprmax.com/publications.shtml)
+For further information on referencing gprMax visit the Publications section of our website (http://www.gprmax.com/publications.shtml)
 
 
 Package overview
