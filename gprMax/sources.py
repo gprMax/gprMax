@@ -364,7 +364,7 @@ class PlaneWave(Source):
         """
 
         super(Source, self).__init__()
-        
+
         # Coordinates defining Huygen's surface
         self.xs = 0
         self.xf = 0
@@ -372,54 +372,54 @@ class PlaneWave(Source):
         self.yf = 0
         self.zs = 0
         self.zf = 0
-        
+
         # Spherical coordinates defining incident unit wavevector (k)
-        self.theta = 0 # 0 <= theta <= 180
-        self.phi = 0 # 0 <= phi <= 360
-        
+        self.theta = 0  # 0 <= theta <= 180
+        self.phi = 0  # 0 <= phi <= 360
+
         # Angle that incident electric field makes with k cross z
-        self.psi = 0 # 0 <= psi <= 360
-    
+        self.psi = 0  # 0 <= psi <= 360
+
     def calculate_origin(self, G):
         """Calculate origin of TF/SF interface with incident wavefront."""
-        
+
         if self.theta >= 0 and self.theta <= 90:
             if self.phi >= 0 and self.phi <= 90:
                 self.xcoordorigin = 0
                 self.ycoordorigin = 0
                 self.zcoordorigin = 0
-            
+
             elif self.phi > 90 and self.phi <= 180:
                 self.xcoordorigin = G.nx
                 self.ycoordorigin = 0
                 self.zcoordorigin = 0
-            
+
             elif self.phi > 180 and self.phi <= 270:
                 self.xcoordorigin = G.nx
                 self.ycoordorigin = G.ny
                 self.zcoordorigin = 0
-            
+
             elif self.phi > 270 and self.phi <= 360:
                 self.xcoordorigin = 0
                 self.ycoordorigin = G.ny
                 self.zcoordorigin = 0
-    
+
         elif self.theta > 90 and self.theta <= 180:
             if self.phi >= 0 and self.phi <= 90:
                 self.xcoordorigin = 0
                 self.ycoordorigin = 0
                 self.zcoordorigin = G.nz
-            
+
             elif self.phi > 90 and self.phi <= 180:
                 self.xcoordorigin = G.nx
                 self.ycoordorigin = 0
                 self.zcoordorigin = G.nz
-            
+
             elif self.phi > 180 and self.phi <= 270:
                 self.xcoordorigin = G.nx
                 self.ycoordorigin = G.ny
                 self.zcoordorigin = G.nz
-            
+
             elif self.phi > 270 and self.phi <= 360:
                 self.xcoordorigin = 0
                 self.ycoordorigin = G.ny
@@ -427,31 +427,20 @@ class PlaneWave(Source):
 
     def calculate_vector_components(self):
         """Calculate components of incident fields."""
-        
+
         self.theta = np.deg2rad(self.theta)
         self.phi = np.deg2rad(self.phi)
         self.psi = np.deg2rad(self.psi)
 
         # Components of incident unit wavevector
-        self.kx = np.sin(theta) * np.cos(phi)
-        self.ky = np.sin(theta) * np.sin(phi)
-        self.kz = np.cos(theta)
+        self.kx = np.sin(self.theta) * np.cos(self.phi)
+        self.ky = np.sin(self.theta) * np.sin(self.phi)
+        self.kz = np.cos(self.theta)
 
         # Components of incident field vectors
-        self.Exinc = np.cos(psi) * np.sin(phi) - np.sin(psi) * np.cos(theta) * np.cos(phi)
-        self.Eyinc = -np.cos(psi) * np.cos(phi) - np.sin(psi) * np.cos(theta) * np.sin(phi)
-        self.Ezinc = np.sin(psi) * np.sin(theta)
-        self.Hxinc = np.sin(psi) * np.sin(phi) + np.cos(psi) * np.cos(theta) * np.cos(phi)
-        self.Hyinc = -np.sin(psi) * np.cos(phi) + np.cos(psi) * np.cos(theta) * np.sin(phi)
-        self.Hzinc = -np.cos(psi) * np.sin(theta)
-
-
-
-
-
-
-
-
-
-
-
+        self.Exinc = np.cos(self.psi) * np.sin(self.phi) - np.sin(self.psi) * np.cos(self.theta) * np.cos(self.phi)
+        self.Eyinc = -np.cos(self.psi) * np.cos(self.phi) - np.sin(self.psi) * np.cos(self.theta) * np.sin(self.phi)
+        self.Ezinc = np.sin(self.psi) * np.sin(self.theta)
+        self.Hxinc = np.sin(self.psi) * np.sin(self.phi) + np.cos(self.psi) * np.cos(self.theta) * np.cos(self.phi)
+        self.Hyinc = -np.sin(self.psi) * np.cos(self.phi) + np.cos(self.psi) * np.cos(self.theta) * np.sin(self.phi)
+        self.Hzinc = -np.cos(self.psi) * np.sin(self.theta)

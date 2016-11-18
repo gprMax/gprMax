@@ -262,7 +262,7 @@ class PML(object):
 def build_pmls(G, pbar):
     """This function builds instances of the PML and calculates the initial parameters and coefficients including setting profile
         (based on underlying material er and mr from solid array).
-        
+
     Args:
         G (class): Grid class instance - holds essential parameters describing the model.
         pbar (class): Progress bar class instance.
@@ -317,6 +317,6 @@ def build_pmls(G, pbar):
                         summr += material.mr
                 averageer = sumer / (G.nx * G.ny)
                 averagemr = summr / (G.nx * G.ny)
-            
+
             pml.calculate_update_coeffs(averageer, averagemr, G)
             pbar.update()

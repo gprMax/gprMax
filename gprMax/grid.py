@@ -78,12 +78,12 @@ class FDTDGrid(Grid):
         self.title = ''
         self.messages = True
         self.tqdmdisable = False
-        
-        # Threshold (dB) down from maximum power (0dB) of main frequency used to calculate highest frequency for disperion analysis
+
+        # Threshold (dB) down from maximum power (0dB) of main frequency used to calculate highest frequency for disperion analysis
         self.highestfreqthres = 60
         # Maximum allowable percentage physical phase-velocity phase error
         self.maxnumericaldisp = 2
-        
+
         self.nx = 0
         self.ny = 0
         self.nz = 0
@@ -157,7 +157,7 @@ def dispersion_analysis(G):
 
     # Physical phase velocity error (percentage); grid sampling density; material with maximum permittivity; maximum frequency of interest
     results = {'deltavp': False, 'N': False, 'material': False, 'maxfreq': False}
-    
+
     # Find maximum frequency
     maxfreqs = []
     for waveform in G.waveforms:
@@ -221,19 +221,19 @@ def dispersion_analysis(G):
 
         # Minimum wavelength
         minwavelength = minvelocity / results['maxfreq']
-        
+
         # Maximum spatial step
         delta = max(G.dx, G.dy, G.dz)
-        
+
         # Courant stability factor
         S = (c * G.dt) / delta
-        
+
         # Grid sampling density
         results['N'] = minwavelength / delta
-        
+
         # Numerical phase velocity
         vp = np.pi / (results['N'] * np.arcsin((1 / S) * np.sin((np.pi * S) / results['N'])))
-        
+
         # Physical phase velocity error (percentage)
         results['deltavp'] = (((vp * c) - c) / c) * 100
 

@@ -38,7 +38,7 @@ Coordinate_tuple = namedtuple('Coordinate', ['x', 'y', 'z'])
 
 class Coordinate(Coordinate_tuple):
     """Subclass of a namedtuple where __str__ outputs 'x y z'"""
-    
+
     def __str__(self):
         return '{:g} {:g} {:g}'.format(self.x, self.y, self.z)
 
@@ -53,7 +53,7 @@ def command(cmd, *parameters):
     Returns:
         s (str): the printed string
     """
-    
+
     # remove Nones
     filtered = filter(lambda x: x is not None, parameters)
     # convert to str
@@ -76,11 +76,11 @@ def command(cmd, *parameters):
 
 def rotate90_point(x, y, rotate90origin=()):
     """Rotates a point 90 degrees CCW in the x-y plane.
-        
+
     Args:
         x, y (float): Coordinates.
         rotate90origin (tuple): x, y origin for 90 degree CCW rotation in x-y plane.
-        
+
     Returns:
         xrot, yrot (float): Rotated coordinates.
     """
@@ -158,7 +158,7 @@ def domain(x, y, z):
     Returns:
         domain (Coordinate): Namedtuple of the extent of the domain.
     """
-    
+
     domain = Coordinate(x, y, z)
     command('domain', domain)
 
@@ -174,7 +174,7 @@ def dx_dy_dz(x, y, z):
     Returns:
         dx_dy_dz (float): Tuple of the spatial resolutions.
     """
-    
+
     dx_dy_dz = Coordinate(x, y, z)
     command('dx_dy_dz', dx_dy_dz)
 
@@ -190,7 +190,7 @@ def time_window(time_window):
     Returns:
         time_window (float): Duration of simulation.
     """
-    
+
     command('time_window', time_window)
 
     return time_window
@@ -206,7 +206,7 @@ def material(permittivity, conductivity, permeability, magconductivity, name):
         magconductivity (float): Magnetic loss of the material.
         name (str): Material identifier.
     """
-    
+
     command('material', permittivity, conductivity, permeability, magconductivity, name)
 
 
@@ -222,7 +222,7 @@ def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type='n'):
     Returns:
         s, f, d (tuple): 3 namedtuple Coordinate for the start, finish coordinates and spatial discretisation
     """
-    
+
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
     d = Coordinate(dx, dy, dz)
@@ -243,7 +243,7 @@ def snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename):
     Returns:
         s, f, d (tuple): 3 namedtuple Coordinate for the start, finish coordinates and spatial discretisation
     """
-    
+
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
     d = Coordinate(dx, dy, dz)
@@ -269,14 +269,13 @@ def edge(xs, ys, zs, xf, yf, zf, material, rotate90origin=()):
     Returns:
         s, f (tuple): 2 namedtuple Coordinate for the start and finish coordinates
     """
-    
+
     if rotate90origin:
         if xs == xf:
             polarisation = 'y'
         else:
             polarisation = 'x   '
         xs, ys, xf, yf = rotate90_edge(xs, ys, xf, yf, polarisation, rotate90origin)
-            
 
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
@@ -296,10 +295,10 @@ def plate(xs, ys, zs, xf, yf, zf, material, rotate90origin=()):
     Returns:
         s, f (tuple): 2 namedtuple Coordinate for the start and finish coordinates
     """
-    
+
     if rotate90origin:
         xs, ys, xf, yf = rotate90_plate(xs, ys, xf, yf, rotate90origin)
-    
+
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
     command('plate', s, f, material)
@@ -320,12 +319,12 @@ def triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, thickness, material, averaging=
     Returns:
         v1, v2, v3 (tuple): 3 namedtuple Coordinate for the vertices
     """
-    
+
     if rotate90origin:
         x1, y1 = rotate90_point(x1, y1, rotate90origin)
         x2, y2 = rotate90_point(x2, y2, rotate90origin)
         x3, y3 = rotate90_point(x3, y3, rotate90origin)
-    
+
     v1 = Coordinate(x1, y1, z1)
     v2 = Coordinate(x2, y2, z2)
     v3 = Coordinate(x3, y3, z3)
@@ -346,10 +345,10 @@ def box(xs, ys, zs, xf, yf, zf, material, averaging='', rotate90origin=()):
     Returns:
         s, f (tuple): 2 namedtuple Coordinate for the start and finish coordinates
     """
-    
+
     if rotate90origin:
         xs, ys, xf, yf = rotate90_plate(xs, ys, xf, yf, rotate90origin)
-    
+
     s = Coordinate(xs, ys, zs)
     f = Coordinate(xf, yf, zf)
     command('box', s, f, material, averaging)
@@ -369,7 +368,7 @@ def sphere(x, y, z, radius, material, averaging=''):
     Returns:
         c (tuple): namedtuple Coordinate for the center of the sphere
     """
-    
+
     c = Coordinate(x, y, z)
     command('sphere', c, radius, material, averaging)
 
@@ -389,11 +388,11 @@ def cylinder(x1, y1, z1, x2, y2, z2, radius, material, averaging='', rotate90ori
     Returns:
         c1, c2 (tuple): 2 namedtuple Coordinate for the centres of the two faces of the cylinder.
     """
-    
+
     if rotate90origin:
         x1, y1 = rotate90_point(x1, y1, rotate90origin)
         x2, y2 = rotate90_point(x2, y2, rotate90origin)
-    
+
     c1 = Coordinate(x1, y1, z1)
     c2 = Coordinate(x2, y2, z2)
     command('cylinder', c1, c2, radius, material, averaging)
@@ -414,7 +413,7 @@ def cylindrical_sector(axis, ctr1, ctr2, t1, t2, radius, startingangle, sweptang
         material (str): Material identifier(s).
         averaging (str): Turn averaging on or off.
     """
-    
+
     command('cylindrical_sector', axis, ctr1, ctr2, t1, t2, radius, startingangle, sweptangle, material, averaging)
 
 
@@ -427,7 +426,7 @@ def excitation_file(file1):
     Returns:
         file1 (str): filename
     """
-    
+
     command('excitation_file', file1)
 
     return file1
@@ -445,7 +444,7 @@ def waveform(shape, amplitude, frequency, identifier):
     Returns:
         identifier (str): is an identifier for the waveform used to assign it to a source.
     """
-    
+
     command('waveform', shape, amplitude, frequency, identifier)
 
     return identifier
@@ -466,7 +465,7 @@ def hertzian_dipole(polarisation, f1, f2, f3, identifier, t0=None, t_remove=None
     Returns:
         coordinates (tuple): namedtuple Coordinate of the source location
     """
-    
+
     if rotate90origin:
         if polarisation == 'x':
             xf = f1 + dxdy[0]
@@ -476,7 +475,7 @@ def hertzian_dipole(polarisation, f1, f2, f3, identifier, t0=None, t_remove=None
             xf = f1
             yf = f2 + dxdy[1]
             newpolarisation = 'x'
-        
+
         f1, f2, xf, yf = rotate90_edge(f1, f2, xf, yf, polarisation, rotate90origin)
         polarisation = newpolarisation
 
@@ -502,7 +501,7 @@ def magnetic_dipole(polarisation, f1, f2, f3, identifier, t0=None, t_remove=None
     Returns:
         coordinates (tuple): namedtuple Coordinate of the source location
     """
-    
+
     if rotate90origin:
         if polarisation == 'x':
             xf = f1 + dxdy[0]
@@ -512,7 +511,7 @@ def magnetic_dipole(polarisation, f1, f2, f3, identifier, t0=None, t_remove=None
             xf = f1
             yf = f2 + dxdy[1]
             newpolarisation = 'x'
-        
+
         f1, f2, xf, yf = rotate90_edge(f1, f2, xf, yf, polarisation, rotate90origin)
         polarisation = newpolarisation
 
@@ -539,7 +538,7 @@ def voltage_source(polarisation, f1, f2, f3, resistance, identifier, t0=None, t_
     Returns:
         coordinates (tuple): namedtuple Coordinate of the source location
     """
-    
+
     if rotate90origin:
         if polarisation == 'x':
             xf = f1 + dxdy[0]
@@ -549,7 +548,7 @@ def voltage_source(polarisation, f1, f2, f3, resistance, identifier, t0=None, t_
             xf = f1
             yf = f2 + dxdy[1]
             newpolarisation = 'x'
-        
+
         f1, f2, xf, yf = rotate90_edge(f1, f2, xf, yf, polarisation, rotate90origin)
         polarisation = newpolarisation
 
@@ -562,7 +561,7 @@ def voltage_source(polarisation, f1, f2, f3, resistance, identifier, t0=None, t_
 
 def transmission_line(polarisation, f1, f2, f3, resistance, identifier, t0=None, t_remove=None, dxdy=None, rotate90origin=()):
     """Prints the #transmission_line: polarisation, f1, f2, f3, resistance, identifier, [t0, t_remove]
-        
+
     Args:
         polarisation (str):  is the polarisation of the source and can be 'x', 'y', or 'z'.
         f1 f2 f3 (float): are the coordinates (x,y,z) of the source in the model.
@@ -572,11 +571,11 @@ def transmission_line(polarisation, f1, f2, f3, resistance, identifier, t0=None,
         t_remove (float): is a time to remove the source.
         dxdy (float): Tuple of x-y spatial resolutions. For rotation purposes only.
         rotate90origin (tuple): x, y origin for 90 degree CCW rotation in x-y plane.
-        
+
     Returns:
         coordinates (tuple): namedtuple Coordinate of the source location
     """
-    
+
     if rotate90origin:
         if polarisation == 'x':
             xf = f1 + dxdy[0]
@@ -586,14 +585,14 @@ def transmission_line(polarisation, f1, f2, f3, resistance, identifier, t0=None,
             xf = f1
             yf = f2 + dxdy[1]
             newpolarisation = 'x'
-        
+
         f1, f2, xf, yf = rotate90_edge(f1, f2, xf, yf, polarisation, rotate90origin)
         polarisation = newpolarisation
-    
+
     c = Coordinate(f1, f2, f3)
     # since command ignores None, this is safe:
     command('transmission_line', polarisation, str(c), resistance, identifier, t0, t_remove)
-    
+
     return c
 
 
@@ -611,7 +610,7 @@ def rx(x, y, z, identifier=None, to_save=None, polarisation=None, dxdy=None, rot
     Returns:
         coordinates (tuple): namedtuple Coordinate of the receiver location
     """
-    
+
     if rotate90origin:
         if polarisation == 'x':
             xf = x + dxdy[0]
@@ -620,7 +619,7 @@ def rx(x, y, z, identifier=None, to_save=None, polarisation=None, dxdy=None, rot
             xf = x
             yf = y + dxdy[1]
         x, y, xf, yf = rotate90_edge(x, y, xf, yf, polarisation, rotate90origin)
-    
+
     c = Coordinate(x, y, z)
     command('rx', str(c), identifier, ' '.join(to_save))
 

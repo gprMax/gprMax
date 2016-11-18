@@ -58,7 +58,7 @@ class GeometryView(object):
         self.dz = dz
         self.basefilename = filename
         self.fileext = fileext
-        
+
         if self.fileext == '.vti':
             # Calculate number of cells according to requested sampling for geometry view
             self.vtk_xscells = round_value(self.xs / self.dx)
@@ -71,7 +71,7 @@ class GeometryView(object):
             self.vtk_nycells = self.vtk_yfcells - self.vtk_yscells
             self.vtk_nzcells = self.vtk_zfcells - self.vtk_zscells
             self.datawritesize = int(np.dtype(np.uint32).itemsize * self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells) + 2 * (int(np.dtype(np.int8).itemsize * self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells))
-        
+
         elif self.fileext == '.vtp':
             self.vtk_numpoints = (self.nx + 1) * (self.ny + 1) * (self.nz + 1)
             self.vtk_numpoint_components = 3

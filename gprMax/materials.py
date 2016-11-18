@@ -156,7 +156,7 @@ def process_materials(G):
         else:
             materialsdata = [['\nID', '\nName', '\nType', '\neps_r', 'sigma\n[S/m]', '\nDelta eps_r', 'tau\n[s]', 'omega\n[Hz]', 'delta\n[Hz]', 'gamma\n[Hz]', '\nmu_r', 'sigma*\n[S/m]', 'Dielectric\nsmoothable']]
 
-    for material in G.materials:       
+    for material in G.materials:
         # Calculate update coefficients for material
         material.calculate_update_coeffsE(G)
         material.calculate_update_coeffsH(G)
@@ -181,23 +181,23 @@ def process_materials(G):
             materialtext.append('{:g}'.format(material.se))
             if Material.maxpoles > 0:
                 if 'debye' in material.type:
-                    materialtext.append(', '.join('{:g}'.format(deltaer) for deltaer in material.deltaer))
-                    materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
+                    materialtext.append(', '.join('{:g}'.format(deltaer for deltaer in material.deltaer)))
+                    materialtext.append(', '.join('{:g}'.format(tau for tau in material.tau)))
                     materialtext.append('')
                     materialtext.append('')
                     materialtext.append('')
                 elif 'lorentz' in material.type:
-                    materialtext.append(', '.join('{:g}'.format(deltaer) for deltaer in material.deltaer))
+                    materialtext.append(', '.join('{:g}'.format(deltaer for deltaer in material.deltaer)))
                     materialtext.append('')
-                    materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
-                    materialtext.append(', '.join('{:g}'.format(alpha) for alpha in material.alpha))
+                    materialtext.append(', '.join('{:g}'.format(tau for tau in material.tau)))
+                    materialtext.append(', '.join('{:g}'.format(alpha for alpha in material.alpha)))
                     materialtext.append('')
                 elif 'drude' in material.type:
                     materialtext.append('')
                     materialtext.append('')
-                    materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
+                    materialtext.append(', '.join('{:g}'.format(tau for tau in material.tau)))
                     materialtext.append('')
-                    materialtext.append(', '.join('{:g}'.format(alpha) for tau in material.alpha))
+                    materialtext.append(', '.join('{:g}'.format(alpha for alpha in material.alpha)))
                 else:
                     materialtext.append('')
                     materialtext.append('')

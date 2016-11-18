@@ -502,11 +502,11 @@ def process_multicmds(multicmds, G):
             m.se = se
             m.mr = float(tmp[2])
             m.sm = float(tmp[3])
-            
+
             # Set material averaging to False if infinite conductivity, i.e. pec
             if m.se == float('inf'):
                 m.averagable = False
-            
+
             if G.messages:
                 tqdm.write('Material {} with epsr={:g}, sig={:g} S/m; mur={:g}, sig*={:g} S/m created.'.format(m.ID, m.er, m.se, m.mr, m.sm))
 

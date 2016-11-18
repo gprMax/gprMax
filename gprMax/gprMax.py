@@ -391,7 +391,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         if all(value == 0 for value in G.pmlthickness.values()):
             if G.messages:
                 print('PML boundaries: switched off')
-            pass # If all the PMLs are switched off don't need to build anything
+            pass  # If all the PMLs are switched off don't need to build anything
         else:
             if G.messages:
                 if all(value == G.pmlthickness['xminus'] for value in G.pmlthickness.values()):
@@ -482,7 +482,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             geometryview.write_vtk(modelrun, numbermodelruns, G, pbar)
             pbar.close()
     if G.geometryobjectswrite:
-        
+
         for i, geometryobject in enumerate(G.geometryobjectswrite):
             pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {} of {}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
             geometryobject.write_hdf5(G, pbar)

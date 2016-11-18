@@ -65,7 +65,7 @@ def process_geometrycmds(geometry, G):
 
             matstr = os.path.splitext(os.path.split(matfile)[1])[0]
             numexistmaterials = len(G.materials)
-            
+
             # Read materials from file
             with open(matfile, 'r') as f:
                 # Strip out any newline characters and comments that must begin with double hashes
@@ -73,7 +73,7 @@ def process_geometrycmds(geometry, G):
 
             # Check validity of command names
             singlecmdsimport, multicmdsimport, geometryimport = check_cmd_names(materials, checkessential=False)
-            
+
             # Process parameters for commands that can occur multiple times in the model
             process_multicmds(multicmdsimport, G)
 
@@ -873,7 +873,7 @@ def process_geometrycmds(geometry, G):
             # Search and process any modifiers for the fractal box
             for object in geometry:
                 tmp = object.split()
-                
+
                 if tmp[0] == '#add_surface_roughness:':
                     if len(tmp) < 13:
                         raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least twelve parameters')
