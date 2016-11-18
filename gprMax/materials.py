@@ -181,23 +181,23 @@ def process_materials(G):
             materialtext.append('{:g}'.format(material.se))
             if Material.maxpoles > 0:
                 if 'debye' in material.type:
-                    materialtext.append(', '.join('{:g}'.format(deltaer for deltaer in material.deltaer)))
-                    materialtext.append(', '.join('{:g}'.format(tau for tau in material.tau)))
+                    materialtext.append(', '.join('{:g}'.format(deltaer) for deltaer in material.deltaer))
+                    materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
                     materialtext.append('')
                     materialtext.append('')
                     materialtext.append('')
                 elif 'lorentz' in material.type:
-                    materialtext.append(', '.join('{:g}'.format(deltaer for deltaer in material.deltaer)))
+                    materialtext.append(', '.join('{:g}'.format(deltaer) for deltaer in material.deltaer))
                     materialtext.append('')
-                    materialtext.append(', '.join('{:g}'.format(tau for tau in material.tau)))
-                    materialtext.append(', '.join('{:g}'.format(alpha for alpha in material.alpha)))
+                    materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
+                    materialtext.append(', '.join('{:g}'.format(alpha) for alpha in material.alpha))
                     materialtext.append('')
                 elif 'drude' in material.type:
                     materialtext.append('')
                     materialtext.append('')
-                    materialtext.append(', '.join('{:g}'.format(tau for tau in material.tau)))
+                    materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
                     materialtext.append('')
-                    materialtext.append(', '.join('{:g}'.format(alpha for alpha in material.alpha)))
+                    materialtext.append(', '.join('{:g}'.format(alpha) for alpha in material.alpha))
                 else:
                     materialtext.append('')
                     materialtext.append('')
