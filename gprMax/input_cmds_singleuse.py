@@ -27,7 +27,7 @@ import numpy as np
 
 from gprMax.constants import c, floattype
 from gprMax.exceptions import CmdInputError, GeneralError
-from gprMax.utilities import round_value, human_size
+from gprMax.utilities import round_value, human_size, get_machine_cpu_os
 from gprMax.waveforms import Waveform
 
 
@@ -83,7 +83,8 @@ def process_singlecmds(singlecmds, G):
         os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
 
     if G.messages:
-        print('Number of threads: {}'.format(G.nthreads))
+        machineID, cpuID, osversion = get_machine_cpu_os()
+        print('Number of threads: {} ({})'.format(G.nthreads, cpuID))
     if G.nthreads > psutil.cpu_count(logical=False):
         print(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, psutil.cpu_count(logical=False)) + Style.RESET_ALL)
 
@@ -123,35 +124,35 @@ def process_singlecmds(singlecmds, G):
     rigidarray = (12 + 6) * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(np.int8).itemsize
     memestimate = stdoverhead + floatarrays + rigidarray
     if memestimate > psutil.virtual_memory().total:
-        print(Fore.RED + 'WARNING: Estimated memory (RAM) required ~{} exceeds {} available!\n'.format(human_size(memestimate), human_size(psutil.virtual_memory().total, a_kilobyte_is_1024_bytes=True)) + Style.RESET_ALL)
+        print(Fore.RED + 'WARNING: Estimated memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(memestimate), human_size(psutil.virtual_memory().total, a_kilobyte_is_1024_bytes=True)) + Style.RESET_ALL)
     if G.messages:
-        print('Memory (RAM) required: ~{} ({} detected)'.format(human_size(memestimate), human_size(psutil.virtual_memory().total, a_kilobyte_is_1024_bytes=True)))
+        print('Estimated memory (RAM) required: ~{} ({} detected)'.format(human_size(memestimate), human_size(psutil.virtual_memory().total, a_kilobyte_is_1024_bytes=True)))
 
     # Time step CFL limit (use either 2D or 3D) and default PML thickness
     if G.nx == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
-        gridtype = '2D'
+        G.dimension = '2D'
         G.pmlthickness['xminus'] = 0
         G.pmlthickness['xplus'] = 0
     elif G.ny == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dz) * (1 / G.dz)))
-        gridtype = '2D'
+        G.dimension = '2D'
         G.pmlthickness['yminus'] = 0
         G.pmlthickness['yplus'] = 0
     elif G.nz == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy)))
-        gridtype = '2D'
+        G.dimension = '2D'
         G.pmlthickness['zminus'] = 0
         G.pmlthickness['zplus'] = 0
     else:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
-        gridtype = '3D'
+        G.dimension = '3D'
 
     # Round down time step to nearest float with precision one less than hardware maximum. Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
     G.dt = round_value(G.dt, decimalplaces=d.getcontext().prec - 1)
 
     if G.messages:
-        print('Time step (at {} CFL limit): {:g} secs'.format(gridtype, G.dt))
+        print('Time step (at {} CFL limit): {:g} secs'.format(G.dimension, G.dt))
 
     # Time step stability factor
     cmd = '#time_step_stability_factor'
