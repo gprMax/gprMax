@@ -205,9 +205,9 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     minthreads = 1
     maxthreads = psutil.cpu_count(logical=False)
     threads = []
-    while thread < maxthreads:
-        threads.append(int(thread))
-        thread *= 2
+    while minthreads < maxthreads:
+        threads.append(int(minthreads))
+        minthreads *= 2
     threads.append(int(maxthreads))
     threads.reverse()
 
