@@ -67,24 +67,22 @@ class VoltageSource(Source):
             j = self.ycoord
             k = self.zcoord
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
+            componentID = 'E' + self.polarisation
 
-            if self.polarisation is 'x':
+            if self.polarisation == 'x':
                 if self.resistance != 0:
-                    componentID = 'E' + self.polarisation
                     Ex[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (self.resistance * G.dy * G.dz))
                 else:
                     Ex[i, j, k] = -1 * waveform.amp * waveform.calculate_value(time, G.dt) / G.dx
 
-            elif self.polarisation is 'y':
+            elif self.polarisation == 'y':
                 if self.resistance != 0:
-                    componentID = 'E' + self.polarisation
                     Ey[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (self.resistance * G.dx * G.dz))
                 else:
                     Ey[i, j, k] = -1 * waveform.amp * waveform.calculate_value(time, G.dt) / G.dy
 
-            elif self.polarisation is 'z':
+            elif self.polarisation == 'z':
                 if self.resistance != 0:
-                    componentID = 'E' + self.polarisation
                     Ez[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (self.resistance * G.dx * G.dy))
                 else:
                     Ez[i, j, k] = -1 * waveform.amp * waveform.calculate_value(time, G.dt) / G.dz
@@ -127,6 +125,7 @@ class HertzianDipole(Source):
 
     def __init__(self):
         super(Source, self).__init__()
+        self.dl = None
 
     def update_electric(self, abstime, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a Hertzian dipole.
@@ -146,18 +145,16 @@ class HertzianDipole(Source):
             j = self.ycoord
             k = self.zcoord
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
+            componentID = 'E' + self.polarisation
 
-            if self.polarisation is 'x':
-                componentID = 'E' + self.polarisation
-                Ex[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dy * G.dz))
+            if self.polarisation == 'x':
+                Ex[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * self.dl * (1 / (G.dx * G.dy * G.dz))
 
-            elif self.polarisation is 'y':
-                componentID = 'E' + self.polarisation
-                Ey[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dx * G.dz))
+            elif self.polarisation == 'y':
+                Ey[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * self.dl * (1 / (G.dx * G.dy * G.dz))
 
-            elif self.polarisation is 'z':
-                componentID = 'E' + self.polarisation
-                Ez[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dx * G.dy))
+            elif self.polarisation == 'z':
+                Ez[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * self.dl * (1 / (G.dx * G.dy * G.dz))
 
 
 class MagneticDipole(Source):
@@ -184,15 +181,17 @@ class MagneticDipole(Source):
             j = self.ycoord
             k = self.zcoord
             waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
+            componentID = 'H' + self.polarisation
 
-            if self.polarisation is 'x':
-                Hx[i, j, k] -= waveform.amp * waveform.calculate_value(time, G.dt) * (G.dt / (G.dx * G.dy * G.dz))
+            if self.polarisation == 'x':
+                Hx[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dx * G.dy * G.dz))
 
-            elif self.polarisation is 'y':
-                Hy[i, j, k] -= waveform.amp * waveform.calculate_value(time, G.dt) * (G.dt / (G.dx * G.dy * G.dz))
+            elif self.polarisation == 'y':
+                
+                Hy[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dx * G.dy * G.dz))
 
-            elif self.polarisation is 'z':
-                Hz[i, j, k] -= waveform.amp * waveform.calculate_value(time, G.dt) * (G.dt / (G.dx * G.dy * G.dz))
+            elif self.polarisation == 'z':
+                Hz[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dx * G.dy * G.dz))
 
 
 class TransmissionLine(Source):
@@ -315,13 +314,13 @@ class TransmissionLine(Source):
 
             self.update_voltage(time, G)
 
-            if self.polarisation is 'x':
+            if self.polarisation == 'x':
                 Ex[i, j, k] = - self.voltage[self.antpos] / G.dx
 
-            elif self.polarisation is 'y':
+            elif self.polarisation == 'y':
                 Ey[i, j, k] = - self.voltage[self.antpos] / G.dy
 
-            elif self.polarisation is 'z':
+            elif self.polarisation == 'z':
                 Ez[i, j, k] = - self.voltage[self.antpos] / G.dz
 
     def update_magnetic(self, abstime, updatecoeffsH, ID, Hx, Hy, Hz, G):
@@ -342,13 +341,13 @@ class TransmissionLine(Source):
             j = self.ycoord
             k = self.zcoord
 
-            if self.polarisation is 'x':
+            if self.polarisation == 'x':
                 self.current[self.antpos] = Ix(i, j, k, G.Hy, G.Hz, G)
 
-            elif self.polarisation is 'y':
+            elif self.polarisation == 'y':
                 self.current[self.antpos] = Iy(i, j, k, G.Hx, G.Hz, G)
 
-            elif self.polarisation is 'z':
+            elif self.polarisation == 'z':
                 self.current[self.antpos] = Iz(i, j, k, G.Hx, G.Hy, G)
 
             self.update_current(time, G)
