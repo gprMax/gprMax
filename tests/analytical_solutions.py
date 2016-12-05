@@ -43,6 +43,9 @@ def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
     dx = dxdydz[0]
     dy = dxdydz[1]
     dz = dxdydz[2]
+    
+    # Length of Hertzian dipole
+    dl = dz
 
     # Coordinates of Rx relative to Tx
     x = rx[0]
@@ -101,30 +104,30 @@ def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
     # Calculate fields
     for timestep in range(iterations):
         
-        # Calculate values for waveform
-        fint_Ex = wint.calculate_value((timestep * dt) - tau_Ex, dt) * dx
-        f_Ex = w.calculate_value((timestep * dt) - tau_Ex, dt) * dx
-        fdot_Ex = wdot.calculate_value((timestep * dt) - tau_Ex, dt) * dx
+        # Calculate values for waveform, I * dl (current multiplied by dipole length) to match gprMax behaviour
+        fint_Ex = wint.calculate_value((timestep * dt) - tau_Ex, dt) * dl
+        f_Ex = w.calculate_value((timestep * dt) - tau_Ex, dt) * dl
+        fdot_Ex = wdot.calculate_value((timestep * dt) - tau_Ex, dt) * dl
         
-        fint_Ey = wint.calculate_value((timestep * dt) - tau_Ey, dt) * dy
-        f_Ey= w.calculate_value((timestep * dt) - tau_Ey, dt) * dy
-        fdot_Ey = wdot.calculate_value((timestep * dt) - tau_Ey, dt) * dy
+        fint_Ey = wint.calculate_value((timestep * dt) - tau_Ey, dt) * dl
+        f_Ey= w.calculate_value((timestep * dt) - tau_Ey, dt) * dl
+        fdot_Ey = wdot.calculate_value((timestep * dt) - tau_Ey, dt) * dl
         
-        fint_Ez = wint.calculate_value((timestep * dt) - tau_Ez, dt) * dz
-        f_Ez = w.calculate_value((timestep * dt) - tau_Ez, dt) * dz
-        fdot_Ez = wdot.calculate_value((timestep * dt) - tau_Ez, dt) * dz
+        fint_Ez = wint.calculate_value((timestep * dt) - tau_Ez, dt) * dl
+        f_Ez = w.calculate_value((timestep * dt) - tau_Ez, dt) * dl
+        fdot_Ez = wdot.calculate_value((timestep * dt) - tau_Ez, dt) * dl
         
-        fint_Hx = wint.calculate_value((timestep * dt) - tau_Hx, dt) * dx
-        f_Hx = w.calculate_value((timestep * dt) - tau_Hx, dt) * dx
-        fdot_Hx = wdot.calculate_value((timestep * dt) - tau_Hx, dt) * dx
+        fint_Hx = wint.calculate_value((timestep * dt) - tau_Hx, dt) * dl
+        f_Hx = w.calculate_value((timestep * dt) - tau_Hx, dt) * dl
+        fdot_Hx = wdot.calculate_value((timestep * dt) - tau_Hx, dt) * dl
         
-        fint_Hy = wint.calculate_value((timestep * dt) - tau_Hy, dt) * dy
-        f_Hy= w.calculate_value((timestep * dt) - tau_Hy, dt) * dy
-        fdot_Hy = wdot.calculate_value((timestep * dt) - tau_Hy, dt) * dy
+        fint_Hy = wint.calculate_value((timestep * dt) - tau_Hy, dt) * dl
+        f_Hy= w.calculate_value((timestep * dt) - tau_Hy, dt) * dl
+        fdot_Hy = wdot.calculate_value((timestep * dt) - tau_Hy, dt) * dl
         
-        fint_Hz = wint.calculate_value((timestep * dt) - tau_Hz, dt) * dz
-        f_Hz = w.calculate_value((timestep * dt) - tau_Hz, dt) * dz
-        fdot_Hz = wdot.calculate_value((timestep * dt) - tau_Hz, dt) * dz
+        fint_Hz = wint.calculate_value((timestep * dt) - tau_Hz, dt) * dl
+        f_Hz = w.calculate_value((timestep * dt) - tau_Hz, dt) * dl
+        fdot_Hz = wdot.calculate_value((timestep * dt) - tau_Hz, dt) * dl
         
         # Ex
         fields[timestep, 0] = ((Ex_x * Ex_z) / (4 * np.pi * e0 * Er_x**5)) * (3 * (fint_Ex + (tau_Ex * f_Ex)) + (tau_Ex**2 * fdot_Ex))
