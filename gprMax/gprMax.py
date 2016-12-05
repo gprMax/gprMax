@@ -202,11 +202,14 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     """
 
     # Number of threads to test - start from max physical CPU cores and divide in half until 1
-    thread = psutil.cpu_count(logical=False)
-    threads = [thread]
-    while not thread % 2:
-        thread /= 2
+    minthreads = 1
+    maxthreads = psutil.cpu_count(logical=False)
+    threads = []
+    while thread < maxthreads:
         threads.append(int(thread))
+        thread *= 2
+    threads.append(int(maxthreads))
+    threads.reverse()
 
     benchtimes = np.zeros(len(threads))
     numbermodelruns = len(threads)
