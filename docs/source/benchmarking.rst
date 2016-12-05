@@ -85,7 +85,7 @@ Dell PowerEdge R630
 SuperMicro SYS-7048GR-TR
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/Linux/SuperMicro_SYS-7048GR-TR/SuperMicro_SYS-7048GR-TR.png
+.. figure:: ../../tests/benchmarking/results/Linux/SuperMicro_SYS-7048GR-TR/Supermicro_SYS-7048GR-TR.png
     :width: 600px
 
 
