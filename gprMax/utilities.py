@@ -166,4 +166,7 @@ def get_machine_cpu_os():
                 cpuID = re.sub('.*model name.*:', '', line, 1)
         osversion = 'Linux (' + platform.release() + ')'
 
+    machineID = machineID.strip()
+    cpuID = cpuID.strip()
+
     return machineID, cpuID, osversion
