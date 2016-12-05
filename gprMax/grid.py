@@ -91,6 +91,7 @@ class FDTDGrid(Grid):
         self.dy = 0
         self.dz = 0
         self.dt = 0
+        self.dimension = None
         self.iterations = 0
         self.timewindow = 0
         self.nthreads = 0
