@@ -83,12 +83,15 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
 
             # Check polarity & position parameters
-            if tmp[0].lower() not in ('x', 'y', 'z'):
+            polarisation = tmp[0].lower()
+            if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
+            
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
             resistance = float(tmp[4])
+            
             check_coordinates(xcoord, ycoord, zcoord)
             if xcoord < G.pmlthickness['xminus'] or xcoord > G.nx - G.pmlthickness['xplus'] or ycoord < G.pmlthickness['yminus'] or ycoord > G.ny - G.pmlthickness['yplus'] or zcoord < G.pmlthickness['zminus'] or zcoord > G.nz - G.pmlthickness['zplus']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
@@ -100,7 +103,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[5]))
 
             v = VoltageSource()
-            v.polarisation = tmp[0]
+            v.polarisation = polarisation
             v.xcoord = xcoord
             v.ycoord = ycoord
             v.zcoord = zcoord
@@ -143,8 +146,10 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
 
             # Check polarity & position parameters
-            if tmp[0].lower() not in ('x', 'y', 'z'):
+            polarisation = tmp[0].lower()
+            if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
+            
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
@@ -157,7 +162,16 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[4]))
 
             h = HertzianDipole()
-            h.polarisation = tmp[0]
+            h.polarisation = polarisation
+
+            # Set length of dipole to grid size in polaristion direction
+            if h.polarisation == 'x':
+                h.dl = G.dx
+            elif h.polarisation == 'y':
+                h.dl = G.dy
+            elif h.polarisation == 'z':
+                h.dl = G.dz
+
             h.xcoord = xcoord
             h.ycoord = ycoord
             h.zcoord = zcoord
@@ -189,7 +203,10 @@ def process_multicmds(multicmds, G):
                 startstop = ' '
 
             if G.messages:
-                print('Hertzian dipole with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
+                if G.dimension == '2D':
+                    print('Hertzian dipole is a line source in 2D with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
+                else:
+                    print('Hertzian dipole with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
 
             G.hertziandipoles.append(h)
 
@@ -202,8 +219,10 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
 
             # Check polarity & position parameters
-            if tmp[0].lower() not in ('x', 'y', 'z'):
+            polarisation = tmp[0].lower()
+            if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
+            
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
@@ -216,7 +235,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[4]))
 
             m = MagneticDipole()
-            m.polarisation = tmp[0]
+            m.polarisation = polarisation
             m.xcoord = xcoord
             m.ycoord = ycoord
             m.zcoord = zcoord
@@ -261,16 +280,16 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
 
             # Check polarity & position parameters
-            if tmp[0].lower() not in ('x', 'y', 'z'):
+            polarisation = tmp[0].lower()
+            if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-
+            
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
             resistance = float(tmp[4])
 
             check_coordinates(xcoord, ycoord, zcoord)
-
             if xcoord < G.pmlthickness['xminus'] or xcoord > G.nx - G.pmlthickness['xplus'] or ycoord < G.pmlthickness['yminus'] or ycoord > G.ny - G.pmlthickness['yplus'] or zcoord < G.pmlthickness['zminus'] or zcoord > G.nz - G.pmlthickness['zplus']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
             if resistance <= 0 or resistance >= z0:
@@ -281,7 +300,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[4]))
 
             t = TransmissionLine(G)
-            t.polarisation = tmp[0]
+            t.polarisation = polarisation
             t.xcoord = xcoord
             t.ycoord = ycoord
             t.zcoord = zcoord
