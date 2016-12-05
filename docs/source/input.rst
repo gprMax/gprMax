@@ -712,7 +712,19 @@ Then to use ``my_pulse1`` custom waveform shape with, for example, an z polarise
 #hertzian_dipole:
 -----------------
 
-Allows you to specify a current density term at an electric field location (the simplest excitation). This will simulate an infinitesimal electric dipole (it does have a length of :math:`\Delta l`). This is often referred to as an additive or soft source. The syntax of the command is:
+Allows you to specify a current density term at an electric field location - the simplest excitation, often referred to as an additive or soft source.
+
+.. math::
+
+    J_s = \frac{I \Delta l}{\Delta x \Delta y \Delta z},
+
+where :math:`J_s` is the current density, :math:`I` is the current, :math:`\Delta l` is the length of the infinitesimal electric dipole, and :math:`\Delta x`, :math:`\Delta y`, and :math:`\Delta z` are the spatial resolution of the grid.
+
+.. note::
+
+    * :math:`\Delta l` is set equal to :math:`\Delta x`, :math:`\Delta y`, or :math:`\Delta z` depending on the specified polarisation.
+
+The syntax of the command is:
 
 .. code-block:: none
 
