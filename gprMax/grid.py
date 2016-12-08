@@ -224,7 +224,15 @@ def dispersion_analysis(G):
         minwavelength = minvelocity / results['maxfreq']
 
         # Maximum spatial step
-        delta = max(G.dx, G.dy, G.dz)
+        if G.dimension == '3D':
+            delta = max(G.dx, G.dy, G.dz)
+        elif G.dimension == '2D':
+            if G.nx == 1:
+                delta = max(G.dy, G.dz)
+            elif G.ny == 1:
+                delta = max(G.dx, G.dz)
+            elif G.nz == 1:
+                delta = max(G.dx, G.dy)
 
         # Courant stability factor
         S = (c * G.dt) / delta
