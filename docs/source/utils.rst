@@ -13,7 +13,7 @@ This modules assists with the process of migrating input files from the syntax o
 
 .. code-block:: none
 
-    python -m tools.inputfile_new2old inputfile
+    python -m tools.inputfile_old2new inputfile
 
 where ``inputfile`` is the name of input file including the path.
 
