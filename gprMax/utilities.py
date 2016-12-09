@@ -140,7 +140,7 @@ def get_machine_cpu_os():
         machineID = manufacturer + ' ' + model
         cpuID = subprocess.check_output("wmic cpu get Name", shell=True).decode('utf-8').strip()
         cpuID = cpuID.split('\n')[1]
-        if platform.machine().endwith('64'):
+        if platform.machine().endswith('64'):
             osbit = '(64-bit)'
         else:
             osbit = '(32-bit)'
