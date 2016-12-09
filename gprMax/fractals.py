@@ -56,12 +56,8 @@ class FractalSurface(object):
         self.filldepth = 0
         self.grass = []
 
-    def generate_fractal_surface(self, G):
-        """Generate a 2D array with a fractal distribution.
-
-        Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
-        """
+    def generate_fractal_surface(self):
+        """Generate a 2D array with a fractal distribution."""
 
         if self.xs == self.xf:
             surfacedims = (self.ny + 1, self.nz + 1)
@@ -134,12 +130,8 @@ class FractalVolume(object):
         self.nbins = 0
         self.fractalsurfaces = []
 
-    def generate_fractal_volume(self, G):
-        """Generate a 3D volume with a fractal distribution.
-
-        Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
-        """
+    def generate_fractal_volume(self):
+        """Generate a 3D volume with a fractal distribution."""
 
         self.fractalvolume = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
 
