@@ -39,7 +39,7 @@ def get_terminal_width():
     if terminalwidth == 0:
         terminalwidth = 100
 
-    return(terminalwidth)
+    return terminalwidth
 
 
 def logo(version):
@@ -153,7 +153,7 @@ def get_machine_cpu_os():
         machineID = manufacturer + ' ' + model
         cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", shell=True).decode('utf-8').strip()
         cpuID = ' '.join(cpuID.split())
-        osversion = 'Mac OS X (' + platform.mac_ver()[0] + ')'
+        osversion = 'macOS (' + platform.mac_ver()[0] + ')'
 
     # Linux
     elif sys.platform == 'linux':
