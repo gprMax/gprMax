@@ -32,7 +32,7 @@ The output file contains HDF5 groups for sources (``srcs``), transmission lines 
     /
         rxs/
             rx1/
-                Name [optional]
+                Name
                 Position
                 Ex
                 Ey
@@ -40,9 +40,9 @@ The output file contains HDF5 groups for sources (``srcs``), transmission lines 
                 Hx
                 Hy
                 Hz
-                Ix
-                Iy
-                Iz
+                Ix [optional]
+                Iy [optional]
+                Iz [optional]
             rx2/
                 ...
         srcs/
@@ -66,7 +66,7 @@ The output file contains HDF5 groups for sources (``srcs``), transmission lines 
 
 Within each individual ``rx`` group are the following attributes:
 
-* ``Name`` is optional if a name for the receiver is given in the model.
+* ``Name`` is the name of the receiver if specified. Otherwise 'Rx(x,y,z)', where x,y,z is the position of the receiver, is used.
 * ``Position`` is the x, y, z position (in metres) of the receiver in the model.
 
 Within each individual ``rx`` group can be the following datasets:
@@ -77,9 +77,9 @@ Within each individual ``rx`` group can be the following datasets:
 * ``Hx`` is an array containing the time history (for the model time window) of the values of the x component of the magnetic field at that receiver position.
 * ``Hy`` is an array containing the time history (for the model time window) of the values of the y component of the magnetic field at that receiver position.
 * ``Hz`` is an array containing the time history (for the model time window) of the values of the z component of the magnetic field at that receiver position.
-* ``Ix`` is an array containing the time history (for the model time window) of the values of the x component of current (calculated around a single cell loop) at that receiver position.
-* ``Iy`` is an array containing the time history (for the model time window) of the values of the y component of current (calculated around a single cell loop) at that receiver position.
-* ``Iz`` is an array containing the time history (for the model time window) of the values of the z component of current (calculated around a single cell loop) at that receiver position.
+* ``Ix`` is an optional array containing the time history (for the model time window) of the values of the x component of current (calculated around a single cell loop) at that receiver position.
+* ``Iy`` is an optional array containing the time history (for the model time window) of the values of the y component of current (calculated around a single cell loop) at that receiver position.
+* ``Iz`` is an optional array containing the time history (for the model time window) of the values of the z component of current (calculated around a single cell loop) at that receiver position.
 
 Within each individual ``src`` group are the following attributes:
 
