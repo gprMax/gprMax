@@ -75,7 +75,7 @@ You can watch screencasts that demonstrate the installation and update processes
 We recommend using Miniconda to install Python and the required Python packages for gprMax in a self-contained Python environment. Miniconda is a mini version of Anaconda which is a completely free Python distribution (including for commercial use and redistribution). It includes more than 300 of the most popular Python packages for science, math, engineering, and data analysis.
 
 * Install Miniconda (Python 3.5 version) from http://conda.pydata.org/miniconda.html (help with Miniconda installation from http://conda.pydata.org/docs/install/quick.html)
-* Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows) and run the following commands:
+* Open a Terminal (Linux/macOS) or Command Prompt (Windows) and run the following commands:
 
 .. code-block:: none
 
@@ -98,10 +98,10 @@ Linux
 * gcc (https://gcc.gnu.org) should be already installed, so no action is required.
 
 
-Mac OS X
-^^^^^^^^
+macOS
+^^^^^
 
-* Installations of Xcode on Mac OS X come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install gcc (https://gcc.gnu.org). This is easily done by installing the Homebrew package manager (http://brew.sh) and running:
+* Installations of Xcode on macOS come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install gcc (https://gcc.gnu.org). This is easily done by installing the Homebrew package manager (http://brew.sh) and running:
 
 .. code-block:: none
 
@@ -119,7 +119,7 @@ You can also download Microsoft Visual C++ Build Tools 2015 by going to https://
 
 Once you have installed the aforementioned tools follow these steps to build and install gprMax:
 
-* Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows). Run the following commands:
+* Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/macOS) or :code:`activate gprMax` (Windows). Run the following commands:
 
 .. code-block:: none
 
@@ -134,7 +134,7 @@ Running gprMax
 
 gprMax in designed as a Python package, i.e. a namespace which can contain multiple packages and modules, much like a directory.
 
-Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows)
+Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/macOS) or :code:`activate gprMax` (Windows)
 
 Basic usage of gprMax is:
 
@@ -156,7 +156,7 @@ When the simulation is complete you can plot the A-scan using:
 
 Your results should like those from the A-scan from a metal cylinder example in introductory/basic 2D models section (http://docs.gprmax.com/en/latest/examples_simple_2D.html#view-the-results).
 
-When you are finished using gprMax, the conda environment can be deactivated using :code:`source deactivate` (Linux/Mac OS X)  or :code:`deactivate` (Windows).
+When you are finished using gprMax, the conda environment can be deactivated using :code:`source deactivate` (Linux/macOS)  or :code:`deactivate` (Windows).
 
 Optional command line arguments
 -------------------------------
@@ -189,7 +189,7 @@ For example, to run a B-scan with 60 traces:
 Updating gprMax
 ===============
 
-* Open a Terminal (Linux/Mac OS X) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/Mac OS X) or :code:`activate gprMax` (Windows). Run the following commands:
+* Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/macOS) or :code:`activate gprMax` (Windows). Run the following commands:
 
 .. code-block:: none
 
