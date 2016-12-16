@@ -16,10 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
 
 from colorama import init, Fore
 init()
 
+sys.tracebacklimit = None
 
 class GeneralError(ValueError):
     """Handles general errors. Subclasses the ValueError class."""
