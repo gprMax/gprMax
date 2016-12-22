@@ -30,7 +30,7 @@ Unless otherwise specified, the SI system of units is used throughout gprMax:
 * All parameters denoting frequency should be specified in **Hertz**.
 * All parameters associated with spatial coordinates in the model should  be specified in **metres**. The origin of the coordinate system **(0,0)** is at the lower left corner of the model.
 
-It is important to note that gprMax converts spatial and temporal parameters given in **metres** and **seconds** respectively to integer values corresponding to **FDTD cell coordinates** and **iteration number**. Therefore, rounding to the nearest integer number of the user defined values is performed.
+It is important to note that gprMax converts spatial and temporal parameters given in **metres** and **seconds** to integer values corresponding to **FDTD cell coordinates** and **iteration number** respectively. Therefore, rounding to the nearest integer number of the user defined values is performed.
 
 The fundamental spatial and temporal discretization steps are denoted as :math:`\Delta x` , :math:`\Delta y`, :math:`\Delta z` and :math:`\Delta t` respectively.
 
