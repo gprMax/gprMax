@@ -99,7 +99,7 @@ for index, ax in enumerate(fig1.axes):
         ax.plot(timeold, old[:,plotorder[index]], label='old', lw=2, ls='--')
     ax.set_xlim(0, timeold[-1])
     handles, existlabels = ax.get_legend_handles_labels()
-    ax.legend(handles, ['Model (new code)', 'Model (old C code)'])
+    ax.legend(handles, ['Model 1', 'Model 2'])
 
 # Plots of differences
 fig2, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), num='Deltas: ' + newfile + ' versus ' + oldfile, figsize=(20, 10), facecolor='w', edgecolor='w')
