@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2016: The University of Edinburgh
+# Copyright (C) 2015-2017: The University of Edinburgh
 #                 Authors: Craig Warren and Antonis Giannopoulos
 #
 # This file is part of gprMax.
@@ -23,9 +23,9 @@ from cython.parallel import prange
 from gprMax.constants cimport floattype_t, complextype_t
 
 
-#####################################
-# Electric field updates - standard #
-#####################################
+###############################################
+# Electric field updates - standard materials #
+###############################################
 cpdef void update_electric(int nx, int ny, int nz, int nthreads, floattype_t[:, ::1] updatecoeffsE, np.uint32_t[:, :, :, ::1] ID, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz):
     """This function updates the electric field components.
         
@@ -313,7 +313,7 @@ cpdef void update_magnetic(int nx, int ny, int nz, int nthreads, floattype_t[:, 
 
     # 2D
     if nx == 1 or ny == 1 or nz == 1:
-    # Hx component
+        # Hx component
         if ny == 1 or nz == 1:
             for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
                 for j in range(0, ny):
