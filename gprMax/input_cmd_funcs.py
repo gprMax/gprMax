@@ -621,7 +621,11 @@ def rx(x, y, z, identifier=None, to_save=None, polarisation=None, dxdy=None, rot
         x, y, xf, yf = rotate90_edge(x, y, xf, yf, polarisation, rotate90origin)
 
     c = Coordinate(x, y, z)
-    command('rx', str(c), identifier, ' '.join(to_save))
+    to_save_str = ''
+    if to_save is not None:
+        to_save_str = ' '.join(to_save)
+    
+    command('rx', str(c), identifier, to_save_str)
 
     return c
 
