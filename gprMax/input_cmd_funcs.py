@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import sys
 from collections import namedtuple
 
 """This module contains functional forms of some of the most commonly used gprMax commands. It can be useful to use these within Python scripting in an input file.
@@ -613,11 +614,18 @@ def rx(x, y, z, identifier=None, to_save=None, polarisation=None, dxdy=None, rot
 
     if rotate90origin:
         if polarisation == 'x':
-            xf = x + dxdy[0]
+            try:
+                xf = x + dxdy[0]
+            except Exception as e:
+                raise ValueError('With polarization = x, a dxdy[0] float values is required, got dxdy=%s' % dxdy) from e
             yf = y
         elif polarisation == 'y':
             xf = x
-            yf = y + dxdy[1]
+            try:
+                yf = y + dxdy[1]
+            except Exception as e:
+                raise ValueError('With polarization = y, a dxdy[1] float values is required, got dxdy=%s' % dxdy) from e
+
         x, y, xf, yf = rotate90_edge(x, y, xf, yf, polarisation, rotate90origin)
 
     c = Coordinate(x, y, z)
@@ -659,3 +667,4 @@ def rx_steps(dx=0, dy=0, dz=0):
     c = Coordinate(dx, dy, dz)
     command('rx_steps', str(c))
     return c
+
