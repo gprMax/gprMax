@@ -39,7 +39,7 @@ from tests.analytical_solutions import hertzian_dipole_fs
 
     Usage:
         cd gprMax
-        python -m tests.test_basic_suite
+        python -m tests.test_models_basic
 """
 
 basepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models_basic')
