@@ -198,9 +198,7 @@ def dispersion_analysis(G):
                 power -= np.amax(power)
 
                 # Get frequency for max power
-                freqmaxpower = np.where(power[1::] == np.amax(power[1::]))[0][0]
-                print(freqmaxpower)
-                print(freqs[freqmaxpower])
+                freqmaxpower = np.where(np.isclose(power[1::], np.amax(power[1::])))[0][0]
 
                 # Set maximum frequency to a threshold drop from maximum power, ignoring DC value
                 freq = np.where((np.amax(power[freqmaxpower::]) - power[freqmaxpower::]) > G.highestfreqthres)[0][0] + 1
