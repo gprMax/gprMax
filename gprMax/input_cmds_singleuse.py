@@ -17,7 +17,6 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import psutil
 import decimal as d
 import sys
 
@@ -27,7 +26,7 @@ import numpy as np
 
 from gprMax.constants import c, floattype
 from gprMax.exceptions import CmdInputError, GeneralError
-from gprMax.utilities import round_value, human_size, get_machine_cpu_os
+from gprMax.utilities import round_value, human_size, get_host_info
 from gprMax.waveforms import Waveform
 
 
@@ -60,6 +59,9 @@ def process_singlecmds(singlecmds, G):
         if G.messages:
             print('Model title: {}'.format(G.title))
 
+    # Get information about host machine
+    hostinfo = get_host_info()
+
     # Number of threads (OpenMP) to use
     cmd = '#num_threads'
     if sys.platform == 'darwin':
@@ -78,15 +80,14 @@ def process_singlecmds(singlecmds, G):
     elif os.environ.get('OMP_NUM_THREADS'):
         G.nthreads = int(os.environ.get('OMP_NUM_THREADS'))
     else:
-        # Set number of threads to number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
-        G.nthreads = psutil.cpu_count(logical=False)
+        # Set number of threads to number of physical CPU cores
+        G.nthreads = hostinfo['cpucores']
         os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
 
     if G.messages:
-        machineID, cpuID, osversion = get_machine_cpu_os()
-        print('Number of threads: {} ({})'.format(G.nthreads, cpuID))
-    if G.nthreads > psutil.cpu_count(logical=False):
-        print(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, psutil.cpu_count(logical=False)) + Style.RESET_ALL)
+        print('Number of (OpenMP) threads: {}'.format(G.nthreads))
+    if G.nthreads > hostinfo['cpucores']:
+        print(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, hostinfo['cpucores']) + Style.RESET_ALL)
 
     # Spatial discretisation
     cmd = '#dx_dy_dz'
@@ -123,10 +124,10 @@ def process_singlecmds(singlecmds, G):
     floatarrays = (6 + 6 + 1) * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(floattype).itemsize  # 6 x field arrays + 6 x ID arrays + 1 x solid array
     rigidarray = (12 + 6) * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(np.int8).itemsize
     memestimate = stdoverhead + floatarrays + rigidarray
-    if memestimate > psutil.virtual_memory().total:
-        print(Fore.RED + 'WARNING: Estimated memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(memestimate), human_size(psutil.virtual_memory().total, a_kilobyte_is_1024_bytes=True)) + Style.RESET_ALL)
+    if memestimate > hostinfo['ram']:
+        print(Fore.RED + 'WARNING: Estimated memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(memestimate), human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True)) + Style.RESET_ALL)
     if G.messages:
-        print('Estimated memory (RAM) required: ~{} ({} detected)'.format(human_size(memestimate), human_size(psutil.virtual_memory().total, a_kilobyte_is_1024_bytes=True)))
+        print('Estimated memory (RAM) required: ~{}'.format(human_size(memestimate)))
 
     # Time step CFL limit (use either 2D or 3D) and default PML thickness
     if G.nx == 1:
