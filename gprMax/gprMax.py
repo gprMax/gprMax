@@ -46,7 +46,7 @@ from .input_cmds_singleuse import process_singlecmds
 from .materials import Material, process_materials
 from .pml import PML, build_pmls
 from .receivers import store_outputs
-from .utilities import logo, human_size, get_machine_cpu_os, get_terminal_width, round_value
+from .utilities import logo, human_size, get_host_info, get_terminal_width, round_value
 from .yee_cell_build import build_electric_components, build_magnetic_components
 
 
@@ -74,6 +74,9 @@ def main():
 
 def api(inputfile, n=1, mpi=False, taskid=False, benchmark=False, geometry_only=False, geometry_fixed=False, write_processed=False, opt_taguchi=False):
     """If installed as a module this is the entry point."""
+
+    # Print gprMax logo, version, and licencing/copyright information
+    logo(__version__ + ' (Bowmore)')
 
     class ImportArguments:
         pass
@@ -104,6 +107,10 @@ def run_main(args):
     inputdirectory = os.path.dirname(os.path.abspath(args.inputfile))
     inputfile = os.path.abspath(os.path.join(inputdirectory, os.path.basename(args.inputfile)))
 
+    # Get information about host machine
+    hostinfo = get_host_info()
+    print('\nHost: {}; {} ({} cores); {} RAM; {}'.format(hostinfo['machineID'], hostinfo['cpuID'], hostinfo['cpucores'], human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
+    
     # Create a separate namespace that users can access in any Python code blocks in the input file
     usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': numbermodelruns, 'input_directory': inputdirectory}
 
@@ -201,9 +208,13 @@ def run_benchmark_sim(args, inputfile, usernamespace):
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
     """
 
+    # Get information about host machine
+    hostinfo = get_host_info()
+    machineIDlong = '; '.join([hostinfo['machineID'], hostinfo['cpuID'], hostinfo['osversion']])
+    
     # Number of threads to test - start from max physical CPU cores and divide in half until 1
     minthreads = 1
-    maxthreads = psutil.cpu_count(logical=False)
+    maxthreads = hostinfo['cpucores']
     threads = []
     while minthreads < maxthreads:
         threads.append(int(minthreads))
@@ -222,8 +233,6 @@ def run_benchmark_sim(args, inputfile, usernamespace):
 
     # Save number of threads and benchmarking times to NumPy archive
     threads = np.array(threads)
-    machineID, cpuID, osversion = get_machine_cpu_os()
-    machineIDlong = machineID + '; ' + cpuID + '; ' + osversion
     np.savez(os.path.splitext(inputfile)[0], threads=threads, benchtimes=benchtimes, machineID=machineIDlong, version=__version__)
 
     simcompletestr = '\n=== Simulation completed'
@@ -334,7 +343,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
     # Normal model reading/building process; bypassed if geometry information to be reused
     if 'G' not in globals():
-        inputfilestr = '\n--- Model {} of {}, input file: {}'.format(modelrun, numbermodelruns, inputfile)
+        inputfilestr = '\n--- Model {}/{}, input file: {}'.format(modelrun, numbermodelruns, inputfile)
         print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
         # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
@@ -439,10 +448,12 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
         # Check to see if numerical dispersion might be a problem
         results = dispersion_analysis(G)
-        if results['deltavp'] and np.abs(results['deltavp']) > G.maxnumericaldisp:
-            print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' with wavelength sampled by {} cells (maximum significant frequency {:g}Hz)".format(results['deltavp'], results['material'].ID, round_value(results['N']), results['maxfreq']) + Style.RESET_ALL)
+        if results['N'] < G.mingridsampling:
+            raise GeneralError("Non-physical wave propagation: Material '{}' has wavelength sampled by {} cells, less than required minimum for physical wave propagation. Maximum significant frequency {:g}Hz".format(results['material'].ID, results['N'], results['maxfreq']))
+        elif results['deltavp'] and np.abs(results['deltavp']) > G.maxnumericaldisp:
+            print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']) + Style.RESET_ALL)
         elif results['deltavp']:
-            print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' with wavelength sampled by {} cells (maximum significant frequency {:g}Hz)".format(results['deltavp'], results['material'].ID, round_value(results['N']), results['maxfreq']))
+            print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency {:g}Hz)".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
 
     # If geometry information to be reused between model runs
     else:
@@ -457,18 +468,18 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             pml.initialise_field_arrays()
 
     # Adjust position of simple sources and receivers if required
-    if G.srcsteps[0] > 0 or G.srcsteps[1] > 0 or G.srcsteps[2] > 0:
+    if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
         for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
             if modelrun == 1:
-                if source.xcoord + G.srcsteps[0] * (numbermodelruns - 1) > G.nx or source.ycoord + G.srcsteps[1] * (numbermodelruns - 1) > G.ny or source.zcoord + G.srcsteps[2] * (numbermodelruns - 1) > G.nz:
+                if source.xcoord + G.srcsteps[0] * (numbermodelruns - 1) < 0 or source.xcoord + G.srcsteps[0] * (numbermodelruns - 1) > G.nx or source.ycoord + G.srcsteps[1] * (numbermodelruns - 1) < 0 or source.ycoord + G.srcsteps[1] * (numbermodelruns - 1) > G.ny or source.zcoord + G.srcsteps[2] * (numbermodelruns - 1) < 0 or source.zcoord + G.srcsteps[2] * (numbermodelruns - 1) > G.nz:
                     raise GeneralError('Source(s) will be stepped to a position outside the domain.')
             source.xcoord = source.xcoordorigin + (modelrun - 1) * G.srcsteps[0]
             source.ycoord = source.ycoordorigin + (modelrun - 1) * G.srcsteps[1]
             source.zcoord = source.zcoordorigin + (modelrun - 1) * G.srcsteps[2]
-    if G.rxsteps[0] > 0 or G.rxsteps[1] > 0 or G.rxsteps[2] > 0:
+    if G.rxsteps[0] != 0 or G.rxsteps[1] != 0 or G.rxsteps[2] != 0:
         for receiver in G.rxs:
             if modelrun == 1:
-                if receiver.xcoord + G.rxsteps[0] * (numbermodelruns - 1) > G.nx or receiver.ycoord + G.rxsteps[1] * (numbermodelruns - 1) > G.ny or receiver.zcoord + G.rxsteps[2] * (numbermodelruns - 1) > G.nz:
+                if receiver.xcoord + G.rxsteps[0] * (numbermodelruns - 1) < 0 or receiver.xcoord + G.rxsteps[0] * (numbermodelruns - 1) > G.nx or receiver.ycoord + G.rxsteps[1] * (numbermodelruns - 1) < 0 or receiver.ycoord + G.rxsteps[1] * (numbermodelruns - 1) > G.ny or receiver.zcoord + G.rxsteps[2] * (numbermodelruns - 1) < 0 or receiver.zcoord + G.rxsteps[2] * (numbermodelruns - 1) > G.nz:
                     raise GeneralError('Receiver(s) will be stepped to a position outside the domain.')
             receiver.xcoord = receiver.xcoordorigin + (modelrun - 1) * G.rxsteps[0]
             receiver.ycoord = receiver.ycoordorigin + (modelrun - 1) * G.rxsteps[1]
