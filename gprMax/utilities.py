@@ -18,6 +18,7 @@
 
 import decimal as d
 import platform
+import psutil
 import re
 import subprocess
 from shutil import get_terminal_size
@@ -122,13 +123,11 @@ def human_size(size, a_kilobyte_is_1024_bytes=False):
     raise ValueError('Number is too large.')
 
 
-def get_machine_cpu_os():
-    """Get information about the machine, CPU and OS.
+def get_host_info():
+    """Get information about the machine, CPU, RAM, and OS.
 
     Returns:
-        machineID (str): Manufacturer and model of machine.
-        cpuID (str): Description of CPU type and speed.
-        osversion (str): Name and version of operating system.
+        hostinfo (dict): Manufacturer and model of machine; description of CPU type, speed, cores; RAM; name and version of operating system.
     """
 
     # Windows
@@ -146,14 +145,17 @@ def get_machine_cpu_os():
             osbit = '(32-bit)'
         osversion = 'Windows ' + platform.release() + osbit
 
-    # Mac OS X
+    # Mac OS X/macOS
     elif sys.platform == 'darwin':
         manufacturer = 'Apple'
         model = subprocess.check_output("sysctl -n hw.model", shell=True).decode('utf-8').strip()
         machineID = manufacturer + ' ' + model
         cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", shell=True).decode('utf-8').strip()
         cpuID = ' '.join(cpuID.split())
-        osversion = 'macOS (' + platform.mac_ver()[0] + ')'
+        if int(platform.mac_ver()[0].split('.')[1]) < 12:
+            osversion = 'Mac OS X (' + platform.mac_ver()[0] + ')'
+        else:
+            osversion = 'macOS (' + platform.mac_ver()[0] + ')'
 
     # Linux
     elif sys.platform == 'linux':
@@ -168,5 +170,10 @@ def get_machine_cpu_os():
 
     machineID = machineID.strip()
     cpuID = cpuID.strip()
+    # Get number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
+    cpucores = psutil.cpu_count(logical=False)
+    ram = psutil.virtual_memory().total
 
-    return machineID, cpuID, osversion
+    hostinfo = {'machineID': machineID, 'cpuID': cpuID, 'cpucores': cpucores, 'ram': ram, 'osversion': osversion}
+
+    return hostinfo
