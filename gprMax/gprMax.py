@@ -440,9 +440,9 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         # Check to see if numerical dispersion might be a problem
         results = dispersion_analysis(G)
         if results['deltavp'] and np.abs(results['deltavp']) > G.maxnumericaldisp:
-            print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Largest physical phase-velocity error is {:.2f}% in material '{}' with wavelength sampled by {} cells (maximum significant frequency {:g}Hz)".format(results['deltavp'], results['material'].ID, round_value(results['N']), results['maxfreq']) + Style.RESET_ALL)
+            print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' with wavelength sampled by {} cells (maximum significant frequency {:g}Hz)".format(results['deltavp'], results['material'].ID, round_value(results['N']), results['maxfreq']) + Style.RESET_ALL)
         elif results['deltavp']:
-            print("\nNumerical dispersion analysis: largest physical phase-velocity error is {:.2f}% in material '{}' with wavelength sampled by {} cells (maximum significant frequency {:g}Hz)".format(results['deltavp'], results['material'].ID, round_value(results['N']), results['maxfreq']))
+            print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' with wavelength sampled by {} cells (maximum significant frequency {:g}Hz)".format(results['deltavp'], results['material'].ID, round_value(results['N']), results['maxfreq']))
 
     # If geometry information to be reused between model runs
     else:
@@ -481,13 +481,13 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         print()
         for i, geometryview in enumerate(G.geometryviews):
             geometryview.set_filename(modelrun, numbermodelruns, G)
-            pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {} of {}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
+            pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
             geometryview.write_vtk(modelrun, numbermodelruns, G, pbar)
             pbar.close()
     if G.geometryobjectswrite:
 
         for i, geometryobject in enumerate(G.geometryobjectswrite):
-            pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {} of {}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
+            pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {}/{}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
             geometryobject.write_hdf5(G, pbar)
             pbar.close()
 
@@ -514,7 +514,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         # Absolute time
         abstime = 0
 
-        for timestep in tqdm(range(G.iterations), desc='Running simulation, model ' + str(modelrun) + ' of ' + str(numbermodelruns), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable):
+        for timestep in tqdm(range(G.iterations), desc='Running simulation, model ' + str(modelrun) + '/' + str(numbermodelruns), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable):
             # Store field component values for every receiver and transmission line
             store_outputs(timestep, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
