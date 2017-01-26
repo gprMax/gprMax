@@ -21,7 +21,7 @@ import sys
 from colorama import init, Fore
 init()
 
-#sys.tracebacklimit = None
+sys.tracebacklimit = None
 
 
 class GeneralError(ValueError):
