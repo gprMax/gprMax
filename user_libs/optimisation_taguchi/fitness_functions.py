@@ -24,6 +24,7 @@ from gprMax.exceptions import GeneralError
     The second argument is a dictionary which can contain any number of additional arguments, e.g. names (IDs) of outputs (rxs) from input file
 """
 
+
 def min_max_value(filename, args):
     """Minimum value from a response.
 
@@ -78,8 +79,8 @@ def xcorr(filename, args):
         raise GeneralError('Cannot load reference response from {}'.format(refrespfile))
     with open(refrespfile, 'r') as f:
         refdata = np.loadtxt(f)
-    reftime = refdata[:,0] * 1e-9
-    refresp = refdata[:,1]
+    reftime = refdata[:, 0] * 1e-9
+    refresp = refdata[:, 1]
 
     # Load response from output file
     f = h5py.File(filename, 'r')
@@ -131,8 +132,8 @@ def xcorr(filename, args):
     #fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Voltage [V]'), figsize=(20, 10), facecolor='w', edgecolor='w')
     #ax.plot(refresp,'r', lw=2, label='refresp')
     #ax.plot(modelresp,'b', lw=2, label='modelresp')
-    #ax.grid()
-    #plt.show()
+    # ax.grid()
+    # plt.show()
 
     # Calculate cross-correlation
     xcorr = signal.correlate(refresp, modelresp)
@@ -224,7 +225,7 @@ def compactness(filename, args):
             peak = np.amax([np.amax(outputdata), np.abs(np.amin(outputdata))])
 
             # Get peaks and troughs in signal
-            delta = peak / 50 # Considered a peak/trough if it has the max/min value, and was preceded (to the left) by a value lower by delta
+            delta = peak / 50  # Considered a peak/trough if it has the max/min value, and was preceded (to the left) by a value lower by delta
             maxtab, mintab = peakdet(outputdata, delta)
             peaks = maxtab + mintab
             peaks.sort()
@@ -271,8 +272,8 @@ def spectral_centroid(x, samplerate):
     magnitudes = np.abs(np.fft.rfft(x))
     length = len(x)
     # Positive frequencies
-    freqs = np.abs(np.fft.fftfreq(length, 1.0/samplerate)[:length//2+1])
-    centroid = np.sum(magnitudes*freqs) / np.sum(magnitudes)
+    freqs = np.abs(np.fft.fftfreq(length, 1.0 / samplerate)[:length // 2 + 1])
+    centroid = np.sum(magnitudes * freqs) / np.sum(magnitudes)
 
     return centroid
 
@@ -294,7 +295,7 @@ def zero_crossings(x):
     return indexzeros
 
 
-def peakdet(v, delta, x = None):
+def peakdet(v, delta, x=None):
     """Detect peaks and troughs in a vector (adapted from MATLAB script at http://billauer.co.il/peakdet.html).
         A point is considered a maximum peak if it has the maximal value, and was preceded (to the left) by a value lower by delta.
 
@@ -341,14 +342,14 @@ def peakdet(v, delta, x = None):
             mnpos = x[i]
 
         if lookformax:
-            if this < mx-delta:
+            if this < mx - delta:
                 if int(mxpos) != 0:
                     maxtab.append(int(mxpos))
                     mn = this
                     mnpos = x[i]
                     lookformax = False
         else:
-            if this > mn+delta:
+            if this > mn + delta:
                 if int(mnpos) != 0:
                     mintab.append(int(mnpos))
                     mx = this

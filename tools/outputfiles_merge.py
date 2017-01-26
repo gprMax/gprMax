@@ -44,7 +44,7 @@ fout = h5py.File(outputfile, 'w')
 for model in range(modelruns):
     fin = h5py.File(basefilename + str(model + 1) + '.out', 'r')
     nrx = fin.attrs['nrx']
-    
+
     # Write properties for merged file on first iteration
     if model == 0:
         fout.attrs['Iterations'] = fin.attrs['Iterations']
@@ -63,7 +63,7 @@ for model in range(modelruns):
         availableoutputs = list(fin[path].keys())
         # For all receiver outputs
         for output in availableoutputs:
-            fout[path + '/' + output][:,model] = fin[path + '/' + output][:]
+            fout[path + '/' + output][:, model] = fin[path + '/' + output][:]
 
     fin.close()
 
@@ -74,4 +74,3 @@ if not check or check == 'y':
     for model in range(modelruns):
         file = basefilename + str(model + 1) + '.out'
         os.remove(file)
-

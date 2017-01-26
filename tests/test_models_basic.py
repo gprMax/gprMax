@@ -36,11 +36,10 @@ from gprMax.exceptions import GeneralError
 from tests.analytical_solutions import hertzian_dipole_fs
 
 """Compare field outputs
-    
+
     Usage:
         cd gprMax
         python -m tests.test_basic_suite
-    
 """
 
 basepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models_basic')
@@ -57,21 +56,21 @@ path = '/rxs/rx1/'
 starttime = perf_counter()
 
 for i, model in enumerate(testmodels):
-    
+
     testresults[model] = {}
-    
+
     # Run model
     api(os.path.join(basepath, model + os.path.sep + model + '.in'))
 
     # Special case for analytical comparison
     if model == 'hertzian_dipole_fs_analytical':
         # Get output for model file
-        filetest = h5py.File(os.path.join(basepath, model + os.path.sep + model + '.out'),'r')
+        filetest = h5py.File(os.path.join(basepath, model + os.path.sep + model + '.out'), 'r')
         testresults[model]['Test version'] = filetest.attrs['gprMax']
 
         # Get available field output component names
         outputstest = list(filetest[path].keys())
-        
+
         # Arrays for storing time
         floattype = filetest[path + outputstest[0]].dtype
         timetest = np.zeros((filetest.attrs['Iterations']), dtype=floattype)
@@ -82,12 +81,12 @@ for i, model in enumerate(testmodels):
         datatest = np.zeros((filetest.attrs['Iterations'], len(outputstest)), dtype=floattype)
         print(datatest.shape)
         for ID, name in enumerate(outputstest):
-            datatest[:,ID] = filetest[path + str(name)][:]
+            datatest[:, ID] = filetest[path + str(name)][:]
 
         # Tx/Rx position to feed to analytical solution
         rxpos = filetest[path].attrs['Position']
         txpos = filetest['/srcs/src1/'].attrs['Position']
-        rxposrelative = ((rxpos[0] - txpos[0]), (rxpos[1] - txpos[1]), (rxpos[2] - txpos[2]))        
+        rxposrelative = ((rxpos[0] - txpos[0]), (rxpos[1] - txpos[1]), (rxpos[2] - txpos[2]))
 
         # Analytical solution of a dipole in free space
         dataref = hertzian_dipole_fs(filetest.attrs['Iterations'], filetest.attrs['dt'], filetest.attrs['dx, dy, dz'], rxposrelative)
@@ -97,15 +96,15 @@ for i, model in enumerate(testmodels):
         # Diffs
         datadiffs = np.zeros(datatest.shape, dtype=floattype)
         for i in range(len(outputstest)):
-            max = np.amax(np.abs(dataref[:,i]))
+            max = np.amax(np.abs(dataref[:, i]))
             try:
-                datadiffs[:,i] = ((np.abs(dataref[:,i] - datatest[:,i])) / max) * 100
+                datadiffs[:, i] = ((np.abs(dataref[:, i] - datatest[:, i])) / max) * 100
             except FloatingPointError:
                 print('FloatingPointError')
-                datadiffs[:,i] = 0
+                datadiffs[:, i] = 0
 
         # Register test passed
-        threshold = 2 # Percent
+        threshold = 2  # Percent
         if np.amax(np.amax(datadiffs)) < 2:
             testresults[model]['Pass'] = True
         else:
@@ -114,17 +113,17 @@ for i, model in enumerate(testmodels):
 
     else:
         # Get output for model and reference files
-        fileref = h5py.File(os.path.join(basepath, model + os.path.sep + model + '_ref.out'),'r')
-        filetest = h5py.File(os.path.join(basepath, model + os.path.sep + model + '.out'),'r')
+        fileref = h5py.File(os.path.join(basepath, model + os.path.sep + model + '_ref.out'), 'r')
+        filetest = h5py.File(os.path.join(basepath, model + os.path.sep + model + '.out'), 'r')
         testresults[model]['Ref version'] = fileref.attrs['gprMax']
         testresults[model]['Test version'] = filetest.attrs['gprMax']
-        
+
         # Get available field output component names
         outputsref = list(fileref[path].keys())
         outputstest = list(filetest[path].keys())
         if outputsref != outputstest:
             raise GeneralError('Field output components do not match reference solution')
-                             
+
         # Check that type of float used to store fields matches
         if filetest[path + outputstest[0]].dtype != fileref[path + outputsref[0]].dtype:
             raise GeneralError('Type of floating point number does not match reference solution')
@@ -147,8 +146,8 @@ for i, model in enumerate(testmodels):
         dataref = np.zeros((fileref.attrs['Iterations'], len(outputsref)), dtype=floattype)
         datatest = np.zeros((filetest.attrs['Iterations'], len(outputstest)), dtype=floattype)
         for ID, name in enumerate(outputsref):
-            dataref[:,ID] = fileref[path + str(name)][:]
-            datatest[:,ID] = filetest[path + str(name)][:]
+            dataref[:, ID] = fileref[path + str(name)][:]
+            datatest[:, ID] = filetest[path + str(name)][:]
 
         fileref.close()
         filetest.close()
@@ -156,12 +155,12 @@ for i, model in enumerate(testmodels):
         # Diffs
         datadiffs = np.zeros(datatest.shape, dtype=floattype)
         for i in range(len(outputstest)):
-            max = np.nanmax(np.abs(dataref[:,i]))
+            max = np.nanmax(np.abs(dataref[:, i]))
             try:
-                datadiffs[:,i] = ((np.abs(dataref[:,i] - datatest[:,i])) / max) * 100
+                datadiffs[:, i] = ((np.abs(dataref[:, i] - datatest[:, i])) / max) * 100
             except FloatingPointError:
                 print('FloatingPointError')
-                datadiffs[:,i] = 0
+                datadiffs[:, i] = 0
 
         # Register test passed
         if not np.any(datadiffs):
@@ -172,18 +171,18 @@ for i, model in enumerate(testmodels):
 
     # Plot datasets
     fig1, ((ex1, hx1), (ey1, hy1), (ez1, hz1)) = plt.subplots(nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), num=model + '.in', figsize=(20, 10), facecolor='w', edgecolor='w')
-    ex1.plot(timetest, datatest[:,0],'r', lw=2, label=model)
-    ex1.plot(timeref, dataref[:,0],'g', lw=2, ls='--', label=model + '(Ref)')
-    ey1.plot(timetest, datatest[:,1],'r', lw=2, label=model)
-    ey1.plot(timeref, dataref[:,1],'g', lw=2, ls='--', label=model + '(Ref)')
-    ez1.plot(timetest, datatest[:,2],'r', lw=2, label=model)
-    ez1.plot(timeref, dataref[:,2],'g', lw=2, ls='--', label=model + '(Ref)')
-    hx1.plot(timetest, datatest[:,3],'r', lw=2, label=model)
-    hx1.plot(timeref, dataref[:,3],'g', lw=2, ls='--', label=model + '(Ref)')
-    hy1.plot(timetest, datatest[:,4],'r', lw=2, label=model)
-    hy1.plot(timeref, dataref[:,4],'g', lw=2, ls='--', label=model + '(Ref)')
-    hz1.plot(timetest, datatest[:,5],'r', lw=2, label=model)
-    hz1.plot(timeref, dataref[:,5],'g', lw=2, ls='--', label=model + '(Ref)')
+    ex1.plot(timetest, datatest[:, 0], 'r', lw=2, label=model)
+    ex1.plot(timeref, dataref[:, 0], 'g', lw=2, ls='--', label=model + '(Ref)')
+    ey1.plot(timetest, datatest[:, 1], 'r', lw=2, label=model)
+    ey1.plot(timeref, dataref[:, 1], 'g', lw=2, ls='--', label=model + '(Ref)')
+    ez1.plot(timetest, datatest[:, 2], 'r', lw=2, label=model)
+    ez1.plot(timeref, dataref[:, 2], 'g', lw=2, ls='--', label=model + '(Ref)')
+    hx1.plot(timetest, datatest[:, 3], 'r', lw=2, label=model)
+    hx1.plot(timeref, dataref[:, 3], 'g', lw=2, ls='--', label=model + '(Ref)')
+    hy1.plot(timetest, datatest[:, 4], 'r', lw=2, label=model)
+    hy1.plot(timeref, dataref[:, 4], 'g', lw=2, ls='--', label=model + '(Ref)')
+    hz1.plot(timetest, datatest[:, 5], 'r', lw=2, label=model)
+    hz1.plot(timeref, dataref[:, 5], 'g', lw=2, ls='--', label=model + '(Ref)')
     ylabels = ['$E_x$, field strength [V/m]', '$H_x$, field strength [A/m]', '$E_y$, field strength [V/m]', '$H_y$, field strength [A/m]', '$E_z$, field strength [V/m]', '$H_z$, field strength [A/m]']
     for i, ax in enumerate(fig1.axes):
         ax.set_ylabel(ylabels[i])
@@ -193,12 +192,12 @@ for i, model in enumerate(testmodels):
 
     # Plot diffs
     fig2, ((ex2, hx2), (ey2, hy2), (ez2, hz2)) = plt.subplots(nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), num='Diffs: ' + model + '.in', figsize=(20, 10), facecolor='w', edgecolor='w')
-    ex2.plot(timeref, datadiffs[:,0],'r', lw=2, label='Ex')
-    ey2.plot(timeref, datadiffs[:,1],'r', lw=2, label='Ey')
-    ez2.plot(timeref, datadiffs[:,2],'r', lw=2, label='Ez')
-    hx2.plot(timeref, datadiffs[:,3],'r', lw=2, label='Hx')
-    hy2.plot(timeref, datadiffs[:,4],'r', lw=2, label='Hy')
-    hz2.plot(timeref, datadiffs[:,5],'r', lw=2, label='Hz')
+    ex2.plot(timeref, datadiffs[:, 0], 'r', lw=2, label='Ex')
+    ey2.plot(timeref, datadiffs[:, 1], 'r', lw=2, label='Ey')
+    ez2.plot(timeref, datadiffs[:, 2], 'r', lw=2, label='Ez')
+    hx2.plot(timeref, datadiffs[:, 3], 'r', lw=2, label='Hx')
+    hy2.plot(timeref, datadiffs[:, 4], 'r', lw=2, label='Hy')
+    hz2.plot(timeref, datadiffs[:, 5], 'r', lw=2, label='Hz')
     ylabels = ['$E_x$, difference [%]', '$H_x$, difference [%]', '$E_y$, difference [%]', '$H_y$, difference [%]', '$E_z$, difference [%]', '$H_z$, difference [%]']
     for i, ax in enumerate(fig2.axes):
         ax.set_ylabel(ylabels[i])

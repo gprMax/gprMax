@@ -66,15 +66,15 @@ modelmax = np.where(np.abs(model) == 1)[0][0]
 # Real results
 with open(args.realfile, 'r') as f:
     real = np.loadtxt(f)
-real[:,1] = real[:,1] / np.amax(np.abs(real[:,1]))
-realmax = np.where(np.abs(real[:,1]) == 1)[0][0]
+real[:, 1] = real[:, 1] / np.amax(np.abs(real[:, 1]))
+realmax = np.where(np.abs(real[:, 1]) == 1)[0][0]
 
-difftime = - (timemodel[modelmax] - real[realmax,0])
+difftime = - (timemodel[modelmax] - real[realmax, 0])
 
 # Plot modelled and real data
 fig, ax = plt.subplots(num=args.modelfile + ' versus ' + args.realfile, figsize=(20, 10), facecolor='w', edgecolor='w')
 ax.plot(timemodel + difftime, model, 'r', lw=2, label='Model')
-ax.plot(real[:,0], real[:,1], 'r', ls='--', lw=2, label='Experiment')
+ax.plot(real[:, 0], real[:, 1], 'r', ls='--', lw=2, label='Experiment')
 ax.set_xlabel('Time [s]')
 ax.set_ylabel('Amplitude')
 ax.set_xlim([0, timemodel[-1]])
@@ -85,6 +85,6 @@ ax.grid()
 # Save a PDF/PNG of the figure
 savename = os.path.abspath(os.path.dirname(args.modelfile)) + os.sep + os.path.splitext(os.path.split(args.modelfile)[1])[0] + '_vs_' + os.path.splitext(os.path.split(args.realfile)[1])[0]
 #fig.savefig(savename + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-#fig.savefig((savename + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+# fig.savefig((savename + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
 plt.show()

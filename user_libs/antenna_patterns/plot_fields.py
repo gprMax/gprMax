@@ -35,13 +35,13 @@ epsr = 5
 # Observation radii and angles
 radii = np.linspace(0.1, 0.3, 20)
 theta = np.linspace(3, 357, 60)
-theta = np.deg2rad(np.append(theta, theta[0])) # Append start value to close circle
+theta = np.deg2rad(np.append(theta, theta[0]))  # Append start value to close circle
 
 # Centre frequency of modelled antenna
-f = 1.5e9 # GSSI 1.5GHz antenna model
+f = 1.5e9  # GSSI 1.5GHz antenna model
 
 # Largest dimension of antenna transmitting element
-D = 0.060 # GSSI 1.5GHz antenna model
+D = 0.060  # GSSI 1.5GHz antenna model
 
 # Minimum value for plotting energy and ring steps (dB)
 min = -72
@@ -51,19 +51,19 @@ step = 12
 # Critical angle and velocity
 if epsr:
     mr = 1
-    z1 = np.sqrt(mr/epsr) * z0
+    z1 = np.sqrt(mr / epsr) * z0
     v1 = c / np.sqrt(epsr)
-    thetac = np.round(np.rad2deg(np.arcsin(v1/c)))
-    wavelength = v1/f
+    thetac = np.round(np.rad2deg(np.arcsin(v1 / c)))
+    wavelength = v1 / f
 
 # Print some useful information
-print('Centre frequency: {} GHz'.format(f/1e9))
+print('Centre frequency: {} GHz'.format(f / 1e9))
 if epsr:
     print('Critical angle for Er {} is {} degrees'.format(epsr, thetac))
     print('Wavelength: {:.3f} m'.format(wavelength))
-    print('Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)'.format(radii[0], radii[0]/wavelength, radii[-1], radii[-1]/wavelength))
-    print('Theoretical boundary between reactive & radiating near-field (0.62*sqrt((D^3/wavelength): {:.3f} m'.format(0.62 * np.sqrt((D**3)/wavelength)))
-    print('Theoretical boundary between radiating near-field & far-field (2*D^2/wavelength): {:.3f} m'.format((2 * D**2)/wavelength))
+    print('Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)'.format(radii[0], radii[0] / wavelength, radii[-1], radii[-1] / wavelength))
+    print('Theoretical boundary between reactive & radiating near-field (0.62*sqrt((D^3/wavelength): {:.3f} m'.format(0.62 * np.sqrt((D**3) / wavelength)))
+    print('Theoretical boundary between radiating near-field & far-field (2*D^2/wavelength): {:.3f} m'.format((2 * D**2) / wavelength))
 
 # Setup figure
 fig = plt.figure(num=args.numpyfile, figsize=(8, 8), facecolor='w', edgecolor='w')
@@ -81,15 +81,15 @@ ax.annotate('Ground', xy=(np.deg2rad(270), 0), xytext=(8, -15), textcoords='offs
 
 # Plot patterns
 for patt in range(0, len(radii)):
-    pattplot = np.append(patterns[patt, :], patterns[patt, 0]) # Append start value to close circle
-    pattplot = pattplot / np.max(np.max(patterns)) # Normalise, based on set of patterns
+    pattplot = np.append(patterns[patt, :], patterns[patt, 0])  # Append start value to close circle
+    pattplot = pattplot / np.max(np.max(patterns))  # Normalise, based on set of patterns
     ax.plot(theta, 10 * np.log10(pattplot), label='{:.2f}m'.format(radii[patt]), marker='.', ms=6, lw=1.5)
 
 # Add Hertzian dipole plot
-#hertzplot1 = np.append(hertzian[0, :], hertzian[0, 0]) # Append start value to close circle
+# hertzplot1 = np.append(hertzian[0, :], hertzian[0, 0]) # Append start value to close circle
 #hertzplot1 = hertzplot1 / np.max(np.max(hertzian))
 #ax.plot(theta, 10 * np.log10(hertzplot1), label='Inf. dipole, 0.1m', color='black', ls='-.', lw=3)
-#hertzplot2 = np.append(hertzian[-1, :], hertzian[-1, 0]) # Append start value to close circle
+# hertzplot2 = np.append(hertzian[-1, :], hertzian[-1, 0]) # Append start value to close circle
 #hertzplot2 = hertzplot2 / np.max(np.max(hertzian))
 #ax.plot(theta, 10 * np.log10(hertzplot2), label='Inf. dipole, 0.58m', color='black', ls='--', lw=3)
 
@@ -103,13 +103,13 @@ ax.set_rmax(0)
 ax.set_rlabel_position(45)
 ax.set_yticks(np.arange(min, step, step))
 yticks = ax.get_yticks().tolist()
-yticks[-1]='0 dB'
+yticks[-1] = '0 dB'
 ax.set_yticklabels(yticks)
 
 # Grid and legend
 ax.grid(True)
 handles, existlabels = ax.get_legend_handles_labels()
-leg = ax.legend([handles[0], handles[-1]], [existlabels[0], existlabels[-1]], ncol=2, loc=(0.27,-0.12), frameon=False) # Plot just first and last legend entries
+leg = ax.legend([handles[0], handles[-1]], [existlabels[0], existlabels[-1]], ncol=2, loc=(0.27, -0.12), frameon=False)  # Plot just first and last legend entries
 #leg = ax.legend([handles[0], handles[-3], handles[-2], handles[-1]], [existlabels[0], existlabels[-3], existlabels[-2], existlabels[-1]], ncol=4, loc=(-0.13,-0.12), frameon=False)
 [legobj.set_linewidth(2) for legobj in leg.legendHandles]
 
@@ -120,4 +120,3 @@ fig.savefig(savename, dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.
 #fig.savefig(savename, dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
 plt.show()
-

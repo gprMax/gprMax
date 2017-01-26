@@ -29,12 +29,12 @@ from gprMax.exceptions import CmdInputError
 
 def get_output_data(filename, rxnumber, rxcomponent):
     """Gets B-scan output data from a model.
-        
+
     Args:
         filename (string): Filename (including path) of output file.
         rxnumber (int): Receiver output number.
         rxcomponent (str): Receiver output field/current component.
-        
+
     Returns:
         outputdata (array): Array of A-scans, i.e. B-scan data.
         dt (float): Temporal resolution of the model.
@@ -68,19 +68,19 @@ def get_output_data(filename, rxnumber, rxcomponent):
 
 def mpl_plot(outputdata, dt, rxnumber, rxcomponent):
     """Creates a plot (with matplotlib) of the B-scan.
-        
+
     Args:
         outputdata (array): Array of A-scans, i.e. B-scan data.
         dt (float): Temporal resolution of the model.
         rxnumber (int): Receiver output number.
         rxcomponent (str): Receiver output field/current component.
-        
+
     Returns:
         plt (object): matplotlib plot object.
     """
 
     fig = plt.figure(num='rx' + str(rxnumber), figsize=(20, 10), facecolor='w', edgecolor='w')
-    plt.imshow(outputdata, extent=[0, outputdata.shape[1], outputdata.shape[0]*dt, 0], interpolation='nearest', aspect='auto', cmap='seismic', vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
+    plt.imshow(outputdata, extent=[0, outputdata.shape[1], outputdata.shape[0] * dt, 0], interpolation='nearest', aspect='auto', cmap='seismic', vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
     plt.xlabel('Trace number')
     plt.ylabel('Time [s]')
     plt.grid()
@@ -118,7 +118,6 @@ if __name__ == "__main__":
 
     for rx in range(1, nrx + 1):
         outputdata, dt = get_output_data(args.outputfile, rx, args.rx_component)
-        plt = mpl_plot(outputdata, dt, rx, args.rx_component)
+        plthandle = mpl_plot(outputdata, dt, rx, args.rx_component)
 
-    plt.show()
-
+    plthandle.show()

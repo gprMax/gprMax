@@ -32,7 +32,7 @@ for item in optparamsinit:
 print('History of parameter values:')
 for key, value in optparamshist.items():
     print('\t{}: {}'.format(key, value))
-      
-    
+
+
 # Plot the history of fitness values and each optimised parameter values for the optimisation
 plot_optimisation_history(fitnessvalueshist, optparamshist, optparamsinit)

@@ -56,7 +56,7 @@ with open(model.FileName[0], 'r') as f:
 if materials:
     # Get range of data
     mat_datarange = model.CellData.GetArray('Material').GetRange()
-    
+
     # Create threshold for materials (name and numeric value)
     for x in range(0, int(mat_datarange[1]) + 1):
         for y in range(len(materials)):
@@ -64,9 +64,9 @@ if materials:
                 threshold = Threshold(Input=model)
                 threshold.Scalars = 'Material'
                 threshold.ThresholdRange = [materials[y][0], materials[y][0]]
-                
+
                 RenameSource(materials[y][1], threshold)
-                
+
                 if materials[y][0] != 1:
                     # Show data in view
                     thresholddisplay = Show(threshold, renderview)
@@ -75,7 +75,7 @@ if materials:
 if srcs_pml:
     # Get ranges of data
     srcs_pml_datarange = model.CellData.GetArray('Sources_PML').GetRange()
-    
+
     # Create threshold for sources/pml (name and numeric value)
     for x in range(1, int(srcs_pml_datarange[1]) + 1):
         for y in range(len(srcs_pml)):
@@ -83,20 +83,20 @@ if srcs_pml:
                 threshold = Threshold(Input=model)
                 threshold.Scalars = 'Sources_PML'
                 threshold.ThresholdRange = [srcs_pml[y][0], srcs_pml[y][0]]
-                
+
                 RenameSource(srcs_pml[y][1], threshold)
-                
+
                 # Show data in view
                 thresholddisplay = Show(threshold, renderview)
                 thresholddisplay.ColorArrayName = 'Sources_PML'
-                
+
                 if srcs_pml[y][0] == 1:
                     thresholddisplay.Opacity = 0.5
 
 if rxs:
     # Get ranges of data
     rxs_datarange = model.CellData.GetArray('Receivers').GetRange()
-    
+
     # Create threshold for sources/pml (name and numeric value)
     for x in range(1, int(rxs_datarange[1]) + 1):
         for y in range(len(rxs)):
@@ -104,9 +104,9 @@ if rxs:
                 threshold = Threshold(Input=model)
                 threshold.Scalars = 'Receivers'
                 threshold.ThresholdRange = [rxs[y][0], rxs[y][0]]
-                
+
                 RenameSource(rxs[y][1], threshold)
-                
+
                 # Show data in view
                 thresholddisplay = Show(threshold, renderview)
                 thresholddisplay.ColorArrayName = 'Receivers'

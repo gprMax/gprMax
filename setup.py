@@ -36,12 +36,12 @@ import sys
 # Importing _version__.py before building can cause issues.
 with open('gprMax/_version.py', 'r') as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
-        fd.read(), re.MULTILINE).group(1)
+                        fd.read(), re.MULTILINE).group(1)
 
 # Parse package name from init file. Importing __init__.py / gprMax will break as gprMax depends on compiled .pyx files.
 with open('gprMax/__init__.py', 'r') as fd:
     packagename = re.search(r'^__name__\s*=\s*[\'"]([^\'"]*)[\'"]',
-        fd.read(), re.MULTILINE).group(1)
+                            fd.read(), re.MULTILINE).group(1)
 
 packages = [packagename, 'tests', 'tools', 'user_libs']
 
@@ -104,7 +104,7 @@ if 'cleanall' in sys.argv:
 # Set compiler options
 # Windows
 if sys.platform == 'win32':
-    compile_args = ['/O2', '/openmp', '/w'] # No static linking as no static version of OpenMP library.
+    compile_args = ['/O2', '/openmp', '/w']  # No static linking as no static version of OpenMP library.
     linker_args = []
     extra_objects = []
 # Mac OS X - needs gcc (usually via HomeBrew) because the default compiler LLVM (clang) does not support OpenMP
@@ -116,7 +116,7 @@ elif sys.platform == 'darwin':
         os.environ['CC'] = gccpath[-1].split(os.sep)[-1]
     else:
         raise('Cannot find gcc 4.x, 5.x or 6.x in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support, i.e. --without-multilib, must be installed')
-    compile_args = ['-O3', '-w', '-fopenmp', '-march=native'] # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
+    compile_args = ['-O3', '-w', '-fopenmp', '-march=native']  # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
     linker_args = ['-fopenmp']
     extra_objects = []
 # Linux
@@ -139,7 +139,7 @@ for file in cythonfiles:
                           include_dirs=[np.get_include()],
                           extra_compile_args=compile_args,
                           extra_link_args=linker_args,
-                          extra_objects = extra_objects)
+                          extra_objects=extra_objects)
     extensions.append(extension)
 
 # Cythonize (build .c files)
@@ -162,15 +162,15 @@ setup(name=packagename,
       description='Electromagnetic Modelling Software based on the Finite-Difference Time-Domain (FDTD) method',
       license='GPLv3+',
       classifiers=[
-                   'Environment :: Console',
-                   'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
-                   'Operating System :: MacOS :: MacOS X',
-                   'Operating System :: Microsoft :: Windows :: Windows 7',
-                   'Operating System :: POSIX :: Linux',
-                   'Programming Language :: Cython',
-                   'Programming Language :: Python :: 3.4',
-                   'Topic :: Scientific/Engineering'
-                   ],
+          'Environment :: Console',
+          'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
+          'Operating System :: MacOS :: MacOS X',
+          'Operating System :: Microsoft :: Windows :: Windows 7',
+          'Operating System :: POSIX :: Linux',
+          'Programming Language :: Cython',
+          'Programming Language :: Python :: 3.4',
+          'Topic :: Scientific/Engineering'
+      ],
       ext_modules=extensions,
       packages=packages,
       include_dirs=[np.get_include()])

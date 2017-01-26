@@ -166,7 +166,7 @@ class PML(object):
         self.nx = xf - xs
         self.ny = yf - ys
         self.nz = zf - zs
-        
+
         if self.direction[0] == 'x':
             self.d = G.dx
             self.thickness = self.nx
@@ -176,11 +176,11 @@ class PML(object):
         elif self.direction[0] == 'z':
             self.d = G.dz
             self.thickness = self.nz
-    
+
         self.CFS = G.cfs
         if not self.CFS:
             self.CFS = [CFS()]
-        
+
         self.initialise_field_arrays()
 
     def initialise_field_arrays(self):

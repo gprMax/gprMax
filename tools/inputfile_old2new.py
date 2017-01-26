@@ -51,7 +51,7 @@ hertziandipoles = []
 
 lindex = 0
 while(lindex < len(inputlines)):
-    
+
     if inputlines[lindex].startswith('#') and not inputlines[lindex].startswith('##'):
         cmd = inputlines[lindex].split(':')
         cmdname = cmd[0].lower()
@@ -66,7 +66,7 @@ while(lindex < len(inputlines)):
             inputlines.insert(lindex, replacement)
             lindex += 1
             dx_dy_dz = (float(params[0]), float(params[1]), float(params[1]))
-        
+
         elif cmdname == '#dx_dy_dz':
             dx_dy_dz = (float(params[0]), float(params[1]), float(params[2]))
             lindex += 1
@@ -75,16 +75,16 @@ while(lindex < len(inputlines)):
             lindex += 1
 
     else:
-        lindex +=1
+        lindex += 1
 
 lindex = 0
 while(lindex < len(inputlines)):
-    
+
     if inputlines[lindex].startswith('#') and not inputlines[lindex].startswith('##'):
         cmd = inputlines[lindex].split(':')
         cmdname = cmd[0].lower()
         params = cmd[1].split()
-        
+
         if cmdname == '#domain':
             if model2D:
                 # Syntax of old command: #domain: x y
@@ -105,7 +105,7 @@ while(lindex < len(inputlines)):
             else:
                 timewindow = int(params[0])
             lindex += 1
-        
+
         elif cmdname == '#num_of_procs':
             # Syntax of old command: #num_of_procs: nthreads
             replacement = '#num_threads: {}'.format(params[0])
@@ -222,7 +222,7 @@ while(lindex < len(inputlines)):
                     replacement = '#cylinder: {} {} {} {} {} {} {} {}'.format(params[1], params[3], params[4], params[2], params[3], params[4], params[5], params[6])
                 elif params[0] == 'y':
                     replacement = '#cylinder: {} {} {} {} {} {} {} {}'.format(params[3], params[1], params[4], params[3], params[2], params[4], params[5], params[6])
-                elif params[0] =='z':
+                elif params[0] == 'z':
                     replacement = '#cylinder: {} {} {} {} {} {} {} {}'.format(params[3], params[4], params[1], params[3], params[4], params[2], params[5], params[6])
 
             print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
@@ -237,7 +237,7 @@ while(lindex < len(inputlines)):
             inputlines.pop(lindex)
             inputlines.insert(lindex, replacement)
             lindex += 1
-        
+
         elif cmdname == '#cylindrical_segment':
             print("Command '{}' has been removed as it is no longer supported. You can create a cylindrical segment by using a #box to cut through a #cylinder.".format(inputlines[lindex]))
             inputlines.pop(lindex)
@@ -312,7 +312,7 @@ while(lindex < len(inputlines)):
             lindex += 1
 
     else:
-        lindex +=1
+        lindex += 1
 
 # Convert separate #line_source and associated #tx to #waveform and #hertzian_dipole
 for source in linesources:
@@ -370,7 +370,7 @@ for source in voltagesources:
         voltagesource = '#voltage_source: {} {} {} {} {} {} {} {}'.format(voltagesourcetx[1], voltagesourcetx[2], voltagesourcetx[3], voltagesourcetx[4], params[4], voltagesourcetx[5], voltagesourcetx[6], voltagesourcetx[7])
     else:
         voltagesource = '#voltage_source: {} {} {} {} {} {}'.format(voltagesourcetx[1], voltagesourcetx[2], voltagesourcetx[3], voltagesourcetx[4], params[4], voltagesourcetx[5])
-    
+
     print("Commands '{}' and '{}', replaced with '{}' and '{}'".format(source, tx, waveform, voltagesource))
     inputlines.remove(source)
     inputlines.remove(tx)

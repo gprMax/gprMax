@@ -23,6 +23,7 @@ init()
 
 sys.tracebacklimit = None
 
+
 class GeneralError(ValueError):
     """Handles general errors. Subclasses the ValueError class."""
 

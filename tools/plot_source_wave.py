@@ -32,19 +32,19 @@ np.seterr(divide='ignore')
 
 def check_timewindow(timewindow, dt):
     """Checks and sets time window and number of iterations.
-            
+
     Args:
         timewindow (float): Time window.
         dt (float): Time discretisation.
-            
+
     Returns:
         timewindow (float): Time window.
         iterations (int): Number of interations.
     """
-    
+
     # Time window could be a string, float or int, so convert to string then check
     timewindow = str(timewindow)
-    
+
     try:
         timewindow = int(timewindow)
         iterations = timewindow
@@ -62,18 +62,18 @@ def check_timewindow(timewindow, dt):
 
 def mpl_plot(w, timewindow, dt, iterations, fft=False):
     """Plots waveform and prints useful information about its properties.
-            
+
     Args:
         w (class): Waveform class instance.
         timewindow (float): Time window.
         dt (float): Time discretisation.
         iterations (int): Number of iterations.
         fft (boolean): Plot FFT switch.
-        
+
     Returns:
         plt (object): matplotlib plot object.
     """
-    
+
     time = np.linspace(0, 1, iterations)
     time *= (iterations * dt)
     waveform = np.zeros(len(time))
@@ -104,7 +104,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
 
     # Calculate pulse width for gaussian
     if w.type == 'gaussian':
-        powerdrop = -3 #dB
+        powerdrop = -3  # dB
         start = np.where((10 * np.log10(waveform / np.amax(waveform))) > powerdrop)[0][0]
         stop = np.where((10 * np.log10(waveform[start:] / np.amax(waveform))) < powerdrop)[0][0] + start
         print('Pulse width at {:d}dB, i.e. FWHM: {:g} s'.format(powerdrop, time[stop] - time[start]))
@@ -130,7 +130,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
         pltrange = np.s_[0:pltrange]
 
         fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num=w.type, figsize=(20, 10), facecolor='w', edgecolor='w')
-        
+
         # Plot waveform
         ax1.plot(time, waveform, 'r', lw=2)
         ax1.set_xlabel('Time [s]')
@@ -153,7 +153,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
         ax1.set_xlabel('Time [s]')
         ax1.set_ylabel('Amplitude')
 
-    [ax.grid() for ax in fig.axes] # Turn on grid
+    [ax.grid() for ax in fig.axes]  # Turn on grid
 
     # Save a PDF/PNG of the figure
     #fig.savefig(os.path.dirname(os.path.abspath(__file__)) + os.sep + w.type + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
@@ -163,7 +163,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
 
 
 if __name__ == "__main__":
-    
+
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Plot built-in waveforms that can be used for sources.', usage='cd gprMax; python -m tools.plot_source_wave type amp freq timewindow dt')
     parser.add_argument('type', help='type of waveform', choices=Waveform.types)
@@ -187,6 +187,5 @@ if __name__ == "__main__":
     w.freq = args.freq
 
     timewindow, iterations = check_timewindow(args.timewindow, args.dt)
-    plt = mpl_plot(w, timewindow, args.dt, iterations, args.fft)
-    plt.show()
-
+    plthandle = mpl_plot(w, timewindow, args.dt, iterations, args.fft)
+    plthandle.show()

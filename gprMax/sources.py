@@ -187,7 +187,7 @@ class MagneticDipole(Source):
                 Hx[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dx * G.dy * G.dz))
 
             elif self.polarisation == 'y':
-                
+
                 Hy[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dx * G.dy * G.dz))
 
             elif self.polarisation == 'z':

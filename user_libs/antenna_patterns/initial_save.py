@@ -36,37 +36,37 @@ epsr = 5
 
 # Observation radii and angles
 radii = np.linspace(0.1, 0.3, 20)
-theta = np.linspace(3, 357, 60) * (180/np.pi)
+theta = np.linspace(3, 357, 60) * (180 / np.pi)
 
 # Scaling of time-domain field pattern values by material impedance
 impscaling = False
 
 # Centre frequency of modelled antenna
-f = 1.5e9 # GSSI 1.5GHz antenna model
+f = 1.5e9  # GSSI 1.5GHz antenna model
 
 # Largest dimension of antenna transmitting element
-D = 0.060 # GSSI 1.5GHz antenna model
+D = 0.060  # GSSI 1.5GHz antenna model
 
 # Traces to plot for sanity checking
-traceno = np.s_[:] # All traces
+traceno = np.s_[:]  # All traces
 ########################################
 
 # Critical angle and velocity
 if epsr:
     mr = 1
-    z1 = np.sqrt(mr/epsr) * z0
+    z1 = np.sqrt(mr / epsr) * z0
     v1 = c / np.sqrt(epsr)
-    thetac = np.round(np.arcsin(v1/c) * (180/np.pi))
-    wavelength = v1/f
+    thetac = np.round(np.arcsin(v1 / c) * (180 / np.pi))
+    wavelength = v1 / f
 
 # Print some useful information
-print('Centre frequency: {} GHz'.format(f/1e9))
+print('Centre frequency: {} GHz'.format(f / 1e9))
 if epsr:
     print('Critical angle for Er {} is {} degrees'.format(epsr, thetac))
     print('Wavelength: {:.3f} m'.format(wavelength))
-    print('Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)'.format(radii[0], radii[0]/wavelength, radii[-1], radii[-1]/wavelength))
-    print('Theoretical boundary between reactive & radiating near-field (0.62*sqrt((D^3/wavelength): {:.3f} m'.format(0.62 * np.sqrt((D**3)/wavelength)))
-    print('Theoretical boundary between radiating near-field & far-field (2*D^2/wavelength): {:.3f} m'.format((2 * D**2)/wavelength))
+    print('Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)'.format(radii[0], radii[0] / wavelength, radii[-1], radii[-1] / wavelength))
+    print('Theoretical boundary between reactive & radiating near-field (0.62*sqrt((D^3/wavelength): {:.3f} m'.format(0.62 * np.sqrt((D**3) / wavelength)))
+    print('Theoretical boundary between radiating near-field & far-field (2*D^2/wavelength): {:.3f} m'.format((2 * D**2) / wavelength))
 
 # Load text file with coordinates of pattern origin
 origin = np.loadtxt(os.path.splitext(outputfile)[0] + '_rxsorigin.txt')
@@ -77,13 +77,13 @@ iterations = f.attrs['Iterations']
 dt = f.attrs['dt']
 nrx = f.attrs['nrx']
 if antenna:
-    nrx = nrx - 1 # Ignore first receiver point with full antenna model
+    nrx = nrx - 1  # Ignore first receiver point with full antenna model
     start = 2
 else:
     start = 1
 time = np.arange(0, dt * iterations, dt)
 time = time / 1E-9
-fs = 1 / dt # Sampling frequency
+fs = 1 / dt  # Sampling frequency
 
 # Initialise arrays to store fields
 coords = np.zeros((nrx, 3), dtype=np.float32)
@@ -115,7 +115,7 @@ for rx in range(0, nrx):
     Hz[:, rx] = f[path + 'Hz'][:]
 f.close()
 
-## Plot traces for sanity checking
+# Plot traces for sanity checking
 #fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(num=outputfile, nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), figsize=(20, 10), facecolor='w', edgecolor='w')
 #ax1.plot(time, Ex[:, traceno],'r', lw=2)
 #ax1.set_ylabel('$E_x$, field strength [V/m]')
@@ -129,12 +129,12 @@ f.close()
 #ax4.set_ylabel('$H_y$, field strength [A/m]')
 #ax6.plot(time, Hz[:, traceno],'b', lw=2)
 #ax6.set_ylabel('$H_z$, field strength [A/m]')
-## Turn on grid
+# Turn on grid
 #[ax.grid() for ax in fig.axes]
-#plt.show()
+# plt.show()
 
 # Calculate fields for patterns
-rxstart = 0 # Index for rx points
+rxstart = 0  # Index for rx points
 for radius in range(0, len(radii)):
     index = 0
     # Observation points

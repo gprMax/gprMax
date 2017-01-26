@@ -110,7 +110,7 @@ def run_main(args):
     # Get information about host machine
     hostinfo = get_host_info()
     print('\nHost: {}; {} ({} cores); {} RAM; {}'.format(hostinfo['machineID'], hostinfo['cpuID'], hostinfo['cpucores'], human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
-    
+
     # Create a separate namespace that users can access in any Python code blocks in the input file
     usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': numbermodelruns, 'input_directory': inputdirectory}
 
@@ -211,7 +211,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     # Get information about host machine
     hostinfo = get_host_info()
     machineIDlong = '; '.join([hostinfo['machineID'], hostinfo['cpuID'], hostinfo['osversion']])
-    
+
     # Number of threads to test - start from max physical CPU cores and divide in half until 1
     minthreads = 1
     maxthreads = hostinfo['cpucores']

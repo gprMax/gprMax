@@ -30,14 +30,14 @@ from gprMax.exceptions import CmdInputError
 
 def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=None, rxcomponent=None):
     """Calculates antenna parameters - incident, reflected and total volatges and currents; s11, (s21) and input impedance.
-            
+
     Args:
         filename (string): Filename (including path) of output file.
         tltxnumber (int): Transmitter antenna - transmission line number
         tlrxnumber (int): Receiver antenna - transmission line number
         rxnumber (int): Receiver antenna - output number
         rxcomponent (str): Receiver antenna - output electric field component
-        
+
     Returns:
         antennaparams (dict): Antenna parameters.
     """
@@ -65,8 +65,8 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     Iinc = f[tltxpath + 'Iinc'][:]
 
     # Total (incident + reflected) voltages/currents
-    Vtotal = f[tltxpath +'Vtotal'][:]
-    Itotal = f[tltxpath +'Itotal'][:]
+    Vtotal = f[tltxpath + 'Vtotal'][:]
+    Itotal = f[tltxpath + 'Itotal'][:]
 
     # Reflected voltages/currents
     Vref = Vtotal - Vinc
@@ -75,17 +75,17 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     # If a receiver antenna is used (with a transmission line or receiver), get received voltage for s21
     if tlrxnumber:
         tlrxpath = '/tls/tl' + str(tlrxnumber) + '/'
-        Vrec = f[tlrxpath +'Vtotal'][:]
+        Vrec = f[tlrxpath + 'Vtotal'][:]
 
     elif rxnumber:
         rxpath = '/rxs/rx' + str(rxnumber) + '/'
         availableoutputs = list(f[rxpath].keys())
-        
+
         if rxcomponent not in availableoutputs:
             raise CmdInputError('{} output requested, but the available output for receiver {} is {}'.format(rxcomponent, rxnumber, ', '.join(availableoutputs)))
-        
+
         rxpath += rxcomponent
-        
+
         # Received voltage
         if rxcomponent == 'Ex':
             Vrec = f[rxpath][:] * -1 * dxdydz[0]
@@ -120,12 +120,12 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     Vtotalp = 20 * np.log10(np.abs((np.fft.fft(Vtotal) * delaycorrection)))
     Itotalp = 20 * np.log10(np.abs(np.fft.fft(Itotal)))
     s11 = 20 * np.log10(s11)
-    
+
     # Create dictionary of antenna parameters
     antennaparams = {'time': time, 'freqs': freqs, 'Vinc': Vinc, 'Vincp': Vincp, 'Iinc': Iinc, 'Iincp': Iincp,
-                    'Vref': Vref, 'Vrefp': Vrefp, 'Iref': Iref, 'Irefp': Irefp,
-                    'Vtotal': Vtotal, 'Vtotalp': Vtotalp, 'Itotal': Itotal, 'Itotalp': Itotalp,
-                    's11': s11, 'zin': zin, 'yin': yin}
+                     'Vref': Vref, 'Vrefp': Vrefp, 'Iref': Iref, 'Irefp': Irefp,
+                     'Vtotal': Vtotal, 'Vtotalp': Vtotalp, 'Itotal': Itotal, 'Itotalp': Itotalp,
+                     's11': s11, 'zin': zin, 'yin': yin}
     if tlrxnumber or rxnumber:
         s21 = 20 * np.log10(s21)
         antennaparams['s21'] = s21
@@ -135,7 +135,7 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
 
 def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref, Irefp, Vtotal, Vtotalp, Itotal, Itotalp, s11, zin, yin, s21=None):
     """Plots antenna parameters - incident, reflected and total volatges and currents; s11, (s21) and input impedance.
-            
+
     Args:
         filename (string): Filename (including path) of output file.
         time (array): Simulation time.
@@ -145,11 +145,11 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
         Vtotal, Vtotalp, Itotal, Itotalp (array): Time and frequency domain representations of total voltage and current.
         s11, s21 (array): s11 and, optionally, s21 parameters.
         zin, yin (array): Input impedance and input admittance parameters.
-        
+
     Returns:
         plt (object): matplotlib plot object.
     """
-    
+
     # Set plotting range
     pltrangemin = 1
     # To a certain drop from maximum power
@@ -253,16 +253,16 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     ax.set_ylabel('Power [dB]')
     ax.grid()
 
-    ## Plot reflected (reflected) voltage
+    # Plot reflected (reflected) voltage
     #ax = plt.subplot(gs1[4, 0])
     #ax.plot(time, Vref, 'r', lw=2, label='Vref')
     #ax.set_title('Reflected voltage')
     #ax.set_xlabel('Time [s]')
     #ax.set_ylabel('Voltage [V]')
     #ax.set_xlim([0, np.amax(time)])
-    #ax.grid()
+    # ax.grid()
     #
-    ## Plot frequency spectra of reflected voltage
+    # Plot frequency spectra of reflected voltage
     #ax = plt.subplot(gs1[4, 1])
     #markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vrefp[pltrange], '-.')
     #plt.setp(baseline, 'linewidth', 0)
@@ -272,18 +272,18 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     #ax.set_title('Reflected voltage')
     #ax.set_xlabel('Frequency [Hz]')
     #ax.set_ylabel('Power [dB]')
-    #ax.grid()
+    # ax.grid()
     #
-    ## Plot reflected (reflected) current
+    # Plot reflected (reflected) current
     #ax = plt.subplot(gs1[5, 0])
     #ax.plot(time, Iref, 'b', lw=2, label='Iref')
     #ax.set_title('Reflected current')
     #ax.set_xlabel('Time [s]')
     #ax.set_ylabel('Current [A]')
     #ax.set_xlim([0, np.amax(time)])
-    #ax.grid()
+    # ax.grid()
     #
-    ## Plot frequency spectra of reflected current
+    # Plot frequency spectra of reflected current
     #ax = plt.subplot(gs1[5, 1])
     #markerline, stemlines, baseline = ax.stem(freqs[pltrange], Irefp[pltrange], '-.')
     #plt.setp(baseline, 'linewidth', 0)
@@ -293,7 +293,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     #ax.set_title('Reflected current')
     #ax.set_xlabel('Frequency [Hz]')
     #ax.set_ylabel('Power [dB]')
-    #ax.grid()
+    # ax.grid()
 
     # Figure 2
     # Plot frequency spectra of s11
@@ -356,7 +356,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     #ax.set_ylim([-300, 300])
     ax.grid()
 
-    ## Plot input admittance (magnitude)
+    # Plot input admittance (magnitude)
     #ax = plt.subplot(gs2[2, 0])
     #markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.abs(yin[pltrange]), '-.')
     #plt.setp(baseline, 'linewidth', 0)
@@ -368,9 +368,9 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     #ax.set_ylabel('Admittance [Siemens]')
     ##ax.set_xlim([0.88e9, 1.02e9])
     ##ax.set_ylim([0, 0.035])
-    #ax.grid()
+    # ax.grid()
     #
-    ## Plot input admittance (phase)
+    # Plot input admittance (phase)
     #ax = plt.subplot(gs2[2, 1])
     #markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.angle(yin[pltrange], deg=True), '-.')
     #plt.setp(baseline, 'linewidth', 0)
@@ -382,7 +382,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     #ax.set_ylabel('Phase [degrees]')
     ##ax.set_xlim([0.88e9, 1.02e9])
     ##ax.set_ylim([-40, 100])
-    #ax.grid()
+    # ax.grid()
 
     # Save a PDF/PNG of the figure
     #fig1.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_tl_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
@@ -405,6 +405,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     antennaparams = calculate_antenna_params(args.outputfile, args.tltx_num, args.tlrx_num, args.rx_num, args.rx_component)
-    plt = mpl_plot(args.outputfile, **antennaparams)
-    plt.show()
-
+    plthandle = mpl_plot(args.outputfile, **antennaparams)
+    plthandle.show()

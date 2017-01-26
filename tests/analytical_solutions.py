@@ -6,13 +6,13 @@ from gprMax.waveforms import Waveform
 
 def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
     """Analytical solution of a z-directed Hertzian dipole in free space with a Gaussian current waveform (http://dx.doi.org/10.1016/0021-9991(83)90103-1).
-    
+
     Args:
         iterations (int): Number of time steps.
         dt (float): Time step (seconds).
         dxdydz (float): Tuple of spatial resolution (metres).
         rx (float): Tuple of coordinates of receiver position relative to transmitter position (metres).
-        
+
     Returns:
         fields (float): Array contain electric and magnetic field components.
     """
@@ -22,7 +22,7 @@ def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
     w.type = 'gaussiandot'
     w.amp = 1
     w.freq = 1e9
-    
+
     # Waveform integral
     wint = Waveform()
     wint.type = 'gaussian'
@@ -43,7 +43,7 @@ def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
     dx = dxdydz[0]
     dy = dxdydz[1]
     dz = dxdydz[2]
-    
+
     # Length of Hertzian dipole
     dl = dz
 
@@ -103,35 +103,35 @@ def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
 
     # Calculate fields
     for timestep in range(iterations):
-        
+
         # Calculate values for waveform, I * dl (current multiplied by dipole length) to match gprMax behaviour
         fint_Ex = wint.calculate_value((timestep * dt) - tau_Ex, dt) * dl
         f_Ex = w.calculate_value((timestep * dt) - tau_Ex, dt) * dl
         fdot_Ex = wdot.calculate_value((timestep * dt) - tau_Ex, dt) * dl
-        
+
         fint_Ey = wint.calculate_value((timestep * dt) - tau_Ey, dt) * dl
-        f_Ey= w.calculate_value((timestep * dt) - tau_Ey, dt) * dl
+        f_Ey = w.calculate_value((timestep * dt) - tau_Ey, dt) * dl
         fdot_Ey = wdot.calculate_value((timestep * dt) - tau_Ey, dt) * dl
-        
+
         fint_Ez = wint.calculate_value((timestep * dt) - tau_Ez, dt) * dl
         f_Ez = w.calculate_value((timestep * dt) - tau_Ez, dt) * dl
         fdot_Ez = wdot.calculate_value((timestep * dt) - tau_Ez, dt) * dl
-        
+
         fint_Hx = wint.calculate_value((timestep * dt) - tau_Hx, dt) * dl
         f_Hx = w.calculate_value((timestep * dt) - tau_Hx, dt) * dl
         fdot_Hx = wdot.calculate_value((timestep * dt) - tau_Hx, dt) * dl
-        
+
         fint_Hy = wint.calculate_value((timestep * dt) - tau_Hy, dt) * dl
-        f_Hy= w.calculate_value((timestep * dt) - tau_Hy, dt) * dl
+        f_Hy = w.calculate_value((timestep * dt) - tau_Hy, dt) * dl
         fdot_Hy = wdot.calculate_value((timestep * dt) - tau_Hy, dt) * dl
-        
+
         fint_Hz = wint.calculate_value((timestep * dt) - tau_Hz, dt) * dl
         f_Hz = w.calculate_value((timestep * dt) - tau_Hz, dt) * dl
         fdot_Hz = wdot.calculate_value((timestep * dt) - tau_Hz, dt) * dl
-        
+
         # Ex
         fields[timestep, 0] = ((Ex_x * Ex_z) / (4 * np.pi * e0 * Er_x**5)) * (3 * (fint_Ex + (tau_Ex * f_Ex)) + (tau_Ex**2 * fdot_Ex))
-        
+
         # Ey
         try:
             tmp = Ey_y / Ey_x
@@ -156,4 +156,3 @@ def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
         fields[timestep, 5] = 0
 
     return fields
-

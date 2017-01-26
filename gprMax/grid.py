@@ -196,7 +196,7 @@ def dispersion_analysis(G):
 
                 # Shift powers so that frequency with maximum power is at zero decibels
                 power -= np.amax(power)
-                
+
                 # Get frequency for max power
                 freqmaxpower = np.where(power[1::] == np.amax(power[1::]))[0][0]
 
@@ -253,7 +253,7 @@ def dispersion_analysis(G):
 
             # Physical phase velocity error (percentage)
             results['deltavp'] = (((vp * c) - c) / c) * 100
-                
+
         # Store rounded down value of grid sampling density
         results['N'] = int(np.floor(results['N']))
 

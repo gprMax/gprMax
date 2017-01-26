@@ -23,7 +23,7 @@ baseresult = np.load(args.baseresult)
 # Get machine/CPU/OS details
 try:
     machineIDlong = str(baseresult['machineID'])
-    #machineIDlong = 'Dell PowerEdge R630; Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz; Linux (3.10.0-327.18.2.el7.x86_64)' # Use to manually describe machine
+    # machineIDlong = 'Dell PowerEdge R630; Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz; Linux (3.10.0-327.18.2.el7.x86_64)' # Use to manually describe machine
     machineID = machineIDlong.split(';')[0]
 except KeyError:
     hostinfo = get_host_info()
@@ -112,5 +112,3 @@ ax.set_ylim(bottom=1, top=ax.get_ylim()[1] * 1.1)
 fig.savefig(os.path.join(os.path.dirname(args.baseresult), machineID.replace(' ', '_') + '.png'), dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
 plt.show()
-
-

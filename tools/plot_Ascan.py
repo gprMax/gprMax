@@ -31,16 +31,16 @@ from gprMax.receivers import Rx
 
 def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
     """Plots electric and magnetic fields and currents from all receiver points in the given output file. Each receiver point is plotted in a new figure window.
-            
+
     Args:
         filename (string): Filename (including path) of output file.
         outputs (list): List of field/current components to plot.
         fft (boolean): Plot FFT switch.
-        
+
     Returns:
         plt (object): matplotlib plot object.
     """
-    
+
     # Open output file and read some attributes
     f = h5py.File(filename, 'r')
     nrx = f.attrs['nrx']
@@ -62,10 +62,10 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
     for rx in range(1, nrx + 1):
         path = '/rxs/rx' + str(rx) + '/'
         availableoutputs = list(f[path].keys())
-        
+
         # If only a single output is required, create one subplot
         if len(outputs) == 1:
-            
+
             # Check for polarity of output and if requested output is in file
             if outputs[0][-1] == '-':
                 polarity = -1
@@ -75,10 +75,10 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                 polarity = 1
                 outputtext = outputs[0]
                 output = outputs[0]
-            
+
             if output not in availableoutputs:
                 raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(output, ', '.join(availableoutputs)))
-            
+
             outputdata = f[path + output][:] * polarity
 
             # Plotting if FFT required
@@ -113,7 +113,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                 ax2.set_xlabel('Frequency [Hz]')
                 ax2.set_ylabel('Power [dB]')
                 ax2.grid()
-                
+
                 # Change colours and labels for magnetic field components or currents
                 if 'H' in outputs[0]:
                     plt.setp(line1, color='g')
@@ -127,17 +127,17 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
 #                    plt.setp(ax1, ylabel=outputtext + ' current [A]')
 #                    plt.setp(stemlines, 'color', 'b')
 #                    plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
-                
+
                 plt.show()
-        
+
             # Plotting if no FFT required
             else:
                 fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]', ylabel=outputtext + ' field strength [V/m]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
-                line = ax.plot(time, outputdata,'r', lw=2, label=outputtext)
+                line = ax.plot(time, outputdata, 'r', lw=2, label=outputtext)
                 ax.set_xlim([0, np.amax(time)])
                 #ax.set_ylim([-15, 20])
                 ax.grid()
-                
+
                 if 'H' in output:
                     plt.setp(line, color='g')
                     plt.setp(ax, ylabel=outputtext + ', field strength [A/m]')
@@ -150,7 +150,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
             fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
             gs = gridspec.GridSpec(3, 2, hspace=0.3, wspace=0.3)
             for output in outputs:
-                
+
                 # Check for polarity of output and if requested output is in file
                 if output[-1] == 'm':
                     polarity = -1
@@ -159,41 +159,41 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                 else:
                     polarity = 1
                     outputtext = output
-                
+
                 # Check if requested output is in file
                 if output not in availableoutputs:
                     raise CmdInputError('Output(s) requested to plot: {}, but available output(s) for receiver {} in the file: {}'.format(', '.join(outputs), rx, ', '.join(availableoutputs)))
-                
+
                 outputdata = f[path + output][:] * polarity
-                
+
                 if output == 'Ex':
                     ax = plt.subplot(gs[0, 0])
-                    ax.plot(time, outputdata,'r', lw=2, label=outputtext)
+                    ax.plot(time, outputdata, 'r', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', field strength [V/m]')
                 #ax.set_ylim([-15, 20])
                 elif output == 'Ey':
                     ax = plt.subplot(gs[1, 0])
-                    ax.plot(time, outputdata,'r', lw=2, label=outputtext)
+                    ax.plot(time, outputdata, 'r', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', field strength [V/m]')
                 #ax.set_ylim([-15, 20])
                 elif output == 'Ez':
                     ax = plt.subplot(gs[2, 0])
-                    ax.plot(time, outputdata,'r', lw=2, label=outputtext)
+                    ax.plot(time, outputdata, 'r', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', field strength [V/m]')
                 #ax.set_ylim([-15, 20])
                 elif output == 'Hx':
                     ax = plt.subplot(gs[0, 1])
-                    ax.plot(time, outputdata,'g', lw=2, label=outputtext)
+                    ax.plot(time, outputdata, 'g', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', field strength [A/m]')
                 #ax.set_ylim([-0.03, 0.03])
                 elif output == 'Hy':
                     ax = plt.subplot(gs[1, 1])
-                    ax.plot(time, outputdata,'g', lw=2, label=outputtext)
+                    ax.plot(time, outputdata, 'g', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', field strength [A/m]')
                 #ax.set_ylim([-0.03, 0.03])
                 elif output == 'Hz':
                     ax = plt.subplot(gs[2, 1])
-                    ax.plot(time, outputdata,'g', lw=2, label=outputtext)
+                    ax.plot(time, outputdata, 'g', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', field strength [A/m]')
                 #ax.set_ylim([-0.03, 0.03])
 #                elif output == 'Ix':
@@ -228,6 +228,5 @@ if __name__ == "__main__":
     parser.add_argument('-fft', action='store_true', help='plot FFT (single output must be specified)', default=False)
     args = parser.parse_args()
 
-    plt = mpl_plot(args.outputfile, args.outputs, fft=args.fft)
-    plt.show()
-
+    plthandle = mpl_plot(args.outputfile, args.outputs, fft=args.fft)
+    plthandle.show()

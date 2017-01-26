@@ -86,12 +86,12 @@ def process_multicmds(multicmds, G):
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            
+
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
             resistance = float(tmp[4])
-            
+
             check_coordinates(xcoord, ycoord, zcoord)
             if xcoord < G.pmlthickness['xminus'] or xcoord > G.nx - G.pmlthickness['xplus'] or ycoord < G.pmlthickness['yminus'] or ycoord > G.ny - G.pmlthickness['yplus'] or zcoord < G.pmlthickness['zminus'] or zcoord > G.nz - G.pmlthickness['zplus']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
@@ -149,7 +149,7 @@ def process_multicmds(multicmds, G):
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            
+
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
@@ -222,7 +222,7 @@ def process_multicmds(multicmds, G):
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            
+
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
@@ -283,7 +283,7 @@ def process_multicmds(multicmds, G):
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            
+
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
