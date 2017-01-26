@@ -84,6 +84,8 @@ class FDTDGrid(Grid):
         self.highestfreqthres = 60
         # Maximum allowable percentage physical phase-velocity phase error
         self.maxnumericaldisp = 2
+        # Minimum grid sampling of smallest wavelength for physical wave propagation
+        self.mingridsampling = 3
 
         self.nx = 0
         self.ny = 0
@@ -244,17 +246,16 @@ def dispersion_analysis(G):
         # Grid sampling density
         results['N'] = minwavelength / delta
 
-        # If there is an invalid inverse sine value set to maximum, i.e. pi/2
-        try:
-            tmp = np.arcsin((1 / S) * np.sin((np.pi * S) / results['N']))
-        except FloatingPointError:
-            tmp = np.pi / 2
+        # Check grid sampling will result in physical wave propagation
+        if int(np.floor(results['N'])) >= G.mingridsampling:
+            # Numerical phase velocity
+            vp = np.pi / (results['N'] * np.arcsin((1 / S) * np.sin((np.pi * S) / results['N'])))
 
-        # Numerical phase velocity
-        vp = np.pi / (results['N'] * tmp)
-
-        # Physical phase velocity error (percentage)
-        results['deltavp'] = (((vp * c) - c) / c) * 100
+            # Physical phase velocity error (percentage)
+            results['deltavp'] = (((vp * c) - c) / c) * 100
+                
+        # Store rounded down value of grid sampling density
+        results['N'] = int(np.floor(results['N']))
 
     return results
 
