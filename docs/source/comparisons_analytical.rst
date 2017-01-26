@@ -24,14 +24,14 @@ Results
 
 .. _hertzian_dipole_fs_results:
 
-.. figure:: ../../tests/models_basic/hertzian_dipole_fs/hertzian_dipole_fs_analytical.png
+.. figure:: ../../tests/models_basic/hertzian_dipole_fs_analytical/hertzian_dipole_fs_analytical.png
     :width: 600 px
 
     Time history of the electric and magnetic field components of the modelled and analytical solutions.
 
 .. _hertzian_dipole_fs_results_diffs:
 
-.. figure:: ../../tests/models_basic/hertzian_dipole_fs/hertzian_dipole_fs_analytical_diffs.png
+.. figure:: ../../tests/models_basic/hertzian_dipole_fs_analytical/hertzian_dipole_fs_analytical_diffs.png
     :width: 600 px
 
     Percentage differences between the modelled and analytical solutions ('Ref', in this case, indicates solution calculated from theory)
