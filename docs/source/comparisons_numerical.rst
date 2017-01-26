@@ -17,9 +17,9 @@ This example considers the input impedance of a planar bowtie antenna in free sp
 FDTD model
 ^^^^^^^^^^
 
-:download:`antenna_bowtie_fs.in <../../tests/numerical/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs.in>`
+:download:`antenna_bowtie_fs.in <../../tests/other_codes/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs.in>`
 
-.. literalinclude:: ../../tests/numerical/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs.in
+.. literalinclude:: ../../tests/other_codes/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs.in
     :language: none
     :linenos:
 
@@ -44,7 +44,7 @@ Results
 
 .. _antenna_bowtie_fs_ant_params:
 
-.. figure:: ../../tests/numerical/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs_ant_params.png
+.. figure:: ../../tests/other_codes/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs_ant_params.png
     :width: 600 px
 
     Input impedance (resistive and reactive) of a bowtie antenna in free space using FDTD (gprMax) and MoM (MATLAB) models.
