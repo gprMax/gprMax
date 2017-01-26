@@ -157,12 +157,6 @@ class PML(object):
         """
 
         self.direction = direction
-        if self.direction[0] == 'x':
-            self.d = G.dx
-        elif self.direction[0] == 'y':
-            self.d = G.dy
-        elif self.direction[0] == 'z':
-            self.d = G.dz
         self.xs = xs
         self.xf = xf
         self.ys = ys
@@ -172,28 +166,37 @@ class PML(object):
         self.nx = xf - xs
         self.ny = yf - ys
         self.nz = zf - zs
+        
+        if self.direction[0] == 'x':
+            self.d = G.dx
+            self.thickness = self.nx
+        elif self.direction[0] == 'y':
+            self.d = G.dy
+            self.thickness = self.ny
+        elif self.direction[0] == 'z':
+            self.d = G.dz
+            self.thickness = self.nz
+    
         self.CFS = G.cfs
         if not self.CFS:
             self.CFS = [CFS()]
+        
         self.initialise_field_arrays()
 
     def initialise_field_arrays(self):
         """Initialise arrays to store fields in PML."""
 
         if self.direction[0] == 'x':
-            self.thickness = self.nx
             self.EPhi1 = np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz + 1), dtype=floattype)
             self.EPhi2 = np.zeros((len(self.CFS), self.nx + 1, self.ny + 1, self.nz), dtype=floattype)
             self.HPhi1 = np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz), dtype=floattype)
             self.HPhi2 = np.zeros((len(self.CFS), self.nx, self.ny, self.nz + 1), dtype=floattype)
         elif self.direction[0] == 'y':
-            self.thickness = self.ny
             self.EPhi1 = np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz + 1), dtype=floattype)
             self.EPhi2 = np.zeros((len(self.CFS), self.nx + 1, self.ny + 1, self.nz), dtype=floattype)
             self.HPhi1 = np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz), dtype=floattype)
             self.HPhi2 = np.zeros((len(self.CFS), self.nx, self.ny, self.nz + 1), dtype=floattype)
         elif self.direction[0] == 'z':
-            self.thickness = self.nz
             self.EPhi1 = np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz + 1), dtype=floattype)
             self.EPhi2 = np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz + 1), dtype=floattype)
             self.HPhi1 = np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz), dtype=floattype)
