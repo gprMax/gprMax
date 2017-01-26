@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 from gprMax._version import __version__
-from gprMax.utilities import get_machine_cpu_os
+from gprMax.utilities import get_host_info
 
 """Plots execution times and speedup factors from benchmarking models run with different numbers of threads. Results are read from a NumPy archive."""
 
@@ -26,8 +26,8 @@ try:
     #machineIDlong = 'Dell PowerEdge R630; Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz; Linux (3.10.0-327.18.2.el7.x86_64)' # Use to manually describe machine
     machineID = machineIDlong.split(';')[0]
 except KeyError:
-    machineID, cpuID, osversion = get_machine_cpu_os()
-    machineIDlong = machineID + '; ' + cpuID + '; ' + osversion
+    hostinfo = get_host_info()
+    machineIDlong = '; '.join([hostinfo['machineID'], hostinfo['cpuID'], hostinfo['osversion']])
 print('MachineID: {}'.format(machineIDlong))
 
 # Base result info
