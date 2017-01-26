@@ -79,7 +79,6 @@ for i, model in enumerate(testmodels):
 
         # Arrays for storing field data
         datatest = np.zeros((filetest.attrs['Iterations'], len(outputstest)), dtype=floattype)
-        print(datatest.shape)
         for ID, name in enumerate(outputstest):
             datatest[:, ID] = filetest[path + str(name)][:]
 
@@ -100,7 +99,6 @@ for i, model in enumerate(testmodels):
             try:
                 datadiffs[:, i] = ((np.abs(dataref[:, i] - datatest[:, i])) / max) * 100
             except FloatingPointError:
-                print('FloatingPointError')
                 datadiffs[:, i] = 0
 
         # Register test passed
@@ -159,7 +157,6 @@ for i, model in enumerate(testmodels):
             try:
                 datadiffs[:, i] = ((np.abs(dataref[:, i] - datatest[:, i])) / max) * 100
             except FloatingPointError:
-                print('FloatingPointError')
                 datadiffs[:, i] = 0
 
         # Register test passed
