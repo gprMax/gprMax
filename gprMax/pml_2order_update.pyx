@@ -35,7 +35,7 @@ cpdef void update_pml_2order_electric_xminus(int xs, int xf, int ys, int yf, int
         updatecoeffs, ID, E, H (memoryviews): Access to update coeffients, ID and field component arrays
         EPhi, HPhi, ERA, ERB, ERE, ERF (memoryviews): Access to PML coefficient arrays
         d (float): Spatial discretisation, e.g. dx, dy or dz
-        """
+    """
     
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialEy, materialEz
