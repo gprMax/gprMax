@@ -21,6 +21,7 @@ from collections import OrderedDict
 from colorama import init, Fore, Style
 init()
 import numpy as np
+np.seterr(invalid='raise')
 
 from gprMax.constants import c, floattype, complextype
 from gprMax.materials import Material
@@ -193,9 +194,12 @@ def dispersion_analysis(G):
 
                 # Shift powers so that frequency with maximum power is at zero decibels
                 power -= np.amax(power)
+                
+                # Get frequency for max power
+                freqmaxpower = np.where(power[1::] == np.amax(power[1::]))[0][0]
 
-                # Set maximum frequency to -60dB from maximum power, ignoring DC value
-                freq = np.where((np.amax(power[1::]) - power[1::]) > G.highestfreqthres)[0][0] + 1
+                # Set maximum frequency to a threshold drop from maximum power, ignoring DC value
+                freq = np.where((np.amax(power[freqmaxpower::]) - power[freqmaxpower::]) > G.highestfreqthres)[0][0] + 1
                 maxfreqs.append(freqs[freq])
 
             else:
@@ -240,8 +244,14 @@ def dispersion_analysis(G):
         # Grid sampling density
         results['N'] = minwavelength / delta
 
+        # If there is an invalid inverse sine value set to maximum, i.e. pi/2
+        try:
+            tmp = np.arcsin((1 / S) * np.sin((np.pi * S) / results['N']))
+        except FloatingPointError:
+            tmp = np.pi / 2
+
         # Numerical phase velocity
-        vp = np.pi / (results['N'] * np.arcsin((1 / S) * np.sin((np.pi * S) / results['N'])))
+        vp = np.pi / (results['N'] * tmp)
 
         # Physical phase velocity error (percentage)
         results['deltavp'] = (((vp * c) - c) / c) * 100
