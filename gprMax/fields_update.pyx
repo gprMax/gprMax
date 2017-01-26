@@ -38,31 +38,29 @@ cpdef void update_electric(int nx, int ny, int nz, int nthreads, floattype_t[:, 
     cdef Py_ssize_t i, j, k
     cdef int materialEx, materialEy, materialEz
 
-    # 2D
-    if nx == 1 or ny == 1 or nz == 1:
-        # Ex component
-        if nx == 1:
-            for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
-                for j in range(1, ny):
-                    for k in range(1, nz):
-                        materialEx = ID[0, i, j, k]
-                        Ex[i, j, k] = updatecoeffsE[materialEx, 0] * Ex[i, j, k] + updatecoeffsE[materialEx, 2] * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[materialEx, 3] * (Hy[i, j, k] - Hy[i, j, k - 1])
+    # 2D - Ex component
+    if nx == 1:
+        for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(1, nz):
+                    materialEx = ID[0, i, j, k]
+                    Ex[i, j, k] = updatecoeffsE[materialEx, 0] * Ex[i, j, k] + updatecoeffsE[materialEx, 2] * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[materialEx, 3] * (Hy[i, j, k] - Hy[i, j, k - 1])
 
-        # Ey component
-        if ny == 1:
-            for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
-                for j in range(0, ny):
-                    for k in range(1, nz):
-                        materialEy = ID[1, i, j, k]
-                        Ey[i, j, k] = updatecoeffsE[materialEy, 0] * Ey[i, j, k] + updatecoeffsE[materialEy, 3] * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[materialEy, 1] * (Hz[i, j, k] - Hz[i - 1, j, k])
+    # 2D - Ey component
+    elif ny == 1:
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(0, ny):
+                for k in range(1, nz):
+                    materialEy = ID[1, i, j, k]
+                    Ey[i, j, k] = updatecoeffsE[materialEy, 0] * Ey[i, j, k] + updatecoeffsE[materialEy, 3] * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[materialEy, 1] * (Hz[i, j, k] - Hz[i - 1, j, k])
 
-        # Ez component
-        if nz == 1:
-            for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
-                for j in range(1, ny):
-                    for k in range(0, nz):
-                        materialEz = ID[2, i, j, k]
-                        Ez[i, j, k] = updatecoeffsE[materialEz, 0] * Ez[i, j, k] + updatecoeffsE[materialEz, 1] * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[materialEz, 2] * (Hx[i, j, k] - Hx[i, j - 1, k])
+    # 2D - Ez component
+    elif nz == 1:
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                for k in range(0, nz):
+                    materialEz = ID[2, i, j, k]
+                    Ez[i, j, k] = updatecoeffsE[materialEz, 0] * Ez[i, j, k] + updatecoeffsE[materialEz, 1] * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[materialEz, 2] * (Hx[i, j, k] - Hx[i, j - 1, k])
 
     # 3D
     else:
