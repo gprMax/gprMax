@@ -152,8 +152,9 @@ class PML(object):
     def __init__(self, G, direction=None, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0):
         """
         Args:
-            xs, xf, ys, yf, zs, zf (float): Extent of the PML volume.
-            cfs (list): CFS class instances associated with the PML.
+            G (class): Grid class instance - holds essential parameters describing the model.
+            direction (str): Identifier for PML slab.
+            xs, xf, ys, yf, zs, zf (float): Extent of the PML slab.
         """
 
         self.direction = direction
