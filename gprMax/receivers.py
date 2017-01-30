@@ -49,25 +49,16 @@ def store_outputs(timestep, Ex, Ey, Ez, Hx, Hy, Hz, G):
     """
 
     for rx in G.rxs:
-        if 'Ex' in rx.outputs:
-            rx.outputs['Ex'][timestep] = Ex[rx.xcoord, rx.ycoord, rx.zcoord]
-        if 'Ey' in rx.outputs:
-            rx.outputs['Ey'][timestep] = Ey[rx.xcoord, rx.ycoord, rx.zcoord]
-        if 'Ez' in rx.outputs:
-            rx.outputs['Ez'][timestep] = Ez[rx.xcoord, rx.ycoord, rx.zcoord]
-        if 'Hx' in rx.outputs:
-            rx.outputs['Hx'][timestep] = Hx[rx.xcoord, rx.ycoord, rx.zcoord]
-        if 'Hy' in rx.outputs:
-            rx.outputs['Hy'][timestep] = Hy[rx.xcoord, rx.ycoord, rx.zcoord]
-        if 'Hz' in rx.outputs:
-            rx.outputs['Hz'][timestep] = Hz[rx.xcoord, rx.ycoord, rx.zcoord]
-        if 'Ix' in rx.outputs:
-            rx.outputs['Ix'][timestep] = Ix(rx.xcoord, rx.ycoord, rx.zcoord, Hy, Hz, G)
-        if 'Iy' in rx.outputs:
-            rx.outputs['Iy'][timestep] = Iy(rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hz, G)
-        if 'Iz' in rx.outputs:
-            rx.outputs['Iz'][timestep] = Iz(rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hy, G)
+        for output in rx.outputs:
+            # Store electric or magnetic field components
+            if not 'I' in output:
+                field = locals()[output]
+                rx.outputs[output][timestep] = field[rx.xcoord, rx.ycoord, rx.zcoord]
+            # Store current component
+            else:
+                func = globals()[output]
+                rx.outputs[output][timestep] = func(rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hy, Hz, G)
 
-    for tlindex, tl in enumerate(G.transmissionlines):
+    for tl in G.transmissionlines:
         tl.Vtotal[timestep] = tl.voltage[tl.antpos]
         tl.Itotal[timestep] = tl.current[tl.antpos]
