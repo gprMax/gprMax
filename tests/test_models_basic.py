@@ -25,7 +25,7 @@ from colorama import init, Fore, Style
 init()
 import h5py
 import numpy as np
-np.seterr(invalid='raise')
+np.seterr(divide='raise')
 import matplotlib.pyplot as plt
 
 if sys.platform == 'linux':
@@ -52,6 +52,9 @@ testmodels = ['hertzian_dipole_fs_analytical', '2D_ExHyHz', '2D_EyHxHz', '2D_EzH
 #testmodels = [testmodels[5]]
 testresults = dict.fromkeys(testmodels)
 path = '/rxs/rx1/'
+
+# Minimum value of difference to plot (dB)
+plotmin = -160
 
 starttime = perf_counter()
 
@@ -81,6 +84,8 @@ for i, model in enumerate(testmodels):
         datatest = np.zeros((filetest.attrs['Iterations'], len(outputstest)), dtype=floattype)
         for ID, name in enumerate(outputstest):
             datatest[:, ID] = filetest[path + str(name)][:]
+            if np.any(np.isnan(datatest[:, ID])):
+                raise GeneralError('Test data contains NaNs')
 
         # Tx/Rx position to feed to analytical solution
         rxpos = filetest[path].attrs['Position']
@@ -91,23 +96,10 @@ for i, model in enumerate(testmodels):
         dataref = hertzian_dipole_fs(filetest.attrs['Iterations'], filetest.attrs['dt'], filetest.attrs['dx, dy, dz'], rxposrelative)
 
         filetest.close()
-
-        # Diffs
-        datadiffs = np.zeros(datatest.shape, dtype=floattype)
-        for i in range(len(outputstest)):
-            max = np.amax(np.abs(dataref[:, i]))
-            try:
-                datadiffs[:, i] = ((np.abs(dataref[:, i] - datatest[:, i])) / max) * 100
-            except FloatingPointError:
-                datadiffs[:, i] = 0
-
-        # Register test passed
-        threshold = 2  # Percent
-        if np.amax(np.amax(datadiffs)) < 2:
-            testresults[model]['Pass'] = True
-        else:
-            testresults[model]['Pass'] = False
-        testresults[model]['Max diff'] = np.amax(np.amax(datadiffs))
+        
+        # Threshold below which test is considered passed (dB)
+        threshold = -35
+        testresults[model]['Threshold'] = threshold
 
     else:
         # Get output for model and reference files
@@ -146,25 +138,33 @@ for i, model in enumerate(testmodels):
         for ID, name in enumerate(outputsref):
             dataref[:, ID] = fileref[path + str(name)][:]
             datatest[:, ID] = filetest[path + str(name)][:]
+            if np.any(np.isnan(datatest[:, ID])):
+                raise GeneralError('Test data contains NaNs')
 
         fileref.close()
         filetest.close()
+        
+        # Threshold below which test is considered passed (dB)
+        threshold = -120
+        testresults[model]['Threshold'] = threshold
 
-        # Diffs
-        datadiffs = np.zeros(datatest.shape, dtype=floattype)
-        for i in range(len(outputstest)):
-            max = np.nanmax(np.abs(dataref[:, i]))
-            try:
-                datadiffs[:, i] = ((np.abs(dataref[:, i] - datatest[:, i])) / max) * 100
-            except FloatingPointError:
-                datadiffs[:, i] = 0
+    # Diffs
+    datadiffs = np.zeros(datatest.shape, dtype=floattype)
+    for i in range(len(outputstest)):
+        max = np.amax(np.abs(dataref[:, i]))
+        try:
+            datadiffs[:, i] = 20 * np.log10(((np.abs(dataref[:, i] - datatest[:, i])) / max))
+        # If a divide by zero error is encountered, consider the difference to be minimum plotted
+        except FloatingPointError:
+            datadiffs[:, i] = plotmin
 
-        # Register test passed
-        if not np.any(datadiffs):
-            testresults[model]['Pass'] = True
-        else:
-            testresults[model]['Pass'] = False
-        testresults[model]['Max diff'] = np.amax(np.amax(datadiffs))
+    # Register test passed/failed
+    maxdiff = np.amax(np.amax(datadiffs))
+    if maxdiff <= threshold:
+        testresults[model]['Pass'] = True
+    else:
+        testresults[model]['Pass'] = False
+    testresults[model]['Max diff'] = maxdiff
 
     # Plot datasets
     fig1, ((ex1, hx1), (ey1, hy1), (ez1, hz1)) = plt.subplots(nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), num=model + '.in', figsize=(20, 10), facecolor='w', edgecolor='w')
@@ -195,10 +195,11 @@ for i, model in enumerate(testmodels):
     hx2.plot(timeref, datadiffs[:, 3], 'r', lw=2, label='Hx')
     hy2.plot(timeref, datadiffs[:, 4], 'r', lw=2, label='Hy')
     hz2.plot(timeref, datadiffs[:, 5], 'r', lw=2, label='Hz')
-    ylabels = ['$E_x$, difference [%]', '$H_x$, difference [%]', '$E_y$, difference [%]', '$H_y$, difference [%]', '$E_z$, difference [%]', '$H_z$, difference [%]']
+    ylabels = ['$E_x$, difference [dB]', '$H_x$, difference [dB]', '$E_y$, difference [dB]', '$H_y$, difference [dB]', '$E_z$, difference [dB]', '$H_z$, difference [dB]']
     for i, ax in enumerate(fig2.axes):
         ax.set_ylabel(ylabels[i])
         ax.set_xlim(0, np.amax(timetest))
+        ax.set_ylim([plotmin, 0])
         ax.grid()
 
     # Save a PDF/PNG of the figure
@@ -215,14 +216,14 @@ passed = 0
 for name, data in testresults.items():
     if 'analytical' in name:
         if data['Pass']:
-            print(Fore.GREEN + "Test '{}.in' using v.{} compared to analytical solution passed. Maximum difference = {}%".format(name, data['Test version'], data['Max diff']) + Style.RESET_ALL)
+            print(Fore.GREEN + "Test '{}.in' using v.{} compared to analytical solution passed. Max difference {:.2f}dB <= {:.2f}dB threshold".format(name, data['Test version'], data['Max diff'], data['Threshold']) + Style.RESET_ALL)
             passed += 1
         else:
-            print(Fore.RED + "Test '{}.in' using v.{} compared to analytical solution failed. Maximum difference = {}%".format(name, data['Test version'], data['Max diff']) + Style.RESET_ALL)
+            print(Fore.RED + "Test '{}.in' using v.{} compared to analytical solution failed. Max difference {:.2f}dB <= {:.2f}dB threshold".format(name, data['Test version'], data['Max diff'], data['Threshold']) + Style.RESET_ALL)
     else:
         if data['Pass']:
-            print(Fore.GREEN + "Test '{}.in' using v.{} compared to reference solution using v.{} passed. Maximum difference = {}%".format(name, data['Test version'], data['Ref version'], data['Max diff']) + Style.RESET_ALL)
+            print(Fore.GREEN + "Test '{}.in' using v.{} compared to reference solution using v.{} passed. Max difference {:.2f}dB <= {:.2f}dB threshold".format(name, data['Test version'], data['Ref version'], data['Max diff'], data['Threshold']) + Style.RESET_ALL)
             passed += 1
         else:
-            print(Fore.RED + "Test '{}.in' using v.{} compared to reference solution using v.{} failed. Maximum difference = {}%".format(name, data['Test version'], data['Ref version'], data['Max diff']) + Style.RESET_ALL)
+            print(Fore.RED + "Test '{}.in' using v.{} compared to reference solution using v.{} failed. Max difference {:.2f}dB <= {:.2f}dB threshold".format(name, data['Test version'], data['Ref version'], data['Max diff'], data['Threshold']) + Style.RESET_ALL)
 print('{} of {} tests passed successfully in [HH:MM:SS]: {}'.format(passed, len(testmodels), datetime.timedelta(seconds=int(stoptime - starttime))))
