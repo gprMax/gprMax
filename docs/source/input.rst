@@ -892,12 +892,12 @@ Allows you to control the number of cells of PML that are used on the six sides 
 
     #pml_cells: i1 [i2 i3 i4 i5 i6]
 
-* ``i1`` is the number of cells of PML to use on all sides of the model domain (can be set to zero to completely switch off the PML), or ``i1`` is the number of cells of PML to use on the face of the model domain nearest the origin of the x-axis (xminus).
-* ``i2`` is the number of cells of PML to use on the face of the model domain nearest the origin of the y-axis (yminus).
-* ``i3`` is the number of cells of PML to use on the face of the model domain nearest the origin of the z-axis (zminus).
-* ``i4`` is the number of cells of PML to use on the face of the model domain furthest from the origin of the x-axis (xplus).
-* ``i5`` is the number of cells of PML to use on the face of the model domain furthest from the origin of the y-axis (yplus).
-* ``i6`` is the number of cells of PML to use on the face of the model domain furthest from the origin of the z-axis (zplus).
+* ``i1`` is the number of cells of PML to use on all sides of the model domain (can be set to zero to completely switch off the PML), or ``i1`` is the number of cells of PML to use on the side of the model domain nearest the origin of the x-axis (x0).
+* ``i2`` is the number of cells of PML to use on the side of the model domain nearest the origin of the y-axis (y0).
+* ``i3`` is the number of cells of PML to use on the side of the model domain nearest the origin of the z-axis (z0).
+* ``i4`` is the number of cells of PML to use on the side of the model domain furthest from the origin of the x-axis (xmax).
+* ``i5`` is the number of cells of PML to use on the side of the model domain furthest from the origin of the y-axis (ymax).
+* ``i6`` is the number of cells of PML to use on the side of the model domain furthest from the origin of the z-axis (zmax).
 * ``i1 i2 i3 i4 i5 i6`` may be set to zero to turn off the PML on a specific side of the model domain.
 
 For example to use a PML with 20 cells (thicker than the default 10 cells) on only the z-axis sides of the domain use:
