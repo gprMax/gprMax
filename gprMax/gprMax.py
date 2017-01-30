@@ -406,12 +406,12 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             pass  # If all the PMLs are switched off don't need to build anything
         else:
             if G.messages:
-                if all(value == G.pmlthickness['xminus'] for value in G.pmlthickness.values()):
-                    pmlinfo = G.pmlthickness['xminus']
+                if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
+                    pmlinfo = G.pmlthickness['x0']
                 else:
                     pmlinfo = ''
                     for key, value in G.pmlthickness.items():
-                        pmlinfo += '{}: {}, '.format(key, value)
+                        pmlinfo += '{}: {} cells, '.format(key, value)
                     pmlinfo = pmlinfo[:-2]
                 print('PML boundaries: {} cells'.format(pmlinfo))
             pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
