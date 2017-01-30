@@ -93,7 +93,7 @@ def process_multicmds(multicmds, G):
             resistance = float(tmp[4])
 
             check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness['xminus'] or xcoord > G.nx - G.pmlthickness['xplus'] or ycoord < G.pmlthickness['yminus'] or ycoord > G.ny - G.pmlthickness['yplus'] or zcoord < G.pmlthickness['zminus'] or zcoord > G.nz - G.pmlthickness['zplus']:
+            if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
             if resistance < 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a source resistance of zero or greater')
@@ -154,7 +154,7 @@ def process_multicmds(multicmds, G):
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
             check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness['xminus'] or xcoord > G.nx - G.pmlthickness['xplus'] or ycoord < G.pmlthickness['yminus'] or ycoord > G.ny - G.pmlthickness['yplus'] or zcoord < G.pmlthickness['zminus'] or zcoord > G.nz - G.pmlthickness['zplus']:
+            if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
 
             # Check if there is a waveformID in the waveforms list
@@ -227,7 +227,7 @@ def process_multicmds(multicmds, G):
             ycoord = G.calculate_coord('y', tmp[2])
             zcoord = G.calculate_coord('z', tmp[3])
             check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness['xminus'] or xcoord > G.nx - G.pmlthickness['xplus'] or ycoord < G.pmlthickness['yminus'] or ycoord > G.ny - G.pmlthickness['yplus'] or zcoord < G.pmlthickness['zminus'] or zcoord > G.nz - G.pmlthickness['zplus']:
+            if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
 
             # Check if there is a waveformID in the waveforms list
@@ -290,7 +290,7 @@ def process_multicmds(multicmds, G):
             resistance = float(tmp[4])
 
             check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness['xminus'] or xcoord > G.nx - G.pmlthickness['xplus'] or ycoord < G.pmlthickness['yminus'] or ycoord > G.ny - G.pmlthickness['yplus'] or zcoord < G.pmlthickness['zminus'] or zcoord > G.nz - G.pmlthickness['zplus']:
+            if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
             if resistance <= 0 or resistance >= z0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a resistance greater than zero and less than the impedance of free space, i.e. 376.73 Ohms')
@@ -348,7 +348,7 @@ def process_multicmds(multicmds, G):
             ycoord = round_value(float(tmp[1]) / G.dy)
             zcoord = round_value(float(tmp[2]) / G.dz)
             check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness['xminus'] or xcoord > G.nx - G.pmlthickness['xplus'] or ycoord < G.pmlthickness['yminus'] or ycoord > G.ny - G.pmlthickness['yplus'] or zcoord < G.pmlthickness['zminus'] or zcoord > G.nz - G.pmlthickness['zplus']:
+            if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
 
             r = Rx()
@@ -401,7 +401,7 @@ def process_multicmds(multicmds, G):
             check_coordinates(xs, ys, zs, name='lower')
             check_coordinates(xf, yf, zf, name='upper')
 
-            if xcoord < G.pmlthickness['xminus'] or xcoord > G.nx - G.pmlthickness['xplus'] or ycoord < G.pmlthickness['yminus'] or ycoord > G.ny - G.pmlthickness['yplus'] or zcoord < G.pmlthickness['zminus'] or zcoord > G.nz - G.pmlthickness['zplus']:
+            if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
             if xs > xf or ys > yf or zs > zf:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
