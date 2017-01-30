@@ -68,22 +68,15 @@ class CFS(object):
         self.kappa = CFSParameter(ID='kappa', scalingprofile='constant', min=1, max=1)
         self.sigma = CFSParameter(ID='sigma', scalingprofile='quartic', min=0, max=None)
 
-    def calculate_sigmamax(self, direction, er, mr, G):
+    def calculate_sigmamax(self, d, er, mr, G):
         """Calculates an optimum value for sigma max based on underlying material properties.
 
         Args:
-            direction (str): Direction of PML slab
+            d (float): dx, dy, or dz in direction of PML.
             er (float): Average permittivity of underlying material.
             mr (float): Average permeability of underlying material.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-
-        if direction[0] == 'x':
-            d = G.dx
-        elif direction[0] == 'y':
-            d = G.dy
-        elif direction[0] == 'z':
-            d = G.dz
 
         # Calculation of the maximum value of sigma from http://dx.doi.org/10.1109/8.546249
         m = CFSParameter.scalingprofiles[self.sigma.scalingprofile]
@@ -105,6 +98,7 @@ class CFS(object):
         tmp = (np.linspace(0, (len(Evalues) - 1) + 0.5, num=2 * len(Evalues)) / (len(Evalues) - 1)) ** order
         Evalues = tmp[0:-1:2]
         Hvalues = tmp[1::2]
+        
         return Evalues, Hvalues
 
     def calculate_values(self, thickness, parameter):
@@ -119,8 +113,8 @@ class CFS(object):
             Hvalues (float): numpy array holding profile value for magnetic PML update.
         """
 
-        Evalues = np.zeros(thickness + 1, dtype=floattype)
-        Hvalues = np.zeros(thickness + 1, dtype=floattype)
+        Evalues = np.zeros(thickness, dtype=floattype)
+        Hvalues = np.zeros(thickness, dtype=floattype)
 
         if parameter.scalingprofile == 'constant':
             Evalues += parameter.max
@@ -147,16 +141,24 @@ class CFS(object):
 class PML(object):
     """PML - the implementation comes from the derivation in: http://dx.doi.org/10.1109/TAP.2011.2180344"""
 
-    slabs = ['xminus', 'yminus', 'zminus', 'xplus', 'yplus', 'zplus']
+    # IDs for default PML slabs at boundaries of domain
+    boundaryIDs = ['x0', 'y0', 'z0', 'xmax', 'ymax', 'zmax']
+    
+    # Indicates direction of increasing absorption
+    # xminus, yminus, zminus - absorption increases in negative direction of x-axis, y-axis, or z-axis
+    # xplus, yplus, zplus - absorption increases in positive direction of x-axis, y-axis, or z-axis
+    directions = ['xminus', 'yminus', 'zminus', 'xplus', 'yplus', 'zplus']
 
-    def __init__(self, G, direction=None, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0):
+    def __init__(self, G, ID=None, direction=None, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0):
         """
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
-            direction (str): Identifier for PML slab.
+            ID (str): Identifier for PML slab.
+            direction (str): Direction of increasing absorption.
             xs, xf, ys, yf, zs, zf (float): Extent of the PML slab.
         """
 
+        self.ID = ID
         self.direction = direction
         self.xs = xs
         self.xf = xf
@@ -168,15 +170,17 @@ class PML(object):
         self.ny = yf - ys
         self.nz = zf - zs
 
+        # Spatial discretisation and thickness
+        # (one extra cell of thickness required for interpolation of electric and magnetic scaling values)
         if self.direction[0] == 'x':
             self.d = G.dx
-            self.thickness = self.nx
+            self.thickness = self.nx + 1
         elif self.direction[0] == 'y':
             self.d = G.dy
-            self.thickness = self.ny
+            self.thickness = self.ny + 1
         elif self.direction[0] == 'z':
             self.d = G.dz
-            self.thickness = self.nz
+            self.thickness = self.nz + 1
 
         self.CFS = G.cfs
         if not self.CFS:
@@ -212,18 +216,18 @@ class PML(object):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        self.ERA = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-        self.ERB = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-        self.ERE = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-        self.ERF = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-        self.HRA = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-        self.HRB = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-        self.HRE = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
-        self.HRF = np.zeros((len(self.CFS), self.thickness + 1), dtype=floattype)
+        self.ERA = np.zeros((len(self.CFS), self.thickness), dtype=floattype)
+        self.ERB = np.zeros((len(self.CFS), self.thickness), dtype=floattype)
+        self.ERE = np.zeros((len(self.CFS), self.thickness), dtype=floattype)
+        self.ERF = np.zeros((len(self.CFS), self.thickness), dtype=floattype)
+        self.HRA = np.zeros((len(self.CFS), self.thickness), dtype=floattype)
+        self.HRB = np.zeros((len(self.CFS), self.thickness), dtype=floattype)
+        self.HRE = np.zeros((len(self.CFS), self.thickness), dtype=floattype)
+        self.HRF = np.zeros((len(self.CFS), self.thickness), dtype=floattype)
 
         for x, cfs in enumerate(self.CFS):
             if not cfs.sigma.max:
-                cfs.calculate_sigmamax(self.direction, er, mr, G)
+                cfs.calculate_sigmamax(self.d, er, mr, G)
             Ealpha, Halpha = cfs.calculate_values(self.thickness, cfs.alpha)
             Ekappa, Hkappa = cfs.calculate_values(self.thickness, cfs.kappa)
             Esigma, Hsigma = cfs.calculate_values(self.thickness, cfs.sigma)
@@ -278,10 +282,10 @@ def build_pmls(G, pbar):
             summr = 0  # Sum of relative permeabilities in PML slab
 
             if key[0] == 'x':
-                if key == 'xminus':
-                    pml = PML(G, direction=key, xf=value, yf=G.ny, zf=G.nz)
-                elif key == 'xplus':
-                    pml = PML(G, direction=key, xs=G.nx - value, xf=G.nx, yf=G.ny, zf=G.nz)
+                if key == 'x0':
+                    pml = PML(G, ID=key, direction='xminus', xf=value, yf=G.ny, zf=G.nz)
+                elif key == 'xmax':
+                    pml = PML(G, ID=key, direction='xplus', xs=G.nx - value, xf=G.nx, yf=G.ny, zf=G.nz)
                 G.pmls.append(pml)
                 for j in range(G.ny):
                     for k in range(G.nz):
@@ -293,10 +297,10 @@ def build_pmls(G, pbar):
                 averagemr = summr / (G.ny * G.nz)
 
             elif key[0] == 'y':
-                if key == 'yminus':
-                    pml = PML(G, direction=key, yf=value, xf=G.nx, zf=G.nz)
-                elif key == 'yplus':
-                    pml = PML(G, direction=key, ys=G.ny - value, xf=G.nx, yf=G.ny, zf=G.nz)
+                if key == 'y0':
+                    pml = PML(G, ID=key, direction='yminus', yf=value, xf=G.nx, zf=G.nz)
+                elif key == 'ymax':
+                    pml = PML(G, ID=key, direction='yplus', ys=G.ny - value, xf=G.nx, yf=G.ny, zf=G.nz)
                 G.pmls.append(pml)
                 for i in range(G.nx):
                     for k in range(G.nz):
@@ -308,10 +312,10 @@ def build_pmls(G, pbar):
                 averagemr = summr / (G.nx * G.nz)
 
             elif key[0] == 'z':
-                if key == 'zminus':
-                    pml = PML(G, direction=key, zf=value, xf=G.nx, yf=G.ny)
-                elif key == 'zplus':
-                    pml = PML(G, direction=key, zs=G.nz - value, xf=G.nx, yf=G.ny, zf=G.nz)
+                if key == 'z0':
+                    pml = PML(G, ID=key, direction='zminus', zf=value, xf=G.nx, yf=G.ny)
+                elif key == 'zmax':
+                    pml = PML(G, ID=key, direction='zplus', zs=G.nz - value, xf=G.nx, yf=G.ny, zf=G.nz)
                 G.pmls.append(pml)
                 for i in range(G.nx):
                     for j in range(G.ny):
