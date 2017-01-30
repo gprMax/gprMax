@@ -51,18 +51,17 @@ def write_hdf5_outputfile(outputfile, Ex, Ey, Ez, Hx, Hy, Hz, G):
         grp.attrs['Position'] = (src.xcoord * G.dx, src.ycoord * G.dy, src.zcoord * G.dz)
 
     # Create group for transmission lines; add positional data, line resistance and line discretisation attributes; write arrays for line voltages and currents
-    if G.transmissionlines:
-        for tlindex, tl in enumerate(G.transmissionlines):
-            grp = f.create_group('/tls/tl' + str(tlindex + 1))
-            grp.attrs['Position'] = (tl.xcoord * G.dx, tl.ycoord * G.dy, tl.zcoord * G.dz)
-            grp.attrs['Resistance'] = tl.resistance
-            grp.attrs['dl'] = tl.dl
-            # Save incident voltage and current
-            grp['Vinc'] = tl.Vinc
-            grp['Iinc'] = tl.Iinc
-            # Save total voltage and current
-            f['/tls/tl' + str(tlindex + 1) + '/Vtotal'] = tl.Vtotal
-            f['/tls/tl' + str(tlindex + 1) + '/Itotal'] = tl.Itotal
+    for tlindex, tl in enumerate(G.transmissionlines):
+        grp = f.create_group('/tls/tl' + str(tlindex + 1))
+        grp.attrs['Position'] = (tl.xcoord * G.dx, tl.ycoord * G.dy, tl.zcoord * G.dz)
+        grp.attrs['Resistance'] = tl.resistance
+        grp.attrs['dl'] = tl.dl
+        # Save incident voltage and current
+        grp['Vinc'] = tl.Vinc
+        grp['Iinc'] = tl.Iinc
+        # Save total voltage and current
+        f['/tls/tl' + str(tlindex + 1) + '/Vtotal'] = tl.Vtotal
+        f['/tls/tl' + str(tlindex + 1) + '/Itotal'] = tl.Itotal
 
     # Create group, add positional data and write field component arrays for receivers
     for rxindex, rx in enumerate(G.rxs):
@@ -71,21 +70,5 @@ def write_hdf5_outputfile(outputfile, Ex, Ey, Ez, Hx, Hy, Hz, G):
             grp.attrs['Name'] = rx.ID
         grp.attrs['Position'] = (rx.xcoord * G.dx, rx.ycoord * G.dy, rx.zcoord * G.dz)
 
-        if 'Ex' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Ex'] = rx.outputs['Ex']
-        if 'Ey' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Ey'] = rx.outputs['Ey']
-        if 'Ez' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Ez'] = rx.outputs['Ez']
-        if 'Hx' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Hx'] = rx.outputs['Hx']
-        if 'Hy' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Hy'] = rx.outputs['Hy']
-        if 'Hz' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Hz'] = rx.outputs['Hz']
-        if 'Ix' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Ix'] = rx.outputs['Ix']
-        if 'Iy' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Iy'] = rx.outputs['Iy']
-        if 'Iz' in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/Iz'] = rx.outputs['Iz']
+        for output in rx.outputs:
+            f['/rxs/rx' + str(rxindex + 1) + '/' + output] = rx.outputs[output]
