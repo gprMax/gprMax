@@ -133,18 +133,18 @@ def process_singlecmds(singlecmds, G):
     if G.nx == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
         G.dimension = '2D'
-        G.pmlthickness['xminus'] = 0
-        G.pmlthickness['xplus'] = 0
+        G.pmlthickness['x0'] = 0
+        G.pmlthickness['xmax'] = 0
     elif G.ny == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dz) * (1 / G.dz)))
         G.dimension = '2D'
-        G.pmlthickness['yminus'] = 0
-        G.pmlthickness['yplus'] = 0
+        G.pmlthickness['y0'] = 0
+        G.pmlthickness['ymax'] = 0
     elif G.nz == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy)))
         G.dimension = '2D'
-        G.pmlthickness['zminus'] = 0
-        G.pmlthickness['zplus'] = 0
+        G.pmlthickness['z0'] = 0
+        G.pmlthickness['zmax'] = 0
     else:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
         G.dimension = '3D'
@@ -200,13 +200,13 @@ def process_singlecmds(singlecmds, G):
             for key in G.pmlthickness.keys():
                 G.pmlthickness[key] = int(tmp[0])
         else:
-            G.pmlthickness['xminus'] = int(tmp[0])
-            G.pmlthickness['yminus'] = int(tmp[1])
-            G.pmlthickness['zminus'] = int(tmp[2])
-            G.pmlthickness['xplus'] = int(tmp[3])
-            G.pmlthickness['yplus'] = int(tmp[4])
-            G.pmlthickness['zplus'] = int(tmp[5])
-    if 2 * G.pmlthickness['xminus'] >= G.nx or 2 * G.pmlthickness['yminus'] >= G.ny or 2 * G.pmlthickness['zminus'] >= G.nz or 2 * G.pmlthickness['xplus'] >= G.nx or 2 * G.pmlthickness['yplus'] >= G.ny or 2 * G.pmlthickness['zplus'] >= G.nz:
+            G.pmlthickness['x0'] = int(tmp[0])
+            G.pmlthickness['y0'] = int(tmp[1])
+            G.pmlthickness['z0'] = int(tmp[2])
+            G.pmlthickness['xmax'] = int(tmp[3])
+            G.pmlthickness['ymax'] = int(tmp[4])
+            G.pmlthickness['zmax'] = int(tmp[5])
+    if 2 * G.pmlthickness['x0'] >= G.nx or 2 * G.pmlthickness['y0'] >= G.ny or 2 * G.pmlthickness['z0'] >= G.nz or 2 * G.pmlthickness['xmax'] >= G.nx or 2 * G.pmlthickness['ymax'] >= G.ny or 2 * G.pmlthickness['zmax'] >= G.nz:
         raise CmdInputError(cmd + ' has too many cells for the domain size')
 
     # src_steps
