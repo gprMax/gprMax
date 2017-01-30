@@ -99,8 +99,11 @@ class FDTDGrid(Grid):
         self.timewindow = 0
         self.nthreads = 0
         self.cfs = []
-        self.pmlthickness = OrderedDict((key, 10) for key in PML.slabs)
+        
+        # Ordered dictionary required so that PMLs are always updated in the same order. The order itself does not matter, however, if must be the same from model to model otherwise the numerical precision from adding the PML corrections will be different.
+        self.pmlthickness = OrderedDict((key, 10) for key in PML.boundaryIDs)
         self.pmls = []
+
         self.materials = []
         self.mixingmodels = []
         self.averagevolumeobjects = True
@@ -275,12 +278,12 @@ def get_other_directions(direction):
     return directions[direction]
 
 
-def Ix(x, y, z, Hy, Hz, G):
+def Ix(x, y, z, Hx, Hy, Hz, G):
     """Calculates the x-component of current at a grid position.
 
     Args:
         x, y, z (float): Coordinates of position in grid.
-        Hy, Hz (memory view): numpy array of magnetic field values.
+        Hx, Hy, Hz (memory view): numpy array of magnetic field values.
         G (class): Grid class instance - holds essential parameters describing the model.
     """
 
@@ -293,12 +296,12 @@ def Ix(x, y, z, Hy, Hz, G):
     return Ix
 
 
-def Iy(x, y, z, Hx, Hz, G):
+def Iy(x, y, z, Hx, Hy, Hz, G):
     """Calculates the y-component of current at a grid position.
 
     Args:
         x, y, z (float): Coordinates of position in grid.
-        Hx, Hz (memory view): numpy array of magnetic field values.
+        Hx, Hy, Hz (memory view): numpy array of magnetic field values.
         G (class): Grid class instance - holds essential parameters describing the model.
     """
 
@@ -311,12 +314,12 @@ def Iy(x, y, z, Hx, Hz, G):
     return Iy
 
 
-def Iz(x, y, z, Hx, Hy, G):
+def Iz(x, y, z, Hx, Hy, Hz, G):
     """Calculates the z-component of current at a grid position.
 
     Args:
         x, y, z (float): Coordinates of position in grid.
-        Hx, Hy (memory view): numpy array of magnetic field values.
+        Hx, Hy, Hz (memory view): numpy array of magnetic field values.
         G (class): Grid class instance - holds essential parameters describing the model.
     """
 
