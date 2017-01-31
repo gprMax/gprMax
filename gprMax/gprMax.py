@@ -407,13 +407,13 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
         else:
             if G.messages:
                 if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
-                    pmlinfo = G.pmlthickness['x0']
+                    pmlinfo = str(G.pmlthickness['x0']) + ' cells'
                 else:
                     pmlinfo = ''
                     for key, value in G.pmlthickness.items():
                         pmlinfo += '{}: {} cells, '.format(key, value)
                     pmlinfo = pmlinfo[:-2]
-                print('PML boundaries: {} cells'.format(pmlinfo))
+                print('PML boundaries: {}'.format(pmlinfo))
             pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
             build_pmls(G, pbar)
             pbar.close()
