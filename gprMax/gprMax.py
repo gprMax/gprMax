@@ -457,7 +457,7 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
     # If geometry information to be reused between model runs
     else:
-        inputfilestr = '\n--- Model {} of {}, input file (not re-processed, i.e. geometry fixed): {}'.format(modelrun, numbermodelruns, inputfile)
+        inputfilestr = '\n--- Model {}/{}, input file not re-processed, i.e. geometry fixed: {}'.format(modelrun, numbermodelruns, inputfile)
         print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
         # Clear arrays for field components
