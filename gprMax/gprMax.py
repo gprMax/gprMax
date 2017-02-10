@@ -448,12 +448,14 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
 
         # Check to see if numerical dispersion might be a problem
         results = dispersion_analysis(G)
-        if results['N'] < G.mingridsampling:
-            raise GeneralError("Non-physical wave propagation: Material '{}' has a wavelength sampled by {} cells, less than required minimum for physical wave propagation. Maximum significant frequency {:g}Hz".format(results['material'].ID, results['N'], results['maxfreq']))
+        if all(value == False for value in results.values()):
+            print('\nNumerical dispersion analysis: No waveform present in model')
+        elif results['N'] < G.mingridsampling:
+            raise GeneralError("Non-physical wave propagation: Material '{}' has a wavelength sampled by {} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {:g}Hz".format(results['material'].ID, results['N'], results['maxfreq']))
         elif results['deltavp'] and np.abs(results['deltavp']) > G.maxnumericaldisp:
-            print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength is sampled by {} cells. Maximum significant frequency {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']) + Style.RESET_ALL)
+            print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength is sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']) + Style.RESET_ALL)
         elif results['deltavp']:
-            print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength is sampled by {} cells. Maximum significant frequency {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
+            print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength is sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
 
     # If geometry information to be reused between model runs
     else:
