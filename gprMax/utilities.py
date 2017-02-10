@@ -140,9 +140,9 @@ def get_host_info():
         cpuID = subprocess.check_output("wmic cpu get Name", shell=True).decode('utf-8').strip()
         cpuID = cpuID.split('\n')[1]
         if platform.machine().endswith('64'):
-            osbit = '(64-bit)'
+            osbit = ' (64-bit)'
         else:
-            osbit = '(32-bit)'
+            osbit = ' (32-bit)'
         osversion = 'Windows ' + platform.release() + osbit
 
     # Mac OS X/macOS
