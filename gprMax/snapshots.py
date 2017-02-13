@@ -149,9 +149,9 @@ class Snapshot(object):
             for j in range(self.ys, self.yf, self.dy):
                 for i in range(self.xs, self.xf, self.dx):
                     pbar.update(n=12)
-                    self.filehandle.write(pack(Snapshot.floatstring, Ix(i, j, k, Hy, Hz, G)))
-                    self.filehandle.write(pack(Snapshot.floatstring, Iy(i, j, k, Hx, Hz, G)))
-                    self.filehandle.write(pack(Snapshot.floatstring, Iz(i, j, k, Hx, Hy, G)))
+                    self.filehandle.write(pack(Snapshot.floatstring, Ix(i, j, k, Hx, Hy, Hz, G)))
+                    self.filehandle.write(pack(Snapshot.floatstring, Iy(i, j, k, Hx, Hy, Hz, G)))
+                    self.filehandle.write(pack(Snapshot.floatstring, Iz(i, j, k, Hx, Hy, Hz, G)))
 
         self.filehandle.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
         self.filehandle.close()
