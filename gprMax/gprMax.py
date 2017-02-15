@@ -452,9 +452,9 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             print('\nNumerical dispersion analysis: No waveform present in model')
         elif results['N'] < G.mingridsampling:
             raise GeneralError("Non-physical wave propagation: Material '{}' has a wavelength sampled by {} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {:g}Hz".format(results['material'].ID, results['N'], results['maxfreq']))
-        elif results['deltavp'] and np.abs(results['deltavp']) > G.maxnumericaldisp:
+        elif results['deltavp'] and np.abs(results['deltavp']) > G.maxnumericaldisp and G.messages:
             print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength is sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']) + Style.RESET_ALL)
-        elif results['deltavp']:
+        elif results['deltavp'] and G.messages:
             print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength is sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
 
     # If geometry information to be reused between model runs
@@ -498,7 +498,6 @@ def run_model(args, modelrun, numbermodelruns, inputfile, usernamespace):
             geometryview.write_vtk(modelrun, numbermodelruns, G, pbar)
             pbar.close()
     if G.geometryobjectswrite:
-
         for i, geometryobject in enumerate(G.geometryobjectswrite):
             pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {}/{}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
             geometryobject.write_hdf5(G, pbar)
