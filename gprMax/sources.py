@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from copy import deepcopy
+import decimal as d
 
 import numpy as np
 
@@ -41,51 +42,67 @@ class Source(object):
         self.stop = None
         self.waveformID = None
 
+    def calculate_waveform_values(self, G):
+        """Calculates all waveform values for source for duration of simulation.
+
+        Args:
+            G (class): Grid class instance - holds essential parameters describing the model.
+        """
+
+        self.waveformvaluesJ = np.zeros((G.iterations + 1), dtype=floattype)
+        self.waveformvaluesM = np.zeros((G.iterations + 1), dtype=floattype)
+        waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
+
+        for iteration in range(G.iterations + 1):
+            time = G.dt * iteration
+            if time >= self.start and time <= self.stop:
+                # Set the time of the waveform evaluation to account for any delay in the start
+                time -= self.start
+                self.waveformvaluesJ[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
+                self.waveformvaluesM[iteration] = waveform.calculate_value(time, G.dt)
+
 
 class VoltageSource(Source):
     """A voltage source can be a hard source if it's resistance is zero, i.e. the time variation of the specified electric field component is prescribed. If it's resistance is non-zero it behaves as a resistive voltage source."""
 
     def __init__(self):
-        super(Source, self).__init__()
+        super().__init__()
         self.resistance = None
 
-    def update_electric(self, abstime, updatecoeffsE, ID, Ex, Ey, Ez, G):
+    def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a voltage source.
 
         Args:
-            abstime (float): Absolute time.
+            iteration (int): Current iteration (timestep).
             updatecoeffsE (memory view): numpy array of electric field update coefficients.
             ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
             Ex, Ey, Ez (memory view): numpy array of electric field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        if abstime >= self.start and abstime <= self.stop:
-            # Set the time of the waveform evaluation to account for any delay in the start
-            time = abstime - self.start
+        if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord
             k = self.zcoord
-            waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             componentID = 'E' + self.polarisation
 
             if self.polarisation == 'x':
                 if self.resistance != 0:
-                    Ex[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (self.resistance * G.dy * G.dz))
+                    Ex[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * (1 / (self.resistance * G.dy * G.dz))
                 else:
-                    Ex[i, j, k] = -1 * waveform.amp * waveform.calculate_value(time, G.dt) / G.dx
+                    Ex[i, j, k] = -1 * self.waveformvaluesJ[iteration] / G.dx
 
             elif self.polarisation == 'y':
                 if self.resistance != 0:
-                    Ey[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (self.resistance * G.dx * G.dz))
+                    Ey[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * (1 / (self.resistance * G.dx * G.dz))
                 else:
-                    Ey[i, j, k] = -1 * waveform.amp * waveform.calculate_value(time, G.dt) / G.dy
+                    Ey[i, j, k] = -1 * self.waveformvaluesJ[iteration] / G.dy
 
             elif self.polarisation == 'z':
                 if self.resistance != 0:
-                    Ez[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (self.resistance * G.dx * G.dy))
+                    Ez[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * (1 / (self.resistance * G.dx * G.dy))
                 else:
-                    Ez[i, j, k] = -1 * waveform.amp * waveform.calculate_value(time, G.dt) / G.dz
+                    Ez[i, j, k] = -1 * self.waveformvaluesJ[iteration] / G.dz
 
     def create_material(self, G):
         """Create a new material at the voltage source location that adds the voltage source conductivity to the underlying parameters.
@@ -106,7 +123,7 @@ class VoltageSource(Source):
             newmaterial.ID = material.ID + '+VoltageSource_' + str(self.resistance)
             newmaterial.numID = len(G.materials)
             newmaterial.averagable = False
-            newmaterial.type += ', voltage-source'
+            newmaterial.type += ',\nvoltage-source'
 
             # Add conductivity of voltage source to underlying conductivity
             if self.polarisation == 'x':
@@ -124,74 +141,67 @@ class HertzianDipole(Source):
     """A Hertzian dipole is an additive source (electric current density)."""
 
     def __init__(self):
-        super(Source, self).__init__()
+        super().__init__()
         self.dl = None
 
-    def update_electric(self, abstime, updatecoeffsE, ID, Ex, Ey, Ez, G):
+    def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a Hertzian dipole.
 
         Args:
-            abstime (float): Absolute time.
+            iteration (int): Current iteration (timestep).
             updatecoeffsE (memory view): numpy array of electric field update coefficients.
             ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
             Ex, Ey, Ez (memory view): numpy array of electric field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        if abstime >= self.start and abstime <= self.stop:
-            # Set the time of the waveform evaluation to account for any delay in the start
-            time = abstime - self.start
+        if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord
             k = self.zcoord
-            waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             componentID = 'E' + self.polarisation
 
             if self.polarisation == 'x':
-                Ex[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * self.dl * (1 / (G.dx * G.dy * G.dz))
+                Ex[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * self.dl * (1 / (G.dx * G.dy * G.dz))
 
             elif self.polarisation == 'y':
-                Ey[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * self.dl * (1 / (G.dx * G.dy * G.dz))
+                Ey[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * self.dl * (1 / (G.dx * G.dy * G.dz))
 
             elif self.polarisation == 'z':
-                Ez[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * self.dl * (1 / (G.dx * G.dy * G.dz))
+                Ez[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * self.dl * (1 / (G.dx * G.dy * G.dz))
 
 
 class MagneticDipole(Source):
     """A magnetic dipole is an additive source (magnetic current density)."""
 
     def __init__(self):
-        super(Source, self).__init__()
+        super().__init__()
 
-    def update_magnetic(self, abstime, updatecoeffsH, ID, Hx, Hy, Hz, G):
+    def update_magnetic(self, iteration, updatecoeffsH, ID, Hx, Hy, Hz, G):
         """Updates magnetic field values for a magnetic dipole.
 
         Args:
-            abstime (float): Absolute time.
+            iteration (int): Current iteration (timestep).
             updatecoeffsH (memory view): numpy array of magnetic field update coefficients.
             ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        if abstime >= self.start and abstime <= self.stop:
-            # Set the time of the waveform evaluation to account for any delay in the start
-            time = abstime - self.start
+        if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord
             k = self.zcoord
-            waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
             componentID = 'H' + self.polarisation
 
             if self.polarisation == 'x':
-                Hx[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dx * G.dy * G.dz))
+                Hx[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesM[iteration] * (1 / (G.dx * G.dy * G.dz))
 
             elif self.polarisation == 'y':
-
-                Hy[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dx * G.dy * G.dz))
+                Hy[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesM[iteration] * (1 / (G.dx * G.dy * G.dz))
 
             elif self.polarisation == 'z':
-                Hz[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * waveform.amp * waveform.calculate_value(time, G.dt) * (1 / (G.dx * G.dy * G.dz))
+                Hz[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesM[iteration] * (1 / (G.dx * G.dy * G.dz))
 
 
 class TransmissionLine(Source):
@@ -203,15 +213,15 @@ class TransmissionLine(Source):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        super(Source, self).__init__()
+        super().__init__()
         self.resistance = None
 
         # Coefficients for ABC termination of end of the transmission line
         self.abcv0 = 0
         self.abcv1 = 0
 
-        # Spatial step of transmission line (based on magic time step for dispersionless behaviour)
-        self.dl = c * G.dt
+        # Spatial step of transmission line (N.B if the magic time step is used it results in instabilities for certain impedances)
+        self.dl = np.sqrt(3) * c * G.dt
 
         # Number of cells in the transmission line (initially a long line to calculate incident voltage and current); consider putting ABCs/PML at end
         self.nl = round_value(0.667 * G.iterations)
@@ -236,14 +246,11 @@ class TransmissionLine(Source):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        abstime = 0
-        for timestep in range(G.iterations):
-            self.Vinc[timestep] = self.voltage[self.antpos]
-            self.Iinc[timestep] = self.current[self.antpos]
-            self.update_voltage(abstime, G)
-            abstime += 0.5 * G.dt
-            self.update_current(abstime, G)
-            abstime += 0.5 * G.dt
+        for iteration in range(G.iterations):
+            self.Iinc[iteration] = self.current[self.antpos]
+            self.Vinc[iteration] = self.voltage[self.antpos]
+            self.update_current(iteration, G)
+            self.update_voltage(iteration, G)
 
         # Shorten number of cells in the transmission line before use with main grid
         self.nl = self.antpos + 1
@@ -261,11 +268,11 @@ class TransmissionLine(Source):
         self.abcv0 = self.voltage[0]
         self.abcv1 = self.voltage[1]
 
-    def update_voltage(self, time, G):
+    def update_voltage(self, iteration, G):
         """Updates voltage values along the transmission line.
 
         Args:
-            time (float): Absolute time.
+            iteration (int): Current iteration (timestep).
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
@@ -273,17 +280,16 @@ class TransmissionLine(Source):
         self.voltage[1:self.nl] -= self.resistance * (c * G.dt / self.dl) * (self.current[1:self.nl] - self.current[0:self.nl - 1])
 
         # Update the voltage at the position of the one-way injector excitation
-        waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-        self.voltage[self.srcpos] += (c * G.dt / self.dl) * waveform.amp * waveform.calculate_value(time - 0.5 * G.dt, G.dt)
+        self.voltage[self.srcpos] += (c * G.dt / self.dl) * self.waveformvaluesJ[iteration]
 
         # Update ABC before updating current
         self.update_abc(G)
 
-    def update_current(self, time, G):
+    def update_current(self, iteration, G):
         """Updates current values along the transmission line.
 
         Args:
-            time (float): Absolute time.
+            iteration (int): Current iteration (timestep).
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
@@ -291,28 +297,25 @@ class TransmissionLine(Source):
         self.current[0:self.nl - 1] -= (1 / self.resistance) * (c * G.dt / self.dl) * (self.voltage[1:self.nl] - self.voltage[0:self.nl - 1])
 
         # Update the current one cell before the position of the one-way injector excitation
-        waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-        self.current[self.srcpos - 1] += (c * G.dt / self.dl) * waveform.amp * waveform.calculate_value(time - 0.5 * G.dt, G.dt) * (1 / self.resistance)
+        self.current[self.srcpos - 1] += (1 / self.resistance) * (c * G.dt / self.dl) * self.waveformvaluesM[iteration]
 
-    def update_electric(self, abstime, updatecoeffsE, ID, Ex, Ey, Ez, G):
+    def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field value in the main grid from voltage value in the transmission line.
 
         Args:
-            abstime (float): Absolute time.
+            iteration (int): Current iteration (timestep).
             updatecoeffsE (memory view): numpy array of electric field update coefficients.
             ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
             Ex, Ey, Ez (memory view): numpy array of electric field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        if abstime >= self.start and abstime <= self.stop:
-            # Set the time of the waveform evaluation to account for any delay in the start
-            time = abstime - self.start
+        if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord
             k = self.zcoord
 
-            self.update_voltage(time, G)
+            self.update_voltage(iteration, G)
 
             if self.polarisation == 'x':
                 Ex[i, j, k] = - self.voltage[self.antpos] / G.dx
@@ -323,34 +326,32 @@ class TransmissionLine(Source):
             elif self.polarisation == 'z':
                 Ez[i, j, k] = - self.voltage[self.antpos] / G.dz
 
-    def update_magnetic(self, abstime, updatecoeffsH, ID, Hx, Hy, Hz, G):
+    def update_magnetic(self, iteration, updatecoeffsH, ID, Hx, Hy, Hz, G):
         """Updates current value in transmission line from magnetic field values in the main grid.
 
         Args:
-            abstime (float): Absolute time.
+            iteration (int): Current iteration (timestep).
             updatecoeffsH (memory view): numpy array of magnetic field update coefficients.
             ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        if abstime >= self.start and abstime <= self.stop:
-            # Set the time of the waveform evaluation to account for any delay in the start
-            time = abstime - self.start
+        if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
             i = self.xcoord
             j = self.ycoord
             k = self.zcoord
 
             if self.polarisation == 'x':
-                self.current[self.antpos] = Ix(i, j, k, G.Hy, G.Hz, G)
+                self.current[self.antpos] = Ix(i, j, k, G.Hx, G.Hy, G.Hz, G)
 
             elif self.polarisation == 'y':
-                self.current[self.antpos] = Iy(i, j, k, G.Hx, G.Hz, G)
+                self.current[self.antpos] = Iy(i, j, k, G.Hx, G.Hy, G.Hz, G)
 
             elif self.polarisation == 'z':
-                self.current[self.antpos] = Iz(i, j, k, G.Hx, G.Hy, G)
+                self.current[self.antpos] = Iz(i, j, k, G.Hx, G.Hy, G.Hz, G)
 
-            self.update_current(time, G)
+            self.update_current(iteration, G)
 
 
 class PlaneWave(Source):
