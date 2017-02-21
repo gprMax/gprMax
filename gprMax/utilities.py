@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from contextlib import contextmanager
 import decimal as d
 import platform
 import psutil
@@ -27,6 +28,9 @@ import textwrap
 
 from colorama import init, Fore, Style
 init()
+import numpy as np
+
+from gprMax.constants import floattype
 
 
 def get_terminal_width():
@@ -73,6 +77,30 @@ def logo(version):
     print(textwrap.fill(licenseinfo1, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
     print(textwrap.fill(licenseinfo2, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
     print(textwrap.fill(licenseinfo3, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
+
+
+@contextmanager
+def open_path_file(path_or_file):
+    """Accepts either a path as a string or a file object and returns a file object (http://stackoverflow.com/a/6783680).
+
+    Args:
+        path_or_file: path as a string or a file object.
+        
+    Returns:
+        f (object): File object.
+    """
+    
+    if isinstance(path_or_file, str):
+        f = file_to_close = open(path_or_file, 'r')
+    else:
+        f = path_or_file
+        file_to_close = None
+
+    try:
+        yield f
+    finally:
+        if file_to_close:
+            file_to_close.close()
 
 
 def round_value(value, decimalplaces=0):
@@ -140,9 +168,9 @@ def get_host_info():
         cpuID = subprocess.check_output("wmic cpu get Name", shell=True).decode('utf-8').strip()
         cpuID = cpuID.split('\n')[1]
         if platform.machine().endswith('64'):
-            osbit = ' (64-bit)'
+            osbit = '(64-bit)'
         else:
-            osbit = ' (32-bit)'
+            osbit = '(32-bit)'
         osversion = 'Windows ' + platform.release() + osbit
 
     # Mac OS X/macOS
@@ -177,3 +205,47 @@ def get_host_info():
     hostinfo = {'machineID': machineID, 'cpuID': cpuID, 'cpucores': cpucores, 'ram': ram, 'osversion': osversion}
 
     return hostinfo
+
+
+def memory_usage(G):
+    """Estimate the amount of memory (RAM) required to run a model.
+
+    Args:
+        G (class): Grid class instance - holds essential parameters describing the model.
+        
+    Returns:
+        memestimate (int): Estimate of required memory in bytes
+    """
+
+    stdoverhead = 50e6
+    
+    # 6 x field arrays + 6 x ID arrays
+    fieldarrays = (6 + 6) * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(floattype).itemsize
+    
+    solidarray = G.nx * G.ny * G.nz * np.dtype(np.uint32).itemsize
+    
+    # 12 x rigidE array components + 6 x rigidH array components
+    rigidarrays = (12 + 6) * G.nx * G.ny * G.nz * np.dtype(np.int8).itemsize
+    
+    pmlarrays = 0
+    for (k, v) in G.pmlthickness.items():
+        if v > 0:
+            if 'x' in k:
+                pmlarrays += ((v + 1) * G.ny * (G.nz + 1))
+                pmlarrays += ((v + 1) * (G.ny + 1) * G.nz)
+                pmlarrays += (v * G.ny * (G.nz + 1))
+                pmlarrays += (v * (G.ny + 1) * G.nz)
+            elif 'y' in k:
+                pmlarrays += (G.nx * (v + 1) * (G.nz + 1))
+                pmlarrays += ((G.nx + 1) * (v + 1) * G.nz)
+                pmlarrays += ((G.nx + 1) * v * G.nz)
+                pmlarrays += (G.nx * v * (G.nz + 1))
+            elif 'z' in k:
+                pmlarrays += (G.nx * (G.ny + 1) * (v + 1))
+                pmlarrays += ((G.nx + 1) * G.ny * (v + 1))
+                pmlarrays += ((G.nx + 1) * G.ny * v)
+                pmlarrays += (G.nx * (G.ny + 1) * v)
+
+    memestimate = int(stdoverhead + fieldarrays + solidarray + rigidarrays + pmlarrays)
+
+    return memestimate
