@@ -27,16 +27,15 @@ def process_python_include_code(inputfile, usernamespace):
     """Looks for and processes any Python code found in the input file. It will ignore any lines that are comments, i.e. begin with a double hash (##), and any blank lines. It will also ignore any lines that do not begin with a hash (#) after it has processed Python commands. It will also process any include commands and insert the contents of the included file at that location.
 
     Args:
-        inputfile (str): Name of the input file to open.
+        inputfile (object): File object for input file.
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
 
     Returns:
         processedlines (list): Input commands after Python processing.
     """
 
-    with open(inputfile, 'r') as f:
-        # Strip out any newline characters and comments that must begin with double hashes
-        inputlines = [line.rstrip() for line in f if(not line.startswith('##') and line.rstrip('\n'))]
+    # Strip out any newline characters and comments that must begin with double hashes
+    inputlines = [line.rstrip() for line in inputfile if(not line.startswith('##') and line.rstrip('\n'))]
 
     # List to hold final processed commands
     processedlines = []
@@ -116,20 +115,20 @@ def process_python_include_code(inputfile, usernamespace):
     return processedlines
 
 
-def write_processed_file(inputfile, modelrun, numbermodelruns, processedlines):
+def write_processed_file(inputfilename, modelrun, numbermodelruns, processedlines):
     """Writes an input file after any Python code and include commands in the original input file have been processed.
 
     Args:
-        inputfile (str): Name of the input file to open.
+        inputfilename (str): Name of the input file to open.
         modelrun (int): Current model run number.
         numbermodelruns (int): Total number of model runs.
         processedlines (list): Input commands after after processing any Python code and include commands.
     """
 
     if numbermodelruns == 1:
-        processedfile = os.path.splitext(inputfile)[0] + '_processed.in'
+        processedfile = os.path.splitext(inputfilename)[0] + '_processed.in'
     else:
-        processedfile = os.path.splitext(inputfile)[0] + str(modelrun) + '_processed.in'
+        processedfile = os.path.splitext(inputfilename)[0] + str(modelrun) + '_processed.in'
 
     with open(processedfile, 'w') as f:
         for item in processedlines:
