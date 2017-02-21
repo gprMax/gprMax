@@ -154,7 +154,7 @@ def process_materials(G):
         if Material.maxpoles == 0:
             materialsdata = [['\nID', '\nName', '\nType', '\neps_r', 'sigma\n[S/m]', '\nmu_r', 'sigma*\n[S/m]', 'Dielectric\nsmoothable']]
         else:
-            materialsdata = [['\nID', '\nName', '\nType', '\neps_r', 'sigma\n[S/m]', '\nDelta eps_r', 'tau\n[s]', 'omega\n[Hz]', 'delta\n[Hz]', 'gamma\n[Hz]', '\nmu_r', 'sigma*\n[S/m]', 'Dielectric\nsmoothable']]
+            materialsdata = [['\nID', '\nName', '\nType', '\neps_r', 'sigma\n[S/m]', 'Delta\neps_r', 'tau\n[s]', 'omega\n[Hz]', 'delta\n[Hz]', 'gamma\n[Hz]', '\nmu_r', 'sigma*\n[S/m]', 'Dielectric\nsmoothable']]
 
     for material in G.materials:
         # Calculate update coefficients for material
@@ -175,7 +175,7 @@ def process_materials(G):
         if G.messages:
             materialtext = []
             materialtext.append(str(material.numID))
-            materialtext.append(material.ID[:65] if len(material.ID) > 65 else material.ID)
+            materialtext.append(material.ID[:50] if len(material.ID) > 50 else material.ID)
             materialtext.append(material.type)
             materialtext.append('{:g}'.format(material.er))
             materialtext.append('{:g}'.format(material.se))
