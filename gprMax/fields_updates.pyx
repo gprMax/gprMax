@@ -64,33 +64,33 @@ cpdef void update_electric(int nx, int ny, int nz, int nthreads, floattype_t[:, 
 
     # 3D
     else:
-        for i in prange(0, nx - 1, nogil=True, schedule='static', num_threads=nthreads):
-            for j in range(0, ny - 1):
-                for k in range(0, nz - 1):
-                    materialEx = ID[0, i, j + 1, k + 1]
-                    materialEy = ID[1, i + 1, j, k + 1]
-                    materialEz = ID[2, i + 1, j + 1, k]
-                    Ex[i, j + 1, k + 1] = updatecoeffsE[materialEx, 0] * Ex[i, j + 1, k + 1] + updatecoeffsE[materialEx, 2] * (Hz[i, j + 1, k + 1] - Hz[i, j, k + 1]) - updatecoeffsE[materialEx, 3] * (Hy[i, j + 1, k + 1] - Hy[i, j + 1, k])
-                    Ey[i + 1, j, k + 1] = updatecoeffsE[materialEy, 0] * Ey[i + 1, j, k + 1] + updatecoeffsE[materialEy, 3] * (Hx[i + 1, j, k + 1] - Hx[i + 1, j, k]) - updatecoeffsE[materialEy, 1] * (Hz[i + 1, j, k + 1] - Hz[i, j, k + 1])
-                    Ez[i + 1, j + 1, k] = updatecoeffsE[materialEz, 0] * Ez[i + 1, j + 1, k] + updatecoeffsE[materialEz, 1] * (Hy[i + 1, j + 1, k] - Hy[i, j + 1, k]) - updatecoeffsE[materialEz, 2] * (Hx[i + 1, j + 1, k] - Hx[i + 1, j, k])
-
-        # Ex components at nx - 1
-        for j in prange(1, ny, nogil=True, schedule='static', num_threads=nthreads):
-            for k in range(1, nz):
-                materialEx = ID[0, nx - 1, j, k]
-                Ex[nx - 1, j, k] = updatecoeffsE[materialEx, 0] * Ex[nx - 1, j, k] + updatecoeffsE[materialEx, 2] * (Hz[nx - 1, j, k] - Hz[nx - 1, j - 1, k]) - updatecoeffsE[materialEx, 3] * (Hy[nx - 1, j, k] - Hy[nx - 1, j, k - 1])
-
-        # Ey components at ny - 1
-        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
-            for k in range(1, nz):
-                materialEy = ID[1, i, ny - 1, k]
-                Ey[i, ny - 1, k] = updatecoeffsE[materialEy, 0] * Ey[i, ny - 1, k] + updatecoeffsE[materialEy, 3] * (Hx[i, ny - 1, k] - Hx[i, ny - 1, k - 1]) - updatecoeffsE[materialEy, 1] * (Hz[i, ny - 1, k] - Hz[i - 1, ny - 1, k])
-
-        # Ez components at nz - 1
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
-                materialEz = ID[2, i, j, nz - 1]
-                Ez[i, j, nz - 1] = updatecoeffsE[materialEz, 0] * Ez[i, j, nz - 1] + updatecoeffsE[materialEz, 1] * (Hy[i, j, nz - 1] - Hy[i - 1, j, nz - 1]) - updatecoeffsE[materialEz, 2] * (Hx[i, j, nz - 1] - Hx[i, j - 1, nz - 1])
+                for k in range(1, nz):
+                    materialEx = ID[0, i, j, k]
+                    materialEy = ID[1, i, j, k]
+                    materialEz = ID[2, i, j, k]
+                    Ex[i, j, k] = updatecoeffsE[materialEx, 0] * Ex[i, j, k] + updatecoeffsE[materialEx, 2] * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[materialEx, 3] * (Hy[i, j, k] - Hy[i, j, k - 1])
+                    Ey[i, j, k] = updatecoeffsE[materialEy, 0] * Ey[i, j, k] + updatecoeffsE[materialEy, 3] * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[materialEy, 1] * (Hz[i, j, k] - Hz[i - 1, j, k])
+                    Ez[i, j, k] = updatecoeffsE[materialEz, 0] * Ez[i, j, k] + updatecoeffsE[materialEz, 1] * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[materialEz, 2] * (Hx[i, j, k] - Hx[i, j - 1, k])
+
+        # Ex components at i = 0
+        for j in prange(1, ny, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(1, nz):
+                materialEx = ID[0, 0, j, k]
+                Ex[0, j, k] = updatecoeffsE[materialEx, 0] * Ex[0, j, k] + updatecoeffsE[materialEx, 2] * (Hz[0, j, k] - Hz[0, j - 1, k]) - updatecoeffsE[materialEx, 3] * (Hy[0, j, k] - Hy[0, j, k - 1])
+
+        # Ey components at j = 0
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for k in range(1, nz):
+                materialEy = ID[1, i, 0, k]
+                Ey[i, 0, k] = updatecoeffsE[materialEy, 0] * Ey[i, 0, k] + updatecoeffsE[materialEy, 3] * (Hx[i, 0, k] - Hx[i, 0, k - 1]) - updatecoeffsE[materialEy, 1] * (Hz[i, 0, k] - Hz[i - 1, 0, k])
+
+        # Ez components at k = 0
+        for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
+            for j in range(1, ny):
+                materialEz = ID[2, i, j, 0]
+                Ez[i, j, 0] = updatecoeffsE[materialEz, 0] * Ez[i, j, 0] + updatecoeffsE[materialEz, 1] * (Hy[i, j, 0] - Hy[i - 1, j, 0]) - updatecoeffsE[materialEz, 2] * (Hx[i, j, 0] - Hx[i, j - 1, 0])
 
 
 #################################################
@@ -111,9 +111,7 @@ cpdef void update_electric_dispersive_multipole_A(int nx, int ny, int nz, int nt
     cdef float phi = 0
 
     # Ex component
-    if ny == 1 or nz == 1:
-        pass
-    else:
+    if ny != 1 or nz != 1:
         for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(1, nz):
@@ -125,9 +123,7 @@ cpdef void update_electric_dispersive_multipole_A(int nx, int ny, int nz, int nt
                     Ex[i, j, k] = updatecoeffsE[material, 0] * Ex[i, j, k] + updatecoeffsE[material, 2] * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3] * (Hy[i, j, k] - Hy[i, j, k - 1]) - updatecoeffsE[material, 4] * phi
 
     # Ey component
-    if nx == 1 or nz == 1:
-        pass
-    else:
+    if nx != 1 or nz != 1:
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(0, ny):
                 for k in range(1, nz):
@@ -139,9 +135,7 @@ cpdef void update_electric_dispersive_multipole_A(int nx, int ny, int nz, int nt
                     Ey[i, j, k] = updatecoeffsE[material, 0] * Ey[i, j, k] + updatecoeffsE[material, 3] * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1] * (Hz[i, j, k] - Hz[i - 1, j, k]) - updatecoeffsE[material, 4] * phi
 
     # Ez component
-    if nx == 1 or ny == 1:
-        pass
-    else:
+    if nx != 1 or ny != 1:
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(0, nz):
@@ -168,9 +162,7 @@ cpdef void update_electric_dispersive_multipole_B(int nx, int ny, int nz, int nt
     cdef int material
 
     # Ex component
-    if ny == 1 or nz == 1:
-        pass
-    else:
+    if ny != 1 or nz != 1:
         for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(1, nz):
@@ -179,9 +171,7 @@ cpdef void update_electric_dispersive_multipole_B(int nx, int ny, int nz, int nt
                         Tx[pole, i, j, k] = Tx[pole, i, j, k] - updatecoeffsdispersive[material, 2 + (pole * 3)] * Ex[i, j, k]
 
     # Ey component
-    if nx == 1 or nz == 1:
-        pass
-    else:
+    if nx != 1 or nz != 1:
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(0, ny):
                 for k in range(1, nz):
@@ -190,9 +180,7 @@ cpdef void update_electric_dispersive_multipole_B(int nx, int ny, int nz, int nt
                         Ty[pole, i, j, k] = Ty[pole, i, j, k] - updatecoeffsdispersive[material, 2 + (pole * 3)] * Ey[i, j, k]
 
     # Ez component
-    if nx == 1 or ny == 1:
-        pass
-    else:
+    if nx != 1 or ny != 1:
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(0, nz):
@@ -215,9 +203,7 @@ cpdef void update_electric_dispersive_1pole_A(int nx, int ny, int nz, int nthrea
     cdef float phi = 0
 
     # Ex component
-    if ny == 1 or nz == 1:
-        pass
-    else:
+    if ny != 1 or nz != 1:
         for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(1, nz):
@@ -227,9 +213,7 @@ cpdef void update_electric_dispersive_1pole_A(int nx, int ny, int nz, int nthrea
                     Ex[i, j, k] = updatecoeffsE[material, 0] * Ex[i, j, k] + updatecoeffsE[material, 2] * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3] * (Hy[i, j, k] - Hy[i, j, k - 1]) - updatecoeffsE[material, 4] * phi
 
     # Ey component
-    if nx == 1 or nz == 1:
-        pass
-    else:
+    if nx != 1 or nz != 1:
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(0, ny):
                 for k in range(1, nz):
@@ -239,9 +223,7 @@ cpdef void update_electric_dispersive_1pole_A(int nx, int ny, int nz, int nthrea
                     Ey[i, j, k] = updatecoeffsE[material, 0] * Ey[i, j, k] + updatecoeffsE[material, 3] * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1] * (Hz[i, j, k] - Hz[i - 1, j, k]) - updatecoeffsE[material, 4] * phi
 
     # Ez component
-    if nx == 1 or ny == 1:
-        pass
-    else:
+    if nx != 1 or ny != 1:
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(0, nz):
@@ -264,9 +246,7 @@ cpdef void update_electric_dispersive_1pole_B(int nx, int ny, int nz, int nthrea
     cdef int material
 
     # Ex component
-    if ny == 1 or nz == 1:
-        pass
-    else:
+    if ny != 1 or nz != 1:
         for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(1, nz):
@@ -274,9 +254,7 @@ cpdef void update_electric_dispersive_1pole_B(int nx, int ny, int nz, int nthrea
                     Tx[0, i, j, k] = Tx[0, i, j, k] - updatecoeffsdispersive[material, 2] * Ex[i, j, k]
 
     # Ey component
-    if nx == 1 or nz == 1:
-        pass
-    else:
+    if nx != 1 or nz != 1:
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(0, ny):
                 for k in range(1, nz):
@@ -284,9 +262,7 @@ cpdef void update_electric_dispersive_1pole_B(int nx, int ny, int nz, int nthrea
                     Ty[0, i, j, k] = Ty[0, i, j, k] - updatecoeffsdispersive[material, 2] * Ey[i, j, k]
 
     # Ez component
-    if nx == 1 or ny == 1:
-        pass
-    else:
+    if nx != 1 or ny != 1:
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 for k in range(0, nz):
