@@ -80,6 +80,9 @@ class FDTDGrid(Grid):
         self.messages = True
         self.tqdmdisable = False
 
+        # CPU - OpenMP threads
+        self.nthreads = 0
+
         # Threshold (dB) down from maximum power (0dB) of main frequency used to calculate highest frequency for disperion analysis
         self.highestfreqthres = 60
         # Maximum allowable percentage physical phase-velocity phase error
@@ -97,11 +100,10 @@ class FDTDGrid(Grid):
         self.dimension = None
         self.iterations = 0
         self.timewindow = 0
-        self.nthreads = 0
-        self.cfs = []
-        
+
         # Ordered dictionary required so that PMLs are always updated in the same order. The order itself does not matter, however, if must be the same from model to model otherwise the numerical precision from adding the PML corrections will be different.
         self.pmlthickness = OrderedDict((key, 10) for key in PML.boundaryIDs)
+        self.cfs = []
         self.pmls = []
 
         self.materials = []
@@ -124,20 +126,20 @@ class FDTDGrid(Grid):
         """Initialise an array for volumetric material IDs (solid); boolean arrays for specifying whether materials can have dielectric smoothing (rigid);
             and an array for cell edge IDs (ID). Solid and ID arrays are initialised to free_space (one); rigid arrays to allow dielectric smoothing (zero).
         """
-        self.solid = np.ones((self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
-        self.rigidE = np.zeros((12, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.int8)
-        self.rigidH = np.zeros((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.int8)
-        self.IDlookup = {'Ex': 0, 'Ey': 1, 'Ez': 2, 'Hx': 3, 'Hy': 4, 'Hz': 5}
+        self.solid = np.ones((self.nx, self.ny, self.nz), dtype=np.uint32)
+        self.rigidE = np.zeros((12, self.nx, self.ny, self.nz), dtype=np.int8)
+        self.rigidH = np.zeros((6, self.nx, self.ny, self.nz), dtype=np.int8)
         self.ID = np.ones((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
+        self.IDlookup = {'Ex': 0, 'Ey': 1, 'Ez': 2, 'Hx': 3, 'Hy': 4, 'Hz': 5}
 
     def initialise_field_arrays(self):
         """Initialise arrays for the electric and magnetic field components."""
-        self.Ex = np.zeros((self.nx, self.ny + 1, self.nz + 1), dtype=floattype)
-        self.Ey = np.zeros((self.nx + 1, self.ny, self.nz + 1), dtype=floattype)
-        self.Ez = np.zeros((self.nx + 1, self.ny + 1, self.nz), dtype=floattype)
-        self.Hx = np.zeros((self.nx + 1, self.ny, self.nz), dtype=floattype)
-        self.Hy = np.zeros((self.nx, self.ny + 1, self.nz), dtype=floattype)
-        self.Hz = np.zeros((self.nx, self.ny, self.nz + 1), dtype=floattype)
+        self.Ex = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        self.Ey = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        self.Ez = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        self.Hx = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        self.Hy = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
+        self.Hz = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype)
 
     def initialise_std_update_coeff_arrays(self):
         """Initialise arrays for storing update coefficients."""
@@ -146,9 +148,9 @@ class FDTDGrid(Grid):
 
     def initialise_dispersive_arrays(self):
         """Initialise arrays for storing coefficients when there are dispersive materials present."""
-        self.Tx = np.zeros((Material.maxpoles, self.nx, self.ny + 1, self.nz + 1), dtype=complextype)
-        self.Ty = np.zeros((Material.maxpoles, self.nx + 1, self.ny, self.nz + 1), dtype=complextype)
-        self.Tz = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz), dtype=complextype)
+        self.Tx = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
+        self.Ty = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
+        self.Tz = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
         self.updatecoeffsdispersive = np.zeros((len(self.materials), 3 * Material.maxpoles), dtype=complextype)
 
 
