@@ -41,7 +41,7 @@ class Waveform(object):
             dt (float): Absolute time discretisation.
 
         Returns:
-            waveform (float): Calculated value for waveform.
+            ampvalue (float): Calculated value for waveform.
         """
 
         # Coefficients for certain waveforms
@@ -56,51 +56,53 @@ class Waveform(object):
 
         # Waveforms
         if self.type == 'gaussian':
-            waveform = np.exp(-zeta * delay**2)
+            ampvalue = np.exp(-zeta * delay**2)
 
         elif self.type == 'gaussiandot':
-            waveform = -2 * zeta * delay * np.exp(-zeta * delay**2)
+            ampvalue = -2 * zeta * delay * np.exp(-zeta * delay**2)
 
         elif self.type == 'gaussiandotnorm':
             normalise = np.sqrt(np.exp(1) / (2 * zeta))
-            waveform = -2 * zeta * delay * np.exp(-zeta * delay**2) * normalise
+            ampvalue = -2 * zeta * delay * np.exp(-zeta * delay**2) * normalise
 
         elif self.type == 'gaussiandotdot':
-            waveform = 2 * zeta * (2 * zeta * delay**2 - 1) * np.exp(-zeta * delay**2)
+            ampvalue = 2 * zeta * (2 * zeta * delay**2 - 1) * np.exp(-zeta * delay**2)
 
         elif self.type == 'gaussiandotdotnorm':
             normalise = 1 / (2 * zeta)
-            waveform = 2 * zeta * (2 * zeta * delay**2 - 1) * np.exp(-zeta * delay**2) * normalise
+            ampvalue = 2 * zeta * (2 * zeta * delay**2 - 1) * np.exp(-zeta * delay**2) * normalise
 
         elif self.type == 'ricker':
             normalise = 1 / (2 * zeta)
-            waveform = - (2 * zeta * (2 * zeta * delay**2 - 1) * np.exp(-zeta * delay**2)) * normalise
+            ampvalue = - (2 * zeta * (2 * zeta * delay**2 - 1) * np.exp(-zeta * delay**2)) * normalise
 
         elif self.type == 'sine':
-            waveform = np.sin(2 * np.pi * self.freq * time)
+            ampvalue = np.sin(2 * np.pi * self.freq * time)
             if time * self.freq > 1:
-                waveform = 0
+                ampvalue = 0
 
         elif self.type == 'contsine':
             rampamp = 0.25
             ramp = rampamp * time * self.freq
             if ramp > 1:
                 ramp = 1
-            waveform = ramp * np.sin(2 * np.pi * self.freq * time)
+            ampvalue = ramp * np.sin(2 * np.pi * self.freq * time)
 
         elif self.type == 'impulse':
             # time < dt condition required to do impulsive magnetic dipole
             if time == 0 or time < dt:
-                waveform = 1
+                ampvalue = 1
             elif time >= dt:
-                waveform = 0
+                ampvalue = 0
 
         elif self.type == 'user':
             index = round_value(time / dt)
             # Check to see if there are still user specified values and if not use zero
             if index > len(self.uservalues) - 1:
-                waveform = 0
+                ampvalue = 0
             else:
-                waveform = self.uservalues[index]
+                ampvalue = self.uservalues[index]
 
-        return waveform
+        ampvalue *= self.amp
+
+        return ampvalue
