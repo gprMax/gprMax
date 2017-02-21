@@ -30,5 +30,20 @@ z0 = np.sqrt(m0 / e0)
 #   Fractal and dispersive coefficient arrays use complex numbers (complextype) which are represented as two floats
 #   Main field arrays use floats (floattype) and complex numbers (complextype)
 
+# Single precision
+# For numpy arrays
 floattype = np.float32
 complextype = np.complex64
+
+# For C (CUDA) arrays
+cfloattype = 'float'
+ccomplextype = 'pycuda::complex<float>'
+
+# Double precision
+# For numpy arrays
+#floattype = np.float64
+#complextype = np.complex128
+
+# For C (CUDA) arrays
+#cfloattype = 'double'
+#ccomplextype = 'pycuda::complex<double>'

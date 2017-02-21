@@ -25,5 +25,10 @@ cimport numpy as np
 #   Fractal and dispersive coefficient arrays use complex numbers (complextype) which are represented as two floats
 #   Main field arrays use floats (floattype) and complex numbers (complextype)
 
+# Single precision
 ctypedef np.float32_t floattype_t
 ctypedef np.complex64_t complextype_t
+
+# Double precision
+#ctypedef np.float64_t floattype_t
+#ctypedef np.complex128_t complextype_t
