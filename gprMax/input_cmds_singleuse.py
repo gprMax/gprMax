@@ -26,7 +26,7 @@ import numpy as np
 
 from gprMax.constants import c, floattype
 from gprMax.exceptions import CmdInputError, GeneralError
-from gprMax.utilities import round_value, human_size, get_host_info
+from gprMax.utilities import get_host_info, human_size, memory_usage, round_value
 from gprMax.waveforms import Waveform
 
 
@@ -85,7 +85,7 @@ def process_singlecmds(singlecmds, G):
         os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
 
     if G.messages:
-        print('Number of (OpenMP) threads: {}'.format(G.nthreads))
+        print('Number of CPU (OpenMP) threads: {}'.format(G.nthreads))
     if G.nthreads > hostinfo['cpucores']:
         print(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, hostinfo['cpucores']) + Style.RESET_ALL)
 
@@ -120,10 +120,7 @@ def process_singlecmds(singlecmds, G):
         print('Domain size: {:g} x {:g} x {:g}m ({:d} x {:d} x {:d} = {:g} cells)'.format(tmp[0], tmp[1], tmp[2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)))
 
     # Estimate memory (RAM) usage
-    stdoverhead = 70e6
-    floatarrays = (6 + 6 + 1) * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(floattype).itemsize  # 6 x field arrays + 6 x ID arrays + 1 x solid array
-    rigidarray = (12 + 6) * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(np.int8).itemsize
-    memestimate = stdoverhead + floatarrays + rigidarray
+    memestimate = memory_usage(G)
     if memestimate > hostinfo['ram']:
         print(Fore.RED + 'WARNING: Estimated memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(memestimate), human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True)) + Style.RESET_ALL)
     if G.messages:
