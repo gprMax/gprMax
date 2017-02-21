@@ -81,7 +81,7 @@ def process_geometrycmds(geometry, G):
             for material in G.materials:
                 if material.numID >= numexistmaterials:
                     if material.type:
-                        material.type += ', imported'
+                        material.type += ',\nimported'
                     else:
                         material.type = 'imported'
 
