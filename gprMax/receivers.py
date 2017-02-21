@@ -18,14 +18,16 @@
 
 from collections import OrderedDict
 
-from gprMax.grid import Ix, Iy, Iz
+import numpy as np
+
+from gprMax.constants import floattype
 
 
 class Rx(object):
     """Receiver output points."""
 
-    availableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
-    defaultoutputs = availableoutputs[:-3]
+    allowableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
+    defaultoutputs = allowableoutputs[:-3]
 
     def __init__(self):
 
@@ -37,28 +39,3 @@ class Rx(object):
         self.xcoordorigin = None
         self.ycoordorigin = None
         self.zcoordorigin = None
-
-
-def store_outputs(timestep, Ex, Ey, Ez, Hx, Hy, Hz, G):
-    """Stores field component values for every receiver and transmission line.
-
-    Args:
-        timestep (int): Current iteration number.
-        Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic field values.
-        G (class): Grid class instance - holds essential parameters describing the model.
-    """
-
-    for rx in G.rxs:
-        for output in rx.outputs:
-            # Store electric or magnetic field components
-            if not 'I' in output:
-                field = locals()[output]
-                rx.outputs[output][timestep] = field[rx.xcoord, rx.ycoord, rx.zcoord]
-            # Store current component
-            else:
-                func = globals()[output]
-                rx.outputs[output][timestep] = func(rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hy, Hz, G)
-
-    for tl in G.transmissionlines:
-        tl.Vtotal[timestep] = tl.voltage[tl.antpos]
-        tl.Itotal[timestep] = tl.current[tl.antpos]
