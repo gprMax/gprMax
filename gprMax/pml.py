@@ -16,15 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from collections import OrderedDict
 from importlib import import_module
 
 import numpy as np
 from tqdm import tqdm
 
 from gprMax.constants import e0, z0, floattype
-import gprMax.pml_1order_update
-import gprMax.pml_2order_update
 
 
 class CFSParameter(object):
@@ -98,7 +95,7 @@ class CFS(object):
         tmp = (np.linspace(0, (len(Evalues) - 1) + 0.5, num=2 * len(Evalues)) / (len(Evalues) - 1)) ** order
         Evalues = tmp[0:-1:2]
         Hvalues = tmp[1::2]
-        
+
         return Evalues, Hvalues
 
     def calculate_values(self, thickness, parameter):
@@ -141,9 +138,9 @@ class CFS(object):
 class PML(object):
     """PML - the implementation comes from the derivation in: http://dx.doi.org/10.1109/TAP.2011.2180344"""
 
-    # IDs for default PML slabs at boundaries of domain
+    # PML slabs IDs at boundaries of domain.
     boundaryIDs = ['x0', 'y0', 'z0', 'xmax', 'ymax', 'zmax']
-    
+
     # Indicates direction of increasing absorption
     # xminus, yminus, zminus - absorption increases in negative direction of x-axis, y-axis, or z-axis
     # xplus, yplus, zplus - absorption increases in positive direction of x-axis, y-axis, or z-axis
@@ -170,8 +167,7 @@ class PML(object):
         self.ny = yf - ys
         self.nz = zf - zs
 
-        # Spatial discretisation and thickness
-        # (one extra cell of thickness required for interpolation of electric and magnetic scaling values)
+        # Spatial discretisation and thickness (one extra cell of thickness required for interpolation of electric and magnetic scaling values)
         if self.direction[0] == 'x':
             self.d = G.dx
             self.thickness = self.nx + 1
