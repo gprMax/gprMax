@@ -21,6 +21,31 @@ import h5py
 from gprMax._version import __version__
 
 
+def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
+    """Stores field component values for every receiver and transmission line.
+
+    Args:
+        iteration (int): Current iteration number.
+        Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic field values.
+        G (class): Grid class instance - holds essential parameters describing the model.
+    """
+
+    for rx in G.rxs:
+        for output in rx.outputs:
+            # Store electric or magnetic field components
+            if 'I' not in output:
+                field = locals()[output]
+                rx.outputs[output][iteration] = field[rx.xcoord, rx.ycoord, rx.zcoord]
+            # Store current component
+            else:
+                func = globals()[output]
+                rx.outputs[output][iteration] = func(rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hy, Hz, G)
+
+    for tl in G.transmissionlines:
+        tl.Vtotal[iteration] = tl.voltage[tl.antpos]
+        tl.Itotal[iteration] = tl.current[tl.antpos]
+
+
 def write_hdf5_outputfile(outputfile, Ex, Ey, Ez, Hx, Hy, Hz, G):
     """Write an output file in HDF5 format.
 
