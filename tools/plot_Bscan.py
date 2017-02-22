@@ -93,8 +93,8 @@ def mpl_plot(outputdata, dt, rxnumber, rxcomponent):
         cb.set_label('Current [A]')
 
     # Save a PDF/PNG of the figure
-    #fig.savefig('Bscan' + str(rxnumber) + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    #fig.savefig('Bscan' + str(rxnumber) + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    # fig.savefig('Bscan' + str(rxnumber) + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    # fig.savefig('Bscan' + str(rxnumber) + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
     return plt
 

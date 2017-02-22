@@ -107,31 +107,31 @@ def xcorr(filename, args):
         raise GeneralError('No outputs matching {} were found'.format(args['outputs']))
 
     # Normalise reference respose and response from output file
-#    refresp /= np.amax(np.abs(refresp))
-#    modelresp /= np.amax(np.abs(modelresp))
+    # refresp /= np.amax(np.abs(refresp))
+    # modelresp /= np.amax(np.abs(modelresp))
 
     # Make both responses the same length in time
-#    if reftime[-1] > modeltime[-1]:
-#        reftime = np.arange(0, f.attrs['dt'] * f.attrs['Iterations'], reftime[-1] / len(reftime))
-#        refresp = refresp[0:len(reftime)]
-#    elif modeltime[-1] > reftime[-1]:
-#        modeltime = np.arange(0, reftime[-1], f.attrs['dt'])
-#        modelresp = modelresp[0:len(modeltime)]
-#
-#    # Downsample the response with the higher sampling rate
-#    if len(modeltime) < len(reftime):
-#        refresp = signal.resample(refresp, len(modelresp))
-#    elif len(reftime) < len(modeltime):
-#        modelresp = signal.resample(modelresp, len(refresp))
+    # if reftime[-1] > modeltime[-1]:
+    #    reftime = np.arange(0, f.attrs['dt'] * f.attrs['Iterations'], reftime[-1] / len(reftime))
+    #    refresp = refresp[0:len(reftime)]
+    # elif modeltime[-1] > reftime[-1]:
+    #    modeltime = np.arange(0, reftime[-1], f.attrs['dt'])
+    #    modelresp = modelresp[0:len(modeltime)]
+
+    # Downsample the response with the higher sampling rate
+    # if len(modeltime) < len(reftime):
+    #    refresp = signal.resample(refresp, len(modelresp))
+    # elif len(reftime) < len(modeltime):
+    #    modelresp = signal.resample(modelresp, len(refresp))
 
     # Prepare data for normalized cross-correlation
     refresp = (refresp - np.mean(refresp)) / (np.std(refresp) * len(refresp))
     modelresp = (modelresp - np.mean(modelresp)) / np.std(modelresp)
 
     # Plots responses for checking
-    #fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Voltage [V]'), figsize=(20, 10), facecolor='w', edgecolor='w')
-    #ax.plot(refresp,'r', lw=2, label='refresp')
-    #ax.plot(modelresp,'b', lw=2, label='modelresp')
+    # fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Voltage [V]'), figsize=(20, 10), facecolor='w', edgecolor='w')
+    # ax.plot(refresp,'r', lw=2, label='refresp')
+    # ax.plot(modelresp,'b', lw=2, label='modelresp')
     # ax.grid()
     # plt.show()
 
@@ -142,10 +142,10 @@ def xcorr(filename, args):
     xcorr = np.nan_to_num(xcorr)
 
     # Plot cross-correlation for checking
-#    fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Voltage [V]'), figsize=(20, 10), facecolor='w', edgecolor='w')
-#    ax.plot(xcorr,'r', lw=2, label='xcorr')
-#    ax.grid()
-#    plt.show()
+    # fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Voltage [V]'), figsize=(20, 10), facecolor='w', edgecolor='w')
+    # ax.plot(xcorr,'r', lw=2, label='xcorr')
+    # ax.grid()
+    # plt.show()
 
     xcorrmax = np.amax(xcorr)
 
@@ -237,15 +237,15 @@ def compactness(filename, args):
             # Amplitude ratio of the 1st to 3rd peak - hopefully be a measure of a compact envelope
             compactness = np.abs(outputdata[peaks[0]]) / np.abs(outputdata[peaks[2]])
 
-#            # Percentage of maximum value to measure compactness of signal
-#            durationthreshold = 2
-#            # Check if there is a peak/trough smaller than threshold
-#            durationthresholdexist = np.where(np.abs(outputdata[peaks]) < (peak * (durationthreshold / 100)))[0]
-#            if durationthresholdexist.size == 0:
-#                compactness = time[peaks[-1]]
-#            else:
-#                time2threshold = time[peaks[durationthresholdexist[0]]]
-#                compactness = time2threshold - time[min(peaks)]
+            # Percentage of maximum value to measure compactness of signal
+            # durationthreshold = 2
+            # Check if there is a peak/trough smaller than threshold
+            # durationthresholdexist = np.where(np.abs(outputdata[peaks]) < (peak * (durationthreshold / 100)))[0]
+            # if durationthresholdexist.size == 0:
+            #    compactness = time[peaks[-1]]
+            # else:
+            #    time2threshold = time[peaks[durationthresholdexist[0]]]
+            #    compactness = time2threshold - time[min(peaks)]
 
     # Check in case no outputs where found
     if not outputsused:

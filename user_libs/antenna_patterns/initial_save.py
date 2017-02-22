@@ -25,7 +25,7 @@ outputfile = args.outputfile
 ########################################
 # User configurable parameters
 
-# Pattern type (E or H)
+# Pattern type (E or H)
 type = 'H'
 
 # Antenna (true if using full antenna model; false for a theoretical Hertzian dipole
@@ -116,21 +116,21 @@ for rx in range(0, nrx):
 f.close()
 
 # Plot traces for sanity checking
-#fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(num=outputfile, nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), figsize=(20, 10), facecolor='w', edgecolor='w')
-#ax1.plot(time, Ex[:, traceno],'r', lw=2)
-#ax1.set_ylabel('$E_x$, field strength [V/m]')
-#ax3.plot(time, Ey[:, traceno],'r', lw=2)
-#ax3.set_ylabel('$E_y$, field strength [V/m]')
-#ax5.plot(time, Ez[:, traceno],'r', lw=2)
-#ax5.set_ylabel('$E_z$, field strength [V/m]')
-#ax2.plot(time, Hx[:, traceno],'b', lw=2)
-#ax2.set_ylabel('$H_x$, field strength [A/m]')
-#ax4.plot(time, Hy[:, traceno],'b', lw=2)
-#ax4.set_ylabel('$H_y$, field strength [A/m]')
-#ax6.plot(time, Hz[:, traceno],'b', lw=2)
-#ax6.set_ylabel('$H_z$, field strength [A/m]')
+# fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(num=outputfile, nrows=3, ncols=2, sharex=False, sharey='col', subplot_kw=dict(xlabel='Time [ns]'), figsize=(20, 10), facecolor='w', edgecolor='w')
+# ax1.plot(time, Ex[:, traceno],'r', lw=2)
+# ax1.set_ylabel('$E_x$, field strength [V/m]')
+# ax3.plot(time, Ey[:, traceno],'r', lw=2)
+# ax3.set_ylabel('$E_y$, field strength [V/m]')
+# ax5.plot(time, Ez[:, traceno],'r', lw=2)
+# ax5.set_ylabel('$E_z$, field strength [V/m]')
+# ax2.plot(time, Hx[:, traceno],'b', lw=2)
+# ax2.set_ylabel('$H_x$, field strength [A/m]')
+# ax4.plot(time, Hy[:, traceno],'b', lw=2)
+# ax4.set_ylabel('$H_y$, field strength [A/m]')
+# ax6.plot(time, Hz[:, traceno],'b', lw=2)
+# ax6.set_ylabel('$H_z$, field strength [A/m]')
 # Turn on grid
-#[ax.grid() for ax in fig.axes]
+# [ax.grid() for ax in fig.axes]
 # plt.show()
 
 # Calculate fields for patterns

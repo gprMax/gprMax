@@ -155,7 +155,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     # To a certain drop from maximum power
     pltrangemax = np.where((np.amax(Vincp[1::]) - Vincp[1::]) > 60)[0][0] + 1
     # To a maximum frequency
-    #pltrangemax = np.where(freqs > 6e9)[0][0]
+    # pltrangemax = np.where(freqs > 6e9)[0][0]
     pltrange = np.s_[pltrangemin:pltrangemax]
 
     # Print some useful values from s11, and input impedance
@@ -163,8 +163,8 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     print('s11 minimum: {:g} dB at {:g} Hz'.format(np.amin(s11[pltrange]), freqs[s11minfreq + pltrangemin]))
     print('At {:g} Hz...'.format(freqs[s11minfreq + pltrangemin]))
     print('Input impedance: {:.1f}{:+.1f}j Ohms'.format(np.abs(zin[s11minfreq + pltrangemin]), zin[s11minfreq + pltrangemin].imag))
-    #print('Input admittance (mag): {:g} S'.format(np.abs(yin[s11minfreq + pltrangemin])))
-    #print('Input admittance (phase): {:.1f} deg'.format(np.angle(yin[s11minfreq + pltrangemin], deg=True)))
+    # print('Input admittance (mag): {:g} S'.format(np.abs(yin[s11minfreq + pltrangemin])))
+    # print('Input admittance (phase): {:.1f} deg'.format(np.angle(yin[s11minfreq + pltrangemin], deg=True)))
 
     # Figure 1
     # Plot incident voltage
@@ -254,45 +254,45 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     ax.grid()
 
     # Plot reflected (reflected) voltage
-    #ax = plt.subplot(gs1[4, 0])
-    #ax.plot(time, Vref, 'r', lw=2, label='Vref')
-    #ax.set_title('Reflected voltage')
-    #ax.set_xlabel('Time [s]')
-    #ax.set_ylabel('Voltage [V]')
-    #ax.set_xlim([0, np.amax(time)])
+    # ax = plt.subplot(gs1[4, 0])
+    # ax.plot(time, Vref, 'r', lw=2, label='Vref')
+    # ax.set_title('Reflected voltage')
+    # ax.set_xlabel('Time [s]')
+    # ax.set_ylabel('Voltage [V]')
+    # ax.set_xlim([0, np.amax(time)])
     # ax.grid()
-    #
+
     # Plot frequency spectra of reflected voltage
-    #ax = plt.subplot(gs1[4, 1])
-    #markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vrefp[pltrange], '-.')
-    #plt.setp(baseline, 'linewidth', 0)
-    #plt.setp(stemlines, 'color', 'r')
-    #plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
-    #ax.plot(freqs[pltrange], Vrefp[pltrange], 'r', lw=2)
-    #ax.set_title('Reflected voltage')
-    #ax.set_xlabel('Frequency [Hz]')
-    #ax.set_ylabel('Power [dB]')
+    # ax = plt.subplot(gs1[4, 1])
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vrefp[pltrange], '-.')
+    # plt.setp(baseline, 'linewidth', 0)
+    # plt.setp(stemlines, 'color', 'r')
+    # plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
+    # ax.plot(freqs[pltrange], Vrefp[pltrange], 'r', lw=2)
+    # ax.set_title('Reflected voltage')
+    # ax.set_xlabel('Frequency [Hz]')
+    # ax.set_ylabel('Power [dB]')
     # ax.grid()
-    #
+
     # Plot reflected (reflected) current
-    #ax = plt.subplot(gs1[5, 0])
-    #ax.plot(time, Iref, 'b', lw=2, label='Iref')
-    #ax.set_title('Reflected current')
-    #ax.set_xlabel('Time [s]')
-    #ax.set_ylabel('Current [A]')
-    #ax.set_xlim([0, np.amax(time)])
+    # ax = plt.subplot(gs1[5, 0])
+    # ax.plot(time, Iref, 'b', lw=2, label='Iref')
+    # ax.set_title('Reflected current')
+    # ax.set_xlabel('Time [s]')
+    # ax.set_ylabel('Current [A]')
+    # ax.set_xlim([0, np.amax(time)])
     # ax.grid()
-    #
+
     # Plot frequency spectra of reflected current
-    #ax = plt.subplot(gs1[5, 1])
-    #markerline, stemlines, baseline = ax.stem(freqs[pltrange], Irefp[pltrange], '-.')
-    #plt.setp(baseline, 'linewidth', 0)
-    #plt.setp(stemlines, 'color', 'b')
-    #plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
-    #ax.plot(freqs[pltrange], Irefp[pltrange], 'b', lw=2)
-    #ax.set_title('Reflected current')
-    #ax.set_xlabel('Frequency [Hz]')
-    #ax.set_ylabel('Power [dB]')
+    # ax = plt.subplot(gs1[5, 1])
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Irefp[pltrange], '-.')
+    # plt.setp(baseline, 'linewidth', 0)
+    # plt.setp(stemlines, 'color', 'b')
+    # plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
+    # ax.plot(freqs[pltrange], Irefp[pltrange], 'b', lw=2)
+    # ax.set_title('Reflected current')
+    # ax.set_xlabel('Frequency [Hz]')
+    # ax.set_ylabel('Power [dB]')
     # ax.grid()
 
     # Figure 2
@@ -308,8 +308,8 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     ax.set_title('s11')
     ax.set_xlabel('Frequency [Hz]')
     ax.set_ylabel('Power [dB]')
-    #ax.set_xlim([0, 5e9])
-    #ax.set_ylim([-25, 0])
+    # ax.set_xlim([0, 5e9])
+    # ax.set_ylim([-25, 0])
     ax.grid()
 
     # Plot frequency spectra of s21
@@ -323,8 +323,8 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
         ax.set_title('s21')
         ax.set_xlabel('Frequency [Hz]')
         ax.set_ylabel('Power [dB]')
-        #ax.set_xlim([0.88e9, 1.02e9])
-        #ax.set_ylim([-25, 50])
+        # ax.set_xlim([0.88e9, 1.02e9])
+        # ax.set_ylim([-25, 50])
         ax.grid()
 
     # Plot input resistance (real part of impedance)
@@ -337,9 +337,9 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     ax.set_title('Input impedance (resistive)')
     ax.set_xlabel('Frequency [Hz]')
     ax.set_ylabel('Resistance [Ohms]')
-    #ax.set_xlim([0.88e9, 1.02e9])
+    # ax.set_xlim([0.88e9, 1.02e9])
     ax.set_ylim(bottom=0)
-    #ax.set_ylim([0, 300])
+    # ax.set_ylim([0, 300])
     ax.grid()
 
     # Plot input reactance (imaginery part of impedance)
@@ -352,43 +352,43 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     ax.set_title('Input impedance (reactive)')
     ax.set_xlabel('Frequency [Hz]')
     ax.set_ylabel('Reactance [Ohms]')
-    #ax.set_xlim([0.88e9, 1.02e9])
-    #ax.set_ylim([-300, 300])
+    # ax.set_xlim([0.88e9, 1.02e9])
+    # ax.set_ylim([-300, 300])
     ax.grid()
 
     # Plot input admittance (magnitude)
-    #ax = plt.subplot(gs2[2, 0])
-    #markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.abs(yin[pltrange]), '-.')
-    #plt.setp(baseline, 'linewidth', 0)
-    #plt.setp(stemlines, 'color', 'g')
-    #plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
-    #ax.plot(freqs[pltrange], np.abs(yin[pltrange]), 'g', lw=2)
-    #ax.set_title('Input admittance (magnitude)')
-    #ax.set_xlabel('Frequency [Hz]')
-    #ax.set_ylabel('Admittance [Siemens]')
-    ##ax.set_xlim([0.88e9, 1.02e9])
-    ##ax.set_ylim([0, 0.035])
+    # ax = plt.subplot(gs2[2, 0])
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.abs(yin[pltrange]), '-.')
+    # plt.setp(baseline, 'linewidth', 0)
+    # plt.setp(stemlines, 'color', 'g')
+    # plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
+    # ax.plot(freqs[pltrange], np.abs(yin[pltrange]), 'g', lw=2)
+    # ax.set_title('Input admittance (magnitude)')
+    # ax.set_xlabel('Frequency [Hz]')
+    # ax.set_ylabel('Admittance [Siemens]')
+    # ax.set_xlim([0.88e9, 1.02e9])
+    # ax.set_ylim([0, 0.035])
     # ax.grid()
-    #
+
     # Plot input admittance (phase)
-    #ax = plt.subplot(gs2[2, 1])
-    #markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.angle(yin[pltrange], deg=True), '-.')
-    #plt.setp(baseline, 'linewidth', 0)
-    #plt.setp(stemlines, 'color', 'g')
-    #plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
-    #ax.plot(freqs[pltrange], np.angle(yin[pltrange], deg=True), 'g', lw=2)
-    #ax.set_title('Input admittance (phase)')
-    #ax.set_xlabel('Frequency [Hz]')
-    #ax.set_ylabel('Phase [degrees]')
-    ##ax.set_xlim([0.88e9, 1.02e9])
-    ##ax.set_ylim([-40, 100])
+    # ax = plt.subplot(gs2[2, 1])
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.angle(yin[pltrange], deg=True), '-.')
+    # plt.setp(baseline, 'linewidth', 0)
+    # plt.setp(stemlines, 'color', 'g')
+    # plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
+    # ax.plot(freqs[pltrange], np.angle(yin[pltrange], deg=True), 'g', lw=2)
+    # ax.set_title('Input admittance (phase)')
+    # ax.set_xlabel('Frequency [Hz]')
+    # ax.set_ylabel('Phase [degrees]')
+    # ax.set_xlim([0.88e9, 1.02e9])
+    # ax.set_ylim([-40, 100])
     # ax.grid()
 
     # Save a PDF/PNG of the figure
-    #fig1.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_tl_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
-    #fig2.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_ant_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
-    #fig1.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_tl_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    #fig2.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_ant_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    # fig1.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_tl_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    # fig2.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_ant_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    # fig1.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_tl_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    # fig2.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_ant_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
 
     return plt
 

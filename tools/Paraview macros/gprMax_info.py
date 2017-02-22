@@ -111,7 +111,8 @@ if rxs:
                 thresholddisplay = Show(threshold, renderview)
                 thresholddisplay.ColorArrayName = 'Receivers'
 
-#renderview.CameraParallelProjection = 1
+# renderview.CameraParallelProjection = 1
 RenderAllViews()
+
 # Show color bar/color legend
-#thresholdDisplay.SetScalarBarVisibility(renderview, False)
+# thresholdDisplay.SetScalarBarVisibility(renderview, False)

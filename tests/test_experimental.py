@@ -84,7 +84,7 @@ ax.grid()
 
 # Save a PDF/PNG of the figure
 savename = os.path.abspath(os.path.dirname(args.modelfile)) + os.sep + os.path.splitext(os.path.split(args.modelfile)[1])[0] + '_vs_' + os.path.splitext(os.path.split(args.realfile)[1])[0]
-#fig.savefig(savename + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+# fig.savefig(savename + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
 # fig.savefig((savename + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
 plt.show()

@@ -41,17 +41,17 @@ from tests.analytical_solutions import hertzian_dipole_fs
 
 basepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models_')
 basepath += 'basic'
-#basepath += 'advanced'
+# basepath += 'advanced'
 
 # List of available basic test models
 testmodels = ['hertzian_dipole_fs_analytical', '2D_ExHyHz', '2D_EyHxHz', '2D_EzHxHy', 'cylinder_Ascan_2D', 'hertzian_dipole_fs', 'hertzian_dipole_hs', 'hertzian_dipole_dispersive', 'magnetic_dipole_fs']
 
 # List of available advanced test models
-#testmodels = ['antenna_GSSI_1500_fs', 'antenna_MALA_1200_fs']
+# testmodels = ['antenna_GSSI_1500_fs', 'antenna_MALA_1200_fs']
 
 # Select a specific model if desired
-#testmodels = [testmodels[0], testmodels[5], testmodels[7]]
-#testmodels = [testmodels[5]]
+# testmodels = [testmodels[0], testmodels[5], testmodels[7]]
+# testmodels = [testmodels[5]]
 testresults = dict.fromkeys(testmodels)
 path = '/rxs/rx1/'
 
@@ -138,9 +138,9 @@ for i, model in enumerate(testmodels):
     datadiffs = np.zeros(datatest.shape, dtype=np.float64)
     for i in range(len(outputstest)):
         max = np.amax(np.abs(dataref[:, i]))
-        datadiffs[:, i] = np.divide(np.abs(dataref[:, i] - datatest[:, i]), max, out=np.zeros_like(dataref[:, i]), where=max!=0) # Replace any division by zero with zero
+        datadiffs[:, i] = np.divide(np.abs(dataref[:, i] - datatest[:, i]), max, out=np.zeros_like(dataref[:, i]), where=max != 0)  # Replace any division by zero with zero
         with np.errstate(divide='ignore'):
-            datadiffs[:, i] = 20 * np.log10(datadiffs[:, i]) # Ignore any zero division in log10
+            datadiffs[:, i] = 20 * np.log10(datadiffs[:, i])  # Ignore any zero division in log10
 
     # Store max difference
     maxdiff = np.amax(np.amax(datadiffs))
@@ -184,8 +184,8 @@ for i, model in enumerate(testmodels):
 
     # Save a PDF/PNG of the figure
     savename = os.path.join(basepath, model + os.path.sep + model)
-    #fig1.savefig(savename + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    #fig2.savefig(savename + '_diffs.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    # fig1.savefig(savename + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    # fig2.savefig(savename + '_diffs.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
     fig1.savefig(savename + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
     fig2.savefig(savename + '_diffs.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 

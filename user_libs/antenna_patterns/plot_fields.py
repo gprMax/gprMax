@@ -18,15 +18,15 @@ from gprMax.constants import c, z0
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Plot field patterns from a simulation with receivers positioned in circles around an antenna. This module should be used after the field pattern data has been processed and stored using the initial_save.py module.', usage='cd gprMax; python -m user_libs.antenna_patterns.plot_fields numpyfile')
 parser.add_argument('numpyfile', help='name of numpy file including path')
-#parser.add_argument('hertzian', help='name of numpy file including path')
+# parser.add_argument('hertzian', help='name of numpy file including path')
 args = parser.parse_args()
 patterns = np.load(args.numpyfile)
-#hertzian = np.load(args.hertzian)
+# hertzian = np.load(args.hertzian)
 
 ########################################
 # User configurable parameters
 
-# Pattern type (E or H)
+# Pattern type (E or H)
 type = 'H'
 
 # Relative permittivity of half-space for homogeneous materials (set to None for inhomogeneous)
@@ -87,11 +87,11 @@ for patt in range(0, len(radii)):
 
 # Add Hertzian dipole plot
 # hertzplot1 = np.append(hertzian[0, :], hertzian[0, 0]) # Append start value to close circle
-#hertzplot1 = hertzplot1 / np.max(np.max(hertzian))
-#ax.plot(theta, 10 * np.log10(hertzplot1), label='Inf. dipole, 0.1m', color='black', ls='-.', lw=3)
+# hertzplot1 = hertzplot1 / np.max(np.max(hertzian))
+# ax.plot(theta, 10 * np.log10(hertzplot1), label='Inf. dipole, 0.1m', color='black', ls='-.', lw=3)
 # hertzplot2 = np.append(hertzian[-1, :], hertzian[-1, 0]) # Append start value to close circle
-#hertzplot2 = hertzplot2 / np.max(np.max(hertzian))
-#ax.plot(theta, 10 * np.log10(hertzplot2), label='Inf. dipole, 0.58m', color='black', ls='--', lw=3)
+# hertzplot2 = hertzplot2 / np.max(np.max(hertzian))
+# ax.plot(theta, 10 * np.log10(hertzplot2), label='Inf. dipole, 0.58m', color='black', ls='--', lw=3)
 
 # Theta axis options
 ax.set_theta_zero_location('N')
@@ -110,13 +110,13 @@ ax.set_yticklabels(yticks)
 ax.grid(True)
 handles, existlabels = ax.get_legend_handles_labels()
 leg = ax.legend([handles[0], handles[-1]], [existlabels[0], existlabels[-1]], ncol=2, loc=(0.27, -0.12), frameon=False)  # Plot just first and last legend entries
-#leg = ax.legend([handles[0], handles[-3], handles[-2], handles[-1]], [existlabels[0], existlabels[-3], existlabels[-2], existlabels[-1]], ncol=4, loc=(-0.13,-0.12), frameon=False)
+# leg = ax.legend([handles[0], handles[-3], handles[-2], handles[-1]], [existlabels[0], existlabels[-3], existlabels[-2], existlabels[-1]], ncol=4, loc=(-0.13,-0.12), frameon=False)
 [legobj.set_linewidth(2) for legobj in leg.legendHandles]
 
 # Save a pdf of the plot
 savename = os.path.splitext(args.numpyfile)[0] + '.pdf'
 fig.savefig(savename, dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-#savename = os.path.splitext(args.numpyfile)[0] + '.png'
-#fig.savefig(savename, dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+# savename = os.path.splitext(args.numpyfile)[0] + '.png'
+# fig.savefig(savename, dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
 plt.show()

@@ -93,7 +93,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                 # Set plotting range to -60dB from maximum power
                 pltrange = np.where((np.amax(power[1::]) - power[1::]) > 60)[0][0] + 1
                 # To a maximum frequency
-                #pltrange = np.where(freqs > 2e9)[0][0]
+                # pltrange = np.where(freqs > 2e9)[0][0]
                 pltrange = np.s_[0:pltrange]
 
                 # Plot time history of output component
@@ -135,7 +135,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                 fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]', ylabel=outputtext + ' field strength [V/m]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
                 line = ax.plot(time, outputdata, 'r', lw=2, label=outputtext)
                 ax.set_xlim([0, np.amax(time)])
-                #ax.set_ylim([-15, 20])
+                # ax.set_ylim([-15, 20])
                 ax.grid()
 
                 if 'H' in output:
@@ -152,7 +152,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                 gs = gridspec.GridSpec(3, 3, hspace=0.3, wspace=0.3)
             else:
                 gs = gridspec.GridSpec(3, 2, hspace=0.3, wspace=0.3)
-            
+
             for output in outputs:
                 # Check for polarity of output and if requested output is in file
                 if output[-1] == 'm':
@@ -173,51 +173,51 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                     ax = plt.subplot(gs[0, 0])
                     ax.plot(time, outputdata, 'r', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', field strength [V/m]')
-                #ax.set_ylim([-15, 20])
+                # ax.set_ylim([-15, 20])
                 elif output == 'Ey':
                     ax = plt.subplot(gs[1, 0])
                     ax.plot(time, outputdata, 'r', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', field strength [V/m]')
-                #ax.set_ylim([-15, 20])
+                # ax.set_ylim([-15, 20])
                 elif output == 'Ez':
                     ax = plt.subplot(gs[2, 0])
                     ax.plot(time, outputdata, 'r', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', field strength [V/m]')
-                #ax.set_ylim([-15, 20])
+                # ax.set_ylim([-15, 20])
                 elif output == 'Hx':
                     ax = plt.subplot(gs[0, 1])
                     ax.plot(time, outputdata, 'g', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', field strength [A/m]')
-                #ax.set_ylim([-0.03, 0.03])
+                # ax.set_ylim([-0.03, 0.03])
                 elif output == 'Hy':
                     ax = plt.subplot(gs[1, 1])
                     ax.plot(time, outputdata, 'g', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', field strength [A/m]')
-                #ax.set_ylim([-0.03, 0.03])
+                # ax.set_ylim([-0.03, 0.03])
                 elif output == 'Hz':
                     ax = plt.subplot(gs[2, 1])
                     ax.plot(time, outputdata, 'g', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', field strength [A/m]')
-                #ax.set_ylim([-0.03, 0.03])
+                # ax.set_ylim([-0.03, 0.03])
                 elif output == 'Ix':
                     ax = plt.subplot(gs[0, 2])
-                    ax.plot(time, outputdata,'b', lw=2, label=outputtext)
+                    ax.plot(time, outputdata, 'b', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', current [A]')
                 elif output == 'Iy':
                     ax = plt.subplot(gs[1, 2])
-                    ax.plot(time, outputdata,'b', lw=2, label=outputtext)
+                    ax.plot(time, outputdata, 'b', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', current [A]')
                 elif output == 'Iz':
                     ax = plt.subplot(gs[2, 2])
-                    ax.plot(time, outputdata,'b', lw=2, label=outputtext)
+                    ax.plot(time, outputdata, 'b', lw=2, label=outputtext)
                     ax.set_ylabel(outputtext + ', current [A]')
             for ax in fig.axes:
                 ax.set_xlim([0, np.amax(time)])
                 ax.grid()
 
         # Save a PDF/PNG of the figure
-#        fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-#        fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+        # fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+        # fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
     return plt
 

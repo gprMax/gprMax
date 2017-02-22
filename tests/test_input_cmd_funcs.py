@@ -47,11 +47,6 @@ class My_input_cmd_funcs_test(unittest.TestCase):
             rx(2, 1, 0, 'id', ['Ex', 'Ez'])
         self.assert_output(out, '#rx: 2 1 0 id Ex Ez')
 
-    def test_rx4(self):
-        with captured_output() as (out, err):
-            rx(2, 1, 0, 'id', ['Ex', 'Ez'])
-        self.assert_output(out, '#rx: 2 1 0 id Ex Ez')
-
     def test_rx_rotate_exception(self):
         with self.assertRaises(ValueError):
             rx(2, 1, 0, 'id', ['Ex', 'Ez'], polarisation='x', rotate90origin=(1, 1))  # no dxdy given

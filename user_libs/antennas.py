@@ -52,13 +52,13 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
     else:
         # excitationfreq = 1.5e9 # GHz
         # sourceresistance = 50 # Ohms
-        #absorberEr = 1.7
-        #absorbersig = 0.59
+        # absorberEr = 1.7
+        # absorbersig = 0.59
 
         # Values from http://hdl.handle.net/1842/4074
         excitationfreq = 1.71e9
-        #sourceresistance = 4
-        sourceresistance = 230  #  Correction for old (< 123) GprMax3D bug
+        # sourceresistance = 4
+        sourceresistance = 230  # Correction for old (< 123) GprMax3D bug
         absorberEr = 1.58
         absorbersig = 0.428
         rxres = 925  # Resistance at Rx bowtie
@@ -157,8 +157,8 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
     box(x, y, z, x + casesize[0], y + casesize[1], z + skidthickness, 'hdpe', rotate90origin=rotate90origin)
 
     # Geometry views
-    #geometry_view(x - dx, y - dy, z - dz, x + casesize[0] + dx, y + casesize[1] + dy, z + skidthickness + casesize[2] + dz, dx, dy, dz, 'antenna_like_GSSI_1500')
-    #geometry_view(x, y, z, x + casesize[0], y + casesize[1], z + 0.010, dx, dy, dz, 'antenna_like_GSSI_1500_pcb', type='f')
+    # geometry_view(x - dx, y - dy, z - dz, x + casesize[0] + dx, y + casesize[1] + dy, z + skidthickness + casesize[2] + dz, dx, dy, dz, 'antenna_like_GSSI_1500')
+    # geometry_view(x, y, z, x + casesize[0], y + casesize[1], z + 0.010, dx, dy, dz, 'antenna_like_GSSI_1500_pcb', type='f')
 
     # Excitation - custom pulse
     # print('#excitation_file: {}'.format(os.path.join(moduledirectory, 'GSSIgausspulse1.txt')))
@@ -395,8 +395,8 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, rotate90=False, **kwargs):
     box(x, y, z + polypropylenethickness, x + casesize[0], y + casesize[1], z + polypropylenethickness + hdpethickness, 'hdpe', rotate90origin=rotate90origin)
 
     # Geometry views
-    #geometry_view(x - dx, y - dy, z - dz, x + casesize[0] + dx, y + casesize[1] + dy, z + casesize[2] + skidthickness + dz, dx, dy, dz, 'antenna_like_MALA_1200')
-    #geometry_view(x, y, z, x + casesize[0], y + casesize[1], z + 0.010, dx, dy, dz, 'antenna_like_MALA_1200_pcb', type='f')
+    # geometry_view(x - dx, y - dy, z - dz, x + casesize[0] + dx, y + casesize[1] + dy, z + casesize[2] + skidthickness + dz, dx, dy, dz, 'antenna_like_MALA_1200')
+    # geometry_view(x, y, z, x + casesize[0], y + casesize[1], z + 0.010, dx, dy, dz, 'antenna_like_MALA_1200_pcb', type='f')
 
     # Excitation
     print('#waveform: gaussian 1.0 {} myGaussian'.format(excitationfreq))

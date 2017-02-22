@@ -67,10 +67,10 @@ if args.otherresults is not None:
     for i, result in enumerate(otherresults):
         ax.plot(result['threads'], result['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, ls=lines[i], label=otherplotlabels[i] + ' (v' + version + ')')
 
-#ax.plot(results['threads'], results['bench1'], color=colors[1], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v3.0.0b21)')
-#ax.plot(results['threads'], results['bench1c'], color=colors[0], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v2)')
-#ax.plot(results['threads'], results['bench2'], color=colors[1], marker='.', ms=10, lw=2, ls='--', label='bench_150x150x150.in (v3.0.0b21)')
-#ax.plot(results['threads'], results['bench2c'], color=colors[0], marker='.', ms=10, lw=2, ls='--', label='bench_150x150x150.in (v2)')
+# ax.plot(results['threads'], results['bench1'], color=colors[1], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v3.0.0b21)')
+# ax.plot(results['threads'], results['bench1c'], color=colors[0], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v2)')
+# ax.plot(results['threads'], results['bench2'], color=colors[1], marker='.', ms=10, lw=2, ls='--', label='bench_150x150x150.in (v3.0.0b21)')
+# ax.plot(results['threads'], results['bench2c'], color=colors[0], marker='.', ms=10, lw=2, ls='--', label='bench_150x150x150.in (v2)')
 
 ax.set_xlabel('Number of threads')
 ax.set_ylabel('Time [s]')
@@ -91,10 +91,10 @@ if args.otherresults is not None:
     for i, result in enumerate(otherresults):
         ax.plot(result['threads'], result['benchtimes'][-1] / result['benchtimes'], color=colors[1], marker='.', ms=10, lw=2, ls=lines[i], label=otherplotlabels[i] + ' (v' + version + ')')
 
-#ax.plot(results['threads'], results['bench1'][0] / results['bench1'], color=colors[1], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v3.0.0b21)')
-#ax.plot(results['threads'], results['bench1c'][1] / results['bench1c'], color=colors[0], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v2)')
-#ax.plot(results['threads'], results['bench2'][0] / results['bench2'], color=colors[1], marker='.', ms=10, lw=2, ls='--', label='bench_150x150x150.in (v3.0.0b21)')
-#ax.plot(results['threads'], results['bench2c'][1] / results['bench2c'], color=colors[0], marker='.', ms=10, lw=2, ls='--', label='bench_150x150x150.in (v2)')
+# ax.plot(results['threads'], results['bench1'][0] / results['bench1'], color=colors[1], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v3.0.0b21)')
+# ax.plot(results['threads'], results['bench1c'][1] / results['bench1c'], color=colors[0], marker='.', ms=10, lw=2, label='bench_100x100x100.in (v2)')
+# ax.plot(results['threads'], results['bench2'][0] / results['bench2'], color=colors[1], marker='.', ms=10, lw=2, ls='--', label='bench_150x150x150.in (v3.0.0b21)')
+# ax.plot(results['threads'], results['bench2c'][1] / results['bench2c'], color=colors[0], marker='.', ms=10, lw=2, ls='--', label='bench_150x150x150.in (v2)')
 
 ax.set_xlabel('Number of threads')
 ax.set_ylabel('Speed-up factor')
