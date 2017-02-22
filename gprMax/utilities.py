@@ -85,11 +85,11 @@ def open_path_file(path_or_file):
 
     Args:
         path_or_file: path as a string or a file object.
-        
+
     Returns:
         f (object): File object.
     """
-    
+
     if isinstance(path_or_file, str):
         f = file_to_close = open(path_or_file, 'r')
     else:
@@ -212,21 +212,21 @@ def memory_usage(G):
 
     Args:
         G (class): Grid class instance - holds essential parameters describing the model.
-        
+
     Returns:
         memestimate (int): Estimate of required memory in bytes
     """
 
     stdoverhead = 50e6
-    
+
     # 6 x field arrays + 6 x ID arrays
     fieldarrays = (6 + 6) * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(floattype).itemsize
-    
+
     solidarray = G.nx * G.ny * G.nz * np.dtype(np.uint32).itemsize
-    
+
     # 12 x rigidE array components + 6 x rigidH array components
     rigidarrays = (12 + 6) * G.nx * G.ny * G.nz * np.dtype(np.int8).itemsize
-    
+
     pmlarrays = 0
     for (k, v) in G.pmlthickness.items():
         if v > 0:

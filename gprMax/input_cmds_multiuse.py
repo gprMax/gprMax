@@ -269,7 +269,7 @@ def process_multicmds(multicmds, G):
                 m.start = 0
                 m.stop = G.timewindow
                 startstop = ' '
-            
+
             m.calculate_waveform_values(G)
 
             if G.messages:
@@ -334,7 +334,7 @@ def process_multicmds(multicmds, G):
                 t.start = 0
                 t.stop = G.timewindow
                 startstop = ' '
-            
+
             t.calculate_waveform_values(G)
             t.calculate_incident_V_I(G)
 
