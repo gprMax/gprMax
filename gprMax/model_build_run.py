@@ -173,9 +173,11 @@ def run_model(args, currentmodelrun, numbermodelruns, inputfile, usernamespace):
 
         # Check to see if numerical dispersion might be a problem
         results = dispersion_analysis(G)
-        if results['N'] < G.mingridsampling:
+        if 'waveformID' in results:
+            print(Fore.RED + "\nWARNING: Numerical dispersion analysis not carried out as duration of waveform '{}' means it does not fit within specified time window and is therefore being truncated.".format(results['waveformID']) + Style.RESET_ALL)
+        elif results['N'] < G.mingridsampling:
             raise GeneralError("Non-physical wave propagation: Material '{}' has wavelength sampled by {} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {:g}Hz".format(results['material'].ID, results['N'], results['maxfreq']))
-        elif results['deltavp'] and np.abs(results['deltavp']) > G.maxnumericaldisp and G.messages:
+        elif results['deltavp'] and np.abs(results['deltavp']) > G.maxnumericaldisp:
             print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']) + Style.RESET_ALL)
         elif results['deltavp'] and G.messages:
             print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))

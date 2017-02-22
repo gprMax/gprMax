@@ -164,15 +164,14 @@ def dispersion_analysis(G):
         results (dict): Results from dispersion analysis
     """
 
-    # Physical phase velocity error (percentage); grid sampling density; material with maximum permittivity; maximum frequency of interest
-    results = {'deltavp': False, 'N': False, 'material': False, 'maxfreq': False}
+    # Physical phase velocity error (percentage); grid sampling density; material with maximum permittivity; maximum significant frequency
+    results = {'deltavp': False, 'N': False, 'material': False, 'maxfreq': []}
 
-    # Find maximum frequency
-    maxfreqs = []
+    # Find maximum significant frequency
     for waveform in G.waveforms:
 
         if waveform.type == 'sine' or waveform.type == 'contsine':
-            maxfreqs.append(4 * waveform.freq)
+            results['maxfreq'].append(4 * waveform.freq)
 
         elif waveform.type == 'impulse':
             pass
@@ -207,13 +206,13 @@ def dispersion_analysis(G):
 
                 # Set maximum frequency to a threshold drop from maximum power, ignoring DC value
                 freq = np.where((np.amax(power[freqmaxpower::]) - power[freqmaxpower::]) > G.highestfreqthres)[0][0] + 1
-                maxfreqs.append(freqs[freq])
+                results['maxfreq'].append(freqs[freq])
 
             else:
-                print(Fore.RED + "\nWARNING: Duration of source waveform '{}' means it does not fit within specified time window and is therefore being truncated.".format(waveform.ID) + Style.RESET_ALL)
+                results['waveformID'] = waveform.ID
 
-    if maxfreqs:
-        results['maxfreq'] = max(maxfreqs)
+    if results['maxfreq']:
+        results['maxfreq'] = max(results['maxfreq'])
 
         # Find minimum wavelength (material with maximum permittivity)
         maxer = 0
