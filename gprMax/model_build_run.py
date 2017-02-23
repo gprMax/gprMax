@@ -51,7 +51,7 @@ def run_model(args, currentmodelrun, numbermodelruns, inputfile, usernamespace):
         args (dict): Namespace with command line arguments
         currentmodelrun (int): Current model run number.
         numbermodelruns (int): Total number of model runs.
-        inputfile (str/object): Name or file object of the input file.
+        inputfile (object): File object for the input file.
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
 
     Returns:
@@ -70,17 +70,16 @@ def run_model(args, currentmodelrun, numbermodelruns, inputfile, usernamespace):
         # Initialise an instance of the FDTDGrid class
         G = FDTDGrid()
 
-        with open_path_file(inputfile) as f:
-            G.inputfilename = os.path.split(f.name)[1]
-            G.inputdirectory = os.path.dirname(os.path.abspath(f.name))
-            inputfilestr = '\n--- Model {}/{}, input file: {}'.format(currentmodelrun, numbermodelruns, f.name)
-            print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
+        G.inputfilename = os.path.split(inputfile.name)[1]
+        G.inputdirectory = os.path.dirname(os.path.abspath(inputfile.name))
+        inputfilestr = '\n--- Model {}/{}, input file: {}'.format(currentmodelrun, numbermodelruns, inputfile.name)
+        print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
-            # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
-            usernamespace['current_model_run'] = currentmodelrun
+        # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
+        usernamespace['current_model_run'] = currentmodelrun
 
-            # Read input file and process any Python or include commands
-            processedlines = process_python_include_code(f, usernamespace)
+        # Read input file and process any Python or include commands
+        processedlines = process_python_include_code(inputfile, usernamespace)
 
         # Print constants/variables in user-accessable namespace
         uservars = ''
@@ -184,9 +183,8 @@ def run_model(args, currentmodelrun, numbermodelruns, inputfile, usernamespace):
 
     # If geometry information to be reused between model runs
     else:
-        with open_path_file(inputfile) as f:
-            inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(currentmodelrun, numbermodelruns, f.name)
-            print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
+        inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(currentmodelrun, numbermodelruns, inputfile.name)
+        print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
         # Clear arrays for field components
         G.initialise_field_arrays()
