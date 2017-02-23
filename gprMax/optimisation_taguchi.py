@@ -31,7 +31,7 @@ import numpy as np
 from gprMax.constants import floattype
 from gprMax.exceptions import CmdInputError
 from gprMax.gprMax import run_std_sim, run_mpi_sim
-from gprMax.utilities import get_terminal_width
+from gprMax.utilities import get_terminal_width, open_path_file
 
 
 def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
@@ -40,7 +40,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
     Args:
         args (dict): Namespace with command line arguments
         numbermodelruns (int): Total number of model runs.
-        inputfile (str): Name of the input file to open.
+        inputfile (object): File object for the input file.
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
     """
 
@@ -49,7 +49,7 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
     if numbermodelruns > 1:
         raise CmdInputError('When a Taguchi optimisation is being carried out the number of model runs argument is not required')
 
-    inputfileparts = os.path.splitext(inputfile)
+    inputfileparts = os.path.splitext(inputfile.name)
 
     # Default maximum number of iterations of optimisation to perform (used if the stopping criterion is not achieved)
     maxiterations = 20
@@ -179,17 +179,19 @@ def taguchi_code_blocks(inputfile, taguchinamespace):
     """Looks for and processes a Taguchi code block (containing Python code) in the input file. It will ignore any lines that are comments, i.e. begin with a double hash (##), and any blank lines.
 
     Args:
-        inputfile (str): Name of the input file to open.
+        inputfile (object): File object for the input file.
         taguchinamespace (dict): Namespace that can be accessed by user a Taguchi code block in input file.
 
     Returns:
         processedlines (list): Input commands after Python processing.
     """
 
-    with open(inputfile, 'r') as f:
-        # Strip out any newline characters and comments that must begin with double hashes
-        inputlines = [line.rstrip() for line in f if(not line.startswith('##') and line.rstrip('\n'))]
-
+    # Strip out any newline characters and comments that must begin with double hashes
+    inputlines = [line.rstrip() for line in inputfile if(not line.startswith('##') and line.rstrip('\n'))]
+    
+    # Rewind input file in preparation for passing to standard command reading function
+    inputfile.seek(0)
+    
     # Store length of dict
     taglength = len(taguchinamespace)
 
