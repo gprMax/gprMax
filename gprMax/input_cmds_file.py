@@ -36,6 +36,9 @@ def process_python_include_code(inputfile, usernamespace):
 
     # Strip out any newline characters and comments that must begin with double hashes
     inputlines = [line.rstrip() for line in inputfile if(not line.startswith('##') and line.rstrip('\n'))]
+    
+    # Rewind input file in preparation for any subsequent reading function
+    inputfile.seek(0)
 
     # List to hold final processed commands
     processedlines = []
