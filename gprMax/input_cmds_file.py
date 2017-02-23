@@ -173,8 +173,8 @@ def check_cmd_names(processedlines, checkessential=True):
         cmdname = cmd[0]
         cmdparams = cmd[1]
 
-        # Check if there is space between command name and parameters, i.e. check first character of parameter string
-        if ' ' not in cmdparams[0]:
+        # Check if there is space between command name and parameters, i.e. check first character of parameter string. Ignore case when there are no parameters for a command, e.g. for #taguchi:
+        if ' ' not in cmdparams[0] and len(cmdparams.strip('\n')) != 0:
             raise CmdInputError('There must be a space between the command name and parameters in ' + processedlines[lindex])
 
         # Check if command name is valid
@@ -190,7 +190,7 @@ def check_cmd_names(processedlines, checkessential=True):
             if singlecmds[cmdname] == 'None':
                 singlecmds[cmdname] = cmd[1].strip(' \t\n')
             else:
-                raise CmdInputError('You can only have instance of ' + cmdname + ' in your model')
+                raise CmdInputError('You can only have a single instance of ' + cmdname + ' in your model')
 
         elif cmdname in multiplecmds:
             multiplecmds[cmdname].append(cmd[1].strip(' \t\n'))
