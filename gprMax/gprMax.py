@@ -44,7 +44,7 @@ def main():
     parser.add_argument('inputfile', help='path to, and name of inputfile or file object')
     parser.add_argument('-n', default=1, type=int, help='number of times to run the input file, e.g. to create a B-scan')
     parser.add_argument('-mpi', action='store_true', default=False, help='flag to switch on MPI task farm')
-    parser.add_argument('-taskid', type=int, help='task identifier for job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)')
+    parser.add_argument('-task', type=int, help='task identifier for job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)')
     parser.add_argument('-benchmark', action='store_true', default=False, help='flag to switch on benchmarking mode')
     parser.add_argument('--geometry-only', action='store_true', default=False, help='flag to only build model and produce geometry file(s)')
     parser.add_argument('--geometry-fixed', action='store_true', default=False, help='flag to not reprocess model geometry, e.g. for B-scans where the geometry is fixed')
@@ -55,7 +55,7 @@ def main():
     run_main(args)
 
 
-def api(inputfile, n=1, mpi=False, taskid=False, benchmark=False, geometry_only=False, geometry_fixed=False, write_processed=False, opt_taguchi=False):
+def api(inputfile, n=1, mpi=False, task=False, benchmark=False, geometry_only=False, geometry_fixed=False, write_processed=False, opt_taguchi=False):
     """If installed as a module this is the entry point."""
 
     # Print gprMax logo, version, and licencing/copyright information
@@ -69,7 +69,7 @@ def api(inputfile, n=1, mpi=False, taskid=False, benchmark=False, geometry_only=
     args.inputfile = inputfile
     args.n = n
     args.mpi = mpi
-    args.taskid = taskid
+    args.task = task
     args.benchmark = benchmark
     args.geometry_only = geometry_only
     args.geometry_fixed = geometry_fixed
@@ -124,7 +124,7 @@ def run_main(args):
                 run_mpi_sim(args, numbermodelruns, inputfile, usernamespace)
 
             # Standard behaviour - part of a job array on Open Grid Scheduler/Grid Engine with each model parallelised with OpenMP (CPU) or CUDA (GPU)
-            elif args.taskid:
+            elif args.task:
                 if args.benchmark:
                     raise GeneralError('A job array should not be used with benchmarking mode')
                 run_job_array_sim(args, numbermodelruns, inputfile, usernamespace)
@@ -171,7 +171,7 @@ def run_job_array_sim(args, numbermodelruns, inputfile, usernamespace, optparams
         optparams (dict): Optional argument. For Taguchi optimisation it provides the parameters to optimise and their values.
     """
 
-    currentmodelrun = args.taskid
+    currentmodelrun = args.task
 
     tsimstart = perf_counter()
     if optparams:  # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace

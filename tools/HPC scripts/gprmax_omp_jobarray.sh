@@ -28,4 +28,4 @@ export OMP_NUM_THREADS=16
 
 ### Run gprMax with input file
 cd $HOME/gprMax
-python -m gprMax mymodel.in -n 10 -taskid $SGE_TASK_ID
+python -m gprMax mymodel.in -n 10 -task $SGE_TASK_ID
