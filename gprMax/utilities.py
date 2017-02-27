@@ -158,6 +158,9 @@ def get_host_info():
         hostinfo (dict): Manufacturer and model of machine; description of CPU type, speed, cores; RAM; name and version of operating system.
     """
 
+    hostinfo = {}
+    machineID = sockets = cpuID = physicalcores = osversion = ram = hyperthreading = 'unknown'
+
     # Windows
     if sys.platform == 'win32':
         manufacturer = subprocess.check_output("wmic csproduct get vendor", shell=True).decode('utf-8').strip()
@@ -165,8 +168,20 @@ def get_host_info():
         model = subprocess.check_output("wmic computersystem get model", shell=True).decode('utf-8').strip()
         model = model.split('\n')[1]
         machineID = manufacturer + ' ' + model
-        cpuID = subprocess.check_output("wmic cpu get Name", shell=True).decode('utf-8').strip()
-        cpuID = cpuID.split('\n')[1]
+
+        # CPU information
+        allcpuinfo = subprocess.check_output("wmic cpu get Name", shell=True).decode('utf-8').strip()
+        sockets = 0
+        for line in allcpuinfo:
+            if 'CPU' in line:
+                cpuID = line.strip()
+                sockets += 1
+        if psutil.cpu_count(logical=False) != psutil.cpu_count(logical=True):
+            hyperthreading = True
+        else:
+            hyperthreading = False
+    
+        # OS version
         if platform.machine().endswith('64'):
             osbit = '(64-bit)'
         else:
@@ -178,8 +193,18 @@ def get_host_info():
         manufacturer = 'Apple'
         model = subprocess.check_output("sysctl -n hw.model", shell=True).decode('utf-8').strip()
         machineID = manufacturer + ' ' + model
+        machineID = machineID.strip()
+
+        # CPU information
+        sockets = subprocess.check_output("sysctl -n hw.packages", shell=True).decode('utf-8').strip()
         cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", shell=True).decode('utf-8').strip()
         cpuID = ' '.join(cpuID.split())
+        if psutil.cpu_count(logical=False) != psutil.cpu_count(logical=True):
+            hyperthreading = True
+        else:
+            hyperthreading = False
+        
+        # OS version
         if int(platform.mac_ver()[0].split('.')[1]) < 12:
             osversion = 'Mac OS X (' + platform.mac_ver()[0] + ')'
         else:
@@ -187,22 +212,37 @@ def get_host_info():
 
     # Linux
     elif sys.platform == 'linux':
-        manufacturer = subprocess.check_output("cat /sys/class/dmi/id/sys_vendor", shell=True).decode('utf-8').strip()
-        model = subprocess.check_output("cat /sys/class/dmi/id/product_name", shell=True).decode('utf-8').strip()
+        try:
+            manufacturer = subprocess.check_output("cat /sys/class/dmi/id/sys_vendor", shell=True).decode('utf-8').strip()
+            model = subprocess.check_output("cat /sys/class/dmi/id/product_name", shell=True).decode('utf-8').strip()
+        except:
+            pass
         machineID = manufacturer + ' ' + model
-        allcpuinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True).decode('utf-8').strip()
+
+        # CPU information
+        allcpuinfo = subprocess.check_output("lscpu", shell=True).decode('utf-8').strip()
         for line in allcpuinfo.split('\n'):
-            if 'model name' in line:
-                cpuID = re.sub('.*model name.*:', '', line, 1)
-        osversion = 'Linux (' + platform.release() + ')'
+            if re.search('Model name', line):
+                cpuID = re.sub('.*Model name.*:', '', line, 1).strip()
+            if 'Thread(s) per core' in line:
+                threadspercore = int(line.strip()[-1])
+            if 'Socket(s)' in line:
+                sockets = int(line.strip()[-1])
+        if threadspercore == 1:
+            hyperthreading = False
+        elif threadspercore == 2:
+            hyperthreading = True
 
-    machineID = machineID.strip()
-    cpuID = cpuID.strip()
-    # Get number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
-    cpucores = psutil.cpu_count(logical=False)
-    ram = psutil.virtual_memory().total
+        # OS version
+        osversion = platform.linux_distribution()[0] + ' (' + platform.linux_distribution()[1] + ')'
 
-    hostinfo = {'machineID': machineID, 'cpuID': cpuID, 'cpucores': cpucores, 'ram': ram, 'osversion': osversion}
+    hostinfo['machineID'] = machineID.strip()
+    hostinfo['sockets'] = sockets
+    hostinfo['cpuID'] = cpuID
+    hostinfo['osversion'] = osversion
+    hostinfo['hyperthreading'] = hyperthreading
+    hostinfo['physicalcores'] = psutil.cpu_count(logical=False) # Get number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
+    hostinfo['ram'] = psutil.virtual_memory().total
 
     return hostinfo
 

@@ -91,7 +91,8 @@ def run_main(args):
 
         # Get information about host machine
         hostinfo = get_host_info()
-        print('\nHost: {}; {} ({} cores); {} RAM; {}'.format(hostinfo['machineID'], hostinfo['cpuID'], hostinfo['cpucores'], human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
+        hyperthreading = ', hyperthreading active' if hostinfo['hyperthreading'] else ''
+        print('\nHost: {}; {} x {} ({} total physical cores{}); {} RAM; {}'.format(hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'], hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
 
         # Create a separate namespace that users can access in any Python code blocks in the input file
         usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': numbermodelruns, 'input_directory': os.path.dirname(os.path.abspath(inputfile.name))}
