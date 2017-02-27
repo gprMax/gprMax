@@ -171,8 +171,10 @@ def get_host_info():
 
         # CPU information
         allcpuinfo = subprocess.check_output("wmic cpu get Name", shell=True).decode('utf-8').strip()
+        allcpuinfo = allcpuinfo.split('\n')
         sockets = 0
         for line in allcpuinfo:
+            print(line)
             if 'CPU' in line:
                 cpuID = line.strip()
                 sockets += 1
@@ -183,9 +185,9 @@ def get_host_info():
     
         # OS version
         if platform.machine().endswith('64'):
-            osbit = '(64-bit)'
+            osbit = ' (64-bit)'
         else:
-            osbit = '(32-bit)'
+            osbit = ' (32-bit)'
         osversion = 'Windows ' + platform.release() + osbit
 
     # Mac OS X/macOS
