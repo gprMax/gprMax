@@ -174,7 +174,6 @@ def get_host_info():
         allcpuinfo = allcpuinfo.split('\n')
         sockets = 0
         for line in allcpuinfo:
-            print(line)
             if 'CPU' in line:
                 cpuID = line.strip()
                 sockets += 1

@@ -65,11 +65,11 @@ def process_singlecmds(singlecmds, G):
     # Number of threads (OpenMP) to use
     cmd = '#num_threads'
     if sys.platform == 'darwin':
-        os.environ['OMP_WAIT_POLICY'] = 'ACTIVE'  # Should waiting threads consume CPU power; can drastically effect performance
+        os.environ['OMP_WAIT_POLICY'] = 'ACTIVE'  # Should waiting threads consume CPU power (can drastically effect performance)
     os.environ['OMP_DYNAMIC'] = 'FALSE' # Number of threads may be adjusted by the run time environment to best utilize system resources
     os.environ['OMP_PLACES'] = 'cores'
     os.environ['OMP_PROC_BIND'] = 'spread'  # Bind threads to physical cores
-    os.environ['OMP_DISPLAY_ENV'] = 'TRUE'
+    # os.environ['OMP_DISPLAY_ENV'] = 'TRUE' # Prints OMP version and environment variables (useful for debug)
 
     if singlecmds[cmd] != 'None':
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
