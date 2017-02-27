@@ -159,7 +159,7 @@ def get_host_info():
     """
 
     hostinfo = {}
-    machineID = sockets = cpuID = physicalcores = osversion = ram = hyperthreading = 'unknown'
+    machineID = sockets = cpuID = physicalcores = logicalcores = osversion = ram = hyperthreading = 'unknown'
 
     # Windows
     if sys.platform == 'win32':
@@ -243,6 +243,7 @@ def get_host_info():
     hostinfo['osversion'] = osversion
     hostinfo['hyperthreading'] = hyperthreading
     hostinfo['physicalcores'] = psutil.cpu_count(logical=False) # Get number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
+    hostinfo['logicalcores'] = psutil.cpu_count(logical=True)
     hostinfo['ram'] = psutil.virtual_memory().total
 
     return hostinfo
