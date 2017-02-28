@@ -217,7 +217,7 @@ def get_host_info():
             manufacturer = subprocess.check_output("cat /sys/class/dmi/id/sys_vendor", shell=True).decode('utf-8').strip()
             model = subprocess.check_output("cat /sys/class/dmi/id/product_name", shell=True).decode('utf-8').strip()
             machineID = manufacturer + ' ' + model
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError, e:
             pass
 
         # CPU information
