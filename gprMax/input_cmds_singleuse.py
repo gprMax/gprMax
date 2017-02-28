@@ -74,6 +74,8 @@ def process_singlecmds(singlecmds, G):
     # Catch bug with Windows Subsystem for Linux (https://github.com/gprMax/gprMax/issues/95)
     if 'Microsoft' in hostinfo['osversion']:
         os.environ['KMP_AFFINITY'] = 'disabled'
+        del os.environ['OMP_PLACES']
+        del os.environ['OMP_PROC_BIND']
 
     if singlecmds[cmd] != 'None':
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
