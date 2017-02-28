@@ -72,7 +72,7 @@ def process_singlecmds(singlecmds, G):
     os.environ['OMP_PROC_BIND'] = 'TRUE'  # Bind threads to physical cores
     # os.environ['OMP_DISPLAY_ENV'] = 'TRUE' # Prints OMP version and environment variables (useful for debug)
 
-    # Catch bug with Windows Subsystem for Linux (https://github.com/gprMax/gprMax/issues/95)
+    # Catch bug with Windows Subsystem for Linux (https://github.com/Microsoft/BashOnWindows/issues/785)
     if 'Microsoft' in hostinfo['osversion']:
         os.environ['KMP_AFFINITY'] = 'disabled'
         del os.environ['OMP_PLACES']
