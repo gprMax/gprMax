@@ -242,10 +242,12 @@ def get_host_info():
     hostinfo['cpuID'] = cpuID
     hostinfo['osversion'] = osversion
     hostinfo['hyperthreading'] = hyperthreading
-    hostinfo['physicalcores'] = psutil.cpu_count(logical=False) # Get number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
-    hostinfo['logicalcores'] = psutil.cpu_count(logical=True)
+    hostinfo['logicalcores'] = psutil.cpu_count()
+    try:
+        hostinfo['physicalcores'] = psutil.cpu_count(logical=False) # Get number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
+    except ValueError:
+        hostinfo['physicalcores'] = hostinfo['logicalcores']
     hostinfo['ram'] = psutil.virtual_memory().total
-
     return hostinfo
 
 
