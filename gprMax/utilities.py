@@ -158,9 +158,6 @@ def get_host_info():
         hostinfo (dict): Manufacturer and model of machine; description of CPU type, speed, cores; RAM; name and version of operating system.
     """
 
-    hostinfo = {}
-    machineID = sockets = cpuID = physicalcores = logicalcores = osversion = ram = hyperthreading = 'unknown'
-
     # Windows
     if sys.platform == 'win32':
         manufacturer = subprocess.check_output("wmic csproduct get vendor", shell=True).decode('utf-8').strip()
@@ -218,7 +215,8 @@ def get_host_info():
             model = subprocess.check_output("cat /sys/class/dmi/id/product_name", shell=True).decode('utf-8').strip()
             machineID = manufacturer + ' ' + model
         except subprocess.CalledProcessError as e:
-            pass
+            print(e.returncode)
+            machineID = 'unknown'
 
         # CPU information
         allcpuinfo = subprocess.check_output("lscpu", shell=True).decode('utf-8').strip()
@@ -237,6 +235,7 @@ def get_host_info():
         # OS version
         osversion = platform.linux_distribution()[0] + ' (' + platform.linux_distribution()[1] + ')'
 
+    hostinfo = {}
     hostinfo['machineID'] = machineID.strip()
     hostinfo['sockets'] = sockets
     hostinfo['cpuID'] = cpuID
