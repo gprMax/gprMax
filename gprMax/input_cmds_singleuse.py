@@ -71,6 +71,10 @@ def process_singlecmds(singlecmds, G):
     os.environ['OMP_PROC_BIND'] = 'spread'  # Bind threads to physical cores
     # os.environ['OMP_DISPLAY_ENV'] = 'TRUE' # Prints OMP version and environment variables (useful for debug)
 
+    # Catch bug with Windows Subsystem for Linux (https://github.com/gprMax/gprMax/issues/95)
+    if 'Microsoft' in hostinfo['osversion']:
+        os.environ['KMP_AFFINITY'] = 'disabled'
+
     if singlecmds[cmd] != 'None':
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
         if len(tmp) != 1:
