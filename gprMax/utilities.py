@@ -211,11 +211,10 @@ def get_host_info():
     # Linux
     elif sys.platform == 'linux':
         try:
-            manufacturer = subprocess.check_output("cat /sys/class/dmi/id/sys_vendor", shell=True).decode('utf-8').strip()
-            model = subprocess.check_output("cat /sys/class/dmi/id/product_name", shell=True).decode('utf-8').strip()
+            manufacturer = subprocess.check_output("cat /sys/class/dmi/id/sys_vendor", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            model = subprocess.check_output("cat /sys/class/dmi/id/product_name", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
             machineID = manufacturer + ' ' + model
-        except subprocess.CalledProcessError as e:
-            print(e.returncode)
+        except subprocess.CalledProcessError:
             machineID = 'unknown'
 
         # CPU information
@@ -223,6 +222,8 @@ def get_host_info():
         for line in allcpuinfo.split('\n'):
             if re.search('Model name', line):
                 cpuID = re.sub('.*Model name.*:', '', line, 1).strip()
+            else:
+                cpuID = 'unknown'
             if 'Thread(s) per core' in line:
                 threadspercore = int(line.strip()[-1])
             if 'Socket(s)' in line:
