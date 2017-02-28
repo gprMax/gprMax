@@ -218,12 +218,12 @@ def get_host_info():
             machineID = 'unknown'
 
         # CPU information
+        cpuIDinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+        for line in cpuIDinfo.split('\n'):
+            if re.search('model name', line):
+                cpuID = re.sub('.*model name.*:', '', line, 1).strip()
         allcpuinfo = subprocess.check_output("lscpu", shell=True).decode('utf-8').strip()
         for line in allcpuinfo.split('\n'):
-            if re.search('Model name', line):
-                cpuID = re.sub('.*Model name.*:', '', line, 1).strip()
-            else:
-                cpuID = 'unknown'
             if 'Thread(s) per core' in line:
                 threadspercore = int(line.strip()[-1])
             if 'Socket(s)' in line:
@@ -235,7 +235,7 @@ def get_host_info():
 
         # OS version
         osrelease = subprocess.check_output("cat /proc/sys/kernel/osrelease", shell=True).decode('utf-8').strip()
-        osversion = 'Linux ' + osrelease + ', (' + platform.linux_distribution()[0] + ')'
+        osversion = 'Linux (' + osrelease + ', ' + platform.linux_distribution()[0] + ')'
 
     hostinfo = {}
     hostinfo['machineID'] = machineID.strip()
