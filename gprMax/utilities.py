@@ -234,7 +234,8 @@ def get_host_info():
             hyperthreading = True
 
         # OS version
-        osversion = platform.linux_distribution()[0] + ' (' + platform.linux_distribution()[1] + ')'
+        osrelease = subprocess.check_output("cat /proc/sys/kernel/osrelease", shell=True).decode('utf-8').strip()
+        osversion = 'Linux ' + osrelease + ', (' + platform.linux_distribution()[0] + ')'
 
     hostinfo = {}
     hostinfo['machineID'] = machineID.strip()
@@ -248,6 +249,7 @@ def get_host_info():
     except ValueError:
         hostinfo['physicalcores'] = hostinfo['logicalcores']
     hostinfo['ram'] = psutil.virtual_memory().total
+
     return hostinfo
 
 
