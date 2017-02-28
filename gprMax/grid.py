@@ -165,51 +165,54 @@ def dispersion_analysis(G):
     """
 
     # Physical phase velocity error (percentage); grid sampling density; material with maximum permittivity; maximum significant frequency
-    results = {'deltavp': False, 'N': False, 'material': False, 'maxfreq': []}
+    results = {'deltavp': False, 'N': False, 'waveform': True, 'material': False, 'maxfreq': []}
 
     # Find maximum significant frequency
-    for waveform in G.waveforms:
+    if G.waveforms:
+        for waveform in G.waveforms:
+            if waveform.type == 'sine' or waveform.type == 'contsine':
+                results['maxfreq'].append(4 * waveform.freq)
 
-        if waveform.type == 'sine' or waveform.type == 'contsine':
-            results['maxfreq'].append(4 * waveform.freq)
-
-        elif waveform.type == 'impulse':
-            pass
-
-        else:
-            # User-defined waveform
-            if waveform.type == 'user':
-                waveformvalues = waveform.uservalues
-
-            # Built-in waveform
-            else:
-                time = np.linspace(0, 1, G.iterations)
-                time *= (G.iterations * G.dt)
-                waveformvalues = np.zeros(len(time))
-                timeiter = np.nditer(time, flags=['c_index'])
-
-                while not timeiter.finished:
-                    waveformvalues[timeiter.index] = waveform.calculate_value(timeiter[0], G.dt)
-                    timeiter.iternext()
-
-            # Ensure source waveform is not being overly truncated before attempting any FFT
-            if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:
-                # Calculate magnitude of frequency spectra of waveform
-                power = 10 * np.log10(np.abs(np.fft.fft(waveformvalues))**2)
-                freqs = np.fft.fftfreq(power.size, d=G.dt)
-
-                # Shift powers so that frequency with maximum power is at zero decibels
-                power -= np.amax(power)
-
-                # Get frequency for max power
-                freqmaxpower = np.where(np.isclose(power[1::], np.amax(power[1::])))[0][0]
-
-                # Set maximum frequency to a threshold drop from maximum power, ignoring DC value
-                freq = np.where((np.amax(power[freqmaxpower::]) - power[freqmaxpower::]) > G.highestfreqthres)[0][0] + 1
-                results['maxfreq'].append(freqs[freq])
+            elif waveform.type == 'impulse':
+                pass
 
             else:
-                results['waveformID'] = waveform.ID
+                # User-defined waveform
+                if waveform.type == 'user':
+                    waveformvalues = waveform.uservalues
+
+                # Built-in waveform
+                else:
+                    time = np.linspace(0, 1, G.iterations)
+                    time *= (G.iterations * G.dt)
+                    waveformvalues = np.zeros(len(time))
+                    timeiter = np.nditer(time, flags=['c_index'])
+
+                    while not timeiter.finished:
+                        waveformvalues[timeiter.index] = waveform.calculate_value(timeiter[0], G.dt)
+                        timeiter.iternext()
+
+                # Ensure source waveform is not being overly truncated before attempting any FFT
+                if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:
+                    # Calculate magnitude of frequency spectra of waveform
+                    power = 10 * np.log10(np.abs(np.fft.fft(waveformvalues))**2)
+                    freqs = np.fft.fftfreq(power.size, d=G.dt)
+
+                    # Shift powers so that frequency with maximum power is at zero decibels
+                    power -= np.amax(power)
+
+                    # Get frequency for max power
+                    freqmaxpower = np.where(np.isclose(power[1::], np.amax(power[1::])))[0][0]
+
+                    # Set maximum frequency to a threshold drop from maximum power, ignoring DC value
+                    freq = np.where((np.amax(power[freqmaxpower::]) - power[freqmaxpower::]) > G.highestfreqthres)[0][0] + 1
+                    results['maxfreq'].append(freqs[freq])
+
+                # If waveform is truncated don't do any further analysis
+                else:
+                    results['waveform'] = False
+    else:
+        results['waveform'] = False
 
     if results['maxfreq']:
         results['maxfreq'] = max(results['maxfreq'])

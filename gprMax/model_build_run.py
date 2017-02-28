@@ -172,8 +172,8 @@ def run_model(args, currentmodelrun, numbermodelruns, inputfile, usernamespace):
 
         # Check to see if numerical dispersion might be a problem
         results = dispersion_analysis(G)
-        if 'waveformID' in results:
-            print(Fore.RED + "\nWARNING: Numerical dispersion analysis not carried out as duration of waveform '{}' means it does not fit within specified time window and is therefore being truncated.".format(results['waveformID']) + Style.RESET_ALL)
+        if not results['waveform']:
+            print(Fore.RED + "\nWARNING: Numerical dispersion analysis not carried out as either no waveform detected or waveform does not fit within specified time window and is therefore being truncated." + Style.RESET_ALL)
         elif results['N'] < G.mingridsampling:
             raise GeneralError("Non-physical wave propagation: Material '{}' has wavelength sampled by {} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {:g}Hz".format(results['material'].ID, results['N'], results['maxfreq']))
         elif results['deltavp'] and np.abs(results['deltavp']) > G.maxnumericaldisp:
