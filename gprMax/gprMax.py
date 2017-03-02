@@ -258,38 +258,46 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
         currentmodelrun = 1
         numworkers = size - 1
         closedworkers = 0
-        print('Master: PID {} on {} using {} workers.'.format(os.getpid(), name, numworkers))
+        print('MPI master rank {} (PID {}) on {} using {} workers'.format(rank, os.getpid(), name, numworkers))
         while closedworkers < numworkers:
             data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
             source = status.Get_source()
             tag = status.Get_tag()
 
-            if tag == tags.READY.value:  # Worker is ready, so send it a task
+            # Worker is ready, so send it a task
+            if tag == tags.READY.value:
                 if currentmodelrun < numbermodelruns + 1:
                     comm.send(currentmodelrun, dest=source, tag=tags.START.value)
-                    print('Master: sending model {} to worker {}.'.format(currentmodelrun, source))
                     currentmodelrun += 1
                 else:
                     comm.send(None, dest=source, tag=tags.EXIT.value)
 
+            # Worker has completed a task
             elif tag == tags.DONE.value:
-                print('Worker {}: completed.'.format(source))
+                pass
 
+            # Worker has completed all tasks
             elif tag == tags.EXIT.value:
-                print('Worker {}: exited.'.format(source))
+                print('MPI worker rank {} completed all tasks'.format(source))
                 closedworkers += 1
 
     # Worker process
     else:
-        print('Worker {}: PID {} on {}.'.format(rank, os.getpid(), name))
-        while True:
+        while True: # Break out of loop when work receives exit message
             comm.send(None, dest=0, tag=tags.READY.value)
             currentmodelrun = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)  #  Receive a model number to run from the master
             tag = status.Get_tag()
 
             # Run a model
             if tag == tags.START.value:
-                if optparams:  # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
+                
+                # Get info and setup device ID for GPU(s)
+                gpuinfo = ''
+
+                print('MPI worker rank {} (PID {}) starting model {}/{}{} on {}'.format(rank, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo, name))
+                
+                # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
+                if optparams:
                     tmp = {}
                     tmp.update((key, value[currentmodelrun - 1]) for key, value in optparams.items())
                     modelusernamespace = usernamespace.copy()
@@ -297,6 +305,7 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
                 else:
                     modelusernamespace = usernamespace
 
+                # Run the model
                 run_model(args, currentmodelrun, numbermodelruns, inputfile, modelusernamespace)
                 comm.send(None, dest=0, tag=tags.DONE.value)
 
