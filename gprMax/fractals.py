@@ -60,11 +60,11 @@ class FractalSurface(object):
         """Generate a 2D array with a fractal distribution."""
 
         if self.xs == self.xf:
-            surfacedims = (self.ny + 1, self.nz + 1)
+            surfacedims = (self.ny, self.nz)
         elif self.ys == self.yf:
-            surfacedims = (self.nx + 1, self.nz + 1)
+            surfacedims = (self.nx, self.nz)
         elif self.zs == self.zf:
-            surfacedims = (self.nx + 1, self.ny + 1)
+            surfacedims = (self.nx, self.ny)
 
         self.fractalsurface = np.zeros(surfacedims, dtype=complextype)
 
@@ -133,21 +133,21 @@ class FractalVolume(object):
     def generate_fractal_volume(self):
         """Generate a 3D volume with a fractal distribution."""
 
-        self.fractalvolume = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
+        self.fractalvolume = np.zeros((self.nx, self.ny, self.nz), dtype=complextype)
 
         # Positional vector at centre of array, scaled by weighting
-        v1 = np.array([self.weighting[0] * (self.nx + 1) / 2, self.weighting[1] * (self.ny + 1) / 2, self.weighting[2] * (self.nz + 1) / 2])
+        v1 = np.array([self.weighting[0] * self.nx / 2, self.weighting[1] * self.ny / 2, self.weighting[2] * self.nz / 2])
 
         # 3D array of random numbers to be convolved with the fractal function
         R = np.random.RandomState(self.seed)
-        A = R.randn(self.nx + 1, self.ny + 1, self.nz + 1)
+        A = R.randn(self.nx, self.ny, self.nz)
 
         # 3D FFT
         A = np.fft.fftn(A)
 
-        for i in range(self.nx + 1):
-            for j in range(self.ny + 1):
-                for k in range(self.nz + 1):
+        for i in range(self.nx):
+            for j in range(self.ny):
+                for k in range(self.nz):
                     # Positional vector for current position
                     v2 = np.array([self.weighting[0] * i, self.weighting[1] * j, self.weighting[2] * k])
                     rr = np.linalg.norm(v2 - v1)
@@ -163,20 +163,20 @@ class FractalVolume(object):
         self.fractalvolume = np.real(np.fft.ifftn(self.fractalvolume))
         # Bin fractal values
         bins = np.linspace(np.amin(self.fractalvolume), np.amax(self.fractalvolume), self.nbins + 1)
-        for j in range(self.ny + 1):
-            for k in range(self.nz + 1):
+        for j in range(self.ny):
+            for k in range(self.nz):
                 self.fractalvolume[:, j, k] = np.digitize(self.fractalvolume[:, j, k], bins, right=True)
 
     def generate_volume_mask(self):
         """Generate a 3D volume to use as a mask for adding rough surfaces, water and grass/roots. Zero signifies the mask is not set, one signifies the mask is set."""
 
-        self.mask = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.int8)
+        self.mask = np.zeros((self.nx, self.ny, self.nz), dtype=np.int8)
         maskxs = self.originalxs - self.xs
-        maskxf = (self.originalxf - self.originalxs) + maskxs + 1
+        maskxf = (self.originalxf - self.originalxs) + maskxs
         maskys = self.originalys - self.ys
-        maskyf = (self.originalyf - self.originalys) + maskys + 1
+        maskyf = (self.originalyf - self.originalys) + maskys
         maskzs = self.originalzs - self.zs
-        maskzf = (self.originalzf - self.originalzs) + maskzs + 1
+        maskzf = (self.originalzf - self.originalzs) + maskzs
         self.mask[maskxs:maskxf, maskys:maskyf, maskzs:maskzf] = 1
 
 
