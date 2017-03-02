@@ -1283,7 +1283,7 @@ def process_geometrycmds(geometry, G):
 
                 # If there is only 1 bin then a normal material is being used, otherwise a mixing model
                 if volume.nbins == 1:
-                    volume.fractalvolume = np.ones((volume.nx + 1, volume.ny + 1, volume.nz + 1), dtype=floattype)
+                    volume.fractalvolume = np.ones((volume.nx, volume.ny, volume.nz), dtype=floattype)
                     materialnumID = next(x.numID for x in G.materials if x.ID == volume.operatingonID)
                     volume.fractalvolume *= materialnumID
                 else:
@@ -1295,9 +1295,9 @@ def process_geometrycmds(geometry, G):
                 # Apply any rough surfaces and add any surface water to the 3D mask array
                 for surface in volume.fractalsurfaces:
                     if surface.surfaceID == 'xminus':
-                        for i in range(surface.fractalrange[0], surface.fractalrange[1] + 1):
-                            for j in range(surface.ys, surface.yf + 1):
-                                for k in range(surface.zs, surface.zf + 1):
+                        for i in range(surface.fractalrange[0], surface.fractalrange[1]):
+                            for j in range(surface.ys, surface.yf):
+                                for k in range(surface.zs, surface.zf):
                                     if i > surface.fractalsurface[j - surface.ys, k - surface.zs]:
                                         volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] = 1
                                     elif surface.filldepth > 0 and i > surface.filldepth:
@@ -1307,9 +1307,9 @@ def process_geometrycmds(geometry, G):
 
                     elif surface.surfaceID == 'xplus':
                         if not surface.ID:
-                            for i in range(surface.fractalrange[0], surface.fractalrange[1] + 1):
-                                for j in range(surface.ys, surface.yf + 1):
-                                    for k in range(surface.zs, surface.zf + 1):
+                            for i in range(surface.fractalrange[0], surface.fractalrange[1] ):
+                                for j in range(surface.ys, surface.yf):
+                                    for k in range(surface.zs, surface.zf):
                                         if i < surface.fractalsurface[j - surface.ys, k - surface.zs]:
                                             volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] = 1
                                         elif surface.filldepth > 0 and i < surface.filldepth:
@@ -1320,12 +1320,12 @@ def process_geometrycmds(geometry, G):
                             g = surface.grass[0]
                             # Build the blades of the grass
                             blade = 0
-                            for j in range(surface.ys, surface.yf + 1):
-                                for k in range(surface.zs, surface.zf + 1):
+                            for j in range(surface.ys, surface.yf):
+                                for k in range(surface.zs, surface.zf):
                                     if surface.fractalsurface[j - surface.ys, k - surface.zs] > 0:
                                         height = 0
                                         blade += 1
-                                        for i in range(volume.xs, surface.fractalrange[1] + 1):
+                                        for i in range(volume.xs, surface.fractalrange[1]):
                                             if i < surface.fractalsurface[j - surface.ys, k - surface.zs] and volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] != 1:
                                                 y, z = g.calculate_blade_geometry(blade - 1, height)
                                                 # Add y, z coordinates to existing location
@@ -1339,8 +1339,8 @@ def process_geometrycmds(geometry, G):
                                                     height += 1
                             # Build the roots of the grass
                             blade = 0
-                            for j in range(surface.ys, surface.yf + 1):
-                                for k in range(surface.zs, surface.zf + 1):
+                            for j in range(surface.ys, surface.yf):
+                                for k in range(surface.zs, surface.zf):
                                     if surface.fractalsurface[j - surface.ys, k - surface.zs] > 0:
                                         depth = 0
                                         blade += 1
@@ -1360,9 +1360,9 @@ def process_geometrycmds(geometry, G):
                                             i -= 1
 
                     elif surface.surfaceID == 'yminus':
-                        for i in range(surface.xs, surface.xf + 1):
-                            for j in range(surface.fractalrange[0], surface.fractalrange[1] + 1):
-                                for k in range(surface.zs, surface.zf + 1):
+                        for i in range(surface.xs, surface.xf):
+                            for j in range(surface.fractalrange[0], surface.fractalrange[1]):
+                                for k in range(surface.zs, surface.zf):
                                     if j > surface.fractalsurface[i - surface.xs, k - surface.zs]:
                                         volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] = 1
                                     elif surface.filldepth > 0 and j > surface.filldepth:
@@ -1372,9 +1372,9 @@ def process_geometrycmds(geometry, G):
 
                     elif surface.surfaceID == 'yplus':
                         if not surface.ID:
-                            for i in range(surface.xs, surface.xf + 1):
-                                for j in range(surface.fractalrange[0], surface.fractalrange[1] + 1):
-                                    for k in range(surface.zs, surface.zf + 1):
+                            for i in range(surface.xs, surface.xf):
+                                for j in range(surface.fractalrange[0], surface.fractalrange[1]):
+                                    for k in range(surface.zs, surface.zf):
                                         if j < surface.fractalsurface[i - surface.xs, k - surface.zs]:
                                             volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] = 1
                                         elif surface.filldepth > 0 and j < surface.filldepth:
@@ -1385,12 +1385,12 @@ def process_geometrycmds(geometry, G):
                             g = surface.grass[0]
                             # Build the blades of the grass
                             blade = 0
-                            for i in range(surface.xs, surface.xf + 1):
-                                for k in range(surface.zs, surface.zf + 1):
+                            for i in range(surface.xs, surface.xf):
+                                for k in range(surface.zs, surface.zf):
                                     if surface.fractalsurface[i - surface.xs, k - surface.zs] > 0:
                                         height = 0
                                         blade += 1
-                                        for j in range(volume.ys, surface.fractalrange[1] + 1):
+                                        for j in range(volume.ys, surface.fractalrange[1]):
                                             if j < surface.fractalsurface[i - surface.xs, k - surface.zs] and volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] != 1:
                                                 x, z = g.calculate_blade_geometry(blade - 1, height)
                                                 # Add x, z coordinates to existing location
@@ -1404,8 +1404,8 @@ def process_geometrycmds(geometry, G):
                                                     height += 1
                             # Build the roots of the grass
                             blade = 0
-                            for i in range(surface.xs, surface.xf + 1):
-                                for k in range(surface.zs, surface.zf + 1):
+                            for i in range(surface.xs, surface.xf):
+                                for k in range(surface.zs, surface.zf):
                                     if surface.fractalsurface[i - surface.xs, k - surface.zs] > 0:
                                         depth = 0
                                         blade += 1
@@ -1425,9 +1425,9 @@ def process_geometrycmds(geometry, G):
                                             j -= 1
 
                     elif surface.surfaceID == 'zminus':
-                        for i in range(surface.xs, surface.xf + 1):
-                            for j in range(surface.ys, surface.yf + 1):
-                                for k in range(surface.fractalrange[0], surface.fractalrange[1] + 1):
+                        for i in range(surface.xs, surface.xf):
+                            for j in range(surface.ys, surface.yf):
+                                for k in range(surface.fractalrange[0], surface.fractalrange[1]):
                                     if k > surface.fractalsurface[i - surface.xs, j - surface.ys]:
                                         volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] = 1
                                     elif surface.filldepth > 0 and k > surface.filldepth:
@@ -1437,9 +1437,9 @@ def process_geometrycmds(geometry, G):
 
                     elif surface.surfaceID == 'zplus':
                         if not surface.ID:
-                            for i in range(surface.xs, surface.xf + 1):
-                                for j in range(surface.ys, surface.yf + 1):
-                                    for k in range(surface.fractalrange[0], surface.fractalrange[1] + 1):
+                            for i in range(surface.xs, surface.xf):
+                                for j in range(surface.ys, surface.yf):
+                                    for k in range(surface.fractalrange[0], surface.fractalrange[1]):
                                         if k < surface.fractalsurface[i - surface.xs, j - surface.ys]:
                                             volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] = 1
                                         elif surface.filldepth > 0 and k < surface.filldepth:
@@ -1450,12 +1450,12 @@ def process_geometrycmds(geometry, G):
                             g = surface.grass[0]
                             # Build the blades of the grass
                             blade = 0
-                            for i in range(surface.xs, surface.xf + 1):
-                                for j in range(surface.ys, surface.yf + 1):
+                            for i in range(surface.xs, surface.xf):
+                                for j in range(surface.ys, surface.yf):
                                     if surface.fractalsurface[i - surface.xs, j - surface.ys] > 0:
                                         height = 0
                                         blade += 1
-                                        for k in range(volume.zs, surface.fractalrange[1] + 1):
+                                        for k in range(volume.zs, surface.fractalrange[1]):
                                             if k < surface.fractalsurface[i - surface.xs, j - surface.ys] and volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] != 1:
                                                 x, y = g.calculate_blade_geometry(blade - 1, height)
                                                 # Add x, y coordinates to existing location
@@ -1469,8 +1469,8 @@ def process_geometrycmds(geometry, G):
                                                     height += 1
                             # Build the roots of the grass
                             blade = 0
-                            for i in range(surface.xs, surface.xf + 1):
-                                for j in range(surface.ys, surface.yf + 1):
+                            for i in range(surface.xs, surface.xf):
+                                for j in range(surface.ys, surface.yf):
                                     if surface.fractalsurface[i - surface.xs, j - surface.ys] > 0:
                                         depth = 0
                                         blade += 1
