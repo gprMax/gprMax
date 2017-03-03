@@ -227,9 +227,12 @@ def run_model(args, currentmodelrun, numbermodelruns, inputfile, usernamespace):
             geometryobject.write_hdf5(G, pbar)
             pbar.close()
 
-    # Run simulation (if not only looking ar geometry information)
-    if not args.geometry_only:
+    # If only writing geometry information
+    if args.geometry_only:
+        tsolve = 0
 
+    # Run simulation
+    else:
         # Prepare any snapshot files
         for snapshot in G.snapshots:
             snapshot.prepare_vtk_imagedata(currentmodelrun, numbermodelruns, G)
@@ -252,11 +255,11 @@ def run_model(args, currentmodelrun, numbermodelruns, inputfile, usernamespace):
             print('Memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss)))
             print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
 
-        return tsolve
+        # If geometry information to be reused between model runs then FDTDGrid class instance must be global so that it persists
+        if not args.geometry_fixed:
+            del G
 
-    # If geometry information to be reused between model runs then FDTDGrid class instance must be global so that it persists
-    if not args.geometry_fixed:
-        del G
+    return tsolve
 
 
 def solve_cpu(currentmodelrun, numbermodelruns, G):
