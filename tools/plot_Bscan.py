@@ -66,10 +66,11 @@ def get_output_data(filename, rxnumber, rxcomponent):
     return outputdata, dt
 
 
-def mpl_plot(outputdata, dt, rxnumber, rxcomponent):
+def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
     """Creates a plot (with matplotlib) of the B-scan.
 
     Args:
+        filename (string): Filename (including path) of output file.
         outputdata (array): Array of A-scans, i.e. B-scan data.
         dt (float): Temporal resolution of the model.
         rxnumber (int): Receiver output number.
@@ -79,10 +80,13 @@ def mpl_plot(outputdata, dt, rxnumber, rxcomponent):
         plt (object): matplotlib plot object.
     """
 
-    fig = plt.figure(num='rx' + str(rxnumber), figsize=(20, 10), facecolor='w', edgecolor='w')
+    (path, filename) = os.path.split(filename)
+
+    fig = plt.figure(num=filename + ' - rx' + str(rxnumber), figsize=(20, 10), facecolor='w', edgecolor='w')
     plt.imshow(outputdata, extent=[0, outputdata.shape[1], outputdata.shape[0] * dt, 0], interpolation='nearest', aspect='auto', cmap='seismic', vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
     plt.xlabel('Trace number')
     plt.ylabel('Time [s]')
+    # plt.title('{}'.format(filename))
     plt.grid()
     cb = plt.colorbar()
     if 'E' in rxcomponent:
@@ -93,8 +97,9 @@ def mpl_plot(outputdata, dt, rxnumber, rxcomponent):
         cb.set_label('Current [A]')
 
     # Save a PDF/PNG of the figure
-    # fig.savefig('Bscan' + str(rxnumber) + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    # fig.savefig('Bscan' + str(rxnumber) + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    # savefile = os.path.splitext(filename)[0]
+    # fig.savefig(path + os.sep + savefile + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    # fig.savefig(path + os.sep + savefile + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
     return plt
 
@@ -118,6 +123,6 @@ if __name__ == "__main__":
 
     for rx in range(1, nrx + 1):
         outputdata, dt = get_output_data(args.outputfile, rx, args.rx_component)
-        plthandle = mpl_plot(outputdata, dt, rx, args.rx_component)
+        plthandle = mpl_plot(args.outputfile, outputdata, dt, rx, args.rx_component)
 
     plthandle.show()
