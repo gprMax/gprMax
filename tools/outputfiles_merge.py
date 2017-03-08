@@ -23,6 +23,8 @@ import os
 import h5py
 import numpy as np
 
+from gprMax._version import __version__
+
 """Merges traces (A-scans) from multiple output files into one new file, then removes the series of output files."""
 
 # Parse command line arguments
@@ -47,6 +49,8 @@ for model in range(modelruns):
 
     # Write properties for merged file on first iteration
     if model == 0:
+        fout.attrs['Title'] = fin.attrs['Title']
+        fout.attrs['gprMax'] = __version__
         fout.attrs['Iterations'] = fin.attrs['Iterations']
         fout.attrs['dt'] = fin.attrs['dt']
         fout.attrs['nrx'] = fin.attrs['nrx']
