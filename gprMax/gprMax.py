@@ -199,9 +199,10 @@ def run_benchmark_sim(args, inputfile, usernamespace):
 
     # Get information about host machine
     hostinfo = get_host_info()
-    machineIDlong = '; '.join([hostinfo['machineID'], hostinfo['cpuID'], hostinfo['osversion']])
+    hyperthreading = ', {} cores with Hyper-Threading'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
+    machineIDlong = '{}; {} x {} ({} cores{}); {} RAM; {}'.format(hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'], hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion'])
 
-    # Number of threads to test - start from max physical CPU cores and divide in half until 1
+    # Number of threads to test - start from single thread and double threads until maximum number of physical cores
     minthreads = 1
     maxthreads = hostinfo['physicalcores']
     threads = []
