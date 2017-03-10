@@ -537,7 +537,7 @@ def process_multicmds(multicmds, G):
                 m.averagable = False
 
             if G.messages:
-                tqdm.write('Material {} with epsr={:g}, sig={:g} S/m; mur={:g}, sig*={:g} S/m created.'.format(m.ID, m.er, m.se, m.mr, m.sm))
+                tqdm.write('Material {} with eps_r={:g}, sigma={:g} S/m; mu_r={:g}, sigma*={:g} Ohm/m created.'.format(m.ID, m.er, m.se, m.mr, m.sm))
 
             # Append the new material object to the materials list
             G.materials.append(m)
@@ -575,7 +575,7 @@ def process_multicmds(multicmds, G):
                     Material.maxpoles = material.poles
 
                 if G.messages:
-                    tqdm.write('Debye disperion added to {} with delta_epsr={}, and tau={} secs created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau)))
+                    tqdm.write('Debye disperion added to {} with delta_eps_r={}, and tau={} secs created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau)))
 
     cmdname = '#add_dispersion_lorentz'
     if multicmds[cmdname] != 'None':
@@ -611,7 +611,7 @@ def process_multicmds(multicmds, G):
                     Material.maxpoles = material.poles
 
                 if G.messages:
-                    tqdm.write('Lorentz disperion added to {} with delta_epsr={}, omega={} secs, and gamma={} created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
+                    tqdm.write('Lorentz disperion added to {} with delta_eps_r={}, omega={} secs, and gamma={} created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
 
     cmdname = '#add_dispersion_drude'
     if multicmds[cmdname] != 'None':
