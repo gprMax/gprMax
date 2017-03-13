@@ -87,7 +87,6 @@ def run_main(args):
         args (dict): Namespace with input arguments from command line or api.
     """
 
-    numbermodelruns = args.n
     with open_path_file(args.inputfile) as inputfile:
 
         # Get information about host machine
@@ -96,22 +95,22 @@ def run_main(args):
         print('\nHost: {}; {} x {} ({} cores{}); {} RAM; {}'.format(hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'], hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
 
         # Create a separate namespace that users can access in any Python code blocks in the input file
-        usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': numbermodelruns, 'input_directory': os.path.dirname(os.path.abspath(inputfile.name))}
+        usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': args.n, 'input_directory': os.path.dirname(os.path.abspath(inputfile.name))}
 
         #######################################
         # Process for benchmarking simulation #
         #######################################
         if args.benchmark:
+            if args.mpi or args.opt_taguchi or args.task or args.n > 1:
+                raise GeneralError('Benchmarking mode cannot be combined with MPI, job array, or Taguchi optimisation modes, or multiple model runs.')
             run_benchmark_sim(args, inputfile, usernamespace)
 
         ####################################################
         # Process for simulation with Taguchi optimisation #
         ####################################################
         elif args.opt_taguchi:
-            if args.benchmark:
-                raise GeneralError('Taguchi optimisation should not be used with benchmarking mode')
             from gprMax.optimisation_taguchi import run_opt_sim
-            run_opt_sim(args, numbermodelruns, inputfile, usernamespace)
+            run_opt_sim(args, inputfile, usernamespace)
 
         ################################################
         # Process for standard simulation (CPU or GPU) #
@@ -119,34 +118,30 @@ def run_main(args):
         else:
             # Mixed mode MPI with OpenMP or CUDA - MPI task farm for models with each model parallelised with OpenMP (CPU) or CUDA (GPU)
             if args.mpi:
-                if args.benchmark:
-                    raise GeneralError('MPI should not be used with benchmarking mode')
                 if numbermodelruns == 1:
                     raise GeneralError('MPI is not beneficial when there is only one model to run')
-                run_mpi_sim(args, numbermodelruns, inputfile, usernamespace)
+                run_mpi_sim(args, inputfile, usernamespace)
 
             # Standard behaviour - part of a job array on Open Grid Scheduler/Grid Engine with each model parallelised with OpenMP (CPU) or CUDA (GPU)
             elif args.task:
-                if args.benchmark:
-                    raise GeneralError('A job array should not be used with benchmarking mode')
-                run_job_array_sim(args, numbermodelruns, inputfile, usernamespace)
+                run_job_array_sim(args, inputfile, usernamespace)
 
             # Standard behaviour - models run serially with each model parallelised with OpenMP (CPU) or CUDA (GPU)
             else:
-                run_std_sim(args, numbermodelruns, inputfile, usernamespace)
+                run_std_sim(args, inputfile, usernamespace)
 
 
-def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None):
+def run_std_sim(args, inputfile, usernamespace, optparams=None):
     """Run standard simulation - models are run one after another and each model is parallelised with OpenMP
 
     Args:
         args (dict): Namespace with command line arguments
-        numbermodelruns (int): Total number of model runs.
         inputfile (object): File object for the input file.
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
         optparams (dict): Optional argument. For Taguchi optimisation it provides the parameters to optimise and their values.
     """
 
+    numbermodelruns = args.n
     tsimstart = perf_counter()
     for currentmodelrun in range(1, numbermodelruns + 1):
         if optparams:  # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
@@ -162,17 +157,17 @@ def run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
     print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
 
 
-def run_job_array_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None):
+def run_job_array_sim(args, inputfile, usernamespace, optparams=None):
     """Run standard simulation as part of a job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html) - each model is parallelised with OpenMP
 
     Args:
         args (dict): Namespace with command line arguments
-        numbermodelruns (int): Total number of model runs.
         inputfile (object): File object for the input file.
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
         optparams (dict): Optional argument. For Taguchi optimisation it provides the parameters to optimise and their values.
     """
 
+    numbermodelruns = args.n
     currentmodelrun = args.task
 
     tsimstart = perf_counter()
@@ -240,18 +235,17 @@ def run_benchmark_sim(args, inputfile, usernamespace):
             numcells = f.attrs['nx, ny, nz']
 
     # Save number of threads and benchmarking times to NumPy archive
-    np.savez(os.path.splitext(inputfile.name)[0], machineID=machineIDlong, cputhreads=cputhreads, cputimes=cputimes, iterations=iterations, numcells=numcells, version=__version__)
+    np.savez(os.path.splitext(inputfile.name)[0], machineID=machineIDlong, gpuIDs=[], cputhreads=cputhreads, cputimes=cputimes, iterations=iterations, numcells=numcells, version=__version__)
 
     simcompletestr = '\n=== Simulation completed'
     print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
 
 
-def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None):
+def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     """Run mixed mode MPI/OpenMP simulation - MPI task farm for models with each model parallelised with OpenMP
 
     Args:
         args (dict): Namespace with command line arguments
-        numbermodelruns (int): Total number of model runs.
         inputfile (object): File object for the input file.
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
         optparams (dict): Optional argument. For Taguchi optimisation it provides the parameters to optimise and their values.
@@ -269,6 +263,7 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
     status = MPI.Status()   # get MPI status object
     name = MPI.Get_processor_name()     # get name of processor/host
 
+    numbermodelruns = args.n
     tsimstart = perf_counter()
 
     # Master process
