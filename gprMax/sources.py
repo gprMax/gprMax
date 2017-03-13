@@ -17,7 +17,6 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from copy import deepcopy
-import decimal as d
 
 import numpy as np
 
@@ -49,11 +48,15 @@ class Source(object):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        self.waveformvaluesJ = np.zeros((G.iterations + 1), dtype=floattype)
-        self.waveformvaluesM = np.zeros((G.iterations + 1), dtype=floattype)
+        # Waveform values for electric sources - calculated half a timestep later
+        self.waveformvaluesJ = np.zeros((G.iterations), dtype=floattype)
+        
+        # Waveform values for magnetic sources
+        self.waveformvaluesM = np.zeros((G.iterations), dtype=floattype)
+        
         waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
 
-        for iteration in range(G.iterations + 1):
+        for iteration in range(G.iterations):
             time = G.dt * iteration
             if time >= self.start and time <= self.stop:
                 # Set the time of the waveform evaluation to account for any delay in the start
