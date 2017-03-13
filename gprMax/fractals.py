@@ -51,7 +51,7 @@ class FractalSurface(object):
         self.dimension = dimension
         # Constant related to fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
         self.b = -(2 * self.dimension - 7) / 2
-        self.weighting = (1, 1)
+        self.weighting = np.array([1, 1])
         self.fractalrange = (0, 0)
         self.filldepth = 0
         self.grass = []
@@ -77,6 +77,8 @@ class FractalSurface(object):
 
         # 2D FFT
         A = np.fft.fftn(A)
+        # Shift the zero frequency component to the centre of the array
+        A = np.fft.fftshift(A)
 
         for i in range(surfacedims[0]):
             for j in range(surfacedims[1]):
@@ -89,7 +91,7 @@ class FractalSurface(object):
                     rr = 0.9
                     self.fractalsurface[i, j] = A[i, j] * 1 / (rr**self.b)
 
-        # Shift the zero frequency component to the centre of the spectrum
+        # Shift the zero frequency component to start of the array
         self.fractalsurface = np.fft.ifftshift(self.fractalsurface)
         # Take the real part (numerical errors can give rise to an imaginary part) of the IFFT
         self.fractalsurface = np.real(np.fft.ifftn(self.fractalsurface))
@@ -126,12 +128,28 @@ class FractalVolume(object):
         self.dimension = dimension
         # Constant related to fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
         self.b = -(2 * self.dimension - 7) / 2
-        self.weighting = (1, 1, 1)
+        self.weighting = np.array([1, 1, 1])
         self.nbins = 0
         self.fractalsurfaces = []
 
     def generate_fractal_volume(self):
         """Generate a 3D volume with a fractal distribution."""
+        
+        # Scale filter according to size of fractal volume
+        if self.nx == 1:
+            filterscaling = np.amin(np.array([self.ny, self.nz])) / np.array([self.ny, self.nz])
+            filterscaling = np.insert(filterscaling, 0, 1)
+        elif self.ny ==1:
+            filterscaling = np.amin(np.array([self.nx, self.nz])) / np.array([self.nx, self.nz])
+            filterscaling = np.insert(filterscaling, 1, 1)
+        elif self.nz == 1:
+            filterscaling = np.amin(np.array([self.nx, self.ny])) / np.array([self.nx, self.ny])
+            filterscaling = np.insert(filterscaling, 2, 1)
+        else:
+            filterscaling = np.amin(np.array([self.nx, self.ny, self.nz])) / np.array([self.nx, self.ny, self.nz])
+
+        # Adjust weighting to account for filter scaling
+        self.weighting = np.multiply(self.weighting, filterscaling)
 
         self.fractalvolume = np.zeros((self.nx, self.ny, self.nz), dtype=complextype)
 
@@ -144,6 +162,8 @@ class FractalVolume(object):
 
         # 3D FFT
         A = np.fft.fftn(A)
+        # Shift the zero frequency component to the centre of the array
+        A = np.fft.fftshift(A)
 
         for i in range(self.nx):
             for j in range(self.ny):
@@ -157,12 +177,12 @@ class FractalVolume(object):
                         rr = 0.9
                         self.fractalvolume[i, j, k] = A[i, j, k] * 1 / (rr**self.b)
 
-        # Shift the zero frequency component to the centre of the spectrum
+        # Shift the zero frequency component to the start of the array
         self.fractalvolume = np.fft.ifftshift(self.fractalvolume)
         # Take the real part (numerical errors can give rise to an imaginary part) of the IFFT
         self.fractalvolume = np.real(np.fft.ifftn(self.fractalvolume))
         # Bin fractal values
-        bins = np.linspace(np.amin(self.fractalvolume), np.amax(self.fractalvolume), self.nbins + 1)
+        bins = np.linspace(np.amin(self.fractalvolume), np.amax(self.fractalvolume), self.nbins)
         for j in range(self.ny):
             for k in range(self.nz):
                 self.fractalvolume[:, j, k] = np.digitize(self.fractalvolume[:, j, k], bins, right=True)
