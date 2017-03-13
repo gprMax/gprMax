@@ -202,28 +202,44 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     hyperthreading = ', {} cores with Hyper-Threading'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
     machineIDlong = '{}; {} x {} ({} cores{}); {} RAM; {}'.format(hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'], hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion'])
 
-    # Number of CPU threads to test - start from single thread and double threads until maximum number of physical cores
-    minthreads = 1
+    # Number of CPU threads to benchmark - start from single thread and double threads until maximum number of physical cores
+    threads = 1
     maxthreads = hostinfo['physicalcores']
-    threads = []
-    while minthreads < maxthreads:
-        threads.append(int(minthreads))
-        minthreads *= 2
-    threads.append(int(maxthreads))
-    threads.reverse()
-
-    benchtimes = np.zeros(len(threads))
-    numbermodelruns = len(threads)
+    maxthreadspersocket = hostinfo['physicalcores'] / hostinfo['sockets']
+    cputhreads = np.array([], dtype=np.int32)
+    while threads < maxthreadspersocket:
+        cputhreads = np.append(cputhreads, int(threads))
+        threads *= 2
+    # Check for system with only single thread
+    if cputhreads.size == 0:
+        cputhreads = np.append(cputhreads, threads)
+    # Add maxthreadspersocket and maxthreads if necessary
+    if cputhreads[-1] != maxthreadspersocket:
+        cputhreads = np.append(cputhreads, int(maxthreadspersocket))
+    if cputhreads[-1] != maxthreads:
+        cputhreads = np.append(cputhreads, int(maxthreads))
+    cputhreads = cputhreads[::-1]
+    cputimes = np.zeros(len(cputhreads))
+    numbermodelruns = len(cputhreads)
+                
     usernamespace['number_model_runs'] = numbermodelruns
 
     for currentmodelrun in range(1, numbermodelruns + 1):
-        os.environ['OMP_NUM_THREADS'] = str(threads[currentmodelrun - 1])
-        tsolve = run_model(args, currentmodelrun, numbermodelruns, inputfile, usernamespace)
-        benchtimes[currentmodelrun - 1] = tsolve
+        os.environ['OMP_NUM_THREADS'] = str(cputhreads[currentmodelrun - 1])
+        cputimes[currentmodelrun - 1] = run_model(args, currentmodelrun, numbermodelruns, inputfile, usernamespace)
+
+        # Get model size (in cells) and number of iterations
+        if currentmodelrun == 1:
+            if numbermodelruns == 1:
+                outputfile = os.path.splitext(args.inputfile)[0] + '.out'
+            else:
+                outputfile = os.path.splitext(args.inputfile)[0] + str(currentmodelrun) + '.out'
+            f = h5py.File(outputfile, 'r')
+            iterations = f.attrs['Iterations']
+            numcells = f.attrs['nx, ny, nz']
 
     # Save number of threads and benchmarking times to NumPy archive
-    threads = np.array(threads)
-    np.savez(os.path.splitext(inputfile.name)[0], threads=threads, benchtimes=benchtimes, machineID=machineIDlong, version=__version__)
+    np.savez(os.path.splitext(inputfile.name)[0], machineID=machineIDlong, cputhreads=cputhreads, cputimes=cputimes, iterations=iterations, numcells=numcells, version=__version__)
 
     simcompletestr = '\n=== Simulation completed'
     print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
