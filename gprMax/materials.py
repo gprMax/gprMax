@@ -261,7 +261,7 @@ class PeplinskiSoil(object):
         # sigf2 = -1.645 + 1.939 * self.rb - 2.25622 * self.S + 1.594 * self.C
 
         # Generate a set of bins based on the given volumetric water fraction values
-        mubins = np.linspace(self.mu[0], self.mu[1], nbins + 1)
+        mubins = np.linspace(self.mu[0], self.mu[1], nbins)
         # Generate a range of volumetric water fraction values the mid-point of each bin to make materials from
         mumaterials = mubins + (mubins[1] - mubins[0]) / 2
 
