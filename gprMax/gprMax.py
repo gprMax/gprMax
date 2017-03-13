@@ -118,7 +118,7 @@ def run_main(args):
         else:
             # Mixed mode MPI with OpenMP or CUDA - MPI task farm for models with each model parallelised with OpenMP (CPU) or CUDA (GPU)
             if args.mpi:
-                if numbermodelruns == 1:
+                if args.n == 1:
                     raise GeneralError('MPI is not beneficial when there is only one model to run')
                 run_mpi_sim(args, inputfile, usernamespace)
 
