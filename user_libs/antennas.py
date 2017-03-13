@@ -79,7 +79,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
         dz = 0.002
         foamsurroundthickness = 0.002
         patchheight = 0.016
-        tx = x + 0.112, y + 0.052, z + skidthickness
+        tx = x + 0.114, y + 0.052, z + skidthickness
     else:
         raise CmdInputError('This antenna module can only be used with a spatial discretisation of 1mm or 2mm')
 
@@ -173,8 +173,8 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
         edge(tx[0] - 0.059, tx[1], tx[2], tx[0] - 0.059, tx[1] + dy, tx[2], 'rxres', rotate90origin=rotate90origin)
         rx(tx[0] - 0.059, tx[1], tx[2], identifier='rxbowtie', to_save=[output], polarisation='y', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
     elif resolution == 0.002:
-        edge(tx[0] - 0.058, tx[1], tx[2], tx[0] - 0.058, tx[1] + dy, tx[2], 'rxres', rotate90origin=rotate90origin)
-        rx(tx[0] - 0.058, tx[1], tx[2], identifier='rxbowtie', to_save=[output], polarisation='y', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
+        edge(tx[0] - 0.060, tx[1], tx[2], tx[0] - 0.060, tx[1] + dy, tx[2], 'rxres', rotate90origin=rotate90origin)
+        rx(tx[0] - 0.060, tx[1], tx[2], identifier='rxbowtie', to_save=[output], polarisation='y', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
 
 
 def antenna_like_MALA_1200(x, y, z, resolution=0.001, rotate90=False, **kwargs):
