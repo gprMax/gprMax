@@ -154,7 +154,6 @@ ax.set_ylim(bottom=1, top=ax.get_ylim()[1] * 1.1)
 # Subplot of simulation size vs cells/sec #
 ###########################################
 ax = plt.subplot(gs[0, 2])
-cells = np.array([100, 150, 200, 300])
 ax.plot(cells, cpucellspersec / 1e6, color=colors[0], marker='.', ms=10, lw=2, label=cpuID)
 
 if gpuIDs:
