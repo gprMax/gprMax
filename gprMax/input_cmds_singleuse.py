@@ -68,7 +68,6 @@ def process_singlecmds(singlecmds, G):
         os.environ['OMP_WAIT_POLICY'] = 'ACTIVE'  # Should waiting threads consume CPU power (can drastically effect performance)
     os.environ['OMP_DYNAMIC'] = 'FALSE' # Number of threads may be adjusted by the run time environment to best utilize system resources
     os.environ['OMP_PLACES'] = 'cores' # Each place corresponds to a single core (having one or more hardware threads)
-    #os.environ['OMP_PLACES'] = '{0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30}'
     os.environ['OMP_PROC_BIND'] = 'TRUE'  # Bind threads to physical cores
     # os.environ['OMP_DISPLAY_ENV'] = 'TRUE' # Prints OMP version and environment variables (useful for debug)
 
@@ -130,8 +129,9 @@ def process_singlecmds(singlecmds, G):
 
     # Estimate memory (RAM) usage
     memestimate = memory_usage(G)
+    # Check if model can be built and/or run on host
     if memestimate > hostinfo['ram']:
-        print(Fore.RED + 'WARNING: Estimated memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(memestimate), human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True)) + Style.RESET_ALL)
+        raise GeneralError('Estimated memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(memestimate), human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
     if G.messages:
         print('Estimated memory (RAM) required: ~{}'.format(human_size(memestimate)))
 
