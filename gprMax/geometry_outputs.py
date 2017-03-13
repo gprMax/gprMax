@@ -303,6 +303,8 @@ class GeometryObjects(object):
         self.nz = self.zf - self.zs
         self.filename = basefilename + '.h5'
         self.materialsfilename = basefilename + '_materials.txt'
+        
+        # Sizes of arrays to write necessary to update progress bar
         self.solidsize = (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(np.int16).itemsize
         self.rigidsize = 18 * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(np.int8).itemsize
         self.IDsize = 6 * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(np.uint32).itemsize
@@ -334,7 +336,7 @@ class GeometryObjects(object):
         pbar.update(self.IDsize)
 
         # Write materials list to a text file
-        # This includes all materials in range whether used in volume or not; also append a 6-digit random number to the material ID to make it unique
+        # This includes all materials in range whether used in volume or not
         fmaterials = open(os.path.abspath(os.path.join(G.inputdirectory, self.materialsfilename)), 'w')
         for numID in range(minmat, maxmat + 1):
             for material in G.materials:
