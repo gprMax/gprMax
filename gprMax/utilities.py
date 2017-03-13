@@ -195,6 +195,7 @@ def get_host_info():
 
         # CPU information
         sockets = subprocess.check_output("sysctl -n hw.packages", shell=True).decode('utf-8').strip()
+        sockets = int(sockets)
         cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", shell=True).decode('utf-8').strip()
         cpuID = ' '.join(cpuID.split())
         if psutil.cpu_count(logical=False) != psutil.cpu_count(logical=True):
