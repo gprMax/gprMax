@@ -106,7 +106,8 @@ except KeyError:
 
 # Create/setup plot figure
 #colors = ['#E60D30', '#5CB7C6', '#A21797', '#A3B347'] # Plot colours from http://tools.medialab.sciences-po.fr/iwanthue/index.php
-colors = itertools.cycle(('#015dbb', '#c23100', '#00a15a', '#c84cd0', '#ff9aa0'))
+colorIDs = ['#015dbb', '#c23100', '#00a15a', '#c84cd0', '#ff9aa0']
+colors = itertools.cycle(colorIDs)
 lines = itertools.cycle(('--', ':', '-.', '-'))
 markers = ['o', 'd', '^', 's', '*']
 fig, ax = plt.subplots(num=machineID, figsize=(30, 10), facecolor='w', edgecolor='w')
@@ -136,6 +137,7 @@ ax.set_ylim(0, top=ax.get_ylim()[1] * 1.1)
 ######################################################
 # Subplot of CPU (OpenMP) threads vs speed-up factor #
 ######################################################
+colors = itertools.cycle(colorIDs) # Reset color iterator
 ax = plt.subplot(gs[0, 1])
 ax.plot(baseresult['cputhreads'], baseresult['cputimes'][-1] / baseresult['cputimes'], color=next(colors), marker=markers[0], markeredgecolor='None', ms=8, lw=2, label=baseplotlabel)
 
@@ -156,6 +158,7 @@ ax.set_ylim(bottom=1, top=ax.get_ylim()[1] * 1.1)
 ###########################################
 # Subplot of simulation size vs cells/sec #
 ###########################################
+colors = itertools.cycle(colorIDs) # Reset color iterator
 ax = plt.subplot(gs[0, 2])
 ax.plot(cells, cpucellspersec / 1e6, color=next(colors), marker=markers[0], markeredgecolor='None', ms=8, lw=2, label=cpuID)
 
