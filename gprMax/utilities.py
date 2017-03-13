@@ -178,7 +178,7 @@ def get_host_info():
             hyperthreading = True
         else:
             hyperthreading = False
-    
+
         # OS version
         if platform.machine().endswith('64'):
             osbit = ' (64-bit)'
@@ -202,7 +202,7 @@ def get_host_info():
             hyperthreading = True
         else:
             hyperthreading = False
-        
+
         # OS version
         if int(platform.mac_ver()[0].split('.')[1]) < 12:
             osversion = 'Mac OS X (' + platform.mac_ver()[0] + ')'
@@ -246,7 +246,7 @@ def get_host_info():
     hostinfo['hyperthreading'] = hyperthreading
     hostinfo['logicalcores'] = psutil.cpu_count()
     try:
-        hostinfo['physicalcores'] = psutil.cpu_count(logical=False) # Get number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
+        hostinfo['physicalcores'] = psutil.cpu_count(logical=False)  # Get number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
     except ValueError:
         hostinfo['physicalcores'] = hostinfo['logicalcores']
     hostinfo['ram'] = psutil.virtual_memory().total

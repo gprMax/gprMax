@@ -1307,7 +1307,7 @@ def process_geometrycmds(geometry, G):
 
                     elif surface.surfaceID == 'xplus':
                         if not surface.ID:
-                            for i in range(surface.fractalrange[0], surface.fractalrange[1] ):
+                            for i in range(surface.fractalrange[0], surface.fractalrange[1]):
                                 for j in range(surface.ys, surface.yf):
                                     for k in range(surface.zs, surface.zf):
                                         if i < surface.fractalsurface[j - surface.ys, k - surface.zs]:

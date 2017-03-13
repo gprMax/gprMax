@@ -66,12 +66,12 @@ def process_singlecmds(singlecmds, G):
     cmd = '#num_threads'
     if sys.platform == 'darwin':
         os.environ['OMP_WAIT_POLICY'] = 'ACTIVE'  # Should waiting threads consume CPU power (can drastically effect performance)
-    os.environ['OMP_DYNAMIC'] = 'FALSE' # Number of threads may be adjusted by the run time environment to best utilize system resources
-    os.environ['OMP_PLACES'] = 'cores' # Each place corresponds to a single core (having one or more hardware threads)
+    os.environ['OMP_DYNAMIC'] = 'FALSE'  # Number of threads may be adjusted by the run time environment to best utilize system resources
+    os.environ['OMP_PLACES'] = 'cores'  # Each place corresponds to a single core (having one or more hardware threads)
     os.environ['OMP_PROC_BIND'] = 'TRUE'  # Bind threads to physical cores
     # os.environ['OMP_DISPLAY_ENV'] = 'TRUE' # Prints OMP version and environment variables (useful for debug)
 
-    # Catch bug with Windows Subsystem for Linux (https://github.com/Microsoft/BashOnWindows/issues/785)
+    # Catch bug with Windows Subsystem for Linux (https://github.com/Microsoft/BashOnWindows/issues/785)
     if 'Microsoft' in hostinfo['osversion']:
         os.environ['KMP_AFFINITY'] = 'disabled'
         del os.environ['OMP_PLACES']

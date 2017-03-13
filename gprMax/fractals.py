@@ -134,12 +134,12 @@ class FractalVolume(object):
 
     def generate_fractal_volume(self):
         """Generate a 3D volume with a fractal distribution."""
-        
+
         # Scale filter according to size of fractal volume
         if self.nx == 1:
             filterscaling = np.amin(np.array([self.ny, self.nz])) / np.array([self.ny, self.nz])
             filterscaling = np.insert(filterscaling, 0, 1)
-        elif self.ny ==1:
+        elif self.ny == 1:
             filterscaling = np.amin(np.array([self.nx, self.nz])) / np.array([self.nx, self.nz])
             filterscaling = np.insert(filterscaling, 1, 1)
         elif self.nz == 1:

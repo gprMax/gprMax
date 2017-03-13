@@ -303,7 +303,7 @@ class GeometryObjects(object):
         self.nz = self.zf - self.zs
         self.filename = basefilename + '.h5'
         self.materialsfilename = basefilename + '_materials.txt'
-        
+
         # Sizes of arrays to write necessary to update progress bar
         self.solidsize = (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(np.int16).itemsize
         self.rigidsize = 18 * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(np.int8).itemsize

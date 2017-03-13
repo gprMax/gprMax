@@ -188,10 +188,10 @@ def taguchi_code_blocks(inputfile, taguchinamespace):
 
     # Strip out any newline characters and comments that must begin with double hashes
     inputlines = [line.rstrip() for line in inputfile if(not line.startswith('##') and line.rstrip('\n'))]
-    
+
     # Rewind input file in preparation for passing to standard command reading function
     inputfile.seek(0)
-    
+
     # Store length of dict
     taglength = len(taguchinamespace)
 

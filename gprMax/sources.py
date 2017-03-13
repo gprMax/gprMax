@@ -50,10 +50,10 @@ class Source(object):
 
         # Waveform values for electric sources - calculated half a timestep later
         self.waveformvaluesJ = np.zeros((G.iterations), dtype=floattype)
-        
+
         # Waveform values for magnetic sources
         self.waveformvaluesM = np.zeros((G.iterations), dtype=floattype)
-        
+
         waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
 
         for iteration in range(G.iterations):

@@ -24,6 +24,7 @@ from enum import Enum
 import os
 from time import perf_counter
 
+import h5py
 import numpy as np
 
 from gprMax._version import __version__
@@ -221,7 +222,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     cputhreads = cputhreads[::-1]
     cputimes = np.zeros(len(cputhreads))
     numbermodelruns = len(cputhreads)
-                
+
     usernamespace['number_model_runs'] = numbermodelruns
 
     for currentmodelrun in range(1, numbermodelruns + 1):
@@ -300,19 +301,19 @@ def run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams=None)
 
     # Worker process
     else:
-        while True: # Break out of loop when work receives exit message
+        while True:  # Break out of loop when work receives exit message
             comm.send(None, dest=0, tag=tags.READY.value)
             currentmodelrun = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)  #  Receive a model number to run from the master
             tag = status.Get_tag()
 
             # Run a model
             if tag == tags.START.value:
-                
+
                 # Get info and setup device ID for GPU(s)
                 gpuinfo = ''
 
                 print('MPI worker rank {} (PID {}) starting model {}/{}{} on {}'.format(rank, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo, name))
-                
+
                 # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
                 if optparams:
                     tmp = {}
