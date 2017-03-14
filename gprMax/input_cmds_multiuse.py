@@ -51,7 +51,7 @@ def process_multicmds(multicmds, G):
 
     # Waveform definitions
     cmdname = '#waveform'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 4:
@@ -76,7 +76,7 @@ def process_multicmds(multicmds, G):
 
     # Voltage source
     cmdname = '#voltage_source'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) < 6:
@@ -141,7 +141,7 @@ def process_multicmds(multicmds, G):
 
     # Hertzian dipole
     cmdname = '#hertzian_dipole'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) < 5:
@@ -216,7 +216,7 @@ def process_multicmds(multicmds, G):
 
     # Magnetic dipole
     cmdname = '#magnetic_dipole'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) < 5:
@@ -279,7 +279,7 @@ def process_multicmds(multicmds, G):
 
     # Transmission line
     cmdname = '#transmission_line'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) < 6:
@@ -345,7 +345,7 @@ def process_multicmds(multicmds, G):
 
     # Receiver
     cmdname = '#rx'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 3 and len(tmp) < 5:
@@ -390,7 +390,7 @@ def process_multicmds(multicmds, G):
 
     # Receiver array
     cmdname = '#rx_array'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 9:
@@ -455,7 +455,7 @@ def process_multicmds(multicmds, G):
 
     # Snapshot
     cmdname = '#snapshot'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 11:
@@ -505,7 +505,7 @@ def process_multicmds(multicmds, G):
 
     # Materials
     cmdname = '#material'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 5:
@@ -543,7 +543,7 @@ def process_multicmds(multicmds, G):
             G.materials.append(m)
 
     cmdname = '#add_dispersion_debye'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
 
@@ -578,7 +578,7 @@ def process_multicmds(multicmds, G):
                     tqdm.write('Debye disperion added to {} with delta_eps_r={}, and tau={} secs created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau)))
 
     cmdname = '#add_dispersion_lorentz'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
 
@@ -614,7 +614,7 @@ def process_multicmds(multicmds, G):
                     tqdm.write('Lorentz disperion added to {} with delta_eps_r={}, omega={} secs, and gamma={} created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
 
     cmdname = '#add_dispersion_drude'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
 
@@ -649,7 +649,7 @@ def process_multicmds(multicmds, G):
                     tqdm.write('Drude disperion added to {} with omega={} secs, and gamma={} secs created.'.format(material.ID, ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
 
     cmdname = '#soil_peplinski'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 7:
@@ -680,7 +680,7 @@ def process_multicmds(multicmds, G):
 
     # Geometry views (creates VTK-based geometry files)
     cmdname = '#geometry_view'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 11:
@@ -730,7 +730,7 @@ def process_multicmds(multicmds, G):
 
     # Geometry object(s) output
     cmdname = '#geometry_objects_write'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 7:
@@ -760,7 +760,7 @@ def process_multicmds(multicmds, G):
 
     # Complex frequency shifted (CFS) PML parameter
     cmdname = '#pml_cfs'
-    if multicmds[cmdname] != 'None':
+    if multicmds[cmdname] is not None:
         if len(multicmds[cmdname]) > 2:
             raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' can only be used up to two times, for up to a 2nd order PML')
         for cmdinstance in multicmds[cmdname]:

@@ -41,7 +41,7 @@ def process_singlecmds(singlecmds, G):
     # Check validity of command parameters in order needed
     # messages
     cmd = '#messages'
-    if singlecmds[cmd] != 'None':
+    if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 1:
             raise CmdInputError(cmd + ' requires exactly one parameter')
@@ -54,7 +54,7 @@ def process_singlecmds(singlecmds, G):
 
     # Title
     cmd = '#title'
-    if singlecmds[cmd] != 'None':
+    if singlecmds[cmd] is not None:
         G.title = singlecmds[cmd]
         if G.messages:
             print('Model title: {}'.format(G.title))
@@ -77,7 +77,7 @@ def process_singlecmds(singlecmds, G):
         del os.environ['OMP_PLACES']
         del os.environ['OMP_PROC_BIND']
 
-    if singlecmds[cmd] != 'None':
+    if singlecmds[cmd] is not None:
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
         if len(tmp) != 1:
             raise CmdInputError(cmd + ' requires exactly one parameter to specify the number of threads to use')
@@ -163,7 +163,7 @@ def process_singlecmds(singlecmds, G):
 
     # Time step stability factor
     cmd = '#time_step_stability_factor'
-    if singlecmds[cmd] != 'None':
+    if singlecmds[cmd] is not None:
         tmp = tuple(float(x) for x in singlecmds[cmd].split())
         if len(tmp) != 1:
             raise CmdInputError(cmd + ' requires exactly one parameter')
@@ -198,7 +198,7 @@ def process_singlecmds(singlecmds, G):
 
     # PML
     cmd = '#pml_cells'
-    if singlecmds[cmd] != 'None':
+    if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 1 and len(tmp) != 6:
             raise CmdInputError(cmd + ' requires either one or six parameters')
@@ -217,7 +217,7 @@ def process_singlecmds(singlecmds, G):
 
     # src_steps
     cmd = '#src_steps'
-    if singlecmds[cmd] != 'None':
+    if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
             raise CmdInputError(cmd + ' requires exactly three parameters')
@@ -229,7 +229,7 @@ def process_singlecmds(singlecmds, G):
 
     # rx_steps
     cmd = '#rx_steps'
-    if singlecmds[cmd] != 'None':
+    if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
             raise CmdInputError(cmd + ' requires exactly three parameters')
@@ -241,7 +241,7 @@ def process_singlecmds(singlecmds, G):
 
     # Excitation file for user-defined source waveforms
     cmd = '#excitation_file'
-    if singlecmds[cmd] != 'None':
+    if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 1:
             raise CmdInputError(cmd + ' requires exactly one parameter')
