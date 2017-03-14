@@ -34,19 +34,18 @@ from gprMax.gprMax import run_std_sim, run_mpi_sim
 from gprMax.utilities import get_terminal_width, open_path_file
 
 
-def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
+def run_opt_sim(args, inputfile, usernamespace):
     """Run a simulation using Taguchi's optmisation process.
 
     Args:
         args (dict): Namespace with command line arguments
-        numbermodelruns (int): Total number of model runs.
         inputfile (object): File object for the input file.
         usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
     """
 
     tsimstart = perf_counter()
 
-    if numbermodelruns > 1:
+    if args.n > 1:
         raise CmdInputError('When a Taguchi optimisation is being carried out the number of model runs argument is not required')
 
     inputfileparts = os.path.splitext(inputfile.name)
@@ -99,8 +98,8 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
     iteration = 0
     while iteration < maxiterations:
         # Reset number of model runs to number of experiments
-        numbermodelruns = N
-        usernamespace['number_model_runs'] = numbermodelruns
+        args.n = N
+        usernamespace['number_model_runs'] = N
 
         # Fitness values for each experiment
         fitnessvalues = []
@@ -110,17 +109,17 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
 
         # Run model for each experiment
         if args.mpi:  # Mixed mode MPI/OpenMP - MPI task farm for models with each model parallelised with OpenMP
-            run_mpi_sim(args, numbermodelruns, inputfile, usernamespace, optparams)
+            run_mpi_sim(args, inputfile, usernamespace, optparams)
         else:  # Standard behaviour - models run serially with each model parallelised with OpenMP
-            run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams)
+            run_std_sim(args, inputfile, usernamespace, optparams)
 
         # Calculate fitness value for each experiment
-        for experiment in range(1, numbermodelruns + 1):
+        for experiment in range(1, N + 1):
             outputfile = inputfileparts[0] + str(experiment) + '.out'
             fitnessvalues.append(fitness_metric(outputfile, fitness['args']))
             os.remove(outputfile)
 
-        taguchistr = '\n--- Taguchi optimisation, iteration {}: {} initial experiments with fitness values {}.'.format(iteration + 1, numbermodelruns, fitnessvalues)
+        taguchistr = '\n--- Taguchi optimisation, iteration {}: {} initial experiments with fitness values {}.'.format(iteration + 1, N, fitnessvalues)
         print('{} {}\n'.format(taguchistr, '-' * (get_terminal_width() - 1 - len(taguchistr))))
 
         # Calculate optimal levels from fitness values by building a response table; update dictionary of parameters with optimal values
@@ -131,9 +130,9 @@ def run_opt_sim(args, numbermodelruns, inputfile, usernamespace):
             optparamshist[key].append(value[0])
 
         # Run a confirmation experiment with optimal values
-        numbermodelruns = 1
-        usernamespace['number_model_runs'] = numbermodelruns
-        run_std_sim(args, numbermodelruns, inputfile, usernamespace, optparams)
+        args.n = 1
+        usernamespace['number_model_runs'] = 1
+        run_std_sim(args, inputfile, usernamespace, optparams)
 
         # Calculate fitness value for confirmation experiment
         outputfile = inputfileparts[0] + '.out'
@@ -188,7 +187,7 @@ def taguchi_code_blocks(inputfile, taguchinamespace):
 
     # Strip out any newline characters and comments that must begin with double hashes
     inputlines = [line.rstrip() for line in inputfile if(not line.startswith('##') and line.rstrip('\n'))]
-
+    
     # Rewind input file in preparation for passing to standard command reading function
     inputfile.seek(0)
 
