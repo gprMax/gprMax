@@ -65,12 +65,11 @@ class Snapshot(object):
         self.time = time
         self.basefilename = filename
 
-    def prepare_vtk_imagedata(self, modelrun, numbermodelruns, G):
+    def prepare_vtk_imagedata(self, appendmodelnumber, G):
         """Prepares a VTK ImageData (.vti) file for a snapshot.
 
         Args:
-            modelrun (int): Current model run number.
-            numbermodelruns (int): Total number of model runs.
+            appendmodelnumber (str): Text to append to filename.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
@@ -80,11 +79,7 @@ class Snapshot(object):
         self.vtk_nz = self.zf - self.zs
 
         # Create directory and construct filename from user-supplied name and model run number
-        if numbermodelruns == 1:
-            snapshotdir = os.path.join(G.inputdirectory, os.path.splitext(G.inputfilename)[0] + '_snaps')
-        else:
-            snapshotdir = os.path.join(G.inputdirectory, os.path.splitext(G.inputfilename)[0] + '_snaps' + str(modelrun))
-
+        snapshotdir = os.path.join(G.inputdirectory, os.path.splitext(G.inputfilename)[0] + '_snaps' + appendmodelnumber)
         if not os.path.exists(snapshotdir):
             os.mkdir(snapshotdir)
         self.filename = os.path.abspath(os.path.join(snapshotdir, self.basefilename + '.vti'))
