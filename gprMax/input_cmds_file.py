@@ -118,12 +118,12 @@ def process_python_include_code(inputfile, usernamespace):
     return processedlines
 
 
-def write_processed_file(inputfilename, modelrun, numbermodelruns, processedlines):
+def write_processed_file(inputfilename, currentmodelrun, numbermodelruns, processedlines):
     """Writes an input file after any Python code and include commands in the original input file have been processed.
 
     Args:
         inputfilename (str): Name of the input file to open.
-        modelrun (int): Current model run number.
+        currentmodelrun (int): Current model run number.
         numbermodelruns (int): Total number of model runs.
         processedlines (list): Input commands after after processing any Python code and include commands.
     """
@@ -131,7 +131,7 @@ def write_processed_file(inputfilename, modelrun, numbermodelruns, processedline
     if numbermodelruns == 1:
         processedfile = os.path.splitext(inputfilename)[0] + '_processed.in'
     else:
-        processedfile = os.path.splitext(inputfilename)[0] + str(modelrun) + '_processed.in'
+        processedfile = os.path.splitext(inputfilename)[0] + str(currentmodelrun) + '_processed.in'
 
     with open(processedfile, 'w') as f:
         for item in processedlines:
