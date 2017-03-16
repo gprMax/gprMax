@@ -82,11 +82,11 @@ class GeometryView(object):
             self.vtk_materials_offset = round_value(self.vtk_offsets_offset + (self.vtk_numlines * np.dtype(np.uint32).itemsize) + np.dtype(np.uint32).itemsize)
             self.datawritesize = np.dtype(np.float32).itemsize * self.vtk_numpoints * self.vtk_numpoint_components + np.dtype(np.uint32).itemsize * self.vtk_numlines * self.vtk_numline_components + np.dtype(np.uint32).itemsize * self.vtk_numlines + np.dtype(np.uint32).itemsize * self.vtk_numlines
 
-    def set_filename(self, modelrun, numbermodelruns, G):
+    def set_filename(self, currentmodelrun, numbermodelruns, G):
         """Construct filename from user-supplied name and model run number.
 
         Args:
-            modelrun (int): Current model run number.
+            currentmodelrun (int): Current model run number.
             numbermodelruns (int): Total number of model runs.
             G (class): Grid class instance - holds essential parameters describing the model.
         """
@@ -94,16 +94,16 @@ class GeometryView(object):
         if numbermodelruns == 1:
             self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.basefilename))
         else:
-            self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.basefilename + str(modelrun)))
+            self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.basefilename + str(currentmodelrun)))
         self.filename += self.fileext
 
-    def write_vtk(self, modelrun, numbermodelruns, G, pbar):
+    def write_vtk(self, currentmodelrun, numbermodelruns, G, pbar):
         """Writes the geometry information to a VTK file. Either ImageData (.vti) for a per-cell geometry view, or PolygonalData (.vtp) for a per-cell-edge geometry view.
 
             N.B. No Python 3 support for VTK at time of writing (03/2015)
 
         Args:
-            modelrun (int): Current model run number.
+            currentmodelrun (int): Current model run number.
             numbermodelruns (int): Total number of model runs.
             G (class): Grid class instance - holds essential parameters describing the model.
             pbar (class): Progress bar class instance.
