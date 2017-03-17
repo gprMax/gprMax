@@ -10,11 +10,11 @@ import os
 from gprMax.exceptions import CmdInputError
 from gprMax.input_cmd_funcs import *
 
-moduledirectory = os.path.dirname(os.path.abspath(__file__))
+userlibdir = os.path.dirname(os.path.abspath(__file__))
 
 
 def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
-    """Inserts a description of an antenna similar to the GSSI 1.5GHz antenna. Can be used with 1mm (default) or 2mm spatial resolution. The external dimensions of the antenna are 170x108x45mm. One output point is defined between the arms of the receiever bowtie. The bowties are aligned with the y axis so the output is the y component of the electric field.
+    """Inserts a description of an antenna similar to the GSSI 1.5GHz antenna. Can be used with 1mm (default) or 2mm spatial resolution. The external dimensions of the antenna are 170x108x45mm. One output point is defined between the arms of the receiever bowtie. The bowties are aligned with the y axis so the output is the y component of the electric field (x component if the antenna is rotated 90 degrees).
 
     Args:
         x, y, z (float): Coordinates of a location in the model to insert the antenna. Coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction.
@@ -34,7 +34,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
     bowtieheight = 0.014
     patchheight = 0.015
 
-    # Set origin for rotation to geometric centre of antenna in x-y plane if required
+    # Set origin for rotation to geometric centre of antenna in x-y plane if required, and set output component for receiver
     if rotate90:
         rotate90origin = (x, y)
         output = 'Ex'
@@ -85,6 +85,8 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
 
     # Material definitions
     material(absorberEr, absorbersig, 1, 0, 'absorber')
+    # material(1, 0, 1, 0, 'absorber')
+    # print('#add_dispersion_debye: 3 3.7733 1.00723e-11 3.14418 1.55686e-10 20.2441 3.44129e-10 absorber') # Eccosorb LS22 3-pole Debye model (https://bitbucket.org/uoyaeg/aegboxts/wiki/Home)
     material(3, 0, 1, 0, 'pcb')
     material(2.35, 0, 1, 0, 'hdpe')
     material(3, (1 / rxres) * (dy / (dx * dz)), 1, 0, 'rxres')
@@ -161,7 +163,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
     # geometry_view(x, y, z, x + casesize[0], y + casesize[1], z + 0.010, dx, dy, dz, 'antenna_like_GSSI_1500_pcb', type='f')
 
     # Excitation - custom pulse
-    # print('#excitation_file: {}'.format(os.path.join(moduledirectory, 'GSSIgausspulse1.txt')))
+    # print('#excitation_file: {}'.format(os.path.join(userlibdir, 'GSSIgausspulse1.txt')))
     # print('#transmission_line: y {} {} {} {} GSSIgausspulse1'.format(tx[0], tx[1], tx[2], sourceresistance))
 
     # Excitation - Gaussian pulse
@@ -178,7 +180,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
 
 
 def antenna_like_MALA_1200(x, y, z, resolution=0.001, rotate90=False, **kwargs):
-    """Inserts a description of an antenna similar to the MALA 1.2GHz antenna. Can be used with 1mm (default) or 2mm spatial resolution. The external dimensions of the antenna are 184x109x46mm. One output point is defined between the arms of the receiever bowtie. The bowties are aligned with the y axis so the output is the y component of the electric field.
+    """Inserts a description of an antenna similar to the MALA 1.2GHz antenna. Can be used with 1mm (default) or 2mm spatial resolution. The external dimensions of the antenna are 184x109x46mm. One output point is defined between the arms of the receiever bowtie. The bowties are aligned with the y axis so the output is the y component of the electric field (x component if the antenna is rotated 90 degrees).
 
     Args:
         x, y, z (float): Coordinates of a location in the model to insert the antenna. Coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction.
@@ -198,7 +200,7 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, rotate90=False, **kwargs):
     skidthickness = 0.006
     bowtieheight = 0.025
 
-    # Set origin for rotation to geometric centre of antenna in x-y plane if required
+    # Set origin for rotation to geometric centre of antenna in x-y plane if required, and set output component for receiver
     if rotate90:
         rotate90origin = (x, y)
         output = 'Ex'
