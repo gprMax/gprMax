@@ -24,7 +24,7 @@ from gprMax.exceptions import CmdInputError
 
 
 def process_python_include_code(inputfile, usernamespace):
-    """Looks for and processes any Python code found in the input file. It will ignore any lines that are comments, i.e. begin with a double hash (##), and any blank lines. It will also ignore any lines that do not begin with a hash (#) after it has processed Python commands. It will also process any include commands and insert the contents of the included file at that location.
+    """Looks for and processes any Python code found in the input file. It will ignore any lines that are comments, i.e. begin with a double hash (##), and any blank lines. It will also ignore any lines that do not begin with a hash (#) after it has processed Python commands. It will also process any include file commands and insert the contents of the included file at that location.
 
     Args:
         inputfile (object): File object for input file.
@@ -87,9 +87,36 @@ def process_python_include_code(inputfile, usernamespace):
             if pythonstdout:
                 print('Python messages (from stdout): {}\n'.format(pythonstdout))
 
-        # Process any include commands
-        elif(inputlines[x].startswith('#include_file:')):
-            includefile = inputlines[x].split()
+        # Add any other commands to list
+        elif(inputlines[x].startswith('#')):
+            # Add gprMax command to list
+            inputlines[x] += ('\n')
+            processedlines.append(inputlines[x])
+
+        x += 1
+            
+    # Process any include file commands
+    processedlines = process_include_files(processedlines, inputfile)
+
+    return processedlines
+
+
+def process_include_files(hashcmds, inputfile):
+    """Looks for and processes any include file commands and insert the contents of the included file at that location.
+
+    Args:
+        hashcmds (list): Input commands.
+        inputfile (object): File object for input file.
+
+    Returns:
+        processedincludecmds (list): Input commands after processing any include file commands.
+    """
+
+    processedincludecmds = []
+    x = 0
+    while x < len(hashcmds):
+        if hashcmds[x].startswith('#include_file:'):
+            includefile = hashcmds[x].split()
 
             if len(includefile) != 2:
                 raise CmdInputError('#include_file requires exactly one parameter')
@@ -98,40 +125,33 @@ def process_python_include_code(inputfile, usernamespace):
 
             # See if file exists at specified path and if not try input file directory
             if not os.path.isfile(includefile):
-                includefile = os.path.join(usernamespace['inputdirectory'], includefile)
+                includefile = os.path.join(os.path.dirname(inputfile.name), includefile)
 
             with open(includefile, 'r') as f:
                 # Strip out any newline characters and comments that must begin with double hashes
                 includelines = [includeline.rstrip() + '\n' for includeline in f if(not includeline.startswith('##') and includeline.rstrip('\n'))]
+                    
+            # Add lines from include file
+            processedincludecmds.extend(includelines)
 
-            # Add lines from include file to list
-            processedlines.extend(includelines)
-
-        # Add any other commands to list
-        elif(inputlines[x].startswith('#')):
-            # Add gprMax command to list
-            inputlines[x] += ('\n')
-            processedlines.append(inputlines[x])
+        else:
+            processedincludecmds.append(hashcmds[x])
 
         x += 1
 
-    return processedlines
+    return processedincludecmds
 
 
-def write_processed_file(inputfilename, currentmodelrun, numbermodelruns, processedlines):
+def write_processed_file(processedlines, appendmodelnumber, G):
     """Writes an input file after any Python code and include commands in the original input file have been processed.
 
     Args:
-        inputfilename (str): Name of the input file to open.
-        currentmodelrun (int): Current model run number.
-        numbermodelruns (int): Total number of model runs.
         processedlines (list): Input commands after after processing any Python code and include commands.
+        appendmodelnumber (str): Text to append to filename.
+        G (class): Grid class instance - holds essential parameters describing the model.
     """
 
-    if numbermodelruns == 1:
-        processedfile = os.path.splitext(inputfilename)[0] + '_processed.in'
-    else:
-        processedfile = os.path.splitext(inputfilename)[0] + str(currentmodelrun) + '_processed.in'
+    processedfile = os.path.join(G.inputdirectory, os.path.splitext(G.inputfilename)[0] + appendmodelnumber + '_processed.in')
 
     with open(processedfile, 'w') as f:
         for item in processedlines:
@@ -144,7 +164,7 @@ def check_cmd_names(processedlines, checkessential=True):
     """Checks the validity of commands, i.e. are they gprMax commands, and that all essential commands are present.
 
     Args:
-        processedlines (list): Input commands after Python processing.
+        processedlines (list): Input commands after processing any Python code and include commands..
         checkessential (boolean): Perform check to see that all essential commands are present.
 
     Returns:
