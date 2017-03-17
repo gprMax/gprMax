@@ -65,6 +65,9 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
     # Declare variable to hold FDTDGrid class
     global G
 
+    # Used for naming geometry and output files
+    appendmodelnumber = '' if numbermodelruns == 1 and not args.task and not args.restart else str(currentmodelrun)
+    
     # Normal model reading/building process; bypassed if geometry information to be reused
     if 'G' not in globals():
 
@@ -79,7 +82,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
         usernamespace['current_model_run'] = currentmodelrun
 
-        # Read input file and process any Python or include commands
+        # Read input file and process any Python and include file commands
         processedlines = process_python_include_code(inputfile, usernamespace)
 
         # Print constants/variables in user-accessable namespace
@@ -89,9 +92,9 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
                 uservars += '{}: {}, '.format(key, value)
         print('Constants/variables used/available for Python scripting: {{{}}}\n'.format(uservars[:-2]))
 
-        # Write a file containing the input commands after Python or include commands have been processed
+        # Write a file containing the input commands after Python or include file commands have been processed
         if args.write_processed:
-            write_processed_file(os.path.join(G.inputdirectory, G.inputfilename), currentmodelrun, numbermodelruns, processedlines)
+            write_processed_file(processedlines, appendmodelnumber, G)
 
         # Check validity of command names and that essential commands are present
         singlecmds, multicmds, geometry = check_cmd_names(processedlines)
@@ -211,9 +214,6 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             receiver.xcoord = receiver.xcoordorigin + (currentmodelrun - 1) * G.rxsteps[0]
             receiver.ycoord = receiver.ycoordorigin + (currentmodelrun - 1) * G.rxsteps[1]
             receiver.zcoord = receiver.zcoordorigin + (currentmodelrun - 1) * G.rxsteps[2]
-
-    # Used for naming geometry and output files
-    appendmodelnumber = '' if numbermodelruns == 1 and not args.task and not args.restart else str(currentmodelrun)
 
     # Write files for any geometry views and geometry object outputs
     if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only:
