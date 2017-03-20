@@ -34,4 +34,4 @@ export OMP_NUM_THREADS=16
 
 ### Run gprMax with input file
 cd $HOME/gprMax
-mpiexec -np 11 -x OMP_NUM_THREADS python -m gprMax mymodel.in -n 10 -mpi
+python -m gprMax mymodel.in -n 10 -mpi 11
