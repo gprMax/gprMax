@@ -36,7 +36,7 @@ def process_python_include_code(inputfile, usernamespace):
 
     # Strip out any newline characters and comments that must begin with double hashes
     inputlines = [line.rstrip() for line in inputfile if(not line.startswith('##') and line.rstrip('\n'))]
-
+    
     # Rewind input file in preparation for any subsequent reading function
     inputfile.seek(0)
 
@@ -73,19 +73,19 @@ def process_python_include_code(inputfile, usernamespace):
 
             # Separate commands from any other generated output
             hashcmds = []
-            pythonstdout = []
+            pythonout = []
             for line in codeout:
                 if line.startswith('#'):
                     hashcmds.append(line + '\n')
                 elif line:
-                    pythonstdout.append(line)
+                    pythonout.append(line)
 
             # Add commands to a list
             processedlines.extend(hashcmds)
 
             # Print any generated output that is not commands
-            if pythonstdout:
-                print('Python messages (from stdout): {}\n'.format(pythonstdout))
+            if pythonout:
+                print('Python messages (from stdout/stderr): {}\n'.format(pythonout))
 
         # Add any other commands to list
         elif(inputlines[x].startswith('#')):
@@ -164,7 +164,7 @@ def check_cmd_names(processedlines, checkessential=True):
     """Checks the validity of commands, i.e. are they gprMax commands, and that all essential commands are present.
 
     Args:
-        processedlines (list): Input commands after processing any Python code and include commands..
+        processedlines (list): Input commands after Python processing.
         checkessential (boolean): Perform check to see that all essential commands are present.
 
     Returns:
@@ -181,7 +181,7 @@ def check_cmd_names(processedlines, checkessential=True):
     singlecmds = dict.fromkeys(['#domain', '#dx_dy_dz', '#time_window', '#title', '#messages', '#num_threads', '#time_step_stability_factor', '#pml_cells', '#excitation_file', '#src_steps', '#rx_steps', '#taguchi', '#end_taguchi'], None)
 
     # Commands that there can be multiple instances of in a model - these will be lists within the dictionary
-    multiplecmds = {key: [] for key in ['#geometry_view', '#geometry_objects_write', '#material', '#soil_peplinski', '#add_dispersion_debye', '#add_dispersion_lorentz', '#add_dispersion_drude', '#waveform', '#voltage_source', '#hertzian_dipole', '#magnetic_dipole', '#transmission_line', '#rx', '#rx_array', '#snapshot', '#pml_cfs']}
+    multiplecmds = {key: [] for key in ['#geometry_view', '#geometry_objects_write', '#material', '#soil_peplinski', '#add_dispersion_debye', '#add_dispersion_lorentz', '#add_dispersion_drude', '#waveform', '#voltage_source', '#hertzian_dipole', '#magnetic_dipole', '#transmission_line', '#rx', '#rx_array', '#snapshot', '#pml_cfs', '#include_file']}
 
     # Geometry object building commands that there can be multiple instances of in a model - these will be lists within the dictionary
     geometrycmds = ['#geometry_objects_read', '#edge', '#plate', '#triangle', '#box', '#sphere', '#cylinder', '#cylindrical_sector', '#fractal_box', '#add_surface_roughness', '#add_surface_water', '#add_grass']
