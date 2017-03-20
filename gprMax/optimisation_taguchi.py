@@ -108,9 +108,9 @@ def run_opt_sim(args, inputfile, usernamespace):
         optparams, levels, levelsdiff = calculate_ranges_experiments(optparams, optparamsinit, levels, levelsopt, levelsdiff, OA, N, k, s, iteration)
 
         # Run model for each experiment
-        if args.mpi:  # Mixed mode MPI/OpenMP - MPI task farm for models with each model parallelised with OpenMP
+        if args.mpi:  # Mixed mode MPI with OpenMP or CUDA - MPI task farm for models with each model parallelised with OpenMP (CPU) or CUDA (GPU)
             run_mpi_sim(args, inputfile, usernamespace, optparams)
-        else:  # Standard behaviour - models run serially with each model parallelised with OpenMP
+        else:  # Standard behaviour - models run serially with each model parallelised with OpenMP (CPU) or CUDA (GPU)
             run_std_sim(args, inputfile, usernamespace, optparams)
 
         # Calculate fitness value for each experiment
@@ -132,7 +132,10 @@ def run_opt_sim(args, inputfile, usernamespace):
         # Run a confirmation experiment with optimal values
         args.n = 1
         usernamespace['number_model_runs'] = 1
-        run_std_sim(args, inputfile, usernamespace, optparams)
+        if args.mpi:  # Mixed mode MPI with OpenMP or CUDA - MPI task farm for models with each model parallelised with OpenMP (CPU) or CUDA (GPU)
+            run_mpi_sim(args, inputfile, usernamespace, optparams)
+        else:  # Standard behaviour - models run serially with each model parallelised with OpenMP (CPU) or CUDA (GPU)
+            run_std_sim(args, inputfile, usernamespace, optparams)
 
         # Calculate fitness value for confirmation experiment
         outputfile = inputfileparts[0] + '.out'
@@ -152,9 +155,9 @@ def run_opt_sim(args, inputfile, usernamespace):
             break
 
         # Stop optimisation if successive fitness values are within a percentage threshold
+        fitnessvaluesthres = 0.1
         if iteration > 2:
             fitnessvaluesclose = (np.abs(fitnessvalueshist[iteration - 2] - fitnessvalueshist[iteration - 1]) / fitnessvalueshist[iteration - 1]) * 100
-            fitnessvaluesthres = 0.1
             if fitnessvaluesclose < fitnessvaluesthres:
                 taguchistr = '\n--- Taguchi optimisation stopped as successive fitness values within {}%'.format(fitnessvaluesthres)
                 print('{} {}\n'.format(taguchistr, '-' * (get_terminal_width() - 1 - len(taguchistr))))
