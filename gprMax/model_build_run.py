@@ -169,6 +169,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         # Process complete list of materials - calculate update coefficients, store in arrays, and build text list of materials/properties
         materialsdata = process_materials(G)
         if G.messages:
+            print('\nMaterials:')
             materialstable = AsciiTable(materialsdata)
             materialstable.outer_border = False
             materialstable.justify_columns[0] = 'right'
