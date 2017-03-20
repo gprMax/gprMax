@@ -257,7 +257,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     
     # Number of workers and command line flag to indicate a spawned worker
     worker = '--mpi-worker'
-    numberworkers = args.mpi
+    numberworkers = args.mpi - 1
 
     # Master process
     if worker not in sys.argv:
