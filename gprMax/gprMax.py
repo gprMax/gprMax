@@ -32,7 +32,7 @@ from gprMax._version import __version__, codename
 from gprMax.constants import c, e0, m0, z0
 from gprMax.exceptions import GeneralError
 from gprMax.model_build_run import run_model
-from gprMax.utilities import get_host_info, get_terminal_width, human_size, logo, open_path_file, detect_gpus
+from gprMax.utilities import get_host_info, get_terminal_width, human_size, logo, open_path_file
 
 
 def main():
