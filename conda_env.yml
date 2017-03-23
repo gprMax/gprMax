@@ -9,12 +9,12 @@ dependencies:
 - h5py
 - jupyter
 - matplotlib
+- mpi4py
 - numpy
 - psutil
 - pyqt=4.11.4
 - scipy
 
 - pip:
-  - mpi4py
   - terminaltables
   - tqdm
