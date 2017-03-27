@@ -5,7 +5,11 @@
 #python:
 import os
 import numpy as np
+
+from gprMax.input_cmd_funcs import *
 from user_libs.antennas import antenna_like_GSSI_1500
+
+filename = os.path.splitext(os.path.split(__file__)[1])[0]
 
 timewindows = np.array([4.5e-9]) # For 0.3m max
 radii = np.linspace(0.1, 0.3, 20)
@@ -29,7 +33,7 @@ print('#material: {}'.format(materials[selector]))
 print('#box: 0 0 0 {} {} {} {} n'.format(domain[0], domain[1], fs[2] + radii[-1], materials[selector].split()[-1]))
 
 ## Save the position of the antenna to file for use when processing results
-np.savetxt(os.path.join(input_directory, 'antenna_like_GSSI_1500_patterns_H_rxsorigin.txt'), antennaposition, fmt="%f")
+np.savetxt(os.path.join(input_directory, filename + '_rxsorigin.txt'), antennaposition, fmt="%f")
 
 ## Generate receiver points for pattern
 for radius in range(len(radii)):
@@ -40,5 +44,5 @@ for radius in range(len(radii)):
     for rxpt in range(len(theta)):
         print('#rx: {:.3f} {:.3f} {:.3f}'.format(x[rxpt] + antennaposition[0], y[rxpt] + antennaposition[1], z[rxpt] + antennaposition[2]))
 
-#print('#geometry_view: 0 0 0 {} {} {} 0.001 0.001 0.001 antenna_like_GSSI_1500_patterns_H n'.format(domain[0], domain[1], domain[2]))
+geometry_view(0, 0, 0, domain[0], domain[1], domain[2], 0.001, 0.001, 0.001, filename, 'n')
 #end_python:
