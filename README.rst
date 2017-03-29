@@ -113,9 +113,9 @@ macOS
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
 
-* Download and install Microsoft Visual C++ Build Tools 2015 Update 3 directly from http://go.microsoft.com/fwlink/?LinkId=691126. Use the default installation options.
+* Download and install Build Tools for Visual Studio 2017 directly from https://www.visualstudio.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15. Use the default installation options.
 
-You can also download Microsoft Visual C++ Build Tools 2015 by going to https://www.visualstudio.com/downloads/, and the section Other Tools and Frameworks -> Microsoft Visual C++ Build Tools 2015 Update 3.
+You can also download Build Tools for Visual Studio 2017 by going to https://www.visualstudio.com/downloads/, and the section Other Tools and Frameworks -> Build Tools for Visual Studio 2017.
 
 3. Build and install gprMax
 ---------------------------
@@ -175,7 +175,7 @@ Argument name          Type    Description
 ``--geometry-only``    flag    build a model and produce any geometry views but do not run the simulation, e.g. to check the geometry of a model is correct: ``(gprMax)$ python -m gprMax user_models/heterogeneous_soil.in --geometry-only``
 ``--geometry-fixed``   flag    run a series of models where the geometry does not change between models, e.g. a B-scan where *only* the position of simple sources and receivers, moved using ``#src_steps`` and ``#rx_steps``, changes between models.
 ``--opt-taguchi``      flag    run a series of models using an optimisation process based on Taguchi's method. For further details see the user libraries section (http://docs.gprmax.com/en/latest/user_libs_opt_taguchi.html)
-``--write-processed``  flag    write an extra input file after any Python code and include commands in the original input file have been processed.
+``--write-processed``  flag    write another input file after any Python code and include commands in the original input file have been processed. Useful for checking that any Python code is being correctly processed into gprMax commands.
 ``-h`` or ``--help``   flag    used to get help on command line options.
 ====================== ======= ===========
 
@@ -197,15 +197,10 @@ This will pull the most recent gprMax source code form GitHub, remove/clean prev
 Updating conda and Python packages
 ----------------------------------
 
-Periodically you should update conda and the required Python packages. To update conda, with the gprMax environment deactivated, run the following command:
+Periodically you should update conda and the required Python packages. With the gprMax environment deactivated and from the top-level gprMax directory, run the following commands:
 
 .. code-block:: none
 
     $ conda update conda
-
-You can then update all the packages that are part of the gprMax environment by running the following command (from the top-level gprMax directory):
-
-.. code-block:: none
-
     $ conda env update -f conda_env.yml
 
