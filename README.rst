@@ -3,7 +3,7 @@
     :alt: Documentation Status
 
 .. image:: docs/source/images/gprMax_logo.png
-    :width: 200 px
+    :width: 50%
 
 ***************
 Getting Started
