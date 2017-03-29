@@ -16,7 +16,7 @@ What is gprMax?
 
 gprMax is currently released under the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
 
-gprMax is written in `Python 3 <https://www.python.org>`_ and includes performance-critical parts written in `Cython(OpenMP) <http://cython.org>`_.
+gprMax is written in `Python <https://www.python.org>`_ 3 and includes performance-critical parts written in `Cython <http://cython.org>`_ with `OpenMP <http://www.openmp.org>`_.
 
 Using gprMax? Cite us
 ---------------------
@@ -77,7 +77,7 @@ You can watch `screencasts that demonstrate the installation and update processe
 
 We recommend using Miniconda to install Python and the required Python packages for gprMax in a self-contained Python environment. Miniconda is a mini version of Anaconda which is a completely free Python distribution (including for commercial use and redistribution). It includes more than 300 of the most popular Python packages for science, math, engineering, and data analysis.
 
-* `Install Miniconda (Python 3.5 version) <http://conda.pydata.org/miniconda.html>`_ (`Miniconda installation instructions <http://conda.pydata.org/docs/install/quick.html>`_)
+* `Download and install Miniconda <http://conda.pydata.org/miniconda.html>`_. Choose the Python 3.6 version for your platform (see the `Quick Install page <http://conda.pydata.org/docs/install/quick.html>`_ for help installing Miniconda)
 * Open a Terminal (Linux/macOS) or Command Prompt (Windows) and run the following commands:
 
 .. code-block:: none
@@ -98,13 +98,13 @@ If you prefer to install Python and the required Python packages manually, i.e. 
 Linux
 ^^^^^
 
-* gcc (https://gcc.gnu.org) should be already installed, so no action is required.
+* `gcc <https://gcc.gnu.org>`_ should be already installed, so no action is required.
 
 
 macOS
 ^^^^^
 
-* Installations of Xcode on macOS come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install gcc (https://gcc.gnu.org). This is easily done by installing the Homebrew package manager (http://brew.sh) and running:
+* Installations of Xcode on macOS come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install `gcc <https://gcc.gnu.org>`_. This is easily done by installing the `Homebrew package manager <http://brew.sh>`_ and running:
 
 .. code-block:: none
 
@@ -113,9 +113,9 @@ macOS
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
 
-* Download and install Build Tools for Visual Studio 2017 directly from https://www.visualstudio.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15. Use the default installation options.
+* Download and install `Build Tools for Visual Studio 2017 <https://www.visualstudio.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15>`_ directly. Use the default installation options.
 
-You can also download Build Tools for Visual Studio 2017 by going to https://www.visualstudio.com/downloads/, and the section Other Tools and Frameworks -> Build Tools for Visual Studio 2017.
+You can download the Build Tools for Visual Studio 2017 by visiting the `Visual Studio downloads page <>`_ and going to the section Other Tools and Frameworks -> Build Tools for Visual Studio 2017.
 
 3. Build and install gprMax
 ---------------------------
@@ -157,7 +157,7 @@ When the simulation is complete you can plot the A-scan using:
 
     (gprMax)$ python -m tools.plot_Ascan user_models/cylinder_Ascan_2D.out
 
-Your results should like those from the A-scan from a metal cylinder example in introductory/basic 2D models section (http://docs.gprmax.com/en/latest/examples_simple_2D.html#view-the-results).
+Your results should like those from the A-scan from a metal cylinder example in `introductory/basic 2D models section <http://docs.gprmax.com/en/latest/examples_simple_2D.html#view-the-results>`_
 
 When you are finished using gprMax, the conda environment can be deactivated using :code:`source deactivate` (Linux/macOS)  or :code:`deactivate` (Windows).
 
@@ -169,7 +169,7 @@ Argument name          Type    Description
 ====================== ======= ===========
 ``-n``                 integer number of times to run the input file. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60``
 ``-restart``           integer model number to start/restart simulation from. It would typically be used to restart a series of models from a specific model number, with the ``-n`` argument, e.g. to restart from A-scan 45 when creating a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 15 -restart 45``
-``-task``              integer task identifier (model number) when running simulation as a job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)'). For further details see the Parallel performance section (http://docs.gprmax.com/en/latest/openmp_mpi.html)
+``-task``              integer task identifier (model number) when running simulation as a job array on `Open Grid Scheduler/Grid Engine <http://gridscheduler.sourceforge.net/index.html>`_). For further details see the `Parallel performance section <http://docs.gprmax.com/en/latest/openmp_mpi.html>`_
 ``-mpi``               integer number of Message Passing Interface (MPI) tasks, i.e. master + workers, for MPI task farm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using a MPI task farm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60 -mpi 61``. For further details see the Parallel performance section (http://docs.gprmax.com/en/latest/openmp_mpi.html)
 ``-benchmark``         flag    switch on benchmarking mode. This can be used to benchmark the threading (parallel) performance of gprMax on different hardware. For further details see the benchmarking section (http://docs.gprmax.com/en/latest/benchmarking.html)
 ``--geometry-only``    flag    build a model and produce any geometry views but do not run the simulation, e.g. to check the geometry of a model is correct: ``(gprMax)$ python -m gprMax user_models/heterogeneous_soil.in --geometry-only``
