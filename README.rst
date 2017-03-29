@@ -2,7 +2,7 @@
     :target: http://docs.gprmax.com/en/latest/?badge=latest
     :alt: Documentation Status
 
-.. image:: docs/source/images/gprMax_logo_small.png
+.. image:: https://github.com/gprMax/gprMax/blob/master/docs/source/images/gprMax_logo_small.png
     :target: http://www.gprmax.com
 
 ***************
@@ -164,22 +164,20 @@ When you are finished using gprMax, the conda environment can be deactivated usi
 Optional command line arguments
 -------------------------------
 
-There are optional command line arguments for gprMax:
-
-===================== ======= ===========
-Argument              Type    Description
-===================== ======= ===========
-``-n``                integer number of times to run the input file. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60``
-``-restart``          integer model number to start from. It would typically be used to restart a series of models from a specific model number, with the ``-n`` argument, e.g. to restart from A-scan 30 when creating a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 15 -restart 45``
-``-task``             integer task identifier (model number) for job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)'). It would typically be used with the ``-n`` argument, e.g. to create a B-scan.
-``-mpi``              integer number of MPI tasks, i.e. master + workers. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using a Message Passing Interface (MPI) task farm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60 -mpi 61``. For further details see the Parallel performance section (http://docs.gprmax.com/en/latest/openmp_mpi.html)
-``-benchmark``        flag    switch on benchmarking mode. This can be used to benchmark the threading (parallel) performance of gprMax on different hardware. For further details see the benchmarking section (http://docs.gprmax.com/en/latest/benchmarking.html)
-``--geometry-only``   flag    build a model and produce any geometry views but do not run the simulation. For example, this option is useful for checking the geometry of the model is correct: ``(gprMax)$ python -m gprMax user_models/heterogeneous_soil.in --geometry-only``
-``--geometry-fixed``  flag    run a series of models where the geometry does not change between models, e.g. a B-scan where *only* the position of simple sources and receivers, moved using ``#src_steps`` and ``#rx_steps``, changes between models.
-``--opt-taguchi``     flag    run a series of models using a optimisation process based on Taguchi's method. For further details see the user libraries section (http://docs.gprmax.com/en/latest/user_libs_opt_taguchi.html)
-``--write-processed`` flag    write an extra input file after any Python code and include commands in the original input file have been processed.
-``-h`` or ``--help``  flag    used to get help on command line options.
-===================== ======= ===========
+====================== ======= ===========
+Argument name          Type    Description
+====================== ======= ===========
+``-n``                 integer number of times to run the input file. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60``
+``-restart``           integer model number to start/restart simulation from. It would typically be used to restart a series of models from a specific model number, with the ``-n`` argument, e.g. to restart from A-scan 45 when creating a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 15 -restart 45``
+``-task``              integer task identifier (model number) when running simulation as a job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)'). For further details see the Parallel performance section (http://docs.gprmax.com/en/latest/openmp_mpi.html)
+``-mpi``               integer number of Message Passing Interface (MPI) tasks, i.e. master + workers, for MPI task farm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using a MPI task farm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60 -mpi 61``. For further details see the Parallel performance section (http://docs.gprmax.com/en/latest/openmp_mpi.html)
+``-benchmark``         flag    switch on benchmarking mode. This can be used to benchmark the threading (parallel) performance of gprMax on different hardware. For further details see the benchmarking section (http://docs.gprmax.com/en/latest/benchmarking.html)
+``--geometry-only``    flag    build a model and produce any geometry views but do not run the simulation, e.g. to check the geometry of a model is correct: ``(gprMax)$ python -m gprMax user_models/heterogeneous_soil.in --geometry-only``
+``--geometry-fixed``   flag    run a series of models where the geometry does not change between models, e.g. a B-scan where *only* the position of simple sources and receivers, moved using ``#src_steps`` and ``#rx_steps``, changes between models.
+``--opt-taguchi``      flag    run a series of models using an optimisation process based on Taguchi's method. For further details see the user libraries section (http://docs.gprmax.com/en/latest/user_libs_opt_taguchi.html)
+``--write-processed``  flag    write an extra input file after any Python code and include commands in the original input file have been processed.
+``-h`` or ``--help``   flag    used to get help on command line options.
+====================== ======= ===========
 
 Updating gprMax
 ===============
