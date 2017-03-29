@@ -3,6 +3,7 @@
     :alt: Documentation Status
 
 .. image:: docs/source/images/gprMax_logo_small.png
+    :target: http://www.gprmax.com
 
 ***************
 Getting Started
@@ -165,10 +166,16 @@ Optional command line arguments
 
 There are optional command line arguments for gprMax:
 
-* **``-n``** is used along with a integer number to specify the number of times to run the input file. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60``
+============  ======= ===========
+Argument      Type    Description
+============  ======= ===========
+``-n``        integer used to specify the number of times to run the input file. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60``
+``-restart``  integer used to specify the starting number for a model. It would typically be used to restart a series of models from a specific model number, with the ``-n`` argument, e.g. to restart from A-scan 30 when creating a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 15 -restart 45``
+
+* ``-n`` is used along with a integer number to specify the number of times to run the input file. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60``
 * ``-restart`` is used along with an integer number to specify the starting number for a model. It would typically be used to restart a series of models from a specific model number, with the ``-n`` argument, e.g. to restart from A-scan 30 when creating a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 15 -restart 45``
 * ``-task`` is used along with an integer number to specify the task identifier (model number) for job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)'). It would typically be used with the ``-n`` argument, e.g. to create a B-scan.
-* ``-mpi`` is a flag to switch on the Message Passing Interface (MPI) task farm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using MPI. For further details see the Parallel performance section (http://docs.gprmax.com/en/latest/openmp_mpi.html)
+* ``-mpi`` is used along with an integer number to switch on the Message Passing Interface (MPI) task farm. The integer number is used to specify the number of MPI tasks, i.e. master + workers. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using MPI, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60 -mpi 61``. For further details see the Parallel performance section (http://docs.gprmax.com/en/latest/openmp_mpi.html)
 * ``-benchmark`` is a flag to switch on benchmarking mode. This can be used to benchmark the threading (parallel) performance of gprMax on different hardware. For further details see the benchmarking section (http://docs.gprmax.com/en/latest/benchmarking.html)
 * ``--geometry-only`` is a flag to build a model and produce any geometry views but not run the simulation. For example, this option is useful for checking the geometry of the model is correct: ``(gprMax)$ python -m gprMax user_models/heterogeneous_soil.in --geometry-only``
 * ``--geometry-fixed`` is a flag that can be used when running a series of models where the geometry does not change between runs, e.g. a B-scan where only sources and receivers, moved using ``#src_steps`` and ``#rx_steps``, change from run to run.
