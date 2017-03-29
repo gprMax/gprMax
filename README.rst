@@ -14,9 +14,9 @@ What is gprMax?
 
 `gprMax <http://www.gprmax.com>`_ is open source software that simulates electromagnetic wave propagation. It solves Maxwell's equations in 3D using the Finite-Difference Time-Domain (FDTD) method. gprMax was designed for modelling Ground Penetrating Radar (GPR) but can also be used to model electromagnetic wave propagation for many other applications.
 
-gprMax is currently released under the GNU General Public License v3 or higher (http://www.gnu.org/copyleft/gpl.html).
+gprMax is currently released under the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
 
-gprMax is written in Python 3 (https://www.python.org) and includes performance-critical parts written in Cython/OpenMP (http://cython.org).
+gprMax is written in `Python 3 <https://www.python.org>`_ and includes performance-critical parts written in `Cython(OpenMP) <http://cython.org>`_.
 
 Using gprMax? Cite us
 ---------------------
@@ -25,7 +25,7 @@ If you use gprMax and publish your work we would be grateful if you could cite o
 
 * Warren, C., Giannopoulos, A., & Giannakis I. (2016). gprMax: Open source software to simulate electromagnetic wave propagation for Ground Penetrating Radar, `Computer Physics Communications` (http://dx.doi.org/10.1016/j.cpc.2016.08.020)
 
-For further information on referencing gprMax visit the Publications section of our website (http://www.gprmax.com/publications.shtml)
+For further information on referencing gprMax visit the `Publications section of our website <http://www.gprmax.com/publications.shtml>`_.
 
 
 Package overview
@@ -50,9 +50,9 @@ Package overview
 
 * ``conda_env.yml`` is a configuration file for Anaconda (Miniconda) that sets up a Python environment with all the required Python packages for gprMax.
 * ``CONTRIBUTORS`` contains a list of names of people who have contributed to the gprMax codebase.
-* ``docs`` contains source files for the User Guide. The User Guide is written using reStructuredText (http://docutils.sourceforge.net/rst.html) markup, and is built using Sphinx (http://sphinx-doc.org) and Read the Docs (https://readthedocs.org).
+* ``docs`` contains source files for the User Guide. The User Guide is written using `reStructuredText <http://docutils.sourceforge.net/rst.html>`_ markup, and is built using `Sphinx <http://sphinx-doc.org>`_ and `Read the Docs <https://readthedocs.org>`_.
 * ``gprMax`` is the main package. Within this package the main module is ``gprMax.py``
-* ``LICENSE`` contains information on the GNU General Public License v3 or higher (http://www.gnu.org/copyleft/gpl.html).
+* ``LICENSE`` contains information on the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
 * ``README.rst`` contains getting started information on installation, usage, and new features/changes.
 * ``setup.cfg`` is used to set preference for code formatting/styling using flake8.
 * ``setup.py`` is used to compile the Cython extension modules.
@@ -70,14 +70,14 @@ The following steps provide guidance on how to install gprMax:
 2. Install a C compiler which supports OpenMP
 3. Build and install gprMax
 
-You can watch screencasts that demonstrate the installation and update processes at http://docs.gprmax.com/en/latest/screencasts.html
+You can watch `screencasts that demonstrate the installation and update processes <http://docs.gprmax.com/en/latest/screencasts.html>`_
 
 1. Install Python, required Python packages, and get gprMax source
 ------------------------------------------------------------------
 
 We recommend using Miniconda to install Python and the required Python packages for gprMax in a self-contained Python environment. Miniconda is a mini version of Anaconda which is a completely free Python distribution (including for commercial use and redistribution). It includes more than 300 of the most popular Python packages for science, math, engineering, and data analysis.
 
-* Install Miniconda (Python 3.5 version) from http://conda.pydata.org/miniconda.html (help with Miniconda installation from http://conda.pydata.org/docs/install/quick.html)
+* `Install Miniconda (Python 3.5 version) <http://conda.pydata.org/miniconda.html>`_ (`Miniconda installation instructions <http://conda.pydata.org/docs/install/quick.html>`_)
 * Open a Terminal (Linux/macOS) or Command Prompt (Windows) and run the following commands:
 
 .. code-block:: none
