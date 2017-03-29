@@ -13,6 +13,9 @@ We considered developing a CAD-based graphical user interface (GUI) but, for now
 **How is gprMax licensed?**
 gprMax is released under the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_. This means when distributing derived works, the source code of the work must be made available under the same license.
 
+**Where does the name gprMax come from?**
+The name gprMax comes from the joining of the acroymn for Ground Penetrating Radar - **gpr** - and the name of the Scottish scientist who formulated the classical theory of electromagnetic radiation, `James Clerk Maxwell <https://en.wikipedia.org/wiki/James_Clerk_Maxwell>`_ - **Max**.
+
 **Do I need to learn Python to use gprMax?**
 No, but it can be beneficial to know a little Python. We have made it easier to create more complex simulations in gprMax through scripting in the input file. This is achieved by allowing blocks of Python code to be written in the input file which are executed when the file is read by gprMax.
 
