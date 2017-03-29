@@ -38,11 +38,3 @@ To make it easier to create commands within a block of Python code, there is a b
     #end_python:
 
 The ``domain`` function will print the ``#domain`` command to the input file and return a variable with the extent of the domain that can be used elsewhere in a Python code block, e.g. in this case with the ``cylinder`` function. The ``cylinder`` function is just a functional version of the ``#cylinder`` command which prints it to the input file.
-
-input_cmd_funcs.py
-------------------
-
-.. automodule:: gprMax.input_cmd_funcs
-
-
-

@@ -9,7 +9,7 @@ This section provides links to screencasts and videos that explain how to instal
 Installation
 ------------
 
-These screencasts are demonstrated on Microsoft Windows 7, but the installation and updating procedure is the same for other versions of Windows, and quite similar for Linux and Mac OS X also. Detailed written installation and updating instructions are provided in the Getting Started section.
+These screencasts are demonstrated on Microsoft Windows 7, but the installation and updating procedure is the same for other versions of Windows, and quite similar for Linux and macOS also. Detailed written installation and updating instructions are provided in the Getting Started section.
 
 * `How to install gprMax on Microsoft Windows <https://youtu.be/YkPWMmJILcI>`_
 * `How to update gprMax on Microsoft Windows <https://youtu.be/e0ROY792s9o>`_

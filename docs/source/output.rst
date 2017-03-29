@@ -7,7 +7,7 @@ Output data
 Field(s) output
 ===============
 
-gprMax produces an output file that has the same name as the input file but with ``.out`` appended. The output file uses the widely-supported HDF5 (https://www.hdfgroup.org/HDF5/) format which was designed to store and organize large amounts of numerical data. There are a number of free tools available to read HDF5 files. Also MATLAB has high- and low-level functions for reading and writing HDF5 files, i.e. ``h5info`` and ``h5disp`` are useful for returning information and displaying the contents of HDF5 files respectively. gprMax includes some Python modules (in the ``tools`` package) to help you view output data. These are documented in the :ref:`tools section <plotting>`.
+gprMax produces an output file that has the same name as the input file but with ``.out`` appended. The output file uses the widely-supported `HDF5 <https://www.hdfgroup.org/HDF5/>`_ format which was designed to store and organize large amounts of numerical data. There are a number of free tools available to read HDF5 files. Also MATLAB has high- and low-level functions for reading and writing HDF5 files, i.e. ``h5info`` and ``h5disp`` are useful for returning information and displaying the contents of HDF5 files respectively. gprMax includes some Python modules (in the ``tools`` package) to help you view output data. These are documented in the :ref:`tools section <plotting>`.
 
 File structure
 --------------
@@ -103,7 +103,7 @@ Within each individual ``tl`` group are the following datasets:
 Snapshots
 ---------
 
-Snapshot files use the open source Visualization ToolKit (VTK) (http://www.vtk.org) format which can be viewed in many free readers, such as Paraview (http://www.paraview.org). Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, Mac OS X, and Windows. The ``#snapshot:`` command produces an ImageData (.vti) snapshot file containing electric and magnetic field data and current data for each time instance requested.
+Snapshot files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, macOS, and Windows. The ``#snapshot:`` command produces an ImageData (.vti) snapshot file containing electric and magnetic field data and current data for each time instance requested.
 
 .. tip::
     You can take advantage of Python scripting to easily create a series of snapshots. For example, to create 30 snapshots starting at time 0.1ns until 3ns in intervals of 0.1ns, use the following code snippet in your input file. Replace ``xs, ys, zs, xf, yf, zf, dx, dy, dz`` accordingly.
@@ -135,7 +135,7 @@ The following are steps to get started with viewing snapshot files in Paraview:
 Geometry output
 ===============
 
-Geometry files use the open source Visualization ToolKit (VTK) (http://www.vtk.org) format which can be viewed in many free readers, such as Paraview (http://www.paraview.org). Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, Mac OS X, and Windows.
+Geometry files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, Mac OS X, and Windows.
 
 The ``#geometry_view:`` command produces either ImageData (.vti) for a per-cell geometry view, or PolygonalData (.vtp) for a per-cell-edge geometry view. The per-cell geometry views also show the location of the PML regions and any sources and receivers in the model. The following are steps to get started with viewing geometry files in Paraview:
 

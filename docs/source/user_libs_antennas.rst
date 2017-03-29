@@ -9,16 +9,16 @@ Information
 
 **Author/Contact**: Craig Warren (Craig.Warren@ed.ac.uk), University of Edinburgh
 
-**License**: Creative Commons Attribution-ShareAlike 4.0 International License (http://creativecommons.org/licenses/by-sa/4.0/)
+**License**: `Creative Commons Attribution-ShareAlike 4.0 International License <http://creativecommons.org/licenses/by-sa/4.0/>`_
 
 **Attribution/cite**: Warren, C., Giannopoulos, A. (2011). Creating finite-difference time-domain models of commercial ground-penetrating radar antennas using Taguchi's optimization method. *Geophysics*, 76(2), G37-G47. (http://dx.doi.org/10.1190/1.3548506)
 
 The module currently features models of antennas similar to commercial GPR antennas:
 
-* Geophysical Survey Systems, Inc. (GSSI) 1.5 GHz (Model 5100) antenna (http://www.geophysical.com). The dimensions of the GSSI 1.5GHz antenna model are: 170x108x45mm.
-* MALA Geoscience 1.2 GHz antenna (http://www.malags.com/). The dimensions of the MALA 1.2GHz antenna model are: 184x109x46mm.
+* `Geophysical Survey Systems, Inc. (GSSI) <http://www.geophysical.com>`_ 1.5 GHz (Model 5100) antenna. The dimensions of the GSSI 1.5GHz antenna model are: 170x108x45mm.
+* `MALA Geoscience <http://www.malags.com/>`_ 1.2 GHz antenna. The dimensions of the MALA 1.2GHz antenna model are: 184x109x46mm.
 
-A description of how the models were created can be found at http://dx.doi.org/10.1190/1.3548506.
+A description of how the models were created can be found at the reference given by the aforementioned attribution/cite.
 
 Module overview
 ===============

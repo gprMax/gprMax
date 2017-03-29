@@ -9,7 +9,7 @@ Information
 
 **Author/Contact**: Craig Warren (Craig.Warren@ed.ac.uk), University of Edinburgh
 
-**License**: Creative Commons Attribution-ShareAlike 4.0 International License (http://creativecommons.org/licenses/by-sa/4.0/)
+**License**: `Creative Commons Attribution-ShareAlike 4.0 International License <http://creativecommons.org/licenses/by-sa/4.0/>`_
 
 **Attribution/cite**: Warren, C., Giannopoulos, A. (2011). Creating finite-difference time-domain models of commercial ground-penetrating radar antennas using Taguchi's optimization method. *Geophysics*, 76(2), G37-G47. (http://dx.doi.org/10.1190/1.3548506)
 
@@ -51,7 +51,7 @@ Package overview
 
 * ``antenna_bowtie_opt.in`` is a example model of a bowtie antenna where values of loading resistors are optimised.
 * ``fitness_functions.py`` is a module containing fitness functions. There are some pre-built ones but users should add their own here.
-* ``OA_9_4_3_2.npy`` and ``OA_18_7_3_2.npy`` are NumPy archives containing pre-built OAs from http://neilsloane.com/oadir/
+* ``OA_9_4_3_2.npy`` and ``OA_18_7_3_2.npy`` are NumPy archives `containing pre-built OAs <http://neilsloane.com/oadir/>`_
 * ``plot_results.py`` is a module for plotting the results, such as parameter values and convergence history, from an optimisation process when it has completed.
 
 Implementation

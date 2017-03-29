@@ -156,7 +156,7 @@ where ``c1`` can be either y (yes) or n (no) which turns on or off the messages 
 #num_threads:
 -----------------
 
-Allows you to control how many OpenMP threads (usually the number of physical CPU cores available) are used when running the model. The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelised using OpenMP (http://openmp.org) which supports multi-platform shared memory multiprocessing. The syntax of the command is:
+Allows you to control how many OpenMP threads (usually the number of physical CPU cores available) are used when running the model. The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelised using `OpenMP <http://openmp.org>`_ which supports multi-platform shared memory multiprocessing. The syntax of the command is:
 
 .. code-block:: none
 
@@ -374,7 +374,7 @@ At the boundaries between different materials in the model there is the question
 #geometry_view:
 ---------------
 
-Allows you output to file(s) information about the geometry of model. The file(s) use the open source Visualization ToolKit (VTK) (http://www.vtk.org) format which can be viewed in many free readers, such as Paraview (http://www.paraview.org). The command can be used to create several 3D views of the model which are useful for checking that it has been constructed as desired. The syntax of the command is:
+Allows you output to file(s) information about the geometry of model. The file(s) use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. The command can be used to create several 3D views of the model which are useful for checking that it has been constructed as desired. The syntax of the command is:
 
 .. code-block:: none
 
@@ -845,7 +845,7 @@ Provides a simple method to allow you to move the location of all simple sources
 #snapshot:
 ----------
 
-Allows you to obtain information about the electromagnetic fields within a volume of the model at a given time instant. The file(s) use the open source Visualization ToolKit (VTK) (http://www.vtk.org) format which can be viewed in many free readers, such as Paraview (http://www.paraview.org). The syntax of this command is:
+Allows you to obtain information about the electromagnetic fields within a volume of the model at a given time instant. The file(s) use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. The syntax of this command is:
 
 .. code-block:: none
 

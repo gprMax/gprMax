@@ -32,7 +32,7 @@ New commands
 * ``#add_dispersion_drude`` is used to add Drude dispersive properties to a ``#material``
 * ``#soil_peplinski`` is a soil mixing model that can be used with ``#fractal_box`` to generate soil(s) with more realistic dielectric and geometric properties
 * ``#cylindrical_sector`` is a new object building command
-* ``#geometry_view`` replaces ``#geometry_file`` or ``#geometry_vtk`` and is used to create views of the geometry of the model in open source Visualization ToolKit (VTK) (http://www.vtk.org) format which can be viewed in many free readers, such as Paraview (http://www.paraview.org)
+* ``#geometry_view`` replaces ``#geometry_file`` or ``#geometry_vtk`` and is used to create views of the geometry of the model in open source `Visualization Toolkit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_
 * ``#fractal_box`` is used to create a volume with a fractal distribution of properties
 * ``#add_surface_roughness`` is used to add a rough surface to a ``#fractal_box``
 * ``#add_surface_water`` is used to add surface water to a ``#fractal_box`` that has a rough surface
@@ -58,7 +58,7 @@ Changed commands
 Retired commands
 ----------------
 
-* ``#analysis`` and ``#end_analysis`` are no longer required as: sources and receivers can be specified anywhere is the input file; the output file automatically has the same name as the input file with a ``.out`` extension; the format of the output file is now HDF5 (https://www.hdfgroup.org/HDF5/); gprMax can be run with the syntax ``gprMax my_input_file -n number_of_runs``, where ``number_of_runs`` can be used to rerun the model for creating scans and/or moving geometry between runs.
+* ``#analysis`` and ``#end_analysis`` are no longer required as: sources and receivers can be specified anywhere is the input file; the output file automatically has the same name as the input file with a ``.out`` extension; the format of the output file is now `HDF5 <http://www.hdfgroup.org/HDF5/>`_; gprMax can be run with the syntax ``gprMax my_input_file -n number_of_runs``, where ``number_of_runs`` can be used to rerun the model for creating scans and/or moving geometry between runs.
 * ``#tx`` is no longer required as the polarisation and position of a source is now specified in the source command, e.g. ``#hertzian_dipole: y 0.05 0.05 0.05 myPulse``
 * ``#cylinder_new`` has become ``#cylinder``
 * ``#cylindrical_segment`` was under-used and its effect can be created by cutting a ``#cylinder`` with a ``#box``
@@ -111,7 +111,7 @@ Fractal correlated noise [TUR1997]_ is used to describe the stochastic distribut
 Library of antenna models
 -------------------------
 
-gprMax now includes Python modules with pre-defined models of antennas that behave similarly to commercial antennas [WAR2011]_. Currently models of antennas similar to Geophysical Survey Systems, Inc. (GSSI) (http://www.geophysical.com) 1.5 GHz (Model 5100) antenna, and MALA Geoscience (http://www.malags.com/) 1.2 GHz antenna are included. By taking advantage of Python scripting in input files, using such complex structures in a model is straightforward without having to be built step-by-step by the user. For further details see the :ref:`Python section <python>`.
+gprMax now includes Python modules with pre-defined models of antennas that behave similarly to commercial antennas [WAR2011]_. Currently models of antennas similar to `Geophysical Survey Systems, Inc. (GSSI) <http://www.geophysical.com>`_ 1.5 GHz (Model 5100) antenna, and `MALA Geoscience <http://www.malags.com/>`_ 1.2 GHz antenna are included. By taking advantage of Python scripting in input files, using such complex structures in a model is straightforward without having to be built step-by-step by the user. For further details see the :ref:`Python section <python>`.
 
 Anisotropic materials
 ---------------------
@@ -136,9 +136,9 @@ With increased research into quantitative information from GPR, it has become ne
 Open source, robust, file formats
 ---------------------------------
 
-Alongside improvements to the input file there is a new output file format – HDF5 (http://www.hdfgroup.org/HDF5/) – to manage the larger and more complex data sets that are being generated. HDF5 is a robust, portable and extensible format with a number of free readers available. For further details see the :ref:`output file section <output>`.
+Alongside improvements to the input file there is a new output file format – `HDF5 <http://www.hdfgroup.org/HDF5/>`_ – to manage the larger and more complex data sets that are being generated. HDF5 is a robust, portable and extensible format with a number of free readers available. For further details see the :ref:`output file section <output>`.
 
-In addition, the Visualization Toolkit (VTK) (http://www.vtk.org) is being used for improved handling and viewing of the detailed 3D FDTD geometry meshes. The VTK is an open-source system for 3D computer graphics, image processing and visualisation. It also has a number of free readers available including Paraview (http://www.paraview.org). For further details see the :ref:`geometry view command <geometryview>`.
+In addition, the `Visualization Toolkit (VTK) <http://www.vtk.org>`_ is being used for improved handling and viewing of the detailed 3D FDTD geometry meshes. The VTK is an open-source system for 3D computer graphics, image processing and visualisation. It also has a number of free readers available including `Paraview <http://www.paraview.org>`_. For further details see the :ref:`geometry view command <geometryview>`.
 
 
 

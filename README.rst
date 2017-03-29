@@ -115,6 +115,8 @@ Microsoft Windows
 
 * Download and install Build Tools for Visual Studio 2017 from the `Visual Studio downloads page <https://www.visualstudio.com/downloads/>`_ in the section Other Tools and Frameworks. Use the default installation options.
 
+Alternatively if you are using Windows 10 and feeling adventurous you can install the `Windows Subsystem for Linux <https://msdn.microsoft.com/en-gb/commandline/wsl/about>`_ and then follow the Linux install instructions for gprMax.
+
 3. Build and install gprMax
 ---------------------------
 

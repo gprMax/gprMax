@@ -7,7 +7,7 @@ Parallel execution
 OpenMP
 ======
 
-The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelised using OpenMP (http://openmp.org) which supports multi-platform shared memory multiprocessing.
+The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelised using `OpenMP <http://openmp.org>`_ which supports multi-platform shared memory multiprocessing.
 
 By default gprMax will try to determine and use the maximum number of OpenMP threads (usually the number of physical CPU cores) available on your machine. You can override this behaviour in two ways: firstly, gprMax will check to see if the ``#num_threads`` command is present in your input file; if not, gprMax will check to see if the environment variable ``OMP_NUM_THREADS`` is set. This can be useful if you are running gprMax in a High-Performance Computing (HPC) environment where you might not want to use all of the available CPU cores.
 
@@ -16,12 +16,12 @@ MPI
 
 The Message Passing Interface (MPI) has been utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This can be useful in many GPR simulations where a B-scan (composed of multiple A-scans) is required. Each A-scan can be task-farmed as a independent model. Within each independent model OpenMP threading will continue to be used (as described above). Overall this creates what is know as a mixed mode OpenMP/MPI job.
 
-By default the MPI task farm functionality is turned off. It can be switched on using the ``-mpi`` command line flag. MPI requires an installation of the ``mpi4py`` Python package, which itself depends on an underlying MPI installation, usually OpenMPI (http://www.open-mpi.org). On Microsoft Windows ``mpi4py`` requires Microsoft MPI 6 (https://www.microsoft.com/en-us/download/details.aspx?id=47259).
+By default the MPI task farm functionality is turned off. It can be switched on using the ``-mpi`` command line flag. MPI requires an installation of the ``mpi4py`` Python package, which itself depends on an underlying MPI installation, usually `OpenMPI <http://www.open-mpi.org>`_. On Microsoft Windows ``mpi4py`` requires `Microsoft MPI 6 <https://www.microsoft.com/en-us/download/details.aspx?id=47259>`_.
 
 HPC job scripts
 ===============
 
-HPC environments usually require jobs to be submitted to a queue using a job script. The following are examples of job scripts for a HPC environment that uses Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html), and are intended as general guidance to help you get started. Using gprMax in an HPC environment is heavily dependent on the configuration of your specific HPC/cluster, e.g. the names of parallel environments (``-pe``) and compiler modules will depend on how they were defined by your system administrator.
+HPC environments usually require jobs to be submitted to a queue using a job script. The following are examples of job scripts for a HPC environment that uses O`pen Grid Scheduler/Grid Engine <http://gridscheduler.sourceforge.net/index.html>`_, and are intended as general guidance to help you get started. Using gprMax in an HPC environment is heavily dependent on the configuration of your specific HPC/cluster, e.g. the names of parallel environments (``-pe``) and compiler modules will depend on how they were defined by your system administrator.
 
 
 OpenMP example
@@ -75,11 +75,11 @@ A job array means that exactly the same submit script is going to be run multipl
 Eddie
 -----
 
-Eddie is the Edinburgh Compute and Data Facility (ECDF) - http://www.ed.ac.uk/information-services/research-support/research-computing/ecdf/high-performance-computing - run by the University of Edinburgh. The following are useful notes to get gprMax installed and running on eddie3 (the third iteration of the cluster):
+Eddie is the `Edinburgh Compute and Data Facility (ECDF) <http://www.ed.ac.uk/information-services/research-support/research-computing/ecdf/high-performance-computing>`_ run by the `University of Edinburgh <http://www.ed.ac.uk>`_. The following are useful notes to get gprMax installed and running on eddie3 (the third iteration of the cluster):
 
 * Git is already installed on eddie3, so you don't need to install it through Anaconda, you can proceed directly to cloning the gprMax GitHub repository with ``git clone https://github.com/gprMax/gprMax.git``
 
-* Anaconda is already installed as an application module on eddie3. You should follow these instructions (https://www.wiki.ed.ac.uk/display/ResearchServices/Anaconda) to ensure Anaconda environments will be created in a suitable location (not your home directory as you will rapidly run out of space). Before you proceed to create the Anaconda environment for gprMax you must make sure the OpenMPI module is loaded with ``module load openmpi``. This is neccessary so that the ``mpi4py`` Python module is correctly linked to OpenMPI. You can then create the Anaconda environment with ``conda env create -f conda_env.yml``
+* Anaconda is already installed as an application module on eddie3. You should follow `these instructions <https://www.wiki.ed.ac.uk/display/ResearchServices/Anaconda>`_ to ensure Anaconda environments will be created in a suitable location (not your home directory as you will rapidly run out of space). Before you proceed to create the Anaconda environment for gprMax you must make sure the OpenMPI module is loaded with ``module load openmpi``. This is neccessary so that the ``mpi4py`` Python module is correctly linked to OpenMPI. You can then create the Anaconda environment with ``conda env create -f conda_env.yml``
 
 * You should then activate the gprMax Anaconda environment, and build and install gprMax according the standard installation procedure.
 

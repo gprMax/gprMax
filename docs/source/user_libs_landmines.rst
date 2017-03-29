@@ -9,7 +9,7 @@ Information
 
 **Author/Contact**: Iraklis Giannakis (I.Giannakis@ed.ac.uk), University of Edinburgh
 
-**License**: Creative Commons Attribution-ShareAlike 4.0 International License (http://creativecommons.org/licenses/by-sa/4.0/)
+**License**: `Creative Commons Attribution-ShareAlike 4.0 International License <http://creativecommons.org/licenses/by-sa/4.0/>`_
 
 **Attribution/cite**: Giannakis, I., Giannopoulos, A., Warren, C. (2016). A Realistic FDTD Numerical Modeling Framework of Ground Penetrating Radar for Landmine Detection. *IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing*, 9(1), 37-51. (http://dx.doi.org/10.1109/JSTARS.2015.2468597)
 
@@ -22,7 +22,7 @@ The module currently features models of different anti-personnel (AP) landmines 
 
 The landmine models and the metal can be used with a cubic spatial resolution of either 1mm or 2mm.
 
-The dielectric properties of the landmines were obtained through an iterative process of matching numerical and laboratory measurements of scattered electromagnetic fields in free space. A full description of how the models were created can be found at http://dx.doi.org/10.1109/JSTARS.2015.2468597.
+The dielectric properties of the landmines were obtained through an iterative process of matching numerical and laboratory measurements of scattered electromagnetic fields in free space. A full description of how the models were created can be found at the reference given by the aforementioned attribution/cite.
 
 Package overview
 ================

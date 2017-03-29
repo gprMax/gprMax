@@ -7,7 +7,7 @@ This section presents comparisons of models using different numerical modelling 
 FDTD/MoM
 ========
 
-The Finite-Difference Time-Domain (FDTD) method from gprMax is compared with the Method of Moments (MoM) from the MATLAB antenna toolbox (http://uk.mathworks.com/products/antenna/).
+The Finite-Difference Time-Domain (FDTD) method from gprMax is compared with the Method of Moments (MoM) from the `MATLAB antenna toolbox <http://uk.mathworks.com/products/antenna/>`_.
 
 Bowtie antenna in free space
 ----------------------------
