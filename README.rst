@@ -165,7 +165,7 @@ Optional command line arguments
 
 There are optional command line arguments for gprMax:
 
-* ``-n`` is used along with a integer number to specify the number of times to run the input file. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60``
+* **``-n``** is used along with a integer number to specify the number of times to run the input file. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60``
 * ``-restart`` is used along with an integer number to specify the starting number for a model. It would typically be used to restart a series of models from a specific model number, with the ``-n`` argument, e.g. to restart from A-scan 30 when creating a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 15 -restart 45``
 * ``-task`` is used along with an integer number to specify the task identifier (model number) for job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)'). It would typically be used with the ``-n`` argument, e.g. to create a B-scan.
 * ``-mpi`` is a flag to switch on the Message Passing Interface (MPI) task farm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using MPI. For further details see the Parallel performance section (http://docs.gprmax.com/en/latest/openmp_mpi.html)
@@ -200,9 +200,9 @@ Periodically you should update conda and the required Python packages. To update
 
     $ conda update conda
 
-Then you can update all the packages that are part of the gprMax environment by activating the gprMax environment and running the following command:
+You can then update all the packages that are part of the gprMax environment by running the following command (from the top-level gprMax directory):
 
 .. code-block:: none
 
-    (gprMax) $ conda env update -f conda_env.yml
+    $ conda env update -f conda_env.yml
 
