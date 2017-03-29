@@ -3,7 +3,7 @@
     :alt: Documentation Status
 _
 
-.. image:: https://github.com/gprMax/gprMax/docs/source/images/gprMax_logo_small.png
+.. image:: /docs/source/images/gprMax_logo_small.png
     :target: http://www.gprmax.com
 
 ***************
