@@ -1,9 +1,9 @@
 .. image:: https://readthedocs.org/projects/gprmax/badge/?version=latest
     :target: http://docs.gprmax.com/en/latest/?badge=latest
     :alt: Documentation Status
+_
 
-
-.. image:: https://github.com/gprMax/gprMax/blob/master/docs/source/images/gprMax_logo_small.png
+.. image:: https://github.com/gprMax/gprMax/docs/source/images/gprMax_logo_small.png
     :target: http://www.gprmax.com
 
 ***************
