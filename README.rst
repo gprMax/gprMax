@@ -166,11 +166,12 @@ Optional command line arguments
 
 There are optional command line arguments for gprMax:
 
-============  ======= ===========
-Argument      Type    Description
-============  ======= ===========
-``-n``        integer used to specify the number of times to run the input file. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60``
-``-restart``  integer used to specify the starting number for a model. It would typically be used to restart a series of models from a specific model number, with the ``-n`` argument, e.g. to restart from A-scan 30 when creating a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 15 -restart 45``
+============ ======= ===========
+Argument     Type    Description
+============ ======= ===========
+``-n``       integer number of times to run the input file. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60``
+``-restart`` integer specify the starting model number for a simulation.
+============ ======= ===========
 
 * ``-n`` is used along with a integer number to specify the number of times to run the input file. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60``
 * ``-restart`` is used along with an integer number to specify the starting number for a model. It would typically be used to restart a series of models from a specific model number, with the ``-n`` argument, e.g. to restart from A-scan 30 when creating a B-scan with 60 traces: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 15 -restart 45``
