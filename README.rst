@@ -104,7 +104,7 @@ Linux
 macOS
 ^^^^^
 
-* Installations of Xcode on macOS come with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install `gcc <https://gcc.gnu.org>`_ by installing the `Homebrew package manager <http://brew.sh>`_ and running:
+* Xcode (the IDE for macOS) comes with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install `gcc <https://gcc.gnu.org>`_. This can be done by downloading and installing the `Homebrew package manager <http://brew.sh>`_ and running:
 
 .. code-block:: none
 
@@ -113,9 +113,7 @@ macOS
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
 
-* Download and install `Build Tools for Visual Studio 2017 <https://www.visualstudio.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=15>`_ directly. Use the default installation options.
-
-Alternatively you can download the Build Tools for Visual Studio 2017 by visiting the `Visual Studio downloads page <https://www.visualstudio.com/downloads/>`_ and going to the section Other Tools and Frameworks -> Build Tools for Visual Studio 2017.
+* Download and install Build Tools for Visual Studio 2017 from the `Visual Studio downloads page <https://www.visualstudio.com/downloads/>`_ in the section Other Tools and Frameworks. Use the default installation options.
 
 3. Build and install gprMax
 ---------------------------
