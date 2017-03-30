@@ -118,11 +118,11 @@ gs = gridspec.GridSpec(1, 3, hspace=0.5)
 # Subplot of CPU (OpenMP) threads vs time #
 ###########################################
 ax = plt.subplot(gs[0, 0])
-ax.plot(baseresult['cputhreads'], baseresult['cputimes'], color=next(colors), marker=markers[0], markeredgecolor=None, ms=8, lw=2, label=baseplotlabel)
+ax.plot(baseresult['cputhreads'], baseresult['cputimes'], color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, label=baseplotlabel)
 
 if args.otherresults is not None:
     for i, result in enumerate(otherresults):
-        ax.plot(result['cputhreads'], result['cputimes'], color=next(colors), marker=markers[0], markeredgecolor=None, ms=8, lw=2, ls=next(lines), label=otherplotlabels[i])
+        ax.plot(result['cputhreads'], result['cputimes'], color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, ls=next(lines), label=otherplotlabels[i])
 
 ax.set_xlabel('Number of CPU (OpenMP) threads')
 ax.set_ylabel('Time [s]')
@@ -139,11 +139,11 @@ ax.set_ylim(0, top=ax.get_ylim()[1] * 1.1)
 ######################################################
 colors = itertools.cycle(colorIDs) # Reset color iterator
 ax = plt.subplot(gs[0, 1])
-ax.plot(baseresult['cputhreads'], baseresult['cputimes'][-1] / baseresult['cputimes'], color=next(colors), marker=markers[0], markeredgecolor=None, ms=8, lw=2, label=baseplotlabel)
+ax.plot(baseresult['cputhreads'], baseresult['cputimes'][-1] / baseresult['cputimes'], color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, label=baseplotlabel)
 
 if args.otherresults is not None:
     for i, result in enumerate(otherresults):
-        ax.plot(result['cputhreads'], result['cputimes'][-1] / result['cputimes'], color=next(colors), marker=markers[0], markeredgecolor=None, ms=8, lw=2, ls=next(lines), label=otherplotlabels[i])
+        ax.plot(result['cputhreads'], result['cputimes'][-1] / result['cputimes'], color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, ls=next(lines), label=otherplotlabels[i])
 
 ax.set_xlabel('Number of CPU (OpenMP) threads')
 ax.set_ylabel('Speed-up factor')
@@ -160,11 +160,11 @@ ax.set_ylim(bottom=1, top=ax.get_ylim()[1] * 1.1)
 ###########################################
 colors = itertools.cycle(colorIDs) # Reset color iterator
 ax = plt.subplot(gs[0, 2])
-ax.plot(cells, cpucellspersec / 1e6, color=next(colors), marker=markers[0], markeredgecolor=None, ms=8, lw=2, label=cpuID)
+ax.plot(cells, cpucellspersec / 1e6, color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, label=cpuID)
 
 if gpuIDs:
     for i in range(gpucellspersec.shape[0]):
-        ax.plot(cells, gpucellspersec[i,:] / 1e6, color=next(colors), marker=markers[0], markeredgecolor=None, ms=8, lw=2, label='NVIDIA ' + gpuIDs[i])
+        ax.plot(cells, gpucellspersec[i,:] / 1e6, color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, label='NVIDIA ' + gpuIDs[i])
 
 ax.set_xlabel('Side length of cubic domain [cells]')
 ax.set_ylabel('Performance [Mcells/s]')
@@ -179,6 +179,6 @@ ax.set_ylim(bottom=0, top=ax.get_ylim()[1] * 1.1)
 # Save a png of the plot #
 ##########################
 fig.savefig(os.path.join(os.path.dirname(args.baseresult), machineID.replace(' ', '_') + '.png'), dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
-#fig.savefig(os.path.join(os.path.dirname(args.baseresult), machineID.replace(' ', '_') + '.pdf'), dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+#fig.savefig(os.path.join(os.path.dirname(args.baseresult), machineID.replace(' ', '_') + '.pdf'), dpi='none', format='pdf', bbox_inches='tight', pad_inches=0.1)
 
 plt.show()
