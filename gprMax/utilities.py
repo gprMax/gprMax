@@ -159,7 +159,7 @@ def get_host_info():
     """
     
     # Default to 'unknown' if any of the detection fails
-    manufacturer = model = cpuID = sockets = 'unknown'
+    manufacturer = model = cpuID = sockets = threadspercore = 'unknown'
     
     # Windows
     if sys.platform == 'win32':
@@ -249,11 +249,13 @@ def get_host_info():
             for line in allcpuinfo.split('\n'):
                 if 'Socket(s)' in line:
                     sockets = int(line.strip()[-1])
+                if 'Thread(s) per core' in line:
+                    threadspercore = int(line.strip()[-1])
         except subprocess.CalledProcessError:
             pass
 
         # Hyperthreading
-        if psutil.cpu_count(logical=False) != psutil.cpu_count(logical=True):
+        if threadspercore == 2:
             hyperthreading = True
         else:
             hyperthreading = False
