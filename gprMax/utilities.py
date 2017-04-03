@@ -157,23 +157,35 @@ def get_host_info():
     Returns:
         hostinfo (dict): Manufacturer and model of machine; description of CPU type, speed, cores; RAM; name and version of operating system.
     """
-
+    
+    # Default to 'unknown' if any of the detection fails
+    manufacturer = model = cpuID = sockets = 'unknown'
+    
     # Windows
     if sys.platform == 'win32':
-        manufacturer = subprocess.check_output("wmic csproduct get vendor", shell=True).decode('utf-8').strip()
-        manufacturer = manufacturer.split('\n')[1]
-        model = subprocess.check_output("wmic computersystem get model", shell=True).decode('utf-8').strip()
-        model = model.split('\n')[1]
+        # Manufacturer/model
+        try:
+            manufacturer = subprocess.check_output("wmic csproduct get vendor", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            manufacturer = manufacturer.split('\n')[1]
+            model = subprocess.check_output("wmic computersystem get model", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            model = model.split('\n')[1]
+        except subprocess.CalledProcessError:
+            pass
         machineID = manufacturer + ' ' + model
 
         # CPU information
-        allcpuinfo = subprocess.check_output("wmic cpu get Name", shell=True).decode('utf-8').strip()
-        allcpuinfo = allcpuinfo.split('\n')
-        sockets = 0
-        for line in allcpuinfo:
-            if 'CPU' in line:
-                cpuID = line.strip()
-                sockets += 1
+        try:
+            allcpuinfo = subprocess.check_output("wmic cpu get Name", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            allcpuinfo = allcpuinfo.split('\n')
+            sockets = 0
+            for line in allcpuinfo:
+                if 'CPU' in line:
+                    cpuID = line.strip()
+                    sockets += 1
+        except subprocess.CalledProcessError:
+            pass
+
+        # Hyperthreading
         if psutil.cpu_count(logical=False) != psutil.cpu_count(logical=True):
             hyperthreading = True
         else:
@@ -188,16 +200,24 @@ def get_host_info():
 
     # Mac OS X/macOS
     elif sys.platform == 'darwin':
+        # Manufacturer/model
         manufacturer = 'Apple'
-        model = subprocess.check_output("sysctl -n hw.model", shell=True).decode('utf-8').strip()
+        try:
+            model = subprocess.check_output("sysctl -n hw.model", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+        except subprocess.CalledProcessError:
+            pass
         machineID = manufacturer + ' ' + model
-        machineID = machineID.strip()
 
         # CPU information
-        sockets = subprocess.check_output("sysctl -n hw.packages", shell=True).decode('utf-8').strip()
-        sockets = int(sockets)
-        cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", shell=True).decode('utf-8').strip()
-        cpuID = ' '.join(cpuID.split())
+        try:
+            sockets = subprocess.check_output("sysctl -n hw.packages", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            sockets = int(sockets)
+            cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            cpuID = ' '.join(cpuID.split())
+        except subprocess.CalledProcessError:
+            pass
+
+        # Hyperthreading
         if psutil.cpu_count(logical=False) != psutil.cpu_count(logical=True):
             hyperthreading = True
         else:
@@ -211,33 +231,38 @@ def get_host_info():
 
     # Linux
     elif sys.platform == 'linux':
+        # Manufacturer/model
         try:
             manufacturer = subprocess.check_output("cat /sys/class/dmi/id/sys_vendor", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
             model = subprocess.check_output("cat /sys/class/dmi/id/product_name", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
-            machineID = manufacturer + ' ' + model
         except subprocess.CalledProcessError:
-            machineID = 'unknown'
+            pass
+        machineID = manufacturer + ' ' + model
 
         # CPU information
-        cpuIDinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
-        for line in cpuIDinfo.split('\n'):
-            if re.search('model name', line):
-                cpuID = re.sub('.*model name.*:', '', line, 1).strip()
-        allcpuinfo = subprocess.check_output("lscpu", shell=True).decode('utf-8').strip()
-        for line in allcpuinfo.split('\n'):
-            if 'Thread(s) per core' in line:
-                threadspercore = int(line.strip()[-1])
-            if 'Socket(s)' in line:
-                sockets = int(line.strip()[-1])
-        if threadspercore == 1:
-            hyperthreading = False
-        elif threadspercore == 2:
+        try:
+            cpuIDinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            for line in cpuIDinfo.split('\n'):
+                if re.search('model name', line):
+                    cpuID = re.sub('.*model name.*:', '', line, 1).strip()
+            allcpuinfo = subprocess.check_output("lscpu", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            for line in allcpuinfo.split('\n'):
+                if 'Socket(s)' in line:
+                    sockets = int(line.strip()[-1])
+        except subprocess.CalledProcessError:
+            pass
+
+        # Hyperthreading
+        if psutil.cpu_count(logical=False) != psutil.cpu_count(logical=True):
             hyperthreading = True
+        else:
+            hyperthreading = False
 
         # OS version
         osrelease = subprocess.check_output("cat /proc/sys/kernel/osrelease", shell=True).decode('utf-8').strip()
         osversion = 'Linux (' + osrelease + ', ' + platform.linux_distribution()[0] + ')'
 
+    # Dictionary of host information
     hostinfo = {}
     hostinfo['machineID'] = machineID.strip()
     hostinfo['sockets'] = sockets
