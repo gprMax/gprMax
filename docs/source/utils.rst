@@ -43,14 +43,14 @@ This module enables a Portable Network Graphics (PNG) image file to be converted
 
 where:
 
-* ```imagefile`` is the name of the PNG image file including the path
+* ``imagefile`` is the name of the PNG image file including the path
 * ``dxdydz`` is the spatial discretisation to be used in the model
 
 There is an optional command line argument:
 
 * ``-zcells`` is the number of cells to extend the geometry in the z-(invariate) direction of the model
 
-For example create a HDF5 geometry objects file from the PNG image ``my_layers.png`` with a spatial discretisation of :math:`\Delta x = \Delta y = \Delta z = 0.002`mm, and extending 150 cells in the z-(invariate) direction of the model:
+For example create a HDF5 geometry objects file from the PNG image ``my_layers.png`` with a spatial discretisation of :math:`\Delta x = \Delta y = \Delta z = 0.002` metres, and extending 150 cells in the z-(invariate) direction of the model:
 
 .. code-block:: none
 
