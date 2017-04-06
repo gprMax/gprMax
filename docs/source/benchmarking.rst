@@ -82,6 +82,12 @@ Dell PowerEdge R630
 .. figure:: ../../tests/benchmarking/results/Linux/Dell_PowerEdge_R630/Dell_PowerEdge_R630.png
     :width: 600px
 
+Lenovo System x3650 M5
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. figure:: ../../tests/benchmarking/results/Linux/Lenovo_System_x3650_M5/Lenovo_System_x3650_M5.png
+    :width: 600px
+
 SuperMicro SYS-7048GR-TR
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
