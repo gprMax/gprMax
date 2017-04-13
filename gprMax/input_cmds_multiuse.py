@@ -510,16 +510,16 @@ def process_multicmds(multicmds, G):
             tmp = cmdinstance.split()
             if len(tmp) != 5:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly five parameters')
-            if float(tmp[0]) < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for static (DC) permittivity')
+            if float(tmp[0]) < 1:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value of one or greater for static (DC) permittivity')
             if tmp[1] != 'inf':
                 se = float(tmp[1])
                 if se < 0:
                     raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for conductivity')
             else:
                 se = float('inf')
-            if float(tmp[2]) < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for permeability')
+            if float(tmp[2]) < 1:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value of one or greater for permeability')
             if float(tmp[3]) < 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for magnetic conductivity')
             if any(x.ID == tmp[4] for x in G.materials):
