@@ -26,7 +26,9 @@ from shutil import get_terminal_size
 import sys
 import textwrap
 
-from colorama import init, Fore, Style
+from colorama import init
+from colorama import Fore
+from colorama import Style
 init()
 import numpy as np
 
@@ -157,10 +159,10 @@ def get_host_info():
     Returns:
         hostinfo (dict): Manufacturer and model of machine; description of CPU type, speed, cores; RAM; name and version of operating system.
     """
-    
+
     # Default to 'unknown' if any of the detection fails
     manufacturer = model = cpuID = sockets = threadspercore = 'unknown'
-    
+
     # Windows
     if sys.platform == 'win32':
         # Manufacturer/model

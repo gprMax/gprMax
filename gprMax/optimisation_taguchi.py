@@ -30,8 +30,10 @@ import numpy as np
 
 from gprMax.constants import floattype
 from gprMax.exceptions import CmdInputError
-from gprMax.gprMax import run_std_sim, run_mpi_sim
-from gprMax.utilities import get_terminal_width, open_path_file
+from gprMax.gprMax import run_std_sim
+from gprMax.gprMax import run_mpi_sim
+from gprMax.utilities import get_terminal_width
+from gprMax.utilities import  open_path_file
 
 
 def run_opt_sim(args, inputfile, usernamespace):
@@ -190,7 +192,7 @@ def taguchi_code_blocks(inputfile, taguchinamespace):
 
     # Strip out any newline characters and comments that must begin with double hashes
     inputlines = [line.rstrip() for line in inputfile if(not line.startswith('##') and line.rstrip('\n'))]
-    
+
     # Rewind input file in preparation for passing to standard command reading function
     inputfile.seek(0)
 

@@ -20,8 +20,11 @@ from copy import deepcopy
 
 import numpy as np
 
-from gprMax.constants import c, floattype
-from gprMax.grid import Ix, Iy, Iz
+from gprMax.constants import c
+from gprMax.constants import floattype
+from gprMax.grid import Ix
+from gprMax.grid import Iy
+from gprMax.grid import Iz
 from gprMax.utilities import round_value
 
 

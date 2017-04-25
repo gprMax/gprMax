@@ -18,12 +18,16 @@
 
 from collections import OrderedDict
 
-from colorama import init, Fore, Style
+from colorama import init
+from colorama import Fore
+from colorama import Style
 init()
 import numpy as np
 np.seterr(invalid='raise')
 
-from gprMax.constants import c, floattype, complextype
+from gprMax.constants import c
+from gprMax.constants import floattype
+from gprMax.constants import complextype
 from gprMax.materials import Material
 from gprMax.pml import PML
 from gprMax.utilities import round_value

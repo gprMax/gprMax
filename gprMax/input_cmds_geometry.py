@@ -27,10 +27,25 @@ from gprMax.constants import floattype
 from gprMax.input_cmds_file import check_cmd_names
 from gprMax.input_cmds_multiuse import process_multicmds
 from gprMax.exceptions import CmdInputError
-from gprMax.fractals import FractalSurface, FractalVolume, Grass
-from gprMax.geometry_primitives import build_edge_x, build_edge_y, build_edge_z, build_face_yz, build_face_xz, build_face_xy, build_triangle, build_box, build_cylinder, build_cylindrical_sector, build_sphere, build_voxels_from_array, build_voxels_from_array_mask
+from gprMax.fractals import FractalSurface
+from gprMax.fractals import FractalVolume
+from gprMax.fractals import Grass
+from gprMax.geometry_primitives import build_edge_x
+from gprMax.geometry_primitives import build_edge_y
+from gprMax.geometry_primitives import build_edge_z
+from gprMax.geometry_primitives import build_face_yz
+from gprMax.geometry_primitives import build_face_xz
+from gprMax.geometry_primitives import build_face_xy
+from gprMax.geometry_primitives import build_triangle
+from gprMax.geometry_primitives import build_box
+from gprMax.geometry_primitives import build_cylinder
+from gprMax.geometry_primitives import build_cylindrical_sector
+from gprMax.geometry_primitives import build_sphere
+from gprMax.geometry_primitives import build_voxels_from_array
+from gprMax.geometry_primitives import build_voxels_from_array_mask
 from gprMax.materials import Material
-from gprMax.utilities import round_value, get_terminal_width
+from gprMax.utilities import round_value
+from gprMax.utilities import get_terminal_width
 
 
 def process_geometrycmds(geometry, G):

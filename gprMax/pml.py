@@ -21,7 +21,9 @@ from importlib import import_module
 import numpy as np
 from tqdm import tqdm
 
-from gprMax.constants import e0, z0, floattype
+from gprMax.constants import e0
+from gprMax.constants import z0
+from gprMax.constants import floattype
 
 
 class CFSParameter(object):

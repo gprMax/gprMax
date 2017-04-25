@@ -23,7 +23,9 @@ from struct import pack
 import numpy as np
 
 from gprMax.constants import floattype
-from gprMax.grid import Ix, Iy, Iz
+from gprMax.grid import Ix
+from gprMax.grid import Iy
+from gprMax.grid import Iz
 from gprMax.utilities import round_value
 
 

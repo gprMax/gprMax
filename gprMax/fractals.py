@@ -18,7 +18,8 @@
 
 import numpy as np
 
-from gprMax.constants import floattype, complextype
+from gprMax.constants import floattype
+from gprMax.constants import complextype
 from gprMax.utilities import round_value
 
 np.seterr(divide='raise')
