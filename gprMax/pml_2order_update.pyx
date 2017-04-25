@@ -27,7 +27,30 @@ from gprMax.constants cimport complextype_t
 ############################################
 # Electric field PML updates - xminus slab #
 ############################################
-cpdef void update_pml_2order_electric_xminus(int xs, int xf, int ys, int yf, int zs, int zf, int nthreads, floattype_t[:, ::1] updatecoeffsE, np.uint32_t[:, :, :, ::1] ID, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz, floattype_t[:, :, :, ::1] EPhi1, floattype_t[:, :, :, ::1] EPhi2, floattype_t[:, ::1] ERA, floattype_t[:, ::1] ERB, floattype_t[:, ::1] ERE, floattype_t[:, ::1] ERF, float d):
+cpdef void update_pml_2order_electric_xminus(
+                    int xs,
+                    int xf,
+                    int ys,
+                    int yf,
+                    int zs,
+                    int zf,
+                    int nthreads,
+                    floattype_t[:, ::1] updatecoeffsE,
+                    np.uint32_t[:, :, :, ::1] ID,
+                    floattype_t[:, :, ::1] Ex,
+                    floattype_t[:, :, ::1] Ey,
+                    floattype_t[:, :, ::1] Ez,
+                    floattype_t[:, :, ::1] Hx,
+                    floattype_t[:, :, ::1] Hy,
+                    floattype_t[:, :, ::1] Hz,
+                    floattype_t[:, :, :, ::1] EPhi1,
+                    floattype_t[:, :, :, ::1] EPhi2,
+                    floattype_t[:, ::1] ERA,
+                    floattype_t[:, ::1] ERB,
+                    floattype_t[:, ::1] ERE,
+                    floattype_t[:, ::1] ERF,
+                    float d
+                ):
     """This function updates the Ey and Ez field components for the xminus slab.
 
         Args:
@@ -78,7 +101,30 @@ cpdef void update_pml_2order_electric_xminus(int xs, int xf, int ys, int yf, int
 ###########################################
 # Electric field PML updates - xplus slab #
 ###########################################
-cpdef void update_pml_2order_electric_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int nthreads, floattype_t[:, ::1] updatecoeffsE, np.uint32_t[:, :, :, ::1] ID, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz, floattype_t[:, :, :, ::1] EPhi1, floattype_t[:, :, :, ::1] EPhi2, floattype_t[:, ::1] ERA, floattype_t[:, ::1] ERB, floattype_t[:, ::1] ERE, floattype_t[:, ::1] ERF, float d):
+cpdef void update_pml_2order_electric_xplus(
+                    int xs,
+                    int xf,
+                    int ys,
+                    int yf,
+                    int zs,
+                    int zf,
+                    int nthreads,
+                    floattype_t[:, ::1] updatecoeffsE,
+                    np.uint32_t[:, :, :, ::1] ID,
+                    floattype_t[:, :, ::1] Ex,
+                    floattype_t[:, :, ::1] Ey,
+                    floattype_t[:, :, ::1] Ez,
+                    floattype_t[:, :, ::1] Hx,
+                    floattype_t[:, :, ::1] Hy,
+                    floattype_t[:, :, ::1] Hz,
+                    floattype_t[:, :, :, ::1] EPhi1,
+                    floattype_t[:, :, :, ::1] EPhi2,
+                    floattype_t[:, ::1] ERA,
+                    floattype_t[:, ::1] ERB,
+                    floattype_t[:, ::1] ERE,
+                    floattype_t[:, ::1] ERF,
+                    float d
+            ):
     """This function updates the Ey and Ez field components for the xplus slab.
 
     Args:
@@ -129,7 +175,30 @@ cpdef void update_pml_2order_electric_xplus(int xs, int xf, int ys, int yf, int 
 ############################################
 # Electric field PML updates - yminus slab #
 ############################################
-cpdef void update_pml_2order_electric_yminus(int xs, int xf, int ys, int yf, int zs, int zf, int nthreads, floattype_t[:, ::1] updatecoeffsE, np.uint32_t[:, :, :, ::1] ID, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz, floattype_t[:, :, :, ::1] EPhi1, floattype_t[:, :, :, ::1] EPhi2, floattype_t[:, ::1] ERA, floattype_t[:, ::1] ERB, floattype_t[:, ::1] ERE, floattype_t[:, ::1] ERF, float d):
+cpdef void update_pml_2order_electric_yminus(
+                int xs,
+                int xf,
+                int ys,
+                int yf,
+                int zs,
+                int zf,
+                int nthreads,
+                floattype_t[:, ::1] updatecoeffsE,
+                np.uint32_t[:, :, :, ::1] ID,
+                floattype_t[:, :, ::1] Ex,
+                floattype_t[:, :, ::1] Ey,
+                floattype_t[:, :, ::1] Ez,
+                floattype_t[:, :, ::1] Hx,
+                floattype_t[:, :, ::1] Hy,
+                floattype_t[:, :, ::1] Hz,
+                floattype_t[:, :, :, ::1] EPhi1,
+                floattype_t[:, :, :, ::1] EPhi2,
+                floattype_t[:, ::1] ERA,
+                floattype_t[:, ::1] ERB,
+                floattype_t[:, ::1] ERE,
+                floattype_t[:, ::1] ERF,
+                float d
+            ):
     """This function updates the Ex and Ez field components for the yminus slab.
 
     Args:
@@ -180,7 +249,30 @@ cpdef void update_pml_2order_electric_yminus(int xs, int xf, int ys, int yf, int
 ###########################################
 # Electric field PML updates - yplus slab #
 ###########################################
-cpdef void update_pml_2order_electric_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int nthreads, floattype_t[:, ::1] updatecoeffsE, np.uint32_t[:, :, :, ::1] ID, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz, floattype_t[:, :, :, ::1] EPhi1, floattype_t[:, :, :, ::1] EPhi2, floattype_t[:, ::1] ERA, floattype_t[:, ::1] ERB, floattype_t[:, ::1] ERE, floattype_t[:, ::1] ERF, float d):
+cpdef void update_pml_2order_electric_yplus(
+                int xs,
+                int xf,
+                int ys,
+                int yf,
+                int zs,
+                int zf,
+                int nthreads,
+                floattype_t[:, ::1] updatecoeffsE,
+                np.uint32_t[:, :, :, ::1] ID,
+                floattype_t[:, :, ::1] Ex,
+                floattype_t[:, :, ::1] Ey,
+                floattype_t[:, :, ::1] Ez,
+                floattype_t[:, :, ::1] Hx,
+                floattype_t[:, :, ::1] Hy,
+                floattype_t[:, :, ::1] Hz,
+                floattype_t[:, :, :, ::1] EPhi1,
+                floattype_t[:, :, :, ::1] EPhi2,
+                floattype_t[:, ::1] ERA,
+                floattype_t[:, ::1] ERB,
+                floattype_t[:, ::1] ERE,
+                floattype_t[:, ::1] ERF,
+                float d
+            ):
     """This function updates the Ex and Ez field components for the yplus slab.
 
     Args:
@@ -231,7 +323,30 @@ cpdef void update_pml_2order_electric_yplus(int xs, int xf, int ys, int yf, int 
 ############################################
 # Electric field PML updates - zminus slab #
 ############################################
-cpdef void update_pml_2order_electric_zminus(int xs, int xf, int ys, int yf, int zs, int zf, int nthreads, floattype_t[:, ::1] updatecoeffsE, np.uint32_t[:, :, :, ::1] ID, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz, floattype_t[:, :, :, ::1] EPhi1, floattype_t[:, :, :, ::1] EPhi2, floattype_t[:, ::1] ERA, floattype_t[:, ::1] ERB, floattype_t[:, ::1] ERE, floattype_t[:, ::1] ERF, float d):
+cpdef void update_pml_2order_electric_zminus(
+                int xs,
+                int xf,
+                int ys,
+                int yf,
+                int zs,
+                int zf,
+                int nthreads,
+                floattype_t[:, ::1] updatecoeffsE,
+                np.uint32_t[:, :, :, ::1] ID,
+                floattype_t[:, :, ::1] Ex,
+                floattype_t[:, :, ::1] Ey,
+                floattype_t[:, :, ::1] Ez,
+                floattype_t[:, :, ::1] Hx,
+                floattype_t[:, :, ::1] Hy,
+                floattype_t[:, :, ::1] Hz,
+                floattype_t[:, :, :, ::1] EPhi1,
+                floattype_t[:, :, :, ::1] EPhi2,
+                floattype_t[:, ::1] ERA,
+                floattype_t[:, ::1] ERB,
+                floattype_t[:, ::1] ERE,
+                floattype_t[:, ::1] ERF,
+                float d
+            ):
     """This function updates the Ex and Ey field components for the zminus slab.
 
         Args:
@@ -282,7 +397,30 @@ cpdef void update_pml_2order_electric_zminus(int xs, int xf, int ys, int yf, int
 ###########################################
 # Electric field PML updates - zplus slab #
 ###########################################
-cpdef void update_pml_2order_electric_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int nthreads, floattype_t[:, ::1] updatecoeffsE, np.uint32_t[:, :, :, ::1] ID, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz, floattype_t[:, :, :, ::1] EPhi1, floattype_t[:, :, :, ::1] EPhi2, floattype_t[:, ::1] ERA, floattype_t[:, ::1] ERB, floattype_t[:, ::1] ERE, floattype_t[:, ::1] ERF, float d):
+cpdef void update_pml_2order_electric_zplus(
+                int xs,
+                int xf,
+                int ys,
+                int yf,
+                int zs,
+                int zf,
+                int nthreads,
+                floattype_t[:, ::1] updatecoeffsE,
+                np.uint32_t[:, :, :, ::1] ID,
+                floattype_t[:, :, ::1] Ex,
+                floattype_t[:, :, ::1] Ey,
+                floattype_t[:, :, ::1] Ez,
+                floattype_t[:, :, ::1] Hx,
+                floattype_t[:, :, ::1] Hy,
+                floattype_t[:, :, ::1] Hz,
+                floattype_t[:, :, :, ::1] EPhi1,
+                floattype_t[:, :, :, ::1] EPhi2,
+                floattype_t[:, ::1] ERA,
+                floattype_t[:, ::1] ERB,
+                floattype_t[:, ::1] ERE,
+                floattype_t[:, ::1] ERF,
+                float d
+            ):
     """This function updates the Ex and Ey field components for the zplus slab.
 
     Args:
@@ -333,7 +471,30 @@ cpdef void update_pml_2order_electric_zplus(int xs, int xf, int ys, int yf, int 
 ############################################
 # Magnetic field PML updates - xminus slab #
 ############################################
-cpdef void update_pml_2order_magnetic_xminus(int xs, int xf, int ys, int yf, int zs, int zf, int nthreads, floattype_t[:, ::1] updatecoeffsH, np.uint32_t[:, :, :, ::1] ID, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz, floattype_t[:, :, :, ::1] HPhi1, floattype_t[:, :, :, ::1] HPhi2, floattype_t[:, ::1] HRA, floattype_t[:, ::1] HRB, floattype_t[:, ::1] HRE, floattype_t[:, ::1] HRF, float d):
+cpdef void update_pml_2order_magnetic_xminus(
+                int xs,
+                int xf,
+                int ys,
+                int yf,
+                int zs,
+                int zf,
+                int nthreads,
+                floattype_t[:, ::1] updatecoeffsH,
+                np.uint32_t[:, :, :, ::1] ID,
+                floattype_t[:, :, ::1] Ex,
+                floattype_t[:, :, ::1] Ey,
+                floattype_t[:, :, ::1] Ez,
+                floattype_t[:, :, ::1] Hx,
+                floattype_t[:, :, ::1] Hy,
+                floattype_t[:, :, ::1] Hz,
+                floattype_t[:, :, :, ::1] HPhi1,
+                floattype_t[:, :, :, ::1] HPhi2,
+                floattype_t[:, ::1] HRA,
+                floattype_t[:, ::1] HRB,
+                floattype_t[:, ::1] HRE,
+                floattype_t[:, ::1] HRF,
+                float d
+            ):
     """This function updates the Hy and Hz field components for the xminus slab.
 
     Args:
@@ -384,7 +545,30 @@ cpdef void update_pml_2order_magnetic_xminus(int xs, int xf, int ys, int yf, int
 ###########################################
 # Magnetic field PML updates - xplus slab #
 ###########################################
-cpdef void update_pml_2order_magnetic_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int nthreads, floattype_t[:, ::1] updatecoeffsH, np.uint32_t[:, :, :, ::1] ID, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz, floattype_t[:, :, :, ::1] HPhi1, floattype_t[:, :, :, ::1] HPhi2, floattype_t[:, ::1] HRA, floattype_t[:, ::1] HRB, floattype_t[:, ::1] HRE, floattype_t[:, ::1] HRF, float d):
+cpdef void update_pml_2order_magnetic_xplus(
+                int xs,
+                int xf,
+                int ys,
+                int yf,
+                int zs,
+                int zf,
+                int nthreads,
+                floattype_t[:, ::1] updatecoeffsH,
+                np.uint32_t[:, :, :, ::1] ID,
+                floattype_t[:, :, ::1] Ex,
+                floattype_t[:, :, ::1] Ey,
+                floattype_t[:, :, ::1] Ez,
+                floattype_t[:, :, ::1] Hx,
+                floattype_t[:, :, ::1] Hy,
+                floattype_t[:, :, ::1] Hz,
+                floattype_t[:, :, :, ::1] HPhi1,
+                floattype_t[:, :, :, ::1] HPhi2,
+                floattype_t[:, ::1] HRA,
+                floattype_t[:, ::1] HRB,
+                floattype_t[:, ::1] HRE,
+                floattype_t[:, ::1] HRF,
+                float d
+            ):
     """This function updates the Hy and Hz field components for the xplus slab.
 
     Args:
@@ -435,7 +619,30 @@ cpdef void update_pml_2order_magnetic_xplus(int xs, int xf, int ys, int yf, int 
 ############################################
 # Magnetic field PML updates - yminus slab #
 ############################################
-cpdef void update_pml_2order_magnetic_yminus(int xs, int xf, int ys, int yf, int zs, int zf, int nthreads, floattype_t[:, ::1] updatecoeffsH, np.uint32_t[:, :, :, ::1] ID, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz, floattype_t[:, :, :, ::1] HPhi1, floattype_t[:, :, :, ::1] HPhi2, floattype_t[:, ::1] HRA, floattype_t[:, ::1] HRB, floattype_t[:, ::1] HRE, floattype_t[:, ::1] HRF, float d):
+cpdef void update_pml_2order_magnetic_yminus(
+                int xs,
+                int xf,
+                int ys,
+                int yf,
+                int zs,
+                int zf,
+                int nthreads,
+                floattype_t[:, ::1] updatecoeffsH,
+                np.uint32_t[:, :, :, ::1] ID,
+                floattype_t[:, :, ::1] Ex,
+                floattype_t[:, :, ::1] Ey,
+                floattype_t[:, :, ::1] Ez,
+                floattype_t[:, :, ::1] Hx,
+                floattype_t[:, :, ::1] Hy,
+                floattype_t[:, :, ::1] Hz,
+                floattype_t[:, :, :, ::1] HPhi1,
+                floattype_t[:, :, :, ::1] HPhi2,
+                floattype_t[:, ::1] HRA,
+                floattype_t[:, ::1] HRB,
+                floattype_t[:, ::1] HRE,
+                floattype_t[:, ::1] HRF,
+                float d
+            ):
     """This function updates the Hx and Hz field components for the yminus slab.
 
     Args:
@@ -486,7 +693,30 @@ cpdef void update_pml_2order_magnetic_yminus(int xs, int xf, int ys, int yf, int
 ###########################################
 # Magnetic field PML updates - yplus slab #
 ###########################################
-cpdef void update_pml_2order_magnetic_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int nthreads, floattype_t[:, ::1] updatecoeffsH, np.uint32_t[:, :, :, ::1] ID, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz, floattype_t[:, :, :, ::1] HPhi1, floattype_t[:, :, :, ::1] HPhi2, floattype_t[:, ::1] HRA, floattype_t[:, ::1] HRB, floattype_t[:, ::1] HRE, floattype_t[:, ::1] HRF, float d):
+cpdef void update_pml_2order_magnetic_yplus(
+                int xs,
+                int xf,
+                int ys,
+                int yf,
+                int zs,
+                int zf,
+                int nthreads,
+                floattype_t[:, ::1] updatecoeffsH,
+                np.uint32_t[:, :, :, ::1] ID,
+                floattype_t[:, :, ::1] Ex,
+                floattype_t[:, :, ::1] Ey,
+                floattype_t[:, :, ::1] Ez,
+                floattype_t[:, :, ::1] Hx,
+                floattype_t[:, :, ::1] Hy,
+                floattype_t[:, :, ::1] Hz,
+                floattype_t[:, :, :, ::1] HPhi1,
+                floattype_t[:, :, :, ::1] HPhi2,
+                floattype_t[:, ::1] HRA,
+                floattype_t[:, ::1] HRB,
+                floattype_t[:, ::1] HRE,
+                floattype_t[:, ::1] HRF,
+                float d
+            ):
     """This function updates the Hx and Hz field components for the yplus slab.
 
     Args:
@@ -537,7 +767,30 @@ cpdef void update_pml_2order_magnetic_yplus(int xs, int xf, int ys, int yf, int 
 ############################################
 # Magnetic field PML updates - zminus slab #
 ############################################
-cpdef void update_pml_2order_magnetic_zminus(int xs, int xf, int ys, int yf, int zs, int zf, int nthreads, floattype_t[:, ::1] updatecoeffsH, np.uint32_t[:, :, :, ::1] ID, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz, floattype_t[:, :, :, ::1] HPhi1, floattype_t[:, :, :, ::1] HPhi2, floattype_t[:, ::1] HRA, floattype_t[:, ::1] HRB, floattype_t[:, ::1] HRE, floattype_t[:, ::1] HRF, float d):
+cpdef void update_pml_2order_magnetic_zminus(
+                int xs,
+                int xf,
+                int ys,
+                int yf,
+                int zs,
+                int zf,
+                int nthreads,
+                floattype_t[:, ::1] updatecoeffsH,
+                np.uint32_t[:, :, :, ::1] ID,
+                floattype_t[:, :, ::1] Ex,
+                floattype_t[:, :, ::1] Ey,
+                floattype_t[:, :, ::1] Ez,
+                floattype_t[:, :, ::1] Hx,
+                floattype_t[:, :, ::1] Hy,
+                floattype_t[:, :, ::1] Hz,
+                floattype_t[:, :, :, ::1] HPhi1,
+                floattype_t[:, :, :, ::1] HPhi2,
+                floattype_t[:, ::1] HRA,
+                floattype_t[:, ::1] HRB,
+                floattype_t[:, ::1] HRE,
+                floattype_t[:, ::1] HRF,
+                float d
+            ):
     """This function updates the Hx and Hy field components for the zminus slab.
 
     Args:
@@ -588,7 +841,30 @@ cpdef void update_pml_2order_magnetic_zminus(int xs, int xf, int ys, int yf, int
 ###########################################
 # Magnetic field PML updates - zplus slab #
 ###########################################
-cpdef void update_pml_2order_magnetic_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int nthreads, floattype_t[:, ::1] updatecoeffsH, np.uint32_t[:, :, :, ::1] ID, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz, floattype_t[:, :, :, ::1] HPhi1, floattype_t[:, :, :, ::1] HPhi2, floattype_t[:, ::1] HRA, floattype_t[:, ::1] HRB, floattype_t[:, ::1] HRE, floattype_t[:, ::1] HRF, float d):
+cpdef void update_pml_2order_magnetic_zplus(
+                int xs,
+                int xf,
+                int ys,
+                int yf,
+                int zs,
+                int zf,
+                int nthreads,
+                floattype_t[:, ::1] updatecoeffsH,
+                np.uint32_t[:, :, :, ::1] ID,
+                floattype_t[:, :, ::1] Ex,
+                floattype_t[:, :, ::1] Ey,
+                floattype_t[:, :, ::1] Ez,
+                floattype_t[:, :, ::1] Hx,
+                floattype_t[:, :, ::1] Hy,
+                floattype_t[:, :, ::1] Hz,
+                floattype_t[:, :, :, ::1] HPhi1,
+                floattype_t[:, :, :, ::1] HPhi2,
+                floattype_t[:, ::1] HRA,
+                floattype_t[:, ::1] HRB,
+                floattype_t[:, ::1] HRE,
+                floattype_t[:, ::1] HRF,
+                float d
+            ):
     """This function updates the Hx and Hy field components for the zplus slab.
 
     Args:

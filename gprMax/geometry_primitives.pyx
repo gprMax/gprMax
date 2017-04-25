@@ -34,7 +34,12 @@ from gprMax.yee_cell_setget_rigid cimport unset_rigid_H
 np.seterr(divide='raise')
 
 
-cpdef bint are_clockwise(float v1x, float v1y, float v2x, float v2y):
+cpdef bint are_clockwise(
+                    float v1x,
+                    float v1y,
+                    float v2x,
+                    float v2y
+            ):
     """Find if vector 2 is clockwise relative to vector 1.
 
     Args:
@@ -47,7 +52,11 @@ cpdef bint are_clockwise(float v1x, float v1y, float v2x, float v2y):
     return -v1x*v2y + v1y*v2x > 0
 
 
-cpdef bint is_within_radius(float vx, float vy, float radius):
+cpdef bint is_within_radius(
+                    float vx,
+                    float vy,
+                    float radius
+            ):
     """Check if the point is within a given radius of the centre of the circle.
 
     Args:
@@ -61,7 +70,15 @@ cpdef bint is_within_radius(float vx, float vy, float radius):
     return vx*vx + vy*vy <= radius*radius
 
 
-cpdef bint is_inside_sector(float px, float py, float ctrx, float ctry, float sectorstartangle, float sectorangle, float radius):
+cpdef bint is_inside_sector(
+                    float px,
+                    float py,
+                    float ctrx,
+                    float ctry,
+                    float sectorstartangle,
+                    float sectorangle,
+                    float radius
+            ):
     """For a point to be inside a circular sector, it has to meet the following tests:
         It has to be positioned anti-clockwise from the start "arm" of the sector
         It has to be positioned clockwise from the end arm of the sector
@@ -89,10 +106,16 @@ cpdef bint is_inside_sector(float px, float py, float ctrx, float ctry, float se
     relpoint1 = px - ctrx
     relpoint2 = py - ctry
 
-    return not are_clockwise(sectorstart1, sectorstart2, relpoint1, relpoint2) and are_clockwise(sectorend1, sectorend2, relpoint1, relpoint2) and is_within_radius(relpoint1, relpoint2, radius)
+    return (not are_clockwise(sectorstart1, sectorstart2, relpoint1, relpoint2)
+        and are_clockwise(sectorend1, sectorend2, relpoint1, relpoint2)
+        and is_within_radius(relpoint1, relpoint2, radius))
 
 
-cpdef bint point_in_polygon(float px, float py, list polycoords):
+cpdef bint point_in_polygon(
+                    float px,
+                    float py,
+                    list polycoords
+            ):
     """Calculates, using a ray casting algorithm, whether a point lies within a polygon.
 
     Args:
@@ -141,7 +164,15 @@ cpdef bint point_in_polygon(float px, float py, list polycoords):
     return inside
 
 
-cpdef void build_edge_x(int i, int j, int k, int numIDx, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
+cpdef void build_edge_x(
+                    int i,
+                    int j,
+                    int k,
+                    int numIDx,
+                    np.int8_t[:, :, :, ::1] rigidE,
+                    np.int8_t[:, :, :, ::1] rigidH,
+                    np.uint32_t[:, :, :, ::1] ID
+            ):
     """Set x-orientated edges in the rigid and ID arrays for a Yee voxel.
 
     Args:
@@ -154,7 +185,15 @@ cpdef void build_edge_x(int i, int j, int k, int numIDx, np.int8_t[:, :, :, ::1]
     ID[0, i, j, k] = numIDx
 
 
-cpdef void build_edge_y(int i, int j, int k, int numIDy, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
+cpdef void build_edge_y(
+                    int i,
+                    int j,
+                    int k,
+                    int numIDy,
+                    np.int8_t[:, :, :, ::1] rigidE,
+                    np.int8_t[:, :, :, ::1] rigidH,
+                    np.uint32_t[:, :, :, ::1] ID
+            ):
     """Set y-orientated edges in the rigid and ID arrays for a Yee voxel.
 
     Args:
@@ -167,7 +206,15 @@ cpdef void build_edge_y(int i, int j, int k, int numIDy, np.int8_t[:, :, :, ::1]
     ID[1, i, j, k] = numIDy
 
 
-cpdef void build_edge_z(int i, int j, int k, int numIDz, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
+cpdef void build_edge_z(
+                    int i,
+                    int j,
+                    int k,
+                    int numIDz,
+                    np.int8_t[:, :, :, ::1] rigidE,
+                    np.int8_t[:, :, :, ::1] rigidH,
+                    np.uint32_t[:, :, :, ::1] ID
+            ):
     """Set z-orientated edges in the rigid and ID arrays for a Yee voxel.
 
     Args:
@@ -180,7 +227,16 @@ cpdef void build_edge_z(int i, int j, int k, int numIDz, np.int8_t[:, :, :, ::1]
     ID[2, i, j, k] = numIDz
 
 
-cpdef void build_face_yz(int i, int j, int k, int numIDy, int numIDz, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
+cpdef void build_face_yz(
+                    int i,
+                    int j,
+                    int k,
+                    int numIDy,
+                    int numIDz,
+                    np.int8_t[:, :, :, ::1] rigidE,
+                    np.int8_t[:, :, :, ::1] rigidH,
+                    np.uint32_t[:, :, :, ::1] ID
+            ):
     """Set the edges of the yz-plane face of a Yell cell in the rigid and ID arrays.
 
     Args:
@@ -207,7 +263,16 @@ cpdef void build_face_yz(int i, int j, int k, int numIDy, int numIDz, np.int8_t[
     ID[5, i, j + 1, k] = numIDz
 
 
-cpdef void build_face_xz(int i, int j, int k, int numIDx, int numIDz, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
+cpdef void build_face_xz(
+                    int i,
+                    int j,
+                    int k,
+                    int numIDx,
+                    int numIDz,
+                    np.int8_t[:, :, :, ::1] rigidE,
+                    np.int8_t[:, :, :, ::1] rigidH,
+                    np.uint32_t[:, :, :, ::1] ID
+            ):
     """Set the edges of the xz-plane face of a Yell cell in the rigid and ID arrays.
 
     Args:
@@ -234,7 +299,16 @@ cpdef void build_face_xz(int i, int j, int k, int numIDx, int numIDz, np.int8_t[
     ID[5, i + 1, j, k] = numIDz
 
 
-cpdef void build_face_xy(int i, int j, int k, int numIDx, int numIDy, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
+cpdef void build_face_xy(
+                    int i,
+                    int j,
+                    int k,
+                    int numIDx,
+                    int numIDy,
+                    np.int8_t[:, :, :, ::1] rigidE,
+                    np.int8_t[:, :, :, ::1] rigidH,
+                    np.uint32_t[:, :, :, ::1] ID
+            ):
     """Set the edges of the xy-plane face of a Yell cell in the rigid and ID arrays.
 
     Args:
@@ -261,7 +335,20 @@ cpdef void build_face_xy(int i, int j, int k, int numIDx, int numIDy, np.int8_t[
     ID[4, i + 1, j, k] = numIDy
 
 
-cpdef void build_voxel(int i, int j, int k, int numID, int numIDx, int numIDy, int numIDz, bint averaging, np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
+cpdef void build_voxel(
+                    int i,
+                    int j,
+                    int k,
+                    int numID,
+                    int numIDx,
+                    int numIDy,
+                    int numIDz,
+                    bint averaging,
+                    np.uint32_t[:, :, ::1] solid,
+                    np.int8_t[:, :, :, ::1] rigidE,
+                    np.int8_t[:, :, :, ::1] rigidH,
+                    np.uint32_t[:, :, :, ::1] ID
+            ):
     """Set values in the solid, rigid and ID arrays for a Yee voxel.
 
     Args:
@@ -312,11 +399,38 @@ cpdef void build_voxel(int i, int j, int k, int numID, int numIDx, int numIDy, i
         ID[5, i, j + 1, k] = numIDz
 
 
-cpdef void build_triangle(float x1, float y1, float z1, float x2, float y2, float z2, float x3, float y3, float z3, str normal, float thickness, float dx, float dy, float dz, int numID, int numIDx, int numIDy, int numIDz, bint averaging, np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
-    """Builds #triangle and #triangular_prism commands which sets values in the solid, rigid and ID arrays for a Yee voxel.
+cpdef void build_triangle(
+                    float x1,
+                    float y1,
+                    float z1,
+                    float x2,
+                    float y2,
+                    float z2,
+                    float x3,
+                    float y3,
+                    float z3,
+                    str normal,
+                    float thickness,
+                    float dx,
+                    float dy,
+                    float dz,
+                    int numID,
+                    int numIDx,
+                    int numIDy,
+                    int numIDz,
+                    bint averaging,
+                    np.uint32_t[:, :, ::1] solid,
+                    np.int8_t[:, :, :, ::1] rigidE,
+                    np.int8_t[:, :, :, ::1] rigidH,
+                    np.uint32_t[:, :, :, ::1] ID
+            ):
+    """
+    Builds #triangle and #triangular_prism commands which sets values in the
+    solid, rigid and ID arrays for a Yee voxel.
 
     Args:
-        x1, y1, z1, x2, y2, z2, x3, y3, z3 (float): Coordinates of the vertices of the triangular prism.
+        x1, y1, z1, x2, y2, z2, x3, y3, z3 (float): Coordinates of the vertices
+                of the triangular prism.
         normal (char): Normal direction to the plane of the triangular prism.
         thickness (float): Thickness of the triangular prism.
         dx, dy, dz (float): Spatial discretisation.
@@ -396,8 +510,35 @@ cpdef void build_triangle(float x1, float y1, float z1, float x2, float y2, floa
                             build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
 
 
-cpdef void build_cylindrical_sector(float ctr1, float ctr2, int level, float sectorstartangle, float sectorangle, float radius, str normal, float thickness, float dx, float dy, float dz, int numID, int numIDx, int numIDy, int numIDz, bint averaging, np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
-    """Builds #cylindrical_sector commands which sets values in the solid, rigid and ID arrays for a Yee voxel. It defines a sector of cylinder given by the direction of the axis of the coordinates of the cylinder face centre, depth coordinates, sector start point, sector angle, and sector radius. N.B Assumes sector start is always clockwise from sector end, i.e. sector defined in an anti-clockwise direction.
+cpdef void build_cylindrical_sector(
+                    float ctr1,
+                    float ctr2,
+                    int level,
+                    float sectorstartangle,
+                    float sectorangle,
+                    float radius,
+                    str normal,
+                    float thickness,
+                    float dx,
+                    float dy,
+                    float dz,
+                    int numID,
+                    int numIDx,
+                    int numIDy,
+                    int numIDz,
+                    bint averaging,
+                    np.uint32_t[:, :, ::1] solid,
+                    np.int8_t[:, :, :, ::1] rigidE,
+                    np.int8_t[:, :, :, ::1] rigidH,
+                    np.uint32_t[:, :, :, ::1] ID
+            ):
+    """
+    Builds #cylindrical_sector commands which sets values in the solid, rigid
+    and ID arrays for a Yee voxel. It defines a sector of cylinder given by the
+    direction of the axis of the coordinates of the cylinder face centre, depth
+    coordinates, sector start point, sector angle, and sector radius. N.B
+    Assumes sector start is always clockwise from sector end, i.e. sector
+    defined in an anti-clockwise direction.
 
     Args:
         ctr1, ctr2 (float): Coordinates of centre of circle.
@@ -468,7 +609,23 @@ cpdef void build_cylindrical_sector(float ctr1, float ctr2, int level, float sec
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
 
 
-cpdef void build_box(int xs, int xf, int ys, int yf, int zs, int zf, int numID, int numIDx, int numIDy, int numIDz, bint averaging, np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
+cpdef void build_box(
+                    int xs,
+                    int xf,
+                    int ys,
+                    int yf,
+                    int zs,
+                    int zf,
+                    int numID,
+                    int numIDx,
+                    int numIDy,
+                    int numIDz,
+                    bint averaging,
+                    np.uint32_t[:, :, ::1] solid,
+                    np.int8_t[:, :, :, ::1] rigidE,
+                    np.int8_t[:, :, :, ::1] rigidH,
+                    np.uint32_t[:, :, :, ::1] ID
+            ):
     """Builds #box commands which sets values in the solid, rigid and ID arrays.
 
     Args:
@@ -526,7 +683,27 @@ cpdef void build_box(int xs, int xf, int ys, int yf, int zs, int zf, int numID, 
                     ID[5, i, j, k] = numIDz
 
 
-cpdef void build_cylinder(float x1, float y1, float z1, float x2, float y2, float z2, float r, float dx, float dy, float dz, int numID, int numIDx, int numIDy, int numIDz, bint averaging, np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
+cpdef void build_cylinder(
+                    float x1,
+                    float y1,
+                    float z1,
+                    float x2,
+                    float y2,
+                    float z2,
+                    float r,
+                    float dx,
+                    float dy,
+                    float dz,
+                    int numID,
+                    int numIDx,
+                    int numIDy,
+                    int numIDz,
+                    bint averaging,
+                    np.uint32_t[:, :, ::1] solid,
+                    np.int8_t[:, :, :, ::1] rigidE,
+                    np.int8_t[:, :, :, ::1] rigidH,
+                    np.uint32_t[:, :, :, ::1] ID
+            ):
     """Builds #cylinder commands which sets values in the solid, rigid and ID arrays for a Yee voxel.
 
     Args:
@@ -625,7 +802,24 @@ cpdef void build_cylinder(float x1, float y1, float z1, float x2, float y2, floa
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
 
 
-cpdef void build_sphere(int xc, int yc, int zc, float r, float dx, float dy, float dz, int numID, int numIDx, int numIDy, int numIDz, bint averaging, np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
+cpdef void build_sphere(
+                    int xc,
+                    int yc,
+                    int zc,
+                    float r,
+                    float dx,
+                    float dy,
+                    float dz,
+                    int numID,
+                    int numIDx,
+                    int numIDy,
+                    int numIDz,
+                    bint averaging,
+                    np.uint32_t[:, :, ::1] solid,
+                    np.int8_t[:, :, :, ::1] rigidE,
+                    np.int8_t[:, :, :, ::1] rigidH,
+                    np.uint32_t[:, :, :, ::1] ID
+            ):
     """Builds #sphere commands which sets values in the solid, rigid and ID arrays for a Yee voxel.
 
     Args:
@@ -669,7 +863,18 @@ cpdef void build_sphere(int xc, int yc, int zc, float r, float dx, float dy, flo
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
 
 
-cpdef void build_voxels_from_array(int xs, int ys, int zs, int numexistmaterials, bint averaging, np.int16_t[:, :, ::1] data, np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
+cpdef void build_voxels_from_array(
+                    int xs,
+                    int ys,
+                    int zs,
+                    int numexistmaterials,
+                    bint averaging,
+                    np.int16_t[:, :, ::1] data,
+                    np.uint32_t[:, :, ::1] solid,
+                    np.int8_t[:, :, :, ::1] rigidE,
+                    np.int8_t[:, :, :, ::1] rigidH,
+                    np.uint32_t[:, :, :, ::1] ID
+            ):
     """Builds Yee voxels by reading integers from an array.
 
     Args:
@@ -714,7 +919,20 @@ cpdef void build_voxels_from_array(int xs, int ys, int zs, int numexistmaterials
                     build_voxel(i, j, k, numID, numID, numID, numID, averaging, solid, rigidE, rigidH, ID)
 
 
-cpdef void build_voxels_from_array_mask(int xs, int ys, int zs, int waternumID, int grassnumID, bint averaging, np.int8_t[:, :, ::1] mask, np.int16_t[:, :, ::1] data, np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidE, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID):
+cpdef void build_voxels_from_array_mask(
+                    int xs,
+                    int ys,
+                    int zs,
+                    int waternumID,
+                    int grassnumID,
+                    bint averaging,
+                    np.int8_t[:, :, ::1] mask,
+                    np.int16_t[:, :, ::1] data,
+                    np.uint32_t[:, :, ::1] solid,
+                    np.int8_t[:, :, :, ::1] rigidE,
+                    np.int8_t[:, :, :, ::1] rigidH,
+                    np.uint32_t[:, :, :, ::1] ID
+            ):
     """Builds Yee voxels by reading integers from an array.
 
     Args:

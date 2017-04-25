@@ -19,7 +19,8 @@
 import sys
 from collections import namedtuple
 
-"""This module contains functional forms of some of the most commonly used gprMax commands. It can be useful to use these within Python scripting in an input file.
+"""This module contains functional forms of some of the most commonly used gprMax
+commands. It can be useful to use these within Python scripting in an input file.
 For convenience, x, y, z coordinates are lumped in a namedtuple Coordinate:
 >>> c = Coordinate(0.1, 0.2, 0.3)
 >>> c
@@ -45,11 +46,14 @@ class Coordinate(Coordinate_tuple):
 
 
 def command(cmd, *parameters):
-    """Helper function. Prints the gprMax #<cmd>: <parameters>. None is ignored in the output.
+    """
+    Helper function. Prints the gprMax #<cmd>: <parameters>. None is ignored
+    in the output.
 
     Args:
         cmd (str): the gprMax cmd string to be printed
-        *parameters: one or more strings as arguments, any None values are ignored
+        *parameters: one or more strings as arguments, any None values are
+            ignored
 
     Returns:
         s (str): the printed string
@@ -112,7 +116,8 @@ def rotate90_edge(xs, ys, xf, yf, polarisation, rotate90origin):
     xsnew, ysnew = rotate90_point(xs, ys, rotate90origin)
     xfnew, yfnew = rotate90_point(xf, yf, rotate90origin)
 
-    # Swap coordinates for original y-directed edge, original x-directed edge does not require this.
+    # Swap coordinates for original y-directed edge, original x-directed
+    # edge does not require this.
     if polarisation == 'y':
         xs = xfnew
         xf = xsnew
@@ -218,10 +223,13 @@ def geometry_view(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, type='n'):
         xs, ys, zs, xf, yf, zf (float): Start and finish coordinates.
         dx, dy, dz (float): Spatial discretisation of geometry view.
         filename (str): Filename where geometry file information will be stored.
-        type (str): Can be either n (normal) or f (fine) which specifies whether to output the geometry information on a per-cell basis (n) or a per-cell-edge basis (f).
+        type (str): Can be either n (normal) or f (fine) which specifies whether
+                to output the geometry information on a per-cell basis (n) or a
+                per-cell-edge basis (f).
 
     Returns:
-        s, f, d (tuple): 3 namedtuple Coordinate for the start, finish coordinates and spatial discretisation
+        s, f, d (tuple): 3 namedtuple Coordinate for the start,
+                finish coordinates and spatial discretisation
     """
 
     s = Coordinate(xs, ys, zs)
@@ -238,11 +246,14 @@ def snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, filename):
     Args:
         xs, ys, zs, xf, yf, zf (float): Start and finish coordinates.
         dx, dy, dz (float): Spatial discretisation of geometry view.
-        time (float): Time in seconds (float) or the iteration number (integer) which denote the point in time at which the snapshot will be taken.
+        time (float): Time in seconds (float) or the iteration number
+                    (integer) which denote the point in time at which the
+                    snapshot will be taken.
         filename (str): Filename where geometry file information will be stored.
 
     Returns:
-        s, f, d (tuple): 3 namedtuple Coordinate for the start, finish coordinates and spatial discretisation
+        s, f, d (tuple): 3 namedtuple Coordinate for the start,
+                finish coordinates and spatial discretisation
     """
 
     s = Coordinate(xs, ys, zs)
@@ -401,16 +412,24 @@ def cylinder(x1, y1, z1, x2, y2, z2, radius, material, averaging='', rotate90ori
     return c1, c2
 
 
-def cylindrical_sector(axis, ctr1, ctr2, t1, t2, radius, startingangle, sweptangle, material, averaging=''):
+def cylindrical_sector(axis, ctr1, ctr2, t1, t2, radius,
+                startingangle, sweptangle, material, averaging=''):
     """Prints the gprMax #cylindrical_sector command.
 
     Args:
-        axis (str): Axis of the cylinder from which the sector is defined and can be x, y, or z.
+        axis (str): Axis of the cylinder from which the sector is defined and
+                can be x, y, or z.
         ctr1, ctr2 (float): Coordinates of the centre of the cylindrical sector.
-        t1, t2 (float): Lower and higher coordinates of the axis of the cylinder from which the sector is defined (in effect they specify the thickness of the sector).
+        t1, t2 (float): Lower and higher coordinates of the axis of the cylinder
+                from which the sector is defined (in effect they specify the
+                thickness of the sector).
         radius (float): Radius.
-        startingangle (float): Starting angle (in degrees) for the cylindrical sector (with zero degrees defined on the positive first axis of the plane of the cylindrical sector).
-        sweptangle (float): Angle (in degrees) swept by the cylindrical sector (the finishing angle of the sector is always anti-clockwise from the starting angle).
+        startingangle (float): Starting angle (in degrees) for the cylindrical
+                sector (with zero degrees defined on the positive first axis of
+                the plane of the cylindrical sector).
+        sweptangle (float): Angle (in degrees) swept by the cylindrical sector
+                (the finishing angle of the sector is always anti-clockwise
+                from the starting angle).
         material (str): Material identifier(s).
         averaging (str): Turn averaging on or off.
     """
@@ -451,7 +470,8 @@ def waveform(shape, amplitude, frequency, identifier):
     return identifier
 
 
-def hertzian_dipole(polarisation, f1, f2, f3, identifier, t0=None, t_remove=None, dxdy=None, rotate90origin=()):
+def hertzian_dipole(polarisation, f1, f2, f3, identifier,
+                t0=None, t_remove=None, dxdy=None, rotate90origin=()):
     """Prints the #hertzian_dipole: polarisation, f1, f2, f3, identifier, [t0, t_remove]
 
     Args:
@@ -487,7 +507,8 @@ def hertzian_dipole(polarisation, f1, f2, f3, identifier, t0=None, t_remove=None
     return c
 
 
-def magnetic_dipole(polarisation, f1, f2, f3, identifier, t0=None, t_remove=None, dxdy=None, rotate90origin=()):
+def magnetic_dipole(polarisation, f1, f2, f3, identifier,
+                    t0=None, t_remove=None, dxdy=None, rotate90origin=()):
     """Prints the #magnetic_dipole: polarisation, f1, f2, f3, identifier, [t0, t_remove]
 
     Args:
@@ -523,7 +544,8 @@ def magnetic_dipole(polarisation, f1, f2, f3, identifier, t0=None, t_remove=None
     return c
 
 
-def voltage_source(polarisation, f1, f2, f3, resistance, identifier, t0=None, t_remove=None, dxdy=None, rotate90origin=()):
+def voltage_source(polarisation, f1, f2, f3, resistance, identifier,
+                    t0=None, t_remove=None, dxdy=None, rotate90origin=()):
     """Prints the #voltage_source: polarisation, f1, f2, f3, resistance, identifier, [t0, t_remove]
 
     Args:
@@ -560,7 +582,8 @@ def voltage_source(polarisation, f1, f2, f3, resistance, identifier, t0=None, t_
     return c
 
 
-def transmission_line(polarisation, f1, f2, f3, resistance, identifier, t0=None, t_remove=None, dxdy=None, rotate90origin=()):
+def transmission_line(polarisation, f1, f2, f3, resistance, identifier,
+                    t0=None, t_remove=None, dxdy=None, rotate90origin=()):
     """Prints the #transmission_line: polarisation, f1, f2, f3, resistance, identifier, [t0, t_remove]
 
     Args:
@@ -603,8 +626,10 @@ def rx(x, y, z, identifier=None, to_save=None, polarisation=None, dxdy=None, rot
     Args:
         x, y, z (float): are the coordinates (x,y,z) of the receiver in the model.
         identifier (str): is the optional identifier of the receiver
-        to_save (list):  is a list of outputs with this receiver. It can be any selection from 'Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', or 'Iz'.
-        polarisation (str):  is the polarisation of the source and can be 'x', 'y', or 'z'. For rotation purposes only.
+        to_save (list):  is a list of outputs with this receiver. It can be
+                any selection from 'Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', or 'Iz'.
+        polarisation (str):  is the polarisation of the source
+                and can be 'x', 'y', or 'z'. For rotation purposes only.
         dxdy (float): Tuple of x-y spatial resolutions. For rotation purposes only.
         rotate90origin (tuple): x, y origin for 90 degree CCW rotation in x-y plane.
 
@@ -617,14 +642,16 @@ def rx(x, y, z, identifier=None, to_save=None, polarisation=None, dxdy=None, rot
             try:
                 xf = x + dxdy[0]
             except Exception as e:
-                raise ValueError('With polarization = x, a dxdy[0] float values is required, got dxdy=%s' % dxdy) from e
+                raise ValueError('With polarization = x, a dxdy[0] float \
+                    values is required, got dxdy=%s' % dxdy) from e
             yf = y
         elif polarisation == 'y':
             xf = x
             try:
                 yf = y + dxdy[1]
             except Exception as e:
-                raise ValueError('With polarization = y, a dxdy[1] float values is required, got dxdy=%s' % dxdy) from e
+                raise ValueError('With polarization = y, a dxdy[1] float \
+                    values is required, got dxdy=%s' % dxdy) from e
 
         x, y, xf, yf = rotate90_edge(x, y, xf, yf, polarisation, rotate90origin)
 
@@ -642,7 +669,8 @@ def src_steps(dx=0, dy=0, dz=0):
     """Prints the #src_steps: dx, dy, dz command.
 
     Args:
-        dx, dy, dz (float): are the increments in (x, y, z) to move all simple sources or all receivers.
+        dx, dy, dz (float): are the increments in (x, y, z) to
+            move all simple sources or all receivers.
 
     Returns:
         coordinates (tuple): namedtuple Coordinate of the increments

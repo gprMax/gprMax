@@ -75,7 +75,10 @@ class Grid(object):
 
 
 class FDTDGrid(Grid):
-    """Holds attributes associated with the entire grid. A convenient way for accessing regularly used parameters."""
+    """
+    Holds attributes associated with the entire grid. A convenient
+    way for accessing regularly used parameters.
+    """
 
     def __init__(self):
         self.inputfilename = ''
@@ -87,7 +90,8 @@ class FDTDGrid(Grid):
         # CPU - OpenMP threads
         self.nthreads = 0
 
-        # Threshold (dB) down from maximum power (0dB) of main frequency used to calculate highest frequency for disperion analysis
+        # Threshold (dB) down from maximum power (0dB) of main frequency used
+        # to calculate highest frequency for disperion analysis
         self.highestfreqthres = 60
         # Maximum allowable percentage physical phase-velocity phase error
         self.maxnumericaldisp = 2
@@ -105,7 +109,10 @@ class FDTDGrid(Grid):
         self.iterations = 0
         self.timewindow = 0
 
-        # Ordered dictionary required so that PMLs are always updated in the same order. The order itself does not matter, however, if must be the same from model to model otherwise the numerical precision from adding the PML corrections will be different.
+        # Ordered dictionary required so that PMLs are always updated in the
+        # same order. The order itself does not matter, however, if must be the
+        # same from model to model otherwise the numerical precision from adding
+        # the PML corrections will be different.
         self.pmlthickness = OrderedDict((key, 10) for key in PML.boundaryIDs)
         self.cfs = []
         self.pmls = []
@@ -127,8 +134,12 @@ class FDTDGrid(Grid):
         self.snapshots = []
 
     def initialise_geometry_arrays(self):
-        """Initialise an array for volumetric material IDs (solid); boolean arrays for specifying whether materials can have dielectric smoothing (rigid);
-            and an array for cell edge IDs (ID). Solid and ID arrays are initialised to free_space (one); rigid arrays to allow dielectric smoothing (zero).
+        """
+        Initialise an array for volumetric material IDs (solid);
+            boolean arrays for specifying whether materials can have dielectric smoothing (rigid);
+            and an array for cell edge IDs (ID).
+        Solid and ID arrays are initialised to free_space (one);
+            rigid arrays to allow dielectric smoothing (zero).
         """
         self.solid = np.ones((self.nx, self.ny, self.nz), dtype=np.uint32)
         self.rigidE = np.zeros((12, self.nx, self.ny, self.nz), dtype=np.int8)
@@ -159,7 +170,9 @@ class FDTDGrid(Grid):
 
 
 def dispersion_analysis(G):
-    """Analysis of numerical dispersion (Taflove et al, 2005, p112) - worse case of maximum frequency and minimum wavelength
+    """
+    Analysis of numerical dispersion (Taflove et al, 2005, p112) -
+        worse case of maximum frequency and minimum wavelength
 
     Args:
         G (class): Grid class instance - holds essential parameters describing the model.
@@ -168,7 +181,8 @@ def dispersion_analysis(G):
         results (dict): Results from dispersion analysis
     """
 
-    # Physical phase velocity error (percentage); grid sampling density; material with maximum permittivity; maximum significant frequency
+    # Physical phase velocity error (percentage); grid sampling density;
+    # material with maximum permittivity; maximum significant frequency
     results = {'deltavp': False, 'N': False, 'waveform': True, 'material': False, 'maxfreq': []}
 
     # Find maximum significant frequency

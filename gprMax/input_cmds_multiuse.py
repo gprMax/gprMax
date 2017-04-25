@@ -43,7 +43,9 @@ from gprMax.waveforms import Waveform
 
 
 def process_multicmds(multicmds, G):
-    """Checks the validity of command parameters and creates instances of classes of parameters.
+    """
+    Checks the validity of command parameters and creates instances of
+        classes of parameters.
 
     Args:
         multicmds (dict): Commands that can have multiple instances in the model.

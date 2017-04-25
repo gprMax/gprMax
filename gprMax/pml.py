@@ -169,7 +169,8 @@ class PML(object):
         self.ny = yf - ys
         self.nz = zf - zs
 
-        # Spatial discretisation and thickness (one extra cell of thickness required for interpolation of electric and magnetic scaling values)
+        # Spatial discretisation and thickness (one extra cell of thickness
+        # required for interpolation of electric and magnetic scaling values)
         if self.direction[0] == 'x':
             self.d = G.dx
             self.thickness = self.nx + 1
@@ -266,7 +267,9 @@ class PML(object):
 
 
 def build_pmls(G, pbar):
-    """This function builds instances of the PML and calculates the initial parameters and coefficients including setting profile
+    """
+    This function builds instances of the PML and calculates the initial
+        parameters and coefficients including setting profile
         (based on underlying material er and mr from solid array).
 
     Args:

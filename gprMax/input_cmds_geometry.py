@@ -49,13 +49,17 @@ from gprMax.utilities import get_terminal_width
 
 
 def process_geometrycmds(geometry, G):
-    """This function checks the validity of command parameters, creates instances of classes of parameters, and calls functions to directly set arrays solid, rigid and ID.
+    """
+    This function checks the validity of command parameters, creates instances
+    of classes of parameters, and calls functions to directly set arrays
+    solid, rigid and ID.
 
     Args:
         geometry (list): Geometry commands in the model
     """
 
-    # Disable progress bar if on Windows as it does not update properly when messages are printed
+    # Disable progress bar if on Windows as it does not update properly
+    # when messages are printed
     if sys.platform == 'win32':
         tqdmdisable = True
     else:
@@ -112,11 +116,13 @@ def process_geometrycmds(geometry, G):
 
             data = f['/data'][:]
 
-            # Should be int16 to allow for -1 which indicates background, i.e. don't build anything, but AustinMan/Woman maybe uint16
+            # Should be int16 to allow for -1 which indicates background, i.e.
+            # don't build anything, but AustinMan/Woman maybe uint16
             if data.dtype != 'int16':
                 data = data.astype('int16')
 
-            # Look to see if rigid and ID arrays are present (these should be present if the original geometry objects were written from gprMax)
+            # Look to see if rigid and ID arrays are present (these should be
+            # present if the original geometry objects were written from gprMax)
             try:
                 rigidE = f['/rigidE'][:]
                 rigidH = f['/rigidH'][:]

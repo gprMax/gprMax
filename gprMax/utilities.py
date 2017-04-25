@@ -83,7 +83,9 @@ def logo(version):
 
 @contextmanager
 def open_path_file(path_or_file):
-    """Accepts either a path as a string or a file object and returns a file object (http://stackoverflow.com/a/6783680).
+    """
+    Accepts either a path as a string or a file object and returns a file
+    object (http://stackoverflow.com/a/6783680).
 
     Args:
         path_or_file: path as a string or a file object.
@@ -157,7 +159,8 @@ def get_host_info():
     """Get information about the machine, CPU, RAM, and OS.
 
     Returns:
-        hostinfo (dict): Manufacturer and model of machine; description of CPU type, speed, cores; RAM; name and version of operating system.
+        hostinfo (dict): Manufacturer and model of machine; description of CPU
+                type, speed, cores; RAM; name and version of operating system.
     """
 
     # Default to 'unknown' if any of the detection fails
@@ -275,7 +278,8 @@ def get_host_info():
     hostinfo['hyperthreading'] = hyperthreading
     hostinfo['logicalcores'] = psutil.cpu_count()
     try:
-        hostinfo['physicalcores'] = psutil.cpu_count(logical=False)  # Get number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
+        # Get number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
+        hostinfo['physicalcores'] = psutil.cpu_count(logical=False)
     except ValueError:
         hostinfo['physicalcores'] = hostinfo['logicalcores']
     hostinfo['ram'] = psutil.virtual_memory().total
