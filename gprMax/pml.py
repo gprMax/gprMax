@@ -122,13 +122,14 @@ class CFS(object):
         elif parameter.scaling == 'polynomial':
             Evalues, Hvalues = self.scaling_polynomial(CFSParameter.scalingprofiles[parameter.scalingprofile], Evalues, Hvalues)
             if parameter.ID == 'alpha':
-                pass
+                Evalues = Evalues * (self.alpha.max - self.alpha.min) + self.alpha.min
+                Hvalues = Hvalues * (self.alpha.max - self.alpha.min) + self.alpha.min
             elif parameter.ID == 'kappa':
-                Evalues = Evalues * (self.kappa.max - 1) + 1
-                Hvalues = Hvalues * (self.kappa.max - 1) + 1
+                Evalues = Evalues * (self.kappa.max - self.kappa.min) + self.kappa.min
+                Hvalues = Hvalues * (self.kappa.max - self.kappa.min) + self.kappa.min
             elif parameter.ID == 'sigma':
-                Evalues *= self.sigma.max
-                Hvalues *= self.sigma.max
+                Evalues = Evalues * (self.sigma.max - self.sigma.min) + self.sigma.min
+                Hvalues = Hvalues * (self.sigma.max - self.sigma.min) + self.sigma.min
 
         if parameter.scalingdirection == 'reverse':
             Evalues = Evalues[::-1]
@@ -252,7 +253,7 @@ class PML(object):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        func = getattr(import_module('gprMax.pml_' + str(len(self.CFS)) + 'order_update'), 'update_pml_' + str(len(self.CFS)) + 'order_electric_' + self.direction)
+        func = getattr(import_module('gprMax.pml_updates'), 'update_pml_' + str(len(self.CFS)) + 'order_electric_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.EPhi1, self.EPhi2, self.ERA, self.ERB, self.ERE, self.ERF, self.d)
 
     def update_magnetic(self, G):
@@ -262,7 +263,7 @@ class PML(object):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        func = getattr(import_module('gprMax.pml_' + str(len(self.CFS)) + 'order_update'), 'update_pml_' + str(len(self.CFS)) + 'order_magnetic_' + self.direction)
+        func = getattr(import_module('gprMax.pml_updates'), 'update_pml_' + str(len(self.CFS)) + 'order_magnetic_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.HPhi1, self.HPhi2, self.HRA, self.HRB, self.HRE, self.HRF, self.d)
 
 
