@@ -120,13 +120,14 @@ class CFS(object):
         elif parameter.scaling == 'polynomial':
             Evalues, Hvalues = self.scaling_polynomial(CFSParameter.scalingprofiles[parameter.scalingprofile], Evalues, Hvalues)
             if parameter.ID == 'alpha':
-                pass
+                Evalues = Evalues * (self.alpha.max - self.alpha.min) + self.alpha.min
+                Hvalues = Hvalues * (self.alpha.max - self.alpha.min) + self.alpha.min
             elif parameter.ID == 'kappa':
-                Evalues = Evalues * (self.kappa.max - 1) + 1
-                Hvalues = Hvalues * (self.kappa.max - 1) + 1
+                Evalues = Evalues * (self.kappa.max - self.kappa.min) + self.kappa.min
+                Hvalues = Hvalues * (self.kappa.max - self.kappa.min) + self.kappa.min
             elif parameter.ID == 'sigma':
-                Evalues *= self.sigma.max
-                Hvalues *= self.sigma.max
+                Evalues = Evalues * (self.sigma.max - self.sigma.min) + self.sigma.min
+                Hvalues = Hvalues * (self.sigma.max - self.sigma.min) + self.sigma.min
 
         if parameter.scalingdirection == 'reverse':
             Evalues = Evalues[::-1]
