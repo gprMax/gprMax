@@ -20,21 +20,35 @@ import numpy as np
 cimport numpy as np
 from cython.parallel import prange
 
-from gprMax.constants cimport floattype_t, complextype_t
+from gprMax.constants cimport floattype_t
+from gprMax.constants cimport complextype_t
 
 
 ###############################################
 # Electric field updates - standard materials #
 ###############################################
-cpdef void update_electric(int nx, int ny, int nz, int nthreads, floattype_t[:, ::1] updatecoeffsE, np.uint32_t[:, :, :, ::1] ID, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz):
+cpdef void update_electric(
+                    int nx,
+                    int ny,
+                    int nz,
+                    int nthreads,
+                    floattype_t[:, ::1] updatecoeffsE,
+                    np.uint32_t[:, :, :, ::1] ID,
+                    floattype_t[:, :, ::1] Ex,
+                    floattype_t[:, :, ::1] Ey,
+                    floattype_t[:, :, ::1] Ez,
+                    floattype_t[:, :, ::1] Hx,
+                    floattype_t[:, :, ::1] Hy,
+                    floattype_t[:, :, ::1] Hz
+            ):
     """This function updates the electric field components.
-        
+
     Args:
         nx, ny, nz (int): Grid size in cells
         nthreads (int): Number of threads to use
         updatecoeffs, ID, E, H (memoryviews): Access to update coeffients, ID and field component arrays
     """
-    
+
     cdef Py_ssize_t i, j, k
     cdef int materialEx, materialEy, materialEz
 
@@ -96,16 +110,34 @@ cpdef void update_electric(int nx, int ny, int nz, int nthreads, floattype_t[:, 
 #################################################
 # Electric field updates - dispersive materials #
 #################################################
-cpdef void update_electric_dispersive_multipole_A(int nx, int ny, int nz, int nthreads, int maxpoles, floattype_t[:, ::1] updatecoeffsE, complextype_t[:, ::1] updatecoeffsdispersive, np.uint32_t[:, :, :, ::1] ID, complextype_t[:, :, :, ::1] Tx, complextype_t[:, :, :, ::1] Ty, complextype_t[:, :, :, ::1] Tz, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz):
+cpdef void update_electric_dispersive_multipole_A(
+                    int nx,
+                    int ny,
+                    int nz,
+                    int nthreads,
+                    int maxpoles,
+                    floattype_t[:, ::1] updatecoeffsE,
+                    complextype_t[:, ::1] updatecoeffsdispersive,
+                    np.uint32_t[:, :, :, ::1] ID,
+                    complextype_t[:, :, :, ::1] Tx,
+                    complextype_t[:, :, :, ::1] Ty,
+                    complextype_t[:, :, :, ::1] Tz,
+                    floattype_t[:, :, ::1] Ex,
+                    floattype_t[:, :, ::1] Ey,
+                    floattype_t[:, :, ::1] Ez,
+                    floattype_t[:, :, ::1] Hx,
+                    floattype_t[:, :, ::1] Hy,
+                    floattype_t[:, :, ::1] Hz
+            ):
     """This function updates the electric field components when dispersive materials (with multiple poles) are present.
-        
+
     Args:
         nx, ny, nz (int): Grid size in cells
         maxpoles (int): Maximum number of poles
         nthreads (int): Number of threads to use
         updatecoeffs, T, ID, E, H (memoryviews): Access to update coeffients, temporary, ID and field component arrays
     """
-    
+
     cdef Py_ssize_t i, j, k, pole
     cdef int material
     cdef float phi = 0
@@ -148,16 +180,30 @@ cpdef void update_electric_dispersive_multipole_A(int nx, int ny, int nz, int nt
 
 
 
-cpdef void update_electric_dispersive_multipole_B(int nx, int ny, int nz, int nthreads, int maxpoles, complextype_t[:, ::1] updatecoeffsdispersive, np.uint32_t[:, :, :, ::1] ID, complextype_t[:, :, :, ::1] Tx, complextype_t[:, :, :, ::1] Ty, complextype_t[:, :, :, ::1] Tz, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez):
+cpdef void update_electric_dispersive_multipole_B(
+                    int nx,
+                    int ny,
+                    int nz,
+                    int nthreads,
+                    int maxpoles,
+                    complextype_t[:, ::1] updatecoeffsdispersive,
+                    np.uint32_t[:, :, :, ::1] ID,
+                    complextype_t[:, :, :, ::1] Tx,
+                    complextype_t[:, :, :, ::1] Ty,
+                    complextype_t[:, :, :, ::1] Tz,
+                    floattype_t[:, :, ::1] Ex,
+                    floattype_t[:, :, ::1] Ey,
+                    floattype_t[:, :, ::1] Ez
+            ):
     """This function updates a temporary dispersive material array when disperisive materials (with multiple poles) are present.
-        
+
     Args:
         nx, ny, nz (int): Grid size in cells
         maxpoles (int): Maximum number of poles
         nthreads (int): Number of threads to use
         updatecoeffs, T, ID, E (memoryviews): Access to update coeffients, temporary, ID and field component arrays
     """
-    
+
     cdef Py_ssize_t i, j, k, pole
     cdef int material
 
@@ -189,15 +235,32 @@ cpdef void update_electric_dispersive_multipole_B(int nx, int ny, int nz, int nt
                         Tz[pole, i, j, k] = Tz[pole, i, j, k] - updatecoeffsdispersive[material, 2 + (pole * 3)] * Ez[i, j, k]
 
 
-cpdef void update_electric_dispersive_1pole_A(int nx, int ny, int nz, int nthreads, floattype_t[:, ::1] updatecoeffsE, complextype_t[:, ::1] updatecoeffsdispersive, np.uint32_t[:, :, :, ::1] ID, complextype_t[:, :, :, ::1] Tx, complextype_t[:, :, :, ::1] Ty, complextype_t[:, :, :, ::1] Tz, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz):
+cpdef void update_electric_dispersive_1pole_A(
+                    int nx,
+                    int ny,
+                    int nz,
+                    int nthreads,
+                    floattype_t[:, ::1] updatecoeffsE,
+                    complextype_t[:, ::1] updatecoeffsdispersive,
+                    np.uint32_t[:, :, :, ::1] ID,
+                    complextype_t[:, :, :, ::1] Tx,
+                    complextype_t[:, :, :, ::1] Ty,
+                    complextype_t[:, :, :, ::1] Tz,
+                    floattype_t[:, :, ::1] Ex,
+                    floattype_t[:, :, ::1] Ey,
+                    floattype_t[:, :, ::1] Ez,
+                    floattype_t[:, :, ::1] Hx,
+                    floattype_t[:, :, ::1] Hy,
+                    floattype_t[:, :, ::1] Hz
+            ):
     """This function updates the electric field components when dispersive materials (with 1 pole) are present.
-        
+
     Args:
         nx, ny, nz (int): Grid size in cells
         nthreads (int): Number of threads to use
         updatecoeffs, T, ID, E, H (memoryviews): Access to update coeffients, temporary, ID and field component arrays
     """
-    
+
     cdef Py_ssize_t i, j, k
     cdef int material
     cdef float phi = 0
@@ -233,15 +296,28 @@ cpdef void update_electric_dispersive_1pole_A(int nx, int ny, int nz, int nthrea
                     Ez[i, j, k] = updatecoeffsE[material, 0] * Ez[i, j, k] + updatecoeffsE[material, 1] * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[material, 2] * (Hx[i, j, k] - Hx[i, j - 1, k]) - updatecoeffsE[material, 4] * phi
 
 
-cpdef void update_electric_dispersive_1pole_B(int nx, int ny, int nz, int nthreads, complextype_t[:, ::1] updatecoeffsdispersive, np.uint32_t[:, :, :, ::1] ID, complextype_t[:, :, :, ::1] Tx, complextype_t[:, :, :, ::1] Ty, complextype_t[:, :, :, ::1] Tz, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez):
+cpdef void update_electric_dispersive_1pole_B(
+                    int nx,
+                    int ny,
+                    int nz,
+                    int nthreads,
+                    complextype_t[:, ::1] updatecoeffsdispersive,
+                    np.uint32_t[:, :, :, ::1] ID,
+                    complextype_t[:, :, :, ::1] Tx,
+                    complextype_t[:, :, :, ::1] Ty,
+                    complextype_t[:, :, :, ::1] Tz,
+                    floattype_t[:, :, ::1] Ex,
+                    floattype_t[:, :, ::1] Ey,
+                    floattype_t[:, :, ::1] Ez
+            ):
     """This function updates a temporary dispersive material array when disperisive materials (with 1 pole) are present.
-        
+
     Args:
         nx, ny, nz (int): Grid size in cells
         nthreads (int): Number of threads to use
         updatecoeffs, T, ID, E (memoryviews): Access to update coeffients, temporary, ID and field component arrays
     """
-    
+
     cdef Py_ssize_t i, j, k
     cdef int material
 
@@ -273,15 +349,28 @@ cpdef void update_electric_dispersive_1pole_B(int nx, int ny, int nz, int nthrea
 ##########################
 # Magnetic field updates #
 ##########################
-cpdef void update_magnetic(int nx, int ny, int nz, int nthreads, floattype_t[:, ::1] updatecoeffsH, np.uint32_t[:, :, :, ::1] ID, floattype_t[:, :, ::1] Ex, floattype_t[:, :, ::1] Ey, floattype_t[:, :, ::1] Ez, floattype_t[:, :, ::1] Hx, floattype_t[:, :, ::1] Hy, floattype_t[:, :, ::1] Hz):
+cpdef void update_magnetic(
+                    int nx,
+                    int ny,
+                    int nz,
+                    int nthreads,
+                    floattype_t[:, ::1] updatecoeffsH,
+                    np.uint32_t[:, :, :, ::1] ID,
+                    floattype_t[:, :, ::1] Ex,
+                    floattype_t[:, :, ::1] Ey,
+                    floattype_t[:, :, ::1] Ez,
+                    floattype_t[:, :, ::1] Hx,
+                    floattype_t[:, :, ::1] Hy,
+                    floattype_t[:, :, ::1] Hz
+            ):
     """This function updates the magnetic field components.
-        
+
     Args:
         nx, ny, nz (int): Grid size in cells
         nthreads (int): Number of threads to use
         updatecoeffs, ID, E, H (memoryviews): Access to update coeffients, ID and field component arrays
     """
-    
+
     cdef Py_ssize_t i, j, k
     cdef int materialHx, materialHy, materialHz
 

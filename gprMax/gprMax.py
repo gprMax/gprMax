@@ -20,19 +20,27 @@
 
 import argparse
 import datetime
-from enum import Enum
 import os
-from time import perf_counter
 import sys
+
+from enum import Enum
+from time import perf_counter
 
 import h5py
 import numpy as np
 
 from gprMax._version import __version__, codename
-from gprMax.constants import c, e0, m0, z0
+from gprMax.constants import c
+from gprMax.constants import e0
+from gprMax.constants import m0
+from gprMax.constants import z0
 from gprMax.exceptions import GeneralError
 from gprMax.model_build_run import run_model
-from gprMax.utilities import get_host_info, get_terminal_width, human_size, logo, open_path_file
+from gprMax.utilities import get_host_info
+from gprMax.utilities import get_terminal_width
+from gprMax.utilities import human_size
+from gprMax.utilities import logo
+from gprMax.utilities import open_path_file
 
 
 def main():
@@ -59,7 +67,18 @@ def main():
     run_main(args)
 
 
-def api(inputfile, n=1, task=None, restart=None, mpi=False, benchmark=False, geometry_only=False, geometry_fixed=False, write_processed=False, opt_taguchi=False):
+def api(
+            inputfile,
+            n=1,
+            task=None,
+            restart=None,
+            mpi=False,
+            benchmark=False,
+            geometry_only=False,
+            geometry_fixed=False,
+            write_processed=False,
+            opt_taguchi=False
+        ):
     """If installed as a module this is the entry point."""
 
     # Print gprMax logo, version, and licencing/copyright information
@@ -85,12 +104,13 @@ def api(inputfile, n=1, task=None, restart=None, mpi=False, benchmark=False, geo
 
 
 def run_main(args):
-    """Top-level function that controls what mode of simulation (standard/optimsation/benchmark etc...) is run.
+    """
+    Top-level function that controls what mode of simulation (standard/optimsation/benchmark etc...) is run.
 
     Args:
         args (dict): Namespace with input arguments from command line or api.
     """
-    
+
     with open_path_file(args.inputfile) as inputfile:
 
         # Get information about host machine
@@ -130,7 +150,7 @@ def run_main(args):
                 if args.task:
                     raise GeneralError('MPI cannot be combined with job array mode')
                 run_mpi_sim(args, inputfile, usernamespace)
-        
+
             # Standard behaviour - models run serially with each model parallelised with OpenMP (CPU) or CUDA (GPU)
             else:
                 if args.task and args.restart:
@@ -139,13 +159,17 @@ def run_main(args):
 
 
 def run_std_sim(args, inputfile, usernamespace, optparams=None):
-    """Run standard simulation - models are run one after another and each model is parallelised with OpenMP
+    """
+    Run standard simulation - models are run one after another and each model
+    is parallelised with OpenMP
 
     Args:
         args (dict): Namespace with command line arguments
         inputfile (object): File object for the input file.
-        usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
-        optparams (dict): Optional argument. For Taguchi optimisation it provides the parameters to optimise and their values.
+        usernamespace (dict): Namespace that can be accessed by user in any
+                Python code blocks in input file.
+        optparams (dict): Optional argument. For Taguchi optimisation it
+                provides the parameters to optimise and their values.
     """
 
     # Set range for number of models to run
@@ -160,10 +184,12 @@ def run_std_sim(args, inputfile, usernamespace, optparams=None):
         modelstart = 1
         modelend = modelstart + args.n
     numbermodelruns = args.n
-    
+
     tsimstart = perf_counter()
     for currentmodelrun in range(modelstart, modelend):
-        if optparams:  # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
+        # If Taguchi optimistaion, add specific value for each parameter to
+        # optimise for each experiment to user accessible namespace
+        if optparams:
             tmp = {}
             tmp.update((key, value[currentmodelrun - 1]) for key, value in optparams.items())
             modelusernamespace = usernamespace.copy()
@@ -177,12 +203,15 @@ def run_std_sim(args, inputfile, usernamespace, optparams=None):
 
 
 def run_benchmark_sim(args, inputfile, usernamespace):
-    """Run standard simulation in benchmarking mode - models are run one after another and each model is parallelised with OpenMP
+    """
+    Run standard simulation in benchmarking mode - models are run one
+    after another and each model is parallelised with OpenMP
 
     Args:
         args (dict): Namespace with command line arguments
         inputfile (object): File object for the input file.
-        usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
+        usernamespace (dict): Namespace that can be accessed by user in any
+                Python code blocks in input file.
     """
 
     # Get information about host machine
@@ -211,7 +240,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
 
     numbermodelruns = len(cputhreads)
     modelend = numbermodelruns + 1
-                
+
     usernamespace['number_model_runs'] = numbermodelruns
 
     for currentmodelrun in range(1, modelend):
@@ -236,17 +265,21 @@ def run_benchmark_sim(args, inputfile, usernamespace):
 
 
 def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
-    """Run mixed mode MPI/OpenMP simulation - MPI task farm for models with each model parallelised with OpenMP
+    """
+    Run mixed mode MPI/OpenMP simulation - MPI task farm for models with
+    each model parallelised with OpenMP
 
     Args:
         args (dict): Namespace with command line arguments
         inputfile (object): File object for the input file.
-        usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
-        optparams (dict): Optional argument. For Taguchi optimisation it provides the parameters to optimise and their values.
+        usernamespace (dict): Namespace that can be accessed by user in any
+                Python code blocks in input file.
+        optparams (dict): Optional argument. For Taguchi optimisation it
+                provides the parameters to optimise and their values.
     """
 
     from mpi4py import MPI
-    
+
     # Get name of processor/host
     name = MPI.Get_processor_name()
 
@@ -254,18 +287,18 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     modelstart = args.restart if args.restart else 1
     modelend = modelstart + args.n
     numbermodelruns = args.n
-    
+
     # Number of workers and command line flag to indicate a spawned worker
     worker = '--mpi-worker'
     numberworkers = args.mpi - 1
 
     # Master process
     if worker not in sys.argv:
-        
+
         tsimstart = perf_counter()
-        
+
         print('MPI master rank (PID {}) on {} using {} workers'.format(os.getpid(), name, numberworkers))
-        
+
         # Create a list of work
         worklist = []
         for model in range(modelstart, modelend):
@@ -306,11 +339,12 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         # Ask for work until stop sentinel
         for work in iter(lambda: comm.sendrecv(0, dest=0), StopIteration):
             currentmodelrun = work['currentmodelrun']
-            
+
             gpuinfo = ''
             print('MPI worker rank {} (PID {}) starting model {}/{}{} on {}'.format(rank, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo, name))
-            
-            # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
+
+            # If Taguchi optimistaion, add specific value for each parameter to
+            # optimise for each experiment to user accessible namespace
             if 'optparams' in work:
                 tmp = {}
                 tmp.update((key, value[currentmodelrun - 1]) for key, value in work['optparams'].items())

@@ -16,25 +16,36 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from colorama import init, Fore, Style
+from colorama import init
+from colorama import Fore
+from colorama import Style
 init()
 import numpy as np
 from tqdm import tqdm
 
-from gprMax.constants import z0, floattype
+from gprMax.constants import z0
+from gprMax.constants import floattype
 from gprMax.exceptions import CmdInputError
-from gprMax.geometry_outputs import GeometryView, GeometryObjects
-from gprMax.materials import Material, PeplinskiSoil
-from gprMax.pml import CFSParameter, CFS
+from gprMax.geometry_outputs import GeometryView
+from gprMax.geometry_outputs import GeometryObjects
+from gprMax.materials import Material
+from gprMax.materials import PeplinskiSoil
+from gprMax.pml import CFSParameter
+from gprMax.pml import CFS
 from gprMax.receivers import Rx
 from gprMax.snapshots import Snapshot
-from gprMax.sources import VoltageSource, HertzianDipole, MagneticDipole, TransmissionLine
+from gprMax.sources import VoltageSource
+from gprMax.sources import HertzianDipole
+from gprMax.sources import MagneticDipole
+from gprMax.sources import TransmissionLine
 from gprMax.utilities import round_value
 from gprMax.waveforms import Waveform
 
 
 def process_multicmds(multicmds, G):
-    """Checks the validity of command parameters and creates instances of classes of parameters.
+    """
+    Checks the validity of command parameters and creates instances of
+        classes of parameters.
 
     Args:
         multicmds (dict): Commands that can have multiple instances in the model.

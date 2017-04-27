@@ -75,7 +75,8 @@ def write_hdf5_outputfile(outputfile, Ex, Ey, Ez, Hx, Hy, Hz, G):
         grp.attrs['Type'] = type(src).__name__
         grp.attrs['Position'] = (src.xcoord * G.dx, src.ycoord * G.dy, src.zcoord * G.dz)
 
-    # Create group for transmission lines; add positional data, line resistance and line discretisation attributes; write arrays for line voltages and currents
+    # Create group for transmission lines; add positional data, line resistance and
+    # line discretisation attributes; write arrays for line voltages and currents
     for tlindex, tl in enumerate(G.transmissionlines):
         grp = f.create_group('/tls/tl' + str(tlindex + 1))
         grp.attrs['Position'] = (tl.xcoord * G.dx, tl.ycoord * G.dy, tl.zcoord * G.dz)

@@ -23,7 +23,9 @@ from struct import pack
 import numpy as np
 
 from gprMax.constants import floattype
-from gprMax.grid import Ix, Iy, Iz
+from gprMax.grid import Ix
+from gprMax.grid import Iy
+from gprMax.grid import Iz
 from gprMax.utilities import round_value
 
 
@@ -134,7 +136,8 @@ class Snapshot(object):
             for j in range(self.ys, self.yf, self.dy):
                 for i in range(self.xs, self.xf, self.dx):
                     pbar.update(n=12)
-                    # The magnetic field component value at a point comes from average of 2 magnetic field component values in that cell and the following cell
+                    # The magnetic field component value at a point comes from average
+                    # of 2 magnetic field component values in that cell and the following cell
                     self.filehandle.write(pack(Snapshot.floatstring, (Hx[i, j, k] + Hx[i + 1, j, k]) / 2))
                     self.filehandle.write(pack(Snapshot.floatstring, (Hy[i, j, k] + Hy[i, j + 1, k]) / 2))
                     self.filehandle.write(pack(Snapshot.floatstring, (Hz[i, j, k] + Hz[i, j, k + 1]) / 2))

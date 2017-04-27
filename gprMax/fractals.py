@@ -18,7 +18,8 @@
 
 import numpy as np
 
-from gprMax.constants import floattype, complextype
+from gprMax.constants import floattype
+from gprMax.constants import complextype
 from gprMax.utilities import round_value
 
 np.seterr(divide='raise')
@@ -32,7 +33,8 @@ class FractalSurface(object):
     def __init__(self, xs, xf, ys, yf, zs, zf, dimension):
         """
         Args:
-            xs, xf, ys, yf, zs, zf (float): Extent of the fractal surface (one pair of coordinates must be equal to correctly define a surface).
+            xs, xf, ys, yf, zs, zf (float): Extent of the fractal surface (one pair of
+                            coordinates must be equal to correctly define a surface).
             dimension (float): Fractal dimension that controls the fractal distribution.
         """
 
@@ -99,7 +101,8 @@ class FractalSurface(object):
         fractalmin = np.amin(self.fractalsurface)
         fractalmax = np.amax(self.fractalsurface)
         fractalrange = fractalmax - fractalmin
-        self.fractalsurface = self.fractalsurface * ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange) + self.fractalrange[0] - ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange) * fractalmin
+        self.fractalsurface = self.fractalsurface * ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange) \
+                + self.fractalrange[0] - ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange) * fractalmin
 
 
 class FractalVolume(object):
@@ -188,7 +191,9 @@ class FractalVolume(object):
                 self.fractalvolume[:, j, k] = np.digitize(self.fractalvolume[:, j, k], bins, right=True)
 
     def generate_volume_mask(self):
-        """Generate a 3D volume to use as a mask for adding rough surfaces, water and grass/roots. Zero signifies the mask is not set, one signifies the mask is set."""
+        """
+        Generate a 3D volume to use as a mask for adding rough surfaces, water and grass/roots.
+        Zero signifies the mask is not set, one signifies the mask is set."""
 
         self.mask = np.zeros((self.nx, self.ny, self.nz), dtype=np.int8)
         maskxs = self.originalxs - self.xs

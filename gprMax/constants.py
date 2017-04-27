@@ -27,7 +27,8 @@ z0 = np.sqrt(m0 / e0)
 # Data types:
 #   Solid and ID arrays use 32-bit integers (0 to 4294967295)
 #   Rigid arrays use 8-bit integers (the smallest available type to store true/false)
-#   Fractal and dispersive coefficient arrays use complex numbers (complextype) which are represented as two floats
+#   Fractal and dispersive coefficient arrays use complex numbers (complextype)
+#                    which are represented as two floats
 #   Main field arrays use floats (floattype) and complex numbers (complextype)
 
 # Single precision

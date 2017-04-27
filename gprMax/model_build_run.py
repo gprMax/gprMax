@@ -31,17 +31,33 @@ from tqdm import tqdm
 
 from gprMax.constants import floattype, cfloattype, ccomplextype
 from gprMax.exceptions import GeneralError
-from gprMax.fields_outputs import store_outputs, write_hdf5_outputfile
-from gprMax.fields_updates import update_electric, update_magnetic, update_electric_dispersive_multipole_A, update_electric_dispersive_multipole_B, update_electric_dispersive_1pole_A, update_electric_dispersive_1pole_B
-from gprMax.grid import FDTDGrid, dispersion_analysis
+
+from gprMax.fields_outputs import store_outputs
+from gprMax.fields_outputs import write_hdf5_outputfile
+
+from gprMax.fields_updates import update_electric
+from gprMax.fields_updates import update_magnetic
+from gprMax.fields_updates import update_electric_dispersive_multipole_A
+from gprMax.fields_updates import update_electric_dispersive_multipole_B
+from gprMax.fields_updates import update_electric_dispersive_1pole_A
+from gprMax.fields_updates import update_electric_dispersive_1pole_B
+
+from gprMax.grid import FDTDGrid
+from gprMax.grid import dispersion_analysis
 from gprMax.input_cmds_geometry import process_geometrycmds
-from gprMax.input_cmds_file import process_python_include_code, write_processed_file, check_cmd_names
+from gprMax.input_cmds_file import process_python_include_code
+from gprMax.input_cmds_file import write_processed_file
+from gprMax.input_cmds_file import check_cmd_names
 from gprMax.input_cmds_multiuse import process_multicmds
 from gprMax.input_cmds_singleuse import process_singlecmds
 from gprMax.materials import Material, process_materials
-from gprMax.pml import PML, build_pmls
-from gprMax.utilities import get_terminal_width, human_size, open_path_file
-from gprMax.yee_cell_build import build_electric_components, build_magnetic_components
+from gprMax.pml import PML
+from gprMax.pml import build_pmls
+from gprMax.utilities import get_terminal_width
+from gprMax.utilities import human_size
+from gprMax.utilities import open_path_file
+from gprMax.yee_cell_build import build_electric_components
+from gprMax.yee_cell_build import build_magnetic_components
 
 
 def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usernamespace):
@@ -53,7 +69,8 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         modelend (int): Number of last model to run.
         numbermodelruns (int): Total number of model runs.
         inputfile (object): File object for the input file.
-        usernamespace (dict): Namespace that can be accessed by user in any Python code blocks in input file.
+        usernamespace (dict): Namespace that can be accessed by user
+                in any Python code blocks in input file.
 
     Returns:
         tsolve (int): Length of time (seconds) of main FDTD calculations
@@ -67,7 +84,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
     # Used for naming geometry and output files
     appendmodelnumber = '' if numbermodelruns == 1 and not args.task and not args.restart else str(currentmodelrun)
-    
+
     # Normal model reading/building process; bypassed if geometry information to be reused
     if 'G' not in globals():
 
@@ -79,7 +96,8 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         inputfilestr = '\n--- Model {}/{}, input file: {}'.format(currentmodelrun, modelend, inputfile.name)
         print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
-        # Add the current model run to namespace that can be accessed by user in any Python code blocks in input file
+        # Add the current model run to namespace that can be accessed by
+        # user in any Python code blocks in input file
         usernamespace['current_model_run'] = currentmodelrun
 
         # Read input file and process any Python and include file commands
@@ -116,7 +134,8 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         print()
         process_multicmds(multicmds, G)
 
-        # Initialise an array for volumetric material IDs (solid), boolean arrays for specifying materials not to be averaged (rigid),
+        # Initialise an array for volumetric material IDs (solid), boolean
+        # arrays for specifying materials not to be averaged (rigid),
         # an array for cell edge IDs (ID)
         G.initialise_geometry_arrays()
 
@@ -146,7 +165,8 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             build_pmls(G, pbar)
             pbar.close()
 
-        # Build the model, i.e. set the material properties (ID) for every edge of every Yee cell
+        # Build the model, i.e. set the material properties (ID) for every edge
+        # of every Yee cell
         print()
         pbar = tqdm(total=2, desc='Building main grid', ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
         build_electric_components(G.solid, G.rigidE, G.ID, G)
@@ -155,18 +175,21 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         pbar.update()
         pbar.close()
 
-        # Process any voltage sources (that have resistance) to create a new material at the source location
+        # Process any voltage sources (that have resistance) to create a new
+        # material at the source location
         for voltagesource in G.voltagesources:
             voltagesource.create_material(G)
 
         # Initialise arrays of update coefficients to pass to update functions
         G.initialise_std_update_coeff_arrays()
 
-        # Initialise arrays of update coefficients and temporary values if there are any dispersive materials
+        # Initialise arrays of update coefficients and temporary values if
+        # there are any dispersive materials
         if Material.maxpoles != 0:
             G.initialise_dispersive_arrays()
 
-        # Process complete list of materials - calculate update coefficients, store in arrays, and build text list of materials/properties
+        # Process complete list of materials - calculate update coefficients,
+        # store in arrays, and build text list of materials/properties
         materialsdata = process_materials(G)
         if G.messages:
             print('\nMaterials:')
@@ -257,7 +280,8 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             print('Memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss)))
             print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
 
-        # If geometry information to be reused between model runs then FDTDGrid class instance must be global so that it persists
+        # If geometry information to be reused between model runs then FDTDGrid
+        # class instance must be global so that it persists
         if not args.geometry_fixed:
             del G
 
@@ -265,7 +289,9 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
 
 def solve_cpu(currentmodelrun, modelend, G):
-    """Solving using FDTD method on CPU. Parallelised using Cython (OpenMP) for electric and magnetic field updates, and PML updates.
+    """
+    Solving using FDTD method on CPU. Parallelised using Cython (OpenMP) for
+    electric and magnetic field updates, and PML updates.
 
     Args:
         currentmodelrun (int): Current model run number.
@@ -302,9 +328,12 @@ def solve_cpu(currentmodelrun, modelend, G):
             source.update_magnetic(iteration, G.updatecoeffsH, G.ID, G.Hx, G.Hy, G.Hz, G)
 
         # Update electric field components
-        if Material.maxpoles == 0:  # All materials are non-dispersive so do standard update
+        # All materials are non-dispersive so do standard update
+        if Material.maxpoles == 0:
             update_electric(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
-        elif Material.maxpoles == 1:  # If there are any dispersive materials do 1st part of dispersive update (it is split into two parts as it requires present and updated electric field values).
+        # If there are any dispersive materials do 1st part of dispersive update
+        # (it is split into two parts as it requires present and updated electric field values).
+        elif Material.maxpoles == 1:
             update_electric_dispersive_1pole_A(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
         elif Material.maxpoles > 1:
             update_electric_dispersive_multipole_A(G.nx, G.ny, G.nz, G.nthreads, Material.maxpoles, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
@@ -317,7 +346,10 @@ def solve_cpu(currentmodelrun, modelend, G):
         for source in G.voltagesources + G.transmissionlines + G.hertziandipoles:
             source.update_electric(iteration, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
 
-        # If there are any dispersive materials do 2nd part of dispersive update (it is split into two parts as it requires present and updated electric field values). Therefore it can only be completely updated after the electric field has been updated by the PML and source updates.
+        # If there are any dispersive materials do 2nd part of dispersive update
+        # (it is split into two parts as it requires present and updated electric
+        # field values). Therefore it can only be completely updated after the
+        # electric field has been updated by the PML and source updates.
         if Material.maxpoles == 1:
             update_electric_dispersive_1pole_B(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez)
         elif Material.maxpoles > 1:

@@ -41,7 +41,8 @@ class GeometryView(object):
             xs, xf, ys, yf, zs, zf (int): Extent of the volume in cells.
             dx, dy, dz (int): Spatial discretisation in cells.
             filename (str): Filename to save to.
-            fileext (str): File extension of VTK file - either '.vti' for a per cell geometry view, or '.vtp' for a per cell edge geometry view.
+            fileext (str): File extension of VTK file - either '.vti' for a per cell
+                    geometry view, or '.vtp' for a per cell edge geometry view.
         """
 
         self.xs = xs
@@ -83,7 +84,8 @@ class GeometryView(object):
             self.datawritesize = np.dtype(np.float32).itemsize * self.vtk_numpoints * self.vtk_numpoint_components + np.dtype(np.uint32).itemsize * self.vtk_numlines * self.vtk_numline_components + np.dtype(np.uint32).itemsize * self.vtk_numlines + np.dtype(np.uint32).itemsize * self.vtk_numlines
 
     def set_filename(self, appendmodelnumber, G):
-        """Construct filename from user-supplied name and model run number.
+        """
+        Construct filename from user-supplied name and model run number.
 
         Args:
             appendmodelnumber (str): Text to append to filename.
@@ -94,7 +96,9 @@ class GeometryView(object):
         self.filename += self.fileext
 
     def write_vtk(self, G, pbar):
-        """Writes the geometry information to a VTK file. Either ImageData (.vti) for a per-cell geometry view, or PolygonalData (.vtp) for a per-cell-edge geometry view.
+        """
+        Writes the geometry information to a VTK file. Either ImageData (.vti) for a
+        per-cell geometry view, or PolygonalData (.vtp) for a per-cell-edge geometry view.
 
             N.B. No Python 3 support for VTK at time of writing (03/2015)
 
@@ -104,7 +108,8 @@ class GeometryView(object):
         """
 
         if self.fileext == '.vti':
-            # Create arrays and add numeric IDs for PML, sources and receivers (0 is not set, 1 is PML, srcs and rxs numbered thereafter)
+            # Create arrays and add numeric IDs for PML, sources and receivers
+            # (0 is not set, 1 is PML, srcs and rxs numbered thereafter)
             self.srcs_pml = np.zeros((G.nx + 1, G.ny + 1, G.nz + 1), dtype=np.int8)
             self.rxs = np.zeros((G.nx + 1, G.ny + 1, G.nz + 1), dtype=np.int8)
             for pml in G.pmls:
@@ -256,7 +261,9 @@ class GeometryView(object):
                 self.write_gprmax_info(f, G, materialsonly=True)
 
     def write_gprmax_info(self, f, G, materialsonly=False):
-        """Writes gprMax specific information relating material, source, and receiver names to numeric identifiers.
+        """
+        Writes gprMax specific information relating material, source,
+        and receiver names to numeric identifiers.
 
         Args:
             f (filehandle): VTK file.

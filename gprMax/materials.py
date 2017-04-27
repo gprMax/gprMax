@@ -18,7 +18,9 @@
 
 import numpy as np
 
-from gprMax.constants import e0, m0, complextype
+from gprMax.constants import e0
+from gprMax.constants import m0
+from gprMax.constants import complextype
 
 
 class Material(object):
@@ -83,10 +85,12 @@ class Material(object):
         """Calculates the electric update coefficients of the material.
 
         Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (class): Grid class instance - holds essential parameters
+                    describing the model.
         """
 
-        # The implementation of the dispersive material modelling comes from the derivation in: http://dx.doi.org/10.1109/TAP.2014.2308549
+        # The implementation of the dispersive material modelling comes from the
+        # derivation in: http://dx.doi.org/10.1109/TAP.2014.2308549
         if self.maxpoles > 0:
             self.w = np.zeros(self.maxpoles, dtype=complextype)
             self.q = np.zeros(self.maxpoles, dtype=complextype)
@@ -140,7 +144,9 @@ class Material(object):
 
 
 def process_materials(G):
-    """Process complete list of materials - calculate update coefficients, store in arrays, and build text list of materials/properties
+    """
+    Process complete list of materials - calculate update coefficients,
+        store in arrays, and build text list of materials/properties
 
     Args:
         G (class): Grid class instance - holds essential parameters describing the model.
@@ -205,7 +211,10 @@ def process_materials(G):
 
 
 class PeplinskiSoil(object):
-    """Soil objects that are characterised according to a mixing model by Peplinski (http://dx.doi.org/10.1109/36.387598)."""
+    """
+    Soil objects that are characterised according to a mixing
+    model by Peplinski (http://dx.doi.org/10.1109/36.387598).
+    """
 
     def __init__(self, ID, sandfraction, clayfraction, bulkdensity, sandpartdensity, watervolfraction):
         """
@@ -227,7 +236,9 @@ class PeplinskiSoil(object):
         self.startmaterialnum = 0
 
     def calculate_debye_properties(self, nbins, G):
-        """Calculates the real and imaginery part of a Debye model for the soil as well as a conductivity. It uses a semi-empirical model (http://dx.doi.org/10.1109/36.387598).
+        """
+        Calculates the real and imaginery part of a Debye model for the soil as
+        well as a conductivity. It uses a semi-empirical model (http://dx.doi.org/10.1109/36.387598).
 
         Args:
             nbins (int): Number of bins to use to create the different materials.

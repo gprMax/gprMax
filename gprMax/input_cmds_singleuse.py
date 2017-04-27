@@ -24,9 +24,14 @@ from colorama import init, Fore, Style
 init()
 import numpy as np
 
-from gprMax.constants import c, floattype
-from gprMax.exceptions import CmdInputError, GeneralError
-from gprMax.utilities import get_host_info, human_size, memory_usage, round_value
+from gprMax.constants import c
+from gprMax.constants import floattype
+from gprMax.exceptions import CmdInputError
+from gprMax.exceptions import GeneralError
+from gprMax.utilities import get_host_info
+from gprMax.utilities import human_size
+from gprMax.utilities import memory_usage
+from gprMax.utilities import round_value
 from gprMax.waveforms import Waveform
 
 
