@@ -142,6 +142,36 @@ class Material(object):
             self.CBz = (1 / G.dz) * 1 / EA
             self.srce = 1 / EA
 
+    def calculate_er(self, freq):
+        """
+        Calculates the complex relative permittivity of the material at a specific frequency.
+
+        Args:
+            freq (float): Frequency used to calculate complex relative permittivity.
+            
+        Returns:
+            er (float): Complex relative permittivity.
+        """
+        
+        # This will be permittivity at infinite frequency if the material is dispersive
+        er = self.er
+        
+        if self.poles > 0:
+            w = 2 * np.pi * freq
+            er += self.se / (w * e0)
+            if 'debye' in self.type:
+                for pole in range(self.poles):
+                    er += self.deltaer[pole] / (1 + 1j * w * self.tau[pole])
+            elif 'lorentz' in self.type:
+                for pole in range(self.poles):
+                    er += (self.deltaer[pole] * self.tau[pole]**2) / (self.tau[pole]**2 + 2j * w * self.alpha[pole] - w**2)
+            elif 'drude' in self.type:
+                for pole in range(self.poles):
+                    ersum += self.tau[pole]**2 / (w**2 - 1j * w * self.alpha[pole])
+                    er -= ersum
+    
+        return er
+
 
 def process_materials(G):
     """
