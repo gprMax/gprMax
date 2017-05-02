@@ -92,7 +92,7 @@ class FDTDGrid(Grid):
 
         # Threshold (dB) down from maximum power (0dB) of main frequency used
         # to calculate highest frequency for disperion analysis
-        self.highestfreqthres = 60
+        self.highestfreqthres = 40
         # Maximum allowable percentage physical phase-velocity phase error
         self.maxnumericaldisp = 2
         # Minimum grid sampling of smallest wavelength for physical wave propagation
@@ -241,8 +241,11 @@ def dispersion_analysis(G):
         for x in G.materials:
             if x.se != float('inf'):
                 er = x.er
-                if x.deltaer:
-                    er += max(x.deltaer)
+                # If there are dispersive materials calculate the complex relative permittivity
+                # at maximum frequency and take the real part
+                if x.poles > 0:
+                    er = x.calculate_er(results['maxfreq'])
+                    er = er.real
                 if er > maxer:
                     maxer = er
                     matmaxer = x.ID
