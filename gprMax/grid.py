@@ -91,7 +91,7 @@ class FDTDGrid(Grid):
         self.nthreads = 0
 
         # Threshold (dB) down from maximum power (0dB) of main frequency used
-        # to calculate highest frequency for disperion analysis
+        # to calculate highest frequency for numerical dispersion analysis
         self.highestfreqthres = 40
         # Maximum allowable percentage physical phase-velocity phase error
         self.maxnumericaldisp = 2
