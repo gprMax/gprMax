@@ -48,6 +48,7 @@ badwaveforms = ['gaussiandot', 'gaussiandotdot']
 linesources = []
 voltagesources = []
 hertziandipoles = []
+transmissionlines = []
 
 lindex = 0
 while(lindex < len(inputlines)):
@@ -100,10 +101,10 @@ while(lindex < len(inputlines)):
 
         elif cmdname == '#time_window':
             params = params[0].lower()
-            if '.' in params[0] or 'e' in params[0].lower():
-                timewindow = float(params[0])
+            if '.' in params or 'e' in params:
+                timewindow = float(params)
             else:
-                timewindow = int(params[0])
+                timewindow = int(params)
             lindex += 1
 
         elif cmdname == '#num_of_procs':
@@ -129,6 +130,10 @@ while(lindex < len(inputlines)):
         elif cmdname == '#hertzian_dipole':
             hertziandipoles.append(inputlines[lindex])
             lindex += 1
+        
+        elif cmdname == '#transmission_line':
+            transmissionlines.append(inputlines[lindex])
+            lindex += 1
 
         elif cmdname == '#rx':
             if model2D:
@@ -137,7 +142,7 @@ while(lindex < len(inputlines)):
                 print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
                 inputlines.pop(lindex)
                 inputlines.insert(lindex, replacement)
-                lindex += 1
+            lindex += 1
 
         elif cmdname == '#rx_box':
             if model2D:
@@ -146,7 +151,7 @@ while(lindex < len(inputlines)):
                 print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
                 inputlines.pop(lindex)
                 inputlines.insert(lindex, replacement)
-                lindex += 1
+            lindex += 1
 
         elif cmdname == '#tx_steps':
             if model2D:
@@ -155,7 +160,7 @@ while(lindex < len(inputlines)):
                 print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
                 inputlines.pop(lindex)
                 inputlines.insert(lindex, replacement)
-                lindex += 1
+            lindex += 1
 
         elif cmdname == '#rx_steps':
             if model2D:
@@ -164,7 +169,7 @@ while(lindex < len(inputlines)):
                 print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
                 inputlines.pop(lindex)
                 inputlines.insert(lindex, replacement)
-                lindex += 1
+            lindex += 1
 
         elif cmdname == '#medium':
             # Syntax of old command: #medium: e_rs e_inf tau sig_e mu_r sig_m ID
@@ -185,7 +190,7 @@ while(lindex < len(inputlines)):
                 print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
                 inputlines.pop(lindex)
                 inputlines.insert(lindex, replacement)
-                lindex += 1
+            lindex += 1
 
         elif cmdname == '#triangle':
             if model2D:
@@ -305,7 +310,7 @@ while(lindex < len(inputlines)):
             inputlines.insert(lindex, replacement)
             lindex += 1
 
-        elif cmdname in ['#transmission_line', '#plane_wave', '#thin_wire', '#huygens_surface']:
+        elif cmdname in ['#plane_wave', '#thin_wire', '#huygens_surface']:
             raise CmdInputError("Command '{}' has not yet implemented in the new version of gprMax. For now please continue to use the old version.".format(inputlines[lindex]))
 
         else:
@@ -376,6 +381,27 @@ for source in voltagesources:
     inputlines.remove(tx)
     inputlines.append(waveform)
     inputlines.append(voltagesource)
+
+# Convert separate #transmission_line and associated #tx to #waveform and #transmission_line
+for source in transmissionlines:
+    params = source.split()
+    if params[3] is badwaveforms:
+        raise CmdInputError("Waveform types {} are not compatible between new and old versions of gprMax.".format(''.join(badwaveforms)))
+    elif params[3] == 'ricker':
+        params[3] = 'gaussiandotnorm'
+    waveform = '#waveform: {} {} {} {}'.format(params[3], params[1], params[2], params[6])
+    tx = next(tx for tx in txs if tx.split()[5] == params[6])
+    transmissionlinetx = tx.split()
+    if float(transmissionlinetx[6]) != 0 or float(transmissionlinetx[7]) < timewindow:
+        transmissionline = '#transmission_line: {} {} {} {} {} {} {} {}'.format(transmissionlinetx[1], transmissionlinetx[2], transmissionlinetx[3], transmissionlinetx[4], params[5], transmissionlinetx[5], transmissionlinetx[6], transmissionlinetx[7])
+    else:
+        transmissionline = '#transmission_line: {} {} {} {} {} {}'.format(transmissionlinetx[1], transmissionlinetx[2], transmissionlinetx[3], transmissionlinetx[4], params[5], transmissionlinetx[5])
+
+    print("Commands '{}' and '{}', replaced with '{}' and '{}'".format(source, tx, waveform, transmissionline))
+    inputlines.remove(source)
+    inputlines.remove(tx)
+    inputlines.append(waveform)
+    inputlines.append(transmissionline)
 
 # Write new input file
 newinputfile = newfile + '.in'
