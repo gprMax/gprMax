@@ -1,0 +1,5 @@
+include README.rst
+recursive-include tests *
+recursive-include tools *
+recursive-include user_libs *
+global-exclude *.DS_Store
