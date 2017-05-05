@@ -44,8 +44,6 @@ with open('gprMax/__init__.py', 'r') as fd:
                             fd.read(), re.MULTILINE).group(1)
 
 packages = [packagename, 'tests', 'tools', 'user_libs']
-#packagesdata = {}
-#package_data={'mypkg': ['data/*.dat']},
 
 # Python version
 if sys.version_info[:2] < (3, 4):
