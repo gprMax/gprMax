@@ -110,12 +110,12 @@ if sys.platform == 'win32':
 # Mac OS X - needs gcc (usually via HomeBrew) because the default compiler LLVM (clang) does not support OpenMP
 #          - with gcc -fopenmp option implies -pthread
 elif sys.platform == 'darwin':
-    gccpath = glob.glob('/usr/local/bin/gcc-[4-5-6]*')
+    gccpath = glob.glob('/usr/local/bin/gcc-[4-7]*')
     if gccpath:
         # Use newest gcc found
         os.environ['CC'] = gccpath[-1].split(os.sep)[-1]
     else:
-        raise('Cannot find gcc 4.x, 5.x or 6.x in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support, i.e. --without-multilib, must be installed')
+        raise('Cannot find gcc 4.x, 5.x, 6.x, or 7.x in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support, i.e. --without-multilib, must be installed')
     compile_args = ['-O3', '-w', '-fopenmp', '-march=native']  # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
     linker_args = ['-fopenmp']
     extra_objects = []
