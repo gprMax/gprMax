@@ -576,12 +576,18 @@ def process_multicmds(multicmds, G):
                 material.type = 'debye'
                 material.poles = poles
                 material.averagable = False
+                    # for pole in range(1, 2 * poles, 2):
+                    # if float(tmp[pole]) > 0 and float(tmp[pole + 1]) > G.dt:
+                    #    material.deltaer.append(float(tmp[pole]))
+                    #    material.tau.append(float(tmp[pole + 1]))
+                    # else:
+                    #    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the permittivity difference, and relaxation times that are greater than the time step for the model.')
                 for pole in range(1, 2 * poles, 2):
-                    if float(tmp[pole]) > 0 and float(tmp[pole + 1]) > G.dt:
+                    if float(tmp[pole]) > 0:
                         material.deltaer.append(float(tmp[pole]))
                         material.tau.append(float(tmp[pole + 1]))
                     else:
-                        raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the permittivity difference and relaxation times, and relaxation times that are greater than the time step for the model.')
+                        raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the permittivity difference.')
                 if material.poles > Material.maxpoles:
                     Material.maxpoles = material.poles
 
