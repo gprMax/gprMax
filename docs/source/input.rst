@@ -761,8 +761,6 @@ This will simulate an infinitesimal magnetic dipole. This is often referred to a
 
 Allows you to introduce a voltage source at an electric field location. It can be a hard source if it's resistance is zero, i.e. the time variation of the specified electric field component is prescribed, or if it's resistance is non-zero it behaves as a resistive voltage source. It is useful for exciting antennas when the physical properties of the antenna are included in the model. The syntax of the command is:
 
-The voltage source
-
 .. code-block:: none
 
     #voltage_source: c1 f1 f2 f3 f4 str1 [f5 f6]
