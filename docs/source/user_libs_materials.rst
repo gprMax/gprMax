@@ -27,7 +27,7 @@ The simplest way to access any of the material libraries is to use the ``#includ
 Eccosorb
 ========
 
-`Eccosorb <http://www.eccosorb.eu>`_ are electromagnetic absorber materials manufactured by `Laird NV <http://www.eccosorb.eu>`_ (formerly Emerson & Cuming Microwave Products NV). Currently models for some of the LS series (14, 16, 18, 20, 22, 26, 28, and 30) are included in this library. The models were created by fitting a 3-pole Debye model to the real and imaginery parts of the relative permittivity taken from the `manufacturers datasheet <http://www.eccosorb.com/Collateral/Documents/English-US/Electrical%20Parameters/ls%20parameters.pdf>`_. The following figures show the fitting.
+`Eccosorb <http://www.eccosorb.eu>`_ are electromagnetic absorber materials manufactured by `Laird NV <http://www.eccosorb.eu>`_ (formerly Emerson & Cuming Microwave Products NV). Currently models for some of the LS series (14, 16, 18, 20, 22, 26, 28, and 30) are included in this library. The models were created by fitting a 3-pole Debye model to the real and imaginary parts of the relative permittivity taken from the `manufacturers datasheet <http://www.eccosorb.com/Collateral/Documents/English-US/Electrical%20Parameters/ls%20parameters.pdf>`_. The following figures show the fitting.
 
 .. figure:: images/user_libs/eccosorb_ls14.png
     :width: 600 px
