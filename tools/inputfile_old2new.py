@@ -160,7 +160,7 @@ while(lindex < len(inputlines)):
             if model2D:
                 # Syntax of old command: #tx_steps: dx dy
                 replacement = '#src_steps: {} {} {}'.format(params[0], params[1], 0)
-            else
+            else:
                 # Syntax of old command: #tx_steps: dx dy dz
                 replacement = '#src_steps: {} {} {}'.format(params[0], params[1], params[2])
             print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
@@ -172,7 +172,7 @@ while(lindex < len(inputlines)):
             if model2D:
                 # Syntax of old command: #rx_steps: dx dy
                 replacement = '#rx_steps: {} {} {}'.format(params[0], params[1], 0)
-            else
+            else:
                 # Syntax of old command: #rx_steps: dx dy dz
                 replacement = '#rx_steps: {} {} {}'.format(params[0], params[1], params[2])
             print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
