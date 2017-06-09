@@ -664,10 +664,10 @@ Allows you to specify waveforms to use with sources in the model. The syntax of 
     * ``sine`` which is a single cycle of a sine waveform.
     * ``contsine`` which is a continuous sine waveform. In order to avoid introducing noise into the calculation the amplitude of the waveform is modulated for the first cycle of the sine wave (ramp excitation).
 * ``f1`` is the scaling of the maximum amplitude of the waveform (for a ``#hertzian_dipole`` the units will be Amps, for a ``#voltage_source`` or ``#transmission_line`` the units will be Volts).
-* ``f2`` is the frequency of the waveform (Hertz).
+* ``f2`` is the centre frequency of the waveform (Hertz). In the case of the Gaussian waveform it is related to the pulse width.
 * ``str2`` is an identifier for the waveform used to assign it to a source.
 
-For example, to specify a Gaussian waveform with an amplitude of one and a centre frequency of 1.2 GHz, use: ``#waveform: gaussian 1 1.2e9 my_gauss_pulse``.
+For example, to specify the normalised first derivate of a Gaussian waveform with an amplitude of one and a centre frequency of 1.2GHz, use: ``#waveform: gaussiandotnorm 1 1.2e9 my_gauss_pulse``.
 
 .. note::
 

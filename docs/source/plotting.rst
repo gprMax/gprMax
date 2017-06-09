@@ -96,9 +96,9 @@ where:
 
 * ``type`` is the type of waveform, e.g. gaussian, ricker etc...
 * ``amp`` is the amplitude of the waveform
-* ``freq`` is the centre frequency of the waveform
-* ``timewindow`` is the time window to view the waveform, i.e. the time window of the proposed simulation
-* ``dt`` is the time step to view waveform, i.e. the time step of the proposed simulation
+* ``freq`` is the centre frequency of the waveform (Hertz). In the case of the Gaussian waveform it is related to the pulse width.
+* ``timewindow`` is the time window (seconds) to view the waveform, i.e. the time window of the proposed simulation
+* ``dt`` is the time step (seconds) to view waveform, i.e. the time step of the proposed simulation
 
 There is an optional command line argument:
 
@@ -107,7 +107,7 @@ There is an optional command line argument:
 Definitions
 -----------
 
-Definitions of the built-in waveforms and example plots are shown using the parameters: amplitude of one, frequency of 1GHz, time window of 6ns, and a time step of 1.926ps.
+Definitions of the built-in waveforms and example plots are shown using the parameters: amplitude of one, centre frequency of 1GHz, time window of 6ns, and a time step of 1.926ps.
 
 gaussian
 ^^^^^^^^

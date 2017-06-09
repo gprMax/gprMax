@@ -45,11 +45,11 @@ class Waveform(object):
         """
 
         # Coefficients for certain waveforms
-        if self.type == 'gaussian' or self.type == 'gaussiandot' or self.type == 'gaussiandotdot':
+        if self.type == 'gaussian' or self.type == 'gaussiandot' or self.type == 'gaussiandotnorm':
             chi = 1 / self.freq
             zeta = 2 * np.pi**2 * self.freq**2
             delay = time - chi
-        elif self.type == 'gaussiandotnorm' or self.type == 'gaussiandotdotnorm' or self.type == 'ricker':
+        elif self.type == 'gaussiandotdot' or self.type == 'gaussiandotdotnorm' or self.type == 'ricker':
             chi = np.sqrt(2) / self.freq
             zeta = np.pi**2 * self.freq**2
             delay = time - chi

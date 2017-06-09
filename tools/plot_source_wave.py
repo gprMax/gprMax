@@ -92,13 +92,13 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
 
     print('Maximum amplitude: {:g}'.format(w.amp))
 
-    if w.freq:
+    if w.freq and not w.type == 'gaussian':
         print('Centre frequency: {:g} Hz'.format(w.freq))
 
-    if w.type == 'gaussian' or w.type == 'gaussiandot' or w.type == 'gaussiandotdot':
+    if w.type == 'gaussian' or w.type == 'gaussiandot' or w.type == 'gaussiandotnorm':
         delay = 1 / w.freq
         print('Time to centre of pulse: {:g} s'.format(delay))
-    elif w.type == 'gaussiandotnorm' or w.type == 'gaussiandotdotnorm' or w.type == 'ricker':
+    elif w.type == 'gaussiandotdot' or w.type == 'gaussiandotdotnorm' or w.type == 'ricker':
         delay = np.sqrt(2) / w.freq
         print('Time to centre of pulse: {:g} s'.format(delay))
 
@@ -107,7 +107,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
         powerdrop = -3  # dB
         start = np.where((10 * np.log10(waveform / np.amax(waveform))) > powerdrop)[0][0]
         stop = np.where((10 * np.log10(waveform[start:] / np.amax(waveform))) < powerdrop)[0][0] + start
-        print('Pulse width at {:d}dB, i.e. FWHM: {:g} s'.format(powerdrop, time[stop] - time[start]))
+        print('Pulse width at {:d}dB, i.e. full width at half maximum (FWHM): {:g} s'.format(powerdrop, time[stop] - time[start]))
 
     print('Time window: {:g} s ({} iterations)'.format(timewindow, iterations))
     print('Time step: {:g} s'.format(dt))
