@@ -148,7 +148,7 @@ while(lindex < len(inputlines)):
             if model2D:
                 # Syntax of old command: #rx_box: x1 y1 x2 y2 dx dy
                 replacement = '#rx_array: {} {} {} {} {} {} {} {} {}'.format(params[0], params[1], 0, params[2], params[3], dx_dy_dz[2], params[4], params[5], dx_dy_dz[2])
-            else
+            else:
                 # Syntax of old command: #rx_box: x1 y1 z1 x2 y2 z2 dx dy dz
                 replacement = '#rx_array: {} {} {} {} {} {} {} {} {}'.format(params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7], params[8])
             print("Command '{}', replaced with '{}'".format(inputlines[lindex], replacement))
