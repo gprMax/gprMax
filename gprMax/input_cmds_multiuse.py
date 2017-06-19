@@ -295,6 +295,10 @@ def process_multicmds(multicmds, G):
             tmp = cmdinstance.split()
             if len(tmp) < 6:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
+            
+            # Warn about using a transmission line on GPU
+            if G.gpu is not None:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' A #transmission_line cannot currently be used with GPU solving. Consider using a #voltage_source instead.')
 
             # Check polarity & position parameters
             polarisation = tmp[0].lower()
@@ -386,7 +390,10 @@ def process_multicmds(multicmds, G):
             else:
                 r.ID = tmp[3]
                 # Get allowable outputs
-                allowableoutputs = Rx.allowableoutputs
+                if G.gpu is not None:
+                    allowableoutputs = Rx.gpu_allowableoutputs
+                else:
+                    allowableoutputs = Rx.allowableoutputs
                 # Check and add field output names
                 for field in tmp[4::]:
                     if field in allowableoutputs:
@@ -428,17 +435,17 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
             if dx < 0 or dy < 0 or dz < 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than zero')
-            if dx < G.dx:
+            if dx < 1:
                 if dx == 0:
                     dx = 1
                 else:
                     raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
-            if dy < G.dy:
+            if dy < 1:
                 if dy == 0:
                     dy = 1
                 else:
                     raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
-            if dz < G.dz:
+            if dz < 1:
                 if dz == 0:
                     dz = 1
                 else:
@@ -471,6 +478,10 @@ def process_multicmds(multicmds, G):
             tmp = cmdinstance.split()
             if len(tmp) != 11:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
+            
+            # Warn about using snapshots on GPU
+            if G.gpu is not None:
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' The #snapshot command cannot currently be used with GPU solving.')
 
             xs = G.calculate_coord('x', tmp[0])
             ys = G.calculate_coord('y', tmp[1])
@@ -502,7 +513,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
             if dx < 0 or dy < 0 or dz < 0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than zero')
-            if dx < G.dx or dy < G.dy or dz < G.dz:
+            if dx < 1 or dy < 1 or dz < 1:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
             if time <= 0 or time > G.iterations:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' time value is not valid')
@@ -724,7 +735,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than zero')
             if dx > G.nx or dy > G.ny or dz > G.nz:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should be less than the domain size')
-            if dx < G.dx or dy < G.dy or dz < G.dz:
+            if dx < 1 or dy < 1 or dz < 1:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
             if tmp[10].lower() != 'n' and tmp[10].lower() != 'f':
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires type to be either n (normal) or f (fine)')

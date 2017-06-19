@@ -20,6 +20,8 @@ import numpy as np
 
 from gprMax.constants import floattype
 from gprMax.constants import complextype
+from gprMax.fractals_generate import generate_fractal2D
+from gprMax.fractals_generate import generate_fractal3D
 from gprMax.utilities import round_value
 
 np.seterr(divide='raise')
@@ -58,8 +60,12 @@ class FractalSurface(object):
         self.filldepth = 0
         self.grass = []
 
-    def generate_fractal_surface(self):
-        """Generate a 2D array with a fractal distribution."""
+    def generate_fractal_surface(self, G):
+        """Generate a 2D array with a fractal distribution.
+            
+        Args:
+            G (class): Grid class instance - holds essential parameters describing the model.
+        """
 
         if self.xs == self.xf:
             surfacedims = (self.ny, self.nz)
@@ -82,16 +88,8 @@ class FractalSurface(object):
         # Shift the zero frequency component to the centre of the array
         A = np.fft.fftshift(A)
 
-        for i in range(surfacedims[0]):
-            for j in range(surfacedims[1]):
-                # Positional vector for current position
-                v2 = np.array([self.weighting[0] * i, self.weighting[1] * j])
-                rr = np.linalg.norm(v2 - v1)
-                try:
-                    self.fractalsurface[i, j] = A[i, j] * 1 / (rr**self.b)
-                except FloatingPointError:
-                    rr = 0.9
-                    self.fractalsurface[i, j] = A[i, j] * 1 / (rr**self.b)
+        # Generate fractal
+        generate_fractal2D(surfacedims[0], surfacedims[1], G.nthreads, self.b, self.weighting, v1, A, self.fractalsurface)
 
         # Shift the zero frequency component to start of the array
         self.fractalsurface = np.fft.ifftshift(self.fractalsurface)
@@ -135,8 +133,12 @@ class FractalVolume(object):
         self.nbins = 0
         self.fractalsurfaces = []
 
-    def generate_fractal_volume(self):
-        """Generate a 3D volume with a fractal distribution."""
+    def generate_fractal_volume(self, G):
+        """Generate a 3D volume with a fractal distribution.
+            
+        Args:
+            G (class): Grid class instance - holds essential parameters describing the model.
+        """
 
         # Scale filter according to size of fractal volume
         if self.nx == 1:
@@ -168,17 +170,8 @@ class FractalVolume(object):
         # Shift the zero frequency component to the centre of the array
         A = np.fft.fftshift(A)
 
-        for i in range(self.nx):
-            for j in range(self.ny):
-                for k in range(self.nz):
-                    # Positional vector for current position
-                    v2 = np.array([self.weighting[0] * i, self.weighting[1] * j, self.weighting[2] * k])
-                    rr = np.linalg.norm(v2 - v1)
-                    try:
-                        self.fractalvolume[i, j, k] = A[i, j, k] * 1 / (rr**self.b)
-                    except FloatingPointError:
-                        rr = 0.9
-                        self.fractalvolume[i, j, k] = A[i, j, k] * 1 / (rr**self.b)
+        # Generate fractal
+        generate_fractal3D(self.nx, self.ny, self.nz, G.nthreads, self.b, self.weighting, v1, A, self.fractalvolume)
 
         # Shift the zero frequency component to the start of the array
         self.fractalvolume = np.fft.ifftshift(self.fractalvolume)

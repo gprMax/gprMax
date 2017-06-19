@@ -32,7 +32,10 @@ from colorama import Style
 init()
 import numpy as np
 
+from gprMax.constants import complextype
 from gprMax.constants import floattype
+from gprMax.exceptions import GeneralError
+from gprMax.materials import Material
 
 
 def get_terminal_width():
@@ -128,6 +131,11 @@ def round_value(value, decimalplaces=0):
         rounded = float(d.Decimal(value).quantize(d.Decimal(precision), rounding=d.ROUND_FLOOR))
 
     return rounded
+
+
+def round32(value):
+    """Rounds up to nearest multiple of 32."""
+    return int(32 * np.ceil(float(value) / 32))
 
 
 def human_size(size, a_kilobyte_is_1024_bytes=False):
@@ -287,6 +295,64 @@ def get_host_info():
     return hostinfo
 
 
+class GPU(object):
+    """GPU information."""
+    
+    def __init__(self, deviceID):
+        """
+        Args:
+            deviceID (int): Device ID for GPU.
+        """
+        
+        self.deviceID = deviceID
+        self.name = None
+        self.pcibusID = None
+        self.constmem = None
+        self.totalmem = None
+
+    def get_gpu_info(self, drv):
+        """Set information about GPU.
+            
+        Args:
+            drv (object): PyCuda driver.
+        """
+        
+        self.name = drv.Device(self.deviceID).name()
+        self.pcibusID = drv.Device(self.deviceID).pci_bus_id()
+        self.constmem = drv.Device(self.deviceID).total_constant_memory
+        self.totalmem = drv.Device(self.deviceID).total_memory()
+
+
+def detect_gpus():
+    """Get information about Nvidia GPU(s).
+        
+    Returns:
+        gpus (list): Detected GPU(s) object(s).
+    """
+    
+    try:
+        import pycuda.driver as drv
+    except ImportError:
+        raise ImportError('To use gprMax in GPU mode the pycuda package must be installed, and you must have a NVIDIA CUDA-Enabled GPU (https://developer.nvidia.com/cuda-gpus).')
+    drv.init()
+
+    # Check if there are any CUDA-Enabled GPUs
+    if drv.Device.count() == 0:
+        raise GeneralError('No NVIDIA CUDA-Enabled GPUs detected (https://developer.nvidia.com/cuda-gpus)')
+
+    # Print information about all detected GPUs
+    gpus = []
+    gputext = []
+    for i in range(drv.Device.count()):
+        gpu = GPU(deviceID=i)
+        gpu.get_gpu_info(drv)
+        gpus.append(gpu)
+        gputext.append('{} - {}, {} RAM'.format(gpu.deviceID, gpu.name, human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)))
+    print('GPU(s) detected: {}'.format('; '.join(gputext)))
+
+    return gpus
+
+
 def memory_usage(G):
     """Estimate the amount of memory (RAM) required to run a model.
 
@@ -307,6 +373,7 @@ def memory_usage(G):
     # 12 x rigidE array components + 6 x rigidH array components
     rigidarrays = (12 + 6) * G.nx * G.ny * G.nz * np.dtype(np.int8).itemsize
 
+    # PML arrays
     pmlarrays = 0
     for (k, v) in G.pmlthickness.items():
         if v > 0:
@@ -326,6 +393,11 @@ def memory_usage(G):
                 pmlarrays += ((G.nx + 1) * G.ny * v)
                 pmlarrays += (G.nx * (G.ny + 1) * v)
 
-    memestimate = int(stdoverhead + fieldarrays + solidarray + rigidarrays + pmlarrays)
+    # Any dispersive material coefficients
+    disparrays = 0
+    if Material.maxpoles != 0:
+        disparrays = 3 * Material.maxpoles * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(complextype).itemsize
+
+    memestimate = int(stdoverhead + fieldarrays + solidarray + rigidarrays + pmlarrays + disparrays)
 
     return memestimate

@@ -876,7 +876,7 @@ def process_geometrycmds(geometry, G):
             volume.operatingonID = tmp[12]
             volume.nbins = nbins
             volume.seed = seed
-            volume.weighting = (float(tmp[8]), float(tmp[9]), float(tmp[10]))
+            volume.weighting = np.array([float(tmp[8]), float(tmp[9]), float(tmp[10])])
             try:
                 volume.averaging = averagefractalbox
             except:
@@ -995,14 +995,14 @@ def process_geometrycmds(geometry, G):
                         surface.fractalrange = fractalrange
                         surface.operatingonID = volume.ID
                         surface.seed = seed
-                        surface.weighting = (float(tmp[8]), float(tmp[9]))
+                        surface.weighting = np.array([float(tmp[8]), float(tmp[9])])
 
                         # List of existing surfaces IDs
                         existingsurfaceIDs = [x.surfaceID for x in volume.fractalsurfaces]
                         if surface.surfaceID in existingsurfaceIDs:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' has already been used on the {} surface'.format(surface.surfaceID))
 
-                        surface.generate_fractal_surface()
+                        surface.generate_fractal_surface(G)
                         volume.fractalsurfaces.append(surface)
 
                         if G.messages:
@@ -1212,7 +1212,7 @@ def process_geometrycmds(geometry, G):
                         # Set the fractal range to scale the fractal distribution between zero and one
                         surface.fractalrange = (0, 1)
                         surface.operatingonID = volume.ID
-                        surface.generate_fractal_surface()
+                        surface.generate_fractal_surface(G)
                         if numblades > surface.fractalsurface.shape[0] * surface.fractalsurface.shape[1]:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the specified surface is not large enough for the number of grass blades/roots specified')
 
@@ -1308,7 +1308,7 @@ def process_geometrycmds(geometry, G):
                     materialnumID = next(x.numID for x in G.materials if x.ID == volume.operatingonID)
                     volume.fractalvolume *= materialnumID
                 else:
-                    volume.generate_fractal_volume()
+                    volume.generate_fractal_volume(G)
                     volume.fractalvolume += mixingmodel.startmaterialnum
 
                 volume.generate_volume_mask()
@@ -1521,7 +1521,7 @@ def process_geometrycmds(geometry, G):
                 if volume.nbins == 1:
                     raise CmdInputError("'" + ' '.join(tmp) + "'" + ' is being used with a single material and no modifications, therefore please use a #box command instead.')
                 else:
-                    volume.generate_fractal_volume()
+                    volume.generate_fractal_volume(G)
                     volume.fractalvolume += mixingmodel.startmaterialnum
 
                 data = volume.fractalvolume.astype('int16', order='C')

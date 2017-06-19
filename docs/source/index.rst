@@ -31,6 +31,7 @@ gprMax User Guide
 
     python_scripting
     openmp_mpi
+    gpu
 
 .. toctree::
     :maxdepth: 2

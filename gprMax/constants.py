@@ -37,8 +37,8 @@ floattype = np.float32
 complextype = np.complex64
 
 # For C (CUDA) arrays
-cfloattype = 'float'
-ccomplextype = 'pycuda::complex<float>'
+cudafloattype = 'float'
+cudacomplextype = 'pycuda::complex<float>'
 
 # Double precision
 # For numpy arrays
@@ -46,5 +46,5 @@ ccomplextype = 'pycuda::complex<float>'
 # complextype = np.complex128
 
 # For C (CUDA) arrays
-# cfloattype = 'double'
-# ccomplextype = 'pycuda::complex<double>'
+# cudafloattype = 'double'
+# cudacomplextype = 'pycuda::complex<double>'

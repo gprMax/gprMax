@@ -36,6 +36,7 @@ from gprMax.constants import m0
 from gprMax.constants import z0
 from gprMax.exceptions import GeneralError
 from gprMax.model_build_run import run_model
+from gprMax.utilities import detect_gpus
 from gprMax.utilities import get_host_info
 from gprMax.utilities import get_terminal_width
 from gprMax.utilities import human_size
@@ -57,6 +58,7 @@ def main():
     parser.add_argument('-restart', type=int, help='model number to restart from, e.g. when creating B-scan')
     parser.add_argument('-mpi', type=int, help='number of MPI tasks, i.e. master + workers')
     parser.add_argument('--mpi-worker', action='store_true', default=False, help=argparse.SUPPRESS)
+    parser.add_argument('-gpu', type=int, action='append', nargs='?', const=True, help='flag to use Nvidia GPU (option to give device ID)')
     parser.add_argument('-benchmark', action='store_true', default=False, help='flag to switch on benchmarking mode')
     parser.add_argument('--geometry-only', action='store_true', default=False, help='flag to only build model and produce geometry file(s)')
     parser.add_argument('--geometry-fixed', action='store_true', default=False, help='flag to not reprocess model geometry, e.g. for B-scans where the geometry is fixed')
@@ -73,6 +75,7 @@ def api(
             task=None,
             restart=None,
             mpi=False,
+            gpu=None,
             benchmark=False,
             geometry_only=False,
             geometry_fixed=False,
@@ -94,6 +97,7 @@ def api(
     args.task = task
     args.restart = restart
     args.mpi = mpi
+    args.gpu = gpu
     args.benchmark = benchmark
     args.geometry_only = geometry_only
     args.geometry_fixed = geometry_fixed
@@ -117,6 +121,34 @@ def run_main(args):
         hostinfo = get_host_info()
         hyperthreading = ', {} cores with Hyper-Threading'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
         print('\nHost: {}; {} x {} ({} cores{}); {} RAM; {}'.format(hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'], hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
+        
+        # Get information/setup Nvidia GPU(s)
+        if args.gpu is not None:
+            # Extract first item of list, either True to automatically determine device ID,
+            # or an integer to manually specify device ID
+            args.gpu = args.gpu[0]
+            gpus = detect_gpus()
+
+            # If a device ID is specified check it is valid
+            if not isinstance(args.gpu, bool):
+                if args.gpu > len(gpus) - 1:
+                    raise GeneralError('GPU with device ID {} does not exist'.format(args.gpu))
+                # Set args.gpu to GPU object to access elsewhere
+                args.gpu = next(gpu for gpu in gpus if gpu.deviceID == args.gpu)
+
+            # If no device ID is specified
+            else:
+                # If in MPI mode then set args.gpu to list of available GPUs
+                if args.mpi:
+                    if args.mpi - 1 > len(gpus):
+                        raise GeneralError('Too many MPI tasks requested ({}). The number of MPI tasks requested can only be a maximum of the number of GPU(s) detected plus one, i.e. {} GPU worker tasks + 1 CPU master task'.format(args.mpi, len(gpus)))
+                    args.gpu = gpus
+                # If benchmarking mode then set args.gpu to list of available GPUs
+                elif args.benchmark:
+                    args.gpu = gpus
+                # Otherwise set args.gpu to GPU object with default device ID (0) to access elsewhere
+                else:
+                    args.gpu = next(gpu for gpu in gpus if gpu.deviceID == 0)
 
         # Create a separate namespace that users can access in any Python code blocks in the input file
         usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': args.n, 'inputfile': os.path.abspath(inputfile.name)}
@@ -239,13 +271,41 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     cputimes = np.zeros(len(cputhreads))
 
     numbermodelruns = len(cputhreads)
-    modelend = numbermodelruns + 1
+
+    # Both CPU and GPU benchmarking
+    gpus = None
+    gpuIDs = []
+    gputimes = np.array([])
+    if args.gpu is not None:
+        # Set size of array to store GPU runtimes and number of runs of model required
+        if isinstance(args.gpu, list):
+            for gpu in args.gpu:
+                gpuIDs.append(gpu.name)
+            gputimes = np.zeros(len(args.gpu))
+            numbermodelruns += len(args.gpu)
+        else:
+            gpuIDs.append(args.gpu.name)
+            gputimes = np.zeros(1)
+            numbermodelruns += 1
+        # Store GPU information in a temp variable and set args.gpu to None to do CPU benchmarking first
+        gpus = args.gpu
+        args.gpu = None
 
     usernamespace['number_model_runs'] = numbermodelruns
+    modelend = numbermodelruns + 1
 
     for currentmodelrun in range(1, modelend):
-        os.environ['OMP_NUM_THREADS'] = str(cputhreads[currentmodelrun - 1])
-        cputimes[currentmodelrun - 1] = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, usernamespace)
+        # Set args.gpu if doing GPU benchmark
+        if currentmodelrun > len(cputhreads):
+            if isinstance(gpus, list):
+                args.gpu = gpus[(currentmodelrun - 1) - len(cputhreads)]
+            else:
+                args.gpu = gpus
+            # del os.environ['OMP_NUM_THREADS']
+            gputimes[(currentmodelrun - 1) - len(cputhreads)] = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, usernamespace)
+        else:
+            os.environ['OMP_NUM_THREADS'] = str(cputhreads[currentmodelrun - 1])
+            cputimes[currentmodelrun - 1] = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, usernamespace)
 
         # Get model size (in cells) and number of iterations
         if currentmodelrun == 1:
@@ -340,7 +400,15 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         for work in iter(lambda: comm.sendrecv(0, dest=0), StopIteration):
             currentmodelrun = work['currentmodelrun']
 
+            # Get info and setup device ID for GPU(s)
             gpuinfo = ''
+            if args.gpu is not None:
+                # Set device ID for multiple GPUs
+                if isinstance(args.gpu, list):
+                    deviceID = (rank - 1) % len(args.gpu)
+                    args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
+                gpuinfo = ' using {} - {}, {} RAM '.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
+
             print('MPI worker rank {} (PID {}) starting model {}/{}{} on {}'.format(rank, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo, name))
 
             # If Taguchi optimistaion, add specific value for each parameter to

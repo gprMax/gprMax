@@ -1,8 +1,8 @@
 .. _openmp-mpi:
 
-******************
-Parallel execution
-******************
+*********************
+OpenMP, MPI, and HPCs
+*********************
 
 OpenMP
 ======

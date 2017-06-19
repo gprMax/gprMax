@@ -44,7 +44,7 @@ basepath += 'basic'
 # basepath += 'advanced'
 
 # List of available basic test models
-testmodels = ['hertzian_dipole_fs_analytical', '2D_ExHyHz', '2D_EyHxHz', '2D_EzHxHy', 'cylinder_Ascan_2D', 'hertzian_dipole_fs', 'hertzian_dipole_hs', 'hertzian_dipole_dispersive', 'magnetic_dipole_fs']
+testmodels = ['hertzian_dipole_fs_analytical', '2D_ExHyHz', '2D_EyHxHz', '2D_EzHxHy', 'cylinder_Ascan_2D', 'hertzian_dipole_fs', 'hertzian_dipole_hs', 'hertzian_dipole_dispersive', 'magnetic_dipole_fs', 'pmls']
 
 # List of available advanced test models
 # testmodels = ['antenna_GSSI_1500_fs', 'antenna_MALA_1200_fs']
@@ -63,7 +63,7 @@ for i, model in enumerate(testmodels):
     testresults[model] = {}
 
     # Run model
-    api(os.path.join(basepath, model + os.path.sep + model + '.in'))
+    api(os.path.join(basepath, model + os.path.sep + model + '.in'), gpu=None)
 
     # Special case for analytical comparison
     if model == 'hertzian_dipole_fs_analytical':

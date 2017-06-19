@@ -77,7 +77,7 @@ def process_singlecmds(singlecmds, G):
     # os.environ['OMP_DISPLAY_ENV'] = 'TRUE' # Prints OMP version and environment variables (useful for debug)
 
     # Catch bug with Windows Subsystem for Linux (https://github.com/Microsoft/BashOnWindows/issues/785)
-    if 'Microsoft' in hostinfo['osversion']:
+    if 'Microsoft' in G.hostinfo['osversion']:
         os.environ['KMP_AFFINITY'] = 'disabled'
         del os.environ['OMP_PLACES']
         del os.environ['OMP_PROC_BIND']
@@ -99,8 +99,13 @@ def process_singlecmds(singlecmds, G):
 
     if G.messages:
         print('Number of CPU (OpenMP) threads: {}'.format(G.nthreads))
-    if G.nthreads > hostinfo['physicalcores']:
+    if G.nthreads > G.hostinfo['physicalcores']:
         print(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, hostinfo['physicalcores']) + Style.RESET_ALL)
+
+    # Print information about any GPU in use
+    if G.messages:
+        if G.gpu is not None:
+            print('GPU solving using: {} - {}'.format(G.gpu.deviceID, G.gpu.name))
 
     # Spatial discretisation
     cmd = '#dx_dy_dz'
@@ -135,8 +140,13 @@ def process_singlecmds(singlecmds, G):
     # Estimate memory (RAM) usage
     memestimate = memory_usage(G)
     # Check if model can be built and/or run on host
-    if memestimate > hostinfo['ram']:
+    if memestimate > G.hostinfo['ram']:
         raise GeneralError('Estimated memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(memestimate), human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
+
+    # Check if model can be run on specified GPU if required
+    if G.gpu is not None:
+        if memestimate > G.gpu.totalmem:
+            raise GeneralError('Estimated memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(memestimate), human_size(G.gpu.totalmem, a_kilobyte_is_1024_bytes=True), G.gpu.deviceID, G.gpu.name))
     if G.messages:
         print('Estimated memory (RAM) required: ~{}'.format(human_size(memestimate)))
 
