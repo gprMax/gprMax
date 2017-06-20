@@ -23,6 +23,7 @@ import sys
 from colorama import init, Fore, Style
 init()
 import numpy as np
+from scipy.interpolate import UnivariateSpline
 
 from gprMax.constants import c
 from gprMax.constants import floattype
@@ -286,5 +287,50 @@ def process_singlecmds(singlecmds, G):
 
             if G.messages:
                 print('User waveform {} created.'.format(w.ID))
+
+            G.waveforms.append(w)
+            
+    # Excitation file for user-defined source waveforms using interpolated data
+    cmd = '#excitation_filefunc'
+    if singlecmds[cmd] is not None:
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1:
+            raise CmdInputError(cmd + ' requires exactly one parameter')
+        excitationfile = tmp[0]
+
+        # See if file exists at specified path and if not try input file directory
+        if not os.path.isfile(excitationfile):
+            excitationfile = os.path.abspath(os.path.join(G.inputdirectory, excitationfile))
+
+        # Get waveform names
+        with open(excitationfile, 'r') as f:
+            waveformIDs = f.readline().split()
+
+        # Read all waveform values into an array
+        waveformvalues = np.loadtxt(excitationfile, skiprows=1, dtype=floattype)
+        
+        timedata = None
+
+        for waveform in range(len(waveformIDs)):
+            
+            if waveformIDs[waveform].lower() == 'time':
+                timedata = waveformvalues[:, waveform]
+                
+        if timedata is None:
+            raise CmdInputError('Excitation Function File must specify time domain')
+            
+        for waveform in range(len(waveformIDs)):   
+            if waveformIDs[waveform].lower() == 'time':
+                continue
+            
+            if any(x.ID == waveformIDs[waveform] for x in G.waveforms):
+                raise CmdInputError('Waveform with ID {} already exists'.format(waveformIDs[waveform]))
+            w = Waveform()
+            w.ID = waveformIDs[waveform]
+            w.type = 'userfunc'
+            w.userfunc = UnivariateSpline(timedata,waveformvalues[:, waveform],ext=1,k=2,s=0)
+
+            if G.messages:
+                print('User waveform-function {} created.'.format(w.ID))
 
             G.waveforms.append(w)

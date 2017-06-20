@@ -24,7 +24,7 @@ from gprMax.utilities import round_value
 class Waveform(object):
     """Definitions of waveform shapes that can be used with sources."""
 
-    types = ['gaussian', 'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot', 'gaussiandotdotnorm', 'ricker', 'sine', 'contsine', 'impulse', 'user']
+    types = ['gaussian', 'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot', 'gaussiandotdotnorm', 'ricker', 'sine', 'contsine', 'impulse', 'user', 'userfunc']
 
     def __init__(self):
         self.ID = None
@@ -32,6 +32,7 @@ class Waveform(object):
         self.amp = 1
         self.freq = None
         self.uservalues = None
+        self.userfunc = None
 
     def calculate_value(self, time, dt):
         """Calculates value of the waveform at a specific time.
@@ -102,6 +103,12 @@ class Waveform(object):
                 ampvalue = 0
             else:
                 ampvalue = self.uservalues[index]
+        elif self.type == 'userfunc':
+                            
+            if self.userfunc is None:
+                ampvalue = 0
+            else:
+                ampvalue = float(self.userfunc(time))
 
         ampvalue *= self.amp
 
