@@ -50,8 +50,8 @@ testmodels = ['hertzian_dipole_fs_analytical', '2D_ExHyHz', '2D_EyHxHz', '2D_EzH
 # testmodels = ['antenna_GSSI_1500_fs', 'antenna_MALA_1200_fs']
 
 # Select a specific model if desired
-# testmodels = [testmodels[0], testmodels[5], testmodels[7]]
-# testmodels = [testmodels[5]]
+testmodels = testmodels[:-1]
+# testmodels = [testmodels[0]]
 testresults = dict.fromkeys(testmodels)
 path = '/rxs/rx1/'
 
