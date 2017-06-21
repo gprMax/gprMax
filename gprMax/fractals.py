@@ -55,7 +55,7 @@ class FractalSurface(object):
         self.dimension = dimension
         # Constant related to fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
         self.b = -(2 * self.dimension - 7) / 2
-        self.weighting = np.array([1, 1])
+        self.weighting = np.array([1, 1], dtype=np.float64)
         self.fractalrange = (0, 0)
         self.filldepth = 0
         self.grass = []
@@ -129,7 +129,7 @@ class FractalVolume(object):
         self.dimension = dimension
         # Constant related to fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
         self.b = -(2 * self.dimension - 7) / 2
-        self.weighting = np.array([1, 1, 1])
+        self.weighting = np.array([1, 1, 1], dtype=np.float64)
         self.nbins = 0
         self.fractalsurfaces = []
 
