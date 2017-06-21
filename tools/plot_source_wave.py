@@ -95,7 +95,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
     if w.freq and not w.type == 'gaussian':
         print('Centre frequency: {:g} Hz'.format(w.freq))
 
-    if w.type == 'gaussian' or w.type == 'gaussiandot' or w.type == 'gaussiandotnorm':
+    if w.type == 'gaussian' or w.type == 'gaussiandot' or w.type == 'gaussiandotnorm' or w.type == 'gaussianprime' or w.type == 'gaussiandoubleprime':
         delay = 1 / w.freq
         print('Time to centre of pulse: {:g} s'.format(delay))
     elif w.type == 'gaussiandotdot' or w.type == 'gaussiandotdotnorm' or w.type == 'ricker':

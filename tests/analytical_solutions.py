@@ -19,7 +19,7 @@ def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
 
     # Waveform
     w = Waveform()
-    w.type = 'gaussiandot'
+    w.type = 'gaussianprime'
     w.amp = 1
     w.freq = 1e9
 
@@ -31,7 +31,7 @@ def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
 
     # Waveform first derivative
     wdot = Waveform()
-    wdot.type = 'gaussiandotdot'
+    wdot.type = 'gaussiandoubleprime'
     wdot.amp = w.amp
     wdot.freq = w.freq
 

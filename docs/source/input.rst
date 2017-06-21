@@ -661,6 +661,8 @@ Allows you to specify waveforms to use with sources in the model. The syntax of 
     * ``gaussiandotdot`` which is the second derivative of a Gaussian waveform.
     * ``gaussiandotdotnorm`` which is the normalised second derivative of a Gaussian waveform.
     * ``ricker`` which is a Ricker (or Mexican hat) waveform, i.e. the negative, normalised second derivative of a Gaussian waveform.
+    * ``gaussianprime`` which is the first derivative of a Gaussian waveform, directly derived from the aforementioned ``gaussian`` (see notes below).
+    * ``gaussiandoubleprime`` which is the second derivative of a Gaussian waveform, directly derived from the aforementioned ``gaussian`` (see notes below).
     * ``sine`` which is a single cycle of a sine waveform.
     * ``contsine`` which is a continuous sine waveform. In order to avoid introducing noise into the calculation the amplitude of the waveform is modulated for the first cycle of the sine wave (ramp excitation).
 * ``f1`` is the scaling of the maximum amplitude of the waveform (for a ``#hertzian_dipole`` the units will be Amps, for a ``#voltage_source`` or ``#transmission_line`` the units will be Volts).
@@ -672,6 +674,9 @@ For example, to specify the normalised first derivate of a Gaussian waveform wit
 .. note::
 
     * The functions used to create the waveforms can be found in the :ref:`tools section <waveforms>`.
+    * ``gaussiandot``, ``gaussiandotnorm``, ``gaussiandotdot``, ``gaussiandotdotnorm``, ``ricker`` waveforms have their centre frequencies specified by the user, i.e. they are not derived to the 'base' ``gaussian``
+    * ``gaussianprime`` and ``gaussiandoubleprime`` waveforms are the first derivative and second derivative of the 'base' ``gaussian`` waveform, i.e. the centre frequencies of the waveforms will rise for the first and second derivatives.
+
 
 #excitation_file:
 -----------------
