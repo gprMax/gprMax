@@ -366,7 +366,7 @@ At the boundaries between different materials in the model there is the question
 
     * If a material has dispersive properties then dielectric smoothing is automatically turned off for that material.
     * If an object is anistropic then dielectric smoothing is automatically turned off for that object.
-    * Non-volumetric object building commands, ``#edge``, ``#plate``, and ``#triangle`` (applies to triangular path not triangular prism) cannot have dielectric smoothing.
+    * Non-volumetric object building commands, ``#edge``, ``#plate``, and ``#triangle`` (applies to triangular patch not triangular prism) cannot have dielectric smoothing.
 
 
 .. _geometryview:
