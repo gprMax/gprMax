@@ -251,61 +251,65 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     hyperthreading = ', {} cores with Hyper-Threading'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
     machineIDlong = '{}; {} x {} ({} cores{}); {} RAM; {}'.format(hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'], hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion'])
 
-    # Number of CPU threads to benchmark - start from single thread and double threads until maximum number of physical cores
-    threads = 1
-    maxthreads = hostinfo['physicalcores']
-    maxthreadspersocket = hostinfo['physicalcores'] / hostinfo['sockets']
+    # Initialise arrays to hold CPU thread info and times, and GPU info and times
     cputhreads = np.array([], dtype=np.int32)
-    while threads < maxthreadspersocket:
-        cputhreads = np.append(cputhreads, int(threads))
-        threads *= 2
-    # Check for system with only single thread
-    if cputhreads.size == 0:
-        cputhreads = np.append(cputhreads, threads)
-    # Add maxthreadspersocket and maxthreads if necessary
-    if cputhreads[-1] != maxthreadspersocket:
-        cputhreads = np.append(cputhreads, int(maxthreadspersocket))
-    if cputhreads[-1] != maxthreads:
-        cputhreads = np.append(cputhreads, int(maxthreads))
-    cputhreads = cputhreads[::-1]
-    cputimes = np.zeros(len(cputhreads))
-
-    numbermodelruns = len(cputhreads)
-
-    # Both CPU and GPU benchmarking
-    gpus = None
+    cputimes = np.array([])
     gpuIDs = []
     gputimes = np.array([])
-    if args.gpu is not None:
+
+    # CPU only benchmarking
+    if args.gpu is None:
+        # Number of CPU threads to benchmark - start from single thread and double threads until maximum number of physical cores
+        threads = 1
+        maxthreads = hostinfo['physicalcores']
+        maxthreadspersocket = hostinfo['physicalcores'] / hostinfo['sockets']
+        while threads < maxthreadspersocket:
+            cputhreads = np.append(cputhreads, int(threads))
+            threads *= 2
+        # Check for system with only single thread
+        if cputhreads.size == 0:
+            cputhreads = np.append(cputhreads, threads)
+        # Add maxthreadspersocket and maxthreads if necessary
+        if cputhreads[-1] != maxthreadspersocket:
+            cputhreads = np.append(cputhreads, int(maxthreadspersocket))
+        if cputhreads[-1] != maxthreads:
+            cputhreads = np.append(cputhreads, int(maxthreads))
+        cputhreads = cputhreads[::-1]
+        cputimes = np.zeros(len(cputhreads))
+
+        numbermodelruns = len(cputhreads)
+
+    # GPU only benchmarking
+    else:
         # Set size of array to store GPU runtimes and number of runs of model required
         if isinstance(args.gpu, list):
             for gpu in args.gpu:
                 gpuIDs.append(gpu.name)
             gputimes = np.zeros(len(args.gpu))
-            numbermodelruns += len(args.gpu)
+            numbermodelruns = len(args.gpu)
         else:
             gpuIDs.append(args.gpu.name)
             gputimes = np.zeros(1)
-            numbermodelruns += 1
-        # Store GPU information in a temp variable and set args.gpu to None to do CPU benchmarking first
+            numbermodelruns = 1
+        # Store GPU information in a temp variable
         gpus = args.gpu
-        args.gpu = None
 
     usernamespace['number_model_runs'] = numbermodelruns
     modelend = numbermodelruns + 1
 
     for currentmodelrun in range(1, modelend):
-        # Set args.gpu if doing GPU benchmark
-        if currentmodelrun > len(cputhreads):
-            if isinstance(gpus, list):
-                args.gpu = gpus[(currentmodelrun - 1) - len(cputhreads)]
-            else:
-                args.gpu = gpus
-            # del os.environ['OMP_NUM_THREADS']
-            gputimes[(currentmodelrun - 1) - len(cputhreads)] = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, usernamespace)
-        else:
+        # Run CPU benchmark
+        if args.gpu is None:
             os.environ['OMP_NUM_THREADS'] = str(cputhreads[currentmodelrun - 1])
             cputimes[currentmodelrun - 1] = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, usernamespace)
+        # Run GPU benchmark
+        else:
+            if isinstance(gpus, list):
+                args.gpu = gpus[(currentmodelrun - 1)]
+            else:
+                args.gpu = gpus
+            os.environ['OMP_NUM_THREADS'] = str(hostinfo['physicalcores'])
+            gputimes[(currentmodelrun - 1)] = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, usernamespace)
 
         # Get model size (in cells) and number of iterations
         if currentmodelrun == 1:
@@ -318,7 +322,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
             numcells = f.attrs['nx, ny, nz']
 
     # Save number of threads and benchmarking times to NumPy archive
-    np.savez(os.path.splitext(inputfile.name)[0], machineID=machineIDlong, gpuIDs=[], cputhreads=cputhreads, cputimes=cputimes, gputimes=[], iterations=iterations, numcells=numcells, version=__version__)
+    np.savez(os.path.splitext(inputfile.name)[0], machineID=machineIDlong, gpuIDs=gpuIDs, cputhreads=cputhreads, cputimes=cputimes, gputimes=gputimes, iterations=iterations, numcells=numcells, version=__version__)
 
     simcompletestr = '\n=== Simulation completed'
     print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))

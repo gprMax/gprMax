@@ -27,7 +27,8 @@ import matplotlib.gridspec as gridspec
 import numpy as np
 
 from gprMax._version import __version__
-from gprMax.utilities import get_host_info, human_size
+from gprMax.utilities import get_host_info
+from gprMax.utilities import human_size
 
 
 """Plots execution times and speedup factors from benchmarking models run with different numbers of CPU (OpenMP) threads. Can also benchmark GPU(s) if required. Results are read from a NumPy archive."""
@@ -54,17 +55,18 @@ except KeyError:
     machineIDlong = '{}; {} x {} ({} cores{}); {} RAM; {}'.format(hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'], hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion'])
 print('Host: {}'.format(machineIDlong))
 
-# Base result - threads and times info from Numpy archive
+# Base result - general info
 print('Model: {}'.format(args.baseresult))
-for i in range(len(baseresult['cputhreads'])):
-    print('{} CPU (OpenMP) thread(s): {:g} s'.format(baseresult['cputhreads'][i], baseresult['cputimes'][i]))
+cells = np.array([baseresult['numcells'][0]]) # Length of cubic model side for cells per second metric
 baseplotlabel = os.path.splitext(os.path.split(args.baseresult)[1])[0] + '.in'
 
-# Base result - arrays for length of cubic model side and cells per second metric
-cells = np.array([baseresult['numcells'][0]])
-cpucellspersec = np.array([(baseresult['numcells'][0] * baseresult['numcells'][1] * baseresult['numcells'][2] * baseresult['iterations']) / baseresult['cputimes'][0]])
+# Base result - CPU threads and times info from Numpy archive
+if baseresult['cputhreads'].size != 0:
+    for i in range(len(baseresult['cputhreads'])):
+        print('{} CPU (OpenMP) thread(s): {:g} s'.format(baseresult['cputhreads'][i], baseresult['cputimes'][i]))
+    cpucellspersec = np.array([(baseresult['numcells'][0] * baseresult['numcells'][1] * baseresult['numcells'][2] * baseresult['iterations']) / baseresult['cputimes'][0]])
 
-# Base result for GPU if required - time info
+# Base result - GPU time info
 gpuIDs = baseresult['gpuIDs'].tolist()
 if gpuIDs:
     gpucellspersec = np.zeros((len(gpuIDs), 1))
@@ -79,15 +81,16 @@ if args.otherresults is not None:
     for i, result in enumerate(args.otherresults):
         otherresults.append(dict(np.load(result)))
         print('\nModel: {}'.format(result))
-        for thread in range(len(otherresults[i]['cputhreads'])):
-            print('{} CPU (OpenMP) thread(s): {:g} s'.format(otherresults[i]['cputhreads'][thread], otherresults[i]['cputimes'][thread]))
+        cells = np.append(cells, otherresults[i]['numcells'][0]) # Length of cubic model side for cells per second metric
         otherplotlabels.append(os.path.splitext(os.path.split(result)[1])[0] + '.in')
         
-        # Arrays for length of cubic model side and cells per second metric
-        cells = np.append(cells, otherresults[i]['numcells'][0])
-        cpucellspersec = np.append(cpucellspersec, (otherresults[i]['numcells'][0] * otherresults[i]['numcells'][1] * otherresults[i]['numcells'][2] * otherresults[i]['iterations']) / otherresults[i]['cputimes'][0])
+        # CPU
+        if otherresults[i]['cputhreads'].size != 0:
+            for thread in range(len(otherresults[i]['cputhreads'])):
+                print('{} CPU (OpenMP) thread(s): {:g} s'.format(otherresults[i]['cputhreads'][thread], otherresults[i]['cputimes'][thread]))
+            cpucellspersec = np.append(cpucellspersec, (otherresults[i]['numcells'][0] * otherresults[i]['numcells'][1] * otherresults[i]['numcells'][2] * otherresults[i]['iterations']) / otherresults[i]['cputimes'][0])
         
-        # Other results GPU
+        # GPU
         othergpuIDs = otherresults[i]['gpuIDs'].tolist()
         if othergpuIDs:
             # Array for cells per second metric
@@ -113,58 +116,82 @@ markers = ['o', 'd', '^', 's', '*']
 fig, ax = plt.subplots(num=machineID, figsize=(30, 10), facecolor='w', edgecolor='w')
 fig.suptitle(machineIDlong + '\ngprMax v' + version)
 gs = gridspec.GridSpec(1, 3, hspace=0.5)
+plotcount = 0
 
 ###########################################
 # Subplot of CPU (OpenMP) threads vs time #
 ###########################################
-ax = plt.subplot(gs[0, 0])
-ax.plot(baseresult['cputhreads'], baseresult['cputimes'], color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, label=baseplotlabel)
+if baseresult['cputhreads'].size != 0:
+    ax = plt.subplot(gs[0, plotcount])
+    ax.plot(baseresult['cputhreads'], baseresult['cputimes'], color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, label=baseplotlabel)
 
-if args.otherresults is not None:
-    for i, result in enumerate(otherresults):
-        ax.plot(result['cputhreads'], result['cputimes'], color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, ls=next(lines), label=otherplotlabels[i])
+    if args.otherresults is not None:
+        for i, result in enumerate(otherresults):
+            ax.plot(result['cputhreads'], result['cputimes'], color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, ls=next(lines), label=otherplotlabels[i])
 
-ax.set_xlabel('Number of CPU (OpenMP) threads')
-ax.set_ylabel('Time [s]')
-ax.grid()
-legend = ax.legend(loc=1)
-frame = legend.get_frame()
-frame.set_edgecolor('white')
-ax.set_xlim([0, baseresult['cputhreads'][0] * 1.1])
-ax.set_xticks(np.append(baseresult['cputhreads'], 0))
-ax.set_ylim(0, top=ax.get_ylim()[1] * 1.1)
+    ax.set_xlabel('Number of CPU (OpenMP) threads')
+    ax.set_ylabel('Time [s]')
+    ax.grid()
+    legend = ax.legend(loc=1)
+    frame = legend.get_frame()
+    frame.set_edgecolor('white')
+    ax.set_xlim([0, baseresult['cputhreads'][0] * 1.1])
+    ax.set_xticks(np.append(baseresult['cputhreads'], 0))
+    ax.set_ylim(0, top=ax.get_ylim()[1] * 1.1)
+    plotcount += 1
 
 ######################################################
 # Subplot of CPU (OpenMP) threads vs speed-up factor #
 ######################################################
 colors = itertools.cycle(colorIDs) # Reset color iterator
-ax = plt.subplot(gs[0, 1])
-ax.plot(baseresult['cputhreads'], baseresult['cputimes'][-1] / baseresult['cputimes'], color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, label=baseplotlabel)
+if baseresult['cputhreads'].size != 0:
+    ax = plt.subplot(gs[0, plotcount])
+    ax.plot(baseresult['cputhreads'], baseresult['cputimes'][-1] / baseresult['cputimes'], color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, label=baseplotlabel)
 
-if args.otherresults is not None:
-    for i, result in enumerate(otherresults):
-        ax.plot(result['cputhreads'], result['cputimes'][-1] / result['cputimes'], color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, ls=next(lines), label=otherplotlabels[i])
+    if args.otherresults is not None:
+        for i, result in enumerate(otherresults):
+            ax.plot(result['cputhreads'], result['cputimes'][-1] / result['cputimes'], color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, ls=next(lines), label=otherplotlabels[i])
 
-ax.set_xlabel('Number of CPU (OpenMP) threads')
-ax.set_ylabel('Speed-up factor')
-ax.grid()
-legend = ax.legend(loc=2)
-frame = legend.get_frame()
-frame.set_edgecolor('white')
-ax.set_xlim([0, baseresult['cputhreads'][0] * 1.1])
-ax.set_xticks(np.append(baseresult['cputhreads'], 0))
-ax.set_ylim(bottom=1, top=ax.get_ylim()[1] * 1.1)
+    ax.set_xlabel('Number of CPU (OpenMP) threads')
+    ax.set_ylabel('Speed-up factor')
+    ax.grid()
+    legend = ax.legend(loc=2)
+    frame = legend.get_frame()
+    frame.set_edgecolor('white')
+    ax.set_xlim([0, baseresult['cputhreads'][0] * 1.1])
+    ax.set_xticks(np.append(baseresult['cputhreads'], 0))
+    ax.set_ylim(bottom=1, top=ax.get_ylim()[1] * 1.1)
+    plotcount += 1
 
 ###########################################
 # Subplot of simulation size vs cells/sec #
 ###########################################
+
+def autolabel(rects):
+    """Attach a text label above each bar on a matplotlib bar chart displaying its height.
+        
+        Args:
+        rects: Handle to bar chart
+    """
+    for rect in rects:
+        height = rect.get_height()
+        ax.text(rect.get_x() + rect.get_width()/2, height,
+                '%d' % int(height),
+                ha='center', va='bottom', fontsize=10, rotation=90)
+
 colors = itertools.cycle(colorIDs) # Reset color iterator
-ax = plt.subplot(gs[0, 2])
-ax.plot(cells, cpucellspersec / 1e6, color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, label=cpuID)
+ax = plt.subplot(gs[0, plotcount])
+barwidth = 8 # the width of the bars
+
+if baseresult['cputhreads'].size != 0:
+    cpu = ax.bar(cells - (1/2) * barwidth, cpucellspersec / 1e6, barwidth, color=next(colors), edgecolor='none', label=cpuID)
+    autolabel(cpu)
 
 if gpuIDs:
+    positions = np.arange(-gpucellspersec.shape[0] / 2, gpucellspersec.shape[0] / 2, 1)
     for i in range(gpucellspersec.shape[0]):
-        ax.plot(cells, gpucellspersec[i,:] / 1e6, color=next(colors), marker=markers[0], markeredgecolor='none', ms=8, lw=2, label='NVIDIA ' + gpuIDs[i])
+        gpu = ax.bar(cells + positions[i] * barwidth, gpucellspersec[i,:] / 1e6, barwidth, color=next(colors), edgecolor='none', label='NVIDIA ' + gpuIDs[i])
+        autolabel(gpu)
 
 ax.set_xlabel('Side length of cubic domain [cells]')
 ax.set_ylabel('Performance [Mcells/s]')
@@ -172,6 +199,8 @@ ax.grid()
 legend = ax.legend(loc=2)
 frame = legend.get_frame()
 frame.set_edgecolor('white')
+ax.set_xticks(cells)
+ax.set_xticklabels(cells)
 ax.set_xlim([0, cells[-1] * 1.1])
 ax.set_ylim(bottom=0, top=ax.get_ylim()[1] * 1.1)
 
