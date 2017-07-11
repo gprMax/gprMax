@@ -290,6 +290,9 @@ def get_host_info():
         hostinfo['physicalcores'] = psutil.cpu_count(logical=False)
     except ValueError:
         hostinfo['physicalcores'] = hostinfo['logicalcores']
+    # Handle case where cpu_count returns None on some machines
+    if not hostinfo['physicalcores']:
+        hostinfo['physicalcores'] = hostinfo['logicalcores']
     hostinfo['ram'] = psutil.virtual_memory().total
 
     return hostinfo
