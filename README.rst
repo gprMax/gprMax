@@ -16,7 +16,7 @@ What is gprMax?
 
 gprMax is currently released under the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
 
-gprMax is written in `Python <https://www.python.org>`_ 3 and includes performance-critical parts written in `Cython <http://cython.org>`_ with `OpenMP <http://www.openmp.org>`_.
+gprMax is principally written in `Python <https://www.python.org>`_ 3 with performance-critical parts written in `Cython <http://cython.org>`_. It includes a CPU solver parallelised using `OpenMP <http://www.openmp.org>`_, and a GPU written using the `NVIDIA CUDA <https://developer.nvidia.com/cuda-zone>`_ programming model.
 
 Using gprMax? Cite us
 ---------------------
