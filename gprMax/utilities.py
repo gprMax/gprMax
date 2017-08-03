@@ -72,7 +72,7 @@ def logo(version):
    | (_| | |_) | |  | |  | | (_| |>  <
     \__, | .__/|_|  |_|  |_|\__,_/_/\_\\
     |___/|_|
-                       v""" + version
+                     v""" + version
 
     print('{} {}\n'.format(description, '=' * (get_terminal_width() - len(description) - 1)))
     print(Fore.CYAN + '{}\n'.format(logo))
