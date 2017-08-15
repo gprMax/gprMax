@@ -17,7 +17,7 @@ if filename ~= 0
     field = input(prompt,'s');
     fieldpath = strcat('/rxs/rx1/', field);
     field = h5read(filename, fieldpath)';
-    time = 0:dt:iterations * dt;
+    time = linspace(0, iterations*dt, iterations)';
     traces = 0:size(field,2);
 
     fh1=figure('Name', filename);
