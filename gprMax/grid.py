@@ -89,14 +89,14 @@ class FDTDGrid(Grid):
 
         # Get information about host machine
         self.hostinfo = None
-        
+
         # CPU - OpenMP threads
         self.nthreads = 0
-        
+
         # GPU
         # Threads per block
         self.tpb = (256, 1, 1)
-        
+
         # GPU object
         self.gpu = None
 
@@ -238,8 +238,10 @@ def dispersion_analysis(G):
 
                 # Built-in waveform
                 else:
-                    time = np.linspace(0, 1, G.iterations)
-                    time *= (G.iterations * G.dt)
+                    # Time to analyse waveform - 3*pulse_width as using entire
+                    # time window can result in demanding FFT
+                    waveform.calculate_coefficients()
+                    time = np.arange(0, 3 * waveform.chi, G.dt)
                     waveformvalues = np.zeros(len(time))
                     timeiter = np.nditer(time, flags=['c_index'])
 
