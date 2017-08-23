@@ -238,10 +238,10 @@ def dispersion_analysis(G):
 
                 # Built-in waveform
                 else:
-                    # Time to analyse waveform - 3*pulse_width as using entire
+                    # Time to analyse waveform - 4*pulse_width as using entire
                     # time window can result in demanding FFT
                     waveform.calculate_coefficients()
-                    time = np.arange(0, 3 * waveform.chi, G.dt)
+                    time = np.arange(0, 4 * waveform.chi, G.dt)
                     waveformvalues = np.zeros(len(time))
                     timeiter = np.nditer(time, flags=['c_index'])
 
