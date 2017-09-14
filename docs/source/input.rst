@@ -705,7 +705,7 @@ For example, to specify the file ``my_waves.txt``, which contains two custom wav
     ...         ...
     ...         ...
 
-Then to use ``my_pulse1`` custom waveform shape with, for example, an z polarised Hertzian dipole source:
+Then to use ``my_pulse1`` custom waveform shape with, for example, a z-polarised Hertzian dipole source:
 
 .. code-block:: none
 
@@ -713,7 +713,7 @@ Then to use ``my_pulse1`` custom waveform shape with, for example, an z polarise
 
 .. note::
 
-    * The ``#waveform`` command is not necessary when using a custom waveform excitation, only the `#excitation_file`` command and whatever source is going to be used with the custom waveform excitation.
+    * The ``#waveform`` command is not necessary when using a custom waveform excitation, only the ``#excitation_file`` command and whatever source is going to be used with the custom waveform excitation.
 
 #hertzian_dipole:
 -----------------
@@ -741,11 +741,11 @@ The syntax of the command is:
 * ``f4 f5`` are optional parameters. ``f4`` is a time delay in starting the source. ``f5`` is a time to remove the source. If the time window is longer than the source removal time then the source will stop after the source removal time. If the source removal time is longer than the time window then the source will be active for the entire time window. If ``f4 f5`` are omitted the source will start at the beginning of time window and stop at the end of the time window.
 * ``str1`` is the identifier of the waveform that should be used with the source.
 
-For example, to use a x polarised Hertzian dipole with unit amplitude and a 600 MHz centre frequency Ricker waveform, use: ``#waveform: ricker 1 600e6 my_ricker_pulse`` and ``#hertzian_dipole: x 0.05 0.05 0.05 my_ricker_pulse``.
+For example, to use a x-polarised Hertzian dipole with unit amplitude and a 600 MHz centre frequency Ricker waveform, use: ``#waveform: ricker 1 600e6 my_ricker_pulse`` and ``#hertzian_dipole: x 0.05 0.05 0.05 my_ricker_pulse``.
 
 .. note::
 
-    * When a ``#hertzian_dipole`` is used in a 2D simulation it acts as a line source of current in the infinite direction of the simulation.
+    * When a ``#hertzian_dipole`` is used in a 2D simulation it acts as a line source of current in the invariant (geometry) direction of the simulation.
 
 
 #magnetic_dipole:
