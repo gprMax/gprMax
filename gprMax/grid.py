@@ -252,7 +252,12 @@ def dispersion_analysis(G):
                 # Ensure source waveform is not being overly truncated before attempting any FFT
                 if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:
                     # Calculate magnitude of frequency spectra of waveform
-                    power = 10 * np.log10(np.abs(np.fft.fft(waveformvalues))**2)
+                    mag = np.abs(np.fft.fft(waveformvalues))**2
+
+                    # Calculate power (avoiding taking a log of any zero values)
+                    np.seterr(divide='ignore')
+                    power = 10 * np.log10(mag)
+                    np.seterr(divide='warn')
                     freqs = np.fft.fftfreq(power.size, d=G.dt)
 
                     # Shift powers so that frequency with maximum power is at zero decibels
