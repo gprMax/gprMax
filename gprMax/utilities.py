@@ -179,9 +179,17 @@ def get_host_info():
         # Manufacturer/model
         try:
             manufacturer = subprocess.check_output("wmic csproduct get vendor", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
-            manufacturer = manufacturer.split('\n')[1]
+            manufacturer = manufacturer.split('\n')
+            if len(manufacturer) > 1:
+                manufacturer = manufacturer[1]
+            else:
+                manufacturer = manufacturer[0]
             model = subprocess.check_output("wmic computersystem get model", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
-            model = model.split('\n')[1]
+            model = model.split('\n')
+            if len(model) > 1:
+                model = model[1]
+            else:
+                model = model[0]
         except subprocess.CalledProcessError:
             pass
         machineID = manufacturer + ' ' + model
@@ -300,13 +308,13 @@ def get_host_info():
 
 class GPU(object):
     """GPU information."""
-    
+
     def __init__(self, deviceID):
         """
         Args:
             deviceID (int): Device ID for GPU.
         """
-        
+
         self.deviceID = deviceID
         self.name = None
         self.pcibusID = None
@@ -315,11 +323,11 @@ class GPU(object):
 
     def get_gpu_info(self, drv):
         """Set information about GPU.
-            
+
         Args:
             drv (object): PyCuda driver.
         """
-        
+
         self.name = drv.Device(self.deviceID).name()
         self.pcibusID = drv.Device(self.deviceID).pci_bus_id()
         self.constmem = drv.Device(self.deviceID).total_constant_memory
@@ -328,11 +336,11 @@ class GPU(object):
 
 def detect_gpus():
     """Get information about Nvidia GPU(s).
-        
+
     Returns:
         gpus (list): Detected GPU(s) object(s).
     """
-    
+
     try:
         import pycuda.driver as drv
     except ImportError:
