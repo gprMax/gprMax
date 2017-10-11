@@ -83,7 +83,14 @@ ax.annotate('Ground', xy=(np.deg2rad(270), 0), xytext=(8, -15), textcoords='offs
 for patt in range(0, len(radii)):
     pattplot = np.append(patterns[patt, :], patterns[patt, 0])  # Append start value to close circle
     pattplot = pattplot / np.max(np.max(patterns))  # Normalise, based on set of patterns
-    ax.plot(theta, 10 * np.log10(pattplot), label='{:.2f}m'.format(radii[patt]), marker='.', ms=6, lw=1.5)
+
+    # Calculate power (ignore warning from taking a log of any zero values)
+    with np.errstate(divide='ignore'):
+        power = 10 * np.log10(pattplot)
+    # Replace any NaNs or Infs from zero division
+    power[np.invert(np.isfinite(power))] = 0
+    
+    ax.plot(theta, power, label='{:.2f}m'.format(radii[patt]), marker='.', ms=6, lw=1.5)
 
 # Add Hertzian dipole plot
 # hertzplot1 = np.append(hertzian[0, :], hertzian[0, 0]) # Append start value to close circle

@@ -254,10 +254,13 @@ def dispersion_analysis(G):
                     # Calculate magnitude of frequency spectra of waveform
                     mag = np.abs(np.fft.fft(waveformvalues))**2
 
-                    # Calculate power (avoiding taking a log of any zero values)
-                    np.seterr(divide='ignore')
-                    power = 10 * np.log10(mag)
-                    np.seterr(divide='warn')
+                    # Calculate power (ignore warning from taking a log of any zero values)
+                    with np.errstate(divide='ignore'):
+                        power = 10 * np.log10(mag)
+                    # Replace any NaNs or Infs from zero division
+                    power[np.invert(np.isfinite(power))] = 0
+
+                    # Frequency bins
                     freqs = np.fft.fftfreq(power.size, d=G.dt)
 
                     # Shift powers so that frequency with maximum power is at zero decibels

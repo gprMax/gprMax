@@ -13,8 +13,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy import signal
 
-np.seterr(divide='ignore')
-
 from gprMax.exceptions import GeneralError
 
 """This module contains fitness metric functions that can be used with the Taguchi optimisation method.
@@ -183,9 +181,14 @@ def min_sum_diffs(filename, args):
         if output.attrs['Name'] in args['outputs']:
             outputname = list(output.keys())[0]
             modelresp = np.array(output[outputname])
+
             # Calculate sum of differences
-            tmp = 20 * np.log10(np.abs(modelresp - refresp) / np.amax(np.abs(refresp)))
-            tmp = np.abs(np.sum(tmp[-np.isneginf(tmp)])) / len(tmp[-np.isneginf(tmp)])
+            with np.errstate(divide='ignore'): # Ignore warning from taking a log of any zero values
+                tmp = 20 * np.log10(np.abs(modelresp - refresp) / np.amax(np.abs(refresp)))
+            # Replace any NaNs or Infs from zero division
+            tmp[np.invert(np.isfinite(tmp))] = 0
+
+            tmp = np.abs(np.sum(tmp)) / len(tmp)
             diffdB += tmp
             outputs += 1
 

@@ -27,8 +27,6 @@ from gprMax.exceptions import CmdInputError
 from gprMax.utilities import round_value
 from gprMax.waveforms import Waveform
 
-np.seterr(divide='ignore')
-
 
 def check_timewindow(timewindow, dt):
     """Checks and sets time window and number of iterations.
@@ -105,27 +103,41 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
     # Calculate pulse width for gaussian
     if w.type == 'gaussian':
         powerdrop = -3  # dB
-        start = np.where((10 * np.log10(waveform / np.amax(waveform))) > powerdrop)[0][0]
-        stop = np.where((10 * np.log10(waveform[start:] / np.amax(waveform))) < powerdrop)[0][0] + start
+        with np.errstate(divide='ignore'): # Ignore warning from taking a log of any zero values
+            startpower = 10 * np.log10(waveform / np.amax(waveform))
+            stopower = 10 * np.log10(waveform[start:] / np.amax(waveform))
+
+        # Replace any NaNs or Infs from zero division
+        startpower[np.invert(np.isfinite(startpower))] = 0
+        stopower[np.invert(np.isfinite(stopower))] = 0
+
+        start = np.where(startpower > powerdrop)[0][0]
+        stop = np.where(stopower < powerdrop)[0][0] + start
         print('Pulse width at {:d}dB, i.e. full width at half maximum (FWHM): {:g} s'.format(powerdrop, time[stop] - time[start]))
 
     print('Time window: {:g} s ({} iterations)'.format(timewindow, iterations))
     print('Time step: {:g} s'.format(dt))
 
     if fft:
-        # Calculate magnitude of frequency spectra of waveform
-        power = 10 * np.log10(np.abs(np.fft.fft(waveform))**2)
+        # Calculate magnitude of frequency spectra of waveform (ignore warning from taking a log of any zero values)
+        with np.errstate(divide='ignore'): #
+            power = 10 * np.log10(np.abs(np.fft.fft(waveform))**2)
+
+        # Replace any NaNs or Infs from zero division
+        power[np.invert(np.isfinite(power))] = 0
+
+        # Frequency bins
         freqs = np.fft.fftfreq(power.size, d=dt)
 
         # Shift powers so that frequency with maximum power is at zero decibels
         power -= np.amax(power)
 
-        # Set plotting range to 4 times centre frequency of waveform
         if w.type == 'user':
             fmaxpower = np.where(power == 0)[0][0]
             w.freq = freqs[fmaxpower]
             print('Centre frequency: {:g} Hz'.format(w.freq))
 
+        # Set plotting range to 4 times centre frequency of waveform
         pltrange = np.where(freqs > 4 * w.freq)[0][0]
         pltrange = np.s_[0:pltrange]
 

@@ -116,7 +116,7 @@ for i, model in enumerate(testmodels):
         floattyperef = fileref[path + outputsref[0]].dtype
         floattypetest = filetest[path + outputstest[0]].dtype
 
-        # Array for storing time
+        # Arrays for storing time
         timeref = np.zeros((fileref.attrs['Iterations']), dtype=floattyperef)
         timeref = np.arange(0, fileref.attrs['dt'] * fileref.attrs['Iterations'], fileref.attrs['dt']) / 1e-9
         timetest = np.zeros((filetest.attrs['Iterations']), dtype=floattypetest)
@@ -139,8 +139,12 @@ for i, model in enumerate(testmodels):
     for i in range(len(outputstest)):
         max = np.amax(np.abs(dataref[:, i]))
         datadiffs[:, i] = np.divide(np.abs(dataref[:, i] - datatest[:, i]), max, out=np.zeros_like(dataref[:, i]), where=max != 0)  # Replace any division by zero with zero
+
+        # Calculate power (ignore warning from taking a log of any zero values)
         with np.errstate(divide='ignore'):
-            datadiffs[:, i] = 20 * np.log10(datadiffs[:, i])  # Ignore any zero division in log10
+            datadiffs[:, i] = 20 * np.log10(datadiffs[:, i])
+        # Replace any NaNs or Infs from zero division
+        datadiffs[:, i][np.invert(np.isfinite(datadiffs[:, i]))] = 0
 
     # Store max difference
     maxdiff = np.amax(np.amax(datadiffs))

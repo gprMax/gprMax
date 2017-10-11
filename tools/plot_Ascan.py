@@ -83,8 +83,13 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
 
             # Plotting if FFT required
             if fft:
-                # Calculate magnitude of frequency spectra of waveform
-                power = 10 * np.log10(np.abs(np.fft.fft(outputdata))**2)
+                # Calculate magnitude of frequency spectra of waveform (ignore warning from taking a log of any zero values)
+                with np.errstate(divide='ignore'):
+                    power = 10 * np.log10(np.abs(np.fft.fft(outputdata))**2)
+                # Replace any NaNs or Infs from zero division
+                power[np.invert(np.isfinite(power))] = 0
+
+                # Frequency bins
                 freqs = np.fft.fftfreq(power.size, d=dt)
 
                 # Shift powers so that frequency with maximum power is at zero decibels

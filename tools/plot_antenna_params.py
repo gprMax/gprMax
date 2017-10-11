@@ -112,14 +112,24 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     # Calculate input admittance
     yin = np.fft.fft(Itotal) / (np.fft.fft(Vtotal) * delaycorrection)
 
-    # Convert to decibels
-    Vincp = 20 * np.log10(np.abs((np.fft.fft(Vinc) * delaycorrection)))
-    Iincp = 20 * np.log10(np.abs(np.fft.fft(Iinc)))
-    Vrefp = 20 * np.log10(np.abs((np.fft.fft(Vref) * delaycorrection)))
-    Irefp = 20 * np.log10(np.abs(np.fft.fft(Iref)))
-    Vtotalp = 20 * np.log10(np.abs((np.fft.fft(Vtotal) * delaycorrection)))
-    Itotalp = 20 * np.log10(np.abs(np.fft.fft(Itotal)))
-    s11 = 20 * np.log10(s11)
+    # Convert to decibels (ignore warning from taking a log of any zero values)
+    with np.errstate(divide='ignore'):
+        Vincp = 20 * np.log10(np.abs((np.fft.fft(Vinc) * delaycorrection)))
+        Iincp = 20 * np.log10(np.abs(np.fft.fft(Iinc)))
+        Vrefp = 20 * np.log10(np.abs((np.fft.fft(Vref) * delaycorrection)))
+        Irefp = 20 * np.log10(np.abs(np.fft.fft(Iref)))
+        Vtotalp = 20 * np.log10(np.abs((np.fft.fft(Vtotal) * delaycorrection)))
+        Itotalp = 20 * np.log10(np.abs(np.fft.fft(Itotal)))
+        s11 = 20 * np.log10(s11)
+
+    # Replace any NaNs or Infs from zero division
+    Vincp[np.invert(np.isfinite(Vincp))] = 0
+    Iincp[np.invert(np.isfinite(Iincp))] = 0
+    Vrefp[np.invert(np.isfinite(Vrefp))] = 0
+    Irefp[np.invert(np.isfinite(Irefp))] = 0
+    Vtotalp[np.invert(np.isfinite(Vtotalp))] = 0
+    Itotalp[np.invert(np.isfinite(Itotalp))] = 0
+    s11[np.invert(np.isfinite(s11))] = 0
 
     # Create dictionary of antenna parameters
     antennaparams = {'time': time, 'freqs': freqs, 'Vinc': Vinc, 'Vincp': Vincp, 'Iinc': Iinc, 'Iincp': Iincp,
@@ -127,7 +137,9 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
                      'Vtotal': Vtotal, 'Vtotalp': Vtotalp, 'Itotal': Itotal, 'Itotalp': Itotalp,
                      's11': s11, 'zin': zin, 'yin': yin}
     if tlrxnumber or rxnumber:
-        s21 = 20 * np.log10(s21)
+        with np.errstate(divide='ignore'): # Ignore warning from taking a log of any zero values
+            s21 = 20 * np.log10(s21)
+        s21[np.invert(np.isfinite(s21))] = 0
         antennaparams['s21'] = s21
 
     return antennaparams
