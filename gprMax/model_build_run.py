@@ -102,7 +102,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         # Initialise an instance of the FDTDGrid class
         G = FDTDGrid()
-        
+
         # Get information about host machine
         G.hostinfo = get_host_info()
 
@@ -210,14 +210,14 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             # Check if model can be built and/or run on host
             if memestimate > G.hostinfo['ram']:
                 raise GeneralError('Estimated memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(memestimate), human_size(G.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
-            
+
             # Check if model can be run on specified GPU if required
             if G.gpu is not None:
                 if memestimate > G.gpu.totalmem:
                     raise GeneralError('Estimated memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(memestimate), human_size(G.gpu.totalmem, a_kilobyte_is_1024_bytes=True), G.gpu.deviceID, G.gpu.name))
             if G.messages:
                 print('Estimated memory (RAM) required: ~{}'.format(human_size(memestimate)))
-            
+
             G.initialise_dispersive_arrays()
 
         # Process complete list of materials - calculate update coefficients,
@@ -232,8 +232,8 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         # Check to see if numerical dispersion might be a problem
         results = dispersion_analysis(G)
-        if not results['waveform']:
-            print(Fore.RED + "\nWARNING: Numerical dispersion analysis not carried out as either no waveform detected or waveform does not fit within specified time window and is therefore being truncated." + Style.RESET_ALL)
+        if results['error']:
+            print(Fore.RED + "\nWARNING: Numerical dispersion analysis not carried out as {}".format(results['error']) + Style.RESET_ALL)
         elif results['N'] < G.mingridsampling:
             raise GeneralError("Non-physical wave propagation: Material '{}' has wavelength sampled by {} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {:g}Hz".format(results['material'].ID, results['N'], results['maxfreq']))
         elif results['deltavp'] and np.abs(results['deltavp']) > G.maxnumericaldisp:
@@ -406,11 +406,11 @@ def solve_gpu(currentmodelrun, modelend, G):
     Returns:
         tsolve (float): Time taken to execute solving
     """
-   
+
     import pycuda.driver as drv
     from pycuda.compiler import SourceModule
     drv.init()
-    
+
     # Create device handle and context on specifc GPU device (and make it current context)
     dev = drv.Device(G.gpu.deviceID)
     ctx = dev.make_context()
@@ -422,7 +422,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=cudafloattype, COMPLEX=cudacomplextype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=1, NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=1, NY_T=1, NZ_T=1))
     update_e_gpu = kernels_fields.get_function("update_e")
     update_h_gpu = kernels_fields.get_function("update_h")
-    
+
     # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for fields kernels
     updatecoeffsE = kernels_fields.get_global('updatecoeffsE')[0]
     updatecoeffsH = kernels_fields.get_global('updatecoeffsH')[0]
@@ -489,11 +489,11 @@ def solve_gpu(currentmodelrun, modelend, G):
     iterstart.record()
 
     for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable):
-        
+
         # Store field component values for every receiver
         if G.rxs:
             store_outputs_gpu(np.int32(len(G.rxs)), np.int32(iteration), rxcoords_gpu.gpudata, rxs_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata, block=(1, 1, 1), grid=(round32(len(G.rxs)), 1, 1))
-        
+
         # Update magnetic field components
         update_h_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz), G.ID_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, block=G.tpb, grid=G.bpg)
 
@@ -533,7 +533,7 @@ def solve_gpu(currentmodelrun, modelend, G):
     iterend.record()
     iterend.synchronize()
     tsolve = iterstart.time_till(iterend) * 1e-3
-    
+
     # Remove context from top of stack and delete
     ctx.pop()
     del ctx

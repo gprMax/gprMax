@@ -219,8 +219,8 @@ def dispersion_analysis(G):
     """
 
     # Physical phase velocity error (percentage); grid sampling density;
-    # material with maximum permittivity; maximum significant frequency
-    results = {'deltavp': False, 'N': False, 'waveform': True, 'material': False, 'maxfreq': []}
+    # material with maximum permittivity; maximum significant frequency; error message
+    results = {'deltavp': False, 'N': False, 'material': False, 'maxfreq': [], 'error': ''}
 
     # Find maximum significant frequency
     if G.waveforms:
@@ -229,7 +229,7 @@ def dispersion_analysis(G):
                 results['maxfreq'].append(4 * waveform.freq)
 
             elif waveform.type == 'impulse':
-                pass
+                results['error'] = 'impulse waveform used.'
 
             else:
                 # User-defined waveform
@@ -275,9 +275,9 @@ def dispersion_analysis(G):
 
                 # If waveform is truncated don't do any further analysis
                 else:
-                    results['waveform'] = False
+                    results['error'] = 'waveform does not fit within specified time window and is therefore being truncated.'
     else:
-        results['waveform'] = False
+        results['error'] = 'no waveform detected.'
 
     if results['maxfreq']:
         results['maxfreq'] = max(results['maxfreq'])
