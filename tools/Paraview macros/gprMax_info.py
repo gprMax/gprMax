@@ -38,7 +38,7 @@ renderview.ResetCamera()
 materials = []
 srcs_pml = []
 rxs = []
-with open(model.FileName[0], 'r') as f:
+with open(model.FileName[0], 'rb') as f:
     for line in f:
         if line.startswith('<Material'):
             line.rstrip('\n')
