@@ -57,6 +57,7 @@ gprMax User Guide
 
     faqs
     screencasts
+    coding
 
 .. toctree::
     :maxdepth: 2
@@ -71,4 +72,3 @@ gprMax User Guide
     :caption: Appendices
 
     references
-
