@@ -121,7 +121,7 @@ def run_main(args):
         hostinfo = get_host_info()
         hyperthreading = ', {} cores with Hyper-Threading'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
         print('\nHost: {}; {} x {} ({} cores{}); {} RAM; {}'.format(hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'], hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
-        
+
         # Get information/setup Nvidia GPU(s)
         if args.gpu is not None:
             # Extract first item of list, either True to automatically determine device ID,
@@ -193,7 +193,7 @@ def run_main(args):
 def run_std_sim(args, inputfile, usernamespace, optparams=None):
     """
     Run standard simulation - models are run one after another and each model
-    is parallelised with OpenMP
+    is parallelised using either OpenMP (CPU) or CUDA (GPU)
 
     Args:
         args (dict): Namespace with command line arguments
@@ -237,7 +237,8 @@ def run_std_sim(args, inputfile, usernamespace, optparams=None):
 def run_benchmark_sim(args, inputfile, usernamespace):
     """
     Run standard simulation in benchmarking mode - models are run one
-    after another and each model is parallelised with OpenMP
+    after another and each model is parallelised using either OpenMP (CPU)
+    or CUDA (GPU)
 
     Args:
         args (dict): Namespace with command line arguments
@@ -331,7 +332,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
 def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     """
     Run mixed mode MPI/OpenMP simulation - MPI task farm for models with
-    each model parallelised with OpenMP
+    each model parallelised using either OpenMP (CPU) or CUDA (GPU)
 
     Args:
         args (dict): Namespace with command line arguments
