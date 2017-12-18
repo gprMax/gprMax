@@ -270,8 +270,11 @@ def dispersion_analysis(G):
                     freqmaxpower = np.where(np.isclose(power[1::], np.amax(power[1::])))[0][0]
 
                     # Set maximum frequency to a threshold drop from maximum power, ignoring DC value
-                    freq = np.where((np.amax(power[freqmaxpower::]) - power[freqmaxpower::]) > G.highestfreqthres)[0][0] + 1
-                    results['maxfreq'].append(freqs[freq])
+                    try:
+                        freq = np.where((np.amax(power[freqmaxpower::]) - power[freqmaxpower::]) > G.highestfreqthres)[0][0] + 1
+                        results['maxfreq'].append(freqs[freq])
+                    except:
+                        results['error'] = 'unable to calculate maximum power from waveform, most likely due to undersampling.'
 
                 # If waveform is truncated don't do any further analysis
                 else:
