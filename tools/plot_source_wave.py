@@ -109,10 +109,10 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
 
         # Replace any NaNs or Infs from zero division
         startpower[np.invert(np.isfinite(startpower))] = 0
-        stopower[np.invert(np.isfinite(stopower))] = 0
+        stoppower[np.invert(np.isfinite(stoppower))] = 0
 
         start = np.where(startpower > powerdrop)[0][0]
-        stop = np.where(stopower < powerdrop)[0][0] + start
+        stop = np.where(stoppower < powerdrop)[0][0] + start
         print('Pulse width at {:d}dB, i.e. full width at half maximum (FWHM): {:g} s'.format(powerdrop, time[stop] - time[start]))
 
     print('Time window: {:g} s ({} iterations)'.format(timewindow, iterations))
@@ -133,9 +133,8 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
         power -= np.amax(power)
 
         if w.type == 'user':
-            fmaxpower = np.where(power == 0)[0][0]
-            w.freq = freqs[fmaxpower]
-            print('Centre frequency: {:g} Hz'.format(w.freq))
+            freqmaxpower = np.where(np.isclose(power[1::], np.amax(power[1::])))[0][0]
+            w.freq = freqs[freqmaxpower]
 
         # Set plotting range to 4 times centre frequency of waveform
         pltrange = np.where(freqs > 4 * w.freq)[0][0]
