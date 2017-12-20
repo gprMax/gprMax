@@ -295,7 +295,7 @@ def process_multicmds(multicmds, G):
             tmp = cmdinstance.split()
             if len(tmp) < 6:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
-            
+
             # Warn about using a transmission line on GPU
             if G.gpu is not None:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' A #transmission_line cannot currently be used with GPU solving. Consider using a #voltage_source instead.')
@@ -318,7 +318,7 @@ def process_multicmds(multicmds, G):
 
             # Check if there is a waveformID in the waveforms list
             if not any(x.ID == tmp[5] for x in G.waveforms):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[4]))
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[5]))
 
             t = TransmissionLine(G)
             t.polarisation = polarisation
@@ -478,7 +478,7 @@ def process_multicmds(multicmds, G):
             tmp = cmdinstance.split()
             if len(tmp) != 11:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
-            
+
             # Warn about using snapshots on GPU
             if G.gpu is not None:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' The #snapshot command cannot currently be used with GPU solving.')
