@@ -138,6 +138,35 @@ def round32(value):
     return int(32 * np.ceil(float(value) / 32))
 
 
+def fft_power(waveform, dt):
+    """Calculate a FFT of the given waveform of amplitude values;
+        converted to decibels and shifted so that maximum power is 0dB
+
+    Args:
+        waveform (ndarray): time domain waveform
+        dt (float): time step
+
+    Returns:
+        freqs (ndarray): frequency bins
+        power (ndarray): power
+    """
+
+    # Calculate magnitude of frequency spectra of waveform (ignore warning from taking a log of any zero values)
+    with np.errstate(divide='ignore'): #
+        power = 10 * np.log10(np.abs(np.fft.fft(waveform))**2)
+
+    # Replace any NaNs or Infs from zero division
+    power[np.invert(np.isfinite(power))] = 0
+
+    # Frequency bins
+    freqs = np.fft.fftfreq(power.size, d=dt)
+
+    # Shift powers so that frequency with maximum power is at zero decibels
+    power -= np.amax(power)
+
+    return freqs, power
+
+
 def human_size(size, a_kilobyte_is_1024_bytes=False):
     """Convert a file size to human-readable form.
 

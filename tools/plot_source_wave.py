@@ -24,6 +24,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from gprMax.exceptions import CmdInputError
+from gprMax.utilities import fft_power
 from gprMax.utilities import round_value
 from gprMax.waveforms import Waveform
 
@@ -83,12 +84,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
 
     print('Waveform characteristics...')
     print('Type: {}'.format(w.type))
-
-    if w.type == 'user':
-        waveform = w.uservalues
-        w.amp = np.max(np.abs(waveform))
-
-    print('Maximum amplitude: {:g}'.format(w.amp))
+    print('Maximum (absolute) amplitude: {:g}'.format(np.max(np.abs(waveform))))
 
     if w.freq and not w.type == 'gaussian':
         print('Centre frequency: {:g} Hz'.format(w.freq))
@@ -100,44 +96,20 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
         delay = np.sqrt(2) / w.freq
         print('Time to centre of pulse: {:g} s'.format(delay))
 
-    # Calculate pulse width for gaussian
-    if w.type == 'gaussian':
-        powerdrop = -3  # dB
-        with np.errstate(divide='ignore'): # Ignore warning from taking a log of any zero values
-            startpower = 10 * np.log10(waveform / np.amax(waveform))
-            stopower = 10 * np.log10(waveform[start:] / np.amax(waveform))
-
-        # Replace any NaNs or Infs from zero division
-        startpower[np.invert(np.isfinite(startpower))] = 0
-        stoppower[np.invert(np.isfinite(stoppower))] = 0
-
-        start = np.where(startpower > powerdrop)[0][0]
-        stop = np.where(stoppower < powerdrop)[0][0] + start
-        print('Pulse width at {:d}dB, i.e. full width at half maximum (FWHM): {:g} s'.format(powerdrop, time[stop] - time[start]))
-
     print('Time window: {:g} s ({} iterations)'.format(timewindow, iterations))
     print('Time step: {:g} s'.format(dt))
 
     if fft:
-        # Calculate magnitude of frequency spectra of waveform (ignore warning from taking a log of any zero values)
-        with np.errstate(divide='ignore'): #
-            power = 10 * np.log10(np.abs(np.fft.fft(waveform))**2)
+        # FFT
+        freqs, power = fft_power(waveform, dt)
 
-        # Replace any NaNs or Infs from zero division
-        power[np.invert(np.isfinite(power))] = 0
-
-        # Frequency bins
-        freqs = np.fft.fftfreq(power.size, d=dt)
-
-        # Shift powers so that frequency with maximum power is at zero decibels
-        power -= np.amax(power)
-
-        if w.type == 'user':
-            freqmaxpower = np.where(np.isclose(power[1::], np.amax(power[1::])))[0][0]
-            w.freq = freqs[freqmaxpower]
-
-        # Set plotting range to 4 times centre frequency of waveform
-        pltrange = np.where(freqs > 4 * w.freq)[0][0]
+        # Set plotting range to 4 times frequency at max power of waveform or
+        # 4 times the centre frequency
+        freqmaxpower = np.where(power == 0)[0][0]
+        if freqs[freqmaxpower] > w.freq:
+            pltrange = np.where(freqs > 4 * freqs[freqmaxpower])[0][0]
+        else:
+            pltrange = np.where(freqs > 4 * w.freq)[0][0]
         pltrange = np.s_[0:pltrange]
 
         fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num=w.type, figsize=(20, 10), facecolor='w', edgecolor='w')

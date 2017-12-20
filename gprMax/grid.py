@@ -30,6 +30,7 @@ from gprMax.constants import floattype
 from gprMax.constants import complextype
 from gprMax.materials import Material
 from gprMax.pml import PML
+from gprMax.utilities import fft_power
 from gprMax.utilities import round_value
 
 
@@ -234,45 +235,32 @@ def dispersion_analysis(G):
             else:
                 # User-defined waveform
                 if waveform.type == 'user':
-                    waveformvalues = waveform.uservalues
+                    iterations = G.iterations
 
                 # Built-in waveform
                 else:
-                    # Time to analyse waveform - 4*pulse_width as using entire
-                    # time window can result in demanding FFT
+                # Time to analyse waveform - 4*pulse_width as using entire
+                # time window can result in demanding FFT
                     waveform.calculate_coefficients()
-                    time = np.arange(0, 4 * waveform.chi, G.dt)
-                    waveformvalues = np.zeros(len(time))
-                    timeiter = np.nditer(time, flags=['c_index'])
+                    iterations = round_value(4 * waveform.chi / G.dt)
+                    if iterations > G.iterations:
+                        iterations = G.iterations
 
-                    while not timeiter.finished:
-                        waveformvalues[timeiter.index] = waveform.calculate_value(timeiter[0], G.dt)
-                        timeiter.iternext()
+                waveformvalues = np.zeros(G.iterations)
+                for iteration in range(G.iterations):
+                    waveformvalues[iteration] = waveform.calculate_value(iteration * G.dt, G.dt)
 
                 # Ensure source waveform is not being overly truncated before attempting any FFT
                 if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:
-                    # Calculate magnitude of frequency spectra of waveform
-                    mag = np.abs(np.fft.fft(waveformvalues))**2
-
-                    # Calculate power (ignore warning from taking a log of any zero values)
-                    with np.errstate(divide='ignore'):
-                        power = 10 * np.log10(mag)
-                    # Replace any NaNs or Infs from zero division
-                    power[np.invert(np.isfinite(power))] = 0
-
-                    # Frequency bins
-                    freqs = np.fft.fftfreq(power.size, d=G.dt)
-
-                    # Shift powers so that frequency with maximum power is at zero decibels
-                    power -= np.amax(power)
-
+                    # FFT
+                    freqs, power = fft_power(waveformvalues, G.dt)
                     # Get frequency for max power
-                    freqmaxpower = np.where(np.isclose(power[1::], np.amax(power[1::])))[0][0]
+                    freqmaxpower = np.where(power == 0)[0][0]
 
                     # Set maximum frequency to a threshold drop from maximum power, ignoring DC value
                     try:
-                        freq = np.where((np.amax(power[freqmaxpower::]) - power[freqmaxpower::]) > G.highestfreqthres)[0][0] + 1
-                        results['maxfreq'].append(freqs[freq])
+                        freqthres = np.where(power[freqmaxpower:] < -G.highestfreqthres)[0][0]
+                        results['maxfreq'].append(freqs[freqthres])
                     except:
                         results['error'] = 'unable to calculate maximum power from waveform, most likely due to undersampling.'
 

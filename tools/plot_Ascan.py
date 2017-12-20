@@ -27,6 +27,7 @@ import matplotlib.gridspec as gridspec
 
 from gprMax.exceptions import CmdInputError
 from gprMax.receivers import Rx
+from gprMax.utilities import fft_power
 
 
 def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
@@ -83,22 +84,17 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
 
             # Plotting if FFT required
             if fft:
-                # Calculate magnitude of frequency spectra of waveform (ignore warning from taking a log of any zero values)
-                with np.errstate(divide='ignore'):
-                    power = 10 * np.log10(np.abs(np.fft.fft(outputdata))**2)
-                # Replace any NaNs or Infs from zero division
-                power[np.invert(np.isfinite(power))] = 0
+                # FFT
+                freqs, power = fft_power(outputdata, dt)
+                freqmaxpower = np.where(power == 0)[0][0]
 
-                # Frequency bins
-                freqs = np.fft.fftfreq(power.size, d=dt)
+                # Set plotting range to -60dB from maximum power or 4 times
+                # frequency at maximum power
+                try:
+                    pltrange = np.where(power[freqmaxpower:] < -60)[0][0] + freqmaxpower + 1
+                except:
+                    pltrange = freqmaxpower * 4
 
-                # Shift powers so that frequency with maximum power is at zero decibels
-                power -= np.amax(power)
-
-                # Set plotting range to -60dB from maximum power
-                pltrange = np.where((np.amax(power[1::]) - power[1::]) > 60)[0][0] + 1
-                # To a maximum frequency
-                # pltrange = np.where(freqs > 2e9)[0][0]
                 pltrange = np.s_[0:pltrange]
 
                 # Plot time history of output component
