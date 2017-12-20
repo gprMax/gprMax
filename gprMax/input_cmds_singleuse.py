@@ -18,11 +18,13 @@
 
 import os
 import decimal as d
+import inspect
 import sys
 
 from colorama import init, Fore, Style
 init()
 import numpy as np
+from scipy import interpolate
 
 from gprMax.constants import c
 from gprMax.constants import floattype
@@ -150,7 +152,7 @@ def process_singlecmds(singlecmds, G):
     if G.messages:
         print('Estimated memory (RAM) required: ~{}'.format(human_size(memestimate)))
 
-    # Time step CFL limit (use either 2D or 3D) and default PML thickness
+    # Time step CFL limit (either 2D or 3D); switch off appropriate PMLs for 2D
     if G.nx == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
         G.dimension = '2D'
@@ -216,7 +218,7 @@ def process_singlecmds(singlecmds, G):
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 1 and len(tmp) != 6:
-            raise CmdInputError(cmd + ' requires either one or six parameters')
+            raise CmdInputError(cmd + ' requires either one or six parameter(s)')
         if len(tmp) == 1:
             for key in G.pmlthickness.keys():
                 G.pmlthickness[key] = int(tmp[0])
@@ -258,13 +260,25 @@ def process_singlecmds(singlecmds, G):
     cmd = '#excitation_file'
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
-        if len(tmp) != 1:
-            raise CmdInputError(cmd + ' requires exactly one parameter')
+        if len(tmp) != 1 and len(tmp) != 3:
+            raise CmdInputError(cmd + ' requires either one or three parameter(s)')
         excitationfile = tmp[0]
+
+        # Optional parameters passed directly to scipy.interpolate.interp1d
+        kwargs = dict()
+        if len(tmp) > 1:
+            kwargs['kind'] = tmp[1]
+            kwargs['fill_value'] = tmp[2]
+        else:
+            args, varargs, keywords, defaults = inspect.getargspec(interpolate.interp1d)
+            kwargs = dict(zip(reversed(args), reversed(defaults)))
 
         # See if file exists at specified path and if not try input file directory
         if not os.path.isfile(excitationfile):
             excitationfile = os.path.abspath(os.path.join(G.inputdirectory, excitationfile))
+
+        if G.messages:
+            print('\nExcitation file: {}'.format(excitationfile))
 
         # Get waveform names
         with open(excitationfile, 'r') as f:
@@ -273,18 +287,37 @@ def process_singlecmds(singlecmds, G):
         # Read all waveform values into an array
         waveformvalues = np.loadtxt(excitationfile, skiprows=1, dtype=floattype)
 
+        # Time array (if specified) for interpolation, otherwise use simulation time
+        if waveformIDs[0].lower() == 'time':
+            waveformIDs = waveformIDs[1:]
+            waveformtime = waveformvalues[:, 0]
+            waveformvalues = waveformvalues[:, 1:]
+            timestr = 'user-defined time array'
+        else:
+            waveformtime = np.arange(0, G.timewindow + G.dt, G.dt)
+            timestr = 'simulation time array'
+
         for waveform in range(len(waveformIDs)):
             if any(x.ID == waveformIDs[waveform] for x in G.waveforms):
                 raise CmdInputError('Waveform with ID {} already exists'.format(waveformIDs[waveform]))
             w = Waveform()
             w.ID = waveformIDs[waveform]
             w.type = 'user'
-            if len(waveformvalues.shape) == 1:
-                w.uservalues = waveformvalues[:]
-            else:
-                w.uservalues = waveformvalues[:, waveform]
+
+            # Select correct column of waveform values depending on array shape
+            waveformvalues = waveformvalues[:] if len(waveformvalues.shape) == 1 else waveformvalues[:, waveform]
+
+            # Truncate waveform array if it is longer than time array
+            if len(waveformvalues) > len(waveformtime):
+                waveformvalues = waveformvalues[:len(waveformtime)]
+            # Zero-pad end of waveform array if it is shorter than time array
+            elif len(waveformvalues) < len(waveformtime):
+                waveformvalues = np.lib.pad(waveformvalues, (0,len(waveformtime)-len(waveformvalues)), 'constant', constant_values=0)
+
+            # Interpolate waveform values
+            w.userfunc = interpolate.interp1d(waveformtime, waveformvalues, **kwargs)
 
             if G.messages:
-                print('User waveform {} created.'.format(w.ID))
+                print('User waveform {} created using {} and, if required, interpolation parameters (kind: {}, fill value: {}).'.format(w.ID, timestr, kwargs['kind'], kwargs['fill_value']))
 
             G.waveforms.append(w)

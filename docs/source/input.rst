@@ -682,28 +682,29 @@ For example, to specify the normalised first derivate of a Gaussian waveform wit
 #excitation_file:
 -----------------
 
-Allows you to specify an ASCII file that contains columns of amplitude values that specify custom waveform shapes that can be used with sources in the model. The first row of each column must begin with a identifier string that will be used as the name of each waveform.
+Allows you to specify an ASCII file that contains columns of amplitude values that specify custom waveform shapes that can be used with sources in the model. The first row of each column must begin with a identifier string that will be used as the name of each waveform. Optionally, the first column of the file may contain a time vector of values (which must use the identifier ``time``) to interpolate the amplitude values of the waveform. If a time vector is not given, a vector of time values corresponding to the simulation time step and number of iterations will be used.
 
 If there are less amplitude values than the number of iterations that are going to be performed, the end of the sequence of amplitude values will be padded with zero values up to the number of iterations. If extra amplitude values are specified than needed then they are ignored. The syntax of the command is:
 
 .. code-block:: none
 
-    #excitation_file: file1
+    #excitation_file: file1 [str1 str2]
 
-``file1`` can be the name of the file containing the specified waveform in the same directory as the input file, or ``file`` can be the full path to the file containing the specified waveform (allowing you to specify any location).
+* ``file1`` can be the name of the file containing the specified waveform in the same directory as the input file, or ``file`` can be the full path to the file containing the specified waveform (allowing you to specify any location).
+* ``str1`` and ``str2`` are an optional parameter pair that allow values for ``kind`` and ``fill_value`` to be passed to the interpolation function (`scipy.interpolate.interp1d <https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html>`_). If they are not given the default values for the function will be used.
 
 For example, to specify the file ``my_waves.txt``, which contains two custom waveform shapes, use: ``#excitation_file: my_waves.txt``. The contents of the file ``my_waves.txt`` would take the form:
 
 .. code-block:: none
 
-    my_pulse1    my_pulse2
-    0           0
-    1.2e-6      0
-    1.3e-6      1e-1
-    5e-6        1.5e-1
-    ...         ...
-    ...         ...
-    ...         ...
+    time my_pulse1 my_pulse2
+    0 0 0
+    1.926e-12 1.2e-6 0
+    3.852e-12 1.3e-6 1.0e-1
+    5.778e-12 5.0e-6 1.5e-1
+    ...       ...    ...
+    ...       ...    ...
+    ...       ...    ...
 
 Then to use ``my_pulse1`` custom waveform shape with, for example, a z-polarised Hertzian dipole source:
 

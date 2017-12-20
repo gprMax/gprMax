@@ -39,7 +39,7 @@ class Waveform(object):
         self.type = None
         self.amp = 1
         self.freq = None
-        self.uservalues = None
+        self.userfunc = None
         self.chi = 0
         self.zeta = 0
         self.delay = 0
@@ -66,7 +66,7 @@ class Waveform(object):
         """
 
         self.calculate_coefficients()
-        
+
         # Waveforms
         if self.type == 'gaussian':
             delay = time - self.chi
@@ -115,12 +115,7 @@ class Waveform(object):
                 ampvalue = 0
 
         elif self.type == 'user':
-            index = round_value(time / dt)
-            # Check to see if there are still user specified values and if not use zero
-            if index > len(self.uservalues) - 1:
-                ampvalue = 0
-            else:
-                ampvalue = self.uservalues[index]
+            ampvalue = self.userfunc(time)
 
         ampvalue *= self.amp
 
