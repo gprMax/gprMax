@@ -682,7 +682,9 @@ For example, to specify the normalised first derivate of a Gaussian waveform wit
 #excitation_file:
 -----------------
 
-Allows you to specify an ASCII file that contains columns of amplitude values that specify custom waveform shapes that can be used with sources in the model. The first row of each column must begin with a identifier string that will be used as the name of each waveform. Optionally, the first column of the file may contain a time vector of values (which must use the identifier ``time``) to interpolate the amplitude values of the waveform. If a time vector is not given, a vector of time values corresponding to the simulation time step and number of iterations will be used.
+Allows you to specify an ASCII file that contains columns of amplitude values that specify custom waveform shapes that can be used with sources in the model.
+
+The first row of each column must begin with a identifier string that will be used as the name of each waveform. Optionally, the first column of the file may contain a time vector of values (which must use the identifier ``time``) to interpolate the amplitude values of the waveform. If a time vector is not given, a vector of time values corresponding to the simulation time step and number of iterations will be used.
 
 If there are less amplitude values than the number of iterations that are going to be performed, the end of the sequence of amplitude values will be padded with zero values up to the number of iterations. If extra amplitude values are specified than needed then they are ignored. The syntax of the command is:
 
