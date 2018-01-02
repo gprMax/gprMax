@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2017: The University of Edinburgh
+# Copyright (C) 2015-2018: The University of Edinburgh
 #                 Authors: Craig Warren and Antonis Giannopoulos
 #
 # This file is part of gprMax.
@@ -60,7 +60,7 @@ def logo(version):
     """
 
     description = '\n=== Electromagnetic modelling software based on the Finite-Difference Time-Domain (FDTD) method'
-    copyright = 'Copyright (C) 2015-2017: The University of Edinburgh'
+    copyright = 'Copyright (C) 2015-2018: The University of Edinburgh'
     authors = 'Authors: Craig Warren and Antonis Giannopoulos'
     licenseinfo1 = 'gprMax is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.\n'
     licenseinfo2 = 'gprMax is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.'
