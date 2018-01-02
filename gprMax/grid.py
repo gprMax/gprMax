@@ -255,7 +255,7 @@ def dispersion_analysis(G):
                     # FFT
                     freqs, power = fft_power(waveformvalues, G.dt)
                     # Get frequency for max power
-                    freqmaxpower = np.where(power == 0)[0][0]
+                    freqmaxpower = np.where(np.isclose(power, 0))[0][0]
 
                     # Set maximum frequency to a threshold drop from maximum power, ignoring DC value
                     try:

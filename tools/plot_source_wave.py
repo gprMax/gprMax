@@ -105,7 +105,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
 
         # Set plotting range to 4 times frequency at max power of waveform or
         # 4 times the centre frequency
-        freqmaxpower = np.where(power == 0)[0][0]
+        freqmaxpower = np.where(np.isclose(power, 0))[0][0]
         if freqs[freqmaxpower] > w.freq:
             pltrange = np.where(freqs > 4 * freqs[freqmaxpower])[0][0]
         else:

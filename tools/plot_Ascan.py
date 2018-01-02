@@ -86,7 +86,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
             if fft:
                 # FFT
                 freqs, power = fft_power(outputdata, dt)
-                freqmaxpower = np.where(power == 0)[0][0]
+                freqmaxpower = np.where(np.isclose(power, 0))[0][0]
 
                 # Set plotting range to -60dB from maximum power or 4 times
                 # frequency at maximum power
