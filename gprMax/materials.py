@@ -148,14 +148,14 @@ class Material(object):
 
         Args:
             freq (float): Frequency used to calculate complex relative permittivity.
-            
+
         Returns:
             er (float): Complex relative permittivity.
         """
-        
-        # This will be permittivity at infinite frequency if the material is dispersive
+
+        # Permittivity at infinite frequency if the material is dispersive
         er = self.er
-        
+
         if self.poles > 0:
             w = 2 * np.pi * freq
             er += self.se / (w * e0)
@@ -166,10 +166,11 @@ class Material(object):
                 for pole in range(self.poles):
                     er += (self.deltaer[pole] * self.tau[pole]**2) / (self.tau[pole]**2 + 2j * w * self.alpha[pole] - w**2)
             elif 'drude' in self.type:
+                ersum = 0
                 for pole in range(self.poles):
                     ersum += self.tau[pole]**2 / (w**2 - 1j * w * self.alpha[pole])
                     er -= ersum
-    
+
         return er
 
 

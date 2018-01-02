@@ -29,7 +29,7 @@ kernels_template_fields = Template("""
 #define INDEX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
 #define INDEX4D_T(p, i, j, k) (p)*($NX_T)*($NY_T)*($NZ_T)+(i)*($NY_T)*($NZ_T)+(j)*($NZ_T)+(k)
 
-// Material coefficients (read-only) in constant memory (64KB) 
+// Material coefficients (read-only) in constant memory (64KB)_
 __device__ __constant__ $REAL updatecoeffsE[$N_updatecoeffsE];
 __device__ __constant__ $REAL updatecoeffsH[$N_updatecoeffsH];
 
@@ -44,7 +44,7 @@ __global__ void update_e(int NX, int NY, int NZ, const unsigned int* __restrict_
     //  Args:
     //      NX, NY, NZ: Number of cells of the model domain
     //      ID, E, H: Access to ID and field component arrays
-    
+
     // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -63,13 +63,13 @@ __global__ void update_e(int NX, int NY, int NZ, const unsigned int* __restrict_
         int materialEx = ID[INDEX4D_ID(0,i_ID,j_ID,k_ID)];
         Ex[INDEX3D_FIELDS(i,j,k)] = updatecoeffsE[INDEX2D_MAT(materialEx,0)] * Ex[INDEX3D_FIELDS(i,j,k)] + updatecoeffsE[INDEX2D_MAT(materialEx,2)] * (Hz[INDEX3D_FIELDS(i,j,k)] - Hz[INDEX3D_FIELDS(i,j-1,k)]) - updatecoeffsE[INDEX2D_MAT(materialEx,3)] * (Hy[INDEX3D_FIELDS(i,j,k)] - Hy[INDEX3D_FIELDS(i,j,k-1)]);
     }
-    
+
     // Ey component
     if ((NX != 1 || NZ != 1) && i > 0 && i < NX && j >= 0 && j < NY && k > 0 && k < NZ) {
         int materialEy = ID[INDEX4D_ID(1,i_ID,j_ID,k_ID)];
         Ey[INDEX3D_FIELDS(i,j,k)] = updatecoeffsE[INDEX2D_MAT(materialEy,0)] * Ey[INDEX3D_FIELDS(i,j,k)] + updatecoeffsE[INDEX2D_MAT(materialEy,3)] * (Hx[INDEX3D_FIELDS(i,j,k)] - Hx[INDEX3D_FIELDS(i,j,k-1)]) - updatecoeffsE[INDEX2D_MAT(materialEy,1)] * (Hz[INDEX3D_FIELDS(i,j,k)] - Hz[INDEX3D_FIELDS(i-1,j,k)]);
     }
-    
+
     // Ez component
     if ((NX != 1 || NY != 1) && i > 0 && i < NX && j > 0 && j < NY && k >= 0 && k < NZ) {
         int materialEz = ID[INDEX4D_ID(2,i_ID,j_ID,k_ID)];
@@ -89,7 +89,7 @@ __global__ void update_e_dispersive_A(int NX, int NY, int NZ, int MAXPOLES, cons
     //      NX, NY, NZ: Number of cells of the model domain
     //      MAXPOLES: Maximum number of dispersive material poles present in model
     //      updatedispersivecoeffs, T, ID, E, H: Access to update coefficients, dispersive, ID and field component arrays
-    
+
     // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -118,7 +118,7 @@ __global__ void update_e_dispersive_A(int NX, int NY, int NZ, int MAXPOLES, cons
         }
         Ex[INDEX3D_FIELDS(i,j,k)] = updatecoeffsE[INDEX2D_MAT(materialEx,0)] * Ex[INDEX3D_FIELDS(i,j,k)] + updatecoeffsE[INDEX2D_MAT(materialEx,2)] * (Hz[INDEX3D_FIELDS(i,j,k)] - Hz[INDEX3D_FIELDS(i,j-1,k)]) - updatecoeffsE[INDEX2D_MAT(materialEx,3)] * (Hy[INDEX3D_FIELDS(i,j,k)] - Hy[INDEX3D_FIELDS(i,j,k-1)]) - updatecoeffsE[INDEX2D_MAT(materialEx,4)] * phi;
     }
-    
+
     // Ey component
     if ((NX != 1 || NZ != 1) && i > 0 && i < NX && j >= 0 && j < NY && k > 0 && k < NZ) {
         int materialEy = ID[INDEX4D_ID(1,i_ID,j_ID,k_ID)];
@@ -129,7 +129,7 @@ __global__ void update_e_dispersive_A(int NX, int NY, int NZ, int MAXPOLES, cons
         }
         Ey[INDEX3D_FIELDS(i,j,k)] = updatecoeffsE[INDEX2D_MAT(materialEy,0)] * Ey[INDEX3D_FIELDS(i,j,k)] + updatecoeffsE[INDEX2D_MAT(materialEy,3)] * (Hx[INDEX3D_FIELDS(i,j,k)] - Hx[INDEX3D_FIELDS(i,j,k-1)]) - updatecoeffsE[INDEX2D_MAT(materialEy,1)] * (Hz[INDEX3D_FIELDS(i,j,k)] - Hz[INDEX3D_FIELDS(i-1,j,k)]) - updatecoeffsE[INDEX2D_MAT(materialEy,4)] * phi;
     }
-    
+
     // Ez component
     if ((NX != 1 || NY != 1) && i > 0 && i < NX && j > 0 && j < NY && k >= 0 && k < NZ) {
         int materialEz = ID[INDEX4D_ID(2,i_ID,j_ID,k_ID)];
@@ -150,7 +150,7 @@ __global__ void update_e_dispersive_B(int NX, int NY, int NZ, int MAXPOLES, cons
     //      NX, NY, NZ: Number of cells of the model domain
     //      MAXPOLES: Maximum number of dispersive material poles present in model
     //      updatedispersivecoeffs, T, ID, E, H: Access to update coefficients, dispersive, ID and field component arrays
-    
+
     // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -176,7 +176,7 @@ __global__ void update_e_dispersive_B(int NX, int NY, int NZ, int MAXPOLES, cons
             Tx[INDEX4D_T(pole,i_T,j_T,k_T)] = Tx[INDEX4D_T(pole,i_T,j_T,k_T)] - updatecoeffsdispersive[INDEX2D_MATDISP(materialEx,2+(pole*3))] * Ex[INDEX3D_FIELDS(i,j,k)];
         }
     }
-    
+
     // Ey component
     if ((NX != 1 || NZ != 1) && i > 0 && i < NX && j >= 0 && j < NY && k > 0 && k < NZ) {
         int materialEy = ID[INDEX4D_ID(1,i_ID,j_ID,k_ID)];
@@ -184,7 +184,7 @@ __global__ void update_e_dispersive_B(int NX, int NY, int NZ, int MAXPOLES, cons
             Ty[INDEX4D_T(pole,i_T,j_T,k_T)] = Ty[INDEX4D_T(pole,i_T,j_T,k_T)] - updatecoeffsdispersive[INDEX2D_MATDISP(materialEy,2+(pole*3))] * Ey[INDEX3D_FIELDS(i,j,k)];
         }
     }
-    
+
     // Ez component
     if ((NX != 1 || NY != 1) && i > 0 && i < NX && j > 0 && j < NY && k >= 0 && k < NZ) {
         int materialEz = ID[INDEX4D_ID(2,i_ID,j_ID,k_ID)];
@@ -206,7 +206,7 @@ __global__ void update_h(int NX, int NY, int NZ, const unsigned int* __restrict_
     //  Args:
     //      NX, NY, NZ: Number of cells of the model domain
     //      ID, E, H: Access to ID and field component arrays
-    
+
     // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -225,13 +225,13 @@ __global__ void update_h(int NX, int NY, int NZ, const unsigned int* __restrict_
         int materialHx = ID[INDEX4D_ID(3,i_ID,j_ID,k_ID)];
         Hx[INDEX3D_FIELDS(i,j,k)] = updatecoeffsH[INDEX2D_MAT(materialHx,0)] * Hx[INDEX3D_FIELDS(i,j,k)] - updatecoeffsH[INDEX2D_MAT(materialHx,2)] * (Ez[INDEX3D_FIELDS(i,j+1,k)] - Ez[INDEX3D_FIELDS(i,j,k)]) + updatecoeffsH[INDEX2D_MAT(materialHx,3)] * (Ey[INDEX3D_FIELDS(i,j,k+1)] - Ey[INDEX3D_FIELDS(i,j,k)]);
     }
-    
+
     // Hy component
     if (NY != 1 && i >= 0 && i < NX && j > 0 && j < NY && k >= 0 && k < NZ) {
         int materialHy = ID[INDEX4D_ID(4,i_ID,j_ID,k_ID)];
         Hy[INDEX3D_FIELDS(i,j,k)] = updatecoeffsH[INDEX2D_MAT(materialHy,0)] * Hy[INDEX3D_FIELDS(i,j,k)] - updatecoeffsH[INDEX2D_MAT(materialHy,3)] * (Ex[INDEX3D_FIELDS(i,j,k+1)] - Ex[INDEX3D_FIELDS(i,j,k)]) + updatecoeffsH[INDEX2D_MAT(materialHy,1)] * (Ez[INDEX3D_FIELDS(i+1,j,k)] - Ez[INDEX3D_FIELDS(i,j,k)]);
     }
-    
+
     // Hz component
     if (NZ != 1 && i >= 0 && i < NX && j >= 0 && j < NY && k > 0 && k < NZ) {
         int materialHz = ID[INDEX4D_ID(5,i_ID,j_ID,k_ID)];

@@ -203,7 +203,7 @@ def process_singlecmds(singlecmds, G):
         G.timewindow = (tmp - 1) * G.dt
         G.iterations = tmp
     # If real floating point value given
-    except:
+    except ValueError:
         tmp = float(tmp)
         if tmp > 0:
             G.timewindow = tmp
@@ -312,7 +312,7 @@ def process_singlecmds(singlecmds, G):
                 waveformvalues = waveformvalues[:len(waveformtime)]
             # Zero-pad end of waveform array if it is shorter than time array
             elif len(waveformvalues) < len(waveformtime):
-                waveformvalues = np.lib.pad(waveformvalues, (0,len(waveformtime)-len(waveformvalues)), 'constant', constant_values=0)
+                waveformvalues = np.lib.pad(waveformvalues, (0, len(waveformtime) - len(waveformvalues)), 'constant', constant_values=0)
 
             # Interpolate waveform values
             w.userfunc = interpolate.interp1d(waveformtime, waveformvalues, **kwargs)

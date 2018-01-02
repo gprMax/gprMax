@@ -70,18 +70,18 @@ def main():
 
 
 def api(
-            inputfile,
-            n=1,
-            task=None,
-            restart=None,
-            mpi=False,
-            gpu=None,
-            benchmark=False,
-            geometry_only=False,
-            geometry_fixed=False,
-            write_processed=False,
-            opt_taguchi=False
-        ):
+    inputfile,
+    n=1,
+    task=None,
+    restart=None,
+    mpi=False,
+    gpu=None,
+    benchmark=False,
+    geometry_only=False,
+    geometry_fixed=False,
+    write_processed=False,
+    opt_taguchi=False
+):
     """If installed as a module this is the entry point."""
 
     # Print gprMax logo, version, and licencing/copyright information
@@ -165,7 +165,7 @@ def run_main(args):
         # Process for simulation with Taguchi optimisation #
         ####################################################
         elif args.opt_taguchi:
-            if args.mpi_worker: # Special case for MPI spawned workers - they do not need to enter the Taguchi optimisation mode
+            if args.mpi_worker:  # Special case for MPI spawned workers - they do not need to enter the Taguchi optimisation mode
                 run_mpi_sim(args, inputfile, usernamespace)
             else:
                 from gprMax.optimisation_taguchi import run_opt_sim
@@ -396,9 +396,9 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
 
         # Connect to parent
         try:
-            comm = MPI.Comm.Get_parent() # get MPI communicator object
+            comm = MPI.Comm.Get_parent()  # get MPI communicator object
             rank = comm.Get_rank()  # rank of this process
-        except:
+        except ValueError:
             raise ValueError('Could not connect to parent')
 
         # Ask for work until stop sentinel

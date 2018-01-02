@@ -499,7 +499,7 @@ def process_multicmds(multicmds, G):
             try:
                 time = int(tmp[9])
             # If real floating point value given
-            except:
+            except ValueError:
                 time = float(tmp[9])
                 if time > 0:
                     time = round_value((time / G.dt)) + 1
@@ -587,13 +587,8 @@ def process_multicmds(multicmds, G):
                 material.type = 'debye'
                 material.poles = poles
                 material.averagable = False
-                    # for pole in range(1, 2 * poles, 2):
-                    # if float(tmp[pole]) > 0 and float(tmp[pole + 1]) > G.dt:
-                    #    material.deltaer.append(float(tmp[pole]))
-                    #    material.tau.append(float(tmp[pole + 1]))
-                    # else:
-                    #    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the permittivity difference, and relaxation times that are greater than the time step for the model.')
                 for pole in range(1, 2 * poles, 2):
+                    # N.B Not checking if relaxation times are greater than time-step
                     if float(tmp[pole]) > 0:
                         material.deltaer.append(float(tmp[pole]))
                         material.tau.append(float(tmp[pole + 1]))

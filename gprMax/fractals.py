@@ -100,7 +100,7 @@ class FractalSurface(object):
         fractalmax = np.amax(self.fractalsurface)
         fractalrange = fractalmax - fractalmin
         self.fractalsurface = self.fractalsurface * ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange) \
-                + self.fractalrange[0] - ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange) * fractalmin
+            + self.fractalrange[0] - ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange) * fractalmin
 
 
 class FractalVolume(object):

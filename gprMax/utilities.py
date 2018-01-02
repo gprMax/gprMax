@@ -152,7 +152,7 @@ def fft_power(waveform, dt):
     """
 
     # Calculate magnitude of frequency spectra of waveform (ignore warning from taking a log of any zero values)
-    with np.errstate(divide='ignore'): #
+    with np.errstate(divide='ignore'):
         power = 10 * np.log10(np.abs(np.fft.fft(waveform))**2)
 
     # Replace any NaNs or Infs from zero division

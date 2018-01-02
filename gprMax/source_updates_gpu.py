@@ -52,7 +52,7 @@ __global__ void update_hertzian_dipole(int NHERTZDIPOLE, int iteration, $REAL dx
     int src = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (src < NHERTZDIPOLE) {
-    
+
         $REAL dl;
         int i, j, k, polarisation;
 
@@ -104,7 +104,7 @@ __global__ void update_magnetic_dipole(int NMAGDIPOLE, int iteration, $REAL dx, 
     int src = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (src < NMAGDIPOLE) {
-    
+
         int i, j, k, polarisation;
 
         i = srcinfo1[INDEX2D_SRCINFO(src,0)];
@@ -154,10 +154,10 @@ __global__ void update_voltage_source(int NVOLTSRC, int iteration, $REAL dx, $RE
     int src = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (src < NVOLTSRC) {
-    
+
         $REAL resistance;
         int i, j, k, polarisation;
-    
+
         i = srcinfo1[INDEX2D_SRCINFO(src,0)];
         j = srcinfo1[INDEX2D_SRCINFO(src,1)];
         k = srcinfo1[INDEX2D_SRCINFO(src,2)];

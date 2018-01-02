@@ -50,10 +50,10 @@ class Grid(object):
         self.grid = grid
 
     def n_edges(self):
-        l = self.nx
-        m = self.ny
-        n = self.nz
-        e = (l * m * (n - 1)) + (m * n * (l - 1)) + (l * n * (m - 1))
+        i = self.nx
+        j = self.ny
+        k = self.nz
+        e = (i * j * (k - 1)) + (j * k * (i - 1)) + (i * k * (j - 1))
         return e
 
     def n_nodes(self):
@@ -239,8 +239,8 @@ def dispersion_analysis(G):
 
                 # Built-in waveform
                 else:
-                # Time to analyse waveform - 4*pulse_width as using entire
-                # time window can result in demanding FFT
+                    # Time to analyse waveform - 4*pulse_width as using entire
+                    # time window can result in demanding FFT
                     waveform.calculate_coefficients()
                     iterations = round_value(4 * waveform.chi / G.dt)
                     if iterations > G.iterations:
@@ -261,7 +261,7 @@ def dispersion_analysis(G):
                     try:
                         freqthres = np.where(power[freqmaxpower:] < -G.highestfreqthres)[0][0] + freqmaxpower
                         results['maxfreq'].append(freqs[freqthres])
-                    except:
+                    except ValueError:
                         results['error'] = 'unable to calculate maximum power from waveform, most likely due to undersampling.'
 
                 # If waveform is truncated don't do any further analysis

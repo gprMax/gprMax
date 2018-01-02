@@ -877,10 +877,7 @@ def process_geometrycmds(geometry, G):
             volume.nbins = nbins
             volume.seed = seed
             volume.weighting = np.array([float(tmp[8]), float(tmp[9]), float(tmp[10])])
-            try:
-                volume.averaging = averagefractalbox
-            except:
-                pass
+            volume.averaging = averagefractalbox
 
             if G.messages:
                 if volume.averaging:

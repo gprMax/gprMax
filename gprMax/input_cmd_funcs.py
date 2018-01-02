@@ -413,7 +413,7 @@ def cylinder(x1, y1, z1, x2, y2, z2, radius, material, averaging='', rotate90ori
 
 
 def cylindrical_sector(axis, ctr1, ctr2, t1, t2, radius,
-                startingangle, sweptangle, material, averaging=''):
+                       startingangle, sweptangle, material, averaging=''):
     """Prints the gprMax #cylindrical_sector command.
 
     Args:
@@ -471,7 +471,7 @@ def waveform(shape, amplitude, frequency, identifier):
 
 
 def hertzian_dipole(polarisation, f1, f2, f3, identifier,
-                t0=None, t_remove=None, dxdy=None, rotate90origin=()):
+                    t0=None, t_remove=None, dxdy=None, rotate90origin=()):
     """Prints the #hertzian_dipole: polarisation, f1, f2, f3, identifier, [t0, t_remove]
 
     Args:
@@ -545,7 +545,7 @@ def magnetic_dipole(polarisation, f1, f2, f3, identifier,
 
 
 def voltage_source(polarisation, f1, f2, f3, resistance, identifier,
-                    t0=None, t_remove=None, dxdy=None, rotate90origin=()):
+                   t0=None, t_remove=None, dxdy=None, rotate90origin=()):
     """Prints the #voltage_source: polarisation, f1, f2, f3, resistance, identifier, [t0, t_remove]
 
     Args:
@@ -583,7 +583,7 @@ def voltage_source(polarisation, f1, f2, f3, resistance, identifier,
 
 
 def transmission_line(polarisation, f1, f2, f3, resistance, identifier,
-                    t0=None, t_remove=None, dxdy=None, rotate90origin=()):
+                      t0=None, t_remove=None, dxdy=None, rotate90origin=()):
     """Prints the #transmission_line: polarisation, f1, f2, f3, resistance, identifier, [t0, t_remove]
 
     Args:

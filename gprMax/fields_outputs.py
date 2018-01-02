@@ -67,7 +67,7 @@ __global__ void store_outputs(int NRX, int iteration, const int* __restrict__ rx
     //      NRX: Total number of receivers in the model
     //      rxs: Array to store field components for receivers - rows are field components; columns are iterations; pages are receivers
     //      E, H: Access to field component arrays
-    
+
     // Obtain the linear index corresponding to the current thread and use for each receiver
     int rx = blockIdx.x * blockDim.x + threadIdx.x;
 

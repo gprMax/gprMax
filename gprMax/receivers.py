@@ -44,7 +44,7 @@ class Rx(object):
 
 def gpu_initialise_rx_arrays(G):
     """Initialise arrays on GPU for receiver coordinates and to store field components for receivers.
-        
+
     Args:
         G (class): Grid class instance - holds essential parameters describing the model.
     """
