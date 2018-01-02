@@ -1,6 +1,25 @@
+# Copyright (C) 2015-2018: The University of Edinburgh
+#                 Authors: Craig Warren and Antonis Giannopoulos
+#
+# This file is part of gprMax.
+#
+# gprMax is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# gprMax is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+
 cimport numpy as np
 
 from gprMax.constants cimport floattype_t
+
 
 cpdef void define_fine_geometry(
                     int nx,
@@ -24,7 +43,7 @@ cpdef void define_fine_geometry(
                     np.uint32_t[:, :] z_lines,
                     np.uint32_t[:] z_materials
             ):
-    
+
     cdef Py_ssize_t i, j, k
     cdef Py_ssize_t label = 0
     cdef Py_ssize_t counter_x = 0
@@ -62,6 +81,7 @@ cpdef void define_fine_geometry(
 
                 label = label + 1
 
+
 cpdef void define_normal_geometry(
                     int xs,
                     int xf,
@@ -78,9 +98,8 @@ cpdef void define_normal_geometry(
                     np.uint32_t[:] solid_geometry,
                     np.int8_t[:] srcs_pml_geometry,
                     np.int8_t[:] rxs_geometry,
-
             ):
-    
+
     cdef Py_ssize_t i, j, k
     cdef Py_ssize_t counter = 0
 
@@ -91,6 +110,3 @@ cpdef void define_normal_geometry(
                 srcs_pml_geometry[counter] = srcs_pml[i, j, k]
                 rxs_geometry[counter] = rxs[i, j, k]
                 counter = counter + 1
-
-
-

@@ -24,9 +24,9 @@ import numpy as np
 from struct import pack
 
 from gprMax._version import __version__
+from gprMax.geometry_outputs_ext import define_normal_geometry
+from gprMax.geometry_outputs_ext import define_fine_geometry
 from gprMax.utilities import round_value
-
-from .geometry_outputs_ext import define_fine_geometry, define_normal_geometry
 
 
 class GeometryView(object):
@@ -70,7 +70,7 @@ class GeometryView(object):
             self.vtk_yfcells = self.yf // self.dy
             self.vtk_zscells = self.zs // self.dz
             self.vtk_zfcells = self.zf // self.dz
-            self.vtk_nxcells = self.nx // self.dx 
+            self.vtk_nxcells = self.nx // self.dx
             self.vtk_nycells = self.ny // self.dy
             self.vtk_nzcells = self.nz // self.dz
             self.n_vtk_cells = self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells
@@ -136,7 +136,7 @@ class GeometryView(object):
                 f.write('<DataArray type="Int8" Name="Receivers" format="appended" offset="{}" />\n'.format(vtk_rxs_offset).encode('utf-8'))
                 f.write('</CellData>\n'.encode('utf-8'))
                 f.write('</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
-                
+
                 solid_geometry = np.zeros((self.n_vtk_cells), dtype=np.uint32)
                 srcs_pml_geometry = np.zeros((self.n_vtk_cells), dtype=np.int8)
                 rxs_geometry = np.zeros((self.n_vtk_cells), dtype=np.int8)
@@ -197,8 +197,8 @@ class GeometryView(object):
                 f.write('</CellData>\n'.encode('utf-8'))
 
                 f.write('</Piece>\n</PolyData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
-                
-                # Coordinates of each point                
+
+                # Coordinates of each point
                 n_points = (self.nx + 1) * (self.ny + 1) * (self.nz + 1)
                 points = np.zeros((n_points, 3), dtype=np.float32)
 
