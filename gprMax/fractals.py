@@ -20,8 +20,8 @@ import numpy as np
 
 from gprMax.constants import floattype
 from gprMax.constants import complextype
-from gprMax.fractals_generate import generate_fractal2D
-from gprMax.fractals_generate import generate_fractal3D
+from gprMax.fractals_generate_ext import generate_fractal2D
+from gprMax.fractals_generate_ext import generate_fractal3D
 from gprMax.utilities import round_value
 
 np.seterr(divide='raise')
@@ -62,7 +62,7 @@ class FractalSurface(object):
 
     def generate_fractal_surface(self, G):
         """Generate a 2D array with a fractal distribution.
-            
+
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
@@ -135,7 +135,7 @@ class FractalVolume(object):
 
     def generate_fractal_volume(self, G):
         """Generate a 3D volume with a fractal distribution.
-            
+
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """

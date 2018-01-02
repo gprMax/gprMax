@@ -20,16 +20,16 @@ import numpy as np
 cimport numpy as np
 
 from gprMax.utilities import round_value
-from gprMax.yee_cell_setget_rigid cimport set_rigid_Ex
-from gprMax.yee_cell_setget_rigid cimport set_rigid_Ey
-from gprMax.yee_cell_setget_rigid cimport set_rigid_Ez
-from gprMax.yee_cell_setget_rigid cimport set_rigid_Hx
-from gprMax.yee_cell_setget_rigid cimport set_rigid_Hy
-from gprMax.yee_cell_setget_rigid cimport set_rigid_Hz
-from gprMax.yee_cell_setget_rigid cimport set_rigid_E
-from gprMax.yee_cell_setget_rigid cimport unset_rigid_E
-from gprMax.yee_cell_setget_rigid cimport set_rigid_H
-from gprMax.yee_cell_setget_rigid cimport unset_rigid_H
+from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_Ex
+from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_Ey
+from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_Ez
+from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_Hx
+from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_Hy
+from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_Hz
+from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_E
+from gprMax.yee_cell_setget_rigid_ext cimport unset_rigid_E
+from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_H
+from gprMax.yee_cell_setget_rigid_ext cimport unset_rigid_H
 
 np.seterr(divide='raise')
 
@@ -964,4 +964,3 @@ cpdef void build_voxels_from_array_mask(
                 elif mask[i - xs, j - ys, k - zs] == 3:
                     numID = numIDx = numIDy = numIDz = grassnumID
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
-

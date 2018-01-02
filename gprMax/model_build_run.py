@@ -38,12 +38,12 @@ from gprMax.fields_outputs import store_outputs
 from gprMax.fields_outputs import kernel_template_store_outputs
 from gprMax.fields_outputs import write_hdf5_outputfile
 
-from gprMax.fields_updates import update_electric
-from gprMax.fields_updates import update_magnetic
-from gprMax.fields_updates import update_electric_dispersive_multipole_A
-from gprMax.fields_updates import update_electric_dispersive_multipole_B
-from gprMax.fields_updates import update_electric_dispersive_1pole_A
-from gprMax.fields_updates import update_electric_dispersive_1pole_B
+from gprMax.fields_updates_ext import update_electric
+from gprMax.fields_updates_ext import update_magnetic
+from gprMax.fields_updates_ext import update_electric_dispersive_multipole_A
+from gprMax.fields_updates_ext import update_electric_dispersive_multipole_B
+from gprMax.fields_updates_ext import update_electric_dispersive_1pole_A
+from gprMax.fields_updates_ext import update_electric_dispersive_1pole_B
 from gprMax.fields_updates_gpu import kernels_template_fields
 
 from gprMax.grid import FDTDGrid
@@ -68,8 +68,8 @@ from gprMax.utilities import human_size
 from gprMax.utilities import memory_usage
 from gprMax.utilities import open_path_file
 from gprMax.utilities import round32
-from gprMax.yee_cell_build import build_electric_components
-from gprMax.yee_cell_build import build_magnetic_components
+from gprMax.yee_cell_build_ext import build_electric_components
+from gprMax.yee_cell_build_ext import build_magnetic_components
 
 
 def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usernamespace):
