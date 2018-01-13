@@ -9,17 +9,18 @@ Information
 
 The module features models of antennas similar to commercial GPR antennas. The following antenna models are included:
 
-============ ============ ============= ===================== ============================================================================================= ================
-Manufacturer Model        Dimensions    Spatial resolution(s) Author/Contact                                                                                Attribution/Cite
-============ ============ ============= ===================== ============================================================================================= ================
-GSSI 1.5GHz  (Model 5100) 170x108x45mm  1mm and 2mm           Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                     1
-MALA 1.2GHz               184x109x46mm  1mm and 2mm           Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                     1
-GSSI 400MHz               300x300x170mm 1mm                   Sam Stadler (Sam.Stadler@liag-hannover.de), Leibniz Institute for Applied Geophysics, Germany 2
-============ ============ ============= ===================== ============================================================================================= ================
+======================== ============= ============= ============================================================================================= ================
+Manufacturer/Model       Dimensions    Resolution(s) Author/Contact                                                                                Attribution/Cite
+======================== ============= ============= ============================================================================================= ================
+GSSI 1.5GHz (Model 5100) 170x108x45mm  1mm, 2mm      Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                     1
+MALA 1.2GHz              184x109x46mm  1mm, 2mm      Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                     1
+GSSI 400MHz              300x300x170mm 1mm           Sam Stadler (Sam.Stadler@liag-hannover.de), Leibniz Institute for Applied Geophysics, Germany 2
+======================== ============= ============= ============================================================================================= ================
 
 **License**: `Creative Commons Attribution-ShareAlike 4.0 International License <http://creativecommons.org/licenses/by-sa/4.0/>`_
 
-**Attributions/citations**
+**Attributions/citations**:
+
 1. Warren, C., Giannopoulos, A. (2011). Creating finite-difference time-domain models of commercial ground-penetrating radar antennas using Taguchi's optimization method. *Geophysics*, 76(2), G37-G47. (http://dx.doi.org/10.1190/1.3548506)
 2. Stadler, S. ()
 
