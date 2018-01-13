@@ -9,7 +9,7 @@
 #cylinder: 0.240 0 0.080 0.240 0.148 0.080 0.010 pec
 
 #python:
-from user_libs.antennas import antenna_like_GSSI_1500
+from user_libs.antennas.GSSI import antenna_like_GSSI_1500
 antenna_like_GSSI_1500(0.105 + current_model_run * 0.005, 0.074, 0.170, 0.001)
 #end_python:
 

@@ -7,7 +7,7 @@ import os
 import numpy as np
 
 from gprMax.input_cmd_funcs import *
-from user_libs.antennas import antenna_like_GSSI_1500
+from user_libs.antennas.GSSI import antenna_like_GSSI_1500
 
 filename = os.path.splitext(os.path.split(inputfile)[1])[0]
 

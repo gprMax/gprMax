@@ -7,24 +7,29 @@ GPR antenna models
 Information
 ===========
 
-**Author/Contact**: Craig Warren (Craig.Warren@ed.ac.uk), University of Edinburgh
+The module features models of antennas similar to commercial GPR antennas. The following antenna models are included:
+
+============ ============ ============= ===================== ============================================================================================= ================
+Manufacturer Model        Dimensions    Spatial resolution(s) Author/Contact                                                                                Attribution/Cite
+============ ============ ============= ===================== ============================================================================================= ================
+GSSI 1.5GHz  (Model 5100) 170x108x45mm  1mm and 2mm           Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                     1
+MALA 1.2GHz               184x109x46mm  1mm and 2mm           Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                     1
+GSSI 400MHz               300x300x170mm 1mm                   Sam Stadler (Sam.Stadler@liag-hannover.de), Leibniz Institute for Applied Geophysics, Germany 2
+============ ============ ============= ===================== ============================================================================================= ================
 
 **License**: `Creative Commons Attribution-ShareAlike 4.0 International License <http://creativecommons.org/licenses/by-sa/4.0/>`_
 
-**Attribution/cite**: Warren, C., Giannopoulos, A. (2011). Creating finite-difference time-domain models of commercial ground-penetrating radar antennas using Taguchi's optimization method. *Geophysics*, 76(2), G37-G47. (http://dx.doi.org/10.1190/1.3548506)
-
-The module currently features models of antennas similar to commercial GPR antennas:
-
-* `Geophysical Survey Systems, Inc. (GSSI) <http://www.geophysical.com>`_ 1.5 GHz (Model 5100) antenna. The dimensions of the GSSI 1.5GHz antenna model are: 170x108x45mm.
-* `MALA Geoscience <http://www.malags.com/>`_ 1.2 GHz antenna. The dimensions of the MALA 1.2GHz antenna model are: 184x109x46mm.
-
-A description of how the models were created can be found at the reference given by the aforementioned attribution/cite.
+**Attributions/citations**
+1. Warren, C., Giannopoulos, A. (2011). Creating finite-difference time-domain models of commercial ground-penetrating radar antennas using Taguchi's optimization method. *Geophysics*, 76(2), G37-G47. (http://dx.doi.org/10.1190/1.3548506)
+2. Stadler, S. ()
 
 Module overview
 ===============
 
-* ``antennas.py`` is a module containing the descriptions of the antennas.
+* ``GSSI.py`` is a module containing models of antennas similar to those manufactured by `Geophysical Survey Systems, Inc. (GSSI) <http://www.geophysical.com>`_.
+* ``MALA.py`` is a module containing models of antennas similar to those manufactured by `MALA Geoscience <http://www.malags.com/>`_.
 
+Descriptions of how the models were created can be found in the aforementioned attributions.
 
 How to use the module
 =====================
@@ -39,7 +44,7 @@ To include an antenna model similar to a GSSI 1.5 GHz antenna at a location 0.12
 .. code-block:: none
 
     #python:
-    from user_libs.antennas import antenna_like_GSSI_1500
+    from user_libs.antennas.GSSI import antenna_like_GSSI_1500
     antenna_like_GSSI_1500(0.125, 0.094, 0.100, resolution=0.002)
     #end_python:
 

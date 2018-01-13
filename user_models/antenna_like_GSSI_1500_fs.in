@@ -4,6 +4,6 @@
 #time_window: 6e-9
 
 #python:
-from user_libs.antennas import antenna_like_GSSI_1500
+from user_libs.antennas.GSSI import antenna_like_GSSI_1500
 antenna_like_GSSI_1500(0.125, 0.094, 0.100, resolution=0.001)
 #end_python:
