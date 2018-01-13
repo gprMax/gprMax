@@ -7,7 +7,7 @@ Landmines
 Information
 ===========
 
-**Author/Contact**: Iraklis Giannakis (I.Giannakis@ed.ac.uk), University of Edinburgh
+**Author/Contact**: Iraklis Giannakis (I.Giannakis@ed.ac.uk), University of Edinburgh, UK
 
 **License**: `Creative Commons Attribution-ShareAlike 4.0 International License <http://creativecommons.org/licenses/by-sa/4.0/>`_
 
