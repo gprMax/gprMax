@@ -941,13 +941,13 @@ def process_geometrycmds(geometry, G):
                             fractalrange = (round_value(float(tmp[10]) / G.dx), round_value(float(tmp[11]) / G.dx))
                             # xminus surface
                             if xs == volume.xs:
-                                if fractalrange[0] < 0:
-                                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot apply fractal surface to fractal box as it would exceed the domain size in the x direction')
+                                if fractalrange[0] < 0 or fractalrange[1] > volume.xf:
+                                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot apply fractal surface to fractal box as it would exceed either the upper coordinates of the fractal box or the domain in the x direction')
                                 requestedsurface = 'xminus'
                             # xplus surface
                             elif xf == volume.xf:
-                                if fractalrange[1] > G.nx:
-                                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot apply fractal surface to fractal box as it would exceed the domain size in the x direction')
+                                if fractalrange[0] < volume.xs or fractalrange[1] > G.nx:
+                                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot apply fractal surface to fractal box as it would exceed either the lower coordinates of the fractal box or the domain in the x direction')
                                 requestedsurface = 'xplus'
 
                         elif ys == yf:
@@ -958,13 +958,13 @@ def process_geometrycmds(geometry, G):
                             fractalrange = (round_value(float(tmp[10]) / G.dy), round_value(float(tmp[11]) / G.dy))
                             # yminus surface
                             if ys == volume.ys:
-                                if fractalrange[0] < 0:
-                                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot apply fractal surface to fractal box as it would exceed the domain size in the y direction')
+                                if fractalrange[0] < 0 or fractalrange[1] > volume.yf:
+                                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot apply fractal surface to fractal box as it would exceed either the upper coordinates of the fractal box or the domain in the y direction')
                                 requestedsurface = 'yminus'
                             # yplus surface
                             elif yf == volume.yf:
-                                if fractalrange[1] > G.ny:
-                                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot apply fractal surface to fractal box as it would exceed the domain size in the y direction')
+                                if fractalrange[0] < volume.ys or fractalrange[1] > G.ny:
+                                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot apply fractal surface to fractal box as it would exceed either the lower coordinates of the fractal box or the domain in the y direction')
                                 requestedsurface = 'yplus'
 
                         elif zs == zf:
@@ -975,13 +975,13 @@ def process_geometrycmds(geometry, G):
                             fractalrange = (round_value(float(tmp[10]) / G.dz), round_value(float(tmp[11]) / G.dz))
                             # zminus surface
                             if zs == volume.zs:
-                                if fractalrange[0] < 0:
-                                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot apply fractal surface to fractal box as it would exceed the domain size in the z direction')
+                                if fractalrange[0] < 0 or fractalrange[1] > volume.zf:
+                                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot apply fractal surface to fractal box as it would exceed either the upper coordinates of the fractal box or the domain in the x direction')
                                 requestedsurface = 'zminus'
                             # zplus surface
                             elif zf == volume.zf:
-                                if fractalrange[1] > G.nz:
-                                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot apply fractal surface to fractal box as it would exceed the domain size in the z direction')
+                                if fractalrange[0] < volume.zs or fractalrange[1] > G.nz:
+                                    raise CmdInputError("'" + ' '.join(tmp) + "'" + ' cannot apply fractal surface to fractal box as it would exceed either the lower coordinates of the fractal box or the domain in the z direction')
                                 requestedsurface = 'zplus'
 
                         else:
