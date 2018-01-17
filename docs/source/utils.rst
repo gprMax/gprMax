@@ -21,15 +21,16 @@ where ``inputfile`` is the name of input file including the path.
 outputfiles_merge.py
 --------------------
 
-gprMax produces a separate output file for each trace (A-scan) in a B-scan. This module combines the separate output files into a single file, and offers to remove the separate output files afterwards. Usage (from the top-level gprMax directory) is:
+gprMax produces a separate output file for each trace (A-scan) in a B-scan. This module combines the separate output files into a single file, and can remove the separate output files afterwards. Usage (from the top-level gprMax directory) is:
 
 .. code-block:: none
 
-    python -m tools.outputfiles_merge basefilename
+    python -m tools.outputfiles_merge basefilename --remove-files
 
 where:
 
 * ``basefilename`` is the base name file of the output file series, e.g. for ``myoutput1.out``, ``myoutput2.out`` the base file name would be ``myoutput``
+* ``remove-files`` is an optional argument (flag) that when given will remove the separate output files after the merge.
 
 
 convert_png2h5.py

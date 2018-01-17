@@ -155,7 +155,7 @@ You should have produced 60 output files, one for each A-scan, with names ``cyli
 
     python -m tools.outputfiles_merge user_models/cylinder_Bscan_2D
 
-You should see a combined output file ``cylinder_Bscan_2D_merged.out``. The tool will ask you if you want to delete the original single A-scan output files or keep them.
+You should see a combined output file ``cylinder_Bscan_2D_merged.out``. You can add the optional argument ``--remove-files`` if you want to automatically delete the original single A-scan output files.
 
 You can now view an image of the B-scan using the command:
 
@@ -171,9 +171,3 @@ You can now view an image of the B-scan using the command:
     :width: 600px
 
     B-scan of model of a metal cylinder buried in a dielectric half-space.
-
-
-
-
-
-

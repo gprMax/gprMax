@@ -25,45 +25,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from gprMax.exceptions import CmdInputError
-
-
-def get_output_data(filename, rxnumber, rxcomponent):
-    """Gets B-scan output data from a model.
-
-    Args:
-        filename (string): Filename (including path) of output file.
-        rxnumber (int): Receiver output number.
-        rxcomponent (str): Receiver output field/current component.
-
-    Returns:
-        outputdata (array): Array of A-scans, i.e. B-scan data.
-        dt (float): Temporal resolution of the model.
-    """
-
-    # Open output file and read some attributes
-    f = h5py.File(filename, 'r')
-    nrx = f.attrs['nrx']
-    dt = f.attrs['dt']
-
-    # Check there are any receivers
-    if nrx == 0:
-        raise CmdInputError('No receivers found in {}'.format(filename))
-
-    path = '/rxs/rx' + str(rxnumber) + '/'
-    availableoutputs = list(f[path].keys())
-
-    # Check if requested output is in file
-    if rxcomponent not in availableoutputs:
-        raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(rxcomponent, ', '.join(availableoutputs)))
-
-    outputdata = f[path + '/' + rxcomponent]
-    outputdata = np.array(outputdata)
-
-    # Check that there is more than one A-scan present
-    if outputdata.shape[1] == 1:
-        raise CmdInputError('{} contains only a single A-scan.'.format(filename))
-
-    return outputdata, dt
+from .outputdata import get_output_data
 
 
 def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
