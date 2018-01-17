@@ -57,6 +57,7 @@ def main():
     parser.add_argument('-task', type=int, help='task identifier (model number) for job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)')
     parser.add_argument('-restart', type=int, help='model number to restart from, e.g. when creating B-scan')
     parser.add_argument('-mpi', type=int, help='number of MPI tasks, i.e. master + workers')
+    parser.add_argument('-mpialt', action='store_true', default=False, help='flag to switch on MPI task farm')
     parser.add_argument('--mpi-worker', action='store_true', default=False, help=argparse.SUPPRESS)
     parser.add_argument('-gpu', type=int, action='append', nargs='?', const=True, help='flag to use Nvidia GPU (option to give device ID)')
     parser.add_argument('-benchmark', action='store_true', default=False, help='flag to switch on benchmarking mode')
@@ -75,6 +76,7 @@ def api(
     task=None,
     restart=None,
     mpi=False,
+    mpialt=False,
     gpu=None,
     benchmark=False,
     geometry_only=False,
@@ -97,6 +99,7 @@ def api(
     args.task = task
     args.restart = restart
     args.mpi = mpi
+    args.mpialt = mpialt
     args.gpu = gpu
     args.benchmark = benchmark
     args.geometry_only = geometry_only
@@ -139,7 +142,7 @@ def run_main(args):
             # If no device ID is specified
             else:
                 # If in MPI mode then set args.gpu to list of available GPUs
-                if args.mpi:
+                if args.mpi or args.mpialt:
                     if args.mpi - 1 > len(gpus):
                         raise GeneralError('Too many MPI tasks requested ({}). The number of MPI tasks requested can only be a maximum of the number of GPU(s) detected plus one, i.e. {} GPU worker tasks + 1 CPU master task'.format(args.mpi, len(gpus)))
                     args.gpu = gpus
@@ -182,6 +185,10 @@ def run_main(args):
                 if args.task:
                     raise GeneralError('MPI cannot be combined with job array mode')
                 run_mpi_sim(args, inputfile, usernamespace)
+
+            # TEST! TEST! TEST! Alternate MPI configuration
+            elif args.mpialt:
+                run_mpi_alt_sim(args, inputfile, usernamespace)
 
             # Standard behaviour - models run serially with each model parallelised with OpenMP (CPU) or CUDA (GPU)
             else:
@@ -346,7 +353,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     from mpi4py import MPI
 
     # Get name of processor/host
-    name = MPI.Get_processor_name()
+    hostname = MPI.Get_processor_name()
 
     # Set range for number of models to run
     modelstart = args.restart if args.restart else 1
@@ -362,7 +369,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
 
         tsimstart = perf_counter()
 
-        print('MPI master rank (PID {}) on {} using {} workers'.format(os.getpid(), name, numberworkers))
+        print('MPI master rank (PID {}) on {} using {} workers'.format(os.getpid(), hostname, numberworkers))
 
         # Create a list of work
         worklist = []
@@ -414,7 +421,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                     args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
                 gpuinfo = ' using {} - {}, {} RAM '.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
 
-            print('MPI worker rank {} (PID {}) starting model {}/{}{} on {}'.format(rank, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo, name))
+            print('MPI worker rank {} (PID {}) starting model {}/{}{} on {}'.format(rank, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo, hostname))
 
             # If Taguchi optimistaion, add specific value for each parameter to
             # optimise for each experiment to user accessible namespace
@@ -431,3 +438,110 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
 
         # Shutdown
         comm.Disconnect()
+
+
+def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
+    """
+    Run mixed mode MPI/OpenMP simulation - MPI task farm for models with
+    each model parallelised using either OpenMP (CPU) or CUDA (GPU)
+
+    Args:
+        args (dict): Namespace with command line arguments
+        inputfile (object): File object for the input file.
+        usernamespace (dict): Namespace that can be accessed by user in any
+                Python code blocks in input file.
+        optparams (dict): Optional argument. For Taguchi optimisation it
+                provides the parameters to optimise and their values.
+    """
+
+    from mpi4py import MPI
+
+    # Define MPI message tags
+    tags = Enum('tags', {'READY': 0, 'DONE': 1, 'EXIT': 2, 'START': 3})
+
+    # Initializations and preliminaries
+    comm = MPI.COMM_WORLD   # get MPI communicator object
+    size = comm.Get_size()  # total number of processes
+    rank = comm.Get_rank()  # rank of this process
+    status = MPI.Status()   # get MPI status object
+    hostname = MPI.Get_processor_name()     # get name of processor/host
+
+    # Set range for number of models to run
+    modelstart = args.restart if args.restart else 1
+    modelend = modelstart + args.n
+    numbermodelruns = args.n
+
+    tsimstart = perf_counter()
+
+    # Master process
+    if rank == 0:
+
+        # Set current model run number (can use -task argument to start numbering from something other than 1)
+        currentmodelrun = modelstart
+        numworkers = size - 1
+        closedworkers = 0
+        print('MPI master rank {} (PID {}) on {} using {} workers'.format(rank, os.getpid(), hostname, numworkers))
+
+        while closedworkers < numworkers:
+            data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+            source = status.Get_source()
+            tag = status.Get_tag()
+
+            # Worker is ready, so send it a task
+            if tag == tags.READY.value:
+                if currentmodelrun < modelend:
+                    comm.send(currentmodelrun, dest=source, tag=tags.START.value)
+                    currentmodelrun += 1
+                else:
+                    comm.send(None, dest=source, tag=tags.EXIT.value)
+
+            # Worker has completed a task
+            elif tag == tags.DONE.value:
+                pass
+
+            # Worker has completed all tasks
+            elif tag == tags.EXIT.value:
+                # print('MPI worker rank {} completed all tasks'.format(source))
+                closedworkers += 1
+
+    # Worker process
+    else:
+        while True: # Break out of loop when work receives exit message
+            comm.send(None, dest=0, tag=tags.READY.value)
+            currentmodelrun = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)  #  Receive a model number to run from the master
+            tag = status.Get_tag()
+
+            # Run a model
+            if tag == tags.START.value:
+
+                gpuinfo = ''
+                if args.gpu is not None:
+                    # Set device ID for multiple GPUs
+                    if isinstance(args.gpu, list):
+                        deviceID = (rank - 1) % len(args.gpu)
+                        args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
+                    gpuinfo = ' using {} - {}, {} RAM '.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
+
+                print('MPI worker rank {} (PID {}) starting model {}/{}{} on {}'.format(rank, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo, hostname))
+
+                # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
+                if optparams:
+                    tmp = {}
+                    tmp.update((key, value[currentmodelrun - 1]) for key, value in optparams.items())
+                    modelusernamespace = usernamespace.copy()
+                    modelusernamespace.update({'optparams': tmp})
+                else:
+                    modelusernamespace = usernamespace
+
+                # Run the model
+                run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
+                comm.send(None, dest=0, tag=tags.DONE.value)
+
+            elif tag == tags.EXIT.value:
+                break
+
+        comm.send(None, dest=0, tag=tags.EXIT.value)
+
+    tsimend = perf_counter()
+    simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
+    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
