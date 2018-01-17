@@ -146,7 +146,7 @@ def run_main(args):
                     if args.mpi - 1 > len(gpus):
                         raise GeneralError('Too many MPI tasks requested ({}). The number of MPI tasks requested can only be a maximum of the number of GPU(s) detected plus one, i.e. {} GPU worker tasks + 1 CPU master task'.format(args.mpi, len(gpus)))
                     args.gpu = gpus
-                elif args.mpialt
+                elif args.mpialt:
                     args.gpu = gpus
                 # If benchmarking mode then set args.gpu to list of available GPUs
                 elif args.benchmark:
