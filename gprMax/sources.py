@@ -131,7 +131,7 @@ class VoltageSource(Source):
             requirednumID = G.ID[G.IDlookup[componentID], i, j, k]
             material = next(x for x in G.materials if x.numID == requirednumID)
             newmaterial = deepcopy(material)
-            newmaterial.ID = material.ID + '+VoltageSource_' + str(self.resistance)
+            newmaterial.ID = material.ID + '+' + self.ID
             newmaterial.numID = len(G.materials)
             newmaterial.averagable = False
             newmaterial.type += ',\nvoltage-source'
