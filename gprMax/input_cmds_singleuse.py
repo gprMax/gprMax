@@ -305,17 +305,17 @@ def process_singlecmds(singlecmds, G):
             w.type = 'user'
 
             # Select correct column of waveform values depending on array shape
-            waveformvalues = waveformvalues[:] if len(waveformvalues.shape) == 1 else waveformvalues[:, waveform]
+            singlewaveformvalues = waveformvalues[:] if len(waveformvalues.shape) == 1 else waveformvalues[:, waveform]
 
             # Truncate waveform array if it is longer than time array
-            if len(waveformvalues) > len(waveformtime):
-                waveformvalues = waveformvalues[:len(waveformtime)]
+            if len(singlewaveformvalues) > len(waveformtime):
+                singlewaveformvalues = singlewaveformvalues[:len(waveformtime)]
             # Zero-pad end of waveform array if it is shorter than time array
-            elif len(waveformvalues) < len(waveformtime):
-                waveformvalues = np.lib.pad(waveformvalues, (0, len(waveformtime) - len(waveformvalues)), 'constant', constant_values=0)
+            elif len(singlewaveformvalues) < len(waveformtime):
+                singlewaveformvalues = np.lib.pad(singlewaveformvalues, (0, len(singlewaveformvalues) - len(waveformvalues)), 'constant', constant_values=0)
 
             # Interpolate waveform values
-            w.userfunc = interpolate.interp1d(waveformtime, waveformvalues, **kwargs)
+            w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues, **kwargs)
 
             if G.messages:
                 print('User waveform {} created using {} and, if required, interpolation parameters (kind: {}, fill value: {}).'.format(w.ID, timestr, kwargs['kind'], kwargs['fill_value']))
