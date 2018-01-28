@@ -25,7 +25,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from gprMax.exceptions import CmdInputError
-from .outputdata import get_output_data
+from .outputfiles_merge import get_output_data
 
 
 def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
