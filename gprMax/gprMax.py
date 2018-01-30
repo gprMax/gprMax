@@ -123,7 +123,7 @@ def run_main(args):
         # Get information about host machine
         hostinfo = get_host_info()
         hyperthreading = ', {} cores with Hyper-Threading'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
-        print('\nHost: {} - {} | {} x {} ({} cores{}) | {} RAM | {}'.format(hostinfo['hostname'],
+        print('\nHost: {} | {} | {} x {} ({} cores{}) | {} RAM | {}'.format(hostinfo['hostname'],
         hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'],
         hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
 
@@ -504,7 +504,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
         currentmodelrun = modelstart
         numworkers = size - 1
         closedworkers = 0
-        print('MPI master rank {} (PID {}) on {} using {} workers'.format(rank, os.getpid(), hostname, numworkers))
+        print('MPI master rank {} ({}, PID {}) controlling {} workers'.format(rank, hostname, os.getpid(), numworkers))
 
         while closedworkers < numworkers:
             data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
@@ -544,9 +544,9 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
                     if isinstance(args.gpu, list):
                         deviceID = (rank - 1) % len(args.gpu)
                         args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
-                    gpuinfo = ' using {} - {}, {} RAM '.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
+                    gpuinfo = ' using {} - {}, {}'.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
 
-                print('MPI worker rank {} (PID {}) starting model {}/{}{} on {}'.format(rank, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo, hostname))
+                print('MPI worker rank {} ({}, PID {}) starting model {}/{}{} on {}'.format(rank, hostname, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo))
 
                 # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
                 if optparams:

@@ -199,7 +199,7 @@ def get_host_info():
         hostinfo (dict): Manufacturer and model of machine; description of CPU
                 type, speed, cores; RAM; name and version of operating system.
     """
-    
+
     # Default to 'unknown' if any of the detection fails
     manufacturer = model = cpuID = sockets = threadspercore = 'unknown'
 
@@ -388,8 +388,8 @@ def detect_gpus():
         gpu = GPU(deviceID=i)
         gpu.get_gpu_info(drv)
         gpus.append(gpu)
-        gputext.append('{} - {}, {} RAM'.format(gpu.deviceID, gpu.name, human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)))
-    print('GPU(s) detected: {}'.format('; '.join(gputext)))
+        gputext.append('{} - {}, {}'.format(gpu.deviceID, gpu.name, human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)))
+    print('GPU(s) detected: {}'.format(' | '.join(gputext)))
 
     return gpus
 
