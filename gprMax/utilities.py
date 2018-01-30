@@ -199,7 +199,7 @@ def get_host_info():
         hostinfo (dict): Manufacturer and model of machine; description of CPU
                 type, speed, cores; RAM; name and version of operating system.
     """
-
+    
     # Default to 'unknown' if any of the detection fails
     manufacturer = model = cpuID = sockets = threadspercore = 'unknown'
 
@@ -316,6 +316,7 @@ def get_host_info():
 
     # Dictionary of host information
     hostinfo = {}
+    hostinfo['hostname'] = platform.node()
     hostinfo['machineID'] = machineID.strip()
     hostinfo['sockets'] = sockets
     hostinfo['cpuID'] = cpuID

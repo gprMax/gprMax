@@ -123,7 +123,9 @@ def run_main(args):
         # Get information about host machine
         hostinfo = get_host_info()
         hyperthreading = ', {} cores with Hyper-Threading'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
-        print('\nHost: {}; {} x {} ({} cores{}); {} RAM; {}'.format(hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'], hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
+        print('\nHost: {} - {} | {} x {} ({} cores{}) | {} RAM | {}'.format(hostinfo['hostname'],
+        hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'],
+        hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
 
         # Get information/setup Nvidia GPU(s)
         if args.gpu is not None:
