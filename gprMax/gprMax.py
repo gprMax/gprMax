@@ -143,8 +143,8 @@ def run_main(args):
             else:
                 # If in MPI mode then set args.gpu to list of available GPUs
                 if args.mpi:
-                    if args.mpi - 1 > len(gpus):
-                        raise GeneralError('Too many MPI tasks requested ({}). The number of MPI tasks requested can only be a maximum of the number of GPU(s) detected plus one, i.e. {} GPU worker tasks + 1 CPU master task'.format(args.mpi, len(gpus)))
+                    # if args.mpi - 1 > len(gpus):
+                    #     raise GeneralError('Too many MPI tasks requested ({}). The number of MPI tasks requested can only be a maximum of the number of GPU(s) detected plus one, i.e. {} GPU worker tasks + 1 CPU master task'.format(args.mpi, len(gpus)))
                     args.gpu = gpus
                 elif args.mpialt:
                     args.gpu = gpus
@@ -362,11 +362,31 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     modelend = modelstart + args.n
     numbermodelruns = args.n
 
-    # Number of workers and command line flag to indicate a spawned worker
+    # Command line flag to indicate a spawned worker and number of workers
     worker = '--mpi-worker'
     numberworkers = args.mpi - 1
 
+    # Assemble a sys.argv replacement to pass to spawned worker
+    # N.B This is required as sys.argv not available when gprMax is used via api()
+    myargv = []
+    for key, value in vars(args).items():
+        if value:
+            if 'inputfile' in key:
+                myargv.append(value)
+            elif 'gpu' in key:
+                myargv.append('-' + key)
+                if not isinstance(value, list):
+                    myargv.append(str(value.deviceID))
+            elif '_' in key:
+                key = key.replace('_', '-')
+                myargv.append('--' + key)
+                myargv.append(str(value))
+            else:
+                myargv.append('-' + key)
+                myargv.append(str(value))
+
     # Master process
+    # N.B Spawned worker flag (--mpi-worker) applied to sys.argv when MPI.Spawn is called
     if worker not in sys.argv:
 
         tsimstart = perf_counter()
@@ -385,7 +405,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         worklist += ([StopIteration] * numberworkers)
 
         # Spawn workers
-        comm = MPI.COMM_WORLD.Spawn(sys.executable, args=['-m', 'gprMax', '-n', str(args.n)] + sys.argv[1::] + [worker], maxprocs=numberworkers)
+        comm = MPI.COMM_WORLD.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [worker], maxprocs=numberworkers)
 
         # Reply to whoever asks until done
         status = MPI.Status()
