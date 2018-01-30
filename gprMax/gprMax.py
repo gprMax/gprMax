@@ -504,7 +504,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
         currentmodelrun = modelstart
         numworkers = size - 1
         closedworkers = 0
-        print('MPI master rank {} ({}, PID {}) controlling {} workers'.format(rank, hostname, os.getpid(), numworkers))
+        print('MPI master rank {} ({} - PID {}) controlling {} workers'.format(rank, hostname, os.getpid(), numworkers))
 
         while closedworkers < numworkers:
             data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
@@ -546,7 +546,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
                         args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
                     gpuinfo = ' using {} - {}, {}'.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
 
-                print('MPI worker rank {} ({}, PID {}) starting model {}/{}{} on {}'.format(rank, hostname, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo))
+                print('MPI worker rank {} ({}, PID {}) starting model {}/{}{}'.format(rank, hostname, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo))
 
                 # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
                 if optparams:
