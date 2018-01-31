@@ -27,11 +27,11 @@ HPC environments usually require jobs to be submitted to a queue using a job scr
 OpenMP example
 --------------
 
-:download:`gprmax_omp.sh <../../tools/HPC scripts/gprmax_omp.sh>`
+:download:`gprmax_omp.sh <../../tools/HPC_scripts/gprmax_omp.sh>`
 
 Here is an example of a job script for running models, e.g. A-scans to make a B-scan, one after another on a single cluster node. This is not as beneficial as the OpenMP/MPI example, but it can be a helpful starting point when getting the software running in your HPC environment. The behaviour of most of the variables is explained in the comments in the script.
 
-.. literalinclude:: ../../tools/HPC scripts/gprmax_omp.sh
+.. literalinclude:: ../../tools/HPC_scripts/gprmax_omp.sh
     :language: bash
     :linenos:
 
@@ -41,11 +41,11 @@ In this example 10 models will be run one after another on a single node of the 
 OpenMP/MPI example
 ------------------
 
-:download:`gprmax_omp_mpi.sh <../../tools/HPC scripts/gprmax_omp_mpi.sh>`
+:download:`gprmax_omp_mpi.sh <../../tools/HPC_scripts/gprmax_omp_mpi.sh>`
 
 Here is an example of a job script for running models, e.g. A-scans to make a B-scan, distributed as independent tasks in a HPC environment using MPI. The behaviour of most of the variables is explained in the comments in the script.
 
-.. literalinclude:: ../../tools/HPC scripts/gprmax_omp_mpi.sh
+.. literalinclude:: ../../tools/HPC_scripts/gprmax_omp_mpi.sh
     :language: bash
     :linenos:
 
@@ -59,11 +59,11 @@ The ``NSLOTS`` variable which is required to set the total number of slots/cores
 Job array example
 -----------------
 
-:download:`gprmax_omp_jobarray.sh <../../tools/HPC scripts/gprmax_omp_jobarray.sh>`
+:download:`gprmax_omp_jobarray.sh <../../tools/HPC_scripts/gprmax_omp_jobarray.sh>`
 
 Here is an example of a job script for running models, e.g. A-scans to make a B-scan, using the job array functionality of Open Grid Scheduler/Grid Engine. A job array is a single submit script that is run multiple times. It has similar functionality, for gprMax, to using the aforementioned MPI task farm. The behaviour of most of the variables is explained in the comments in the script.
 
-.. literalinclude:: ../../tools/HPC scripts/gprmax_omp_jobarray.sh
+.. literalinclude:: ../../tools/HPC_scripts/gprmax_omp_jobarray.sh
     :language: bash
     :linenos:
 
@@ -86,4 +86,3 @@ Eddie is the `Edinburgh Compute and Data Facility (ECDF) <http://www.ed.ac.uk/in
 * The previous job submission example scripts for OpenMP and OpenMP/MPI should run on eddie3.
 
 * The ``NSLOTS`` variable for the total number of slots/cores for the parallel environment ``-pe mpi`` must be specified as a multiple of 16 (the total number of cores/threads available on a single node), e.g. 61 MPI tasks each using 4 threads would require a total 244 slots/cores. This must be rounded up to the nearest multiple of 16, e.g. 256.
-
