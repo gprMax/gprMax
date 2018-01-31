@@ -76,6 +76,7 @@ def api(
     task=None,
     restart=None,
     mpi=False,
+    mpicomm=None,
     mpialt=False,
     gpu=None,
     benchmark=False,
@@ -99,6 +100,7 @@ def api(
     args.task = task
     args.restart = restart
     args.mpi = mpi
+    args.mpicomm = mpicomm
     args.mpialt = mpialt
     args.gpu = gpu
     args.benchmark = benchmark
@@ -464,7 +466,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         comm.Disconnect()
 
 
-def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
+def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None, mpicomm=None):
     """
     Run mixed mode MPI/OpenMP simulation - MPI task farm for models with
     each model parallelised using either OpenMP (CPU) or CUDA (GPU)
@@ -484,9 +486,13 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
     tags = Enum('tags', {'READY': 0, 'DONE': 1, 'EXIT': 2, 'START': 3})
 
     # Initializations and preliminaries
-    comm = MPI.COMM_WORLD   # get MPI communicator object
+    if args.mpicomm:
+        comm = args.mpicomm
+    else:
+        comm = MPI.COMM_WORLD   # get MPI communicator object
     size = comm.Get_size()  # total number of processes
     rank = comm.Get_rank()  # rank of this process
+    print('gprMax rank {}'.format(rank))
     status = MPI.Status()   # get MPI status object
     hostname = MPI.Get_processor_name()     # get name of processor/host
 
