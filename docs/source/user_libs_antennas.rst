@@ -55,7 +55,7 @@ To include an antenna model similar to a GSSI 1.5 GHz antenna at a location 0.12
     FDTD geometry mesh showing an antenna model similar to a GSSI 1.5 GHz antenna (skid removed for illustrative purposes).
 
 .. figure:: images/antenna_like_GSSI_400.png
-        :width: 600 px
+    :width: 600 px
 
     FDTD geometry mesh showing an antenna model similar to a GSSI 400 MHz antenna (skid removed for illustrative purposes).
 
