@@ -1,0 +1,9 @@
+#title: GSSI 400MHz 'like' antenna in free-space
+#domain: 0.380 0.380 0.360
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 12e-9
+
+#python:
+from user_libs.antennas.GSSI import antenna_like_GSSI_400
+antenna_like_GSSI_400(0.190, 0.190, 0.140, resolution=0.001)
+#end_python:

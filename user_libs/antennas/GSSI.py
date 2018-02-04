@@ -14,7 +14,7 @@ userlibdir = os.path.dirname(os.path.abspath(__file__))
 
 
 def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
-    """Inserts a description of an antenna similar to the GSSI 1.5GHz antenna. Can be used with 1mm (default) or 2mm spatial resolution. The external dimensions of the antenna are 170x108x45mm. One output point is defined between the arms of the receiever bowtie. The bowties are aligned with the y axis so the output is the y component of the electric field (x component if the antenna is rotated 90 degrees).
+    """Inserts a description of an antenna similar to the GSSI 1.5GHz antenna. Can be used with 1mm (default) or 2mm spatial resolution. The external dimensions of the antenna are 170x108x45mm. One output point is defined between the arms of the receiver bowtie. The bowties are aligned with the y axis so the output is the y component of the electric field (x component if the antenna is rotated 90 degrees).
 
     Args:
         x, y, z (float): Coordinates of a location in the model to insert the antenna. Coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction.
@@ -178,3 +178,406 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
     elif resolution == 0.002:
         edge(tx[0] - 0.060, tx[1], tx[2], tx[0] - 0.060, tx[1] + dy, tx[2], 'rxres', rotate90origin=rotate90origin)
         rx(tx[0] - 0.060, tx[1], tx[2], identifier='rxbowtie', to_save=[output], polarisation='y', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
+
+
+def antenna_like_GSSI_400(x, y, z, resolution=0.001, rotate90=False, **kwargs):
+    """Inserts a description of an antenna similar to the GSSI 400MHz antenna. Can be used with 0.5mm, 1mm (default) or 2mm spatial resolution. The external dimensions of the antenna are 300x300x178mm. One output point is defined between the arms of the receiver bowtie. The bowties are aligned with the y axis so the output is the y component of the electric field.
+
+    Args:
+        x, y, z (float): Coordinates of a location in the model to insert the antenna. Coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction.
+        resolution (float): Spatial resolution for the antenna model.
+        rotate90 (bool): Rotate model 90 degrees CCW in xy plane.
+        kwargs (dict): Optional variables, e.g. can be fed from an optimisation process.
+    """
+
+    # Antenna geometry properties
+    casesize = (0.3, 0.3, 0.178) # original
+    casethickness = 0.002
+    shieldthickness = 0.002
+    foamsurroundthickness = 0.003
+    pcbthickness = 0.002
+    bowtiebase = 0.06
+    bowtieheight = 0.06 # original 0.056
+    patchheight = 0.06 # original 0.056
+    metalboxheight = 0.089
+    metalmiddleplateheight = 0.11
+
+    # Set origin for rotation to geometric centre of antenna in x-y plane if required, and set output component for receiver
+    if rotate90:
+        rotate90origin = (x, y)
+        output = 'Ex'
+    else:
+        rotate90origin = ()
+        output = 'Ey'
+
+    # Unknown properties
+    if kwargs:
+        smooth_dec = kwargs['smooth_dec']   # choose to use dielectric smoothing or not
+        src_type = kwargs['src_type']   # source type. "voltage_source" or "transmission_line"
+        excitationfreq = kwargs['excitationfreq']
+        sourceresistance = kwargs['sourceresistance']
+        receiverresistance = kwargs['receiverresistance']
+        absorberEr = kwargs['absorberEr']
+        absorbersig = kwargs['absorbersig']
+        pcber = kwargs['pcber']
+        hdper = kwargs['hdper']
+        skidthickness = kwargs['skidthickness']
+    else:
+        smooth_dec = 'yes'
+        src_type = 'voltage_source' # or transmission_line
+        excitationfreq = 0.39239891e9 # GHz
+        sourceresistance = 111.59927 # Ohms
+        receiverresistance = sourceresistance # Ohms
+        absorberEr = 1.1
+        absorbersig = 0.062034689
+        pcber = 2.35
+        hdper = 2.35
+        skidthickness = 0.01
+
+    x = x - (casesize[0] / 2)
+    y = y - (casesize[1] / 2)
+
+    # Coordinates of source excitation point in antenna
+    tx = x + 0.01 + 0.005 + 0.056, y + casethickness + 0.005 + 0.143, z + skidthickness
+
+    if resolution == 0.0005:
+        dx = 0.0005
+        dy = 0.0005
+        dz = 0.0005
+        tx = x + 0.01 + 0.005 + 0.056, y + casethickness + 0.005 + 0.1435, z + skidthickness
+    elif resolution == 0.001:
+        dx = 0.001
+        dy = 0.001
+        dz = 0.001
+    elif resolution == 0.002:
+        dx = 0.002
+        dy = 0.002
+        dz = 0.002
+        foamsurroundthickness = 0.002
+        metalboxheight = 0.088
+        tx = x + 0.01 + 0.004 + 0.056, y + casethickness + 0.005 + 0.143 - 0.002, z + skidthickness
+    else:
+        raise CmdInputError('This antenna module can only be used with a spatial discretisation of 0.5mm, 1mm, 2mm')
+
+    # Material definitions
+    material(absorberEr, absorbersig, 1, 0, 'absorber')
+    material(pcber, 0, 1, 0, 'pcb')
+    material(hdper, 0, 1, 0, 'hdpe')
+
+    # Antenna geometry
+    if smooth_dec == 'yes':
+        # Plastic case
+        box(x, y, z + skidthickness - 0.002, x + casesize[0], y + casesize[1], z + casesize[2], 'hdpe', rotate90origin=rotate90origin) # new new (0.300 x 0.300 x 0.170)
+        box(x + casethickness, y + casethickness, z + skidthickness - 0.002, x + casesize[0] - casethickness, y + casesize[1] - casethickness, z + casesize[2] - casethickness, 'free_space', rotate90origin=rotate90origin) # (0.296 x 0.296 x 0.168)
+
+        # Metallic enclosure
+        box(x + casethickness, y + casethickness, z + skidthickness + (metalmiddleplateheight - metalboxheight), x + casesize[0] - casethickness, y + casesize[1] - casethickness, z + skidthickness + (metalmiddleplateheight - metalboxheight) + metalboxheight, 'pec', rotate90origin=rotate90origin) # new (0.296 x 0.296 x 0.088)
+
+        # Absorber, and foam (modelled as PCB material) around edge of absorber
+        box(x + casethickness, y + casethickness, z + skidthickness, x + casesize[0] - casethickness, y + casesize[1] - casethickness, z + skidthickness + (metalmiddleplateheight - metalboxheight), 'absorber', rotate90origin=rotate90origin)	# new 4 (0.296 x 0.296 x 0.022)
+        box(x + casethickness + shieldthickness, y + casethickness + shieldthickness, z + skidthickness + (metalmiddleplateheight - metalboxheight), x + casesize[0] - casethickness - shieldthickness, y + casesize[1] - casethickness - shieldthickness, z + skidthickness - shieldthickness + metalmiddleplateheight, 'absorber', rotate90origin=rotate90origin)	# new 4 (0.292 x 0.292 x 0.086)
+
+        # PCB
+        if resolution == 0.0005:
+            box(x + 0.01 + 0.005 + 0.018, y + casethickness + 0.005 + 0.0235, z + skidthickness, x + 0.01 + 0.005 + 0.034 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness + pcbthickness, 'pcb', rotate90origin=rotate90origin)    # new
+            box(x + 0.01 + 0.005 + 0.178, y + casethickness + 0.005 + 0.0235, z + skidthickness, x + 0.01 + 0.005 + 0.194 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness + pcbthickness, 'pcb', rotate90origin=rotate90origin)   # new
+
+        elif resolution == 0.001:
+            box(x + 0.01 + 0.005 + 0.018, y + casethickness + 0.005 + 0.023, z + skidthickness, x + 0.01 + 0.005 + 0.034 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness + pcbthickness, 'pcb', rotate90origin=rotate90origin)    # new
+            box(x + 0.01 + 0.005 + 0.178, y + casethickness + 0.005 + 0.023, z + skidthickness, x + 0.01 + 0.005 + 0.194 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness + pcbthickness, 'pcb', rotate90origin=rotate90origin)   # new
+
+        elif resolution == 0.002:
+            box(x + 0.01 + 0.005 + 0.017, y + casethickness + 0.005 + 0.021, z + skidthickness, x + 0.01 + 0.005 + 0.033 + bowtiebase, y + casethickness + 0.006 + 0.202 + patchheight, z + skidthickness + pcbthickness, 'pcb', rotate90origin=rotate90origin)    # new (for use with edges)
+            box(x + 0.01 + 0.005 + 0.179, y + casethickness + 0.005 + 0.021, z + skidthickness, x + 0.01 + 0.005 + 0.195 + bowtiebase, y + casethickness + 0.006 + 0.202 + patchheight, z + skidthickness + pcbthickness, 'pcb', rotate90origin=rotate90origin)   # new (for use with edges)
+
+    elif smooth_dec == 'no':
+        # Plastic case
+        box(x, y, z + skidthickness - 0.002, x + casesize[0], y + casesize[1], z + casesize[2], 'hdpe', 'n', rotate90origin=rotate90origin) # new new (0.300 x 0.300 x 0.170)
+        box(x + casethickness, y + casethickness, z + skidthickness - 0.002, x + casesize[0] - casethickness, y + casesize[1] - casethickness, z + casesize[2] - casethickness, 'free_space', 'n', rotate90origin=rotate90origin) # (0.296 x 0.296 x 0.168)
+
+        # Metallic enclosure
+        box(x + casethickness, y + casethickness, z + skidthickness + (metalmiddleplateheight - metalboxheight), x + casesize[0] - casethickness, y + casesize[1] - casethickness, z + skidthickness + (metalmiddleplateheight - metalboxheight) + metalboxheight, 'pec', rotate90origin=rotate90origin) # new (0.296 x 0.296 x 0.088)
+
+        # Absorber, and foam (modelled as PCB material) around edge of absorber
+        box(x + casethickness, y + casethickness, z + skidthickness, x + casesize[0] - casethickness, y + casesize[1] - casethickness, z + skidthickness + (metalmiddleplateheight - metalboxheight), 'absorber', 'n', rotate90origin=rotate90origin)	# new 4 (0.296 x 0.296 x 0.022)
+        box(x + casethickness + shieldthickness, y + casethickness + shieldthickness, z + skidthickness + (metalmiddleplateheight - metalboxheight), x + casesize[0] - casethickness - shieldthickness, y + casesize[1] - casethickness - shieldthickness, z + skidthickness - shieldthickness + metalmiddleplateheight, 'absorber', 'n', rotate90origin=rotate90origin)	# new 4 (0.292 x 0.292 x 0.086)
+
+        # PCB
+        if resolution == 0.0005:
+            box(x + 0.01 + 0.005 + 0.018, y + casethickness + 0.005 + 0.0235, z + skidthickness, x + 0.01 + 0.005 + 0.034 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness + pcbthickness, 'pcb', 'n', rotate90origin=rotate90origin)    # new
+            box(x + 0.01 + 0.005 + 0.178, y + casethickness + 0.005 + 0.0235, z + skidthickness, x + 0.01 + 0.005 + 0.194 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness + pcbthickness, 'pcb', 'n', rotate90origin=rotate90origin)   # new
+
+        elif resolution == 0.001:
+            box(x + 0.01 + 0.005 + 0.018, y + casethickness + 0.005 + 0.023, z + skidthickness, x + 0.01 + 0.005 + 0.034 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness + pcbthickness, 'pcb', 'n', rotate90origin=rotate90origin)    # new
+            box(x + 0.01 + 0.005 + 0.178, y + casethickness + 0.005 + 0.023, z + skidthickness, x + 0.01 + 0.005 + 0.194 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness + pcbthickness, 'pcb', 'n', rotate90origin=rotate90origin)   # new
+
+        elif resolution == 0.002:
+            box(x + 0.01 + 0.005 + 0.017, y + casethickness + 0.005 + 0.021, z + skidthickness, x + 0.01 + 0.005 + 0.033 + bowtiebase, y + casethickness + 0.006 + 0.202 + patchheight, z + skidthickness + pcbthickness, 'pcb', 'n', rotate90origin=rotate90origin)    # new (for use with edges)
+            box(x + 0.01 + 0.005 + 0.179, y + casethickness + 0.005 + 0.021, z + skidthickness, x + 0.01 + 0.005 + 0.195 + bowtiebase, y + casethickness + 0.006 + 0.202 + patchheight, z + skidthickness + pcbthickness, 'pcb', 'n', rotate90origin=rotate90origin)   # new (for use with edges)
+
+    # PCB components
+    # My own bowties with triangle commands
+    if resolution == 0.0005:
+        # "left" side
+        # extension plates
+        plate(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.0235, z + skidthickness, x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.0235 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new
+        # box(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.0235, z + skidthickness, x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.0235 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new new
+
+        plate(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.204, z + skidthickness, x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new
+        # box(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.204, z + skidthickness, x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new new
+
+        # triangles
+        # triangle(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.0835, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.0835, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.026 + (bowtiebase/2), y + casethickness + 0.005 + 0.0835 + bowtieheight, z + skidthickness,
+                 # 0.002,'pec', rotate90origin=rotate90origin)
+        triangle(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.0835, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.0835, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.026 + (bowtiebase/2), y + casethickness + 0.005 + 0.0835 + bowtieheight, z + skidthickness,
+                 0,'pec', rotate90origin=rotate90origin) # new
+        # triangle(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.026 + (bowtiebase/2), y + casethickness + 0.005 + 0.204 - bowtieheight, z + skidthickness,
+                 # 0.002,'pec', rotate90origin=rotate90origin)
+        triangle(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.026 + (bowtiebase/2), y + casethickness + 0.005 + 0.204 - bowtieheight, z + skidthickness,
+                 0,'pec', rotate90origin=rotate90origin) # new
+
+        # "right" side
+        plate(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.0235, z + skidthickness, x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.0235 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new
+        # box(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.0235, z + skidthickness, x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.0235 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new new
+
+        plate(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.204, z + skidthickness, x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new
+        # box(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.204, z + skidthickness, x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new
+
+        # triangles
+        # triangle(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.0835, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.0835, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.186 + (bowtiebase/2), y + casethickness + 0.005 + 0.0835 + bowtieheight, z + skidthickness,
+                 # 0.002,'pec', rotate90origin=rotate90origin)
+        triangle(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.0835, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.0835, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.186 + (bowtiebase/2), y + casethickness + 0.005 + 0.0835 + bowtieheight, z + skidthickness,
+                 0,'pec', rotate90origin=rotate90origin)
+        # triangle(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.186 + (bowtiebase/2), y + casethickness + 0.005 + 0.204 - bowtieheight, z + skidthickness,
+                 # 0.002,'pec', rotate90origin=rotate90origin)
+        triangle(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.186 + (bowtiebase/2), y + casethickness + 0.005 + 0.204 - bowtieheight, z + skidthickness,
+                 0,'pec', rotate90origin=rotate90origin)
+
+        # Edges that represent wire between bowtie halves in 1mm model
+        edge(tx[0] + 0.16, tx[1] - dy, tx[2], tx[0] + 0.16, tx[1], tx[2], 'pec', rotate90origin=rotate90origin)
+        edge(tx[0] + 0.16, tx[1] + dy, tx[2], tx[0] + 0.16, tx[1] + 2*dy, tx[2], 'pec', rotate90origin=rotate90origin)
+        edge(tx[0], tx[1] - dy, tx[2], tx[0], tx[1], tx[2], 'pec', rotate90origin=rotate90origin)
+        edge(tx[0], tx[1] + dy, tx[2], tx[0], tx[1] + 2*dy, tx[2], 'pec', rotate90origin=rotate90origin)
+
+    elif resolution == 0.001:
+        # "left" side
+        # extension plates
+        plate(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.023, z + skidthickness, x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.023 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new
+        # box(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.023, z + skidthickness, x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.023 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new
+
+        plate(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.204, z + skidthickness, x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new
+        # box(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.204, z + skidthickness, x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new
+
+        # triangles
+        # triangle(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.083, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.083, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.026 + (bowtiebase/2), y + casethickness + 0.005 + 0.083 + bowtieheight, z + skidthickness,
+                 # 0.002,'pec', rotate90origin=rotate90origin)
+        triangle(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.083, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.083, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.026 + (bowtiebase/2), y + casethickness + 0.005 + 0.083 + bowtieheight, z + skidthickness,
+                 0,'pec', rotate90origin=rotate90origin) # new
+        # triangle(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.026 + (bowtiebase/2), y + casethickness + 0.005 + 0.204 - bowtieheight, z + skidthickness,
+                 # 0.002,'pec', rotate90origin=rotate90origin)
+        triangle(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.026 + (bowtiebase/2), y + casethickness + 0.005 + 0.204 - bowtieheight, z + skidthickness,
+                 0,'pec', rotate90origin=rotate90origin) # new
+
+        # "right" side
+        plate(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.023, z + skidthickness, x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.023 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new
+        # box(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.023, z + skidthickness, x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.023 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new
+
+        plate(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.204, z + skidthickness, x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new
+        # box(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.204, z + skidthickness, x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.204 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new
+
+        # triangles
+        # triangle(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.083, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.083, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.186 + (bowtiebase/2), y + casethickness + 0.005 + 0.083 + bowtieheight, z + skidthickness,
+                 # 0.002,'pec', rotate90origin=rotate90origin)
+        triangle(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.083, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.083, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.186 + (bowtiebase/2), y + casethickness + 0.005 + 0.083 + bowtieheight, z + skidthickness,
+                 0,'pec', rotate90origin=rotate90origin)
+        # triangle(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 # x + 0.01 + 0.005 + 0.186 + (bowtiebase/2), y + casethickness + 0.005 + 0.204 - bowtieheight, z + skidthickness,
+                 # 0.002,'pec', rotate90origin=rotate90origin)
+        triangle(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.204, z + skidthickness,
+                 x + 0.01 + 0.005 + 0.186 + (bowtiebase/2), y + casethickness + 0.005 + 0.204 - bowtieheight, z + skidthickness,
+                 0,'pec', rotate90origin=rotate90origin)
+
+        # Edges that represent wire between bowtie halves in 1mm model
+        edge(tx[0] + 0.16, tx[1] - dy, tx[2], tx[0] + 0.16, tx[1], tx[2], 'pec', rotate90origin=rotate90origin)
+        edge(tx[0] + 0.16, tx[1] + dy, tx[2], tx[0] + 0.16, tx[1] + 2*dy, tx[2], 'pec', rotate90origin=rotate90origin)
+        edge(tx[0], tx[1] - dy, tx[2], tx[0], tx[1], tx[2], 'pec', rotate90origin=rotate90origin)
+        edge(tx[0], tx[1] + dy, tx[2], tx[0], tx[1] + 2*dy, tx[2], 'pec', rotate90origin=rotate90origin)
+
+    elif resolution == 0.002:
+            # "left" side
+            # extension plates
+            plate(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.021, z + skidthickness, x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.021 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            # box(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.021, z + skidthickness, x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.021 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            plate(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness, x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.203 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            # box(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness, x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.203 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+
+            # triangles
+            # triangle(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.025 + (bowtiebase/2), y + casethickness + 0.005 + 0.081 + bowtieheight, z + skidthickness,
+                     # 0.002,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            triangle(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.025 + (bowtiebase/2), y + casethickness + 0.005 + 0.081 + bowtieheight, z + skidthickness,
+                     0,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            # triangle(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.025 + (bowtiebase/2), y + casethickness + 0.005 + 0.203 - bowtieheight, z + skidthickness,
+                     # 0.002,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            triangle(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.025 + (bowtiebase/2), y + casethickness + 0.005 + 0.203 - bowtieheight, z + skidthickness,
+                     0,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+
+            # "right" side
+            plate(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.021, z + skidthickness, x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.021 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            # box(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.021, z + skidthickness, x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.021 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            plate(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness, x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.203 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            # box(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness, x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.203 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+
+            # triangles
+            # triangle(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.187 + (bowtiebase/2), y + casethickness + 0.005 + 0.081 + bowtieheight, z + skidthickness,
+                     # 0.002,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            triangle(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.187 + (bowtiebase/2), y + casethickness + 0.005 + 0.081 + bowtieheight, z + skidthickness,
+                     0,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            # triangle(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.187 + (bowtiebase/2), y + casethickness + 0.005 + 0.203 - bowtieheight, z + skidthickness,
+                     # 0.002,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            triangle(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.187 + (bowtiebase/2), y + casethickness + 0.005 + 0.203 - bowtieheight, z + skidthickness,
+                     0,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+
+            # Edges that represent wire between bowtie halves in 2mm model
+            edge(tx[0] + 0.162, tx[1] - dy, tx[2], tx[0] + 0.162, tx[1], tx[2], 'pec', rotate90origin=rotate90origin)
+            edge(tx[0] + 0.162, tx[1] + dy, tx[2], tx[0] + 0.162, tx[1] + 2*dy, tx[2], 'pec', rotate90origin=rotate90origin)
+            edge(tx[0], tx[1] - dy, tx[2], tx[0], tx[1], tx[2], 'pec', rotate90origin=rotate90origin)
+            edge(tx[0], tx[1] + dy, tx[2], tx[0], tx[1] + 2*dy, tx[2], 'pec', rotate90origin=rotate90origin)
+
+            # "left" side
+            # extension plates
+            plate(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.021, z + skidthickness, x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.021 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            # box(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.021, z + skidthickness, x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.021 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            plate(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness, x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.203 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            # box(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness, x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.203 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+
+            # triangles
+            # triangle(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.025 + (bowtiebase/2), y + casethickness + 0.005 + 0.081 + bowtieheight, z + skidthickness,
+                     # 0.002,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            triangle(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.025 + (bowtiebase/2), y + casethickness + 0.005 + 0.081 + bowtieheight, z + skidthickness,
+                     0,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            # triangle(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.025 + (bowtiebase/2), y + casethickness + 0.005 + 0.203 - bowtieheight, z + skidthickness,
+                     # 0.002,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            triangle(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.025 + (bowtiebase/2), y + casethickness + 0.005 + 0.203 - bowtieheight, z + skidthickness,
+                     0,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+
+            # "right" side
+            plate(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.021, z + skidthickness, x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.021 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            # box(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.021, z + skidthickness, x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.021 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            plate(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness, x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.203 + patchheight, z + skidthickness, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            # box(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness, x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.203 + patchheight, z + skidthickness + 0.002, 'pec', rotate90origin=rotate90origin) # new (for use with edges)
+
+            # triangles
+            # triangle(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.187 + (bowtiebase/2), y + casethickness + 0.005 + 0.081 + bowtieheight, z + skidthickness,
+                     # 0.002,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            triangle(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.187 + (bowtiebase/2), y + casethickness + 0.005 + 0.081 + bowtieheight, z + skidthickness,
+                     0,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            # triangle(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     # x + 0.01 + 0.005 + 0.187 + (bowtiebase/2), y + casethickness + 0.005 + 0.203 - bowtieheight, z + skidthickness,
+                     # 0.002,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+            triangle(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness,
+                     x + 0.01 + 0.005 + 0.187 + (bowtiebase/2), y + casethickness + 0.005 + 0.203 - bowtieheight, z + skidthickness,
+                     0,'pec', rotate90origin=rotate90origin) # new (for use with edges)
+
+            # Edges that represent wire between bowtie halves in 2mm model
+            edge(tx[0] + 0.162, tx[1] - dy, tx[2], tx[0] + 0.162, tx[1], tx[2], 'pec', rotate90origin=rotate90origin)
+            edge(tx[0] + 0.162, tx[1] + dy, tx[2], tx[0] + 0.162, tx[1] + 2*dy, tx[2], 'pec', rotate90origin=rotate90origin)
+            edge(tx[0], tx[1] - dy, tx[2], tx[0], tx[1], tx[2], 'pec', rotate90origin=rotate90origin)
+            edge(tx[0], tx[1] + dy, tx[2], tx[0], tx[1] + 2*dy, tx[2], 'pec', rotate90origin=rotate90origin)
+
+    # metallic plate extension
+    box(x + (casesize[0] / 2), y + casethickness, z + skidthickness, x + (casesize[0] / 2) + shieldthickness, y + casesize[1] - casethickness, z + skidthickness + metalmiddleplateheight, 'pec', rotate90origin=rotate90origin) # new
+
+    if smooth_dec == 'yes':
+        # Skid
+        box(x, y, z, x + casesize[0], y + casesize[1], z + skidthickness - 0.002, 'hdpe', rotate90origin=rotate90origin) # new
+
+    elif smooth_dec == 'no':
+        # Skid
+        box(x, y, z, x + casesize[0], y + casesize[1], z + skidthickness - 0.002, 'hdpe', 'n', rotate90origin=rotate90origin) # new
+
+    # Excitation - Gaussian pulse
+    print('#waveform: gaussian 1 {} myGaussian'.format(excitationfreq))
+    if src_type == 'voltage_source':
+        print('#voltage_source: y {} {} {} {} myGaussian'.format(tx[0], tx[1], tx[2], sourceresistance))
+    elif src_type == 'transmission_line':
+        print('#transmission_line: y {} {} {} {} myGaussian'.format(tx[0], tx[1], tx[2], sourceresistance))
+
+    # Output point - receiver bowtie
+    print('#waveform: gaussian 0 4e8 my_zero_src')
+
+    if resolution == 0.001 or resolution == 0.0005:
+        if src_type == 'transmission_line':
+            print('#transmission_line: y {} {} {} {} my_zero_src'.format(tx[0] + 0.16, tx[1], tx[2], receiverresistance))
+        elif src_type == 'voltage_source':
+            print('#voltage_source: y {} {} {} {} my_zero_src'.format(tx[0] + 0.16, tx[1], tx[2], receiverresistance))
+        print('#rx: {} {} {} {} {}'.format(tx[0] + 0.16, tx[1], tx[2], 'rx1', 'Ey'))
+
+    elif resolution == 0.002:
+        if src_type == 'transmission_line':
+            print('#transmission_line: y {} {} {} {} my_zero_src'.format(tx[0] + 0.162, tx[1], tx[2], receiverresistance))
+        elif src_type == 'voltage_source':
+            print('#rx: {} {} {} {} {}'.format(tx[0] + 0.162, tx[1], tx[2], 'rx1', 'Ey'))
+
+    # Geometry views
+    # geometry_view(x - dx, y - dy, z - dz, x + casesize[0] + dx, y + casesize[1] + dy, z + skidthickness + casesize[2] + dz, dx, dy, dz, 'antenna_like_GSSI_400')
+    # geometry_view(x, y, z, x + casesize[0], y + casesize[1], z + 0.010, dx, dy, dz, 'antenna_like_GSSI_400_pcb', type='f')

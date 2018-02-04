@@ -14,7 +14,7 @@ userlibdir = os.path.dirname(os.path.abspath(__file__))
 
 
 def antenna_like_MALA_1200(x, y, z, resolution=0.001, rotate90=False, **kwargs):
-    """Inserts a description of an antenna similar to the MALA 1.2GHz antenna. Can be used with 1mm (default) or 2mm spatial resolution. The external dimensions of the antenna are 184x109x46mm. One output point is defined between the arms of the receiever bowtie. The bowties are aligned with the y axis so the output is the y component of the electric field (x component if the antenna is rotated 90 degrees).
+    """Inserts a description of an antenna similar to the MALA 1.2GHz antenna. Can be used with 1mm (default) or 2mm spatial resolution. The external dimensions of the antenna are 184x109x46mm. One output point is defined between the arms of the receiver bowtie. The bowties are aligned with the y axis so the output is the y component of the electric field (x component if the antenna is rotated 90 degrees).
 
     Args:
         x, y, z (float): Coordinates of a location in the model to insert the antenna. Coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction.
