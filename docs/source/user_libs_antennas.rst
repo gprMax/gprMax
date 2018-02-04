@@ -35,7 +35,7 @@ Descriptions of how the models were created can be found in the aforementioned a
 How to use the module
 =====================
 
-The antenna models can be accessed from within a block of Python code in an input file. The models are inserted at location x,y,z. The coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction. The models must be used with cubic spatial resolutions of either 1mm (default) or 2mm by setting the keyword argument, e.g. ``resolution=0.002``. The antenna models can be rotated 90 degrees counter-clockwise (CCW) in the x-y plane by setting the keyword argument ``rotate90=True``.
+The antenna models can be accessed from within a block of Python code in an input file. The models are inserted at location x,y,z. The coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction. The models must be used with cubic spatial resolutions of either 0.5mm (GSSI 400MHz antenna only), 1mm (default), or 2mm by setting the keyword argument, e.g. ``resolution=0.002``. The antenna models can be rotated 90 degrees counter-clockwise (CCW) in the x-y plane by setting the keyword argument ``rotate90=True``.
 
 Example
 -------
@@ -53,6 +53,11 @@ To include an antenna model similar to a GSSI 1.5 GHz antenna at a location 0.12
     :width: 600 px
 
     FDTD geometry mesh showing an antenna model similar to a GSSI 1.5 GHz antenna (skid removed for illustrative purposes).
+
+.. figure:: images/antenna_like_GSSI_400.png
+        :width: 600 px
+
+    FDTD geometry mesh showing an antenna model similar to a GSSI 400 MHz antenna (skid removed for illustrative purposes).
 
 .. figure:: images/antenna_like_MALA_1200.png
     :width: 600 px
