@@ -358,6 +358,12 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
 
     from mpi4py import MPI
 
+    # Get MPI communicator object either from a parent or just get comm_world
+    if args.mpicomm:
+        comm = args.mpicomm
+    else:
+        comm = MPI.COMM_WORLD
+
     # Get name of processor/host
     hostname = MPI.Get_processor_name()
 
@@ -409,16 +415,16 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         worklist += ([StopIteration] * numberworkers)
 
         # Spawn workers
-        comm = MPI.COMM_WORLD.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [worker], maxprocs=numberworkers)
+        newcomm = comm.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [worker], maxprocs=numberworkers)
 
         # Reply to whoever asks until done
         status = MPI.Status()
         for work in worklist:
-            comm.recv(source=MPI.ANY_SOURCE, status=status)
-            comm.send(obj=work, dest=status.Get_source())
+            newcomm.recv(source=MPI.ANY_SOURCE, status=status)
+            newcomm.send(obj=work, dest=status.Get_source())
 
         # Shutdown
-        comm.Disconnect()
+        newcomm.Disconnect()
 
         tsimend = perf_counter()
         simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
@@ -466,7 +472,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         comm.Disconnect()
 
 
-def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None, mpicomm=None):
+def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
     """
     Run mixed mode MPI/OpenMP simulation - MPI task farm for models with
     each model parallelised using either OpenMP (CPU) or CUDA (GPU)
@@ -486,10 +492,11 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None, mpicomm=None
     tags = Enum('tags', {'READY': 0, 'DONE': 1, 'EXIT': 2, 'START': 3})
 
     # Initializations and preliminaries
+    # Get MPI communicator object either from a parent or just get comm_world
     if args.mpicomm:
         comm = args.mpicomm
     else:
-        comm = MPI.COMM_WORLD   # get MPI communicator object
+        comm = MPI.COMM_WORLD
     size = comm.Get_size()  # total number of processes
     rank = comm.Get_rank()  # rank of this process
     print('gprMax rank {}'.format(rank))
