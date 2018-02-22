@@ -755,51 +755,73 @@ cpdef void build_cylinder(
     if zf > solid.shape[2]:
         zf = solid.shape[2]
 
-    # Vectors between centres of cylinder faces
-    f1f2 = np.array([x2 - x1, y2 - y1, z2 - z1], dtype=np.float32)
-    f2f1 = np.array([x1 - x2, y1 - y2, z1 - z2], dtype=np.float32)
-
-    # Magnitudes
-    f1f2mag = np.sqrt((f1f2*f1f2).sum(axis=0))
-    f2f1mag = np.sqrt((f2f1*f2f1).sum(axis=0))
-
-    for i in range(xs, xf):
+    # Check if cylinder is aligned with an axis
+    # x-aligned
+    if round_value(y1 / dy) == round_value(y2 / dy) and round_value(z1 / dz) == round_value(z2 / dz):
         for j in range(ys, yf):
             for k in range(zs, zf):
-                # Build flag - default false, set to True if point is in cylinder
-                build = 0
-                # Vector from centre of first cylinder face to test point
-                f1pt = np.array([i * dx + 0.5 * dx - x1, j * dy + 0.5 * dy - y1, k * dz + 0.5 * dz - z1], dtype=np.float32)
-                # Vector from centre of second cylinder face to test point
-                f2pt = np.array([i * dx + 0.5 * dx - x2, j * dy + 0.5 * dy - y2, k * dz + 0.5 * dz - z2], dtype=np.float32)
-                # Magnitudes
-                f1ptmag = np.sqrt((f1pt*f1pt).sum(axis=0))
-                f2ptmag = np.sqrt((f2pt*f2pt).sum(axis=0))
-                # Dot products
-                dot1 = np.dot(f1f2, f1pt)
-                dot2 = np.dot(f2f1, f2pt)
+                if np.sqrt((j - ys)**2 * dy**2 + (k - zs)**2 * dz**2) <= r:
+                    build_box(xs, xf, j, j + 1, k, k + 1, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
+    # y-aligned
+    elif round_value(x1 / dx) == round_value(x2 / dx) and round_value(z1 / dz) == round_value(z2 / dz):
+        for i in range(xs, xf):
+            for k in range(zs, zf):
+                if np.sqrt((i - xs)**2 * dx**2 + (k - zs)**2 * dz**2) <= r:
+                    build_box(i, i + 1, ys, yf, z, z + 1, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
+    # z-aligned
+    elif round_value(x1 / dx) == round_value(x2 / dx) and round_value(y1 / dy) == round_value(y2 / dy):
+        for i in range(xs, xf):
+            for j in range(ys, yf):
+                if np.sqrt((i - xs)**2 * dx**2 + (j - ys)**2 * dy**2) <= r:
+                    build_box(i, i + 1, j, j + 1, zs, zf, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
 
-                if f1ptmag == 0 or f2ptmag == 0:
-                    build = 1
-                else:
-                    factor1 = dot1 / (f1f2mag * f1ptmag)
-                    factor2 = dot2 / (f2f1mag * f2ptmag)
-                    # Catch cases where either factor1 or factor2 are 1
-                    try:
-                        theta1 = np.arccos(factor1)
-                    except FloatingPointError:
-                        theta1 = 0
-                    try:
-                        theta2 = np.arccos(factor2)
-                    except FloatingPointError:
-                        theta2 = 0
-                    distance1 = f1ptmag * np.sin(theta1)
-                    distance2 = f2ptmag * np.sin(theta2)
-                    if (distance1 <= r or distance2 <= r) and theta1 <= np.pi/2 and theta2 <= np.pi/2:
+    # Not aligned with any axis
+    else:
+        # Vectors between centres of cylinder faces
+        f1f2 = np.array([x2 - x1, y2 - y1, z2 - z1], dtype=np.float32)
+        f2f1 = np.array([x1 - x2, y1 - y2, z1 - z2], dtype=np.float32)
+
+        # Magnitudes
+        f1f2mag = np.sqrt((f1f2*f1f2).sum(axis=0))
+        f2f1mag = np.sqrt((f2f1*f2f1).sum(axis=0))
+
+        for i in range(xs, xf):
+            for j in range(ys, yf):
+                for k in range(zs, zf):
+                    # Build flag - default false, set to True if point is in cylinder
+                    build = 0
+                    # Vector from centre of first cylinder face to test point
+                    f1pt = np.array([i * dx + 0.5 * dx - x1, j * dy + 0.5 * dy - y1, k * dz + 0.5 * dz - z1], dtype=np.float32)
+                    # Vector from centre of second cylinder face to test point
+                    f2pt = np.array([i * dx + 0.5 * dx - x2, j * dy + 0.5 * dy - y2, k * dz + 0.5 * dz - z2], dtype=np.float32)
+                    # Magnitudes
+                    f1ptmag = np.sqrt((f1pt*f1pt).sum(axis=0))
+                    f2ptmag = np.sqrt((f2pt*f2pt).sum(axis=0))
+                    # Dot products
+                    dot1 = np.dot(f1f2, f1pt)
+                    dot2 = np.dot(f2f1, f2pt)
+
+                    if f1ptmag == 0 or f2ptmag == 0:
                         build = 1
+                    else:
+                        factor1 = dot1 / (f1f2mag * f1ptmag)
+                        factor2 = dot2 / (f2f1mag * f2ptmag)
+                        # Catch cases where either factor1 or factor2 are 1
+                        try:
+                            theta1 = np.arccos(factor1)
+                        except FloatingPointError:
+                            theta1 = 0
+                        try:
+                            theta2 = np.arccos(factor2)
+                        except FloatingPointError:
+                            theta2 = 0
+                        distance1 = f1ptmag * np.sin(theta1)
+                        distance2 = f2ptmag * np.sin(theta2)
+                        if (distance1 <= r or distance2 <= r) and theta1 <= np.pi/2 and theta2 <= np.pi/2:
+                            build = 1
 
-                if build:
-                    build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
+                    if build:
+                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
 
 
 cpdef void build_sphere(
