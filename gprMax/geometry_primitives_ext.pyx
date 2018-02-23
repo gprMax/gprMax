@@ -767,7 +767,7 @@ cpdef void build_cylinder(
         for i in range(xs, xf):
             for k in range(zs, zf):
                 if np.sqrt((i - xs)**2 * dx**2 + (k - zs)**2 * dz**2) <= r:
-                    build_box(i, i + 1, ys, yf, z, z + 1, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
+                    build_box(i, i + 1, ys, yf, k, k + 1, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
     # z-aligned
     elif round_value(x1 / dx) == round_value(x2 / dx) and round_value(y1 / dy) == round_value(y2 / dy):
         for i in range(xs, xf):
