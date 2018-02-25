@@ -761,19 +761,19 @@ cpdef void build_cylinder(
         for j in range(ys, yf):
             for k in range(zs, zf):
                 if np.sqrt((j - ys)**2 * dy**2 + (k - zs)**2 * dz**2) <= r:
-                    build_box(xs, xf, j, j + 1, k, k + 1, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
+                    build_box(xs, xf, j, j, k, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
     # y-aligned
     elif round_value(x1 / dx) == round_value(x2 / dx) and round_value(z1 / dz) == round_value(z2 / dz):
         for i in range(xs, xf):
             for k in range(zs, zf):
                 if np.sqrt((i - xs)**2 * dx**2 + (k - zs)**2 * dz**2) <= r:
-                    build_box(i, i + 1, ys, yf, k, k + 1, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
+                    build_box(i, i, ys, yf, k, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
     # z-aligned
     elif round_value(x1 / dx) == round_value(x2 / dx) and round_value(y1 / dy) == round_value(y2 / dy):
         for i in range(xs, xf):
             for j in range(ys, yf):
                 if np.sqrt((i - xs)**2 * dx**2 + (j - ys)**2 * dy**2) <= r:
-                    build_box(i, i + 1, j, j + 1, zs, zf, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
+                    build_box(i, i, j, j, zs, zf, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
 
     # Not aligned with any axis
     else:
