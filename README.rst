@@ -135,7 +135,7 @@ Once you have installed the aforementioned tools follow these steps to build and
 Running gprMax
 ==============
 
-gprMax in designed as a Python package, i.e. a namespace which can contain multiple packages and modules, much like a directory.
+gprMax is designed as a Python package, i.e. a namespace which can contain multiple packages and modules, much like a directory.
 
 Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/macOS) or :code:`activate gprMax` (Windows)
 
@@ -204,4 +204,3 @@ Periodically you should update conda and the required Python packages. With the 
 
     $ conda update conda
     $ conda env update -f conda_env.yml
-
