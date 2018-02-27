@@ -499,7 +499,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
         comm = MPI.COMM_WORLD
     size = comm.Get_size()  # total number of processes
     rank = comm.Get_rank()  # rank of this process
-    print('gprMax rank {}'.format(rank))
+    print('gprMax MPI comm ({}) - world size: {}, rank: {}'.format(comm, size, rank))
     status = MPI.Status()   # get MPI status object
     hostname = MPI.Get_processor_name()     # get name of processor/host
 
