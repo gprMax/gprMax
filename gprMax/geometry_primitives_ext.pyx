@@ -565,6 +565,16 @@ cpdef void build_cylindrical_sector(
         z2 = round_value((ctr2 + radius)/dz)
         thicknesscells = round_value(thickness/dx)
 
+        # Set bounds to domain if they outside
+        if y1 < 0:
+            y1 = 0
+        if y2 > solid.shape[1]:
+            y2 = solid.shape[1]
+        if z1 < 0:
+            z1 = 0
+        if z2 > solid.shape[2]:
+            z2 = solid.shape[2]
+
         for y in range(y1, y2):
             for z in range(z1, z2):
                 if is_inside_sector(y * dy + 0.5 * dy, z * dz + 0.5 * dz, ctr1, ctr2, sectorstartangle, sectorangle, radius):
@@ -582,6 +592,16 @@ cpdef void build_cylindrical_sector(
         z2 = round_value((ctr2 + radius)/dz)
         thicknesscells = round_value(thickness/dy)
 
+        # Set bounds to domain if they outside
+        if x1 < 0:
+            x1 = 0
+        if x2 > solid.shape[0]:
+            x2 = solid.shape[0]
+        if z1 < 0:
+            z1 = 0
+        if z2 > solid.shape[2]:
+            z2 = solid.shape[2]
+
         for x in range(x1, x2):
             for z in range(z1, z2):
                 if is_inside_sector(x * dx + 0.5 * dx, z * dz + 0.5 * dz, ctr1, ctr2, sectorstartangle, sectorangle, radius):
@@ -598,6 +618,16 @@ cpdef void build_cylindrical_sector(
         y1 = round_value((ctr2 - radius)/dy)
         y2 = round_value((ctr2 + radius)/dy)
         thicknesscells = round_value(thickness/dz)
+
+        # Set bounds to domain if they outside
+        if x1 < 0:
+            x1 = 0
+        if x2 > solid.shape[0]:
+            x2 = solid.shape[0]
+        if y1 < 0:
+            y1 = 0
+        if y2 > solid.shape[1]:
+            y2 = solid.shape[1]
 
         for x in range(x1, x2):
             for y in range(y1, y2):
