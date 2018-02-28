@@ -427,11 +427,9 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
             newcomm.recv(source=MPI.ANY_SOURCE, status=status)
             newcomm.send(obj=work, dest=status.Get_source())
 
-        # Shutdown and free communicators
+        # Shutdown communicators
         newcomm.Disconnect()
-        newcomm.Free()
         comm.Disconnect()
-        comm.Free()
 
         tsimend = perf_counter()
         simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
@@ -544,9 +542,8 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
             elif tag == tags.EXIT.value:
                 closedworkers += 1
 
-        # Shutdown and free communicator
+        # Shutdown communicator
         comm.Disconnect()
-        comm.Free()
 
         tsimend = perf_counter()
         simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
