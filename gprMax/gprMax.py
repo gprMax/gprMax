@@ -359,31 +359,31 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
 
     from mpi4py import MPI
 
-    # Initializations and preliminaries
-    # Get MPI communicator object either from a parent or just get comm_world
-    if args.mpi_comm:
-        comm = args.mpi_comm
-    else:
-        comm = MPI.COMM_WORLD
-    size = comm.Get_size()  # total number of processes
-    rank = comm.Get_rank()  # rank of this process
-    status = MPI.Status()   # get MPI status object
-    hostname = MPI.Get_processor_name()     # get name of processor/host
+    status = MPI.Status()
+    hostname = MPI.Get_processor_name()
 
     # Set range for number of models to run
     modelstart = args.restart if args.restart else 1
     modelend = modelstart + args.n
     numbermodelruns = args.n
 
-    # Command line flag to indicate a spawned worker and number of workers
-    worker = '--mpi-worker'
+    # Command line flag used to indicate a spawned worker instance
+    workerflag = '--mpi-worker'
     numworkers = args.mpi - 1
 
     ##################
     # Master process #
     ##################
+    if workerflag not in sys.argv:
     # N.B Spawned worker flag (--mpi-worker) applied to sys.argv when MPI.Spawn is called
-    if worker not in sys.argv:
+
+        # Get MPI communicator object either through argument or just get comm_world
+        if args.mpi_comm:
+            comm = args.mpi_comm
+        else:
+            comm = MPI.COMM_WORLD
+        size = comm.Get_size()  # total number of processes
+        rank = comm.Get_rank()  # rank of this process
         tsimstart = perf_counter()
         print('MPI master rank {} (PID {}) on {} using {} workers'.format(rank, os.getpid(), hostname, numworkers))
 
@@ -418,7 +418,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         worklist += ([StopIteration] * numworkers)
 
         # Spawn workers
-        newcomm = comm.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [worker], maxprocs=numworkers)
+        newcomm = comm.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [workerflag], maxprocs=numworkers)
 
         # Reply to whoever asks until done
         for work in worklist:
@@ -435,11 +435,12 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     ##################
     # Worker process #
     ##################
-    elif worker in sys.argv:
+    elif workerflag in sys.argv:
 
         # Connect to parent to get communicator
         try:
             comm = MPI.Comm.Get_parent()
+            rank = comm.Get_rank()
         except ValueError:
             raise ValueError('Could not connect to parent')
 
