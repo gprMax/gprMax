@@ -379,32 +379,32 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     worker = '--mpi-worker'
     numworkers = args.mpi - 1
 
-    # Assemble a sys.argv replacement to pass to spawned worker
-    # N.B This is required as sys.argv not available when gprMax is used via api()
-    myargv = []
-    for key, value in vars(args).items():
-        if value:
-            if 'inputfile' in key:
-                myargv.append(value)
-            elif 'gpu' in key:
-                myargv.append('-' + key)
-                if not isinstance(value, list):
-                    myargv.append(str(value.deviceID))
-            elif '_' in key:
-                key = key.replace('_', '-')
-                myargv.append('--' + key)
-                myargv.append(str(value))
-            else:
-                myargv.append('-' + key)
-                myargv.append(str(value))
-
-    # Master process
+    ##################
+    # Master process #
+    ##################
     # N.B Spawned worker flag (--mpi-worker) applied to sys.argv when MPI.Spawn is called
     if worker not in sys.argv:
-
         tsimstart = perf_counter()
-
         print('MPI master rank {} (PID {}) on {} using {} workers'.format(rank, os.getpid(), hostname, numworkers))
+
+        # Assemble a sys.argv replacement to pass to spawned worker
+        # N.B This is required as sys.argv not available when gprMax is called via api()
+        myargv = []
+        for key, value in vars(args).items():
+            if value:
+                if 'inputfile' in key:
+                    myargv.append(value)
+                elif 'gpu' in key:
+                    myargv.append('-' + key)
+                    if not isinstance(value, list):
+                        myargv.append(str(value.deviceID))
+                elif '_' in key:
+                    key = key.replace('_', '-')
+                    myargv.append('--' + key)
+                    myargv.append(str(value))
+                else:
+                    myargv.append('-' + key)
+                    myargv.append(str(value))
 
         # Create a list of work
         worklist = []
@@ -432,12 +432,14 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
         print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
 
-    # Worker process
+    ##################
+    # Worker process #
+    ##################
     elif worker in sys.argv:
 
-        # Connect to parent
+        # Connect to parent to get communicator
         try:
-            comm = MPI.Comm.Get_parent()  # get MPI communicator object
+            comm = MPI.Comm.Get_parent()
         except ValueError:
             raise ValueError('Could not connect to parent')
 
@@ -454,8 +456,6 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                     args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
                 gpuinfo = ' using {} - {}, {} RAM '.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
 
-            print('MPI worker rank {} (PID {}) starting model {}/{}{} on {}'.format(rank, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo, hostname))
-
             # If Taguchi optimistaion, add specific value for each parameter to
             # optimise for each experiment to user accessible namespace
             if 'optparams' in work:
@@ -467,6 +467,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                 modelusernamespace = usernamespace
 
             # Run the model
+            print('MPI worker rank {} (PID {}) starting model {}/{}{} on {}'.format(rank, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo, hostname))
             run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
 
         # Shutdown
@@ -507,18 +508,17 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
     modelstart = args.restart if args.restart else 1
     modelend = modelstart + args.n
     numbermodelruns = args.n
+    currentmodelrun = modelstart # can use -task argument to start numbering from something other than 1
+    numworkers = size - 1
 
-    tsimstart = perf_counter()
-
-    # Master process
+    ##################
+    # Master process #
+    ##################
     if rank == 0:
-
-        # Set current model run number (can use -task argument to start numbering from something other than 1)
-        currentmodelrun = modelstart
-        numworkers = size - 1
-        closedworkers = 0
+        tsimstart = perf_counter()
         print('MPI master rank {} (PID {}) on {} using {} workers'.format(rank, os.getpid(), hostname, numworkers))
 
+        closedworkers = 0
         while closedworkers < numworkers:
             data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
             source = status.Get_source()
@@ -538,19 +538,26 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
 
             # Worker has completed all tasks
             elif tag == tags.EXIT.value:
-                # print('MPI worker rank {} completed all tasks'.format(source))
                 closedworkers += 1
 
-    # Worker process
+        tsimend = perf_counter()
+        simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
+        print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
+
+    ##################
+    # Worker process #
+    ##################
     else:
-        while True: # Break out of loop when work receives exit message
+        while True:
             comm.send(None, dest=0, tag=tags.READY.value)
-            currentmodelrun = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)  #  Receive a model number to run from the master
+            # Receive a model number to run from the master
+            currentmodelrun = comm.recv(source=0, tag=MPI.ANY_TAG, status=status)
             tag = status.Get_tag()
 
             # Run a model
             if tag == tags.START.value:
 
+                # Get info and setup device ID for GPU(s)
                 gpuinfo = ''
                 if args.gpu is not None:
                     # Set device ID for multiple GPUs
@@ -559,9 +566,8 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
                         args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
                     gpuinfo = ' using {} - {}, {}'.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
 
-                print('MPI worker rank {} (PID {}) starting model {}/{}{} on {}'.format(rank, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo, hostname))
-
-                # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
+                # If Taguchi optimistaion, add specific value for each parameter
+                # to optimise for each experiment to user accessible namespace
                 if optparams:
                     tmp = {}
                     tmp.update((key, value[currentmodelrun - 1]) for key, value in optparams.items())
@@ -571,14 +577,12 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
                     modelusernamespace = usernamespace
 
                 # Run the model
+                print('MPI worker rank {} (PID {}) starting model {}/{}{} on {}'.format(rank, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo, hostname))
                 run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
                 comm.send(None, dest=0, tag=tags.DONE.value)
 
+            # Break out of loop when work receives exit message
             elif tag == tags.EXIT.value:
                 break
 
         comm.send(None, dest=0, tag=tags.EXIT.value)
-
-    tsimend = perf_counter()
-    simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
-    print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
