@@ -58,7 +58,7 @@ def main():
     parser.add_argument('-restart', type=int, help='model number to restart from, e.g. when creating B-scan')
     parser.add_argument('-mpi', type=int, help='number of MPI tasks, i.e. master + workers')
     parser.add_argument('-mpialt', action='store_true', default=False, help='flag to switch on MPI task farm')
-    parser.add_argument('--mpi-comm', action='store', dest='mpicomm', default=False, help=argparse.SUPPRESS)
+    parser.add_argument('--mpi-comm', action='store', dest='mpi_comm', default=False, help=argparse.SUPPRESS)
     parser.add_argument('--mpi-worker', action='store_true', default=False, help=argparse.SUPPRESS)
     parser.add_argument('-gpu', type=int, action='append', nargs='?', const=True, help='flag to use Nvidia GPU (option to give device ID)')
     parser.add_argument('-benchmark', action='store_true', default=False, help='flag to switch on benchmarking mode')
@@ -78,7 +78,7 @@ def api(
     restart=None,
     mpi=False,
     mpialt=False,
-    mpicomm=None,
+    mpi_comm=None,
     gpu=None,
     benchmark=False,
     geometry_only=False,
@@ -102,7 +102,7 @@ def api(
     args.restart = restart
     args.mpi = mpi
     args.mpialt = mpialt
-    args.mpicomm = mpicomm
+    args.mpi_comm = mpi_comm
     args.gpu = gpu
     args.benchmark = benchmark
     args.geometry_only = geometry_only
@@ -361,8 +361,8 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
 
     # Initializations and preliminaries
     # Get MPI communicator object either from a parent or just get comm_world
-    if args.mpicomm:
-        comm = args.mpicomm
+    if args.mpi_comm:
+        comm = args.mpi_comm
     else:
         comm = MPI.COMM_WORLD
     size = comm.Get_size()  # total number of processes
@@ -494,8 +494,8 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
 
     # Initializations and preliminaries
     # Get MPI communicator object either from a parent or just get comm_world
-    if args.mpicomm:
-        comm = args.mpicomm
+    if args.mpi_comm:
+        comm = args.mpi_comm
     else:
         comm = MPI.COMM_WORLD
     size = comm.Get_size()  # total number of processes
