@@ -58,6 +58,7 @@ def main():
     parser.add_argument('-restart', type=int, help='model number to restart from, e.g. when creating B-scan')
     parser.add_argument('-mpi', type=int, help='number of MPI tasks, i.e. master + workers')
     parser.add_argument('-mpialt', action='store_true', default=False, help='flag to switch on MPI task farm')
+    parser.add_argument('--mpi-comm', action='store', dest='mpicomm', default=False, help=argparse.SUPPRESS)
     parser.add_argument('--mpi-worker', action='store_true', default=False, help=argparse.SUPPRESS)
     parser.add_argument('-gpu', type=int, action='append', nargs='?', const=True, help='flag to use Nvidia GPU (option to give device ID)')
     parser.add_argument('-benchmark', action='store_true', default=False, help='flag to switch on benchmarking mode')
@@ -76,8 +77,8 @@ def api(
     task=None,
     restart=None,
     mpi=False,
-    mpicomm=None,
     mpialt=False,
+    mpicomm=None,
     gpu=None,
     benchmark=False,
     geometry_only=False,
@@ -100,8 +101,8 @@ def api(
     args.task = task
     args.restart = restart
     args.mpi = mpi
-    args.mpicomm = mpicomm
     args.mpialt = mpialt
+    args.mpicomm = mpicomm
     args.gpu = gpu
     args.benchmark = benchmark
     args.geometry_only = geometry_only
@@ -359,6 +360,9 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     from mpi4py import MPI
 
     # Get MPI communicator object either from a parent or just get comm_world
+    for key, value in vars(args).items():
+        print(key, value)
+
     if hasattr(args, 'mpicomm'):
         comm = args.mpicomm
     else:
