@@ -384,10 +384,11 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         size = comm.Get_size()  # total number of processes
         rank = comm.Get_rank()  # rank of this process
         tsimstart = perf_counter()
-        print('MPI master (rank {}) on {} using {} workers'.format(rank, hostname, numworkers))
+        print('MPI master (rank {}, PID {}) on {} using {} workers'.format(rank, os.getpid(), hostname, numworkers))
 
         # Assemble a sys.argv replacement to pass to spawned worker
         # N.B This is required as sys.argv not available when gprMax is called via api()
+        # Ignore mpicomm object if it exists as only strings can be passed via spawn
         myargv = []
         for key, value in vars(args).items():
             if value:
@@ -397,6 +398,8 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                     myargv.append('-' + key)
                     if not isinstance(value, list):
                         myargv.append(str(value.deviceID))
+                elif 'mpicomm' in key:
+                    pass
                 elif '_' in key:
                     key = key.replace('_', '-')
                     myargv.append('--' + key)
@@ -517,7 +520,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
     ##################
     if rank == 0:
         tsimstart = perf_counter()
-        print('MPI master (rank {}) on {} using {} workers'.format(rank, hostname, numworkers))
+        print('MPI master (rank {}, PID {}) on {} using {} workers'.format(rank, os.getpid(), hostname, numworkers))
 
         closedworkers = 0
         while closedworkers < numworkers:
