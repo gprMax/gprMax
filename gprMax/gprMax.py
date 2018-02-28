@@ -58,7 +58,6 @@ def main():
     parser.add_argument('-restart', type=int, help='model number to restart from, e.g. when creating B-scan')
     parser.add_argument('-mpi', type=int, help='number of MPI tasks, i.e. master + workers')
     parser.add_argument('-mpialt', action='store_true', default=False, help='flag to switch on MPI task farm')
-    parser.add_argument('--mpi-comm', action='store', dest='mpi_comm', default=False, help=argparse.SUPPRESS)
     parser.add_argument('--mpi-worker', action='store_true', default=False, help=argparse.SUPPRESS)
     parser.add_argument('-gpu', type=int, action='append', nargs='?', const=True, help='flag to use Nvidia GPU (option to give device ID)')
     parser.add_argument('-benchmark', action='store_true', default=False, help='flag to switch on benchmarking mode')
@@ -78,7 +77,7 @@ def api(
     restart=None,
     mpi=False,
     mpialt=False,
-    mpi_comm=None,
+    mpicomm=None,
     gpu=None,
     benchmark=False,
     geometry_only=False,
@@ -102,7 +101,7 @@ def api(
     args.restart = restart
     args.mpi = mpi
     args.mpialt = mpialt
-    args.mpi_comm = mpi_comm
+    args.mpicomm = mpicomm
     args.gpu = gpu
     args.benchmark = benchmark
     args.geometry_only = geometry_only
@@ -378,14 +377,14 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     # N.B Spawned worker flag (--mpi-worker) applied to sys.argv when MPI.Spawn is called
 
         # Get MPI communicator object either through argument or just get comm_world
-        if args.mpi_comm:
-            comm = args.mpi_comm
+        if args.mpicomm:
+            comm = args.mpicomm
         else:
             comm = MPI.COMM_WORLD
         size = comm.Get_size()  # total number of processes
         rank = comm.Get_rank()  # rank of this process
         tsimstart = perf_counter()
-        print('MPI (comm {}) master rank {} (PID {}) on {} using {} workers'.format(comm, rank, os.getpid(), hostname, numworkers))
+        print('MPI master (rank {}) on {} using {} workers'.format(rank, hostname, numworkers))
 
         # Assemble a sys.argv replacement to pass to spawned worker
         # N.B This is required as sys.argv not available when gprMax is called via api()
@@ -425,8 +424,11 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
             newcomm.recv(source=MPI.ANY_SOURCE, status=status)
             newcomm.send(obj=work, dest=status.Get_source())
 
-        # Shutdown
-        newcomm.Disconnect()
+        # Shutdown and free communicators
+        newcomm.disconnect()
+        newcomm.free()
+        comm.disconnect()
+        comm.free()
 
         tsimend = perf_counter()
         simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
@@ -442,7 +444,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
             comm = MPI.Comm.Get_parent()
             rank = comm.Get_rank()
         except ValueError:
-            raise ValueError('Could not connect to parent')
+            raise ValueError('MPI worker (rank {}) could not connect to parent')
 
         # Ask for work until stop sentinel
         for work in iter(lambda: comm.sendrecv(0, dest=0), StopIteration):
@@ -468,15 +470,17 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                 modelusernamespace = usernamespace
 
             # Run the model
-            print('MPI (comm {}) worker rank {} (PID {}) starting model {}/{}{} on {}'.format(comm, rank, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo, hostname))
+            print('MPI worker (rank {}) starting model {}/{}{} on {}'.format(rank, currentmodelrun, numbermodelruns, gpuinfo, hostname))
             run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
 
         # Shutdown
-        comm.Disconnect()
+        comm.disconnect()
 
 
 def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
     """
+    Alternate MPI implementation that avoids using the spawn mechanism.
+
     Run mixed mode MPI/OpenMP simulation - MPI task farm for models with
     each model parallelised using either OpenMP (CPU) or CUDA (GPU)
 
@@ -495,11 +499,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
     tags = Enum('tags', {'READY': 0, 'DONE': 1, 'EXIT': 2, 'START': 3})
 
     # Initializations and preliminaries
-    # Get MPI communicator object either from a parent or just get comm_world
-    if args.mpi_comm:
-        comm = args.mpi_comm
-    else:
-        comm = MPI.COMM_WORLD
+    comm = MPI.COMM_WORLD
     size = comm.Get_size()  # total number of processes
     rank = comm.Get_rank()  # rank of this process
     status = MPI.Status()   # get MPI status object
@@ -517,7 +517,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
     ##################
     if rank == 0:
         tsimstart = perf_counter()
-        print('MPI master rank {} (PID {}) on {} using {} workers'.format(rank, os.getpid(), hostname, numworkers))
+        print('MPI master (rank {}) on {} using {} workers'.format(rank, hostname, numworkers))
 
         closedworkers = 0
         while closedworkers < numworkers:
@@ -540,6 +540,10 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
             # Worker has completed all tasks
             elif tag == tags.EXIT.value:
                 closedworkers += 1
+
+        # Shutdown and free communicator
+        comm.disconnect()
+        comm.free()
 
         tsimend = perf_counter()
         simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
@@ -578,7 +582,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
                     modelusernamespace = usernamespace
 
                 # Run the model
-                print('MPI worker rank {} (PID {}) starting model {}/{}{} on {}'.format(rank, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo, hostname))
+                print('MPI worker (rank {}) starting model {}/{}{} on {}'.format(rank, currentmodelrun, numbermodelruns, gpuinfo, hostname))
                 run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
                 comm.send(None, dest=0, tag=tags.DONE.value)
 
