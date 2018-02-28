@@ -363,7 +363,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     for key, value in vars(args).items():
         print(key, value)
 
-    if hasattr(args, 'mpicomm'):
+    if args.mpicomm:
         comm = args.mpicomm
     else:
         comm = MPI.COMM_WORLD
@@ -497,7 +497,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
 
     # Initializations and preliminaries
     # Get MPI communicator object either from a parent or just get comm_world
-    if hasattr(args, 'mpicomm'):
+    if args.mpicomm:
         comm = args.mpicomm
     else:
         comm = MPI.COMM_WORLD
