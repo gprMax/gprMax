@@ -429,7 +429,6 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
 
         # Shutdown communicators
         newcomm.Disconnect()
-        comm.Disconnect()
 
         tsimend = perf_counter()
         simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
