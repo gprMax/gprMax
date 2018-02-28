@@ -359,17 +359,16 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
 
     from mpi4py import MPI
 
+    # Initializations and preliminaries
     # Get MPI communicator object either from a parent or just get comm_world
-    for key, value in vars(args).items():
-        print(key, value)
-
     if args.mpicomm:
         comm = args.mpicomm
     else:
         comm = MPI.COMM_WORLD
-
-    # Get name of processor/host
-    hostname = MPI.Get_processor_name()
+    size = comm.Get_size()  # total number of processes
+    rank = comm.Get_rank()  # rank of this process
+    status = MPI.Status()   # get MPI status object
+    hostname = MPI.Get_processor_name()     # get name of processor/host
 
     # Set range for number of models to run
     modelstart = args.restart if args.restart else 1
@@ -378,7 +377,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
 
     # Command line flag to indicate a spawned worker and number of workers
     worker = '--mpi-worker'
-    numberworkers = args.mpi - 1
+    numworkers = args.mpi - 1
 
     # Assemble a sys.argv replacement to pass to spawned worker
     # N.B This is required as sys.argv not available when gprMax is used via api()
@@ -405,7 +404,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
 
         tsimstart = perf_counter()
 
-        print('MPI master rank (PID {}) on {} using {} workers'.format(os.getpid(), hostname, numberworkers))
+        print('MPI master rank {} (PID {}) on {} using {} workers'.format(rank, os.getpid(), hostname, numworkers))
 
         # Create a list of work
         worklist = []
@@ -416,13 +415,12 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                 workobj['optparams'] = optparams
             worklist.append(workobj)
         # Add stop sentinels
-        worklist += ([StopIteration] * numberworkers)
+        worklist += ([StopIteration] * numworkers)
 
         # Spawn workers
-        newcomm = comm.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [worker], maxprocs=numberworkers)
+        newcomm = comm.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [worker], maxprocs=numworkers)
 
         # Reply to whoever asks until done
-        status = MPI.Status()
         for work in worklist:
             newcomm.recv(source=MPI.ANY_SOURCE, status=status)
             newcomm.send(obj=work, dest=status.Get_source())
@@ -440,7 +438,6 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         # Connect to parent
         try:
             comm = MPI.Comm.Get_parent()  # get MPI communicator object
-            rank = comm.Get_rank()  # rank of this process
         except ValueError:
             raise ValueError('Could not connect to parent')
 
@@ -503,7 +500,6 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
         comm = MPI.COMM_WORLD
     size = comm.Get_size()  # total number of processes
     rank = comm.Get_rank()  # rank of this process
-    print('gprMax MPI comm ({}) - world size: {}, rank: {}'.format(comm, size, rank))
     status = MPI.Status()   # get MPI status object
     hostname = MPI.Get_processor_name()     # get name of processor/host
 
@@ -521,7 +517,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
         currentmodelrun = modelstart
         numworkers = size - 1
         closedworkers = 0
-        print('MPI master rank {} ({} - PID {}) controlling {} workers'.format(rank, hostname, os.getpid(), numworkers))
+        print('MPI master rank {} (PID {}) on {} using {} workers'.format(rank, os.getpid(), hostname, numworkers))
 
         while closedworkers < numworkers:
             data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
@@ -563,7 +559,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
                         args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
                     gpuinfo = ' using {} - {}, {}'.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
 
-                print('MPI worker rank {} ({}, PID {}) starting model {}/{}{}'.format(rank, hostname, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo))
+                print('MPI worker rank {} (PID {}) starting model {}/{}{} on {}'.format(rank, os.getpid(), currentmodelrun, numbermodelruns, gpuinfo, hostname))
 
                 # If Taguchi optimistaion, add specific value for each parameter to optimise for each experiment to user accessible namespace
                 if optparams:
