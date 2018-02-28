@@ -470,7 +470,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                 modelusernamespace = usernamespace
 
             # Run the model
-            print('MPI worker (rank {}) starting model {}/{}{} on {}'.format(rank, currentmodelrun, numbermodelruns, gpuinfo, hostname))
+            print('MPI worker (rank {}, parent PID {}) starting model {}/{}{} on {}'.format(rank, os.getppid(), currentmodelrun, numbermodelruns, gpuinfo, hostname))
             run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
 
         # Shutdown
