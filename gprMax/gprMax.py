@@ -384,7 +384,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         size = comm.Get_size()  # total number of processes
         rank = comm.Get_rank()  # rank of this process
         tsimstart = perf_counter()
-        print('MPI master ({}, rank {}) on {} using {} workers\n'.format(comm.name, rank, hostname, numworkers))
+        print('MPI master ({}, rank {}) on {} using {} workers\n'.format(comm, rank, hostname, numworkers))
 
         # Assemble a sys.argv replacement to pass to spawned worker
         # N.B This is required as sys.argv not available when gprMax is called via api()
@@ -470,7 +470,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                 modelusernamespace = usernamespace
 
             # Run the model
-            print('MPI worker ({}, rank {}) starting model {}/{}{} on {}\n'.format(comm.name, rank, currentmodelrun, numbermodelruns, gpuinfo, hostname))
+            print('MPI worker ({}, rank {}) starting model {}/{}{} on {}\n'.format(comm, rank, currentmodelrun, numbermodelruns, gpuinfo, hostname))
             run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
 
         # Shutdown
