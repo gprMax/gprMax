@@ -421,7 +421,6 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
 
         # Spawn workers
         newcomm = comm.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [workerflag], maxprocs=numworkers)
-        newcomm.Set_name(comm.name)
 
         # Reply to whoever asks until done
         for work in worklist:
@@ -471,7 +470,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                 modelusernamespace = usernamespace
 
             # Run the model
-            print('MPI worker ({}, rank {}) starting model {}/{}{} on {}\n'.format(comm.name, rank, currentmodelrun, numbermodelruns, gpuinfo, hostname))
+            print('MPI worker (rank {}) starting model {}/{}{} on {}\n'.format(rank, currentmodelrun, numbermodelruns, gpuinfo, hostname))
             run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
 
         # Shutdown
