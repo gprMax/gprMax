@@ -1,4 +1,4 @@
 # This is where the version number is set and read by setup.py and conf.py (for the docs)
 
-__version__ = '3.1.2'
+__version__ = '3.1.3'
 codename = 'Big Smoke'
