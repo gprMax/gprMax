@@ -24,13 +24,14 @@ from tqdm import tqdm
 from gprMax.constants import e0
 from gprMax.constants import z0
 from gprMax.constants import floattype
+from gprMax.exceptions import GeneralError
 
 
 class CFSParameter(object):
     """Individual CFS parameter (e.g. alpha, kappa, or sigma)."""
 
     # Allowable scaling profiles and directions
-    scalingprofiles = {'constant': 0, 'linear': 1, 'quadratic': 2, 'cubic': 3, 'quartic': 4, 'quintic': 5, 'sextic': 6}
+    scalingprofiles = {'constant': 0, 'linear': 1, 'quadratic': 2, 'cubic': 3, 'quartic': 4, 'quintic': 5, 'sextic': 6, 'dodeka': 12}
     scalingdirections = ['forward', 'reverse']
 
     def __init__(self, ID=None, scaling='polynomial', scalingprofile=None, scalingdirection='forward', min=0, max=0):
@@ -232,19 +233,41 @@ class PML(object):
             Ekappa, Hkappa = cfs.calculate_values(self.thickness, cfs.kappa)
             Esigma, Hsigma = cfs.calculate_values(self.thickness, cfs.sigma)
 
-            # Electric PML update coefficients
-            tmp = (2 * e0 * Ekappa) + G.dt * (Ealpha * Ekappa + Esigma)
-            self.ERA[x, :] = (2 * e0 + G.dt * Ealpha) / tmp
-            self.ERB[x, :] = (2 * e0 * Ekappa) / tmp
-            self.ERE[x, :] = ((2 * e0 * Ekappa) - G.dt * (Ealpha * Ekappa + Esigma)) / tmp
-            self.ERF[x, :] = (2 * Esigma * G.dt) / (Ekappa * tmp)
+            # Define different parameters depending on PML formulation
+            if G.pmlformulation == 'HORIPML':
+                # HORIPML Electric PML update coefficients
+                tmp = (2 * e0 * Ekappa) + G.dt * (Ealpha * Ekappa + Esigma)
+                self.ERA[x, :] = (2 * e0 + G.dt * Ealpha) / tmp
+                self.ERB[x, :] = (2 * e0 * Ekappa) / tmp
+                self.ERE[x, :] = ((2 * e0 * Ekappa) - G.dt * (Ealpha * Ekappa + Esigma)) / tmp
+                self.ERF[x, :] = (2 * Esigma * G.dt) / (Ekappa * tmp)
 
-            # Magnetic PML update coefficients
-            tmp = (2 * e0 * Hkappa) + G.dt * (Halpha * Hkappa + Hsigma)
-            self.HRA[x, :] = (2 * e0 + G.dt * Halpha) / tmp
-            self.HRB[x, :] = (2 * e0 * Hkappa) / tmp
-            self.HRE[x, :] = ((2 * e0 * Hkappa) - G.dt * (Halpha * Hkappa + Hsigma)) / tmp
-            self.HRF[x, :] = (2 * Hsigma * G.dt) / (Hkappa * tmp)
+                # HORIPML Magnetic PML update coefficients
+                tmp = (2 * e0 * Hkappa) + G.dt * (Halpha * Hkappa + Hsigma)
+                self.HRA[x, :] = (2 * e0 + G.dt * Halpha) / tmp
+                self.HRB[x, :] = (2 * e0 * Hkappa) / tmp
+                self.HRE[x, :] = ((2 * e0 * Hkappa) - G.dt * (Halpha * Hkappa + Hsigma)) / tmp
+                self.HRF[x, :] = (2 * Hsigma * G.dt) / (Hkappa * tmp)
+
+            elif G.pmlformulation == 'MRIPML':
+                # MRIPML Electric PML update coefficients
+                tmp = 2 * e0 + G.dt * Ealpha
+                self.ERA[x, :] = Ekappa + (G.dt * Esigma) / tmp
+                self.ERB[x, :] = (2 * e0) / tmp
+                self.ERE[x, :] = ((2 * e0) - G.dt * Ealpha) / tmp
+                self.ERF[x, :] = (2 * Esigma * G.dt) / tmp
+
+                # MRIPML Magnetic PML update coefficients
+                tmp = 2 * e0 + G.dt * Halpha
+                self.HRA[x, :] = Hkappa + (G.dt * Hsigma) / tmp
+                self.HRB[x, :] = (2 * e0) / tmp
+                self.HRE[x, :] = ((2 * e0) - G.dt * Halpha) / tmp
+                self.HRF[x, :] = (2 * Hsigma * G.dt) / tmp
+
+            else:
+                GeneralError('Do not know about ' + G.pmlformulation + ' No PML update coefficients calculated')
+
+
 
     def update_electric(self, G):
         """This functions updates electric field components with the PML correction.
@@ -253,7 +276,7 @@ class PML(object):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        func = getattr(import_module('gprMax.pml_updates_ext'), 'update_pml_' + str(len(self.CFS)) + 'order_electric_' + self.direction)
+        func = getattr(import_module('gprMax.pml_updates_ext'), 'update_pml_' + str(len(self.CFS)) + 'order_electric_' + G.pmlformulation + '_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.EPhi1, self.EPhi2, self.ERA, self.ERB, self.ERE, self.ERF, self.d)
 
     def update_magnetic(self, G):
@@ -263,7 +286,7 @@ class PML(object):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        func = getattr(import_module('gprMax.pml_updates_ext'), 'update_pml_' + str(len(self.CFS)) + 'order_magnetic_' + self.direction)
+        func = getattr(import_module('gprMax.pml_updates_ext'), 'update_pml_' + str(len(self.CFS)) + 'order_magnetic_' + G.pmlformulation + '_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.HPhi1, self.HPhi2, self.HRA, self.HRB, self.HRE, self.HRF, self.d)
 
     def gpu_set_blocks_per_grid(self, G):

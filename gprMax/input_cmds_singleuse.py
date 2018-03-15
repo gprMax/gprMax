@@ -232,6 +232,20 @@ def process_singlecmds(singlecmds, G):
     if 2 * G.pmlthickness['x0'] >= G.nx or 2 * G.pmlthickness['y0'] >= G.ny or 2 * G.pmlthickness['z0'] >= G.nz or 2 * G.pmlthickness['xmax'] >= G.nx or 2 * G.pmlthickness['ymax'] >= G.ny or 2 * G.pmlthickness['zmax'] >= G.nz:
         raise CmdInputError(cmd + ' has too many cells for the domain size')
 
+    cmd = '#pml_formulation'
+    if singlecmds[cmd] is not None:
+        pmlformulations = ['MRIPML', 'HORIPML']
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1:
+            raise CmdInputError(cmd + ' requires exactly one parameter')
+        else:
+            G.pmlformulation = singlecmds[cmd].upper()
+            if singlecmds[cmd].upper() in pmlformulations:
+                if G.messages:
+                    print('PML formulation: {}'.format(G.pmlformulation))
+            else:
+                raise CmdInputError(cmd + ' PML formulation is not found')
+
     # src_steps
     cmd = '#src_steps'
     if singlecmds[cmd] is not None:

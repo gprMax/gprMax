@@ -127,6 +127,7 @@ class FDTDGrid(Grid):
         self.pmlthickness = OrderedDict((key, 10) for key in PML.boundaryIDs)
         self.cfs = []
         self.pmls = []
+        self.pmlformulation = 'HORIPML'
 
         self.materials = []
         self.mixingmodels = []
