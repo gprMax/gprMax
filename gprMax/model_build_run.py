@@ -494,6 +494,14 @@ def solve_gpu(currentmodelrun, modelend, G):
         if G.rxs:
             store_outputs_gpu(np.int32(len(G.rxs)), np.int32(iteration), rxcoords_gpu.gpudata, rxs_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata, block=(1, 1, 1), grid=(round32(len(G.rxs)), 1, 1))
 
+        # Write any snapshots to file
+        for i, snap in enumerate(G.snapshots):
+            if snap.time == iteration + 1:
+                snapiters = 36 * (((snap.xf - snap.xs) / snap.dx) * ((snap.yf - snap.ys) / snap.dy) * ((snap.zf - snap.zs) / snap.dz))
+                pbar = tqdm(total=snapiters, leave=False, unit='byte', unit_scale=True, desc='  Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
+                snap.write_vtk_imagedata(G.Ex_gpu.get(), G.Ey_gpu.get(), G.Ez_gpu.get(), G.Hx_gpu.get(), G.Hy_gpu.get(), G.Hz_gpu.get(), G, pbar)
+                pbar.close()
+
         # Update magnetic field components
         update_h_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz), G.ID_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, block=G.tpb, grid=G.bpg)
 

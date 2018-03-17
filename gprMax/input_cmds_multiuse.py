@@ -479,10 +479,6 @@ def process_multicmds(multicmds, G):
             if len(tmp) != 11:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
 
-            # Warn about using snapshots on GPU
-            if G.gpu is not None:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' The #snapshot command cannot currently be used with GPU solving.')
-
             xs = G.calculate_coord('x', tmp[0])
             ys = G.calculate_coord('y', tmp[1])
             zs = G.calculate_coord('z', tmp[2])
