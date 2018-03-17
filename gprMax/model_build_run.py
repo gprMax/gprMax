@@ -536,7 +536,8 @@ def solve_gpu(currentmodelrun, modelend, G):
             update_e_dispersive_B_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz), np.int32(Material.maxpoles), G.updatecoeffsdispersive_gpu.gpudata, G.Tx_gpu.gpudata, G.Ty_gpu.gpudata, G.Tz_gpu.gpudata, G.ID_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, block=G.tpb, grid=G.bpg)
 
     # Copy output from receivers array back to correct receiver objects
-    gpu_get_rx_array(rxs_gpu.get(), rxcoords_gpu.get(), G)
+    if G.rxs:
+        gpu_get_rx_array(rxs_gpu.get(), rxcoords_gpu.get(), G)
 
     iterend.record()
     iterend.synchronize()
