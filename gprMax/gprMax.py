@@ -377,7 +377,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     # N.B Spawned worker flag (--mpi-worker) applied to sys.argv when MPI.Spawn is called
 
         # Get MPI communicator object either through argument or just get comm_world
-        if args.mpicomm:
+        if hasattr(args, 'mpicomm'):
             comm = args.mpicomm
         else:
             comm = MPI.COMM_WORLD
