@@ -26,6 +26,10 @@ Run one of the test models:
 
     (gprMax)$ python -m gprMax user_models/cylinder_Ascan_2D.in -gpu
 
+.. note::
+
+    If you want to select a specific GPU card on your system, you can specify an integer after the :code:`-gpu` flag. The integer should be the NVIDIA CUDA device ID for a specific GPU card. If it is not specified it defaults to device ID 0.
+
 
 Combining MPI and GPU usage
 ---------------------------
@@ -39,4 +43,3 @@ Message Passing Interface (MPI) has been utilised to implement a simple task far
 .. note::
 
     The argument given with `-mpi` is number of MPI tasks, i.e. master + workers, for MPI task farm. So in this case, 1 master (CPU) and 4 workers (GPU cards).
-
