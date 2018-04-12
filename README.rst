@@ -2,9 +2,9 @@
     :target: http://docs.gprmax.com/en/latest/?badge=latest
     :alt: Documentation Status
 |
-.. image:: https://github.com/gprMax/gprMax/blob/master/docs/source/images/gprMax_logo.png
-    :scale: 50 %
-    :target: http://www.gprmax.com
+.. raw:: html
+
+    <a href="http://www.gprmax.com"><img src="https://github.com/gprMax/gprMax/blob/master/docs/source/images/gprMax_logo.png" height="150px" width="525px"></a>
 
 ***************
 Getting Started
