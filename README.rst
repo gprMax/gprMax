@@ -2,8 +2,7 @@
     :target: http://docs.gprmax.com/en/latest/?badge=latest
     :alt: Documentation Status
 |
-.. image:: https://github.com/gprMax/gprMax/blob/master/docs/source/images/gprMax_logo_small.png
-    :target: http://www.gprmax.com
+
 
 ***************
 Getting Started
