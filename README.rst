@@ -3,6 +3,7 @@
     :alt: Documentation Status
 |
 .. image:: https://github.com/gprMax/gprMax/blob/master/docs/source/images/gprMax_logo.png
+    :scale: 50 %
     :target: http://www.gprmax.com
 
 ***************
