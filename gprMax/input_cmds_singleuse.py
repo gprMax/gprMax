@@ -139,44 +139,32 @@ def process_singlecmds(singlecmds, G):
     if G.messages:
         print('Domain size: {:g} x {:g} x {:g}m ({:d} x {:d} x {:d} = {:g} cells)'.format(tmp[0], tmp[1], tmp[2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)))
 
-    # Estimate memory (RAM) usage
-    memestimate = memory_usage(G)
-    # Check if model can be built and/or run on host
-    if memestimate > G.hostinfo['ram']:
-        raise GeneralError('Estimated memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(memestimate), human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
-
-    # Check if model can be run on specified GPU if required
-    if G.gpu is not None:
-        if memestimate > G.gpu.totalmem:
-            raise GeneralError('Estimated memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(memestimate), human_size(G.gpu.totalmem, a_kilobyte_is_1024_bytes=True), G.gpu.deviceID, G.gpu.name))
-    if G.messages:
-        print('Estimated memory (RAM) required: ~{}'.format(human_size(memestimate)))
-
     # Time step CFL limit (either 2D or 3D); switch off appropriate PMLs for 2D
     if G.nx == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
-        G.dimension = '2D'
+        G.mode = '2D TMx'
         G.pmlthickness['x0'] = 0
         G.pmlthickness['xmax'] = 0
     elif G.ny == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dz) * (1 / G.dz)))
-        G.dimension = '2D'
+        G.mode = '2D TMy'
         G.pmlthickness['y0'] = 0
         G.pmlthickness['ymax'] = 0
     elif G.nz == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy)))
-        G.dimension = '2D'
+        G.mode = '2D TMz'
         G.pmlthickness['z0'] = 0
         G.pmlthickness['zmax'] = 0
     else:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
-        G.dimension = '3D'
+        G.mode = '3D'
 
     # Round down time step to nearest float with precision one less than hardware maximum. Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
     G.dt = round_value(G.dt, decimalplaces=d.getcontext().prec - 1)
 
     if G.messages:
-        print('Time step (at {} CFL limit): {:g} secs'.format(G.dimension, G.dt))
+        print('Mode: {}'.format(G.mode))
+        print('Time step (at CFL limit): {:g} secs'.format(G.dt))
 
     # Time step stability factor
     cmd = '#time_step_stability_factor'
@@ -212,6 +200,19 @@ def process_singlecmds(singlecmds, G):
             raise CmdInputError(cmd + ' must have a value greater than zero')
     if G.messages:
         print('Time window: {:g} secs ({} iterations)'.format(G.timewindow, G.iterations))
+
+    # Estimate memory (RAM) usage
+    memestimate = memory_usage(G)
+    # Check if model can be built and/or run on host
+    if memestimate > G.hostinfo['ram']:
+        raise GeneralError('Estimated memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(memestimate), human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
+
+    # Check if model can be run on specified GPU if required
+    if G.gpu is not None:
+        if memestimate > G.gpu.totalmem:
+            raise GeneralError('Estimated memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(memestimate), human_size(G.gpu.totalmem, a_kilobyte_is_1024_bytes=True), G.gpu.deviceID, G.gpu.name))
+    if G.messages:
+        print('Estimated memory (RAM) required: ~{}'.format(human_size(memestimate)))
 
     # PML
     cmd = '#pml_cells'

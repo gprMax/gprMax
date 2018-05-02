@@ -97,6 +97,12 @@ def process_multicmds(multicmds, G):
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
+            if '2D TMx' in G.mode and (polarisation == 'y' or polarisation == 'z'):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
+            elif '2D TMy' in G.mode and (polarisation == 'x' or polarisation == 'z'):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
+            elif '2D TMz' in G.mode and (polarisation == 'x' or polarisation == 'y'):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
 
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])
@@ -162,6 +168,12 @@ def process_multicmds(multicmds, G):
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
+            if '2D TMx' in G.mode and (polarisation == 'y' or polarisation == 'z'):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
+            elif '2D TMy' in G.mode and (polarisation == 'x' or polarisation == 'z'):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
+            elif '2D TMz' in G.mode and (polarisation == 'x' or polarisation == 'y'):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
 
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])
@@ -218,7 +230,7 @@ def process_multicmds(multicmds, G):
             h.calculate_waveform_values(G)
 
             if G.messages:
-                if G.dimension == '2D':
+                if G.mode == '2D':
                     print('Hertzian dipole is a line source in 2D with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
                 else:
                     print('Hertzian dipole with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
@@ -237,6 +249,12 @@ def process_multicmds(multicmds, G):
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
+            if '2D TMx' in G.mode and (polarisation == 'y' or polarisation == 'z'):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
+            elif '2D TMy' in G.mode and (polarisation == 'x' or polarisation == 'z'):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
+            elif '2D TMz' in G.mode and (polarisation == 'x' or polarisation == 'y'):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
 
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])
@@ -304,6 +322,12 @@ def process_multicmds(multicmds, G):
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
+            if '2D TMx' in G.mode and (polarisation == 'y' or polarisation == 'z'):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
+            elif '2D TMy' in G.mode and (polarisation == 'x' or polarisation == 'z'):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
+            elif '2D TMz' in G.mode and (polarisation == 'x' or polarisation == 'y'):
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
 
             xcoord = G.calculate_coord('x', tmp[1])
             ycoord = G.calculate_coord('y', tmp[2])

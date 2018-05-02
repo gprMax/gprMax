@@ -116,7 +116,7 @@ class FDTDGrid(Grid):
         self.dy = 0
         self.dz = 0
         self.dt = 0
-        self.dimension = None
+        self.mode = None
         self.iterations = 0
         self.timewindow = 0
 
@@ -296,9 +296,9 @@ def dispersion_analysis(G):
         minwavelength = minvelocity / results['maxfreq']
 
         # Maximum spatial step
-        if G.dimension == '3D':
+        if '3D' in G.mode:
             delta = max(G.dx, G.dy, G.dz)
-        elif G.dimension == '2D':
+        elif '2D' in G.mode:
             if G.nx == 1:
                 delta = max(G.dy, G.dz)
             elif G.ny == 1:

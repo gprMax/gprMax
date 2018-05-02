@@ -194,6 +194,27 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         pbar.update()
         pbar.close()
 
+        # Add PEC boundaries to invariant direction in 2D modes
+        # N.B. 2D modes are a single cell slice of 3D grid
+        if '2D TMx' in G.mode:
+            # Ey & Ez components
+            G.ID[1,0,:,:] = 0
+            G.ID[1,1,:,:] = 0
+            G.ID[2,0,:,:] = 0
+            G.ID[2,1,:,:] = 0
+        elif '2D TMy' in G.mode:
+            # Ex & Ez components
+            G.ID[0,:,0,:] = 0
+            G.ID[0,:,1,:] = 0
+            G.ID[2,:,0,:] = 0
+            G.ID[2,:,1,:] = 0
+        elif '2D TMz' in G.mode:
+            # Ex & Ey components
+            G.ID[0,:,:,0] = 0
+            G.ID[0,:,:,1] = 0
+            G.ID[1,:,:,0] = 0
+            G.ID[1,:,:,1] = 0
+
         # Process any voltage sources (that have resistance) to create a new
         # material at the source location
         for voltagesource in G.voltagesources:
