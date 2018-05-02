@@ -49,7 +49,11 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
     plt.xlabel('Trace number')
     plt.ylabel('Time [s]')
     # plt.title('{}'.format(filename))
-    plt.grid()
+
+    # Grid properties
+    ax = fig.gca()
+    ax.grid(which='both', axis='both', linestyle='-.')
+
     cb = plt.colorbar()
     if 'E' in rxcomponent:
         cb.set_label('Field strength [V/m]')

@@ -103,7 +103,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                 ax1.set_xlabel('Time [s]')
                 ax1.set_ylabel(outputtext + ' field strength [V/m]')
                 ax1.set_xlim([0, np.amax(time)])
-                ax1.grid()
+                ax1.grid(which='both', axis='both', linestyle='-.')
 
                 # Plot frequency spectra
                 markerline, stemlines, baseline = ax2.stem(freqs[pltrange], power[pltrange], '-.')
@@ -113,7 +113,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                 line2 = ax2.plot(freqs[pltrange], power[pltrange], 'r', lw=2)
                 ax2.set_xlabel('Frequency [Hz]')
                 ax2.set_ylabel('Power [dB]')
-                ax2.grid()
+                ax2.grid(which='both', axis='both', linestyle='-.')
 
                 # Change colours and labels for magnetic field components or currents
                 if 'H' in outputs[0]:
@@ -137,7 +137,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                 line = ax.plot(time, outputdata, 'r', lw=2, label=outputtext)
                 ax.set_xlim([0, np.amax(time)])
                 # ax.set_ylim([-15, 20])
-                ax.grid()
+                ax.grid(which='both', axis='both', linestyle='-.')
 
                 if 'H' in output:
                     plt.setp(line, color='g')
@@ -214,7 +214,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                     ax.set_ylabel(outputtext + ', current [A]')
             for ax in fig.axes:
                 ax.set_xlim([0, np.amax(time)])
-                ax.grid()
+                ax.grid(which='both', axis='both', linestyle='-.')
 
         # Save a PDF/PNG of the figure
         # fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
