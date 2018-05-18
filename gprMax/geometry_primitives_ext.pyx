@@ -249,18 +249,10 @@ cpdef void build_face_yz(
     set_rigid_Ez(i, j, k, rigidE)
     set_rigid_Ey(i, j, k + 1, rigidE)
     set_rigid_Ez(i, j + 1, k, rigidE)
-    set_rigid_Hy(i, j, k, rigidH)
-    set_rigid_Hz(i, j, k, rigidH)
-    set_rigid_Hy(i, j, k + 1, rigidH)
-    set_rigid_Hz(i, j + 1, k, rigidH)
     ID[1, i, j, k] = numIDy
     ID[2, i, j, k] = numIDz
     ID[1, i, j, k + 1] = numIDy
     ID[2, i, j + 1, k] = numIDz
-    ID[4, i, j, k] = numIDy
-    ID[5, i, j, k] = numIDz
-    ID[4, i, j, k + 1] = numIDy
-    ID[5, i, j + 1, k] = numIDz
 
 
 cpdef void build_face_xz(
@@ -285,18 +277,10 @@ cpdef void build_face_xz(
     set_rigid_Ez(i, j, k, rigidE)
     set_rigid_Ex(i, j, k + 1, rigidE)
     set_rigid_Ez(i + 1, j, k, rigidE)
-    set_rigid_Hx(i, j, k, rigidH)
-    set_rigid_Hz(i, j, k, rigidH)
-    set_rigid_Hx(i, j, k + 1, rigidH)
-    set_rigid_Hz(i + 1, j, k, rigidH)
     ID[0, i, j, k] = numIDx
     ID[2, i, j, k] = numIDz
     ID[0, i, j, k + 1] = numIDx
     ID[2, i + 1, j, k] = numIDz
-    ID[3, i, j, k] = numIDx
-    ID[5, i, j, k] = numIDz
-    ID[3, i, j, k + 1] = numIDx
-    ID[5, i + 1, j, k] = numIDz
 
 
 cpdef void build_face_xy(
@@ -321,18 +305,10 @@ cpdef void build_face_xy(
     set_rigid_Ey(i, j, k, rigidE)
     set_rigid_Ex(i, j + 1, k, rigidE)
     set_rigid_Ey(i + 1, j, k, rigidE)
-    set_rigid_Hx(i, j, k, rigidH)
-    set_rigid_Hy(i, j, k, rigidH)
-    set_rigid_Hx(i, j + 1, k, rigidH)
-    set_rigid_Hy(i + 1, j, k, rigidH)
     ID[0, i, j, k] = numIDx
     ID[1, i, j, k] = numIDy
     ID[0, i, j + 1, k] = numIDx
     ID[1, i + 1, j, k] = numIDy
-    ID[3, i, j, k] = numIDx
-    ID[4, i, j, k] = numIDy
-    ID[3, i, j + 1, k] = numIDx
-    ID[4, i + 1, j, k] = numIDy
 
 
 cpdef void build_voxel(
