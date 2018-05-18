@@ -269,7 +269,7 @@ class PeplinskiSoil(object):
     def calculate_debye_properties(self, nbins, G):
         """
         Calculates the real and imaginery part of a Debye model for the soil as
-        well as a conductivity. It uses a semi-empirical model (http://dx.doi.org/10.1109/36.387598).
+        well as a conductivity. It uses an approximation to a semi-empirical model (http://dx.doi.org/10.1109/36.387598).
 
         Args:
             nbins (int): Number of bins to use to create the different materials.
@@ -280,17 +280,16 @@ class PeplinskiSoil(object):
         f = 1.3e9
         w = 2 * np.pi * f
         erealw = Material.watereri + ((Material.waterdeltaer) / (1 + (w * Material.watertau)**2))
-        # eimagw = w * Material.watertau * ((Material.waterdeltaer) / (1 + (w * Material.watertau)**2))
 
         a = 0.65  # Experimentally derived constant
-        es = (1.01 + 0.44 * self.rs)**2 - 0.062
+        es = (1.01 + 0.44 * self.rs)**2 - 0.062 # Relative permittivity of sand particles
         b1 = 1.2748 - 0.519 * self.S - 0.152 * self.C
         b2 = 1.33797 - 0.603 * self.S - 0.166 * self.C
 
         # For frequencies in the range 0.3GHz to 1.3GHz
-        sigf1 = 0.0467 + 0.2204 * self.rb - 0.411 * self.S + 0.6614 * self.C
+        sigf = 0.0467 + 0.2204 * self.rb - 0.411 * self.S + 0.6614 * self.C
         # For frequencies in the range 1.4GHz to 18GHz
-        # sigf2 = -1.645 + 1.939 * self.rb - 2.25622 * self.S + 1.594 * self.C
+        # sigf = -1.645 + 1.939 * self.rb - 2.25622 * self.S + 1.594 * self.C
 
         # Generate a set of bins based on the given volumetric water fraction values
         mubins = np.linspace(self.mu[0], self.mu[1], nbins)
@@ -301,15 +300,15 @@ class PeplinskiSoil(object):
         muiter = np.nditer(mumaterials, flags=['c_index'])
         while not muiter.finished:
             # Real part for frequencies in the range 1.4GHz to 18GHz
-            er1 = (1 + (self.rb / self.rs) * ((es**a) - 1) + (muiter[0]**b1 * erealw**a) - muiter[0]) ** (1 / a)
-            # Real part for frequencies in the range 0.3GHz to 1.3GHz
-            er2 = 1.15 * er1 - 0.68
+            er = (1 + (self.rb / self.rs) * ((es**a) - 1) + (muiter[0]**b1 * erealw**a) - muiter[0]) ** (1 / a)
+            # Real part for frequencies in the range 0.3GHz to 1.3GHz (linear correction to 1.4-18GHz value)
+            er = 1.15 * er - 0.68
 
-            # Imaginary part for frequencies in the range 0.3GHz to 1.3GHz
-            eri = er2 - (muiter[0]**(b2 / a) * Material.waterdeltaer)
+            # Permittivity at infinite frequency
+            eri = er - (muiter[0]**(b2 / a) * Material.waterdeltaer)
 
             # Effective conductivity
-            sig = muiter[0]**(b2 / a) * ((sigf1 * (self.rs - self.rb)) / (self.rs * muiter[0]))
+            sig = muiter[0]**(b2 / a) * ((sigf * (self.rs - self.rb)) / (self.rs * muiter[0]))
 
             # Check to see if the material already exists before creating a new one
             requiredID = '|{:.4f}|'.format(float(muiter[0]))
@@ -328,7 +327,7 @@ class PeplinskiSoil(object):
                     Material.maxpoles = m.poles
                 m.er = eri
                 m.se = sig
-                m.deltaer.append(er2 - m.er)
+                m.deltaer.append(er - eri)
                 m.tau.append(Material.watertau)
                 G.materials.append(m)
 

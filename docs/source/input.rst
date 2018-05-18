@@ -301,7 +301,7 @@ The syntax of the command is:
 #soil_peplinski:
 ----------------
 
-Allows you to use a mixing model for soils proposed by Peplinski (http://dx.doi.org/10.1109/36.387598). The command is designed to be used in conjunction with the ``#fractal_box`` command for creating soils with realistic dielectric and geometric properties. The syntax of the command is:
+Allows you to use a mixing model for soils proposed by Peplinski (http://dx.doi.org/10.1109/36.387598), valid for frequencies in the range 0.3GHz to 1.3GHz. The command is designed to be used in conjunction with the ``#fractal_box`` command for creating soils with realistic dielectric and geometric properties. The syntax of the command is:
 
 .. code-block:: none
 

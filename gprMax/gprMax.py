@@ -126,8 +126,8 @@ def run_main(args):
         hostinfo = get_host_info()
         hyperthreading = ', {} cores with Hyper-Threading'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
         print('\nHost: {} | {} | {} x {} ({} cores{}) | {} RAM | {}'.format(hostinfo['hostname'],
-        hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'],
-        hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
+                                                                            hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'],
+                                                                            hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
 
         # Get information/setup Nvidia GPU(s)
         if args.gpu is not None:
@@ -374,14 +374,13 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     # Master process #
     ##################
     if workerflag not in sys.argv:
-    # N.B Spawned worker flag (--mpi-worker) applied to sys.argv when MPI.Spawn is called
+        # N.B Spawned worker flag (--mpi-worker) applied to sys.argv when MPI.Spawn is called
 
         # Get MPI communicator object either through argument or just get comm_world
         if hasattr(args, 'mpicomm'):
             comm = args.mpicomm
         else:
             comm = MPI.COMM_WORLD
-        size = comm.Get_size()  # total number of processes
         rank = comm.Get_rank()  # rank of this process
         tsimstart = perf_counter()
         print('MPI master ({}, rank {}) on {} using {} workers\n'.format(comm.name, rank, hostname, numworkers))
@@ -509,7 +508,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
     modelstart = args.restart if args.restart else 1
     modelend = modelstart + args.n
     numbermodelruns = args.n
-    currentmodelrun = modelstart # can use -task argument to start numbering from something other than 1
+    currentmodelrun = modelstart  # can use -task argument to start numbering from something other than 1
     numworkers = size - 1
 
     ##################
@@ -521,7 +520,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
 
         closedworkers = 0
         while closedworkers < numworkers:
-            data = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+            comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
             source = status.Get_source()
             tag = status.Get_tag()
 
