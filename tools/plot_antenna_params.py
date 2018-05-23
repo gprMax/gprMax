@@ -44,7 +44,7 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
 
     # Open output file and read some attributes
     f = h5py.File(filename, 'r')
-    dxdydz = f.attrs['dx, dy, dz']
+    dxdydz = f.attrs['dx_dy_dz']
     dt = f.attrs['dt']
     iterations = f.attrs['Iterations']
 

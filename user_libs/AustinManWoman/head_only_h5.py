@@ -10,7 +10,7 @@ args = parser.parse_args()
 
 # Read full body HDF5 file
 f = h5py.File(args.filename, 'r')
-dx_dy_dz = f.attrs['dx, dy, dz']
+dx_dy_dz = f.attrs['dx_dy_dz']
 data = f['/data'][:, :, :]
 
 # Define head as last 1/8 of total body height
@@ -21,5 +21,5 @@ print('Dimensions of head model: {:g} x {:g} x {:g} cells'.format(data.shape[0],
 # Write HDF5 file
 headfile = os.path.splitext(args.filename)[0] + '_head.h5'
 f = h5py.File(headfile, 'w')
-f.attrs['dx, dy, dz'] = dx_dy_dz
+f.attrs['dx_dy_dz'] = dx_dy_dz
 f['/data'] = data[:, :, nzhead:data.shape[2]]

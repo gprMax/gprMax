@@ -72,7 +72,7 @@ def pixel_match(pixellist, pixeltest):
 
 
 if __name__ == "__main__":
-    
+
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Convert a PNG image to a HDF5 file that can be used to import geometry (#geometry_objects_read) into a 2D gprMax model. Colours from the image are selected which correspond to a list of materials that should be supplied in a separate text file.', usage='python convert_png2h5.py imagefile dx dy dz')
     parser.add_argument('imagefile', help='name of image file including path')
@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
     # Open image file
     im = mpimg.imread(args.imagefile)
-    
+
     # Store image data to use for creating geometry
     imdata = np.rot90(im, k=3) # Rotate 90CW
     imdata = np.floor(imdata * 255).astype(np.int16) # Convert pixel values from float (0-1) to integer (0-255)
@@ -101,25 +101,25 @@ if __name__ == "__main__":
     plt.show()
 
     # Format spatial resolution into tuple
-    dxdydz = (args.dxdydz[0][0], args.dxdydz[0][1], args.dxdydz[0][2])
-    
+    dx_dy_dz = (args.dxdydz[0][0], args.dxdydz[0][1], args.dxdydz[0][2])
+
     # Filename for geometry (HDF5) file
     hdf5file = os.path.splitext(args.imagefile)[0] + '.h5'
-    
+
     # Array to store geometry data (initialised as background, i.e. -1)
     data = np.ones((imdata.shape[0], imdata.shape[1], args.zcells), dtype=np.int16) * -1
 
     # Write geometry (HDF5) file
     with h5py.File(hdf5file, 'w') as fout:
 
-        # Add attribute with name 'dx, dy, dz' for spatial resolution
-        fout.attrs['dx, dy, dz'] = dxdydz
+        # Add attribute with name 'dx_dy_dz' for spatial resolution
+        fout.attrs['dx_dy_dz'] = dx_dy_dz
 
         # Use a boolean mask to match selected pixel values with position in image
         for i, material in enumerate(materials):
             mask = np.all(imdata == material, axis=-1)
             data[mask,:] = i
-        
+
         # Write data to file
         fout.create_dataset('data', data=data)
 

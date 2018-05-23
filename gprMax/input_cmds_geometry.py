@@ -110,7 +110,7 @@ def process_geometrycmds(geometry, G):
 
             # Open geometry object file and read/check spatial resolution attribute
             f = h5py.File(geofile, 'r')
-            dx_dy_dz = f.attrs['dx, dy, dz']
+            dx_dy_dz = f.attrs['dx_dy_dz']
             if round_value(dx_dy_dz[0] / G.dx) != 1 or round_value(dx_dy_dz[1] / G.dy) != 1 or round_value(dx_dy_dz[2] / G.dz) != 1:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires the spatial resolution of the geometry objects file to match the spatial resolution of the model')
 

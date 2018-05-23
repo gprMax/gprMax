@@ -93,7 +93,7 @@ for i, model in enumerate(testmodels):
         rxposrelative = ((rxpos[0] - txpos[0]), (rxpos[1] - txpos[1]), (rxpos[2] - txpos[2]))
 
         # Analytical solution of a dipole in free space
-        dataref = hertzian_dipole_fs(filetest.attrs['Iterations'], filetest.attrs['dt'], filetest.attrs['dx, dy, dz'], rxposrelative)
+        dataref = hertzian_dipole_fs(filetest.attrs['Iterations'], filetest.attrs['dt'], filetest.attrs['dx_dy_dz'], rxposrelative)
 
         filetest.close()
 
