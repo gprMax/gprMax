@@ -4,12 +4,12 @@
 Guidance on GPR modelling
 *************************
 
-**In order to make the most of gprMax for modelling GPR you should be familiar with the Finite-Difference Time-Domain (FDTD)* method method on which the software is based.** There is a large amount of information available in the relevant literature. Good starting points are [KUN1993]_ and [TAF2005]_, the specific application of FDTD to the GPR forward problem is described in [GIA1997]_.
+**In order to make the most of gprMax for modelling GPR you should be familiar with the Finite-Difference Time-Domain (FDTD) method method on which the software is based.**
+
+This section discusses some basic concepts of the FDTD method and GPR modelling. There is a large amount of further information available in the relevant literature. Good starting points are [KUN1993]_ and [TAF2005]_, and the specific application of FDTD to the GPR forward problem is described in [GIA1997]_.
 
 Basic concepts
 ==============
-
-This section discusses some basic concepts of GPR modelling.
 
 All electromagnetic phenomena, on a macroscopic scale, are described by the well-known Maxwell's equations. These are first order partial differential equations which express the relations between the fundamental electromagnetic field quantities and their dependence on their sources.
 
@@ -30,7 +30,7 @@ temporal :math:`\Delta t` steps play a very significant role -- since the smalle
 .. _yeecell3D:
 
 .. figure:: images/yeecell3D.png
-    :width: 550px
+    :width: 500px
 
     Single FDTD Yee cell showing electric (red) and magnetic (green) field components for 3D transverse electromagnetic (TEM) mode.
 
@@ -41,7 +41,7 @@ gprMax is fundamentally based on solving Maxwell's equations in 3D using the FDT
 .. _yeecell2DTMz:
 
 .. figure:: images/yeecell2DTMz.png
-    :width: 550px
+    :width: 500px
 
     Single FDTD Yee cell showing electric (red), magnetic (green), and zeroed out (grey) field components for 2D transverse magnetic (TM) z-direction mode.
 
@@ -64,7 +64,7 @@ Using this approach means that Maxwell's equations in 3D, shown in :eq:`maxwell3
     &\frac{\partial H_x}{\partial t} = \frac{1}{\mu} \left( - \frac{\partial E_z}{\partial y} - M_{Sx} - \sigma^* H_x \right) \\
     &\frac{\partial H_y}{\partial t} = \frac{1}{\mu} \left( \frac{\partial E_z}{\partial x} - M_{Sy} - \sigma^* H_y \right)
 
-These equations are discretized in both space and time and applied in each FDTD cell. Therefore their numerical solution is obtained directly in the time domain in an iterative fashion. In each iteration the electromagnetic fields advance (propagate) in the FDTD grid and each iteration corresponds to an elapsed simulated time of one :math:`\Delta t`. Hence by specifying the number of iterations you can instruct the FDTD solver to simulate the fields for a given time window.
+These equations are discretized in both space and time and applied in each FDTD cell. The numerical solution is obtained directly in the time domain in an iterative fashion. In each iteration the electromagnetic fields advance (propagate) in the FDTD grid and each iteration corresponds to an elapsed simulated time of one :math:`\Delta t`. Hence by specifying the number of iterations you can instruct the FDTD solver to simulate the fields for a given time window.
 
 The price you have to pay for obtaining a solution directly in the time domain using the FDTD method is that the values of :math:`\Delta x`, :math:`\Delta y`, :math:`\Delta z` and :math:`\Delta t` can not be assigned independently. FDTD is a conditionally stable numerical process. The stability condition is known as the CFL condition after the initials of Courant, Freidrichs and Lewy and is given by,
 
