@@ -40,7 +40,7 @@ gprMax is fundamentally based on solving Maxwell's equations in 3D using the FDT
 
 .. _yeecell2DTMz:
 
-.. figure:: images/coord3d.png
+.. figure:: images/yeecell-blank.png
     :width: 500px
 
     Single FDTD Yee cell showing electric (red), magnetic (green), and zeroed out (grey) field components for 2D transverse magnetic (TM) z-direction mode.
