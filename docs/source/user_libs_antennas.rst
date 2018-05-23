@@ -12,9 +12,9 @@ The module features models of antennas similar to commercial GPR antennas. The f
 ======================== ============= ============= ============================================================================================= ================
 Manufacturer/Model       Dimensions    Resolution(s) Author/Contact                                                                                Attribution/Cite
 ======================== ============= ============= ============================================================================================= ================
-GSSI 1.5GHz (Model 5100) 170x108x45mm  1, 2mm        Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                     1
+GSSI 1.5GHz (Model 5100) 170x108x45mm  1, 2mm        Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                     1, 2
 MALA 1.2GHz              184x109x46mm  1, 2mm        Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                     1
-GSSI 400MHz              300x300x170mm 0.5, 1, 2mm   Sam Stadler (Sam.Stadler@liag-hannover.de), Leibniz Institute for Applied Geophysics, Germany 2
+GSSI 400MHz              300x300x170mm 0.5, 1, 2mm   Sam Stadler (Sam.Stadler@liag-hannover.de), Leibniz Institute for Applied Geophysics, Germany 3
 ======================== ============= ============= ============================================================================================= ================
 
 **License**: `Creative Commons Attribution-ShareAlike 4.0 International License <http://creativecommons.org/licenses/by-sa/4.0/>`_
@@ -22,7 +22,8 @@ GSSI 400MHz              300x300x170mm 0.5, 1, 2mm   Sam Stadler (Sam.Stadler@li
 **Attributions/citations**:
 
 1. Warren, C., Giannopoulos, A. (2011). Creating finite-difference time-domain models of commercial ground-penetrating radar antennas using Taguchi's optimization method. *Geophysics*, 76(2), G37-G47. (http://dx.doi.org/10.1190/1.3548506)
-2. Stadler, S. (2017). A Forward Modeling Study for the Investigation of the Vertical Water-Content Distribution of Using Guided GPR Waves (Master's Thesis, Freiberg University of Mining and Technology, Germany). (https://app.box.com/s/h2n2ytsdllcm77du1o9lknumngmq8vq8)
+2. Giannakis, I., Giannopoulos, A., & Warren, C. (2018). Realistic FDTD GPR antenna models optimised using a novel linear/non-linear Full Waveform Inversion. *IEEE Transactions on Geoscience and Remote Sensing*, . ()
+3. Stadler, S. (2017). A Forward Modeling Study for the Investigation of the Vertical Water-Content Distribution of Using Guided GPR Waves (Master's Thesis, Freiberg University of Mining and Technology, Germany). (https://app.box.com/s/h2n2ytsdllcm77du1o9lknumngmq8vq8)
 
 Module overview
 ===============
