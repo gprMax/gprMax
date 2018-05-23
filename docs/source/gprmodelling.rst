@@ -15,10 +15,10 @@ All electromagnetic phenomena, on a macroscopic scale, are described by the well
 
 .. math::
 
-    &\boldsymbol{\nabla}\boldsymbol{\times}\mathbf{E} =- \frac{\partial \mathbf{B}}{\partial t} \\
-    &\boldsymbol{\nabla}\boldsymbol{\times}\mathbf{H} = \frac{\partial \mathbf{D}}{\partial t}+\mathbf{J_c}+\mathbf{J_s} \\
-    &\boldsymbol{\nabla}\boldsymbol{\cdot}\mathbf{B} = 0 \\
-    &\boldsymbol{\nabla}\boldsymbol{\cdot}\mathbf{D} = q_v
+    \boldsymbol{\nabla}\boldsymbol{\times}\mathbf{E} &=- \frac{\partial \mathbf{B}}{\partial t} \\
+    \boldsymbol{\nabla}\boldsymbol{\times}\mathbf{H} &= \frac{\partial \mathbf{D}}{\partial t}+\mathbf{J_c}+\mathbf{J_s} \\
+    \boldsymbol{\nabla}\boldsymbol{\cdot}\mathbf{B} &= 0 \\
+    \boldsymbol{\nabla}\boldsymbol{\cdot}\mathbf{D} &= q_v
 
 where :math:`t` is time (seconds) and :math:`q_v` is the volume electric charge density (coulombs/cubic metre). In Maxwell's equations, the field vectors are assumed to be single-valued, bounded, continuous functions of position and time. In order to simulate the GPR response from a particular target or set of targets the above equations have to be solved subject to the geometry of the problem and the initial conditions.
 
@@ -50,7 +50,7 @@ Using this approach means that Maxwell's equations in 3D, shown in :eq:`maxwell3
 .. math::
     :label: maxwell3D
 
-    &\frac{\partial E_x}{\partial t} = \frac{1}{\epsilon} \left( \frac{\partial H_z}{\partial y} - \frac{\partial H_y}{\partial z} - J_{Sx} - \sigma E_x \right)} \\
+    &\frac{\partial E_x}{\partial t} = \frac{1}{\epsilon} \left( \frac{\partial H_z}{\partial y} - \frac{\partial H_y}{\partial z} - J_{Sx} - \sigma E_x \right) \\
     &\frac{\partial E_y}{\partial t} = \frac{1}{\epsilon} \left( \frac{\partial H_x}{\partial z} - \frac{\partial H_z}{\partial x} - J_{Sy} - \sigma E_y \right) \\
     &\frac{\partial E_z}{\partial t} = \frac{1}{\epsilon} \left( \frac{\partial H_y}{\partial x} - \frac{\partial H_x}{\partial y} - J_{Sz} - \sigma E_z \right) \\
     &\frac{\partial H_x}{\partial t} = \frac{1}{\mu} \left( \frac{\partial E_y}{\partial z} - \frac{\partial E_z}{\partial y} - M_{Sx} - \sigma^* H_x \right) \\
