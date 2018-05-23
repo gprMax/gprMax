@@ -4,7 +4,7 @@
 Guidance on GPR modelling
 *************************
 
-**In order to make the most of gprMax for modelling GPR you should be familiar with the *Finite-Difference Time-Domain (FDTD)* method method on which the software is based. There is a large amount of information available in the relevant literature. Good starting points are [KUN1993]_ and [TAF2005]_, the specific application of FDTD to the GPR forward problem is described in [GIA1997]_.**
+**In order to make the most of gprMax for modelling GPR you should be familiar with the Finite-Difference Time-Domain (FDTD)* method method on which the software is based.** There is a large amount of information available in the relevant literature. Good starting points are [KUN1993]_ and [TAF2005]_, the specific application of FDTD to the GPR forward problem is described in [GIA1997]_.
 
 Basic concepts
 ==============
@@ -36,7 +36,7 @@ temporal :math:`\Delta t` steps play a very significant role -- since the smalle
 
 By assigning appropriate constitutive parameters to the locations of the electromagnetic field components complex shaped targets can be included easily in the models. However, objects with curved boundaries are represented using a staircase approximation.
 
-gprMax is fundamentally based on solving Maxwell's equations in 3D using the FDTD method - transverse electromagnetic (TEM) mode. However, it can also be used to carry out simulations in 2D transverse magnetic (TM) mode. This is achieved through specifying a single cell slice of the domain, i.e. one of the dimensions of the domain is equal to the spatial discretisation. It this mode the electric and magnetic field components on the two faces of single cell slice in the invariant direction are set to zero. This is shown in :numref:`yeecell2DTMz` for the TMz mode.
+gprMax is fundamentally based on solving Maxwell's equations in 3D using the FDTD method - transverse electromagnetic (TEM) mode. However, it can also be used to carry out simulations in 2D using the transverse magnetic (TM) mode. This is achieved through specifying a single cell slice of the domain, i.e. one dimension of the domain must be equal to the spatial discretization in that direction. When this occurs the electric and magnetic field components on the two faces of single cell slice in the invariant direction are set to zero. This is illustrated for the 2D TMz case in :numref:`yeecell2DTMz`.
 
 .. _yeecell2DTMz:
 
@@ -45,24 +45,24 @@ gprMax is fundamentally based on solving Maxwell's equations in 3D using the FDT
 
     Single FDTD Yee cell showing electric (red), magnetic (green), and zeroed out (grey) field components for 2D transverse magnetic (TM) z-direction mode.
 
-This approach means that Maxwell's equations in 3D (shown in :eq:`maxwell3D' as six coupled partial differential equations) reduce to the corresponding 2D form - in this case 2D TMz (shown in in :eq:`maxwell2DTMz').
+Using this approach means that Maxwell's equations in 3D (shown in :eq:`maxwell3D` as six coupled partial differential equations) reduce to the corresponding 2D form - in this case 2D TMz (shown in in :eq:`maxwell2DTMz`).
 
 .. math::
     :label: maxwell3D
 
-    &\frac{\partial E_x}{\partial t} &= \frac{1}{\epsilon} \left( \frac{\partial H_z}{\partial y} - \frac{\partial H_y}{\partial z} - J_{Sx} - \sigma E_x \right)} \\
-    &\frac{\partial E_y}{\partial t} &= \frac{1}{\epsilon} \left( \frac{\partial H_x}{\partial z} - \frac{\partial H_z}{\partial x} - J_{Sy} - \sigma E_y \right) \\
-    &\frac{\partial E_z}{\partial t} &= \frac{1}{\epsilon} \left( \frac{\partial H_y}{\partial x} - \frac{\partial H_x}{\partial y} - J_{Sz} - \sigma E_z \right) \\
-    &\frac{\partial H_x}{\partial t} &= \frac{1}{\mu} \left( \frac{\partial E_y}{\partial z} - \frac{\partial E_z}{\partial y} - M_{Sx} - \sigma^* H_x \right) \\
-    &\frac{\partial H_y}{\partial t} &= \frac{1}{\mu} \left( \frac{\partial E_z}{\partial x} - \frac{\partial E_x}{\partial z} - M_{Sy} - \sigma^* H_y \right) \\
-    &\frac{\partial H_z}{\partial t} &= \frac{1}{\mu} \left( \frac{\partial E_x}{\partial y} - \frac{\partial E_y}{\partial x} - M_{Sz} - \sigma^* H_z \right)
+    &\frac{\partial E_x}{\partial t} = \frac{1}{\epsilon} \left( \frac{\partial H_z}{\partial y} - \frac{\partial H_y}{\partial z} - J_{Sx} - \sigma E_x \right)} \\
+    &\frac{\partial E_y}{\partial t} = \frac{1}{\epsilon} \left( \frac{\partial H_x}{\partial z} - \frac{\partial H_z}{\partial x} - J_{Sy} - \sigma E_y \right) \\
+    &\frac{\partial E_z}{\partial t} = \frac{1}{\epsilon} \left( \frac{\partial H_y}{\partial x} - \frac{\partial H_x}{\partial y} - J_{Sz} - \sigma E_z \right) \\
+    &\frac{\partial H_x}{\partial t} = \frac{1}{\mu} \left( \frac{\partial E_y}{\partial z} - \frac{\partial E_z}{\partial y} - M_{Sx} - \sigma^* H_x \right) \\
+    &\frac{\partial H_y}{\partial t} = \frac{1}{\mu} \left( \frac{\partial E_z}{\partial x} - \frac{\partial E_x}{\partial z} - M_{Sy} - \sigma^* H_y \right) \\
+    &\frac{\partial H_z}{\partial t} = \frac{1}{\mu} \left( \frac{\partial E_x}{\partial y} - \frac{\partial E_y}{\partial x} - M_{Sz} - \sigma^* H_z \right)
 
 .. math::
     :label: maxwell2DTMz
 
-    &\frac{\partial E_z}{\partial t} &= \frac{1}{\epsilon} \left( \frac{\partial H_y}{\partial x} - \frac{\partial H_x}{\partial y} - J_{Sz} - \sigma E_z \right) \\
-    &\frac{\partial H_x}{\partial t} &= \frac{1}{\mu} \left( - \frac{\partial E_z}{\partial y} - M_{Sx} - \sigma^* H_x \right) \\
-    &\frac{\partial H_y}{\partial t} &= \frac{1}{\mu} \left( \frac{\partial E_z}{\partial x} - M_{Sy} - \sigma^* H_y \right) \\
+    &\frac{\partial E_z}{\partial t} = \frac{1}{\epsilon} \left( \frac{\partial H_y}{\partial x} - \frac{\partial H_x}{\partial y} - J_{Sz} - \sigma E_z \right) \\
+    &\frac{\partial H_x}{\partial t} = \frac{1}{\mu} \left( - \frac{\partial E_z}{\partial y} - M_{Sx} - \sigma^* H_x \right) \\
+    &\frac{\partial H_y}{\partial t} = \frac{1}{\mu} \left( \frac{\partial E_z}{\partial x} - M_{Sy} - \sigma^* H_y \right) \\
 
 The numerical solution is obtained directly in the time domain by using a discretized version of Maxwell's curl equations which are applied in each FDTD cell. Since these equations are discretized in both space and time the solution is obtained in an iterative fashion. In each iteration the electromagnetic fields advance (propagate) in the FDTD grid and each iteration corresponds to an elapsed simulated time of one :math:`\Delta t`. Hence by specifying the number of iterations you can instruct the FDTD solver to simulate the fields for a given time window.
 
@@ -99,7 +99,7 @@ The actual positions of field components for a given set of space coordinates (x
 Hertzian dipole sources as well as other electric field excitations (i.e. voltage sources, transmission lines) are located at the corresponding electric field components.
 
 
-Spatial discretisation
+Spatial discretization
 ======================
 
 There is no specific guideline for choosing the right spatial discretization for a given problem. In general, it depends on the required accuracy, the frequency content of the source pulse and the size of the targets. Obviously, all targets present in a model must be adequately resolved. This means, for example, that a cylinder with radius equal to one or two spatial steps does not really look like a cylinder!
