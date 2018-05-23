@@ -333,7 +333,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
                 outputfile = os.path.splitext(args.inputfile)[0] + str(currentmodelrun) + '.out'
             f = h5py.File(outputfile, 'r')
             iterations = f.attrs['Iterations']
-            numcells = f.attrs['nx, ny, nz']
+            numcells = f.attrs['nx_ny_nz']
 
     # Save number of threads and benchmarking times to NumPy archive
     np.savez(os.path.splitext(inputfile.name)[0], machineID=machineIDlong, gpuIDs=gpuIDs, cputhreads=cputhreads, cputimes=cputimes, gputimes=gputimes, iterations=iterations, numcells=numcells, version=__version__)
