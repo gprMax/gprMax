@@ -36,7 +36,7 @@ temporal :math:`\Delta t` steps play a very significant role -- since the smalle
 
 By assigning appropriate constitutive parameters to the locations of the electromagnetic field components complex shaped targets can be included easily in the models. However, objects with curved boundaries are represented using a staircase approximation.
 
-gprMax is fundamentally based on solving Maxwell's equations in 3D using the FDTD method - transverse electromagnetic (TEM) mode. However, it can also be used to carry out simulations in 2D transverse magnetic (TM) mode. This is achieved through specifying a single cell slice of the domain, i.e. one of the dimensions of the domain is equal to the spatial discretisation. It this mode the electric field components on the two faces of single cell slice in the invariant direction are set to zero. This is shown in :numref:`yeecell2DTMz` for the TMz mode.
+gprMax is fundamentally based on solving Maxwell's equations in 3D using the FDTD method - transverse electromagnetic (TEM) mode. However, it can also be used to carry out simulations in 2D transverse magnetic (TM) mode. This is achieved through specifying a single cell slice of the domain, i.e. one of the dimensions of the domain is equal to the spatial discretisation. It this mode the electric and magnetic field components on the two faces of single cell slice in the invariant direction are set to zero. This is shown in :numref:`yeecell2DTMz` for the TMz mode.
 
 .. _yeecell2DTMz:
 
@@ -49,9 +49,9 @@ This approach means that Maxwell's equations in 3D (shown below as six coupled p
 
 .. math::
 
-    &\frac{\partial E_x}{\partial t} &= \frac{1}{\epsilon} \left( \frac{\partial H_z}{\partial y} - \frac{\partial H_y}{\partial z} - J_{Sx} - \sigma E_x \right) \\
+    &\cancel{\frac{\partial E_x}{\partial t} &= \frac{1}{\epsilon} \left( \frac{\partial H_z}{\partial y} - \frac{\partial H_y}{\partial z} - J_{Sx} - \sigma E_x \right)} \\
     &\frac{\partial E_y}{\partial t} &= \frac{1}{\epsilon} \left( \frac{\partial H_x}{\partial z} - \frac{\partial H_z}{\partial x} - J_{Sy} - \sigma E_y \right) \\
-    &\frac{\partial E_z}{\partial t} &= \frac{1}{\epsilon} \left( \frac{\partial H_y}{\partial x} - \frac{\partial H_x}{\partial y} - J_{Sz} - \sigma E_z \right)
+    &\frac{\partial E_z}{\partial t} &= \frac{1}{\epsilon} \left( \frac{\partial H_y}{\partial x} - \frac{\partial H_x}{\partial y} - J_{Sz} - \sigma E_z \right) \\
     &\frac{\partial H_x}{\partial t} &= \frac{1}{\mu} \left( \frac{\partial E_y}{\partial z} - \frac{\partial E_z}{\partial y} - M_{Sx} - \sigma^* H_x \right) \\
     &\frac{\partial H_y}{\partial t} &= \frac{1}{\mu} \left( \frac{\partial E_z}{\partial x} - \frac{\partial E_x}{\partial z} - M_{Sy} - \sigma^* H_y \right) \\
     &\frac{\partial H_z}{\partial t} &= \frac{1}{\mu} \left( \frac{\partial E_x}{\partial y} - \frac{\partial E_y}{\partial x} - M_{Sz} - \sigma^* H_z \right)
