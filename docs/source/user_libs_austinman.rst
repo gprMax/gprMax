@@ -44,7 +44,7 @@ Package overview
 
     AustinManWoman_materials.txt
     AustinManWoman_materials_dispersive.txt
-    head_only_hdf5.py
+    head_only_h5.py
 
 * ``AustinManWoman_materials.txt`` is a text file containing `non-dispersive material properties at 900 MHz <http://niremf.ifac.cnr.it/tissprop/>`_.
 * ``AustinManWoman_materials_dispersive.txt`` is a text file containing `dispersive material properties using a 3-pole Debye model <http://dx.doi.org/10.1109/LMWC.2011.2180371>`_.
@@ -54,7 +54,7 @@ Package overview
     * The main body tissues are described using a 3-pole Debye model, but not all materials have a dispersive description.
     * The dispersive material properties can only be used with the 1x1x1mm or 2x2x2mm AustinMan/Woman models. This is because the time step of the model must always be less than any of the relaxation times of the poles of the Debye models used for the dispersive material properties.
 
-* ``head_only_hdf5.py`` is a script to assist with creating a model of only the head from a full body AustinMan/Woman model.
+* ``head_only_h5.py`` is a script to assist with creating a model of only the head from a full body AustinMan/Woman model.
 
 How to use the models
 =====================
@@ -80,7 +80,3 @@ For further information on the ``#geometry_objects_read`` see the section on obj
     :width: 300 px
 
     FDTD geometry mesh showing the AustinMan body model (2x2x2mm :math:`^3`).
-
-
-
-
