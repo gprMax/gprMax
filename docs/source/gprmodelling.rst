@@ -45,16 +45,24 @@ gprMax is fundamentally based on solving Maxwell's equations in 3D using the FDT
 
     Single FDTD Yee cell showing electric (red), magnetic (green), and zeroed out (grey) field components for 2D transverse magnetic (TM) z-direction mode.
 
-This approach means that Maxwell's equations in 3D (shown below as six coupled partial differential equations) reduce to the corresponding 2D form - in this case 2D TMz.
+This approach means that Maxwell's equations in 3D (shown in :eq:`maxwell3D' as six coupled partial differential equations) reduce to the corresponding 2D form - in this case 2D TMz (shown in in :eq:`maxwell2DTMz').
 
 .. math::
+    :label: maxwell3D
 
-    &\cancel{\frac{\partial E_x}{\partial t} &= \frac{1}{\epsilon} \left( \frac{\partial H_z}{\partial y} - \frac{\partial H_y}{\partial z} - J_{Sx} - \sigma E_x \right)} \\
+    &\frac{\partial E_x}{\partial t} &= \frac{1}{\epsilon} \left( \frac{\partial H_z}{\partial y} - \frac{\partial H_y}{\partial z} - J_{Sx} - \sigma E_x \right)} \\
     &\frac{\partial E_y}{\partial t} &= \frac{1}{\epsilon} \left( \frac{\partial H_x}{\partial z} - \frac{\partial H_z}{\partial x} - J_{Sy} - \sigma E_y \right) \\
     &\frac{\partial E_z}{\partial t} &= \frac{1}{\epsilon} \left( \frac{\partial H_y}{\partial x} - \frac{\partial H_x}{\partial y} - J_{Sz} - \sigma E_z \right) \\
     &\frac{\partial H_x}{\partial t} &= \frac{1}{\mu} \left( \frac{\partial E_y}{\partial z} - \frac{\partial E_z}{\partial y} - M_{Sx} - \sigma^* H_x \right) \\
     &\frac{\partial H_y}{\partial t} &= \frac{1}{\mu} \left( \frac{\partial E_z}{\partial x} - \frac{\partial E_x}{\partial z} - M_{Sy} - \sigma^* H_y \right) \\
     &\frac{\partial H_z}{\partial t} &= \frac{1}{\mu} \left( \frac{\partial E_x}{\partial y} - \frac{\partial E_y}{\partial x} - M_{Sz} - \sigma^* H_z \right)
+
+.. math::
+    :label: maxwell2DTMz
+
+    &\frac{\partial E_z}{\partial t} &= \frac{1}{\epsilon} \left( \frac{\partial H_y}{\partial x} - \frac{\partial H_x}{\partial y} - J_{Sz} - \sigma E_z \right) \\
+    &\frac{\partial H_x}{\partial t} &= \frac{1}{\mu} \left( - \frac{\partial E_z}{\partial y} - M_{Sx} - \sigma^* H_x \right) \\
+    &\frac{\partial H_y}{\partial t} &= \frac{1}{\mu} \left( \frac{\partial E_z}{\partial x} - M_{Sy} - \sigma^* H_y \right) \\
 
 The numerical solution is obtained directly in the time domain by using a discretized version of Maxwell's curl equations which are applied in each FDTD cell. Since these equations are discretized in both space and time the solution is obtained in an iterative fashion. In each iteration the electromagnetic fields advance (propagate) in the FDTD grid and each iteration corresponds to an elapsed simulated time of one :math:`\Delta t`. Hence by specifying the number of iterations you can instruct the FDTD solver to simulate the fields for a given time window.
 
