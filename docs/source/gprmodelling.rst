@@ -45,7 +45,7 @@ gprMax is fundamentally based on solving Maxwell's equations in 3D using the FDT
 
     Single FDTD Yee cell showing electric (red), magnetic (green), and zeroed out (grey) field components for 2D transverse magnetic (TM) z-direction mode.
 
-Using this approach means that Maxwell's equations in 3D (shown in :eq:`maxwell3D` as six coupled partial differential equations) reduce to the corresponding 2D form - in this case 2D TMz (shown in in :eq:`maxwell2DTMz`).
+Using this approach means that Maxwell's equations in 3D, shown in :eq:`maxwell3D` as six coupled partial differential equations, reduce to the corresponding 2D form - in this case 2D TMz, shown in :eq:`maxwell2DTMz`.
 
 .. math::
     :label: maxwell3D
@@ -62,9 +62,9 @@ Using this approach means that Maxwell's equations in 3D (shown in :eq:`maxwell3
 
     &\frac{\partial E_z}{\partial t} = \frac{1}{\epsilon} \left( \frac{\partial H_y}{\partial x} - \frac{\partial H_x}{\partial y} - J_{Sz} - \sigma E_z \right) \\
     &\frac{\partial H_x}{\partial t} = \frac{1}{\mu} \left( - \frac{\partial E_z}{\partial y} - M_{Sx} - \sigma^* H_x \right) \\
-    &\frac{\partial H_y}{\partial t} = \frac{1}{\mu} \left( \frac{\partial E_z}{\partial x} - M_{Sy} - \sigma^* H_y \right) \\
+    &\frac{\partial H_y}{\partial t} = \frac{1}{\mu} \left( \frac{\partial E_z}{\partial x} - M_{Sy} - \sigma^* H_y \right)
 
-The numerical solution is obtained directly in the time domain by using a discretized version of Maxwell's curl equations which are applied in each FDTD cell. Since these equations are discretized in both space and time the solution is obtained in an iterative fashion. In each iteration the electromagnetic fields advance (propagate) in the FDTD grid and each iteration corresponds to an elapsed simulated time of one :math:`\Delta t`. Hence by specifying the number of iterations you can instruct the FDTD solver to simulate the fields for a given time window.
+These equations are discretized in both space and time and applied in each FDTD cell. Therefore their numerical solution is obtained directly in the time domain in an iterative fashion. In each iteration the electromagnetic fields advance (propagate) in the FDTD grid and each iteration corresponds to an elapsed simulated time of one :math:`\Delta t`. Hence by specifying the number of iterations you can instruct the FDTD solver to simulate the fields for a given time window.
 
 The price you have to pay for obtaining a solution directly in the time domain using the FDTD method is that the values of :math:`\Delta x`, :math:`\Delta y`, :math:`\Delta z` and :math:`\Delta t` can not be assigned independently. FDTD is a conditionally stable numerical process. The stability condition is known as the CFL condition after the initials of Courant, Freidrichs and Lewy and is given by,
 
