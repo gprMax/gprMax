@@ -122,34 +122,38 @@ class Snapshot(object):
         datasize = 3 * np.dtype(floattype).itemsize * (self.vtk_xfcells - self.vtk_xscells) * (self.vtk_yfcells - self.vtk_yscells) * (self.vtk_zfcells - self.vtk_zscells)
         # Write number of bytes of appended data as UInt32
         self.filehandle.write(pack('I', datasize))
-        for k in range(self.zs, self.zf, self.dz):
-            for j in range(self.ys, self.yf, self.dy):
-                for i in range(self.xs, self.xf, self.dx):
-                    pbar.update(n=12)
-                    # The electric field component value at a point comes from average of the 4 electric field component values in that cell
-                    self.filehandle.write(pack(Snapshot.floatstring, (Ex[i, j, k] + Ex[i, j + 1, k] + Ex[i, j, k + 1] + Ex[i, j + 1, k + 1]) / 4))
-                    self.filehandle.write(pack(Snapshot.floatstring, (Ey[i, j, k] + Ey[i + 1, j, k] + Ey[i, j, k + 1] + Ey[i + 1, j, k + 1]) / 4))
-                    self.filehandle.write(pack(Snapshot.floatstring, (Ez[i, j, k] + Ez[i + 1, j, k] + Ez[i, j + 1, k] + Ez[i + 1, j + 1, k]) / 4))
 
-        self.filehandle.write(pack('I', datasize))
-        for k in range(self.zs, self.zf, self.dz):
-            for j in range(self.ys, self.yf, self.dy):
-                for i in range(self.xs, self.xf, self.dx):
-                    pbar.update(n=12)
-                    # The magnetic field component value at a point comes from average
-                    # of 2 magnetic field component values in that cell and the following cell
-                    self.filehandle.write(pack(Snapshot.floatstring, (Hx[i, j, k] + Hx[i + 1, j, k]) / 2))
-                    self.filehandle.write(pack(Snapshot.floatstring, (Hy[i, j, k] + Hy[i, j + 1, k]) / 2))
-                    self.filehandle.write(pack(Snapshot.floatstring, (Hz[i, j, k] + Hz[i, j, k + 1]) / 2))
+        # The electric field component value at a point comes from average of the 4 electric field component values in that cell
+        # Because of how this is calculated, need to eliminate the last value in each dimension
+        Ex = (Ex[:-1,:-1,:-1] + Ex[:-1,1:,:-1] + Ex[:-1,:-1,1:] +Ex[:-1,1:,1:])/4
+        Ey = (Ey[:-1,:-1,:-1] + Ey[1:,:-1,:-1] + Ey[:-1,:-1,1:] +Ey[1:,:-1,1:])/4
+        Ez = (Ez[:-1,:-1,:-1] + Ez[1:,:-1,:-1] + Ez[:-1,1:,:-1] +Ez[1:,1:,:-1])/4
+        E = np.stack((Ex.transpose(2,1,0),Ey.transpose(2,1,0),Ez.transpose(2,1,0)),axis=-1)
+        self.filehandle.write(E.tobytes()) # send the data to the file
 
+        # Have to generate the I values before the H values as I depends on H
+        # If the code stayed in the same order, it would require making a copy of H values
+        # Note that the I values are save later, making them in the same location in the file as before
+        Ixx = np.zeros((Hx.shape[0]-1,Hx.shape[1]-1,Hx.shape[2]-1),dtype=Hx.dtype)
+        Iyy = np.zeros((Hy.shape[0]-1,Hy.shape[1]-1,Hy.shape[2]-1),dtype=Hy.dtype)
+        Izz = np.zeros((Hz.shape[0]-1,Hz.shape[1]-1,Hz.shape[2]-1),dtype=Hz.dtype)
+        Ixx = (G.dy * (Hy[1:, 1:, :-1] - Hy[1:,:1,:1]) + G.dz * (Hz[1:,:1,:1] - Hz[1:, :-1, 1:]))
+        Iyy = (G.dx * (Hx[1:, 1:, 1:] - Hx[1:, 1:, :-1]) + G.dz * (Hz[:-1, 1:, 1:] - Hz[1:, 1:, 1:]))
+        Izz = (G.dx * (Hx[1:, :-1, 1:] - Hx[1:, 1:, 1:]) + G.dy * (Hy[1:, 1:, 1:] - Hy[:-1, 1:, 1:]))
+        I = np.stack((Ixx.transpose(2,1,0),Iyy.transpose(2,1,0),Izz.transpose(2,1,0)),axis=-1)
+
+        # The magnetic field component value at a point comes from average
+        # of 2 magnetic field component values in that cell and the following cell
         self.filehandle.write(pack('I', datasize))
-        for k in range(self.zs, self.zf, self.dz):
-            for j in range(self.ys, self.yf, self.dy):
-                for i in range(self.xs, self.xf, self.dx):
-                    pbar.update(n=12)
-                    self.filehandle.write(pack(Snapshot.floatstring, Ix(i, j, k, Hx, Hy, Hz, G)))
-                    self.filehandle.write(pack(Snapshot.floatstring, Iy(i, j, k, Hx, Hy, Hz, G)))
-                    self.filehandle.write(pack(Snapshot.floatstring, Iz(i, j, k, Hx, Hy, Hz, G)))
+        Hx = (Hx[:-1, :-1, :-1] + Hx[1:, :-1, :-1]) / 2
+        Hy = (Hy[:-1, :-1, :-1] + Hy[:-1, 1:, :-1]) / 2
+        Hz = (Hz[:-1, :-1, :-1] + Hz[:-1, :-1, 1:]) / 2
+        H = np.stack((Hx.transpose(2,1,0),Hy.transpose(2,1,0),Hz.transpose(2,1,0)),axis=-1)
+        self.filehandle.write(H.tobytes()) # send the data to the file
+
+        # Save the I values
+        self.filehandle.write(pack('I', datasize))       
+        self.filehandle.write(I.tobytes()) # send the data to the file
 
         self.filehandle.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
         self.filehandle.close()
