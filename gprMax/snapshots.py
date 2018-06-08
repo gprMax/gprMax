@@ -122,6 +122,15 @@ class Snapshot(object):
         datasize = 3 * np.dtype(floattype).itemsize * (self.vtk_xfcells - self.vtk_xscells) * (self.vtk_yfcells - self.vtk_yscells) * (self.vtk_zfcells - self.vtk_zscells)
         # Write number of bytes of appended data as UInt32
         self.filehandle.write(pack('I', datasize))
+        
+        # Slice field arrays to user specified size.
+        Ex = Ex[self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1]
+        Ey = Ey[self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1]
+        Ez = Ez[self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1]
+
+        Hx = Hx[self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1]
+        Hy = Hy[self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1]
+        Hz = Hz[self.xs:self.xf + 1, self.ys:self.yf + 1, self.zs:self.zf + 1]
 
         # The electric field component value at a point comes from average of the 4 electric field component values in that cell
         # Because of how this is calculated, need to eliminate the last value in each dimension
