@@ -32,7 +32,7 @@ temporal :math:`\Delta t` steps play a very significant role -- since the smalle
 .. figure:: images/yeecell3d.png
     :width: 500px
 
-    Single FDTD Yee cell showing electric (red) and magnetic (green) field components for 3D transverse electromagnetic (TEM) mode.
+    Single FDTD Yee cell showing electric (red) and magnetic (green) field components.
 
 By assigning appropriate constitutive parameters to the locations of the electromagnetic field components complex shaped targets can be included easily in the models. However, objects with curved boundaries are represented using a staircase approximation.
 
