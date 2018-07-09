@@ -111,7 +111,7 @@ Fractal correlated noise [TUR1997]_ is used to describe the stochastic distribut
 Library of antenna models
 -------------------------
 
-gprMax now includes Python modules with pre-defined models of antennas that behave similarly to commercial antennas [WAR2011]_. Currently models of antennas similar to `Geophysical Survey Systems, Inc. (GSSI) <http://www.geophysical.com>`_ 1.5 GHz (Model 5100) antenna, and `MALA Geoscience <http://www.malags.com/>`_ 1.2 GHz antenna are included. By taking advantage of Python scripting in input files, using such complex structures in a model is straightforward without having to be built step-by-step by the user. For further details see the :ref:`Python section <python>`.
+gprMax now includes Python modules with pre-defined models of antennas that behave similarly to commercial antennas [WAR2011]_ [STA2017]_. Currently models of antennas similar to `Geophysical Survey Systems, Inc. (GSSI) <http://www.geophysical.com>`_ 1.5 GHz (Model 5100) antenna, and 400 MHz antenna, as well as `MALA Geoscience <http://www.malags.com/>`_ 1.2 GHz antenna are included. By taking advantage of Python scripting in input files, using such complex structures in a model is straightforward without having to be built step-by-step by the user. For further details see the :ref:`Python section <python>`.
 
 Anisotropic materials
 ---------------------
@@ -139,6 +139,3 @@ Open source, robust, file formats
 Alongside improvements to the input file there is a new output file format – `HDF5 <http://www.hdfgroup.org/HDF5/>`_ – to manage the larger and more complex data sets that are being generated. HDF5 is a robust, portable and extensible format with a number of free readers available. For further details see the :ref:`output file section <output>`.
 
 In addition, the `Visualization Toolkit (VTK) <http://www.vtk.org>`_ is being used for improved handling and viewing of the detailed 3D FDTD geometry meshes. The VTK is an open-source system for 3D computer graphics, image processing and visualisation. It also has a number of free readers available including `Paraview <http://www.paraview.org>`_. For further details see the :ref:`geometry view command <geometryview>`.
-
-
-

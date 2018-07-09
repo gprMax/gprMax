@@ -19,6 +19,7 @@ References
 .. [LUE1994] Luebbers, R., Steich, D., & Kunz, K. (1993). FDTD calculation of scattering from frequency-dependent materials. Antennas and Propagation, IEEE Transactions on, 41(9), 1249-1257. (http://dx.doi.org/10.1109/8.247751)
 .. [MAL1994] Maloney, J. G., Shlager, K. L., & Smith, G. S. (1994). A simple FDTD model for transient excitation of antennas by transmission lines. Antennas and Propagation, IEEE Transactions on, 42(2), 289-292.
 .. [PIE2009] Pieraccini, M., Bicci, A., Mecatti, D., Macaluso, G., & Atzeni, C. (2009). Propagation of large bandwidth microwave signals in water. Antennas and Propagation, IEEE Transactions on, 57(11), 3612-3618. (http://dx.doi.org/10.1109/tap.2009.2025674)
+.. [STA2017] Stadler, S. (2017). A Forward Modeling Study for the Investigation of the Vertical Water-Content Distribution of Using Guided GPR Waves (Master’s Thesis, Freiberg University of Mining and Technology, Germany) (https://app.box.com/s/h2n2ytsdllcm77du1o9lknumngmq8vq8)
 .. [TAF2005] Taflove, A., & Hagness, S. C. (2005). Computational electrodynamics. Artech house.
 .. [TEI1998] Teixeira, F. L., Chew, W. C., Straka, M., Oristaglio, M. L., & Wang, T. (1998). Finite-difference time-domain simulation of ground penetrating radar on dispersive, inhomogeneous, and conductive soils. Geoscience and Remote Sensing, IEEE Transactions on, 36(6), 1928-1937. (http://dx.doi.org/10.1109/36.729364)
 .. [TUR1987] Turcotte, D. L. (1987). A fractal interpretation of topography and geoid spectra on the Earth, Moon, Venus, and Mars. Journal of Geophysical Research: Solid Earth (1978–2012), 92(B4), E597-E601. (http://dx.doi.org/10.1029/jb092ib04p0e597)
@@ -29,4 +30,3 @@ References
 .. [WEN2007b] Weng, W. C., Yang, F., & Elsherbeni, A. Z. (2007). Linear antenna array synthesis using Taguchi's method: A novel optimization technique in electromagnetics. Antennas and Propagation, IEEE Transactions on, 55(3), 723-730.
 .. [WHI2009] Whittow, W. G., & Edwards, R. M. (2009). Effects of averaging procedures for electrical properties at the interface of dissimilar tissues in the human head with finite-difference time-domain modelling. Science, Measurement & Technology, IET, 3(1), 51-58.
 .. [YEE1966] Yee, K. S. (1966). Numerical solution of initial boundary value problems involving Maxwell’s equations in isotropic media. IEEE Trans. Antennas Propag, 14(3), 302-307. (http://dx.doi.org/10.1109/TAP.1966.1138693)
-
