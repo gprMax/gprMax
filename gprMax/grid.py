@@ -87,6 +87,7 @@ class FDTDGrid(Grid):
         self.title = ''
         self.messages = True
         self.tqdmdisable = False
+        self.memoryusage = 0
 
         # Get information about host machine
         self.hostinfo = None
@@ -95,11 +96,16 @@ class FDTDGrid(Grid):
         self.nthreads = 0
 
         # GPU
-        # Threads per block
+        # Threads per block - electric and magnetic field updates
         self.tpb = (256, 1, 1)
 
         # GPU object
         self.gpu = None
+
+        # Copy snapshot data from GPU to CPU during simulation
+        # N.B. This will happen if the requested snapshots are too large to fit
+        # on the memory of the GPU. If True this will slow performance significantly
+        self.snapsgpu2cpu = False
 
         # Threshold (dB) down from maximum power (0dB) of main frequency used
         # to calculate highest frequency for numerical dispersion analysis
@@ -178,6 +184,60 @@ class FDTDGrid(Grid):
         self.Ty = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
         self.Tz = np.zeros((Material.maxpoles, self.nx + 1, self.ny + 1, self.nz + 1), dtype=complextype)
         self.updatecoeffsdispersive = np.zeros((len(self.materials), 3 * Material.maxpoles), dtype=complextype)
+
+    def memory_estimate_basic(self):
+        """Estimate the amount of memory (RAM) required to run a model."""
+
+        stdoverhead = 45e6
+
+        # 6 x field arrays + 6 x ID arrays
+        fieldarrays = (6 + 6) * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(floattype).itemsize
+
+        solidarray = self.nx * self.ny * self.nz * np.dtype(np.uint32).itemsize
+
+        # 12 x rigidE array components + 6 x rigidH array components
+        rigidarrays = (12 + 6) * self.nx * self.ny * self.nz * np.dtype(np.int8).itemsize
+
+        # PML arrays
+        pmlarrays = 0
+        for (k, v) in self.pmlthickness.items():
+            if v > 0:
+                if 'x' in k:
+                    pmlarrays += ((v + 1) * self.ny * (self.nz + 1))
+                    pmlarrays += ((v + 1) * (self.ny + 1) * self.nz)
+                    pmlarrays += (v * self.ny * (self.nz + 1))
+                    pmlarrays += (v * (self.ny + 1) * self.nz)
+                elif 'y' in k:
+                    pmlarrays += (self.nx * (v + 1) * (self.nz + 1))
+                    pmlarrays += ((self.nx + 1) * (v + 1) * self.nz)
+                    pmlarrays += ((self.nx + 1) * v * self.nz)
+                    pmlarrays += (self.nx * v * (self.nz + 1))
+                elif 'z' in k:
+                    pmlarrays += (self.nx * (self.ny + 1) * (v + 1))
+                    pmlarrays += ((self.nx + 1) * self.ny * (v + 1))
+                    pmlarrays += ((self.nx + 1) * self.ny * v)
+                    pmlarrays += (self.nx * (self.ny + 1) * v)
+
+        self.memoryusage = int(stdoverhead + fieldarrays + solidarray + rigidarrays + pmlarrays)
+
+    def memory_check(self, snapsmemsize=0):
+        """Check the required amount of memory (RAM) is available on the host and GPU if specified.
+
+        Args:
+            snapsmemsize (int): amount of memory (bytes) required to store all requested snapshots
+        """
+
+        # Check if model can be built and/or run on host
+        if self.memoryusage > self.hostinfo['ram']:
+            raise GeneralError('Memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(self.memoryusage), human_size(self.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
+
+        # Check if model can be run on specified GPU if required
+        if self.gpu is not None:
+            if self.memoryusage > self.gpu.totalmem:
+                if snapmemsize != 0:
+                    G.snapsgpu2cpu = True
+                else:
+                    raise GeneralError('Memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(self.memoryusage), human_size(self.gpu.totalmem, a_kilobyte_is_1024_bytes=True), self.gpu.deviceID, self.gpu.name))
 
     def gpu_set_blocks_per_grid(self):
         """Set the blocks per grid size used for updating the electric and magnetic field arrays on a GPU."""
