@@ -21,7 +21,9 @@ import decimal as d
 import inspect
 import sys
 
-from colorama import init, Fore, Style
+from colorama import init
+from colorama import Fore
+from colorama import Style
 init()
 import numpy as np
 from scipy import interpolate
@@ -32,7 +34,6 @@ from gprMax.exceptions import CmdInputError
 from gprMax.exceptions import GeneralError
 from gprMax.utilities import get_host_info
 from gprMax.utilities import human_size
-from gprMax.utilities import memory_usage
 from gprMax.utilities import round_value
 from gprMax.waveforms import Waveform
 
@@ -200,19 +201,6 @@ def process_singlecmds(singlecmds, G):
             raise CmdInputError(cmd + ' must have a value greater than zero')
     if G.messages:
         print('Time window: {:g} secs ({} iterations)'.format(G.timewindow, G.iterations))
-
-    # Estimate memory (RAM) usage
-    memestimate = memory_usage(G)
-    # Check if model can be built and/or run on host
-    if memestimate > G.hostinfo['ram']:
-        raise GeneralError('Estimated memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(memestimate), human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
-
-    # Check if model can be run on specified GPU if required
-    if G.gpu is not None:
-        if memestimate > G.gpu.totalmem:
-            raise GeneralError('Estimated memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(memestimate), human_size(G.gpu.totalmem, a_kilobyte_is_1024_bytes=True), G.gpu.deviceID, G.gpu.name))
-    if G.messages:
-        print('Estimated memory (RAM) required: ~{}'.format(human_size(memestimate)))
 
     # PML
     cmd = '#pml_cells'
