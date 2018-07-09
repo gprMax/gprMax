@@ -392,4 +392,3 @@ def detect_gpus():
     print('GPU(s) detected: {}'.format(' | '.join(gputext)))
 
     return gpus
-    

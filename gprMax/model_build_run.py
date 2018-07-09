@@ -547,33 +547,33 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Store field component values for every receiver
         if G.rxs:
             store_outputs_gpu(np.int32(len(G.rxs)), np.int32(iteration),
-                                rxcoords_gpu.gpudata, rxs_gpu.gpudata,
-                                G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                                G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                                block=(1, 1, 1), grid=(round32(len(G.rxs)), 1, 1))
+                              rxcoords_gpu.gpudata, rxs_gpu.gpudata,
+                              G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                              G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                              block=(1, 1, 1), grid=(round32(len(G.rxs)), 1, 1))
 
         # Store any snapshots
         for i, snap in enumerate(G.snapshots):
             if snap.time == iteration + 1:
                 store_snapshot_gpu(np.int32(i), np.int32(snap.xs),
-                                    np.int32(snap.xf), np.int32(snap.ys),
-                                    np.int32(snap.yf), np.int32(snap.zs),
-                                    np.int32(snap.zf), np.int32(snap.dx),
-                                    np.int32(snap.dy), np.int32(snap.dz),
-                                    G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                                    G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                                    snapEx_gpu.gpudata, snapEy_gpu.gpudata, snapEz_gpu.gpudata,
-                                    snapHx_gpu.gpudata, snapHy_gpu.gpudata, snapHz_gpu.gpudata,
-                                    block=Snapshot.tpb, grid=Snapshot.bpg)
+                                   np.int32(snap.xf), np.int32(snap.ys),
+                                   np.int32(snap.yf), np.int32(snap.zs),
+                                   np.int32(snap.zf), np.int32(snap.dx),
+                                   np.int32(snap.dy), np.int32(snap.dz),
+                                   G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                                   G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                                   snapEx_gpu.gpudata, snapEy_gpu.gpudata, snapEz_gpu.gpudata,
+                                   snapHx_gpu.gpudata, snapHy_gpu.gpudata, snapHz_gpu.gpudata,
+                                   block=Snapshot.tpb, grid=Snapshot.bpg)
                 if G.snapsgpu2cpu:
                     gpu_get_snapshot_array(snapEx_gpu.get(), snapEy_gpu.get(), snapEz_gpu.get(),
-                                            snapHx_gpu.get(), snapHy_gpu.get(), snapHz_gpu.get(), i, snap)
+                                           snapHx_gpu.get(), snapHy_gpu.get(), snapHz_gpu.get(), i, snap)
 
         # Update magnetic field components
         update_h_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
-                        G.ID_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata,
-                        G.Hz_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata,
-                        G.Ez_gpu.gpudata, block=G.tpb, grid=G.bpg)
+                     G.ID_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata,
+                     G.Hz_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata,
+                     G.Ez_gpu.gpudata, block=G.tpb, grid=G.bpg)
 
         # Update magnetic field components with the PML correction
         for pml in G.pmls:
@@ -582,28 +582,28 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Update magnetic field components for magetic dipole sources
         if G.magneticdipoles:
             update_magnetic_dipole_gpu(np.int32(len(G.magneticdipoles)), np.int32(iteration),
-                                        floattype(G.dx), floattype(G.dy), floattype(G.dz),
-                                        srcinfo1_magnetic_gpu.gpudata, srcinfo2_magnetic_gpu.gpudata,
-                                        srcwaves_magnetic_gpu.gpudata, G.ID_gpu.gpudata,
-                                        G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                                        block=(1, 1, 1), grid=(round32(len(G.magneticdipoles)), 1, 1))
+                                       floattype(G.dx), floattype(G.dy), floattype(G.dz),
+                                       srcinfo1_magnetic_gpu.gpudata, srcinfo2_magnetic_gpu.gpudata,
+                                       srcwaves_magnetic_gpu.gpudata, G.ID_gpu.gpudata,
+                                       G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                                       block=(1, 1, 1), grid=(round32(len(G.magneticdipoles)), 1, 1))
 
         # Update electric field components
         # If all materials are non-dispersive do standard update
         if Material.maxpoles == 0:
             update_e_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz), G.ID_gpu.gpudata,
-                            G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                            G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                            block=G.tpb, grid=G.bpg)
+                         G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                         G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                         block=G.tpb, grid=G.bpg)
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
         else:
             update_e_dispersive_A_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
-                                        np.int32(Material.maxpoles), G.updatecoeffsdispersive_gpu.gpudata,
-                                        G.Tx_gpu.gpudata, G.Ty_gpu.gpudata, G.Tz_gpu.gpudata, G.ID_gpu.gpudata,
-                                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                                        G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                                        block=G.tpb, grid=G.bpg)
+                                      np.int32(Material.maxpoles), G.updatecoeffsdispersive_gpu.gpudata,
+                                      G.Tx_gpu.gpudata, G.Ty_gpu.gpudata, G.Tz_gpu.gpudata, G.ID_gpu.gpudata,
+                                      G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                                      G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                                      block=G.tpb, grid=G.bpg)
 
         # Update electric field components with the PML correction
         for pml in G.pmls:
@@ -612,28 +612,28 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Update electric field components for voltage sources
         if G.voltagesources:
             update_voltage_source_gpu(np.int32(len(G.voltagesources)), np.int32(iteration),
-                                        floattype(G.dx), floattype(G.dy), floattype(G.dz),
-                                        srcinfo1_voltage_gpu.gpudata, srcinfo2_voltage_gpu.gpudata,
-                                        srcwaves_voltage_gpu.gpudata, G.ID_gpu.gpudata,
-                                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                                        block=(1, 1, 1), grid=(round32(len(G.voltagesources)), 1, 1))
+                                      floattype(G.dx), floattype(G.dy), floattype(G.dz),
+                                      srcinfo1_voltage_gpu.gpudata, srcinfo2_voltage_gpu.gpudata,
+                                      srcwaves_voltage_gpu.gpudata, G.ID_gpu.gpudata,
+                                      G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                                      block=(1, 1, 1), grid=(round32(len(G.voltagesources)), 1, 1))
 
         # Update electric field components for Hertzian dipole sources (update any Hertzian dipole sources last)
         if G.hertziandipoles:
             update_hertzian_dipole_gpu(np.int32(len(G.hertziandipoles)), np.int32(iteration),
-                                        floattype(G.dx), floattype(G.dy), floattype(G.dz),
-                                        srcinfo1_hertzian_gpu.gpudata, srcinfo2_hertzian_gpu.gpudata,
-                                        srcwaves_hertzian_gpu.gpudata, G.ID_gpu.gpudata,
-                                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                                        block=(1, 1, 1), grid=(round32(len(G.hertziandipoles)), 1, 1))
+                                       floattype(G.dx), floattype(G.dy), floattype(G.dz),
+                                       srcinfo1_hertzian_gpu.gpudata, srcinfo2_hertzian_gpu.gpudata,
+                                       srcwaves_hertzian_gpu.gpudata, G.ID_gpu.gpudata,
+                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                                       block=(1, 1, 1), grid=(round32(len(G.hertziandipoles)), 1, 1))
 
         # If there are any dispersive materials do 2nd part of dispersive update (it is split into two parts as it requires present and updated electric field values). Therefore it can only be completely updated after the electric field has been updated by the PML and source updates.
         if Material.maxpoles > 0:
             update_e_dispersive_B_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
-                                        np.int32(Material.maxpoles), G.updatecoeffsdispersive_gpu.gpudata,
-                                        G.Tx_gpu.gpudata, G.Ty_gpu.gpudata, G.Tz_gpu.gpudata, G.ID_gpu.gpudata,
-                                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                                        block=G.tpb, grid=G.bpg)
+                                      np.int32(Material.maxpoles), G.updatecoeffsdispersive_gpu.gpudata,
+                                      G.Tx_gpu.gpudata, G.Ty_gpu.gpudata, G.Tz_gpu.gpudata, G.ID_gpu.gpudata,
+                                      G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                                      block=G.tpb, grid=G.bpg)
 
     # Copy output from receivers array back to correct receiver objects
     if G.rxs:
@@ -643,7 +643,7 @@ def solve_gpu(currentmodelrun, modelend, G):
     if G.snapshots and not G.snapsgpu2cpu:
         for i, snap in enumerate(G.snapshots):
             gpu_get_snapshot_array(snapEx_gpu.get(), snapEy_gpu.get(), snapEz_gpu.get(),
-                                    snapHx_gpu.get(), snapHy_gpu.get(), snapHz_gpu.get(), i, snap)
+                                   snapHx_gpu.get(), snapHy_gpu.get(), snapHz_gpu.get(), i, snap)
 
     iterend.record()
     iterend.synchronize()

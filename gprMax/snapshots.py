@@ -174,7 +174,7 @@ def gpu_initialise_snapshot_array(G):
         G (class): Grid class instance - holds essential parameters describing the model.
 
     Returns:
-        snapE*_gpu, snapH*_gpu (float): numpy arrays of snapshot data on GPU.
+        snapE_gpu, snapH_gpu (float): numpy arrays of snapshot data on GPU.
     """
 
     import pycuda.gpuarray as gpuarray
@@ -220,8 +220,8 @@ def gpu_get_snapshot_array(snapEx_gpu, snapEy_gpu, snapEz_gpu, snapHx_gpu, snapH
     """
 
     snap.electric = np.stack((snapEx_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
-                                    snapEy_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
-                                    snapEz_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf])).reshape(-1, order='F')
+                              snapEy_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
+                              snapEz_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf])).reshape(-1, order='F')
     snap.magnetic = np.stack((snapHx_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
-                                    snapHy_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
-                                    snapHz_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf])).reshape(-1, order='F')
+                              snapHy_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
+                              snapHz_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf])).reshape(-1, order='F')

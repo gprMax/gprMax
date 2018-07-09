@@ -28,9 +28,11 @@ np.seterr(invalid='raise')
 from gprMax.constants import c
 from gprMax.constants import floattype
 from gprMax.constants import complextype
+from gprMax.exceptions import GeneralError
 from gprMax.materials import Material
 from gprMax.pml import PML
 from gprMax.utilities import fft_power
+from gprMax.utilities import human_size
 from gprMax.utilities import round_value
 
 
@@ -234,8 +236,8 @@ class FDTDGrid(Grid):
         # Check if model can be run on specified GPU if required
         if self.gpu is not None:
             if self.memoryusage > self.gpu.totalmem:
-                if snapmemsize != 0:
-                    G.snapsgpu2cpu = True
+                if snapsmemsize != 0:
+                    self.snapsgpu2cpu = True
                 else:
                     raise GeneralError('Memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(self.memoryusage), human_size(self.gpu.totalmem, a_kilobyte_is_1024_bytes=True), self.gpu.deviceID, self.gpu.name))
 
