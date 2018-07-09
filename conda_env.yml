@@ -10,7 +10,7 @@ dependencies:
 - jupyter
 - matplotlib
 - mkl=2018.0.0
-- numpy=1.13.*
+- numpy
 - psutil
 - scipy
 
