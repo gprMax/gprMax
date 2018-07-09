@@ -102,8 +102,8 @@ def write_hdf5_outputfile(outputfile, Ex, Ey, Ez, Hx, Hy, Hz, G):
     f.attrs['gprMax'] = __version__
     f.attrs['Title'] = G.title
     f.attrs['Iterations'] = G.iterations
-    f.attrs['nx, ny, nz'] = (G.nx, G.ny, G.nz)
-    f.attrs['dx, dy, dz'] = (G.dx, G.dy, G.dz)
+    f.attrs['nx_ny_nz'] = (G.nx, G.ny, G.nz)
+    f.attrs['dx_dy_dz'] = (G.dx, G.dy, G.dz)
     f.attrs['dt'] = G.dt
     nsrc = len(G.voltagesources + G.hertziandipoles + G.magneticdipoles + G.transmissionlines)
     f.attrs['nsrc'] = nsrc
