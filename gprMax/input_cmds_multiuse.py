@@ -503,10 +503,6 @@ def process_multicmds(multicmds, G):
             if len(tmp) != 11:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
 
-            # Warn about using snapshots on GPU
-            if G.gpu is not None:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' The #snapshot command cannot currently be used with GPU solving.')
-
             xs = G.calculate_coord('x', tmp[0])
             ys = G.calculate_coord('y', tmp[1])
             zs = G.calculate_coord('z', tmp[2])
@@ -545,7 +541,7 @@ def process_multicmds(multicmds, G):
             s = Snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, tmp[10])
 
             if G.messages:
-                print('Snapshot from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, at {:g} secs with filename {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dx * G.dy, dx * G.dz, s.time * G.dt, s.basefilename))
+                print('Snapshot from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, at {:g} secs with filename {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz, s.time * G.dt, s.basefilename))
 
             G.snapshots.append(s)
 
