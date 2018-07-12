@@ -345,7 +345,11 @@ elseif flg == 2
     if length(HDR.antenna) == 14                               % Antenna name
         HDR.antenna           = HDR.antenna;
     elseif length(HDR.antenna) < 14
-        HDR.antenna           = pad(HDR.antenna, 14, 'right');
+        if verLessThan('matlab', '9.1')
+            HDR.antenna           = [HDR.antenna repmat(' ', 1, 14 - length(HDR.antenna))];
+        else
+            HDR.antenna           = pad(HDR.antenna, 14, 'right');
+        end
     elseif length(HDR.antenna) > 14
         HDR.antenna           = HDR.antenna(1 : 14);
     end
@@ -355,7 +359,11 @@ elseif flg == 2
     if length(HDR.fname) == 12
         HDR.raw_file_name     = HDR.fname;                     % Raw file name (File name during survey)
     elseif length(HDR.fname) < 12
-        HDR.raw_file_name     = pad(HDR.fname, 12, 'right');
+        if verLessThan('matlab', '9.1')
+            HDR.raw_file_name     = [HDR.raw_file_name repmat(' ', 1, 12 - length(HDR.raw_file_name))];
+        else
+            HDR.raw_file_name     = pad(HDR.fname, 12, 'right');
+        end
     elseif length(HDR.fname) > 12
         HDR.raw_file_name     = HDR.fname(1:12);
     end
