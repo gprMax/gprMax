@@ -187,6 +187,8 @@ def process_singlecmds(singlecmds, G):
     tmp = tmp[0].lower()
 
     # If number of iterations given
+    # The +/- 1 used in calculating the number of iterations is to account for
+    # the fact that the solver (iterations) loop runs from 0 to < G.iterations
     try:
         tmp = int(tmp)
         G.timewindow = (tmp - 1) * G.dt
@@ -196,7 +198,7 @@ def process_singlecmds(singlecmds, G):
         tmp = float(tmp)
         if tmp > 0:
             G.timewindow = tmp
-            G.iterations = round_value((tmp / G.dt)) + 1
+            G.iterations = int(np.ceil(tmp / G.dt)) + 1
         else:
             raise CmdInputError(cmd + ' must have a value greater than zero')
     if G.messages:
