@@ -73,8 +73,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
         plt (object): matplotlib plot object.
     """
 
-    time = np.linspace(0, 1, iterations)
-    time *= (iterations * dt)
+    time = np.linspace(0, (iterations - 1) * dt, num=iterations)
     waveform = np.zeros(len(time))
     timeiter = np.nditer(time, flags=['c_index'])
 

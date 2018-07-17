@@ -49,8 +49,7 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     iterations = f.attrs['Iterations']
 
     # Calculate time array and frequency bin spacing
-    time = np.linspace(0, 1, iterations)
-    time *= (iterations * dt)
+    time = np.linspace(0, (iterations - 1) * dt, num=iterations)
     df = 1 / np.amax(time)
 
     print('Time window: {:g} s ({} iterations)'.format(np.amax(time), iterations))

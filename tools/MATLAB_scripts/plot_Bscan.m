@@ -17,8 +17,8 @@ if filename ~= 0
     field = input(prompt,'s');
     fieldpath = strcat('/rxs/rx1/', field);
     field = h5read(filename, fieldpath)';
-    time = linspace(0, iterations*dt, iterations)';
-    traces = 0:size(field,2);
+    time = linspace(0, (iterations - 1) * dt, iterations)';
+    traces = 0:size(field, 2);
 
     fh1=figure('Name', filename);
     clims = [-max(max(abs(field))) max(max(abs(field)))];

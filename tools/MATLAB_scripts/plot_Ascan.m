@@ -20,7 +20,7 @@ if filename ~= 0
     header.nrx = h5readatt(fullfilename, '/', 'nrx');
 
     % Time vector for plotting
-    time = linspace(0, (header.iterations)*(header.dt), header.iterations)';
+    time = linspace(0, (header.iterations - 1) * header.dt, header.iterations)';
 
     % Initialise structure for field arrays
     fields.ex = zeros(header.iterations, header.nrx);
