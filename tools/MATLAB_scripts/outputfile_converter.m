@@ -1,33 +1,38 @@
-% outputfile_converter.m - converts gprMax merged output HDF5 file to RD3, DZT, DT1 files.
+% outputfile_converter.m - converts gprMax merged output HDF5 file to RD3,
+% DZT, DT1 and IPRB files.
 %
 % Author: Dimitrios Angelis
 % Copyright: 2017-2018
-% Last modified: 25/03/2018
+% Last modified: 18/07/2018
 
 clear, clc, close all;
 
-% Select file. Keep file name, path name and file extension ==============
-[infile, path] = uigetfile('*.out', 'Select gprMax output file', 'Multiselect', 'Off');
+% Select file =============================================================
+[infile, path] = uigetfile('*.out', 'Select gprMax output file', ...
+    'Multiselect', 'Off');
 if isequal(infile, 0)
-    erd = errordlg('No output file');
-    but = findobj(erd, 'Style', 'Pushbutton');
-    delete(but);
-    pause(1);   close(erd);
-    HDR = [];   data = [];
+    infile = [];
+    path   = [];
+    HDR    = [];
+    data   = [];
     return
 end
+
+
+% File name, path name and file extension =================================
 HDR.fname = strrep(lower(infile), '.out', '');
 HDR.pname = path;
 HDR.fext  = 'out';
 
 
-% Read data from HDF5 file ===============================================
+% Read data from HDF5 file ================================================
+infile = [HDR.pname infile];
 dataex = h5read(infile, '/rxs/rx1/Ex');
 dataey = h5read(infile, '/rxs/rx1/Ey');
 dataez = h5read(infile, '/rxs/rx1/Ez');
 
 
-% Field check ============================================================
+% Field check =============================================================
 if dataey == 0 & dataez == 0
     data = dataex';
 elseif dataex == 0 & dataez == 0
@@ -48,21 +53,25 @@ else
 end
 
 
-% Convert to double precision ============================================
+% Sigle to double precision ===============================================
 data = double(data);
 
 
-% The HDF5 file does not contain information about the Tx-Rx separation ==
-% distance and the trace step. The user needs to provide this information
+% The HDF5 file does not contain information about the centre frequency of
+% the waveform, the Tx-Rx separation distance and the trace step. The user
+% needs to provide this information.
 while 1
-    prompt = {'Antenna Separation (m)', 'Trace Step (m)'};
-    dlg_title = 'gprMax information';
-    answer = inputdlg(prompt, dlg_title, [1 45]);
+    prompt = {'Waveform Centre Frequency (MHz)', ...
+        'Source-Receiver Distance (m)', 'Trace Step (m)'};
+    dlg_title = 'Additional Information';
+    answer = inputdlg(prompt, dlg_title, [1 50]);
     answer = str2double(answer);
     if isempty(answer)
-        HDR = [];   data = [];
+        HDR  = [];
+        data = [];
         return
-    elseif isnan(answer(1)) || isnan(answer(2)) || answer(2) == 0
+    elseif isnan(answer(1)) || isnan(answer(2)) || isnan(answer(3))...
+            || answer(1) <= 0 || answer(2) < 0 || answer(3) <=0
         continue
     else
         break
@@ -70,41 +79,30 @@ while 1
 end
 
 
-% Create header with basic informatio =====================================
-info = h5info(infile);
-attributes = info.Attributes;
-% Antenna name
-if length(attributes) > 4
-    gMaxV = cell2mat(h5readatt(infile, '/', 'gprMax'));
-    HDR.antenna = (['gprMax ', gMaxV]);
-else
-    HDR.antenna = ('gprMax');
-end
-
-HDR.ant_sep = answer(1);                              % Tx-Rx separation distance
-[HDR.num_samp, HDR.num_trac] = size(data);            % Samples & traces
-HDR.trac_int = answer(2);                             % Trace interval
-HDR.samp_int = h5readatt(infile, '/', 'dt') * 10^9;   % Sampling interval
-HDR.samp_freq = (1 / HDR.samp_int) * 10^3;            % Sampling Frequency
-HDR.time_window = HDR.num_samp * HDR.samp_int;        % Time window
-
-x = 0 : HDR.trac_int : (HDR.num_trac - 1) * HDR.trac_int;
-t = HDR.samp_int : HDR.samp_int : HDR.num_samp * HDR.samp_int;
+% Create header with basic information ====================================
+HDR.centre_freq = answer(1);                                    % Centre frequency (MHz)
+HDR.ant_sep = answer(2);                                        % Antenna seperation / Tx-Rx distance (m)
+HDR.trac_int = answer(3);                                       % Trace interval / step (m)
+HDR.samp_int = h5readatt(infile, '/', 'dt') * 10^9;             % Sampling interval / step (ns)
+HDR.samp_freq = (1 / HDR.samp_int) * 10^3;                      % Sampling frequency (MHz)
+[HDR.num_samp, HDR.num_trac] = size(data);                      % Number of samples & traces
+HDR.time_window = HDR.num_samp * HDR.samp_int;                  % Time window (ns)
+HDR.antenna = ['gprMax ', num2str(HDR.centre_freq), 'MHz'];     % Antenna name
 
 
 %**************************************************************************
 %******************************** Optional ********************************
 
 % Resample to 1024 samples ================================================
-% I usually perform this step for either 512 or 1024 samples (line 98)
-% because many programs cannot load files with more samples.
-tx1 = 1 : HDR.num_samp;
-fs1 = 1024 / HDR.num_samp;
-data = resample(data, tx1, fs1);
+% I usually perform this step for either 512 or 1024 samples (line 100)
+% because many GPR processing software cannot load files with more samples.
+tx1  = 1 : HDR.num_samp;
+fs1  = 1024 / HDR.num_samp;                                     % <------- 1024 samples
+data = resample(data, tx1, fs1, 'spline');
 
-[HDR.num_samp, ~] = size(data);                         % New number of samples
-HDR.samp_int      = HDR.time_window / HDR.num_samp;     % New sampling interval
-HDR.samp_freq     = (1 / HDR.samp_int) * 10^3;          % New sampling frequency
+[HDR.num_samp, ~] = size(data);                                 % New number of samples after resampling
+HDR.samp_int      = HDR.time_window / HDR.num_samp;             % New sampling interval (ns) after resampling
+HDR.samp_freq     = (1 / HDR.samp_int) * 10^3;                  % New sampling frequency (MHz) after resampling
 
 %**************************************************************************
 %**************************************************************************
@@ -114,9 +112,9 @@ HDR.samp_freq     = (1 / HDR.samp_int) * 10^3;          % New sampling frequency
 %******************************** Optional ********************************
 
 % Data scale ==============================================================
-data = data * 32767.5 ./ max(max(abs(data)));
-%signal * ((1 - 1 / 2^bitrate) * 32768) / max(signal)
-data(data >= 32767.5) = 32767;
+data = data * 32767.5 ./ max(max(abs(data)));                   %signal * ((1 - 1 / 2^bitrate) * 32768) / max(signal)
+data(data >= 32767) = 32767;
+data(data <= -32768) = -32768;
 data = round(data);
 
 %**************************************************************************
@@ -124,8 +122,11 @@ data = round(data);
 
 
 % Plots ===================================================================
-pmin = min(data(:));
-pmax = max(data(:));
+pmin = min(data(:));                                            %Minimun plot scale
+pmax = max(data(:));                                            %Maximum plot scale
+
+x = 0 : HDR.trac_int : (HDR.num_trac - 1) * HDR.trac_int;       %Distance of each trace (m)
+t = HDR.samp_int : HDR.samp_int : HDR.num_samp * HDR.samp_int;  %Time of each sample (ns)
 
 % Bscan
 f1 = figure('Name', 'Bscan', ...
@@ -134,7 +135,7 @@ f1 = figure('Name', 'Bscan', ...
     'Toolbar', 'Figure');
 
 clims = [pmin pmax];
-colormap (flipud(bone(256)));
+colormap (bone(256));                                           %Black(negative) to white(positive)
 im1 = imagesc(x, t, data, clims);
 set(im1, 'cdatamapping', 'scaled');
 title(HDR.fname);
@@ -149,10 +150,11 @@ movegui(f1, 'northeast');
 
 % Frequency Spectrum
 m = 2.^nextpow2(HDR.num_samp);
-amp = fft(data, m);
 
+amp = fft(data, m);
 amp = (abs(amp(1 : m / 2, :)) / m) * 2;
 amp = mean(amp.');
+
 freq = HDR.samp_freq .* (0 : (m / 2) - 1) / m;
 
 f2 = figure('Name', 'Frequency Spectrum', ...
@@ -170,60 +172,62 @@ box off;
 movegui(f2, 'southeast');
 
 
-% Export option rd3 or dzt or dt1 =========================================
+% Export option: RD3/RAD or DZT or DT1/HD or IPRB/IPRH ====================
 while 1
-    choice = questdlg('File Type', 'Export', ...
-        'RD3', 'DZT', 'DT1', 'Default');
-    switch choice
-        case 'RD3'
-            flg = 1;
-            break
-        case 'DZT'
-            flg = 2;
-            break
-        case 'DT1'
-            flg = 3;
-            break
+    prompt = {'1 = RD3,  2 = DZT,  3 = DT1,  4 = IPRB'};
+    dlg_title = 'Choose GPR Format';
+    answer = inputdlg(prompt, dlg_title, [1 45]);
+    answer = str2double(answer);
+    if isempty(answer)
+        return
+    elseif ~isnumeric(answer) || answer ~= 1 && answer ~= 2 ...
+            && answer ~= 3 && answer ~= 4
+        continue
+    else
+        gpr_format = answer;
+        break
     end
 end
+
 
 wb = waitbar(0, 'Exporting...', 'Name', 'Exporting File');
 
 
 % RAD / RD3, Mala GeoScience ==============================================
-% Rad is the header file. In this file is all the important
-% information such as the number of traces, samples, measurement intervals...
-% Rd3 is the data file. This file contains only the data (amplitudes) in a
-% binary form.
-if flg == 1
+% Rad is the header file. In this file is all the important information
+% such as the number of samples, traces, measurement intervals can be
+% found.
+% Rd3 is the data file. This file contains only the data (amplitude values)
+% in a binary form.
+if gpr_format == 1
     % Header structure
-    HDR.fname                 = HDR.fname;                     % File name
-    HDR.num_samp              = HDR.num_samp;                  % Number of samples
-    HDR.samp_freq             = HDR.samp_freq;                 % Sampling frequency
-    HDR.frequency_steps       = 1;                             % Frequency steps
-    HDR.signal_pos            = 0;
-    HDR.raw_signal_pos        = 0;
-    HDR.distance_flag         = 1;                             % Distance flag: 0 time interval, 1 distance interval
-    HDR.time_flag             = 0;                             % Time flag    : 0 distance interval, 1 time interval
-    HDR.program_flag          = 0;
-    HDR.external_flag         = 0;
-    HDR.trac_int_sec          = 0;                             % Trace interval in seconds(only if Time flag = 1)
-    HDR.trac_int              = HDR.trac_int;                  % Trace interval in meters (only if Distance flag = 1)
-    HDR.operator              = 'Unknown';
-    HDR.customer              = 'Unknown';
-    HDR.site                  = 'gprMax';
-    HDR.antenna               = HDR.antenna;                   % Antenna name
-    HDR.antenna_orientation   = 'NOT VALID FIELD';
-    HDR.ant_sep               = HDR.ant_sep;                   % Antenna seperation (Tx-Rx distance)
-    HDR.comment               = '-';
-    HDR.time_window           = HDR.time_window;               % Time window
-    HDR.stacks                = 0;                             % Stacks
-    HDR.stack_exponent        = 0;                             % Stack exponent
-    HDR.stacking_time         = 0;                             % Stacking Time
-    HDR.num_trac              = HDR.num_trac;                  % Number of traces
-    HDR.stop_pos              = HDR.num_trac * HDR.trac_int;   % Stop position (meters)
+    HDR.fname                 = HDR.fname;                      % File name
+    HDR.num_samp              = HDR.num_samp;                   % Number of samples
+    HDR.samp_freq             = HDR.samp_freq;                  % Sampling frequency (MHz)
+    HDR.frequency_steps       = 1;                              % Frequency steps
+    HDR.signal_pos            = 0;                              % Signal position
+    HDR.raw_signal_pos        = 0;                              % Raw signal position
+    HDR.distance_flag         = 1;                              % Distance flag: 0 time interval, 1 distance interval
+    HDR.time_flag             = 0;                              % Time flag    : 0 distance interval, 1 time interval
+    HDR.program_flag          = 0;                              % Program flag
+    HDR.external_flag         = 0;                              % External flag
+    HDR.trac_int_sec          = 0;                              % Trace interval in seconds(only if Time flag = 1)
+    HDR.trac_int              = HDR.trac_int;                   % Trace interval in meters (only if Distance flag = 1)
+    HDR.operator              = 'Unknown';                      % Operator
+    HDR.customer              = 'Unknown';                      % Customer
+    HDR.site                  = 'gprMax';                       % Site
+    HDR.antenna               = HDR.antenna;                    % Antenna name
+    HDR.antenna_orientation   = 'NOT VALID FIELD';              % Antenna orientation
+    HDR.ant_sep               = HDR.ant_sep;                    % Antenna seperation / Tx-Rx distance (m)
+    HDR.comment               = '----';                         % Comment
+    HDR.time_window           = HDR.time_window;                % Time window (ns)
+    HDR.stacks                = 1;                              % Stacks
+    HDR.stack_exponent        = 0;                              % Stack exponent
+    HDR.stacking_time         = 0;                              % Stacking Time
+    HDR.num_trac              = HDR.num_trac;                   % Number of traces
+    HDR.stop_pos              = HDR.num_trac * HDR.trac_int;    % Stop position (m)
     HDR.system_calibration    = 0;
-    HDR.start_pos             = 0;                             % Start position (meters)
+    HDR.start_pos             = 0;                              % Start position (m)
     HDR.short_flag            = 1;
     HDR.intermediate_flag     = 0;
     HDR.long_flag             = 0;
@@ -287,30 +291,29 @@ if flg == 1
 
 % DZT, Geophysical Survey Systems Inc. (GSSI) =============================
 % Dzt is a binary file that consists of the file header with all the
-% important information (number of traces, samples, channels, etc.) followed
-% by the data section.
-% All information that is needed is contained in this file except the
-% TxRx distance (antenna separation). There is a possibility that the
-% official GSSI software has stored this information and by using the
-% antenna name presents the correct one. All the other software does not
-% detect the TxRx distance.
-
-elseif flg == 2
+% important information (number of samples, traces, channels, etc.)
+% followed by the data section.
+% All the information is contained in this file except the TxRx distance
+% (antenna separation). There is a possibility that the official GSSI
+% software has stored this information and by using the antenna name
+% presents the correct one. All the other software does not detect the TxRx
+% distance.
+elseif gpr_format == 2
     % Header structure
-    HDR.fname                 = HDR.fname;                     % File name
-    HDR.tag                   = 255;                           % Header = 255
-    HDR.data_offset           = 1024;                          % Offset to data from the beginning of file
-    HDR.num_samp              = HDR.num_samp;                  % Number of samples
-    HDR.bits_per_word         = 16;                            % Bits per data word (8, 16, 32)
-    HDR.binary_offset         = 32768;                         % Binary offset, 8 bit = 128, 16 bit = 32768
-    HDR.scans_per_second      = 0;                             % Scans per second
-    HDR.scans_per_meter       = 1 / HDR.trac_int;              % Scans per meter
-    HDR.meters_per_mark       = 0;                             % Meters per mark
-    HDR.zero_time_adjustment  = 0;                             % Time zero adjustment (nanoseconds)
-    HDR.time_window           = HDR.time_window;               % Time window (with no corrections i.e zero time)
-    HDR.scans_per_pass        = 0;                             % Scan per pass for 2D files
+    HDR.fname                 = HDR.fname;                      % File name
+    HDR.tag                   = 255;                            % Header = 255
+    HDR.data_offset           = 1024;                           % Offset to data from the beginning of file
+    HDR.num_samp              = HDR.num_samp;                   % Number of samples
+    HDR.data_format           = 16;                             % Bits per data word (8, 16, 32)
+    HDR.binary_offset         = 32768;                          % Binary offset, 8 bit = 128, 16 bit = 32768
+    HDR.scans_per_second      = 0;                              % Scans per second
+    HDR.scans_per_meter       = 1 / HDR.trac_int;               % Scans per meter
+    HDR.meters_per_mark       = 0;                              % Meters per mark
+    HDR.zero_time_adjustment  = 0;                              % Time zero adjustment (ns)
+    HDR.time_window           = HDR.time_window;                % Time window (with no corrections i.e zero time)
+    HDR.scans_per_pass        = 0;                              % Scan per pass for 2D files
 
-    HDR.createdate.sec        = 0 / 2;                         % Structure, date created
+    HDR.createdate.sec        = 0 / 2;                          % Structure, date created
     HDR.createdate.min        = 0;
     HDR.createdate.hour       = 0;
     HDR.createdate.day        = 0;
@@ -318,59 +321,61 @@ elseif flg == 2
     HDR.createdate.year       = 0 - 1980;
 
     date_time                 = clock;
-    HDR.modifydate.sec        = date_time(6) / 2;              % Structure, date modified
+    HDR.modifydate.sec        = date_time(6) / 2;               % Structure, date modified
     HDR.modifydate.min        = date_time(5);
     HDR.modifydate.hour       = date_time(4);
     HDR.modifydate.day        = date_time(3);
     HDR.modifydate.month      = date_time(2);
     HDR.modifydate.year       = date_time(1) - 1980;
 
-    HDR.offset_to_range_gain  = 0;                             % Offset to range gain
-    HDR.size_of_range_gain    = 0;                             % Size of range gain
-    HDR.offset_to_text        = 0;                             % Offset to text
-    HDR.size_of_text          = 0;                             % Size of text
-    HDR.offset_to_proc_his    = 0;                             % Offset to processing history
-    HDR.size_of_proc_his      = 0;                             % Size of processing hisstory
-    HDR.num_channels          = 1;                             % Number of channels
-    HDR.dielectric_constant   = 8;                             % Dielectric constant (8 is a random number)
-    HDR.top_position          = 0;                             % Top position
+    HDR.offset_to_range_gain  = 0;                              % Offset to range gain
+    HDR.size_of_range_gain    = 0;                              % Size of range gain
+    HDR.offset_to_text        = 0;                              % Offset to text
+    HDR.size_of_text          = 0;                              % Size of text
+    HDR.offset_to_proc_his    = 0;                              % Offset to processing history
+    HDR.size_of_proc_his      = 0;                              % Size of processing history
+    HDR.num_channels          = 1;                              % Number of channels
+    HDR.dielectric_constant   = 8;                              % Dielectric constant (8 is a random number)
+    HDR.top_position          = 0;                              % Top position
 
     c = 299792458;
     v = (c / sqrt(HDR.dielectric_constant)) * 10^-9;
-    HDR.range_depth           = v * (HDR.time_window / 2);     % Range depth
+    HDR.range_depth           = v * (HDR.time_window / 2);      % Range depth (m)
 
-    HDR.reserved              = zeros(31, 1);                  % Reserved
-    HDR.data_type             = 0;
+    HDR.reserved              = zeros(31, 1);                   % Reserved
+    HDR.data_type             = 0;                              % Data type
 
-    if length(HDR.antenna) == 14                               % Antenna name
+    if length(HDR.antenna) == 14                                % Antenna name
         HDR.antenna           = HDR.antenna;
     elseif length(HDR.antenna) < 14
         if verLessThan('matlab', '9.1')
-            HDR.antenna           = [HDR.antenna repmat(' ', 1, 14 - length(HDR.antenna))];
+            HDR.antenna       = [HDR.antenna repmat(' ', ...
+                                    1, 14 - length(HDR.antenna))];
         else
-            HDR.antenna           = pad(HDR.antenna, 14, 'right');
+            HDR.antenna       = pad(HDR.antenna, 14, 'right');
         end
     elseif length(HDR.antenna) > 14
         HDR.antenna           = HDR.antenna(1 : 14);
     end
 
-    HDR.channel_mask          = 0;                             % Channel mask
+    HDR.channel_mask          = 0;                              % Channel mask
 
-    if length(HDR.fname) == 12
-        HDR.raw_file_name     = HDR.fname;                     % Raw file name (File name during survey)
+    if length(HDR.fname) == 12                                  % Raw file name (File name during survey)
+        HDR.raw_file_name     = HDR.fname;
     elseif length(HDR.fname) < 12
         if verLessThan('matlab', '9.1')
-            HDR.raw_file_name     = [HDR.raw_file_name repmat(' ', 1, 12 - length(HDR.raw_file_name))];
+            HDR.raw_file_name = [HDR.raw_file_name repmat(' ', ...
+                                    1, 12 - length(HDR.raw_file_name))];
         else
-            HDR.raw_file_name     = pad(HDR.fname, 12, 'right');
+            HDR.raw_file_name = pad(HDR.fname, 12, 'right');
         end
     elseif length(HDR.fname) > 12
-        HDR.raw_file_name     = HDR.fname(1:12);
+        HDR.raw_file_name     = HDR.fname(1 : 12);
     end
 
-    HDR.checksum              = 0;                             % Checksum
-    HDR.num_gain_points       = 0;                             % Number of gain points
-    HDR.range_gain_db         = [];                            % Range gain in db
+    HDR.checksum              = 0;                              % Checksum
+    HDR.num_gain_points       = 0;                              % Number of gain points
+    HDR.range_gain_db         = [];                             % Range gain in db
     HDR.variable              = zeros(896, 1);
 
     % DZT file
@@ -378,7 +383,7 @@ elseif flg == 2
     fwrite(fid, HDR.tag, 'ushort');
     fwrite(fid, HDR.data_offset, 'ushort');
     fwrite(fid, HDR.num_samp, 'ushort');
-    fwrite(fid, HDR.bits_per_word, 'ushort');
+    fwrite(fid, HDR.data_format, 'ushort');
     fwrite(fid, HDR.binary_offset, 'ushort');
     fwrite(fid, HDR.scans_per_second, 'float');
     fwrite(fid, HDR.scans_per_meter, 'float');
@@ -425,93 +430,94 @@ elseif flg == 2
 
 
 % HD / DT1, Sensors & Software Inc. =======================================
-% Hd is the header file. In this file is all the important
-% information such as the number of traces, samples, stacks, etc.
+% Hd is the header file. In this file all the important information such as
+% the number of samples, traces, stacks, etc. can be found.
 % Dt1 is the data file written in binary form. This file contains as many
-% records as there are traces. Each record consists of a header section and
-% a data section. That means that in this file there are also stored
-% information such as the number of samples, traces, etc.
-elseif flg == 3
+% records as there are traces. Each record consists of a header and a data
+% section. This means that also in this file there are stored information
+% such as the number of samples, traces, etc.
+
+elseif gpr_format == 3
     %Header structure of HD
-    HDR.fname                 = HDR.fname;                     % File name
-    HDR.file_tag              = 1234;                          % File tag = 1234
-    HDR.system                = ['Data Collected with ' HDR.antenna];
+    HDR.fname                 = HDR.fname;                      % File name
+    HDR.file_tag              = 1234;                           % File tag = 1234
+    HDR.system                = 'gprMax';                       % The system the data collected with
 
     date_time                 = clock;
-    HDR.date                  = ([num2str(date_time(3)), '/' ...
-                                    num2str(date_time(2)), '/' ...
-                                    num2str(date_time(1))]);   % Date
+    HDR.date                  = ([num2str(date_time(1)), '-' ...
+                                    num2str(date_time(2)), '-' ...
+                                        num2str(date_time(3))]);% Date
 
-    HDR.num_trac              = HDR.num_trac;                  % Number of traces
-    HDR.num_samp              = HDR.num_samp;                  % Number of samples
-    HDR.time_zero_point       = 0;
-    HDR.time_window           = HDR.time_window;               % Total time window
-    HDR.start_position        = 0;
-    HDR.final_position        = (HDR.num_trac - 1 ) * HDR.trac_int;
-    HDR.trac_int              = HDR.trac_int;                  % Trace interval
-    HDR.pos_units             = 'm';                           % Position units
-    HDR.nominal_freq          = 'Unknown';                     % Nominal frequency
-    HDR.ant_sep               = HDR.ant_sep;                   % Antenna separation
-    HDR.pulser_voltage        = 'Unknown';                     % Pulser voltage (V)
-    HDR.stacks                = 0;                             % Number of stacks
-    HDR.survey_mode           = 'Reflection';                  % Survey mode
-    HDR.odometer              = 0;                             % Odometer Cal (t/m)
-    HDR.stacking_type         = 'F1';                          % Stacking type (Not using 'Unknown' in case it causes any problems)
-    HDR.dvl_serial            = '0000-0000-0000';              % DVL serial
-    HDR.console_serial        = '000000000000';                % Console serial
-    HDR.tx_serial             = '0000-0000-0000';              % Transmitter serial
-    HDR.rx_serial             = '0000-0000-0000';              % Receiver Serial
+    HDR.num_trac              = HDR.num_trac;                   % Number of traces
+    HDR.num_samp              = HDR.num_samp;                   % Number of samples
+    HDR.time_zero_point       = 0;                              % Time zero point
+    HDR.time_window           = HDR.time_window;                % Total time window (ns)
+    HDR.start_position        = 0;                              % Start position (m)
+    HDR.final_position        = (HDR.num_trac - 1) * HDR.trac_int;        % Stop position (m)
+    HDR.trac_int              = HDR.trac_int;                   % Trace interval (m)
+    HDR.pos_units             = 'm';                            % Position units
+    HDR.nominal_freq          = HDR.centre_freq;                % Nominal freq. / Centre freq. (MHz)
+    HDR.ant_sep               = HDR.ant_sep;                    % Antenna seperation / Tx-Rx distance (m)
+    HDR.pulser_voltage        = 0;                              % Pulser voltage (V)
+    HDR.stacks                = 1;                              % Number of stacks
+    HDR.survey_mode           = 'Reflection';                   % Survey mode
+    HDR.odometer              = 0;                              % Odometer Cal (t/m)
+    HDR.stacking_type         = 'F1';                           % Stacking type
+    HDR.dvl_serial            = '0000-0000-0000';               % DVL serial
+    HDR.console_serial        = '000000000000';                 % Console serial
+    HDR.tx_serial             = '0000-0000-0000';               % Transmitter serial
+    HDR.rx_serial             = '0000-0000-0000';               % Receiver Serial
 
     % Header structure of DT1
-    HDR.num_each_trac         = 1 : 1 : HDR.num_trac;          % Number of each trace 1, 2, 3, ... num_trac
+    HDR.num_each_trac         = 1 : 1 : HDR.num_trac;           % Number of each trace 1, 2, 3, ... num_trac
     HDR.position              = 0 : HDR.trac_int : ...
-                                    (HDR.num_trac - 1) * HDR.trac_int;    % Position of each trace (Xaxis)
+                                    (HDR.num_trac - 1) * HDR.trac_int;    % Position of each trace (m)
     HDR.num_samp_each_trac    = zeros(1, HDR.num_trac) + HDR.num_samp;    % Number of samples of each trace
-    HDR.elevation             = zeros(1, HDR.num_trac);        % Elevation / topography of each trace;
-    HDR.not_used1             = zeros(1, HDR.num_trac);        % Not used
-    HDR.bytes                 = zeros(1, HDR.num_trac) + 2;    % Always 2 for Rev 3 firmware
-    HDR.time_window_each_trac = zeros(1, HDR.num_trac) + HDR.time_window; % Time window of each trace
-    HDR.stacks_each_trac      = zeros(1, HDR.num_trac);        % Number of stacks each trace
-    HDR.not_used2             = zeros(1, HDR.num_trac);        % Not used
-    HDR.rsv_gps_x             = zeros(1, HDR.num_trac);        % Reserved for GPS X position (double*8 number)
-    HDR.rsv_gps_y             = zeros(1, HDR.num_trac);        % Reserved for GPS Y position (double*8 number)
-    HDR.rsv_gps_z             = zeros(1, HDR.num_trac);        % Reserved for GPS Z position (double*8 number)
-    HDR.rsv_rx_x              = zeros(1, HDR.num_trac);        % Reserved for receiver x position
-    HDR.rsv_rx_y              = zeros(1, HDR.num_trac);        % Reserved for receiver y position
-    HDR.rsv_rx_z              = zeros(1, HDR.num_trac);        % Reserved for receiver z position
-    HDR.rsv_tx_x              = zeros(1, HDR.num_trac);        % Reserved for transmitter x position
-    HDR.rsv_tx_y              = zeros(1, HDR.num_trac);        % Reserved for transmitter y position
-    HDR.rsv_tx_z              = zeros(1, HDR.num_trac);        % Reserved for transmitter z position
-    HDR.time_zero             = zeros(1, HDR.num_trac);        % Time zero adjustment where: point(x) = point(x + adjustment)
-    HDR.zero_flag             = zeros(1, HDR.num_trac);        % 0 = data ok, 1 = zero data
-    HDR.num_channels          = zeros(1, HDR.num_trac);        % Number of channels
-    HDR.time                  = zeros(1, HDR.num_trac);        % Time of day data collected in seconds past midnight
-    HDR.comment_flag          = zeros(1, HDR.num_trac);        % Comment flag
-    HDR.comment               = zeros(1, 24);                  % Comment
+    HDR.elevation             = zeros(1, HDR.num_trac);         % Elevation / topography of each trace
+    HDR.not_used1             = zeros(1, HDR.num_trac);         % Not used
+    HDR.bytes                 = zeros(1, HDR.num_trac) + 2;     % Always 2 for Rev 3 firmware
+    HDR.time_window_each_trac = zeros(1, HDR.num_trac) + HDR.time_window; % Time window of each trace (ns)
+    HDR.stacks_each_trac      = ones(1, HDR.num_trac);          % Number of stacks each trace
+    HDR.not_used2             = zeros(1, HDR.num_trac);         % Not used
+    HDR.rsv_gps_x             = zeros(1, HDR.num_trac);         % Reserved for GPS X position (double*8 number)
+    HDR.rsv_gps_y             = zeros(1, HDR.num_trac);         % Reserved for GPS Y position (double*8 number)
+    HDR.rsv_gps_z             = zeros(1, HDR.num_trac);         % Reserved for GPS Z position (double*8 number)
+    HDR.rsv_rx_x              = zeros(1, HDR.num_trac);         % Reserved for receiver x position
+    HDR.rsv_rx_y              = zeros(1, HDR.num_trac);         % Reserved for receiver y position
+    HDR.rsv_rx_z              = zeros(1, HDR.num_trac);         % Reserved for receiver z position
+    HDR.rsv_tx_x              = zeros(1, HDR.num_trac);         % Reserved for transmitter x position
+    HDR.rsv_tx_y              = zeros(1, HDR.num_trac);         % Reserved for transmitter y position
+    HDR.rsv_tx_z              = zeros(1, HDR.num_trac);         % Reserved for transmitter z position
+    HDR.time_zero             = zeros(1, HDR.num_trac);         % Time zero adjustment where: point(x) = point(x + adjustment)
+    HDR.zero_flag             = zeros(1, HDR.num_trac);         % 0 = data ok, 1 = zero data
+    HDR.num_channels          = zeros(1, HDR.num_trac);         % Number of channels
+    HDR.time                  = zeros(1, HDR.num_trac);         % Time of day data collected in seconds past midnight
+    HDR.comment_flag          = zeros(1, HDR.num_trac);         % Comment flag
+    HDR.comment               = zeros(1, 24);                   % Comment
 
     % HD file
     fid = fopen([HDR.fname '.hd'], 'w');
-    fprintf(fid, '%i\r\n\n', HDR.file_tag);
-    fprintf(fid, 'Data Collected with %s\r\n\n', HDR.system);
-    fprintf(fid, '%s\r\n\n', HDR.date);
-    fprintf(fid, 'NUMBER OF TRACES   = %i\r\n\n', HDR.num_trac);
-    fprintf(fid, 'NUMBER OF PTS/TRC  = %i\r\n\n', HDR.num_samp);
-    fprintf(fid, 'TIMEZERO AT POINT  = %i\r\n\n', HDR.time_zero_point);
-    fprintf(fid, 'TOTAL TIME WINDOW  = %0.6f\r\n\n', HDR.time_window);
-    fprintf(fid, 'STARTING POSITION  = %0.f\r\n\n', HDR.start_position);
-    fprintf(fid, 'FINAL POSITION     = %0.6f\r\n\n', HDR.final_position);
-    fprintf(fid, 'STEP SIZE USED     = %0.6f\r\n\n', HDR.trac_int);
-    fprintf(fid, 'POSITION UNITS     = %s\r\n\n', HDR.pos_units);
-    fprintf(fid, 'NOMINAL FREQUENCY  = %s\r\n\n', HDR.nominal_freq);
-    fprintf(fid, 'ANTENNA SEPARATION = %0.6f\r\n\n', HDR.ant_sep);
-    fprintf(fid, 'PULSER VOLTAGE (V) = %s\r\n\n', HDR.pulser_voltage);
-    fprintf(fid, 'NUMBER OF STACKS   = %i\r\n\n', HDR.stacks);
-    fprintf(fid, 'SURVEY MODE        = %s\r\n\n', HDR.survey_mode);
-    fprintf(fid, 'ODOMETER CAL (t/m) = %0.6f\r\n\n', HDR.odometer);
-    fprintf(fid, 'STACKING TYPE      = %s\r\n\n', HDR.stacking_type);
-    fprintf(fid, 'DVL Serial#        = %s\r\n\n', HDR.dvl_serial);
-    fprintf(fid, 'Console Serial#    = %s\r\n\n', HDR.console_serial);
-    fprintf(fid, 'Transmitter Serial#= %s\r\n\n', HDR.tx_serial);
+    fprintf(fid, '%i\r\n', HDR.file_tag);
+    fprintf(fid, 'Data Collected with %s\r\n', HDR.system);
+    fprintf(fid, '%s\r\n', HDR.date);
+    fprintf(fid, 'NUMBER OF TRACES   = %i\r\n', HDR.num_trac);
+    fprintf(fid, 'NUMBER OF PTS/TRC  = %i\r\n', HDR.num_samp);
+    fprintf(fid, 'TIMEZERO AT POINT  = %i\r\n', HDR.time_zero_point);
+    fprintf(fid, 'TOTAL TIME WINDOW  = %0.6f\r\n', HDR.time_window);
+    fprintf(fid, 'STARTING POSITION  = %0.6f\r\n', HDR.start_position);
+    fprintf(fid, 'FINAL POSITION     = %0.6f\r\n', HDR.final_position);
+    fprintf(fid, 'STEP SIZE USED     = %0.6f\r\n', HDR.trac_int);
+    fprintf(fid, 'POSITION UNITS     = %s\r\n', HDR.pos_units);
+    fprintf(fid, 'NOMINAL FREQUENCY  = %0.6f\r\n', HDR.nominal_freq);
+    fprintf(fid, 'ANTENNA SEPARATION = %0.6f\r\n', HDR.ant_sep);
+    fprintf(fid, 'PULSER VOLTAGE (V) = %0.6f\r\n', HDR.pulser_voltage);
+    fprintf(fid, 'NUMBER OF STACKS   = %i\r\n', HDR.stacks);
+    fprintf(fid, 'SURVEY MODE        = %s\r\n', HDR.survey_mode);
+    fprintf(fid, 'ODOMETER CAL (t/m) = %0.6f\r\n', HDR.odometer);
+    fprintf(fid, 'STACKING TYPE      = %s\r\n', HDR.stacking_type);
+    fprintf(fid, 'DVL Serial#        = %s\r\n', HDR.dvl_serial);
+    fprintf(fid, 'Console Serial#    = %s\r\n', HDR.console_serial);
+    fprintf(fid, 'Transmitter Serial#= %s\r\n', HDR.tx_serial);
     fprintf(fid, 'Receiver Serial#   = %s\r\n', HDR.rx_serial);
     fclose(fid);
 
@@ -543,14 +549,121 @@ elseif flg == 3
         fwrite(fid, HDR.comment_flag(i), 'float');
         fwrite(fid, HDR.comment, 'char');
 
-        fwrite(fid, data(:, i) , 'short');
-        if mod(i, 10) == 0
-            waitbar(i / HDR.num_trac, wb, sprintf('Exporting... %.f%%', i / HDR.num_trac * 100))
+        fwrite(fid, data(:, i), 'short');
+        if mod(i, 100) == 0
+            waitbar(i / HDR.num_trac, wb, sprintf('Exporting... %.f%%', ...
+                i / HDR.num_trac * 100))
         end
     end
     fclose(fid);
-end
 
+
+% IPRH / IPRB, Impulse Radar ==============================================
+% IPRH is the header file. In this file is all the important information
+% such as the number of samples, traces, measurement intervals can be
+% found.
+% IPRB is the data file. This file contains only the data (amplitude values)
+% in a binary form.
+elseif gpr_format == 4
+% Header structure
+    HDR.fname                 = HDR.fname;                      % File name
+    HDR.hdr_version           = 20;                             % Header version
+    HDR.data_format           = 16;                             % Data format 16 or 32 bit
+
+    date_time                 = clock;
+    HDR.date                  = ([num2str(date_time(1)), '-' ...
+                                    num2str(date_time(2)), '-' ...
+                                        num2str(date_time(3))]);% Date
+
+    HDR.start_time            = '00:00:00';                     % Measurement start time
+    HDR.stop_time             = '00:00:00';                     % Measurement end time
+    HDR.antenna               = [num2str(HDR.centre_freq) ' MHz'];        % Antenna frequency (MHz)
+    HDR.ant_sep               = HDR.ant_sep;                    % Antenna seperation / Tx-Rx distance (m)
+    HDR.num_samp              = HDR.num_samp;                   % Number of samples
+    HDR.signal_pos            = 0;                              % Signal position
+    HDR.clipped_samps         = 0;                              % Clipped samples
+    HDR.runs                  = 0;                              % Number of runs
+    HDR.stacks                = 1;                              % Maximum number of stacks
+    HDR.auto_stacks           = 1;                              % Autostacks (1 = On)
+    HDR.samp_freq             = HDR.samp_freq;                  % Sampling frequency (MHz)
+    HDR.time_window           = HDR.time_window;                % Total time window (ns)
+    HDR.num_trac              = HDR.num_trac;                   % Number of traces
+    HDR.trig_source           = 'wheel';                        % Trig source (wheel or time)
+    HDR.trac_int_sec          = 0;                              % Trace interval if trig source is time (sec)
+    HDR.trac_int_met          = HDR.trac_int;                   % Trace interval if trig source is wheel (m)
+    HDR.user_trac_int         = HDR.trac_int;                   % User defined trace interval if trig source is wheel (m)
+    HDR.stop_pos              = HDR.num_trac * HDR.trac_int;    % Stop position (meters or seconds) -> num_trac * trac_int
+    HDR.wheel_name            = 'Cart';                         % Wheel name
+    HDR.wheel_calibration     = 0;                              % Wheel calibration
+    HDR.zero_lvl              = 0;                              % Zero level
+    HDR.vel                   = 100;                            % The soil velocity (Selected in field m/usec). 100 is a random number
+    HDR.preprocessing         = 'Unknown Preprocessing';        % Not in use
+    HDR.comment               = '----';                         % Not in use
+    HDR.antenna_FW            = '----';                         % Receiver firmware version
+    HDR.antenna_HW            = '----';                         % Not in use
+    HDR.antenna_FPGA          = '----';                         % Receiver FPGA version
+    HDR.antenna_serial        = '----';                         % Receiver serial number
+    HDR.software_version      = '----';                         % Software version
+    HDR.positioning           = 0;                              % Positioning: (0 = no, 1 = TS, 2 = GPS)
+    HDR.num_channel           = 1;                              % Number of channels
+    HDR.channel_config        = 1;                              % This channel configuration
+    HDR.ch_x_offset           = 0;                              % Channel position relative to ext.positioning
+    HDR.ch_y_offset           = 0;                              % Channel position relative to ext.positioning
+    HDR.meas_direction        = 1;                              % Meas. direction forward or backward
+    HDR.relative_direction    = 0;                              % Direction to RL start(clockwise 360)
+    HDR.relative_distance     = 0;                              % Distance from RL start to cross section
+    HDR.relative_start        = 0;                              % DIstance from profile start to cross section
+
+    % IPRH file
+    fid = fopen([HDR.fname '.iprh'], 'w');
+    fprintf(fid, 'HEADER VERSION: %i\r\n', HDR.hdr_version);
+    fprintf(fid, 'DATA VERSION: %i\r\n', HDR.data_format);
+    fprintf(fid, 'DATE: %s\r\n', HDR.date);
+    fprintf(fid, 'START TIME: %s\r\n', HDR.start_time);
+    fprintf(fid, 'STOP TIME: %s\r\n', HDR.stop_time);
+    fprintf(fid, 'ANTENNA: %s\r\n', HDR.antenna);
+    fprintf(fid, 'ANTENNA SEPARATION: %0.6f\r\n', HDR.ant_sep);
+    fprintf(fid, 'SAMPLES: %i\r\n', HDR.num_samp);
+    fprintf(fid, 'SIGNAL POSITION: %0.6f\r\n', HDR.signal_pos);
+    fprintf(fid, 'CLIPPED SAMPLES: %i\r\n', HDR.clipped_samps);
+    fprintf(fid, 'RUNS: %i\r\n', HDR.runs);
+    fprintf(fid, 'MAX STACKS: %i\r\n', HDR.stacks);
+    fprintf(fid, 'AUTOSTACKS: %i\r\n', HDR.auto_stacks);
+    fprintf(fid, 'FREQUENCY: %0.6f\r\n', HDR.samp_freq);
+    fprintf(fid, 'TIMEWINDOW: %0.6f\r\n', HDR.time_window);
+    fprintf(fid, 'LAST TRACE: %i\r\n', HDR.num_trac);
+    fprintf(fid, 'TRIG SOURCE: %s\r\n', HDR.trig_source);
+    fprintf(fid, 'TIME INTERVAL: %0.6f\r\n', HDR.trac_int_sec);
+    fprintf(fid, 'DISTANCE INTERVAL: %0.6f\r\n', HDR.trac_int_met);
+    fprintf(fid, 'USER DISTANCE INTERVAL: %0.6f\r\n', HDR.user_trac_int);
+    fprintf(fid, 'STOP POSITION: %0.6f\r\n', HDR.stop_pos);
+    fprintf(fid, 'WHEEL NAME: %s\r\n', HDR.wheel_name);
+    fprintf(fid, 'WHEEL CALIBRATION: %0.6f\r\n', HDR.wheel_calibration);
+    fprintf(fid, 'ZERO LEVEL: %i\r\n', HDR.zero_lvl);
+    fprintf(fid, 'SOIL VELOCITY: %i\r\n', HDR.vel);
+    fprintf(fid, 'PREPROCESSING: %s\r\n', HDR.preprocessing);
+    fprintf(fid, 'OPERATOR COMMENT: %s\r\n', HDR.comment);
+    fprintf(fid, 'ANTENNA F/W: %s\r\n', HDR.antenna_FW);
+    fprintf(fid, 'ANTENNA H/W: %s\r\n', HDR.antenna_HW);
+    fprintf(fid, 'ANTENNA FPGA: %s\r\n', HDR.antenna_FPGA);
+    fprintf(fid, 'ANTENNA SERIAL: %s\r\n', HDR.antenna_serial);
+    fprintf(fid, 'SOFTWARE VERSION: %s\r\n', HDR.software_version);
+    fprintf(fid, 'POSITIONING: %i\r\n', HDR.positioning);
+    fprintf(fid, 'CHANNELS: %i\r\n', HDR.num_channel);
+    fprintf(fid, 'CHANNEL CONFIGURATION: %i\r\n', HDR.channel_config);
+    fprintf(fid, 'CH_X_OFFSET: %0.6f\r\n', HDR.ch_x_offset);
+    fprintf(fid, 'CH_Y_OFFSET: %0.6f\r\n', HDR.ch_y_offset);
+    fprintf(fid, 'MEASUREMENT DIRECTION: %i\r\n', HDR.meas_direction);
+    fprintf(fid, 'RELATIVE DIRECTION: %i\r\n', HDR.relative_direction);
+    fprintf(fid, 'RELATIVE DISTANCE: %0.6f\r\n', HDR.relative_distance);
+    fprintf(fid, 'RELATIVE START: %0.6f\r\n', HDR.relative_start);
+    fclose(fid);
+
+    % IPRB file
+    fid = fopen([HDR.fname '.iprb'], 'w');
+    fwrite(fid, data, 'short');
+    fclose(fid);
+end
 waitbar(1, wb, 'Done!!!');
 pause(1);
 close(wb);
