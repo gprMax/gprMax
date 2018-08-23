@@ -9,13 +9,13 @@ Information
 
 The module features models of antennas similar to commercial GPR antennas. The following antenna models are included:
 
-======================== ============= ============= ============================================================================================= ================
-Manufacturer/Model       Dimensions    Resolution(s) Author/Contact                                                                                Attribution/Cite
-======================== ============= ============= ============================================================================================= ================
-GSSI 1.5GHz (Model 5100) 170x108x45mm  1, 2mm        Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                     1, 2
-MALA 1.2GHz              184x109x46mm  1, 2mm        Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                     1
+======================== ============= ============= ========================================================================================================================================================================================================================= ================
+Manufacturer/Model       Dimensions    Resolution(s) Author/Contact                                                                                                                                                                                                            Attribution/Cite
+======================== ============= ============= ========================================================================================================================================================================================================================= ================
+GSSI 1.5GHz (Model 5100) 170x108x45mm  1, 2mm        Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                                                                                                                                                 1,2
+MALA 1.2GHz              184x109x46mm  1, 2mm        Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                                                                                                                                                 1
 GSSI 400MHz              300x300x170mm 0.5, 1, 2mm   Sam Stadler (Sam.Stadler@liag-hannover.de), `Leibniz Institute for Applied Geophysics <https://www.leibniz-liag.de/en/research/methods/electromagnetic-methods/ground-penetrating-radar/guided-gpr-waves.html>`_, Germany 3
-======================== ============= ============= ============================================================================================= ================
+======================== ============= ============= ========================================================================================================================================================================================================================= ================
 
 **License**: `Creative Commons Attribution-ShareAlike 4.0 International License <http://creativecommons.org/licenses/by-sa/4.0/>`_
 
