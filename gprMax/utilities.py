@@ -25,6 +25,7 @@ import subprocess
 from shutil import get_terminal_size
 import sys
 import textwrap
+import codecs
 
 from colorama import init
 from colorama import Fore
@@ -98,7 +99,7 @@ def open_path_file(path_or_file):
     """
 
     if isinstance(path_or_file, str):
-        f = file_to_close = open(path_or_file, 'r')
+        f = file_to_close = codecs.open(path_or_file, 'r', encoding='utf-8')
     else:
         f = path_or_file
         file_to_close = None
