@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from contextlib import contextmanager
+import codecs
 import decimal as d
 import platform
 import psutil
@@ -25,7 +26,6 @@ import subprocess
 from shutil import get_terminal_size
 import sys
 import textwrap
-import codecs
 
 from colorama import init
 from colorama import Fore
