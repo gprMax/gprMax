@@ -48,8 +48,6 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
     dt = f.attrs['dt']
     iterations = f.attrs['Iterations']
     time = np.linspace(0, (iterations - 1) * dt, num=iterations)
-    print(time[0], time[1], time[-1])
-    print(time.size)
 
     # Check there are any receivers
     if nrx == 0:
