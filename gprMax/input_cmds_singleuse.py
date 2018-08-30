@@ -313,8 +313,8 @@ def process_singlecmds(singlecmds, G):
 
             G.waveforms.append(w)
 
-    # set output dir
+    # Set the output directory
     cmd = '#output_dir'
     if singlecmds[cmd] is not None:
-        output_dir = singlecmds[cmd]
-        G.outputdirectory = output_dir
+        outputdir = singlecmds[cmd]
+        G.outputdirectory = outputdir

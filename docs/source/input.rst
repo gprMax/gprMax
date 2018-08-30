@@ -154,19 +154,19 @@ Allows you to control the amount of information displayed on screen when gprMax 
 where ``c1`` can be either y (yes) or n (no) which turns on or off the messages on the screen. The default value is y. When messages are on, gprMax will display on the screen information the translation of space and time values to cell coordinates, iteration number, material parameters etc... This information can be useful for error checking.
 
 #output_dir:
-----------
+------------
 
-Allows you to control the directory of output files.  The syntax of the command is:
+Allows you to control the directory where output file(s) will be stored.  The syntax of the command is:
 
 .. code-block:: none
 
     #output_dir: str1
 
-where ``str1`` can be either  the absolute path of the output directory or  relative to the directory of the input files. The default value is the same as the directory of the input files. 
+where ``str1`` can be either the absolute path to the directory for the output file(s) or a path relative to the directory of the input files. The default value is the same as the directory of the input files.
 
 
 #num_threads:
------------------
+-------------
 
 Allows you to control how many OpenMP threads (usually the number of physical CPU cores available) are used when running the model. The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelised using `OpenMP <http://openmp.org>`_ which supports multi-platform shared memory multiprocessing. The syntax of the command is:
 
