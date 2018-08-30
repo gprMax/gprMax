@@ -86,6 +86,7 @@ class FDTDGrid(Grid):
     def __init__(self):
         self.inputfilename = ''
         self.inputdirectory = ''
+        self.outputdirectory = ''
         self.title = ''
         self.messages = True
         self.tqdmdisable = False
