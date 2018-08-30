@@ -332,8 +332,22 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
     # Run simulation
     else:
         # Output filename
-        inputfileparts = os.path.splitext(os.path.join(G.inputdirectory, G.inputfilename))
-        outputfile = inputfileparts[0] + appendmodelnumber + '.out'
+        inputdirectory, inputfilename = os.path.split(os.path.join(G.inputdirectory, G.inputfilename))
+        if G.outputdirectory is None:
+            output_dir = inputdirectory 
+        else:
+            output_dir = G.outputdirectory
+        # save current directory
+        curdir = os.getcwd()
+        os.chdir(inputdirectory)
+        output_dir = os.path.abspath(output_dir)
+        if not os.path.isdir(output_dir):
+            os.mkdir(output_dir)
+            print('\nmaking outputdirectory: {}'.format(output_dir))
+        # restore current directory
+        os.chdir(curdir)
+        basename, ext = os.path.splitext(inputfilename)
+        outputfile =   os.path.join(output_dir, basename + appendmodelnumber + '.out')
         print('\nOutput file: {}\n'.format(outputfile))
 
         # Main FDTD solving functions for either CPU or GPU
