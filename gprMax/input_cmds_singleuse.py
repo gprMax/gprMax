@@ -312,3 +312,9 @@ def process_singlecmds(singlecmds, G):
                 print('User waveform {} created using {} and, if required, interpolation parameters (kind: {}, fill value: {}).'.format(w.ID, timestr, kwargs['kind'], kwargs['fill_value']))
 
             G.waveforms.append(w)
+
+    # set output dir
+    cmd = '#output_dir'
+    if singlecmds[cmd] is not None:
+        output_dir = singlecmds[cmd]
+        G.outputdirectory = output_dir
