@@ -347,7 +347,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         # Restore current directory
         os.chdir(curdir)
         basename, ext = os.path.splitext(inputfilename)
-        outputfile =   os.path.join(outputdir, basename + appendmodelnumber + '.out')
+        outputfile = os.path.join(outputdir, basename + appendmodelnumber + '.out')
         print('\nOutput file: {}\n'.format(outputfile))
 
         # Main FDTD solving functions for either CPU or GPU
