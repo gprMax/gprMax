@@ -126,6 +126,10 @@ The antenna must be moved to a new position for every single A-scan (trace) in t
 
 The total number of runs for a model as well as the number of the current run of the model are stored and can be accessed in Python as ``number_model_runs`` and ``current_model_run``. The ``current_model_run`` can be used to move the position of the antenna for every run of the model as shown in Line 13. The antenna will be moved 5mm in the x direction for every new run of the model.
 
+.. note::
+
+    If you are moving an antenna model within a simulation, e.g. to generate a B-scan, you should ensure that the step size you choose is a multiple of the spatial resolution of the simulation. Otherwise when the position of antenna is converted to cell coordinates the geometry maybe altered.
+
 Results
 -------
 
@@ -143,4 +147,3 @@ After merging the A-scans into a single file you can now view an image of the B-
     :width: 600px
 
     B-scan of model of a metal cylinder buried in a dielectric half-space with a model of an antenna similar to a GSSI 1.5GHz antenna.
-
