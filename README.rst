@@ -108,7 +108,7 @@ macOS
 
 .. code-block:: none
 
-    $ brew install gcc --without-multilib
+    $ brew install gcc
 
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
@@ -122,11 +122,10 @@ Alternatively if you are using Windows 10 and feeling adventurous you can instal
 
 Once you have installed the aforementioned tools follow these steps to build and install gprMax:
 
-* Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/macOS) or :code:`activate gprMax` (Windows). Run the following commands:
+* Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`. Run the following command:
 
 .. code-block:: none
 
-    (gprMax)$ python setup.py build
     (gprMax)$ python setup.py install
 
 **You are now ready to proceed to running gprMax.**
@@ -137,7 +136,7 @@ Running gprMax
 
 gprMax is designed as a Python package, i.e. a namespace which can contain multiple packages and modules, much like a directory.
 
-Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/macOS) or :code:`activate gprMax` (Windows)
+Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`.
 
 Basic usage of gprMax is:
 
@@ -159,7 +158,7 @@ When the simulation is complete you can plot the A-scan using:
 
 Your results should like those from the A-scan from the metal cylinder example in `introductory/basic 2D models section <http://docs.gprmax.com/en/latest/examples_simple_2D.html#view-the-results>`_
 
-When you are finished using gprMax, the conda environment can be deactivated using :code:`source deactivate` (Linux/macOS)  or :code:`deactivate` (Windows).
+When you are finished using gprMax, the conda environment can be deactivated using :code:`conda deactivate`.
 
 Optional command line arguments
 -------------------------------
@@ -183,13 +182,12 @@ Argument name          Type    Description
 Updating gprMax
 ===============
 
-* Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`source activate gprMax` (Linux/macOS) or :code:`activate gprMax` (Windows). Run the following commands:
+* Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`. Run the following commands:
 
 .. code-block:: none
 
     (gprMax)$ git pull
     (gprMax)$ python setup.py cleanall
-    (gprMax)$ python setup.py build
     (gprMax)$ python setup.py install
 
 This will pull the most recent gprMax source code form GitHub, remove/clean previously built modules, and then build and install the latest version of gprMax.
