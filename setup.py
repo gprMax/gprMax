@@ -29,6 +29,7 @@ except ImportError:
 
 import glob
 import os
+import pathlib
 import re
 import shutil
 import sys
@@ -77,7 +78,6 @@ for root, dirs, files in os.walk(os.path.join(os.getcwd(), 'user_libs')):
 # Process 'cleanall' command line argument - cleanup Cython files
 if 'cleanall' in sys.argv:
     USE_CYTHON = False
-    print('Deleting Cython files...')
     for file in cythonfiles:
         filebase = os.path.splitext(file)[0]
         # Remove Cython C files
@@ -93,11 +93,16 @@ if 'cleanall' in sys.argv:
             libfile = libfile[0]
             try:
                 os.remove(libfile)
-                print('Removed: {}'.format(os.path.join(packagename, os.path.split(libfile)[-1])))
+                print('Removed: {}'.format(os.path.abspath(libfile)))
             except OSError:
-                print('Could not remove: {}'.format(os.path.join(packagename, os.path.split(libfile)[-1])))
-    # Remove build directory
+                print('Could not remove: {}'.format(os.path.abspath(libfile)))
+    # Remove build, dist, egg and __pycache__ directories
     shutil.rmtree(os.path.join(os.getcwd(), 'build'), ignore_errors=True)
+    shutil.rmtree(os.path.join(os.getcwd(), 'dist'), ignore_errors=True)
+    shutil.rmtree(os.path.join(os.getcwd(), 'gprMax.egg-info'), ignore_errors=True)
+    for p in pathlib.Path(os.getcwd()).rglob('__pycache__'):
+        shutil.rmtree(p, ignore_errors=True)
+        print('Removed: {}'.format(p))
     # Now do a normal clean
     sys.argv[1] = 'clean'  # this is what distutils understands
 
@@ -165,11 +170,11 @@ setup(name=packagename,
       classifiers=[
           'Environment :: Console',
           'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
-          'Operating System :: MacOS :: MacOS X',
-          'Operating System :: Microsoft :: Windows :: Windows 7',
+          'Operating System :: MacOS',
+          'Operating System :: Microsoft :: Windows',
           'Operating System :: POSIX :: Linux',
           'Programming Language :: Cython',
-          'Programming Language :: Python :: 3.4',
+          'Programming Language :: Python :: 3',
           'Topic :: Scientific/Engineering'
       ],
       ext_modules=extensions,
