@@ -121,7 +121,7 @@ You should have produced an output file ``cylinder_Ascan_2D.out``. You can view 
 .. figure:: images/cylinder_Ascan_results.png
     :width: 600px
 
-    Electric and magnetic field components and currents outputs from a model of a metal cylinder buried in a dielectric half-space.
+    Electric and magnetic field component time histories from the receiver in the model of a metal cylinder buried in a dielectric half-space.
 
 Check out a `video of the field propagation in this example <https://youtu.be/BpBo0-SFda4>`_. More videos are screencasts can be found in the :ref:`screencasts section <screencasts>`.
 
