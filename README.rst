@@ -122,10 +122,11 @@ Alternatively if you are using Windows 10 and feeling adventurous you can instal
 
 Once you have installed the aforementioned tools follow these steps to build and install gprMax:
 
-* Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`. Run the following command:
+* Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`. Run the following commands:
 
 .. code-block:: none
 
+    (gprMax)$ python setup.py build
     (gprMax)$ python setup.py install
 
 **You are now ready to proceed to running gprMax.**
@@ -188,6 +189,7 @@ Updating gprMax
 
     (gprMax)$ git pull
     (gprMax)$ python setup.py cleanall
+    (gprMax)$ python setup.py build
     (gprMax)$ python setup.py install
 
 This will pull the most recent gprMax source code form GitHub, remove/clean previously built modules, and then build and install the latest version of gprMax.
