@@ -3,13 +3,13 @@
 
 name: gprMax
 dependencies:
-- python=3.6.6
+- python=3.6
 - colorama
 - cython
 - h5py
 - jupyter
 - matplotlib
-- mkl=2018.0.0
+- mkl==2018.0.0
 - numpy
 - psutil
 - scipy
