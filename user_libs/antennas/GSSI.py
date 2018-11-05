@@ -13,14 +13,13 @@ from gprMax.input_cmd_funcs import *
 userlibdir = os.path.dirname(os.path.abspath(__file__))
 
 
-def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
+def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False):
     """Inserts a description of an antenna similar to the GSSI 1.5GHz antenna. Can be used with 1mm (default) or 2mm spatial resolution. The external dimensions of the antenna are 170x108x45mm. One output point is defined between the arms of the receiver bowtie. The bowties are aligned with the y axis so the output is the y component of the electric field (x component if the antenna is rotated 90 degrees).
 
     Args:
         x, y, z (float): Coordinates of a location in the model to insert the antenna. Coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction.
         resolution (float): Spatial resolution for the antenna model.
         rotate90 (bool): Rotate model 90 degrees CCW in xy plane.
-        kwargs (dict): Optional variables, e.g. can be fed from an optimisation process.
     """
 
     # Antenna geometry properties
@@ -42,27 +41,6 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
         rotate90origin = ()
         output = 'Ey'
 
-    # Unknown properties
-    if kwargs:
-        excitationfreq = kwargs['excitationfreq']
-        sourceresistance = kwargs['sourceresistance']
-        absorberEr = kwargs['absorberEr']
-        absorbersig = kwargs['absorbersig']
-        rxres = 50
-    else:
-        # excitationfreq = 1.5e9 # GHz
-        # sourceresistance = 50 # Ohms
-        # absorberEr = 1.7
-        # absorbersig = 0.59
-
-        # Values from http://hdl.handle.net/1842/4074
-        excitationfreq = 1.71e9
-        # sourceresistance = 4
-        sourceresistance = 230  # Correction for old (< 123) GprMax3D bug
-        # absorberEr = 1.58
-        # absorbersig = 0.428
-        rxres = 925  # Resistance at Rx bowtie
-
     x = x - (casesize[0] / 2)
     y = y - (casesize[1] / 2)
 
@@ -83,13 +61,40 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
     else:
         raise CmdInputError('This antenna module can only be used with a spatial discretisation of 1mm or 2mm')
 
-    # Material definitions
-    # material(absorberEr, absorbersig, 1, 0, 'absorber')
-    material(1, 0, 1, 0, 'absorber')
-    print('#add_dispersion_debye: 3 3.7733 1.00723e-11 3.14418 1.55686e-10 20.2441 3.44129e-10 absorber') # Eccosorb LS22 3-pole Debye model (https://bitbucket.org/uoyaeg/aegboxts/wiki/Home)
-    material(3, 0, 1, 0, 'pcb')
-    material(2.35, 0, 1, 0, 'hdpe')
-    material(3, (1 / rxres) * (dy / (dx * dz)), 1, 0, 'rxres')
+    # Specify optimisation state of antenna model
+    optstate = ['WarrenThesis', 'DebyeAbsorber', 'GiannakisPaper']
+    optstate = optstate[0]
+
+    if optstate == 'WarrenThesis':
+        # Original optimised values from http://hdl.handle.net/1842/4074
+        excitationfreq = 1.71e9
+        sourceresistance = 230  # Correction for old (< 123) GprMax3D bug (optimised to 4)
+        rxres = 925  # Resistance at Rx bowtie
+        material(1.58, 0.428, 1, 0, 'absorber1')
+        material(3, 0, 1, 0, 'absorber2') # Foam modelled as PCB material
+        material(3, 0, 1, 0, 'pcb')
+        material(2.35, 0, 1, 0, 'hdpe')
+        material(3, (1 / rxres) * (dy / (dx * dz)), 1, 0, 'rxres')
+
+    elif optstate == 'DebyeAbsorber':
+        # Same values as WarrenThesis but uses dispersive absorber properties for Eccosorb LS22
+        excitationfreq = 1.71e9
+        sourceresistance = 230  # Correction for old (< 123) GprMax3D bug (optimised to 4)
+        rxres = 925  # Resistance at Rx bowtie
+        material(1, 0, 1, 0, 'absorber1')
+        print('#add_dispersion_debye: 3 3.7733 1.00723e-11 3.14418 1.55686e-10 20.2441 3.44129e-10 absorber1') # Eccosorb LS22 3-pole Debye model (https://bitbucket.org/uoyaeg/aegboxts/wiki/Home)
+        material(3, 0, 1, 0, 'absorber2') # Foam modelled as PCB material
+        material(3, 0, 1, 0, 'pcb')
+        material(2.35, 0, 1, 0, 'hdpe')
+        material(3, (1 / rxres) * (dy / (dx * dz)), 1, 0, 'rxres')
+
+    elif optstate == 'GiannakisPaper':
+        # Further optimised values from https://doi.org/10.1109/TGRS.2018.2869027
+        sourceresistance = 195
+        material(3.96, 0.31, 1, 0, 'absorber1')
+        material(1.05, 1.01, 1, 0, 'absorber2')
+        material(1.37, 0.0002, 1, 0, 'pcb')
+        material(1.99, 0.013, 1, 0, 'hdpe')
 
     # Antenna geometry
     # Plastic case
@@ -99,11 +104,11 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
     # Metallic enclosure
     box(x + 0.025, y + casethickness, z + skidthickness, x + casesize[0] - 0.025, y + casesize[1] - casethickness, z + skidthickness + 0.027, 'pec', rotate90origin=rotate90origin)
 
-    # Absorber material, and foam (modelled as PCB material) around edge of absorber
-    box(x + 0.025 + shieldthickness, y + casethickness + shieldthickness, z + skidthickness, x + 0.025 + shieldthickness + 0.057, y + casesize[1] - casethickness - shieldthickness, z + skidthickness + 0.027 - shieldthickness - 0.001, 'pcb', rotate90origin=rotate90origin)
-    box(x + 0.025 + shieldthickness + foamsurroundthickness, y + casethickness + shieldthickness + foamsurroundthickness, z + skidthickness, x + 0.025 + shieldthickness + 0.057 - foamsurroundthickness, y + casesize[1] - casethickness - shieldthickness - foamsurroundthickness, z + skidthickness + 0.027 - shieldthickness, 'absorber', rotate90origin=rotate90origin)
-    box(x + 0.086, y + casethickness + shieldthickness, z + skidthickness, x + 0.086 + 0.057, y + casesize[1] - casethickness - shieldthickness, z + skidthickness + 0.027 - shieldthickness - 0.001, 'pcb', rotate90origin=rotate90origin)
-    box(x + 0.086 + foamsurroundthickness, y + casethickness + shieldthickness + foamsurroundthickness, z + skidthickness, x + 0.086 + 0.057 - foamsurroundthickness, y + casesize[1] - casethickness - shieldthickness - foamsurroundthickness, z + skidthickness + 0.027 - shieldthickness, 'absorber', rotate90origin=rotate90origin)
+    # Absorber material (absorber1) and foam (absorber2) around edge of absorber
+    box(x + 0.025 + shieldthickness, y + casethickness + shieldthickness, z + skidthickness, x + 0.025 + shieldthickness + 0.057, y + casesize[1] - casethickness - shieldthickness, z + skidthickness + 0.027 - shieldthickness - 0.001, 'absorber2', rotate90origin=rotate90origin)
+    box(x + 0.025 + shieldthickness + foamsurroundthickness, y + casethickness + shieldthickness + foamsurroundthickness, z + skidthickness, x + 0.025 + shieldthickness + 0.057 - foamsurroundthickness, y + casesize[1] - casethickness - shieldthickness - foamsurroundthickness, z + skidthickness + 0.027 - shieldthickness, 'absorber1', rotate90origin=rotate90origin)
+    box(x + 0.086, y + casethickness + shieldthickness, z + skidthickness, x + 0.086 + 0.057, y + casesize[1] - casethickness - shieldthickness, z + skidthickness + 0.027 - shieldthickness - 0.001, 'absorber2', rotate90origin=rotate90origin)
+    box(x + 0.086 + foamsurroundthickness, y + casethickness + shieldthickness + foamsurroundthickness, z + skidthickness, x + 0.086 + 0.057 - foamsurroundthickness, y + casesize[1] - casethickness - shieldthickness - foamsurroundthickness, z + skidthickness + 0.027 - shieldthickness, 'absorber1', rotate90origin=rotate90origin)
 
     # PCB
     box(x + 0.025 + shieldthickness + foamsurroundthickness, y + casethickness + shieldthickness + foamsurroundthickness, z + skidthickness, x + 0.086 - shieldthickness - foamsurroundthickness, y + casesize[1] - casethickness - shieldthickness - foamsurroundthickness, z + skidthickness + pcbthickness, 'pcb', rotate90origin=rotate90origin)
@@ -162,32 +167,35 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False, **kwargs):
     # geometry_view(x - dx, y - dy, z - dz, x + casesize[0] + dx, y + casesize[1] + dy, z + skidthickness + casesize[2] + dz, dx, dy, dz, 'antenna_like_GSSI_1500')
     # geometry_view(x, y, z, x + casesize[0], y + casesize[1], z + 0.010, dx, dy, dz, 'antenna_like_GSSI_1500_pcb', type='f')
 
-    # Excitation - custom pulse
-    # print('#excitation_file: {}'.format(os.path.join(userlibdir, 'GSSIgausspulse1.txt')))
-    # print('#transmission_line: y {} {} {} {} GSSIgausspulse1'.format(tx[0], tx[1], tx[2], sourceresistance))
+    # Excitation
+    if optstate == 'WarrenThesis' or optstate == 'DebyeAbsorber':
+        # Gaussian pulse
+        print('#waveform: gaussian 1 {} myGaussian'.format(excitationfreq))
+        voltage_source('y', tx[0], tx[1], tx[2], sourceresistance, 'myGaussian', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
 
-    # Excitation - Gaussian pulse
-    print('#waveform: gaussian 1 {} myGaussian'.format(excitationfreq))
-    # transmission_line('y', tx[0], tx[1], tx[2], sourceresistance, 'myGaussian', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
-    voltage_source('y', tx[0], tx[1], tx[2], sourceresistance, 'myGaussian', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
+    elif optstate == 'GiannakisPaper':
+        # Optimised custom pulse
+        print('#excitation_file: {} linear extrapolate'.format(os.path.join(userlibdir, 'GSSI1p5optpulse.txt')))
+        voltage_source('y', tx[0], tx[1], tx[2], sourceresistance, 'GSSI1p5optpulse', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
 
     # Output point - receiver bowtie
     if resolution == 0.001:
-        edge(tx[0] - 0.059, tx[1], tx[2], tx[0] - 0.059, tx[1] + dy, tx[2], 'rxres', rotate90origin=rotate90origin)
+        if optstate == 'WarrenThesis' or optstate == 'DebyeAbsorber':
+            edge(tx[0] - 0.059, tx[1], tx[2], tx[0] - 0.059, tx[1] + dy, tx[2], 'rxres', rotate90origin=rotate90origin)
         rx(tx[0] - 0.059, tx[1], tx[2], identifier='rxbowtie', to_save=[output], polarisation='y', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
     elif resolution == 0.002:
-        edge(tx[0] - 0.060, tx[1], tx[2], tx[0] - 0.060, tx[1] + dy, tx[2], 'rxres', rotate90origin=rotate90origin)
+        if optstate == 'WarrenThesis' or optstate == 'DebyeAbsorber':
+            edge(tx[0] - 0.060, tx[1], tx[2], tx[0] - 0.060, tx[1] + dy, tx[2], 'rxres', rotate90origin=rotate90origin)
         rx(tx[0] - 0.060, tx[1], tx[2], identifier='rxbowtie', to_save=[output], polarisation='y', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
 
 
-def antenna_like_GSSI_400(x, y, z, resolution=0.001, rotate90=False, **kwargs):
+def antenna_like_GSSI_400(x, y, z, resolution=0.001, rotate90=False):
     """Inserts a description of an antenna similar to the GSSI 400MHz antenna. Can be used with 0.5mm, 1mm (default) or 2mm spatial resolution. The external dimensions of the antenna are 300x300x178mm. One output point is defined between the arms of the receiver bowtie. The bowties are aligned with the y axis so the output is the y component of the electric field.
 
     Args:
         x, y, z (float): Coordinates of a location in the model to insert the antenna. Coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction.
         resolution (float): Spatial resolution for the antenna model.
         rotate90 (bool): Rotate model 90 degrees CCW in xy plane.
-        kwargs (dict): Optional variables, e.g. can be fed from an optimisation process.
     """
 
     # Antenna geometry properties
@@ -210,29 +218,16 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001, rotate90=False, **kwargs):
         rotate90origin = ()
         output = 'Ey'
 
-    # Unknown properties
-    if kwargs:
-        smooth_dec = kwargs['smooth_dec']   # choose to use dielectric smoothing or not
-        src_type = kwargs['src_type']   # source type. "voltage_source" or "transmission_line"
-        excitationfreq = kwargs['excitationfreq']
-        sourceresistance = kwargs['sourceresistance']
-        receiverresistance = kwargs['receiverresistance']
-        absorberEr = kwargs['absorberEr']
-        absorbersig = kwargs['absorbersig']
-        pcber = kwargs['pcber']
-        hdper = kwargs['hdper']
-        skidthickness = kwargs['skidthickness']
-    else:
-        smooth_dec = 'yes'
-        src_type = 'voltage_source' # or transmission_line
-        excitationfreq = 0.39239891e9 # GHz
-        sourceresistance = 111.59927 # Ohms
-        receiverresistance = sourceresistance # Ohms
-        absorberEr = 1.1
-        absorbersig = 0.062034689
-        pcber = 2.35
-        hdper = 2.35
-        skidthickness = 0.01
+    smooth_dec = 'yes' # choose to use dielectric smoothing or not
+    src_type = 'voltage_source' # # source type. "voltage_source" or "transmission_line"
+    excitationfreq = 0.39239891e9 # GHz
+    sourceresistance = 111.59927 # Ohms
+    receiverresistance = sourceresistance # Ohms
+    absorberEr = 1.1
+    absorbersig = 0.062034689
+    pcber = 2.35
+    hdper = 2.35
+    skidthickness = 0.01
 
     x = x - (casesize[0] / 2)
     y = y - (casesize[1] / 2)
