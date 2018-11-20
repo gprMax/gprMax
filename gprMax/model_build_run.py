@@ -354,7 +354,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         if G.gpu is None:
             tsolve = solve_cpu(currentmodelrun, modelend, G)
         else:
-            tsolve = solve_gpu(currentmodelrun, modelend, G)
+            tsolve, memsolve = solve_gpu(currentmodelrun, modelend, G)
 
         # Write an output file in HDF5 format
         write_hdf5_outputfile(outputfile, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
@@ -375,7 +375,10 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             print()
 
         if G.messages:
-            print('Total memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss)))
+            if G.gpu is None:
+                print('Total memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss)))
+            else:
+                print('Total memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss) + memsolve))
             print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
 
     # If geometry information to be reused between model runs then FDTDGrid
@@ -559,8 +562,8 @@ def solve_gpu(currentmodelrun, modelend, G):
     for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable):
 
         if iteration == G.iterations - 1:
-            print(drv.mem_get_info())
-        
+            memsolve = drv.mem_get_info()[1] - drv.mem_get_info()[0]
+
         # Store field component values for every receiver
         if G.rxs:
             store_outputs_gpu(np.int32(len(G.rxs)), np.int32(iteration),
@@ -670,4 +673,4 @@ def solve_gpu(currentmodelrun, modelend, G):
     ctx.pop()
     del ctx
 
-    return tsolve
+    return tsolve, memsolve
