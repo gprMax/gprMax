@@ -327,6 +327,10 @@ def dispersion_analysis(G):
                     except ValueError:
                         results['error'] = 'unable to calculate maximum power from waveform, most likely due to undersampling.'
 
+                # Ignore case where someone is using a waveform with zero amplitude, i.e. on a receiver
+                elif waveform.amp == 0:
+                    pass
+                    
                 # If waveform is truncated don't do any further analysis
                 else:
                     results['error'] = 'waveform does not fit within specified time window and is therefore being truncated.'
