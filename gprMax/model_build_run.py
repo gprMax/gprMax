@@ -558,6 +558,9 @@ def solve_gpu(currentmodelrun, modelend, G):
 
     for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable):
 
+        if iteration == G.iterations - 1:
+            print(drv.mem_get_info())
+        
         # Store field component values for every receiver
         if G.rxs:
             store_outputs_gpu(np.int32(len(G.rxs)), np.int32(iteration),
