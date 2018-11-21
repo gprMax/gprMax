@@ -564,6 +564,7 @@ def solve_gpu(currentmodelrun, modelend, G):
 
     for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable):
 
+        # Get GPU memory usage on final iteration
         if iteration == G.iterations - 1:
             memsolve = drv.mem_get_info()[1] - drv.mem_get_info()[0]
 

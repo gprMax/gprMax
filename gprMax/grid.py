@@ -191,15 +191,15 @@ class FDTDGrid(Grid):
     def memory_estimate_basic(self):
         """Estimate the amount of memory (RAM) required to run a model."""
 
-        stdoverhead = 45e6
-
-        # 6 x field arrays + 6 x ID arrays
-        fieldarrays = (6 + 6) * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(floattype).itemsize
+        stdoverhead = 50e6
 
         solidarray = self.nx * self.ny * self.nz * np.dtype(np.uint32).itemsize
 
         # 12 x rigidE array components + 6 x rigidH array components
         rigidarrays = (12 + 6) * self.nx * self.ny * self.nz * np.dtype(np.int8).itemsize
+
+        # 6 x field arrays + 6 x ID arrays
+        fieldarrays = (6 + 6) * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(floattype).itemsize
 
         # PML arrays
         pmlarrays = 0
@@ -224,7 +224,7 @@ class FDTDGrid(Grid):
         self.memoryusage = int(stdoverhead + fieldarrays + solidarray + rigidarrays + pmlarrays)
 
     def memory_check(self, snapsmemsize=0):
-        """Check the required amount of memory (RAM) is available on the host and GPU if specified.
+        """Check if the required amount of memory (RAM) is available on the host and GPU if specified.
 
         Args:
             snapsmemsize (int): amount of memory (bytes) required to store all requested snapshots
@@ -236,11 +236,12 @@ class FDTDGrid(Grid):
 
         # Check if model can be run on specified GPU if required
         if self.gpu is not None:
-            if self.memoryusage > self.gpu.totalmem:
-                if snapsmemsize != 0:
+            if self.memoryusage - snapsmemsize > self.gpu.totalmem:
+                raise GeneralError('Memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(self.memoryusage), human_size(self.gpu.totalmem, a_kilobyte_is_1024_bytes=True), self.gpu.deviceID, self.gpu.name))
+
+            # If the required memory without the snapshots will fit on the GPU then transfer and store snaphots on host
+            if snapsmemsize != 0 and self.memoryusage - snapsmemsize < self.gpu.totalmem:
                     self.snapsgpu2cpu = True
-                else:
-                    raise GeneralError('Memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(self.memoryusage), human_size(self.gpu.totalmem, a_kilobyte_is_1024_bytes=True), self.gpu.deviceID, self.gpu.name))
 
     def gpu_set_blocks_per_grid(self):
         """Set the blocks per grid size used for updating the electric and magnetic field arrays on a GPU."""
@@ -330,7 +331,7 @@ def dispersion_analysis(G):
                 # Ignore case where someone is using a waveform with zero amplitude, i.e. on a receiver
                 elif waveform.amp == 0:
                     pass
-                    
+
                 # If waveform is truncated don't do any further analysis
                 else:
                     results['error'] = 'waveform does not fit within specified time window and is therefore being truncated.'
