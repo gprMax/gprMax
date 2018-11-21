@@ -164,7 +164,10 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         G.memory_estimate_basic()
         G.memory_check()
         if G.messages:
-            print('\nTotal memory (RAM) required: ~{}\n'.format(human_size(G.memoryusage)))
+            if G.gpu is None:
+                print('\nMemory (RAM) required: ~{}\n'.format(human_size(G.memoryusage)))
+            else:
+                print('\nMemory (RAM) required: ~{} host + ~{} GPU\n'.format(human_size(G.memoryusage), human_size(G.memoryusage)))
 
         # Initialise an array for volumetric material IDs (solid), boolean
         # arrays for specifying materials not to be averaged (rigid),
@@ -243,7 +246,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             G.memoryusage += int(3 * Material.maxpoles * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(complextype).itemsize)
             G.memory_check()
             if G.messages:
-                print('\nTotal memory (RAM) required, updated (dispersive): ~{}\n'.format(human_size(G.memoryusage)))
+                print('\nMemory (RAM) required - updated (dispersive): ~{}\n'.format(human_size(G.memoryusage)))
 
             G.initialise_dispersive_arrays()
 
@@ -256,7 +259,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             G.memoryusage += int(snapsmemsize)
             G.memory_check(snapsmemsize=int(snapsmemsize))
             if G.messages:
-                print('\nTotal memory (RAM) required, updated (snapshots): ~{}\n'.format(human_size(G.memoryusage)))
+                print('\nMemory (RAM) required - updated (snapshots): ~{}\n'.format(human_size(G.memoryusage)))
 
         # Process complete list of materials - calculate update coefficients,
         # store in arrays, and build text list of materials/properties
@@ -376,10 +379,9 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         if G.messages:
             if G.gpu is None:
-                print('Total memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss)))
+                print('Memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss)))
             else:
-                print(human_size(memsolve))
-                print('Total memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss + memsolve)))
+                print('Memory (RAM) used: ~{} host + ~{} GPU'.format(human_size(p.memory_info().rss), human_size(memsolve)))
             print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
 
     # If geometry information to be reused between model runs then FDTDGrid
