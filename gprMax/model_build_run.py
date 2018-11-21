@@ -378,6 +378,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             if G.gpu is None:
                 print('Total memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss)))
             else:
+                print(human_size(memsolve))
                 print('Total memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss + memsolve)))
             print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
 
