@@ -437,13 +437,13 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     # Worker process #
     ##################
     elif workerflag in sys.argv:
-
+        print('Worker')
         # Connect to parent to get communicator
         try:
             comm = MPI.Comm.Get_parent()
             rank = comm.Get_rank()
         except ValueError:
-            raise ValueError('MPI worker (rank {}) could not connect to parent')
+            raise ValueError('MPI worker could not connect to parent')
 
         # Ask for work until stop sentinel
         for work in iter(lambda: comm.sendrecv(0, dest=0), StopIteration):
