@@ -479,6 +479,8 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
 def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
     """
     Alternate MPI implementation that avoids using the spawn mechanism.
+    This implementation is designed to be used as
+    e.g. 'mpirun -n 5 python -m gprMax user_models/mymodel.in -n 10 -mpialt'
 
     Run mixed mode MPI/OpenMP simulation - MPI task farm for models with
     each model parallelised using either OpenMP (CPU) or CUDA (GPU)
@@ -539,9 +541,6 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
             # Worker has completed all tasks
             elif tag == tags.EXIT.value:
                 closedworkers += 1
-
-        # Shutdown communicator
-        comm.Disconnect()
 
         tsimend = perf_counter()
         simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
