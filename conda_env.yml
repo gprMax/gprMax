@@ -3,7 +3,7 @@
 
 name: gprMax
 dependencies:
-- python=3.6
+- python>3.6
 - colorama
 - cython
 - h5py
@@ -18,4 +18,4 @@ dependencies:
   - mpi4py
  # - pycuda
   - terminaltables
-  - tqdm
+  - tqdm==4.28.1
