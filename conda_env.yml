@@ -9,13 +9,13 @@ dependencies:
 - h5py
 - jupyter
 - matplotlib
-- mkl==2018.0.0
-- numpy
+# - numpy
 - psutil
 - scipy
 
 - pip:
   - mpi4py
+  - numpy>1.15.4
  # - pycuda
   - terminaltables
   - tqdm
