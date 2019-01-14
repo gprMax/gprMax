@@ -18,4 +18,4 @@ dependencies:
   - mpi4py
  # - pycuda
   - terminaltables
-  - tqdm==4.28.1
+  - tqdm
