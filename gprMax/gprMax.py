@@ -391,10 +391,12 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         myargv = []
         for key, value in vars(args).items():
             if value:
+                # Input file name always comes first
                 if 'inputfile' in key:
                     myargv.append(value)
                 elif 'gpu' in key:
                     myargv.append('-' + key)
+                    # If specific GPU device ID is given then add it
                     if not isinstance(value, list):
                         myargv.append(str(value.deviceID))
                 elif 'mpicomm' in key:
@@ -402,10 +404,14 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                 elif '_' in key:
                     key = key.replace('_', '-')
                     myargv.append('--' + key)
-                    myargv.append(str(value))
+                    # If value is anything other than True
+                    if not value:
+                        myargv.append(str(value))
                 else:
                     myargv.append('-' + key)
-                    myargv.append(str(value))
+                    # If value is anything other than True
+                    if not value:
+                        myargv.append(str(value))
 
         # Create a list of work
         worklist = []
