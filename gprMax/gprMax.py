@@ -404,13 +404,9 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                 elif '_' in key:
                     key = key.replace('_', '-')
                     myargv.append('--' + key)
-                    # If value is anything other than True
-                    if not value:
-                        myargv.append(str(value))
                 else:
                     myargv.append('-' + key)
-                    # If value is anything other than True
-                    if not value:
+                    if value is not True:
                         myargv.append(str(value))
 
         # Create a list of work
