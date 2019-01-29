@@ -520,7 +520,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
     ##################
     if rank == 0:
         tsimstart = perf_counter()
-        print('MPI master (rank {}, PID {}) on {} using {} workers\n'.format(rank, os.getpid(), hostname, numworkers))
+        print('MPI master ({}, rank {}) on {} using {} workers\n'.format(comm.name, rank, hostname, numworkers))
 
         closedworkers = 0
         while closedworkers < numworkers:
