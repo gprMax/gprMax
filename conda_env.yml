@@ -14,7 +14,7 @@ dependencies:
 - scipy
 
 - pip:
-  - mpi4py
+ # - mpi4py
   - numpy>1.15.4
  # - pycuda
   - terminaltables
