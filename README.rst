@@ -38,6 +38,7 @@ Package overview
         CONTRIBUTORS
         docs/
         gprMax/
+        gsoc-ideas.md
         LICENSE
         README.rst
         setup.cfg
@@ -52,6 +53,7 @@ Package overview
 * ``CONTRIBUTORS`` contains a list of names of people who have contributed to the gprMax codebase.
 * ``docs`` contains source files for the User Guide. The User Guide is written using `reStructuredText <http://docutils.sourceforge.net/rst.html>`_ markup, and is built using `Sphinx <http://sphinx-doc.org>`_ and `Read the Docs <https://readthedocs.org>`_.
 * ``gprMax`` is the main package. Within this package the main module is ``gprMax.py``
+* ``gsoc-ideas.md`` is a list of potential project ideas for `Google Summer of Code <https://summerofcode.withgoogle.com>`_ program
 * ``LICENSE`` contains information on the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
 * ``README.rst`` contains getting started information on installation, usage, and new features/changes.
 * ``setup.cfg`` is used to set preference for code formatting/styling using flake8.
@@ -77,7 +79,7 @@ You can `watch screencasts <http://docs.gprmax.com/en/latest/screencasts.html>`_
 
 We recommend using Miniconda to install Python and the required Python packages for gprMax in a self-contained Python environment. Miniconda is a mini version of Anaconda which is a completely free Python distribution (including for commercial use and redistribution). It includes more than 300 of the most popular Python packages for science, math, engineering, and data analysis.
 
-* `Download and install Miniconda <http://conda.pydata.org/miniconda.html>`_. Choose the Python 3.x version for your platform (see the `Quick Install page <http://conda.pydata.org/docs/install/quick.html>`_ for help installing Miniconda)
+* `Download and install Miniconda <http://conda.pydata.org/miniconda.html>`_. Choose the Python 3.x version for your platform. We recommend choosing the installation options to: install Miniconda only for your user account; add Miniconda to your PATH environment variable; and to register Miniconda Python as your default Python. See the `Quick Install page <http://conda.pydata.org/docs/install/quick.html>`_ for help installing Miniconda.
 * Open a Terminal (Linux/macOS) or Command Prompt (Windows) and run the following commands:
 
 .. code-block:: none
@@ -113,7 +115,7 @@ macOS
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
 
-* Download and install `Microsoft Visual C++ 2015 Build Tools <http://download.microsoft.com/download/5/F/7/5F7ACAEB-8363-451F-9425-68A90F98B238/visualcppbuildtools_full.exe>`_ (currently you must use the 2015 version, not 2017). Use the default installation options.
+* Download and install `Microsoft Visual C++ 2015 Build Tools <http://download.microsoft.com/download/5/F/7/5F7ACAEB-8363-451F-9425-68A90F98B238/visualcppbuildtools_full.exe>`_ (currently you must use the 2015 version, not 2017). Use the custom installation option and deselect everything apart from the Windows SDK for your version of Windows.
 
 Alternatively if you are using Windows 10 and feeling adventurous you can install the `Windows Subsystem for Linux <https://msdn.microsoft.com/en-gb/commandline/wsl/about>`_ and then follow the Linux install instructions for gprMax. Note however that currently WSL does not aim to support GUI desktops or applications, e.g. Gnome, KDE, etc....
 
