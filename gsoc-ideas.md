@@ -17,7 +17,7 @@ The [speed-up on GPU](http://www.gprmax.com) is significant (x30 compared to par
 
 **Difficulty:** Medium
 
-**Mentor(s):** Dr Craig Warren (craig.warren@northumbria.ac.uk)
+**Mentor(s):** Dr Craig Warren (craig@gprmax.com)
 
 
 ## 2. MPI domain decomposition
@@ -30,7 +30,7 @@ Simulations are becoming ever larger and more complex, which often means their m
 
 **Difficulty:** Hard
 
-**Mentor(s):** Dr Antonis Giannopoulos (A.Giannopoulos@ed.ac.uk) and Dr Craig Warren (craig.warren@northumbria.ac.uk)
+**Mentor(s):** Dr Antonis Giannopoulos (antonis@gprmax.com) and Dr Craig Warren (craig@gprmax.com)
 
 
 ## 3. Improved installation tools
@@ -43,7 +43,7 @@ gprMax is predominately written in Python, but some of the performance-critical 
 
 **Difficulty:** Medium
 
-**Mentor(s):** Dr Craig Warren (craig.warren@northumbria.ac.uk)
+**Mentor(s):** Dr Craig Warren (craig@gprmax.com)
 
 
 ## 4. Comprehensive test and benchmarking suite
@@ -56,7 +56,7 @@ Currently gprMax includes a series of tests that verify specific simulation resu
 
 **Difficulty:** Medium
 
-**Mentor(s):** Dr Antonis Giannopoulos (A.Giannopoulos@ed.ac.uk) and Dr Craig Warren (craig.warren@northumbria.ac.uk)
+**Mentor(s):** Dr Antonis Giannopoulos (antonis@gprmax.com) and Dr Craig Warren (craig@gprmax.com)
 
 
 ## 5. Geometry visualisation
@@ -69,7 +69,7 @@ Being able to visualise and check the geometry and materials of models before ru
 
 **Difficulty:** Medium
 
-**Mentor(s):** Dr Craig Warren (craig.warren@northumbria.ac.uk)
+**Mentor(s):** Dr Craig Warren (craig@gprmax.com)
 
 
 ## 6. Web-based framework for GPR data processing
@@ -82,7 +82,7 @@ Output data from electromagnetic simulations often requires to be processed usin
 
 **Difficulty:** Medium
 
-**Mentor(s):** Dr Antonis Giannopoulos (A.Giannopoulos@ed.ac.uk) and Dr Craig Warren (craig.warren@northumbria.ac.uk)
+**Mentor(s):** Dr Antonis Giannopoulos (antonis@gprmax.com) and Dr Craig Warren (craig@gprmax.com)
 
 
 ## 7. Web-based framework for model building
@@ -95,4 +95,4 @@ Many models, especially for Ground Penetrating Radar (GPR), can be easily specif
 
 **Difficulty:** Medium
 
-**Mentor(s):** Dr Antonis Giannopoulos (A.Giannopoulos@ed.ac.uk) and Dr Craig Warren (craig.warren@northumbria.ac.uk)
+**Mentor(s):** Dr Antonis Giannopoulos (antonis@gprmax.com) and Dr Craig Warren (craig@gprmax.com)
