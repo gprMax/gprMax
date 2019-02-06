@@ -1,4 +1,4 @@
-# GSoC Project Ideas List
+# GSoC 2019 - Project Ideas List
 
 gprMax is planning to participate for the first time in the [Google Summer of Code](https://summerofcode.withgoogle.com) 2019 program. Here is list of some potential project ideas:
 
