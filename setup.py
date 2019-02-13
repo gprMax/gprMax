@@ -109,7 +109,7 @@ if 'cleanall' in sys.argv:
 # Set compiler options
 # Windows
 if sys.platform == 'win32':
-    compile_args = ['/O2', '/openmp', '/w']  # No static linking as no static version of OpenMP library.
+    compile_args = ['/O2', '/openmp', '/w']  # No static linking as no static version of OpenMP library; /w disables warnings
     linker_args = []
     extra_objects = []
 # Mac OS X - needs gcc (usually via HomeBrew) because the default compiler LLVM (clang) does not support OpenMP
@@ -121,7 +121,7 @@ elif sys.platform == 'darwin':
         os.environ['CC'] = gccpath[-1].split(os.sep)[-1]
         rpath = '/usr/local/opt/gcc/lib/gcc/' + gccpath[-1].split(os.sep)[-1][-1] + '/'
     else:
-        raise('Cannot find gcc 4.x, 5.x, 6.x, 7.x, or 8.x in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support, i.e. --without-multilib, must be installed')
+        raise('Cannot find gcc 4.x, 5.x, 6.x, 7.x, or 8.x in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support is required.')
     compile_args = ['-O3', '-w', '-fopenmp', '-march=native']  # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
     linker_args = ['-fopenmp', '-Wl,-rpath,' + rpath]
     extra_objects = []
