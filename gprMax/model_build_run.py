@@ -480,7 +480,7 @@ def solve_gpu(currentmodelrun, modelend, G):
 
     # Suppress nvcc warnings on Windows
     if sys.platform == 'win32':
-        compiler_opts = '-Xcompiler "/w"'
+        compiler_opts = ['-w']
     else:
         compiler_opts = None
 
