@@ -57,6 +57,7 @@ def get_output_data(filename, rxnumber, rxcomponent):
 
     outputdata = f[path + '/' + rxcomponent]
     outputdata = np.array(outputdata)
+    f.close()
 
     return outputdata, dt
 

@@ -219,6 +219,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
         # fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
         # fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
+    f.close()
+
     return plt
 
 
