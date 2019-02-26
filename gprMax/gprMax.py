@@ -355,7 +355,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         optparams (dict): Optional argument. For Taguchi optimisation it
                 provides the parameters to optimise and their values.
     """
-
+    print('run_mpi_sim')
     from mpi4py import MPI
 
     status = MPI.Status()
@@ -439,7 +439,6 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     # Worker process #
     ##################
     elif workerflag in sys.argv:
-        print('Worker')
         # Connect to parent to get communicator
         try:
             comm = MPI.Comm.Get_parent()
