@@ -96,3 +96,16 @@ Many models, especially for Ground Penetrating Radar (GPR), can be easily specif
 **Difficulty:** Medium
 
 **Mentor(s):** Dr Antonis Giannopoulos (antonis@gprmax.com) and Dr Craig Warren (craig@gprmax.com)
+
+
+## 8. Modelling complex materials
+
+The aim of this project is to couple and enhance a series of scripts that have been developed to allow materials with complex (frequency dependent) properties to be modelled.
+
+Often materials that required to be simulated have complex electromagnetic properties that can be frequency dependent. There are several models that can be used to simulate different behaviours, and we have developed an initial [series of scripts](https://github.com/gprMax/gprMax/pull/125) that capture this. However work is required to enhance them (possibly with the option for some graphical input) and couple them with gprMax.
+
+**Skills required:** Python, NumPy
+
+**Difficulty:** Medium
+
+**Mentor(s):** Dr Craig Warren (craig@gprmax.com) and Dr Antonis Giannopoulos (antonis@gprmax.com)
