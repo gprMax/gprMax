@@ -4,18 +4,18 @@
 name: gprMax
 dependencies:
 - python>3.6
+- blas=*=openblas
 - colorama
 - cython
 - h5py
 - jupyter
 - matplotlib
-# - numpy
+- numpy
 - psutil
 - scipy
 
 - pip:
  # - mpi4py
-  - numpy>1.15.4
  # - pycuda
   - terminaltables
   - tqdm
