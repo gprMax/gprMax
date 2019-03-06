@@ -355,7 +355,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         optparams (dict): Optional argument. For Taguchi optimisation it
                 provides the parameters to optimise and their values.
     """
-    print('run_mpi_sim')
+
     from mpi4py import MPI
 
     status = MPI.Status()
@@ -383,7 +383,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
             comm = MPI.COMM_WORLD
         rank = comm.Get_rank()  # rank of this process
         tsimstart = perf_counter()
-        print('MPI master ({}, rank {}) on {} using {} workers\n'.format(comm.name, rank, hostname, numworkers))
+        print('MPI master ({}, rank {}) on {} spawning {} workers\n'.format(comm.name, rank, hostname, numworkers))
 
         # Assemble a sys.argv replacement to pass to spawned worker
         # N.B This is required as sys.argv not available when gprMax is called via api()
