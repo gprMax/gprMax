@@ -421,7 +421,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         worklist += ([StopIteration] * numworkers)
 
         # Spawn workers
-        newcomm = comm.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [workerflag], maxprocs=numworkers)
+        newcomm = comm.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [workerflag], maxprocs=numworkers, info=MPI.INFO_NULL, root=0)
 
         # Reply to whoever asks until done
         for work in worklist:
@@ -442,7 +442,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         # Connect to parent to get communicator
         try:
             comm = MPI.Comm.Get_parent()
-            rank = comm.Get_rank()
+            rank = MPI.COMM_WORLD.Get_rank()
         except ValueError:
             raise ValueError('MPI worker could not connect to parent')
 
@@ -459,7 +459,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                     args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
                 gpuinfo = ' using {} - {}, {} RAM '.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
 
-            # If Taguchi optimistaion, add specific value for each parameter to
+            # If Taguchi optimisation, add specific value for each parameter to
             # optimise for each experiment to user accessible namespace
             if 'optparams' in work:
                 tmp = {}
