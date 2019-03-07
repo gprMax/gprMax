@@ -104,7 +104,7 @@ The aim of this project is to couple and enhance a series of scripts that have b
 
 Often materials that required to be simulated have complex electromagnetic properties that can be frequency dependent. There are several models that can be used to simulate different behaviours, and we have developed an initial [series of scripts](https://github.com/gprMax/gprMax/pull/125) that capture this. However work is required to enhance them (possibly with the option for some graphical input) and couple them with gprMax.
 
-**Skills required:** Python, NumPy
+**Skills required:** Python, NumPy, some knowledge of electromagnetic wave propagation.
 
 **Difficulty:** Medium
 
