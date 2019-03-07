@@ -88,8 +88,8 @@ class FDTDGrid(Grid):
         self.inputdirectory = ''
         self.outputdirectory = ''
         self.title = ''
-        self.messages = True
-        self.tqdmdisable = False
+        self.messages = False
+        self.progressbars = self.messages
         self.memoryusage = 0
 
         # Get information about host machine
@@ -136,6 +136,7 @@ class FDTDGrid(Grid):
         self.pmlthickness = OrderedDict((key, 10) for key in PML.boundaryIDs)
         self.cfs = []
         self.pmls = []
+        self.pmlformulation = 'HORIPML'
 
         self.materials = []
         self.mixingmodels = []

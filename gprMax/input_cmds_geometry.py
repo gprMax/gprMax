@@ -59,13 +59,13 @@ def process_geometrycmds(geometry, G):
     """
 
     # Disable progress bar if on Windows as it does not update properly
-    # when messages are printed
+    # when messages are printed for geometry
     if sys.platform == 'win32':
-        tqdmdisable = True
+        progressbars = False
     else:
-        tqdmdisable = G.tqdmdisable
+        progressbars = not G.progressbars
 
-    for object in tqdm(geometry, desc='Processing geometry related cmds', unit='cmds', ncols=get_terminal_width() - 1, file=sys.stdout, disable=tqdmdisable):
+    for object in tqdm(geometry, desc='Processing geometry related cmds', unit='cmds', ncols=get_terminal_width() - 1, file=sys.stdout, disable=progressbars):
         tmp = object.split()
 
         if tmp[0] == '#geometry_objects_read:':

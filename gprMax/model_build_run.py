@@ -58,7 +58,8 @@ from gprMax.input_cmds_file import write_processed_file
 from gprMax.input_cmds_file import check_cmd_names
 from gprMax.input_cmds_multiuse import process_multicmds
 from gprMax.input_cmds_singleuse import process_singlecmds
-from gprMax.materials import Material, process_materials
+from gprMax.materials import Material
+from gprMax.materials import process_materials
 from gprMax.pml import CFS
 from gprMax.pml import PML
 from gprMax.pml import build_pmls
@@ -112,6 +113,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         G = FDTDGrid()
 
         # Get information about host machine
+        # (need to save this info to FDTDGrid instance after it has been created)
         G.hostinfo = get_host_info()
 
         # Single GPU object
@@ -121,7 +123,8 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         G.inputfilename = os.path.split(inputfile.name)[1]
         G.inputdirectory = os.path.dirname(os.path.abspath(inputfile.name))
         inputfilestr = '\n--- Model {}/{}, input file: {}'.format(currentmodelrun, modelend, inputfile.name)
-        print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
+        if G.messages:
+            print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
         # Add the current model run to namespace that can be accessed by
         # user in any Python code blocks in input file
@@ -135,7 +138,8 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         for key, value in sorted(usernamespace.items()):
             if key != '__builtins__':
                 uservars += '{}: {}, '.format(key, value)
-        print('Constants/variables used/available for Python scripting: {{{}}}\n'.format(uservars[:-2]))
+        if G.messages:
+            print('Constants/variables used/available for Python scripting: {{{}}}\n'.format(uservars[:-2]))
 
         # Write a file containing the input commands after Python or include file commands have been processed
         if args.write_processed:
@@ -158,7 +162,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         process_singlecmds(singlecmds, G)
 
         # Process parameters for commands that can occur multiple times in the model
-        print()
+        if G.messages: print()
         process_multicmds(multicmds, G)
 
         # Estimate and check memory (RAM) usage
@@ -182,29 +186,32 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         process_geometrycmds(geometry, G)
 
         # Build the PMLs and calculate initial coefficients
-        print()
+        if G.messages: print()
         if all(value == 0 for value in G.pmlthickness.values()):
             if G.messages:
-                print('PML boundaries: switched off')
+                print('PML: switched off')
             pass  # If all the PMLs are switched off don't need to build anything
         else:
+            # Set default CFS parameters for PML if not given
+            if not G.cfs:
+                G.cfs = [CFS()]
             if G.messages:
                 if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
-                    pmlinfo = str(G.pmlthickness['x0']) + ' cells'
+                    pmlinfo = str(G.pmlthickness['x0'])
                 else:
                     pmlinfo = ''
                     for key, value in G.pmlthickness.items():
-                        pmlinfo += '{}: {} cells, '.format(key, value)
-                    pmlinfo = pmlinfo[:-2]
-                print('PML boundaries: {}'.format(pmlinfo))
-            pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
+                        pmlinfo += '{}: {}, '.format(key, value)
+                    pmlinfo = pmlinfo[:-2] + ' cells'
+                print('PML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo))
+            pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
             build_pmls(G, pbar)
             pbar.close()
 
         # Build the model, i.e. set the material properties (ID) for every edge
         # of every Yee cell
-        print()
-        pbar = tqdm(total=2, desc='Building main grid', ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
+        if G.messages: print()
+        pbar = tqdm(total=2, desc='Building main grid', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
         build_electric_components(G.solid, G.rigidE, G.ID, G)
         pbar.update()
         build_magnetic_components(G.solid, G.rigidH, G.ID, G)
@@ -286,7 +293,8 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
     # If geometry information to be reused between model runs
     else:
         inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(currentmodelrun, modelend, inputfile.name)
-        print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
+        if G.messages:
+            print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
         # Clear arrays for field components
         G.initialise_field_arrays()
@@ -317,15 +325,15 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
     if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only:
         print(Fore.RED + '\nWARNING: No geometry views or geometry objects to output found.' + Style.RESET_ALL)
     if G.geometryviews:
-        print()
+        if G.messages: print()
         for i, geometryview in enumerate(G.geometryviews):
             geometryview.set_filename(appendmodelnumber, G)
-            pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
+            pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
             geometryview.write_vtk(G, pbar)
             pbar.close()
     if G.geometryobjectswrite:
         for i, geometryobject in enumerate(G.geometryobjectswrite):
-            pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {}/{}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
+            pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {}/{}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
             geometryobject.write_hdf5(G, pbar)
             pbar.close()
 
@@ -347,12 +355,14 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         outputdir = os.path.abspath(outputdir)
         if not os.path.isdir(outputdir):
             os.mkdir(outputdir)
-            print('\nCreated output directory: {}'.format(outputdir))
+            if G.messages:
+                print('\nCreated output directory: {}'.format(outputdir))
         # Restore current directory
         os.chdir(curdir)
         basename, ext = os.path.splitext(inputfilename)
         outputfile = os.path.join(outputdir, basename + appendmodelnumber + '.out')
-        print('\nOutput file: {}\n'.format(outputfile))
+        if G.messages:
+            print('\nOutput file: {}\n'.format(outputfile))
 
         # Main FDTD solving functions for either CPU or GPU
         if G.gpu is None:
@@ -370,13 +380,13 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             if not os.path.exists(snapshotdir):
                 os.mkdir(snapshotdir)
 
-            print()
+            if G.messages: print()
             for i, snap in enumerate(G.snapshots):
                 snap.filename = os.path.abspath(os.path.join(snapshotdir, snap.basefilename + '.vti'))
-                pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte', unit_scale=True, desc='Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable)
+                pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte', unit_scale=True, desc='Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
                 snap.write_vtk_imagedata(pbar, G)
                 pbar.close()
-            print()
+            if G.messages: print()
 
         if G.messages:
             if G.gpu is None:
@@ -409,7 +419,7 @@ def solve_cpu(currentmodelrun, modelend, G):
 
     tsolvestart = perf_counter()
 
-    for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable):
+    for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars):
         # Store field component values for every receiver and transmission line
         store_outputs(iteration, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
@@ -569,7 +579,7 @@ def solve_gpu(currentmodelrun, modelend, G):
     iterend = drv.Event()
     iterstart.record()
 
-    for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=G.tqdmdisable):
+    for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars):
 
         # Get GPU memory usage on final iteration
         if iteration == G.iterations - 1:
