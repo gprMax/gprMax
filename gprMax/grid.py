@@ -88,7 +88,7 @@ class FDTDGrid(Grid):
         self.inputdirectory = ''
         self.outputdirectory = ''
         self.title = ''
-        self.messages = False
+        self.messages = True
         self.progressbars = self.messages
         self.memoryusage = 0
 
