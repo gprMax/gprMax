@@ -388,6 +388,7 @@ def detect_check_gpus(deviceIDs):
 
     # Get list of available GPU device IDs
     deviceIDsavail = os.environ.get('CUDA_VISIBLE_DEVICES')
+    deviceIDsavail = [int(s) for s in deviceIDsavail.split(',')]
 
     # Print information about all detected GPUs
     gpus = []
