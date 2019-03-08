@@ -383,7 +383,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
             comm = MPI.COMM_WORLD
         rank = comm.Get_rank()  # rank of this process
         tsimstart = perf_counter()
-        print('MPI master ({}, rank {}) on {} spawning {} workers\n'.format(comm.name, rank, hostname, numworkers))
+        print('MPI master (name: {}, rank: {}) on {} spawning {} workers\n'.format(comm.name, rank, hostname, numworkers))
 
         # Assemble a sys.argv replacement to pass to spawned worker
         # N.B This is required as sys.argv not available when gprMax is called via api()
@@ -421,7 +421,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         worklist += ([StopIteration] * numworkers)
 
         # Spawn workers
-        newcomm = comm.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [workerflag], maxprocs=numworkers, info=MPI.INFO_NULL, root=0)
+        newcomm = comm.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [workerflag], maxprocs=numworkers, info=MPI.INFO_NULL)
 
         # Reply to whoever asks until done
         for work in worklist:
@@ -442,7 +442,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         # Connect to parent to get communicator
         try:
             comm = MPI.Comm.Get_parent()
-            rank = MPI.COMM_WORLD.Get_rank()
+            rank = comm.Get_rank()
         except ValueError:
             raise ValueError('MPI worker could not connect to parent')
 
@@ -470,7 +470,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                 modelusernamespace = usernamespace
 
             # Run the model
-            print('MPI worker ({}, rank {}) starting model {}/{}{} on {}\n'.format(comm.name, rank, currentmodelrun, numbermodelruns, gpuinfo, hostname))
+            print('MPI worker (name: {}, rank: {}) on {} starting model {}/{}{}\n'.format(comm.name, rank, hostname, currentmodelrun, numbermodelruns, gpuinfo))
             run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
 
         # Shutdown
@@ -519,7 +519,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
     ##################
     if rank == 0:
         tsimstart = perf_counter()
-        print('MPI master ({}, rank {}) on {} using {} workers\n'.format(comm.name, rank, hostname, numworkers))
+        print('MPI master (name: {}, rank: {}) on {} using {} workers\n'.format(comm.name, rank, hostname, numworkers))
 
         closedworkers = 0
         while closedworkers < numworkers:
@@ -580,7 +580,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
                     modelusernamespace = usernamespace
 
                 # Run the model
-                print('MPI worker (rank {}) starting model {}/{}{} on {}\n'.format(rank, currentmodelrun, numbermodelruns, gpuinfo, hostname))
+                print('MPI worker (name: {}, rank: {}) on {} starting model {}/{}{}\n'.format(comm.name, rank, hostname, currentmodelrun, numbermodelruns, gpuinfo))
                 run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
                 comm.send(None, dest=0, tag=tags.DONE.value)
 
