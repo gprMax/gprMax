@@ -281,11 +281,11 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         # Check to see if numerical dispersion might be a problem
         results = dispersion_analysis(G)
-        if results['error']:
+        if results['error'] and G.messages:
             print(Fore.RED + "\nWARNING: Numerical dispersion analysis not carried out as {}".format(results['error']) + Style.RESET_ALL)
         elif results['N'] < G.mingridsampling:
             raise GeneralError("Non-physical wave propagation: Material '{}' has wavelength sampled by {} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {:g}Hz".format(results['material'].ID, results['N'], results['maxfreq']))
-        elif results['deltavp'] and np.abs(results['deltavp']) > G.maxnumericaldisp:
+        elif results['deltavp'] and np.abs(results['deltavp']) > G.maxnumericaldisp and G.messages:
             print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']) + Style.RESET_ALL)
         elif results['deltavp'] and G.messages:
             print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
@@ -322,7 +322,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             receiver.zcoord = receiver.zcoordorigin + (currentmodelrun - 1) * G.rxsteps[2]
 
     # Write files for any geometry views and geometry object outputs
-    if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only:
+    if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only and G.messages:
         print(Fore.RED + '\nWARNING: No geometry views or geometry objects to output found.' + Style.RESET_ALL)
     if G.geometryviews:
         if G.messages: print()
