@@ -19,6 +19,7 @@
 from contextlib import contextmanager
 import codecs
 import decimal as d
+import os
 import platform
 import psutil
 import re
@@ -365,8 +366,11 @@ class GPU(object):
         self.totalmem = drv.Device(self.deviceID).total_memory()
 
 
-def detect_gpus():
+def detect_check_gpus(deviceIDs):
     """Get information about Nvidia GPU(s).
+
+    Args:
+        deviceIDs (list): List of device IDs.
 
     Returns:
         gpus (list): Detected GPU(s) object(s).
@@ -382,14 +386,19 @@ def detect_gpus():
     if drv.Device.count() == 0:
         raise GeneralError('No NVIDIA CUDA-Enabled GPUs detected (https://developer.nvidia.com/cuda-gpus)')
 
+    # Get list of available GPU device IDs
+    deviceIDsavail = os.environ.get('CUDA_VISIBLE_DEVICES')
+
     # Print information about all detected GPUs
     gpus = []
     gputext = []
-    for i in range(drv.Device.count()):
-        gpu = GPU(deviceID=i)
-        gpu.get_gpu_info(drv)
-        gpus.append(gpu)
-        gputext.append('{} - {}, {}'.format(gpu.deviceID, gpu.name, human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)))
-    print('GPU(s) detected: {}'.format(' | '.join(gputext)))
+    for ID in deviceIDs:
+        if ID not in deviceIDsavail:
+            raise GeneralError('GPU with device ID {} does not exist'.format(ID))
+        else:
+            gpu = GPU(deviceID=ID)
+            gpu.get_gpu_info(drv)
+            gpus.append(gpu)
+            gputext.append('{} - {}, {}'.format(gpu.deviceID, gpu.name, human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)))
 
-    return gpus
+    return gpus, gputext

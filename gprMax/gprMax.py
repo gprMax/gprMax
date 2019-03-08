@@ -36,7 +36,7 @@ from gprMax.constants import m0
 from gprMax.constants import z0
 from gprMax.exceptions import GeneralError
 from gprMax.model_build_run import run_model
-from gprMax.utilities import detect_gpus
+from gprMax.utilities import detect_check_gpus
 from gprMax.utilities import get_host_info
 from gprMax.utilities import get_terminal_width
 from gprMax.utilities import human_size
@@ -131,33 +131,48 @@ def run_main(args):
 
         # Get information/setup Nvidia GPU(s)
         if args.gpu is not None:
-            # Extract first item of list, either True to automatically determine device ID,
-            # or an integer to manually specify device ID
-            args.gpu = args.gpu[0]
-            gpus = detect_gpus()
-
-            # If a device ID is specified check it is valid
-            if not isinstance(args.gpu, bool):
-                if args.gpu > len(gpus) - 1:
-                    raise GeneralError('GPU with device ID {} does not exist'.format(args.gpu))
-                # Set args.gpu to GPU object to access elsewhere
-                args.gpu = next(gpu for gpu in gpus if gpu.deviceID == args.gpu)
-
-            # If no device ID is specified
+            # If first item of the list is a boolean then use default device ID (0)
+            if isinstance(args.gpu[0], bool):
+                deviceIDs = 0
             else:
-                # If in MPI mode then set args.gpu to list of available GPUs
-                if args.mpi:
-                    # if args.mpi - 1 > len(gpus):
-                    #     raise GeneralError('Too many MPI tasks requested ({}). The number of MPI tasks requested can only be a maximum of the number of GPU(s) detected plus one, i.e. {} GPU worker tasks + 1 CPU master task'.format(args.mpi, len(gpus)))
-                    args.gpu = gpus
-                elif args.mpialt:
-                    args.gpu = gpus
-                # If benchmarking mode then set args.gpu to list of available GPUs
-                elif args.benchmark:
-                    args.gpu = gpus
-                # Otherwise set args.gpu to GPU object with default device ID (0) to access elsewhere
-                else:
-                    args.gpu = next(gpu for gpu in gpus if gpu.deviceID == 0)
+                deviceIDs = args.gpu
+            gpus, gputext = detect_check_gpus(deviceIDs)
+            print('GPU(s) detected: {}'.format(' | '.join(gputext)))
+
+            # If in MPI mode or benchmarking provide list of GPU objects, otherwise
+            # provide single GPU object
+            if args.mpi or args.mpialt or args.benchmark:
+                args.gpu = gpus
+            else:
+                args.gpu = gpus[0]
+
+            # # Extract first item of list, either True to automatically determine device ID,
+            # # or an integer to manually specify device ID
+            # args.gpu = args.gpu[0]
+            # gpus = detect_check_gpus(deviceIDs)
+            #
+            # # If a device ID is specified check it is valid
+            # if not isinstance(args.gpu, bool):
+            #     if args.gpu > len(gpus) - 1:
+            #         raise GeneralError('GPU with device ID {} does not exist'.format(args.gpu))
+            #     # Set args.gpu to GPU object to access elsewhere
+            #     args.gpu = next(gpu for gpu in gpus if gpu.deviceID == args.gpu)
+            #
+            # # If no device ID is specified
+            # elif isinstance(args.gpu, list):
+            #     # If in MPI mode then set args.gpu to list of available GPUs
+            #     if args.mpi or args.mpialt or args.benchmark:
+            #         # if args.mpi - 1 > len(gpus):
+            #         #     raise GeneralError('Too many MPI tasks requested ({}). The number of MPI tasks requested can only be a maximum of the number of GPU(s) detected plus one, i.e. {} GPU worker tasks + 1 CPU master task'.format(args.mpi, len(gpus)))
+            #         args.gpu = gpus
+            #     elif args.mpialt:
+            #         args.gpu = gpus
+            #     # If benchmarking mode then set args.gpu to list of available GPUs
+            #     elif args.benchmark:
+            #         args.gpu = gpus
+            #     # Otherwise set args.gpu to GPU object with default device ID (0) to access elsewhere
+            #     else:
+            #         args.gpu = next(gpu for gpu in gpus if gpu.deviceID == 0)
 
         # Create a separate namespace that users can access in any Python code blocks in the input file
         usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': args.n, 'inputfile': os.path.abspath(inputfile.name)}
@@ -296,15 +311,10 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     # GPU only benchmarking
     else:
         # Set size of array to store GPU runtimes and number of runs of model required
-        if isinstance(args.gpu, list):
-            for gpu in args.gpu:
-                gpuIDs.append(gpu.name)
-            gputimes = np.zeros(len(args.gpu))
-            numbermodelruns = len(args.gpu)
-        else:
-            gpuIDs.append(args.gpu.name)
-            gputimes = np.zeros(1)
-            numbermodelruns = 1
+        for gpu in args.gpu:
+            gpuIDs.append(gpu.name)
+        gputimes = np.zeros(len(args.gpu))
+        numbermodelruns = len(args.gpu)
         # Store GPU information in a temp variable
         gpus = args.gpu
 
@@ -318,10 +328,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
             cputimes[currentmodelrun - 1] = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, usernamespace)
         # Run GPU benchmark
         else:
-            if isinstance(gpus, list):
-                args.gpu = gpus[(currentmodelrun - 1)]
-            else:
-                args.gpu = gpus
+            args.gpu = gpus[(currentmodelrun - 1)]
             os.environ['OMP_NUM_THREADS'] = str(hostinfo['physicalcores'])
             gputimes[(currentmodelrun - 1)] = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, usernamespace)
 
@@ -396,9 +403,6 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                     myargv.append(value)
                 elif 'gpu' in key:
                     myargv.append('-' + key)
-                    # If specific GPU device ID is given then add it
-                    if not isinstance(value, list):
-                        myargv.append(str(value.deviceID))
                 elif 'mpicomm' in key:
                     pass
                 elif '_' in key:
@@ -421,7 +425,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         worklist += ([StopIteration] * numworkers)
 
         # Spawn workers
-        newcomm = comm.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [workerflag], maxprocs=numworkers, info=MPI.INFO_NULL, root=0)
+        newcomm = comm.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [workerflag], maxprocs=numworkers, info=MPI.INFO_NULL)
 
         # Reply to whoever asks until done
         for work in worklist:
@@ -453,10 +457,8 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
             # Get info and setup device ID for GPU(s)
             gpuinfo = ''
             if args.gpu is not None:
-                # Set device ID for multiple GPUs
-                if isinstance(args.gpu, list):
-                    deviceID = rank
-                    args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
+                # Set device ID based on rank from list of GPUs
+                args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == rank)
                 gpuinfo = ' using {} - {}, {} RAM '.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
 
             # If Taguchi optimisation, add specific value for each parameter to
@@ -563,10 +565,9 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
                 # Get info and setup device ID for GPU(s)
                 gpuinfo = ''
                 if args.gpu is not None:
-                    # Set device ID for multiple GPUs
-                    if isinstance(args.gpu, list):
-                        deviceID = (rank - 1) % len(args.gpu)
-                        args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
+                    # Set device ID based on rank from list of GPUs
+                    deviceID = (rank - 1) % len(args.gpu)
+                    args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
                     gpuinfo = ' using {} - {}, {}'.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
 
                 # If Taguchi optimistaion, add specific value for each parameter
