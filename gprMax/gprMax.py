@@ -376,12 +376,12 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     if workerflag not in sys.argv:
         # N.B Spawned worker flag (--mpi-worker) applied to sys.argv when MPI.Spawn is called
 
-        # Get MPI communicator object either through argument or just get comm_world
+        # See if the MPI communicator object is being passed as an argument (likely from a MPI.Split)
         if hasattr(args, 'mpicomm'):
             comm = args.mpicomm
         else:
             comm = MPI.COMM_WORLD
-        rank = comm.Get_rank()  # rank of this process
+        rank = comm.Get_rank()
         tsimstart = perf_counter()
         print('MPI master (name: {}, rank: {}) on {} spawning {} workers\n'.format(comm.name, rank, hostname, numworkers))
 
@@ -443,6 +443,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         try:
             comm = MPI.Comm.Get_parent()
             rank = comm.Get_rank()
+            worldcomm = MPI.COMM_WORLD
         except ValueError:
             raise ValueError('MPI worker could not connect to parent')
 
@@ -455,7 +456,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
             if args.gpu is not None:
                 # Set device ID for multiple GPUs
                 if isinstance(args.gpu, list):
-                    deviceID = (rank - 1) % len(args.gpu)
+                    deviceID = rank
                     args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
                 gpuinfo = ' using {} - {}, {} RAM '.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
 
@@ -470,7 +471,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                 modelusernamespace = usernamespace
 
             # Run the model
-            print('MPI worker (name: {}, rank: {}) on {} starting model {}/{}{}\n'.format(comm.name, rank, hostname, currentmodelrun, numbermodelruns, gpuinfo))
+            print('MPI worker (name: {}, rank: {}) on {} starting model {}/{}{}\n'.format(worldcomm.name, rank, hostname, currentmodelrun, numbermodelruns, gpuinfo))
             run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
 
         # Shutdown
