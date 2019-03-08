@@ -59,7 +59,7 @@ def main():
     parser.add_argument('-mpi', type=int, help='number of MPI tasks, i.e. master + workers')
     parser.add_argument('-mpialt', action='store_true', default=False, help='flag to switch on MPI task farm')
     parser.add_argument('--mpi-worker', action='store_true', default=False, help=argparse.SUPPRESS)
-    parser.add_argument('-gpu', type=int, action='append', nargs='?', const=True, help='flag to use Nvidia GPU (option to give device ID)')
+    parser.add_argument('-gpu', type=int, action='append', nargs='?', const=True, help='flag to use Nvidia GPU or option to give list of device ID(s)')
     parser.add_argument('-benchmark', action='store_true', default=False, help='flag to switch on benchmarking mode')
     parser.add_argument('--geometry-only', action='store_true', default=False, help='flag to only build model and produce geometry file(s)')
     parser.add_argument('--geometry-fixed', action='store_true', default=False, help='flag to not reprocess model geometry, e.g. for B-scans where the geometry is fixed')
