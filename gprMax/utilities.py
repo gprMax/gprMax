@@ -366,7 +366,7 @@ class GPU(object):
         self.totalmem = drv.Device(self.deviceID).total_memory()
 
 
-def detect_check_gpus(deviceIDs):
+def detect_check_gpus(deviceIDs=0):
     """Get information about Nvidia GPU(s).
 
     Args:
@@ -382,27 +382,30 @@ def detect_check_gpus(deviceIDs):
         raise ImportError('To use gprMax in GPU mode the pycuda package must be installed, and you must have a NVIDIA CUDA-Enabled GPU (https://developer.nvidia.com/cuda-gpus).')
     drv.init()
 
-    # Check if there are any CUDA-Enabled GPUs
+    # Check and list any CUDA-Enabled GPUs
     if drv.Device.count() == 0:
         raise GeneralError('No NVIDIA CUDA-Enabled GPUs detected (https://developer.nvidia.com/cuda-gpus)')
-
-    # Get list of available GPU device IDs
-    if 'CUDA_VISIBLE_DEVICES' in os.environ:
+    elif 'CUDA_VISIBLE_DEVICES' in os.environ:
         deviceIDsavail = os.environ.get('CUDA_VISIBLE_DEVICES')
         deviceIDsavail = [int(s) for s in deviceIDsavail.split(',')]
     else:
         deviceIDsavail = range(drv.Device.count())
 
-    # Print information about all detected GPUs
-    gpus = []
-    gputext = []
+    # Check if requested device ID(s) exist
     for ID in deviceIDs:
         if ID not in deviceIDsavail:
             raise GeneralError('GPU with device ID {} does not exist'.format(ID))
-        else:
-            gpu = GPU(deviceID=ID)
-            gpu.get_gpu_info(drv)
-            gpus.append(gpu)
-            gputext.append('{} - {}, {}'.format(gpu.deviceID, gpu.name, human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)))
 
-    return gpus, gputext
+    # Gather information about selected/detected GPUs
+    allgpus = []
+    selectedgpus = []
+    allgpustext = []
+    for ID in deviceIDsavail:
+        gpu = GPU(deviceID=ID)
+        gpu.get_gpu_info(drv)
+        allgpus.append(gpu)
+        if ID in deviceIDs:
+            selectedgpus.append(gpu)
+        allgpustext.append('{} - {}, {}'.format(gpu.deviceID, gpu.name, human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)))
+
+    return allgpus, selectedgpus, allgpustext

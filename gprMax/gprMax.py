@@ -131,9 +131,6 @@ def run_main(args):
             # Flatten a list of lists
             if any(isinstance(element, list) for element in args.gpu):
                 args.gpu = [val for sublist in args.gpu for val in sublist]
-            # If the list is empty then use default device ID (0)
-            if not args.gpu:
-                args.gpu = [0]
             gpus, gputext = detect_check_gpus(args.gpu)
             print('GPU(s) detected: {}'.format(' | '.join(gputext)))
 
