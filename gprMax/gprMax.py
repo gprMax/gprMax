@@ -131,8 +131,8 @@ def run_main(args):
             # Flatten a list of lists
             if any(isinstance(element, list) for element in args.gpu):
                 args.gpu = [val for sublist in args.gpu for val in sublist]
-            gpus, gputext = detect_check_gpus(args.gpu)
-            print('GPU(s) detected: {}'.format(' | '.join(gputext)))
+            gpus, allgpustext = detect_check_gpus(args.gpu)
+            print('GPU(s) detected: {}'.format(' | '.join(allgpustext)))
 
             # If in MPI mode or benchmarking provide list of GPU objects, otherwise
             # provide single GPU object

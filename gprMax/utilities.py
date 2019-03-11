@@ -397,15 +397,13 @@ def detect_check_gpus(deviceIDs=0):
             raise GeneralError('GPU with device ID {} does not exist'.format(ID))
 
     # Gather information about selected/detected GPUs
-    allgpus = []
-    selectedgpus = []
+    gpus = []
     allgpustext = []
     for ID in deviceIDsavail:
         gpu = GPU(deviceID=ID)
         gpu.get_gpu_info(drv)
-        allgpus.append(gpu)
         if ID in deviceIDs:
-            selectedgpus.append(gpu)
+            gpus.append(gpu)
         allgpustext.append('{} - {}, {}'.format(gpu.deviceID, gpu.name, human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)))
 
-    return allgpus, selectedgpus, allgpustext
+    return gpus, allgpustext
