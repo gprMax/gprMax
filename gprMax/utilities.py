@@ -393,8 +393,8 @@ def detect_check_gpus(deviceIDs):
 
     # If no device ID is given use default of 0
     if not deviceIDs:
-        deviceIDs = 0
-        
+        deviceIDs = [0]
+
     # Check if requested device ID(s) exist
     for ID in deviceIDs:
         if ID not in deviceIDsavail:
