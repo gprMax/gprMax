@@ -141,34 +141,6 @@ def run_main(args):
             else:
                 args.gpu = gpus[0]
 
-            # # Extract first item of list, either True to automatically determine device ID,
-            # # or an integer to manually specify device ID
-            # args.gpu = args.gpu[0]
-            # gpus = detect_check_gpus(deviceIDs)
-            #
-            # # If a device ID is specified check it is valid
-            # if not isinstance(args.gpu, bool):
-            #     if args.gpu > len(gpus) - 1:
-            #         raise GeneralError('GPU with device ID {} does not exist'.format(args.gpu))
-            #     # Set args.gpu to GPU object to access elsewhere
-            #     args.gpu = next(gpu for gpu in gpus if gpu.deviceID == args.gpu)
-            #
-            # # If no device ID is specified
-            # elif isinstance(args.gpu, list):
-            #     # If in MPI mode then set args.gpu to list of available GPUs
-            #     if args.mpi or args.mpialt or args.benchmark:
-            #         # if args.mpi - 1 > len(gpus):
-            #         #     raise GeneralError('Too many MPI tasks requested ({}). The number of MPI tasks requested can only be a maximum of the number of GPU(s) detected plus one, i.e. {} GPU worker tasks + 1 CPU master task'.format(args.mpi, len(gpus)))
-            #         args.gpu = gpus
-            #     elif args.mpialt:
-            #         args.gpu = gpus
-            #     # If benchmarking mode then set args.gpu to list of available GPUs
-            #     elif args.benchmark:
-            #         args.gpu = gpus
-            #     # Otherwise set args.gpu to GPU object with default device ID (0) to access elsewhere
-            #     else:
-            #         args.gpu = next(gpu for gpu in gpus if gpu.deviceID == 0)
-
         # Create a separate namespace that users can access in any Python code blocks in the input file
         usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': args.n, 'inputfile': os.path.abspath(inputfile.name)}
 
@@ -520,7 +492,8 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
     ##################
     if rank == 0:
         tsimstart = perf_counter()
-        print('MPI gprMax master (name: {}, rank: {}) on {} using {} workers\n'.format(comm.name, rank, hostname, numworkers))
+        mpimasterstr = '=== MPI master ({}, rank: {}) on {} using {} workers...\n'.format(comm.name, comm.Get_rank(), hostname, numworkers)
+        print('{} {}\n'.format(mpimasterstr, '=' * (get_terminal_width() - 1 - len(mpimasterstr))))
 
         closedworkers = 0
         while closedworkers < numworkers:
@@ -545,13 +518,21 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
                 closedworkers += 1
 
         tsimend = perf_counter()
-        simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
+        simcompletestr = '\n=== MPI master ({}, rank: {}) on {} completed simulation in [HH:MM:SS]: {}'.format(comm.name, comm.Get_rank(), hostname, datetime.timedelta(seconds=tsimend - tsimstart))
         print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
 
     ##################
     # Worker process #
     ##################
     else:
+        # Get info and setup device ID for GPU(s)
+        gpuinfo = ''
+        if args.gpu is not None:
+            # Set device ID based on rank from list of GPUs
+            deviceID = (rank - 1) % len(args.gpu)
+            args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
+            gpuinfo = ' using {} - {}, {}'.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
+            
         while True:
             comm.send(None, dest=0, tag=tags.READY.value)
             # Receive a model number to run from the master
@@ -560,14 +541,6 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
 
             # Run a model
             if tag == tags.START.value:
-
-                # Get info and setup device ID for GPU(s)
-                gpuinfo = ''
-                if args.gpu is not None:
-                    # Set device ID based on rank from list of GPUs
-                    deviceID = (rank - 1) % len(args.gpu)
-                    args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
-                    gpuinfo = ' using {} - {}, {}'.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
 
                 # If Taguchi optimistaion, add specific value for each parameter
                 # to optimise for each experiment to user accessible namespace
@@ -580,7 +553,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
                     modelusernamespace = usernamespace
 
                 # Run the model
-                print('MPI gprMax worker (name: {}, rank: {}) on {} starting model {}/{}{}\n'.format(comm.name, rank, hostname, currentmodelrun, numbermodelruns, gpuinfo))
+                print('MPI worker (parent: {}, rank: {}) on {} starting model {}/{}{}\n'.format(comm.name, rank, hostname, currentmodelrun, numbermodelruns, gpuinfo))
                 run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
                 comm.send(None, dest=0, tag=tags.DONE.value)
 
