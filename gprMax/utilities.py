@@ -370,7 +370,7 @@ def detect_check_gpus(deviceIDs):
     """Get information about Nvidia GPU(s).
 
     Args:
-        deviceIDs (list): List of device IDs.
+        deviceIDs (list): List of integers of device IDs.
 
     Returns:
         gpus (list): Detected GPU(s) object(s).
@@ -387,8 +387,11 @@ def detect_check_gpus(deviceIDs):
         raise GeneralError('No NVIDIA CUDA-Enabled GPUs detected (https://developer.nvidia.com/cuda-gpus)')
 
     # Get list of available GPU device IDs
-    deviceIDsavail = os.environ.get('CUDA_VISIBLE_DEVICES')
-    deviceIDsavail = [int(s) for s in deviceIDsavail.split(',')]
+    if 'CUDA_VISIBLE_DEVICES' in os.environ:
+        deviceIDsavail = os.environ.get('CUDA_VISIBLE_DEVICES')
+        deviceIDsavail = [int(s) for s in deviceIDsavail.split(',')]
+    else:
+        deviceIDsavail = range(drv.Device.count())
 
     # Print information about all detected GPUs
     gpus = []
