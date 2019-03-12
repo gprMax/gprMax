@@ -360,7 +360,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         else:
             comm = MPI.COMM_WORLD
         tsimstart = perf_counter()
-        mpimasterstr = '=== MPI master ({}, rank: {}) on {} spawning {} workers...\n'.format(comm.name, comm.Get_rank(), hostname, numworkers)
+        mpimasterstr = '=== MPI master ({}, rank: {}) on {} spawning {} workers...'.format(comm.name, comm.Get_rank(), hostname, numworkers)
         print('{} {}\n'.format(mpimasterstr, '=' * (get_terminal_width() - 1 - len(mpimasterstr))))
 
         # Assemble a sys.argv replacement to pass to spawned worker
