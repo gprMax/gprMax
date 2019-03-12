@@ -18,12 +18,14 @@ The Message Passing Interface (MPI) has been utilised to implement a simple task
 
 By default the MPI task farm functionality is turned off. It can be used with the ``-mpi`` command line option, which specifies the total number of MPI tasks, i.e. master + workers, for the MPI task farm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using a MPI task farm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60 -mpi 61``.
 
+Our default MPI task farm implementation (activated using the ``-mpi`` command line option) makes use of the `MPI spawn mechanism <https://www.open-mpi.org/doc/current/man3/MPI_Comm_spawn.3.php>`_. This is sometimes not supported or properly configured on HPC systems. There is therefore an alternate MPI task farm implementation that does not use the MPI spawn mechanism, and is activated using the ``--mpi-no-spawn`` command line option. See :ref:`examples for usage <hpc_script_examples>`.
+
 Extra installation steps for MPI task farm usage
 ------------------------------------------------
 
 The following steps provide guidance on how to install the extra components to allow the MPI task farm functionality with gprMax:
 
-1. Install a flavour of MPI on your system.
+1. Install MPI on your system.
 
 Linux/macOS
 ^^^^^^^^^^^
@@ -35,8 +37,10 @@ It is recommended to use `Microsoft MPI <https://docs.microsoft.com/en-us/messag
 
 2. Install the ``mpi4py`` Python module. Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`. Run :code:`pip install mpi4py`
 
-HPC job scripts
-===============
+.. _hpc_script_examples:
+
+HPC job script examples
+=======================
 
 HPC environments usually require jobs to be submitted to a queue using a job script. The following are examples of job scripts for a HPC environment that uses `Open Grid Scheduler/Grid Engine <http://gridscheduler.sourceforge.net/index.html>`_, and are intended as general guidance to help you get started. Using gprMax in an HPC environment is heavily dependent on the configuration of your specific HPC/cluster, e.g. the names of parallel environments (``-pe``) and compiler modules will depend on how they were defined by your system administrator.
 
@@ -68,7 +72,24 @@ Here is an example of a job script for running models, e.g. A-scans to make a B-
 
 In this example 10 models will be distributed as independent tasks in a HPC environment using MPI.
 
-The ``-mpi`` flag is passed to gprMax which takes the number of MPI tasks to run. This should be the number of models (worker tasks) plus one extra for the master task.
+The ``-mpi`` argument is passed to gprMax which takes the number of MPI tasks to run. This should be the number of models (worker tasks) plus one extra for the master task.
+
+The ``NSLOTS`` variable which is required to set the total number of slots/cores for the parallel environment ``-pe mpi`` is usually the number of MPI tasks multiplied by the number of OpenMP threads per task. In this example the number of MPI tasks is 11 and number of OpenMP threads per task is 16, so 176 slots are required.
+
+OpenMP/MPI example - no spawn
+-----------------------------
+
+:download:`gprmax_omp_mpi_no_spawn.sh <../../tools/HPC_scripts/gprmax_omp_mpi_no_spawn.sh>`
+
+Here is an example of a job script for running models, e.g. A-scans to make a B-scan, distributed as independent tasks in a HPC environment using the MPI implementation without the MPI spawn mechanism. The behaviour of most of the variables is explained in the comments in the script.
+
+.. literalinclude:: ../../tools/HPC_scripts/gprmax_omp_mpi_no_spawn.sh
+    :language: bash
+    :linenos:
+
+In this example 10 models will be distributed as independent tasks in a HPC environment using the MPI implementation without the MPI spawn mechanism.
+
+The ``--mpi-no-spawn`` flag is passed to gprMax which ensures the MPI implementation without the MPI spawn mechanism is used. The number of MPI tasks, i.e. number of models (worker tasks) plus one extra for the master task, should be passed as an argument (``-n``) to the ``mpiexec`` or ``mpirun`` command.
 
 The ``NSLOTS`` variable which is required to set the total number of slots/cores for the parallel environment ``-pe mpi`` is usually the number of MPI tasks multiplied by the number of OpenMP threads per task. In this example the number of MPI tasks is 11 and number of OpenMP threads per task is 16, so 176 slots are required.
 
@@ -87,19 +108,3 @@ Here is an example of a job script for running models, e.g. A-scans to make a B-
 The ``-t`` tells Grid Engine that we are using a job array followed by a range of integers which will be the IDs for each individual task (model). Task IDs must start from 1, and the total number of tasks in the range should correspond to the number of models you want to run, i.e. the integer with the ``-n`` flag passed to gprMax. The ``-task`` flag is passed to gprMax to tell it we are using a job array, along with the specific number of the task (model) with the environment variable ``$SGE_TASK_ID``.
 
 A job array means that exactly the same submit script is going to be run multiple times, the only difference between each run is the environment variable ``$SGE_TASK_ID``.
-
-
-Eddie
------
-
-Eddie is the `Edinburgh Compute and Data Facility (ECDF) <http://www.ed.ac.uk/information-services/research-support/research-computing/ecdf/high-performance-computing>`_ run by the `University of Edinburgh <http://www.ed.ac.uk>`_. The following are useful notes to get gprMax installed and running on eddie3 (the third iteration of the cluster):
-
-* Git is already installed on eddie3, so you don't need to install it through Anaconda, you can proceed directly to cloning the gprMax GitHub repository with ``git clone https://github.com/gprMax/gprMax.git``
-
-* Anaconda is already installed as an application module on eddie3. You should follow `these instructions <https://www.wiki.ed.ac.uk/display/ResearchServices/Anaconda>`_ to ensure Anaconda environments will be created in a suitable location (not your home directory as you will rapidly run out of space). Before you proceed to create the Anaconda environment for gprMax you must make sure the OpenMPI module is loaded with ``module load openmpi``. This is neccessary so that the ``mpi4py`` Python module is correctly linked to OpenMPI. You can then create the Anaconda environment with ``conda env create -f conda_env.yml``
-
-* You should then activate the gprMax Anaconda environment, and build and install gprMax according the standard installation procedure.
-
-* The previous job submission example scripts for OpenMP and OpenMP/MPI should run on eddie3.
-
-* The ``NSLOTS`` variable for the total number of slots/cores for the parallel environment ``-pe mpi`` must be specified as a multiple of 16 (the total number of cores/threads available on a single node), e.g. 61 MPI tasks each using 4 threads would require a total 244 slots/cores. This must be rounded up to the nearest multiple of 16, e.g. 256.

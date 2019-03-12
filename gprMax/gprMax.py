@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2019: The University of Edinburgh
+run_mpi_no_spawn_sim# Copyright (C) 2015-2019: The University of Edinburgh
 #                 Authors: Craig Warren and Antonis Giannopoulos
 #
 # This file is part of gprMax.
@@ -54,7 +54,7 @@ def main():
     parser.add_argument('-task', type=int, help='task identifier (model number) for job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)')
     parser.add_argument('-restart', type=int, help='model number to restart from, e.g. when creating B-scan')
     parser.add_argument('-mpi', type=int, help='number of MPI tasks, i.e. master + workers')
-    parser.add_argument('-mpialt', action='store_true', default=False, help='flag to switch on MPI task farm')
+    parser.add_argument('--mpi-no-spawn', action='store_true', default=False, help='flag to use MPI without spawn mechanism')
     parser.add_argument('--mpi-worker', action='store_true', default=False, help=argparse.SUPPRESS)
     parser.add_argument('-gpu', type=int, action='append', nargs='*', help='flag to use Nvidia GPU or option to give list of device ID(s)')
     parser.add_argument('-benchmark', action='store_true', default=False, help='flag to switch on benchmarking mode')
@@ -73,7 +73,7 @@ def api(
     task=None,
     restart=None,
     mpi=False,
-    mpialt=False,
+    mpi_no_spawn=False,
     mpicomm=None,
     gpu=None,
     benchmark=False,
@@ -94,7 +94,7 @@ def api(
     args.task = task
     args.restart = restart
     args.mpi = mpi
-    args.mpialt = mpialt
+    args.mpi_no_spawn = mpi_no_spawn
     args.mpicomm = mpicomm
     args.gpu = gpu
     args.benchmark = benchmark
@@ -174,9 +174,13 @@ def run_main(args):
                     raise GeneralError('MPI cannot be combined with job array mode')
                 run_mpi_sim(args, inputfile, usernamespace)
 
-            # TEST! TEST! TEST! Alternate MPI configuration
-            elif args.mpialt:
-                run_mpi_alt_sim(args, inputfile, usernamespace)
+            # Alternate MPI configuration that does not use MPI spawn mechanism
+            elif args.mpi_no_spawn:
+                if args.n == 1:
+                    raise GeneralError('MPI is not beneficial when there is only one model to run')
+                if args.task:
+                    raise GeneralError('MPI cannot be combined with job array mode')
+                run_mpi_no_spawn_sim(args, inputfile, usernamespace)
 
             # Standard behaviour - models run serially with each model parallelised with OpenMP (CPU) or CUDA (GPU)
             else:
@@ -450,9 +454,9 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         comm.Disconnect()
 
 
-def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
+def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
     """
-    Alternate MPI implementation that avoids using the spawn mechanism.
+    Alternate MPI implementation that avoids using the MPI spawn mechanism.
     This implementation is designed to be used as
     e.g. 'mpirun -n 5 python -m gprMax user_models/mymodel.in -n 10 -mpialt'
 
@@ -532,7 +536,7 @@ def run_mpi_alt_sim(args, inputfile, usernamespace, optparams=None):
             deviceID = (rank - 1) % len(args.gpu)
             args.gpu = next(gpu for gpu in args.gpu if gpu.deviceID == deviceID)
             gpuinfo = ' using {} - {}, {}'.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
-            
+
         while True:
             comm.send(None, dest=0, tag=tags.READY.value)
             # Receive a model number to run from the master
