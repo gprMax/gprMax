@@ -136,7 +136,7 @@ def run_main(args):
 
             # If in MPI mode or benchmarking provide list of GPU objects, otherwise
             # provide single GPU object
-            if args.mpi or args.mpialt or args.benchmark:
+            if args.mpi or args.mpi_no_spawn or args.benchmark:
                 args.gpu = gpus
             else:
                 args.gpu = gpus[0]
@@ -458,7 +458,7 @@ def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
     """
     Alternate MPI implementation that avoids using the MPI spawn mechanism.
     This implementation is designed to be used as
-    e.g. 'mpirun -n 5 python -m gprMax user_models/mymodel.in -n 10 -mpialt'
+    e.g. 'mpirun -n 5 python -m gprMax user_models/mymodel.in -n 10 --mpi-no-spawn'
 
     Run mixed mode MPI/OpenMP simulation - MPI task farm for models with
     each model parallelised using either OpenMP (CPU) or CUDA (GPU)
