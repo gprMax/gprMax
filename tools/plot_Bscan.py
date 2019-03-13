@@ -28,7 +28,36 @@ from gprMax.exceptions import CmdInputError
 from .outputfiles_merge import get_output_data
 
 
-def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
+def scaleoutput(outputdata,scalestring,dt):
+    """Scales B-scan data to plot
+
+    Args:
+        outputdata (array): Array of A-scans, i.e. B-scan data.
+        scalestring (string): 'gsc' or 'agc' argument passed to plot_Bscan script
+        dt (float): Temporal resolution of the model.
+    Returns:
+        outputdata (array): Array of A-scans, i.e. B-scan data with scaling applied
+
+    AGC (Automated gain control) - dividing by local mean to obtain a desired rms for a local window
+    GSC (Geometrical Spreading Compensation) - multiply by t^2 array to approximate
+        amplitude loss with time
+
+
+    """
+    if scalestring=='agc':
+        outp=[]
+        meanval=np.mean(np.abs(outputdata))
+        if meanval==0:
+            print('rms value=0, do you have any data?')
+        for trace in outputdata.T:
+            outp.append(np.divide(1*trace,np.abs(trace)+meanval))
+        outputdata=np.asarray(outp).T
+    if scalestring=='gsc':
+        tarray=np.linspace(0,dt*outputdata.shape[0],outputdata.shape[0])**2
+        outputdata*=tarray[:, np.newaxis]
+    return outputdata
+
+def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent,scale=None):
     """Creates a plot (with matplotlib) of the B-scan.
 
     Args:
@@ -38,12 +67,15 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
         rxnumber (int): Receiver output number.
         rxcomponent (str): Receiver output field/current component.
 
+
     Returns:
         plt (object): matplotlib plot object.
     """
 
-    (path, filename) = os.path.split(filename)
+    if args.scale:
+        outputdata=scaleoutput(outputdata,args.scale,dt)
 
+    (path, filename) = os.path.split(filename)
     fig = plt.figure(num=filename + ' - rx' + str(rxnumber), figsize=(20, 10), facecolor='w', edgecolor='w')
     plt.imshow(outputdata, extent=[0, outputdata.shape[1], outputdata.shape[0] * dt, 0], interpolation='nearest', aspect='auto', cmap='seismic', vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
     plt.xlabel('Trace number')
@@ -73,9 +105,10 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
 if __name__ == "__main__":
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Plots a B-scan image.', usage='cd gprMax; python -m tools.plot_Bscan outputfile output')
+    parser = argparse.ArgumentParser(description='Plots a B-scan image.', usage='cd gprMax; python -m tools.plot_Bscan outputfile output [--scale]')
     parser.add_argument('outputfile', help='name of output file including path')
     parser.add_argument('rx_component', help='name of output component to be plotted', choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz'])
+    parser.add_argument('--scale', help='name of gain control to plot', choices=['agc', 'gsc'])
     args = parser.parse_args()
 
     # Open output file and read number of outputs (receivers)
@@ -86,9 +119,21 @@ if __name__ == "__main__":
     # Check there are any receivers
     if nrx == 0:
         raise CmdInputError('No receivers found in {}'.format(args.outputfile))
-
-    for rx in range(1, nrx + 1):
+    elif nrx == 1:
+        rx=1
         outputdata, dt = get_output_data(args.outputfile, rx, args.rx_component)
-        plthandle = mpl_plot(args.outputfile, outputdata, dt, rx, args.rx_component)
+        if outputdata.ndim==2:
+            plthandle = mpl_plot(args.outputfile, outputdata, dt, rx, args.rx_component,args.scale)
+        else:
+            print('Throw an error')
+
+    elif nrx > 1:
+        bscan=[]
+        for rx in np.arange(1,nrx,1):
+            outputdata, dt = get_output_data(args.outputfile, rx, args.rx_component)
+            bscan.append(outputdata)
+        bscan=np.asarray(bscan).T
+        plthandle = mpl_plot(args.outputfile, bscan, dt, rx, args.rx_component,args.scale)
+
 
     plthandle.show()
