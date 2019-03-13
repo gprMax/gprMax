@@ -117,7 +117,7 @@ Microsoft Windows
 
 * Download and install `Microsoft Visual C++ 2015 Build Tools <http://download.microsoft.com/download/5/F/7/5F7ACAEB-8363-451F-9425-68A90F98B238/visualcppbuildtools_full.exe>`_ (currently you must use the 2015 version, not 2017). Use the custom installation option and deselect everything apart from the Windows SDK for your version of Windows.
 
-Alternatively if you are using Windows 10 and feeling adventurous you can install the `Windows Subsystem for Linux <https://msdn.microsoft.com/en-gb/commandline/wsl/about>`_ and then follow the Linux install instructions for gprMax. Note however that currently WSL does not aim to support GUI desktops or applications, e.g. Gnome, KDE, etc....
+Alternatively if you are using Windows 10 and feeling adventurous you can install the `Windows Subsystem for Linux <https://docs.microsoft.com/en-gb/windows/wsl/about>`_ and then follow the Linux install instructions for gprMax. Note however that currently WSL does not aim to support GUI desktops or applications, e.g. Gnome, KDE, etc....
 
 
 
