@@ -1,6 +1,6 @@
 # GSoC 2019 - Project Template Guidance
 
-We have provided this template to help us learn about you and your proposed project, and to help you formulate and shape your ideas into a well-written project proposal. There are a lot of questions! However, these should help us know more about you and find a good fit, as well as force you to think to think about the project idea. By working on this proposal, you will already be taking your first steps towards a successful summer. We recommend that you start early and iterate on the application by getting feedback from the mentor.
+We have provided this template to help us learn about you and your proposed project, and to help you formulate and shape your ideas into a well-written project proposal. There are a lot of questions! However, these should help us know more about you and find a good fit, as well as force you to think about the project idea. By working on this proposal, you will already be taking your first steps towards a successful summer. We recommend that you start early and iterate on the application by getting feedback from the mentor.
 
 We have constructed our template using some very helpful examples at CloudCV (https://github.com/Cloud-CV/GSoC-Ideas/wiki/GSOC-2019-Proposal-Template) and Drupal (https://groups.drupal.org/node/459223).
 
