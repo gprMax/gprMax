@@ -109,3 +109,16 @@ Often materials that required to be simulated have complex electromagnetic prope
 **Difficulty:** Medium
 
 **Mentor(s):** Dr Craig Warren (craig@gprmax.com) and Dr Antonis Giannopoulos (antonis@gprmax.com)
+
+
+## 9. Importing geometrical information from laser scanners
+
+The aim of this project is to import geometric data acquired from terrestrial laser scanners. The ability to directly model real objects and topographies without entering their geometries manually would be very useful development.
+
+A laser scanner takes distance measurements in every direction to rapidly capture the surface shape of objects, buildings and landscapes. This information is then used to construct a full 3D model of the object. The data from the 3D model requires to be mapped/converted/translated onto the [Finite-Difference Time-Domain (FDTD)](https://en.wikipedia.org/wiki/Finite-difference_time-domain_method) grid upon which gprMax is based.
+
+**Skills required:** Python
+
+**Difficulty:** Medium
+
+**Mentor(s):** Dr Craig Warren (craig@gprmax.com) and Dr Antonis Giannopoulos (antonis@gprmax.com)
