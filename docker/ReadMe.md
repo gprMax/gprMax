@@ -62,7 +62,7 @@ This will mount the `/home/user/data` folder in the host machine on the `/data` 
 Build docker image
 -----------
 
-This step is not needed if you have pulled the docker image. If you want to build the Docker image on you own, go to the repository root folder and run the following command:
+This step is not needed if you have pulled the docker image. If you want to build the Docker image on you own, go to the repository docker folder and run the following command:
 
      $ docker build -t nipruthi/gprmax:v1 .
 
