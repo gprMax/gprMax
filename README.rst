@@ -210,3 +210,11 @@ Periodically you should update conda and the required Python packages. With the 
 
     $ conda update conda
     $ conda env update -f conda_env.yml
+
+
+Other Builds
+============
+
+Other builds
+---------
+* **Docker container**: A technology providing operating-system-level virtualization to build, ship, and run distributed applications, whether on laptops, data center VMs, or the cloud. Visit https://github.com/nipunpruthi/gprMax/tree/GSoC_easy_installation/docker.
