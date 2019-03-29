@@ -38,8 +38,8 @@ Message Passing Interface (MPI) has been utilised to implement a simple task far
 
 .. code-block:: none
 
-    (gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60 -mpi 5 -gpu
+    (gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60 -mpi 5 -gpu 0 1 2 3
 
 .. note::
 
-    The argument given with `-mpi` is number of MPI tasks, i.e. master + workers, for MPI task farm. So in this case, 1 master (CPU) and 4 workers (GPU cards).
+    The argument given with `-mpi` is number of MPI tasks, i.e. master + workers, for MPI task farm. So in this case, 1 master (CPU) and 4 workers (GPU cards). The integers given with the `-gpu` argument are the NVIDIA CUDA device IDs for the specific GPU cards to be used.
