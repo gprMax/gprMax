@@ -1,7 +1,9 @@
 .. image:: https://readthedocs.org/projects/gprmax/badge/?version=latest
     :target: http://docs.gprmax.com/en/latest/?badge=latest
     :alt: Documentation Status
+
 |
+
 .. image:: docs/source/images/gprMax_logo_small.png
     :target: http://www.gprmax.com
 
@@ -31,7 +33,7 @@ For further information on referencing gprMax visit the `Publications section of
 Package overview
 ================
 
-.. code-block:: none
+.. code-block:: bash
 
     gprMax/
         conda_env.yml
@@ -82,7 +84,7 @@ We recommend using Miniconda to install Python and the required Python packages 
 * `Download and install Miniconda <http://conda.pydata.org/miniconda.html>`_. Choose the Python 3.x version for your platform. We recommend choosing the installation options to: install Miniconda only for your user account; add Miniconda to your PATH environment variable; and to register Miniconda Python as your default Python. See the `Quick Install page <http://conda.pydata.org/docs/install/quick.html>`_ for help installing Miniconda.
 * Open a Terminal (Linux/macOS) or Command Prompt (Windows) and run the following commands:
 
-.. code-block:: none
+.. code-block:: bash
 
     $ conda update conda
     $ conda install git
@@ -108,7 +110,7 @@ macOS
 
 * Xcode (the IDE for macOS) comes with the LLVM (clang) compiler, but it does not currently support OpenMP, so you must install `gcc <https://gcc.gnu.org>`_. That said, it is still useful to have Xcode (with command line tools) installed. It can be downloaded from the App Store. Once Xcode is installed, download and install the `Homebrew package manager <http://brew.sh>`_ and then to install gcc, run:
 
-.. code-block:: none
+.. code-block:: bash
 
     $ brew install gcc
 
@@ -128,7 +130,7 @@ Once you have installed the aforementioned tools follow these steps to build and
 
 * Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`. Run the following commands:
 
-.. code-block:: none
+.. code-block:: bash
 
     (gprMax)$ python setup.py build
     (gprMax)$ python setup.py install
@@ -146,19 +148,19 @@ Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top
 
 Basic usage of gprMax is:
 
-.. code-block:: none
+.. code-block:: bash
 
     (gprMax)$ python -m gprMax path_to/name_of_input_file
 
 For example to run one of the test models:
 
-.. code-block:: none
+.. code-block:: bash
 
     (gprMax)$ python -m gprMax user_models/cylinder_Ascan_2D.in
 
 When the simulation is complete you can plot the A-scan using:
 
-.. code-block:: none
+.. code-block:: bash
 
     (gprMax)$ python -m tools.plot_Ascan user_models/cylinder_Ascan_2D.out
 
@@ -191,7 +193,7 @@ Updating gprMax
 
 * Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`. Run the following commands:
 
-.. code-block:: none
+.. code-block:: bash
 
     (gprMax)$ git pull
     (gprMax)$ python setup.py cleanall
@@ -206,7 +208,7 @@ Updating conda and Python packages
 
 Periodically you should update conda and the required Python packages. With the gprMax environment deactivated and from the top-level gprMax directory, run the following commands:
 
-.. code-block:: none
+.. code-block:: bash
 
     $ conda update conda
     $ conda env update -f conda_env.yml
