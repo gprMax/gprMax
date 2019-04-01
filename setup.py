@@ -46,6 +46,10 @@ with open('gprMax/__init__.py', 'r') as fd:
 
 packages = [packagename, 'tests', 'tools', 'user_libs']
 
+# Parse long_description from README.rst file.
+with open('README.rst','r') as fd:
+    long_description = fd.read()
+
 # Python version
 if sys.version_info[:2] < (3, 4):
     sys.exit('\nExited: Requires Python 3.4 or newer!\n')
@@ -161,11 +165,16 @@ if USE_CYTHON:
                            },
                            annotate=False)
 
+# SetupTools Required to make package
+import setuptools
+
 setup(name=packagename,
       version=version,
       author='Craig Warren and Antonis Giannopoulos',
       url='http://www.gprmax.com',
       description='Electromagnetic Modelling Software based on the Finite-Difference Time-Domain (FDTD) method',
+      long_description=long_description,
+      long_description_content_type="text/x-rst",
       license='GPLv3+',
       classifiers=[
           'Environment :: Console',
@@ -177,6 +186,7 @@ setup(name=packagename,
           'Programming Language :: Python :: 3',
           'Topic :: Scientific/Engineering'
       ],
+      # install_requires=[""],(to be updated),
       ext_modules=extensions,
       packages=packages,
       include_package_data=True,
