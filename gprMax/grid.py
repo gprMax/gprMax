@@ -242,7 +242,7 @@ class FDTDGrid(Grid):
 
             # If the required memory without the snapshots will fit on the GPU then transfer and store snaphots on host
             if snapsmemsize != 0 and self.memoryusage - snapsmemsize < self.gpu.totalmem:
-                    self.snapsgpu2cpu = True
+                self.snapsgpu2cpu = True
 
     def gpu_set_blocks_per_grid(self):
         """Set the blocks per grid size used for updating the electric and magnetic field arrays on a GPU."""

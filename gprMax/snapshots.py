@@ -192,12 +192,13 @@ def gpu_initialise_snapshot_array(G):
     Snapshot.bpg = (int(np.ceil(((Snapshot.nx_max) * (Snapshot.ny_max) * (Snapshot.nz_max)) / Snapshot.tpb[0])), 1, 1)
 
     # 4D arrays to store snapshots on GPU, e.g. snapEx(time, x, y, z)
-    snapEx = np.zeros((len(G.snapshots), Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
-    snapEy = np.zeros((len(G.snapshots), Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
-    snapEz = np.zeros((len(G.snapshots), Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
-    snapHx = np.zeros((len(G.snapshots), Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
-    snapHy = np.zeros((len(G.snapshots), Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
-    snapHz = np.zeros((len(G.snapshots), Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
+    numsnaps = 1 if G.snapsgpu2cpu else len(G.snapshots)
+    snapEx = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
+    snapEy = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
+    snapEz = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
+    snapHx = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
+    snapHy = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
+    snapHz = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
 
     # Copy arrays to GPU
     snapEx_gpu = gpuarray.to_gpu(snapEx)

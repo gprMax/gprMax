@@ -596,19 +596,30 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Store any snapshots
         for i, snap in enumerate(G.snapshots):
             if snap.time == iteration + 1:
-                store_snapshot_gpu(np.int32(i), np.int32(snap.xs),
-                                   np.int32(snap.xf), np.int32(snap.ys),
-                                   np.int32(snap.yf), np.int32(snap.zs),
-                                   np.int32(snap.zf), np.int32(snap.dx),
-                                   np.int32(snap.dy), np.int32(snap.dz),
-                                   G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                                   G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                                   snapEx_gpu.gpudata, snapEy_gpu.gpudata, snapEz_gpu.gpudata,
-                                   snapHx_gpu.gpudata, snapHy_gpu.gpudata, snapHz_gpu.gpudata,
-                                   block=Snapshot.tpb, grid=Snapshot.bpg)
-                if G.snapsgpu2cpu:
+                if not G.snapsgpu2cpu:
+                    store_snapshot_gpu(np.int32(i), np.int32(snap.xs),
+                                       np.int32(snap.xf), np.int32(snap.ys),
+                                       np.int32(snap.yf), np.int32(snap.zs),
+                                       np.int32(snap.zf), np.int32(snap.dx),
+                                       np.int32(snap.dy), np.int32(snap.dz),
+                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                                       G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                                       snapEx_gpu.gpudata, snapEy_gpu.gpudata, snapEz_gpu.gpudata,
+                                       snapHx_gpu.gpudata, snapHy_gpu.gpudata, snapHz_gpu.gpudata,
+                                       block=Snapshot.tpb, grid=Snapshot.bpg)
+                else:
+                    store_snapshot_gpu(np.int32(0), np.int32(snap.xs),
+                                       np.int32(snap.xf), np.int32(snap.ys),
+                                       np.int32(snap.yf), np.int32(snap.zs),
+                                       np.int32(snap.zf), np.int32(snap.dx),
+                                       np.int32(snap.dy), np.int32(snap.dz),
+                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                                       G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                                       snapEx_gpu.gpudata, snapEy_gpu.gpudata, snapEz_gpu.gpudata,
+                                       snapHx_gpu.gpudata, snapHy_gpu.gpudata, snapHz_gpu.gpudata,
+                                       block=Snapshot.tpb, grid=Snapshot.bpg)
                     gpu_get_snapshot_array(snapEx_gpu.get(), snapEy_gpu.get(), snapEz_gpu.get(),
-                                           snapHx_gpu.get(), snapHy_gpu.get(), snapHz_gpu.get(), i, snap)
+                                           snapHx_gpu.get(), snapHy_gpu.get(), snapHz_gpu.get(), 0, snap)
 
         # Update magnetic field components
         update_h_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
