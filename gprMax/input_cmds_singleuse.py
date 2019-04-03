@@ -160,7 +160,8 @@ def process_singlecmds(singlecmds, G):
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
         G.mode = '3D'
 
-    # Round down time step to nearest float with precision one less than hardware maximum. Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
+    # Round down time step to nearest float with precision one less than hardware maximum.
+    # Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
     G.dt = round_value(G.dt, decimalplaces=d.getcontext().prec - 1)
 
     if G.messages:
@@ -303,7 +304,9 @@ def process_singlecmds(singlecmds, G):
                 singlewaveformvalues = singlewaveformvalues[:len(waveformtime)]
             # Zero-pad end of waveform array if it is shorter than time array
             elif len(singlewaveformvalues) < len(waveformtime):
-                singlewaveformvalues = np.lib.pad(singlewaveformvalues, (0, len(singlewaveformvalues) - len(waveformvalues)), 'constant', constant_values=0)
+                tmp = np.zeros(len(waveformtime))
+                tmp[:len(singlewaveformvalues)] = singlewaveformvalues
+                singlewaveformvalues = tmp
 
             # Interpolate waveform values
             w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues, **kwargs)

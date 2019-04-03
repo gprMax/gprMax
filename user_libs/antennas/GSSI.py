@@ -5,12 +5,9 @@
 #
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
-import os
 
 from gprMax.exceptions import CmdInputError
 from gprMax.input_cmd_funcs import *
-
-userlibdir = os.path.dirname(os.path.abspath(__file__))
 
 
 def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False):
@@ -175,7 +172,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, rotate90=False):
 
     elif optstate == 'GiannakisPaper':
         # Optimised custom pulse
-        print('#excitation_file: {} linear extrapolate'.format(os.path.join(userlibdir, 'GSSI1p5optpulse.txt')))
+        print('#excitation_file: ../user_libs/antennas/GSSI1p5optpulse.txt linear extrapolate')
         voltage_source('y', tx[0], tx[1], tx[2], sourceresistance, 'GSSI1p5optpulse', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
 
     # Output point - receiver bowtie
