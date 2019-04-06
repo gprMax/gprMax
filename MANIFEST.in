@@ -3,4 +3,3 @@ recursive-include tests *
 recursive-include tools *
 recursive-include user_libs *
 global-exclude *.DS_Store
-recursive-include user_models *

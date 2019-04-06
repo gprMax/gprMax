@@ -165,9 +165,10 @@ if USE_CYTHON:
                            },
                            annotate=False)
 
+# SetupTools Required to make package
+import setuptools
 
-setup(
-      name=packagename,
+setup(name=packagename,
       version=version,
       author='Craig Warren and Antonis Giannopoulos',
       url='http://www.gprmax.com',
