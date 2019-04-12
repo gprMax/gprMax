@@ -902,7 +902,7 @@ __global__ void order1_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
         kk = k1 + zs;
 
         // PML coefficients
-        IRA = RA[INDEX2D_R(0,k1)];
+        IRA = 1 / RA[INDEX2D_R(0,k1)];
         IRA1 = IRA - 1;
         RB0 = RB[INDEX2D_R(0,k1)];
         RE0 = RE[INDEX2D_R(0,k1)];
@@ -923,7 +923,7 @@ __global__ void order1_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
         kk = k2 + zs;
 
         // PML coefficients
-        IRA = RA[INDEX2D_R(0,k2)];
+        IRA = 1 / RA[INDEX2D_R(0,k2)];
         IRA1 = IRA - 1;
         RB0 = RB[INDEX2D_R(0,k2)];
         RE0 = RE[INDEX2D_R(0,k2)];
