@@ -1,0 +1,26 @@
+#title: PML test z0 slab
+#domain: 0.100 0.100 0.100
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 3e-9
+
+#waveform: gaussiandot 1 1e9 myWave
+#hertzian_dipole: z 0.050 0.050 0.050 myWave
+#rx: 0.070 0.070 0.070
+
+#pml_cells: 0 0 10 0 0 0
+
+#pml_formulation: HORIPML
+
+## Built-in 1st order PML
+#pml_cfs: constant forward 0 0 constant forward 1 1 quartic forward 0 None
+
+## PMLs from http://dx.doi.org/10.1109/TAP.2011.2180344
+## Standard PML
+pml_cfs: constant forward 0 0 quartic forward 1 11 quartic forward 0 7.427
+
+## CFS PML
+pml_cfs: constant forward 0.05 0.05 quartic forward 1 7 quartic forward 0 11.671
+
+## 2nd order RIPML
+pml_cfs: constant forward 0 0 constant forward 1 1 sextic forward 0 0.5836
+pml_cfs: constant forward 0.05 0.05 cubic forward 1 8 quadratic forward 0 5.8357

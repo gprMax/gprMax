@@ -40,18 +40,22 @@ from tests.analytical_solutions import hertzian_dipole_fs
 """
 
 basepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models_')
-basepath += 'basic'
+# basepath += 'basic'
 # basepath += 'advanced'
+basepath += 'pmls'
 
 # List of available basic test models
-testmodels = ['hertzian_dipole_fs_analytical', '2D_ExHyHz', '2D_EyHxHz', '2D_EzHxHy', 'cylinder_Ascan_2D', 'hertzian_dipole_fs', 'hertzian_dipole_hs', 'hertzian_dipole_dispersive', 'magnetic_dipole_fs', 'pmls']
+# testmodels = ['hertzian_dipole_fs_analytical', '2D_ExHyHz', '2D_EyHxHz', '2D_EzHxHy', 'cylinder_Ascan_2D', 'hertzian_dipole_fs', 'hertzian_dipole_hs', 'hertzian_dipole_dispersive', 'magnetic_dipole_fs', 'pmls']
 
 # List of available advanced test models
 # testmodels = ['antenna_GSSI_1500_fs', 'antenna_MALA_1200_fs']
 
+# List of available PML models
+testmodels = ['pml_x0', 'pml_y0', 'pml_z0', 'pml_xmax', 'pml_ymax', 'pml_zmax', 'pml_3D_pec_plate']
+
 # Select a specific model if desired
-testmodels = testmodels[:-1]
-# testmodels = [testmodels[0]]
+# testmodels = testmodels[:-1]
+testmodels = [testmodels[6]]
 testresults = dict.fromkeys(testmodels)
 path = '/rxs/rx1/'
 
@@ -63,7 +67,8 @@ for i, model in enumerate(testmodels):
     testresults[model] = {}
 
     # Run model
-    api(os.path.join(basepath, model + os.path.sep + model + '.in'), gpu=None)
+    inputfile = os.path.join(basepath, model + os.path.sep + model + '.in')
+    api(inputfile, gpu=[None])
 
     # Special case for analytical comparison
     if model == 'hertzian_dipole_fs_analytical':
@@ -76,8 +81,7 @@ for i, model in enumerate(testmodels):
 
         # Arrays for storing time
         floattype = filetest[path + outputstest[0]].dtype
-        timetest = np.zeros((filetest.attrs['Iterations']), dtype=floattype)
-        timetest = np.arange(0, filetest.attrs['dt'] * filetest.attrs['Iterations'], filetest.attrs['dt']) / 1e-9
+        timetest = np.linspace(0, (filetest.attrs['Iterations'] - 1) * filetest.attrs['dt'], num=filetest.attrs['Iterations']) / 1e-9
         timeref = timetest
 
         # Arrays for storing field data
@@ -118,9 +122,9 @@ for i, model in enumerate(testmodels):
 
         # Arrays for storing time
         timeref = np.zeros((fileref.attrs['Iterations']), dtype=floattyperef)
-        timeref = np.arange(0, fileref.attrs['dt'] * fileref.attrs['Iterations'], fileref.attrs['dt']) / 1e-9
+        timeref = np.linspace(0, (fileref.attrs['Iterations'] - 1) * fileref.attrs['dt'], num=fileref.attrs['Iterations']) / 1e-9
         timetest = np.zeros((filetest.attrs['Iterations']), dtype=floattypetest)
-        timetest = np.arange(0, filetest.attrs['dt'] * filetest.attrs['Iterations'], filetest.attrs['dt']) / 1e-9
+        timetest = np.linspace(0, (filetest.attrs['Iterations'] - 1) * filetest.attrs['dt'], num=filetest.attrs['Iterations']) / 1e-9
 
         # Arrays for storing field data
         dataref = np.zeros((fileref.attrs['Iterations'], len(outputsref)), dtype=floattyperef)

@@ -904,12 +904,12 @@ For example to save a snapshot of the electromagnetic fields in the model at a s
 PML commands
 ============
 
-The default behaviour is for gprMax to use a first order CFS PML that has a thickness of 10 cells on each of the six sides of the model domain. This can be altered by using the following commands.
+The default behaviour for the absorbing boundary conditions (ABC) is first order Complex Frequency Shifted (CFS) Perfectly Matched Layers (PML), with thicknesses of 10 cells on each of the six sides of the model domain. This can be altered by using the following commands.
 
 #pml_cells:
 ------------
 
-Allows you to control the number of cells of PML that are used on the six sides of the model domain. The PML is defined within the model domain, i.e. it is not added to the domain size. The syntax of the command is:
+Allows you to control the number of cells (thickness) of PML that are used on the six sides of the model domain. The PML is defined within the model domain, i.e. it is not added to the domain size. The syntax of the command is:
 
 .. code-block:: none
 
@@ -928,6 +928,23 @@ For example to use a PML with 20 cells (thicker than the default 10 cells) on on
 .. code-block:: none
 
     #pml_cells: 10 10 20 10 10 20
+
+#pml_formulation:
+-----------------
+
+Allows you to alter the formulation used for the PML. The current options are to use the Higher Order RIPML (HORIPML) - https://doi.org/10.1109/TAP.2011.2180344, or Multipole RIPML (MRIPML) - https://doi.org/10.1109/TAP.2018.2823864. The syntax of the command is:
+
+.. code-block:: none
+
+    #pml_formulation: str
+
+* ``str`` can be either 'HORIPML' or 'MRIPML'
+
+For example to use the Multipole RIPML:
+
+.. code-block:: none
+
+    #pml_formulation: MRIPML
 
 #pml_cfs:
 ---------

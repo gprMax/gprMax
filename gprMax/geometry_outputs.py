@@ -74,9 +74,9 @@ class GeometryView(object):
             self.vtk_nycells = round_value(self.ny / self.dy)
             self.vtk_nzcells = round_value(self.nz / self.dz)
             self.vtk_ncells = self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells
-            self.datawritesize = (np.dtype(np.uint32).itemsize * self.vtk_ncells +
-                                  2 * np.dtype(np.int8).itemsize * self.vtk_ncells +
-                                  3 * np.dtype(np.uint32).itemsize)
+            self.datawritesize = (np.dtype(np.uint32).itemsize * self.vtk_ncells
+                                  + 2 * np.dtype(np.int8).itemsize * self.vtk_ncells
+                                  + 3 * np.dtype(np.uint32).itemsize)
 
         elif self.fileext == '.vtp':
             self.vtk_numpoints = (self.nx + 1) * (self.ny + 1) * (self.nz + 1)
@@ -86,23 +86,23 @@ class GeometryView(object):
             self.vtk_nylines = self.ny * (self.nx + 1) * (self.nz + 1)
             self.vtk_nzlines = self.nz * (self.nx + 1) * (self.ny + 1)
             self.vtk_numlines = self.vtk_nxlines + self.vtk_nylines + self.vtk_nzlines
-            self.vtk_connectivity_offset = round_value((self.vtk_numpoints *
-                                                        self.vtk_numpoint_components *
-                                                        np.dtype(np.float32).itemsize) +
-                                                       np.dtype(np.uint32).itemsize)
-            self.vtk_offsets_offset = round_value(self.vtk_connectivity_offset +
-                                                  (self.vtk_numlines * self.vtk_numline_components * np.dtype(np.uint32).itemsize) +
-                                                  np.dtype(np.uint32).itemsize)
-            self.vtk_materials_offset = round_value(self.vtk_offsets_offset +
-                                                    (self.vtk_numlines * np.dtype(np.uint32).itemsize) +
-                                                    np.dtype(np.uint32).itemsize)
-            vtk_cell_offsets = ((self.vtk_numline_components * self.vtk_numlines) +
-                                self.vtk_numline_components - self.vtk_numline_components - 1) // self.vtk_numline_components + 1
-            self.datawritesize = (np.dtype(np.float32).itemsize * self.vtk_numpoints * self.vtk_numpoint_components +
-                                  np.dtype(np.uint32).itemsize * self.vtk_numlines * self.vtk_numline_components +
-                                  np.dtype(np.uint32).itemsize * self.vtk_numlines +
-                                  np.dtype(np.uint32).itemsize * vtk_cell_offsets +
-                                  np.dtype(np.uint32).itemsize * 4)
+            self.vtk_connectivity_offset = round_value((self.vtk_numpoints
+                                                        * self.vtk_numpoint_components
+                                                        * np.dtype(np.float32).itemsize)
+                                                       + np.dtype(np.uint32).itemsize)
+            self.vtk_offsets_offset = round_value(self.vtk_connectivity_offset
+                                                  + (self.vtk_numlines * self.vtk_numline_components * np.dtype(np.uint32).itemsize)
+                                                  + np.dtype(np.uint32).itemsize)
+            self.vtk_materials_offset = round_value(self.vtk_offsets_offset
+                                                    + (self.vtk_numlines * np.dtype(np.uint32).itemsize)
+                                                    + np.dtype(np.uint32).itemsize)
+            vtk_cell_offsets = ((self.vtk_numline_components * self.vtk_numlines)
+                                + self.vtk_numline_components - self.vtk_numline_components - 1) // self.vtk_numline_components + 1
+            self.datawritesize = (np.dtype(np.float32).itemsize * self.vtk_numpoints * self.vtk_numpoint_components
+                                  + np.dtype(np.uint32).itemsize * self.vtk_numlines * self.vtk_numline_components
+                                  + np.dtype(np.uint32).itemsize * self.vtk_numlines
+                                  + np.dtype(np.uint32).itemsize * vtk_cell_offsets
+                                  + np.dtype(np.uint32).itemsize * 4)
 
     def set_filename(self, appendmodelnumber, G):
         """

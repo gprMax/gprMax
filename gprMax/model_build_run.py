@@ -63,7 +63,8 @@ from gprMax.materials import process_materials
 from gprMax.pml import CFS
 from gprMax.pml import PML
 from gprMax.pml import build_pmls
-from gprMax.pml_updates_gpu import kernels_template_pml
+from gprMax.pml_updates.pml_updates_electric_HORIPML_gpu import kernels_template_pml_electric_HORIPML
+from gprMax.pml_updates.pml_updates_magnetic_HORIPML_gpu import kernels_template_pml_magnetic_HORIPML
 from gprMax.receivers import gpu_initialise_rx_arrays
 from gprMax.receivers import gpu_get_rx_array
 from gprMax.snapshots import Snapshot
@@ -528,17 +529,18 @@ def solve_gpu(currentmodelrun, modelend, G):
     # PML updates
     if G.pmls:
         # Prepare kernels
-        kernels_pml = SourceModule(kernels_template_pml.substitute(REAL=cudafloattype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_R=G.pmls[0].ERA.shape[1], NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
+        kernels_pml_electric = SourceModule(kernels_template_pml_electric_HORIPML.substitute(REAL=cudafloattype, N_updatecoeffsE=G.updatecoeffsE.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_R=G.pmls[0].ERA.shape[1], NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
+        kernels_pml_magnetic = SourceModule(kernels_template_pml_magnetic_HORIPML.substitute(REAL=cudafloattype, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_R=G.pmls[0].ERA.shape[1], NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
         # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for PML kernels
-        updatecoeffsE = kernels_pml.get_global('updatecoeffsE')[0]
-        updatecoeffsH = kernels_pml.get_global('updatecoeffsH')[0]
+        updatecoeffsE = kernels_pml_electric.get_global('updatecoeffsE')[0]
+        updatecoeffsH = kernels_pml_magnetic.get_global('updatecoeffsH')[0]
         drv.memcpy_htod(updatecoeffsE, G.updatecoeffsE)
         drv.memcpy_htod(updatecoeffsH, G.updatecoeffsH)
         # Set block per grid, initialise arrays on GPU, and get kernel functions
         for pml in G.pmls:
             pml.gpu_set_blocks_per_grid(G)
             pml.gpu_initialise_arrays()
-            pml.gpu_get_update_funcs(kernels_pml)
+            pml.gpu_get_update_funcs(kernels_pml_electric, kernels_pml_magnetic)
 
     # Receivers
     if G.rxs:

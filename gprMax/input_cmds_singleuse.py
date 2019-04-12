@@ -32,6 +32,7 @@ from gprMax.constants import c
 from gprMax.constants import floattype
 from gprMax.exceptions import CmdInputError
 from gprMax.exceptions import GeneralError
+from gprMax.pml import PML
 from gprMax.utilities import get_host_info
 from gprMax.utilities import human_size
 from gprMax.utilities import round_value
@@ -205,7 +206,7 @@ def process_singlecmds(singlecmds, G):
     if G.messages:
         print('Time window: {:g} secs ({} iterations)'.format(G.timewindow, G.iterations))
 
-    # PML
+    # PML cells
     cmd = '#pml_cells'
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
@@ -223,6 +224,17 @@ def process_singlecmds(singlecmds, G):
             G.pmlthickness['zmax'] = int(tmp[5])
     if 2 * G.pmlthickness['x0'] >= G.nx or 2 * G.pmlthickness['y0'] >= G.ny or 2 * G.pmlthickness['z0'] >= G.nz or 2 * G.pmlthickness['xmax'] >= G.nx or 2 * G.pmlthickness['ymax'] >= G.ny or 2 * G.pmlthickness['zmax'] >= G.nz:
         raise CmdInputError(cmd + ' has too many cells for the domain size')
+
+    # PML formulation
+    cmd = '#pml_formulation'
+    if singlecmds[cmd] is not None:
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1:
+            raise CmdInputError(cmd + ' requires exactly one parameter')
+        if singlecmds[cmd].upper() in PML.formulations:
+            G.pmlformulation = singlecmds[cmd].upper()
+        else:
+            raise CmdInputError(cmd + ' PML formulation is not found')
 
     # src_steps
     cmd = '#src_steps'

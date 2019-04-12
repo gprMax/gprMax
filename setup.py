@@ -68,16 +68,12 @@ if '--no-cython' in sys.argv:
 else:
     USE_CYTHON = True
 
-# Build a list of all the files that need to be Cythonized looking in gprMax directory and user_libs
+# Build a list of all the files that need to be Cythonized looking in gprMax directory
 cythonfiles = []
-for root, dirs, files in os.walk(os.path.join(os.getcwd(), packagename)):
+for root, dirs, files in os.walk(os.path.join(os.getcwd(), packagename), topdown=True):
     for file in files:
         if file.endswith('.pyx'):
-            cythonfiles.append(os.path.join(packagename, file))
-for root, dirs, files in os.walk(os.path.join(os.getcwd(), 'user_libs')):
-    for file in files:
-        if file.endswith('.pyx'):
-            cythonfiles.append(os.path.join('user_libs', file))
+            cythonfiles.append(os.path.relpath(os.path.join(root, file)))
 
 # Process 'cleanall' command line argument - cleanup Cython files
 if 'cleanall' in sys.argv:

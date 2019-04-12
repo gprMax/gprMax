@@ -1,0 +1,34 @@
+#title: Response from an elongated thin PEC plate
+#domain: 0.051 0.126 0.026
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 2100
+#time_step_stability_factor: 0.99
+
+################################################
+## PML parameters
+## CFS (alpha, kappa, sigma)
+## sigma_max = (0.8 * (m + 1)) / (z0 * d * np.sqrt(er * mr))
+## z0 = 376.73, d = 0.001
+################################################
+
+#pml_cells: 10
+
+################################################
+## 1st order (default) HORIPML - Standard PML ##
+################################################
+#python:
+import numpy as np
+
+# Parameters from http://dx.doi.org/10.1109/TAP.2011.2180344
+smax = 0.7 * ((4 + 1) / (150 * np.pi * 0.001))
+print('#pml_cfs: constant forward 0 0 quartic forward 1 12 quartic forward 0 {}'.format(smax))
+#end_python:
+
+#waveform: gaussiandotnorm 1 9.42e9 mypulse
+#hertzian_dipole: z 0.013 0.013 0.014 mypulse
+#rx: 0.038 0.114 0.013
+
+#plate: 0.013 0.013 0.013 0.038 0.113 0.013 pec
+
+geometry_view: 0 0 0 0.051 0.126 0.026 0.001 0.001 0.001 pml_3D_pec_plate_f f
+geometry_view: 0 0 0 0.051 0.126 0.026 0.001 0.001 0.001 pml_3D_pec_plate_n n
