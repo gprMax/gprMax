@@ -131,7 +131,7 @@ __global__ void order2_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
-    $REAL RA01, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHy, dHz;
+    $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHy, dHz;
     $REAL dx = d;
     int ii, jj, kk, materialEy, materialEz;
     int nx = xf - xs;
@@ -289,7 +289,7 @@ __global__ void order2_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
-    $REAL RA01, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHy, dHz;
+    $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHy, dHz;
     $REAL dx = d;
     int ii, jj, kk, materialEy, materialEz;
     int nx = xf - xs;
@@ -447,7 +447,7 @@ __global__ void order2_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
-    $REAL RA01, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHz;
+    $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHz;
     $REAL dy = d;
     int ii, jj, kk, materialEx, materialEz;
     int nx = xf - xs;
@@ -605,7 +605,7 @@ __global__ order2_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_P
     int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
-    $REAL RA01, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHz;
+    $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHz;
     $REAL dy = d;
     int ii, jj, kk, materialEx, materialEz;
     int nx = xf - xs;
@@ -763,7 +763,7 @@ __global__ void order2_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
-    $REAL RA01, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHy;
+    $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHy;
     $REAL dz = d;
     int ii, jj, kk, materialEx, materialEy;
     int nx = xf - xs;
@@ -921,7 +921,7 @@ __global__ void order2_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     int j2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) / NZ_PHI2;
     int k2 = ((idx % (NX_PHI2 * NY_PHI2 * NZ_PHI2)) % (NY_PHI2 * NZ_PHI2)) % NZ_PHI2;
 
-    $REAL RA01, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHy;
+    $REAL RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01, dHx, dHy;
     $REAL dz = d;
     int ii, jj, kk, materialEx, materialEy;
     int nx = xf - xs;
