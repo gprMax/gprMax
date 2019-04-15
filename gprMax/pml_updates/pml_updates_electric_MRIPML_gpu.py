@@ -607,7 +607,7 @@ __global__ void order1_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int
 }
 
 
-__global__ order2_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, const unsigned int* __restrict__ ID, $REAL *Ex, const $REAL* __restrict__ Ey, $REAL *Ez, const $REAL* __restrict__ Hx, const $REAL* __restrict__ Hy, const $REAL* __restrict__ Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
+__global__ void order2_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, const unsigned int* __restrict__ ID, $REAL *Ex, const $REAL* __restrict__ Ey, $REAL *Ez, const $REAL* __restrict__ Hx, const $REAL* __restrict__ Hy, const $REAL* __restrict__ Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
 
     //  This function updates the Ex and Ez field components for the yplus slab.
     //
