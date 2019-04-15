@@ -533,7 +533,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         pmlmodulemagnetic = 'gprMax.pml_updates.pml_updates_magnetic_' + G.pmlformulation + '_gpu'
         kernelmagneticfunc = getattr(import_module(pmlmodulemagnetic), 'kernels_template_pml_magnetic_' + G.pmlformulation)
         kernels_pml_electric = SourceModule(kernelelectricfunc.substitute(REAL=cudafloattype, N_updatecoeffsE=G.updatecoeffsE.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_R=G.pmls[0].ERA.shape[1], NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
-        kernels_pml_magnetic = SourceModule(kernelmagneticfunc.substitute(REAL=cudafloattype, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_R=G.pmls[0].ERA.shape[1], NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
+        kernels_pml_magnetic = SourceModule(kernelmagneticfunc.substitute(REAL=cudafloattype, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsH.shape[1], NY_R=G.pmls[0].HRA.shape[1], NX_FIELDS=G.Hx.shape[0], NY_FIELDS=G.Hx.shape[1], NZ_FIELDS=G.Hx.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
         # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for PML kernels
         updatecoeffsE = kernels_pml_electric.get_global('updatecoeffsE')[0]
         updatecoeffsH = kernels_pml_magnetic.get_global('updatecoeffsH')[0]
