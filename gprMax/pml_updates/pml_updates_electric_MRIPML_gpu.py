@@ -414,7 +414,7 @@ __global__ void order1_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
         // Ex
         materialEx = ID[INDEX4D_ID(0,ii,jj,kk)];
         dHz = (Hz[INDEX3D_FIELDS(ii,jj,kk)] - Hz[INDEX3D_FIELDS(ii,jj-1,kk)]) / dy;
-        Ex[INDEX3D_FIELDS(ii,jj,kk)] = Ex[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[INDEX2D_MAT(materialEx,4)] * (IRA1 * dHz + IRA * PHI1[INDEX4D_PHI1(0,i1,j1,k1)]);
+        Ex[INDEX3D_FIELDS(ii,jj,kk)] = Ex[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[INDEX2D_MAT(materialEx,4)] * (IRA1 * dHz - IRA * PHI1[INDEX4D_PHI1(0,i1,j1,k1)]);
         PHI1[INDEX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RC0 * dHz - RC0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)];
     }
 
