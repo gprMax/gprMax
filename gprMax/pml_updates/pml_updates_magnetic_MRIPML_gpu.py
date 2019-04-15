@@ -44,7 +44,7 @@ __global__ void order1_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     // Obtain the linear index corresponding to the current tREad
-    int idx = blockIdx.x * blockDim.x + tREadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -121,7 +121,7 @@ __global__ void order2_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     // Obtain the linear index corresponding to the current tREad
-    int idx = blockIdx.x * blockDim.x + tREadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -210,7 +210,7 @@ __global__ void order1_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     // Obtain the linear index corresponding to the current tREad
-    int idx = blockIdx.x * blockDim.x + tREadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -287,7 +287,7 @@ __global__ void order2_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     // Obtain the linear index corresponding to the current tREad
-    int idx = blockIdx.x * blockDim.x + tREadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -376,7 +376,7 @@ __global__ void order1_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     // Obtain the linear index corresponding to the current tREad
-    int idx = blockIdx.x * blockDim.x + tREadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -453,7 +453,7 @@ __global__ void order2_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     // Obtain the linear index corresponding to the current tREad
-    int idx = blockIdx.x * blockDim.x + tREadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -542,7 +542,7 @@ __global__ void order1_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     // Obtain the linear index corresponding to the current tREad
-    int idx = blockIdx.x * blockDim.x + tREadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -619,7 +619,7 @@ __global__ void order2_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     // Obtain the linear index corresponding to the current tREad
-    int idx = blockIdx.x * blockDim.x + tREadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -708,7 +708,7 @@ __global__ void order1_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     // Obtain the linear index corresponding to the current tREad
-    int idx = blockIdx.x * blockDim.x + tREadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -785,7 +785,7 @@ __global__ void order2_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     // Obtain the linear index corresponding to the current tREad
-    int idx = blockIdx.x * blockDim.x + tREadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -874,7 +874,7 @@ __global__ void order1_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     // Obtain the linear index corresponding to the current tREad
-    int idx = blockIdx.x * blockDim.x + tREadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -951,7 +951,7 @@ __global__ void order2_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     // Obtain the linear index corresponding to the current tREad
-    int idx = blockIdx.x * blockDim.x + tREadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = idx / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
