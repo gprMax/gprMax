@@ -83,7 +83,7 @@ __global__ void order1_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
         materialEy = ID[INDEX4D_ID(1,ii,jj,kk)];
         dHz = (Hz[INDEX3D_FIELDS(ii,jj,kk)] - Hz[INDEX3D_FIELDS(ii-1,jj,kk)]) / dx;
         Ey[INDEX3D_FIELDS(ii,jj,kk)] = Ey[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsE[INDEX2D_MAT(materialEy,4)] * (IRA1 * dHz - IRA * PHI1[INDEX4D_PHI1(0,i1,j1,k1)]);
-        PHI1[INDEX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RC0 * dHz - RC0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)]);
+        PHI1[INDEX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)] + RC0 * dHz - RC0 * PHI1[INDEX4D_PHI1(0,i1,j1,k1)];
     }
 
     if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz) {
