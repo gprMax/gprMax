@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
+from importlib import import_module
 import itertools
 import os
 import psutil
