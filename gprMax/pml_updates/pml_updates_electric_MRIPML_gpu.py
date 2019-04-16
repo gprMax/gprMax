@@ -768,7 +768,7 @@ __global__ void order1_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
         materialEy = ID[INDEX4D_ID(1,ii,jj,kk)];
         dHx = (Hx[INDEX3D_FIELDS(ii,jj,kk)] - Hx[INDEX3D_FIELDS(ii,jj,kk-1)]) / dz;
         Ey[INDEX3D_FIELDS(ii,jj,kk)] = Ey[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[INDEX2D_MAT(materialEy,4)] * (IRA1 * dHx - IRA * PHI2[INDEX4D_PHI2(0,i2,j2,k2)]);
-        PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * dHx - RC0 * PHI2[INDEX4D_PHI1(0,i2,j2,k2)];
+        PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * dHx - RC0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)];
     }
 }
 
