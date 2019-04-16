@@ -21,7 +21,7 @@ from string import Template
 kernels_template_pml_magnetic_HORIPML = Template("""
 
 // Macros for converting subscripts to linear index:
-#define INDEX2D_R(m, n) (m)*($NY_R)+(n)
+#define INDEX2D_R(m, n) (m)*(NY_R)+(n)
 #define INDEX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)
 #define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
 #define INDEX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID)+(i)*($NY_ID)*($NZ_ID)+(j)*($NZ_ID)+(k)
@@ -32,13 +32,13 @@ kernels_template_pml_magnetic_HORIPML = Template("""
 __device__ __constant__ $REAL updatecoeffsH[$N_updatecoeffsH];
 
 
-__global__ void order1_xminus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, const $REAL* __restrict__ Hx, $REAL *Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
+__global__ void order1_xminus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, const $REAL* __restrict__ Hx, $REAL *Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
 
     //  This function updates the Hy and Hz field components for the xminus slab.
     //
     //  Args:
     //      xs, xf, ys, yf, zs, zf: Cell coordinates of PML slab
-    //      NX_HPHI, NY_HPHI, NZ_HPHI: Dimensions of PHI1 and PHI2 PML arrays
+    //      NX_PHI, NY_PHI, NZ_PHI, NY_R: Dimensions of PHI1, PHI2, and R PML arrays
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
@@ -105,13 +105,13 @@ __global__ void order1_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
 }
 
 
-__global__ void order2_xminus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, const $REAL* __restrict__ Hx, $REAL *Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
+__global__ void order2_xminus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, const $REAL* __restrict__ Hx, $REAL *Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
 
     //  This function updates the Hy and Hz field components for the xminus slab.
     //
     //  Args:
     //      xs, xf, ys, yf, zs, zf: Cell coordinates of PML slab
-    //      NX_HPHI, NY_HPHI, NZ_HPHI: Dimensions of PHI1 and PHI2 PML arrays
+    //      NX_PHI, NY_PHI, NZ_PHI, NY_R: Dimensions of PHI1, PHI2, and R PML arrays
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
@@ -190,13 +190,13 @@ __global__ void order2_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
 }
 
 
-__global__ void order1_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, const $REAL* __restrict__ Hx, $REAL *Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
+__global__ void order1_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, const $REAL* __restrict__ Hx, $REAL *Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
 
     //  This function updates the Hy and Hz field components for the xplus slab.
     //
     //  Args:
     //      xs, xf, ys, yf, zs, zf: Cell coordinates of PML slab
-    //      NX_HPHI, NY_HPHI, NZ_HPHI: Dimensions of PHI1 and PHI2 PML arrays
+    //      NX_PHI, NY_PHI, NZ_PHI, NY_R: Dimensions of PHI1, PHI2, and R PML arrays
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
@@ -263,13 +263,13 @@ __global__ void order1_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
 }
 
 
-__global__ void order2_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, const $REAL* __restrict__ Hx, $REAL *Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
+__global__ void order2_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, const $REAL* __restrict__ Hx, $REAL *Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
 
     //  This function updates the Hy and Hz field components for the xplus slab.
     //
     //  Args:
     //      xs, xf, ys, yf, zs, zf: Cell coordinates of PML slab
-    //      NX_HPHI, NY_HPHI, NZ_HPHI: Dimensions of PHI1 and PHI2 PML arrays
+    //      NX_PHI, NY_PHI, NZ_PHI, NY_R: Dimensions of PHI1, PHI2, and R PML arrays
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
@@ -348,13 +348,13 @@ __global__ void order2_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
 }
 
 
-__global__ void order1_yminus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, const $REAL* __restrict__ Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
+__global__ void order1_yminus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, const $REAL* __restrict__ Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
 
     //  This function updates the Hx and Hz field components for the yminus slab.
     //
     //  Args:
     //      xs, xf, ys, yf, zs, zf: Cell coordinates of PML slab
-    //      NX_HPHI, NY_HPHI, NZ_HPHI: Dimensions of PHI1 and PHI2 PML arrays
+    //      NX_PHI, NY_PHI, NZ_PHI, NY_R: Dimensions of PHI1, PHI2, and R PML arrays
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
@@ -421,13 +421,13 @@ __global__ void order1_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
 }
 
 
-__global__ void order2_yminus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, const $REAL* __restrict__ Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
+__global__ void order2_yminus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, const $REAL* __restrict__ Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
 
     //  This function updates the Hx and Hz field components for the yminus slab.
     //
     //  Args:
     //      xs, xf, ys, yf, zs, zf: Cell coordinates of PML slab
-    //      NX_HPHI, NY_HPHI, NZ_HPHI: Dimensions of PHI1 and PHI2 PML arrays
+    //      NX_PHI, NY_PHI, NZ_PHI, NY_R: Dimensions of PHI1, PHI2, and R PML arrays
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
@@ -506,13 +506,13 @@ __global__ void order2_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
 }
 
 
-__global__ void order1_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, const $REAL* __restrict__ Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
+__global__ void order1_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, const $REAL* __restrict__ Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
 
     //  This function updates the Hx and Hz field components for the yplus slab.
     //
     //  Args:
     //      xs, xf, ys, yf, zs, zf: Cell coordinates of PML slab
-    //      NX_HPHI, NY_HPHI, NZ_HPHI: Dimensions of PHI1 and PHI2 PML arrays
+    //      NX_PHI, NY_PHI, NZ_PHI, NY_R: Dimensions of PHI1, PHI2, and R PML arrays
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
@@ -579,13 +579,13 @@ __global__ void order1_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int
 }
 
 
-__global__ void order2_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, const $REAL* __restrict__ Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
+__global__ void order2_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, const $REAL* __restrict__ Hy, $REAL *Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
 
     //  This function updates the Hx and Hz field components for the yplus slab.
     //
     //  Args:
     //      xs, xf, ys, yf, zs, zf: Cell coordinates of PML slab
-    //      NX_HPHI, NY_HPHI, NZ_HPHI: Dimensions of PHI1 and PHI2 PML arrays
+    //      NX_PHI, NY_PHI, NZ_PHI, NY_R: Dimensions of PHI1, PHI2, and R PML arrays
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
@@ -664,13 +664,13 @@ __global__ void order2_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int
 }
 
 
-__global__ void order1_zminus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, $REAL *Hy, const $REAL* __restrict__ Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
+__global__ void order1_zminus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, $REAL *Hy, const $REAL* __restrict__ Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
 
     //  This function updates the Hx and Hy field components for the zminus slab.
     //
     //  Args:
     //      xs, xf, ys, yf, zs, zf: Cell coordinates of PML slab
-    //      NX_HPHI, NY_HPHI, NZ_HPHI: Dimensions of PHI1 and PHI2 PML arrays
+    //      NX_PHI, NY_PHI, NZ_PHI, NY_R: Dimensions of PHI1, PHI2, and R PML arrays
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
@@ -737,13 +737,13 @@ __global__ void order1_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
 }
 
 
-__global__ void order2_zminus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, $REAL *Hy, const $REAL* __restrict__ Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
+__global__ void order2_zminus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, $REAL *Hy, const $REAL* __restrict__ Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
 
     //  This function updates the Hx and Hy field components for the zminus slab.
     //
     //  Args:
     //      xs, xf, ys, yf, zs, zf: Cell coordinates of PML slab
-    //      NX_HPHI, NY_HPHI, NZ_HPHI: Dimensions of PHI1 and PHI2 PML arrays
+    //      NX_PHI, NY_PHI, NZ_PHI, NY_R: Dimensions of PHI1, PHI2, and R PML arrays
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
@@ -822,13 +822,13 @@ __global__ void order2_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
 }
 
 
-__global__ void order1_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, $REAL *Hy, const $REAL* __restrict__ Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
+__global__ void order1_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, $REAL *Hy, const $REAL* __restrict__ Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
 
     //  This function updates the Hx and Hy field components for the zplus slab.
     //
     //  Args:
     //      xs, xf, ys, yf, zs, zf: Cell coordinates of PML slab
-    //      NX_HPHI, NY_HPHI, NZ_HPHI: Dimensions of PHI1 and PHI2 PML arrays
+    //      NX_PHI, NY_PHI, NZ_PHI, NY_R: Dimensions of PHI1, PHI2, and R PML arrays
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
@@ -895,13 +895,13 @@ __global__ void order1_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
 }
 
 
-__global__ void order2_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, $REAL *Hy, const $REAL* __restrict__ Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
+__global__ void order2_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, $REAL *Hx, $REAL *Hy, const $REAL* __restrict__ Hz, $REAL *PHI1, $REAL *PHI2, const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d) {
 
     //  This function updates the Hx and Hy field components for the zplus slab.
     //
     //  Args:
     //      xs, xf, ys, yf, zs, zf: Cell coordinates of PML slab
-    //      NX_HPHI, NY_HPHI, NZ_HPHI: Dimensions of PHI1 and PHI2 PML arrays
+    //      NX_PHI, NY_PHI, NZ_PHI, NY_R: Dimensions of PHI1, PHI2, and R PML arrays
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
