@@ -43,7 +43,7 @@ __global__ void order1_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    // Obtain the linear index corresponding to the current tREad
+    // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
@@ -120,7 +120,7 @@ __global__ void order2_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    // Obtain the linear index corresponding to the current tREad
+    // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
@@ -191,7 +191,7 @@ __global__ void order2_xminus(int xs, int xf, int ys, int yf, int zs, int zf, in
         Psi2 = RB0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RB1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)];
         materialHz = ID[INDEX4D_ID(5,ii,jj,kk)];
         dEy = (Ey[INDEX3D_FIELDS(ii+1,jj,kk)] - Ey[INDEX3D_FIELDS(ii,jj,kk)]) / dx;
-        Hz[INDEX3D_FIELDS(ii,jj,kk)] = Hz[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[INDEX2D_MAT(materialHz,4)] * (IRA * dEy - IRA * Psi2);
+        Hz[INDEX3D_FIELDS(ii,jj,kk)] = Hz[INDEX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[INDEX2D_MAT(materialHz,4)] * (IRA1 * dEy - IRA * Psi2);
         PHI2[INDEX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)] + RC1 * (dEy - Psi2);
         PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * (dEy - Psi2);
     }
@@ -209,7 +209,7 @@ __global__ void order1_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    // Obtain the linear index corresponding to the current tREad
+    // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
@@ -286,7 +286,7 @@ __global__ void order2_xplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    // Obtain the linear index corresponding to the current tREad
+    // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
@@ -375,7 +375,7 @@ __global__ void order1_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    // Obtain the linear index corresponding to the current tREad
+    // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
@@ -452,7 +452,7 @@ __global__ void order2_yminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    // Obtain the linear index corresponding to the current tREad
+    // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
@@ -541,7 +541,7 @@ __global__ void order1_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    // Obtain the linear index corresponding to the current tREad
+    // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
@@ -618,7 +618,7 @@ __global__ void order2_yplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    // Obtain the linear index corresponding to the current tREad
+    // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
@@ -707,7 +707,7 @@ __global__ void order1_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    // Obtain the linear index corresponding to the current tREad
+    // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
@@ -784,7 +784,7 @@ __global__ void order2_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    // Obtain the linear index corresponding to the current tREad
+    // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
@@ -873,7 +873,7 @@ __global__ void order1_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    // Obtain the linear index corresponding to the current tREad
+    // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
@@ -950,7 +950,7 @@ __global__ void order2_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
     //      Phi, RA, RB, RE, RF: Access to PML magnetic coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
-    // Obtain the linear index corresponding to the current tREad
+    // Obtain the linear index corresponding to the current thread
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
