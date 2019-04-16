@@ -753,7 +753,7 @@ __global__ void order1_zminus(int xs, int xf, int ys, int yf, int zs, int zf, in
     if (p2 == 0 && i2 < nx && j2 < ny && k2 < nz) {
         // Subscripts for field arrays
         ii = i2 + xs;
-        jj = j2 + xs;
+        jj = j2 + ys;
         kk = zf - k2;
 
         // PML coefficients
