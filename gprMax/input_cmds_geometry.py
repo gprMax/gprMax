@@ -1227,7 +1227,7 @@ def process_geometrycmds(geometry, G):
                         # Set the fractal surface using the pre-calculated spatial distribution and a random height
                         surface.fractalsurface = np.zeros((surface.fractalsurface.shape[0], surface.fractalsurface.shape[1]))
                         for i in range(len(bladesindex[0])):
-                                surface.fractalsurface[bladesindex[0][i], bladesindex[1][i]] = R.randint(surface.fractalrange[0], surface.fractalrange[1], size=1)
+                            surface.fractalsurface[bladesindex[0][i], bladesindex[1][i]] = R.randint(surface.fractalrange[0], surface.fractalrange[1], size=1)
 
                         # Create grass geometry parameters
                         g = Grass(numblades)
