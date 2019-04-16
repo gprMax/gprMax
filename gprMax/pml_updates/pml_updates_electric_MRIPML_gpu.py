@@ -1021,7 +1021,7 @@ __global__ void order2_zplus(int xs, int xf, int ys, int yf, int zs, int zf, int
         Psi2 = RB0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RB1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)];
         materialEy = ID[INDEX4D_ID(1,ii,jj,kk)];
         dHx = (Hx[INDEX3D_FIELDS(ii,jj,kk)] - Hx[INDEX3D_FIELDS(ii,jj,kk-1)]) / dz;
-        Ey[INDEX3D_FIELDS(ii,jj,kk)] = Ey[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[INDEX2D_MAT(materialEy,4)] * (IRA1 * dHx - IRA * Psi1);
+        Ey[INDEX3D_FIELDS(ii,jj,kk)] = Ey[INDEX3D_FIELDS(ii,jj,kk)] + updatecoeffsE[INDEX2D_MAT(materialEy,4)] * (IRA1 * dHx - IRA * Psi2);
         PHI2[INDEX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[INDEX4D_PHI2(1,i2,j2,k2)] + RC1 * (dHx - Psi2);
         PHI2[INDEX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[INDEX4D_PHI2(0,i2,j2,k2)] + RC0 * (dHx - Psi2);
     }
