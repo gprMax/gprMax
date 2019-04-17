@@ -448,7 +448,8 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
 
             # Run the model
             print('MPI spawned worker (parent: {}, rank: {}) on {} starting model {}/{}{}\n'.format(work['mpicommname'], rank, hostname, currentmodelrun, numbermodelruns, gpuinfo))
-            run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
+            tsolve = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
+            print('MPI spawned worker (parent: {}, rank: {}) on {} completed model {}/{}{} in [HH:MM:SS]: {}\n'.format(work['mpicommname'], rank, hostname, currentmodelrun, numbermodelruns, gpuinfo, datetime.timedelta(seconds=tsolve)))
 
         # Shutdown
         comm.Disconnect()
@@ -558,8 +559,9 @@ def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
 
                 # Run the model
                 print('MPI worker (parent: {}, rank: {}) on {} starting model {}/{}{}\n'.format(comm.name, rank, hostname, currentmodelrun, numbermodelruns, gpuinfo))
-                run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
+                tsolve = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
                 comm.send(None, dest=0, tag=tags.DONE.value)
+                print('MPI worker (parent: {}, rank: {}) on {} completed model {}/{}{} in [HH:MM:SS]: {}\n'.format(work['mpicommname'], rank, hostname, currentmodelrun, numbermodelruns, gpuinfo, datetime.timedelta(seconds=tsolve)))
 
             # Break out of loop when work receives exit message
             elif tag == tags.EXIT.value:
