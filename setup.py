@@ -161,9 +161,10 @@ if USE_CYTHON:
                            },
                            annotate=False)
 
+# SetupTools Required to make package
+import setuptools
 
-setup(
-      name=packagename,
+setup(name=packagename,
       version=version,
       author='Craig Warren and Antonis Giannopoulos',
       url='http://www.gprmax.com',
@@ -181,7 +182,20 @@ setup(
           'Programming Language :: Python :: 3',
           'Topic :: Scientific/Engineering'
       ],
-      # install_requires=[""],(to be updated),
+      #requirements
+      python_requires=">3.6",
+      install_requires=[
+          "colorama",
+          "cython",
+          "h5py",
+          "jupyter",
+          "matplotlib",
+          "numpy",
+          "psutil",
+          "scipy",
+          "terminaltables",
+          "tqdm",
+          ],
       ext_modules=extensions,
       packages=packages,
       include_package_data=True,

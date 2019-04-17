@@ -1,6 +1,14 @@
 include README.rst
+include setup.py
+include LICENSE
+include MANIFEST.in
+
+# All source files
+recursive-include gprMax *
 recursive-include tests *
 recursive-include tools *
 recursive-include user_libs *
-global-exclude *.DS_Store
 recursive-include user_models *
+
+# exclude what we don't want to include
+global-exclude *.DS_Store
