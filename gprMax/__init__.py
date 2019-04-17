@@ -3,7 +3,7 @@
 gprMax
 ======
 
-Utilities to simulate electromagnetic waves.
+Electromagnetic wave propagation simulation software.
 
 """
 
