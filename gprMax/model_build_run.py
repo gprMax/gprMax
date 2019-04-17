@@ -482,6 +482,7 @@ def solve_gpu(currentmodelrun, modelend, G):
 
     Returns:
         tsolve (float): Time taken to execute solving
+        memsolve (int): memory usage on final iteration in bytes
     """
 
     import pycuda.driver as drv
