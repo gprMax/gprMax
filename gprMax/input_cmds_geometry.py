@@ -121,6 +121,10 @@ def process_geometrycmds(geometry, G):
             if data.dtype != 'int16':
                 data = data.astype('int16')
 
+            # Check that there are no values in the data greater than the maximum index for the specified materials
+            if np.amax(data) > len(materials) - 1:
+                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' found data value(s) ({}) in the geometry objects file greater than the maximum index for the specified materials ({})'.format(np.amax(data), len(materials) - 1))
+
             # Look to see if rigid and ID arrays are present (these should be
             # present if the original geometry objects were written from gprMax)
             try:
