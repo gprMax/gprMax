@@ -360,8 +360,9 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         else:
             comm = MPI.COMM_WORLD
         tsimstart = perf_counter()
-        mpimasterstr = '\n=== MPI master ({}, rank: {}) on {} spawning {} workers...'.format(comm.name, comm.Get_rank(), hostname, numworkers)
-        print('{} {}\n'.format(mpimasterstr, '=' * (get_terminal_width() - 1 - len(mpimasterstr))))
+        mpistartstr = '\n=== MPI task farm (USING MPI Spawn)')
+        print('{} {}'.format(mpistartstr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
+        print('=== MPI master ({}, rank: {}) on {} spawning {} workers...'.format(comm.name, comm.Get_rank(), hostname, numworkers))
 
         # Assemble a sys.argv replacement to pass to spawned worker
         # N.B This is required as sys.argv not available when gprMax is called via api()
@@ -447,9 +448,9 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
                 modelusernamespace = usernamespace
 
             # Run the model
-            print('MPI spawned worker (parent: {}, rank: {}) on {} starting model {}/{}{}\n'.format(work['mpicommname'], rank, hostname, currentmodelrun, numbermodelruns, gpuinfo))
+            print('Starting MPI spawned worker (parent: {}, rank: {}) on {} with model {}/{}{}\n'.format(work['mpicommname'], rank, hostname, currentmodelrun, numbermodelruns, gpuinfo))
             tsolve = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
-            print('MPI spawned worker (parent: {}, rank: {}) on {} completed model {}/{}{} in [HH:MM:SS]: {}\n'.format(work['mpicommname'], rank, hostname, currentmodelrun, numbermodelruns, gpuinfo, datetime.timedelta(seconds=tsolve)))
+            print('Completed MPI spawned worker (parent: {}, rank: {}) on {} with model {}/{}{} in [HH:MM:SS]: {}\n'.format(work['mpicommname'], rank, hostname, currentmodelrun, numbermodelruns, gpuinfo, datetime.timedelta(seconds=tsolve)))
 
         # Shutdown
         comm.Disconnect()
@@ -497,8 +498,9 @@ def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
     ##################
     if rank == 0:
         tsimstart = perf_counter()
-        mpimasterstr = '\n=== MPI master ({}, rank: {}) on {} using {} workers...'.format(comm.name, comm.Get_rank(), hostname, numworkers)
-        print('{} {}\n'.format(mpimasterstr, '=' * (get_terminal_width() - 1 - len(mpimasterstr))))
+        mpistartstr = '\n=== MPI task farm (WITHOUT using MPI Spawn)')
+        print('{} {}'.format(mpistartstr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
+        print('=== MPI master ({}, rank: {}) on {} using {} workers...'.format(comm.name, comm.Get_rank(), hostname, numworkers))
 
         closedworkers = 0
         while closedworkers < numworkers:
@@ -558,10 +560,10 @@ def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
                     modelusernamespace = usernamespace
 
                 # Run the model
-                print('MPI worker (parent: {}, rank: {}) on {} starting model {}/{}{}\n'.format(comm.name, rank, hostname, currentmodelrun, numbermodelruns, gpuinfo))
+                print('Starting MPI worker (parent: {}, rank: {}) on {} with model {}/{}{}\n'.format(comm.name, rank, hostname, currentmodelrun, numbermodelruns, gpuinfo))
                 tsolve = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
                 comm.send(None, dest=0, tag=tags.DONE.value)
-                print('MPI worker (parent: {}, rank: {}) on {} completed model {}/{}{} in [HH:MM:SS]: {}\n'.format(comm.name, rank, hostname, currentmodelrun, numbermodelruns, gpuinfo, datetime.timedelta(seconds=tsolve)))
+                print('Completed MPI worker (parent: {}, rank: {}) on {} with model {}/{}{} in [HH:MM:SS]: {}\n'.format(comm.name, rank, hostname, currentmodelrun, numbermodelruns, gpuinfo, datetime.timedelta(seconds=tsolve)))
 
             # Break out of loop when work receives exit message
             elif tag == tags.EXIT.value:
