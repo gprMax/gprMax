@@ -361,7 +361,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
             comm = MPI.COMM_WORLD
         tsimstart = perf_counter()
         mpistartstr = '\n=== MPI task farm (USING MPI Spawn)'
-        print('{} {}'.format(mpistartstr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
+        print('{} {}'.format(mpistartstr, '=' * (get_terminal_width() - 1 - len(mpistartstr))))
         print('=== MPI master ({}, rank: {}) on {} spawning {} workers...'.format(comm.name, comm.Get_rank(), hostname, numworkers))
 
         # Assemble a sys.argv replacement to pass to spawned worker
@@ -499,7 +499,7 @@ def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
     if rank == 0:
         tsimstart = perf_counter()
         mpistartstr = '\n=== MPI task farm (WITHOUT using MPI Spawn)'
-        print('{} {}'.format(mpistartstr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
+        print('{} {}'.format(mpistartstr, '=' * (get_terminal_width() - 1 - len(mpistartstr))))
         print('=== MPI master ({}, rank: {}) on {} using {} workers...'.format(comm.name, comm.Get_rank(), hostname, numworkers))
 
         closedworkers = 0
