@@ -360,7 +360,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         else:
             comm = MPI.COMM_WORLD
         tsimstart = perf_counter()
-        mpistartstr = '\n=== MPI task farm (USING MPI Spawn)')
+        mpistartstr = '\n=== MPI task farm (USING MPI Spawn)'
         print('{} {}'.format(mpistartstr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
         print('=== MPI master ({}, rank: {}) on {} spawning {} workers...'.format(comm.name, comm.Get_rank(), hostname, numworkers))
 
@@ -498,7 +498,7 @@ def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
     ##################
     if rank == 0:
         tsimstart = perf_counter()
-        mpistartstr = '\n=== MPI task farm (WITHOUT using MPI Spawn)')
+        mpistartstr = '\n=== MPI task farm (WITHOUT using MPI Spawn)'
         print('{} {}'.format(mpistartstr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
         print('=== MPI master ({}, rank: {}) on {} using {} workers...'.format(comm.name, comm.Get_rank(), hostname, numworkers))
 
