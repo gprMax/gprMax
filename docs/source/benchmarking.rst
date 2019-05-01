@@ -108,7 +108,7 @@ Results: GPU
 NVIDIA GPUs
 -----------
 
-The performance metric used is to measure the throughput of the solver:
+The performance metric used to measure the throughput of the solver is:
 
 .. math::
 
