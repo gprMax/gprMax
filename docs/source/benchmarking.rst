@@ -9,20 +9,10 @@ This section provides information and results from performance benchmarking of g
 How to benchmark?
 =================
 
-The following simple models (found in the ``tests/benchmarking`` sub-package) can be used to benchmark gprMax on your own system. The models feature different domain sizes and contain a simple source in free space.
+The following simple models (found in the ``tests/benchmarking`` sub-package) can be used to benchmark gprMax on your own system. The models feature different domain sizes (from 100^3 to 450^3 cells) and contain a simple Hertzian dipole source in free space. The following shows an example of the 100^3 cell model:
 
 
 .. literalinclude:: ../../tests/benchmarking/bench_100x100x100.in
-    :language: none
-    :linenos:
-
-
-.. literalinclude:: ../../tests/benchmarking/bench_150x150x150.in
-    :language: none
-    :linenos:
-
-
-.. literalinclude:: ../../tests/benchmarking/bench_200x200x200.in
     :language: none
     :linenos:
 
@@ -33,8 +23,8 @@ Using the following steps to collect and report benchmarking results for each of
 2. Use the ``plot_benchmark`` module to create plots of the execution time and speed-up, e.g. ``python -m tests.benchmarking.plot_benchmark tests/benchmarking/bench_100x100x100.npz``. You can combine results into a single plot, e.g. e.g. ``python -m tests.benchmarking.plot_benchmark tests/benchmarking/bench_100x100x100.npz --otherresults tests/benchmarking/bench_150x150x150.npz``.
 3. Share your data by emailing us your Numpy archives and plot files to info@gprmax.com
 
-Results
-=======
+Results: CPU
+============
 
 Mac OS X
 --------
@@ -42,7 +32,7 @@ Mac OS X
 iMac15,1
 ^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/MacOSX/iMac15,1/Apple_iMac15,1+Ccode.png
+.. figure:: ../../tests/benchmarking/results/cpu/MacOSX/iMac15,1/Apple_iMac15,1+Ccode.png
     :width: 600px
 
     Execution time and speed-up factor plots for Python/Cython-based gprMax and previous (v.2) C-based code.
@@ -56,20 +46,20 @@ The results demonstrate that the Python/Cython-based code is faster, in these tw
 iMac15,1
 ^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/MacOSX/iMac15,1/Apple_iMac15,1.png
+.. figure:: ../../tests/benchmarking/results/cpu/MacOSX/iMac15,1/Apple_iMac15,1.png
     :width: 600px
 
 MacPro1,1
 ^^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/MacOSX/MacPro1,1/Apple_MacPro1,1.png
+.. figure:: ../../tests/benchmarking/results/cpu/MacOSX/MacPro1,1/Apple_MacPro1,1.png
     :width: 600px
 
 
 MacPro3,1
 ^^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/MacOSX/MacPro3,1/Apple_MacPro3,1.png
+.. figure:: ../../tests/benchmarking/results/cpu/MacOSX/MacPro3,1/Apple_MacPro3,1.png
     :width: 600px
 
 
@@ -79,19 +69,19 @@ Linux
 Dell PowerEdge R630
 ^^^^^^^^^^^^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/Linux/Dell_PowerEdge_R630/Dell_PowerEdge_R630.png
+.. figure:: ../../tests/benchmarking/results/cpu/Linux/Dell_PowerEdge_R630/Dell_PowerEdge_R630.png
     :width: 600px
 
 Lenovo System x3650 M5
 ^^^^^^^^^^^^^^^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/Linux/Lenovo_System_x3650_M5/Lenovo_System_x3650_M5.png
+.. figure:: ../../tests/benchmarking/results/cpu/Linux/Lenovo_System_x3650_M5/Lenovo_System_x3650_M5.png
     :width: 600px
 
 SuperMicro SYS-7048GR-TR
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/Linux/SuperMicro_SYS-7048GR-TR/Supermicro_SYS-7048GR-TR.png
+.. figure:: ../../tests/benchmarking/results/cpu/Linux/SuperMicro_SYS-7048GR-TR/Supermicro_SYS-7048GR-TR.png
     :width: 600px
 
 
@@ -101,11 +91,30 @@ Windows
 Lenovo T430
 ^^^^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/Windows7/Lenovo_T430/Lenovo_T430.png
+.. figure:: ../../tests/benchmarking/results/cpu/Windows7/Lenovo_T430/Lenovo_T430.png
     :width: 600px
 
 Dell Z420
 ^^^^^^^^^
 
-.. figure:: ../../tests/benchmarking/results/Windows7/Dell_Z420/DellZ420.png
+.. figure:: ../../tests/benchmarking/results/cpu/Windows7/Dell_Z420/DellZ420.png
+    :width: 600px
+
+
+
+Results: GPU
+============
+
+NVIDIA GPUs
+-----------
+
+The performance metric used is to measure the throughput of the solver:
+
+.. math::
+
+    P = \frac{NX \cdot NY \cdot NZ \cdot NT}{T \cdot 1 \times 10^6},
+
+where P is the throughput in millions of cells per second; NX, NY, and NZ are the number of cells in domain in the x, y, and z directions; NT is the number of time-steps in the simulation; and T is the runtime of the simulation in seconds.
+
+.. figure:: ../../tests/benchmarking/results/gpu/NVIDIA.png
     :width: 600px
