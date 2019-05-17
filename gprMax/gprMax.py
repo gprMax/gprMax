@@ -24,7 +24,6 @@ import os
 import sys
 
 from enum import Enum
-from time import perf_counter
 
 import h5py
 import numpy as np
@@ -42,7 +41,7 @@ from gprMax.utilities import get_terminal_width
 from gprMax.utilities import human_size
 from gprMax.utilities import logo
 from gprMax.utilities import open_path_file
-
+from gprMax.utilities import timer
 
 def main():
     """This is the main function for gprMax."""
@@ -216,7 +215,7 @@ def run_std_sim(args, inputfile, usernamespace, optparams=None):
         modelend = modelstart + args.n
     numbermodelruns = args.n
 
-    tsimstart = perf_counter()
+    tsimstart = timer()
     for currentmodelrun in range(modelstart, modelend):
         # If Taguchi optimistaion, add specific value for each parameter to
         # optimise for each experiment to user accessible namespace
@@ -228,7 +227,7 @@ def run_std_sim(args, inputfile, usernamespace, optparams=None):
         else:
             modelusernamespace = usernamespace
         run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
-    tsimend = perf_counter()
+    tsimend = timer()
     simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
     print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
 
@@ -359,7 +358,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
             comm = args.mpicomm
         else:
             comm = MPI.COMM_WORLD
-        tsimstart = perf_counter()
+        tsimstart = timer()
         mpistartstr = '\n=== MPI task farm (USING MPI Spawn)'
         print('{} {}'.format(mpistartstr, '=' * (get_terminal_width() - 1 - len(mpistartstr))))
         print('=== MPI master ({}, rank: {}) on {} spawning {} workers...'.format(comm.name, comm.Get_rank(), hostname, numworkers))
@@ -411,7 +410,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         # Shutdown communicators
         newcomm.Disconnect()
 
-        tsimend = perf_counter()
+        tsimend = timer()
         simcompletestr = '\n=== MPI master ({}, rank: {}) on {} completed simulation in [HH:MM:SS]: {}'.format(comm.name, comm.Get_rank(), hostname, datetime.timedelta(seconds=tsimend - tsimstart))
         print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
 
@@ -497,7 +496,7 @@ def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
     # Master process #
     ##################
     if rank == 0:
-        tsimstart = perf_counter()
+        tsimstart = timer()
         mpistartstr = '\n=== MPI task farm (WITHOUT using MPI Spawn)'
         print('{} {}'.format(mpistartstr, '=' * (get_terminal_width() - 1 - len(mpistartstr))))
         print('=== MPI master ({}, rank: {}) on {} using {} workers...'.format(comm.name, comm.Get_rank(), hostname, numworkers))
@@ -524,7 +523,7 @@ def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
             elif tag == tags.EXIT.value:
                 closedworkers += 1
 
-        tsimend = perf_counter()
+        tsimend = timer()
         simcompletestr = '\n=== MPI master ({}, rank: {}) on {} completed simulation in [HH:MM:SS]: {}'.format(comm.name, comm.Get_rank(), hostname, datetime.timedelta(seconds=tsimend - tsimstart))
         print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
 

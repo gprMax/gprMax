@@ -33,6 +33,7 @@ from colorama import Fore
 from colorama import Style
 init()
 import numpy as np
+from time import process_time
 
 from gprMax.constants import complextype
 from gprMax.constants import floattype
@@ -411,3 +412,7 @@ def detect_check_gpus(deviceIDs):
         allgpustext.append('{} - {}, {}'.format(gpu.deviceID, gpu.name, human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)))
 
     return gpus, allgpustext
+
+def timer():
+    """Function to return the current process wide time in fractional seconds."""
+    return process_time()
