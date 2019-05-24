@@ -30,7 +30,7 @@ import numpy as np
 
 from gprMax._version import __version__
 from gprMax._version import codename
-import gprMax.config
+import gprMax.config as config
 from gprMax.config import c
 from gprMax.config import e0
 from gprMax.config import m0
@@ -126,8 +126,8 @@ def run_main(args):
         # Flatten a list of lists
         if any(isinstance(element, list) for element in args.gpu):
             args.gpu = [val for sublist in args.gpu for val in sublist]
-        gpus1, allgpustext = detect_check_gpus(args.gpu)
-        print('with GPU(s): {}'.format(' | '.join(allgpustext)))
+        config.gpus, allgpustext = detect_check_gpus(args.gpu)
+        print('GPU(s): {}'.format(' | '.join(allgpustext)))
 
     # Process input file
     with open_path_file(args.inputfile) as inputfile:
@@ -167,8 +167,8 @@ def run_main(args):
             else:
                 if args.task and args.restart:
                     raise GeneralError('Job array and restart modes cannot be used together')
-                if gprMax.config.gpus:
-                    gprMax.config.gpus = gprMax.config.gpus[0]
+                if config.gpus:
+                    config.gpus = config.gpus[0]
                 run_std_sim(args, inputfile, usernamespace)
 
 

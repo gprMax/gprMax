@@ -23,7 +23,7 @@ init()
 import numpy as np
 from tqdm import tqdm
 
-import gprMax.config
+import gprMax.config as config
 from gprMax.config import z0
 from gprMax.config import floattype
 from gprMax.config import gpus
@@ -101,11 +101,11 @@ def process_multicmds(multicmds, G):
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            if '2D TMx' in gprMax.config.mode and (polarisation == 'y' or polarisation == 'z'):
+            if '2D TMx' in config.mode and (polarisation == 'y' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
-            elif '2D TMy' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'z'):
+            elif '2D TMy' in config.mode and (polarisation == 'x' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
-            elif '2D TMz' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'y'):
+            elif '2D TMz' in config.mode and (polarisation == 'x' or polarisation == 'y'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
 
             xcoord = G.calculate_coord('x', tmp[1])
@@ -172,11 +172,11 @@ def process_multicmds(multicmds, G):
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            if '2D TMx' in gprMax.config.mode and (polarisation == 'y' or polarisation == 'z'):
+            if '2D TMx' in config.mode and (polarisation == 'y' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
-            elif '2D TMy' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'z'):
+            elif '2D TMy' in config.mode and (polarisation == 'x' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
-            elif '2D TMz' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'y'):
+            elif '2D TMz' in config.mode and (polarisation == 'x' or polarisation == 'y'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
 
             xcoord = G.calculate_coord('x', tmp[1])
@@ -234,7 +234,7 @@ def process_multicmds(multicmds, G):
             h.calculate_waveform_values(G)
 
             if messages:
-                if '2D' in gprMax.config.mode:
+                if '2D' in config.mode:
                     print('Hertzian dipole is a line source in 2D with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
                 else:
                     print('Hertzian dipole with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
@@ -253,11 +253,11 @@ def process_multicmds(multicmds, G):
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            if '2D TMx' in gprMax.config.mode and (polarisation == 'y' or polarisation == 'z'):
+            if '2D TMx' in config.mode and (polarisation == 'y' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
-            elif '2D TMy' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'z'):
+            elif '2D TMy' in config.mode and (polarisation == 'x' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
-            elif '2D TMz' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'y'):
+            elif '2D TMz' in config.mode and (polarisation == 'x' or polarisation == 'y'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
 
             xcoord = G.calculate_coord('x', tmp[1])
@@ -326,11 +326,11 @@ def process_multicmds(multicmds, G):
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            if '2D TMx' in gprMax.config.mode and (polarisation == 'y' or polarisation == 'z'):
+            if '2D TMx' in config.mode and (polarisation == 'y' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
-            elif '2D TMy' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'z'):
+            elif '2D TMy' in config.mode and (polarisation == 'x' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
-            elif '2D TMz' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'y'):
+            elif '2D TMz' in config.mode and (polarisation == 'x' or polarisation == 'y'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
 
             xcoord = G.calculate_coord('x', tmp[1])

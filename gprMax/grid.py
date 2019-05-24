@@ -25,12 +25,11 @@ init()
 import numpy as np
 np.seterr(invalid='raise')
 
-import gprMax.config
+import gprMax.config as config
 from gprMax.config import c
 from gprMax.config import floattype
 from gprMax.config import complextype
 from gprMax.config import numdispersion
-from gprMax.config import gpus as gpu
 from gprMax.config import hostinfo
 from gprMax.exceptions import GeneralError
 from gprMax.materials import Material
@@ -211,17 +210,17 @@ class FDTDGrid(Grid):
             raise GeneralError('Memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(self.memoryusage), human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
 
         # Check if model can be run on specified GPU if required
-        if gpu is not None:
-            if self.memoryusage - snapsmemsize > gpu.totalmem:
-                raise GeneralError('Memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(self.memoryusage), human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True), gpu.deviceID, gpu.name))
+        if config.gpus is not None:
+            if self.memoryusage - snapsmemsize > config.gpus.totalmem:
+                raise GeneralError('Memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(self.memoryusage), human_size(config.gpus.totalmem, a_kilobyte_is_1024_bytes=True), config.gpus.deviceID, config.gpus.name))
 
             # If the required memory without the snapshots will fit on the GPU then transfer and store snaphots on host
-            if snapsmemsize != 0 and self.memoryusage - snapsmemsize < gpu.totalmem:
-                gprMax.config.snapsgpu2cpu = True
+            if snapsmemsize != 0 and self.memoryusage - snapsmemsize < config.gpus.totalmem:
+                config.snapsgpu2cpu = True
 
     def gpu_set_blocks_per_grid(self):
         """Set the blocks per grid size used for updating the electric and magnetic field arrays on a GPU."""
-        gprMax.config.gpus.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / gpu.tpb[0])), 1, 1)
+        config.gpus.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / config.gpus.tpb[0])), 1, 1)
 
     def gpu_initialise_arrays(self):
         """Initialise standard field arrays on GPU."""
@@ -340,9 +339,9 @@ def dispersion_analysis(G):
         minwavelength = minvelocity / results['maxfreq']
 
         # Maximum spatial step
-        if '3D' in gprMax.config.mode:
+        if '3D' in config.mode:
             delta = max(G.dx, G.dy, G.dz)
-        elif '2D' in gprMax.config.mode:
+        elif '2D' in config.mode:
             if G.nx == 1:
                 delta = max(G.dy, G.dz)
             elif G.ny == 1:

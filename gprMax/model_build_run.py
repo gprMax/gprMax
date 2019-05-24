@@ -31,13 +31,13 @@ import numpy as np
 from terminaltables import SingleTable
 from tqdm import tqdm
 
+import gprMax.config as config
 from gprMax.config import floattype
 from gprMax.config import complextype
 from gprMax.config import cudafloattype
 from gprMax.config import cudacomplextype
 from gprMax.config import numdispersion
 from gprMax.config import hostinfo
-from gprMax.config import gpus as gpu
 from gprMax.config import messages
 from gprMax.config import progressbars
 from gprMax.config import snapsgpu2cpu
@@ -167,9 +167,10 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         G.memory_estimate_basic()
         G.memory_check()
         if messages:
-            print('\nMemory (RAM) required: ~{}\n'.format(human_size(G.memoryusage)))
-            if gpu:
-                print('\nGPU memory (RAM) required: ~{}\n'.format(human_size(G.memoryusage)))
+            memGPU = ''
+            if config.gpus:
+                memGPU = ' host + ~{} GPU'.format(human_size(G.memoryusage))
+            print('\nMemory (RAM) required: ~{}{}\n'.format(human_size(G.memoryusage), memGPU))
 
         # Initialise an array for volumetric material IDs (solid), boolean
         # arrays for specifying materials not to be averaged (rigid),
@@ -362,7 +363,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             print('\nOutput file: {}\n'.format(outputfile))
 
         # Main FDTD solving functions for either CPU or GPU
-        if gpu is None:
+        if config.gpus is None:
             tsolve = solve_cpu(currentmodelrun, modelend, G)
         else:
             tsolve, memsolve = solve_gpu(currentmodelrun, modelend, G)
@@ -386,9 +387,10 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             if messages: print()
 
         if messages:
-            print('Memory (RAM) used: ~{}'.format(human_size(p.memory_full_info().uss)))
-            if gpu:
-                print('GPU memory (RAM) used: ~{}'.format(human_size(memsolve)))
+            memGPU = ''
+            if config.gpus:
+                memGPU = ' host + ~{} GPU'.format(human_size(memsolve))
+            print('\nMemory (RAM) used: ~{}{}'.format(human_size(p.memory_full_info().uss), memGPU))
             print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
 
     # If geometry information to be reused between model runs then FDTDGrid
@@ -492,7 +494,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         compiler_opts = None
 
     # Create device handle and context on specifc GPU device (and make it current context)
-    dev = drv.Device(gpu.deviceID)
+    dev = drv.Device(config.gpus.deviceID)
     ctx = dev.make_context()
 
     # Electric and magnetic field updates - prepare kernels, and get kernel functions
@@ -506,8 +508,8 @@ def solve_gpu(currentmodelrun, modelend, G):
     # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for fields kernels
     updatecoeffsE = kernels_fields.get_global('updatecoeffsE')[0]
     updatecoeffsH = kernels_fields.get_global('updatecoeffsH')[0]
-    if G.updatecoeffsE.nbytes + G.updatecoeffsH.nbytes > gpu.constmem:
-        raise GeneralError('Too many materials in the model to fit onto constant memory of size {} on {} - {} GPU'.format(human_size(gpu.constmem), gpu.deviceID, gpu.name))
+    if G.updatecoeffsE.nbytes + G.updatecoeffsH.nbytes > config.gpus.constmem:
+        raise GeneralError('Too many materials in the model to fit onto constant memory of size {} on {} - {} GPU'.format(human_size(config.gpus.constmem), config.gpus.deviceID, config.gpus.name))
     else:
         drv.memcpy_htod(updatecoeffsE, G.updatecoeffsE)
         drv.memcpy_htod(updatecoeffsH, G.updatecoeffsH)
@@ -627,7 +629,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         update_h_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
                      G.ID_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata,
                      G.Hz_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata,
-                     G.Ez_gpu.gpudata, block=G.tpb, grid=G.bpg)
+                     G.Ez_gpu.gpudata, block=config.gpus.tpb, grid=config.gpus.bpg)
 
         # Update magnetic field components with the PML correction
         for pml in G.pmls:
@@ -648,7 +650,7 @@ def solve_gpu(currentmodelrun, modelend, G):
             update_e_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz), G.ID_gpu.gpudata,
                          G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
                          G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                         block=G.tpb, grid=G.bpg)
+                         block=config.gpus.tpb, grid=config.gpus.bpg)
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
         else:
@@ -657,7 +659,7 @@ def solve_gpu(currentmodelrun, modelend, G):
                                       G.Tx_gpu.gpudata, G.Ty_gpu.gpudata, G.Tz_gpu.gpudata, G.ID_gpu.gpudata,
                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
                                       G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                                      block=G.tpb, grid=G.bpg)
+                                      block=config.gpus.tpb, grid=config.gpus.bpg)
 
         # Update electric field components with the PML correction
         for pml in G.pmls:
@@ -687,7 +689,7 @@ def solve_gpu(currentmodelrun, modelend, G):
                                       np.int32(Material.maxpoles), G.updatecoeffsdispersive_gpu.gpudata,
                                       G.Tx_gpu.gpudata, G.Ty_gpu.gpudata, G.Tz_gpu.gpudata, G.ID_gpu.gpudata,
                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                                      block=G.tpb, grid=G.bpg)
+                                      block=config.gpus.tpb, grid=config.gpus.bpg)
 
     # Copy output from receivers array back to correct receiver objects
     if G.rxs:
