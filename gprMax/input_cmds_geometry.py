@@ -23,7 +23,9 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 
-from gprMax.constants import floattype
+from gprMax.config import floattype
+from gprMax.config import messages
+from gprMax.config import progressbars
 from gprMax.input_cmds_file import check_cmd_names
 from gprMax.input_cmds_multiuse import process_multicmds
 from gprMax.exceptions import CmdInputError
@@ -61,11 +63,11 @@ def process_geometrycmds(geometry, G):
     # Disable progress bar if on Windows as it does not update properly
     # when messages are printed for geometry
     if sys.platform == 'win32':
-        progressbars = False
+        progressbarsgeo = False
     else:
-        progressbars = not G.progressbars
+        progressbarsgeo = not progressbars
 
-    for object in tqdm(geometry, desc='Processing geometry related cmds', unit='cmds', ncols=get_terminal_width() - 1, file=sys.stdout, disable=progressbars):
+    for object in tqdm(geometry, desc='Processing geometry related cmds', unit='cmds', ncols=get_terminal_width() - 1, file=sys.stdout, disable=progressbarsgeo):
         tmp = object.split()
 
         if tmp[0] == '#geometry_objects_read:':
@@ -135,12 +137,12 @@ def process_geometrycmds(geometry, G):
                 G.rigidE[:, xs:xs + rigidE.shape[1], ys:ys + rigidE.shape[2], zs:zs + rigidE.shape[3]] = rigidE
                 G.rigidH[:, xs:xs + rigidH.shape[1], ys:ys + rigidH.shape[2], zs:zs + rigidH.shape[3]] = rigidH
                 G.ID[:, xs:xs + ID.shape[1], ys:ys + ID.shape[2], zs:zs + ID.shape[3]] = ID + numexistmaterials
-                if G.messages:
+                if messages:
                     tqdm.write('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
             except KeyError:
                 averaging = False
                 build_voxels_from_array(xs, ys, zs, numexistmaterials, averaging, data, G.solid, G.rigidE, G.rigidH, G.ID)
-                if G.messages:
+                if messages:
                     tqdm.write('Geometry objects from file (voxels only) {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
 
         elif tmp[0] == '#edge:':
@@ -199,7 +201,7 @@ def process_geometrycmds(geometry, G):
                     for k in range(zs, zf):
                         build_edge_z(xs, ys, k, material.numID, G.rigidE, G.rigidH, G.ID)
 
-            if G.messages:
+            if messages:
                 tqdm.write('Edge from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, tmp[7]))
 
         elif tmp[0] == '#plate:':
@@ -307,7 +309,7 @@ def process_geometrycmds(geometry, G):
                     for j in range(ys, yf):
                         build_face_xy(i, j, zs, numIDx, numIDy, G.rigidE, G.rigidH, G.ID)
 
-            if G.messages:
+            if messages:
                 tqdm.write('Plate from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material(s) {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, ', '.join(materialsrequested)))
 
         elif tmp[0] == '#triangle:':
@@ -420,7 +422,7 @@ def process_geometrycmds(geometry, G):
 
             build_triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, normal, thickness, G.dx, G.dy, G.dz, numID, numIDx, numIDy, numIDz, averaging, G.solid, G.rigidE, G.rigidH, G.ID)
 
-            if G.messages:
+            if messages:
                 if thickness > 0:
                     if averaging:
                         dielectricsmoothing = 'on'
@@ -515,7 +517,7 @@ def process_geometrycmds(geometry, G):
 
             build_box(xs, xf, ys, yf, zs, zf, numID, numIDx, numIDy, numIDz, averaging, G.solid, G.rigidE, G.rigidH, G.ID)
 
-            if G.messages:
+            if messages:
                 if averaging:
                     dielectricsmoothing = 'on'
                 else:
@@ -596,7 +598,7 @@ def process_geometrycmds(geometry, G):
 
             build_cylinder(x1, y1, z1, x2, y2, z2, r, G.dx, G.dy, G.dz, numID, numIDx, numIDy, numIDz, averaging, G.solid, G.rigidE, G.rigidH, G.ID)
 
-            if G.messages:
+            if messages:
                 if averaging:
                     dielectricsmoothing = 'on'
                 else:
@@ -717,7 +719,7 @@ def process_geometrycmds(geometry, G):
 
             build_cylindrical_sector(ctr1, ctr2, level, sectorstartangle, sectorangle, r, normal, thickness, G.dx, G.dy, G.dz, numID, numIDx, numIDy, numIDz, averaging, G.solid, G.rigidE, G.rigidH, G.ID)
 
-            if G.messages:
+            if messages:
                 if thickness > 0:
                     if averaging:
                         dielectricsmoothing = 'on'
@@ -796,7 +798,7 @@ def process_geometrycmds(geometry, G):
 
             build_sphere(xc, yc, zc, r, G.dx, G.dy, G.dz, numID, numIDx, numIDy, numIDz, averaging, G.solid, G.rigidE, G.rigidH, G.ID)
 
-            if G.messages:
+            if messages:
                 if averaging:
                     dielectricsmoothing = 'on'
                 else:
@@ -877,7 +879,7 @@ def process_geometrycmds(geometry, G):
             volume.weighting = np.array([float(tmp[8]), float(tmp[9]), float(tmp[10])])
             volume.averaging = averagefractalbox
 
-            if G.messages:
+            if messages:
                 if volume.averaging:
                     dielectricsmoothing = 'on'
                 else:
@@ -1000,7 +1002,7 @@ def process_geometrycmds(geometry, G):
                         surface.generate_fractal_surface(G)
                         volume.fractalsurfaces.append(surface)
 
-                        if G.messages:
+                        if messages:
                             tqdm.write('Fractal surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}, fractal weightings {:g}, {:g}, fractal seeding {}, and range {:g}m to {:g}m, added to {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.weighting[0], surface.weighting[1], surface.seed, float(tmp[10]), float(tmp[11]), surface.operatingonID))
 
                 if tmp[0] == '#add_surface_water:':
@@ -1108,7 +1110,7 @@ def process_geometrycmds(geometry, G):
                         if testwater:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires the time step for the model to be less than the relaxation time required to model water.')
 
-                        if G.messages:
+                        if messages:
                             tqdm.write('Water on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with depth {:g}m, added to {}.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, filldepth, surface.operatingonID))
 
                 if tmp[0] == '#add_grass:':
@@ -1258,7 +1260,7 @@ def process_geometrycmds(geometry, G):
 
                         volume.fractalsurfaces.append(surface)
 
-                        if G.messages:
+                        if messages:
                             tqdm.write('{} blades of grass on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}, fractal seeding {}, and range {:g}m to {:g}m, added to {}.'.format(numblades, xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, surface.dimension, surface.seed, float(tmp[8]), float(tmp[9]), surface.operatingonID))
 
             # Process any modifications to the original fractal box then generate it

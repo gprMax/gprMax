@@ -22,7 +22,8 @@ from struct import pack
 
 import numpy as np
 
-from gprMax.constants import floattype
+from gprMax.config import floattype
+from gprMax.config import snapsgpu2cpu
 from gprMax.snapshots_ext import calculate_snapshot_fields
 from gprMax.utilities import round_value
 
@@ -192,7 +193,7 @@ def gpu_initialise_snapshot_array(G):
     Snapshot.bpg = (int(np.ceil(((Snapshot.nx_max) * (Snapshot.ny_max) * (Snapshot.nz_max)) / Snapshot.tpb[0])), 1, 1)
 
     # 4D arrays to store snapshots on GPU, e.g. snapEx(time, x, y, z)
-    numsnaps = 1 if G.snapsgpu2cpu else len(G.snapshots)
+    numsnaps = 1 if snapsgpu2cpu else len(G.snapshots)
     snapEx = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
     snapEy = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
     snapEz = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)

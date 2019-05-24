@@ -20,7 +20,7 @@ import numpy as np
 cimport numpy as np
 from cython.parallel import prange
 
-from gprMax.constants cimport floattype_t
+from gprMax.config cimport floattype_t
 
 
 cpdef void order1_xminus(

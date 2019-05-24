@@ -20,7 +20,7 @@ from collections import OrderedDict
 
 import numpy as np
 
-from gprMax.constants import floattype
+from gprMax.config import floattype
 
 
 class Rx(object):

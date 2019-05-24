@@ -35,10 +35,7 @@ init()
 import numpy as np
 from time import process_time
 
-from gprMax.constants import complextype
-from gprMax.constants import floattype
 from gprMax.exceptions import GeneralError
-from gprMax.materials import Material
 
 
 def get_terminal_width():
@@ -335,6 +332,7 @@ def get_host_info():
     if not hostinfo['physicalcores']:
         hostinfo['physicalcores'] = hostinfo['logicalcores']
     hostinfo['ram'] = psutil.virtual_memory().total
+    hostinfo['ompthreads'] = 1
 
     return hostinfo
 
@@ -353,6 +351,10 @@ class GPU(object):
         self.pcibusID = None
         self.constmem = None
         self.totalmem = None
+        # Threads per block for main field updates
+        self.tpb = (256, 1, 1)
+        # Blocks per grid for main field updates (set in grid.py)
+        self.bpg = None
 
     def get_gpu_info(self, drv):
         """Set information about GPU.

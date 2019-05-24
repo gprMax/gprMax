@@ -20,8 +20,8 @@ import numpy as np
 cimport numpy as np
 from cython.parallel import prange
 
-from gprMax.constants cimport floattype_t
-from gprMax.constants cimport complextype_t
+from gprMax.config cimport floattype_t
+from gprMax.config cimport complextype_t
 
 
 ###############################################

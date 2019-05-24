@@ -28,13 +28,19 @@ from colorama import Fore
 from colorama import Style
 init()
 import numpy as np
-from terminaltables import AsciiTable
+from terminaltables import SingleTable
 from tqdm import tqdm
 
-from gprMax.constants import floattype
-from gprMax.constants import complextype
-from gprMax.constants import cudafloattype
-from gprMax.constants import cudacomplextype
+from gprMax.config import floattype
+from gprMax.config import complextype
+from gprMax.config import cudafloattype
+from gprMax.config import cudacomplextype
+from gprMax.config import numdispersion
+from gprMax.config import hostinfo
+from gprMax.config import gpus as gpu
+from gprMax.config import messages
+from gprMax.config import progressbars
+from gprMax.config import snapsgpu2cpu
 from gprMax.exceptions import GeneralError
 
 from gprMax.fields_outputs import store_outputs
@@ -56,8 +62,8 @@ from gprMax.input_cmds_geometry import process_geometrycmds
 from gprMax.input_cmds_file import process_python_include_code
 from gprMax.input_cmds_file import write_processed_file
 from gprMax.input_cmds_file import check_cmd_names
-from gprMax.input_cmds_multiuse import process_multicmds
 from gprMax.input_cmds_singleuse import process_singlecmds
+from gprMax.input_cmds_multiuse import process_multicmds
 from gprMax.materials import Material
 from gprMax.materials import process_materials
 from gprMax.pml import CFS
@@ -71,7 +77,6 @@ from gprMax.snapshots import gpu_get_snapshot_array
 from gprMax.snapshots_gpu import kernel_template_store_snapshot
 from gprMax.sources import gpu_initialise_src_arrays
 from gprMax.source_updates_gpu import kernels_template_sources
-from gprMax.utilities import get_host_info
 from gprMax.utilities import get_terminal_width
 from gprMax.utilities import human_size
 from gprMax.utilities import open_path_file
@@ -112,18 +117,10 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         # Initialise an instance of the FDTDGrid class
         G = FDTDGrid()
 
-        # Get information about host machine
-        # (need to save this info to FDTDGrid instance after it has been created)
-        G.hostinfo = get_host_info()
-
-        # Single GPU object
-        if args.gpu:
-            G.gpu = args.gpu
-
         G.inputfilename = os.path.split(inputfile.name)[1]
         G.inputdirectory = os.path.dirname(os.path.abspath(inputfile.name))
         inputfilestr = '\n--- Model {}/{}, input file: {}'.format(currentmodelrun, modelend, inputfile.name)
-        if G.messages:
+        if messages:
             print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
         # Add the current model run to namespace that can be accessed by
@@ -138,7 +135,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         for key, value in sorted(usernamespace.items()):
             if key != '__builtins__':
                 uservars += '{}: {}, '.format(key, value)
-        if G.messages:
+        if messages:
             print('Constants/variables used/available for Python scripting: {{{}}}\n'.format(uservars[:-2]))
 
         # Write a file containing the input commands after Python or include file commands have been processed
@@ -160,19 +157,19 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         # Process parameters for commands that can only occur once in the model
         process_singlecmds(singlecmds, G)
+        from gprMax.config import mode
 
         # Process parameters for commands that can occur multiple times in the model
-        if G.messages: print()
+        if messages: print()
         process_multicmds(multicmds, G)
 
         # Estimate and check memory (RAM) usage
         G.memory_estimate_basic()
         G.memory_check()
-        if G.messages:
-            if G.gpu is None:
-                print('\nMemory (RAM) required: ~{}\n'.format(human_size(G.memoryusage)))
-            else:
-                print('\nMemory (RAM) required: ~{} host + ~{} GPU\n'.format(human_size(G.memoryusage), human_size(G.memoryusage)))
+        if messages:
+            print('\nMemory (RAM) required: ~{}\n'.format(human_size(G.memoryusage)))
+            if gpu:
+                print('\nGPU memory (RAM) required: ~{}\n'.format(human_size(G.memoryusage)))
 
         # Initialise an array for volumetric material IDs (solid), boolean
         # arrays for specifying materials not to be averaged (rigid),
@@ -186,16 +183,16 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         process_geometrycmds(geometry, G)
 
         # Build the PMLs and calculate initial coefficients
-        if G.messages: print()
+        if messages: print()
         if all(value == 0 for value in G.pmlthickness.values()):
-            if G.messages:
+            if messages:
                 print('PML: switched off')
             pass  # If all the PMLs are switched off don't need to build anything
         else:
             # Set default CFS parameters for PML if not given
             if not G.cfs:
                 G.cfs = [CFS()]
-            if G.messages:
+            if messages:
                 if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
                     pmlinfo = str(G.pmlthickness['x0'])
                 else:
@@ -204,14 +201,14 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
                         pmlinfo += '{}: {}, '.format(key, value)
                     pmlinfo = pmlinfo[:-2] + ' cells'
                 print('PML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo))
-            pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
+            pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not progressbars)
             build_pmls(G, pbar)
             pbar.close()
 
         # Build the model, i.e. set the material properties (ID) for every edge
         # of every Yee cell
-        if G.messages: print()
-        pbar = tqdm(total=2, desc='Building main grid', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
+        if messages: print()
+        pbar = tqdm(total=2, desc='Building main grid', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not progressbars)
         build_electric_components(G.solid, G.rigidE, G.ID, G)
         pbar.update()
         build_magnetic_components(G.solid, G.rigidH, G.ID, G)
@@ -220,19 +217,19 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         # Add PEC boundaries to invariant direction in 2D modes
         # N.B. 2D modes are a single cell slice of 3D grid
-        if '2D TMx' in G.mode:
+        if '2D TMx' in mode:
             # Ey & Ez components
             G.ID[1, 0, :, :] = 0
             G.ID[1, 1, :, :] = 0
             G.ID[2, 0, :, :] = 0
             G.ID[2, 1, :, :] = 0
-        elif '2D TMy' in G.mode:
+        elif '2D TMy' in mode:
             # Ex & Ez components
             G.ID[0, :, 0, :] = 0
             G.ID[0, :, 1, :] = 0
             G.ID[2, :, 0, :] = 0
             G.ID[2, :, 1, :] = 0
-        elif '2D TMz' in G.mode:
+        elif '2D TMz' in mode:
             # Ex & Ey components
             G.ID[0, :, :, 0] = 0
             G.ID[0, :, :, 1] = 0
@@ -253,7 +250,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             # Update estimated memory (RAM) usage
             G.memoryusage += int(3 * Material.maxpoles * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(complextype).itemsize)
             G.memory_check()
-            if G.messages:
+            if messages:
                 print('\nMemory (RAM) required - updated (dispersive): ~{}\n'.format(human_size(G.memoryusage)))
 
             G.initialise_dispersive_arrays()
@@ -266,34 +263,34 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
                 snapsmemsize += (2 * snap.datasizefield)
             G.memoryusage += int(snapsmemsize)
             G.memory_check(snapsmemsize=int(snapsmemsize))
-            if G.messages:
+            if messages:
                 print('\nMemory (RAM) required - updated (snapshots): ~{}\n'.format(human_size(G.memoryusage)))
 
         # Process complete list of materials - calculate update coefficients,
         # store in arrays, and build text list of materials/properties
         materialsdata = process_materials(G)
-        if G.messages:
+        if messages:
             print('\nMaterials:')
-            materialstable = AsciiTable(materialsdata)
+            materialstable = SingleTable(materialsdata)
             materialstable.outer_border = False
             materialstable.justify_columns[0] = 'right'
             print(materialstable.table)
 
         # Check to see if numerical dispersion might be a problem
         results = dispersion_analysis(G)
-        if results['error'] and G.messages:
+        if results['error'] and messages:
             print(Fore.RED + "\nWARNING: Numerical dispersion analysis not carried out as {}".format(results['error']) + Style.RESET_ALL)
-        elif results['N'] < G.mingridsampling:
+        elif results['N'] < numdispersion['mingridsampling']:
             raise GeneralError("Non-physical wave propagation: Material '{}' has wavelength sampled by {} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {:g}Hz".format(results['material'].ID, results['N'], results['maxfreq']))
-        elif results['deltavp'] and np.abs(results['deltavp']) > G.maxnumericaldisp and G.messages:
+        elif results['deltavp'] and np.abs(results['deltavp']) > numdispersion['maxnumericaldisp'] and messages:
             print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']) + Style.RESET_ALL)
-        elif results['deltavp'] and G.messages:
+        elif results['deltavp'] and messages:
             print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
 
     # If geometry information to be reused between model runs
     else:
         inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(currentmodelrun, modelend, inputfile.name)
-        if G.messages:
+        if messages:
             print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
         # Clear arrays for field components
@@ -322,18 +319,18 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             receiver.zcoord = receiver.zcoordorigin + (currentmodelrun - 1) * G.rxsteps[2]
 
     # Write files for any geometry views and geometry object outputs
-    if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only and G.messages:
+    if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only and messages:
         print(Fore.RED + '\nWARNING: No geometry views or geometry objects to output found.' + Style.RESET_ALL)
     if G.geometryviews:
-        if G.messages: print()
+        if messages: print()
         for i, geometryview in enumerate(G.geometryviews):
             geometryview.set_filename(appendmodelnumber, G)
-            pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
+            pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not progressbars)
             geometryview.write_vtk(G, pbar)
             pbar.close()
     if G.geometryobjectswrite:
         for i, geometryobject in enumerate(G.geometryobjectswrite):
-            pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {}/{}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
+            pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {}/{}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not progressbars)
             geometryobject.write_hdf5(G, pbar)
             pbar.close()
 
@@ -355,17 +352,17 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         outputdir = os.path.abspath(outputdir)
         if not os.path.isdir(outputdir):
             os.mkdir(outputdir)
-            if G.messages:
+            if messages:
                 print('\nCreated output directory: {}'.format(outputdir))
         # Restore current directory
         os.chdir(curdir)
         basename, ext = os.path.splitext(inputfilename)
         outputfile = os.path.join(outputdir, basename + appendmodelnumber + '.out')
-        if G.messages:
+        if messages:
             print('\nOutput file: {}\n'.format(outputfile))
 
         # Main FDTD solving functions for either CPU or GPU
-        if G.gpu is None:
+        if gpu is None:
             tsolve = solve_cpu(currentmodelrun, modelend, G)
         else:
             tsolve, memsolve = solve_gpu(currentmodelrun, modelend, G)
@@ -380,19 +377,18 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             if not os.path.exists(snapshotdir):
                 os.mkdir(snapshotdir)
 
-            if G.messages: print()
+            if messages: print()
             for i, snap in enumerate(G.snapshots):
                 snap.filename = os.path.abspath(os.path.join(snapshotdir, snap.basefilename + '.vti'))
-                pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte', unit_scale=True, desc='Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
+                pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte', unit_scale=True, desc='Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not progressbars)
                 snap.write_vtk_imagedata(pbar, G)
                 pbar.close()
-            if G.messages: print()
+            if messages: print()
 
-        if G.messages:
-            if G.gpu is None:
-                print('Memory (RAM) used: ~{}'.format(human_size(p.memory_info().rss)))
-            else:
-                print('Memory (RAM) used: ~{} host + ~{} GPU'.format(human_size(p.memory_info().rss), human_size(memsolve)))
+        if messages:
+            print('Memory (RAM) used: ~{}'.format(human_size(p.memory_full_info().uss)))
+            if gpu:
+                print('GPU memory (RAM) used: ~{}'.format(human_size(memsolve)))
             print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
 
     # If geometry information to be reused between model runs then FDTDGrid
@@ -414,12 +410,12 @@ def solve_cpu(currentmodelrun, modelend, G):
         G (class): Grid class instance - holds essential parameters describing the model.
 
     Returns:
-        tsolve (float): Time taken to execute solving
+        tsolve (float): Time taken to execute solving (seconds)
     """
 
     tsolvestart = timer()
 
-    for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars):
+    for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not progressbars):
         # Store field component values for every receiver and transmission line
         store_outputs(iteration, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
@@ -429,7 +425,7 @@ def solve_cpu(currentmodelrun, modelend, G):
                 snap.store(G)
 
         # Update magnetic field components
-        update_magnetic(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
+        update_magnetic(G.nx, G.ny, G.nz, hostinfo['ompthreads'], G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
 
         # Update magnetic field components with the PML correction
         for pml in G.pmls:
@@ -442,13 +438,13 @@ def solve_cpu(currentmodelrun, modelend, G):
         # Update electric field components
         # All materials are non-dispersive so do standard update
         if Material.maxpoles == 0:
-            update_electric(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
+            update_electric(G.nx, G.ny, G.nz, hostinfo['ompthreads'], G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
         elif Material.maxpoles == 1:
-            update_electric_dispersive_1pole_A(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
+            update_electric_dispersive_1pole_A(G.nx, G.ny, G.nz, hostinfo['ompthreads'], G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
         elif Material.maxpoles > 1:
-            update_electric_dispersive_multipole_A(G.nx, G.ny, G.nz, G.nthreads, Material.maxpoles, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
+            update_electric_dispersive_multipole_A(G.nx, G.ny, G.nz, hostinfo['ompthreads'], Material.maxpoles, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
 
         # Update electric field components with the PML correction
         for pml in G.pmls:
@@ -463,9 +459,9 @@ def solve_cpu(currentmodelrun, modelend, G):
         # field values). Therefore it can only be completely updated after the
         # electric field has been updated by the PML and source updates.
         if Material.maxpoles == 1:
-            update_electric_dispersive_1pole_B(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez)
+            update_electric_dispersive_1pole_B(G.nx, G.ny, G.nz, hostinfo['ompthreads'], G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez)
         elif Material.maxpoles > 1:
-            update_electric_dispersive_multipole_B(G.nx, G.ny, G.nz, G.nthreads, Material.maxpoles, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez)
+            update_electric_dispersive_multipole_B(G.nx, G.ny, G.nz, hostinfo['ompthreads'], Material.maxpoles, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez)
 
     tsolve = timer() - tsolvestart
 
@@ -481,8 +477,8 @@ def solve_gpu(currentmodelrun, modelend, G):
         G (class): Grid class instance - holds essential parameters describing the model.
 
     Returns:
-        tsolve (float): Time taken to execute solving
-        memsolve (int): memory usage on final iteration in bytes
+        tsolve (float): Time taken to execute solving (seconds)
+        memsolve (int): memory usage on final iteration (bytes)
     """
 
     import pycuda.driver as drv
@@ -496,7 +492,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         compiler_opts = None
 
     # Create device handle and context on specifc GPU device (and make it current context)
-    dev = drv.Device(G.gpu.deviceID)
+    dev = drv.Device(gpu.deviceID)
     ctx = dev.make_context()
 
     # Electric and magnetic field updates - prepare kernels, and get kernel functions
@@ -510,8 +506,8 @@ def solve_gpu(currentmodelrun, modelend, G):
     # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for fields kernels
     updatecoeffsE = kernels_fields.get_global('updatecoeffsE')[0]
     updatecoeffsH = kernels_fields.get_global('updatecoeffsH')[0]
-    if G.updatecoeffsE.nbytes + G.updatecoeffsH.nbytes > G.gpu.constmem:
-        raise GeneralError('Too many materials in the model to fit onto constant memory of size {} on {} - {} GPU'.format(human_size(G.gpu.constmem), G.gpu.deviceID, G.gpu.name))
+    if G.updatecoeffsE.nbytes + G.updatecoeffsH.nbytes > gpu.constmem:
+        raise GeneralError('Too many materials in the model to fit onto constant memory of size {} on {} - {} GPU'.format(human_size(gpu.constmem), gpu.deviceID, gpu.name))
     else:
         drv.memcpy_htod(updatecoeffsE, G.updatecoeffsE)
         drv.memcpy_htod(updatecoeffsH, G.updatecoeffsH)
@@ -585,7 +581,7 @@ def solve_gpu(currentmodelrun, modelend, G):
     iterend = drv.Event()
     iterstart.record()
 
-    for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars):
+    for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not progressbars):
 
         # Get GPU memory usage on final iteration
         if iteration == G.iterations - 1:
@@ -602,7 +598,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Store any snapshots
         for i, snap in enumerate(G.snapshots):
             if snap.time == iteration + 1:
-                if not G.snapsgpu2cpu:
+                if not snapsgpu2cpu:
                     store_snapshot_gpu(np.int32(i), np.int32(snap.xs),
                                        np.int32(snap.xf), np.int32(snap.ys),
                                        np.int32(snap.yf), np.int32(snap.zs),
@@ -698,7 +694,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         gpu_get_rx_array(rxs_gpu.get(), rxcoords_gpu.get(), G)
 
     # Copy data from any snapshots back to correct snapshot objects
-    if G.snapshots and not G.snapsgpu2cpu:
+    if G.snapshots and not snapsgpu2cpu:
         for i, snap in enumerate(G.snapshots):
             gpu_get_snapshot_array(snapEx_gpu.get(), snapEy_gpu.get(), snapEz_gpu.get(),
                                    snapHx_gpu.get(), snapHy_gpu.get(), snapHz_gpu.get(), i, snap)

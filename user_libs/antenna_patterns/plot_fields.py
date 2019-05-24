@@ -12,7 +12,8 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
-from gprMax.constants import c, z0
+from gprMax.config import c
+from gprMax.config import z0
 
 
 # Parse command line arguments
@@ -89,7 +90,7 @@ for patt in range(0, len(radii)):
         power = 10 * np.log10(pattplot)
     # Replace any NaNs or Infs from zero division
     power[np.invert(np.isfinite(power))] = 0
-    
+
     ax.plot(theta, power, label='{:.2f}m'.format(radii[patt]), marker='.', ms=6, lw=1.5)
 
 # Add Hertzian dipole plot

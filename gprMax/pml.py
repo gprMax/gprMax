@@ -21,9 +21,10 @@ from importlib import import_module
 import numpy as np
 from tqdm import tqdm
 
-from gprMax.constants import e0
-from gprMax.constants import z0
-from gprMax.constants import floattype
+from gprMax.config import e0
+from gprMax.config import z0
+from gprMax.config import floattype
+from gprMax.config import hostinfo
 from gprMax.exceptions import GeneralError
 
 
@@ -281,7 +282,7 @@ class PML(object):
 
         pmlmodule = 'gprMax.pml_updates.pml_updates_electric_' + G.pmlformulation + '_ext'
         func = getattr(import_module(pmlmodule), 'order' + str(len(self.CFS)) + '_' + self.direction)
-        func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.EPhi1, self.EPhi2, self.ERA, self.ERB, self.ERE, self.ERF, self.d)
+        func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf, hostinfo['ompthreads'], G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.EPhi1, self.EPhi2, self.ERA, self.ERB, self.ERE, self.ERF, self.d)
 
     def update_magnetic(self, G):
         """This functions updates magnetic field components with the PML correction.
@@ -292,7 +293,7 @@ class PML(object):
 
         pmlmodule = 'gprMax.pml_updates.pml_updates_magnetic_' + G.pmlformulation + '_ext'
         func = getattr(import_module(pmlmodule), 'order' + str(len(self.CFS)) + '_' + self.direction)
-        func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf, G.nthreads, G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.HPhi1, self.HPhi2, self.HRA, self.HRB, self.HRE, self.HRF, self.d)
+        func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf, hostinfo['ompthreads'], G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.HPhi1, self.HPhi2, self.HRA, self.HRB, self.HRE, self.HRF, self.d)
 
     def gpu_set_blocks_per_grid(self, G):
         """Set the blocks per grid size used for updating the PML field arrays on a GPU.

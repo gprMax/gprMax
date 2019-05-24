@@ -18,7 +18,7 @@
 
 cimport numpy as np
 
-from gprMax.constants cimport floattype_t
+from gprMax.config cimport floattype_t
 
 
 cpdef void calculate_snapshot_fields(

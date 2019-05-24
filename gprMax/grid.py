@@ -25,9 +25,13 @@ init()
 import numpy as np
 np.seterr(invalid='raise')
 
-from gprMax.constants import c
-from gprMax.constants import floattype
-from gprMax.constants import complextype
+import gprMax.config
+from gprMax.config import c
+from gprMax.config import floattype
+from gprMax.config import complextype
+from gprMax.config import numdispersion
+from gprMax.config import gpus as gpu
+from gprMax.config import hostinfo
 from gprMax.exceptions import GeneralError
 from gprMax.materials import Material
 from gprMax.pml import PML
@@ -88,35 +92,7 @@ class FDTDGrid(Grid):
         self.inputdirectory = ''
         self.outputdirectory = ''
         self.title = ''
-        self.messages = True
-        self.progressbars = self.messages
         self.memoryusage = 0
-
-        # Get information about host machine
-        self.hostinfo = None
-
-        # CPU - OpenMP threads
-        self.nthreads = 0
-
-        # GPU
-        # Threads per block - electric and magnetic field updates
-        self.tpb = (256, 1, 1)
-
-        # GPU object
-        self.gpu = None
-
-        # Copy snapshot data from GPU to CPU during simulation
-        # N.B. This will happen if the requested snapshots are too large to fit
-        # on the memory of the GPU. If True this will slow performance significantly
-        self.snapsgpu2cpu = False
-
-        # Threshold (dB) down from maximum power (0dB) of main frequency used
-        # to calculate highest frequency for numerical dispersion analysis
-        self.highestfreqthres = 40
-        # Maximum allowable percentage physical phase-velocity phase error
-        self.maxnumericaldisp = 2
-        # Minimum grid sampling of smallest wavelength for physical wave propagation
-        self.mingridsampling = 3
 
         self.nx = 0
         self.ny = 0
@@ -125,7 +101,6 @@ class FDTDGrid(Grid):
         self.dy = 0
         self.dz = 0
         self.dt = 0
-        self.mode = None
         self.iterations = 0
         self.timewindow = 0
 
@@ -232,21 +207,21 @@ class FDTDGrid(Grid):
         """
 
         # Check if model can be built and/or run on host
-        if self.memoryusage > self.hostinfo['ram']:
-            raise GeneralError('Memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(self.memoryusage), human_size(self.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
+        if self.memoryusage > hostinfo['ram']:
+            raise GeneralError('Memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(self.memoryusage), human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
 
         # Check if model can be run on specified GPU if required
-        if self.gpu is not None:
-            if self.memoryusage - snapsmemsize > self.gpu.totalmem:
-                raise GeneralError('Memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(self.memoryusage), human_size(self.gpu.totalmem, a_kilobyte_is_1024_bytes=True), self.gpu.deviceID, self.gpu.name))
+        if gpu is not None:
+            if self.memoryusage - snapsmemsize > gpu.totalmem:
+                raise GeneralError('Memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(self.memoryusage), human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True), gpu.deviceID, gpu.name))
 
             # If the required memory without the snapshots will fit on the GPU then transfer and store snaphots on host
-            if snapsmemsize != 0 and self.memoryusage - snapsmemsize < self.gpu.totalmem:
-                self.snapsgpu2cpu = True
+            if snapsmemsize != 0 and self.memoryusage - snapsmemsize < gpu.totalmem:
+                gprMax.config.snapsgpu2cpu = True
 
     def gpu_set_blocks_per_grid(self):
         """Set the blocks per grid size used for updating the electric and magnetic field arrays on a GPU."""
-        self.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / self.tpb[0])), 1, 1)
+        gprMax.config.gpus.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / gpu.tpb[0])), 1, 1)
 
     def gpu_initialise_arrays(self):
         """Initialise standard field arrays on GPU."""
@@ -324,7 +299,7 @@ def dispersion_analysis(G):
 
                     # Set maximum frequency to a threshold drop from maximum power, ignoring DC value
                     try:
-                        freqthres = np.where(power[freqmaxpower:] < -G.highestfreqthres)[0][0] + freqmaxpower
+                        freqthres = np.where(power[freqmaxpower:] < -numdispersion['highestfreqthres'])[0][0] + freqmaxpower
                         results['maxfreq'].append(freqs[freqthres])
                     except ValueError:
                         results['error'] = 'unable to calculate maximum power from waveform, most likely due to undersampling.'
@@ -365,9 +340,9 @@ def dispersion_analysis(G):
         minwavelength = minvelocity / results['maxfreq']
 
         # Maximum spatial step
-        if '3D' in G.mode:
+        if '3D' in gprMax.config.mode:
             delta = max(G.dx, G.dy, G.dz)
-        elif '2D' in G.mode:
+        elif '2D' in gprMax.config.mode:
             if G.nx == 1:
                 delta = max(G.dy, G.dz)
             elif G.ny == 1:
@@ -382,7 +357,7 @@ def dispersion_analysis(G):
         results['N'] = minwavelength / delta
 
         # Check grid sampling will result in physical wave propagation
-        if int(np.floor(results['N'])) >= G.mingridsampling:
+        if int(np.floor(results['N'])) >= numdispersion['mingridsampling']:
             # Numerical phase velocity
             vp = np.pi / (results['N'] * np.arcsin((1 / S) * np.sin((np.pi * S) / results['N'])))
 

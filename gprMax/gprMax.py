@@ -28,15 +28,17 @@ from enum import Enum
 import h5py
 import numpy as np
 
-from gprMax._version import __version__, codename
-from gprMax.constants import c
-from gprMax.constants import e0
-from gprMax.constants import m0
-from gprMax.constants import z0
+from gprMax._version import __version__
+from gprMax._version import codename
+import gprMax.config
+from gprMax.config import c
+from gprMax.config import e0
+from gprMax.config import m0
+from gprMax.config import z0
+from gprMax.config import hostinfo
 from gprMax.exceptions import GeneralError
 from gprMax.model_build_run import run_model
 from gprMax.utilities import detect_check_gpus
-from gprMax.utilities import get_host_info
 from gprMax.utilities import get_terminal_width
 from gprMax.utilities import human_size
 from gprMax.utilities import logo
@@ -60,7 +62,6 @@ def main():
     parser.add_argument('--geometry-only', action='store_true', default=False, help='flag to only build model and produce geometry file(s)')
     parser.add_argument('--geometry-fixed', action='store_true', default=False, help='flag to not reprocess model geometry, e.g. for B-scans where the geometry is fixed')
     parser.add_argument('--write-processed', action='store_true', default=False, help='flag to write an input file after any Python code and include commands in the original input file have been processed')
-    parser.add_argument('--opt-taguchi', action='store_true', default=False, help='flag to optimise parameters using the Taguchi optimisation method')
     args = parser.parse_args()
 
     run_main(args)
@@ -79,7 +80,6 @@ def api(
     geometry_only=False,
     geometry_fixed=False,
     write_processed=False,
-    opt_taguchi=False
 ):
     """If installed as a module this is the entry point."""
 
@@ -100,7 +100,6 @@ def api(
     args.geometry_only = geometry_only
     args.geometry_fixed = geometry_fixed
     args.write_processed = write_processed
-    args.opt_taguchi = opt_taguchi
 
     run_main(args)
 
@@ -116,29 +115,22 @@ def run_main(args):
     # Print gprMax logo, version, and licencing/copyright information
     logo(__version__ + ' (' + codename + ')')
 
+    # Print information about host machine
+    hyperthreading = ', {} cores with HT'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
+    print('\nHost: {} | {} | {} x {} ({} cores{}) | {} RAM | {}'.format(hostinfo['hostname'],
+                                                                        hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'],
+                                                                        hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
+
+    # Get information/setup any Nvidia GPU(s)
+    if args.gpu is not None:
+        # Flatten a list of lists
+        if any(isinstance(element, list) for element in args.gpu):
+            args.gpu = [val for sublist in args.gpu for val in sublist]
+        gpus1, allgpustext = detect_check_gpus(args.gpu)
+        print('with GPU(s): {}'.format(' | '.join(allgpustext)))
+
+    # Process input file
     with open_path_file(args.inputfile) as inputfile:
-
-        # Get information about host machine
-        hostinfo = get_host_info()
-        hyperthreading = ', {} cores with Hyper-Threading'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
-        print('\nHost: {} | {} | {} x {} ({} cores{}) | {} RAM | {}'.format(hostinfo['hostname'],
-                                                                            hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'],
-                                                                            hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
-
-        # Get information/setup any Nvidia GPU(s)
-        if args.gpu is not None:
-            # Flatten a list of lists
-            if any(isinstance(element, list) for element in args.gpu):
-                args.gpu = [val for sublist in args.gpu for val in sublist]
-            gpus, allgpustext = detect_check_gpus(args.gpu)
-            print('GPU(s) detected: {}'.format(' | '.join(allgpustext)))
-
-            # If in MPI mode or benchmarking provide list of GPU objects, otherwise
-            # provide single GPU object
-            if args.mpi or args.mpi_no_spawn or args.benchmark:
-                args.gpu = gpus
-            else:
-                args.gpu = gpus[0]
 
         # Create a separate namespace that users can access in any Python code blocks in the input file
         usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': args.n, 'inputfile': os.path.abspath(inputfile.name)}
@@ -147,19 +139,9 @@ def run_main(args):
         # Process for benchmarking simulation #
         #######################################
         if args.benchmark:
-            if args.mpi or args.opt_taguchi or args.task or args.n > 1:
-                raise GeneralError('Benchmarking mode cannot be combined with MPI, job array, or Taguchi optimisation modes, or multiple model runs.')
+            if args.mpi or args.task or args.n > 1:
+                raise GeneralError('Benchmarking mode cannot be combined with MPI, job array mode, or multiple model runs.')
             run_benchmark_sim(args, inputfile, usernamespace)
-
-        ####################################################
-        # Process for simulation with Taguchi optimisation #
-        ####################################################
-        elif args.opt_taguchi:
-            if args.mpi_worker:  # Special case for MPI spawned workers - they do not need to enter the Taguchi optimisation mode
-                run_mpi_sim(args, inputfile, usernamespace)
-            else:
-                from gprMax.optimisation_taguchi import run_opt_sim
-                run_opt_sim(args, inputfile, usernamespace)
 
         ################################################
         # Process for standard simulation (CPU or GPU) #
@@ -185,10 +167,12 @@ def run_main(args):
             else:
                 if args.task and args.restart:
                     raise GeneralError('Job array and restart modes cannot be used together')
+                if gprMax.config.gpus:
+                    gprMax.config.gpus = gprMax.config.gpus[0]
                 run_std_sim(args, inputfile, usernamespace)
 
 
-def run_std_sim(args, inputfile, usernamespace, optparams=None):
+def run_std_sim(args, inputfile, usernamespace):
     """
     Run standard simulation - models are run one after another and each model
     is parallelised using either OpenMP (CPU) or CUDA (GPU)
@@ -198,8 +182,6 @@ def run_std_sim(args, inputfile, usernamespace, optparams=None):
         inputfile (object): File object for the input file.
         usernamespace (dict): Namespace that can be accessed by user in any
                 Python code blocks in input file.
-        optparams (dict): Optional argument. For Taguchi optimisation it
-                provides the parameters to optimise and their values.
     """
 
     # Set range for number of models to run
@@ -217,18 +199,9 @@ def run_std_sim(args, inputfile, usernamespace, optparams=None):
 
     tsimstart = timer()
     for currentmodelrun in range(modelstart, modelend):
-        # If Taguchi optimistaion, add specific value for each parameter to
-        # optimise for each experiment to user accessible namespace
-        if optparams:
-            tmp = {}
-            tmp.update((key, value[currentmodelrun - 1]) for key, value in optparams.items())
-            modelusernamespace = usernamespace.copy()
-            modelusernamespace.update({'optparams': tmp})
-        else:
-            modelusernamespace = usernamespace
-        run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
+        run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, usernamespace)
     tsimend = timer()
-    simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
+    simcompletestr = '\n=== Simulation on {} completed in [HH:MM:SS]: {}'.format(hostinfo['hostname'], datetime.timedelta(seconds=tsimend - tsimstart))
     print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
 
 
@@ -245,9 +218,8 @@ def run_benchmark_sim(args, inputfile, usernamespace):
                 Python code blocks in input file.
     """
 
-    # Get information about host machine
-    hostinfo = get_host_info()
-    hyperthreading = ', {} cores with Hyper-Threading'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
+    # Store information about host machine
+    hyperthreading = ', {} cores with HT'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
     machineIDlong = '{}; {} x {} ({} cores{}); {} RAM; {}'.format(hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'], hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion'])
 
     # Initialise arrays to hold CPU thread info and times, and GPU info and times
@@ -319,7 +291,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
 
 
-def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
+def run_mpi_sim(args, inputfile, usernamespace):
     """
     Run mixed mode MPI/OpenMP simulation - MPI task farm for models with
     each model parallelised using either OpenMP (CPU) or CUDA (GPU)
@@ -329,8 +301,6 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         inputfile (object): File object for the input file.
         usernamespace (dict): Namespace that can be accessed by user in any
                 Python code blocks in input file.
-        optparams (dict): Optional argument. For Taguchi optimisation it
-                provides the parameters to optimise and their values.
     """
 
     from mpi4py import MPI
@@ -436,26 +406,16 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         for work in iter(lambda: comm.sendrecv(0, dest=0), StopIteration):
             currentmodelrun = work['currentmodelrun']
 
-            # If Taguchi optimisation, add specific value for each parameter to
-            # optimise for each experiment to user accessible namespace
-            if 'optparams' in work:
-                tmp = {}
-                tmp.update((key, value[currentmodelrun - 1]) for key, value in work['optparams'].items())
-                modelusernamespace = usernamespace.copy()
-                modelusernamespace.update({'optparams': tmp})
-            else:
-                modelusernamespace = usernamespace
-
             # Run the model
             print('Starting MPI spawned worker (parent: {}, rank: {}) on {} with model {}/{}{}\n'.format(work['mpicommname'], rank, hostname, currentmodelrun, numbermodelruns, gpuinfo))
-            tsolve = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
+            tsolve = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, usernamespace)
             print('Completed MPI spawned worker (parent: {}, rank: {}) on {} with model {}/{}{} in [HH:MM:SS]: {}\n'.format(work['mpicommname'], rank, hostname, currentmodelrun, numbermodelruns, gpuinfo, datetime.timedelta(seconds=tsolve)))
 
         # Shutdown
         comm.Disconnect()
 
 
-def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
+def run_mpi_no_spawn_sim(args, inputfile, usernamespace):
     """
     Alternate MPI implementation that avoids using the MPI spawn mechanism.
     This implementation is designed to be used as
@@ -469,8 +429,6 @@ def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
         inputfile (object): File object for the input file.
         usernamespace (dict): Namespace that can be accessed by user in any
                 Python code blocks in input file.
-        optparams (dict): Optional argument. For Taguchi optimisation it
-                provides the parameters to optimise and their values.
     """
 
     from mpi4py import MPI
@@ -547,20 +505,8 @@ def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
 
             # Run a model
             if tag == tags.START.value:
-
-                # If Taguchi optimistaion, add specific value for each parameter
-                # to optimise for each experiment to user accessible namespace
-                if optparams:
-                    tmp = {}
-                    tmp.update((key, value[currentmodelrun - 1]) for key, value in optparams.items())
-                    modelusernamespace = usernamespace.copy()
-                    modelusernamespace.update({'optparams': tmp})
-                else:
-                    modelusernamespace = usernamespace
-
-                # Run the model
                 print('Starting MPI worker (parent: {}, rank: {}) on {} with model {}/{}{}\n'.format(comm.name, rank, hostname, currentmodelrun, numbermodelruns, gpuinfo))
-                tsolve = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
+                tsolve = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, usernamespace)
                 comm.send(None, dest=0, tag=tags.DONE.value)
                 print('Completed MPI worker (parent: {}, rank: {}) on {} with model {}/{}{} in [HH:MM:SS]: {}\n'.format(comm.name, rank, hostname, currentmodelrun, numbermodelruns, gpuinfo, datetime.timedelta(seconds=tsolve)))
 

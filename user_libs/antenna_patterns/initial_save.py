@@ -13,7 +13,8 @@ import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 
-from gprMax.constants import c, z0
+from gprMax.config import c
+from gprMax.config import z0
 
 
 # Parse command line arguments

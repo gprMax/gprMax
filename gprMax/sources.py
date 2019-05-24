@@ -20,8 +20,8 @@ from copy import deepcopy
 
 import numpy as np
 
-from gprMax.constants import c
-from gprMax.constants import floattype
+from gprMax.config import c
+from gprMax.config import floattype
 from gprMax.grid import Ix
 from gprMax.grid import Iy
 from gprMax.grid import Iz

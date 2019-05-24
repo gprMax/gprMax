@@ -20,7 +20,7 @@ import numpy as np
 cimport numpy as np
 from cython.parallel import prange
 
-from gprMax.constants cimport complextype_t
+from gprMax.config cimport complextype_t
 
 
 cpdef void generate_fractal2D(int nx, int ny, int nthreads, int b, np.float64_t[:] weighting, np.float64_t[:] v1, np.complex128_t[:, ::1] A, complextype_t[:, ::1] fractalsurface):

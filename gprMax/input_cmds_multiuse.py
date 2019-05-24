@@ -23,8 +23,12 @@ init()
 import numpy as np
 from tqdm import tqdm
 
-from gprMax.constants import z0
-from gprMax.constants import floattype
+import gprMax.config
+from gprMax.config import z0
+from gprMax.config import floattype
+from gprMax.config import gpus
+from gprMax.config import messages
+
 from gprMax.exceptions import CmdInputError
 from gprMax.geometry_outputs import GeometryView
 from gprMax.geometry_outputs import GeometryObjects
@@ -80,7 +84,7 @@ def process_multicmds(multicmds, G):
             w.amp = float(tmp[1])
             w.freq = float(tmp[2])
 
-            if G.messages:
+            if messages:
                 print('Waveform {} of type {} with maximum amplitude scaling {:g}, frequency {:g}Hz created.'.format(w.ID, w.type, w.amp, w.freq))
 
             G.waveforms.append(w)
@@ -97,11 +101,11 @@ def process_multicmds(multicmds, G):
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            if '2D TMx' in G.mode and (polarisation == 'y' or polarisation == 'z'):
+            if '2D TMx' in gprMax.config.mode and (polarisation == 'y' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
-            elif '2D TMy' in G.mode and (polarisation == 'x' or polarisation == 'z'):
+            elif '2D TMy' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
-            elif '2D TMz' in G.mode and (polarisation == 'x' or polarisation == 'y'):
+            elif '2D TMz' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'y'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
 
             xcoord = G.calculate_coord('x', tmp[1])
@@ -151,7 +155,7 @@ def process_multicmds(multicmds, G):
 
             v.calculate_waveform_values(G)
 
-            if G.messages:
+            if messages:
                 print('Voltage source with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(v.polarisation, v.xcoord * G.dx, v.ycoord * G.dy, v.zcoord * G.dz, v.resistance) + startstop + 'using waveform {} created.'.format(v.waveformID))
 
             G.voltagesources.append(v)
@@ -168,11 +172,11 @@ def process_multicmds(multicmds, G):
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            if '2D TMx' in G.mode and (polarisation == 'y' or polarisation == 'z'):
+            if '2D TMx' in gprMax.config.mode and (polarisation == 'y' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
-            elif '2D TMy' in G.mode and (polarisation == 'x' or polarisation == 'z'):
+            elif '2D TMy' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
-            elif '2D TMz' in G.mode and (polarisation == 'x' or polarisation == 'y'):
+            elif '2D TMz' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'y'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
 
             xcoord = G.calculate_coord('x', tmp[1])
@@ -229,8 +233,8 @@ def process_multicmds(multicmds, G):
 
             h.calculate_waveform_values(G)
 
-            if G.messages:
-                if G.mode == '2D':
+            if messages:
+                if '2D' in gprMax.config.mode:
                     print('Hertzian dipole is a line source in 2D with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
                 else:
                     print('Hertzian dipole with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
@@ -249,11 +253,11 @@ def process_multicmds(multicmds, G):
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            if '2D TMx' in G.mode and (polarisation == 'y' or polarisation == 'z'):
+            if '2D TMx' in gprMax.config.mode and (polarisation == 'y' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
-            elif '2D TMy' in G.mode and (polarisation == 'x' or polarisation == 'z'):
+            elif '2D TMy' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
-            elif '2D TMz' in G.mode and (polarisation == 'x' or polarisation == 'y'):
+            elif '2D TMz' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'y'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
 
             xcoord = G.calculate_coord('x', tmp[1])
@@ -301,7 +305,7 @@ def process_multicmds(multicmds, G):
 
             m.calculate_waveform_values(G)
 
-            if G.messages:
+            if messages:
                 print('Magnetic dipole with polarity {} at {:g}m, {:g}m, {:g}m,'.format(m.polarisation, m.xcoord * G.dx, m.ycoord * G.dy, m.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(m.waveformID))
 
             G.magneticdipoles.append(m)
@@ -315,18 +319,18 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
 
             # Warn about using a transmission line on GPU
-            if G.gpu is not None:
+            if gpus is not None:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' A #transmission_line cannot currently be used with GPU solving. Consider using a #voltage_source instead.')
 
             # Check polarity & position parameters
             polarisation = tmp[0].lower()
             if polarisation not in ('x', 'y', 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            if '2D TMx' in G.mode and (polarisation == 'y' or polarisation == 'z'):
+            if '2D TMx' in gprMax.config.mode and (polarisation == 'y' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
-            elif '2D TMy' in G.mode and (polarisation == 'x' or polarisation == 'z'):
+            elif '2D TMy' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'z'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
-            elif '2D TMz' in G.mode and (polarisation == 'x' or polarisation == 'y'):
+            elif '2D TMz' in gprMax.config.mode and (polarisation == 'x' or polarisation == 'y'):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
 
             xcoord = G.calculate_coord('x', tmp[1])
@@ -377,7 +381,7 @@ def process_multicmds(multicmds, G):
             t.calculate_waveform_values(G)
             t.calculate_incident_V_I(G)
 
-            if G.messages:
+            if messages:
                 print('Transmission line with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(t.polarisation, t.xcoord * G.dx, t.ycoord * G.dy, t.zcoord * G.dz, t.resistance) + startstop + 'using waveform {} created.'.format(t.waveformID))
 
             G.transmissionlines.append(t)
@@ -414,7 +418,7 @@ def process_multicmds(multicmds, G):
             else:
                 r.ID = tmp[3]
                 # Get allowable outputs
-                if G.gpu is not None:
+                if gpus is not None:
                     allowableoutputs = Rx.gpu_allowableoutputs
                 else:
                     allowableoutputs = Rx.allowableoutputs
@@ -425,7 +429,7 @@ def process_multicmds(multicmds, G):
                     else:
                         raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' contains an output type that is not allowable. Allowable outputs in current context are {}'.format(allowableoutputs))
 
-            if G.messages:
+            if messages:
                 print('Receiver at {:g}m, {:g}m, {:g}m with output component(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))
 
             G.rxs.append(r)
@@ -475,7 +479,7 @@ def process_multicmds(multicmds, G):
                 else:
                     raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
 
-            if G.messages:
+            if messages:
                 print('Receiver array {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with steps {:g}m, {:g}m, {:g}m'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz))
 
             for x in range(xs, xf + 1, dx):
@@ -491,7 +495,7 @@ def process_multicmds(multicmds, G):
                         r.ID = r.__class__.__name__ + '(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
                         for key in Rx.defaultoutputs:
                             r.outputs[key] = np.zeros(G.iterations, dtype=floattype)
-                        if G.messages:
+                        if messages:
                             print('  Receiver at {:g}m, {:g}m, {:g}m with output component(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))
                         G.rxs.append(r)
 
@@ -540,7 +544,7 @@ def process_multicmds(multicmds, G):
 
             s = Snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, tmp[10])
 
-            if G.messages:
+            if messages:
                 print('Snapshot from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, at {:g} secs with filename {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz, s.time * G.dt, s.basefilename))
 
             G.snapshots.append(s)
@@ -578,7 +582,7 @@ def process_multicmds(multicmds, G):
             if m.se == float('inf'):
                 m.averagable = False
 
-            if G.messages:
+            if messages:
                 tqdm.write('Material {} with eps_r={:g}, sigma={:g} S/m; mu_r={:g}, sigma*={:g} Ohm/m created.'.format(m.ID, m.er, m.se, m.mr, m.sm))
 
             # Append the new material object to the materials list
@@ -617,7 +621,7 @@ def process_multicmds(multicmds, G):
                 if material.poles > Material.maxpoles:
                     Material.maxpoles = material.poles
 
-                if G.messages:
+                if messages:
                     tqdm.write('Debye disperion added to {} with delta_eps_r={}, and tau={} secs created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau)))
 
     cmdname = '#add_dispersion_lorentz'
@@ -653,7 +657,7 @@ def process_multicmds(multicmds, G):
                 if material.poles > Material.maxpoles:
                     Material.maxpoles = material.poles
 
-                if G.messages:
+                if messages:
                     tqdm.write('Lorentz disperion added to {} with delta_eps_r={}, omega={} secs, and gamma={} created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
 
     cmdname = '#add_dispersion_drude'
@@ -688,7 +692,7 @@ def process_multicmds(multicmds, G):
                 if material.poles > Material.maxpoles:
                     Material.maxpoles = material.poles
 
-                if G.messages:
+                if messages:
                     tqdm.write('Drude disperion added to {} with omega={} secs, and gamma={} secs created.'.format(material.ID, ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
 
     cmdname = '#soil_peplinski'
@@ -715,7 +719,7 @@ def process_multicmds(multicmds, G):
             # Create a new instance of the Material class material (start index after pec & free_space)
             s = PeplinskiSoil(tmp[6], float(tmp[0]), float(tmp[1]), float(tmp[2]), float(tmp[3]), (float(tmp[4]), float(tmp[5])))
 
-            if G.messages:
+            if messages:
                 print('Mixing model (Peplinski) used to create {} with sand fraction {:g}, clay fraction {:g}, bulk density {:g}g/cm3, sand particle density {:g}g/cm3, and water volumetric fraction {:g} to {:g} created.'.format(s.ID, s.S, s.C, s.rb, s.rs, s.mu[0], s.mu[1]))
 
             # Append the new material object to the materials list
@@ -765,7 +769,7 @@ def process_multicmds(multicmds, G):
 
             g = GeometryView(xs, ys, zs, xf, yf, zf, dx, dy, dz, tmp[9], fileext)
 
-            if G.messages:
+            if messages:
                 print('Geometry view from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, with filename base {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz, g.basefilename))
 
             # Append the new GeometryView object to the geometry views list
@@ -795,7 +799,7 @@ def process_multicmds(multicmds, G):
 
             g = GeometryObjects(xs, ys, zs, xf, yf, zf, tmp[6])
 
-            if G.messages:
+            if messages:
                 print('Geometry objects in the volume from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, will be written to {}, with materials written to {}'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, g.filename, g.materialsfilename))
 
             # Append the new GeometryView object to the geometry objects to write list
@@ -845,7 +849,7 @@ def process_multicmds(multicmds, G):
             cfs.kappa = cfskappa
             cfs.sigma = cfssigma
 
-            if G.messages:
+            if messages:
                 print('PML CFS parameters: alpha (scaling: {}, scaling direction: {}, min: {:g}, max: {:g}), kappa (scaling: {}, scaling direction: {}, min: {:g}, max: {:g}), sigma (scaling: {}, scaling direction: {}, min: {:g}, max: {}) created.'.format(cfsalpha.scalingprofile, cfsalpha.scalingdirection, cfsalpha.min, cfsalpha.max, cfskappa.scalingprofile, cfskappa.scalingdirection, cfskappa.min, cfskappa.max, cfssigma.scalingprofile, cfssigma.scalingdirection, cfssigma.min, cfssigma.max))
 
             G.cfs.append(cfs)

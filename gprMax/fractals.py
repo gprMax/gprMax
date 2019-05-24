@@ -19,8 +19,9 @@
 import numpy as np
 from scipy import fftpack
 
-from gprMax.constants import floattype
-from gprMax.constants import complextype
+from gprMax.config import floattype
+from gprMax.config import complextype
+from gprMax.config import hostinfo
 from gprMax.fractals_generate_ext import generate_fractal2D
 from gprMax.fractals_generate_ext import generate_fractal3D
 from gprMax.utilities import round_value
@@ -90,7 +91,7 @@ class FractalSurface(object):
         A = fftpack.fftshift(A)
 
         # Generate fractal
-        generate_fractal2D(surfacedims[0], surfacedims[1], G.nthreads, self.b, self.weighting, v1, A, self.fractalsurface)
+        generate_fractal2D(surfacedims[0], surfacedims[1], hostinfo['ompthreads'], self.b, self.weighting, v1, A, self.fractalsurface)
 
         # Shift the zero frequency component to start of the array
         self.fractalsurface = fftpack.ifftshift(self.fractalsurface)
@@ -172,7 +173,7 @@ class FractalVolume(object):
         A = fftpack.fftshift(A)
 
         # Generate fractal
-        generate_fractal3D(self.nx, self.ny, self.nz, G.nthreads, self.b, self.weighting, v1, A, self.fractalvolume)
+        generate_fractal3D(self.nx, self.ny, self.nz, hostinfo['ompthreads'], self.b, self.weighting, v1, A, self.fractalvolume)
 
         # Shift the zero frequency component to the start of the array
         self.fractalvolume = fftpack.ifftshift(self.fractalvolume)

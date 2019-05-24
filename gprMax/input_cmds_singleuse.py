@@ -28,12 +28,14 @@ init()
 import numpy as np
 from scipy import interpolate
 
-from gprMax.constants import c
-from gprMax.constants import floattype
+import gprMax.config
+from gprMax.config import c
+from gprMax.config import floattype
+from gprMax.config import gpus as gpu
+from gprMax.config import hostinfo
 from gprMax.exceptions import CmdInputError
 from gprMax.exceptions import GeneralError
 from gprMax.pml import PML
-from gprMax.utilities import get_host_info
 from gprMax.utilities import human_size
 from gprMax.utilities import round_value
 from gprMax.waveforms import Waveform
@@ -55,21 +57,11 @@ def process_singlecmds(singlecmds, G):
         if len(tmp) != 1:
             raise CmdInputError(cmd + ' requires exactly one parameter')
         if singlecmds[cmd].lower() == 'y':
-            G.messages = True
+            gprMax.config.messages = True
         elif singlecmds[cmd].lower() == 'n':
-            G.messages = False
+            gprMax.config.messages = False
         else:
             raise CmdInputError(cmd + ' requires input values of either y or n')
-
-    # Title
-    cmd = '#title'
-    if singlecmds[cmd] is not None:
-        G.title = singlecmds[cmd]
-        if G.messages:
-            print('Model title: {}'.format(G.title))
-
-    # Get information about host machine
-    hostinfo = get_host_info()
 
     # Number of threads (OpenMP) to use
     cmd = '#num_threads'
@@ -81,7 +73,7 @@ def process_singlecmds(singlecmds, G):
     # os.environ['OMP_DISPLAY_ENV'] = 'TRUE' # Prints OMP version and environment variables (useful for debug)
 
     # Catch bug with Windows Subsystem for Linux (https://github.com/Microsoft/BashOnWindows/issues/785)
-    if 'Microsoft' in G.hostinfo['osversion']:
+    if 'Microsoft' in hostinfo['osversion']:
         os.environ['KMP_AFFINITY'] = 'disabled'
         del os.environ['OMP_PLACES']
         del os.environ['OMP_PROC_BIND']
@@ -92,24 +84,35 @@ def process_singlecmds(singlecmds, G):
             raise CmdInputError(cmd + ' requires exactly one parameter to specify the number of threads to use')
         if tmp[0] < 1:
             raise CmdInputError(cmd + ' requires the value to be an integer not less than one')
-        G.nthreads = tmp[0]
-        os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
+        gprMax.config.hostinfo['ompthreads'] = tmp[0]
+        os.environ['OMP_NUM_THREADS'] = str(gprMax.config.hostinfo['ompthreads'])
     elif os.environ.get('OMP_NUM_THREADS'):
-        G.nthreads = int(os.environ.get('OMP_NUM_THREADS'))
+        gprMax.config.hostinfo['ompthreads'] = int(os.environ.get('OMP_NUM_THREADS'))
     else:
         # Set number of threads to number of physical CPU cores
-        G.nthreads = hostinfo['physicalcores']
-        os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
+        gprMax.config.hostinfo['ompthreads'] = hostinfo['physicalcores']
+        os.environ['OMP_NUM_THREADS'] = str(gprMax.config.hostinfo['ompthreads'])
 
-    if G.messages:
-        print('Number of CPU (OpenMP) threads: {}'.format(G.nthreads))
-    if G.nthreads > G.hostinfo['physicalcores']:
-        print(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, hostinfo['physicalcores']) + Style.RESET_ALL)
+    if gprMax.config.messages:
+        print('CPU (OpenMP) threads: {}'.format(gprMax.config.hostinfo['ompthreads']))
+    if gprMax.config.hostinfo['ompthreads'] > hostinfo['physicalcores']:
+        print(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(gprMax.config.hostinfo['ompthreads'], hostinfo['physicalcores']) + Style.RESET_ALL)
 
     # Print information about any GPU in use
-    if G.messages:
-        if G.gpu is not None:
-            print('GPU solving using: {} - {}'.format(G.gpu.deviceID, G.gpu.name))
+    if gprMax.config.messages:
+        if gpu is not None:
+            print('GPU: {} - {}'.format(gpu.deviceID, gpu.name))
+
+    # Print information about precision of main field values
+    if gprMax.config.messages:
+        print('Output data type: {}\n'.format(np.dtype(floattype).name))
+
+    # Title
+    cmd = '#title'
+    if singlecmds[cmd] is not None:
+        G.title = singlecmds[cmd]
+        if gprMax.config.messages:
+            print('Model title: {}'.format(G.title))
 
     # Spatial discretisation
     cmd = '#dx_dy_dz'
@@ -125,7 +128,7 @@ def process_singlecmds(singlecmds, G):
     G.dx = tmp[0]
     G.dy = tmp[1]
     G.dz = tmp[2]
-    if G.messages:
+    if gprMax.config.messages:
         print('Spatial discretisation: {:g} x {:g} x {:g}m'.format(G.dx, G.dy, G.dz))
 
     # Domain
@@ -138,35 +141,35 @@ def process_singlecmds(singlecmds, G):
     G.nz = round_value(tmp[2] / G.dz)
     if G.nx == 0 or G.ny == 0 or G.nz == 0:
         raise CmdInputError(cmd + ' requires at least one cell in every dimension')
-    if G.messages:
+    if gprMax.config.messages:
         print('Domain size: {:g} x {:g} x {:g}m ({:d} x {:d} x {:d} = {:g} cells)'.format(tmp[0], tmp[1], tmp[2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)))
 
     # Time step CFL limit (either 2D or 3D); switch off appropriate PMLs for 2D
     if G.nx == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
-        G.mode = '2D TMx'
+        gprMax.config.mode = '2D TMx'
         G.pmlthickness['x0'] = 0
         G.pmlthickness['xmax'] = 0
     elif G.ny == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dz) * (1 / G.dz)))
-        G.mode = '2D TMy'
+        gprMax.config.mode = '2D TMy'
         G.pmlthickness['y0'] = 0
         G.pmlthickness['ymax'] = 0
     elif G.nz == 1:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy)))
-        G.mode = '2D TMz'
+        gprMax.config.mode = '2D TMz'
         G.pmlthickness['z0'] = 0
         G.pmlthickness['zmax'] = 0
     else:
         G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
-        G.mode = '3D'
+        gprMax.config.mode = '3D'
 
     # Round down time step to nearest float with precision one less than hardware maximum.
     # Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
     G.dt = round_value(G.dt, decimalplaces=d.getcontext().prec - 1)
 
-    if G.messages:
-        print('Mode: {}'.format(G.mode))
+    if gprMax.config.messages:
+        print('Mode: {}'.format(gprMax.config.mode))
         print('Time step (at CFL limit): {:g} secs'.format(G.dt))
 
     # Time step stability factor
@@ -178,7 +181,7 @@ def process_singlecmds(singlecmds, G):
         if tmp[0] <= 0 or tmp[0] > 1:
             raise CmdInputError(cmd + ' requires the value of the time step stability factor to be between zero and one')
         G.dt = G.dt * tmp[0]
-        if G.messages:
+        if gprMax.config.messages:
             print('Time step (modified): {:g} secs'.format(G.dt))
 
     # Time window
@@ -203,7 +206,7 @@ def process_singlecmds(singlecmds, G):
             G.iterations = int(np.ceil(tmp / G.dt)) + 1
         else:
             raise CmdInputError(cmd + ' must have a value greater than zero')
-    if G.messages:
+    if gprMax.config.messages:
         print('Time window: {:g} secs ({} iterations)'.format(G.timewindow, G.iterations))
 
     # PML cells
@@ -245,7 +248,7 @@ def process_singlecmds(singlecmds, G):
         G.srcsteps[0] = round_value(float(tmp[0]) / G.dx)
         G.srcsteps[1] = round_value(float(tmp[1]) / G.dy)
         G.srcsteps[2] = round_value(float(tmp[2]) / G.dz)
-        if G.messages:
+        if gprMax.config.messages:
             print('Simple sources will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.srcsteps[0] * G.dx, G.srcsteps[1] * G.dy, G.srcsteps[2] * G.dz))
 
     # rx_steps
@@ -257,7 +260,7 @@ def process_singlecmds(singlecmds, G):
         G.rxsteps[0] = round_value(float(tmp[0]) / G.dx)
         G.rxsteps[1] = round_value(float(tmp[1]) / G.dy)
         G.rxsteps[2] = round_value(float(tmp[2]) / G.dz)
-        if G.messages:
+        if gprMax.config.messages:
             print('All receivers will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.rxsteps[0] * G.dx, G.rxsteps[1] * G.dy, G.rxsteps[2] * G.dz))
 
     # Excitation file for user-defined source waveforms
@@ -281,7 +284,7 @@ def process_singlecmds(singlecmds, G):
         if not os.path.isfile(excitationfile):
             excitationfile = os.path.abspath(os.path.join(G.inputdirectory, excitationfile))
 
-        if G.messages:
+        if gprMax.config.messages:
             print('\nExcitation file: {}'.format(excitationfile))
 
         # Get waveform names
@@ -323,7 +326,7 @@ def process_singlecmds(singlecmds, G):
             # Interpolate waveform values
             w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues, **kwargs)
 
-            if G.messages:
+            if gprMax.config.messages:
                 print('User waveform {} created using {} and, if required, interpolation parameters (kind: {}, fill value: {}).'.format(w.ID, timestr, kwargs['kind'], kwargs['fill_value']))
 
             G.waveforms.append(w)

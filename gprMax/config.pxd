@@ -19,16 +19,11 @@
 import numpy as np
 cimport numpy as np
 
-# Data types:
-#   Solid and ID arrays use 32-bit integers (0 to 4294967295)
-#   Rigid arrays use 8-bit integers (the smallest available type to store true/false)
-#   Fractal and dispersive coefficient arrays use complex numbers (complextype) which are represented as two floats
-#   Main field arrays use floats (floattype) and complex numbers (complextype)
 
-# Single precision
-ctypedef np.float32_t floattype_t
-ctypedef np.complex64_t complextype_t
+ctypedef fused floattype_t:
+    np.float32_t
+    np.float64_t
 
-# Double precision
-# ctypedef np.float64_t floattype_t
-# ctypedef np.complex128_t complextype_t
+ctypedef fused complextype_t:
+    np.complex64_t
+    np.complex128_t

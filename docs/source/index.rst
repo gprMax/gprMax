@@ -41,7 +41,6 @@ gprMax User Guide
     user_libs_antenna_patterns
     user_libs_austinman
     user_libs_materials
-    user_libs_opt_taguchi
 
 .. toctree::
     :maxdepth: 2

@@ -1,6 +1,7 @@
 import numpy as np
 
-from gprMax.constants import c, e0
+from gprMax.config import c
+from gprMax.config import e0
 from gprMax.waveforms import Waveform
 
 
