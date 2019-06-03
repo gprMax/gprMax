@@ -834,7 +834,8 @@ Allows you to introduce output points into the model. These are locations where 
 
 .. note::
 
-    * When the optional parameters ``str1`` and ``str2`` are not given all the electric and magnetic field components will be output with the receiver point.
+    * When the optional parameters ``str1`` and ``str2`` are not given the default electric and magnetic field components (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``) will be output with the receiver point.
+    * ``str2`` has no effect if solving using GPU(s), i.e. the default electric and magnetic components (``Ex``, ``Ey``, ``Ez``, ``Hx``, ``Hy``, ``Hz``) will allways be output irrespective of the value of ``str2``.
 
 #rx_array:
 ----------
