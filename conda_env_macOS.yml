@@ -1,7 +1,7 @@
 # This file may be used to create a conda environment using:
 # $ conda create --name gprMax --file <this file>
 
-name: gprMax_openblas
+name: gprMax
 dependencies:
 - python>3.6
 - blas=*=openblas
