@@ -394,8 +394,11 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             else:
                 tsolve, memsolve = solve_gpu(currentmodelrun, modelend, G)
 
-        # Write an output file in HDF5 format
-        write_hdf5_outputfile(outputfile, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
+        if G.opencl is not None:
+            write_hdf5_outputfile(outputfile, G.Ex_cl.get(), G.Ey_cl.get(), G.Ez_cl.get(), G.Hx_cl.get(), G.Hy_cl.get(), G.Hz_cl.get(), G)
+        else:
+            # Write an output file in HDF5 format
+            write_hdf5_outputfile(outputfile, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
         # Write any snapshots to file
         if G.snapshots:
@@ -617,7 +620,6 @@ def solve_gpu(currentmodelrun, modelend, G):
 
         # Store field component values for every receiver
         if G.rxs:
-            import warnings
             store_outputs_gpu(np.int32(len(G.rxs)), np.int32(iteration),
                               rxcoords_gpu.gpudata, rxs_gpu.gpudata,
                               G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,

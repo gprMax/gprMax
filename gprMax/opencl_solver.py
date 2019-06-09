@@ -1,7 +1,7 @@
 import numpy as np 
 import os 
 import sys 
-import tqdm
+from tqdm import tqdm
 import warnings
 import time 
 
@@ -13,6 +13,7 @@ import pyopencl.array as cl_array
 from gprMax.materials import Material, process_materials
 from gprMax.receivers import gpu_initialise_rx_arrays, gpu_get_rx_array
 from gprMax.sources import gpu_initialise_src_arrays
+from gprMax.utilities import get_terminal_width
 
 class OpenClSolver(object):
     def __init__(self, G=None, context=None, queue=None):
@@ -24,7 +25,7 @@ class OpenClSolver(object):
     def setDeviceParameters(self):
         pass
 
-    def getPlatformNDevices(self, platformIdx=1, deviceIdx=1):
+    def getPlatformNDevices(self, platformIdx=None, deviceIdx=None):
         print("")
         self.platforms = cl.get_platforms() 
 
@@ -116,7 +117,6 @@ class OpenClSolver(object):
             raise NotImplementedError
         else:
             # set parameters accordingly
-            warnings.warn('see the parameters accordingly')
             kernel_fields_text = self.jinja_env.get_template('update_fields.cl').render(
                 REAL = self.datatypes['REAL'],
                 N_updatecoeffsE = self.G.updatecoeffsE.size,
@@ -124,7 +124,7 @@ class OpenClSolver(object):
                 NY_MATCOEFFS = self.G.updatecoeffsE.shape[1],
                 NY_MATDISPCOEFFS = 1,
                 NX_FIELDS = self.G.Ex.shape[0],
-                NY_FEILDS = self.G.Ex.shape[1],
+                NY_FIELDS = self.G.Ex.shape[1],
                 NZ_FIELDS = self.G.Ex.shape[2],
                 NX_ID = self.G.ID.shape[1],
                 NY_ID = self.G.ID.shape[2],
@@ -138,8 +138,6 @@ class OpenClSolver(object):
         # get the gpu format of the updatecoefficients and add them to the memory
         self.updatecoeffsE = cl_array.to_device(self.queue, self.G.updatecoeffsE)
         self.updatecoeffsH = cl_array.to_device(self.queue, self.G.updatecoeffsH)
-
-        warnings.warn("transfer the memory to the device using the kernel, also check the memory")
 
         # check for dispersive materials / if so then get kernel func and init the dispersive gpu arrays
         if Material.maxpoles > 0:
@@ -201,13 +199,8 @@ class OpenClSolver(object):
         if self.G.snapshots:
             raise NotImplementedError
 
-
-        kernel_field_prg = cl.Program(self.context, kernel_fields_text).build()
-        # copy the updatecoefficients to the device for all the necessary kernels
-        # field constant
-        kernel_field_prg.setUpdateCoeffs(
-            self.queue, (1,1,1), None, self.updatecoeffsE.data, self.updatecoeffsH.data
-        )
+        
+        store_output_prg = cl.Program(self.context, store_output_text).build()
 
         source_prg = cl.Program(self.context, sources_text).build()
 
@@ -217,34 +210,41 @@ class OpenClSolver(object):
         source_prg.setUpdateCoeffs(
             self.queue, (1,1,1), None, self.updatecoeffsE.data, self.updatecoeffsH.data
         )
-
-        store_output_prg = cl.Program(self.context, store_output_text).build()
-
-        for iteration in tqdm(range(self.G.iterations), desc="Running simulation model" + str(currentmodelrun) + "/" + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not self.G.progressbar):
+        
+        kernel_field_prg = cl.Program(self.context, kernel_fields_text).build()
+        # copy the updatecoefficients to the device for all the necessary kernels
+        # field constant
+        kernel_field_prg.setUpdateCoeffs(
+            self.queue, (1,1,1), None, self.updatecoeffsE.data, self.updatecoeffsH.data
+        )
+        print(self.updatecoeffsE.get())
+        print(self.updatecoeffsH.get())
+        for iteration in tqdm(range(self.G.iterations), desc="Running simulation model" + str(currentmodelrun) + "/" + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not self.G.progressbars):
 
             # get gpu memory
 
             # store field component values for every receiver
             if self.G.rxs:
                 warnings.warn("Have to set up the global and local size")
-                store_output_prg.store_outputs(
+                store_output_event = store_output_prg.store_outputs(
                     self.queue, (1,1,1), None, 
                     np.int32(len(self.G.rxs)), np.int32(iteration), 
                     rxcoords_cl.data, rxs_cl.data, 
                     self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data, 
                     self.G.Hx_cl.data, self.G.Hy_cl.data, self.G.Hz_cl.data
                 )
+                store_output_event.wait()
 
             # store any snapshots
 
             # update magnetic field components 
-            warnings.warn("update the cl arrays accordingly")
-            kernel_field_prg.update_h(
+            kernel_field_event = kernel_field_prg.update_h(
                 self.queue, (256,1,1), None, 
                 np.int32(self.G.nx), np.int32(self.G.ny), np.int32(self.G.nz),
                 self.G.ID_cl.data, self.G.Hx_cl.data, self.G.Hy_cl.data, self.G.Hz_cl.data, 
                 self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data
             )
+            kernel_field_event.wait()
 
             for pml in self.G.pmls:
                 warnings.warn("Not implemented as of now")
@@ -258,13 +258,13 @@ class OpenClSolver(object):
                 raise NotImplementedError
             else:
                 # update electric field components
-                warnings.warn("update the cl arrays accordingly")
-                kernel_field_prg.update_e(
+                kernel_field_event = kernel_field_prg.update_e(
                     self.queue, (256,1,1), None, 
                     np.int32(self.G.nx), np.int32(self.G.ny), np.int32(self.G.nz),
                     self.G.ID_cl.data, self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data,
                     self.G.Hx_cl.data, self.G.Hy_cl.data, self.G.Hz_cl.data
                 )
+                kernel_field_event.wait()
 
             for pml in self.G.pmls:
                 warnings.warn("Not implemented as of now")
@@ -275,21 +275,24 @@ class OpenClSolver(object):
                 raise NotImplementedError
 
             if self.G.hertziandipoles:
-                source_prg.update_hertzian_dipole(
+                source_event = source_prg.update_hertzian_dipole(
                     self.queue, (1,1,1), None,
+                    np.float32(self.G.dx), np.float32(self.G.dy), np.float32(self.G.dz),
                     np.int32(len(self.G.hertziandipoles)), np.int32(iteration), 
                     srcinfo1_hertzian_cl.data, srcinfo2_hertzian_cl.data, srcwaves_hertzian_cl.data, 
                     self.G.ID_cl.data, self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data
                 )
+                source_event.wait()
 
             if Material.maxpoles > 0:
                 raise NotImplementedError
 
         
         if self.G.rxs:
-            # store the output from receivers array back to corrent receiver objects
+            # store the output from receivers array back to correct receiver objects
             gpu_get_rx_array(rxs_cl.get(), rxcoords_cl.get(), self.G)
-            
+        # print(rxs_cl.get())
+        # print(rxcoords_cl.get())
         # copy data from any snapshots back to correct snapshot objects
         if self.G.snapshots:
             raise NotImplementedError

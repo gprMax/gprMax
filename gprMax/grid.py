@@ -258,8 +258,6 @@ class FDTDGrid(Grid):
         import pyopencl.array as cl_array
         import warnings
 
-        warnings.warn("initiliazing the cl arrays")
-
         self.ID_cl = cl_array.to_device(queue, self.ID)
         self.Ex_cl = cl_array.to_device(queue, self.Ex)
         self.Ey_cl = cl_array.to_device(queue, self.Ey)

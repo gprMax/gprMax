@@ -62,4 +62,5 @@ __kernel void update_hertzian_dipole(int NHERTZDIPOLE, int iteration, {{REAL}} d
             int materialEz = ID[INDEX4D_ID(2,i,j,k)];
             Ez[INDEX3D_FIELDS(i,j,k)] = Ez[INDEX3D_FIELDS(i,j,k)] - updatecoeffsE[INDEX2D_MAT(materialEz,4)] * srcwaveforms[INDEX2D_SRCWAVES(src,iteration)] * dl * (1 / (dx * dy * dz));
         }
+    }
 }
