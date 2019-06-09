@@ -22,6 +22,7 @@ import argparse
 import datetime
 import os
 import sys
+import warnings
 
 from enum import Enum
 
@@ -61,6 +62,7 @@ def main():
     parser.add_argument('--geometry-fixed', action='store_true', default=False, help='flag to not reprocess model geometry, e.g. for B-scans where the geometry is fixed')
     parser.add_argument('--write-processed', action='store_true', default=False, help='flag to write an input file after any Python code and include commands in the original input file have been processed')
     parser.add_argument('--opt-taguchi', action='store_true', default=False, help='flag to optimise parameters using the Taguchi optimisation method')
+    parser.add_argument('--opencl',action='store_true' , default='False', help='run solver using OpenCl')
     args = parser.parse_args()
 
     run_main(args)
@@ -79,7 +81,8 @@ def api(
     geometry_only=False,
     geometry_fixed=False,
     write_processed=False,
-    opt_taguchi=False
+    opt_taguchi=False,
+    opencl=False
 ):
     """If installed as a module this is the entry point."""
 
@@ -101,6 +104,7 @@ def api(
     args.geometry_fixed = geometry_fixed
     args.write_processed = write_processed
     args.opt_taguchi = opt_taguchi
+    args.opencl = opencl
 
     run_main(args)
 
@@ -139,6 +143,12 @@ def run_main(args):
                 args.gpu = gpus
             else:
                 args.gpu = gpus[0]
+
+        if args.opencl is True:
+            # get if the devices are found having opencl supported platforms
+
+            print("Opted to choose OpenCL Framework for solver acceleration")
+            warnings.warn("Print the available platforms and devices")
 
         # Create a separate namespace that users can access in any Python code blocks in the input file
         usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': args.n, 'inputfile': os.path.abspath(inputfile.name)}
@@ -182,6 +192,7 @@ def run_main(args):
                 run_mpi_no_spawn_sim(args, inputfile, usernamespace)
 
             # Standard behaviour - models run serially with each model parallelised with OpenMP (CPU) or CUDA (GPU)
+            # Includes the OpenCl GPU / CPU implementation too
             else:
                 if args.task and args.restart:
                     raise GeneralError('Job array and restart modes cannot be used together')

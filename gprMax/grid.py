@@ -105,6 +105,9 @@ class FDTDGrid(Grid):
         # GPU object
         self.gpu = None
 
+        # OpenCl solver
+        self.opencl = None
+
         # Copy snapshot data from GPU to CPU during simulation
         # N.B. This will happen if the requested snapshots are too large to fit
         # on the memory of the GPU. If True this will slow performance significantly
@@ -130,9 +133,10 @@ class FDTDGrid(Grid):
         self.timewindow = 0
 
         # Ordered dictionary required so that PMLs are always updated in the
-        # same order. The order itself does not matter, however, if must be the
+        # same order. The order itself does not matter, however, it must be the
         # same from model to model otherwise the numerical precision from adding
         # the PML corrections will be different.
+        # adding the default value of PML thickness ie, 10 cells
         self.pmlthickness = OrderedDict((key, 10) for key in PML.boundaryIDs)
         self.cfs = []
         self.pmls = []
@@ -247,6 +251,22 @@ class FDTDGrid(Grid):
     def gpu_set_blocks_per_grid(self):
         """Set the blocks per grid size used for updating the electric and magnetic field arrays on a GPU."""
         self.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / self.tpb[0])), 1, 1)
+
+    def cl_initialize_arrays(self, queue):
+        """Initialize standard field arrays for opencl"""
+        import pyopencl as cl   
+        import pyopencl.array as cl_array
+        import warnings
+
+        warnings.warn("initiliazing the cl arrays")
+
+        self.ID_cl = cl_array.to_device(queue, self.ID)
+        self.Ex_cl = cl_array.to_device(queue, self.Ex)
+        self.Ey_cl = cl_array.to_device(queue, self.Ey)
+        self.Ez_cl = cl_array.to_device(queue, self.Ez)
+        self.Hx_cl = cl_array.to_device(queue, self.Hx)
+        self.Hy_cl = cl_array.to_device(queue, self.Hy)
+        self.Hz_cl = cl_array.to_device(queue, self.Hz)
 
     def gpu_initialise_arrays(self):
         """Initialise standard field arrays on GPU."""

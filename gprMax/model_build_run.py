@@ -22,6 +22,7 @@ import itertools
 import os
 import psutil
 import sys
+import warnings
 
 from colorama import init
 from colorama import Fore
@@ -48,6 +49,8 @@ from gprMax.fields_updates_ext import update_electric_dispersive_multipole_B
 from gprMax.fields_updates_ext import update_electric_dispersive_1pole_A
 from gprMax.fields_updates_ext import update_electric_dispersive_1pole_B
 from gprMax.fields_updates_gpu import kernels_template_fields
+
+from gprMax.opencl_solver import OpenClSolver
 
 from gprMax.grid import FDTDGrid
 from gprMax.grid import dispersion_analysis
@@ -97,6 +100,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         tsolve (int): Length of time (seconds) of main FDTD calculations
     """
 
+
     # Monitor memory usage
     p = psutil.Process()
 
@@ -119,6 +123,15 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         # Single GPU object
         if args.gpu:
             G.gpu = args.gpu
+
+        # OpenCL Solver
+        if args.opencl:
+            G.opencl = args.opencl 
+            # create the opencl solver object
+            cl_solver = OpenClSolver()
+
+            # set the devices and platforms 
+            cl_solver.getPlatformNDevices()
 
         G.inputfilename = os.path.split(inputfile.name)[1]
         G.inputdirectory = os.path.dirname(os.path.abspath(inputfile.name))
@@ -168,12 +181,13 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         # Estimate and check memory (RAM) usage
         G.memory_estimate_basic()
         G.memory_check()
+        warnings.warn("add logic for opencl memory consumption")
         if G.messages:
             if G.gpu is None:
                 print('\nMemory (RAM) required: ~{}\n'.format(human_size(G.memoryusage)))
             else:
                 print('\nMemory (RAM) required: ~{} host + ~{} GPU\n'.format(human_size(G.memoryusage), human_size(G.memoryusage)))
-
+        
         # Initialise an array for volumetric material IDs (solid), boolean
         # arrays for specifying materials not to be averaged (rigid),
         # an array for cell edge IDs (ID)
@@ -295,6 +309,8 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(currentmodelrun, modelend, inputfile.name)
         if G.messages:
             print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
+        
+        warnings.warn("check for the --fixed-geometry issue, mostly checks here can be fine")
 
         # Clear arrays for field components
         G.initialise_field_arrays()
@@ -366,9 +382,17 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         # Main FDTD solving functions for either CPU or GPU
         if G.gpu is None:
-            tsolve = solve_cpu(currentmodelrun, modelend, G)
+            if G.opencl is not None:
+                print("OpenCl Solver")
+                tsolve, memsolve = cl_solver.solver(currentmodelrun, modelend, G)
+            else:
+                tsolve = solve_cpu(currentmodelrun, modelend, G)
         else:
-            tsolve, memsolve = solve_gpu(currentmodelrun, modelend, G)
+            if G.opencl is not None:
+                print("OpenCl Solver")
+                tsolve, memsolve = cl_solver.solver(currentmodelrun, modelend, G)
+            else:
+                tsolve, memsolve = solve_gpu(currentmodelrun, modelend, G)
 
         # Write an output file in HDF5 format
         write_hdf5_outputfile(outputfile, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
@@ -593,6 +617,7 @@ def solve_gpu(currentmodelrun, modelend, G):
 
         # Store field component values for every receiver
         if G.rxs:
+            import warnings
             store_outputs_gpu(np.int32(len(G.rxs)), np.int32(iteration),
                               rxcoords_gpu.gpudata, rxs_gpu.gpudata,
                               G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,

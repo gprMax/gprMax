@@ -215,7 +215,7 @@ class MagneticDipole(Source):
                 Hz[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesM[iteration] * (1 / (G.dx * G.dy * G.dz))
 
 
-def gpu_initialise_src_arrays(sources, G):
+def gpu_initialise_src_arrays(sources, G, queue=None, opencl=False):
     """Initialise arrays on GPU for source coordinates/polarisation, other source information, and source waveform values.
 
     Args:
@@ -227,8 +227,6 @@ def gpu_initialise_src_arrays(sources, G):
         srcinfo2_gpu (float): numpy array of other source information, e.g. length, resistance etc...
         srcwaves_gpu (float): numpy array of source waveform values.
     """
-
-    import pycuda.gpuarray as gpuarray
 
     srcinfo1 = np.zeros((len(sources), 4), dtype=np.int32)
     srcinfo2 = np.zeros((len(sources)), dtype=floattype)
@@ -254,6 +252,19 @@ def gpu_initialise_src_arrays(sources, G):
         elif src.__class__.__name__ == 'MagneticDipole':
             srcwaves[i, :] = src.waveformvaluesM
 
+    if opencl is True:
+        import pyopencl as cl  
+        import pyopencl.array as cl_array
+
+        assert queue!=None
+        srcinfo1_cl = cl_array.to_device(queue, srcinfo1)
+        srcinfo2_cl = cl_array.to_device(queue, srcinfo2)
+        srcwaves_cl = cl_array.to_device(queue, srcwaves)
+
+        return srcinfo1_cl, srcinfo2_cl, srcwaves_cl
+
+    import pycuda.gpuarray as gpuarray
+    
     srcinfo1_gpu = gpuarray.to_gpu(srcinfo1)
     srcinfo2_gpu = gpuarray.to_gpu(srcinfo2)
     srcwaves_gpu = gpuarray.to_gpu(srcwaves)

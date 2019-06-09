@@ -22,7 +22,6 @@ import numpy as np
 
 from gprMax.constants import floattype
 
-
 class Rx(object):
     """Receiver output points."""
 
@@ -42,14 +41,13 @@ class Rx(object):
         self.zcoordorigin = None
 
 
-def gpu_initialise_rx_arrays(G):
+def gpu_initialise_rx_arrays(G, queue=None, opencl=False):
     """Initialise arrays on GPU for receiver coordinates and to store field components for receivers.
 
     Args:
         G (class): Grid class instance - holds essential parameters describing the model.
     """
 
-    import pycuda.gpuarray as gpuarray
 
     # Array to store receiver coordinates on GPU
     rxcoords = np.zeros((len(G.rxs), 3), dtype=np.int32)
@@ -61,7 +59,20 @@ def gpu_initialise_rx_arrays(G):
     # Array to store field components for receivers on GPU - rows are field components; columns are iterations; pages are receivers
     rxs = np.zeros((len(Rx.gpu_allowableoutputs), G.iterations, len(G.rxs)), dtype=floattype)
 
+    # check for is opencl computation
+    if opencl is True:
+        import pyopencl as cl   
+        import pyopencl.array as cl_array
+
+        assert queue!=None 
+        rxcoords_cl = cl_array.to_device(queue, rxcoords) 
+        rxs_cl = cl_array.to_device(queue, rxs)
+        return rxcoords_cl, rxs_cl
+
+
     # Copy arrays to GPU
+    import pycuda.gpuarray as gpuarray
+
     rxcoords_gpu = gpuarray.to_gpu(rxcoords)
     rxs_gpu = gpuarray.to_gpu(rxs)
 
