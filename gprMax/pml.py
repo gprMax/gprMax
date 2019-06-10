@@ -281,7 +281,7 @@ class PML(object):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        pmlmodule = 'gprMax.pml_updates.pml_updates_electric_' + G.pmlformulation + '_ext'
+        pmlmodule = 'gprMax.cython.pml_updates_electric_' + G.pmlformulation
         func = getattr(import_module(pmlmodule), 'order' + str(len(self.CFS)) + '_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf, hostinfo['ompthreads'], G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.EPhi1, self.EPhi2, self.ERA, self.ERB, self.ERE, self.ERF, self.d)
 
@@ -292,7 +292,7 @@ class PML(object):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        pmlmodule = 'gprMax.pml_updates.pml_updates_magnetic_' + G.pmlformulation + '_ext'
+        pmlmodule = 'gprMax.cython.pml_updates_magnetic_' + G.pmlformulation
         func = getattr(import_module(pmlmodule), 'order' + str(len(self.CFS)) + '_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf, hostinfo['ompthreads'], G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.HPhi1, self.HPhi2, self.HRA, self.HRB, self.HRE, self.HRF, self.d)
 

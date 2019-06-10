@@ -20,16 +20,16 @@ import numpy as np
 cimport numpy as np
 
 from gprMax.utilities import round_value
-from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_Ex
-from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_Ey
-from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_Ez
-from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_Hx
-from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_Hy
-from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_Hz
-from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_E
-from gprMax.yee_cell_setget_rigid_ext cimport unset_rigid_E
-from gprMax.yee_cell_setget_rigid_ext cimport set_rigid_H
-from gprMax.yee_cell_setget_rigid_ext cimport unset_rigid_H
+from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_Ex
+from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_Ey
+from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_Ez
+from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_Hx
+from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_Hy
+from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_Hz
+from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_E
+from gprMax.cython.yee_cell_setget_rigid cimport unset_rigid_E
+from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_H
+from gprMax.cython.yee_cell_setget_rigid cimport unset_rigid_H
 
 np.seterr(divide='raise')
 

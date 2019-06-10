@@ -24,7 +24,7 @@ import numpy as np
 
 from gprMax.config import floattype
 from gprMax.config import snapsgpu2cpu
-from gprMax.snapshots_ext import calculate_snapshot_fields
+from gprMax.cython.snapshots import calculate_snapshot_fields
 from gprMax.utilities import round_value
 
 

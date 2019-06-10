@@ -51,8 +51,8 @@ with open('README.rst','r') as fd:
     long_description = fd.read()
 
 # Python version
-if sys.version_info[:2] < (3, 4):
-    sys.exit('\nExited: Requires Python 3.4 or newer!\n')
+if sys.version_info[:2] < (3, 6):
+    sys.exit('\nExited: Requires Python 3.6 or newer!\n')
 
 # Process 'build' command line argument
 if 'build' in sys.argv:

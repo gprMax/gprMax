@@ -22,8 +22,8 @@ from scipy import fftpack
 from gprMax.config import floattype
 from gprMax.config import complextype
 from gprMax.config import hostinfo
-from gprMax.fractals_generate_ext import generate_fractal2D
-from gprMax.fractals_generate_ext import generate_fractal3D
+from gprMax.cython.fractals_generate import generate_fractal2D
+from gprMax.cython.fractals_generate import generate_fractal3D
 from gprMax.utilities import round_value
 
 np.seterr(divide='raise')

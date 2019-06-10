@@ -24,8 +24,8 @@ import numpy as np
 from struct import pack
 
 from gprMax._version import __version__
-from gprMax.geometry_outputs_ext import define_normal_geometry
-from gprMax.geometry_outputs_ext import define_fine_geometry
+from gprMax.cython.geometry_outputs import define_normal_geometry
+from gprMax.cython.geometry_outputs import define_fine_geometry
 from gprMax.utilities import round_value
 
 

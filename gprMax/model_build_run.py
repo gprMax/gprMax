@@ -47,13 +47,13 @@ from gprMax.fields_outputs import store_outputs
 from gprMax.fields_outputs import kernel_template_store_outputs
 from gprMax.fields_outputs import write_hdf5_outputfile
 
-from gprMax.fields_updates_ext import update_electric
-from gprMax.fields_updates_ext import update_magnetic
-from gprMax.fields_updates_ext import update_electric_dispersive_multipole_A
-from gprMax.fields_updates_ext import update_electric_dispersive_multipole_B
-from gprMax.fields_updates_ext import update_electric_dispersive_1pole_A
-from gprMax.fields_updates_ext import update_electric_dispersive_1pole_B
-from gprMax.fields_updates_gpu import kernels_template_fields
+from gprMax.cython.fields_updates import update_electric
+from gprMax.cython.fields_updates import update_magnetic
+from gprMax.cython.fields_updates import update_electric_dispersive_multipole_A
+from gprMax.cython.fields_updates import update_electric_dispersive_multipole_B
+from gprMax.cython.fields_updates import update_electric_dispersive_1pole_A
+from gprMax.cython.fields_updates import update_electric_dispersive_1pole_B
+from gprMax.cuda.fields_updates import kernels_template_fields
 
 from gprMax.grid import FDTDGrid
 from gprMax.grid import dispersion_analysis
@@ -74,16 +74,16 @@ from gprMax.receivers import gpu_get_rx_array
 from gprMax.snapshots import Snapshot
 from gprMax.snapshots import gpu_initialise_snapshot_array
 from gprMax.snapshots import gpu_get_snapshot_array
-from gprMax.snapshots_gpu import kernel_template_store_snapshot
+from gprMax.cuda.snapshots import kernel_template_store_snapshot
 from gprMax.sources import gpu_initialise_src_arrays
-from gprMax.source_updates_gpu import kernels_template_sources
+from gprMax.cuda.source_updates import kernels_template_sources
 from gprMax.utilities import get_terminal_width
 from gprMax.utilities import human_size
 from gprMax.utilities import open_path_file
 from gprMax.utilities import round32
 from gprMax.utilities import timer
-from gprMax.yee_cell_build_ext import build_electric_components
-from gprMax.yee_cell_build_ext import build_magnetic_components
+from gprMax.cython.yee_cell_build import build_electric_components
+from gprMax.cython.yee_cell_build import build_magnetic_components
 
 
 def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usernamespace):
