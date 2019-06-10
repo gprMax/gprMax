@@ -219,8 +219,14 @@ class OpenClSolver(object):
         )
         print(self.updatecoeffsE.get())
         print(self.updatecoeffsH.get())
+
+        print("G.Ex_cl", self.G.Ex_cl.get())
+        print("G.Hx_cl", self.G.Hx_cl.get())
+        print("G.ID_cl", self.G.ID_cl.get())
+
         for iteration in tqdm(range(self.G.iterations), desc="Running simulation model" + str(currentmodelrun) + "/" + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not self.G.progressbars):
 
+            
             # get gpu memory
 
             # store field component values for every receiver
