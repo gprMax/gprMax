@@ -15,7 +15,7 @@ __kernel void store_outputs(int NRX, int iteration, __global const int* restrict
     //        are field components; columns are iterations; pages are receiver
 
     // obtain linear index corresponding to the current work item
-    int rx = get_global_id(0);
+    int rx = get_global_id(2) * get_global_size(0) * get_global_size(1) + get_global_id(1) * get_global_size(0) + get_global_id(0);
 
     int i,j,k;
 

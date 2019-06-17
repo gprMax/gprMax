@@ -11,12 +11,20 @@
 #define INDEX4D_ID(p, i, j, k) (p)*({{NX_ID}})*({{NY_ID}})*({{NZ_ID}}) + (i)*({{NY_ID}})*({{NZ_ID}}) + (j)*({{NZ_ID}}) + (k)
 #define INDEX4D_T(p, i, j, k) (p)*({{NX_T}})*({{NY_T}})*({{NZ_T}}) + (i)*({{NY_T}})*({{NZ_T}}) + (j)*({{NZ_T}}) + (k)
 
-__constant {{REAL}} updatecoeffsE[{{N_updatecoeffsE}}] = {0.0};
-__constant {{REAL}} updatecoeffsH[{{N_updatecoeffsH}}] = {0.0};
+// material update coefficients to be declared in constant memory
+__constant {{REAL}} updatecoeffsE[{{N_updatecoeffsE}}] = 
+{
+    {% for i in updateEVal %}
+    {{i}},
+    {% endfor %}
+};
 
-__kernel void setUpdateCoeffs(__constant {{REAL}} * updatecoeffsE, __constant {{REAL}} * updatecoeffsH){
-    // do nothing else
-}
+__constant {{REAL}} updatecoeffsH[{{N_updatecoeffsH}}] = 
+{
+    {% for i in updateHVal %}
+    {{i}},
+    {% endfor %}
+};
 
 __kernel void update_e(int NX, int NY, int NZ, __global const unsigned int* restrict ID, __global {{REAL}} *Ex, __global {{REAL}} *Ey, __global {{REAL}} *Ez, __global const {{REAL}} * restrict Hx, __global const {{REAL}} * restrict Hy, __global const {{REAL}} * restrict Hz){
     // this function updates electric field values
@@ -26,7 +34,7 @@ __kernel void update_e(int NX, int NY, int NZ, __global const unsigned int* rest
     //     ID, E, H : Access to ID and field component arrays
 
     // get the linear index corresponding to the current work item
-    int idx = get_global_id(0);
+    int idx = get_global_id(2) * get_global_size(0) * get_global_size(1) + get_global_id(1) * get_global_size(0) + get_global_id(0);
 
     // convert the linear index to subscripts for 3D field arrays
     int i = idx / ({{NY_FIELDS}} * {{NZ_FIELDS}});
@@ -38,8 +46,8 @@ __kernel void update_e(int NX, int NY, int NZ, __global const unsigned int* rest
     int j_ID = ((idx%({{NX_ID}} * {{NY_ID}} * {{NZ_ID}})) % ({{NY_ID}} * {{NZ_ID}})) / {{NZ_ID}};
     int k_ID = ((idx%({{NX_ID}} * {{NY_ID}} * {{NZ_ID}})) % ({{NY_ID}} * {{NZ_ID}})) % {{NZ_ID}};
 
-    // Ex Component
-    if ((NX!=1 || NZ!=1) && (i>0) && (i<NX) && (j>=0) && (j<NY) && (k>0) && (k<NZ)){
+    // Ex component
+    if ((NY != 1 || NZ != 1) && i >= 0 && i < NX && j > 0 && j < NY && k > 0 && k < NZ) {
         int materialEx = ID[INDEX4D_ID(0,i_ID,j_ID,k_ID)];
         Ex[INDEX3D_FIELDS(i,j,k)] = updatecoeffsE[INDEX2D_MAT(materialEx,0)] * Ex[INDEX3D_FIELDS(i,j,k)] + updatecoeffsE[INDEX2D_MAT(materialEx,2)] * (Hz[INDEX3D_FIELDS(i,j,k)] - Hz[INDEX3D_FIELDS(i,j-1,k)]) - updatecoeffsE[INDEX2D_MAT(materialEx,3)] * (Hy[INDEX3D_FIELDS(i,j,k)] - Hy[INDEX3D_FIELDS(i,j,k-1)]);
     }
@@ -78,19 +86,19 @@ __kernel void update_h(int NX, int NY, int NZ, __global const unsigned int* rest
     int k_ID = (( idx % ({{NX_ID}} * {{NY_ID}} * {{NZ_ID}})) % ({{NY_ID}} * {{NZ_ID}})) % {{NZ_ID}};
 
     // Hx component
-    if ((NX != 1) && (i > 0) && (i < NX) && (j >= 0) && (j < NY) && (k >= 0) && (k < NZ)) {
+    if (NX != 1 && i > 0 && i < NX && j >= 0 && j < NY && k >= 0 && k < NZ) {
         int materialHx = ID[INDEX4D_ID(3,i_ID,j_ID,k_ID)];
         Hx[INDEX3D_FIELDS(i,j,k)] = updatecoeffsH[INDEX2D_MAT(materialHx,0)] * Hx[INDEX3D_FIELDS(i,j,k)] - updatecoeffsH[INDEX2D_MAT(materialHx,2)] * (Ez[INDEX3D_FIELDS(i,j+1,k)] - Ez[INDEX3D_FIELDS(i,j,k)]) + updatecoeffsH[INDEX2D_MAT(materialHx,3)] * (Ey[INDEX3D_FIELDS(i,j,k+1)] - Ey[INDEX3D_FIELDS(i,j,k)]);
     }
 
     // Hy component
-    if ((NY != 1) && (i >= 0) && (i < NX) && (j > 0) && (j < NY) && (k >= 0) && (k < NZ)) {
+    if (NY != 1 && i >= 0 && i < NX && j > 0 && j < NY && k >= 0 && k < NZ) {
         int materialHy = ID[INDEX4D_ID(4,i_ID,j_ID,k_ID)];
         Hy[INDEX3D_FIELDS(i,j,k)] = updatecoeffsH[INDEX2D_MAT(materialHy,0)] * Hy[INDEX3D_FIELDS(i,j,k)] - updatecoeffsH[INDEX2D_MAT(materialHy,3)] * (Ex[INDEX3D_FIELDS(i,j,k+1)] - Ex[INDEX3D_FIELDS(i,j,k)]) + updatecoeffsH[INDEX2D_MAT(materialHy,1)] * (Ez[INDEX3D_FIELDS(i+1,j,k)] - Ez[INDEX3D_FIELDS(i,j,k)]);
     }
 
     // Hz component
-    if ((NZ != 1) && (i >= 0) && (i < NX) && (j >= 0) && (j < NY) && (k > 0) && (k < NZ)) {
+    if (NZ != 1 && i >= 0 && i < NX && j >= 0 && j < NY && k > 0 && k < NZ) {
         int materialHz = ID[INDEX4D_ID(5,i_ID,j_ID,k_ID)];
         Hz[INDEX3D_FIELDS(i,j,k)] = updatecoeffsH[INDEX2D_MAT(materialHz,0)] * Hz[INDEX3D_FIELDS(i,j,k)] - updatecoeffsH[INDEX2D_MAT(materialHz,1)] * (Ey[INDEX3D_FIELDS(i+1,j,k)] - Ey[INDEX3D_FIELDS(i,j,k)]) + updatecoeffsH[INDEX2D_MAT(materialHz,2)] * (Ex[INDEX3D_FIELDS(i,j+1,k)] - Ex[INDEX3D_FIELDS(i,j,k)]);
     }

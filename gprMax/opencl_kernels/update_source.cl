@@ -10,13 +10,19 @@
 #define INDEX4D_ID(p, i, j, k) (p)*({{NX_ID}})*({{NY_ID}})*({{NZ_ID}}) + (i)*({{NY_ID}})*({{NZ_ID}}) + (j)*({{NZ_ID}}) + (k)
 
 // material update coefficients to be declared in constant memory
-__constant {{REAL}} updatecoeffsE[{{N_updatecoeffsE}}] = {0.0};
-__constant {{REAL}} updatecoeffsH[{{N_updatecoeffsH}}] = {0.0};
+__constant {{REAL}} updatecoeffsE[{{N_updatecoeffsE}}] = 
+{
+    {% for i in updateEVal %}
+    {{i}},
+    {% endfor %}
+};
 
-// kernel to update the coefficients
-__kernel void setUpdateCoeffs(__constant {{REAL}} * updatecoeffsE, __constant {{REAL}} * updatecoeffsH){
-    // do nothing else
-}
+__constant {{REAL}} updatecoeffsH[{{N_updatecoeffsH}}] = 
+{
+    {% for i in updateHVal %}
+    {{i}},
+    {% endfor %}
+};
 
 
 // simplest source which is Hertizan Dipole will be used
@@ -32,19 +38,19 @@ __kernel void update_hertzian_dipole(int NHERTZDIPOLE, int iteration, {{REAL}} d
     //     ID, E: access to ID and field component values 
 
     // get linear index 
-    int src = get_global_id(0); 
+    int src = get_global_id(2) * get_global_size(0) * get_global_size(1) + get_global_id(1) * get_global_size(0) + get_global_id(0);
 
     if (src < NHERTZDIPOLE) {
-
         {{REAL}} dl;
         int i, j, k, polarisation;
 
         i = srcinfo1[INDEX2D_SRCINFO(src,0)];
         j = srcinfo1[INDEX2D_SRCINFO(src,1)];
         k = srcinfo1[INDEX2D_SRCINFO(src,2)];
+        
         polarisation = srcinfo1[INDEX2D_SRCINFO(src,3)];
         dl = srcinfo2[src];
-
+        
         // 'x' polarised source
         if (polarisation == 0) {
             int materialEx = ID[INDEX4D_ID(0,i,j,k)];
