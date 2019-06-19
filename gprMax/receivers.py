@@ -87,7 +87,6 @@ def gpu_get_rx_array(rxs_gpu, rxcoords_gpu, G):
         rxcoords_gpu (float): numpy array of receiver coordinates from GPU.
         G (class): Grid class instance - holds essential parameters describing the model.
     """
-
     for rx in G.rxs:
         for rxgpu in range(len(G.rxs)):
             if rx.xcoord == rxcoords_gpu[rxgpu, 0] and rx.ycoord == rxcoords_gpu[rxgpu, 1] and rx.zcoord == rxcoords_gpu[rxgpu, 2]:

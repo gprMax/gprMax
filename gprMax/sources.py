@@ -252,6 +252,8 @@ def gpu_initialise_src_arrays(sources, G, queue=None, opencl=False):
         elif src.__class__.__name__ == 'MagneticDipole':
             srcwaves[i, :] = src.waveformvaluesM
 
+    print("Source waves :", srcwaves)
+
     if opencl is True:
         import pyopencl as cl  
         import pyopencl.array as cl_array
@@ -262,14 +264,14 @@ def gpu_initialise_src_arrays(sources, G, queue=None, opencl=False):
         srcwaves_cl = cl_array.to_device(queue, srcwaves)
 
         return srcinfo1_cl, srcinfo2_cl, srcwaves_cl
+    else:
+        import pycuda.gpuarray as gpuarray
+        
+        srcinfo1_gpu = gpuarray.to_gpu(srcinfo1)
+        srcinfo2_gpu = gpuarray.to_gpu(srcinfo2)
+        srcwaves_gpu = gpuarray.to_gpu(srcwaves)
 
-    import pycuda.gpuarray as gpuarray
-    
-    srcinfo1_gpu = gpuarray.to_gpu(srcinfo1)
-    srcinfo2_gpu = gpuarray.to_gpu(srcinfo2)
-    srcwaves_gpu = gpuarray.to_gpu(srcwaves)
-
-    return srcinfo1_gpu, srcinfo2_gpu, srcwaves_gpu
+        return srcinfo1_gpu, srcinfo2_gpu, srcwaves_gpu
 
 
 class TransmissionLine(Source):
