@@ -225,7 +225,7 @@ class OpenClSolver(object):
             )
 
             for pml in self.G.pmls:
-                warnings.warn("Not implemented as of now")
+                warnings.warn("PMLS not implemented as of now")
                 pass
 
             # update magnetic dipoles (sources)
