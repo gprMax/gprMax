@@ -5,6 +5,8 @@
 
 #material: 6 0 1 0 half_space
 
+#pml_cells: 0 0 0 0 0 0
+
 #waveform: ricker 1 1.5e9 my_ricker
 #hertzian_dipole: z 0.100 0.170 0 my_ricker
 #rx: 0.140 0.170 0

@@ -252,7 +252,6 @@ def gpu_initialise_src_arrays(sources, G, queue=None, opencl=False):
         elif src.__class__.__name__ == 'MagneticDipole':
             srcwaves[i, :] = src.waveformvaluesM
 
-    print("Source waves :", srcwaves)
 
     if opencl is True:
         import pyopencl as cl  
