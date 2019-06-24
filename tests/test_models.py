@@ -23,6 +23,7 @@ from colorama import init, Fore, Style
 init()
 import h5py
 import numpy as np
+import argparse
 import matplotlib.pyplot as plt
 
 if sys.platform == 'linux':
@@ -39,10 +40,21 @@ from tests.analytical_solutions import hertzian_dipole_fs
         python -m tests.test_models
 """
 
+# parse command line arguments
+parser = argparse.ArgumentParser(prog="gprMax-Test-Suite", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("--model", default="basic", help="The model type: Basic, Advanced or PML")
+parser.add_argument("--gpu", type=int, action='append', default=None, nargs='*', help='flag to use Nvidia GPU')
+parser.add_argument('--opencl', action='store_true' , default=False, help='run solver using OpenCl')
+parser.add_argument('--specific', type=str, action='append', default=None, help='special/selective model to be run')
+
+args = parser.parse_args()
+
 basepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models_')
+
+basepath += args.model
 # basepath += 'basic'
 # basepath += 'advanced'
-basepath += 'pmls'
+# basepath += 'pmls'
 
 # List of available basic test models
 # testmodels = ['hertzian_dipole_fs_analytical', '2D_ExHyHz', '2D_EyHxHz', '2D_EzHxHy', 'cylinder_Ascan_2D', 'hertzian_dipole_fs', 'hertzian_dipole_hs', 'hertzian_dipole_dispersive', 'magnetic_dipole_fs', 'pmls']
@@ -51,11 +63,22 @@ basepath += 'pmls'
 # testmodels = ['antenna_GSSI_1500_fs', 'antenna_MALA_1200_fs']
 
 # List of available PML models
-testmodels = ['pml_x0', 'pml_y0', 'pml_z0', 'pml_xmax', 'pml_ymax', 'pml_zmax', 'pml_3D_pec_plate']
+# testmodels = ['pml_x0', 'pml_y0', 'pml_z0', 'pml_xmax', 'pml_ymax', 'pml_zmax', 'pml_3D_pec_plate']
+
+models_available = {
+    'basic': ['hertzian_dipole_fs_analytical', '2D_ExHyHz', '2D_EyHxHz', '2D_EzHxHy', 'cylinder_Ascan_2D', 'hertzian_dipole_fs', 'hertzian_dipole_hs', 'hertzian_dipole_dispersive', 'magnetic_dipole_fs', 'pmls'],
+    'advanced': ['antenna_GSSI_1500_fs', 'antenna_MALA_1200_fs'],
+    'pmls' : ['pml_x0', 'pml_y0', 'pml_z0', 'pml_xmax', 'pml_ymax', 'pml_zmax', 'pml_3D_pec_plate']
+}
+
+if args.specific is not None:
+    testmodels = args.specific
+else:
+    testmodels = models_available[args.model]
 
 # Select a specific model if desired
 # testmodels = testmodels[:-1]
-testmodels = [testmodels[6]]
+# testmodels = [testmodels[6]]
 testresults = dict.fromkeys(testmodels)
 path = '/rxs/rx1/'
 
@@ -68,7 +91,9 @@ for i, model in enumerate(testmodels):
 
     # Run model
     inputfile = os.path.join(basepath, model + os.path.sep + model + '.in')
-    api(inputfile, gpu=[None])
+    print("GPU: ",args.gpu)
+    print("OpenCl", args.opencl)
+    api(inputfile, gpu=args.gpu, opencl=args.opencl)
 
     # Special case for analytical comparison
     if model == 'hertzian_dipole_fs_analytical':
