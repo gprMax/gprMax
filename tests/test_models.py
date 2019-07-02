@@ -84,9 +84,9 @@ path = '/rxs/rx1/'
 
 # Minimum value of difference to plot (dB)
 plotmin = -160
-
+print("Running Models: ", testmodels)
 for i, model in enumerate(testmodels):
-
+    print("\n+++++",model,"+++++\n")
     testresults[model] = {}
 
     # Run model
@@ -94,7 +94,7 @@ for i, model in enumerate(testmodels):
     print("GPU: ",args.gpu)
     print("OpenCl", args.opencl)
     api(inputfile, gpu=args.gpu, opencl=args.opencl)
-
+    import pdb; pdb.set_trace()
     # Special case for analytical comparison
     if model == 'hertzian_dipole_fs_analytical':
         # Get output for model file

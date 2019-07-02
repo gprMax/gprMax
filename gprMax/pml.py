@@ -303,6 +303,31 @@ class PML(object):
 
         self.bpg = (int(np.ceil(((self.EPhi1.shape[1] + 1) * (self.EPhi1.shape[2] + 1) * (self.EPhi1.shape[3] + 1)) / G.tpb[0])), 1, 1)
 
+    def cl_set_workgroups(self, G):
+        """
+        set global_work_size as self.workgrouparam
+        """
+        self.workgrouparam = (int(np.ceil((self.EPhi1.shape[1] + 1) * (self.EPhi1.shape[2] + 1) * (self.EPhi1.shape[3] + 1))), 1, 1)
+
+    def cl_initialize_arrays(self, queue):
+        """Initialise PML field and coefficient arrays on OpenCL Device."""
+        import pyopencl as cl   
+        import pyopencl.array as cl_array  
+
+        self.EPhi1_cl = cl_array.to_device(queue, self.EPhi1)
+        self.EPhi2_cl = cl_array.to_device(queue, self.EPhi2)
+        self.ERA_cl = cl_array.to_device(queue, self.ERA)
+        self.ERB_cl = cl_array.to_device(queue, self.ERB)
+        self.ERE_cl = cl_array.to_device(queue, self.ERE)
+        self.ERF_cl = cl_array.to_device(queue, self.ERF)
+        self.HPhi1_cl = cl_array.to_device(queue, self.HPhi1)
+        self.HPhi2_cl = cl_array.to_device(queue, self.HPhi2)
+        self.HRA_cl = cl_array.to_device(queue, self.HRA)
+        self.HRB_cl = cl_array.to_device(queue, self.HRB)
+        self.HRE_cl = cl_array.to_device(queue, self.HRE)
+        self.HRF_cl = cl_array.to_device(queue, self.HRF)
+
+
     def gpu_initialise_arrays(self):
         """Initialise PML field and coefficient arrays on GPU."""
 
@@ -333,6 +358,86 @@ class PML(object):
 
         self.update_electric_gpu = kernelselectric.get_function('order' + str(len(self.CFS)) + '_' + self.direction)
         self.update_magnetic_gpu = kernelsmagnetic.get_function('order' + str(len(self.CFS)) + '_' + self.direction)
+
+    def cl_get_update_funcs(self, context, kernelselectric, kernelsmagnetic):
+        """
+        Get the update functions from PML Kernels
+        Args:
+            kernelselectric: Jinja Template build
+            kernelsmagnetic: Jinja Template build
+        """
+        import pyopencl as cl   
+        import pyopencl.array as cl_array  
+
+        electric_prg = cl.Program(context, kernelselectric).build()
+        magnetic_prg = cl.Program(context, kernelsmagnetic).build()
+
+        function_name = 'order' + str(len(self.CFS)) + '_' + self.direction
+        electric_kernel_functions = {
+            'order1_xminus' : electric_prg.order1_xminus,
+            'order2_xminus' : electric_prg.order2_xminus,
+            'order1_xplus' : electric_prg.order1_xplus,
+            'order2_xplus' : electric_prg.order2_xplus,
+            'order1_yminus' : electric_prg.order1_yminus,
+            'order2_yminus' : electric_prg.order2_yminus,
+            'order1_yplus' : electric_prg.order1_yplus,
+            'order2_yplus' : electric_prg.order2_yplus,
+            'order1_zminus' : electric_prg.order1_zminus,
+            'order2_zminus' : electric_prg.order2_zminus,
+            'order1_zplus' : electric_prg.order1_zplus,
+            'order2_zplus' : electric_prg.order2_zplus
+        }
+
+        magnetic_kernel_functions = {
+            'order1_xminus' : magnetic_prg.order1_xminus,
+            'order2_xminus' : magnetic_prg.order2_xminus,
+            'order1_xplus' : magnetic_prg.order1_xplus,
+            'order2_xplus' : magnetic_prg.order2_xplus,
+            'order1_yminus' : magnetic_prg.order1_yminus,
+            'order2_yminus' : magnetic_prg.order2_yminus,
+            'order1_yplus' : magnetic_prg.order1_yplus,
+            'order2_yplus' : magnetic_prg.order2_yplus,
+            'order1_zminus' : magnetic_prg.order1_zminus,
+            'order2_zminus' : magnetic_prg.order2_zminus,
+            'order1_zplus' : magnetic_prg.order1_zplus,
+            'order2_zplus' : magnetic_prg.order2_zplus
+        }
+
+        self.update_electric_cl = electric_kernel_functions[function_name]
+        self.update_magnetic_cl = magnetic_kernel_functions[function_name]
+
+    def cl_update_magnetic(self, queue, G):
+        """
+        This functions updates magnetic field components with the PML correction on the OpenCl device
+        """
+        self.update_magnetic_cl(
+            queue, self.workgrouparam, None, 
+            np.int32(self.xs), np.int32(self.xf), np.int32(self.ys), np.int32(self.yf), np.int32(self.zs), np.int32(self.zf), 
+            np.int32(self.EPhi1.shape[1]), np.int32(self.EPhi1.shape[2]), np.int32(self.EPhi1.shape[3]), 
+            np.int32(self.EPhi2.shape[1]), np.int32(self.EPhi2.shape[2]), np.int32(self.EPhi2.shape[3]), 
+            np.int32(self.thickness), G.ID_cl.data, G.Ex_cl.data, G.Ey_cl.data, G.Ez_cl.data, 
+            G.Hx_cl.data, G.Hy_cl.data, G.Hz_cl.data, 
+            self.EPhi1_cl.data, self.EPhi2_cl.data, self.ERA_cl.data, 
+            self.ERB_cl.data, self.ERE_cl.data, self.ERF_cl.data, np.float32(self.d)
+        )
+
+    def cl_update_electric(self, queue, G):
+        """
+        This functions updates electric field components with the PML correction on the OpenCl device
+        """
+        self.update_electric_cl(
+            queue, self.workgrouparam, None,
+            np.int32(self.xs), np.int32(self.xf), np.int32(self.ys), 
+            np.int32(self.yf), np.int32(self.zs), np.int32(self.zf), 
+            np.int32(self.EPhi1.shape[1]), np.int32(self.EPhi1.shape[2]), np.int32(self.EPhi1.shape[3]), 
+            np.int32(self.EPhi2.shape[1]), np.int32(self.EPhi2.shape[2]), np.int32(self.EPhi2.shape[3]), 
+            np.int32(self.thickness), G.ID_cl.data, 
+            G.Ex_cl.data, G.Ey_cl.data, G.Ez_cl.data, 
+            G.Hx_cl.data, G.Hy_cl.data, G.Hz_cl.data, 
+            self.EPhi1_cl.data, self.EPhi2_cl.data, 
+            self.ERA_cl.data, self.ERB_cl.data, self.ERE_cl.data, self.ERF_cl.data, np.float32(self.d)    
+        )
+
 
     def gpu_update_electric(self, G):
         """This functions updates electric field components with the PML correction on the GPU.

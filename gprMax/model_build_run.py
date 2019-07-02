@@ -50,7 +50,7 @@ from gprMax.fields_updates_ext import update_electric_dispersive_1pole_A
 from gprMax.fields_updates_ext import update_electric_dispersive_1pole_B
 from gprMax.fields_updates_gpu import kernels_template_fields
 
-from gprMax.opencl_solver import OpenClSolver
+from gprMax.opencl_solver_dev import OpenClSolver
 
 from gprMax.grid import FDTDGrid
 from gprMax.grid import dispersion_analysis
@@ -384,7 +384,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         if G.gpu is None:
             if G.opencl is not None:
                 print("OpenCl Solver")
-                tsolve, memsolve = cl_solver.solver(currentmodelrun, modelend, G, True)
+                tsolve, memsolve = cl_solver.solver(currentmodelrun, modelend, G)
             else:
                 tsolve = solve_cpu(currentmodelrun, modelend, G)
         else:

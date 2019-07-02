@@ -232,8 +232,11 @@ class OpenClSolver(object):
 
         # if pmls
         if self.G.pmls:
+            print("setting up the pmls")
+            
             pmlmodulelectric = 'pml_updates_electric_' + self.G.pmlformulation + '.cl'
             pmlmodulemagnetic = 'pml_updates_magnetic_' + self.G.pmlformulation + '.cl'
+            print(pmlmodulelectric, pmlmodulemagnetic)
             kernel_pml_electric = trad_jinja_env.get_template(pmlmodulelectric).render(
                 REAL=self.datatypes['REAL'],
                 N_updatecoeffsE=self.G.updatecoeffsE.size, 
@@ -265,7 +268,7 @@ class OpenClSolver(object):
             for pml in self.G.pmls:
                 pml.cl_set_workgroups(self.G)
                 pml.cl_initialize_arrays(self.queue)
-                pml.cl_get_update_funcs(kernel_pml_electric, kernel_pml_magnetic)
+                pml.cl_get_update_funcs(self.context, kernel_pml_electric, kernel_pml_magnetic)
 
         # if receviers
         if self.G.rxs:
@@ -317,8 +320,6 @@ class OpenClSolver(object):
         self.store_output_prg = cl.Program(self.context, store_output_text).build()
         self.source_prg = cl.Program(self.context, sources_text).build()
         self.kernel_field_prg = cl.Program(self.context, kernel_fields_text).build()
-
-
 
 
     def solver(self, currentmodelrun, modelend, G, elementwisekernel=False):
@@ -445,8 +446,7 @@ class OpenClSolver(object):
 
                 for pml in self.G.pmls:
                     pml.cl_update_magnetic(self.queue, G)
-                    warnings.warn("Not implemented as of now")
-                    
+                    # warnings.warn("Not implemented as of now")
 
                 # update magnetic dipoles (sources)
                 if self.G.magneticdipoles:
