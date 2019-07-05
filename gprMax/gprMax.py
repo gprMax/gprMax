@@ -25,6 +25,12 @@ import sys
 
 from enum import Enum
 
+# There is a bug with threading and MKL on macOS
+# (https://github.com/gprMax/gprMax/issues/195) . Setting the MKL threading
+# layer to sequential solves it, but must be done before numpy is imported.
+if sys.platform == 'darwin':
+    os.environ["MKL_THREADING_LAYER"] = 'sequential'
+
 import h5py
 import numpy as np
 
