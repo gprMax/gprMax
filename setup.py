@@ -112,7 +112,7 @@ if sys.platform == 'win32':
     compile_args = ['/O2', '/openmp', '/w']  # No static linking as no static version of OpenMP library; /w disables warnings
     linker_args = []
     extra_objects = []
-# Mac OS X - needs gcc (usually via HomeBrew) because the default compiler LLVM (clang) does not support OpenMP
+# macOS - needs gcc (usually via HomeBrew) because the default compiler LLVM (clang) does not support OpenMP
 #          - with gcc -fopenmp option implies -pthread
 elif sys.platform == 'darwin':
     gccpath = glob.glob('/usr/local/bin/gcc-[4-9]*')
