@@ -16,63 +16,64 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import os
+
+import cython
 import numpy as np
 from scipy.constants import c
 from scipy.constants import mu_0 as m0
 from scipy.constants import epsilon_0 as e0
 
-from gprMax.utilities import get_host_info
+from .utilities import get_host_info
 
 # Impedance of free space (Ohms)
 z0 = np.sqrt(m0 / e0)
 
-# Setting whether messages and progress bars are printed
-messages = True
-progressbars = messages
+# General setting for the simulation
+#   inputfilepath: path to inputfile location
+#   outputfilepath: path to outputfile location
+#   messages: whether to print all messages as output to stdout or not
+#   progressbars: whether to show progress bars on stdoout or not
+#   mode: 2D TMx, 2D TMy, 2D TMz, or 3D
+#   cpu, cuda, opencl: solver type
+general = {'inputfilepath': '', 'outputfilepath': '', 'messages': True,
+            'progressbars': True, 'mode': None, 'cpu': True, 'cuda': False, 'opencl': False}
 
 # Store information about host machine
 hostinfo = get_host_info()
 
-# Store information about any GPUs as a list of GPU objects
-gpus = None
-
-# Copy snapshot data from GPU to CPU during simulation
-# N.B. This will happen if the requested snapshots are too large to fit
-# on the memory of the GPU. If True this will slow performance significantly
-snapsgpu2cpu = False
+# Store information for CUDA solver type
+#   gpus: information about any GPUs as a list of GPU objects
+#   snapsgpu2cpu: copy snapshot data from GPU to CPU during simulation
+#     N.B. This will happen if the requested snapshots are too large to fit
+#     on the memory of the GPU. If True this will slow performance significantly
+cuda = {'gpus': None, 'snapsgpu2cpu': False}
 
 # Numerical dispersion analysis parameters
-# Threshold (dB) down from maximum power (0dB) of main frequency used
-# to calculate highest frequency for numerical dispersion analysis
-# Maximum allowable percentage physical phase-velocity phase error
-# Minimum grid sampling of smallest wavelength for physical wave propagation
+#   highestfreqthres: threshold (dB) down from maximum power (0dB) of main frequency used
+#     to calculate highest frequency for numerical dispersion analysis
+#   maxnumericaldisp: maximum allowable percentage physical phase-velocity phase error
+#   mingridsampling: minimum grid sampling of smallest wavelength for physical wave propagation
 numdispersion = {'highestfreqthres': 40, 'maxnumericaldisp': 2, 'mingridsampling': 3}
 
-# Simulation mode - 2D TMx, 2D TMy, 2D TMz, or 3D
-mode = None
+# Materials
+#   maxpoles: Maximum number of dispersive material poles in a model
+materials = {'maxpoles': 0, 'dispersivedtype': None, 'dispersiveCdtype': None}
 
 # Data types
 #   Solid and ID arrays use 32-bit integers (0 to 4294967295)
 #   Rigid arrays use 8-bit integers (the smallest available type to store true/false)
-#   Fractal and dispersive coefficient arrays use complex numbers (complextype)
+#   Fractal and dispersive coefficient arrays use complex numbers (complex)
 #                    which are represented as two floats
-#   Main field arrays use floats (floattype) and complex numbers (complextype)
-
-# Precision of floattype and complextype: single or double
+#   Main field arrays use floats (float_or_double) and complex numbers (complex)
+#   Precision of float_or_double and complex: single or double for numpy and C (CUDA) arrays
 precision = 'single'
 
 if precision == 'single':
-    # For numpy arrays
-    floattype = np.float32
-    complextype = np.complex64
-    # For C (CUDA) arrays
-    cudafloattype = 'float'
-    cudacomplextype = 'pycuda::complex<float>'
-
+    dtypes = {'float_or_double': np.float32, 'complex': np.complex64,
+            'cython_float_or_double': cython.float, 'cython_complex': cython.floatcomplex,
+            'C_float_or_double': 'float', 'C_complex': 'pycuda::complex<float>'}
 elif precision == 'double':
-    # For numpy arrays
-    floattype = np.float64
-    complextype = np.complex128
-    # For C (CUDA) arrays
-    cudafloattype = 'double'
-    cudacomplextype = 'pycuda::complex<double>'
+    dtypes = {'float_or_double': np.float64, 'complex': np.complex128,
+            'cython_float_or_double': cython.double, 'cython_complex': cython.doublecomplex,
+            'C_float_or_double': 'double', 'C_complex': 'pycuda::complex<double>'}

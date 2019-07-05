@@ -32,58 +32,49 @@ from terminaltables import SingleTable
 from tqdm import tqdm
 
 import gprMax.config as config
-from gprMax.config import floattype
-from gprMax.config import complextype
-from gprMax.config import cudafloattype
-from gprMax.config import cudacomplextype
-from gprMax.config import numdispersion
-from gprMax.config import hostinfo
-from gprMax.config import messages
-from gprMax.config import progressbars
-from gprMax.config import snapsgpu2cpu
-from gprMax.exceptions import GeneralError
-
-from gprMax.fields_outputs import store_outputs
-from gprMax.fields_outputs import kernel_template_store_outputs
-from gprMax.fields_outputs import write_hdf5_outputfile
-
-from gprMax.cython.fields_updates import update_electric
-from gprMax.cython.fields_updates import update_magnetic
-from gprMax.cython.fields_updates import update_electric_dispersive_multipole_A
-from gprMax.cython.fields_updates import update_electric_dispersive_multipole_B
-from gprMax.cython.fields_updates import update_electric_dispersive_1pole_A
-from gprMax.cython.fields_updates import update_electric_dispersive_1pole_B
-from gprMax.cuda.fields_updates import kernels_template_fields
-
-from gprMax.grid import FDTDGrid
-from gprMax.grid import dispersion_analysis
-
-from gprMax.input_cmds_geometry import process_geometrycmds
-from gprMax.input_cmds_file import process_python_include_code
-from gprMax.input_cmds_file import write_processed_file
-from gprMax.input_cmds_file import check_cmd_names
-from gprMax.input_cmds_singleuse import process_singlecmds
-from gprMax.input_cmds_multiuse import process_multicmds
-from gprMax.materials import Material
-from gprMax.materials import process_materials
-from gprMax.pml import CFS
-from gprMax.pml import PML
-from gprMax.pml import build_pmls
-from gprMax.receivers import gpu_initialise_rx_arrays
-from gprMax.receivers import gpu_get_rx_array
-from gprMax.snapshots import Snapshot
-from gprMax.snapshots import gpu_initialise_snapshot_array
-from gprMax.snapshots import gpu_get_snapshot_array
-from gprMax.cuda.snapshots import kernel_template_store_snapshot
-from gprMax.sources import gpu_initialise_src_arrays
-from gprMax.cuda.source_updates import kernels_template_sources
-from gprMax.utilities import get_terminal_width
-from gprMax.utilities import human_size
-from gprMax.utilities import open_path_file
-from gprMax.utilities import round32
-from gprMax.utilities import timer
-from gprMax.cython.yee_cell_build import build_electric_components
-from gprMax.cython.yee_cell_build import build_magnetic_components
+from .cuda.fields_updates import kernel_template_fields
+from .cuda.source_updates import kernel_template_sources
+from .cython.fields_updates_normal import update_electric
+from .cython.fields_updates_normal import update_magnetic
+from .cython.fields_updates_dispersive import update_electric_dispersive_1pole_A
+from .cython.fields_updates_dispersive import update_electric_dispersive_1pole_B
+from .cython.fields_updates_dispersive import update_electric_dispersive_multipole_A
+from .cython.fields_updates_dispersive import update_electric_dispersive_multipole_B
+from .cython.fields_updates_dispersive import update_electric_dispersive_debye_1pole_A
+from .cython.fields_updates_dispersive import update_electric_dispersive_debye_1pole_B
+from .cython.fields_updates_dispersive import update_electric_dispersive_debye_multipole_A
+from .cython.fields_updates_dispersive import update_electric_dispersive_debye_multipole_B
+from .cython.yee_cell_build import build_electric_components
+from .cython.yee_cell_build import build_magnetic_components
+from .exceptions import GeneralError
+from .fields_outputs import store_outputs
+from .fields_outputs import kernel_template_store_outputs
+from .fields_outputs import write_hdf5_outputfile
+from .grid import FDTDGrid
+from .grid import dispersion_analysis
+from .input_cmds_geometry import process_geometrycmds
+from .input_cmds_file import process_python_include_code
+from .input_cmds_file import write_processed_file
+from .input_cmds_file import check_cmd_names
+from .input_cmds_singleuse import process_singlecmds
+from .input_cmds_multiuse import process_multicmds
+from .materials import Material
+from .materials import process_materials
+from .pml import CFS
+from .pml import PML
+from .pml import build_pmls
+from .receivers import gpu_initialise_rx_arrays
+from .receivers import gpu_get_rx_array
+from .receivers import Rx
+from .snapshots import Snapshot
+from .snapshots import gpu_initialise_snapshot_array
+from .snapshots import gpu_get_snapshot_array
+from .sources import gpu_initialise_src_arrays
+from .utilities import get_terminal_width
+from .utilities import human_size
+from .utilities import open_path_file
+from .utilities import round32
+from .utilities import timer
 
 
 def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usernamespace):
@@ -117,10 +108,10 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         # Initialise an instance of the FDTDGrid class
         G = FDTDGrid()
 
-        G.inputfilename = os.path.split(inputfile.name)[1]
-        G.inputdirectory = os.path.dirname(os.path.abspath(inputfile.name))
+        config.inputfilepath = os.path.realpath(inputfile.name)
+        config.outputfilepath = os.path.dirname(os.path.abspath(config.inputfilepath))
         inputfilestr = '\n--- Model {}/{}, input file: {}'.format(currentmodelrun, modelend, inputfile.name)
-        if messages:
+        if config.general['messages']:
             print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
         # Add the current model run to namespace that can be accessed by
@@ -135,12 +126,12 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         for key, value in sorted(usernamespace.items()):
             if key != '__builtins__':
                 uservars += '{}: {}, '.format(key, value)
-        if messages:
+        if config.general['messages']:
             print('Constants/variables used/available for Python scripting: {{{}}}\n'.format(uservars[:-2]))
 
         # Write a file containing the input commands after Python or include file commands have been processed
         if args.write_processed:
-            write_processed_file(processedlines, appendmodelnumber, G)
+            write_processed_file(processedlines, appendmodelnumber)
 
         # Check validity of command names and that essential commands are present
         singlecmds, multicmds, geometry = check_cmd_names(processedlines)
@@ -157,18 +148,17 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         # Process parameters for commands that can only occur once in the model
         process_singlecmds(singlecmds, G)
-        from gprMax.config import mode
 
         # Process parameters for commands that can occur multiple times in the model
-        if messages: print()
+        if config.general['messages']: print()
         process_multicmds(multicmds, G)
 
         # Estimate and check memory (RAM) usage
         G.memory_estimate_basic()
         G.memory_check()
-        if messages:
+        if config.general['messages']:
             memGPU = ''
-            if config.gpus:
+            if config.cuda['gpus']:
                 memGPU = ' host + ~{} GPU'.format(human_size(G.memoryusage))
             print('\nMemory (RAM) required: ~{}{}\n'.format(human_size(G.memoryusage), memGPU))
 
@@ -184,16 +174,16 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         process_geometrycmds(geometry, G)
 
         # Build the PMLs and calculate initial coefficients
-        if messages: print()
+        if config.general['messages']: print()
         if all(value == 0 for value in G.pmlthickness.values()):
-            if messages:
+            if config.general['messages']:
                 print('PML: switched off')
             pass  # If all the PMLs are switched off don't need to build anything
         else:
             # Set default CFS parameters for PML if not given
             if not G.cfs:
                 G.cfs = [CFS()]
-            if messages:
+            if config.general['messages']:
                 if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
                     pmlinfo = str(G.pmlthickness['x0'])
                 else:
@@ -202,14 +192,14 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
                         pmlinfo += '{}: {}, '.format(key, value)
                     pmlinfo = pmlinfo[:-2] + ' cells'
                 print('PML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo))
-            pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not progressbars)
+            pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
             build_pmls(G, pbar)
             pbar.close()
 
         # Build the model, i.e. set the material properties (ID) for every edge
         # of every Yee cell
-        if messages: print()
-        pbar = tqdm(total=2, desc='Building main grid', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not progressbars)
+        if config.general['messages']: print()
+        pbar = tqdm(total=2, desc='Building main grid', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
         build_electric_components(G.solid, G.rigidE, G.ID, G)
         pbar.update()
         build_magnetic_components(G.solid, G.rigidH, G.ID, G)
@@ -218,19 +208,19 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         # Add PEC boundaries to invariant direction in 2D modes
         # N.B. 2D modes are a single cell slice of 3D grid
-        if '2D TMx' in mode:
+        if '2D TMx' in config.mode:
             # Ey & Ez components
             G.ID[1, 0, :, :] = 0
             G.ID[1, 1, :, :] = 0
             G.ID[2, 0, :, :] = 0
             G.ID[2, 1, :, :] = 0
-        elif '2D TMy' in mode:
+        elif '2D TMy' in config.mode:
             # Ex & Ez components
             G.ID[0, :, 0, :] = 0
             G.ID[0, :, 1, :] = 0
             G.ID[2, :, 0, :] = 0
             G.ID[2, :, 1, :] = 0
-        elif '2D TMz' in mode:
+        elif '2D TMz' in config.mode:
             # Ex & Ey components
             G.ID[0, :, :, 0] = 0
             G.ID[0, :, :, 1] = 0
@@ -245,16 +235,23 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         # Initialise arrays of update coefficients to pass to update functions
         G.initialise_std_update_coeff_arrays()
 
-        # Initialise arrays of update coefficients and temporary values if
-        # there are any dispersive materials
-        if Material.maxpoles != 0:
+        # Set datatype for dispersive arrays if there are any dispersive materials.
+        if config.materials['maxpoles'] != 0:
+            drudelorentz = any([m for m in G.materials if 'drude' in m.type or 'lorentz' in m.type])
+            if drudelorentz:
+                config.materials['dispersivedtype'] = config.dtypes['complex']
+                config.materials['dispersiveCdtype'] = config.dtypes['C_complex']
+            else:
+                config.materials['dispersivedtype'] = config.dtypes['float_or_double']
+                config.materials['dispersiveCdtype'] = config.dtypes['C_float_or_double']
+
             # Update estimated memory (RAM) usage
-            G.memoryusage += int(3 * Material.maxpoles * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(complextype).itemsize)
+            G.memoryusage += int(3 * config.materials['maxpoles'] * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(config.materials['dispersivedtype']).itemsize)
             G.memory_check()
-            if messages:
+            if config.general['messages']:
                 print('\nMemory (RAM) required - updated (dispersive): ~{}\n'.format(human_size(G.memoryusage)))
 
-            G.initialise_dispersive_arrays()
+            G.initialise_dispersive_arrays(config.materials['dispersivedtype'])
 
         # Check there is sufficient memory to store any snapshots
         if G.snapshots:
@@ -264,13 +261,13 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
                 snapsmemsize += (2 * snap.datasizefield)
             G.memoryusage += int(snapsmemsize)
             G.memory_check(snapsmemsize=int(snapsmemsize))
-            if messages:
+            if config.general['messages']:
                 print('\nMemory (RAM) required - updated (snapshots): ~{}\n'.format(human_size(G.memoryusage)))
 
         # Process complete list of materials - calculate update coefficients,
         # store in arrays, and build text list of materials/properties
         materialsdata = process_materials(G)
-        if messages:
+        if config.general['messages']:
             print('\nMaterials:')
             materialstable = SingleTable(materialsdata)
             materialstable.outer_border = False
@@ -279,19 +276,19 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         # Check to see if numerical dispersion might be a problem
         results = dispersion_analysis(G)
-        if results['error'] and messages:
+        if results['error'] and config.general['messages']:
             print(Fore.RED + "\nWARNING: Numerical dispersion analysis not carried out as {}".format(results['error']) + Style.RESET_ALL)
-        elif results['N'] < numdispersion['mingridsampling']:
+        elif results['N'] < config.numdispersion['mingridsampling']:
             raise GeneralError("Non-physical wave propagation: Material '{}' has wavelength sampled by {} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {:g}Hz".format(results['material'].ID, results['N'], results['maxfreq']))
-        elif results['deltavp'] and np.abs(results['deltavp']) > numdispersion['maxnumericaldisp'] and messages:
+        elif results['deltavp'] and np.abs(results['deltavp']) > config.numdispersion['maxnumericaldisp'] and config.general['messages']:
             print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']) + Style.RESET_ALL)
-        elif results['deltavp'] and messages:
+        elif results['deltavp'] and config.general['messages']:
             print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
 
     # If geometry information to be reused between model runs
     else:
         inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(currentmodelrun, modelend, inputfile.name)
-        if messages:
+        if config.general['messages']:
             print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
         # Clear arrays for field components
@@ -320,20 +317,18 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             receiver.zcoord = receiver.zcoordorigin + (currentmodelrun - 1) * G.rxsteps[2]
 
     # Write files for any geometry views and geometry object outputs
-    if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only and messages:
+    if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only and config.general['messages']:
         print(Fore.RED + '\nWARNING: No geometry views or geometry objects to output found.' + Style.RESET_ALL)
-    if G.geometryviews:
-        if messages: print()
-        for i, geometryview in enumerate(G.geometryviews):
-            geometryview.set_filename(appendmodelnumber, G)
-            pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not progressbars)
-            geometryview.write_vtk(G, pbar)
-            pbar.close()
-    if G.geometryobjectswrite:
-        for i, geometryobject in enumerate(G.geometryobjectswrite):
-            pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {}/{}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not progressbars)
-            geometryobject.write_hdf5(G, pbar)
-            pbar.close()
+    if config.general['messages']: print()
+    for i, geometryview in enumerate(G.geometryviews):
+        geometryview.set_filename(appendmodelnumber)
+        pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
+        geometryview.write_vtk(G, pbar)
+        pbar.close()
+    for i, geometryobject in enumerate(G.geometryobjectswrite):
+        pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {}/{}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
+        geometryobject.write_hdf5(G, pbar)
+        pbar.close()
 
     # If only writing geometry information
     if args.geometry_only:
@@ -341,29 +336,17 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
     # Run simulation
     else:
-        # Output filename
-        inputdirectory, inputfilename = os.path.split(os.path.join(G.inputdirectory, G.inputfilename))
-        if G.outputdirectory is None:
-            outputdir = inputdirectory
-        else:
-            outputdir = G.outputdirectory
-        # Save current directory
-        curdir = os.getcwd()
-        os.chdir(inputdirectory)
-        outputdir = os.path.abspath(outputdir)
-        if not os.path.isdir(outputdir):
-            os.mkdir(outputdir)
-            if messages:
-                print('\nCreated output directory: {}'.format(outputdir))
-        # Restore current directory
-        os.chdir(curdir)
-        basename, ext = os.path.splitext(inputfilename)
-        outputfile = os.path.join(outputdir, basename + appendmodelnumber + '.out')
-        if messages:
+        # Check and set output directory and filename
+        if not os.path.isdir(config.outputfilepath):
+            os.mkdir(config.outputfilepath)
+            if config.general['messages']:
+                print('\nCreated output directory: {}'.format(config.outputfilepath))
+        outputfile = os.path.join(config.outputfilepath, os.path.splitext(os.path.split(config.inputfilepath)[1])[0] + appendmodelnumber + '.out')
+        if config.general['messages']:
             print('\nOutput file: {}\n'.format(outputfile))
 
         # Main FDTD solving functions for either CPU or GPU
-        if config.gpus is None:
+        if config.cuda['gpus'] is None:
             tsolve = solve_cpu(currentmodelrun, modelend, G)
         else:
             tsolve, memsolve = solve_gpu(currentmodelrun, modelend, G)
@@ -374,21 +357,21 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         # Write any snapshots to file
         if G.snapshots:
             # Create directory and construct filename from user-supplied name and model run number
-            snapshotdir = os.path.join(G.inputdirectory, os.path.splitext(G.inputfilename)[0] + '_snaps' + appendmodelnumber)
+            snapshotdir = os.path.splitext(config.inputfilepath)[0] + '_snaps' + appendmodelnumber
             if not os.path.exists(snapshotdir):
                 os.mkdir(snapshotdir)
 
-            if messages: print()
+            if config.general['messages']: print()
             for i, snap in enumerate(G.snapshots):
                 snap.filename = os.path.abspath(os.path.join(snapshotdir, snap.basefilename + '.vti'))
-                pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte', unit_scale=True, desc='Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not progressbars)
+                pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte', unit_scale=True, desc='Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
                 snap.write_vtk_imagedata(pbar, G)
                 pbar.close()
-            if messages: print()
+            if config.general['messages']: print()
 
-        if messages:
+        if config.general['messages']:
             memGPU = ''
-            if config.gpus:
+            if config.cuda['gpus']:
                 memGPU = ' host + ~{} GPU'.format(human_size(memsolve))
             print('\nMemory (RAM) used: ~{}{}'.format(human_size(p.memory_full_info().uss), memGPU))
             print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
@@ -415,9 +398,26 @@ def solve_cpu(currentmodelrun, modelend, G):
         tsolve (float): Time taken to execute solving (seconds)
     """
 
+    # Set update functions if there are dispersive materials
+    if config.materials['maxpoles'] != 0:
+        if config.materials['dispersivedtype'] == config.dtypes['complex']:
+            if config.materials['maxpoles'] == 1:
+                update_electric_dispersive_A = update_electric_dispersive_1pole_A
+                update_electric_dispersive_B = update_electric_dispersive_1pole_B
+            elif config.materials['maxpoles'] > 1:
+                update_electric_dispersive_A = update_electric_dispersive_multipole_A
+                update_electric_dispersive_B = update_electric_dispersive_multipole_B
+        elif config.materials['dispersivedtype'] == config.dtypes['float_or_double']:
+            if config.materials['maxpoles'] == 2:
+                update_electric_dispersive_A = update_electric_dispersive_debye_1pole_A
+                update_electric_dispersive_B = update_electric_dispersive_debye_1pole_B
+            elif config.materials['maxpoles'] == 1:
+                update_electric_dispersive_A = update_electric_dispersive_debye_multipole_A
+                update_electric_dispersive_B = update_electric_dispersive_debye_multipole_B
+
     tsolvestart = timer()
 
-    for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not progressbars):
+    for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars']):
         # Store field component values for every receiver and transmission line
         store_outputs(iteration, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
 
@@ -427,7 +427,7 @@ def solve_cpu(currentmodelrun, modelend, G):
                 snap.store(G)
 
         # Update magnetic field components
-        update_magnetic(G.nx, G.ny, G.nz, hostinfo['ompthreads'], G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
+        update_magnetic(G.nx, G.ny, G.nz, config.hostinfo['ompthreads'], G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
 
         # Update magnetic field components with the PML correction
         for pml in G.pmls:
@@ -439,14 +439,12 @@ def solve_cpu(currentmodelrun, modelend, G):
 
         # Update electric field components
         # All materials are non-dispersive so do standard update
-        if Material.maxpoles == 0:
-            update_electric(G.nx, G.ny, G.nz, hostinfo['ompthreads'], G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
+        if config.materials['maxpoles'] == 0:
+            update_electric(G.nx, G.ny, G.nz, config.hostinfo['ompthreads'], G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
-        elif Material.maxpoles == 1:
-            update_electric_dispersive_1pole_A(G.nx, G.ny, G.nz, hostinfo['ompthreads'], G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
-        elif Material.maxpoles > 1:
-            update_electric_dispersive_multipole_A(G.nx, G.ny, G.nz, hostinfo['ompthreads'], Material.maxpoles, G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
+        else:
+            update_electric_dispersive_A(G.nx, G.ny, G.nz, config.hostinfo['ompthreads'], config.materials['maxpoles'], G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
 
         # Update electric field components with the PML correction
         for pml in G.pmls:
@@ -460,10 +458,8 @@ def solve_cpu(currentmodelrun, modelend, G):
         # (it is split into two parts as it requires present and updated electric
         # field values). Therefore it can only be completely updated after the
         # electric field has been updated by the PML and source updates.
-        if Material.maxpoles == 1:
-            update_electric_dispersive_1pole_B(G.nx, G.ny, G.nz, hostinfo['ompthreads'], G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez)
-        elif Material.maxpoles > 1:
-            update_electric_dispersive_multipole_B(G.nx, G.ny, G.nz, hostinfo['ompthreads'], Material.maxpoles, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez)
+        if config.materials['maxpoles'] != 0:
+            update_electric_dispersive_B(G.nx, G.ny, G.nz, config.hostinfo['ompthreads'], config.materials['maxpoles'], G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez)
 
     tsolve = timer() - tsolvestart
 
@@ -494,31 +490,29 @@ def solve_gpu(currentmodelrun, modelend, G):
         compiler_opts = None
 
     # Create device handle and context on specifc GPU device (and make it current context)
-    dev = drv.Device(config.gpus.deviceID)
+    dev = drv.Device(config.cuda['gpus'].deviceID)
     ctx = dev.make_context()
 
-    # Electric and magnetic field updates - prepare kernels, and get kernel functions
-    if Material.maxpoles > 0:
-        kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=cudafloattype, COMPLEX=cudacomplextype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=G.updatecoeffsdispersive.shape[1], NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=G.Tx.shape[1], NY_T=G.Tx.shape[2], NZ_T=G.Tx.shape[3]), options=compiler_opts)
-    else:   # Set to one any substitutions for dispersive materials
-        kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=cudafloattype, COMPLEX=cudacomplextype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=1, NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=1, NY_T=1, NZ_T=1), options=compiler_opts)
+    # Electric and magnetic field updates - prepare kernels, get kernel functions, and initialise arrays on GPU
+    if config.materials['maxpoles'] == 0:
+        kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=config.dtypes['C_float_or_double'], REAL_OR_COMPLEX=config.dtypes['C_complex'], N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=1, NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=1, NY_T=1, NZ_T=1), options=compiler_opts)
+
+    else:   # # If there are any dispersive materials (updates are split into two parts as they require present and updated electric field values).
+        kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=config.dtypes['C_float_or_double'], REAL_OR_COMPLEX=config.dtypes['C_complex'], N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=G.updatecoeffsdispersive.shape[1], NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=G.Tx.shape[1], NY_T=G.Tx.shape[2], NZ_T=G.Tx.shape[3]), options=compiler_opts)
+        update_e_dispersive_A_gpu = kernels_fields.get_function("update_e_dispersive_A")
+        update_e_dispersive_B_gpu = kernels_fields.get_function("update_e_dispersive_B")
+        G.gpu_initialise_dispersive_arrays()
     update_e_gpu = kernels_fields.get_function("update_e")
     update_h_gpu = kernels_fields.get_function("update_h")
 
     # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for fields kernels
     updatecoeffsE = kernels_fields.get_global('updatecoeffsE')[0]
     updatecoeffsH = kernels_fields.get_global('updatecoeffsH')[0]
-    if G.updatecoeffsE.nbytes + G.updatecoeffsH.nbytes > config.gpus.constmem:
-        raise GeneralError('Too many materials in the model to fit onto constant memory of size {} on {} - {} GPU'.format(human_size(config.gpus.constmem), config.gpus.deviceID, config.gpus.name))
+    if G.updatecoeffsE.nbytes + G.updatecoeffsH.nbytes > config.cuda['gpus'].constmem:
+        raise GeneralError('Too many materials in the model to fit onto constant memory of size {} on {} - {} GPU'.format(human_size(config.cuda['gpus'].constmem), config.cuda['gpus'].deviceID, config.cuda['gpus'].name))
     else:
         drv.memcpy_htod(updatecoeffsE, G.updatecoeffsE)
         drv.memcpy_htod(updatecoeffsH, G.updatecoeffsH)
-
-    # Electric and magnetic field updates - dispersive materials - get kernel functions and initialise array on GPU
-    if Material.maxpoles > 0:  # If there are any dispersive materials (updates are split into two parts as they require present and updated electric field values).
-        update_e_dispersive_A_gpu = kernels_fields.get_function("update_e_dispersive_A")
-        update_e_dispersive_B_gpu = kernels_fields.get_function("update_e_dispersive_B")
-        G.gpu_initialise_dispersive_arrays()
 
     # Electric and magnetic field updates - set blocks per grid and initialise field arrays on GPU
     G.gpu_set_blocks_per_grid()
@@ -527,12 +521,10 @@ def solve_gpu(currentmodelrun, modelend, G):
     # PML updates
     if G.pmls:
         # Prepare kernels
-        pmlmodulelectric = 'gprMax.pml_updates.pml_updates_electric_' + G.pmlformulation + '_gpu'
-        kernelelectricfunc = getattr(import_module(pmlmodulelectric), 'kernels_template_pml_electric_' + G.pmlformulation)
-        pmlmodulemagnetic = 'gprMax.pml_updates.pml_updates_magnetic_' + G.pmlformulation + '_gpu'
-        kernelmagneticfunc = getattr(import_module(pmlmodulemagnetic), 'kernels_template_pml_magnetic_' + G.pmlformulation)
-        kernels_pml_electric = SourceModule(kernelelectricfunc.substitute(REAL=cudafloattype, N_updatecoeffsE=G.updatecoeffsE.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
-        kernels_pml_magnetic = SourceModule(kernelmagneticfunc.substitute(REAL=cudafloattype, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsH.shape[1], NX_FIELDS=G.Hx.shape[0], NY_FIELDS=G.Hx.shape[1], NZ_FIELDS=G.Hx.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
+        kernelelectricfunc = getattr(import_module('gprMax.cuda.pml_updates_electric_' + G.pmlformulation), 'kernels_template_pml_electric_' + G.pmlformulation)
+        kernelmagneticfunc = getattr(import_module('gprMax.cuda.pml_updates_magnetic_' + G.pmlformulation), 'kernels_template_pml_magnetic_' + G.pmlformulation)
+        kernels_pml_electric = SourceModule(kernelelectricfunc.substitute(REAL=config.dtypes['C_float_or_double'], N_updatecoeffsE=G.updatecoeffsE.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
+        kernels_pml_magnetic = SourceModule(kernelmagneticfunc.substitute(REAL=config.dtypes['C_float_or_double'], N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsH.shape[1], NX_FIELDS=G.Hx.shape[0], NY_FIELDS=G.Hx.shape[1], NZ_FIELDS=G.Hx.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
         # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for PML kernels
         updatecoeffsE = kernels_pml_electric.get_global('updatecoeffsE')[0]
         updatecoeffsH = kernels_pml_magnetic.get_global('updatecoeffsH')[0]
@@ -549,12 +541,13 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Initialise arrays on GPU
         rxcoords_gpu, rxs_gpu = gpu_initialise_rx_arrays(G)
         # Prepare kernel and get kernel function
-        kernel_store_outputs = SourceModule(kernel_template_store_outputs.substitute(REAL=cudafloattype, NY_RXCOORDS=3, NX_RXS=6, NY_RXS=G.iterations, NZ_RXS=len(G.rxs), NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2]), options=compiler_opts)
+
+        kernel_store_outputs = SourceModule(kernel_template_store_outputs.substitute(REAL=config.dtypes['C_float_or_double'], NY_RXCOORDS=3, NX_RXS=len(Rx.gpu_allowableoutputs), NY_RXS=G.iterations, NZ_RXS=len(G.rxs), NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2]), options=compiler_opts)
         store_outputs_gpu = kernel_store_outputs.get_function("store_outputs")
 
     # Sources - initialise arrays on GPU, prepare kernel and get kernel functions
     if G.voltagesources + G.hertziandipoles + G.magneticdipoles:
-        kernels_sources = SourceModule(kernels_template_sources.substitute(REAL=cudafloattype, N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_SRCINFO=4, NY_SRCWAVES=G.iterations, NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
+        kernels_sources = SourceModule(kernels_template_sources.substitute(REAL=config.dtypes['C_float_or_double'], N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_SRCINFO=4, NY_SRCWAVES=G.iterations, NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
         # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for source kernels
         updatecoeffsE = kernels_sources.get_global('updatecoeffsE')[0]
         updatecoeffsH = kernels_sources.get_global('updatecoeffsH')[0]
@@ -575,7 +568,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Initialise arrays on GPU
         snapEx_gpu, snapEy_gpu, snapEz_gpu, snapHx_gpu, snapHy_gpu, snapHz_gpu = gpu_initialise_snapshot_array(G)
         # Prepare kernel and get kernel function
-        kernel_store_snapshot = SourceModule(kernel_template_store_snapshot.substitute(REAL=cudafloattype, NX_SNAPS=Snapshot.nx_max, NY_SNAPS=Snapshot.ny_max, NZ_SNAPS=Snapshot.nz_max, NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2]), options=compiler_opts)
+        kernel_store_snapshot = SourceModule(kernel_template_store_snapshot.substitute(REAL=config.dtypes['C_float_or_double'], NX_SNAPS=Snapshot.nx_max, NY_SNAPS=Snapshot.ny_max, NZ_SNAPS=Snapshot.nz_max, NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2]), options=compiler_opts)
         store_snapshot_gpu = kernel_store_snapshot.get_function("store_snapshot")
 
     # Iteration loop timer
@@ -583,7 +576,7 @@ def solve_gpu(currentmodelrun, modelend, G):
     iterend = drv.Event()
     iterstart.record()
 
-    for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not progressbars):
+    for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars']):
 
         # Get GPU memory usage on final iteration
         if iteration == G.iterations - 1:
@@ -600,7 +593,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Store any snapshots
         for i, snap in enumerate(G.snapshots):
             if snap.time == iteration + 1:
-                if not snapsgpu2cpu:
+                if not config.cuda['snapsgpu2cpu']:
                     store_snapshot_gpu(np.int32(i), np.int32(snap.xs),
                                        np.int32(snap.xf), np.int32(snap.ys),
                                        np.int32(snap.yf), np.int32(snap.zs),
@@ -629,7 +622,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         update_h_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
                      G.ID_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata,
                      G.Hz_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata,
-                     G.Ez_gpu.gpudata, block=config.gpus.tpb, grid=config.gpus.bpg)
+                     G.Ez_gpu.gpudata, block=config.cuda['gpus'].tpb, grid=config.cuda['gpus'].bpg)
 
         # Update magnetic field components with the PML correction
         for pml in G.pmls:
@@ -638,7 +631,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Update magnetic field components for magetic dipole sources
         if G.magneticdipoles:
             update_magnetic_dipole_gpu(np.int32(len(G.magneticdipoles)), np.int32(iteration),
-                                       floattype(G.dx), floattype(G.dy), floattype(G.dz),
+                                       config.dtypes['float_or_double'](G.dx), config.dtypes['float_or_double'](G.dy), config.dtypes['float_or_double'](G.dz),
                                        srcinfo1_magnetic_gpu.gpudata, srcinfo2_magnetic_gpu.gpudata,
                                        srcwaves_magnetic_gpu.gpudata, G.ID_gpu.gpudata,
                                        G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
@@ -646,20 +639,20 @@ def solve_gpu(currentmodelrun, modelend, G):
 
         # Update electric field components
         # If all materials are non-dispersive do standard update
-        if Material.maxpoles == 0:
+        if config.materials['maxpoles'] == 0:
             update_e_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz), G.ID_gpu.gpudata,
                          G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
                          G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                         block=config.gpus.tpb, grid=config.gpus.bpg)
+                         block=config.cuda['gpus'].tpb, grid=config.cuda['gpus'].bpg)
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
         else:
             update_e_dispersive_A_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
-                                      np.int32(Material.maxpoles), G.updatecoeffsdispersive_gpu.gpudata,
+                                      np.int32(config.materials['maxpoles']), G.updatecoeffsdispersive_gpu.gpudata,
                                       G.Tx_gpu.gpudata, G.Ty_gpu.gpudata, G.Tz_gpu.gpudata, G.ID_gpu.gpudata,
                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
                                       G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                                      block=config.gpus.tpb, grid=config.gpus.bpg)
+                                      block=config.cuda['gpus'].tpb, grid=config.cuda['gpus'].bpg)
 
         # Update electric field components with the PML correction
         for pml in G.pmls:
@@ -668,7 +661,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Update electric field components for voltage sources
         if G.voltagesources:
             update_voltage_source_gpu(np.int32(len(G.voltagesources)), np.int32(iteration),
-                                      floattype(G.dx), floattype(G.dy), floattype(G.dz),
+                                      config.dtypes['float_or_double'](G.dx), config.dtypes['float_or_double'](G.dy), config.dtypes['float_or_double'](G.dz),
                                       srcinfo1_voltage_gpu.gpudata, srcinfo2_voltage_gpu.gpudata,
                                       srcwaves_voltage_gpu.gpudata, G.ID_gpu.gpudata,
                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
@@ -677,26 +670,26 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Update electric field components for Hertzian dipole sources (update any Hertzian dipole sources last)
         if G.hertziandipoles:
             update_hertzian_dipole_gpu(np.int32(len(G.hertziandipoles)), np.int32(iteration),
-                                       floattype(G.dx), floattype(G.dy), floattype(G.dz),
+                                       config.dtypes['float_or_double'](G.dx), config.dtypes['float_or_double'](G.dy), config.dtypes['float_or_double'](G.dz),
                                        srcinfo1_hertzian_gpu.gpudata, srcinfo2_hertzian_gpu.gpudata,
                                        srcwaves_hertzian_gpu.gpudata, G.ID_gpu.gpudata,
                                        G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
                                        block=(1, 1, 1), grid=(round32(len(G.hertziandipoles)), 1, 1))
 
         # If there are any dispersive materials do 2nd part of dispersive update (it is split into two parts as it requires present and updated electric field values). Therefore it can only be completely updated after the electric field has been updated by the PML and source updates.
-        if Material.maxpoles > 0:
+        if config.materials['maxpoles'] > 0:
             update_e_dispersive_B_gpu(np.int32(G.nx), np.int32(G.ny), np.int32(G.nz),
-                                      np.int32(Material.maxpoles), G.updatecoeffsdispersive_gpu.gpudata,
+                                      np.int32(config.materials['maxpoles']), G.updatecoeffsdispersive_gpu.gpudata,
                                       G.Tx_gpu.gpudata, G.Ty_gpu.gpudata, G.Tz_gpu.gpudata, G.ID_gpu.gpudata,
                                       G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                                      block=config.gpus.tpb, grid=config.gpus.bpg)
+                                      block=config.cuda['gpus'].tpb, grid=config.cuda['gpus'].bpg)
 
     # Copy output from receivers array back to correct receiver objects
     if G.rxs:
         gpu_get_rx_array(rxs_gpu.get(), rxcoords_gpu.get(), G)
 
     # Copy data from any snapshots back to correct snapshot objects
-    if G.snapshots and not snapsgpu2cpu:
+    if G.snapshots and not config.cuda['snapsgpu2cpu']:
         for i, snap in enumerate(G.snapshots):
             gpu_get_snapshot_array(snapEx_gpu.get(), snapEy_gpu.get(), snapEz_gpu.get(),
                                    snapHx_gpu.get(), snapHy_gpu.get(), snapHz_gpu.get(), i, snap)

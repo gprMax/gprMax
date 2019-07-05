@@ -20,7 +20,7 @@ import os
 import sys
 from io import StringIO
 
-from gprMax.exceptions import CmdInputError
+from .exceptions import CmdInputError
 
 
 def process_python_include_code(inputfile, usernamespace):
@@ -151,7 +151,7 @@ def process_include_files(hashcmds, inputfile):
     return processedincludecmds
 
 
-def write_processed_file(processedlines, appendmodelnumber, G):
+def write_processed_file(processedlines, appendmodelnumber):
     """
     Writes an input file after any Python code and include commands
     in the original input file have been processed.
@@ -160,10 +160,9 @@ def write_processed_file(processedlines, appendmodelnumber, G):
         processedlines (list): Input commands after after processing any
             Python code and include commands.
         appendmodelnumber (str): Text to append to filename.
-        G (class): Grid class instance - holds essential parameters describing the model.
     """
 
-    processedfile = os.path.join(G.inputdirectory, os.path.splitext(G.inputfilename)[0] + appendmodelnumber + '_processed.in')
+    processedfile = os.path.join(outputfilepath, os.path.splitext(inputfilepath)[0] + appendmodelnumber + '_processed.in')
 
     with open(processedfile, 'w') as f:
         for item in processedlines:

@@ -20,7 +20,7 @@ import numpy as np
 cimport numpy as np
 from cython.parallel import prange
 
-from gprMax.config cimport floattype_t
+from gprMax.config cimport float_or_double
 
 
 cpdef void order1_xminus(
@@ -31,20 +31,20 @@ cpdef void order1_xminus(
                         int zs,
                         int zf,
                         int nthreads,
-                        floattype_t[:, ::1] updatecoeffsE,
+                        float_or_double[:, ::1] updatecoeffsE,
                         np.uint32_t[:, :, :, ::1] ID,
-                        floattype_t[:, :, ::1] Ex,
-                        floattype_t[:, :, ::1] Ey,
-                        floattype_t[:, :, ::1] Ez,
-                        floattype_t[:, :, ::1] Hx,
-                        floattype_t[:, :, ::1] Hy,
-                        floattype_t[:, :, ::1] Hz,
-                        floattype_t[:, :, :, ::1] Phi1,
-                        floattype_t[:, :, :, ::1] Phi2,
-                        floattype_t[:, ::1] RA,
-                        floattype_t[:, ::1] RB,
-                        floattype_t[:, ::1] RE,
-                        floattype_t[:, ::1] RF,
+                        float_or_double[:, :, ::1] Ex,
+                        float_or_double[:, :, ::1] Ey,
+                        float_or_double[:, :, ::1] Ez,
+                        float_or_double[:, :, ::1] Hx,
+                        float_or_double[:, :, ::1] Hy,
+                        float_or_double[:, :, ::1] Hz,
+                        float_or_double[:, :, :, ::1] Phi1,
+                        float_or_double[:, :, :, ::1] Phi2,
+                        float_or_double[:, ::1] RA,
+                        float_or_double[:, ::1] RB,
+                        float_or_double[:, ::1] RE,
+                        float_or_double[:, ::1] RF,
                         float d
                 ):
     """This function updates the Ey and Ez field components for the xminus slab.
@@ -59,7 +59,7 @@ cpdef void order1_xminus(
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialEy, materialEz
-    cdef floattype_t dx, dHy, dHz, RA01, RB0, RE0, RF0
+    cdef float_or_double dx, dHy, dHz, RA01, RB0, RE0, RF0
     dx = d
     nx = xf - xs
     ny = yf - ys
@@ -94,20 +94,20 @@ cpdef void order2_xminus(
                         int zs,
                         int zf,
                         int nthreads,
-                        floattype_t[:, ::1] updatecoeffsE,
+                        float_or_double[:, ::1] updatecoeffsE,
                         np.uint32_t[:, :, :, ::1] ID,
-                        floattype_t[:, :, ::1] Ex,
-                        floattype_t[:, :, ::1] Ey,
-                        floattype_t[:, :, ::1] Ez,
-                        floattype_t[:, :, ::1] Hx,
-                        floattype_t[:, :, ::1] Hy,
-                        floattype_t[:, :, ::1] Hz,
-                        floattype_t[:, :, :, ::1] Phi1,
-                        floattype_t[:, :, :, ::1] Phi2,
-                        floattype_t[:, ::1] RA,
-                        floattype_t[:, ::1] RB,
-                        floattype_t[:, ::1] RE,
-                        floattype_t[:, ::1] RF,
+                        float_or_double[:, :, ::1] Ex,
+                        float_or_double[:, :, ::1] Ey,
+                        float_or_double[:, :, ::1] Ez,
+                        float_or_double[:, :, ::1] Hx,
+                        float_or_double[:, :, ::1] Hy,
+                        float_or_double[:, :, ::1] Hz,
+                        float_or_double[:, :, :, ::1] Phi1,
+                        float_or_double[:, :, :, ::1] Phi2,
+                        float_or_double[:, ::1] RA,
+                        float_or_double[:, ::1] RB,
+                        float_or_double[:, ::1] RE,
+                        float_or_double[:, ::1] RF,
                         float d
                 ):
     """This function updates the Ey and Ez field components for the xminus slab.
@@ -122,7 +122,7 @@ cpdef void order2_xminus(
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialEy, materialEz
-    cdef floattype_t dx, dHy, dHz, RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01
+    cdef float_or_double dx, dHy, dHz, RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01
     dx = d
     nx = xf - xs
     ny = yf - ys
@@ -165,20 +165,20 @@ cpdef void order1_xplus(
                         int zs,
                         int zf,
                         int nthreads,
-                        floattype_t[:, ::1] updatecoeffsE,
+                        float_or_double[:, ::1] updatecoeffsE,
                         np.uint32_t[:, :, :, ::1] ID,
-                        floattype_t[:, :, ::1] Ex,
-                        floattype_t[:, :, ::1] Ey,
-                        floattype_t[:, :, ::1] Ez,
-                        floattype_t[:, :, ::1] Hx,
-                        floattype_t[:, :, ::1] Hy,
-                        floattype_t[:, :, ::1] Hz,
-                        floattype_t[:, :, :, ::1] Phi1,
-                        floattype_t[:, :, :, ::1] Phi2,
-                        floattype_t[:, ::1] RA,
-                        floattype_t[:, ::1] RB,
-                        floattype_t[:, ::1] RE,
-                        floattype_t[:, ::1] RF,
+                        float_or_double[:, :, ::1] Ex,
+                        float_or_double[:, :, ::1] Ey,
+                        float_or_double[:, :, ::1] Ez,
+                        float_or_double[:, :, ::1] Hx,
+                        float_or_double[:, :, ::1] Hy,
+                        float_or_double[:, :, ::1] Hz,
+                        float_or_double[:, :, :, ::1] Phi1,
+                        float_or_double[:, :, :, ::1] Phi2,
+                        float_or_double[:, ::1] RA,
+                        float_or_double[:, ::1] RB,
+                        float_or_double[:, ::1] RE,
+                        float_or_double[:, ::1] RF,
                         float d
                 ):
     """This function updates the Ey and Ez field components for the xplus slab.
@@ -193,7 +193,7 @@ cpdef void order1_xplus(
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialEy, materialEz
-    cdef floattype_t dx, dHy, dHz, RA01, RB0, RE0, RF0
+    cdef float_or_double dx, dHy, dHz, RA01, RB0, RE0, RF0
     dx = d
     nx = xf - xs
     ny = yf - ys
@@ -228,20 +228,20 @@ cpdef void order2_xplus(
                         int zs,
                         int zf,
                         int nthreads,
-                        floattype_t[:, ::1] updatecoeffsE,
+                        float_or_double[:, ::1] updatecoeffsE,
                         np.uint32_t[:, :, :, ::1] ID,
-                        floattype_t[:, :, ::1] Ex,
-                        floattype_t[:, :, ::1] Ey,
-                        floattype_t[:, :, ::1] Ez,
-                        floattype_t[:, :, ::1] Hx,
-                        floattype_t[:, :, ::1] Hy,
-                        floattype_t[:, :, ::1] Hz,
-                        floattype_t[:, :, :, ::1] Phi1,
-                        floattype_t[:, :, :, ::1] Phi2,
-                        floattype_t[:, ::1] RA,
-                        floattype_t[:, ::1] RB,
-                        floattype_t[:, ::1] RE,
-                        floattype_t[:, ::1] RF,
+                        float_or_double[:, :, ::1] Ex,
+                        float_or_double[:, :, ::1] Ey,
+                        float_or_double[:, :, ::1] Ez,
+                        float_or_double[:, :, ::1] Hx,
+                        float_or_double[:, :, ::1] Hy,
+                        float_or_double[:, :, ::1] Hz,
+                        float_or_double[:, :, :, ::1] Phi1,
+                        float_or_double[:, :, :, ::1] Phi2,
+                        float_or_double[:, ::1] RA,
+                        float_or_double[:, ::1] RB,
+                        float_or_double[:, ::1] RE,
+                        float_or_double[:, ::1] RF,
                         float d
                 ):
     """This function updates the Ey and Ez field components for the xplus slab.
@@ -256,7 +256,7 @@ cpdef void order2_xplus(
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialEy, materialEz
-    cdef floattype_t dx, dHy, dHz, RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01
+    cdef float_or_double dx, dHy, dHz, RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01
     dx = d
     nx = xf - xs
     ny = yf - ys
@@ -299,20 +299,20 @@ cpdef void order1_yminus(
                         int zs,
                         int zf,
                         int nthreads,
-                        floattype_t[:, ::1] updatecoeffsE,
+                        float_or_double[:, ::1] updatecoeffsE,
                         np.uint32_t[:, :, :, ::1] ID,
-                        floattype_t[:, :, ::1] Ex,
-                        floattype_t[:, :, ::1] Ey,
-                        floattype_t[:, :, ::1] Ez,
-                        floattype_t[:, :, ::1] Hx,
-                        floattype_t[:, :, ::1] Hy,
-                        floattype_t[:, :, ::1] Hz,
-                        floattype_t[:, :, :, ::1] Phi1,
-                        floattype_t[:, :, :, ::1] Phi2,
-                        floattype_t[:, ::1] RA,
-                        floattype_t[:, ::1] RB,
-                        floattype_t[:, ::1] RE,
-                        floattype_t[:, ::1] RF,
+                        float_or_double[:, :, ::1] Ex,
+                        float_or_double[:, :, ::1] Ey,
+                        float_or_double[:, :, ::1] Ez,
+                        float_or_double[:, :, ::1] Hx,
+                        float_or_double[:, :, ::1] Hy,
+                        float_or_double[:, :, ::1] Hz,
+                        float_or_double[:, :, :, ::1] Phi1,
+                        float_or_double[:, :, :, ::1] Phi2,
+                        float_or_double[:, ::1] RA,
+                        float_or_double[:, ::1] RB,
+                        float_or_double[:, ::1] RE,
+                        float_or_double[:, ::1] RF,
                         float d
                 ):
     """This function updates the Ex and Ez field components for the yminus slab.
@@ -327,7 +327,7 @@ cpdef void order1_yminus(
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialEx, materialEz
-    cdef floattype_t dy, dHx, dHz, RA01, RB0, RE0, RF0
+    cdef float_or_double dy, dHx, dHz, RA01, RB0, RE0, RF0
     dy = d
     nx = xf - xs
     ny = yf - ys
@@ -362,20 +362,20 @@ cpdef void order2_yminus(
                         int zs,
                         int zf,
                         int nthreads,
-                        floattype_t[:, ::1] updatecoeffsE,
+                        float_or_double[:, ::1] updatecoeffsE,
                         np.uint32_t[:, :, :, ::1] ID,
-                        floattype_t[:, :, ::1] Ex,
-                        floattype_t[:, :, ::1] Ey,
-                        floattype_t[:, :, ::1] Ez,
-                        floattype_t[:, :, ::1] Hx,
-                        floattype_t[:, :, ::1] Hy,
-                        floattype_t[:, :, ::1] Hz,
-                        floattype_t[:, :, :, ::1] Phi1,
-                        floattype_t[:, :, :, ::1] Phi2,
-                        floattype_t[:, ::1] RA,
-                        floattype_t[:, ::1] RB,
-                        floattype_t[:, ::1] RE,
-                        floattype_t[:, ::1] RF,
+                        float_or_double[:, :, ::1] Ex,
+                        float_or_double[:, :, ::1] Ey,
+                        float_or_double[:, :, ::1] Ez,
+                        float_or_double[:, :, ::1] Hx,
+                        float_or_double[:, :, ::1] Hy,
+                        float_or_double[:, :, ::1] Hz,
+                        float_or_double[:, :, :, ::1] Phi1,
+                        float_or_double[:, :, :, ::1] Phi2,
+                        float_or_double[:, ::1] RA,
+                        float_or_double[:, ::1] RB,
+                        float_or_double[:, ::1] RE,
+                        float_or_double[:, ::1] RF,
                         float d
                 ):
     """This function updates the Ex and Ez field components for the yminus slab.
@@ -390,7 +390,7 @@ cpdef void order2_yminus(
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialEx, materialEz
-    cdef floattype_t dy, dHx, dHz, RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01
+    cdef float_or_double dy, dHx, dHz, RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01
     dy = d
     nx = xf - xs
     ny = yf - ys
@@ -433,20 +433,20 @@ cpdef void order1_yplus(
                         int zs,
                         int zf,
                         int nthreads,
-                        floattype_t[:, ::1] updatecoeffsE,
+                        float_or_double[:, ::1] updatecoeffsE,
                         np.uint32_t[:, :, :, ::1] ID,
-                        floattype_t[:, :, ::1] Ex,
-                        floattype_t[:, :, ::1] Ey,
-                        floattype_t[:, :, ::1] Ez,
-                        floattype_t[:, :, ::1] Hx,
-                        floattype_t[:, :, ::1] Hy,
-                        floattype_t[:, :, ::1] Hz,
-                        floattype_t[:, :, :, ::1] Phi1,
-                        floattype_t[:, :, :, ::1] Phi2,
-                        floattype_t[:, ::1] RA,
-                        floattype_t[:, ::1] RB,
-                        floattype_t[:, ::1] RE,
-                        floattype_t[:, ::1] RF,
+                        float_or_double[:, :, ::1] Ex,
+                        float_or_double[:, :, ::1] Ey,
+                        float_or_double[:, :, ::1] Ez,
+                        float_or_double[:, :, ::1] Hx,
+                        float_or_double[:, :, ::1] Hy,
+                        float_or_double[:, :, ::1] Hz,
+                        float_or_double[:, :, :, ::1] Phi1,
+                        float_or_double[:, :, :, ::1] Phi2,
+                        float_or_double[:, ::1] RA,
+                        float_or_double[:, ::1] RB,
+                        float_or_double[:, ::1] RE,
+                        float_or_double[:, ::1] RF,
                         float d
                 ):
     """This function updates the Ex and Ez field components for the yplus slab.
@@ -461,7 +461,7 @@ cpdef void order1_yplus(
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialEx, materialEz
-    cdef floattype_t dy, dHx, dHz, RA01, RB0, RE0, RF0
+    cdef float_or_double dy, dHx, dHz, RA01, RB0, RE0, RF0
     dy = d
     nx = xf - xs
     ny = yf - ys
@@ -496,20 +496,20 @@ cpdef void order2_yplus(
                         int zs,
                         int zf,
                         int nthreads,
-                        floattype_t[:, ::1] updatecoeffsE,
+                        float_or_double[:, ::1] updatecoeffsE,
                         np.uint32_t[:, :, :, ::1] ID,
-                        floattype_t[:, :, ::1] Ex,
-                        floattype_t[:, :, ::1] Ey,
-                        floattype_t[:, :, ::1] Ez,
-                        floattype_t[:, :, ::1] Hx,
-                        floattype_t[:, :, ::1] Hy,
-                        floattype_t[:, :, ::1] Hz,
-                        floattype_t[:, :, :, ::1] Phi1,
-                        floattype_t[:, :, :, ::1] Phi2,
-                        floattype_t[:, ::1] RA,
-                        floattype_t[:, ::1] RB,
-                        floattype_t[:, ::1] RE,
-                        floattype_t[:, ::1] RF,
+                        float_or_double[:, :, ::1] Ex,
+                        float_or_double[:, :, ::1] Ey,
+                        float_or_double[:, :, ::1] Ez,
+                        float_or_double[:, :, ::1] Hx,
+                        float_or_double[:, :, ::1] Hy,
+                        float_or_double[:, :, ::1] Hz,
+                        float_or_double[:, :, :, ::1] Phi1,
+                        float_or_double[:, :, :, ::1] Phi2,
+                        float_or_double[:, ::1] RA,
+                        float_or_double[:, ::1] RB,
+                        float_or_double[:, ::1] RE,
+                        float_or_double[:, ::1] RF,
                         float d
                 ):
     """This function updates the Ex and Ez field components for the yplus slab.
@@ -524,7 +524,7 @@ cpdef void order2_yplus(
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialEx, materialEz
-    cdef floattype_t dy, dHx, dHz, RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01
+    cdef float_or_double dy, dHx, dHz, RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01
     dy = d
     nx = xf - xs
     ny = yf - ys
@@ -567,20 +567,20 @@ cpdef void order1_zminus(
                         int zs,
                         int zf,
                         int nthreads,
-                        floattype_t[:, ::1] updatecoeffsE,
+                        float_or_double[:, ::1] updatecoeffsE,
                         np.uint32_t[:, :, :, ::1] ID,
-                        floattype_t[:, :, ::1] Ex,
-                        floattype_t[:, :, ::1] Ey,
-                        floattype_t[:, :, ::1] Ez,
-                        floattype_t[:, :, ::1] Hx,
-                        floattype_t[:, :, ::1] Hy,
-                        floattype_t[:, :, ::1] Hz,
-                        floattype_t[:, :, :, ::1] Phi1,
-                        floattype_t[:, :, :, ::1] Phi2,
-                        floattype_t[:, ::1] RA,
-                        floattype_t[:, ::1] RB,
-                        floattype_t[:, ::1] RE,
-                        floattype_t[:, ::1] RF,
+                        float_or_double[:, :, ::1] Ex,
+                        float_or_double[:, :, ::1] Ey,
+                        float_or_double[:, :, ::1] Ez,
+                        float_or_double[:, :, ::1] Hx,
+                        float_or_double[:, :, ::1] Hy,
+                        float_or_double[:, :, ::1] Hz,
+                        float_or_double[:, :, :, ::1] Phi1,
+                        float_or_double[:, :, :, ::1] Phi2,
+                        float_or_double[:, ::1] RA,
+                        float_or_double[:, ::1] RB,
+                        float_or_double[:, ::1] RE,
+                        float_or_double[:, ::1] RF,
                         float d
                 ):
     """This function updates the Ex and Ey field components for the zminus slab.
@@ -595,7 +595,7 @@ cpdef void order1_zminus(
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialEx, materialEy
-    cdef floattype_t dz, dHx, dHy, RA01, RB0, RE0, RF0
+    cdef float_or_double dz, dHx, dHy, RA01, RB0, RE0, RF0
     dz = d
     nx = xf - xs
     ny = yf - ys
@@ -630,20 +630,20 @@ cpdef void order2_zminus(
                         int zs,
                         int zf,
                         int nthreads,
-                        floattype_t[:, ::1] updatecoeffsE,
+                        float_or_double[:, ::1] updatecoeffsE,
                         np.uint32_t[:, :, :, ::1] ID,
-                        floattype_t[:, :, ::1] Ex,
-                        floattype_t[:, :, ::1] Ey,
-                        floattype_t[:, :, ::1] Ez,
-                        floattype_t[:, :, ::1] Hx,
-                        floattype_t[:, :, ::1] Hy,
-                        floattype_t[:, :, ::1] Hz,
-                        floattype_t[:, :, :, ::1] Phi1,
-                        floattype_t[:, :, :, ::1] Phi2,
-                        floattype_t[:, ::1] RA,
-                        floattype_t[:, ::1] RB,
-                        floattype_t[:, ::1] RE,
-                        floattype_t[:, ::1] RF,
+                        float_or_double[:, :, ::1] Ex,
+                        float_or_double[:, :, ::1] Ey,
+                        float_or_double[:, :, ::1] Ez,
+                        float_or_double[:, :, ::1] Hx,
+                        float_or_double[:, :, ::1] Hy,
+                        float_or_double[:, :, ::1] Hz,
+                        float_or_double[:, :, :, ::1] Phi1,
+                        float_or_double[:, :, :, ::1] Phi2,
+                        float_or_double[:, ::1] RA,
+                        float_or_double[:, ::1] RB,
+                        float_or_double[:, ::1] RE,
+                        float_or_double[:, ::1] RF,
                         float d
                 ):
     """This function updates the Ex and Ey field components for the zminus slab.
@@ -658,7 +658,7 @@ cpdef void order2_zminus(
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialEx, materialEy
-    cdef floattype_t dz, dHx, dHy, RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01
+    cdef float_or_double dz, dHx, dHy, RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01
     dz = d
     nx = xf - xs
     ny = yf - ys
@@ -701,20 +701,20 @@ cpdef void order1_zplus(
                         int zs,
                         int zf,
                         int nthreads,
-                        floattype_t[:, ::1] updatecoeffsE,
+                        float_or_double[:, ::1] updatecoeffsE,
                         np.uint32_t[:, :, :, ::1] ID,
-                        floattype_t[:, :, ::1] Ex,
-                        floattype_t[:, :, ::1] Ey,
-                        floattype_t[:, :, ::1] Ez,
-                        floattype_t[:, :, ::1] Hx,
-                        floattype_t[:, :, ::1] Hy,
-                        floattype_t[:, :, ::1] Hz,
-                        floattype_t[:, :, :, ::1] Phi1,
-                        floattype_t[:, :, :, ::1] Phi2,
-                        floattype_t[:, ::1] RA,
-                        floattype_t[:, ::1] RB,
-                        floattype_t[:, ::1] RE,
-                        floattype_t[:, ::1] RF,
+                        float_or_double[:, :, ::1] Ex,
+                        float_or_double[:, :, ::1] Ey,
+                        float_or_double[:, :, ::1] Ez,
+                        float_or_double[:, :, ::1] Hx,
+                        float_or_double[:, :, ::1] Hy,
+                        float_or_double[:, :, ::1] Hz,
+                        float_or_double[:, :, :, ::1] Phi1,
+                        float_or_double[:, :, :, ::1] Phi2,
+                        float_or_double[:, ::1] RA,
+                        float_or_double[:, ::1] RB,
+                        float_or_double[:, ::1] RE,
+                        float_or_double[:, ::1] RF,
                         float d
                 ):
     """This function updates the Ex and Ey field components for the zplus slab.
@@ -729,7 +729,7 @@ cpdef void order1_zplus(
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialEx, materialEy
-    cdef floattype_t dz, dHx, dHy, RA01, RB0, RE0, RF0
+    cdef float_or_double dz, dHx, dHy, RA01, RB0, RE0, RF0
     dz = d
     nx = xf - xs
     ny = yf - ys
@@ -764,20 +764,20 @@ cpdef void order2_zplus(
                         int zs,
                         int zf,
                         int nthreads,
-                        floattype_t[:, ::1] updatecoeffsE,
+                        float_or_double[:, ::1] updatecoeffsE,
                         np.uint32_t[:, :, :, ::1] ID,
-                        floattype_t[:, :, ::1] Ex,
-                        floattype_t[:, :, ::1] Ey,
-                        floattype_t[:, :, ::1] Ez,
-                        floattype_t[:, :, ::1] Hx,
-                        floattype_t[:, :, ::1] Hy,
-                        floattype_t[:, :, ::1] Hz,
-                        floattype_t[:, :, :, ::1] Phi1,
-                        floattype_t[:, :, :, ::1] Phi2,
-                        floattype_t[:, ::1] RA,
-                        floattype_t[:, ::1] RB,
-                        floattype_t[:, ::1] RE,
-                        floattype_t[:, ::1] RF,
+                        float_or_double[:, :, ::1] Ex,
+                        float_or_double[:, :, ::1] Ey,
+                        float_or_double[:, :, ::1] Ez,
+                        float_or_double[:, :, ::1] Hx,
+                        float_or_double[:, :, ::1] Hy,
+                        float_or_double[:, :, ::1] Hz,
+                        float_or_double[:, :, :, ::1] Phi1,
+                        float_or_double[:, :, :, ::1] Phi2,
+                        float_or_double[:, ::1] RA,
+                        float_or_double[:, ::1] RB,
+                        float_or_double[:, ::1] RE,
+                        float_or_double[:, ::1] RF,
                         float d
                 ):
     """This function updates the Ex and Ey field components for the zplus slab.
@@ -792,7 +792,7 @@ cpdef void order2_zplus(
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialEx, materialEy
-    cdef floattype_t dz, dHx, dHy, RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01
+    cdef float_or_double dz, dHx, dHy, RA0, RB0, RE0, RF0, RA1, RB1, RE1, RF1, RA01
     dz = d
     nx = xf - xs
     ny = yf - ys

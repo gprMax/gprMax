@@ -20,30 +20,27 @@ from colorama import init
 from colorama import Fore
 from colorama import Style
 init()
+from copy import deepcopy
 import numpy as np
 from tqdm import tqdm
 
 import gprMax.config as config
-from gprMax.config import z0
-from gprMax.config import floattype
-from gprMax.config import gpus
-from gprMax.config import messages
-
-from gprMax.exceptions import CmdInputError
-from gprMax.geometry_outputs import GeometryView
-from gprMax.geometry_outputs import GeometryObjects
-from gprMax.materials import Material
-from gprMax.materials import PeplinskiSoil
-from gprMax.pml import CFSParameter
-from gprMax.pml import CFS
-from gprMax.receivers import Rx
-from gprMax.snapshots import Snapshot
-from gprMax.sources import VoltageSource
-from gprMax.sources import HertzianDipole
-from gprMax.sources import MagneticDipole
-from gprMax.sources import TransmissionLine
-from gprMax.utilities import round_value
-from gprMax.waveforms import Waveform
+from .exceptions import CmdInputError
+from .geometry_outputs import GeometryView
+from .geometry_outputs import GeometryObjects
+from .materials import DispersiveMaterial
+from .materials import Material
+from .materials import PeplinskiSoil
+from .pml import CFSParameter
+from .pml import CFS
+from .receivers import Rx
+from .snapshots import Snapshot
+from .sources import VoltageSource
+from .sources import HertzianDipole
+from .sources import MagneticDipole
+from .sources import TransmissionLine
+from .utilities import round_value
+from .waveforms import Waveform
 
 
 def process_multicmds(multicmds, G):
@@ -84,7 +81,7 @@ def process_multicmds(multicmds, G):
             w.amp = float(tmp[1])
             w.freq = float(tmp[2])
 
-            if messages:
+            if config.general['messages']:
                 print('Waveform {} of type {} with maximum amplitude scaling {:g}, frequency {:g}Hz created.'.format(w.ID, w.type, w.amp, w.freq))
 
             G.waveforms.append(w)
@@ -155,7 +152,7 @@ def process_multicmds(multicmds, G):
 
             v.calculate_waveform_values(G)
 
-            if messages:
+            if config.general['messages']:
                 print('Voltage source with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(v.polarisation, v.xcoord * G.dx, v.ycoord * G.dy, v.zcoord * G.dz, v.resistance) + startstop + 'using waveform {} created.'.format(v.waveformID))
 
             G.voltagesources.append(v)
@@ -233,7 +230,7 @@ def process_multicmds(multicmds, G):
 
             h.calculate_waveform_values(G)
 
-            if messages:
+            if config.general['messages']:
                 if '2D' in config.mode:
                     print('Hertzian dipole is a line source in 2D with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
                 else:
@@ -305,7 +302,7 @@ def process_multicmds(multicmds, G):
 
             m.calculate_waveform_values(G)
 
-            if messages:
+            if config.general['messages']:
                 print('Magnetic dipole with polarity {} at {:g}m, {:g}m, {:g}m,'.format(m.polarisation, m.xcoord * G.dx, m.ycoord * G.dy, m.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(m.waveformID))
 
             G.magneticdipoles.append(m)
@@ -341,7 +338,7 @@ def process_multicmds(multicmds, G):
             check_coordinates(xcoord, ycoord, zcoord)
             if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
                 print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
-            if resistance <= 0 or resistance >= z0:
+            if resistance <= 0 or resistance >= config.z0:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a resistance greater than zero and less than the impedance of free space, i.e. 376.73 Ohms')
 
             # Check if there is a waveformID in the waveforms list
@@ -381,7 +378,7 @@ def process_multicmds(multicmds, G):
             t.calculate_waveform_values(G)
             t.calculate_incident_V_I(G)
 
-            if messages:
+            if config.general['messages']:
                 print('Transmission line with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(t.polarisation, t.xcoord * G.dx, t.ycoord * G.dy, t.zcoord * G.dz, t.resistance) + startstop + 'using waveform {} created.'.format(t.waveformID))
 
             G.transmissionlines.append(t)
@@ -413,23 +410,30 @@ def process_multicmds(multicmds, G):
             # If no ID or outputs are specified, use default
             if len(tmp) == 3:
                 r.ID = r.__class__.__name__ + '(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'
+
                 for key in Rx.defaultoutputs:
-                    r.outputs[key] = np.zeros(G.iterations, dtype=floattype)
+                    r.outputs[key] = np.zeros(G.iterations, dtype=config.dtypes['float_or_double'])
             else:
                 r.ID = tmp[3]
                 # Get allowable outputs
-                if gpus is not None:
+                if config.cuda['gpus'] is not None:
                     allowableoutputs = Rx.gpu_allowableoutputs
                 else:
                     allowableoutputs = Rx.allowableoutputs
-                # Check and add field output names
-                for field in tmp[4::]:
+                # Check, sort and add field output names
+                fieldnames = tmp[4::]
+                fieldnames = sorted(fieldnames, key=lambda x: allowableoutputs.index(x))
+                for field in fieldnames:
                     if field in allowableoutputs:
-                        r.outputs[field] = np.zeros(G.iterations, dtype=floattype)
+                        r.outputs[field] = np.zeros(G.iterations, dtype=config.dtypes['float_or_double'])
                     else:
                         raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' contains an output type that is not allowable. Allowable outputs in current context are {}'.format(allowableoutputs))
 
-            if messages:
+            # Keep track of maximum number of field outputs on a receiver
+            if len(r.outputs) > Rx.maxnumoutputs:
+                Rx.maxnumoutputs = len(r.outputs)
+
+            if config.general['messages']:
                 print('Receiver at {:g}m, {:g}m, {:g}m with output component(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))
 
             G.rxs.append(r)
@@ -479,7 +483,7 @@ def process_multicmds(multicmds, G):
                 else:
                     raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
 
-            if messages:
+            if config.general['messages']:
                 print('Receiver array {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with steps {:g}m, {:g}m, {:g}m'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz))
 
             for x in range(xs, xf + 1, dx):
@@ -494,8 +498,8 @@ def process_multicmds(multicmds, G):
                         r.zcoordorigin = z
                         r.ID = r.__class__.__name__ + '(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
                         for key in Rx.defaultoutputs:
-                            r.outputs[key] = np.zeros(G.iterations, dtype=floattype)
-                        if messages:
+                            r.outputs[key] = np.zeros(G.iterations, dtype=config.dtypes['float_or_double'])
+                        if config.general['messages']:
                             print('  Receiver at {:g}m, {:g}m, {:g}m with output component(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))
                         G.rxs.append(r)
 
@@ -544,7 +548,7 @@ def process_multicmds(multicmds, G):
 
             s = Snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, tmp[10])
 
-            if messages:
+            if config.general['messages']:
                 print('Snapshot from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, at {:g} secs with filename {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz, s.time * G.dt, s.basefilename))
 
             G.snapshots.append(s)
@@ -582,7 +586,7 @@ def process_multicmds(multicmds, G):
             if m.se == float('inf'):
                 m.averagable = False
 
-            if messages:
+            if config.general['messages']:
                 tqdm.write('Material {} with eps_r={:g}, sigma={:g} S/m; mu_r={:g}, sigma*={:g} Ohm/m created.'.format(m.ID, m.er, m.se, m.mr, m.sm))
 
             # Append the new material object to the materials list
@@ -608,21 +612,25 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' material(s) {} do not exist'.format(notfound))
 
             for material in materials:
-                material.type = 'debye'
-                material.poles = poles
-                material.averagable = False
+                dispersivemat = DispersiveMaterial(material.numID, material.ID)
+                dispersivemat.type = 'debye'
+                dispersivemat.poles = poles
+                dispersivemat.averagable = False
                 for pole in range(1, 2 * poles, 2):
                     # N.B Not checking if relaxation times are greater than time-step
                     if float(tmp[pole]) > 0:
-                        material.deltaer.append(float(tmp[pole]))
-                        material.tau.append(float(tmp[pole + 1]))
+                        dispersivemat.deltaer.append(float(tmp[pole]))
+                        dispersivemat.tau.append(float(tmp[pole + 1]))
                     else:
                         raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the permittivity difference.')
-                if material.poles > Material.maxpoles:
-                    Material.maxpoles = material.poles
+                if dispersivemat.poles > config.materials['maxpoles']:
+                    config.materials['maxpoles'] = dispersivemat.poles
 
-                if messages:
-                    tqdm.write('Debye disperion added to {} with delta_eps_r={}, and tau={} secs created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau)))
+                # Replace original (non-dispersive) material with new dispersive instance
+                G.materials[material.numID] = dispersivemat
+
+                if config.general['messages']:
+                    tqdm.write('Debye disperion added to {} with delta_eps_r={}, and tau={} secs created.'.format(dispersivemat.ID, ', '.join('%4.2f' % deltaer for deltaer in dispersivemat.deltaer), ', '.join('%4.3e' % tau for tau in dispersivemat.tau)))
 
     cmdname = '#add_dispersion_lorentz'
     if multicmds[cmdname] is not None:
@@ -654,10 +662,10 @@ def process_multicmds(multicmds, G):
                         material.alpha.append(float(tmp[pole + 2]))
                     else:
                         raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the permittivity difference and frequencies, and associated times that are greater than the time step for the model.')
-                if material.poles > Material.maxpoles:
-                    Material.maxpoles = material.poles
+                if material.poles > config.materials['maxpoles']:
+                    config.materials['maxpoles'] = material.poles
 
-                if messages:
+                if config.general['messages']:
                     tqdm.write('Lorentz disperion added to {} with delta_eps_r={}, omega={} secs, and gamma={} created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
 
     cmdname = '#add_dispersion_drude'
@@ -689,10 +697,10 @@ def process_multicmds(multicmds, G):
                         material.alpha.append(float(tmp[pole + 1]))
                     else:
                         raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the frequencies, and associated times that are greater than the time step for the model.')
-                if material.poles > Material.maxpoles:
-                    Material.maxpoles = material.poles
+                if material.poles > config.materials['maxpoles']:
+                    config.materials['maxpoles'] = material.poles
 
-                if messages:
+                if config.general['messages']:
                     tqdm.write('Drude disperion added to {} with omega={} secs, and gamma={} secs created.'.format(material.ID, ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
 
     cmdname = '#soil_peplinski'
@@ -719,7 +727,7 @@ def process_multicmds(multicmds, G):
             # Create a new instance of the Material class material (start index after pec & free_space)
             s = PeplinskiSoil(tmp[6], float(tmp[0]), float(tmp[1]), float(tmp[2]), float(tmp[3]), (float(tmp[4]), float(tmp[5])))
 
-            if messages:
+            if config.general['messages']:
                 print('Mixing model (Peplinski) used to create {} with sand fraction {:g}, clay fraction {:g}, bulk density {:g}g/cm3, sand particle density {:g}g/cm3, and water volumetric fraction {:g} to {:g} created.'.format(s.ID, s.S, s.C, s.rb, s.rs, s.mu[0], s.mu[1]))
 
             # Append the new material object to the materials list
@@ -769,7 +777,7 @@ def process_multicmds(multicmds, G):
 
             g = GeometryView(xs, ys, zs, xf, yf, zf, dx, dy, dz, tmp[9], fileext)
 
-            if messages:
+            if config.general['messages']:
                 print('Geometry view from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, with filename base {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz, g.basefilename))
 
             # Append the new GeometryView object to the geometry views list
@@ -799,7 +807,7 @@ def process_multicmds(multicmds, G):
 
             g = GeometryObjects(xs, ys, zs, xf, yf, zf, tmp[6])
 
-            if messages:
+            if config.general['messages']:
                 print('Geometry objects in the volume from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, will be written to {}, with materials written to {}'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, g.filename, g.materialsfilename))
 
             # Append the new GeometryView object to the geometry objects to write list
@@ -849,7 +857,7 @@ def process_multicmds(multicmds, G):
             cfs.kappa = cfskappa
             cfs.sigma = cfssigma
 
-            if messages:
+            if config.general['messages']:
                 print('PML CFS parameters: alpha (scaling: {}, scaling direction: {}, min: {:g}, max: {:g}), kappa (scaling: {}, scaling direction: {}, min: {:g}, max: {:g}), sigma (scaling: {}, scaling direction: {}, min: {:g}, max: {}) created.'.format(cfsalpha.scalingprofile, cfsalpha.scalingdirection, cfsalpha.min, cfsalpha.max, cfskappa.scalingprofile, cfskappa.scalingdirection, cfskappa.min, cfskappa.max, cfssigma.scalingprofile, cfssigma.scalingdirection, cfssigma.min, cfssigma.max))
 
             G.cfs.append(cfs)

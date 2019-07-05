@@ -22,10 +22,9 @@ from struct import pack
 
 import numpy as np
 
-from gprMax.config import floattype
-from gprMax.config import snapsgpu2cpu
-from gprMax.cython.snapshots import calculate_snapshot_fields
-from gprMax.utilities import round_value
+import gprMax.config as config
+from .cython.snapshots import calculate_snapshot_fields
+from .utilities import round_value
 
 
 class Snapshot(object):
@@ -48,14 +47,15 @@ class Snapshot(object):
         byteorder = 'BigEndian'
 
     # Set format text and string depending on float type
-    if np.dtype(floattype).name == 'float32':
+    if config.dtypes['float_or_double'] == np.float32:
         floatname = 'Float32'
         floatstring = 'f'
-    elif np.dtype(floattype).name == 'float64':
+    elif config.dtypes['float_or_double'] == np.float64:
         floatname = 'Float64'
         floatstring = 'd'
 
-    def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None, dx=None, dy=None, dz=None, time=None, filename=None):
+    def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None,
+                dx=None, dy=None, dz=None, time=None, filename=None):
         """
         Args:
             xs, xf, ys, yf, zs, zf (int): Extent of the volume in cells.
@@ -64,6 +64,7 @@ class Snapshot(object):
             filename (str): Filename to save to.
         """
 
+        self.fieldoutputs = {'electric': True, 'magnetic': True}
         self.xs = xs
         self.ys = ys
         self.zs = zs
@@ -80,8 +81,13 @@ class Snapshot(object):
         self.sy = slice(self.ys, self.yf + self.dy, self.dy)
         self.sz = slice(self.zs, self.zf + self.dz, self.dz)
         self.ncells = self.nx * self.ny * self.nz
-        self.datasizefield = 3 * np.dtype(floattype).itemsize * self.ncells
-        self.vtkdatawritesize = 2 * self.datasizefield + 2 * np.dtype(np.uint32).itemsize
+        self.datasizefield = (3 * np.dtype(config.dtypes['float_or_double']).itemsize
+                                * self.ncells)
+        self.vtkdatawritesize = ((self.fieldoutputs['electric']
+                                + self.fieldoutputs['magnetic']) * self.datasizefield
+                                + (self.fieldoutputs['electric']
+                                + self.fieldoutputs['magnetic'])
+                                * np.dtype(np.uint32).itemsize)
         self.time = time
         self.basefilename = filename
 
@@ -101,12 +107,12 @@ class Snapshot(object):
         Hzslice = np.ascontiguousarray(G.Hz[self.sx, self.sy, self.sz])
 
         # Create arrays to hold the field data for snapshot
-        Exsnap = np.zeros((self.nx, self.ny, self.nz), dtype=floattype)
-        Eysnap = np.zeros((self.nx, self.ny, self.nz), dtype=floattype)
-        Ezsnap = np.zeros((self.nx, self.ny, self.nz), dtype=floattype)
-        Hxsnap = np.zeros((self.nx, self.ny, self.nz), dtype=floattype)
-        Hysnap = np.zeros((self.nx, self.ny, self.nz), dtype=floattype)
-        Hzsnap = np.zeros((self.nx, self.ny, self.nz), dtype=floattype)
+        Exsnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.dtypes['float_or_double'])
+        Eysnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.dtypes['float_or_double'])
+        Ezsnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.dtypes['float_or_double'])
+        Hxsnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.dtypes['float_or_double'])
+        Hysnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.dtypes['float_or_double'])
+        Hzsnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.dtypes['float_or_double'])
 
         # Calculate field values at points (comes from averaging field components in cells)
         calculate_snapshot_fields(
@@ -140,29 +146,53 @@ class Snapshot(object):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        hfield_offset = 3 * np.dtype(floattype).itemsize * self.ncells + np.dtype(np.uint32).itemsize
+        hfield_offset = (3 * np.dtype(config.dtypes['float_or_double']).itemsize
+                        * self.ncells + np.dtype(np.uint32).itemsize)
 
         self.filehandle = open(self.filename, 'wb')
         self.filehandle.write('<?xml version="1.0"?>\n'.encode('utf-8'))
-        self.filehandle.write('<VTKFile type="ImageData" version="1.0" byte_order="{}">\n'.format(Snapshot.byteorder).encode('utf-8'))
-        self.filehandle.write('<ImageData WholeExtent="{} {} {} {} {} {}" Origin="0 0 0" Spacing="{:.3} {:.3} {:.3}">\n'.format(self.xs, round_value(self.xf / self.dx), self.ys, round_value(self.yf / self.dy), self.zs, round_value(self.zf / self.dz), self.dx * G.dx, self.dy * G.dy, self.dz * G.dz).encode('utf-8'))
-        self.filehandle.write('<Piece Extent="{} {} {} {} {} {}">\n'.format(self.xs, round_value(self.xf / self.dx), self.ys, round_value(self.yf / self.dy), self.zs, round_value(self.zf / self.dz)).encode('utf-8'))
-        self.filehandle.write('<CellData Vectors="E-field H-field">\n'.encode('utf-8'))
-        self.filehandle.write('<DataArray type="{}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n'.format(Snapshot.floatname).encode('utf-8'))
-        self.filehandle.write('<DataArray type="{}" Name="H-field" NumberOfComponents="3" format="appended" offset="{}" />\n'.format(Snapshot.floatname, hfield_offset).encode('utf-8'))
+        self.filehandle.write('<VTKFile type="ImageData" version="1.0" byte_order="{}">\n'
+                                .format(Snapshot.byteorder).encode('utf-8'))
+        self.filehandle.write('<ImageData WholeExtent="{} {} {} {} {} {}" Origin="0 0 0" Spacing="{:.3} {:.3} {:.3}">\n'
+                                .format(self.xs, round_value(self.xf / self.dx),
+                                self.ys, round_value(self.yf / self.dy), self.zs,
+                                round_value(self.zf / self.dz), self.dx * G.dx,
+                                self.dy * G.dy, self.dz * G.dz).encode('utf-8'))
+        self.filehandle.write('<Piece Extent="{} {} {} {} {} {}">\n'
+                                .format(self.xs, round_value(self.xf / self.dx),
+                                self.ys, round_value(self.yf / self.dy),
+                                self.zs, round_value(self.zf / self.dz)).encode('utf-8'))
+
+        if self.fieldoutputs['electric'] and self.fieldoutputs['magnetic']:
+            self.filehandle.write('<CellData Vectors="E-field H-field">\n'.encode('utf-8'))
+            self.filehandle.write('<DataArray type="{}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n'
+                                    .format(Snapshot.floatname).encode('utf-8'))
+            self.filehandle.write('<DataArray type="{}" Name="H-field" NumberOfComponents="3" format="appended" offset="{}" />\n'
+                                    .format(Snapshot.floatname, hfield_offset).encode('utf-8'))
+        elif self.fieldoutputs['electric']:
+            self.filehandle.write('<CellData Vectors="E-field">\n'.encode('utf-8'))
+            self.filehandle.write('<DataArray type="{}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n'
+                                    .format(Snapshot.floatname).encode('utf-8'))
+        elif self.fieldoutputs['magnetic']:
+            self.filehandle.write('<CellData Vectors="H-field">\n'.encode('utf-8'))
+            self.filehandle.write('<DataArray type="{}" Name="H-field" NumberOfComponents="3" format="appended" offset="0" />\n'
+                                    .format(Snapshot.floatname).encode('utf-8'))
+
         self.filehandle.write('</CellData>\n</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
 
-        # Write number of bytes of appended data as UInt32
-        self.filehandle.write(pack('I', self.datasizefield))
-        pbar.update(n=4)
-        self.electric.tofile(self.filehandle)
-        pbar.update(n=self.datasizefield)
+        if self.fieldoutputs['electric']:
+            # Write number of bytes of appended data as UInt32
+            self.filehandle.write(pack('I', self.datasizefield))
+            pbar.update(n=4)
+            self.electric.tofile(self.filehandle)
+            pbar.update(n=self.datasizefield)
 
-        # Write number of bytes of appended data as UInt32
-        self.filehandle.write(pack('I', self.datasizefield))
-        pbar.update(n=4)
-        self.magnetic.tofile(self.filehandle)
-        pbar.update(n=self.datasizefield)
+        if self.fieldoutputs['magnetic']:
+            # Write number of bytes of appended data as UInt32
+            self.filehandle.write(pack('I', self.datasizefield))
+            pbar.update(n=4)
+            self.magnetic.tofile(self.filehandle)
+            pbar.update(n=self.datasizefield)
 
         self.filehandle.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
         self.filehandle.close()
@@ -192,14 +222,22 @@ def gpu_initialise_snapshot_array(G):
     # GPU - blocks per grid - according to largest requested snapshot
     Snapshot.bpg = (int(np.ceil(((Snapshot.nx_max) * (Snapshot.ny_max) * (Snapshot.nz_max)) / Snapshot.tpb[0])), 1, 1)
 
-    # 4D arrays to store snapshots on GPU, e.g. snapEx(time, x, y, z)
-    numsnaps = 1 if snapsgpu2cpu else len(G.snapshots)
-    snapEx = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
-    snapEy = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
-    snapEz = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
-    snapHx = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
-    snapHy = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
-    snapHz = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
+    # 4D arrays to store snapshots on GPU, e.g. snapEx(time, x, y, z);
+    # if snapshots are not being stored on the GPU during the simulation then
+    # they are copied back to the host after each iteration, hence numsnaps = 1
+    numsnaps = 1 if config.cuda['snapsgpu2cpu'] else len(G.snapshots)
+    snapEx = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+                        dtype=config.dtypes['float_or_double'])
+    snapEy = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+                        dtype=config.dtypes['float_or_double'])
+    snapEz = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+                        dtype=config.dtypes['float_or_double'])
+    snapHx = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+                        dtype=config.dtypes['float_or_double'])
+    snapHy = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+                        dtype=config.dtypes['float_or_double'])
+    snapHz = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+                        dtype=config.dtypes['float_or_double'])
 
     # Copy arrays to GPU
     snapEx_gpu = gpuarray.to_gpu(snapEx)
@@ -222,8 +260,8 @@ def gpu_get_snapshot_array(snapEx_gpu, snapEy_gpu, snapEz_gpu, snapHx_gpu, snapH
     """
 
     snap.electric = np.stack((snapEx_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
-                              snapEy_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
-                              snapEz_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf])).reshape(-1, order='F')
+                                snapEy_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
+                                snapEz_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf])).reshape(-1, order='F')
     snap.magnetic = np.stack((snapHx_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
-                              snapHy_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
-                              snapHz_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf])).reshape(-1, order='F')
+                                snapHy_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
+                                snapHz_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf])).reshape(-1, order='F')

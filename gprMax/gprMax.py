@@ -28,22 +28,17 @@ from enum import Enum
 import h5py
 import numpy as np
 
-from gprMax._version import __version__
-from gprMax._version import codename
+from ._version import __version__
+from ._version import codename
 import gprMax.config as config
-from gprMax.config import c
-from gprMax.config import e0
-from gprMax.config import m0
-from gprMax.config import z0
-from gprMax.config import hostinfo
-from gprMax.exceptions import GeneralError
-from gprMax.model_build_run import run_model
-from gprMax.utilities import detect_check_gpus
-from gprMax.utilities import get_terminal_width
-from gprMax.utilities import human_size
-from gprMax.utilities import logo
-from gprMax.utilities import open_path_file
-from gprMax.utilities import timer
+from .exceptions import GeneralError
+from .model_build_run import run_model
+from .utilities import detect_check_gpus
+from .utilities import get_terminal_width
+from .utilities import human_size
+from .utilities import logo
+from .utilities import open_path_file
+from .utilities import timer
 
 def main():
     """This is the main function for gprMax."""
@@ -116,24 +111,24 @@ def run_main(args):
     logo(__version__ + ' (' + codename + ')')
 
     # Print information about host machine
-    hyperthreading = ', {} cores with HT'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
-    print('\nHost: {} | {} | {} x {} ({} cores{}) | {} RAM | {}'.format(hostinfo['hostname'],
-                                                                        hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'],
-                                                                        hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
+    hyperthreading = ', {} cores with HT'.format(config.hostinfo['logicalcores']) if config.hostinfo['hyperthreading'] else ''
+    print('\nHost: {} | {} | {} x {} ({} cores{}) | {} RAM | {}'.format(config.hostinfo['hostname'],
+                                                                        config.hostinfo['machineID'], config.hostinfo['sockets'], config.hostinfo['cpuID'], config.hostinfo['physicalcores'],
+                                                                        hyperthreading, human_size(config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True), config.hostinfo['osversion']))
 
     # Get information/setup any Nvidia GPU(s)
     if args.gpu is not None:
         # Flatten a list of lists
         if any(isinstance(element, list) for element in args.gpu):
             args.gpu = [val for sublist in args.gpu for val in sublist]
-        config.gpus, allgpustext = detect_check_gpus(args.gpu)
+        config.cuda['gpus'], allgpustext = detect_check_gpus(args.gpu)
         print('GPU(s): {}'.format(' | '.join(allgpustext)))
 
     # Process input file
     with open_path_file(args.inputfile) as inputfile:
 
         # Create a separate namespace that users can access in any Python code blocks in the input file
-        usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': args.n, 'inputfile': os.path.abspath(inputfile.name)}
+        usernamespace = {'c': config.c, 'e0': config.e0, 'm0': config.m0, 'z0': config.z0, 'number_model_runs': args.n, 'inputfile': os.path.abspath(inputfile.name)}
 
         #######################################
         # Process for benchmarking simulation #
@@ -167,8 +162,8 @@ def run_main(args):
             else:
                 if args.task and args.restart:
                     raise GeneralError('Job array and restart modes cannot be used together')
-                if config.gpus:
-                    config.gpus = config.gpus[0]
+                if config.cuda['gpus']:
+                    config.cuda['gpus'] = config.cuda['gpus'][0]
                 run_std_sim(args, inputfile, usernamespace)
 
 
@@ -201,7 +196,7 @@ def run_std_sim(args, inputfile, usernamespace):
     for currentmodelrun in range(modelstart, modelend):
         run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, usernamespace)
     tsimend = timer()
-    simcompletestr = '\n=== Simulation on {} completed in [HH:MM:SS]: {}'.format(hostinfo['hostname'], datetime.timedelta(seconds=tsimend - tsimstart))
+    simcompletestr = '\n=== Simulation on {} completed in [HH:MM:SS]: {}'.format(config.hostinfo['hostname'], datetime.timedelta(seconds=tsimend - tsimstart))
     print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
 
 
@@ -219,8 +214,8 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     """
 
     # Store information about host machine
-    hyperthreading = ', {} cores with HT'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
-    machineIDlong = '{}; {} x {} ({} cores{}); {} RAM; {}'.format(hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'], hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion'])
+    hyperthreading = ', {} cores with HT'.format(config.hostinfo['logicalcores']) if config.hostinfo['hyperthreading'] else ''
+    machineIDlong = '{}; {} x {} ({} cores{}); {} RAM; {}'.format(config.hostinfo['machineID'], config.hostinfo['sockets'], config.hostinfo['cpuID'], config.hostinfo['physicalcores'], hyperthreading, human_size(config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True), config.hostinfo['osversion'])
 
     # Initialise arrays to hold CPU thread info and times, and GPU info and times
     cputhreads = np.array([], dtype=np.int32)
@@ -232,8 +227,8 @@ def run_benchmark_sim(args, inputfile, usernamespace):
     if args.gpu is None:
         # Number of CPU threads to benchmark - start from single thread and double threads until maximum number of physical cores
         threads = 1
-        maxthreads = hostinfo['physicalcores']
-        maxthreadspersocket = hostinfo['physicalcores'] / hostinfo['sockets']
+        maxthreads = config.hostinfo['physicalcores']
+        maxthreadspersocket = config.hostinfo['physicalcores'] / config.hostinfo['sockets']
         while threads < maxthreadspersocket:
             cputhreads = np.append(cputhreads, int(threads))
             threads *= 2
@@ -271,7 +266,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
         # Run GPU benchmark
         else:
             args.gpu = gpus[(currentmodelrun - 1)]
-            os.environ['OMP_NUM_THREADS'] = str(hostinfo['physicalcores'])
+            os.environ['OMP_NUM_THREADS'] = str(config.hostinfo['physicalcores'])
             gputimes[(currentmodelrun - 1)] = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, usernamespace)
 
         # Get model size (in cells) and number of iterations

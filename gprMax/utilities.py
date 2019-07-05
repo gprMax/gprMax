@@ -27,15 +27,15 @@ import subprocess
 from shutil import get_terminal_size
 import sys
 import textwrap
+from time import perf_counter
 
 from colorama import init
 from colorama import Fore
 from colorama import Style
 init()
 import numpy as np
-from time import process_time
 
-from gprMax.exceptions import GeneralError
+from .exceptions import GeneralError
 
 
 def get_terminal_width():
@@ -86,8 +86,7 @@ def logo(version):
 
 @contextmanager
 def open_path_file(path_or_file):
-    """
-    Accepts either a path as a string or a file object and returns a file
+    """Accepts either a path as a string or a file object and returns a file
     object (http://stackoverflow.com/a/6783680).
 
     Args:
@@ -140,7 +139,7 @@ def round32(value):
 
 def fft_power(waveform, dt):
     """Calculate a FFT of the given waveform of amplitude values;
-        converted to decibels and shifted so that maximum power is 0dB
+    converted to decibels and shifted so that maximum power is 0dB
 
     Args:
         waveform (ndarray): time domain waveform
@@ -417,4 +416,4 @@ def detect_check_gpus(deviceIDs):
 
 def timer():
     """Function to return the current process wide time in fractional seconds."""
-    return process_time()
+    return perf_counter()

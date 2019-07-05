@@ -23,10 +23,12 @@ import h5py
 import numpy as np
 from struct import pack
 
-from gprMax._version import __version__
-from gprMax.cython.geometry_outputs import define_normal_geometry
-from gprMax.cython.geometry_outputs import define_fine_geometry
-from gprMax.utilities import round_value
+import gprMax.config as config
+
+from ._version import __version__
+from .cython.geometry_outputs import define_normal_geometry
+from .cython.geometry_outputs import define_fine_geometry
+from .utilities import round_value
 
 
 class GeometryView(object):
@@ -104,16 +106,15 @@ class GeometryView(object):
                                   + np.dtype(np.uint32).itemsize * vtk_cell_offsets
                                   + np.dtype(np.uint32).itemsize * 4)
 
-    def set_filename(self, appendmodelnumber, G):
+    def set_filename(self, appendmodelnumber):
         """
         Construct filename from user-supplied name and model run number.
 
         Args:
             appendmodelnumber (str): Text to append to filename.
-            G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        self.filename = os.path.abspath(os.path.join(G.inputdirectory, self.basefilename + appendmodelnumber))
+        self.filename = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(config.general['inputfilepath'])), self.basefilename + appendmodelnumber))
         self.filename += self.fileext
 
     def write_vtk(self, G, pbar):

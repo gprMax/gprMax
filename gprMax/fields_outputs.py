@@ -20,7 +20,7 @@ from string import Template
 
 import h5py
 
-from gprMax._version import __version__
+from ._version import __version__
 
 
 def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
@@ -28,8 +28,10 @@ def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
 
     Args:
         iteration (int): Current iteration number.
-        Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic field values.
-        G (class): Grid class instance - holds essential parameters describing the model.
+        Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic
+                                                field values.
+        G (class): Grid class instance - holds essential parameters describing
+                    the model.
     """
 
     for rx in G.rxs:
@@ -41,7 +43,8 @@ def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
             # Store current component
             else:
                 func = globals()[output]
-                rx.outputs[output][iteration] = func(rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hy, Hz, G)
+                rx.outputs[output][iteration] = func(rx.xcoord, rx.ycoord, rx.zcoord,
+                                                    Hx, Hy, Hz, G)
 
     for tl in G.transmissionlines:
         tl.Vtotal[iteration] = tl.voltage[tl.antpos]
@@ -94,8 +97,10 @@ def write_hdf5_outputfile(outputfile, Ex, Ey, Ez, Hx, Hy, Hz, G):
 
     Args:
         outputfile (str): Name of the output file.
-        Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic field values.
-        G (class): Grid class instance - holds essential parameters describing the model.
+        Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic
+                                                field values.
+        G (class): Grid class instance - holds essential parameters describing
+                    the model.
     """
 
     f = h5py.File(outputfile, 'w')

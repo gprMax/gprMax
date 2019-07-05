@@ -20,7 +20,7 @@ from collections import OrderedDict
 
 import numpy as np
 
-from gprMax.config import floattype
+import gprMax.config as config
 
 
 class Rx(object):
@@ -29,6 +29,7 @@ class Rx(object):
     allowableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
     gpu_allowableoutputs = allowableoutputs[:-3]
     defaultoutputs = allowableoutputs[:-3]
+    maxnumoutputs = 0
 
     def __init__(self):
 
@@ -43,10 +44,12 @@ class Rx(object):
 
 
 def gpu_initialise_rx_arrays(G):
-    """Initialise arrays on GPU for receiver coordinates and to store field components for receivers.
+    """Initialise arrays on GPU for receiver coordinates and to store field
+        components for receivers.
 
     Args:
-        G (class): Grid class instance - holds essential parameters describing the model.
+        G (class): Grid class instance - holds essential parameters
+                    describing the model.
     """
 
     import pycuda.gpuarray as gpuarray
@@ -58,8 +61,10 @@ def gpu_initialise_rx_arrays(G):
         rxcoords[i, 1] = rx.ycoord
         rxcoords[i, 2] = rx.zcoord
 
-    # Array to store field components for receivers on GPU - rows are field components; columns are iterations; pages are receivers
-    rxs = np.zeros((len(Rx.gpu_allowableoutputs), G.iterations, len(G.rxs)), dtype=floattype)
+    # Array to store field components for receivers on GPU - rows are field components;
+    # columns are iterations; pages are receivers
+    rxs = np.zeros((Rx.maxnumoutputs, G.iterations, len(G.rxs)),
+            dtype=config.dtypes['float_or_double'])
 
     # Copy arrays to GPU
     rxcoords_gpu = gpuarray.to_gpu(rxcoords)
@@ -72,17 +77,17 @@ def gpu_get_rx_array(rxs_gpu, rxcoords_gpu, G):
     """Copy output from receivers array used on GPU back to receiver objects.
 
     Args:
-        rxs_gpu (float): numpy array of receiver data from GPU - rows are field components; columns are iterations; pages are receivers.
+        rxs_gpu (float): numpy array of receiver data from GPU - rows are field
+                            components; columns are iterations; pages are receivers.
         rxcoords_gpu (float): numpy array of receiver coordinates from GPU.
-        G (class): Grid class instance - holds essential parameters describing the model.
+        G (class): Grid class instance - holds essential parameters
+                    describing the model.
     """
 
     for rx in G.rxs:
         for rxgpu in range(len(G.rxs)):
-            if rx.xcoord == rxcoords_gpu[rxgpu, 0] and rx.ycoord == rxcoords_gpu[rxgpu, 1] and rx.zcoord == rxcoords_gpu[rxgpu, 2]:
-                rx.outputs['Ex'] = rxs_gpu[0, :, rxgpu]
-                rx.outputs['Ey'] = rxs_gpu[1, :, rxgpu]
-                rx.outputs['Ez'] = rxs_gpu[2, :, rxgpu]
-                rx.outputs['Hx'] = rxs_gpu[3, :, rxgpu]
-                rx.outputs['Hy'] = rxs_gpu[4, :, rxgpu]
-                rx.outputs['Hz'] = rxs_gpu[5, :, rxgpu]
+            if rx.xcoord == rxcoords_gpu[rxgpu, 0] and \
+               rx.ycoord == rxcoords_gpu[rxgpu, 1] and \
+               rx.zcoord == rxcoords_gpu[rxgpu, 2]:
+                for k, v in rx.outputs.items():
+                    v = rxs_gpu[Rx.gpu_allowableoutputs.index(k), :, rxgpu]

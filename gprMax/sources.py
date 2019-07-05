@@ -20,12 +20,11 @@ from copy import deepcopy
 
 import numpy as np
 
-from gprMax.config import c
-from gprMax.config import floattype
-from gprMax.grid import Ix
-from gprMax.grid import Iy
-from gprMax.grid import Iz
-from gprMax.utilities import round_value
+import gprMax.config as config
+from .grid import Ix
+from .grid import Iy
+from .grid import Iz
+from .utilities import round_value
 
 
 class Source(object):
@@ -52,10 +51,10 @@ class Source(object):
         """
 
         # Waveform values for electric sources - calculated half a timestep later
-        self.waveformvaluesJ = np.zeros((G.iterations), dtype=floattype)
+        self.waveformvaluesJ = np.zeros((G.iterations), dtype=config.dtypes['float_or_double'])
 
         # Waveform values for magnetic sources
-        self.waveformvaluesM = np.zeros((G.iterations), dtype=floattype)
+        self.waveformvaluesM = np.zeros((G.iterations), dtype=config.dtypes['float_or_double'])
 
         waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
 
@@ -72,7 +71,8 @@ class VoltageSource(Source):
     """
     A voltage source can be a hard source if it's resistance is zero, i.e. the
     time variation of the specified electric field component is prescribed.
-    If it's resistance is non-zero it behaves as a resistive voltage source."""
+    If it's resistance is non-zero it behaves as a resistive voltage source.
+    """
 
     def __init__(self):
         super().__init__()
@@ -114,8 +114,7 @@ class VoltageSource(Source):
                     Ez[i, j, k] = -1 * self.waveformvaluesJ[iteration] / G.dz
 
     def create_material(self, G):
-        """
-        Create a new material at the voltage source location that adds the
+        """Create a new material at the voltage source location that adds the
         voltage source conductivity to the underlying parameters.
 
         Args:
@@ -231,8 +230,8 @@ def gpu_initialise_src_arrays(sources, G):
     import pycuda.gpuarray as gpuarray
 
     srcinfo1 = np.zeros((len(sources), 4), dtype=np.int32)
-    srcinfo2 = np.zeros((len(sources)), dtype=floattype)
-    srcwaves = np.zeros((len(sources), G.iterations), dtype=floattype)
+    srcinfo2 = np.zeros((len(sources)), dtype=config.dtypes['float_or_double'])
+    srcwaves = np.zeros((len(sources), G.iterations), dtype=config.dtypes['float_or_double'])
     for i, src in enumerate(sources):
         srcinfo1[i, 0] = src.xcoord
         srcinfo1[i, 1] = src.ycoord
@@ -262,9 +261,8 @@ def gpu_initialise_src_arrays(sources, G):
 
 
 class TransmissionLine(Source):
-    """
-    A transmission line source is a one-dimensional transmission
-    line which is attached virtually to a grid cell.
+    """A transmission line source is a one-dimensional transmission line
+    which is attached virtually to a grid cell.
     """
 
     def __init__(self, G):
@@ -282,7 +280,7 @@ class TransmissionLine(Source):
 
         # Spatial step of transmission line (N.B if the magic time step is
         # used it results in instabilities for certain impedances)
-        self.dl = np.sqrt(3) * c * G.dt
+        self.dl = np.sqrt(3) * config.c * G.dt
 
         # Number of cells in the transmission line (initially a long line to
         # calculate incident voltage and current); consider putting ABCs/PML at end
@@ -294,16 +292,15 @@ class TransmissionLine(Source):
         # Cell position of where line connects to antenna/main grid
         self.antpos = 10
 
-        self.voltage = np.zeros(self.nl, dtype=floattype)
-        self.current = np.zeros(self.nl, dtype=floattype)
-        self.Vinc = np.zeros(G.iterations, dtype=floattype)
-        self.Iinc = np.zeros(G.iterations, dtype=floattype)
-        self.Vtotal = np.zeros(G.iterations, dtype=floattype)
-        self.Itotal = np.zeros(G.iterations, dtype=floattype)
+        self.voltage = np.zeros(self.nl, dtype=config.dtypes['float_or_double'])
+        self.current = np.zeros(self.nl, dtype=config.dtypes['float_or_double'])
+        self.Vinc = np.zeros(G.iterations, dtype=config.dtypes['float_or_double'])
+        self.Iinc = np.zeros(G.iterations, dtype=config.dtypes['float_or_double'])
+        self.Vtotal = np.zeros(G.iterations, dtype=config.dtypes['float_or_double'])
+        self.Itotal = np.zeros(G.iterations, dtype=config.dtypes['float_or_double'])
 
     def calculate_incident_V_I(self, G):
-        """
-        Calculates the incident voltage and current with a long length
+        """Calculates the incident voltage and current with a long length
         transmission line not connected to the main grid from: http://dx.doi.org/10.1002/mop.10415
 
         Args:
@@ -326,7 +323,7 @@ class TransmissionLine(Source):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        h = (c * G.dt - self.dl) / (c * G.dt + self.dl)
+        h = (config.c * G.dt - self.dl) / (config.c * G.dt + self.dl)
 
         self.voltage[0] = h * (self.voltage[1] - self.abcv0) + self.abcv1
         self.abcv0 = self.voltage[0]
@@ -341,10 +338,10 @@ class TransmissionLine(Source):
         """
 
         # Update all the voltage values along the line
-        self.voltage[1:self.nl] -= self.resistance * (c * G.dt / self.dl) * (self.current[1:self.nl] - self.current[0:self.nl - 1])
+        self.voltage[1:self.nl] -= self.resistance * (config.c * G.dt / self.dl) * (self.current[1:self.nl] - self.current[0:self.nl - 1])
 
         # Update the voltage at the position of the one-way injector excitation
-        self.voltage[self.srcpos] += (c * G.dt / self.dl) * self.waveformvaluesJ[iteration]
+        self.voltage[self.srcpos] += (config.c * G.dt / self.dl) * self.waveformvaluesJ[iteration]
 
         # Update ABC before updating current
         self.update_abc(G)
@@ -358,10 +355,10 @@ class TransmissionLine(Source):
         """
 
         # Update all the current values along the line
-        self.current[0:self.nl - 1] -= (1 / self.resistance) * (c * G.dt / self.dl) * (self.voltage[1:self.nl] - self.voltage[0:self.nl - 1])
+        self.current[0:self.nl - 1] -= (1 / self.resistance) * (config.c * G.dt / self.dl) * (self.voltage[1:self.nl] - self.voltage[0:self.nl - 1])
 
         # Update the current one cell before the position of the one-way injector excitation
-        self.current[self.srcpos - 1] += (1 / self.resistance) * (c * G.dt / self.dl) * self.waveformvaluesM[iteration]
+        self.current[self.srcpos - 1] += (1 / self.resistance) * (config.c * G.dt / self.dl) * self.waveformvaluesM[iteration]
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field value in the main grid from voltage value in the transmission line.
@@ -416,95 +413,3 @@ class TransmissionLine(Source):
                 self.current[self.antpos] = Iz(i, j, k, G.Hx, G.Hy, G.Hz, G)
 
             self.update_current(iteration, G)
-
-
-class PlaneWave(Source):
-    """A plane wave source. It uses a total-field/scattered-field (TF/SF) formulation."""
-
-    def __init__(self, G):
-        """
-        Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
-        """
-
-        super(Source, self).__init__()
-
-        # Coordinates defining Huygen's surface
-        self.xs = 0
-        self.xf = 0
-        self.ys = 0
-        self.yf = 0
-        self.zs = 0
-        self.zf = 0
-
-        # Spherical coordinates defining incident unit wavevector (k)
-        self.theta = 0  # 0 <= theta <= 180
-        self.phi = 0  # 0 <= phi <= 360
-
-        # Angle that incident electric field makes with k cross z
-        self.psi = 0  # 0 <= psi <= 360
-
-    def calculate_origin(self, G):
-        """Calculate origin of TF/SF interface with incident wavefront."""
-
-        if self.theta >= 0 and self.theta <= 90:
-            if self.phi >= 0 and self.phi <= 90:
-                self.xcoordorigin = 0
-                self.ycoordorigin = 0
-                self.zcoordorigin = 0
-
-            elif self.phi > 90 and self.phi <= 180:
-                self.xcoordorigin = G.nx
-                self.ycoordorigin = 0
-                self.zcoordorigin = 0
-
-            elif self.phi > 180 and self.phi <= 270:
-                self.xcoordorigin = G.nx
-                self.ycoordorigin = G.ny
-                self.zcoordorigin = 0
-
-            elif self.phi > 270 and self.phi <= 360:
-                self.xcoordorigin = 0
-                self.ycoordorigin = G.ny
-                self.zcoordorigin = 0
-
-        elif self.theta > 90 and self.theta <= 180:
-            if self.phi >= 0 and self.phi <= 90:
-                self.xcoordorigin = 0
-                self.ycoordorigin = 0
-                self.zcoordorigin = G.nz
-
-            elif self.phi > 90 and self.phi <= 180:
-                self.xcoordorigin = G.nx
-                self.ycoordorigin = 0
-                self.zcoordorigin = G.nz
-
-            elif self.phi > 180 and self.phi <= 270:
-                self.xcoordorigin = G.nx
-                self.ycoordorigin = G.ny
-                self.zcoordorigin = G.nz
-
-            elif self.phi > 270 and self.phi <= 360:
-                self.xcoordorigin = 0
-                self.ycoordorigin = G.ny
-                self.zcoordorigin = G.nz
-
-    def calculate_vector_components(self):
-        """Calculate components of incident fields."""
-
-        self.theta = np.deg2rad(self.theta)
-        self.phi = np.deg2rad(self.phi)
-        self.psi = np.deg2rad(self.psi)
-
-        # Components of incident unit wavevector
-        self.kx = np.sin(self.theta) * np.cos(self.phi)
-        self.ky = np.sin(self.theta) * np.sin(self.phi)
-        self.kz = np.cos(self.theta)
-
-        # Components of incident field vectors
-        self.Exinc = np.cos(self.psi) * np.sin(self.phi) - np.sin(self.psi) * np.cos(self.theta) * np.cos(self.phi)
-        self.Eyinc = -np.cos(self.psi) * np.cos(self.phi) - np.sin(self.psi) * np.cos(self.theta) * np.sin(self.phi)
-        self.Ezinc = np.sin(self.psi) * np.sin(self.theta)
-        self.Hxinc = np.sin(self.psi) * np.sin(self.phi) + np.cos(self.psi) * np.cos(self.theta) * np.cos(self.phi)
-        self.Hyinc = -np.sin(self.psi) * np.cos(self.phi) + np.cos(self.psi) * np.cos(self.theta) * np.sin(self.phi)
-        self.Hzinc = -np.cos(self.psi) * np.sin(self.theta)

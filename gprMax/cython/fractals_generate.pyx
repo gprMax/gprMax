@@ -20,12 +20,12 @@ import numpy as np
 cimport numpy as np
 from cython.parallel import prange
 
-from gprMax.config cimport complextype_t
+from gprMax.config cimport float_or_double_complex
 
 
-cpdef void generate_fractal2D(int nx, int ny, int nthreads, int b, np.float64_t[:] weighting, np.float64_t[:] v1, np.complex128_t[:, ::1] A, complextype_t[:, ::1] fractalsurface):
+cpdef void generate_fractal2D(int nx, int ny, int nthreads, int b, np.float64_t[:] weighting, np.float64_t[:] v1, np.complex128_t[:, ::1] A, float_or_double_complex[:, ::1] fractalsurface):
     """This function generates a fractal surface for a 2D array.
-        
+
     Args:
         nx, ny (int): Fractal surface size in cells
         nthreads (int): Number of threads to use
@@ -55,7 +55,7 @@ cpdef void generate_fractal2D(int nx, int ny, int nthreads, int b, np.float64_t[
                 fractalsurface[i, j] = A[i, j] * 1 / (rr**b)
 
 
-cpdef void generate_fractal3D(int nx, int ny, int nz, int nthreads, int b, np.float64_t[:] weighting, np.float64_t[:] v1, np.complex128_t[:, :, ::1] A, complextype_t[:, :, ::1] fractalvolume):
+cpdef void generate_fractal3D(int nx, int ny, int nz, int nthreads, int b, np.float64_t[:] weighting, np.float64_t[:] v1, np.complex128_t[:, :, ::1] A, float_or_double_complex[:, :, ::1] fractalvolume):
     """This function generates a fractal volume for a 3D array.
 
     Args:

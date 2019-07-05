@@ -18,35 +18,35 @@
 
 cimport numpy as np
 
-from gprMax.config cimport floattype_t
+from gprMax.config cimport float_or_double
 
 
 cpdef void calculate_snapshot_fields(
                     int nx,
                     int ny,
                     int nz,
-                    floattype_t[:, :, ::1] sliceEx,
-                    floattype_t[:, :, ::1] sliceEy,
-                    floattype_t[:, :, ::1] sliceEz,
-                    floattype_t[:, :, ::1] sliceHx,
-                    floattype_t[:, :, ::1] sliceHy,
-                    floattype_t[:, :, ::1] sliceHz,
-                    floattype_t[:, :, ::1] snapEx,
-                    floattype_t[:, :, ::1] snapEy,
-                    floattype_t[:, :, ::1] snapEz,
-                    floattype_t[:, :, ::1] snapHx,
-                    floattype_t[:, :, ::1] snapHy,
-                    floattype_t[:, :, ::1] snapHz
+                    float_or_double[:, :, ::1] sliceEx,
+                    float_or_double[:, :, ::1] sliceEy,
+                    float_or_double[:, :, ::1] sliceEz,
+                    float_or_double[:, :, ::1] sliceHx,
+                    float_or_double[:, :, ::1] sliceHy,
+                    float_or_double[:, :, ::1] sliceHz,
+                    float_or_double[:, :, ::1] snapEx,
+                    float_or_double[:, :, ::1] snapEy,
+                    float_or_double[:, :, ::1] snapEz,
+                    float_or_double[:, :, ::1] snapHx,
+                    float_or_double[:, :, ::1] snapHy,
+                    float_or_double[:, :, ::1] snapHz
             ):
     """This function calculates electric and magnetic values at points from
-        averaging values in cells
+        averaging values in cells.
 
     Args:
         nx, ny, nz (int): Size of snapshot array
         sliceEx, sliceEy, sliceEz,
             sliceHx, sliceHy, sliceHz (memoryview): Access to slices of field arrays
-        snapEx, snapEy, snapEz, snapHx,
-            snapHy, snapHz (memoryview): Access to snapshot arrays
+        snapEx, snapEy, snapEz,
+            snapHx, snapHy, snapHz (memoryview): Access to snapshot arrays
     """
 
     cdef Py_ssize_t i, j, k
@@ -54,9 +54,8 @@ cpdef void calculate_snapshot_fields(
     for i in range(nx):
         for j in range(ny):
             for k in range(nz):
-
-                # The electric field component value at a point comes from
-                # average of the 4 electric field component values in that cell
+                # The electric field component value at a point comes from the
+                # average of the 4 electric field component values in that cell.
                 snapEx[i, j, k] = (sliceEx[i, j, k] + sliceEx[i, j + 1, k] +
                                     sliceEx[i, j, k + 1] + sliceEx[i, j + 1, k + 1]) / 4
                 snapEy[i, j, k] = (sliceEy[i, j, k] + sliceEy[i + 1, j, k] +
@@ -64,8 +63,9 @@ cpdef void calculate_snapshot_fields(
                 snapEz[i, j, k] = (sliceEz[i, j, k] + sliceEz[i + 1, j, k] +
                                     sliceEz[i, j + 1, k] + sliceEz[i + 1, j + 1, k]) / 4
 
-                # The magnetic field component value at a point comes from average
-                # of 2 magnetic field component values in that cell and the following cell
+                # The magnetic field component value at a point comes from
+                # average of 2 magnetic field component values in that cell and
+                # the neighbouring cell.
                 snapHx[i, j, k] = (sliceHx[i, j, k] + sliceHx[i + 1, j, k]) / 2
                 snapHy[i, j, k] = (sliceHy[i, j, k] + sliceHy[i, j + 1, k]) / 2
                 snapHz[i, j, k] = (sliceHz[i, j, k] + sliceHz[i, j, k + 1]) / 2

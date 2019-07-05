@@ -20,10 +20,16 @@ import numpy as np
 cimport numpy as np
 
 
-ctypedef fused floattype_t:
-    np.float32_t
-    np.float64_t
+ctypedef fused float_or_double:
+    float
+    double
 
-ctypedef fused complextype_t:
-    np.complex64_t
-    np.complex128_t
+ctypedef fused float_or_double_complex:
+    float complex
+    double complex
+
+ctypedef fused real_or_complex:
+    float
+    double
+    float complex
+    double complex
