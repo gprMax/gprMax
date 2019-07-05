@@ -29,7 +29,7 @@ from .utilities import get_host_info
 # Impedance of free space (Ohms)
 z0 = np.sqrt(m0 / e0)
 
-# General setting for the simulation
+# General setting for the simulation
 #   inputfilepath: path to inputfile location
 #   outputfilepath: path to outputfile location
 #   messages: whether to print all messages as output to stdout or not
@@ -37,7 +37,7 @@ z0 = np.sqrt(m0 / e0)
 #   mode: 2D TMx, 2D TMy, 2D TMz, or 3D
 #   cpu, cuda, opencl: solver type
 general = {'inputfilepath': '', 'outputfilepath': '', 'messages': True,
-            'progressbars': True, 'mode': None, 'cpu': True, 'cuda': False, 'opencl': False}
+           'progressbars': True, 'mode': None, 'cpu': True, 'cuda': False, 'opencl': False}
 
 # Store information about host machine
 hostinfo = get_host_info()
@@ -71,9 +71,9 @@ precision = 'single'
 
 if precision == 'single':
     dtypes = {'float_or_double': np.float32, 'complex': np.complex64,
-            'cython_float_or_double': cython.float, 'cython_complex': cython.floatcomplex,
-            'C_float_or_double': 'float', 'C_complex': 'pycuda::complex<float>'}
+              'cython_float_or_double': cython.float, 'cython_complex': cython.floatcomplex,
+              'C_float_or_double': 'float', 'C_complex': 'pycuda::complex<float>'}
 elif precision == 'double':
     dtypes = {'float_or_double': np.float64, 'complex': np.complex128,
-            'cython_float_or_double': cython.double, 'cython_complex': cython.doublecomplex,
-            'C_float_or_double': 'double', 'C_complex': 'pycuda::complex<double>'}
+              'cython_float_or_double': cython.double, 'cython_complex': cython.doublecomplex,
+              'C_float_or_double': 'double', 'C_complex': 'pycuda::complex<double>'}

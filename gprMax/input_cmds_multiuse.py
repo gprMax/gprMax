@@ -316,7 +316,7 @@ def process_multicmds(multicmds, G):
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
 
             # Warn about using a transmission line on GPU
-            if gpus is not None:
+            if config.cuda['gpus'] is not None:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' A #transmission_line cannot currently be used with GPU solving. Consider using a #voltage_source instead.')
 
             # Check polarity & position parameters

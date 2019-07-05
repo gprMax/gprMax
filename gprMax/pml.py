@@ -29,11 +29,11 @@ class CFSParameter(object):
 
     # Allowable scaling profiles and directions
     scalingprofiles = {'constant': 0, 'linear': 1, 'quadratic': 2, 'cubic': 3,
-                        'quartic': 4, 'quintic': 5, 'sextic': 6, 'septic': 7, 'octic': 8}
+                       'quartic': 4, 'quintic': 5, 'sextic': 6, 'septic': 7, 'octic': 8}
     scalingdirections = ['forward', 'reverse']
 
     def __init__(self, ID=None, scaling='polynomial', scalingprofile=None,
-                    scalingdirection='forward', min=0, max=0):
+                 scalingdirection='forward', min=0, max=0):
         """
         Args:
             ID (str): Identifier for CFS parameter, can be: 'alpha', 'kappa' or 'sigma'.
@@ -102,7 +102,7 @@ class CFS(object):
         """
 
         tmp = (np.linspace(0, (len(Evalues) - 1) + 0.5, num=2 * len(Evalues))
-                / (len(Evalues) - 1)) ** order
+               / (len(Evalues) - 1)) ** order
         Evalues = tmp[0:-1:2]
         Hvalues = tmp[1::2]
 
@@ -133,8 +133,8 @@ class CFS(object):
 
         elif parameter.scaling == 'polynomial':
             Evalues, Hvalues = self.scaling_polynomial(
-                                CFSParameter.scalingprofiles[parameter.scalingprofile],
-                                Evalues, Hvalues)
+                CFSParameter.scalingprofiles[parameter.scalingprofile],
+                Evalues, Hvalues)
             if parameter.ID == 'alpha':
                 Evalues = Evalues * (self.alpha.max - self.alpha.min) + self.alpha.min
                 Hvalues = Hvalues * (self.alpha.max - self.alpha.min) + self.alpha.min
@@ -163,7 +163,7 @@ class PML(object):
 
     # Available PML formulations:
     # Higher Order RIPML (HORIPML) see: https://doi.org/10.1109/TAP.2011.2180344
-    # Multipole RIPML (MRIPML) see: https://doi.org/10.1109/TAP.2018.2823864
+    # Multipole RIPML (MRIPML) see: https://doi.org/10.1109/TAP.2018.2823864
     formulations = ['HORIPML', 'MRIPML']
 
     # PML slabs IDs at boundaries of domain.
@@ -216,31 +216,31 @@ class PML(object):
 
         if self.direction[0] == 'x':
             self.EPhi1 = np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz + 1),
-                            dtype=config.dtypes['float_or_double'])
+                                  dtype=config.dtypes['float_or_double'])
             self.EPhi2 = np.zeros((len(self.CFS), self.nx + 1, self.ny + 1, self.nz),
-                            dtype=config.dtypes['float_or_double'])
+                                  dtype=config.dtypes['float_or_double'])
             self.HPhi1 = np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz),
-                            dtype=config.dtypes['float_or_double'])
+                                  dtype=config.dtypes['float_or_double'])
             self.HPhi2 = np.zeros((len(self.CFS), self.nx, self.ny, self.nz + 1),
-                            dtype=config.dtypes['float_or_double'])
+                                  dtype=config.dtypes['float_or_double'])
         elif self.direction[0] == 'y':
             self.EPhi1 = np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz + 1),
-                            dtype=config.dtypes['float_or_double'])
+                                  dtype=config.dtypes['float_or_double'])
             self.EPhi2 = np.zeros((len(self.CFS), self.nx + 1, self.ny + 1, self.nz),
-                            dtype=config.dtypes['float_or_double'])
+                                  dtype=config.dtypes['float_or_double'])
             self.HPhi1 = np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz),
-                            dtype=config.dtypes['float_or_double'])
+                                  dtype=config.dtypes['float_or_double'])
             self.HPhi2 = np.zeros((len(self.CFS), self.nx, self.ny, self.nz + 1),
-                            dtype=config.dtypes['float_or_double'])
+                                  dtype=config.dtypes['float_or_double'])
         elif self.direction[0] == 'z':
             self.EPhi1 = np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz + 1),
-                            dtype=config.dtypes['float_or_double'])
+                                  dtype=config.dtypes['float_or_double'])
             self.EPhi2 = np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz + 1),
-                            dtype=config.dtypes['float_or_double'])
+                                  dtype=config.dtypes['float_or_double'])
             self.HPhi1 = np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz),
-                            dtype=config.dtypes['float_or_double'])
+                                  dtype=config.dtypes['float_or_double'])
             self.HPhi2 = np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz),
-                            dtype=config.dtypes['float_or_double'])
+                                  dtype=config.dtypes['float_or_double'])
 
     def calculate_update_coeffs(self, er, mr, G):
         """Calculates electric and magnetic update coefficients for the PML.
@@ -253,21 +253,21 @@ class PML(object):
         """
 
         self.ERA = np.zeros((len(self.CFS), self.thickness),
-                    dtype=config.dtypes['float_or_double'])
+                            dtype=config.dtypes['float_or_double'])
         self.ERB = np.zeros((len(self.CFS), self.thickness),
-                    dtype=config.dtypes['float_or_double'])
+                            dtype=config.dtypes['float_or_double'])
         self.ERE = np.zeros((len(self.CFS), self.thickness),
-                    dtype=config.dtypes['float_or_double'])
+                            dtype=config.dtypes['float_or_double'])
         self.ERF = np.zeros((len(self.CFS), self.thickness),
-                    dtype=config.dtypes['float_or_double'])
+                            dtype=config.dtypes['float_or_double'])
         self.HRA = np.zeros((len(self.CFS), self.thickness),
-                    dtype=config.dtypes['float_or_double'])
+                            dtype=config.dtypes['float_or_double'])
         self.HRB = np.zeros((len(self.CFS), self.thickness),
-                    dtype=config.dtypes['float_or_double'])
+                            dtype=config.dtypes['float_or_double'])
         self.HRE = np.zeros((len(self.CFS), self.thickness),
-                    dtype=config.dtypes['float_or_double'])
+                            dtype=config.dtypes['float_or_double'])
         self.HRF = np.zeros((len(self.CFS), self.thickness),
-                    dtype=config.dtypes['float_or_double'])
+                            dtype=config.dtypes['float_or_double'])
 
         for x, cfs in enumerate(self.CFS):
             if not cfs.sigma.max:
@@ -283,7 +283,7 @@ class PML(object):
                 self.ERA[x, :] = (2 * config.e0 + G.dt * Ealpha) / tmp
                 self.ERB[x, :] = (2 * config.e0 * Ekappa) / tmp
                 self.ERE[x, :] = ((2 * config.e0 * Ekappa) - G.dt
-                                    * (Ealpha * Ekappa + Esigma)) / tmp
+                                  * (Ealpha * Ekappa + Esigma)) / tmp
                 self.ERF[x, :] = (2 * Esigma * G.dt) / (Ekappa * tmp)
 
                 # HORIPML magnetic update coefficients
@@ -291,7 +291,7 @@ class PML(object):
                 self.HRA[x, :] = (2 * config.e0 + G.dt * Halpha) / tmp
                 self.HRB[x, :] = (2 * config.e0 * Hkappa) / tmp
                 self.HRE[x, :] = ((2 * config.e0 * Hkappa) - G.dt
-                                    * (Halpha * Hkappa + Hsigma)) / tmp
+                                  * (Halpha * Hkappa + Hsigma)) / tmp
                 self.HRF[x, :] = (2 * Hsigma * G.dt) / (Hkappa * tmp)
 
             elif G.pmlformulation == 'MRIPML':
@@ -318,9 +318,9 @@ class PML(object):
         pmlmodule = 'gprMax.cython.pml_updates_electric_' + G.pmlformulation
         func = getattr(import_module(pmlmodule), 'order' + str(len(self.CFS)) + '_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf,
-                config.hostinfo['ompthreads'], G.updatecoeffsE, G.ID,
-                G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.EPhi1, self.EPhi2,
-                self.ERA, self.ERB, self.ERE, self.ERF, self.d)
+             config.hostinfo['ompthreads'], G.updatecoeffsE, G.ID,
+             G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.EPhi1, self.EPhi2,
+             self.ERA, self.ERB, self.ERE, self.ERF, self.d)
 
     def update_magnetic(self, G):
         """This functions updates magnetic field components with the PML correction.
@@ -332,9 +332,9 @@ class PML(object):
         pmlmodule = 'gprMax.cython.pml_updates_magnetic_' + G.pmlformulation
         func = getattr(import_module(pmlmodule), 'order' + str(len(self.CFS)) + '_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf,
-                config.hostinfo['ompthreads'], G.updatecoeffsH, G.ID,
-                G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.HPhi1, self.HPhi2,
-                self.HRA, self.HRB, self.HRE, self.HRF, self.d)
+             config.hostinfo['ompthreads'], G.updatecoeffsH, G.ID,
+             G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.HPhi1, self.HPhi2,
+             self.HRA, self.HRB, self.HRE, self.HRF, self.d)
 
     def gpu_set_blocks_per_grid(self, G):
         """Set the blocks per grid size used for updating the PML field arrays on a GPU.
@@ -344,9 +344,9 @@ class PML(object):
         """
 
         config.cuda['gpus'].bpg = (int(np.ceil(((self.EPhi1.shape[1] + 1)
-                                    * (self.EPhi1.shape[2] + 1)
-                                    * (self.EPhi1.shape[3] + 1))
-                                    / config.cuda['gpus'].tpb[0])), 1, 1)
+                                                * (self.EPhi1.shape[2] + 1)
+                                                * (self.EPhi1.shape[3] + 1))
+                                               / config.cuda['gpus'].tpb[0])), 1, 1)
 
     def gpu_initialise_arrays(self):
         """Initialise PML field and coefficient arrays on GPU."""
@@ -379,9 +379,9 @@ class PML(object):
         from pycuda.compiler import SourceModule
 
         self.update_electric = kernelselectric.get_function('order' + str(len(self.CFS))
-                                + '_' + self.direction)
+                                                            + '_' + self.direction)
         self.update_magnetic = kernelsmagnetic.get_function('order' + str(len(self.CFS))
-                                + '_' + self.direction)
+                                                            + '_' + self.direction)
 
     def gpu_update_electric(self, G):
         """This functions updates electric field components with the PML
@@ -393,19 +393,19 @@ class PML(object):
         """
 
         self.update_electric(np.int32(self.xs), np.int32(self.xf),
-                                np.int32(self.ys), np.int32(self.yf),
-                                np.int32(self.zs), np.int32(self.zf),
-                                np.int32(self.EPhi1.shape[1]), np.int32(self.EPhi1.shape[2]),
-                                np.int32(self.EPhi1.shape[3]), np.int32(self.EPhi2.shape[1]),
-                                np.int32(self.EPhi2.shape[2]), np.int32(self.EPhi2.shape[3]),
-                                np.int32(self.thickness), G.ID_gpu.gpudata,
-                                G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                                G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                                self.EPhi1_gpu.gpudata, self.EPhi2_gpu.gpudata,
-                                self.ERA_gpu.gpudata, self.ERB_gpu.gpudata,
-                                self.ERE_gpu.gpudata, self.ERF_gpu.gpudata,
-                                config.dtypes['float_or_double'](self.d),
-                                block=config.cuda['gpus'].tpb, grid=config.cuda['gpus'].bpg)
+                             np.int32(self.ys), np.int32(self.yf),
+                             np.int32(self.zs), np.int32(self.zf),
+                             np.int32(self.EPhi1.shape[1]), np.int32(self.EPhi1.shape[2]),
+                             np.int32(self.EPhi1.shape[3]), np.int32(self.EPhi2.shape[1]),
+                             np.int32(self.EPhi2.shape[2]), np.int32(self.EPhi2.shape[3]),
+                             np.int32(self.thickness), G.ID_gpu.gpudata,
+                             G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                             G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                             self.EPhi1_gpu.gpudata, self.EPhi2_gpu.gpudata,
+                             self.ERA_gpu.gpudata, self.ERB_gpu.gpudata,
+                             self.ERE_gpu.gpudata, self.ERF_gpu.gpudata,
+                             config.dtypes['float_or_double'](self.d),
+                             block=config.cuda['gpus'].tpb, grid=config.cuda['gpus'].bpg)
 
     def gpu_update_magnetic(self, G):
         """This functions updates magnetic field components with the PML
@@ -417,19 +417,19 @@ class PML(object):
         """
 
         self.update_magnetic(np.int32(self.xs), np.int32(self.xf),
-                                np.int32(self.ys), np.int32(self.yf),
-                                np.int32(self.zs), np.int32(self.zf),
-                                np.int32(self.HPhi1.shape[1]), np.int32(self.HPhi1.shape[2]),
-                                np.int32(self.HPhi1.shape[3]), np.int32(self.HPhi2.shape[1]),
-                                np.int32(self.HPhi2.shape[2]), np.int32(self.HPhi2.shape[3]),
-                                np.int32(self.thickness), G.ID_gpu.gpudata,
-                                G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                                G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
-                                self.HPhi1_gpu.gpudata, self.HPhi2_gpu.gpudata,
-                                self.HRA_gpu.gpudata, self.HRB_gpu.gpudata,
-                                self.HRE_gpu.gpudata, self.HRF_gpu.gpudata,
-                                config.dtypes['float_or_double'](self.d),
-                                block=config.cuda['gpus'].tpb, grid=config.cuda['gpus'].bpg)
+                             np.int32(self.ys), np.int32(self.yf),
+                             np.int32(self.zs), np.int32(self.zf),
+                             np.int32(self.HPhi1.shape[1]), np.int32(self.HPhi1.shape[2]),
+                             np.int32(self.HPhi1.shape[3]), np.int32(self.HPhi2.shape[1]),
+                             np.int32(self.HPhi2.shape[2]), np.int32(self.HPhi2.shape[3]),
+                             np.int32(self.thickness), G.ID_gpu.gpudata,
+                             G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
+                             G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                             self.HPhi1_gpu.gpudata, self.HPhi2_gpu.gpudata,
+                             self.HRA_gpu.gpudata, self.HRB_gpu.gpudata,
+                             self.HRE_gpu.gpudata, self.HRF_gpu.gpudata,
+                             config.dtypes['float_or_double'](self.d),
+                             block=config.cuda['gpus'].tpb, grid=config.cuda['gpus'].bpg)
 
 
 def build_pmls(G, pbar):

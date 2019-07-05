@@ -414,6 +414,7 @@ def detect_check_gpus(deviceIDs):
 
     return gpus, allgpustext
 
+
 def timer():
     """Function to return the current process wide time in fractional seconds."""
     return perf_counter()

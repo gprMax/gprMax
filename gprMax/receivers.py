@@ -64,7 +64,7 @@ def gpu_initialise_rx_arrays(G):
     # Array to store field components for receivers on GPU - rows are field components;
     # columns are iterations; pages are receivers
     rxs = np.zeros((Rx.maxnumoutputs, G.iterations, len(G.rxs)),
-            dtype=config.dtypes['float_or_double'])
+                   dtype=config.dtypes['float_or_double'])
 
     # Copy arrays to GPU
     rxcoords_gpu = gpuarray.to_gpu(rxcoords)
@@ -89,5 +89,5 @@ def gpu_get_rx_array(rxs_gpu, rxcoords_gpu, G):
             if rx.xcoord == rxcoords_gpu[rxgpu, 0] and \
                rx.ycoord == rxcoords_gpu[rxgpu, 1] and \
                rx.zcoord == rxcoords_gpu[rxgpu, 2]:
-                for k, v in rx.outputs.items():
-                    v = rxs_gpu[Rx.gpu_allowableoutputs.index(k), :, rxgpu]
+                for k in rx.outputs.items():
+                    rx.outputs[k] = rxs_gpu[Rx.gpu_allowableoutputs.index(k), :, rxgpu]

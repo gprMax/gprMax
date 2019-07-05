@@ -20,6 +20,7 @@ import os
 import sys
 from io import StringIO
 
+import gprMax.config as config
 from .exceptions import CmdInputError
 
 
@@ -162,7 +163,7 @@ def write_processed_file(processedlines, appendmodelnumber):
         appendmodelnumber (str): Text to append to filename.
     """
 
-    processedfile = os.path.join(outputfilepath, os.path.splitext(inputfilepath)[0] + appendmodelnumber + '_processed.in')
+    processedfile = os.path.join(config.general['outputfilepath'], os.path.splitext(config.general['inputfilepath'])[0] + appendmodelnumber + '_processed.in')
 
     with open(processedfile, 'w') as f:
         for item in processedlines:

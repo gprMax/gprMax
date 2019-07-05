@@ -44,7 +44,7 @@ def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
             else:
                 func = globals()[output]
                 rx.outputs[output][iteration] = func(rx.xcoord, rx.ycoord, rx.zcoord,
-                                                    Hx, Hy, Hz, G)
+                                                     Hx, Hy, Hz, G)
 
     for tl in G.transmissionlines:
         tl.Vtotal[iteration] = tl.voltage[tl.antpos]

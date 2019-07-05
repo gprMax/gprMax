@@ -81,7 +81,7 @@ class FractalSurface(object):
 
         # Positional vector at centre of array, scaled by weighting
         v1 = np.array([self.weighting[0] * (surfacedims[0]) / 2, self.weighting[1]
-                        * (surfacedims[1]) / 2])
+                       * (surfacedims[1]) / 2])
 
         # 2D array of random numbers to be convolved with the fractal function
         R = np.random.RandomState(self.seed)
@@ -94,7 +94,7 @@ class FractalSurface(object):
 
         # Generate fractal
         generate_fractal2D(surfacedims[0], surfacedims[1], config.hostinfo['ompthreads'],
-                            self.b, self.weighting, v1, A, self.fractalsurface)
+                           self.b, self.weighting, v1, A, self.fractalsurface)
 
         # Shift the zero frequency component to start of the array
         self.fractalsurface = fftpack.ifftshift(self.fractalsurface)
@@ -105,9 +105,9 @@ class FractalSurface(object):
         fractalmax = np.amax(self.fractalsurface)
         fractalrange = fractalmax - fractalmin
         self.fractalsurface = (self.fractalsurface * ((self.fractalrange[1]
-                                - self.fractalrange[0]) / fractalrange)
-                                + self.fractalrange[0] - ((self.fractalrange[1]
-                                - self.fractalrange[0]) / fractalrange) * fractalmin)
+                                                       - self.fractalrange[0]) / fractalrange)
+                               + self.fractalrange[0] - ((self.fractalrange[1]
+                                                          - self.fractalrange[0]) / fractalrange) * fractalmin)
 
 
 class FractalVolume(object):
@@ -169,7 +169,7 @@ class FractalVolume(object):
 
         # Positional vector at centre of array, scaled by weighting
         v1 = np.array([self.weighting[0] * self.nx / 2, self.weighting[1]
-                        * self.ny / 2, self.weighting[2] * self.nz / 2])
+                       * self.ny / 2, self.weighting[2] * self.nz / 2])
 
         # 3D array of random numbers to be convolved with the fractal function
         R = np.random.RandomState(self.seed)
@@ -182,7 +182,7 @@ class FractalVolume(object):
 
         # Generate fractal
         generate_fractal3D(self.nx, self.ny, self.nz, config.hostinfo['ompthreads'],
-                            self.b, self.weighting, v1, A, self.fractalvolume)
+                           self.b, self.weighting, v1, A, self.fractalvolume)
 
         # Shift the zero frequency component to the start of the array
         self.fractalvolume = fftpack.ifftshift(self.fractalvolume)
@@ -221,7 +221,7 @@ class Grass(object):
 
         self.numblades = numblades
         self.geometryparams = np.zeros((self.numblades, 6),
-                                dtype=config.dtypes['float_or_double'])
+                                       dtype=config.dtypes['float_or_double'])
         self.seed = None
 
         # Randomly defined parameters that will be used to calculate geometry
@@ -250,9 +250,9 @@ class Grass(object):
         """
 
         x = (self.geometryparams[blade, 2] * (height / self.geometryparams[blade, 0])
-                * (height / self.geometryparams[blade, 0]))
+             * (height / self.geometryparams[blade, 0]))
         y = (self.geometryparams[blade, 3] * (height / self.geometryparams[blade, 1])
-                * (height / self.geometryparams[blade, 1]))
+             * (height / self.geometryparams[blade, 1]))
         x = round_value(x)
         y = round_value(y)
 

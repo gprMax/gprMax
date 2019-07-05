@@ -196,7 +196,7 @@ class DispersiveMaterial(Material):
         elif 'lorentz' in self.type:
             for pole in range(self.poles):
                 er += ((self.deltaer[pole] * self.tau[pole]**2)
-                        / (self.tau[pole]**2 + 2j * w * self.alpha[pole] - w**2))
+                       / (self.tau[pole]**2 + 2j * w * self.alpha[pole] - w**2))
         elif 'drude' in self.type:
             ersum = 0
             for pole in range(self.poles):
@@ -221,11 +221,11 @@ def process_materials(G):
 
     if config.materials['maxpoles'] == 0:
         materialsdata = [['\nID', '\nName', '\nType', '\neps_r', 'sigma\n[S/m]',
-                            '\nmu_r', 'sigma*\n[Ohm/m]', 'Dielectric\nsmoothable']]
+                          '\nmu_r', 'sigma*\n[Ohm/m]', 'Dielectric\nsmoothable']]
     else:
         materialsdata = [['\nID', '\nName', '\nType', '\neps_r', 'sigma\n[S/m]',
-                            'Delta\neps_r', 'tau\n[s]', 'omega\n[Hz]', 'delta\n[Hz]',
-                            'gamma\n[Hz]', '\nmu_r', 'sigma*\n[Ohm/m]', 'Dielectric\nsmoothable']]
+                          'Delta\neps_r', 'tau\n[s]', 'omega\n[Hz]', 'delta\n[Hz]',
+                          'gamma\n[Hz]', '\nmu_r', 'sigma*\n[Ohm/m]', 'Dielectric\nsmoothable']]
 
     for material in G.materials:
         # Calculate update coefficients for specific material
@@ -241,7 +241,7 @@ def process_materials(G):
             z = 0
             for pole in range(config.materials['maxpoles']):
                 G.updatecoeffsdispersive[material.numID, z:z + 3] = (config.e0
-                    * material.eqt2[pole], material.eqt[pole], material.zt[pole])
+                                                                     * material.eqt2[pole], material.eqt[pole], material.zt[pole])
                 z += 3
 
         # Construct information on material properties for printing table
@@ -318,7 +318,7 @@ class PeplinskiSoil(object):
         f = 1.3e9
         w = 2 * np.pi * f
         erealw = DispersiveMaterial.watereri + ((DispersiveMaterial.waterdeltaer)
-                    / (1 + (w * DispersiveMaterial.watertau)**2))
+                                                / (1 + (w * DispersiveMaterial.watertau)**2))
 
         a = 0.65  # Experimentally derived constant
         es = (1.01 + 0.44 * self.rs)**2 - 0.062  #  Relative permittivity of sand particles
@@ -340,7 +340,7 @@ class PeplinskiSoil(object):
         while not muiter.finished:
             # Real part for frequencies in the range 1.4GHz to 18GHz
             er = (1 + (self.rb / self.rs) * ((es**a) - 1) + (muiter[0]**b1 * erealw**a)
-                    - muiter[0]) ** (1 / a)
+                  - muiter[0]) ** (1 / a)
             # Real part for frequencies in the range 0.3GHz to 1.3GHz (linear correction to 1.4-18GHz value)
             er = 1.15 * er - 0.68
 

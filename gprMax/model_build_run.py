@@ -33,6 +33,7 @@ from tqdm import tqdm
 
 import gprMax.config as config
 from .cuda.fields_updates import kernel_template_fields
+from .cuda.snapshots import kernel_template_store_snapshot
 from .cuda.source_updates import kernel_template_sources
 from .cython.fields_updates_normal import update_electric
 from .cython.fields_updates_normal import update_magnetic
@@ -495,19 +496,19 @@ def solve_gpu(currentmodelrun, modelend, G):
 
     # Electric and magnetic field updates - prepare kernels, get kernel functions, and initialise arrays on GPU
     if config.materials['maxpoles'] == 0:
-        kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=config.dtypes['C_float_or_double'], REAL_OR_COMPLEX=config.dtypes['C_complex'], N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=1, NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=1, NY_T=1, NZ_T=1), options=compiler_opts)
+        kernel_fields = SourceModule(kernel_template_fields.substitute(REAL=config.dtypes['C_float_or_double'], REAL_OR_COMPLEX=config.dtypes['C_complex'], N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=1, NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=1, NY_T=1, NZ_T=1), options=compiler_opts)
 
     else:   # # If there are any dispersive materials (updates are split into two parts as they require present and updated electric field values).
-        kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=config.dtypes['C_float_or_double'], REAL_OR_COMPLEX=config.dtypes['C_complex'], N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=G.updatecoeffsdispersive.shape[1], NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=G.Tx.shape[1], NY_T=G.Tx.shape[2], NZ_T=G.Tx.shape[3]), options=compiler_opts)
-        update_e_dispersive_A_gpu = kernels_fields.get_function("update_e_dispersive_A")
-        update_e_dispersive_B_gpu = kernels_fields.get_function("update_e_dispersive_B")
+        kernel_fields = SourceModule(kernel_template_fields.substitute(REAL=config.dtypes['C_float_or_double'], REAL_OR_COMPLEX=config.dtypes['C_complex'], N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=G.updatecoeffsdispersive.shape[1], NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3], NX_T=G.Tx.shape[1], NY_T=G.Tx.shape[2], NZ_T=G.Tx.shape[3]), options=compiler_opts)
+        update_e_dispersive_A_gpu = kernel_fields.get_function("update_e_dispersive_A")
+        update_e_dispersive_B_gpu = kernel_fields.get_function("update_e_dispersive_B")
         G.gpu_initialise_dispersive_arrays()
-    update_e_gpu = kernels_fields.get_function("update_e")
-    update_h_gpu = kernels_fields.get_function("update_h")
+    update_e_gpu = kernel_fields.get_function("update_e")
+    update_h_gpu = kernel_fields.get_function("update_h")
 
     # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for fields kernels
-    updatecoeffsE = kernels_fields.get_global('updatecoeffsE')[0]
-    updatecoeffsH = kernels_fields.get_global('updatecoeffsH')[0]
+    updatecoeffsE = kernel_fields.get_global('updatecoeffsE')[0]
+    updatecoeffsH = kernel_fields.get_global('updatecoeffsH')[0]
     if G.updatecoeffsE.nbytes + G.updatecoeffsH.nbytes > config.cuda['gpus'].constmem:
         raise GeneralError('Too many materials in the model to fit onto constant memory of size {} on {} - {} GPU'.format(human_size(config.cuda['gpus'].constmem), config.cuda['gpus'].deviceID, config.cuda['gpus'].name))
     else:
@@ -547,21 +548,21 @@ def solve_gpu(currentmodelrun, modelend, G):
 
     # Sources - initialise arrays on GPU, prepare kernel and get kernel functions
     if G.voltagesources + G.hertziandipoles + G.magneticdipoles:
-        kernels_sources = SourceModule(kernels_template_sources.substitute(REAL=config.dtypes['C_float_or_double'], N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_SRCINFO=4, NY_SRCWAVES=G.iterations, NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
+        kernel_sources = SourceModule(kernel_template_sources.substitute(REAL=config.dtypes['C_float_or_double'], N_updatecoeffsE=G.updatecoeffsE.size, N_updatecoeffsH=G.updatecoeffsH.size, NY_MATCOEFFS=G.updatecoeffsE.shape[1], NY_SRCINFO=4, NY_SRCWAVES=G.iterations, NX_FIELDS=G.Ex.shape[0], NY_FIELDS=G.Ex.shape[1], NZ_FIELDS=G.Ex.shape[2], NX_ID=G.ID.shape[1], NY_ID=G.ID.shape[2], NZ_ID=G.ID.shape[3]), options=compiler_opts)
         # Copy material coefficient arrays to constant memory of GPU (must be <64KB) for source kernels
-        updatecoeffsE = kernels_sources.get_global('updatecoeffsE')[0]
-        updatecoeffsH = kernels_sources.get_global('updatecoeffsH')[0]
+        updatecoeffsE = kernel_sources.get_global('updatecoeffsE')[0]
+        updatecoeffsH = kernel_sources.get_global('updatecoeffsH')[0]
         drv.memcpy_htod(updatecoeffsE, G.updatecoeffsE)
         drv.memcpy_htod(updatecoeffsH, G.updatecoeffsH)
         if G.hertziandipoles:
             srcinfo1_hertzian_gpu, srcinfo2_hertzian_gpu, srcwaves_hertzian_gpu = gpu_initialise_src_arrays(G.hertziandipoles, G)
-            update_hertzian_dipole_gpu = kernels_sources.get_function("update_hertzian_dipole")
+            update_hertzian_dipole_gpu = kernel_sources.get_function("update_hertzian_dipole")
         if G.magneticdipoles:
             srcinfo1_magnetic_gpu, srcinfo2_magnetic_gpu, srcwaves_magnetic_gpu = gpu_initialise_src_arrays(G.magneticdipoles, G)
-            update_magnetic_dipole_gpu = kernels_sources.get_function("update_magnetic_dipole")
+            update_magnetic_dipole_gpu = kernel_sources.get_function("update_magnetic_dipole")
         if G.voltagesources:
             srcinfo1_voltage_gpu, srcinfo2_voltage_gpu, srcwaves_voltage_gpu = gpu_initialise_src_arrays(G.voltagesources, G)
-            update_voltage_source_gpu = kernels_sources.get_function("update_voltage_source")
+            update_voltage_source_gpu = kernel_sources.get_function("update_voltage_source")
 
     # Snapshots - initialise arrays on GPU, prepare kernel and get kernel functions
     if G.snapshots:

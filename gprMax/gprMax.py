@@ -40,6 +40,7 @@ from .utilities import logo
 from .utilities import open_path_file
 from .utilities import timer
 
+
 def main():
     """This is the main function for gprMax."""
 
@@ -358,8 +359,6 @@ def run_mpi_sim(args, inputfile, usernamespace):
             workobj = dict()
             workobj['currentmodelrun'] = model
             workobj['mpicommname'] = comm.name
-            if optparams:
-                workobj['optparams'] = optparams
             worklist.append(workobj)
         # Add stop sentinels
         worklist += ([StopIteration] * numworkers)
