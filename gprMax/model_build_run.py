@@ -27,6 +27,7 @@ from colorama import init
 from colorama import Fore
 from colorama import Style
 init()
+import cython
 import numpy as np
 from terminaltables import SingleTable
 from tqdm import tqdm
@@ -409,10 +410,10 @@ def solve_cpu(currentmodelrun, modelend, G):
                 update_electric_dispersive_A = update_electric_dispersive_multipole_A
                 update_electric_dispersive_B = update_electric_dispersive_multipole_B
         elif config.materials['dispersivedtype'] == config.dtypes['float_or_double']:
-            if config.materials['maxpoles'] == 2:
+            if config.materials['maxpoles'] == 1:
                 update_electric_dispersive_A = update_electric_dispersive_debye_1pole_A
                 update_electric_dispersive_B = update_electric_dispersive_debye_1pole_B
-            elif config.materials['maxpoles'] == 1:
+            elif config.materials['maxpoles'] > 1:
                 update_electric_dispersive_A = update_electric_dispersive_debye_multipole_A
                 update_electric_dispersive_B = update_electric_dispersive_debye_multipole_B
 
