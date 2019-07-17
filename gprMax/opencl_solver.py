@@ -232,8 +232,8 @@ class OpenClSolver(object):
 
         # if pmls
         if self.G.pmls:
-            pmlmodulelectric = 'pml_updates_electric_' + self.G.pmlformulation + '.cl'
-            pmlmodulemagnetic = 'pml_updates_magnetic_' + self.G.pmlformulation + '.cl'
+            pmlmodulelectric = 'pml_electric.cl'
+            pmlmodulemagnetic = 'pml_magnetic.cl'
             kernel_pml_electric = trad_jinja_env.get_template(pmlmodulelectric).render(
                 REAL=self.datatypes['REAL'],
                 N_updatecoeffsE=self.G.updatecoeffsE.size, 
@@ -265,7 +265,7 @@ class OpenClSolver(object):
             for pml in self.G.pmls:
                 pml.cl_set_workgroups(self.G)
                 pml.cl_initialize_arrays(self.queue)
-                pml.cl_get_update_funcs(kernel_pml_electric, kernel_pml_magnetic)
+                pml.cl_set_program(self.queue, kernel_pml_electric, kernel_pml_magnetic)
 
         # if receviers
         if self.G.rxs:
@@ -307,9 +307,11 @@ class OpenClSolver(object):
                 print("Setting up Hertzian Dipole")
                 self.srcinfo1_hertzian_cl, self.srcinfo2_hertzian_cl, self.srcwaves_hertzian_cl = gpu_initialise_src_arrays(self.G.hertziandipoles, self.G, queue=self.queue, opencl=True)
             if self.G.magneticdipoles:
-                raise NotImplementedError
+                print("setting up Magnetic Dipoles")
+                self.srcinfo1_magnetic_cl, self.srcinfo2_magnetic_cl, self.srcwaves_magnetic_cl = gpu_initialise_src_arrays(self.G.magneticdipoles, self.G, queue=self.queue, opencl=True)
             if self.G.voltagesources:
-                raise NotImplementedError
+                print("setting up Volatge Sources")
+                self.srcinfo1_voltage_cl, self.srcinfo2_voltage_cl, self.srcwaves_voltage_cl = gpu_initialise_src_arrays(self.G.voltagesources, self.G, queue=self.queue, opencl=True)
 
         if self.G.snapshots:
             raise NotImplementedError
@@ -445,12 +447,19 @@ class OpenClSolver(object):
 
                 for pml in self.G.pmls:
                     pml.cl_update_magnetic(self.queue, G)
-                    warnings.warn("Not implemented as of now")
                     
 
                 # update magnetic dipoles (sources)
                 if self.G.magneticdipoles:
-                    raise NotImplementedError
+                    source_event = self.source_prg.update_magnetic_dipole(
+                        self.queue, (1,1,1), None,
+                        np.int32(len(self.G.magneticdipoles)), np.int32(iteration),
+                        np.float32(self.G.dx), np.float32(self.G.dy), np.float32(self.G.dz),
+                        self.srcinfo1_magnetic_cl.data, self.srcinfo2_magnetic_cl.data,
+                        self.srcwaves_magnetic_cl.data, self.G.ID_cl.data,
+                        self.G.Hx_cl.data, self.G.Hy_cl.data, self.G.Hz_cl.data
+                    )
+                    source_event.wait()
 
                 if Material.maxpoles != 0:
                     raise NotImplementedError
@@ -468,7 +477,15 @@ class OpenClSolver(object):
                     pml.cl_update_electric(self.queue, G)
                 
                 if self.G.voltagesources:
-                    raise NotImplementedError
+                    source_event = self.source_prg.update_voltage_source(
+                        self.queue, (1,1,1), None,
+                        np.int32(len(self.G.voltagesources)), np.int32(iteration),
+                        np.float32(self.G.dx), np.float32(self.G.dy), np.float32(self.G.dz),
+                        self.srcinfo1_voltage_cl.data, self.srcinfo2_voltage_cl.data,
+                        self.srcwaves_voltage_cl.data, self.G.ID_cl.data,
+                        self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data
+                    )
+                    source_event.wait()
 
                 if self.G.hertziandipoles:
                     source_event = self.source_prg.update_hertzian_dipole(
