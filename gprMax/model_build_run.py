@@ -50,7 +50,7 @@ from gprMax.fields_updates_ext import update_electric_dispersive_1pole_A
 from gprMax.fields_updates_ext import update_electric_dispersive_1pole_B
 from gprMax.fields_updates_gpu import kernels_template_fields
 
-from gprMax.opencl_solver_dev import OpenClSolver
+from gprMax.opencl_solver import OpenClSolver
 
 from gprMax.grid import FDTDGrid
 from gprMax.grid import dispersion_analysis
