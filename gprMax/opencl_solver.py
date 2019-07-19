@@ -6,7 +6,7 @@ import warnings
 import time 
 
 import jinja2
-from jinja2 import Template
+from string import Template
 import pyopencl as cl
 import pyopencl.array as cl_array
 from pyopencl.elementwise import ElementwiseKernel
@@ -15,6 +15,8 @@ from gprMax.materials import Material, process_materials
 from gprMax.receivers import gpu_initialise_rx_arrays, gpu_get_rx_array
 from gprMax.sources import gpu_initialise_src_arrays
 from gprMax.utilities import get_terminal_width, round32
+from gprMax.opencl_el_kernels import pml_updates_electric_HORIPML as el_electric
+from gprMax.opencl_el_kernels import pml_updates_magnetic_HORIPML as el_magnetic
 
 class OpenClSolver(object):
     def __init__(self, G=None, context=None, queue=None):
@@ -73,7 +75,8 @@ class OpenClSolver(object):
     
     def setDataTypes(self):
         self.datatypes = {
-            'REAL': 'float'
+            'REAL': 'float',
+            'COMPLEX': 'cfloat'
         }
         return
 
@@ -85,7 +88,6 @@ class OpenClSolver(object):
         elwise_jinja_env = jinja2.Environment(loader=jinja2.PackageLoader(__name__, 'opencl_el_kernels'))
         
         # get the preamble
-        print("getting the common kernels")
         common_kernel = elwise_jinja_env.get_template('common.cl').render(
             REAL = self.datatypes['REAL'],
             N_updatecoeffsE = self.G.updatecoeffsE.size,
@@ -114,7 +116,6 @@ class OpenClSolver(object):
         if Material.maxpoles > 0:
             raise NotImplementedError
         else:
-            print("setting up kernel field text")
             e_update_context = elwise_jinja_env.get_template('update_field_e.cl').render(
                 NX_FIELDS = self.G.Ex.shape[0],
                 NY_FIELDS = self.G.Ex.shape[1],
@@ -125,7 +126,7 @@ class OpenClSolver(object):
             )
             self.update_e_field = ElementwiseKernel(
                 self.context,
-                "int NX, int NY, int NZ, __global const unsigned int* restrict ID, __global float *Ex, __global float *Ey, __global float *Ez, __global const float * restrict Hx, __global const float * restrict Hy, __global const float * restrict Hz",
+                Template("int NX, int NY, int NZ, __global const unsigned int* restrict ID, __global $REAL *Ex, __global $REAL *Ey, __global $REAL *Ez, __global const $REAL * restrict Hx, __global const $REAL * restrict Hy, __global const $REAL * restrict Hz").substitute({'REAL':self.datatypes['REAL']}),
                 e_update_context,
                 "update_e_field",
                 preamble=common_kernel
@@ -141,7 +142,7 @@ class OpenClSolver(object):
             )
             self.update_h_field = ElementwiseKernel(
                 self.context,
-                "int NX, int NY, int NZ, __global const unsigned int* restrict ID, __global float *Hx, __global float *Hy, __global float *Hz, __global const float* restrict Ex, __global const float* restrict Ey, __global const float* restrict Ez",
+                Template("int NX, int NY, int NZ, __global const unsigned int* restrict ID, __global $REAL *Hx, __global $REAL *Hy, __global $REAL *Hz, __global const $REAL* restrict Ex, __global const $REAL* restrict Ey, __global const $REAL* restrict Ez").substitute({'REAL':self.datatypes['REAL']}),
                 h_update_context,
                 "update_h_field",
                 preamble=common_kernel
@@ -156,38 +157,135 @@ class OpenClSolver(object):
 
         # if pmls 
         if self.G.pmls:
-            raise NotImplementedError
+
+            # get the electric and magnetic kernel files
+            self.pml_magnetic_update = {}
+            self.pml_electric_update = {}
+
+            for pml in self.G.pmls:
+                pml.cl_set_workgroups(self.G)
+                pml.cl_initialize_arrays(self.queue)
+                function_name = 'order'+str(len(pml.CFS)) + '_' + pml.direction
+                electric_context_dict = {
+                    'order1_xminus' : el_electric.order1_xminus,
+                    'order2_xminus' : el_electric.order2_xminus,
+                    'order1_xplus' : el_electric.order1_xplus,
+                    'order2_xplus' : el_electric.order2_xplus,
+                    'order1_yminus' : el_electric.order1_yminus,
+                    'order2_yminus' : el_electric.order2_yminus,
+                    'order1_yplus' : el_electric.order1_yplus,
+                    'order2_yplus' : el_electric.order2_yplus,
+                    'order1_zminus' : el_electric.order1_zminus,
+                    'order2_zminus' : el_electric.order2_zminus,
+                    'order1_zplus' : el_electric.order1_zplus,
+                    'order2_zplus' : el_electric.order2_zplus
+                }
+
+                electric_function_arg_dict = {
+                    'order1_xminus' : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const $REAL* restrict Ex, __global $REAL *Ey, __global $REAL *Ez, __global const $REAL* restrict Hx, __global const $REAL* restrict Hy, __global const $REAL* restrict Hz, __global $REAL *PHI1, __global $REAL *PHI2, __global const $REAL* restrict RA, __global const $REAL* restrict RB, __global const $REAL* restrict RE, __global const $REAL* restrict RF, $REAL d", 
+                    'order2_xminus' : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const {{REAL}}* restrict Ex, __global {{REAL}} *Ey, __global {{REAL}} *Ez, __global const {{REAL}}* restrict Hx, __global const {{REAL}}* restrict Hy, __global const {{REAL}}* restrict Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d",
+                    'order1_xplus' : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const $REAL* restrict Ex, __global $REAL *Ey, __global $REAL *Ez, __global const $REAL* restrict Hx, __global const $REAL* restrict Hy, __global const $REAL* restrict Hz, __global $REAL *PHI1, __global $REAL *PHI2, __global const $REAL* restrict RA, __global const $REAL* restrict RB, __global const $REAL* restrict RE, __global const $REAL* restrict RF, $REAL d",
+                    'order2_xplus' : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const {{REAL}}* restrict Ex, __global {{REAL}} *Ey, __global {{REAL}} *Ez, __global const {{REAL}}* restrict Hx, __global const {{REAL}}* restrict Hy, __global const {{REAL}}* restrict Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d",
+                    'order1_yminus' : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global $REAL *Ex, __global const $REAL* restrict Ey, __global $REAL *Ez, __global const $REAL* restrict Hx, __global const $REAL* restrict Hy, __global const $REAL* restrict Hz, __global $REAL *PHI1, __global $REAL *PHI2, __global const $REAL* restrict RA, __global const $REAL* restrict RB, __global const $REAL* restrict RE, __global const $REAL* restrict RF, $REAL d",
+                    'order2_yminus' : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global {{REAL}} *Ex, __global const {{REAL}}* restrict Ey, __global {{REAL}} *Ez, __global const {{REAL}}* restrict Hx, __global const {{REAL}}* restrict Hy, __global const {{REAL}}* restrict Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d",
+                    'order1_yplus' : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global $REAL *Ex, __global const $REAL* restrict Ey, __global $REAL *Ez, __global const $REAL* restrict Hx, __global const $REAL* restrict Hy, __global const $REAL* restrict Hz, __global $REAL *PHI1, __global $REAL *PHI2, __global const $REAL* restrict RA, __global const $REAL* restrict RB, __global const $REAL* restrict RE, __global const $REAL* restrict RF, $REAL d",
+                    'order2_yplus' : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global {{REAL}} *Ex, __global const {{REAL}}* restrict Ey, __global {{REAL}} *Ez, __global const {{REAL}}* restrict Hx, __global const {{REAL}}* restrict Hy, __global const {{REAL}}* restrict Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d",
+                    'order1_zminus' : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global {{REAL}} *Ex, __global {{REAL}} *Ey, __global const {{REAL}}* restrict Ez, __global const {{REAL}}* restrict Hx, __global const {{REAL}}* restrict Hy, __global const {{REAL}}* restrict Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d",
+                    'order2_zminus' : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global {{REAL}} *Ex, __global {{REAL}} *Ey, __global const {{REAL}}* restrict Ez, __global const {{REAL}}* restrict Hx, __global const {{REAL}}* restrict Hy, __global const {{REAL}}* restrict Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d",
+                    'order1_zplus' : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global {{REAL}} *Ex, __global {{REAL}} *Ey, __global const {{REAL}}* restrict Ez, __global const {{REAL}}* restrict Hx, __global const {{REAL}}* restrict Hy, __global const {{REAL}}* restrict Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d",
+                    'order2_zplus' : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global {{REAL}} *Ex, __global {{REAL}} *Ey, __global const {{REAL}}* restrict Ez, __global const {{REAL}}* restrict Hx, __global const {{REAL}}* restrict Hy, __global const {{REAL}}* restrict Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d"
+                }
+
+                self.pml_electric_update[function_name] = ElementwiseKernel(
+                    self.context,
+                    Template(electric_function_arg_dict[function_name]).substitute({'REAL':self.datatypes['REAL']}),
+                    electric_context_dict[function_name].substitute({'REAL':self.datatypes['REAL']}),
+                    "pml_updates_electric_HORIPML_{}".format(function_name),
+                    preamble=common_kernel
+                )
+
+                magnetic_context_dict = {
+                    'order1_xminus' : el_magnetic.order1_xminus,
+                    'order2_xminus' : el_magnetic.order2_xminus,
+                    'order1_xplus' : el_magnetic.order1_xplus,
+                    'order2_xplus' : el_magnetic.order2_xplus,
+                    'order1_yminus' : el_magnetic.order1_yminus,
+                    'order2_yminus' : el_magnetic.order2_yminus,
+                    'order1_yplus' : el_magnetic.order1_yplus,
+                    'order2_yplus' : el_magnetic.order2_yplus,
+                    'order1_zminus' : el_magnetic.order1_zminus,
+                    'order2_zminus' : el_magnetic.order2_zminus,
+                    'order1_zplus' : el_magnetic.order1_zplus,
+                    'order2_zplus' : el_magnetic.order2_zplus
+                }
+
+                magnetic_function_arg_dict = {
+                    "order1_xminus" : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const $REAL* restrict Ex, __global const $REAL* restrict Ey, __global const $REAL* restrict Ez, __global const $REAL* restrict Hx, __global $REAL *Hy, __global $REAL *Hz, __global $REAL *PHI1, __global $REAL *PHI2, __global const $REAL* restrict RA, __global const $REAL* restrict RB, __global const $REAL* restrict RE, __global const $REAL* restrict RF, $REAL d",
+                    "order2_xminus" : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const {{REAL}}* restrict Ex, __global const {{REAL}}* restrict Ey, __global const {{REAL}}* restrict Ez, __global const {{REAL}}* restrict Hx, __global {{REAL}} *Hy, __global {{REAL}} *Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d",
+                    "order1_xplus" : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const $REAL* restrict Ex, __global const $REAL* restrict Ey, __global const $REAL* restrict Ez, __global const $REAL* restrict Hx, __global $REAL *Hy, __global $REAL *Hz, __global $REAL *PHI1, __global $REAL *PHI2, __global const $REAL* restrict RA, __global const $REAL* restrict RB, __global const $REAL* restrict RE, __global const $REAL* restrict RF, $REAL d",
+                    "order2_xplus" : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const {{REAL}}* restrict Ex, __global const {{REAL}}* restrict Ey, __global const {{REAL}}* restrict Ez, __global const {{REAL}}* restrict Hx, __global {{REAL}} *Hy, __global {{REAL}} *Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d",
+                    "order1_yminus" : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const $REAL* restrict Ex, __global const $REAL* restrict Ey, __global const $REAL* restrict Ez, __global $REAL *Hx, __global const $REAL* restrict Hy, __global $REAL *Hz, __global $REAL *PHI1, __global $REAL *PHI2, __global const $REAL* restrict RA, __global const $REAL* restrict RB, __global const $REAL* restrict RE, __global const $REAL* restrict RF, $REAL d",
+                    "order2_yminus" : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const {{REAL}}* restrict Ex, __global const {{REAL}}* restrict Ey, __global const {{REAL}}* restrict Ez, __global {{REAL}} *Hx, __global const {{REAL}}* restrict Hy, __global {{REAL}} *Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d",
+                    "order1_yplus" : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const $REAL* restrict Ex, __global const $REAL* restrict Ey, __global const $REAL* restrict Ez, __global $REAL *Hx, __global const $REAL* restrict Hy, __global $REAL *Hz, __global $REAL *PHI1, __global $REAL *PHI2, __global const $REAL* restrict RA, __global const $REAL* restrict RB, __global const $REAL* restrict RE, __global const $REAL* restrict RF, $REAL d",
+                    "order2_yplus" : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const {{REAL}}* restrict Ex, __global const {{REAL}}* restrict Ey, __global const {{REAL}}* restrict Ez, __global {{REAL}} *Hx, __global const {{REAL}}* restrict Hy, __global {{REAL}} *Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d",
+                    "order1_zminus" : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const {{REAL}}* restrict Ex, __global const {{REAL}}* restrict Ey, __global const {{REAL}}* restrict Ez, __global {{REAL}} *Hx, __global {{REAL}} *Hy, __global const {{REAL}}* restrict Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d",
+                    "order2_zminus" : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const {{REAL}}* restrict Ex, __global const {{REAL}}* restrict Ey, __global const {{REAL}}* restrict Ez, __global {{REAL}} *Hx, __global {{REAL}} *Hy, __global const {{REAL}}* restrict Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d",
+                    "order1_zplus" : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const {{REAL}}* restrict Ex, __global const {{REAL}}* restrict Ey, __global const {{REAL}}* restrict Ez, __global {{REAL}} *Hx, __global {{REAL}} *Hy, __global const {{REAL}}* restrict Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d",
+                    "order2_zplus" : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const {{REAL}}* restrict Ex, __global const {{REAL}}* restrict Ey, __global const {{REAL}}* restrict Ez, __global {{REAL}} *Hx, __global {{REAL}} *Hy, __global const {{REAL}}* restrict Hz, __global {{REAL}} *PHI1, __global {{REAL}} *PHI2, __global const {{REAL}}* restrict RA, __global const {{REAL}}* restrict RB, __global const {{REAL}}* restrict RE, __global const {{REAL}}* restrict RF, {{REAL}} d"
+                }
+
+                self.pml_magnetic_update[function_name] = ElementwiseKernel(
+                    self.context,
+                    Template(magnetic_function_arg_dict[function_name]).substitute({'REAL':self.datatypes['REAL']}),
+                    magnetic_context_dict[function_name].substitute({'REAL':self.datatypes['REAL']}),
+                    "pml_updates_magnetic_HORIPML_{}".format(function_name),
+                    preamble=common_kernel
+                )
 
         if self.G.rxs:
-            print("setting up the storage text")
             self.rxcoords_cl, self.rxs_cl = gpu_initialise_rx_arrays(self.G, self.queue, opencl=True)
             store_field_context = elwise_jinja_env.get_template('store_outputs.cl').render()
             self.store_field = ElementwiseKernel(
                 self.context,
-                "int NRX, int iteration, __global const int* restrict rxcoords, __global float *rxs, __global const float* restrict Ex, __global const float* restrict Ey, __global const float* restrict Ez, __global const float* restrict Hx, __global const float* restrict Hy, __global const float* restrict Hz",
+                Template("int NRX, int iteration, __global const int* restrict rxcoords, __global $REAL *rxs, __global const $REAL* restrict Ex, __global const $REAL* restrict Ey, __global const $REAL* restrict Ez, __global const $REAL* restrict Hx, __global const $REAL* restrict Hy, __global const $REAL* restrict Hz").substitute({'REAL':self.datatypes['REAL']}),
                 store_field_context,
                 "store_field",
                 preamble=common_kernel
             )
 
         if self.G.voltagesources + self.G.hertziandipoles + self.G.magneticdipoles:
-            print("setting the sources context")
-            
             if self.G.hertziandipoles:
-                print("setting hertziandipoles")
-                hertziandipoles_context = elwise_jinja_env.get_template('update_source.cl').render(REAL=self.datatypes['REAL'])
+                hertziandipoles_context = elwise_jinja_env.get_template('update_hertziandipole.cl').render(REAL=self.datatypes['REAL'])
                 self.hertziandipoles_update = ElementwiseKernel(
                     self.context,
-                    "int NHERTZDIPOLE, int iteration, float dx, float dy, float dz, __global const int* restrict srcinfo1, __global const float* restrict srcinfo2, __global const float* restrict srcwaveforms, __global const unsigned int* restrict ID, __global float *Ex, __global float *Ey, __global float *Ez",
+                    Template("int NHERTZDIPOLE, int iteration, $REAL dx, $REAL dy, $REAL dz, __global const int* restrict srcinfo1, __global const $REAL* restrict srcinfo2, __global const $REAL* restrict srcwaveforms, __global const unsigned int* restrict ID, __global $REAL *Ex, __global $REAL *Ey, __global $REAL *Ez").substitute({'REAL':self.datatypes['REAL']}),
                     hertziandipoles_context,
                     "hertziandipoles_update",
                     preamble=common_kernel
                 )
                 self.srcinfo1_hertzian_cl, self.srcinfo2_hertzian_cl, self.srcwaves_hertzian_cl = gpu_initialise_src_arrays(self.G.hertziandipoles, self.G, queue=self.queue, opencl=True)
+
             if self.G.voltagesources:
-                raise NotImplementedError
+                voltagesource_context = elwise_jinja_env.get_template('update_voltagesource.cl').render(REAL=self.datatypes['REAL'])
+                self.voltagesource_update = ElementwiseKernel(
+                    self.context,
+                    Template("int NVOLTSRC, int iteration, $REAL dx, $REAL dy, $REAL dz, __global const int* restrict srcinfo1, __global const $REAL* restrict srcinfo2, __global const $REAL* restrict srcwaveforms, __global const unsigned int* restrict ID, __global $REAL *Ex, __global $REAL *Ey, __global $REAL *Ez").substitute({'REAL':self.datatypes['REAL']}),
+                    voltagesource_context,
+                    "voltagesource_update",
+                    preamble=common_kernel
+                )
+                self.srcinfo1_voltage_cl, self.srcinfo2_voltage_cl, self.srcwaves_voltage_cl = gpu_initialise_src_arrays(self.G.voltagesources, self.G, queue=self.queue, opencl=True)
+
             if self.G.magneticdipoles:
-                raise NotImplementedError
+                magneticdipole_context = elwise_jinja_env.get_template('update_magneticdipole.cl').render(REAL=self.datatypes['REAL'])
+                self.magneticdipole_update = ElementwiseKernel(
+                    self.context,
+                    Template("int NMAGDIPOLE, int iteration, $REAL dx, $REAL dy, $REAL dz, __global const int* restrict srcinfo1, __global const $REAL* restrict srcinfo2, __global const $REAL* restrict srcwaveforms, __global const unsigned int* restrict ID, __global $REAL *Hx, __global $REAL *Hy, __global $REAL *Hz").substitute({'REAL':self.datatypes['REAL']}),
+                    magneticdipole_context,
+                    "magneticdipole_update",
+                    preamble=common_kernel
+                )
+                self.srcinfo1_magnetic_cl, self.srcinfo2_magnetic_cl, self.srcwaves_magnetic_cl = gpu_initialise_src_arrays(self.G.magneticdipoles, self.G, queue=self.queue, opencl=True)
 
         if self.G.snapshots:
             raise NotImplementedError
@@ -201,9 +299,9 @@ class OpenClSolver(object):
         if Material.maxpoles > 0:
             raise NotImplementedError
         else:
-            print("setting up kernel field text")
             kernel_fields_text = trad_jinja_env.get_template('update_fields.cl').render(
                 REAL = self.datatypes['REAL'],
+                COMPLEX = self.datatypes['COMPLEX'],
                 N_updatecoeffsE = self.G.updatecoeffsE.size,
                 N_updatecoeffsH = self.G.updatecoeffsH.size,
                 updateEVal = self.updateEVal,
@@ -232,8 +330,9 @@ class OpenClSolver(object):
 
         # if pmls
         if self.G.pmls:
-            pmlmodulelectric = 'pml_electric.cl'
-            pmlmodulemagnetic = 'pml_magnetic.cl'
+            pmlmodulelectric = 'pml_updates_electric_' + self.G.pmlformulation + '.cl'
+            pmlmodulemagnetic = 'pml_updates_magnetic_' + self.G.pmlformulation + '.cl'
+
             kernel_pml_electric = trad_jinja_env.get_template(pmlmodulelectric).render(
                 REAL=self.datatypes['REAL'],
                 N_updatecoeffsE=self.G.updatecoeffsE.size, 
@@ -265,12 +364,12 @@ class OpenClSolver(object):
             for pml in self.G.pmls:
                 pml.cl_set_workgroups(self.G)
                 pml.cl_initialize_arrays(self.queue)
-                pml.cl_set_program(self.queue, kernel_pml_electric, kernel_pml_magnetic)
+                pml.cl_set_program(self.context, kernel_pml_electric, kernel_pml_magnetic)
 
         # if receviers
         if self.G.rxs:
-            print("setting up store output text")
             self.rxcoords_cl, self.rxs_cl = gpu_initialise_rx_arrays(self.G, self.queue, opencl=True)
+            
             # get the store kernel function
             store_output_text = trad_jinja_env.get_template('store_outputs.cl').render(
                 REAL=self.datatypes['REAL'], 
@@ -285,7 +384,6 @@ class OpenClSolver(object):
 
         # if sources
         if self.G.voltagesources + self.G.hertziandipoles + self.G.magneticdipoles:
-            print("setting up sources text")
             sources_text = trad_jinja_env.get_template('update_source.cl').render(
                 REAL=self.datatypes['REAL'], 
                 N_updatecoeffsE=self.G.updatecoeffsE.size, 
@@ -304,13 +402,10 @@ class OpenClSolver(object):
             )
 
             if self.G.hertziandipoles:
-                print("Setting up Hertzian Dipole")
                 self.srcinfo1_hertzian_cl, self.srcinfo2_hertzian_cl, self.srcwaves_hertzian_cl = gpu_initialise_src_arrays(self.G.hertziandipoles, self.G, queue=self.queue, opencl=True)
             if self.G.magneticdipoles:
-                print("setting up Magnetic Dipoles")
                 self.srcinfo1_magnetic_cl, self.srcinfo2_magnetic_cl, self.srcwaves_magnetic_cl = gpu_initialise_src_arrays(self.G.magneticdipoles, self.G, queue=self.queue, opencl=True)
             if self.G.voltagesources:
-                print("setting up Volatge Sources")
                 self.srcinfo1_voltage_cl, self.srcinfo2_voltage_cl, self.srcwaves_voltage_cl = gpu_initialise_src_arrays(self.G.voltagesources, self.G, queue=self.queue, opencl=True)
 
         if self.G.snapshots:
@@ -319,8 +414,6 @@ class OpenClSolver(object):
         self.store_output_prg = cl.Program(self.context, store_output_text).build()
         self.source_prg = cl.Program(self.context, sources_text).build()
         self.kernel_field_prg = cl.Program(self.context, kernel_fields_text).build()
-
-
 
 
     def solver(self, currentmodelrun, modelend, G, elementwisekernel=False):
@@ -335,7 +428,6 @@ class OpenClSolver(object):
             tsolve (float) : time taken to execute solving
             memsolve (int) : memory usage on final iteration in bytes
         """
-        print(currentmodelrun)
         assert self.platforms is not None
         assert self.devices is not None 
         
@@ -379,11 +471,28 @@ class OpenClSolver(object):
 
                 #pmls
                 for pml in self.G.pmls:
-                    raise NotImplementedError
+                    function_name = 'order'+str(len(pml.CFS)) + '_' + pml.direction
+                    self.pml_magnetic_update[function_name](
+                        np.int32(pml.xs), np.int32(pml.xf), np.int32(pml.ys), 
+                        np.int32(pml.yf), np.int32(pml.zs), np.int32(pml.zf), 
+                        np.int32(pml.HPhi1.shape[1]), np.int32(pml.HPhi1.shape[2]), np.int32(pml.HPhi1.shape[3]), 
+                        np.int32(pml.HPhi2.shape[1]), np.int32(pml.HPhi2.shape[2]), np.int32(pml.HPhi2.shape[3]), 
+                        np.int32(pml.thickness), self.G.ID_cl, 
+                        self.G.Ex_cl, self.G.Ey_cl, self.G.Ez_cl, 
+                        self.G.Hx_cl, self.G.Hy_cl, self.G.Hz_cl, 
+                        pml.HPhi1_cl, pml.HPhi2_cl, 
+                        pml.HRA_cl, pml.HRB_cl, pml.HRE_cl, pml.HRF_cl, np.float32(pml.d)
+                    )
                 
                 # magnetic dipoles
                 if self.G.magneticdipoles:
-                    raise NotImplementedError
+                    self.magneticdipole_update(
+                        np.int32(len(self.G.magneticdipoles)), np.int32(iteration),
+                        np.float32(self.G.dx), np.float32(self.G.dy), np.float32(self.G.dz),
+                        self.srcinfo1_magnetic_cl, self.srcinfo2_magnetic_cl,
+                        self.srcwaves_magnetic_cl, self.G.ID_cl,
+                        self.G.Hx_cl, self.G.Hy_cl, self.G.Hz_cl
+                    )
                 
                 # dispersive materials
                 if Material.maxpoles != 0:
@@ -397,10 +506,27 @@ class OpenClSolver(object):
 
                 #pmls
                 for pml in self.G.pmls:
-                    raise NotImplementedError
-                
+                    function_name = 'order'+str(len(pml.CFS)) + '_' + pml.direction
+                    self.pml_electric_update[function_name](
+                        np.int32(pml.xs), np.int32(pml.xf), np.int32(pml.ys), 
+                        np.int32(pml.yf), np.int32(pml.zs), np.int32(pml.zf), 
+                        np.int32(pml.EPhi1.shape[1]), np.int32(pml.EPhi1.shape[2]), np.int32(pml.EPhi1.shape[3]), 
+                        np.int32(pml.EPhi2.shape[1]), np.int32(pml.EPhi2.shape[2]), np.int32(pml.EPhi2.shape[3]), 
+                        np.int32(pml.thickness), self.G.ID_cl, 
+                        self.G.Ex_cl, self.G.Ey_cl, self.G.Ez_cl, 
+                        self.G.Hx_cl, self.G.Hy_cl, self.G.Hz_cl, 
+                        pml.EPhi1_cl, pml.EPhi2_cl, 
+                        pml.ERA_cl, pml.ERB_cl, pml.ERE_cl, pml.ERF_cl, np.float32(pml.d)
+                    )
+
                 if self.G.voltagesources:
-                    raise NotImplementedError
+                    self.voltagesource_update(
+                        np.int32(len(self.G.voltagesources)), np.int32(iteration),
+                        np.float32(self.G.dx), np.float32(self.G.dy), np.float32(self.G.dz),
+                        self.srcinfo1_voltage_cl, self.srcinfo2_voltage_cl,
+                        self.srcwaves_voltage_cl, self.G.ID_cl,
+                        self.G.Ex_cl, self.G.Ey_cl, self.G.Ez_cl
+                    )
                 
                 if self.G.hertziandipoles:
                     self.hertziandipoles_update(
@@ -425,8 +551,7 @@ class OpenClSolver(object):
                 # store field component values for every receiver
                 if self.G.rxs:
                     store_output_event = self.store_output_prg.store_outputs(
-                        # self.queue, (round32(len(self.G.rxs)),1,1), None, 
-                        self.queue, (1,1,1), None,
+                        self.queue, (len(self.G.rxs),1,1), None, 
                         np.int32(len(self.G.rxs)), np.int32(iteration), 
                         self.rxcoords_cl.data, self.rxs_cl.data,
                         self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data, 
@@ -438,7 +563,7 @@ class OpenClSolver(object):
 
                 # update magnetic field components 
                 kernel_field_event = self.kernel_field_prg.update_h(
-                    self.queue, (2*int(np.ceil((self.G.nx+1)*(self.G.ny+1)*(self.G.nz+1))),1,1), None,
+                    self.queue, (int(np.ceil((self.G.nx+1)*(self.G.ny+1)*(self.G.nz+1))),1,1), None,
                     np.int32(self.G.nx), np.int32(self.G.ny), np.int32(self.G.nz),
                     self.G.ID_cl.data, self.G.Hx_cl.data, self.G.Hy_cl.data, self.G.Hz_cl.data, 
                     self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data
@@ -446,8 +571,7 @@ class OpenClSolver(object):
                 kernel_field_event.wait()
 
                 for pml in self.G.pmls:
-                    pml.cl_update_magnetic(self.queue, G)
-                    
+                    pml.cl_update_magnetic(self.queue, self.G)            
 
                 # update magnetic dipoles (sources)
                 if self.G.magneticdipoles:
@@ -466,7 +590,7 @@ class OpenClSolver(object):
                 else:
                     # update electric field components
                     kernel_field_event = self.kernel_field_prg.update_e(
-                        self.queue, (2*int(np.ceil((self.G.nx+1)*(self.G.ny+1)*(self.G.nz+1))),1,1), None,
+                        self.queue, (int(np.ceil((self.G.nx+1)*(self.G.ny+1)*(self.G.nz+1))),1,1), None,
                         np.int32(self.G.nx), np.int32(self.G.ny), np.int32(self.G.nz),
                         self.G.ID_cl.data, self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data,
                         self.G.Hx_cl.data, self.G.Hy_cl.data, self.G.Hz_cl.data
@@ -474,7 +598,8 @@ class OpenClSolver(object):
                     kernel_field_event.wait()
 
                 for pml in self.G.pmls:
-                    pml.cl_update_electric(self.queue, G)
+                    pml.cl_update_electric(self.queue, self.G)
+                
                 
                 if self.G.voltagesources:
                     source_event = self.source_prg.update_voltage_source(
@@ -503,8 +628,7 @@ class OpenClSolver(object):
         if self.G.rxs:
             # store the output from receivers array back to correct receiver objects
             gpu_get_rx_array(self.rxs_cl.get(), self.rxcoords_cl.get(), self.G)
-        # print(rxs_cl.get())
-        # print(rxcoords_cl.get())
+
         # copy data from any snapshots back to correct snapshot objects
         if self.G.snapshots:
             raise NotImplementedError

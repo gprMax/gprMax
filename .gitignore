@@ -20,8 +20,3 @@ dist/
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
-
-#opencl files
-gprMax/opencl_solver_dev.py
-gprMax/opencl_kernels/pml_updates_electric_HORIPML.cl
-gprMax/opencl_kernels/pml_updates_magnetic_HORIPML.cl

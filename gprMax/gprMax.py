@@ -63,6 +63,7 @@ def main():
     parser.add_argument('--write-processed', action='store_true', default=False, help='flag to write an input file after any Python code and include commands in the original input file have been processed')
     parser.add_argument('--opt-taguchi', action='store_true', default=False, help='flag to optimise parameters using the Taguchi optimisation method')
     parser.add_argument('--opencl',action='store_true' , default=False, help='run solver using OpenCl')
+    parser.add_argument('--elwise', action='store_true', default=False, help='build kernels using PyOpenCl ElementwiseKernels')
     args = parser.parse_args()
 
     run_main(args)
@@ -82,7 +83,8 @@ def api(
     geometry_fixed=False,
     write_processed=False,
     opt_taguchi=False,
-    opencl=False
+    opencl=False,
+    elwise = False
 ):
     """If installed as a module this is the entry point."""
 
@@ -105,6 +107,7 @@ def api(
     args.write_processed = write_processed
     args.opt_taguchi = opt_taguchi
     args.opencl = opencl
+    args.elwise = elwise
 
     run_main(args)
 
