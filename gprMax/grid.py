@@ -289,6 +289,18 @@ class FDTDGrid(Grid):
         self.Tz_gpu = gpuarray.to_gpu(self.Tz)
         self.updatecoeffsdispersive_gpu = gpuarray.to_gpu(self.updatecoeffsdispersive)
 
+    def cl_initialize_dispersive_arrays(self, queue):
+        """
+        Initialize Dispersive Material coefficients arrays on OpenCl Devices
+        """
+        import pyopencl as cl   
+        import pyopencl.array as cl_array
+
+        self.Tx_cl = cl_array.to_device(queue, self.Tx)
+        self.Ty_cl = cl_array.to_device(queue, self.Ty)
+        self.Tz_cl = cl_array.to_device(queue, self.Tz)
+        self.updatecoeffsdispersive_cl = cl_array.to_device(queue, self.updatecoeffsdispersive)
+
 
 def dispersion_analysis(G):
     """
