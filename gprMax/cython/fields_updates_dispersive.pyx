@@ -23,10 +23,8 @@ from cython.parallel import prange
 from gprMax.config cimport float_or_double
 from gprMax.config cimport real_or_complex
 
-cdef double mycreal(double complex dc) nogil:
-    cdef double complex* dcptr = &dc
-    return (<double *>dcptr)[0]
-
+cdef extern from "complex.h" nogil:
+    double creal(double complex z)
 
 #########################################################
 # Electric field updates - dispersive materials - Debye #
@@ -314,7 +312,7 @@ cpdef void update_electric_dispersive_multipole_A(
                     material = ID[0, i, j, k]
                     phi = 0
                     for pole in range(maxpoles):
-                        phi = phi + mycreal(updatecoeffsdispersive[material, pole * 3]) * mycreal(Tx[pole, i, j, k])
+                        phi = phi + creal(updatecoeffsdispersive[material, pole * 3]) * creal(Tx[pole, i, j, k])
                         Tx[pole, i, j, k] = updatecoeffsdispersive[material, 1 + (pole * 3)] * Tx[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)] * Ex[i, j, k]
                     Ex[i, j, k] = updatecoeffsE[material, 0] * Ex[i, j, k] + updatecoeffsE[material, 2] * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3] * (Hy[i, j, k] - Hy[i, j, k - 1]) - updatecoeffsE[material, 4] * phi
 
@@ -326,7 +324,7 @@ cpdef void update_electric_dispersive_multipole_A(
                     material = ID[1, i, j, k]
                     phi = 0
                     for pole in range(maxpoles):
-                        phi = phi + mycreal(updatecoeffsdispersive[material, pole * 3]) * mycreal(Ty[pole, i, j, k])
+                        phi = phi + creal(updatecoeffsdispersive[material, pole * 3]) * creal(Ty[pole, i, j, k])
                         Ty[pole, i, j, k] = updatecoeffsdispersive[material, 1 + (pole * 3)] * Ty[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)] * Ey[i, j, k]
                     Ey[i, j, k] = updatecoeffsE[material, 0] * Ey[i, j, k] + updatecoeffsE[material, 3] * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1] * (Hz[i, j, k] - Hz[i - 1, j, k]) - updatecoeffsE[material, 4] * phi
 
@@ -338,7 +336,7 @@ cpdef void update_electric_dispersive_multipole_A(
                     material = ID[2, i, j, k]
                     phi = 0
                     for pole in range(maxpoles):
-                        phi = phi + mycreal(updatecoeffsdispersive[material, pole * 3]) * mycreal(Tz[pole, i, j, k])
+                        phi = phi + creal(updatecoeffsdispersive[material, pole * 3]) * creal(Tz[pole, i, j, k])
                         Tz[pole, i, j, k] = updatecoeffsdispersive[material, 1 + (pole * 3)] * Tz[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)] * Ez[i, j, k]
                     Ez[i, j, k] = updatecoeffsE[material, 0] * Ez[i, j, k] + updatecoeffsE[material, 1] * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[material, 2] * (Hx[i, j, k] - Hx[i, j - 1, k]) - updatecoeffsE[material, 4] * phi
 
@@ -437,7 +435,7 @@ cpdef void update_electric_dispersive_1pole_A(
             for j in range(1, ny):
                 for k in range(1, nz):
                     material = ID[0, i, j, k]
-                    phi = mycreal(updatecoeffsdispersive[material, 0]) * mycreal(Tx[0, i, j, k])
+                    phi = creal(updatecoeffsdispersive[material, 0]) * creal(Tx[0, i, j, k])
                     Tx[0, i, j, k] = updatecoeffsdispersive[material, 1] * Tx[0, i, j, k] + updatecoeffsdispersive[material, 2] * Ex[i, j, k]
                     Ex[i, j, k] = updatecoeffsE[material, 0] * Ex[i, j, k] + updatecoeffsE[material, 2] * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3] * (Hy[i, j, k] - Hy[i, j, k - 1]) - updatecoeffsE[material, 4] * phi
 
@@ -447,7 +445,7 @@ cpdef void update_electric_dispersive_1pole_A(
             for j in range(0, ny):
                 for k in range(1, nz):
                     material = ID[1, i, j, k]
-                    phi = mycreal(updatecoeffsdispersive[material, 0]) * mycreal(Ty[0, i, j, k])
+                    phi = creal(updatecoeffsdispersive[material, 0]) * creal(Ty[0, i, j, k])
                     Ty[0, i, j, k] = updatecoeffsdispersive[material, 1] * Ty[0, i, j, k] + updatecoeffsdispersive[material, 2] * Ey[i, j, k]
                     Ey[i, j, k] = updatecoeffsE[material, 0] * Ey[i, j, k] + updatecoeffsE[material, 3] * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1] * (Hz[i, j, k] - Hz[i - 1, j, k]) - updatecoeffsE[material, 4] * phi
 
@@ -457,7 +455,7 @@ cpdef void update_electric_dispersive_1pole_A(
             for j in range(1, ny):
                 for k in range(0, nz):
                     material = ID[2, i, j, k]
-                    phi = mycreal(updatecoeffsdispersive[material, 0]) * mycreal(Tz[0, i, j, k])
+                    phi = creal(updatecoeffsdispersive[material, 0]) * creal(Tz[0, i, j, k])
                     Tz[0, i, j, k] = updatecoeffsdispersive[material, 1] * Tz[0, i, j, k] + updatecoeffsdispersive[material, 2] * Ez[i, j, k]
                     Ez[i, j, k] = updatecoeffsE[material, 0] * Ez[i, j, k] + updatecoeffsE[material, 1] * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[material, 2] * (Hx[i, j, k] - Hx[i, j - 1, k]) - updatecoeffsE[material, 4] * phi
 
