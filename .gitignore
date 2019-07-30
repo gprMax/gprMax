@@ -6,7 +6,7 @@
 *.c
 *.so
 *.pyd
-gprMax\cython\fields_updates_dispersive.pyx
+gprMax/cython/fields_updates_dispersive.pyx
 
 # Mac OS X
 .DS_Store
