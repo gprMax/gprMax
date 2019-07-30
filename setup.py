@@ -33,6 +33,71 @@ import pathlib
 import re
 import shutil
 import sys
+from jinja2 import Environment, PackageLoader, select_autoescape
+
+
+def build_dispersive_material_templates():
+    """
+    Function to generate Cython .pyx files for dispersive media update.
+    Jinja2 templates are used to render the various dispersive update functions.
+    """
+    env = Environment(
+        loader=PackageLoader(__name__, 'gprMax/templates'),
+    )
+
+    template = env.get_template('fields_updates_dispersive_template')
+
+    # Render dispersive template for different types
+    r = template.render(
+        functions=[
+            # templates for Double precision and dispersive materials with
+            # real susceptibility functions
+            {
+                'name_a': 'update_electric_dispersive_multipole_A_double_real',
+                'name_b': 'update_electric_dispersive_multipole_B_double_real',
+                'name_a_1': 'update_electric_dispersive_1pole_A_double_real',
+                'name_b_1': 'update_electric_dispersive_1pole_B_double_real',
+                'field_type': 'double',
+                'dispersive_type': 'double'
+            },
+            # templates for Float precision and dispersive materials with
+            # real susceptibility functions
+            {
+                'name_a': 'update_electric_dispersive_multipole_A_float_real',
+                'name_b': 'update_electric_dispersive_multipole_B_float_real',
+                'name_a_1': 'update_electric_dispersive_1pole_A_float_real',
+                'name_b_1': 'update_electric_dispersive_1pole_B_float_real',
+                'field_type': 'float',
+                'dispersive_type': 'float'
+            },
+            # templates for Double precision and dispersive materials with
+            # complex susceptibility functions
+            {
+                'name_a': 'update_electric_dispersive_multipole_A_double_complex',
+                'name_b': 'update_electric_dispersive_multipole_B_double_complex',
+                'name_a_1': 'update_electric_dispersive_1pole_A_double_complex',
+                'name_b_1': 'update_electric_dispersive_1pole_B_double_complex',
+                'field_type': 'double',
+                'dispersive_type': 'double complex',
+                # c function to take real part of complex double type
+                'real_part': 'creal'
+            },
+            # templates for Float precision and dispersive materials with
+            # complex susceptibility functions
+            {
+                'name_a': 'update_electric_dispersive_multipole_A_float_complex',
+                'name_b': 'update_electric_dispersive_multipole_B_float_complex',
+                'name_a_1': 'update_electric_dispersive_1pole_A_float_complex',
+                'name_b_1': 'update_electric_dispersive_1pole_B_float_complex',
+                'field_type': 'float',
+                'dispersive_type': 'float complex',
+                # c function to take real part of complex double type
+                'real_part': 'crealf'
+            }]
+    )
+
+    with open('gprMax/cython/fields_updates_dispersive.pyx', 'w') as f:
+        f.write(r)
 
 # Importing _version__.py before building can cause issues.
 with open('gprMax/_version.py', 'r') as fd:
@@ -130,6 +195,9 @@ elif sys.platform == 'linux':
     compile_args = ['-O3', '-w', '-fopenmp', '-march=native']
     linker_args = ['-fopenmp']
     extra_objects = []
+
+# generate cython file for dispersive update
+build_dispersive_material_templates()
 
 # Build a list of all the extensions
 extensions = []
