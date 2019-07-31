@@ -180,7 +180,8 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         G.initialise_geometry_arrays()
 
         # Initialise arrays for the field components
-        G.initialise_field_arrays()
+        if G.gpu is None:
+            G.initialise_field_arrays()
 
         # Process geometry commands in the order they were given
         process_geometrycmds(geometry, G)
@@ -296,12 +297,13 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         if G.messages:
             print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
-        # Clear arrays for field components
-        G.initialise_field_arrays()
+        if G.gpu is None:
+            # Clear arrays for field components
+            G.initialise_field_arrays()
 
-        # Clear arrays for fields in PML
-        for pml in G.pmls:
-            pml.initialise_field_arrays()
+            # Clear arrays for fields in PML
+            for pml in G.pmls:
+                pml.initialise_field_arrays()
 
     # Adjust position of simple sources and receivers if required
     if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:

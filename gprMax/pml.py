@@ -196,7 +196,8 @@ class PML(object):
 
         self.CFS = G.cfs
 
-        self.initialise_field_arrays()
+        if G.gpu is None:
+            self.initialise_field_arrays()
 
     def initialise_field_arrays(self):
         """Initialise arrays to store fields in PML."""
@@ -308,18 +309,30 @@ class PML(object):
 
         import pycuda.gpuarray as gpuarray
 
-        self.EPhi1_gpu = gpuarray.to_gpu(self.EPhi1)
-        self.EPhi2_gpu = gpuarray.to_gpu(self.EPhi2)
         self.ERA_gpu = gpuarray.to_gpu(self.ERA)
         self.ERB_gpu = gpuarray.to_gpu(self.ERB)
         self.ERE_gpu = gpuarray.to_gpu(self.ERE)
         self.ERF_gpu = gpuarray.to_gpu(self.ERF)
-        self.HPhi1_gpu = gpuarray.to_gpu(self.HPhi1)
-        self.HPhi2_gpu = gpuarray.to_gpu(self.HPhi2)
         self.HRA_gpu = gpuarray.to_gpu(self.HRA)
         self.HRB_gpu = gpuarray.to_gpu(self.HRB)
         self.HRE_gpu = gpuarray.to_gpu(self.HRE)
         self.HRF_gpu = gpuarray.to_gpu(self.HRF)
+
+        if self.direction[0] == 'x':
+            self.EPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz + 1), dtype=floattype))
+            self.EPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx + 1, self.ny + 1, self.nz), dtype=floattype))
+            self.HPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz), dtype=floattype))
+            self.HPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx, self.ny, self.nz + 1), dtype=floattype))
+        elif self.direction[0] == 'y':
+            self.EPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz + 1), dtype=floattype))
+            self.EPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx + 1, self.ny + 1, self.nz), dtype=floattype))
+            self.HPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz), dtype=floattype))
+            self.HPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx, self.ny, self.nz + 1), dtype=floattype))
+        elif self.direction[0] == 'z':
+            self.EPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz + 1), dtype=floattype))
+            self.EPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz + 1), dtype=floattype))
+            self.HPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz), dtype=floattype))
+            self.HPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz), dtype=floattype))
 
     def gpu_get_update_funcs(self, kernelselectric, kernelsmagnetic):
         """Get update functions from PML kernels.
@@ -328,8 +341,6 @@ class PML(object):
             kernelselectric: PyCuda SourceModule containing PML kernels for electric updates.
             kernelsmagnetic: PyCuda SourceModule containing PML kernels for magnetic updates.
         """
-
-        from pycuda.compiler import SourceModule
 
         self.update_electric_gpu = kernelselectric.get_function('order' + str(len(self.CFS)) + '_' + self.direction)
         self.update_magnetic_gpu = kernelsmagnetic.get_function('order' + str(len(self.CFS)) + '_' + self.direction)

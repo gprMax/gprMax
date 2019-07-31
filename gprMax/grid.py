@@ -254,12 +254,12 @@ class FDTDGrid(Grid):
         import pycuda.gpuarray as gpuarray
 
         self.ID_gpu = gpuarray.to_gpu(self.ID)
-        self.Ex_gpu = gpuarray.to_gpu(self.Ex)
-        self.Ey_gpu = gpuarray.to_gpu(self.Ey)
-        self.Ez_gpu = gpuarray.to_gpu(self.Ez)
-        self.Hx_gpu = gpuarray.to_gpu(self.Hx)
-        self.Hy_gpu = gpuarray.to_gpu(self.Hy)
-        self.Hz_gpu = gpuarray.to_gpu(self.Hz)
+        self.Ex_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
+        self.Ey_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
+        self.Ez_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
+        self.Hx_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
+        self.Hy_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
+        self.Hz_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
 
     def gpu_initialise_dispersive_arrays(self):
         """Initialise dispersive material coefficient arrays on GPU."""
