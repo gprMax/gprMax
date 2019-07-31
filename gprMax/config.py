@@ -77,3 +77,57 @@ elif precision == 'double':
     dtypes = {'float_or_double': np.float64, 'complex': np.complex128,
               'cython_float_or_double': cython.double, 'cython_complex': cython.doublecomplex,
               'C_float_or_double': 'double', 'C_complex': 'pycuda::complex<double>'}
+
+
+def create_simulation_config(args):
+    pass
+
+class SimulationConfig(args):
+
+    def __init__(args):
+        """Adapter for args into Simulation level configuration"""
+
+        # adapt the arg properties to link smoothly with MPIRunner(), CPURunner() etc..
+
+        # args.inputfile
+        # args.n
+        # args.task
+        # args.restart
+        # args.mpi
+        # args.mpi_no_spawn
+        # args.mpicomm
+        # args.gpu
+        # args.benchmark
+        # args.geometry_only
+        # args.geometry_fixed
+        # args.write_processed
+
+        self.model_start = 0
+        self.model_end = 0
+        self.n_models = 0
+
+    # for example
+    def set_model_start(self):
+
+        # standard simulation
+        if not self.args.mpi and not self.args.mpi_no_spawn
+            # Set range for number of models to run
+            if args.task:
+              # Job array feeds args.n number of single tasks
+              self.modelstart = args.task
+            elif args.restart:
+              self.modelstart = args.restart
+            else:
+              self.modelstart = 1
+        # mpi
+        elif args.mpi:
+        # Set range for number of models to run
+            self.modelstart = args.restart if args.restart else 1
+
+        # etc...
+
+      def set_model_end():
+          pass
+
+      def set_precision():
+          pass
