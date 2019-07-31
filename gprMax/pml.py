@@ -443,7 +443,7 @@ def pml_information(G):
         for key, value in G.pmlthickness.items():
             pmlinfo += '{}: {}, '.format(key, value)
         pmlinfo = pmlinfo[:-2] + ' cells'
-    return 'PML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo))
+    return 'PML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo)
 
 def build_pml(G, key, thickness):
     """This function builds instances of the PML and calculates the initial
