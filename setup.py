@@ -99,6 +99,9 @@ def build_dispersive_material_templates():
     with open('gprMax/cython/fields_updates_dispersive.pyx', 'w') as f:
         f.write(r)
 
+# Generate Cython file for dispersive materials update functions
+build_dispersive_material_templates()
+
 # Importing _version__.py before building can cause issues.
 with open('gprMax/_version.py', 'r') as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
@@ -195,9 +198,6 @@ elif sys.platform == 'linux':
     compile_args = ['-O3', '-w', '-fopenmp', '-march=native']
     linker_args = ['-fopenmp']
     extra_objects = []
-
-# generate cython file for dispersive update
-build_dispersive_material_templates()
 
 # Build a list of all the extensions
 extensions = []

@@ -20,16 +20,14 @@ import numpy as np
 cimport numpy as np
 from cython.parallel import prange
 
-from gprMax.config cimport float_or_double
-from gprMax.config cimport real_or_complex
-
 cdef extern from "complex.h" nogil:
     double creal(double complex z)
     float crealf(float complex z)
 
-#########################################################
-# Electric field updates - dispersive materials - multipole A
-#########################################################
+
+###############################################################
+# Electric field updates - dispersive materials - multipole A #
+###############################################################
 
 {% for item in functions %}
 cpdef void {{ item.name_a }}(
@@ -114,9 +112,9 @@ cpdef void {{ item.name_a }}(
 {% endfor %}
 
 
-#########################################################
-# Electric field updates - dispersive materials - multipole B
-#########################################################
+###############################################################
+# Electric field updates - dispersive materials - multipole B #
+###############################################################
 
 {% for item in functions %}
 cpdef void {{ item.name_b }}(
@@ -176,13 +174,11 @@ cpdef void {{ item.name_b }}(
 {% endfor %}
 
 
-#########################################################
-# Electric field updates - dispersive materials - single pole A
-#########################################################
+#################################################################
+# Electric field updates - dispersive materials - single pole A #
+#################################################################
 
-# one pole
 {% for item in functions %}
-
 cpdef void {{ item.name_a_1 }}(
                     int nx,
                     int ny,
@@ -259,12 +255,12 @@ cpdef void {{ item.name_a_1 }}(
 
 {% endfor %}
 
-#########################################################
-# Electric field updates - dispersive materials - single pole B
-#########################################################
+
+#################################################################
+# Electric field updates - dispersive materials - single pole B #
+#################################################################
 
 {% for item in functions %}
-
 cpdef void {{ item.name_b_1 }}(
                     int nx,
                     int ny,
