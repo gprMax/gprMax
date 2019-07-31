@@ -36,7 +36,6 @@ from .cmds_multiple import GeometryView
 from .cmds_multiple import GeometryObjectsWrite
 from .cmds_multiple import PMLCFS
 from .subgrids.user_objects import SubGridHSG
-from .subgrids.user_objects import SubGridSHSG
 from .subgrids.user_objects import ReferenceRx
 
 # import geometry commands
