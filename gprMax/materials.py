@@ -372,3 +372,18 @@ class PeplinskiSoil(object):
                 G.materials.append(m)
 
             muiter.iternext()
+
+def create_built_in_materials(G):
+    G.n_built_in_materials = len(G.materials)
+
+    # Create built-in materials
+    m = Material(0, 'pec')
+    m.se = float('inf')
+    m.type = 'builtin'
+    m.averagable = False
+    G.materials.append(m)
+    m = Material(1, 'free_space')
+    m.type = 'builtin'
+    G.materials.append(m)
+
+    G.n_built_in_materials = len(G.materials)
