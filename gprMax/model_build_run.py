@@ -553,7 +553,7 @@ def solve_gpu(currentmodelrun, modelend, G):
         # Initialise arrays on GPU
         rxcoords_gpu, rxs_gpu = gpu_initialise_rx_arrays(G)
         # Prepare kernel and get kernel function
-        kernel_store_outputs = SourceModule(kernel_template_store_outputs.substitute(REAL=cudafloattype, NY_RXCOORDS=3, NX_RXS=6, NY_RXS=G.iterations, NZ_RXS=len(G.rxs), NX_FIELDS=(G.nx + 1, G.ny + 1, G.nz + 1), NY_FIELDS=(G.nx + 1, G.ny + 1, G.nz + 1), (G.nx + 1, G.ny + 1, G.nz + 1)), options=compiler_opts)
+        kernel_store_outputs = SourceModule(kernel_template_store_outputs.substitute(REAL=cudafloattype, NY_RXCOORDS=3, NX_RXS=6, NY_RXS=G.iterations, NZ_RXS=len(G.rxs), NX_FIELDS=(G.nx + 1, G.ny + 1, G.nz + 1), NY_FIELDS=(G.nx + 1, G.ny + 1, G.nz + 1), NZ_FIELDS=(G.nx + 1, G.ny + 1, G.nz + 1)), options=compiler_opts)
         store_outputs_gpu = kernel_store_outputs.get_function("store_outputs")
 
     # Sources - initialise arrays on GPU, prepare kernel and get kernel functions
