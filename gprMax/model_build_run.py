@@ -54,7 +54,8 @@ from .materials import Material
 from .materials import process_materials
 from .pml import CFS
 from .pml import PML
-from .pml import build_pmls
+from .pml import build_pml
+from .pml import pml_information
 from .receivers import gpu_initialise_rx_arrays
 from .receivers import gpu_get_rx_array
 from .receivers import Rx
@@ -96,45 +97,29 @@ def run_model(solver, sim_config, model_config):
 
         G = solver.G
 
-        # Estimate and check memory (RAM) usage
-        G.memory_estimate_basic()
-        G.memory_check()
-        if sim_config.general['messages']:
-            print(G.memory_message)
+        # api for multiple scenes / model runs
+        try:
+            scene = model_config.scene
+        # process using hashcommands
+        except AttributeError:
+            scene = Scene()
+            # parse the input file into user objects and add them to the scene
+            scene = parse_hash_commands(args, usernamespace, appendmodelnumber, G, scene)
 
-        # Initialise an array for volumetric material IDs (solid), boolean
-        # arrays for specifying materials not to be averaged (rigid),
-        # an array for cell edge IDs (ID)
-        G.initialise_geometry_arrays()
+        # Creates the internal simulation objects.
+        scene.create_internal_objects(G)
 
-        # Initialise arrays for the field components
-        G.initialise_field_arrays()
-
-        # Build the PMLs and calculate initial coefficients
-
-        # print stuff about PML
+        # print PML information
         if config.general['messages']:
-            # no pml
-            if all(value == 0 for value in G.pmlthickness.values()):
-                print('PML: switched off')
+            print(pml_information(G))
 
-            if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
-                pmlinfo = str(G.pmlthickness['x0'])
-            else:
-                pmlinfo = ''
-                for key, value in G.pmlthickness.items():
-                    pmlinfo += '{}: {}, '.format(key, value)
-                pmlinfo = pmlinfo[:-2] + ' cells'
-            print('PML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo))
+        # build the PMLS
+        pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
 
-            # build the PMLS
-            pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
-
-            for pml_id, thickness in G.pmlthickness.items():
-                build_pml(G, pml_id, thickness)
-                pbar.update()
-
-            pbar.close()
+        for pml_id, thickness in G.pmlthickness.items():
+            build_pml(G, pml_id, thickness)
+            pbar.update()
+        pbar.close()
 
         # Build the model, i.e. set the material properties (ID) for every edge
         # of every Yee cell
@@ -224,6 +209,8 @@ def run_model(solver, sim_config, model_config):
             print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']) + Style.RESET_ALL)
         elif results['deltavp'] and config.general['messages']:
             print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
+
+        disp_a = update_f.format(model_config.poles, 'A', model_config.precision, model_config.dispersion_type)
 
         # set the dispersive update functions based on the model configuration
         solver.updates.set_dispersive_updates(model_config)

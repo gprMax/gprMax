@@ -431,8 +431,21 @@ class PML(object):
                              config.dtypes['float_or_double'](self.d),
                              block=config.cuda['gpus'].tpb, grid=config.cuda['gpus'].bpg)
 
+def pml_information(G):
+    # no pml
+    if all(value == 0 for value in G.pmlthickness.values()):
+        return 'PML: switched off'
 
-def build_pmls(G, pbar):
+    if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
+        pmlinfo = str(G.pmlthickness['x0'])
+    else:
+        pmlinfo = ''
+        for key, value in G.pmlthickness.items():
+            pmlinfo += '{}: {}, '.format(key, value)
+        pmlinfo = pmlinfo[:-2] + ' cells'
+    return 'PML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo))
+
+def build_pml(G, key, thickness):
     """This function builds instances of the PML and calculates the initial
         parameters and coefficients including setting profile
         (based on underlying material er and mr from solid array).
@@ -440,58 +453,54 @@ def build_pmls(G, pbar):
     Args:
         G (class): Grid class instance - holds essential parameters
                     describing the model.
-        pbar (class): Progress bar class instance.
     """
+    if value > 0:
+        sumer = 0  # Sum of relative permittivities in PML slab
+        summr = 0  # Sum of relative permeabilities in PML slab
 
-    for key, value in G.pmlthickness.items():
-        if value > 0:
-            sumer = 0  # Sum of relative permittivities in PML slab
-            summr = 0  # Sum of relative permeabilities in PML slab
+        if key[0] == 'x':
+            if key == 'x0':
+                pml = PML(G, ID=key, direction='xminus', xf=value, yf=G.ny, zf=G.nz)
+            elif key == 'xmax':
+                pml = PML(G, ID=key, direction='xplus', xs=G.nx - value, xf=G.nx, yf=G.ny, zf=G.nz)
+            G.pmls.append(pml)
+            for j in range(G.ny):
+                for k in range(G.nz):
+                    numID = G.solid[pml.xs, j, k]
+                    material = next(x for x in G.materials if x.numID == numID)
+                    sumer += material.er
+                    summr += material.mr
+            averageer = sumer / (G.ny * G.nz)
+            averagemr = summr / (G.ny * G.nz)
 
-            if key[0] == 'x':
-                if key == 'x0':
-                    pml = PML(G, ID=key, direction='xminus', xf=value, yf=G.ny, zf=G.nz)
-                elif key == 'xmax':
-                    pml = PML(G, ID=key, direction='xplus', xs=G.nx - value, xf=G.nx, yf=G.ny, zf=G.nz)
-                G.pmls.append(pml)
+        elif key[0] == 'y':
+            if key == 'y0':
+                pml = PML(G, ID=key, direction='yminus', yf=value, xf=G.nx, zf=G.nz)
+            elif key == 'ymax':
+                pml = PML(G, ID=key, direction='yplus', ys=G.ny - value, xf=G.nx, yf=G.ny, zf=G.nz)
+            G.pmls.append(pml)
+            for i in range(G.nx):
+                for k in range(G.nz):
+                    numID = G.solid[i, pml.ys, k]
+                    material = next(x for x in G.materials if x.numID == numID)
+                    sumer += material.er
+                    summr += material.mr
+            averageer = sumer / (G.nx * G.nz)
+            averagemr = summr / (G.nx * G.nz)
+
+        elif key[0] == 'z':
+            if key == 'z0':
+                pml = PML(G, ID=key, direction='zminus', zf=value, xf=G.nx, yf=G.ny)
+            elif key == 'zmax':
+                pml = PML(G, ID=key, direction='zplus', zs=G.nz - value, xf=G.nx, yf=G.ny, zf=G.nz)
+            G.pmls.append(pml)
+            for i in range(G.nx):
                 for j in range(G.ny):
-                    for k in range(G.nz):
-                        numID = G.solid[pml.xs, j, k]
-                        material = next(x for x in G.materials if x.numID == numID)
-                        sumer += material.er
-                        summr += material.mr
-                averageer = sumer / (G.ny * G.nz)
-                averagemr = summr / (G.ny * G.nz)
+                    numID = G.solid[i, j, pml.zs]
+                    material = next(x for x in G.materials if x.numID == numID)
+                    sumer += material.er
+                    summr += material.mr
+            averageer = sumer / (G.nx * G.ny)
+            averagemr = summr / (G.nx * G.ny)
 
-            elif key[0] == 'y':
-                if key == 'y0':
-                    pml = PML(G, ID=key, direction='yminus', yf=value, xf=G.nx, zf=G.nz)
-                elif key == 'ymax':
-                    pml = PML(G, ID=key, direction='yplus', ys=G.ny - value, xf=G.nx, yf=G.ny, zf=G.nz)
-                G.pmls.append(pml)
-                for i in range(G.nx):
-                    for k in range(G.nz):
-                        numID = G.solid[i, pml.ys, k]
-                        material = next(x for x in G.materials if x.numID == numID)
-                        sumer += material.er
-                        summr += material.mr
-                averageer = sumer / (G.nx * G.nz)
-                averagemr = summr / (G.nx * G.nz)
-
-            elif key[0] == 'z':
-                if key == 'z0':
-                    pml = PML(G, ID=key, direction='zminus', zf=value, xf=G.nx, yf=G.ny)
-                elif key == 'zmax':
-                    pml = PML(G, ID=key, direction='zplus', zs=G.nz - value, xf=G.nx, yf=G.ny, zf=G.nz)
-                G.pmls.append(pml)
-                for i in range(G.nx):
-                    for j in range(G.ny):
-                        numID = G.solid[i, j, pml.zs]
-                        material = next(x for x in G.materials if x.numID == numID)
-                        sumer += material.er
-                        summr += material.mr
-                averageer = sumer / (G.nx * G.ny)
-                averagemr = summr / (G.nx * G.ny)
-
-            pml.calculate_update_coeffs(averageer, averagemr, G)
-            pbar.update()
+        pml.calculate_update_coeffs(averageer, averagemr, G)
