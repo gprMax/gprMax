@@ -17,11 +17,10 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from .base import SubGridBase
-from .hsg_fields_updates_ext import cython_update_is
-from .hsg_fields_updates_ext import cython_update_electric_os
-from .hsg_fields_updates_ext import cython_update_magnetic_os
+from ..cython.fields_updates_hsg import cython_update_is
+from ..cython.fields_updates_hsg import cython_update_electric_os
+from ..cython.fields_updates_hsg import cython_update_magnetic_os
 from ..utilities import human_size
-from ..utilities import memory_usage
 
 from colorama import init, Fore, Style
 init()
@@ -42,6 +41,9 @@ class SubGridHSG(SubGridBase):
         self.j_u = self.j1 + self.is_os_sep
         self.k_l = self.k0 - self.is_os_sep
         self.k_u = self.k1 + self.is_os_sep
+
+    def memory_usage(self):
+        pass
 
     def update_magnetic_is(self, precursors):
         """Apply the incident field corrections to the subgrid fields at the IS.
@@ -131,7 +133,7 @@ class SubGridHSG(SubGridBase):
         s += 'Name: {}\n'.format(self.name)
         s += 'dx, dy, dz: {}m {}m {}m\n'.format(self.dx, self.dy, self.dz)
         s += 'dt: {}s\n'.format(self.dt)
-        s += 'Memory Estimate: {}\n'.format(human_size(memory_usage(self)))
+        s += 'Memory Estimate: {}\n'.format(human_size(self.memory_usage()))
         s += 'Position: ({}m, {}m, {}m), ({}m, {}m, {}m)\n'.format(self.x1,
                                                                    self.y1,
                                                                    self.z1,
