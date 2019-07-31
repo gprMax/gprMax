@@ -82,7 +82,28 @@ elif precision == 'double':
 def create_simulation_config(args):
     pass
 
-class SimulationConfig(args):
+
+class ModelConfig():
+
+    def __init__(sim_config, i):
+        self.sim_config = sim.sim_config
+        # current model number (indexed from 0)
+        self.i = i
+
+        if not sim_config.single_model:
+            # 1 indexed
+            self.appendmodelnumber = str(self.i) + 1
+
+        inputfilestr_f = '\n--- Model {}/{}, input file: {}'.format()
+        self.inputfilestr_f.format(self.i + 1, self.sim_config.model_end, self.sim_config.inputfile.name)
+
+
+        # Add the current model run to namespace that can be accessed by
+        # user in any Python code blocks in input file
+        self.usernamespace['current_model_run'] = self.i + 1
+
+
+class SimulationConfig():
 
     def __init__(args):
         """Adapter for args into Simulation level configuration"""
@@ -103,14 +124,24 @@ class SimulationConfig(args):
         # args.write_processed
 
         self.model_start = 0
-        self.model_end = 0
+        self.model_end = 1
         self.n_models = 0
+        self.inputfile = args.inputfile
+        self.inputfilepath = os.path.realpath(inputfile.name)
+        self.outputfilepath = os.path.dirname(os.path.abspath(self.inputfilepath))
+
+
+    def set_single_model(self):
+        if self.mode_start == 0 and self.model_end == 1:
+            self.single_model = True
+        else:
+            self.single_model = False
 
     # for example
     def set_model_start(self):
 
         # standard simulation
-        if not self.args.mpi and not self.args.mpi_no_spawn
+        if not self.args.mpi and not self.args.mpi_no_spawn:
             # Set range for number of models to run
             if args.task:
               # Job array feeds args.n number of single tasks
@@ -122,12 +153,10 @@ class SimulationConfig(args):
         # mpi
         elif args.mpi:
         # Set range for number of models to run
-            self.modelstart = args.restart if args.restart else 1
+            self.modelstart = args.restart if args.restart else 1 # etc...
 
-        # etc...
+    def set_model_end():
+      pass
 
-      def set_model_end():
-          pass
-
-      def set_precision():
-          pass
+    def set_precision():
+      pass
