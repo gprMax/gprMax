@@ -69,6 +69,16 @@ from .utilities import open_path_file
 from .utilities import round32
 from .utilities import timer
 
+class Printer():
+
+    def __init__(self, sim_conf):
+        self.printing = sim_conf.general['messages']
+
+    def print(self, str):
+        if self.printing:
+            print(str)
+
+
 
 def run_model(solver, sim_config, model_config):
     """Runs a model - processes the input file; builds the Yee cells; calculates update coefficients; runs main FDTD loop.
@@ -86,14 +96,15 @@ def run_model(solver, sim_config, model_config):
         tsolve (int): Length of time (seconds) of main FDTD calculations
     """
 
+    printer = Printer(model_config)
+
     # Monitor memory usage
     p = psutil.Process()
 
     # Normal model reading/building process; bypassed if geometry information to be reused
     if not sim_config.geometry_fixed:
 
-        if sim_config.general['messages']:
-            print(Fore.GREEN + '{} {}\n'.format(model_config.inputfilestr, '-' * (get_terminal_width() - 1 - len(model_config.inputfilestr))) + Style.RESET_ALL)
+        printer.print(Fore.GREEN + '{} {}\n'.format(model_config.inputfilestr, '-' * (get_terminal_width() - 1 - len(model_config.inputfilestr))) + Style.RESET_ALL)
 
         G = solver.G
 
@@ -110,8 +121,7 @@ def run_model(solver, sim_config, model_config):
         scene.create_internal_objects(G)
 
         # print PML information
-        if config.general['messages']:
-            print(pml_information(G))
+        printer.print(pml_information(G))
 
         # build the PMLS
         pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
@@ -123,7 +133,7 @@ def run_model(solver, sim_config, model_config):
 
         # Build the model, i.e. set the material properties (ID) for every edge
         # of every Yee cell
-        if config.general['messages']: print()
+        printer.print('')
         pbar = tqdm(total=2, desc='Building main grid', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
         build_electric_components(G.solid, G.rigidE, G.ID, G)
         pbar.update()
@@ -173,8 +183,7 @@ def run_model(solver, sim_config, model_config):
             # Update estimated memory (RAM) usage
             G.memoryusage += int(3 * config.materials['maxpoles'] * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(config.materials['dispersivedtype']).itemsize)
             G.memory_check()
-            if config.general['messages']:
-                print('\nMemory (RAM) required - updated (dispersive): ~{}\n'.format(human_size(G.memoryusage)))
+            printer.print('\nMemory (RAM) required - updated (dispersive): ~{}\n'.format(human_size(G.memoryusage)))
 
             G.initialise_dispersive_arrays(config.materials['dispersivedtype'])
 
@@ -186,29 +195,29 @@ def run_model(solver, sim_config, model_config):
                 snapsmemsize += (2 * snap.datasizefield)
             G.memoryusage += int(snapsmemsize)
             G.memory_check(snapsmemsize=int(snapsmemsize))
-            if config.general['messages']:
-                print('\nMemory (RAM) required - updated (snapshots): ~{}\n'.format(human_size(G.memoryusage)))
+
+            printer.print('\nMemory (RAM) required - updated (snapshots): ~{}\n'.format(human_size(G.memoryusage)))
 
         # Process complete list of materials - calculate update coefficients,
         # store in arrays, and build text list of materials/properties
         materialsdata = process_materials(G)
-        if config.general['messages']:
-            print('\nMaterials:')
-            materialstable = SingleTable(materialsdata)
-            materialstable.outer_border = False
-            materialstable.justify_columns[0] = 'right'
-            print(materialstable.table)
+        materialstable = SingleTable(materialsdata)
+        materialstable.outer_border = False
+        materialstable.justify_columns[0] = 'right'
+
+        printer.print('\nMaterials:')
+        printer.print(materialstable.table)
 
         # Check to see if numerical dispersion might be a problem
         results = dispersion_analysis(G)
-        if results['error'] and config.general['messages']:
-            print(Fore.RED + "\nWARNING: Numerical dispersion analysis not carried out as {}".format(results['error']) + Style.RESET_ALL)
+        if results['error']:
+            printer.print(Fore.RED + "\nWARNING: Numerical dispersion analysis not carried out as {}".format(results['error']) + Style.RESET_ALL)
         elif results['N'] < config.numdispersion['mingridsampling']:
             raise GeneralError("Non-physical wave propagation: Material '{}' has wavelength sampled by {} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {:g}Hz".format(results['material'].ID, results['N'], results['maxfreq']))
-        elif results['deltavp'] and np.abs(results['deltavp']) > config.numdispersion['maxnumericaldisp'] and config.general['messages']:
-            print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']) + Style.RESET_ALL)
-        elif results['deltavp'] and config.general['messages']:
-            print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
+        elif results['deltavp'] and np.abs(results['deltavp']) > config.numdispersion['maxnumericaldisp']:
+            printer.print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']) + Style.RESET_ALL)
+        elif results['deltavp']:
+            printer.print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
 
         disp_a = update_f.format(model_config.poles, 'A', model_config.precision, model_config.dispersion_type)
 
@@ -219,8 +228,7 @@ def run_model(solver, sim_config, model_config):
     # If geometry information to be reused between model runs
     else:
         inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(currentmodelrun, modelend, inputfile.name)
-        if config.general['messages']:
-            print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
+        printer.print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
         # Clear arrays for field components
         G.initialise_field_arrays()
@@ -270,12 +278,9 @@ def run_model(solver, sim_config, model_config):
         # Check and set output directory and filename
         if not os.path.isdir(config.outputfilepath):
             os.mkdir(config.outputfilepath)
-            if config.general['messages']:
-                print('\nCreated output directory: {}'.format(config.outputfilepath))
+            printer.print('\nCreated output directory: {}'.format(config.outputfilepath))
         outputfile = os.path.join(config.outputfilepath, os.path.splitext(os.path.split(config.inputfilepath)[1])[0] + appendmodelnumber + '.out')
-        if config.general['messages']:
-            print('\nOutput file: {}\n'.format(outputfile))
-
+        printer.print('\nOutput file: {}\n'.format(outputfile))
         # Main FDTD solving functions for either CPU or GPU
         if config.cuda['gpus'] is None:
             tsolve = solve_cpu(currentmodelrun, modelend, G)
@@ -300,12 +305,11 @@ def run_model(solver, sim_config, model_config):
                 pbar.close()
             if config.general['messages']: print()
 
-        if config.general['messages']:
-            memGPU = ''
-            if config.cuda['gpus']:
-                memGPU = ' host + ~{} GPU'.format(human_size(memsolve))
-            print('\nMemory (RAM) used: ~{}{}'.format(human_size(p.memory_full_info().uss), memGPU))
-            print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
+        memGPU = ''
+        if config.cuda['gpus']:
+            memGPU = ' host + ~{} GPU'.format(human_size(memsolve))
+        printer.print('\nMemory (RAM) used: ~{}{}'.format(human_size(p.memory_full_info().uss), memGPU))
+        printer.print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
 
     # If geometry information to be reused between model runs then FDTDGrid
     # class instance must be global so that it persists
