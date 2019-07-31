@@ -20,7 +20,7 @@ import inspect
 import os
 import sys
 
-from .constants import c
+from .config import c
 from .constants import floattype
 from .exceptions import CmdInputError
 from .waveforms import Waveform
