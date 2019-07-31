@@ -36,16 +36,6 @@ import gprMax.config as config
 from .cuda.fields_updates import kernel_template_fields
 from .cuda.snapshots import kernel_template_store_snapshot
 from .cuda.source_updates import kernel_template_sources
-from .cython.fields_updates_normal import update_electric
-from .cython.fields_updates_normal import update_magnetic
-from .cython.fields_updates_dispersive import update_electric_dispersive_1pole_A
-from .cython.fields_updates_dispersive import update_electric_dispersive_1pole_B
-from .cython.fields_updates_dispersive import update_electric_dispersive_multipole_A
-from .cython.fields_updates_dispersive import update_electric_dispersive_multipole_B
-from .cython.fields_updates_dispersive import update_electric_dispersive_debye_1pole_A
-from .cython.fields_updates_dispersive import update_electric_dispersive_debye_1pole_B
-from .cython.fields_updates_dispersive import update_electric_dispersive_debye_multipole_A
-from .cython.fields_updates_dispersive import update_electric_dispersive_debye_multipole_B
 from .cython.yee_cell_build import build_electric_components
 from .cython.yee_cell_build import build_magnetic_components
 from .exceptions import GeneralError
@@ -79,7 +69,7 @@ from .utilities import round32
 from .utilities import timer
 
 
-def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usernamespace):
+def run_model(solver, sim_config, model_config):
     """Runs a model - processes the input file; builds the Yee cells; calculates update coefficients; runs main FDTD loop.
 
     Args:
@@ -98,71 +88,19 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
     # Monitor memory usage
     p = psutil.Process()
 
-    # Declare variable to hold FDTDGrid class
-    global G
-
-    # Used for naming geometry and output files
-    appendmodelnumber = '' if numbermodelruns == 1 and not args.task and not args.restart else str(currentmodelrun)
-
     # Normal model reading/building process; bypassed if geometry information to be reused
-    if 'G' not in globals():
+    if not sim_config.geometry_fixed:
 
-        # Initialise an instance of the FDTDGrid class
-        G = FDTDGrid()
+        if sim_config.general['messages']:
+            print(Fore.GREEN + '{} {}\n'.format(model_config.inputfilestr, '-' * (get_terminal_width() - 1 - len(model_config.inputfilestr))) + Style.RESET_ALL)
 
-        config.inputfilepath = os.path.realpath(inputfile.name)
-        config.outputfilepath = os.path.dirname(os.path.abspath(config.inputfilepath))
-        inputfilestr = '\n--- Model {}/{}, input file: {}'.format(currentmodelrun, modelend, inputfile.name)
-        if config.general['messages']:
-            print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
-
-        # Add the current model run to namespace that can be accessed by
-        # user in any Python code blocks in input file
-        usernamespace['current_model_run'] = currentmodelrun
-
-        # Read input file and process any Python and include file commands
-        processedlines = process_python_include_code(inputfile, usernamespace)
-
-        # Print constants/variables in user-accessable namespace
-        uservars = ''
-        for key, value in sorted(usernamespace.items()):
-            if key != '__builtins__':
-                uservars += '{}: {}, '.format(key, value)
-        if config.general['messages']:
-            print('Constants/variables used/available for Python scripting: {{{}}}\n'.format(uservars[:-2]))
-
-        # Write a file containing the input commands after Python or include file commands have been processed
-        if args.write_processed:
-            write_processed_file(processedlines, appendmodelnumber)
-
-        # Check validity of command names and that essential commands are present
-        singlecmds, multicmds, geometry = check_cmd_names(processedlines)
-
-        # Create built-in materials
-        m = Material(0, 'pec')
-        m.se = float('inf')
-        m.type = 'builtin'
-        m.averagable = False
-        G.materials.append(m)
-        m = Material(1, 'free_space')
-        m.type = 'builtin'
-        G.materials.append(m)
-
-        # Process parameters for commands that can only occur once in the model
-        process_singlecmds(singlecmds, G)
-
-        # Process parameters for commands that can occur multiple times in the model
-        if config.general['messages']: print()
-        process_multicmds(multicmds, G)
+        G = solver.G
 
         # Estimate and check memory (RAM) usage
         G.memory_estimate_basic()
         G.memory_check()
-        if config.general['messages']:
-            memGPU = ''
-            if config.cuda['gpus']:
-                memGPU = ' host + ~{} GPU'.format(human_size(G.memoryusage))
-            print('\nMemory (RAM) required: ~{}{}\n'.format(human_size(G.memoryusage), memGPU))
+        if sim_config.general['messages']:
+            print(G.memory_message)
 
         # Initialise an array for volumetric material IDs (solid), boolean
         # arrays for specifying materials not to be averaged (rigid),
@@ -172,30 +110,30 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         # Initialise arrays for the field components
         G.initialise_field_arrays()
 
-        # Process geometry commands in the order they were given
-        process_geometrycmds(geometry, G)
-
         # Build the PMLs and calculate initial coefficients
-        if config.general['messages']: print()
-        if all(value == 0 for value in G.pmlthickness.values()):
-            if config.general['messages']:
+
+        # print stuff about PML
+        if config.general['messages']:
+            # no pml
+            if all(value == 0 for value in G.pmlthickness.values()):
                 print('PML: switched off')
-            pass  # If all the PMLs are switched off don't need to build anything
-        else:
-            # Set default CFS parameters for PML if not given
-            if not G.cfs:
-                G.cfs = [CFS()]
-            if config.general['messages']:
-                if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
-                    pmlinfo = str(G.pmlthickness['x0'])
-                else:
-                    pmlinfo = ''
-                    for key, value in G.pmlthickness.items():
-                        pmlinfo += '{}: {}, '.format(key, value)
-                    pmlinfo = pmlinfo[:-2] + ' cells'
-                print('PML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo))
+
+            if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
+                pmlinfo = str(G.pmlthickness['x0'])
+            else:
+                pmlinfo = ''
+                for key, value in G.pmlthickness.items():
+                    pmlinfo += '{}: {}, '.format(key, value)
+                pmlinfo = pmlinfo[:-2] + ' cells'
+            print('PML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo))
+
+            # build the PMLS
             pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
-            build_pmls(G, pbar)
+
+            for pml_id, thickness in G.pmlthickness.items():
+                build_pml(G, pml_id, thickness)
+                pbar.update()
+
             pbar.close()
 
         # Build the model, i.e. set the material properties (ID) for every edge
@@ -286,6 +224,10 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']) + Style.RESET_ALL)
         elif results['deltavp'] and config.general['messages']:
             print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
+
+        # set the dispersive update functions based on the model configuration
+        solver.updates.set_dispersive_updates(model_config)
+
 
     # If geometry information to be reused between model runs
     else:
@@ -386,7 +328,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
     return tsolve
 
 
-def solve_cpu(currentmodelrun, modelend, G):
+def solve_cpu(solver, sim_config, model_config):
     """
     Solving using FDTD method on CPU. Parallelised using Cython (OpenMP) for
     electric and magnetic field updates, and PML updates.
@@ -399,71 +341,9 @@ def solve_cpu(currentmodelrun, modelend, G):
     Returns:
         tsolve (float): Time taken to execute solving (seconds)
     """
-
-    # Set update functions if there are dispersive materials
-    if config.materials['maxpoles'] != 0:
-        if config.materials['dispersivedtype'] == config.dtypes['complex']:
-            if config.materials['maxpoles'] == 1:
-                update_electric_dispersive_A = update_electric_dispersive_1pole_A
-                update_electric_dispersive_B = update_electric_dispersive_1pole_B
-            elif config.materials['maxpoles'] > 1:
-                update_electric_dispersive_A = update_electric_dispersive_multipole_A
-                update_electric_dispersive_B = update_electric_dispersive_multipole_B
-        elif config.materials['dispersivedtype'] == config.dtypes['float_or_double']:
-            if config.materials['maxpoles'] == 1:
-                update_electric_dispersive_A = update_electric_dispersive_debye_1pole_A
-                update_electric_dispersive_B = update_electric_dispersive_debye_1pole_B
-            elif config.materials['maxpoles'] > 1:
-                update_electric_dispersive_A = update_electric_dispersive_debye_multipole_A
-                update_electric_dispersive_B = update_electric_dispersive_debye_multipole_B
-
     tsolvestart = timer()
 
-    for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars']):
-        # Store field component values for every receiver and transmission line
-        store_outputs(iteration, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
-
-        # Store any snapshots
-        for snap in G.snapshots:
-            if snap.time == iteration + 1:
-                snap.store(G)
-
-        # Update magnetic field components
-        update_magnetic(G.nx, G.ny, G.nz, config.hostinfo['ompthreads'], G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
-
-        # Update magnetic field components with the PML correction
-        for pml in G.pmls:
-            pml.update_magnetic(G)
-
-        # Update magnetic field components from sources
-        for source in G.transmissionlines + G.magneticdipoles:
-            source.update_magnetic(iteration, G.updatecoeffsH, G.ID, G.Hx, G.Hy, G.Hz, G)
-
-        # Update electric field components
-        # All materials are non-dispersive so do standard update
-        if config.materials['maxpoles'] == 0:
-            update_electric(G.nx, G.ny, G.nz, config.hostinfo['ompthreads'], G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
-        # If there are any dispersive materials do 1st part of dispersive update
-        # (it is split into two parts as it requires present and updated electric field values).
-        else:
-            update_electric_dispersive_A(G.nx, G.ny, G.nz, config.hostinfo['ompthreads'], config.materials['maxpoles'], G.updatecoeffsE, G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
-
-        # Update electric field components with the PML correction
-        for pml in G.pmls:
-            pml.update_electric(G)
-
-        # Update electric field components from sources (update any Hertzian dipole sources last)
-        for source in G.voltagesources + G.transmissionlines + G.hertziandipoles:
-            source.update_electric(iteration, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
-
-        # If there are any dispersive materials do 2nd part of dispersive update
-        # (it is split into two parts as it requires present and updated electric
-        # field values). Therefore it can only be completely updated after the
-        # electric field has been updated by the PML and source updates.
-        if config.materials['maxpoles'] != 0:
-            update_electric_dispersive_B(G.nx, G.ny, G.nz, config.hostinfo['ompthreads'], config.materials['maxpoles'], G.updatecoeffsdispersive, G.ID, G.Tx, G.Ty, G.Tz, G.Ex, G.Ey, G.Ez)
-
-    tsolve = timer() - tsolvestart
+    solver.solve()
 
     return tsolve
 
