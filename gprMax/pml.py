@@ -361,7 +361,7 @@ class PML(object):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        self.update_magnetic_gpu(np.int32(self.xs), np.int32(self.xf), np.int32(self.ys), np.int32(self.yf), np.int32(self.zs), np.int32(self.zf), np.int32(self.HPhi1_gpu.shape[1]), np.int32(self.HPhi1_gpu.shape[2]), np.int32(self.HPhi1_gpu.shape[3]), np.int32(self.HPhi2_gpu.shape[1]), np.int32(self.HPhi2_gpu.shape[2]), np.int32(self.HPhHPhi2_gpui2.shape[3]), np.int32(self.thickness), G.ID_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata, self.HPhi1_gpu.gpudata, self.HPhi2_gpu.gpudata, self.HRA_gpu.gpudata, self.HRB_gpu.gpudata, self.HRE_gpu.gpudata, self.HRF_gpu.gpudata, floattype(self.d), block=G.tpb, grid=self.bpg)
+        self.update_magnetic_gpu(np.int32(self.xs), np.int32(self.xf), np.int32(self.ys), np.int32(self.yf), np.int32(self.zs), np.int32(self.zf), np.int32(self.HPhi1_gpu.shape[1]), np.int32(self.HPhi1_gpu.shape[2]), np.int32(self.HPhi1_gpu.shape[3]), np.int32(self.HPhi2_gpu.shape[1]), np.int32(self.HPhi2_gpu.shape[2]), np.int32(self.HPhi2_gpu.shape[3]), np.int32(self.thickness), G.ID_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata, self.HPhi1_gpu.gpudata, self.HPhi2_gpu.gpudata, self.HRA_gpu.gpudata, self.HRB_gpu.gpudata, self.HRE_gpu.gpudata, self.HRF_gpu.gpudata, floattype(self.d), block=G.tpb, grid=self.bpg)
 
 
 def build_pmls(G, pbar):
