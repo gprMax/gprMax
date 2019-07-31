@@ -2,8 +2,8 @@
 from .cmds_geometry import UserObjectGeometry
 from ..exceptions import CmdInputError
 from ..constants import floattype
-from gprMax.geometry_primitives_ext import build_voxels_from_array
-from gprMax.geometry_primitives_ext import build_voxels_from_array_mask
+from ..cython.geometry_primitives import build_voxels_from_array
+from ..cython.geometry_primitives import build_voxels_from_array_mask
 
 import numpy as np
 

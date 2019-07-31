@@ -2,7 +2,7 @@
 from .cmds_geometry import UserObjectGeometry
 from ..exceptions import CmdInputError
 from ..materials import Material
-from ..geometry_primitives_ext import build_triangle
+from ..cython.geometry_primitives import build_triangle
 
 from tqdm import tqdm
 import numpy as np

@@ -1,9 +1,9 @@
 """Class for edge command."""
 from .cmds_geometry import UserObjectGeometry
 from ..exceptions import CmdInputError
-from ..geometry_primitives_ext import build_face_yz
-from ..geometry_primitives_ext import build_face_xz
-from ..geometry_primitives_ext import build_face_xy
+from ..cython.geometry_primitives import build_face_yz
+from ..cython.geometry_primitives import build_face_xz
+from ..cython.geometry_primitives import build_face_xy
 
 from tqdm import tqdm
 

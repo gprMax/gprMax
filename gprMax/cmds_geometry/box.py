@@ -2,7 +2,7 @@
 from .cmds_geometry import UserObjectGeometry
 from ..exceptions import CmdInputError
 from ..materials import Material
-from ..geometry_primitives_ext import build_box
+from ..cython.geometry_primitives import build_box
 
 from tqdm import tqdm
 import numpy as np
