@@ -1,12 +1,14 @@
 """Class for fractal box modifications command."""
 from .cmds_geometry import UserObjectGeometry
 from ..exceptions import CmdInputError
-from ..constants import floattype
+from ..config import dtypes
 from ..cython.geometry_primitives import build_voxels_from_array
 from ..cython.geometry_primitives import build_voxels_from_array_mask
 
 import numpy as np
 
+
+floattype = dtypes['float_or_double']
 
 class FractalBoxBuilder(UserObjectGeometry):
     """Internal class for fractal box modifications. This class should be used
