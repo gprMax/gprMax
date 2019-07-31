@@ -1,7 +1,3 @@
-from __future__ import print_function
-from gprMax.constants cimport floattype_t
-from gprMax.constants cimport complextype_t
-
 import numpy as np
 cimport numpy as np
 from cython.parallel import prange
@@ -212,7 +208,7 @@ cpdef void cython_update_is(
         int nwx,
         int nwy,
         int nwz,
-        floattype_t[:, :] updatecoeffsE,
+        double[:, :] updatecoeffsE,
         np.uint32_t[:, :, :, :] ID,
         int n,
         int offset,
@@ -220,15 +216,15 @@ cpdef void cython_update_is(
         int nwm,
         int nwn,
         int face,
-        floattype_t[:, :, :] field,
-        floattype_t[:, :] inc_field_l,
-        floattype_t[:, :] inc_field_u,
+        double[:, :, :] field,
+        double[:, :] inc_field_l,
+        double[:, :] inc_field_u,
         Py_ssize_t lookup_id,
         int sign_l,
         int sign_u,
         Py_ssize_t co,
         int nthreads
-):
+    ):
 
         cdef Py_ssize_t l, m, i1, j1, k1, i2, j2, k2, field_material_l, field_material_u, inc_i, inc_j
         cdef double inc_l, inc_u, f_l, f_u
