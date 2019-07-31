@@ -302,7 +302,7 @@ class PML(object):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        self.bpg = (int(np.ceil(((self.EPhi1.shape[1] + 1) * (self.EPhi1.shape[2] + 1) * (self.EPhi1.shape[3] + 1)) / G.tpb[0])), 1, 1)
+        self.bpg = (int(np.ceil(((self.EPhi1_gpu.shape[1] + 1) * (self.EPhi1_gpu.shape[2] + 1) * (self.EPhi1_gpu.shape[3] + 1)) / G.tpb[0])), 1, 1)
 
     def gpu_initialise_arrays(self):
         """Initialise PML field and coefficient arrays on GPU."""
