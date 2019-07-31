@@ -17,8 +17,8 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 """Object which can be created multiple times."""
-from gprMax.constants import z0
-from .constants import floattype
+from .config import z0
+from .config import dtypes
 from .utilities import round_value
 from .cmds_geometry.cmds_geometry import UserObjectGeometry
 from .waveforms import Waveform as WaveformUser
@@ -40,6 +40,8 @@ from .exceptions import CmdInputError
 
 import numpy as np
 from tqdm import tqdm
+
+floattype = dtypes['float_or_double']
 
 
 class UserObjectMulti:
