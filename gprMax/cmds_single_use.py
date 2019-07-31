@@ -21,7 +21,7 @@ import os
 import sys
 
 from .config import c
-from .constants import floattype
+from .config import dtypes
 from .exceptions import CmdInputError
 from .waveforms import Waveform
 
@@ -33,6 +33,7 @@ from colorama import Fore
 from colorama import Style
 init()
 
+floattype = dtypes['float_or_double']
 
 class UserObjectSingle:
 
