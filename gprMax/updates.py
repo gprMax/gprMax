@@ -20,6 +20,8 @@ class CPUUpdates:
 
     def __init__(self, G):
         self.G = G
+        self.dispersive_update_a = None
+        self.dispersive_update_b = None
 
     def store_outputs(self, iteration):
         # Store field component values for every receiver and transmission line
@@ -88,41 +90,22 @@ class CPUUpdates:
 
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
-        elif Material.maxpoles == 1:
-            update_electric_dispersive_1pole_A(self.G.nx,
-                                               self.G.ny,
-                                               self.G.nz,
-                                               config.hostinfo['ompthreads'],
-                                               self.G.updatecoeffsE,
-                                               self.G.updatecoeffsdispersive,
-                                               self.G.ID,
-                                               self.G.Tx,
-                                               self.G.Ty,
-                                               self.G.Tz,
-                                               self.G.Ex,
-                                               self.G.Ey,
-                                               self.G.Ez,
-                                               self.G.Hx,
-                                               self.G.Hy,
-                                               self.G.Hz)
-        elif Material.maxpoles > 1:
-            update_electric_dispersive_multipole_A(self.G.nx,
-                                                   self.G.ny,
-                                                   self.G.nz,
-                                                   config.hostinfo['ompthreads'],
-                                                   Material.maxpoles,
-                                                   self.G.updatecoeffsE,
-                                                   self.G.updatecoeffsdispersive,
-                                                   self.G.ID,
-                                                   self.G.Tx,
-                                                   self.G.Ty,
-                                                   self.G.Tz,
-                                                   self.G.Ex,
-                                                   self.G.Ey,
-                                                   self.G.Ez,
-                                                   self.G.Hx,
-                                                   self.G.Hy,
-                                                   self.G.Hz)
+        self.dispersive_update_a(self.G.nx,
+                                   self.G.ny,
+                                   self.G.nz,
+                                   config.hostinfo['ompthreads'],
+                                   self.G.updatecoeffsE,
+                                   self.G.updatecoeffsdispersive,
+                                   self.G.ID,
+                                   self.G.Tx,
+                                   self.G.Ty,
+                                   self.G.Tz,
+                                   self.G.Ex,
+                                   self.G.Ey,
+                                   self.G.Ez,
+                                   self.G.Hx,
+                                   self.G.Hy,
+                                   self.G.Hz)
 
     def update_electric_pml(self):
         # Update electric field components with the PML correction
@@ -139,33 +122,31 @@ class CPUUpdates:
         # (it is split into two parts as it requires present and updated electric
         # field values). Therefore it can only be completely updated after the
         # electric field has been updated by the PML and source updates.
-        if Material.maxpoles == 1:
-            update_electric_dispersive_1pole_B(self.G.nx,
-                                               self.G.ny,
-                                               self.G.nz,
-                                               config.hostinfo['ompthreads'],
-                                               self.G.updatecoeffsdispersive,
-                                               self.G.ID,
-                                               self.G.Tx,
-                                               self.G.Ty,
-                                               self.G.Tz,
-                                               self.G.Ex,
-                                               self.G.Ey,
-                                               self.G.Ez)
-        elif Material.maxpoles > 1:
-            update_electric_dispersive_multipole_B(self.G.nx,
-                                                   self.G.ny,
-                                                   self.G.nz,
-                                                   config.hostinfo['ompthreads'],
-                                                   Material.maxpoles,
-                                                   self.G.updatecoeffsdispersive,
-                                                   self.G.ID,
-                                                   self.G.Tx,
-                                                   self.G.Ty,
-                                                   self.G.Tz,
-                                                   self.G.Ex,
-                                                   self.G.Ey,
-                                                   self.G.Ez)
+        update_e_dispersive_b(self.G.nx,
+                            self.G.ny,
+                            self.G.nz,
+                            config.hostinfo['ompthreads'],
+                            Material.maxpoles,
+                            self.G.updatecoeffsdispersive,
+                            self.G.ID,
+                            self.G.Tx,
+                            self.G.Ty,
+                            self.G.Tz,
+                            self.G.Ex,
+                            self.G.Ey,
+                            self.G.Ez)
+
+    def set_dispersive_updates(self, model_config):
+        """Function to set dispersive update functions based on model."""
+        update_f = 'update_electric_dispersive_{}pole_{}_{}_{}'
+        disp_a = update_f.format(model_config.poles, 'A', model_config.precision, model_config.dispersion_type)
+        disp_b = update_f.format(model_config.poles, 'B', model_config.precision, model_config.dispersion_type)
+
+        disp_a_f = getattr(import_module('.cython.fields_updates_dispersive'), disp_a)
+        disp_b_f = getattr(import_module('.cython.fields_updates_dispersive'), disp_b)
+
+        self.dispersive_update_a = disp_a_f
+        self.dispersive_update_b = disp_b_f
 
 
 class SubgridUpdates:
