@@ -28,6 +28,7 @@ np.seterr(invalid='raise')
 import gprMax.config as config
 from .exceptions import GeneralError
 from .pml import PML
+from .pml import CFS
 from .utilities import fft_power
 from .utilities import human_size
 from .utilities import round_value
@@ -99,7 +100,7 @@ class FDTDGrid(Grid):
         # same from model to model otherwise the numerical precision from adding
         # the PML corrections will be different.
         self.pmlthickness = OrderedDict((key, 10) for key in PML.boundaryIDs)
-        self.cfs = []
+        self.cfs = [CFS()]
         self.pmls = []
         self.pmlformulation = 'HORIPML'
 
