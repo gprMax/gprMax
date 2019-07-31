@@ -373,7 +373,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             tsolve, memsolve = solve_gpu(currentmodelrun, modelend, G)
 
         # Write an output file in HDF5 format
-        write_hdf5_outputfile(outputfile, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
+        write_hdf5_outputfile(outputfile, G)
 
         # Write any snapshots to file
         if G.snapshots:
