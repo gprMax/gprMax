@@ -51,6 +51,9 @@ class Solver:
         self.updates = updates
         #self.iterator = iterator
 
+    def get_G(self):
+        return self.updates.G
+
     def solve(self):
         """Time step the FDTD model."""
         tsolvestart = timer()
