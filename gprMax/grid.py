@@ -237,6 +237,28 @@ class FDTDGrid(Grid):
         self.Tz_gpu = gpuarray.to_gpu(self.Tz)
         self.updatecoeffsdispersive_gpu = gpuarray.to_gpu(self.updatecoeffsdispersive)
 
+    # Add PEC boundaries to invariant direction in 2D modes
+    # N.B. 2D modes are a single cell slice of 3D grid
+    def tmx(self):
+        # Ey & Ez components
+        self.ID[1, 0, :, :] = 0
+        self.ID[1, 1, :, :] = 0
+        self.ID[2, 0, :, :] = 0
+        self.ID[2, 1, :, :] = 0
+
+    def tmy():
+        # Ex & Ez components
+        G.ID[0, :, 0, :] = 0
+        G.ID[0, :, 1, :] = 0
+        G.ID[2, :, 0, :] = 0
+        G.ID[2, :, 1, :] = 0
+
+    def tmz():
+        # Ex & Ey components
+        G.ID[0, :, :, 0] = 0
+        G.ID[0, :, :, 1] = 0
+        G.ID[1, :, :, 0] = 0
+        G.ID[1, :, :, 1] = 0
 
 def dispersion_analysis(G):
     """
