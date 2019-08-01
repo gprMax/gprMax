@@ -104,13 +104,13 @@ def run_model(solver, sim_config, model_config):
     # Normal model reading/building process; bypassed if geometry information to be reused
     if not sim_config.geometry_fixed:
 
-        printer.print(Fore.GREEN + '{} {}\n'.format(model_config.inputfilestr, '-' * (get_terminal_width() - 1 - len(model_config.inputfilestr))) + Style.RESET_ALL)
+        printer.print(model_config.next_model)
 
-        G = solver.G
+        G = solver.get_G()
 
         # api for multiple scenes / model runs
         try:
-            scene = model_config.scene
+            scene = model_config.get_scene()
         # process using hashcommands
         except AttributeError:
             scene = Scene()
@@ -227,8 +227,8 @@ def run_model(solver, sim_config, model_config):
 
     # If geometry information to be reused between model runs
     else:
-        inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(currentmodelrun, modelend, inputfile.name)
-        printer.print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
+        inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(currentmodelrun, modelend, model_config.input_file_path)
+        printer.print(Fore.GREEN + '{} {}\n'.format(model_config.inputfilestr, '-' * (get_terminal_width() - 1 - len(model_config.inputfilestr))) + Style.RESET_ALL)
 
         # Clear arrays for field components
         G.initialise_field_arrays()

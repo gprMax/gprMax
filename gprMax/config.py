@@ -25,8 +25,15 @@ from scipy.constants import mu_0 as m0
 from scipy.constants import epsilon_0 as e0
 import sys
 
+from .utilities import get_terminal_width
 from .utilities import get_host_info
 from pathlib import Path
+
+from colorama import init
+from colorama import Fore
+from colorama import Style
+init()
+
 
 # Impedance of free space (Ohms)
 z0 = np.sqrt(m0 / e0)
@@ -95,10 +102,15 @@ class ModelConfig():
 
         inputfilestr_f = '\n--- Model {}/{}, input file: {}'
         self.inputfilestr = inputfilestr_f.format(self.i + 1, self.sim_config.model_end, self.sim_config.input_file_path)
+        # string to print at start of each model run
+        self.next_model = Fore.GREEN + '{} {}\n'.format(self.inputfilestr, '-' * (get_terminal_width() - 1 - len(self.inputfilestr))) + Style.RESET_ALL
 
         # Add the current model run to namespace that can be accessed by
         # user in any Python code blocks in input file
         #self.usernamespace['current_model_run'] = self.i + 1
+
+    def get_scene(self):
+        return self.sim_config.scenes[self.i]
 
 class SimulationConfig:
 
@@ -129,6 +141,7 @@ class SimulationConfig:
         self.general = {}
         self.general['messages'] = True
         self.geometry_fixed = args.geometry_fixed
+        self.scenes = args.scenes
 
         self.set_input_file_path()
         self.set_model_start()
