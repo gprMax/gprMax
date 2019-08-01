@@ -79,14 +79,11 @@ elif precision == 'double':
               'C_float_or_double': 'double', 'C_complex': 'pycuda::complex<double>'}
 
 
-def create_simulation_config(args):
-    pass
-
-
 class ModelConfig():
 
-    def __init__(sim_config, i):
-        self.sim_config = sim.sim_config
+    def __init__(self, sim_config, i):
+        self.sim_config = sim_config
+
         # current model number (indexed from 0)
         self.i = i
 
@@ -94,18 +91,16 @@ class ModelConfig():
             # 1 indexed
             self.appendmodelnumber = str(self.i) + 1
 
-        inputfilestr_f = '\n--- Model {}/{}, input file: {}'.format()
-        self.inputfilestr_f.format(self.i + 1, self.sim_config.model_end, self.sim_config.inputfile.name)
-
+        inputfilestr_f = '\n--- Model {}/{}, input file: {}'
+        self.inputfilestr = inputfilestr_f.format(self.i + 1, self.sim_config.model_end, self.sim_config.inputfile.name)
 
         # Add the current model run to namespace that can be accessed by
         # user in any Python code blocks in input file
         self.usernamespace['current_model_run'] = self.i + 1
 
+class SimulationConfig:
 
-class SimulationConfig():
-
-    def __init__(args):
+    def __init__(self, args):
         """Adapter for args into Simulation level configuration"""
 
         # adapt the arg properties to link smoothly with MPIRunner(), CPURunner() etc..
@@ -123,16 +118,25 @@ class SimulationConfig():
         # args.geometry_fixed
         # args.write_processed
 
-        self.model_start = 0
-        self.model_end = 1
-        self.n_models = 0
+        self.args = args
+        self.n_models = args.n
         self.inputfile = args.inputfile
-        self.inputfilepath = os.path.realpath(inputfile.name)
-        self.outputfilepath = os.path.dirname(os.path.abspath(self.inputfilepath))
+        self.gpu = args.gpu
+        self.mpi = args.mpi
+        self.mpi_no_spawn = args.mpi_no_spawn
+        self.general = {}
+        self.general['messages'] = True
+        self.geometry_fixed = args.geometry_fixed
+
+        self.set_model_start()
+        self.set_model_end()
+        self.set_inputfilepath()
+        self.set_outputfilepath()
+        self.set_single_model()
 
 
     def set_single_model(self):
-        if self.mode_start == 0 and self.model_end == 1:
+        if self.model_start == 1 and self.model_end == 2:
             self.single_model = True
         else:
             self.single_model = False
@@ -140,23 +144,42 @@ class SimulationConfig():
     # for example
     def set_model_start(self):
 
-        # standard simulation
-        if not self.args.mpi and not self.args.mpi_no_spawn:
+        # serial simulation
+        if not self.mpi and not self.mpi_no_spawn:
             # Set range for number of models to run
-            if args.task:
+            if self.args.task:
               # Job array feeds args.n number of single tasks
-              self.modelstart = args.task
-            elif args.restart:
-              self.modelstart = args.restart
+              self.model_start = self.args.task
+            elif self.args.restart:
+              self.model_start = self.args.restart
             else:
-              self.modelstart = 1
-        # mpi
-        elif args.mpi:
-        # Set range for number of models to run
-            self.modelstart = args.restart if args.restart else 1 # etc...
+              self.model_start = 1
 
-    def set_model_end():
-      pass
+        # mpi simulation
+        elif self.mpi:
+            # Set range for number of models to run
+            self.modelstart = self.args.restart if self.args.restart else 1 # etc...
 
-    def set_precision():
-      pass
+    def set_model_end(self):
+        self.model_end = 2 # for now!
+
+    def set_precision(self):
+        pass
+
+    def set_inputfilepath(self):
+        if self.inputfile:
+            self.inputfilepath = os.path.realpath(inputfile.name)
+
+    def set_outputfilepath(self):
+        if self.inputfile:
+            self.outputfilepath = os.path.dirname(os.path.abspath(self.inputfilepath))
+
+
+def create_simulation_config(args):
+
+    sc = SimulationConfig(args)
+    return sc
+
+def create_model_config(sim_config, i):
+    mc = ModelConfig(sim_config, i)
+    return mc
