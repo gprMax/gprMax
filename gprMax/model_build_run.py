@@ -204,13 +204,8 @@ class ModelBuildRun:
         printer = Printer(model_config)
         inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(currentmodelrun, modelend, model_config.input_file_path)
         printer.print(Fore.GREEN + '{} {}\n'.format(model_config.inputfilestr, '-' * (get_terminal_width() - 1 - len(model_config.inputfilestr))) + Style.RESET_ALL)
+        self.G.reset_fields()
 
-        # Clear arrays for field components
-        G.initialise_field_arrays()
-
-        # Clear arrays for fields in PML
-        for pml in G.pmls:
-            pml.initialise_field_arrays()
 
     def build(self):
         """Runs a model - processes the input file; builds the Yee cells; calculates update coefficients; runs main FDTD loop.

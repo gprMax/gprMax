@@ -260,6 +260,15 @@ class FDTDGrid(Grid):
         G.ID[1, :, :, 0] = 0
         G.ID[1, :, :, 1] = 0
 
+
+    def reset_fields(self):
+        # Clear arrays for field components
+        G.initialise_field_arrays()
+
+        # Clear arrays for fields in PML
+        for pml in G.pmls:
+            pml.initialise_field_arrays()
+
 def dispersion_analysis(G):
     """
     Analysis of numerical dispersion (Taflove et al, 2005, p112) -
