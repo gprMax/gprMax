@@ -16,26 +16,22 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 from gprMax.updates import CPUUpdates
-from gprMax.updates import SubGridsUpdates
 from gprMax.updates import GPUUpdates
 from gprMax.utilities import timer
 
 
 def create_solver(sim_config):
     """Returns the configured solver."""
-    if sim_config.cpu:
-        from gprMax.Grid import FDTDGrid
-        G = FDTDGrid()
-        updates = CPUUpdates(G)
-
-    elif sim_config.gpu:
-        from gprMax.Grid import GPUGrid
+    if sim_config.gpu:
+        from .grid import GPUGrid
         G = GPUGrid()
         updates = GPUUpdates(G)
     else:
-        raise NotImplementedError
+        from .grid import FDTDGrid
+        G = FDTDGrid()
+        updates = CPUUpdates(G)
 
-    solver = Solver(updates, iterator)
+    solver = Solver(updates)
 
     return solver
 
@@ -44,7 +40,7 @@ class Solver:
 
     """Generic solver for Update objects"""
 
-    def __init__(self, updates, iterator):
+    def __init__(self, updates):
         """Context for the model to run in. Sub-class this with contexts
         i.e. an MPI context.
 
@@ -53,7 +49,7 @@ class Solver:
             iterator (iterator): can be range() or tqdm()
         """
         self.updates = updates
-        self.iterator = iterator
+        #self.iterator = iterator
 
     def solve(self):
         """Time step the FDTD model."""
