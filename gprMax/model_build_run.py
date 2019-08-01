@@ -246,10 +246,10 @@ class ModelBuildRun:
         except AttributeError:
             scene = Scene()
             # parse the input file into user objects and add them to the scene
-            scene = parse_hash_commands(args, usernamespace, appendmodelnumber, G, scene)
+            scene = parse_hash_commands(args, usernamespace, appendmodelnumber, self.G, scene)
 
         # Creates the internal simulation objects.
-        scene.create_internal_objects(G)
+        scene.create_internal_objects(self.G)
         return scene
 
     def build_pmls(self):
@@ -312,6 +312,7 @@ class ModelBuildRun:
         memGPU = ''
         if config.cuda['gpus']:
             memGPU = ' host + ~{} GPU'.format(human_size(memsolve))
+
         printer.print('\nMemory (RAM) used: ~{}{}'.format(human_size(p.memory_full_info().uss), memGPU))
         printer.print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
 
