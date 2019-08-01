@@ -15,6 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+from importlib import import_module
 
 class CPUUpdates:
 
@@ -136,14 +137,44 @@ class CPUUpdates:
                             self.G.Ey,
                             self.G.Ez)
 
-    def set_dispersive_updates(self, model_config):
-        """Function to set dispersive update functions based on model."""
-        update_f = 'update_electric_dispersive_{}pole_{}_{}_{}'
-        disp_a = update_f.format(model_config.poles, 'A', model_config.precision, model_config.dispersion_type)
-        disp_b = update_f.format(model_config.poles, 'B', model_config.precision, model_config.dispersion_type)
+    def adapt_dispersive_config(self, config):
 
-        disp_a_f = getattr(import_module('.cython.fields_updates_dispersive'), disp_a)
-        disp_b_f = getattr(import_module('.cython.fields_updates_dispersive'), disp_b)
+        if config.materials['maxpoles'] > 1:
+            poles = 'multi'
+
+        else:
+            poles = '1'
+
+        if config.precision == 'single':
+            type = 'float'
+
+        else:
+            type = 'double'
+
+        if config.materials['dispersivedtype'] == config.dtypes['complex']:
+            dispersion = 'complex'
+        else:
+            dispersion = 'real'
+
+        class Props():
+            pass
+
+        props = Props()
+        props.poles = poles
+        props.precision = type
+        props.dispersion_type = dispersion
+
+        return props
+
+    def set_dispersive_updates(self, props):
+        """Function to set dispersive update functions based on model."""
+
+        update_f = 'update_electric_dispersive_{}pole_{}_{}_{}'
+        disp_a = update_f.format(props.poles, 'A', props.precision, props.dispersion_type)
+        disp_b = update_f.format(props.poles, 'B', props.precision, props.dispersion_type)
+
+        disp_a_f = getattr(import_module('gprMax.cython.fields_updates_dispersive'), disp_a)
+        disp_b_f = getattr(import_module('gprMax.cython.fields_updates_dispersive'), disp_b)
 
         self.dispersive_update_a = disp_a_f
         self.dispersive_update_b = disp_b_f
