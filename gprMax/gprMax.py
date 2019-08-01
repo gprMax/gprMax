@@ -24,7 +24,9 @@ import argparse
 
 def api(
     scenes=None,
+    id=None,
     inputfile=None,
+    outputfile=None,
     n=1,
     task=None,
     restart=None,
@@ -46,6 +48,7 @@ def api(
 
     args.scenes = scenes
     args.inputfile = inputfile
+    args.outputfile = outputfile
     args.n = n
     args.task = task
     args.restart = restart
