@@ -16,7 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 from .utilities import get_terminal_width
+from .utilities import timer
+from .model_build_run import run_model
 import datetime
+from .config import create_model_config
 
 class Context():
 
@@ -30,10 +33,10 @@ class Context():
         """
         self.sim_config = sim_config
         self.solver = solver
-        self.model_range = range(self.sim_conf.model_start,
-                                 self.sim_conf.model_end)
+        self.model_range = range(sim_config.model_start,
+                                 sim_config.model_end)
         self.tsimend = 0
-        self.tsimstart = 0
+        self.tsimstart = 1
 
     def run(self):
         """Function to run the simulation in the correct context."""
@@ -55,10 +58,10 @@ class NoMPIContext(Context):
 
     def _run(self):
         """Specialise how the models are farmed out."""
-        for currentmodelrun in self.model_range:
+        for i in self.model_range:
             # create the model configuration
-            model_config = object()
-            run_model(solver, sim_config, model_config)
+            model_config = create_model_config(self.sim_config, i)
+            run_model(self.solver, self.sim_config, model_config)
 
     def make_time_report(self):
         """Function to specialise the time reporting for the standard Simulation
@@ -93,6 +96,6 @@ def create_context(sim_config, solver):
     elif sim_config.mpi:
         context = MPINoSpawnContext(sim_config, solver)
     else:
-        context = NoMPIContext(sim_conf, solver)
+        context = NoMPIContext(sim_config, solver)
 
     return context
