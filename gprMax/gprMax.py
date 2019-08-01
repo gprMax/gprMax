@@ -17,13 +17,14 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from .config import create_simulation_config
-from .contexts import create_runner
+from .contexts import create_context
 from .solvers import create_solver
 
 import argparse
 
 def api(
-    inputfile,
+    scenes=None,
+    inputfile=None,
     n=1,
     task=None,
     restart=None,
@@ -43,6 +44,7 @@ def api(
 
     args = ImportArguments()
 
+    args.scenes = scenes
     args.inputfile = inputfile
     args.n = n
     args.task = task
@@ -82,7 +84,7 @@ def main():
 
 def run_main(args):
 
-    sim_conf = create_simulation_config()
+    sim_config = create_simulation_config(args)
     solver = create_solver(sim_config)
-    run = create_runner(sim_config)
-    run(sim_config, solver)
+    context = create_context(sim_config, solver)
+    context.run()
