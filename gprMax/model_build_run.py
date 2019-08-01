@@ -71,8 +71,8 @@ from .utilities import timer
 
 class Printer():
 
-    def __init__(self, sim_conf):
-        self.printing = sim_conf.general['messages']
+    def __init__(self, sim_config):
+        self.printing = sim_config.general['messages']
 
     def print(self, str):
         if self.printing:
@@ -96,7 +96,7 @@ def run_model(solver, sim_config, model_config):
         tsolve (int): Length of time (seconds) of main FDTD calculations
     """
 
-    printer = Printer(model_config)
+    printer = Printer(sim_config)
 
     # Monitor memory usage
     p = psutil.Process()
