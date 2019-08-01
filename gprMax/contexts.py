@@ -17,7 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 from .utilities import get_terminal_width
 from .utilities import timer
-from .model_build_run import run_model
+from .model_build_run import ModelBuildRun
 import datetime
 from .config import create_model_config
 
@@ -61,7 +61,9 @@ class NoMPIContext(Context):
         for i in self.model_range:
             # create the model configuration
             model_config = create_model_config(self.sim_config, i)
-            run_model(self.solver, self.sim_config, model_config)
+
+            model = ModelBuildRun(self.solver, self.sim_config, model_config)
+            model.build()
 
     def make_time_report(self):
         """Function to specialise the time reporting for the standard Simulation
