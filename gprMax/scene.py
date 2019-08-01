@@ -10,8 +10,6 @@ from .cmds_geometry.cmds_geometry import UserObjectGeometry
 from .exceptions import CmdInputError
 from .cmds_geometry.fractal_box_builder import FractalBoxBuilder
 from .utilities import human_size
-from .grid import memory_check
-from .snapshots import memory_check as snapshot_memory_check
 
 
 class Scene:
@@ -32,11 +30,11 @@ class Scene:
 
     def add(self, node):
         if isinstance(node, UserObjectMulti):
-            self.children_multiple.append(node)
+            self.multiple_cmds.append(node)
         elif isinstance(node, UserObjectGeometry):
-            self.children_geometry.append(node)
+            self.geometry_cmds.append(node)
         elif isinstance(node, UserObjectSingle):
-            self.children_single.append(node)
+            self.single_cmds.append(node)
         else:
             raise Exception('This Object is Unknown to gprMax')
 
@@ -49,7 +47,7 @@ class Scene:
             else:
                 return False
 
-        subgrid_cmds = list(filter(func, self.children_multiple))
+        subgrid_cmds = list(filter(func, self.multiple_cmds))
 
         # iterate through the user command objects under the subgrid user object
         for sg_cmd in subgrid_cmds:
@@ -57,8 +55,8 @@ class Scene:
             # object. this reference allows the multi and geo user objects
             # to build in the correct subgrid.
             sg = sg_cmd.subgrid
-            self.process_cmds(sg_cmd.children_multiple, sg)
-            self.process_cmds(sg_cmd.children_geometry, sg)
+            self.process_cmds(sg_cmd.multiple_cmds, sg)
+            self.process_cmds(sg_cmd.geometry_cmds, sg)
 
     def process_cmds(self, commands, grid):
         cmds_sorted = sorted(commands, key=lambda cmd: cmd.order)
@@ -75,8 +73,8 @@ class Scene:
     def process_singlecmds(self, G):
 
         # check for duplicate commands and warn user if they exist
-        cmds_unique = list(set(self.children_single))
-        if len(cmds_unique) != len(self.children_single):
+        cmds_unique = list(set(self.single_cmds))
+        if len(cmds_unique) != len(self.single_cmds):
             raise CmdInputError('Duplicate Single Commands exist in the input.')
 
         # check essential cmds and warn user if missing
@@ -102,11 +100,11 @@ class Scene:
         self.process_singlecmds(G)
 
         # Process main grid multiple commands
-        self.process_cmds(self.children_multiple, G)
+        self.process_cmds(self.multiple_cmds, G)
 
         # Estimate and check memory (RAM) usage
-        memory_check(G)
-        snapshot_memory_check(G)
+        G.memory_check()
+        #snapshot_memory_check(G)
 
         # Initialise an array for volumetric material IDs (solid), boolean
         # arrays for specifying materials not to be averaged (rigid),
@@ -114,7 +112,7 @@ class Scene:
         G.initialise_grids()
 
         # Process the main grid geometry commands
-        self.process_cmds(self.children_geometry, G)
+        self.process_cmds(self.geometry_cmds, G)
 
         # Process all the commands for the subgrid
         self.process_subgrid_commands(G.subgrids)
