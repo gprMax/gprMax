@@ -219,10 +219,9 @@ class ModelBuildRun:
         elif results['deltavp']:
             printer.print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
 
-        disp_a = update_f.format(model_config.poles, 'A', model_config.precision, model_config.dispersion_type)
-
         # set the dispersive update functions based on the model configuration
-        solver.updates.set_dispersive_updates(model_config)
+        props = self.solver.updates.adapt_dispersive_config(config)
+        self.solver.updates.set_dispersive_updates(props)
 
     def reuse_geometry(self):
         printer = Printer(model_config)
@@ -231,11 +230,11 @@ class ModelBuildRun:
         self.G.reset_fields()
 
     def tm_grid_update(self):
-        if '2D TMx' in self.model_config.mode:
+        if '2D TMx' == config.general['mode']:
             self.G.tmx()
-        elif '2D TMy' in self.model_config.mode:
+        elif '2D TMy' == config.general['mode']:
             self.G.tmy()
-        elif '2D TMz' in self.model_config.mode:
+        elif '2D TMz' == config.general['mode']:
             self.G.tmz()
 
     def build_scene(self):
@@ -254,16 +253,18 @@ class ModelBuildRun:
 
     def build_pmls(self):
         # build the PMLS
-        pbar = tqdm(total=sum(1 for value in G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
+        pbar = tqdm(total=sum(1 for value in self.G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
 
-        for pml_id, thickness in G.pmlthickness.items():
-            build_pml(G, pml_id, thickness)
+        for pml_id, thickness in self.G.pmlthickness.items():
+            build_pml(self.G, pml_id, thickness)
             pbar.update()
         pbar.close()
 
     def build_components(self):
         # Build the model, i.e. set the material properties (ID) for every edge
         # of every Yee cell
+        G = self.G
+        printer = Printer(self.sim_config)
         printer.print('')
         pbar = tqdm(total=2, desc='Building main grid', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
         build_electric_components(G.solid, G.rigidE, G.ID, G)
@@ -275,8 +276,8 @@ class ModelBuildRun:
     def update_voltage_source_materials(self):
         # Process any voltage sources (that have resistance) to create a new
         # material at the source location
-        for voltagesource in G.voltagesources:
-            voltagesource.create_material(G)
+        for voltagesource in self.G.voltagesources:
+            voltagesource.create_material(self.G)
 
 
     def run_model(self):
