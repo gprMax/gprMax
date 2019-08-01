@@ -23,8 +23,10 @@ import numpy as np
 from scipy.constants import c
 from scipy.constants import mu_0 as m0
 from scipy.constants import epsilon_0 as e0
+import sys
 
 from .utilities import get_host_info
+from pathlib import Path
 
 # Impedance of free space (Ohms)
 z0 = np.sqrt(m0 / e0)
@@ -89,14 +91,14 @@ class ModelConfig():
 
         if not sim_config.single_model:
             # 1 indexed
-            self.appendmodelnumber = str(self.i) + 1
+            self.appendmodelnumber = str(self.i + 1)
 
         inputfilestr_f = '\n--- Model {}/{}, input file: {}'
-        self.inputfilestr = inputfilestr_f.format(self.i + 1, self.sim_config.model_end, self.sim_config.inputfile.name)
+        self.inputfilestr = inputfilestr_f.format(self.i + 1, self.sim_config.model_end, self.sim_config.input_file_path)
 
         # Add the current model run to namespace that can be accessed by
         # user in any Python code blocks in input file
-        self.usernamespace['current_model_run'] = self.i + 1
+        #self.usernamespace['current_model_run'] = self.i + 1
 
 class SimulationConfig:
 
@@ -128,15 +130,13 @@ class SimulationConfig:
         self.general['messages'] = True
         self.geometry_fixed = args.geometry_fixed
 
+        self.set_input_file_path()
         self.set_model_start()
         self.set_model_end()
-        self.set_inputfilepath()
-        self.set_outputfilepath()
         self.set_single_model()
 
-
     def set_single_model(self):
-        if self.model_start == 1 and self.model_end == 2:
+        if self.model_start == 0 and self.model_end == 1:
             self.single_model = True
         else:
             self.single_model = False
@@ -149,31 +149,31 @@ class SimulationConfig:
             # Set range for number of models to run
             if self.args.task:
               # Job array feeds args.n number of single tasks
-              self.model_start = self.args.task
+              self.model_start = self.args.task - 1
             elif self.args.restart:
-              self.model_start = self.args.restart
+              self.model_start = self.args.restart - 1
             else:
-              self.model_start = 1
+              self.model_start = 0
 
         # mpi simulation
         elif self.mpi:
             # Set range for number of models to run
-            self.modelstart = self.args.restart if self.args.restart else 1 # etc...
+            self.modelstart = self.args.restart - 1 if self.args.restart else 0 # etc...
 
     def set_model_end(self):
-        self.model_end = 2 # for now!
+        self.model_end = 1 # for now!
 
     def set_precision(self):
         pass
 
-    def set_inputfilepath(self):
-        if self.inputfile:
-            self.inputfilepath = os.path.realpath(inputfile.name)
+    def set_input_file_path(self):
+        """Function to set to inputfile path"""
 
-    def set_outputfilepath(self):
-        if self.inputfile:
-            self.outputfilepath = os.path.dirname(os.path.abspath(self.inputfilepath))
-
+        # if the API is in use an id for the simulation must be provided.
+        if self.args.inputfile is None:
+            self.input_file_path = Path(self.args.outputfile)
+        else:
+            self.input_file_path = Path(self.args.inputfile)
 
 def create_simulation_config(args):
 
