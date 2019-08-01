@@ -78,35 +78,29 @@ class Printer():
         if self.printing:
             print(str)
 
+class ModelBuildRun:
 
+    def __init__(self, solver, sim_config, model_config):
+        self.solver = solver
+        self.sim_config = sim_config
+        self.model_config = model_config
+        self.G = solver.get_G()
 
-def run_model(solver, sim_config, model_config):
-    """Runs a model - processes the input file; builds the Yee cells; calculates update coefficients; runs main FDTD loop.
+    def tm_grid_update(self):
+        if '2D TMx' in self.model_config.mode:
+            self.G.tmx()
+        elif '2D TMy' in self.model_config.mode:
+            self.G.tmy()
+        elif '2D TMz' in self.model_config.mode:
+            self.G.tmz()
 
-    Args:
-        args (dict): Namespace with command line arguments
-        currentmodelrun (int): Current model run number.
-        modelend (int): Number of last model to run.
-        numbermodelruns (int): Total number of model runs.
-        inputfile (object): File object for the input file.
-        usernamespace (dict): Namespace that can be accessed by user
-                in any Python code blocks in input file.
+    def build_geometry(self):
+        model_config = self.model_config
+        sim_config = self.sim_config
+        G = self.G
 
-    Returns:
-        tsolve (int): Length of time (seconds) of main FDTD calculations
-    """
-
-    printer = Printer(sim_config)
-
-    # Monitor memory usage
-    p = psutil.Process()
-
-    # Normal model reading/building process; bypassed if geometry information to be reused
-    if not sim_config.geometry_fixed:
-
+        printer = Printer(sim_config)
         printer.print(model_config.next_model)
-
-        G = solver.get_G()
 
         # api for multiple scenes / model runs
         try:
@@ -141,26 +135,8 @@ def run_model(solver, sim_config, model_config):
         pbar.update()
         pbar.close()
 
-        # Add PEC boundaries to invariant direction in 2D modes
-        # N.B. 2D modes are a single cell slice of 3D grid
-        if '2D TMx' in config.mode:
-            # Ey & Ez components
-            G.ID[1, 0, :, :] = 0
-            G.ID[1, 1, :, :] = 0
-            G.ID[2, 0, :, :] = 0
-            G.ID[2, 1, :, :] = 0
-        elif '2D TMy' in config.mode:
-            # Ex & Ez components
-            G.ID[0, :, 0, :] = 0
-            G.ID[0, :, 1, :] = 0
-            G.ID[2, :, 0, :] = 0
-            G.ID[2, :, 1, :] = 0
-        elif '2D TMz' in config.mode:
-            # Ex & Ey components
-            G.ID[0, :, :, 0] = 0
-            G.ID[0, :, :, 1] = 0
-            G.ID[1, :, :, 0] = 0
-            G.ID[1, :, :, 1] = 0
+        # update grid for tm modes
+        tm_grid_update(model_config)
 
         # Process any voltage sources (that have resistance) to create a new
         # material at the source location
@@ -224,9 +200,8 @@ def run_model(solver, sim_config, model_config):
         # set the dispersive update functions based on the model configuration
         solver.updates.set_dispersive_updates(model_config)
 
-
-    # If geometry information to be reused between model runs
-    else:
+    def reuse_geometry(self):
+        printer = Printer(model_config)
         inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(currentmodelrun, modelend, model_config.input_file_path)
         printer.print(Fore.GREEN + '{} {}\n'.format(model_config.inputfilestr, '-' * (get_terminal_width() - 1 - len(model_config.inputfilestr))) + Style.RESET_ALL)
 
@@ -237,44 +212,69 @@ def run_model(solver, sim_config, model_config):
         for pml in G.pmls:
             pml.initialise_field_arrays()
 
-    # Adjust position of simple sources and receivers if required
-    if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
-        for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
-            if currentmodelrun == 1:
-                if source.xcoord + G.srcsteps[0] * modelend < 0 or source.xcoord + G.srcsteps[0] * modelend > G.nx or source.ycoord + G.srcsteps[1] * modelend < 0 or source.ycoord + G.srcsteps[1] * modelend > G.ny or source.zcoord + G.srcsteps[2] * modelend < 0 or source.zcoord + G.srcsteps[2] * modelend > G.nz:
-                    raise GeneralError('Source(s) will be stepped to a position outside the domain.')
-            source.xcoord = source.xcoordorigin + (currentmodelrun - 1) * G.srcsteps[0]
-            source.ycoord = source.ycoordorigin + (currentmodelrun - 1) * G.srcsteps[1]
-            source.zcoord = source.zcoordorigin + (currentmodelrun - 1) * G.srcsteps[2]
-    if G.rxsteps[0] != 0 or G.rxsteps[1] != 0 or G.rxsteps[2] != 0:
-        for receiver in G.rxs:
-            if currentmodelrun == 1:
-                if receiver.xcoord + G.rxsteps[0] * modelend < 0 or receiver.xcoord + G.rxsteps[0] * modelend > G.nx or receiver.ycoord + G.rxsteps[1] * modelend < 0 or receiver.ycoord + G.rxsteps[1] * modelend > G.ny or receiver.zcoord + G.rxsteps[2] * modelend < 0 or receiver.zcoord + G.rxsteps[2] * modelend > G.nz:
-                    raise GeneralError('Receiver(s) will be stepped to a position outside the domain.')
-            receiver.xcoord = receiver.xcoordorigin + (currentmodelrun - 1) * G.rxsteps[0]
-            receiver.ycoord = receiver.ycoordorigin + (currentmodelrun - 1) * G.rxsteps[1]
-            receiver.zcoord = receiver.zcoordorigin + (currentmodelrun - 1) * G.rxsteps[2]
+    def build(self):
+        """Runs a model - processes the input file; builds the Yee cells; calculates update coefficients; runs main FDTD loop.
 
-    # Write files for any geometry views and geometry object outputs
-    if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only and config.general['messages']:
-        print(Fore.RED + '\nWARNING: No geometry views or geometry objects to output found.' + Style.RESET_ALL)
-    if config.general['messages']: print()
-    for i, geometryview in enumerate(G.geometryviews):
-        geometryview.set_filename(appendmodelnumber)
-        pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
-        geometryview.write_vtk(G, pbar)
-        pbar.close()
-    for i, geometryobject in enumerate(G.geometryobjectswrite):
-        pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {}/{}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
-        geometryobject.write_hdf5(G, pbar)
-        pbar.close()
+        Args:
+            args (dict): Namespace with command line arguments
+            currentmodelrun (int): Current model run number.
+            modelend (int): Number of last model to run.
+            numbermodelruns (int): Total number of model runs.
+            inputfile (object): File object for the input file.
+            usernamespace (dict): Namespace that can be accessed by user
+                    in any Python code blocks in input file.
 
-    # If only writing geometry information
-    if args.geometry_only:
-        tsolve = 0
+        Returns:
+            tsolve (int): Length of time (seconds) of main FDTD calculations
+        """
+        # Monitor memory usage
+        p = psutil.Process()
 
-    # Run simulation
-    else:
+        # Normal model reading/building process; bypassed if geometry information to be reused
+        if not self.sim_config.geometry_fixed:
+            self.build_geometry()
+        else:
+            self.reuse_geometry()
+
+        # Adjust position of simple sources and receivers if required
+        if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
+            for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
+                if currentmodelrun == 1:
+                    if source.xcoord + G.srcsteps[0] * modelend < 0 or source.xcoord + G.srcsteps[0] * modelend > G.nx or source.ycoord + G.srcsteps[1] * modelend < 0 or source.ycoord + G.srcsteps[1] * modelend > G.ny or source.zcoord + G.srcsteps[2] * modelend < 0 or source.zcoord + G.srcsteps[2] * modelend > G.nz:
+                        raise GeneralError('Source(s) will be stepped to a position outside the domain.')
+                source.xcoord = source.xcoordorigin + (currentmodelrun - 1) * G.srcsteps[0]
+                source.ycoord = source.ycoordorigin + (currentmodelrun - 1) * G.srcsteps[1]
+                source.zcoord = source.zcoordorigin + (currentmodelrun - 1) * G.srcsteps[2]
+        if G.rxsteps[0] != 0 or G.rxsteps[1] != 0 or G.rxsteps[2] != 0:
+            for receiver in G.rxs:
+                if currentmodelrun == 1:
+                    if receiver.xcoord + G.rxsteps[0] * modelend < 0 or receiver.xcoord + G.rxsteps[0] * modelend > G.nx or receiver.ycoord + G.rxsteps[1] * modelend < 0 or receiver.ycoord + G.rxsteps[1] * modelend > G.ny or receiver.zcoord + G.rxsteps[2] * modelend < 0 or receiver.zcoord + G.rxsteps[2] * modelend > G.nz:
+                        raise GeneralError('Receiver(s) will be stepped to a position outside the domain.')
+                receiver.xcoord = receiver.xcoordorigin + (currentmodelrun - 1) * G.rxsteps[0]
+                receiver.ycoord = receiver.ycoordorigin + (currentmodelrun - 1) * G.rxsteps[1]
+                receiver.zcoord = receiver.zcoordorigin + (currentmodelrun - 1) * G.rxsteps[2]
+
+        # Write files for any geometry views and geometry object outputs
+        if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only and config.general['messages']:
+            print(Fore.RED + '\nWARNING: No geometry views or geometry objects to output found.' + Style.RESET_ALL)
+        if config.general['messages']: print()
+        for i, geometryview in enumerate(G.geometryviews):
+            geometryview.set_filename(appendmodelnumber)
+            pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
+            geometryview.write_vtk(G, pbar)
+            pbar.close()
+        for i, geometryobject in enumerate(G.geometryobjectswrite):
+            pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {}/{}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
+            geometryobject.write_hdf5(G, pbar)
+            pbar.close()
+
+        # If only writing geometry information
+        if args.geometry_only:
+            tsolve = 0
+
+
+    def run_model(self):
+
         # Check and set output directory and filename
         if not os.path.isdir(config.outputfilepath):
             os.mkdir(config.outputfilepath)
@@ -311,13 +311,8 @@ def run_model(solver, sim_config, model_config):
         printer.print('\nMemory (RAM) used: ~{}{}'.format(human_size(p.memory_full_info().uss), memGPU))
         printer.print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
 
-    # If geometry information to be reused between model runs then FDTDGrid
-    # class instance must be global so that it persists
-    if not args.geometry_fixed:
-        del G
 
-    return tsolve
-
+        return tsolve
 
 def solve_cpu(solver, sim_config, model_config):
     """
