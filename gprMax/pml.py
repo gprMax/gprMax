@@ -445,7 +445,7 @@ def pml_information(G):
         pmlinfo = pmlinfo[:-2] + ' cells'
     return 'PML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo)
 
-def build_pml(G, key, thickness):
+def build_pml(G, key, value):
     """This function builds instances of the PML and calculates the initial
         parameters and coefficients including setting profile
         (based on underlying material er and mr from solid array).

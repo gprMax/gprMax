@@ -19,15 +19,17 @@
 import inspect
 import os
 import sys
+import decimal as d
 
 from .config import c
 from .config import dtypes
+from .config import hostinfo
 from .exceptions import CmdInputError
 from .waveforms import Waveform
+from .utilities import round_value
 
 import numpy as np
 from scipy import interpolate
-
 from colorama import init
 from colorama import Fore
 from colorama import Style
@@ -107,15 +109,13 @@ class DomainSingle(UserObjectSingle):
             G.mode = '3D'
 
         # Round down time step to nearest float with precision one less than hardware maximum. Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
-        G.round_time_step()
+        # Round down time step to nearest float with precision one less than hardware maximum.
+        # Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
+        G.dt = round_value(G.dt, decimalplaces=d.getcontext().prec - 1)
 
         if G.messages:
             print('Mode: {}'.format(G.mode))
             print('Time step (at CFL limit): {:g} secs'.format(G.dt))
-
-        # do threads here
-        from .utilities import get_host_info
-        hostinfo = get_host_info()
 
         # Number of threads (OpenMP) to use
         if sys.platform == 'darwin':
@@ -126,7 +126,7 @@ class DomainSingle(UserObjectSingle):
         # os.environ['OMP_DISPLAY_ENV'] = 'TRUE' # Prints OMP version and environment variables (useful for debug)
 
         # Catch bug with Windows Subsystem for Linux (https://github.com/Microsoft/BashOnWindows/issues/785)
-        if 'Microsoft' in G.hostinfo['osversion']:
+        if 'Microsoft' in hostinfo['osversion']:
             os.environ['KMP_AFFINITY'] = 'disabled'
             del os.environ['OMP_PLACES']
             del os.environ['OMP_PROC_BIND']
@@ -140,7 +140,7 @@ class DomainSingle(UserObjectSingle):
 
         if G.messages:
             print('Number of CPU (OpenMP) threads: {}'.format(G.nthreads))
-        if G.nthreads > G.hostinfo['physicalcores']:
+        if G.nthreads > hostinfo['physicalcores']:
             print(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, hostinfo['physicalcores']) + Style.RESET_ALL)
 
 
@@ -180,20 +180,21 @@ class Discretisation(UserObjectSingle):
     def create(self, G, uip):
 
         try:
+            G.dl = np.array(self.kwargs['p1'])
             G.dx, G.dy, G.dz = self.kwargs['p1']
 
         except KeyError:
             raise CmdInputError('Discretisation requires a point')
 
-        if G.dx <= 0:
+        if G.dl[0] <= 0:
             raise CmdInputError('Discretisation requires the x-direction spatial step to be greater than zero')
-        if G.dy <= 0:
+        if G.dl[1] <= 0:
             raise CmdInputError(' Discretisation requires the y-direction spatial step to be greater than zero')
-        if G.dz <= 0:
+        if G.dl[2] <= 0:
             raise CmdInputError('Discretisation requires the z-direction spatial step to be greater than zero')
 
         if G.messages:
-            print('Spatial discretisation: {:g} x {:g} x {:g}m'.format(G.dx, G.dy, G.dz))
+            print('Spatial discretisation: {:g} x {:g} x {:g}m'.format(*G.dl))
 
 
 class TimeWindow(UserObjectSingle):
@@ -307,8 +308,6 @@ class NumThreads(UserObjectSingle):
 
     def create(self, G, uip):
         # Get information about host machine
-        from .utilities import get_host_info
-        hostinfo = get_host_info()
 
         try:
             n = self.kwargs['n']
@@ -323,7 +322,7 @@ class NumThreads(UserObjectSingle):
 
         if G.messages:
             print('Number of CPU (OpenMP) threads: {}'.format(G.nthreads))
-        if G.nthreads > G.hostinfo['physicalcores']:
+        if G.nthreads > hostinfo['physicalcores']:
             print(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, hostinfo['physicalcores']) + Style.RESET_ALL)
 
         # Print information about any GPU in use

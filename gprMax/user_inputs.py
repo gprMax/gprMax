@@ -66,6 +66,7 @@ class MainGridUserInput(UserInput):
         super().__init__(grid)
 
     def check_point(self, p, cmd_str, name=''):
+        """Discretise point and check its within the domain"""
         p = self.discretise_point(p)
         self.point_within_bounds(p, cmd_str, name)
         return p

@@ -110,6 +110,8 @@ class ModelBuildRun:
         else:
             self.reuse_geometry()
 
+        G = self.G
+
         # Adjust position of simple sources and receivers if required
         if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
             for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
@@ -129,7 +131,7 @@ class ModelBuildRun:
                 receiver.zcoord = receiver.zcoordorigin + (currentmodelrun - 1) * G.rxsteps[2]
 
         # Write files for any geometry views and geometry object outputs
-        if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only and config.general['messages']:
+        if not (G.geometryviews or G.geometryobjectswrite) and self.sim_config.geometry_only and config.general['messages']:
             print(Fore.RED + '\nWARNING: No geometry views or geometry objects to output found.' + Style.RESET_ALL)
         if config.general['messages']: print()
         for i, geometryview in enumerate(G.geometryviews):
@@ -143,7 +145,7 @@ class ModelBuildRun:
             pbar.close()
 
         # If only writing geometry information
-        if args.geometry_only:
+        if self.sim_config.geometry_only:
             tsolve = 0
 
     def build_geometry(self):

@@ -46,7 +46,7 @@ z0 = np.sqrt(m0 / e0)
 #   mode: 2D TMx, 2D TMy, 2D TMz, or 3D
 #   cpu, cuda, opencl: solver type
 general = {'inputfilepath': '', 'outputfilepath': '', 'messages': True,
-           'progressbars': True, 'mode': None, 'cpu': True, 'cuda': False, 'opencl': False}
+           'progressbars': True, 'mode': '3D', 'cpu': True, 'cuda': False, 'opencl': False}
 
 # Store information about host machine
 hostinfo = get_host_info()
@@ -141,6 +141,7 @@ class SimulationConfig:
         self.general = {}
         self.general['messages'] = True
         self.geometry_fixed = args.geometry_fixed
+        self.geometry_only = args.geometry_only
         self.scenes = args.scenes
 
         self.set_input_file_path()

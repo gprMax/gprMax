@@ -65,14 +65,38 @@ class Grid(object):
     def get(self, i, j, k):
         return self.grid[i, j, k]
 
-    def within_bounds(self, **kwargs):
-        for co, val in kwargs.items():
-            if val < 0 or val > getattr(self, 'n' + co):
-                raise ValueError(co)
+    def within_bounds(self, p):
+        if p[0] < 0 or p[0] > self.nx:
+            raise ValueError('x')
+        if p[1] < 0 or p[1] > self.ny:
+            raise ValueError('y')
+        if p[2] < 0 or p[2] > self.nz:
+            raise ValueError('z')
 
-    def calculate_coord(self, coord, val):
-        co = round_value(float(val) / getattr(self, 'd' + coord))
-        return co
+    def discretise_point(self, p):
+        x = round_value(float(p[0]) / self.dx)
+        y = round_value(float(p[1]) / self.dy)
+        z = round_value(float(p[2]) / self.dz)
+        return (x, y, z)
+
+    def round_to_grid(self, p):
+        p = self.discretise_point(p)
+        p_r = (p[0] * self.dx,
+               p[1] * self.dy,
+               p[2] * self.dz)
+        return p_r
+
+
+    def within_pml(self, p):
+        if (p[0] < self.pmlthickness['x0'] or
+            p[0] > self.nx - self.pmlthickness['xmax'] or
+            p[1] < self.pmlthickness['y0'] or
+            p[1] > self.ny - self.pmlthickness['ymax'] or
+            p[2] < self.pmlthickness['z0'] or
+            p[2] > self.nz - self.pmlthickness['zmax']):
+            return True
+        else:
+            return False
 
 
 class FDTDGrid(Grid):
@@ -119,6 +143,7 @@ class FDTDGrid(Grid):
         self.srcsteps = [0, 0, 0]
         self.rxsteps = [0, 0, 0]
         self.snapshots = []
+        self.subgrids = []
 
     def initialise_geometry_arrays(self):
         """
@@ -142,6 +167,13 @@ class FDTDGrid(Grid):
         self.Hx = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.dtypes['float_or_double'])
         self.Hy = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.dtypes['float_or_double'])
         self.Hz = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.dtypes['float_or_double'])
+
+
+    def initialise_grids(self):
+        """Function to call the initialisation of all grids."""
+        for g in [self] + self.subgrids:
+            g.initialise_geometry_arrays()
+            g.initialise_field_arrays()
 
     def initialise_std_update_coeff_arrays(self):
         """Initialise arrays for storing update coefficients."""
@@ -362,9 +394,9 @@ def dispersion_analysis(G):
         minwavelength = minvelocity / results['maxfreq']
 
         # Maximum spatial step
-        if '3D' in config.mode:
+        if '3D' in config.general['mode']:
             delta = max(G.dx, G.dy, G.dz)
-        elif '2D' in config.mode:
+        elif '2D' in config.general['mode']:
             if G.nx == 1:
                 delta = max(G.dy, G.dz)
             elif G.ny == 1:

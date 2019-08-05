@@ -5,7 +5,7 @@ from .cmds_single_use import DomainSingle
 from .cmds_single_use import Discretisation
 from .cmds_single_use import TimeWindow
 from .cmds_multiple import UserObjectMulti
-from .subgrids.user_objects import SubGridBase
+from .subgrids.user_objects import SubGridBase as SubGridUserBase
 from .cmds_geometry.cmds_geometry import UserObjectGeometry
 from .exceptions import CmdInputError
 from .cmds_geometry.fractal_box_builder import FractalBoxBuilder
