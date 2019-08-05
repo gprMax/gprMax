@@ -328,7 +328,8 @@ class PML(object):
         self.HRB_cl = cl_array.to_device(queue, self.HRB)
         self.HRE_cl = cl_array.to_device(queue, self.HRE)
         self.HRF_cl = cl_array.to_device(queue, self.HRF)
-
+        self.clMemoryUsage = self.EPhi1_cl.nbytes + self.EPhi2_cl.nbytes + self.ERA_cl.nbytes + self.ERB_cl.nbytes + self.ERE_cl.nbytes + self.ERF_cl.nbytes + \
+            self.HPhi1_cl.nbytes + self.HPhi2_cl.nbytes + self.HRA_cl.nbytes + self.HRB_cl.nbytes + self.HRE_cl.nbytes + self.HRF_cl.nbytes
 
     def gpu_initialise_arrays(self):
         """Initialise PML field and coefficient arrays on GPU."""
@@ -364,7 +365,7 @@ class PML(object):
     def cl_set_program(self, context, kernelselectric, kernelsmagnetic):
         import pyopencl as cl  
         import pyopencl.array as cl_array  
-
+        self.elapsed = 0
         self.electric_prg = cl.Program(context, kernelselectric).build()
         self.magnetic_prg = cl.Program(context, kernelsmagnetic).build()
 
@@ -403,6 +404,7 @@ class PML(object):
             self.HRA_cl.data, self.HRB_cl.data, self.HRE_cl.data, self.HRF_cl.data, np.float32(self.d)
         )
         event.wait()
+        self.elapsed = 1e-9*(event.profile.end - event.profile.start)
 
 
     def cl_update_electric(self, queue, G):
@@ -440,6 +442,7 @@ class PML(object):
             self.ERA_cl.data, self.ERB_cl.data, self.ERE_cl.data, self.ERF_cl.data, np.float32(self.d)    
         )
         event.wait()
+        self.elapsed = 1e-9*(event.profile.end - event.profile.start)
 
 
     def gpu_update_electric(self, G):

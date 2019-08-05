@@ -14,7 +14,7 @@ from pyopencl.elementwise import ElementwiseKernel
 from gprMax.materials import Material, process_materials
 from gprMax.receivers import gpu_initialise_rx_arrays, gpu_get_rx_array
 from gprMax.sources import gpu_initialise_src_arrays
-from gprMax.utilities import get_terminal_width, round32
+from gprMax.utilities import get_terminal_width, round32, timer
 from gprMax.opencl_el_kernels import pml_updates_electric_HORIPML as el_electric
 from gprMax.opencl_el_kernels import pml_updates_magnetic_HORIPML as el_magnetic
 
@@ -25,8 +25,18 @@ class OpenClSolver(object):
         self.G = G
         self.jinja_env = jinja2.Environment(loader=jinja2.PackageLoader(__name__, 'opencl_kernels'))
 
-    def setDeviceParameters(self):
-        pass
+    def getDeviceParameters(self):
+        warnings.warn("All sizes are in Bytes")
+        deviceParam = {}
+        deviceParam['GLOBAL_MEM_SIZE'] = self.devices[self.deviceIdx].global_mem_size
+        deviceParam['LOCAL_MEM_SIZE'] = self.devices[self.deviceIdx].local_mem_size  
+        deviceParam['MAX_COMPUTE_UNITS'] = self.devices[self.deviceIdx].max_compute_units
+        deviceParam['MAX_CONSTANT_BUFFER_SIZE'] = self.devices[self.deviceIdx].max_constant_buffer_size 
+        deviceParam['MAX_WORK_GROUP_SIZE'] = self.devices[self.deviceIdx].max_work_group_size  
+        deviceParam['MAX_WORK_ITEM_DIMENSIONS'] = self.devices[self.deviceIdx].max_work_item_dimensions
+        deviceParam['MAX_WORK_ITEM_SIZES'] = self.devices[self.deviceIdx].max_work_item_sizes 
+        deviceParam['OPENCL_C_VERSION'] = self.devices[self.deviceIdx].opencl_c_version
+        self.deviceParam = deviceParam
 
     def getPlatformNDevices(self, platformIdx=None, deviceIdx=None):
         print("")
@@ -40,6 +50,12 @@ class OpenClSolver(object):
             assert self.platformIdx in [i for i in range(len(self.platforms))]
         else:
             self.platformIdx = platformIdx
+
+        if "nvidia" in str(self.platforms[self.platformIdx].name).lower():
+            self.nvidiaGPU = True 
+        else:
+            self.nvidiaGPU = False
+
 
         print("Following devices supporting OpenCl were discovered for platform: {}".format(str(self.platforms[self.platformIdx].name)))
         self.devices = self.platforms[self.platformIdx].get_devices()
@@ -55,6 +71,7 @@ class OpenClSolver(object):
         print("Chosen Platform and Device")
         print("Platform: {}".format(str(self.platforms[self.platformIdx].name)))
         print("Devices: {}".format(str(self.devices[self.deviceIdx].name)))
+        self.getDeviceParameters()
 
         return
 
@@ -67,7 +84,11 @@ class OpenClSolver(object):
 
         if self.queue is None:
             print("Creating the command queue...")
-            self.queue = cl.CommandQueue(self.context)
+            try:
+                self.queue = cl.CommandQueue(self.context, properties=cl.command_queue_properties.PROFILING_ENABLE)
+            except:
+                self.queue = cl.CommandQueue(self.context)
+                print("Profiling not enabled")
         else: 
             pass 
 
@@ -79,9 +100,6 @@ class OpenClSolver(object):
             'COMPLEX': 'cfloat'
         }
         return
-
-    def setKernelParameters(self):
-        pass
 
     def elwise_kernel_build(self):
         
@@ -198,12 +216,16 @@ class OpenClSolver(object):
             preamble=common_kernel
         )
 
+        # initialize the cl arrays
+        self.G.cl_initialize_arrays(self.queue)
+
         # check for dispersive materials
         if Material.maxpoles > 0:
             self.G.cl_initialize_dispersive_arrays(self.queue)
 
-        # initialize the cl arrays
-        self.G.cl_initialize_arrays(self.queue)
+        # keeps an account for estimate of memory that shall be used
+        # only the PyOpenCl memory buffers which are transferred to devices are calculated
+        self.memUsage = self.G.clMemoryUsage
 
         # if pmls 
         if self.G.pmls:
@@ -215,6 +237,7 @@ class OpenClSolver(object):
             for pml in self.G.pmls:
                 pml.cl_set_workgroups(self.G)
                 pml.cl_initialize_arrays(self.queue)
+                self.memUsage += pml.clMemoryUsage
                 function_name = 'order'+str(len(pml.CFS)) + '_' + pml.direction
                 electric_context_dict = {
                     'order1_xminus' : el_electric.order1_xminus,
@@ -294,6 +317,7 @@ class OpenClSolver(object):
 
         if self.G.rxs:
             self.rxcoords_cl, self.rxs_cl = gpu_initialise_rx_arrays(self.G, self.queue, opencl=True)
+            self.memUsage += self.rxcoords_cl.nbytes + self.rxs_cl.nbytes
             store_field_context = elwise_jinja_env.get_template('store_outputs.cl').render()
             self.store_field = ElementwiseKernel(
                 self.context,
@@ -314,6 +338,7 @@ class OpenClSolver(object):
                     preamble=common_kernel
                 )
                 self.srcinfo1_hertzian_cl, self.srcinfo2_hertzian_cl, self.srcwaves_hertzian_cl = gpu_initialise_src_arrays(self.G.hertziandipoles, self.G, queue=self.queue, opencl=True)
+                self.memUsage += self.srcinfo1_hertzian_cl.nbytes + self.srcinfo2_hertzian_cl.nbytes + self.srcwaves_hertzian_cl.nbytes
 
             if self.G.voltagesources:
                 voltagesource_context = elwise_jinja_env.get_template('update_voltagesource.cl').render(REAL=self.datatypes['REAL'])
@@ -325,6 +350,7 @@ class OpenClSolver(object):
                     preamble=common_kernel
                 )
                 self.srcinfo1_voltage_cl, self.srcinfo2_voltage_cl, self.srcwaves_voltage_cl = gpu_initialise_src_arrays(self.G.voltagesources, self.G, queue=self.queue, opencl=True)
+                self.memUsage += self.srcinfo1_voltage_cl.nbytes + self.srcinfo2_voltage_cl.nbytes + self.srcwaves_voltage_cl.nbytes
 
             if self.G.magneticdipoles:
                 magneticdipole_context = elwise_jinja_env.get_template('update_magneticdipole.cl').render(REAL=self.datatypes['REAL'])
@@ -336,6 +362,7 @@ class OpenClSolver(object):
                     preamble=common_kernel
                 )
                 self.srcinfo1_magnetic_cl, self.srcinfo2_magnetic_cl, self.srcwaves_magnetic_cl = gpu_initialise_src_arrays(self.G.magneticdipoles, self.G, queue=self.queue, opencl=True)
+                self.memUsage += self.srcinfo1_magnetic_cl.nbytes + self.srcinfo2_magnetic_cl.nbytes + self.srcwaves_magnetic_cl.nbytes
 
         if self.G.snapshots:
             raise NotImplementedError
@@ -379,12 +406,14 @@ class OpenClSolver(object):
 
         # check if the total constant memory exceeds the variable nbytes
 
+        # init gpu arrays
+        self.G.cl_initialize_arrays(self.queue)
+
         # for dispersive materials
         if Material.maxpoles > 0:
             self.G.cl_initialize_dispersive_arrays(self.queue)
 
-        # init gpu arrays
-        self.G.cl_initialize_arrays(self.queue)
+        self.memUsage = self.G.clMemoryUsage            
 
         # if pmls
         if self.G.pmls:
@@ -423,11 +452,12 @@ class OpenClSolver(object):
                 pml.cl_set_workgroups(self.G)
                 pml.cl_initialize_arrays(self.queue)
                 pml.cl_set_program(self.context, kernel_pml_electric, kernel_pml_magnetic)
+                self.memUsage += pml.clMemoryUsage
 
         # if receviers
         if self.G.rxs:
             self.rxcoords_cl, self.rxs_cl = gpu_initialise_rx_arrays(self.G, self.queue, opencl=True)
-            
+            self.memUsage += self.rxcoords_cl.nbytes + self.rxs_cl.nbytes
             # get the store kernel function
             store_output_text = trad_jinja_env.get_template('store_outputs.cl').render(
                 REAL=self.datatypes['REAL'], 
@@ -461,10 +491,13 @@ class OpenClSolver(object):
 
             if self.G.hertziandipoles:
                 self.srcinfo1_hertzian_cl, self.srcinfo2_hertzian_cl, self.srcwaves_hertzian_cl = gpu_initialise_src_arrays(self.G.hertziandipoles, self.G, queue=self.queue, opencl=True)
+                self.memUsage += self.srcinfo1_hertzian_cl.nbytes + self.srcinfo2_hertzian_cl.nbytes + self.srcwaves_hertzian_cl.nbytes
             if self.G.magneticdipoles:
                 self.srcinfo1_magnetic_cl, self.srcinfo2_magnetic_cl, self.srcwaves_magnetic_cl = gpu_initialise_src_arrays(self.G.magneticdipoles, self.G, queue=self.queue, opencl=True)
+                self.memUsage += self.srcinfo1_magnetic_cl.nbytes + self.srcinfo2_magnetic_cl.nbytes + self.srcwaves_magnetic_cl.nbytes
             if self.G.voltagesources:
                 self.srcinfo1_voltage_cl, self.srcinfo2_voltage_cl, self.srcwaves_voltage_cl = gpu_initialise_src_arrays(self.G.voltagesources, self.G, queue=self.queue, opencl=True)
+                self.memUsage += self.srcinfo1_voltage_cl.nbytes + self.srcinfo2_voltage_cl.nbytes + self.srcwaves_voltage_cl.nbytes
 
         if self.G.snapshots:
             raise NotImplementedError
@@ -472,6 +505,31 @@ class OpenClSolver(object):
         self.store_output_prg = cl.Program(self.context, store_output_text).build()
         self.source_prg = cl.Program(self.context, sources_text).build()
         self.kernel_field_prg = cl.Program(self.context, kernel_fields_text).build()
+
+
+    def checkConstantMem(self):
+        # get the constant memory for current device 
+        EValMem = self.updateEVal.size*self.updateEVal.itemsize
+        HValMem = self.updateHVal.size*self.updateHVal.itemsize
+        totalMem = EValMem + HValMem
+        if(totalMem >= self.deviceParam['MAX_CONSTANT_BUFFER_SIZE']):
+            print("Constant memory insufficient for E/H field update coefficients")
+            return False
+        else:
+            return True
+
+    def clMemoryCheck(self):
+        # nvidia gpu profilers show overhead memory usage of ~42MB
+        if self.nvidiaGPU:
+            print("Estimated Nvidia GPU Memory to be used %.4f MB"%((self.memUsage/1024/1024) + 42))
+        else:
+            print("Estimated device memory utilization : %.4f MB"%(self.memUsage/1024/1024))
+        print("Global Device Memory available is %.4f MB"%(self.deviceParam['GLOBAL_MEM_SIZE']/1024/1024))
+        if(self.deviceParam['GLOBAL_MEM_SIZE'] <= self.memUsage):
+            print("Exiting simulation due to less memory")
+            return False 
+        else:
+            return True
 
 
     def solver(self, currentmodelrun, modelend, G, elementwisekernel=False):
@@ -488,8 +546,10 @@ class OpenClSolver(object):
         """
         assert self.platforms is not None
         assert self.devices is not None 
-        
+
         self.G = G
+        self.tsolverstart = timer()
+        elapsed = 0
 
         # create context and command queues
         self.createContext()
@@ -502,35 +562,46 @@ class OpenClSolver(object):
         self.updateEVal = self.G.updatecoeffsE.ravel()
         self.updateHVal = self.G.updatecoeffsH.ravel()
 
+        # add a check for max constant memory check with the update values
+        if not self.checkConstantMem():
+            print("Exiting Simulations")
+            return 0,0
+
         if elementwisekernel is True:
             print("Building Kernels using pyopencl.elementwise")
-            self.elwise_kernel_build()
+            self.elwise_kernel_build()            
 
-            for iteration in tqdm(range(self.G.iterations), desc="Running simulation model" + str(currentmodelrun) + "/" + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not self.G.progressbars):  
-                
-                # get memory info and do memory checks
+            # making memory check with estimated memory usages
+            if not self.clMemoryCheck():
+                return 0,0
+
+            for iteration in tqdm(range(self.G.iterations), desc="Running simulation model" + str(currentmodelrun) + "/" + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not self.G.progressbars):
 
                 if self.G.rxs:
-                    self.store_field(
+                    event = self.store_field(
                         np.int32(len(self.G.rxs)), np.int32(iteration),
                         self.rxcoords_cl, self.rxs_cl,
                         self.G.Ex_cl, self.G.Ey_cl, self.G.Ez_cl,
                         self.G.Hx_cl, self.G.Hy_cl, self.G.Hz_cl
                     )
-                
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
+
                 # store snapshots
 
                 #update magnetic field
-                self.update_h_field(
+                event = self.update_h_field(
                     np.int32(self.G.nx), np.int32(self.G.ny), np.int32(self.G.nz),
                     self.G.ID_cl, self.G.Hx_cl, self.G.Hy_cl, self.G.Hz_cl,
                     self.G.Ex_cl, self.G.Ey_cl, self.G.Ez_cl
                 )
+                event.wait()
+                elapsed += 1e-9*(event.profile.end - event.profile.start)
 
                 #pmls
                 for pml in self.G.pmls:
                     function_name = 'order'+str(len(pml.CFS)) + '_' + pml.direction
-                    self.pml_magnetic_update[function_name](
+                    event = self.pml_magnetic_update[function_name](
                         np.int32(pml.xs), np.int32(pml.xf), np.int32(pml.ys), 
                         np.int32(pml.yf), np.int32(pml.zs), np.int32(pml.zf), 
                         np.int32(pml.HPhi1.shape[1]), np.int32(pml.HPhi1.shape[2]), np.int32(pml.HPhi1.shape[3]), 
@@ -541,37 +612,47 @@ class OpenClSolver(object):
                         pml.HPhi1_cl, pml.HPhi2_cl, 
                         pml.HRA_cl, pml.HRB_cl, pml.HRE_cl, pml.HRF_cl, np.float32(pml.d)
                     )
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
+
                 
                 # magnetic dipoles
                 if self.G.magneticdipoles:
-                    self.magneticdipole_update(
+                    event = self.magneticdipole_update(
                         np.int32(len(self.G.magneticdipoles)), np.int32(iteration),
                         np.float32(self.G.dx), np.float32(self.G.dy), np.float32(self.G.dz),
                         self.srcinfo1_magnetic_cl, self.srcinfo2_magnetic_cl,
                         self.srcwaves_magnetic_cl, self.G.ID_cl,
                         self.G.Hx_cl, self.G.Hy_cl, self.G.Hz_cl
                     )
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
                 
                 # dispersive materials
                 if Material.maxpoles > 0:
-                    self.update_e_dispersive_A(
+                    event = self.update_e_dispersive_A(
                         np.int32(self.G.nx), np.int32(self.G.ny), np.int32(self.G.nz),
                         np.int32(Material.maxpoles), self.G.updatecoeffsdispersive_cl,
                         self.G.Tx_cl, self.G.Ty_cl, self.G.Tz_cl, self.G.ID_cl,
                         self.G.Ex_cl, self.G.Ey_cl, self.G.Ez_cl,
                         self.G.Hx_cl, self.G.Hy_cl, self.G.Hz_cl
                     )
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
+
                 else:
-                    self.update_e_field(
+                    event = self.update_e_field(
                         np.int32(self.G.nx), np.int32(self.G.ny), np.int32(self.G.nz),
                         self.G.ID_cl, self.G.Ex_cl, self.G.Ey_cl, self.G.Ez_cl,
                         self.G.Hx_cl, self.G.Hy_cl, self.G.Hz_cl
                     )
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
 
                 #pmls
                 for pml in self.G.pmls:
                     function_name = 'order'+str(len(pml.CFS)) + '_' + pml.direction
-                    self.pml_electric_update[function_name](
+                    event = self.pml_electric_update[function_name](
                         np.int32(pml.xs), np.int32(pml.xf), np.int32(pml.ys), 
                         np.int32(pml.yf), np.int32(pml.zs), np.int32(pml.zf), 
                         np.int32(pml.EPhi1.shape[1]), np.int32(pml.EPhi1.shape[2]), np.int32(pml.EPhi1.shape[3]), 
@@ -582,69 +663,85 @@ class OpenClSolver(object):
                         pml.EPhi1_cl, pml.EPhi2_cl, 
                         pml.ERA_cl, pml.ERB_cl, pml.ERE_cl, pml.ERF_cl, np.float32(pml.d)
                     )
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
 
                 if self.G.voltagesources:
-                    self.voltagesource_update(
+                    event = self.voltagesource_update(
                         np.int32(len(self.G.voltagesources)), np.int32(iteration),
                         np.float32(self.G.dx), np.float32(self.G.dy), np.float32(self.G.dz),
                         self.srcinfo1_voltage_cl, self.srcinfo2_voltage_cl,
                         self.srcwaves_voltage_cl, self.G.ID_cl,
                         self.G.Ex_cl, self.G.Ey_cl, self.G.Ez_cl
                     )
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
                 
                 if self.G.hertziandipoles:
-                    self.hertziandipoles_update(
+                    event = self.hertziandipoles_update(
                         np.int32(len(G.hertziandipoles)), np.int32(iteration),
                         np.float32(self.G.dx), np.float32(self.G.dy), np.float32(self.G.dz),
                         self.srcinfo1_hertzian_cl, self.srcinfo2_hertzian_cl, self.srcwaves_hertzian_cl, 
                         self.G.ID_cl, self.G.Ex_cl, self.G.Ey_cl, self.G.Ez_cl
                     )
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
+
 
                 #
                 if Material.maxpoles > 0:
-                    self.update_e_dispersive_B(
+                    event = self.update_e_dispersive_B(
                         np.int32(self.G.nx), np.int32(self.G.ny), np.int32(self.G.nz),
                         np.int32(Material.maxpoles), self.G.updatecoeffsdispersive_cl,
                         self.G.Tx_cl, self.G.Ty_cl, self.G.Tz_cl, self.G.ID_cl,
                         self.G.Ex_cl, self.G.Ey_cl, self.G.Ez_cl
                     )
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
 
         else:
             print("Building Kernels the traditional method")
             self.traditional_kernel_build()
 
+            # making memory check with estimated memory usages
+            if not self.clMemoryCheck():
+                return 0,0
+
             for iteration in tqdm(range(self.G.iterations), desc="Running simulation model" + str(currentmodelrun) + "/" + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not self.G.progressbars):
 
-                # get gpu memory
+                # get gpu memory 
 
                 # store field component values for every receiver
                 if self.G.rxs:
-                    store_output_event = self.store_output_prg.store_outputs(
+                    event = self.store_output_prg.store_outputs(
                         self.queue, (len(self.G.rxs),1,1), None, 
                         np.int32(len(self.G.rxs)), np.int32(iteration), 
                         self.rxcoords_cl.data, self.rxs_cl.data,
                         self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data, 
                         self.G.Hx_cl.data, self.G.Hy_cl.data, self.G.Hz_cl.data
                     )
-                    store_output_event.wait()
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
 
                 # store any snapshots
 
                 # update magnetic field components 
-                kernel_field_event = self.kernel_field_prg.update_h(
+                event = self.kernel_field_prg.update_h(
                     self.queue, (int(np.ceil((self.G.nx+1)*(self.G.ny+1)*(self.G.nz+1))),1,1), None,
                     np.int32(self.G.nx), np.int32(self.G.ny), np.int32(self.G.nz),
                     self.G.ID_cl.data, self.G.Hx_cl.data, self.G.Hy_cl.data, self.G.Hz_cl.data, 
                     self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data
                 )
-                kernel_field_event.wait()
+                event.wait()
+                elapsed += 1e-9*(event.profile.end - event.profile.start)
 
                 for pml in self.G.pmls:
-                    pml.cl_update_magnetic(self.queue, self.G)            
+                    pml.cl_update_magnetic(self.queue, self.G)
+                    elapsed += pml.elapsed
 
                 # update magnetic dipoles (sources)
                 if self.G.magneticdipoles:
-                    source_event = self.source_prg.update_magnetic_dipole(
+                    event = self.source_prg.update_magnetic_dipole(
                         self.queue, (len(self.G.magneticdipoles),1,1), None,
                         np.int32(len(self.G.magneticdipoles)), np.int32(iteration),
                         np.float32(self.G.dx), np.float32(self.G.dy), np.float32(self.G.dz),
@@ -652,10 +749,11 @@ class OpenClSolver(object):
                         self.srcwaves_magnetic_cl.data, self.G.ID_cl.data,
                         self.G.Hx_cl.data, self.G.Hy_cl.data, self.G.Hz_cl.data
                     )
-                    source_event.wait()
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
 
                 if Material.maxpoles > 0:
-                    kernel_field_event = self.kernel_field_prg.update_e_dispersive_A(
+                    event = self.kernel_field_prg.update_e_dispersive_A(
                         self.queue, (int(np.ceil((self.G.nx+1)*(self.G.ny+1)*(self.G.nz+1))),1,1), None,
                         np.int32(self.G.nx), np.int32(self.G.ny), np.int32(self.G.nz),
                         np.int32(Material.maxpoles), self.G.updatecoeffsdispersive_cl.data,
@@ -663,23 +761,27 @@ class OpenClSolver(object):
                         self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data,
                         self.G.Hx_cl.data, self.G.Hy_cl.data, self.G.Hz_cl.data
                     )
-                    kernel_field_event.wait()
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
+
                 else:
                     # update electric field components
-                    kernel_field_event = self.kernel_field_prg.update_e(
+                    event = self.kernel_field_prg.update_e(
                         self.queue, (int(np.ceil((self.G.nx+1)*(self.G.ny+1)*(self.G.nz+1))),1,1), None,
                         np.int32(self.G.nx), np.int32(self.G.ny), np.int32(self.G.nz),
                         self.G.ID_cl.data, self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data,
                         self.G.Hx_cl.data, self.G.Hy_cl.data, self.G.Hz_cl.data
                     )
-                    kernel_field_event.wait()
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
 
                 for pml in self.G.pmls:
                     pml.cl_update_electric(self.queue, self.G)
+                    elapsed += pml.elapsed
                 
                 
                 if self.G.voltagesources:
-                    source_event = self.source_prg.update_voltage_source(
+                    event = self.source_prg.update_voltage_source(
                         self.queue, (len(self.G.voltagesources),1,1), None,
                         np.int32(len(self.G.voltagesources)), np.int32(iteration),
                         np.float32(self.G.dx), np.float32(self.G.dy), np.float32(self.G.dz),
@@ -687,27 +789,31 @@ class OpenClSolver(object):
                         self.srcwaves_voltage_cl.data, self.G.ID_cl.data,
                         self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data
                     )
-                    source_event.wait()
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
 
                 if self.G.hertziandipoles:
-                    source_event = self.source_prg.update_hertzian_dipole(
+                    event = self.source_prg.update_hertzian_dipole(
                         self.queue, (len(self.G.hertziandipoles),1,1), None,
                         np.int32(len(self.G.hertziandipoles)), np.int32(iteration),
                         np.float32(self.G.dx), np.float32(self.G.dy), np.float32(self.G.dz),
                         self.srcinfo1_hertzian_cl.data, self.srcinfo2_hertzian_cl.data, self.srcwaves_hertzian_cl.data, 
                         self.G.ID_cl.data, self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data
                     )
-                    source_event.wait()
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
+
 
                 if Material.maxpoles > 0:
-                    field_event = self.kernel_field_prg.update_e_dispersive_B(
+                    event = self.kernel_field_prg.update_e_dispersive_B(
                         self.queue, (int(np.ceil((self.G.nx+1)*(self.G.ny+1)*(self.G.nz+1))),1,1), None,
                         np.int32(self.G.nx), np.int32(self.G.ny), np.int32(self.G.nz),
                         np.int32(Material.maxpoles), self.G.updatecoeffsdispersive_cl.data,
                         self.G.Tx_cl.data, self.G.Ty_cl.data, self.G.Tz_cl.data, self.G.ID_cl.data,
                         self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data
                     )
-                    field_event.wait()
+                    event.wait()
+                    elapsed += 1e-9*(event.profile.end - event.profile.start)
 
         if self.G.rxs:
             # store the output from receivers array back to correct receiver objects
@@ -716,5 +822,7 @@ class OpenClSolver(object):
         # copy data from any snapshots back to correct snapshot objects
         if self.G.snapshots:
             raise NotImplementedError
-        # close context and queues
-        return 1,2
+
+        print("Time reported from the timer() module is : %.6f"%(timer()-self.tsolverstart))
+            
+        return elapsed,(self.memUsage/1024/1024)

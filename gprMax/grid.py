@@ -265,6 +265,7 @@ class FDTDGrid(Grid):
         self.Hx_cl = cl_array.to_device(queue, self.Hx)
         self.Hy_cl = cl_array.to_device(queue, self.Hy)
         self.Hz_cl = cl_array.to_device(queue, self.Hz)
+        self.clMemoryUsage = self.ID_cl.nbytes + self.Ex_cl.nbytes + self.Ey_cl.nbytes + self.Ez_cl.nbytes + self.Hx_cl.nbytes + self.Hy_cl.nbytes + self.Hz_cl.nbytes
 
     def gpu_initialise_arrays(self):
         """Initialise standard field arrays on GPU."""
@@ -300,6 +301,7 @@ class FDTDGrid(Grid):
         self.Ty_cl = cl_array.to_device(queue, self.Ty)
         self.Tz_cl = cl_array.to_device(queue, self.Tz)
         self.updatecoeffsdispersive_cl = cl_array.to_device(queue, self.updatecoeffsdispersive)
+        self.clMemoryUsage += self.Tx_cl.nbytes + self.Ty_cl.nbytes + self.Tz_cl.nbytes + self.updatecoeffsdispersive_cl.nbytes
 
 
 def dispersion_analysis(G):
