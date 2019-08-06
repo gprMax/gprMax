@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 """Object which can be created multiple times."""
+import gprMax.config as config
 from .config import z0
 from .config import dtypes
 from .utilities import round_value
@@ -105,7 +106,7 @@ class Waveform(UserObjectMulti):
         w.amp = amp
         w.freq = freq
 
-        if grid.messages:
+        if config.general['messages']:
             print('Waveform {} of type {} with maximum amplitude scaling {:g}, frequency {:g}Hz created.'.format(w.ID, w.type, w.amp, w.freq))
 
         grid.waveforms.append(w)
@@ -182,7 +183,7 @@ class VoltageSource(UserObjectMulti):
 
         v.calculate_waveform_values(grid)
 
-        if grid.messages:
+        if config.general['messages']:
             print('Voltage source with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(v.polarisation, v.xcoord * grid.dx, v.ycoord * grid.dy, v.zcoord * grid.dz, v.resistance) + startstop + 'using waveform {} created.'.format(v.waveformID))
 
         grid.voltagesources.append(v)
@@ -267,7 +268,7 @@ class HertzianDipole(UserObjectMulti):
 
         h.calculate_waveform_values(grid)
 
-        if grid.messages:
+        if config.general['messages']:
             if grid.mode == '2D':
                 print('Hertzian dipole is a line source in 2D with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * grid.dx, h.ycoord * grid.dy, h.zcoord * grid.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
             else:
@@ -344,7 +345,7 @@ class MagneticDipole(UserObjectMulti):
 
         m.calculate_waveform_values(grid)
 
-        if grid.messages:
+        if config.general['messages']:
             print('Magnetic dipole with polarity {} at {:g}m, {:g}m, {:g}m,'.format(m.polarisation, m.xcoord * grid.dx, m.ycoord * grid.dy, m.zcoord * grid.dz) + startstop + 'using waveform {} created.'.format(m.waveformID))
 
         grid.magneticdipoles.append(m)
@@ -426,7 +427,7 @@ class TransmissionLine(UserObjectMulti):
         t.calculate_waveform_values(grid)
         t.calculate_incident_V_I(grid)
 
-        if grid.messages:
+        if config.general['messages']:
             print('Transmission line with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(t.polarisation, t.xcoord * grid.dx, t.ycoord * grid.dy, t.zcoord * grid.dz, t.resistance) + startstop + 'using waveform {} created.'.format(t.waveformID))
 
         grid.transmissionlines.append(t)
@@ -475,7 +476,7 @@ class Rx(UserObjectMulti):
             for key in RxUser.defaultoutputs:
                 r.outputs[key] = np.zeros(grid.iterations, dtype=floattype)
 
-        if grid.messages:
+        if config.general['messages']:
             print('Receiver at {:g}m, {:g}m, {:g}m with output component(s) {} created.'.format(r.xcoord * grid.dx, r.ycoord * grid.dy, r.zcoord * grid.dz, ', '.join(r.outputs)))
 
         grid.rxs.append(r)
@@ -525,7 +526,7 @@ class RxArray(UserObjectMulti):
             else:
                 raise CmdInputError("'{}' the step size should not be less than the spatial discretisation".format(self.__str__()))
 
-        if grid.messages:
+        if config.general['messages']:
             print('Receiver array {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with steps {:g}m, {:g}m, {:g}m'.format(xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, dx * grid.dx, dy * grid.dy, dz * grid.dz))
 
         for x in range(xs, xf + 1, dx):
@@ -541,7 +542,7 @@ class RxArray(UserObjectMulti):
                     r.ID = r.__class__.__name__ + '(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
                     for key in RxUser.defaultoutputs:
                         r.outputs[key] = np.zeros(grid.iterations, dtype=floattype)
-                    if grid.messages:
+                    if config.general['messages']:
                         print('  Receiver at {:g}m, {:g}m, {:g}m with output component(s) {} created.'.format(r.xcoord * grid.dx, r.ycoord * grid.dy, r.zcoord * grid.dz, ', '.join(r.outputs)))
                     grid.rxs.append(r)
 
@@ -600,7 +601,7 @@ class Snapshot(UserObjectMulti):
         else:
             s = SnapshotUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, iterations, filename)
 
-        if grid.messages:
+        if config.general['messages']:
             print('Snapshot from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, at {:g} secs with filename {} created.'.format(xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, dx * grid.dx, dy * grid.dy, dz * grid.dz, s.time * grid.dt, s.basefilename))
 
         grid.snapshots.append(s)
@@ -650,7 +651,7 @@ class Material(UserObjectMulti):
         if m.se == float('inf'):
             m.averagable = False
 
-        if grid.messages:
+        if config.general['messages']:
             tqdm.write('Material {} with eps_r={:g}, sigma={:g} S/m; mu_r={:g}, sigma*={:g} Ohm/m created.'.format(m.ID, m.er, m.se, m.mr, m.sm))
 
         # Append the new material object to the materials list
@@ -701,7 +702,7 @@ class AddDebyeDispersion(UserObjectMulti):
             if material.poles > MaterialUser.maxpoles:
                 MaterialUser.maxpoles = material.poles
 
-            if grid.messages:
+            if config.general['messages']:
                 tqdm.write('Debye disperion added to {} with delta_eps_r={}, and tau={} secs created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau)))
 
 
@@ -749,7 +750,7 @@ class AddLorentzDispersion(UserObjectMulti):
             if material.poles > MaterialUser.maxpoles:
                 MaterialUser.maxpoles = material.poles
 
-            if grid.messages:
+            if config.general['messages']:
                 tqdm.write('Lorentz disperion added to {} with delta_eps_r={}, omega={} secs, and gamma={} created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
 
 
@@ -794,7 +795,7 @@ class AddDrudeDispersion(UserObjectMulti):
             if material.poles > MaterialUser.maxpoles:
                 MaterialUser.maxpoles = material.poles
 
-            if grid.messages:
+            if config.general['messages']:
                 tqdm.write('Drude disperion added to {} with omega={} secs, and gamma={} secs created.'.format(material.ID, ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
 
 
@@ -839,7 +840,7 @@ class SoilPeplinski(UserObjectMulti):
         # Create a new instance of the Material class material (start index after pec & free_space)
         s = PeplinskiSoil(ID, sand_fraction, clay_fraction, bulk_density, sand_density, (water_fraction_lower, water_fraction_upper))
 
-        if grid.messages:
+        if config.general['messages']:
             print('Mixing model (Peplinski) used to create {} with sand fraction {:g}, clay fraction {:g}, bulk density {:g}g/cm3, sand particle density {:g}g/cm3, and water volumetric fraction {:g} to {:g} created.'.format(s.ID, s.S, s.C, s.rb, s.rs, s.mu[0], s.mu[1]))
 
         # Append the new material object to the materials list
@@ -911,7 +912,7 @@ class GeometryView(UserObjectMulti):
 
         g = GeometryViewUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, fileext, grid)
 
-        if grid.messages:
+        if config.general['messages']:
             print('Geometry view from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, multi_grid {}, grid={}, with filename base {} created.'.format(xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, dx * grid.dx, dy * grid.dy, dz * grid.dz, self.multi_grid, grid.name, g.basefilename))
 
         # Append the new GeometryView object to the geometry views list
@@ -941,7 +942,7 @@ class GeometryObjectsWrite(UserObjectMulti):
 
         g = GeometryObjectsUser(x0, y0, z0, x1, y1, z1, filename)
 
-        if grid.messages:
+        if config.general['messages']:
             print('Geometry objects in the volume from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, will be written to {}, with materials written to {}'.format(p1[0] * grid.dx, p1[1] * grid.dy, p1[2] * grid.dz, p2[0] * grid.dx, p2[1] * grid.dy, p2[2] * grid.dz, g.filename, g.materialsfilename))
 
         # Append the new GeometryView object to the geometry objects to write list
@@ -1016,7 +1017,7 @@ class PMLCFS(UserObjectMulti):
         cfs.kappa = cfskappa
         cfs.sigma = cfssigma
 
-        if grid.messages:
+        if config.general['messages']:
             print('PML CFS parameters: alpha (scaling: {}, scaling direction: {}, min: {:g}, max: {:g}), kappa (scaling: {}, scaling direction: {}, min: {:g}, max: {:g}), sigma (scaling: {}, scaling direction: {}, min: {:g}, max: {}) created.'.format(cfsalpha.scalingprofile, cfsalpha.scalingdirection, cfsalpha.min, cfsalpha.max, cfskappa.scalingprofile, cfskappa.scalingdirection, cfskappa.min, cfskappa.max, cfssigma.scalingprofile, cfssigma.scalingdirection, cfssigma.min, cfssigma.max))
 
         grid.cfs.append(cfs)

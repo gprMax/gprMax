@@ -110,7 +110,18 @@ class ModelConfig():
         #self.usernamespace['current_model_run'] = self.i + 1
 
     def get_scene(self):
-        return self.sim_config.scenes[self.i]
+        if self.sim_config.scenes:
+            return self.sim_config.scenes[self.i]
+        else: return None
+
+    def get_usernamespace(self):
+        return {'c': c,
+                'e0': e0,
+                'm0': m0,
+                'z0': z0,
+                'number_model_runs': self.sim_config.model_end + 1,
+                'current_model_run': self.i + 1,
+                'inputfile': self.sim_config.input_file_path.resolve()}
 
 class SimulationConfig:
 
@@ -142,7 +153,11 @@ class SimulationConfig:
         self.general['messages'] = True
         self.geometry_fixed = args.geometry_fixed
         self.geometry_only = args.geometry_only
-        self.scenes = args.scenes
+        self.write_processed = args.write_processed
+        try:
+            self.scenes = args.scenes
+        except AttributeError:
+            self.scenes = []
 
         self.set_input_file_path()
         self.set_model_start()

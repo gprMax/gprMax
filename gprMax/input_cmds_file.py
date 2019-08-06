@@ -23,6 +23,10 @@ from io import StringIO
 import gprMax.config as config
 from .exceptions import CmdInputError
 
+from .input_cmds_geometry import process_geometrycmds
+from .input_cmds_multiuse import process_multicmds
+from .input_cmds_singleuse import process_singlecmds
+
 
 def process_python_include_code(inputfile, usernamespace):
     """Looks for and processes any Python code found in the input file.
@@ -246,3 +250,56 @@ def check_cmd_names(processedlines, checkessential=True):
             raise CmdInputError('Your input file is missing essential commands required to run a model. Essential commands are: ' + ', '.join(essentialcmds))
 
     return singlecmds, multiplecmds, geometry
+
+
+def parse_hash_commands(model_config, G, scene):
+    """Parse user hash commands and add them to the scene."""
+    # Add the current model run to namespace that can be accessed by
+    # user in any Python code blocks in input file
+
+    sim_config = model_config.sim_config
+
+    with open(sim_config.input_file_path) as inputfile:
+
+        usernamespace = model_config.get_usernamespace()
+
+        # Read input file and process any Python and include file commands
+        processedlines = process_python_include_code(inputfile, usernamespace)
+
+        # Print constants/variables in user-accessable namespace
+        uservars = ''
+        for key, value in sorted(usernamespace.items()):
+            if key != '__builtins__':
+                uservars += '{}: {}, '.format(key, value)
+        usv_s = """Constants/variables used/available for Python \
+        scripting: {{{}}}\n"""
+        print(usv_s.format(uservars[:-2]))
+
+        # Write a file containing the input commands after Python or include
+        # file commands have been processed
+        if sim_config.write_processed:
+            write_processed_file(processedlines, model_config.appendmodelnumber, G)
+
+        # Check validity of command names and that
+        # essential commands are present
+        parsed_commands = check_cmd_names(processedlines)
+
+        print(parsed_commands)
+
+
+        # Process parameters for commands that can only occur once in the model
+        single_user_objs = process_singlecmds(parsed_commands[0])
+
+        # Process parameters for commands that can occur multiple times in
+        # the model
+        multiple_user_objs = process_multicmds(parsed_commands[1])
+
+        # Process geometry commands in the order they were given
+        geometry_user_objs = process_geometrycmds(parsed_commands[2])
+
+        user_objs = single_user_objs + multiple_user_objs + geometry_user_objs
+
+        for user_obj in user_objs:
+            scene.add(user_obj)
+
+        return scene

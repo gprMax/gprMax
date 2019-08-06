@@ -144,6 +144,7 @@ class FDTDGrid(Grid):
         self.rxsteps = [0, 0, 0]
         self.snapshots = []
         self.subgrids = []
+        self.gpu = None
 
     def initialise_geometry_arrays(self):
         """

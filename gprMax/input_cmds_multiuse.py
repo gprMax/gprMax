@@ -15,35 +15,42 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-
-from colorama import init
-from colorama import Fore
-from colorama import Style
-init()
-from copy import deepcopy
-import numpy as np
-from tqdm import tqdm
-
-import gprMax.config as config
+# Copyright (C) 2015-2018: The University of Edinburgh
+#                 Authors: Craig Warren and Antonis Giannopoulos
+#
+# This file is part of gprMax.
+#
+# gprMax is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# gprMax is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 from .exceptions import CmdInputError
-from .geometry_outputs import GeometryView
-from .geometry_outputs import GeometryObjects
-from .materials import DispersiveMaterial
-from .materials import Material
-from .materials import PeplinskiSoil
-from .pml import CFSParameter
-from .pml import CFS
-from .receivers import Rx
-from .snapshots import Snapshot
-from .sources import VoltageSource
-from .sources import HertzianDipole
-from .sources import MagneticDipole
-from .sources import TransmissionLine
-from .utilities import round_value
-from .waveforms import Waveform
+from .cmds_multiple import Waveform
+from .cmds_multiple import VoltageSource
+from .cmds_multiple import HertzianDipole
+from .cmds_multiple import MagneticDipole
+from .cmds_multiple import TransmissionLine
+from .cmds_multiple import Material
+from .cmds_multiple import Snapshot
+from .cmds_multiple import AddDebyeDispersion
+from .cmds_multiple import AddLorentzDispersion
+from .cmds_multiple import AddDrudeDispersion
+from .cmds_multiple import PeplinskiSoil
+from .cmds_multiple import GeometryView
+from .cmds_multiple import GeometryObjectsWrite
+from .cmds_multiple import PMLCFS
+from .cmds_multiple import Rx
 
 
-def process_multicmds(multicmds, G):
+def process_multicmds(multicmds):
     """
     Checks the validity of command parameters and creates instances of
         classes of parameters.
@@ -53,13 +60,7 @@ def process_multicmds(multicmds, G):
         G (class): Grid class instance - holds essential parameters describing the model.
     """
 
-    # Check if coordinates are within the bounds of the grid
-    def check_coordinates(x, y, z, name=''):
-        try:
-            G.within_bounds(x=x, y=y, z=z)
-        except ValueError as err:
-            s = "'{}: {} ' {} {}-coordinate is not within the model domain".format(cmdname, ' '.join(tmp), name, err.args[0])
-            raise CmdInputError(s)
+    scene_objects = []
 
     # Waveform definitions
     cmdname = '#waveform'
@@ -68,94 +69,23 @@ def process_multicmds(multicmds, G):
             tmp = cmdinstance.split()
             if len(tmp) != 4:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly four parameters')
-            if tmp[0].lower() not in Waveform.types:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' must have one of the following types {}'.format(','.join(Waveform.types)))
-            if float(tmp[2]) <= 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires an excitation frequency value of greater than zero')
-            if any(x.ID == tmp[3] for x in G.waveforms):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' with ID {} already exists'.format(tmp[3]))
 
-            w = Waveform()
-            w.ID = tmp[3]
-            w.type = tmp[0].lower()
-            w.amp = float(tmp[1])
-            w.freq = float(tmp[2])
-
-            if config.general['messages']:
-                print('Waveform {} of type {} with maximum amplitude scaling {:g}, frequency {:g}Hz created.'.format(w.ID, w.type, w.amp, w.freq))
-
-            G.waveforms.append(w)
+            waveform = Waveform(wave_type=tmp[0], amp=float(tmp[1]), freq=float(tmp[2]), id=tmp[3])
+            scene_objects.append(waveform)
 
     # Voltage source
     cmdname = '#voltage_source'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            if len(tmp) < 6:
+            if len(tmp) == 6:
+                voltage_source = VoltageSource(polarisation=tmp[0].lower(), p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])), resistance=float(tmp[4]), waveform_id=tmp[5])
+            elif len(tmp) == 8:
+                voltage_source = VoltageSource(polarisation=tmp[0].lower(), p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])), resistance=float(tmp[4]), waveform_id=tmp[5], start=float(tmp[6]), end=float(tmp[7]))
+            else:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
 
-            # Check polarity & position parameters
-            polarisation = tmp[0].lower()
-            if polarisation not in ('x', 'y', 'z'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            if '2D TMx' in config.mode and (polarisation == 'y' or polarisation == 'z'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
-            elif '2D TMy' in config.mode and (polarisation == 'x' or polarisation == 'z'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
-            elif '2D TMz' in config.mode and (polarisation == 'x' or polarisation == 'y'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
-
-            xcoord = G.calculate_coord('x', tmp[1])
-            ycoord = G.calculate_coord('y', tmp[2])
-            zcoord = G.calculate_coord('z', tmp[3])
-            resistance = float(tmp[4])
-
-            check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
-                print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
-            if resistance < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a source resistance of zero or greater')
-
-            # Check if there is a waveformID in the waveforms list
-            if not any(x.ID == tmp[5] for x in G.waveforms):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[5]))
-
-            v = VoltageSource()
-            v.polarisation = polarisation
-            v.xcoord = xcoord
-            v.ycoord = ycoord
-            v.zcoord = zcoord
-            v.ID = v.__class__.__name__ + '(' + str(v.xcoord) + ',' + str(v.ycoord) + ',' + str(v.zcoord) + ')'
-            v.resistance = resistance
-            v.waveformID = tmp[5]
-
-            if len(tmp) > 6:
-                # Check source start & source remove time parameters
-                start = float(tmp[6])
-                stop = float(tmp[7])
-                if start < 0:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' delay of the initiation of the source should not be less than zero')
-                if stop < 0:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' time to remove the source should not be less than zero')
-                if stop - start <= 0:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' duration of the source should not be zero or less')
-                v.start = start
-                if stop > G.timewindow:
-                    v.stop = G.timewindow
-                else:
-                    v.stop = stop
-                startstop = ' start time {:g} secs, finish time {:g} secs '.format(v.start, v.stop)
-            else:
-                v.start = 0
-                v.stop = G.timewindow
-                startstop = ' '
-
-            v.calculate_waveform_values(G)
-
-            if config.general['messages']:
-                print('Voltage source with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(v.polarisation, v.xcoord * G.dx, v.ycoord * G.dy, v.zcoord * G.dz, v.resistance) + startstop + 'using waveform {} created.'.format(v.waveformID))
-
-            G.voltagesources.append(v)
+            scene_objects.append(voltage_source)
 
     # Hertzian dipole
     cmdname = '#hertzian_dipole'
@@ -164,79 +94,14 @@ def process_multicmds(multicmds, G):
             tmp = cmdinstance.split()
             if len(tmp) < 5:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
-
-            # Check polarity & position parameters
-            polarisation = tmp[0].lower()
-            if polarisation not in ('x', 'y', 'z'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            if '2D TMx' in config.mode and (polarisation == 'y' or polarisation == 'z'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
-            elif '2D TMy' in config.mode and (polarisation == 'x' or polarisation == 'z'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
-            elif '2D TMz' in config.mode and (polarisation == 'x' or polarisation == 'y'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
-
-            xcoord = G.calculate_coord('x', tmp[1])
-            ycoord = G.calculate_coord('y', tmp[2])
-            zcoord = G.calculate_coord('z', tmp[3])
-            check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
-                print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
-
-            # Check if there is a waveformID in the waveforms list
-            if not any(x.ID == tmp[4] for x in G.waveforms):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[4]))
-
-            h = HertzianDipole()
-            h.polarisation = polarisation
-
-            # Set length of dipole to grid size in polarisation direction
-            if h.polarisation == 'x':
-                h.dl = G.dx
-            elif h.polarisation == 'y':
-                h.dl = G.dy
-            elif h.polarisation == 'z':
-                h.dl = G.dz
-
-            h.xcoord = xcoord
-            h.ycoord = ycoord
-            h.zcoord = zcoord
-            h.xcoordorigin = xcoord
-            h.ycoordorigin = ycoord
-            h.zcoordorigin = zcoord
-            h.ID = h.__class__.__name__ + '(' + str(h.xcoord) + ',' + str(h.ycoord) + ',' + str(h.zcoord) + ')'
-            h.waveformID = tmp[4]
-
-            if len(tmp) > 5:
-                # Check source start & source remove time parameters
-                start = float(tmp[5])
-                stop = float(tmp[6])
-                if start < 0:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' delay of the initiation of the source should not be less than zero')
-                if stop < 0:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' time to remove the source should not be less than zero')
-                if stop - start <= 0:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' duration of the source should not be zero or less')
-                h.start = start
-                if stop > G.timewindow:
-                    h.stop = G.timewindow
-                else:
-                    h.stop = stop
-                startstop = ' start time {:g} secs, finish time {:g} secs '.format(h.start, h.stop)
+            if len(tmp) == 5:
+                hertzian_dipole = HertzianDipole(polarisation=tmp[0], p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])), waveform_id=tmp[4])
+            elif len(tmp) == 7:
+                hertzian_dipole = HertzianDipole(polarisation=tmp[0], p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])), waveform_id=tmp[4], start=float(tmp[5]), end=float(tmp[6]))
             else:
-                h.start = 0
-                h.stop = G.timewindow
-                startstop = ' '
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' too many parameters')
 
-            h.calculate_waveform_values(G)
-
-            if config.general['messages']:
-                if '2D' in config.mode:
-                    print('Hertzian dipole is a line source in 2D with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
-                else:
-                    print('Hertzian dipole with polarity {} at {:g}m, {:g}m, {:g}m,'.format(h.polarisation, h.xcoord * G.dx, h.ycoord * G.dy, h.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(h.waveformID))
-
-            G.hertziandipoles.append(h)
+            scene_objects.append(hertzian_dipole)
 
     # Magnetic dipole
     cmdname = '#magnetic_dipole'
@@ -245,67 +110,14 @@ def process_multicmds(multicmds, G):
             tmp = cmdinstance.split()
             if len(tmp) < 5:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
-
-            # Check polarity & position parameters
-            polarisation = tmp[0].lower()
-            if polarisation not in ('x', 'y', 'z'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            if '2D TMx' in config.mode and (polarisation == 'y' or polarisation == 'z'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
-            elif '2D TMy' in config.mode and (polarisation == 'x' or polarisation == 'z'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
-            elif '2D TMz' in config.mode and (polarisation == 'x' or polarisation == 'y'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
-
-            xcoord = G.calculate_coord('x', tmp[1])
-            ycoord = G.calculate_coord('y', tmp[2])
-            zcoord = G.calculate_coord('z', tmp[3])
-            check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
-                print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
-
-            # Check if there is a waveformID in the waveforms list
-            if not any(x.ID == tmp[4] for x in G.waveforms):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[4]))
-
-            m = MagneticDipole()
-            m.polarisation = polarisation
-            m.xcoord = xcoord
-            m.ycoord = ycoord
-            m.zcoord = zcoord
-            m.xcoordorigin = xcoord
-            m.ycoordorigin = ycoord
-            m.zcoordorigin = zcoord
-            m.ID = m.__class__.__name__ + '(' + str(m.xcoord) + ',' + str(m.ycoord) + ',' + str(m.zcoord) + ')'
-            m.waveformID = tmp[4]
-
-            if len(tmp) > 5:
-                # Check source start & source remove time parameters
-                start = float(tmp[5])
-                stop = float(tmp[6])
-                if start < 0:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' delay of the initiation of the source should not be less than zero')
-                if stop < 0:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' time to remove the source should not be less than zero')
-                if stop - start <= 0:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' duration of the source should not be zero or less')
-                m.start = start
-                if stop > G.timewindow:
-                    m.stop = G.timewindow
-                else:
-                    m.stop = stop
-                startstop = ' start time {:g} secs, finish time {:g} secs '.format(m.start, m.stop)
+            if len(tmp) == 5:
+                magnetic_dipole = MagneticDipole(polarisation=tmp[0], p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])), waveform_id=tmp[4])
+            elif len(tmp) == 7:
+                magnetic_dipole = MagneticDipole(polarisation=tmp[0], p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])), waveform_id=tmp[4], start=float(tmp[5]), end=float(tmp[6]))
             else:
-                m.start = 0
-                m.stop = G.timewindow
-                startstop = ' '
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' too many parameters')
 
-            m.calculate_waveform_values(G)
-
-            if config.general['messages']:
-                print('Magnetic dipole with polarity {} at {:g}m, {:g}m, {:g}m,'.format(m.polarisation, m.xcoord * G.dx, m.ycoord * G.dy, m.zcoord * G.dz) + startstop + 'using waveform {} created.'.format(m.waveformID))
-
-            G.magneticdipoles.append(m)
+            scene_objects.append(magnetic_dipole)
 
     # Transmission line
     cmdname = '#transmission_line'
@@ -315,73 +127,14 @@ def process_multicmds(multicmds, G):
             if len(tmp) < 6:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
 
-            # Warn about using a transmission line on GPU
-            if config.cuda['gpus'] is not None:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' A #transmission_line cannot currently be used with GPU solving. Consider using a #voltage_source instead.')
-
-            # Check polarity & position parameters
-            polarisation = tmp[0].lower()
-            if polarisation not in ('x', 'y', 'z'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x, y, or z')
-            if '2D TMx' in config.mode and (polarisation == 'y' or polarisation == 'z'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be x in 2D TMx mode')
-            elif '2D TMy' in config.mode and (polarisation == 'x' or polarisation == 'z'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be y in 2D TMy mode')
-            elif '2D TMz' in config.mode and (polarisation == 'x' or polarisation == 'y'):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' polarisation must be z in 2D TMz mode')
-
-            xcoord = G.calculate_coord('x', tmp[1])
-            ycoord = G.calculate_coord('y', tmp[2])
-            zcoord = G.calculate_coord('z', tmp[3])
-            resistance = float(tmp[4])
-
-            check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
-                print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
-            if resistance <= 0 or resistance >= config.z0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a resistance greater than zero and less than the impedance of free space, i.e. 376.73 Ohms')
-
-            # Check if there is a waveformID in the waveforms list
-            if not any(x.ID == tmp[5] for x in G.waveforms):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' there is no waveform with the identifier {}'.format(tmp[5]))
-
-            t = TransmissionLine(G)
-            t.polarisation = polarisation
-            t.xcoord = xcoord
-            t.ycoord = ycoord
-            t.zcoord = zcoord
-            t.ID = t.__class__.__name__ + '(' + str(t.xcoord) + ',' + str(t.ycoord) + ',' + str(t.zcoord) + ')'
-            t.resistance = resistance
-            t.waveformID = tmp[5]
-
-            if len(tmp) > 6:
-                # Check source start & source remove time parameters
-                start = float(tmp[6])
-                stop = float(tmp[7])
-                if start < 0:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' delay of the initiation of the source should not be less than zero')
-                if stop < 0:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' time to remove the source should not be less than zero')
-                if stop - start <= 0:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' duration of the source should not be zero or less')
-                t.start = start
-                if stop > G.timewindow:
-                    t.stop = G.timewindow
-                else:
-                    t.stop = stop
-                startstop = ' start time {:g} secs, finish time {:g} secs '.format(t.start, t.stop)
+            if len(tmp) == 6:
+                tl = TransmissionLine(polarisation=tmp[0], p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])), resistance=float(tmp[4]), waveform_id=tmp[5])
+            elif len(tmp) == 8:
+                tl = TransmissionLine(polarisation=tmp[0], p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])), resistance=float(tmp[4]), waveform_id=tmp[5], start=tmp[6], end=tmp[7])
             else:
-                t.start = 0
-                t.stop = G.timewindow
-                startstop = ' '
+                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' too many parameters')
 
-            t.calculate_waveform_values(G)
-            t.calculate_incident_V_I(G)
-
-            if config.general['messages']:
-                print('Transmission line with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(t.polarisation, t.xcoord * G.dx, t.ycoord * G.dy, t.zcoord * G.dz, t.resistance) + startstop + 'using waveform {} created.'.format(t.waveformID))
-
-            G.transmissionlines.append(t)
+            scene_objects.append(tl)
 
     # Receiver
     cmdname = '#rx'
@@ -391,52 +144,11 @@ def process_multicmds(multicmds, G):
             if len(tmp) != 3 and len(tmp) < 5:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' has an incorrect number of parameters')
 
-            # Check position parameters
-            xcoord = round_value(float(tmp[0]) / G.dx)
-            ycoord = round_value(float(tmp[1]) / G.dy)
-            zcoord = round_value(float(tmp[2]) / G.dz)
-            check_coordinates(xcoord, ycoord, zcoord)
-            if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
-                print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
-
-            r = Rx()
-            r.xcoord = xcoord
-            r.ycoord = ycoord
-            r.zcoord = zcoord
-            r.xcoordorigin = xcoord
-            r.ycoordorigin = ycoord
-            r.zcoordorigin = zcoord
-
-            # If no ID or outputs are specified, use default
             if len(tmp) == 3:
-                r.ID = r.__class__.__name__ + '(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'
-
-                for key in Rx.defaultoutputs:
-                    r.outputs[key] = np.zeros(G.iterations, dtype=config.dtypes['float_or_double'])
+                rx = Rx(p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])))
             else:
-                r.ID = tmp[3]
-                # Get allowable outputs
-                if config.cuda['gpus'] is not None:
-                    allowableoutputs = Rx.gpu_allowableoutputs
-                else:
-                    allowableoutputs = Rx.allowableoutputs
-                # Check, sort and add field output names
-                fieldnames = tmp[4::]
-                fieldnames = sorted(fieldnames, key=lambda x: allowableoutputs.index(x))
-                for field in fieldnames:
-                    if field in allowableoutputs:
-                        r.outputs[field] = np.zeros(G.iterations, dtype=config.dtypes['float_or_double'])
-                    else:
-                        raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' contains an output type that is not allowable. Allowable outputs in current context are {}'.format(allowableoutputs))
-
-            # Keep track of maximum number of field outputs on a receiver
-            if len(r.outputs) > Rx.maxnumoutputs:
-                Rx.maxnumoutputs = len(r.outputs)
-
-            if config.general['messages']:
-                print('Receiver at {:g}m, {:g}m, {:g}m with output component(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))
-
-            G.rxs.append(r)
+                rx = Rx(p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])), ID=tmp[3], outputs=tmp[4:])
+            scene_objects.append(rx)
 
     # Receiver array
     cmdname = '#rx_array'
@@ -446,62 +158,12 @@ def process_multicmds(multicmds, G):
             if len(tmp) != 9:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly nine parameters')
 
-            xs = G.calculate_coord('x', tmp[0])
-            ys = G.calculate_coord('y', tmp[1])
-            zs = G.calculate_coord('z', tmp[2])
+            p1 = (float(tmp[0], float(tmp[1]), float[tmp[2]]))
+            p2 = (float(tmp[3], float(tmp[4]), float[tmp[5]]))
+            dl = (float(tmp[6], float(tmp[7]), float[tmp[8]]))
 
-            xf = G.calculate_coord('x', tmp[3])
-            yf = G.calculate_coord('y', tmp[4])
-            zf = G.calculate_coord('z', tmp[5])
-
-            dx = G.calculate_coord('x', tmp[6])
-            dy = G.calculate_coord('y', tmp[7])
-            dz = G.calculate_coord('z', tmp[8])
-
-            check_coordinates(xs, ys, zs, name='lower')
-            check_coordinates(xf, yf, zf, name='upper')
-
-            if xcoord < G.pmlthickness['x0'] or xcoord > G.nx - G.pmlthickness['xmax'] or ycoord < G.pmlthickness['y0'] or ycoord > G.ny - G.pmlthickness['ymax'] or zcoord < G.pmlthickness['z0'] or zcoord > G.nz - G.pmlthickness['zmax']:
-                print(Fore.RED + "WARNING: '" + cmdname + ': ' + ' '.join(tmp) + "'" + ' sources and receivers should not normally be positioned within the PML.' + Style.RESET_ALL)
-            if xs > xf or ys > yf or zs > zf:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
-            if dx < 0 or dy < 0 or dz < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than zero')
-            if dx < 1:
-                if dx == 0:
-                    dx = 1
-                else:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
-            if dy < 1:
-                if dy == 0:
-                    dy = 1
-                else:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
-            if dz < 1:
-                if dz == 0:
-                    dz = 1
-                else:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
-
-            if config.general['messages']:
-                print('Receiver array {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with steps {:g}m, {:g}m, {:g}m'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz))
-
-            for x in range(xs, xf + 1, dx):
-                for y in range(ys, yf + 1, dy):
-                    for z in range(zs, zf + 1, dz):
-                        r = Rx()
-                        r.xcoord = x
-                        r.ycoord = y
-                        r.zcoord = z
-                        r.xcoordorigin = x
-                        r.ycoordorigin = y
-                        r.zcoordorigin = z
-                        r.ID = r.__class__.__name__ + '(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
-                        for key in Rx.defaultoutputs:
-                            r.outputs[key] = np.zeros(G.iterations, dtype=config.dtypes['float_or_double'])
-                        if config.general['messages']:
-                            print('  Receiver at {:g}m, {:g}m, {:g}m with output component(s) {} created.'.format(r.xcoord * G.dx, r.ycoord * G.dy, r.zcoord * G.dz, ', '.join(r.outputs)))
-                        G.rxs.append(r)
+            rx_array = RxArray(p1=p1, p2=p2, dl=dl)
+            scene_objects.append(rx_array)
 
     # Snapshot
     cmdname = '#snapshot'
@@ -511,47 +173,20 @@ def process_multicmds(multicmds, G):
             if len(tmp) != 11:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
 
-            xs = G.calculate_coord('x', tmp[0])
-            ys = G.calculate_coord('y', tmp[1])
-            zs = G.calculate_coord('z', tmp[2])
+            p1 = (float(tmp[0], float(tmp[1]), float[tmp[2]]))
+            p2 = (float(tmp[3], float(tmp[4]), float[tmp[5]]))
+            dl = (float(tmp[6], float(tmp[7]), float[tmp[8]]))
+            filename = tmp[10]
 
-            xf = G.calculate_coord('x', tmp[3])
-            yf = G.calculate_coord('y', tmp[4])
-            zf = G.calculate_coord('z', tmp[5])
-
-            dx = G.calculate_coord('x', tmp[6])
-            dy = G.calculate_coord('y', tmp[7])
-            dz = G.calculate_coord('z', tmp[8])
-
-            # If number of iterations given
             try:
-                time = int(tmp[9])
-            # If real floating point value given
+                iterations = int(tmp[9])
+                snapshot = Snapshot(p1=p1, p2=p2, dl=dl, iterations=iterations, filename=filename)
+
             except ValueError:
                 time = float(tmp[9])
-                if time > 0:
-                    time = round_value((time / G.dt)) + 1
-                else:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' time value must be greater than zero')
+                snapshot = Snapshot(p1=p1, p2=p2, dl=dl, time=time, filename=filename)
 
-            check_coordinates(xs, ys, zs, name='lower')
-            check_coordinates(xf, yf, zf, name='upper')
-
-            if xs >= xf or ys >= yf or zs >= zf:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
-            if dx < 0 or dy < 0 or dz < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than zero')
-            if dx < 1 or dy < 1 or dz < 1:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
-            if time <= 0 or time > G.iterations:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' time value is not valid')
-
-            s = Snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, time, tmp[10])
-
-            if config.general['messages']:
-                print('Snapshot from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, at {:g} secs with filename {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz, s.time * G.dt, s.basefilename))
-
-            G.snapshots.append(s)
+            scene_objects.append(snapshot)
 
     # Materials
     cmdname = '#material'
@@ -560,37 +195,9 @@ def process_multicmds(multicmds, G):
             tmp = cmdinstance.split()
             if len(tmp) != 5:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly five parameters')
-            if float(tmp[0]) < 1:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value of one or greater for static (DC) permittivity')
-            if tmp[1] != 'inf':
-                se = float(tmp[1])
-                if se < 0:
-                    raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for conductivity')
-            else:
-                se = float('inf')
-            if float(tmp[2]) < 1:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value of one or greater for permeability')
-            if float(tmp[3]) < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for magnetic conductivity')
-            if any(x.ID == tmp[4] for x in G.materials):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' with ID {} already exists'.format(tmp[4]))
 
-            # Create a new instance of the Material class material (start index after pec & free_space)
-            m = Material(len(G.materials), tmp[4])
-            m.er = float(tmp[0])
-            m.se = se
-            m.mr = float(tmp[2])
-            m.sm = float(tmp[3])
-
-            # Set material averaging to False if infinite conductivity, i.e. pec
-            if m.se == float('inf'):
-                m.averagable = False
-
-            if config.general['messages']:
-                tqdm.write('Material {} with eps_r={:g}, sigma={:g} S/m; mu_r={:g}, sigma*={:g} Ohm/m created.'.format(m.ID, m.er, m.se, m.mr, m.sm))
-
-            # Append the new material object to the materials list
-            G.materials.append(m)
+            material = Material(er=float(tmp[0]), se=float(tmp[1]), mr=float(tmp[2]), sm=float(tmp[3]), ID=tmp[4])
+            scene_objects.append(material)
 
     cmdname = '#add_dispersion_debye'
     if multicmds[cmdname] is not None:
@@ -599,38 +206,18 @@ def process_multicmds(multicmds, G):
 
             if len(tmp) < 4:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least four parameters')
-            if int(tmp[0]) < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for number of poles')
+
             poles = int(tmp[0])
-            materialsrequested = tmp[(2 * poles) + 1:len(tmp)]
+            er_delta = []
+            tau = []
+            material_ids = tmp[(2 * poles) + 1:len(tmp)]
 
-            # Look up requested materials in existing list of material instances
-            materials = [y for x in materialsrequested for y in G.materials if y.ID == x]
+            for pole in range(1, 2 * poles, 2):
+                er_delta.append(float(tmp[pole]))
+                tau.append(float(tmp[pole + 1]))
 
-            if len(materials) != len(materialsrequested):
-                notfound = [x for x in materialsrequested if x not in materials]
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' material(s) {} do not exist'.format(notfound))
-
-            for material in materials:
-                dispersivemat = DispersiveMaterial(material.numID, material.ID)
-                dispersivemat.type = 'debye'
-                dispersivemat.poles = poles
-                dispersivemat.averagable = False
-                for pole in range(1, 2 * poles, 2):
-                    # N.B Not checking if relaxation times are greater than time-step
-                    if float(tmp[pole]) > 0:
-                        dispersivemat.deltaer.append(float(tmp[pole]))
-                        dispersivemat.tau.append(float(tmp[pole + 1]))
-                    else:
-                        raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the permittivity difference.')
-                if dispersivemat.poles > config.materials['maxpoles']:
-                    config.materials['maxpoles'] = dispersivemat.poles
-
-                # Replace original (non-dispersive) material with new dispersive instance
-                G.materials[material.numID] = dispersivemat
-
-                if config.general['messages']:
-                    tqdm.write('Debye disperion added to {} with delta_eps_r={}, and tau={} secs created.'.format(dispersivemat.ID, ', '.join('%4.2f' % deltaer for deltaer in dispersivemat.deltaer), ', '.join('%4.3e' % tau for tau in dispersivemat.tau)))
+            debye_dispersion = AddDebyeDispersion(pole=poles, er_delta=er_delta, tau=tau, material_ids=material_ids)
+            scene_objects.append(debye_dispersion)
 
     cmdname = '#add_dispersion_lorentz'
     if multicmds[cmdname] is not None:
@@ -639,34 +226,20 @@ def process_multicmds(multicmds, G):
 
             if len(tmp) < 5:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
-            if int(tmp[0]) < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for number of poles')
+
             poles = int(tmp[0])
-            materialsrequested = tmp[(3 * poles) + 1:len(tmp)]
+            material_ids = tmp[(3 * poles) + 1:len(tmp)]
+            er_delta = []
+            tau = []
+            alpha = []
 
-            # Look up requested materials in existing list of material instances
-            materials = [y for x in materialsrequested for y in G.materials if y.ID == x]
+            for pole in range(1, 3 * poles, 3):
+                er_delta.append(float(tmp[pole]))
+                tau.append(float(tmp[pole + 1]))
+                alpha.append(float(tmp[pole + 2]))
 
-            if len(materials) != len(materialsrequested):
-                notfound = [x for x in materialsrequested if x not in materials]
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' material(s) {} do not exist'.format(notfound))
-
-            for material in materials:
-                material.type = 'lorentz'
-                material.poles = poles
-                material.averagable = False
-                for pole in range(1, 3 * poles, 3):
-                    if float(tmp[pole]) > 0 and float(tmp[pole + 1]) > G.dt and float(tmp[pole + 2]) > G.dt:
-                        material.deltaer.append(float(tmp[pole]))
-                        material.tau.append(float(tmp[pole + 1]))
-                        material.alpha.append(float(tmp[pole + 2]))
-                    else:
-                        raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the permittivity difference and frequencies, and associated times that are greater than the time step for the model.')
-                if material.poles > config.materials['maxpoles']:
-                    config.materials['maxpoles'] = material.poles
-
-                if config.general['messages']:
-                    tqdm.write('Lorentz disperion added to {} with delta_eps_r={}, omega={} secs, and gamma={} created.'.format(material.ID, ', '.join('%4.2f' % deltaer for deltaer in material.deltaer), ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
+            lorentz_dispersion = AddLorentzDispersion(poles=poles, material_ids=material_ids, er_delta=er_delta, tau=tau, alpha=alpha)
+            scene_objects.append(lorentz_dispersion)
 
     cmdname = '#add_dispersion_drude'
     if multicmds[cmdname] is not None:
@@ -675,63 +248,36 @@ def process_multicmds(multicmds, G):
 
             if len(tmp) < 5:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
-            if int(tmp[0]) < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for number of poles')
+
             poles = int(tmp[0])
-            materialsrequested = tmp[(3 * poles) + 1:len(tmp)]
+            material_ids = tmp[(3 * poles) + 1:len(tmp)]
+            tau = []
+            alpha = []
 
-            # Look up requested materials in existing list of material instances
-            materials = [y for x in materialsrequested for y in G.materials if y.ID == x]
+            for pole in range(1, 2 * poles, 2):
+                tau.append(float(tmp[pole]))
+                alpha.append(float(tmp[pole + 1]))
 
-            if len(materials) != len(materialsrequested):
-                notfound = [x for x in materialsrequested if x not in materials]
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' material(s) {} do not exist'.format(notfound))
-
-            for material in materials:
-                material.type = 'drude'
-                material.poles = poles
-                material.averagable = False
-                for pole in range(1, 2 * poles, 2):
-                    if float(tmp[pole]) > 0 and float(tmp[pole + 1]) > G.dt:
-                        material.tau.append(float(tmp[pole]))
-                        material.alpha.append(float(tmp[pole + 1]))
-                    else:
-                        raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires positive values for the frequencies, and associated times that are greater than the time step for the model.')
-                if material.poles > config.materials['maxpoles']:
-                    config.materials['maxpoles'] = material.poles
-
-                if config.general['messages']:
-                    tqdm.write('Drude disperion added to {} with omega={} secs, and gamma={} secs created.'.format(material.ID, ', '.join('%4.3e' % tau for tau in material.tau), ', '.join('%4.3e' % alpha for alpha in material.alpha)))
+            drude_dispersion = AddDrudeDispersion(poles=poles, material_ids=material_ids, tau=tau, alpha=alpha)
+            scene_objects.append(drude_dispersion)
 
     cmdname = '#soil_peplinski'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
+
             if len(tmp) != 7:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at exactly seven parameters')
-            if float(tmp[0]) < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for the sand fraction')
-            if float(tmp[1]) < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for the clay fraction')
-            if float(tmp[2]) < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for the bulk density')
-            if float(tmp[3]) < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for the sand particle density')
-            if float(tmp[4]) < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for the lower limit of the water volumetric fraction')
-            if float(tmp[5]) < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires a positive value for the upper limit of the water volumetric fraction')
-            if any(x.ID == tmp[6] for x in G.mixingmodels):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' with ID {} already exists'.format(tmp[6]))
 
-            # Create a new instance of the Material class material (start index after pec & free_space)
-            s = PeplinskiSoil(tmp[6], float(tmp[0]), float(tmp[1]), float(tmp[2]), float(tmp[3]), (float(tmp[4]), float(tmp[5])))
-
-            if config.general['messages']:
-                print('Mixing model (Peplinski) used to create {} with sand fraction {:g}, clay fraction {:g}, bulk density {:g}g/cm3, sand particle density {:g}g/cm3, and water volumetric fraction {:g} to {:g} created.'.format(s.ID, s.S, s.C, s.rb, s.rs, s.mu[0], s.mu[1]))
-
-            # Append the new material object to the materials list
-            G.mixingmodels.append(s)
+            soil = PeplinskiSoil(
+                sand_fraction=float(tmp[0]),
+                clay_fraction=float(tmp[1]),
+                bulk_density=float(tmp[2]),
+                sand_density=float(tmp[3]),
+                water_fraction_lower=float(tmp[4]),
+                water_fraction_upper=float(tmp[5]),
+                ID=tmp[6])
+            scene_objects.append(soil)
 
     # Geometry views (creates VTK-based geometry files)
     cmdname = '#geometry_view'
@@ -741,47 +287,13 @@ def process_multicmds(multicmds, G):
             if len(tmp) != 11:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
 
-            xs = G.calculate_coord('x', tmp[0])
-            ys = G.calculate_coord('y', tmp[1])
-            zs = G.calculate_coord('z', tmp[2])
+            p1 = float(tmp[0]), float(tmp[1]), float(tmp[2])
+            p2 = float(tmp[3]), float(tmp[4]), float(tmp[5])
+            dl = float(tmp[6]), float(tmp[7]), float(tmp[8])
 
-            xf = G.calculate_coord('x', tmp[3])
-            yf = G.calculate_coord('y', tmp[4])
-            zf = G.calculate_coord('z', tmp[5])
+            geometry_view = GeometryView(p1=p1, p2=p2, dl=dl, filename=tmp[9], output_type=tmp[10])
 
-            dx = G.calculate_coord('x', tmp[6])
-            dy = G.calculate_coord('y', tmp[7])
-            dz = G.calculate_coord('z', tmp[8])
-
-            check_coordinates(xs, ys, zs, name='lower')
-            check_coordinates(xf, yf, zf, name='upper')
-
-            if xs >= xf or ys >= yf or zs >= zf:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
-            if dx < 0 or dy < 0 or dz < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than zero')
-            if dx > G.nx or dy > G.ny or dz > G.nz:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should be less than the domain size')
-            if dx < 1 or dy < 1 or dz < 1:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the step size should not be less than the spatial discretisation')
-            if tmp[10].lower() != 'n' and tmp[10].lower() != 'f':
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires type to be either n (normal) or f (fine)')
-            if tmp[10].lower() == 'f' and (dx * G.dx != G.dx or dy * G.dy != G.dy or dz * G.dz != G.dz):
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires the spatial discretisation for the geometry view to be the same as the model for geometry view of type f (fine)')
-
-            # Set type of geometry file
-            if tmp[10].lower() == 'n':
-                fileext = '.vti'
-            else:
-                fileext = '.vtp'
-
-            g = GeometryView(xs, ys, zs, xf, yf, zf, dx, dy, dz, tmp[9], fileext)
-
-            if config.general['messages']:
-                print('Geometry view from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, with filename base {} created.'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, dx * G.dx, dy * G.dy, dz * G.dz, g.basefilename))
-
-            # Append the new GeometryView object to the geometry views list
-            G.geometryviews.append(g)
+            scene_objects.append(geometry_view)
 
     # Geometry object(s) output
     cmdname = '#geometry_objects_write'
@@ -791,27 +303,11 @@ def process_multicmds(multicmds, G):
             if len(tmp) != 7:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly seven parameters')
 
-            xs = G.calculate_coord('x', tmp[0])
-            ys = G.calculate_coord('y', tmp[1])
-            zs = G.calculate_coord('z', tmp[2])
+                p1 = float(tmp[0]), float(tmp[1]), float(tmp[2])
+                p2 = float(tmp[3]), float(tmp[4]), float(tmp[5])
+                gow = GeometryObjectsWrite(p1=p1, p2=p2, filename=tmp[6])
+                scene_objects.append(gow)
 
-            xf = G.calculate_coord('x', tmp[3])
-            yf = G.calculate_coord('y', tmp[4])
-            zf = G.calculate_coord('z', tmp[5])
-
-            check_coordinates(xs, ys, zs, name='lower')
-            check_coordinates(xf, yf, zf, name='upper')
-
-            if xs >= xf or ys >= yf or zs >= zf:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' the lower coordinates should be less than the upper coordinates')
-
-            g = GeometryObjects(xs, ys, zs, xf, yf, zf, tmp[6])
-
-            if config.general['messages']:
-                print('Geometry objects in the volume from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, will be written to {}, with materials written to {}'.format(xs * G.dx, ys * G.dy, zs * G.dz, xf * G.dx, yf * G.dy, zf * G.dz, g.filename, g.materialsfilename))
-
-            # Append the new GeometryView object to the geometry objects to write list
-            G.geometryobjectswrite.append(g)
 
     # Complex frequency shifted (CFS) PML parameter
     cmdname = '#pml_cfs'
@@ -822,42 +318,24 @@ def process_multicmds(multicmds, G):
             tmp = cmdinstance.split()
             if len(tmp) != 12:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly twelve parameters')
-            if tmp[0] not in CFSParameter.scalingprofiles.keys() or tmp[4] not in CFSParameter.scalingprofiles.keys() or tmp[8] not in CFSParameter.scalingprofiles.keys():
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' must have scaling type {}'.format(','.join(CFSParameter.scalingprofiles.keys())))
-            if tmp[1] not in CFSParameter.scalingdirections or tmp[5] not in CFSParameter.scalingdirections or tmp[9] not in CFSParameter.scalingdirections:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' must have scaling type {}'.format(','.join(CFSParameter.scalingdirections)))
-            if float(tmp[2]) < 0 or float(tmp[3]) < 0 or float(tmp[6]) < 0 or float(tmp[7]) < 0 or float(tmp[10]) < 0:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' minimum and maximum scaling values must be positive')
-            if float(tmp[6]) < 1 and G.pmlformulation == 'HORIPML':
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' minimum scaling value for kappa must be greater than or equal to one')
 
-            cfsalpha = CFSParameter()
-            cfsalpha.ID = 'alpha'
-            cfsalpha.scalingprofile = tmp[0]
-            cfsalpha.scalingdirection = tmp[1]
-            cfsalpha.min = float(tmp[2])
-            cfsalpha.max = float(tmp[3])
-            cfskappa = CFSParameter()
-            cfskappa.ID = 'kappa'
-            cfskappa.scalingprofile = tmp[4]
-            cfskappa.scalingdirection = tmp[5]
-            cfskappa.min = float(tmp[6])
-            cfskappa.max = float(tmp[7])
-            cfssigma = CFSParameter()
-            cfssigma.ID = 'sigma'
-            cfssigma.scalingprofile = tmp[8]
-            cfssigma.scalingdirection = tmp[9]
-            cfssigma.min = float(tmp[10])
-            if tmp[11] == 'None':
-                cfssigma.max = None
-            else:
-                cfssigma.max = float(tmp[11])
-            cfs = CFS()
-            cfs.alpha = cfsalpha
-            cfs.kappa = cfskappa
-            cfs.sigma = cfssigma
+            pml_cfs = PMLCFS(alphascalingprofile=tmp[0],
+                             alphascalingdirection=tmp[1],
+                             alphamin=tmp[2],
+                             alphamax=tmp[3],
+                             kappascalingprofile=tmp[4],
+                             kappascalingdirection=tmp[5],
+                             kappamin=tmp[6],
+                             kappamax=tmp[7],
+                             sigmascalingprofile=tmp[8],
+                             sigmascalingdirection=tmp[9],
+                             sigmamin=tmp[10],
+                             sigmamax=tmp[11])
 
-            if config.general['messages']:
-                print('PML CFS parameters: alpha (scaling: {}, scaling direction: {}, min: {:g}, max: {:g}), kappa (scaling: {}, scaling direction: {}, min: {:g}, max: {:g}), sigma (scaling: {}, scaling direction: {}, min: {:g}, max: {}) created.'.format(cfsalpha.scalingprofile, cfsalpha.scalingdirection, cfsalpha.min, cfsalpha.max, cfskappa.scalingprofile, cfskappa.scalingdirection, cfskappa.min, cfskappa.max, cfssigma.scalingprofile, cfssigma.scalingdirection, cfssigma.min, cfssigma.max))
+            scene_objects.append(pml_cfs)
 
-            G.cfs.append(cfs)
+    return scene_objects
+
+def process_subgrid_hsg(cmdinstance):
+
+    pass

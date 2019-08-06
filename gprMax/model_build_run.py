@@ -48,6 +48,7 @@ from .input_cmds_geometry import process_geometrycmds
 from .input_cmds_file import process_python_include_code
 from .input_cmds_file import write_processed_file
 from .input_cmds_file import check_cmd_names
+from .input_cmds_file import parse_hash_commands
 from .input_cmds_singleuse import process_singlecmds
 from .input_cmds_multiuse import process_multicmds
 from .materials import Material
@@ -68,6 +69,7 @@ from .utilities import human_size
 from .utilities import open_path_file
 from .utilities import round32
 from .utilities import timer
+from .scene import Scene
 
 class Printer():
 
@@ -241,13 +243,13 @@ class ModelBuildRun:
 
     def build_scene(self):
         # api for multiple scenes / model runs
-        try:
-            scene = self.model_config.get_scene()
-        # process using hashcommands
-        except AttributeError:
+        scene = self.model_config.get_scene()
+
+        # if there is no scene - process the hash commands instead
+        if not scene:
             scene = Scene()
             # parse the input file into user objects and add them to the scene
-            scene = parse_hash_commands(args, usernamespace, appendmodelnumber, self.G, scene)
+            scene = parse_hash_commands(self.model_config, self.G, scene)
 
         # Creates the internal simulation objects.
         scene.create_internal_objects(self.G)
