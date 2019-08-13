@@ -149,7 +149,7 @@ def run_main(args):
 
         if args.opencl is True:
             # get if the devices are found having opencl supported platforms
-
+            import pyopencl as cl
             print("Opted to choose OpenCL Framework for solver acceleration")
 
         # Create a separate namespace that users can access in any Python code blocks in the input file

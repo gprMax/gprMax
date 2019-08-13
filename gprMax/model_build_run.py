@@ -126,13 +126,21 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
         # OpenCL Solver
         if args.opencl:
-            G.opencl = args.opencl 
+            G.opencl = args.opencl
             
             # create the opencl solver object
-            cl_solver = OpenClSolver()
+            cl_solver = OpenClSolver() 
 
-            # set the devices and platforms 
-            cl_solver.getPlatformNDevices()
+            # set the devices and platforms
+            status = True 
+            if args.gpu:
+                status = cl_solver.getPlatformNDevices(args.mpi_no_spawn, gpu=True)
+            else:
+                status = cl_solver.getPlatformNDevices(args.mpi_no_spawn, gpu=False)
+
+            if status is False:
+                print("Aborting Simulation due to OpenCl Configuration Problem")
+                return 0.0
 
         G.inputfilename = os.path.split(inputfile.name)[1]
         G.inputdirectory = os.path.dirname(os.path.abspath(inputfile.name))
@@ -182,7 +190,6 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         # Estimate and check memory (RAM) usage
         G.memory_estimate_basic()
         G.memory_check()
-        warnings.warn("add logic for opencl memory consumption")
         if G.messages:
             if G.gpu is None:
                 print('\nMemory (RAM) required: ~{}\n'.format(human_size(G.memoryusage)))
@@ -274,15 +281,22 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
             G.initialise_dispersive_arrays()
 
         # Check there is sufficient memory to store any snapshots
+        cl_snapsmemsize = 0
         if G.snapshots:
             snapsmemsize = 0
             for snap in G.snapshots:
                 # 2 x required to account for electric and magnetic fields
                 snapsmemsize += (2 * snap.datasizefield)
-            G.memoryusage += int(snapsmemsize)
-            G.memory_check(snapsmemsize=int(snapsmemsize))
-            if G.messages:
-                print('\nMemory (RAM) required - updated (snapshots): ~{}\n'.format(human_size(G.memoryusage)))
+            
+            # if the accelerator is based on opencl, the check for mem requirement is 
+            # done in OpenClSolver itself
+            if G.opencl is True:
+                cl_snapsmemsize = snapsmemsize
+            else:
+                G.memoryusage += int(snapsmemsize)
+                G.memory_check(snapsmemsize=int(snapsmemsize))
+                if G.messages:
+                    print('\nMemory (RAM) required - updated (snapshots): ~{}\n'.format(human_size(G.memoryusage)))
 
         # Process complete list of materials - calculate update coefficients,
         # store in arrays, and build text list of materials/properties
@@ -385,13 +399,13 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         if G.gpu is None:
             if G.opencl is not None:
                 print("OpenCl Solver")
-                tsolve, memsolve = cl_solver.solver(currentmodelrun, modelend, G, elementwisekernel=args.elwise)
+                tsolve, memsolve = cl_solver.solver(currentmodelrun, modelend, G, elementwisekernel=args.elwise, snapsmemsize=cl_snapsmemsize)
             else:
                 tsolve = solve_cpu(currentmodelrun, modelend, G)
         else:
             if G.opencl is not None:
                 print("OpenCl Solver")
-                tsolve, memsolve = cl_solver.solver(currentmodelrun, modelend, G, elementwisekernel=args.elwise)
+                tsolve, memsolve = cl_solver.solver(currentmodelrun, modelend, G, elementwisekernel=args.elwise, snapsmemsize=cl_snapsmemsize)
             else:
                 tsolve, memsolve = solve_gpu(currentmodelrun, modelend, G)
 
@@ -613,6 +627,8 @@ def solve_gpu(currentmodelrun, modelend, G):
     iterend = drv.Event()
     iterstart.record()
 
+    tsolvestart = timer()
+
     for iteration in tqdm(range(G.iterations), desc='Running simulation, model ' + str(currentmodelrun) + '/' + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars):
 
         # Get GPU memory usage on final iteration
@@ -734,6 +750,8 @@ def solve_gpu(currentmodelrun, modelend, G):
     iterend.record()
     iterend.synchronize()
     tsolve = iterstart.time_till(iterend) * 1e-3
+
+    print("Time reported from the timer() module is : {}".format(timer()-tsolvestart))
 
     # Remove context from top of stack and delete
     ctx.pop()

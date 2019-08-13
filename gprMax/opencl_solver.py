@@ -15,11 +15,12 @@ from gprMax.materials import Material, process_materials
 from gprMax.receivers import gpu_initialise_rx_arrays, gpu_get_rx_array
 from gprMax.sources import gpu_initialise_src_arrays
 from gprMax.utilities import get_terminal_width, round32, timer
+from gprMax.snapshots import Snapshot, cl_initialise_snapshot_array, gpu_get_snapshot_array
 from gprMax.opencl_el_kernels import pml_updates_electric_HORIPML as el_electric
 from gprMax.opencl_el_kernels import pml_updates_magnetic_HORIPML as el_magnetic
 
 class OpenClSolver(object):
-    def __init__(self, G=None, context=None, queue=None):
+    def __init__(self, platformIdx=None, deviceIdx=None, G=None, context=None, queue=None):
         self.context = context
         self.queue = queue
         self.G = G
@@ -38,32 +39,53 @@ class OpenClSolver(object):
         deviceParam['OPENCL_C_VERSION'] = self.devices[self.deviceIdx].opencl_c_version
         self.deviceParam = deviceParam
 
-    def getPlatformNDevices(self, platformIdx=None, deviceIdx=None):
-        print("")
+    def getPlatformNDevices(self, mpi_no_spawn, platformIdx=None, deviceIdx=None, gpu=False):
+        # get the opencl supported platforms
         self.platforms = cl.get_platforms() 
-
         print("Following platform supporting OpenCl were discovered")
         for idx, platf in enumerate(self.platforms):
             print("{} Platform: {}".format(str(idx), str(platf.name)))
+        
+        # get the platform index
         if platformIdx is None:
-            self.platformIdx = int(input("Platform to be chosen ?"))
+            if mpi_no_spawn:
+                self.platformIdx = 0
+            else: 
+                self.platformIdx = int(input("Platform to be chosen ?"))
             assert self.platformIdx in [i for i in range(len(self.platforms))]
         else:
             self.platformIdx = platformIdx
 
+        # if the platform is NVIDIA specific, the overhead memory size is about 42 MB (memory profiling shows the fact)
         if "nvidia" in str(self.platforms[self.platformIdx].name).lower():
             self.nvidiaGPU = True 
         else:
             self.nvidiaGPU = False
 
+        # get the devices
+        print("Following devices supporting OpenCl were discovered for platform: {} with GPU Tag {}".format(str(self.platforms[self.platformIdx].name), gpu))
+        if gpu:
+            self.devices = self.platforms[self.platformIdx].get_devices(device_type=cl.device_type.GPU)
+        else:
+            self.devices = self.platforms[self.platformIdx].get_devices()
+        
+        if self.devices is None:
+            print("No Devices Found")
+            # abort
+            return False
 
-        print("Following devices supporting OpenCl were discovered for platform: {}".format(str(self.platforms[self.platformIdx].name)))
-        self.devices = self.platforms[self.platformIdx].get_devices()
         for idx, dev in enumerate(self.devices):
             print("{} Devices: {}".format(str(idx), str(dev.name)))
         
-        if deviceIdx is None: 
-            self.deviceIdx = int(input("Device to be chosen?"))
+        if len(self.devices) is 1:
+            deviceIdx = 0
+
+        # set the device index
+        if deviceIdx is None:
+            if mpi_no_spawn:
+                self.deviceIdx = 0
+            else: 
+                self.deviceIdx = int(input("Device to be chosen?"))
             assert self.deviceIdx in [i for i in range(len(self.devices))]
         else:
             self.deviceIdx = deviceIdx
@@ -73,14 +95,12 @@ class OpenClSolver(object):
         print("Devices: {}".format(str(self.devices[self.deviceIdx].name)))
         self.getDeviceParameters()
 
-        return
+        return True
 
     def createContext(self):
         if self.context is None:
             print("Creating context...")
             self.context = cl.Context(devices=[self.devices[self.deviceIdx]])
-        else:
-            pass 
 
         if self.queue is None:
             print("Creating the command queue...")
@@ -89,8 +109,6 @@ class OpenClSolver(object):
             except:
                 self.queue = cl.CommandQueue(self.context)
                 print("Profiling not enabled")
-        else: 
-            pass 
 
         return
     
@@ -500,12 +518,21 @@ class OpenClSolver(object):
                 self.memUsage += self.srcinfo1_voltage_cl.nbytes + self.srcinfo2_voltage_cl.nbytes + self.srcwaves_voltage_cl.nbytes
 
         if self.G.snapshots:
-            raise NotImplementedError
+            self.snapEx_cl, self.snapEy_cl, self.snapEz_cl, self.snapHx_cl, self.snapHy_cl, self.snapHz_cl = cl_initialise_snapshot_array(self.queue, self.G)
+            snapshot_text = trad_jinja_env.get_template('snapshots.cl').render(
+                REAL=self.datatypes['REAL'], 
+                NX_SNAPS=Snapshot.nx_max, 
+                NY_SNAPS=Snapshot.ny_max, 
+                NZ_SNAPS=Snapshot.nz_max, 
+                NX_FIELDS=self.G.Ex.shape[0], 
+                NY_FIELDS=self.G.Ex.shape[1], 
+                NZ_FIELDS=self.G.Ex.shape[2]
+            )
+            self.snapshot_prg = cl.Program(self.context, snapshot_text).build()
 
         self.store_output_prg = cl.Program(self.context, store_output_text).build()
         self.source_prg = cl.Program(self.context, sources_text).build()
         self.kernel_field_prg = cl.Program(self.context, kernel_fields_text).build()
-
 
     def checkConstantMem(self):
         # get the constant memory for current device 
@@ -518,21 +545,34 @@ class OpenClSolver(object):
         else:
             return True
 
-    def clMemoryCheck(self):
+    def clMemoryCheck(self, snapsmemsize):
         # nvidia gpu profilers show overhead memory usage of ~42MB
+
+        # snapsmemsize should be in bytes
+        if snapsmemsize!=0:            
+            self.memUsage += snapsmemsize
+
         if self.nvidiaGPU:
             print("Estimated Nvidia GPU Memory to be used %.4f MB"%((self.memUsage/1024/1024) + 42))
         else:
             print("Estimated device memory utilization : %.4f MB"%(self.memUsage/1024/1024))
+        
         print("Global Device Memory available is %.4f MB"%(self.deviceParam['GLOBAL_MEM_SIZE']/1024/1024))
+        
         if(self.deviceParam['GLOBAL_MEM_SIZE'] <= self.memUsage):
-            print("Exiting simulation due to less memory")
-            return False 
+            if self.memUsage-snapsmemsize < self.deviceParam['GLOBAL_MEM_SIZE'] and snapsmemsize!=0:
+                # snapgpu2cpu is true, because the model can run if the snapshot things happens at the host level
+                self.G.snapsgpu2cpu= True
+            else:
+                # even if the snapshots are copied back to host the gpu wont fit the model
+                print("Exiting simulation due to less memory")
+                return False 
         else:
+            # the snapshots can accomodate in the device memory itself 
             return True
 
 
-    def solver(self, currentmodelrun, modelend, G, elementwisekernel=False):
+    def solver(self, currentmodelrun, modelend, G, elementwisekernel=False, snapsmemsize=0):
         """
         This will be the core part of the OpenCl Solver
         
@@ -572,7 +612,7 @@ class OpenClSolver(object):
             self.elwise_kernel_build()            
 
             # making memory check with estimated memory usages
-            if not self.clMemoryCheck():
+            if not self.clMemoryCheck(snapsmemsize):
                 return 0,0
 
             for iteration in tqdm(range(self.G.iterations), desc="Running simulation model" + str(currentmodelrun) + "/" + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not self.G.progressbars):
@@ -704,12 +744,10 @@ class OpenClSolver(object):
             self.traditional_kernel_build()
 
             # making memory check with estimated memory usages
-            if not self.clMemoryCheck():
+            if not self.clMemoryCheck(0):
                 return 0,0
 
             for iteration in tqdm(range(self.G.iterations), desc="Running simulation model" + str(currentmodelrun) + "/" + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not self.G.progressbars):
-
-                # get gpu memory 
 
                 # store field component values for every receiver
                 if self.G.rxs:
@@ -724,7 +762,41 @@ class OpenClSolver(object):
                     elapsed += 1e-9*(event.profile.end - event.profile.start)
 
                 # store any snapshots
+                for i, snap in enumerate(self.G.snapshots):
+                    if snap.time == iteration + 1:
+                        if not self.G.snapsgpu2cpu:
+                            event = self.snapshot_prg.store_snapshot(
+                                self.queue, Snapshot.cl_workgroup, None,
+                                np.int32(i), np.int32(snap.xs), np.int32(snap.xf),
+                                np.int32(snap.ys), np.int32(snap.yf), 
+                                np.int32(snap.zs), np.int32(snap.zf),
+                                np.int32(snap.dy), np.int32(snap.dz),
+                                self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data, 
+                                self.G.Hx_cl.data, self.G.Hy_cl.data, self.G.Hz_cl.data,
+                                self.snapEx_cl.data, self.snapEy_cl.data, self.snapEz_cl.data,
+                                self.snapHx_cl.data, self.snapHy_cl.data, self.snapHz_cl.data
+                            )
+                            event.wait()
+                            elapsed += 1e-9*(event.profile.end - event.profile.start)
 
+                        else:
+                            event = self.snapshot_prg.store_snapshot(
+                                self.queue, Snapshot.cl_workgroup, None,
+                                np.int32(0), np.int32(snap.xs), np.int32(snap.xf),
+                                np.int32(snap.ys), np.int32(snap.yf), 
+                                np.int32(snap.zs), np.int32(snap.zf),
+                                np.int32(snap.dy), np.int32(snap.dz),
+                                self.G.Ex_cl.data, self.G.Ey_cl.data, self.G.Ez_cl.data, 
+                                self.G.Hx_cl.data, self.G.Hy_cl.data, self.G.Hz_cl.data,
+                                self.snapEx_cl.data, self.snapEy_cl.data, self.snapEz_cl.data,
+                                self.snapHx_cl.data, self.snapHy_cl.data, self.snapHz_cl.data
+                            )
+                            event.wait()
+                            elapsed += 1e-9*(event.profile.end - event.profile.start)
+                            
+                            gpu_get_snapshot_array(self.snapEx_cl.get(), self.snapEy_cl.get(), self.snapEz_cl.get(), 
+                                                   self.snapHx_cl.get(), self.snapHy_cl.get(), self.snapHz_cl.get(), 0, snap)
+                            
                 # update magnetic field components 
                 event = self.kernel_field_prg.update_h(
                     self.queue, (int(np.ceil((self.G.nx+1)*(self.G.ny+1)*(self.G.nz+1))),1,1), None,
@@ -820,8 +892,10 @@ class OpenClSolver(object):
             gpu_get_rx_array(self.rxs_cl.get(), self.rxcoords_cl.get(), self.G)
 
         # copy data from any snapshots back to correct snapshot objects
-        if self.G.snapshots:
-            raise NotImplementedError
+        if self.G.snapshots and not self.G.snapsgpu2cpu:
+            for i, snap in enumerate(self.G.snapshots):
+                gpu_get_snapshot_array(self.snapEx_cl.get(), self.snapEy_cl.get(), self.snapEz_cl.get(),
+                                       self.snapHx_cl.get(), self.snapHy_cl.get(), self.snapHz_cl.get(), i, snap)
 
         print("Time reported from the timer() module is : %.6f"%(timer()-self.tsolverstart))
             

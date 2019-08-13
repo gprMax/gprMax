@@ -166,6 +166,49 @@ class Snapshot(object):
         self.filehandle.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
         self.filehandle.close()
 
+def cl_initialise_snapshot_array(queue, G):
+    """
+    Initialise array on OpenCl GPU to store field data for snapshots
+    Args:
+        queue : OpenCl CommandQueue
+        G (class): Grid class instance - hold essential parameters describing the model
+
+    Returns:
+        snapE_cl. snapH_cl (flaot): numpy arrays of snapshot data on OpenCl device
+    """
+    import pyopencl as cl  
+    import pyopencl.array as cl_array   
+
+    # Get dimensions of largest requested snapshot
+    for snap in G.snapshots:
+        if snap.nx > Snapshot.nx_max:
+            Snapshot.nx_max = snap.nx
+        if snap.ny > Snapshot.ny_max:
+            Snapshot.ny_max = snap.ny
+        if snap.nz > Snapshot.nz_max:
+            Snapshot.nz_max = snap.nz
+
+    # GPU - blocks per grid - according to largest requested snapshot
+    Snapshot.cl_workgroup = (int(np.ceil(((Snapshot.nx_max) * (Snapshot.ny_max) * (Snapshot.nz_max)))), 1, 1)
+
+    # 4D arrays to store snapshots on GPU, e.g. snapEx(time, x, y, z)
+    numsnaps = 1 if G.snapsgpu2cpu else len(G.snapshots)
+    snapEx = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
+    snapEy = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
+    snapEz = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
+    snapHx = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
+    snapHy = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
+    snapHz = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=floattype)
+
+    # Copy arrays to GPU
+    snapEx_cl = cl_array.to_device(queue, snapEx)
+    snapEy_cl = cl_array.to_device(queue, snapEy)
+    snapEz_cl = cl_array.to_device(queue, snapEz)
+    snapHx_cl = cl_array.to_device(queue, snapHx)
+    snapHy_cl = cl_array.to_device(queue, snapHy)
+    snapHz_cl = cl_array.to_device(queue, snapHz)
+
+    return snapEx_cl, snapEy_cl, snapEz_cl, snapHx_cl, snapHy_cl, snapHz_cl
 
 def gpu_initialise_snapshot_array(G):
     """Initialise array on GPU for to store field data for snapshots.
@@ -209,7 +252,6 @@ def gpu_initialise_snapshot_array(G):
     snapHz_gpu = gpuarray.to_gpu(snapHz)
 
     return snapEx_gpu, snapEy_gpu, snapEz_gpu, snapHx_gpu, snapHy_gpu, snapHz_gpu
-
 
 def gpu_get_snapshot_array(snapEx_gpu, snapEy_gpu, snapEz_gpu, snapHx_gpu, snapHy_gpu, snapHz_gpu, i, snap):
     """Copy snapshot array used on GPU back to snapshot objects and store in format for Paraview.
