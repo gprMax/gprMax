@@ -204,6 +204,14 @@ class SimulationConfig:
         else:
             self.input_file_path = Path(self.args.inputfile)
 
+    def set_output_file_path(self):
+        # output file can be provided by the user. if they havent provided None
+        # use the inputfilefile path instead
+        if self.args.outputfile:
+            self.output_file_path = Path(self.args.outputfile)
+        else:
+            self.output_file_path = Path(self.args.inputfile)
+
 def create_simulation_config(args):
 
     sc = SimulationConfig(args)
