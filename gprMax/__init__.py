@@ -54,4 +54,6 @@ from .cmds_geometry.add_grass import AddGrass
 from .scene import Scene
 from .gprMax import api as run
 
+import gprMax.config as config
+
 __name__ = 'gprMax'
