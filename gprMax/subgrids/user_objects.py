@@ -4,6 +4,7 @@ from ..exceptions import CmdInputError
 from ..cmds_multiple import UserObjectMulti
 from ..cmds_geometry.cmds_geometry import UserObjectGeometry
 from ..cmds_multiple import Rx
+import gprMax.config as config
 
 
 from copy import copy
@@ -38,28 +39,23 @@ class SubGridBase(UserObjectMulti):
 
     def set_discretisation(self, sg, grid):
         """Set the spatial discretisation."""
-        sg.dx = grid.dx / sg.ratio
-        sg.dy = grid.dy / sg.ratio
-        sg.dz = grid.dz / sg.ratio
+        sg.dl = grid.dl / sg.ratio
+        sg.dx, sg.dy, sg.dz = grid.dl
 
     def set_main_grid_indices(self, sg, grid, uip, p1, p2):
         """Set subgrid indices related to main grid placement."""
-        # Main grid indices of the sub grid. These are dummy indices. They are
-        # not user internal except for printing to the user
-        sg.i0_u, sg.j0_u, sg.k0_u = p1
-        sg.i1_u, sg.j1_u, sg.k1_u = p2
 
-        # The actual sub gridded area (IS index) is 4 cells in
-        sg.i0, sg.j0, sg.k0 = np.add([sg.i0_u, sg.j0_u, sg.k0_u], sg.is_os_sep)
-        sg.i1, sg.j1, sg.k1 = np.subtract([sg.i1_u, sg.j1_u, sg.k1_u], sg.is_os_sep)
+        # IS indices
+        sg.i0, sg.j0, sg.k0 = p1
+        sg.i1, sg.j1, sg.k1 = p2
 
-        # Main grid indices of the sub grid. These are dummy indices. They are
-        # not user internal except for printing to the user
-        sg.x1_u, sg.y1_u, sg.z1_u = uip.round_to_grid(p1)
-        sg.x2_u, sg.y2_u, sg.z2_u = uip.round_to_grid(p2)
+        # OS indices
+        sg.i_l, sg.j_l, sg.k_l = p1 - sg.is_os_sep
+        sg.i_u, sg.j_u, sg.k_u = p2 + sg.is_os_sep
 
-        sg.x1, sg.y1, sg.z1 = np.add([sg.x1_u, sg.y1_u, sg.z1_u], sg.is_os_sep * sg.dx)
-        sg.x2, sg.y2, sg.z2 = np.subtract([sg.x2_u, sg.y2_u, sg.z2_u], sg.is_os_sep * sg.dx)
+        # discretisted coordinates of the IS
+        sg.x1, sg.y1, sg.z1 = uip.round_to_grid(p1)
+        sg.x2, sg.y2, sg.z2 = uip.round_to_grid(p2)
 
     def set_working_region_cells(self, sg):
         """Number of cells in each dimension for the working region."""
@@ -77,12 +73,17 @@ class SubGridBase(UserObjectMulti):
         """Set number of iterations that will take place in the subgrid."""
         sg.iterations = main.iterations * sg.ratio
 
+    def set_name(self, sg):
+        sg.name = self.kwargs['ID']
+
     def setup(self, sg, grid, uip):
         """"Common setup to both all subgrid types."""
         p1 = self.kwargs['p1']
         p2 = self.kwargs['p2']
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
+
+        self.set_name(sg)
 
         self.check_filters(grid)
 
@@ -96,16 +97,6 @@ class SubGridBase(UserObjectMulti):
 
         # set the indices related to the subgrids main grid placement
         self.set_main_grid_indices(sg, grid, uip, p1, p2)
-
-        """
-        try:
-            uip.check_box_points([sg.i0, sg.j0, sg.k0],
-                                 [sg.i1, sg.j1, sg.k1], cmd_str)
-        except CmdInputError:
-            es_f = 'The subgrid should extend at least {} cells'
-            es = es_f.format(sg.is_os_sep * 2)
-            raise CmdInputError(cmd_str, es)
-        """
 
         self.set_working_region_cells(sg)
         self.set_total_cells(sg)
@@ -142,11 +133,9 @@ class SubGridHSG(SubGridBase):
                  ratio=3,
                  ID='',
                  is_os_sep=3,
-                 pml_separation=4,
                  subgrid_pml_thickness=6,
-                 interpolation='linear',
+                 interpolation=3,
                  loss_mechanism=False,
-                 loss_factor=False,
                  filter=True,
                  **kwargs):
         """Constructor."""
@@ -157,12 +146,10 @@ class SubGridHSG(SubGridBase):
         kwargs['ratio'] = ratio
         kwargs['ID'] = ID
         kwargs['is_os_sep'] = is_os_sep
-        kwargs['pml_separation'] = pml_separation
+        kwargs['pml_separation'] = ratio // 2 + 2
         kwargs['subgrid_pml_thickness'] = subgrid_pml_thickness
         kwargs['interpolation'] = interpolation
         kwargs['filter'] = filter
-        kwargs['loss_mechanism'] = loss_mechanism
-        kwargs['loss_factor'] = loss_factor
 
         super().__init__(**kwargs)
         self.order = 18
@@ -171,7 +158,7 @@ class SubGridHSG(SubGridBase):
     def create(self, grid, uip):
         sg = SubGridHSGUser(**self.kwargs)
         self.setup(sg, grid, uip)
-        if grid.messages:
+        if config.general['messages']:
             print(sg)
         return sg
 

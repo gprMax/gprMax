@@ -418,3 +418,12 @@ def detect_check_gpus(deviceIDs):
 def timer():
     """Function to return the current process wide time in fractional seconds."""
     return perf_counter()
+
+class Printer():
+
+    def __init__(self, sim_config):
+        self.printing = sim_config.general['messages']
+
+    def print(self, str):
+        if self.printing:
+            print(str)

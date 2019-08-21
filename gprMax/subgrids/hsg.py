@@ -34,14 +34,6 @@ class SubGridHSG(SubGridBase):
         super().__init__(**kwargs)
         self.gridtype = SubGridHSG.gridtype
 
-        # upper and lower indices for the OS.
-        self.i_l = self.i0 - self.is_os_sep
-        self.i_u = self.i1 + self.is_os_sep
-        self.j_l = self.j0 - self.is_os_sep
-        self.j_u = self.j1 + self.is_os_sep
-        self.k_l = self.k0 - self.is_os_sep
-        self.k_u = self.k1 + self.is_os_sep
-
     def memory_usage(self):
         pass
 
@@ -127,13 +119,16 @@ class SubGridHSG(SubGridBase):
         cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 1, self.i_l, self.i_u + 1, self.j_l, self.j_u, self.k_l - 1, self.k_u, self.nwz, main_grid.IDlookup['Hx'], main_grid.Hx, self.Ey, 3, 1, -1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, main_grid.nthreads)
 
     def __str__(self):
+
+        self.memory_estimate_basic()
+
         s = '\n'
         s += Fore.CYAN
         s += 'Sub Grid HSG\n'
         s += 'Name: {}\n'.format(self.name)
         s += 'dx, dy, dz: {}m {}m {}m\n'.format(self.dx, self.dy, self.dz)
         s += 'dt: {}s\n'.format(self.dt)
-        s += 'Memory Estimate: {}\n'.format(human_size(self.memory_usage()))
+        s += 'Memory Estimate: {}\n'.format(human_size(self.memoryusage))
         s += 'Position: ({}m, {}m, {}m), ({}m, {}m, {}m)\n'.format(self.x1,
                                                                    self.y1,
                                                                    self.z1,

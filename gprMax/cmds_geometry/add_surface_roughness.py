@@ -3,6 +3,7 @@ from .cmds_geometry import UserObjectGeometry
 from ..exceptions import CmdInputError
 from ..fractals import FractalSurface
 from ..utilities import round_value
+import gprMax.config as config
 
 from tqdm import tqdm
 import numpy as np
@@ -23,8 +24,8 @@ class AddSurfaceRoughness(UserObjectGeometry):
             p1 = self.kwargs['p1']
             p2 = self.kwargs['p2']
             frac_dim = self.kwargs['frac_dim']
-            weighting = np.array(self.kwargs['weighting'])
-            limits = self.kwargs['limits']
+            weighting = np.array(self.kwargs['weighting'], dtype=np.float64)
+            limits = np.array(self.kwargs['limits'])
             fractal_box_id = self.kwargs['fractal_box_id']
         except KeyError:
             raise CmdInputError(self.__str__() + ' Incorrect parameters')
@@ -122,5 +123,5 @@ class AddSurfaceRoughness(UserObjectGeometry):
         surface.generate_fractal_surface(grid)
         volume.fractalsurfaces.append(surface)
 
-        if grid.messages:
+        if config.general['messages']:
             tqdm.write('Fractal surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}, fractal weightings {:g}, {:g}, fractal seeding {}, and range {:g}m to {:g}m, added to {}.'.format(xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, surface.dimension, surface.weighting[0], surface.weighting[1], surface.seed, limits[0], limits[1], surface.operatingonID))

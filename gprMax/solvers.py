@@ -18,20 +18,40 @@
 from gprMax.updates import CPUUpdates
 from gprMax.updates import GPUUpdates
 from gprMax.utilities import timer
+from .grid import FDTDGrid
+from .grid import GPUGrid
+import gprMax.config as config
+from .subgrids.updates import create_subgrid_updates
 
 
-def create_solver(sim_config):
+def create_G(sim_config):
     """Returns the configured solver."""
     if sim_config.gpu:
-        from .grid import GPUGrid
         G = GPUGrid()
-        updates = GPUUpdates(G)
-    else:
-        from .grid import FDTDGrid
+    elif sim_config.subgrid:
         G = FDTDGrid()
+    else:
+        G = FDTDGrid()
+
+    return G
+
+
+def create_solver(G, sim_config):
+    """Returns the configured solver."""
+    if sim_config.gpu:
+        updates = GPUUpdates(G)
+    elif sim_config.subgrid:
+        updates = create_subgrid_updates(G)
+    else:
         updates = CPUUpdates(G)
 
     solver = Solver(updates)
+
+    # a large range of function exist to advance the time step for dispersive
+    # materials. The correct function is set here  based on the
+    # the required numerical precision and dispersive material type.
+    props = updates.adapt_dispersive_config(config)
+    updates.set_dispersive_updates(props)
 
     return solver
 
@@ -49,17 +69,15 @@ class Solver:
             iterator (iterator): can be range() or tqdm()
         """
         self.updates = updates
-        #self.iterator = iterator
 
     def get_G(self):
         return self.updates.G
 
-    def solve(self):
+    def solve(self, iterator):
         """Time step the FDTD model."""
         tsolvestart = timer()
 
-        for iteration in self.iterator:
-
+        for iteration in iterator:
             self.updates.store_outputs(iteration)
             self.updates.store_snapshots(iteration)
             self.updates.update_magnetic()

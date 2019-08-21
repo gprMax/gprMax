@@ -1,6 +1,8 @@
 from .exceptions import CmdInputError
 from .subgrids.base import SubGridBase
 from .utilities import round_value
+from .utilities import Printer
+import gprMax.config as config
 
 import numpy as np
 from colorama import init
@@ -16,11 +18,15 @@ are rounding continuous points or checking the point is within the grid.
 Additionally all logic related to rounding points etc is encapulsated here.
 """
 
-
 def create_user_input_points(grid):
     """Return a point checker class based on the grid supplied."""
     if isinstance(grid, SubGridBase):
-        return SubgridUserInput(grid)
+
+        if config.general['autotranslate']:
+            print('AUTO-TRANSLATE SUB-GRID POINT ON')
+            return SubgridUserInput(grid)
+        else:
+            return MainGridUserInput(grid)
     else:
         return MainGridUserInput(grid)
 
@@ -102,16 +108,18 @@ class MainGridUserInput(UserInput):
 
 
 class SubgridUserInput(MainGridUserInput):
-    """Class to handle (x, y, z) points supplied by the user in the sub grid."""
+    """Class to handle (x, y, z) points supplied by the user in the sub grid.
+    This class autotranslates points from main grid to subgrid equivalent (within IS). Useful
+    if material traverse is not required."""
 
     def __init__(self, grid):
         super().__init__(grid)
 
         # defines the region exposed to the user
         self.inner_bound = np.array([
-                                    grid.pmlthickness['x0'] + grid.pml_separation,
-                                    grid.pmlthickness['y0'] + grid.pml_separation,
-                                    grid.pmlthickness['z0'] + grid.pml_separation])
+                                    grid.n_boundary_cells_x,
+                                    grid.n_boundary_cells_y,
+                                    grid.n_boundary_cells_z])
 
         self.outer_bound = np.subtract([grid.nx, grid.ny, grid.nz],
                                        self.inner_bound)
@@ -119,12 +127,18 @@ class SubgridUserInput(MainGridUserInput):
     def translate_to_gap(self, p):
         """Function to translate the user input point to the real point in the
         subgrid"""
-        return np.add(p, self.inner_bound)
+
+        p1 = (p[0] - self.grid.i0 * self.grid.ratio) + self.grid.n_boundary_cells_x
+        p2 = (p[1] - self.grid.j0 * self.grid.ratio) + self.grid.n_boundary_cells_y
+        p3 = (p[2] - self.grid.k0 * self.grid.ratio) + self.grid.n_boundary_cells_z
+
+        return np.array([p1, p2, p3])
 
     def discretise_point(self, p):
         """"Function to discretise a point. Does not provide any checks. The
         user enters coordinates relative to self.inner_bound. This function
         translate the user point to the correct index for building objects"""
+
         p = super().discretise_point(p)
         p_t = self.translate_to_gap(p)
         return p_t

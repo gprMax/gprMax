@@ -20,10 +20,13 @@ from .utilities import timer
 from .model_build_run import ModelBuildRun
 import datetime
 from .config import create_model_config
+from .solvers import create_solver
+from .solvers import create_G
+
 
 class Context():
 
-    def __init__(self, sim_config, solver):
+    def __init__(self, sim_config):
         """Context for the model to run in. Sub-class this with contexts
         i.e. an MPI context.
 
@@ -32,7 +35,6 @@ class Context():
             solver (Solver): FDTD general solver object.
         """
         self.sim_config = sim_config
-        self.solver = solver
         self.model_range = range(sim_config.model_start,
                                  sim_config.model_end)
         self.tsimend = 0
@@ -58,12 +60,25 @@ class NoMPIContext(Context):
 
     def _run(self):
         """Specialise how the models are farmed out."""
+
         for i in self.model_range:
-            # create the model configuration
             model_config = create_model_config(self.sim_config, i)
 
-            model = ModelBuildRun(self.solver, self.sim_config, model_config)
+            # always create a solver for the first model
+            # the next model to run only gets a new solver if the
+            # geometry is not re used.
+            if i != 0 and self.sim_config.geometry_fixed:
+                model_config.reuse_geometry = True
+            else:
+                G = create_G(self.sim_config)
+
+            model = ModelBuildRun(G, self.sim_config, model_config)
             model.build()
+
+            solver = create_solver(G, self.sim_config)
+
+            if not self.sim_config.geometry_only:
+                model.run_model(solver)
 
     def make_time_report(self):
         """Function to specialise the time reporting for the standard Simulation
@@ -82,6 +97,7 @@ class MPIContext(Context):
     def make_time_report(self):
         pass
 
+
 class MPINoSpawnContext(Context):
 
     def _run(self):
@@ -91,13 +107,13 @@ class MPINoSpawnContext(Context):
         pass
 
 
-def create_context(sim_config, solver):
+def create_context(sim_config):
     """Create a context in which to run the simulation. i.e MPI."""
     if sim_config.mpi_no_spawn:
-        context = MPIContext(sim_config, solver)
+        context = MPIContext(sim_config)
     elif sim_config.mpi:
-        context = MPINoSpawnContext(sim_config, solver)
+        context = MPINoSpawnContext(sim_config)
     else:
-        context = NoMPIContext(sim_config, solver)
+        context = NoMPIContext(sim_config)
 
     return context

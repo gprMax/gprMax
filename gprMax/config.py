@@ -45,8 +45,11 @@ z0 = np.sqrt(m0 / e0)
 #   progressbars: whether to show progress bars on stdoout or not
 #   mode: 2D TMx, 2D TMy, 2D TMz, or 3D
 #   cpu, cuda, opencl: solver type
-general = {'inputfilepath': '', 'outputfilepath': '', 'messages': True,
-           'progressbars': True, 'mode': '3D', 'cpu': True, 'cuda': False, 'opencl': False}
+#   autotranslate: auto translate objects with main grid coordinates
+#   to their equivalent local grid coordinate within the subgrid. If this option is off
+#   users must specify sub-grid object point within the global subgrid space.
+general = {'inputfilepath': 'gprMax', 'outputfilepath': 'gprMax', 'messages': True,
+           'progressbars': True, 'mode': '3D', 'cpu': True, 'cuda': False, 'opencl': False, 'autotranslate': False}
 
 # Store information about host machine
 hostinfo = get_host_info()
@@ -76,7 +79,7 @@ materials = {'maxpoles': 0, 'dispersivedtype': None, 'dispersiveCdtype': None}
 #                    which are represented as two floats
 #   Main field arrays use floats (float_or_double) and complex numbers (complex)
 #   Precision of float_or_double and complex: single or double for numpy and C (CUDA) arrays
-precision = 'single'
+precision = 'double'
 
 if precision == 'single':
     dtypes = {'float_or_double': np.float32, 'complex': np.complex64,
@@ -92,13 +95,26 @@ class ModelConfig():
 
     def __init__(self, sim_config, i):
         self.sim_config = sim_config
+        self.reuse_geometry = False
 
         # current model number (indexed from 0)
         self.i = i
 
+        parts = self.sim_config.output_file_path.parts
+
         if not sim_config.single_model:
             # 1 indexed
             self.appendmodelnumber = str(self.i + 1)
+        else:
+            self.appendmodelnumber = ''
+
+        # outputfilepath for specific model
+        self.output_file_path = Path(*parts[:-2], parts[-1] + self.appendmodelnumber)
+        self.output_file_path_ext = self.output_file_path.with_suffix('.out')
+
+        # make a snapshot directory
+        stem = parts[-1] + '_snaps' + self.appendmodelnumber
+        self.snapshot_dir = Path(*parts[:-2], stem)
 
         inputfilestr_f = '\n--- Model {}/{}, input file: {}'
         self.inputfilestr = inputfilestr_f.format(self.i + 1, self.sim_config.model_end, self.sim_config.input_file_path)
@@ -122,6 +138,7 @@ class ModelConfig():
                 'number_model_runs': self.sim_config.model_end + 1,
                 'current_model_run': self.i + 1,
                 'inputfile': self.sim_config.input_file_path.resolve()}
+
 
 class SimulationConfig:
 
@@ -150,18 +167,28 @@ class SimulationConfig:
         self.mpi = args.mpi
         self.mpi_no_spawn = args.mpi_no_spawn
         self.general = {}
-        self.general['messages'] = True
+        self.general['messages'] = general['messages']
         self.geometry_fixed = args.geometry_fixed
         self.geometry_only = args.geometry_only
         self.write_processed = args.write_processed
+
+        # subgrid parameter may not exist if user uses CLI api
+        try:
+            self.subgrid = args.subgrid
+        except AttributeError:
+            # this must be CLI user. No subgrids are available
+            self.subgrid = False
+
+        # scenes parameter may not exist if user uses CLI api
         try:
             self.scenes = args.scenes
         except AttributeError:
             self.scenes = []
 
+        # set more complex parameters
         self.set_input_file_path()
-        self.set_model_start()
-        self.set_model_end()
+        self.set_output_file_path()
+        self.set_model_start_end()
         self.set_single_model()
 
     def set_single_model(self):
@@ -171,26 +198,22 @@ class SimulationConfig:
             self.single_model = False
 
     # for example
-    def set_model_start(self):
+    def set_model_start_end(self):
 
-        # serial simulation
-        if not self.mpi and not self.mpi_no_spawn:
-            # Set range for number of models to run
-            if self.args.task:
-              # Job array feeds args.n number of single tasks
-              self.model_start = self.args.task - 1
-            elif self.args.restart:
-              self.model_start = self.args.restart - 1
-            else:
-              self.model_start = 0
+        # set range for number of models to run (internally 0 index)
+        if self.args.task:
+            # Job array feeds args.n number of single tasks
+            modelstart = self.args.task - 1
+            modelend = self.args.task
+        elif self.args.restart:
+            modelstart = self.args.restart - 1
+            modelend = modelstart + self.args.n - 1
+        else:
+            modelstart = 0
+            modelend = modelstart + self.args.n
 
-        # mpi simulation
-        elif self.mpi:
-            # Set range for number of models to run
-            self.modelstart = self.args.restart - 1 if self.args.restart else 0 # etc...
-
-    def set_model_end(self):
-        self.model_end = 1 # for now!
+        self.model_start = modelstart
+        self.model_end = modelend
 
     def set_precision(self):
         pass
@@ -207,15 +230,31 @@ class SimulationConfig:
     def set_output_file_path(self):
         # output file can be provided by the user. if they havent provided None
         # use the inputfilefile path instead
-        if self.args.outputfile:
+        try:
             self.output_file_path = Path(self.args.outputfile)
-        else:
+        except AttributeError:
             self.output_file_path = Path(self.args.inputfile)
+
+
+class SimulationConfigMPI(SimulationConfig):
+
+    def __init__(self, args):
+        super().__init__(args)
+
+    def set_model_start_end(self):
+        # Set range for number of models to run
+        self.model_start = self.args.restart if self.args.restart else 1
+        self.model_end = self.modelstart + self.args.n
+
 
 def create_simulation_config(args):
 
-    sc = SimulationConfig(args)
+    if not args.mpi and not args.mpi_no_spawn:
+        sc = SimulationConfig(args)
+    elif args.mpi:
+        sc = SimulationConfigMPI(args)
     return sc
+
 
 def create_model_config(sim_config, i):
     mc = ModelConfig(sim_config, i)

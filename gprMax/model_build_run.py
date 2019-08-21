@@ -31,6 +31,7 @@ import cython
 import numpy as np
 from terminaltables import SingleTable
 from tqdm import tqdm
+from pathlib import Path
 
 import gprMax.config as config
 from .cuda.fields_updates import kernel_template_fields
@@ -39,7 +40,6 @@ from .cuda.source_updates import kernel_template_sources
 from .cython.yee_cell_build import build_electric_components
 from .cython.yee_cell_build import build_magnetic_components
 from .exceptions import GeneralError
-from .fields_outputs import store_outputs
 from .fields_outputs import kernel_template_store_outputs
 from .fields_outputs import write_hdf5_outputfile
 from .grid import FDTDGrid
@@ -69,24 +69,21 @@ from .utilities import human_size
 from .utilities import open_path_file
 from .utilities import round32
 from .utilities import timer
+from .utilities import Printer
 from .scene import Scene
+from .solvers import create_solver
 
-class Printer():
 
-    def __init__(self, sim_config):
-        self.printing = sim_config.general['messages']
-
-    def print(self, str):
-        if self.printing:
-            print(str)
 
 class ModelBuildRun:
 
-    def __init__(self, solver, sim_config, model_config):
-        self.solver = solver
+    def __init__(self, G, sim_config, model_config):
+        self.G = G
         self.sim_config = sim_config
         self.model_config = model_config
-        self.G = solver.get_G()
+        self.printer = Printer(sim_config)
+        # Monitor memory usage
+        self.p = None
 
     def build(self):
         """Runs a model - processes the input file; builds the Yee cells; calculates update coefficients; runs main FDTD loop.
@@ -104,13 +101,13 @@ class ModelBuildRun:
             tsolve (int): Length of time (seconds) of main FDTD calculations
         """
         # Monitor memory usage
-        p = psutil.Process()
+        self.p = psutil.Process()
 
         # Normal model reading/building process; bypassed if geometry information to be reused
-        if not self.sim_config.geometry_fixed:
-            self.build_geometry()
-        else:
+        if self.model_config.reuse_geometry:
             self.reuse_geometry()
+        else:
+            self.build_geometry()
 
         G = self.G
 
@@ -137,7 +134,7 @@ class ModelBuildRun:
             print(Fore.RED + '\nWARNING: No geometry views or geometry objects to output found.' + Style.RESET_ALL)
         if config.general['messages']: print()
         for i, geometryview in enumerate(G.geometryviews):
-            geometryview.set_filename(appendmodelnumber)
+            geometryview.set_filename(self.model_config.appendmodelnumber)
             pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
             geometryview.write_vtk(G, pbar)
             pbar.close()
@@ -153,6 +150,7 @@ class ModelBuildRun:
     def build_geometry(self):
         model_config = self.model_config
         sim_config = self.sim_config
+
         G = self.G
 
         printer = Printer(sim_config)
@@ -160,19 +158,17 @@ class ModelBuildRun:
 
         scene = self.build_scene()
 
-        # print PML information
-        printer.print(pml_information(G))
+        # combine available grids
+        grids = [G] + G.subgrids
+        gridbuilders = [GridBuilder(grid, self.printer) for grid in grids]
 
-        self.build_pmls()
-        self.build_components()
-
-        # update grid for tm modes
-        self.tm_grid_update()
-
-        self.update_voltage_source_materials()
-
-        # Initialise arrays of update coefficients to pass to update functions
-        G.initialise_std_update_coeff_arrays()
+        for gb in gridbuilders:
+            gb.printer.print(pml_information(gb.grid))
+            gb.build_pmls()
+            gb.build_components()
+            gb.tm_grid_update()
+            gb.update_voltage_source_materials()
+            gb.grid.initialise_std_update_coeff_arrays()
 
         # Set datatype for dispersive arrays if there are any dispersive materials.
         if config.materials['maxpoles'] != 0:
@@ -189,7 +185,8 @@ class ModelBuildRun:
             G.memory_check()
             printer.print('\nMemory (RAM) required - updated (dispersive): ~{}\n'.format(human_size(G.memoryusage)))
 
-            G.initialise_dispersive_arrays(config.materials['dispersivedtype'])
+            for gb in gridbuilders:
+                gb.grid.initialise_dispersive_arrays(config.materials['dispersivedtype'])
 
         # Check there is sufficient memory to store any snapshots
         if G.snapshots:
@@ -202,15 +199,8 @@ class ModelBuildRun:
 
             printer.print('\nMemory (RAM) required - updated (snapshots): ~{}\n'.format(human_size(G.memoryusage)))
 
-        # Process complete list of materials - calculate update coefficients,
-        # store in arrays, and build text list of materials/properties
-        materialsdata = process_materials(G)
-        materialstable = SingleTable(materialsdata)
-        materialstable.outer_border = False
-        materialstable.justify_columns[0] = 'right'
-
-        printer.print('\nMaterials:')
-        printer.print(materialstable.table)
+        for gb in gridbuilders:
+            gb.build_materials()
 
         # Check to see if numerical dispersion might be a problem
         results = dispersion_analysis(G)
@@ -223,25 +213,16 @@ class ModelBuildRun:
         elif results['deltavp']:
             printer.print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
 
-        # set the dispersive update functions based on the model configuration
-        props = self.solver.updates.adapt_dispersive_config(config)
-        self.solver.updates.set_dispersive_updates(props)
 
     def reuse_geometry(self):
-        printer = Printer(model_config)
-        inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(currentmodelrun, modelend, model_config.input_file_path)
-        printer.print(Fore.GREEN + '{} {}\n'.format(model_config.inputfilestr, '-' * (get_terminal_width() - 1 - len(model_config.inputfilestr))) + Style.RESET_ALL)
-        self.G.reset_fields()
-
-    def tm_grid_update(self):
-        if '2D TMx' == config.general['mode']:
-            self.G.tmx()
-        elif '2D TMy' == config.general['mode']:
-            self.G.tmy()
-        elif '2D TMz' == config.general['mode']:
-            self.G.tmz()
+        G = self.G
+        inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(self.model_config.appendmodelnumber, self.sim_config.model_end, self.sim_config.input_file_path)
+        self.printer.print(Fore.GREEN + '{} {}\n'.format(self.model_config.inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
+        for grid in [G] + G.subgrids:
+            grid.reset_fields()
 
     def build_scene(self):
+        G = self.G
         # api for multiple scenes / model runs
         scene = self.model_config.get_scene()
 
@@ -249,96 +230,135 @@ class ModelBuildRun:
         if not scene:
             scene = Scene()
             # parse the input file into user objects and add them to the scene
-            scene = parse_hash_commands(self.model_config, self.G, scene)
+            scene = parse_hash_commands(self.model_config, G, scene)
 
         # Creates the internal simulation objects.
-        scene.create_internal_objects(self.G)
+        scene.create_internal_objects(G)
         return scene
 
-    def build_pmls(self):
-        # build the PMLS
-        pbar = tqdm(total=sum(1 for value in self.G.pmlthickness.values() if value > 0), desc='Building PML boundaries', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
+    def create_output_directory(self):
 
-        for pml_id, thickness in self.G.pmlthickness.items():
-            build_pml(self.G, pml_id, thickness)
+        if self.G.outputdirectory:
+            # Check and set output directory and filename
+            try:
+                os.mkdir(self.G.outputdirectory)
+                self.printer.print('\nCreated output directory: {}'.format(self.G.outputdirectory))
+            except FileExistsError:
+                pass
+            # modify the output path (hack)
+            self.model_config.output_file_path_ext = Path(self.G.outputdirectory, self.model_config.output_file_path_ext)
+
+
+    def run_model(self, solver):
+
+        G = self.G
+
+        self.create_output_directory()
+        self.printer.print('\nOutput file: {}\n'.format(self.model_config.output_file_path_ext))
+
+        tsolve = self.solve(solver)
+
+        # Write an output file in HDF5 format
+        write_hdf5_outputfile(self.model_config.output_file_path_ext, G)
+
+        # Write any snapshots to file
+        if G.snapshots:
+            # Create directory and construct filename from user-supplied name and model run number
+            snapshotdir = self.model_config.snapshot_dir
+            if not os.path.exists(snapshotdir):
+                os.mkdir(snapshotdir)
+
+            self.printer.print()
+            for i, snap in enumerate(G.snapshots):
+                snap.filename = snapshotdir + snap.basefilename + '.vti'
+                pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte', unit_scale=True, desc='Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
+                snap.write_vtk_imagedata(pbar, G)
+                pbar.close()
+            self.printer.print()
+
+        memGPU = ''
+        if config.cuda['gpus']:
+            memGPU = ' host + ~{} GPU'.format(human_size(self.solver.get_memsolve()))
+
+        self.printer.print('\nMemory (RAM) used: ~{}{}'.format(human_size(self.p.memory_full_info().uss), memGPU))
+        self.printer.print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
+
+        return tsolve
+
+    def solve(self, solver):
+        """
+        Solving using FDTD method on CPU. Parallelised using Cython (OpenMP) for
+        electric and magnetic field updates, and PML updates.
+
+        Args:
+            currentmodelrun (int): Current model run number.
+            modelend (int): Number of last model to run.
+            G (class): Grid class instance - holds essential parameters describing the model.
+
+        Returns:
+            tsolve (float): Time taken to execute solving (seconds)
+        """
+        G = self.G
+
+        if config.general['messages']:
+            iterator = tqdm(range(G.iterations), desc='Running simulation, model ' + str(self.model_config
+                            .i + 1) + '/' + str(self.sim_config.model_end), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
+        else:
+            iterator = range(0, G.iterations)
+
+        tsolve = solver.solve(iterator)
+
+        return tsolve
+
+
+class GridBuilder:
+    def __init__(self, grid, printer):
+        self.grid = grid
+        self.printer = printer
+
+    def build_pmls(self):
+
+        grid = self.grid
+        # build the PMLS
+        pbar = tqdm(total=sum(1 for value in grid.pmlthickness.values() if value > 0), desc='Building {} Grid PML boundaries'.format(self.grid.name), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
+
+        for pml_id, thickness in grid.pmlthickness.items():
+            build_pml(grid, pml_id, thickness)
             pbar.update()
         pbar.close()
 
     def build_components(self):
         # Build the model, i.e. set the material properties (ID) for every edge
         # of every Yee cell
-        G = self.G
-        printer = Printer(self.sim_config)
-        printer.print('')
-        pbar = tqdm(total=2, desc='Building main grid', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
-        build_electric_components(G.solid, G.rigidE, G.ID, G)
+        self.printer.print('')
+        pbar = tqdm(total=2, desc='Building {} grid'.format(self.grid.name), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
+        build_electric_components(self.grid.solid, self.grid.rigidE, self.grid.ID, self.grid)
         pbar.update()
-        build_magnetic_components(G.solid, G.rigidH, G.ID, G)
+        build_magnetic_components(self.grid.solid, self.grid.rigidH, self.grid.ID, self.grid)
         pbar.update()
         pbar.close()
+
+    def tm_grid_update(self):
+        if '2D TMx' == config.general['mode']:
+            self.grid.tmx()
+        elif '2D TMy' == config.general['mode']:
+            self.grid.tmy()
+        elif '2D TMz' == config.general['mode']:
+            self.grid.tmz()
 
     def update_voltage_source_materials(self):
         # Process any voltage sources (that have resistance) to create a new
         # material at the source location
-        for voltagesource in self.G.voltagesources:
-            voltagesource.create_material(self.G)
+        for voltagesource in self.grid.voltagesources:
+            voltagesource.create_material(self.grid)
 
+    def build_materials(self):
+        # Process complete list of materials - calculate update coefficients,
+        # store in arrays, and build text list of materials/properties
+        materialsdata = process_materials(self.grid)
+        materialstable = SingleTable(materialsdata)
+        materialstable.outer_border = False
+        materialstable.justify_columns[0] = 'right'
 
-    def run_model(self):
-
-        # Check and set output directory and filename
-        if not os.path.isdir(config.outputfilepath):
-            os.mkdir(config.outputfilepath)
-            printer.print('\nCreated output directory: {}'.format(config.outputfilepath))
-
-        outputfile = os.path.join(config.outputfilepath, os.path.splitext(os.path.split(config.inputfilepath)[1])[0] + appendmodelnumber + '.out')
-        printer.print('\nOutput file: {}\n'.format(outputfile))
-
-        tsolve, memsolve = solve(currentmodelrun, modelend, G)
-
-        # Write an output file in HDF5 format
-        write_hdf5_outputfile(outputfile, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, G)
-
-        # Write any snapshots to file
-        if G.snapshots:
-            # Create directory and construct filename from user-supplied name and model run number
-            snapshotdir = os.path.splitext(config.inputfilepath)[0] + '_snaps' + appendmodelnumber
-            if not os.path.exists(snapshotdir):
-                os.mkdir(snapshotdir)
-
-            if config.general['messages']: print()
-            for i, snap in enumerate(G.snapshots):
-                snap.filename = os.path.abspath(os.path.join(snapshotdir, snap.basefilename + '.vti'))
-                pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte', unit_scale=True, desc='Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
-                snap.write_vtk_imagedata(pbar, G)
-                pbar.close()
-            if config.general['messages']: print()
-
-        memGPU = ''
-        if config.cuda['gpus']:
-            memGPU = ' host + ~{} GPU'.format(human_size(memsolve))
-
-        printer.print('\nMemory (RAM) used: ~{}{}'.format(human_size(p.memory_full_info().uss), memGPU))
-        printer.print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
-
-
-        return tsolve
-
-def solve(solver, sim_config, model_config):
-    """
-    Solving using FDTD method on CPU. Parallelised using Cython (OpenMP) for
-    electric and magnetic field updates, and PML updates.
-
-    Args:
-        currentmodelrun (int): Current model run number.
-        modelend (int): Number of last model to run.
-        G (class): Grid class instance - holds essential parameters describing the model.
-
-    Returns:
-        tsolve (float): Time taken to execute solving (seconds)
-    """
-    tsolvestart = timer()
-
-    solver.solve()
-
-    return tsolve
+        self.printer.print('\n{} Grid Materials:'.format(self.grid.name))
+        self.printer.print(materialstable.table)

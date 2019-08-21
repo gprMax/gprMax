@@ -30,7 +30,7 @@ from .sources import TransmissionLine as TransmissionLineUser
 from .snapshots import Snapshot as SnapshotUser
 from .receivers import Rx as RxUser
 from .materials import Material as MaterialUser
-from .materials import PeplinskiSoil
+from .materials import PeplinskiSoil as PeplinskiSoilUser
 from .geometry_outputs import GeometryObjects as GeometryObjectsUser
 from .pml import CFSParameter
 from .pml import CFS
@@ -838,7 +838,7 @@ class SoilPeplinski(UserObjectMulti):
             raise CmdInputError(self.__str__() + ' with ID {} already exists'.format(ID))
 
         # Create a new instance of the Material class material (start index after pec & free_space)
-        s = PeplinskiSoil(ID, sand_fraction, clay_fraction, bulk_density, sand_density, (water_fraction_lower, water_fraction_upper))
+        s = PeplinskiSoilUser(ID, sand_fraction, clay_fraction, bulk_density, sand_density, (water_fraction_lower, water_fraction_upper))
 
         if config.general['messages']:
             print('Mixing model (Peplinski) used to create {} with sand fraction {:g}, clay fraction {:g}, bulk density {:g}g/cm3, sand particle density {:g}g/cm3, and water volumetric fraction {:g} to {:g} created.'.format(s.ID, s.S, s.C, s.rb, s.rs, s.mu[0], s.mu[1]))

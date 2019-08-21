@@ -16,10 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from .config import sg_interp_d
 import numpy as np
 from scipy import interpolate
-import sys
 
 
 def calculate_weighting_coefficients(x1, x):
@@ -37,7 +35,7 @@ class PrecusorNodesBase:
         self.nwy = sub_grid.nwy
         self.nwz = sub_grid.nwz
         self.sub_grid = sub_grid
-        self.interpolation = sg_interp_d
+        self.interpolation = sub_grid.interpolation
 
         self.Hx = fdtd_grid.Hx
         self.Hy = fdtd_grid.Hy
@@ -242,7 +240,7 @@ class PrecusorNodesBase:
 
             # Grab the main grid fields used to interpolate across the IS
             # f = self.Hi[slice]
-            f1, f2 = f1_f2_magnetic(obj)
+            f_1, f_2 = self.f1_f2_magnetic(obj)
             w = obj[-2]
             c1, c2 = calculate_weighting_coefficients(w, self.ratio)
             # transverse interpolated h field
@@ -262,7 +260,7 @@ class PrecusorNodesBase:
         self.update_previous_timestep_fields(self.fn_e)
 
         for obj in self.electric_slices:
-            f_m = self.f_m(obj)
+            f_m = self.f_m_electric(obj)
             f_i = self.interpolate_to_sub_grid(f_m, obj[1])
             # discard the outer nodes only required for interpolation
             f = f_i[self.ratio:-self.ratio, self.ratio:-self.ratio]
@@ -276,7 +274,6 @@ class PrecursorNodesFiltered(PrecusorNodesBase):
         super().__init__(fdtd_grid, sub_grid)
         self.initialize_magnetic_slices_array()
         self.initialize_electric_slices_array()
-
 
     def initialize_magnetic_slices_array(self):
 
@@ -620,7 +617,7 @@ class PrecursorNodes(PrecusorNodesBase):
     def f1_f2_magnetic(self, obj):
         f_1 = obj[-1][obj[2]]
         f_2 = obj[-1][obj[3]]
-        return f1, f2
+        return f_1, f_2
 
     def f_m_electric(self, obj):
         return obj[-1][obj[2]]

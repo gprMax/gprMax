@@ -47,6 +47,7 @@ class Scene:
             else:
                 return False
 
+        # subgrid user objects
         subgrid_cmds = list(filter(func, self.multiple_cmds))
 
         # iterate through the user command objects under the subgrid user object
@@ -55,8 +56,8 @@ class Scene:
             # object. this reference allows the multi and geo user objects
             # to build in the correct subgrid.
             sg = sg_cmd.subgrid
-            self.process_cmds(sg_cmd.multiple_cmds, sg)
-            self.process_cmds(sg_cmd.geometry_cmds, sg)
+            self.process_cmds(sg_cmd.children_multiple, sg)
+            self.process_cmds(sg_cmd.children_geometry, sg)
 
     def process_cmds(self, commands, grid):
         cmds_sorted = sorted(commands, key=lambda cmd: cmd.order)

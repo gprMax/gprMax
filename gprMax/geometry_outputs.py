@@ -39,7 +39,7 @@ class GeometryView(object):
     else:
         byteorder = 'BigEndian'
 
-    def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None, dx=None, dy=None, dz=None, filename=None, fileext=None):
+    def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None, dx=None, dy=None, dz=None, filename=None, fileext=None, grid=None):
         """
         Args:
             xs, xf, ys, yf, zs, zf (int): Extent of the volume in cells.

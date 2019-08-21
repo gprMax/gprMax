@@ -34,6 +34,7 @@ def api(
     mpi_no_spawn=False,
     mpicomm=None,
     gpu=None,
+    subgrid=None,
     benchmark=False,
     geometry_only=False,
     geometry_fixed=False,
@@ -56,6 +57,7 @@ def api(
     args.mpi_no_spawn = mpi_no_spawn
     args.mpicomm = mpicomm
     args.gpu = gpu
+    args.subgrid=subgrid
     args.benchmark = benchmark
     args.geometry_only = geometry_only
     args.geometry_fixed = geometry_fixed
@@ -88,6 +90,5 @@ def main():
 def run_main(args):
 
     sim_config = create_simulation_config(args)
-    solver = create_solver(sim_config)
-    context = create_context(sim_config, solver)
+    context = create_context(sim_config)
     context.run()

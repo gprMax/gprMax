@@ -2,6 +2,7 @@
 from .cmds_geometry import UserObjectGeometry
 from ..exceptions import CmdInputError
 from ..fractals import FractalVolume
+import gprMax.config as config
 
 from tqdm import tqdm
 import numpy as np
@@ -43,7 +44,7 @@ class FractalBox(UserObjectGeometry):
             averagefractalbox = self.kwargs['averaging']
         except KeyError:
             # if they havent specfied - go with the grid default
-            averagefractalbox = grid.averagevolumeobjects
+            averagefractalbox = False
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
@@ -82,7 +83,7 @@ class FractalBox(UserObjectGeometry):
         volume.averaging = averagefractalbox
         volume.mixingmodel = mixingmodel
 
-        if grid.messages:
+        if config.general['messages']:
             if volume.averaging:
                 dielectricsmoothing = 'on'
             else:

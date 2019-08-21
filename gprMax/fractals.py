@@ -95,7 +95,6 @@ class FractalSurface(object):
         # Generate fractal
         generate_fractal2D(surfacedims[0], surfacedims[1], config.hostinfo['ompthreads'],
                            self.b, self.weighting, v1, A, self.fractalsurface)
-
         # Shift the zero frequency component to start of the array
         self.fractalsurface = fftpack.ifftshift(self.fractalsurface)
         # Take the real part (numerical errors can give rise to an imaginary part) of the IFFT

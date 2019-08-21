@@ -33,6 +33,10 @@ from .utilities import fft_power
 from .utilities import human_size
 from .utilities import round_value
 
+import decimal as d
+from scipy.constants import c
+
+
 
 class Grid(object):
     """Generic grid/mesh."""
@@ -145,6 +149,8 @@ class FDTDGrid(Grid):
         self.snapshots = []
         self.subgrids = []
         self.gpu = None
+        self.name = 'Main'
+        self.outputdirectory = ''
 
     def initialise_geometry_arrays(self):
         """
@@ -296,11 +302,22 @@ class FDTDGrid(Grid):
 
     def reset_fields(self):
         # Clear arrays for field components
-        G.initialise_field_arrays()
+        self.initialise_field_arrays()
 
         # Clear arrays for fields in PML
-        for pml in G.pmls:
+        for pml in self.pmls:
             pml.initialise_field_arrays()
+
+    def calculate_dt(self):
+        self.dt = 1 / (c * np.sqrt((1 / self.dx) * (1 / self.dx) + (1 / self.dy) * (1 / self.dy) + (1 / self.dz) * (1 / self.dz)))
+
+    def round_time_step(self):
+        # Round down time step to nearest float with precision one less than hardware maximum. Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
+        # Round down time step to nearest float with precision one less than hardware maximum.
+        # Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
+        self.dt = round_value(self.dt, decimalplaces=d.getcontext().prec - 1)
+
+
 
 def dispersion_analysis(G):
     """
@@ -477,3 +494,7 @@ def Iz(x, y, z, Hx, Hy, Hz, G):
         Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (Hy[x, y, z] - Hy[x - 1, y, z])
 
     return Iz
+
+
+class GPUGrid(Grid):
+    pass

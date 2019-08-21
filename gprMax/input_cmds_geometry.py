@@ -36,6 +36,7 @@ from .utilities import round_value
 
 
 from tqdm import tqdm
+import numpy as np
 
 
 def process_geometrycmds(geometry):

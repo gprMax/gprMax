@@ -43,7 +43,7 @@ from .cmds_multiple import Snapshot
 from .cmds_multiple import AddDebyeDispersion
 from .cmds_multiple import AddLorentzDispersion
 from .cmds_multiple import AddDrudeDispersion
-from .cmds_multiple import PeplinskiSoil
+from .cmds_multiple import SoilPeplinski
 from .cmds_multiple import GeometryView
 from .cmds_multiple import GeometryObjectsWrite
 from .cmds_multiple import PMLCFS
@@ -268,15 +268,13 @@ def process_multicmds(multicmds):
 
             if len(tmp) != 7:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at exactly seven parameters')
-
-            soil = PeplinskiSoil(
-                sand_fraction=float(tmp[0]),
-                clay_fraction=float(tmp[1]),
-                bulk_density=float(tmp[2]),
-                sand_density=float(tmp[3]),
-                water_fraction_lower=float(tmp[4]),
-                water_fraction_upper=float(tmp[5]),
-                ID=tmp[6])
+            soil = SoilPeplinski(sand_fraction=float(tmp[0]),
+                                 clay_fraction=float(tmp[1]),
+                                 bulk_density=float(tmp[2]),
+                                 sand_density=float(tmp[3]),
+                                 water_fraction_lower=float(tmp[4]),
+                                 water_fraction_upper=float(tmp[5]),
+                                 ID=tmp[6])
             scene_objects.append(soil)
 
     # Geometry views (creates VTK-based geometry files)

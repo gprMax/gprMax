@@ -17,8 +17,6 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from ..grid import FDTDGrid
-
-from scipy.constants import c
 import numpy as np
 
 
@@ -63,9 +61,8 @@ class SubGridBase(FDTDGrid):
         self.n_boundary_cells_z = d_to_pml + self.pmlthickness['z0']
 
         # vectorise coordinates
-        self.p0 = np.array(self.i0, self.j0, self.k0)
-        self.n_boundary_cells_p = np.array(self.n_boundary_cells_x,
-                                           self.n_boundary_cells_y, self.n_boundary_cells_z)
+        #self.p0 = np.array(self.i0, self.j0, self.k0)
+        self.n_boundary_cells_p = np.array([self.n_boundary_cells_x, self.n_boundary_cells_y, self.n_boundary_cells_z])
 
         # interpolation scheme
         self.interpolation = kwargs['interpolation']

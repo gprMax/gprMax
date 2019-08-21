@@ -49,7 +49,6 @@ class Source(object):
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
         """
-
         # Waveform values for electric sources - calculated half a timestep later
         self.waveformvaluesJ = np.zeros((G.iterations), dtype=config.dtypes['float_or_double'])
 

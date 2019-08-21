@@ -16,126 +16,134 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 from importlib import import_module
+from gprMax.fields_outputs import store_outputs
+import gprMax.config as config
+from gprMax.cython.fields_updates_normal import update_electric
+from gprMax.cython.fields_updates_normal import update_magnetic
+
 
 class CPUUpdates:
 
     def __init__(self, G):
-        self.G = G
+        self.grid = G
         self.dispersive_update_a = None
         self.dispersive_update_b = None
 
     def store_outputs(self, iteration):
         # Store field component values for every receiver and transmission line
         store_outputs(iteration,
-                      self.G.Ex,
-                      self.G.Ey,
-                      self.G.Ez,
-                      self.G.Hx,
-                      self.G.Hy,
-                      self.G.Hz,
-                      self.G)
+                      self.grid.Ex,
+                      self.grid.Ey,
+                      self.grid.Ez,
+                      self.grid.Hx,
+                      self.grid.Hy,
+                      self.grid.Hz,
+                      self.grid)
 
     def store_snapshots(self, iteration):
         # Store any snapshots
-        for snap in self.G.snapshots:
+        for snap in self.grid.snapshots:
             if snap.time == iteration + 1:
-                snap.store(self.G)
+                snap.store(self.grid)
 
     def update_magnetic(self):
         # Update magnetic field components
-        update_magnetic(self.G.nx,
-                        self.G.ny,
-                        self.G.nz,
+        update_magnetic(self.grid.nx,
+                        self.grid.ny,
+                        self.grid.nz,
                         config.hostinfo['ompthreads'],
-                        self.G.updatecoeffsH,
-                        self.G.ID,
-                        self.G.Ex,
-                        self.G.Ey,
-                        self.G.Ez,
-                        self.G.Hx,
-                        self.G.Hy,
-                        self.G.Hz)
+                        self.grid.updatecoeffsH,
+                        self.grid.ID,
+                        self.grid.Ex,
+                        self.grid.Ey,
+                        self.grid.Ez,
+                        self.grid.Hx,
+                        self.grid.Hy,
+                        self.grid.Hz)
 
-    def update_magnetic_pml(self, iteration):
+    def update_magnetic_pml(self):
         # Update magnetic field components with the PML correction
-        for pml in self.G.pmls:
-            pml.update_magnetic(self.G)
+        for pml in self.grid.pmls:
+            pml.update_magnetic(self.grid)
 
     def update_magnetic_sources(self, iteration):
         # Update magnetic field components from sources
-        for source in self.G.transmissionlines + self.G.magneticdipoles:
+        for source in self.grid.transmissionlines + self.grid.magneticdipoles:
             source.update_magnetic(iteration,
-                                   self.G.updatecoeffsH,
-                                   self.G.ID,
-                                   self.G.Hx,
-                                   self.G.Hy,
-                                   self.G.Hz,
-                                   self.G)
+                                   self.grid.updatecoeffsH,
+                                   self.grid.ID,
+                                   self.grid.Hx,
+                                   self.grid.Hy,
+                                   self.grid.Hz,
+                                   self.grid)
 
     def update_electric_a(self):
         # Update electric field components
         # All materials are non-dispersive so do standard update
-        if Material.maxpoles == 0:
-            update_electric(self.G.nx,
-                            self.G.ny,
-                            self.G.nz,
+        if config.materials['maxpoles'] == 0:
+            update_electric(self.grid.nx,
+                            self.grid.ny,
+                            self.grid.nz,
                             config.hostinfo['ompthreads'],
-                            self.G.updatecoeffsE,
-                            self.G.ID,
-                            self.G.Ex,
-                            self.G.Ey,
-                            self.G.Ez,
-                            self.G.Hx,
-                            self.G.Hy,
-                            self.G.Hz)
+                            self.grid.updatecoeffsE,
+                            self.grid.ID,
+                            self.grid.Ex,
+                            self.grid.Ey,
+                            self.grid.Ez,
+                            self.grid.Hx,
+                            self.grid.Hy,
+                            self.grid.Hz)
 
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
-        self.dispersive_update_a(self.G.nx,
-                                   self.G.ny,
-                                   self.G.nz,
-                                   config.hostinfo['ompthreads'],
-                                   self.G.updatecoeffsE,
-                                   self.G.updatecoeffsdispersive,
-                                   self.G.ID,
-                                   self.G.Tx,
-                                   self.G.Ty,
-                                   self.G.Tz,
-                                   self.G.Ex,
-                                   self.G.Ey,
-                                   self.G.Ez,
-                                   self.G.Hx,
-                                   self.G.Hy,
-                                   self.G.Hz)
+        else:
+            self.dispersive_update_a(self.grid.nx,
+                                     self.grid.ny,
+                                     self.grid.nz,
+                                     config.hostinfo['ompthreads'],
+                                     config.materials['maxpoles'],
+                                     self.grid.updatecoeffsE,
+                                     self.grid.updatecoeffsdispersive,
+                                     self.grid.ID,
+                                     self.grid.Tx,
+                                     self.grid.Ty,
+                                     self.grid.Tz,
+                                     self.grid.Ex,
+                                     self.grid.Ey,
+                                     self.grid.Ez,
+                                     self.grid.Hx,
+                                     self.grid.Hy,
+                                     self.grid.Hz)
 
     def update_electric_pml(self):
         # Update electric field components with the PML correction
-        for pml in self.G.pmls:
-            pml.update_electric(self.G)
+        for pml in self.grid.pmls:
+            pml.update_electric(self.grid)
 
     def update_electric_sources(self, iteration):
         # Update electric field components from sources (update any Hertzian dipole sources last)
-        for source in self.G.voltagesources + self.G.transmissionlines + self.G.hertziandipoles:
-            source.update_electric(iteration, self.G.updatecoeffsE, self.G.ID, self.G.Ex, self.G.Ey, self.G.Ez, self.G)
+        for source in self.grid.voltagesources + self.grid.transmissionlines + self.grid.hertziandipoles:
+            source.update_electric(iteration, self.grid.updatecoeffsE, self.grid.ID, self.grid.Ex, self.grid.Ey, self.grid.Ez, self.grid)
 
     def update_electric_b(self):
         # If there are any dispersive materials do 2nd part of dispersive update
         # (it is split into two parts as it requires present and updated electric
         # field values). Therefore it can only be completely updated after the
         # electric field has been updated by the PML and source updates.
-        update_e_dispersive_b(self.G.nx,
-                            self.G.ny,
-                            self.G.nz,
-                            config.hostinfo['ompthreads'],
-                            Material.maxpoles,
-                            self.G.updatecoeffsdispersive,
-                            self.G.ID,
-                            self.G.Tx,
-                            self.G.Ty,
-                            self.G.Tz,
-                            self.G.Ex,
-                            self.G.Ey,
-                            self.G.Ez)
+        if config.materials['maxpoles'] != 0:
+            self.dispersive_update_b(self.grid.nx,
+                                     self.grid.ny,
+                                     self.grid.nz,
+                                     config.hostinfo['ompthreads'],
+                                     config.materials['maxpoles'],
+                                     self.grid.updatecoeffsdispersive,
+                                     self.grid.ID,
+                                     self.grid.Tx,
+                                     self.grid.Ty,
+                                     self.grid.Tz,
+                                     self.grid.Ex,
+                                     self.grid.Ey,
+                                     self.grid.Ez)
 
     def adapt_dispersive_config(self, config):
 
@@ -179,9 +187,6 @@ class CPUUpdates:
         self.dispersive_update_a = disp_a_f
         self.dispersive_update_b = disp_b_f
 
-
-class SubgridUpdates:
-    pass
 
 class GPUUpdates:
     pass
