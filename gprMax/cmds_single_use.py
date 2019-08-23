@@ -40,10 +40,6 @@ floattype = dtypes['float_or_double']
 
 class UserObjectSingle:
 
-    """
-        Specific geometry object
-    """
-
     def __init__(self, **kwargs):
         # each single command has an order to specify the order in which
         # the commands are constructed. IE. discretisation must be
@@ -58,7 +54,12 @@ class UserObjectSingle:
         pass
 
 
-class DomainSingle(UserObjectSingle):
+class Domain(UserObjectSingle):
+    """Allows you to specify the size of the model.
+
+    :param p1: point specifying total extend in x, y, z
+    :type p1: list of floats, non-optional
+    """
 
     def __init__(self, **kwargs):
         # dont need to define parameters in advance. Just catch errors
@@ -145,23 +146,12 @@ class DomainSingle(UserObjectSingle):
             print(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, hostinfo['physicalcores']) + Style.RESET_ALL)
 
 
-
-class Domain:
-
-    """Restrict user object so there can only be one instance
-    https://python-3-patterns-idioms-test.readthedocs.io/en/latest/index.html
-    """
-
-    instance = None
-
-    def __new__(cls, **kwargs):  # __new__ always a classmethod
-        if not Domain.instance:
-            Domain.instance = DomainSingle(**kwargs)
-        return Domain.instance
-
-
 class Discretisation(UserObjectSingle):
+    """Allows you to specify the discretization of space in the x , y and z directions respectively
 
+    :param p1: Specify discretisation in x, y, z direction
+    :type p1: list of floats, non-optional
+    """
     def __init__(self, **kwargs):
         # dont need to define parameters in advance. Just catch errors
         # when they occur
@@ -199,7 +189,13 @@ class Discretisation(UserObjectSingle):
 
 
 class TimeWindow(UserObjectSingle):
+    """Allows you to specify the total required simulated time
 
+    :param time: Required simulated time in seconds
+    :type time: float, optional
+    :param iterations: Required number of iterations
+    :type iterations: int, optional
+    """
     def __init__(self, **kwargs):
         # dont need to define parameters in advance. Just catch errors
         # when they occur
@@ -248,6 +244,11 @@ class TimeWindow(UserObjectSingle):
 
 
 class Messages(UserObjectSingle):
+    """Allows you to control the amount of information displayed on screen when gprMax is run
+
+    :param yn: Whether information should be displayed.
+    :type yn: bool, optional
+    """
 
     def __init__(self, **kwargs):
         # dont need to define parameters in advance. Just catch errors
@@ -276,6 +277,11 @@ class Messages(UserObjectSingle):
 
 
 class Title(UserObjectSingle):
+    """Allows you to include a title for your model.
+
+    :param name: Simulation title.
+    :type name: str, optional
+    """
 
     def __init__(self, **kwargs):
         # dont need to define parameters in advance. Just catch errors
@@ -295,6 +301,12 @@ class Title(UserObjectSingle):
             print('Model title: {}'.format(G.title))
 
 class NumThreads(UserObjectSingle):
+    """Allows you to control how many OpenMP threads (usually the number of
+    physical CPU cores available) are used when running the model.
+
+    :param n: Number of threads.
+    :type n: int, optional
+    """
     def __init__(self, **kwargs):
         # dont need to define parameters in advance. Just catch errors
         # when they occur
@@ -334,7 +346,11 @@ class NumThreads(UserObjectSingle):
 
 # Time step stability factor
 class TimeStepStabilityFactor(UserObjectSingle):
+    """Factor by which to reduce the time step from the CFL limit.
 
+    :param f: Factor to multiple time step.
+    :type f: float, optional
+    """
     def __init__(self, **kwargs):
         # dont need to define parameters in advance. Just catch errors
         # when they occur
@@ -363,7 +379,25 @@ class TimeStepStabilityFactor(UserObjectSingle):
 
 
 class PMLCells(UserObjectSingle):
+    """Allows you to control the number of cells (thickness) of PML that are used
+    on the six sides of the model domain. Specify either single thickness or
+    thickness on each side.
 
+    :param thickness: Thickness of PML on all 6 sides.
+    :type thickness: int, optional
+    :param x0: Thickness of PML on left side.
+    :type x0: int, optional
+    :param y0: Thickness of PML on the front side.
+    :type y0: int, optional
+    :param z0: Thickness of PML on bottom side.
+    :type z0: int, optional
+    :param xmax: Thickness of PML on right side.
+    :type xmax: int, optional
+    :param ymax: Thickness of PML on the back side.
+    :type ymax: int, optional
+    :param zmax: Thickness of PML on top side.
+    :type zmax: int, optional
+    """
     def __init__(self, **kwargs):
         # dont need to define parameters in advance. Just catch errors
         # when they occur
@@ -399,6 +433,11 @@ class PMLCells(UserObjectSingle):
 
 
 class SrcSteps(UserObjectSingle):
+    """Provides a simple method to allow you to move the location of all simple sources
+
+    :param p1: increments (x,y,z) to move all simple sources
+    :type p1: list, non-optional
+    """
 
     def __init__(self, **kwargs):
         # dont need to define parameters in advance. Just catch errors
@@ -417,6 +456,11 @@ class SrcSteps(UserObjectSingle):
 
 
 class RxSteps(UserObjectSingle):
+    """Provides a simple method to allow you to move the location of all simple receivers
+
+    :param p1: increments (x,y,z) to move all simple receivers
+    :type p1: list, non-optional
+    """
 
     def __init__(self, **kwargs):
         # dont need to define parameters in advance. Just catch errors
@@ -434,6 +478,16 @@ class RxSteps(UserObjectSingle):
 
 
 class ExcitationFile(UserObjectSingle):
+    """Allows you to specify an ASCII file that contains columns of amplitude
+    values that specify custom waveform shapes that can be used with sources in the model.
+
+    :param filepath: Excitation file path.
+    :type filepath: str, non-optional
+    :param kind:  passed to the interpolation function (scipy.interpolate.interp1d).
+    :type kind: float, optional
+    :param fill_value:  passed to the interpolation function (scipy.interpolate.interp1d).
+    :type fill_value: float, optional
+    """
 
     def create(self, G, uip):
     # Excitation file for user-defined source waveforms
@@ -502,7 +556,11 @@ class ExcitationFile(UserObjectSingle):
 
 
 class OutputDir(UserObjectSingle):
+    """Allows you to control the directory where output file(s) will be stored.
 
+    :param dir: File path to directory.
+    :type dir: str, non-optional
+    """
     def __init__(self, **kwargs):
         # dont need to define parameters in advance. Just catch errors
         # when they occur
@@ -514,7 +572,12 @@ class OutputDir(UserObjectSingle):
 
 
 class NumberOfModelRuns(UserObjectSingle):
+    """Number of times to run the simulation. This required when using multiple
+    class:Scene instances.
 
+    :param n: File path to directory.
+    :type n: str, non-optional
+    """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.order = 12

@@ -1,7 +1,7 @@
 from .user_inputs import create_user_input_points
 from .materials import create_built_in_materials
 from .cmds_single_use import UserObjectSingle
-from .cmds_single_use import DomainSingle
+from .cmds_single_use import Domain
 from .cmds_single_use import Discretisation
 from .cmds_single_use import TimeWindow
 from .cmds_multiple import UserObjectMulti
@@ -21,7 +21,7 @@ class Scene:
         self.multiple_cmds = []
         self.single_cmds = []
         self.geometry_cmds = []
-        self.essential_cmds = [DomainSingle, TimeWindow, Discretisation]
+        self.essential_cmds = [Domain, TimeWindow, Discretisation]
 
         # fractal box commands have an additional nonuser object which
         # process modifications

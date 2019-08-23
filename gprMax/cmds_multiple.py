@@ -74,16 +74,21 @@ class UserObjectMulti:
 
 
 class Waveform(UserObjectMulti):
-    """Create Waveform different excitation types."""
+    """Allows you to specify waveforms to use with sources in the model.
 
+    :param wave_type: wave type (see main documentation)
+    :type wave_type: str, non-optional
+    :param amp:  The scaling of the maximum amplitude of the waveform
+    :type amp: float, non-optional
+    :param freq: The centre frequency of the waveform (Hertz)
+    :type freq: float, non-optional
+    """
     def __init__(self, **kwargs):
-        """Constructor."""
         super().__init__(**kwargs)
         self.order = 0
         self.hash = '#waveform'
 
     def create(self, grid, uip):
-        """Create the waveform and add it to the grid."""
         try:
             wavetype = self.kwargs['wave_type'].lower()
             amp = self.kwargs['amp']
@@ -113,10 +118,22 @@ class Waveform(UserObjectMulti):
 
 
 class VoltageSource(UserObjectMulti):
-    """User Object for a voltage source."""
+    """Allows you to introduce a voltage source at an electric field location.
 
+    :param polarisation: Polarisation of the source x, y, z
+    :type polarisation: str, non-optional
+    :param p1:  Position of the source x, y, z
+    :type p1: list, non-optional
+    :param resistance: Is the internal resistance of the voltage source in Ohms
+    :type resistance: float, non-optional
+    :param waveform_id: The identifier of the waveform that should be used with the source.
+    :type waveform_id: str, non-optional
+    :param start: Time to delay to start the source
+    :type start: float, optional
+    :param stop: Time to remove the source
+    :type stop: float, optional
+    """
     def __init__(self, **kwargs):
-        """Constructor."""
         super().__init__(**kwargs)
         self.order = 1
         self.hash = '#voltage_source'
@@ -124,8 +141,8 @@ class VoltageSource(UserObjectMulti):
     def create(self, grid, uip):
         """Create voltage source and add it to the grid."""
         try:
-            polarisation = self.kwargs['polarisation'].lower()
             p1 = self.kwargs['p1']
+            polarisation = self.kwargs['polarisation'].lower()
             resistance = self.kwargs['resistance']
             waveform_id = self.kwargs['waveform_id']
 
@@ -190,7 +207,20 @@ class VoltageSource(UserObjectMulti):
 
 
 class HertzianDipole(UserObjectMulti):
-    """User Object for HertzianDipole."""
+    """Allows you to specify a current density term at an electric field location
+    - the simplest excitation, often referred to as an additive or soft source.
+
+    :param polarisation: Polarisation of the source x, y, z
+    :type polarisation: str, non-optional
+    :param p1:  Position of the source x, y, z
+    :type p1: list, non-optional
+    :param waveform_id: The identifier of the waveform that should be used with the source.
+    :type waveform_id: str, non-optional
+    :param start: Time to delay to start the source
+    :type start: float, optional
+    :param stop: Time to remove the source
+    :type stop: float, optional
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""
@@ -278,7 +308,20 @@ class HertzianDipole(UserObjectMulti):
 
 
 class MagneticDipole(UserObjectMulti):
-    """Magnetic Dipole User Object."""
+    """This will simulate an infinitesimal magnetic dipole. This is often referred
+    to as an additive or soft source.
+
+    :param polarisation: Polarisation of the source x, y, z
+    :type polarisation: str, non-optional
+    :param p1:  Position of the source x, y, z
+    :type p1: list, non-optional
+    :param waveform_id: The identifier of the waveform that should be used with the source.
+    :type waveform_id: str, non-optional
+    :param start: Time to delay to start the source
+    :type start: float, optional
+    :param stop: Time to remove the source
+    :type stop: float, optional
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""
@@ -352,8 +395,22 @@ class MagneticDipole(UserObjectMulti):
 
 
 class TransmissionLine(UserObjectMulti):
-    """Magnetic Dipole User Object."""
+    """Allows you to introduce a one-dimensional transmission line model
+    at an electric field location
 
+    :param polarisation: Polarisation of the source x, y, z
+    :type polarisation: str, non-optional
+    :param p1:  Position of the source x, y, z
+    :type p1: list, non-optional
+    :param resistance: Is the internal resistance of the voltage source in Ohms
+    :type resistance: float, non-optional
+    :param waveform_id: The identifier of the waveform that should be used with the source.
+    :type waveform_id: str, non-optional
+    :param start: Time to delay to start the source
+    :type start: float, optional
+    :param stop: Time to remove the source
+    :type stop: float, optional
+    """
     def __init__(self, **kwargs):
         """Constructor."""
         super().__init__(**kwargs)
@@ -434,7 +491,19 @@ class TransmissionLine(UserObjectMulti):
 
 
 class Rx(UserObjectMulti):
-    """Magnetic Dipole User Object."""
+    """Allows you to introduce output points into the model. These are locations
+    where the values of the electric and magnetic field components over the number
+    of iterations of the model will be saved to file. .
+
+    :param p1: Position of the receiver x, y, z
+    :type p1: list, non-optional
+    :param id: Identifier for the receiver
+    :type id: str, non-optional
+    :param outputs: is a list of outputs with this receiver. It can be any
+    selection from Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, or Iz.
+    :type outputs: list, non-optional
+
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""
@@ -483,7 +552,15 @@ class Rx(UserObjectMulti):
         return r
 
 class RxArray(UserObjectMulti):
-    """Receiver Array User Object."""
+    """Provides a simple method of defining multiple output points in the model.
+
+    :param p1: Position of first receiver x, y, z
+    :type p1: list, non-optional
+    :param p2: Position of last receiver x, y, z
+    :type p2: list, non-optional
+    :param dl: Receiver spacing dx, dy, dz
+    :type dl: list, non-optional
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""
