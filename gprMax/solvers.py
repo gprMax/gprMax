@@ -79,7 +79,8 @@ class Solver:
         """Time step the FDTD model."""
         tsolvestart = timer()
         for iteration in iterator:
-            self.updates.store_outputs(iteration)
+            self.updates.grid.iteration = iteration
+            self.updates.store_outputs()
             self.updates.store_snapshots(iteration)
             self.updates.update_magnetic()
             self.updates.update_magnetic_pml()

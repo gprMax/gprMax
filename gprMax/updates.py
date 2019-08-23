@@ -29,16 +29,9 @@ class CPUUpdates:
         self.dispersive_update_a = None
         self.dispersive_update_b = None
 
-    def store_outputs(self, iteration):
+    def store_outputs(self):
         # Store field component values for every receiver and transmission line
-        store_outputs(iteration,
-                      self.grid.Ex,
-                      self.grid.Ey,
-                      self.grid.Ez,
-                      self.grid.Hx,
-                      self.grid.Hy,
-                      self.grid.Hz,
-                      self.grid)
+        store_outputs(self.grid)
 
     def store_snapshots(self, iteration):
         # Store any snapshots

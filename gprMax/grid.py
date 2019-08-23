@@ -151,6 +151,7 @@ class FDTDGrid(Grid):
         self.gpu = None
         self.name = 'Main'
         self.outputdirectory = ''
+        self.iteration = 0
 
     def initialise_geometry_arrays(self):
         """

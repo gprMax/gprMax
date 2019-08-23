@@ -54,12 +54,6 @@ class SubgridUpdates(CPUUpdates):
         for sg_updater in self.updaters:
             sg_updater.hsg_2()
 
-    def store_outputs(self, iteration):
-        super().store_outputs(iteration)
-        """Method to store field outputs for all grid for each main grid iteration."""
-        for updater in self.updaters:
-            updater.store_outputs(iteration)
-
 class SubGridSolver:
     """Solver for subgridding simulations."""
 
@@ -95,8 +89,8 @@ class SubGridSolver:
 
         # The main grid FDTD loop
         for iteration in self.iterations:
-
-            self.updates.store_outputs(iteration)
+            self.updates.grid.iteration = iteration
+            self.updates.store_outputs()
             #self.updates.store_snapshots(iteration)
             self.updates.update_magnetic()
             self.updates.update_magnetic_pml()
@@ -168,6 +162,7 @@ class SubgridUpdater(CPUUpdates):
         for m in range(1, upper_m + 1):
 
             # STD update, interpolate inc. field in time, apply correction
+            self.store_outputs()
             self.update_electric_a()
             self.update_electric_pml()
             precursors.interpolate_magnetic_in_time(int(m + sub_grid.ratio / 2 - 0.5))
@@ -183,6 +178,7 @@ class SubgridUpdater(CPUUpdates):
             sub_grid.update_magnetic_is(precursors)
             self.update_sub_grid_magnetic_sources()
 
+        self.store_outputs()
         self.update_electric_a()
         self.update_electric_pml()
         precursors.calc_exact_magnetic_in_time()
@@ -211,6 +207,7 @@ class SubgridUpdater(CPUUpdates):
             sub_grid.update_magnetic_is(precursors)
             self.update_sub_grid_magnetic_sources()
 
+            self.store_outputs()
             self.update_electric_a()
             self.update_electric_pml()
 
@@ -234,6 +231,7 @@ class SubgridUpdater(CPUUpdates):
             source.update_electric(self.source_iteration, sg.updatecoeffsE, sg.ID,
                                    sg.Ex, sg.Ey, sg.Ez, sg)
         self.source_iteration += 1
+        self.grid.iteration = self.source_iteration
 
     def update_sub_grid_magnetic_sources(self):
         """Update any magnetic sources in the subgrid"""

@@ -24,7 +24,7 @@ import h5py
 from ._version import __version__
 
 
-def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
+def store_outputs(G):
     """Stores field component values for every receiver and transmission line.
 
     Args:
@@ -35,6 +35,10 @@ def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
                     the model.
     """
 
+    iteration = G.iteration
+    #import pdb; pdb.set_trace()
+
+    Ex, Ey, Ez, Hx, Hy, Hz = G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz
     for rx in G.rxs:
         for output in rx.outputs:
             # Store electric or magnetic field components

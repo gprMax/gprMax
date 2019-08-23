@@ -156,6 +156,8 @@ class SubGridHSG(SubGridBase):
                  **kwargs):
         """Constructor."""
 
+        pml_separation = ratio // 2 + 2
+
         # copy over the optional parameters
         kwargs['p1'] = p1
         kwargs['p2'] = p2
