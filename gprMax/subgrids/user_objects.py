@@ -62,9 +62,8 @@ class SubGridBase(UserObjectMulti):
         sg.x1, sg.y1, sg.z1 = np.add([sg.x1_u, sg.y1_u, sg.z1_u], sg.is_os_sep * sg.dx)
         sg.x2, sg.y2, sg.z2 = np.subtract([sg.x2_u, sg.y2_u, sg.z2_u], sg.is_os_sep * sg.dx)
 
-    def set_name(self):
-        self.name = self.kwargs['id']
-
+    def set_name(self, sg):
+        sg.name = self.kwargs['id']
 
     def set_working_region_cells(self, sg):
         """Number of cells in each dimension for the working region."""
@@ -115,7 +114,7 @@ class SubGridBase(UserObjectMulti):
         self.set_working_region_cells(sg)
         self.set_total_cells(sg)
         self.set_iterations(sg, grid)
-        self.set_name()
+        self.set_name(sg)
 
         # Copy a reference for the main grid to the sub grid
         sg.parent_grid = grid
