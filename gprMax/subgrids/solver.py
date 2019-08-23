@@ -18,7 +18,7 @@ from ..updates import CPUUpdates
 
 
 
-def create_solver(G):
+def create_updates(G):
     """Return the solver for the given subgrids."""
     updaters = []
 
@@ -36,9 +36,7 @@ def create_solver(G):
         updaters.append(sgu)
 
     updates = SubgridUpdates(G, updaters)
-    solver = SubGridSolver(G, updates)
-    return solver
-
+    return updates
 
 class SubgridUpdates(CPUUpdates):
 
@@ -174,6 +172,7 @@ class SubgridUpdater(CPUUpdates):
             self.update_electric_pml()
             precursors.interpolate_magnetic_in_time(int(m + sub_grid.ratio / 2 - 0.5))
             sub_grid.update_electric_is(precursors)
+            self.update_electric_b()
 
             self.update_sub_grid_electric_sources()
 
@@ -188,6 +187,7 @@ class SubgridUpdater(CPUUpdates):
         self.update_electric_pml()
         precursors.calc_exact_magnetic_in_time()
         sub_grid.update_electric_is(precursors)
+        self.update_electric_b()
         self.update_sub_grid_electric_sources()
         sub_grid.update_electric_os(G)
 
@@ -216,6 +216,8 @@ class SubgridUpdater(CPUUpdates):
 
             precursors.interpolate_magnetic_in_time(m)
             sub_grid.update_electric_is(precursors)
+            self.update_electric_b()
+
             self.update_sub_grid_electric_sources()
 
         self.update_magnetic()

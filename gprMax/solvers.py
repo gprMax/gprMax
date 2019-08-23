@@ -21,7 +21,8 @@ from gprMax.utilities import timer
 from .grid import FDTDGrid
 from .grid import GPUGrid
 import gprMax.config as config
-from .subgrids.solver import create_solver as create_subgrid_solver
+from .subgrids.solver import create_updates as create_subgrid_updates
+from .subgrids.solver import SubGridSolver
 
 
 def create_G(sim_config):
@@ -42,7 +43,8 @@ def create_solver(G, sim_config):
         updates = GPUUpdates(G)
         solver = Solver(updates)
     elif sim_config.subgrid:
-        solver = create_subgrid_solver(G)
+        updates = create_subgrid_updates(G)
+        solver = SubGridSolver(G, updates)
     else:
         updates = CPUUpdates(G)
         solver = Solver(updates)
@@ -52,8 +54,8 @@ def create_solver(G, sim_config):
     # a large range of function exist to advance the time step for dispersive
     # materials. The correct function is set here  based on the
     # the required numerical precision and dispersive material type.
-    #props = updates.adapt_dispersive_config(config)
-    #updates.set_dispersive_updates(props)
+    props = updates.adapt_dispersive_config(config)
+    updates.set_dispersive_updates(props)
 
 
 class Solver:
