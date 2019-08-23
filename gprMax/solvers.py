@@ -48,14 +48,13 @@ def create_solver(G, sim_config):
     else:
         updates = CPUUpdates(G)
         solver = Solver(updates)
-
-    return solver
-
     # a large range of function exist to advance the time step for dispersive
     # materials. The correct function is set here  based on the
     # the required numerical precision and dispersive material type.
     props = updates.adapt_dispersive_config(config)
     updates.set_dispersive_updates(props)
+    return solver
+
 
 
 class Solver:
