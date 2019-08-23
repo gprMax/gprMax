@@ -45,22 +45,12 @@ class SubGridBase(UserObjectMulti):
 
     def set_main_grid_indices(self, sg, grid, uip, p1, p2):
         """Set subgrid indices related to main grid placement."""
-        # Main grid indices of the sub grid. These are dummy indices. They are
-        # not user internal except for printing to the user
-        sg.i0_u, sg.j0_u, sg.k0_u = p1
-        sg.i1_u, sg.j1_u, sg.k1_u = p2
+        # location of the IS
+        sg.i0, sg.j0, sg.k0 = p1
+        sg.i1, sg.j1, sg.k1 = p2
 
-        # The actual sub gridded area (IS index) is 4 cells in
-        sg.i0, sg.j0, sg.k0 = np.add([sg.i0_u, sg.j0_u, sg.k0_u], sg.is_os_sep)
-        sg.i1, sg.j1, sg.k1 = np.subtract([sg.i1_u, sg.j1_u, sg.k1_u], sg.is_os_sep)
-
-        # Main grid indices of the sub grid. These are dummy indices. They are
-        # not user internal except for printing to the user
-        sg.x1_u, sg.y1_u, sg.z1_u = uip.round_to_grid(p1)
-        sg.x2_u, sg.y2_u, sg.z2_u = uip.round_to_grid(p2)
-
-        sg.x1, sg.y1, sg.z1 = np.add([sg.x1_u, sg.y1_u, sg.z1_u], sg.is_os_sep * sg.dx)
-        sg.x2, sg.y2, sg.z2 = np.subtract([sg.x2_u, sg.y2_u, sg.z2_u], sg.is_os_sep * sg.dx)
+        sg.x1, sg.y1, sg.z1 = uip.round_to_grid(p1)
+        sg.x2, sg.y2, sg.z2 = uip.round_to_grid(p2)
 
     def set_name(self, sg):
         sg.name = self.kwargs['id']

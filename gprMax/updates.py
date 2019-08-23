@@ -59,10 +59,10 @@ class CPUUpdates:
         for pml in self.grid.pmls:
             pml.update_magnetic(self.grid)
 
-    def update_magnetic_sources(self, iteration):
+    def update_magnetic_sources(self):
         # Update magnetic field components from sources
         for source in self.grid.transmissionlines + self.grid.magneticdipoles:
-            source.update_magnetic(iteration,
+            source.update_magnetic(self.grid.iteration,
                                    self.grid.updatecoeffsH,
                                    self.grid.ID,
                                    self.grid.Hx,
@@ -113,10 +113,11 @@ class CPUUpdates:
         for pml in self.grid.pmls:
             pml.update_electric(self.grid)
 
-    def update_electric_sources(self, iteration):
+    def update_electric_sources(self):
         # Update electric field components from sources (update any Hertzian dipole sources last)
         for source in self.grid.voltagesources + self.grid.transmissionlines + self.grid.hertziandipoles:
-            source.update_electric(iteration, self.grid.updatecoeffsE, self.grid.ID, self.grid.Ex, self.grid.Ey, self.grid.Ez, self.grid)
+            source.update_electric(self.grid.iteration, self.grid.updatecoeffsE, self.grid.ID, self.grid.Ex, self.grid.Ey, self.grid.Ez, self.grid)
+        self.grid.iteration += 1
 
     def update_electric_b(self):
         # If there are any dispersive materials do 2nd part of dispersive update

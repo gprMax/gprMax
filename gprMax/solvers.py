@@ -17,12 +17,11 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 from gprMax.updates import CPUUpdates
 from gprMax.updates import GPUUpdates
+from .subgrids.updates import create_updates as create_subgrid_updates
 from gprMax.utilities import timer
 from .grid import FDTDGrid
 from .grid import GPUGrid
 import gprMax.config as config
-from .subgrids.solver import create_updates as create_subgrid_updates
-from .subgrids.solver import SubGridSolver
 
 
 def create_G(sim_config):
@@ -44,7 +43,7 @@ def create_solver(G, sim_config):
         solver = Solver(updates)
     elif sim_config.subgrid:
         updates = create_subgrid_updates(G)
-        solver = SubGridSolver(G, updates)
+        solver = Solver(updates, hsg=True)
     else:
         updates = CPUUpdates(G)
         solver = Solver(updates)
@@ -61,7 +60,7 @@ class Solver:
 
     """Generic solver for Update objects"""
 
-    def __init__(self, updates):
+    def __init__(self, updates, hsg=False):
         """Context for the model to run in. Sub-class this with contexts
         i.e. an MPI context.
 
@@ -70,6 +69,7 @@ class Solver:
             iterator (iterator): can be range() or tqdm()
         """
         self.updates = updates
+        self.hsg = hsg
 
     def get_G(self):
         return self.updates.G
@@ -78,15 +78,18 @@ class Solver:
         """Time step the FDTD model."""
         tsolvestart = timer()
         for iteration in iterator:
-            self.updates.grid.iteration = iteration
             self.updates.store_outputs()
             self.updates.store_snapshots(iteration)
             self.updates.update_magnetic()
             self.updates.update_magnetic_pml()
-            self.updates.update_magnetic_sources(iteration)
+            self.updates.update_magnetic_sources()
+            if self.hsg:
+                self.updates.hsg_2()
             self.updates.update_electric_a()
             self.updates.update_electric_pml()
-            self.updates.update_electric_sources(iteration)
+            self.updates.update_electric_sources()
+            if self.hsg:
+                self.updates.hsg_1()
             self.updates.update_electric_b()
 
         tsolve = timer() - tsolvestart
