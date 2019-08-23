@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.abspath('../..'))
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.mathjax', 'sphinx.ext.autodoc', 'sphinx.ext.napoleon'
+    'sphinx.ext.mathjax', 'sphinx.ext.autodoc', 'sphinx.ext.napoleon', 'sphinx.ext.autodoc'
 ]
 
 # autodoc mock imports
@@ -157,7 +157,7 @@ html_title = 'gprMax User Guide'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
-html_style = 'css/my_theme.css'
+html_style = 'css/theme.css'
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
