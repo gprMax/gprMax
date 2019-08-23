@@ -3,6 +3,7 @@ from .cmds_geometry import UserObjectGeometry
 from ..exceptions import CmdInputError
 from ..materials import Material
 from ..cython.geometry_primitives import build_box
+import gprMax.config as config
 
 from tqdm import tqdm
 import numpy as np
@@ -84,7 +85,7 @@ class Box(UserObjectGeometry):
 
         build_box(xs, xf, ys, yf, zs, zf, numID, numIDx, numIDy, numIDz, averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
 
-        if grid.messages:
+        if config.is_messages():
             if averaging:
                 dielectricsmoothing = 'on'
             else:

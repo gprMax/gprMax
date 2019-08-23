@@ -114,5 +114,5 @@ class AddSurfaceWater(UserObjectGeometry):
         if testwater:
             raise CmdInputError(self.__str__() + ' requires the time step for the model to be less than the relaxation time required to model water.')
 
-        if grid.messages:
+        if config.is_messages():
             tqdm.write('Water on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with depth {:g}m, added to {}.'.format(xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, filldepth, surface.operatingonID))

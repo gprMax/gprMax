@@ -25,7 +25,7 @@ class FractalBox(UserObjectGeometry):
             weighting = np.array(self.kwargs['weighting'])
             n_materials = self.kwargs['n_materials']
             mixing_model_id = self.kwargs['mixing_model_id']
-            ID = self.kwargs['ID']
+            ID = self.kwargs['id']
 
         except KeyError:
             raise CmdInputError(self.__str__() + ' Incorrect parameters')
@@ -83,7 +83,7 @@ class FractalBox(UserObjectGeometry):
         volume.averaging = averagefractalbox
         volume.mixingmodel = mixingmodel
 
-        if config.general['messages']:
+        if config.is_messages():
             if volume.averaging:
                 dielectricsmoothing = 'on'
             else:

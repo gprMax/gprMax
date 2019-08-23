@@ -6,6 +6,7 @@ from ..cython.geometry_primitives import build_cylinder
 
 from tqdm import tqdm
 import numpy as np
+import gprMax.config as config
 
 
 class Cylinder(UserObjectGeometry):
@@ -89,7 +90,7 @@ class Cylinder(UserObjectGeometry):
 
         build_cylinder(x1, y1, z1, x2, y2, z2, r, grid.dx, grid.dy, grid.dz, numID, numIDx, numIDy, numIDz, averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
 
-        if grid.messages:
+        if config.is_messages():
             if averaging:
                 dielectricsmoothing = 'on'
             else:

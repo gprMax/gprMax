@@ -60,5 +60,5 @@ class Edge(UserObjectGeometry):
                 for k in range(zs, zf):
                     build_edge_z(xs, ys, k, material.numID, grid.rigidE, grid.rigidH, grid.ID)
 
-        if grid.messages:
+        if config.is_messages():
             tqdm.write('Edge from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material {} created.'.format(xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, material_id))

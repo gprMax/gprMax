@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from string import Template
+from pathlib import Path
 
 import h5py
 
@@ -93,6 +94,53 @@ __global__ void store_outputs(int NRX, int iteration, const int* __restrict__ rx
 
 
 def write_hdf5_outputfile(outputfile, G):
+    write_hdf5_main_grid_outputfile(outputfile, G)
+    write_hdf5_sub_grid_outputfile(outputfile, G)
+
+
+def write_hdf5_main_grid_outputfile(outputfile, G):
+    """Write an output file in HDF5 format.
+
+    Args:
+        outputfile (str): Name of the output file.
+        Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic field values.
+        G (class): Grid class instance - holds essential parameters describing the model.
+    """
+
+    write_data(outputfile, G)
+
+
+def write_hdf5_sub_grid_outputfile(outputfile, G):
+    """Write an output file in HDF5 format.
+
+    Args:
+        outputfile (str): Name of the output file.
+        Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic field values.
+        G (class): Grid class instance - holds essential parameters describing the model.
+    """
+
+    stem = outputfile.stem
+    suffix = outputfile.suffix
+    parent = outputfile.parent
+
+    for sg in G.subgrids:
+
+        # create an outputfile for each subgrid
+        fp = stem + '_' + sg.name + suffix
+        fp = parent / Path(fp)
+
+        f = write_data(fp, sg)
+
+        # write some additional meta data about the subgrid
+        f.attrs['is_os_sep'] = sg.is_os_sep
+        f.attrs['pml_separation'] = sg.pml_separation
+        f.attrs['subgrid_pml_thickness'] = sg.pmlthickness['x0']
+        f.attrs['filter'] = sg.filter
+        f.attrs['ratio'] = sg.ratio
+        f.attrs['interpolation'] = sg.interpolation
+
+
+def write_data(outputfile, G):
     """Write an output file in HDF5 format.
 
     Args:
@@ -146,3 +194,5 @@ def write_hdf5_outputfile(outputfile, G):
 
         for output in rx.outputs:
             f['/rxs/rx' + str(rxindex + 1) + '/' + output] = rx.outputs[output]
+
+    return f

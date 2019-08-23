@@ -83,7 +83,7 @@ class Sphere(UserObjectGeometry):
 
         build_sphere(xc, yc, zc, r, grid.dx, grid.dy, grid.dz, numID, numIDx, numIDy, numIDz, averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
 
-        if grid.messages:
+        if config.is_messages():
             if averaging:
                 dielectricsmoothing = 'on'
             else:

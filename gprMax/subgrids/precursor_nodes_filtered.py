@@ -464,42 +464,66 @@ class PrecursorNodes(PrecusorNodes2dBase):
 
         slices = [
             ['hy_left_1', False,
+                (self.i0 - 2, slice(j0, j1 + 1, 1), slice(k0, k1, 1)),
                 (self.i0 - 1, slice(j0, j1 + 1, 1), slice(k0, k1, 1)),
-                (self.i0, slice(j0, j1 + 1, 1), slice(k0, k1, 1)), self.Hy],
+                (self.i0, slice(j0, j1 + 1, 1), slice(k0, k1, 1)),
+                (self.i0 + 1, slice(j0, j1 + 1, 1), slice(k0, k1, 1)), self.Hy],
             ['hy_right_1', False,
+                (self.i1 - 2, slice(j0, j1 + 1, 1), slice(k0, k1, 1)),
                 (self.i1 - 1, slice(j0, j1 + 1, 1), slice(k0, k1, 1)),
-                (self.i1, slice(j0, j1 + 1, 1), slice(k0, k1, 1)), self.Hy],
+                (self.i1, slice(j0, j1 + 1, 1), slice(k0, k1, 1)),
+                (self.i1 + 1, slice(j0, j1 + 1, 1), slice(k0, k1, 1)), self.Hy],
             ['hz_left_1', True,
+                (self.i0 - 2, slice(j0, j1, 1), slice(k0, k1 + 1, 1)),
                 (self.i0 - 1, slice(j0, j1, 1), slice(k0, k1 + 1, 1)),
-                (self.i0, slice(j0, j1, 1), slice(k0, k1 + 1, 1)), self.Hz],
+                (self.i0, slice(j0, j1, 1), slice(k0, k1 + 1, 1)),
+                (self.i0 + 1, slice(j0, j1, 1), slice(k0, k1 + 1, 1)), self.Hz],
             ['hz_right_1', True,
+                (self.i1 - 2, slice(j0, j1, 1), slice(k0, k1 + 1, 1)),
                 (self.i1 - 1, slice(j0, j1, 1), slice(k0, k1 + 1, 1)),
-                (self.i1, slice(j0, j1, 1), slice(k0, k1 + 1, 1)), self.Hz],
+                (self.i1, slice(j0, j1, 1), slice(k0, k1 + 1, 1)),
+                (self.i1 + 1, slice(j0, j1, 1), slice(k0, k1 + 1, 1)), self.Hz],
             ['hx_front_1', False,
+                (slice(i0, i1 + 1, 1), self.j0 - 2, slice(k0, k1, 1)),
                 (slice(i0, i1 + 1, 1), self.j0 - 1, slice(k0, k1, 1)),
-                (slice(i0, i1 + 1, 1), self.j0, slice(k0, k1, 1)), self.Hx],
+                (slice(i0, i1 + 1, 1), self.j0, slice(k0, k1, 1)),
+                (slice(i0, i1 + 1, 1), self.j0 + 1, slice(k0, k1, 1)), self.Hx],
             ['hx_back_1', False,
+                (slice(i0, i1 + 1, 1), self.j1 - 2, slice(k0, k1, 1)),
                 (slice(i0, i1 + 1, 1), self.j1 - 1, slice(k0, k1, 1)),
-                (slice(i0, i1 + 1, 1), self.j1, slice(k0, k1, 1)), self.Hx],
+                (slice(i0, i1 + 1, 1), self.j1, slice(k0, k1, 1)),
+                (slice(i0, i1 + 1, 1), self.j1 + 1, slice(k0, k1, 1)), self.Hx],
             ['hz_front_1', True,
+                (slice(i0, i1, 1), self.j0 - 2, slice(k0, k1 + 1, 1)),
                 (slice(i0, i1, 1), self.j0 - 1, slice(k0, k1 + 1, 1)),
-                (slice(i0, i1, 1), self.j0, slice(k0, k1 + 1, 1)), self.Hz],
+                (slice(i0, i1, 1), self.j0, slice(k0, k1 + 1, 1)),
+                (slice(i0, i1, 1), self.j0 + 1, slice(k0, k1 + 1, 1)), self.Hz],
             ['hz_back_1', True,
+                (slice(i0, i1, 1), self.j1 - 2, slice(k0, k1 + 1, 1)),
                 (slice(i0, i1, 1), self.j1 - 1, slice(k0, k1 + 1, 1)),
-                (slice(i0, i1, 1), self.j1, slice(k0, k1 + 1, 1)), self.Hz],
+                (slice(i0, i1, 1), self.j1, slice(k0, k1 + 1, 1)),
+                (slice(i0, i1, 1), self.j1 + 1, slice(k0, k1 + 1, 1)), self.Hz],
             ['hx_bottom_1', False,
                 # check these indexes
+                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k0 - 2),
                 (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k0 - 1),
-                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k0), self.Hx],
+                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k0),
+                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k0 + 1), self.Hx],
             ['hx_top_1', False,
+                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k1 - 2),
                 (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k1 - 1),
-                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k1), self.Hx],
+                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k1),
+                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k1 + 1), self.Hx],
             ['hy_bottom_1', True,
+                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k0 - 2),
                 (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k0 - 1),
-                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k0), self.Hy],
+                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k0),
+                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k0 + 1), self.Hy],
             ['hy_top_1', True,
+                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k1 - 2),
                 (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k1 - 1),
-                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k1), self.Hy]
+                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k1),
+                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k1 + 1), self.Hy]
         ]
 
         for obj in slices:
@@ -528,20 +552,67 @@ class PrecursorNodes(PrecusorNodes2dBase):
 
         # Spatially interpolate nodes
         slices = [
-            ['ex_front_1', True,  (slice(i0, i1, 1), self.j0, slice(k0, k1 + 1, 1)), self.Ex],
-            ['ex_back_1', True,   (slice(i0, i1, 1), self.j1, slice(k0, k1 + 1, 1)), self.Ex],
-            ['ez_front_1', False, (slice(i0, i1 + 1, 1), self.j0, slice(k0, k1, 1)), self.Ez],
-            ['ez_back_1', False,   (slice(i0, i1 + 1, 1), self.j1, slice(k0, k1, 1)), self.Ez],
+            ['ex_front_1', True,
+                (slice(i0, i1, 1), self.j0 - 1, slice(k0, k1 + 1, 1)),
+                (slice(i0, i1, 1), self.j0, slice(k0, k1 + 1, 1)),
+                (slice(i0, i1, 1), self.j0 + 1, slice(k0, k1 + 1, 1)),
+                self.Ex],
+            ['ex_back_1', True,
+                (slice(i0, i1, 1), self.j1 - 1, slice(k0, k1 + 1, 1)),
+                (slice(i0, i1, 1), self.j1, slice(k0, k1 + 1, 1)),
+                (slice(i0, i1, 1), self.j1 + 1, slice(k0, k1 + 1, 1)),
+                self.Ex],
+            ['ez_front_1', False,
+                (slice(i0, i1 + 1, 1), self.j0 - 1, slice(k0, k1, 1)),
+                (slice(i0, i1 + 1, 1), self.j0, slice(k0, k1, 1)),
+                (slice(i0, i1 + 1, 1), self.j0 + 1, slice(k0, k1, 1)),
+                self.Ez],
+            ['ez_back_1', False,
+                (slice(i0, i1 + 1, 1), self.j1 - 1, slice(k0, k1, 1)),
+                (slice(i0, i1 + 1, 1), self.j1, slice(k0, k1, 1)),
+                (slice(i0, i1 + 1, 1), self.j1 + 1, slice(k0, k1, 1)),
+                self.Ez],
+            ['ey_left_1', True,
+                (self.i0 - 1, slice(j0, j1, 1), slice(k0, k1 + 1, 1)),
+                (self.i0, slice(j0, j1, 1), slice(k0, k1 + 1, 1)),
+                (self.i0 + 1, slice(j0, j1, 1), slice(k0, k1 + 1, 1)),
+                self.Ey],
+            ['ey_right_1', True,
+                (self.i1 - 1, slice(j0, j1, 1), slice(k0, k1 + 1, 1)),
+                (self.i1, slice(j0, j1, 1), slice(k0, k1 + 1, 1)),
+                (self.i1 + 1, slice(j0, j1, 1), slice(k0, k1 + 1, 1)),
+                self.Ey],
+            ['ez_left_1', False,
+                (self.i0 - 1, slice(j0, j1 + 1, 1), slice(k0, k1, 1)),
+                (self.i0, slice(j0, j1 + 1, 1), slice(k0, k1, 1)),
+                (self.i0 + 1, slice(j0, j1 + 1, 1), slice(k0, k1, 1)),
+                self.Ez],
+            ['ez_right_1', False,
+                (self.i1 - 1, slice(j0, j1 + 1, 1), slice(k0, k1, 1)),
+                (self.i1, slice(j0, j1 + 1, 1), slice(k0, k1, 1)),
+                (self.i1 + 1, slice(j0, j1 + 1, 1), slice(k0, k1, 1)),
+                self.Ez],
 
-            ['ey_left_1', True,   (self.i0, slice(j0, j1, 1), slice(k0, k1 + 1, 1)), self.Ey],
-            ['ey_right_1', True,  (self.i1, slice(j0, j1, 1), slice(k0, k1 + 1, 1)), self.Ey],
-            ['ez_left_1', False,   (self.i0, slice(j0, j1 + 1, 1), slice(k0, k1, 1)), self.Ez],
-            ['ez_right_1', False,  (self.i1, slice(j0, j1 + 1, 1), slice(k0, k1, 1)), self.Ez],
-
-            ['ex_bottom_1', True, (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k0), self.Ex],
-            ['ex_top_1', True,    (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k1), self.Ex],
-            ['ey_bottom_1', False, (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k0), self.Ey],
-            ['ey_top_1', False,    (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k1), self.Ey]
+            ['ex_bottom_1', True,
+                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k0 - 1),
+                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k0),
+                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k0 + 1),
+                self.Ex],
+            ['ex_top_1', True,
+                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k1 - 1),
+                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k1),
+                (slice(i0, i1, 1), slice(j0, j1 + 1, 1), self.k1 + 1),
+                self.Ex],
+            ['ey_bottom_1', False,
+                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k0 - 1),
+                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k0),
+                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k0 + 1),
+                self.Ey],
+            ['ey_top_1', False,
+                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k1 - 1),
+                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k1),
+                (slice(i0, i1 + 1, 1), slice(j0, j1, 1), self.k1 + 1),
+                self.Ey]
         ]
 
         for obj in slices:
@@ -583,8 +654,17 @@ class PrecursorNodes(PrecusorNodes2dBase):
 
             # Grab the main grid fields used to interpolate across the IS
             # f = self.Hi[slice]
-            f_1 = obj[-1][obj[2]]
-            f_2 = obj[-1][obj[3]]
+
+            f_u_1 = obj[-1][obj[2]]
+            f_u_2 = obj[-1][obj[3]]
+            f_u_3 = obj[-1][obj[4]]
+            f_u_4 = obj[-1][obj[5]]
+
+            f_1 = 0.25 * f_u_1 + 0.5 * f_u_2 + 0.25 * f_u_3
+            f_2 = 0.25 * f_u_2 + 0.5 * f_u_3 + 0.25 * f_u_4
+
+            #f_1 = obj[-1][obj[2]]
+            #f_2 = obj[-1][obj[3]]
             if ('left' in obj[0] or
                 'bottom' in obj[0] or
                     'front' in obj[0]):
@@ -601,6 +681,15 @@ class PrecursorNodes(PrecusorNodes2dBase):
             if f_i == f_t:
                 raise ValueError
 
+            if obj[0] == 'hz_front_1' or obj[0] == 'hz_back_1':
+
+                pre_0 = int(f_i.shape[0] / 2 - 1 - self.ratio // 2)
+                pre_1 = int(f_i.shape[0] / 2 + self.ratio // 2)
+
+                f_i[pre_0 + 1:pre_0 + 1 + self.ratio // 2, :] = np.stack((f_i[pre_0, :], f_i[pre_0, :]))
+                f_i[pre_1 - self.ratio // 2:pre_1, :] = np.stack((f_i[pre_1, :], f_i[pre_1, :]))
+
+
             # discard the outer nodes only required for interpolation
             #f = f_i[self.ratio:-self.ratio, self.ratio:-self.ratio]
             f = f_i
@@ -611,8 +700,24 @@ class PrecursorNodes(PrecusorNodes2dBase):
         self.update_previous_timestep_fields(self.fn_e)
 
         for obj in self.electric_slices:
-            f_m = obj[-1][obj[2]]
+
+            f_u_1 = obj[-1][obj[2]]
+            f_u_2 = obj[-1][obj[3]]
+            f_u_3 = obj[-1][obj[4]]
+
+            f_m = 0.25 * f_u_1 + 0.5 * f_u_2 + 0.25 * f_u_3
+
             f_i = self.interpolate_to_sub_grid(f_m, obj[1])
+
+            # correction interpolated points at the pec traversal point
+            if obj[0] == 'ex_front_1' or obj[0] == 'ex_back_1':
+
+                pre_0 = int(f_i.shape[0] / 2 - 1 - self.ratio // 2)
+                pre_1 = int(f_i.shape[0] / 2 + self.ratio // 2)
+
+                f_i[pre_0 + 1:pre_0 + 1 + self.ratio // 2, :] = np.stack((f_i[pre_0, :], f_i[pre_0, :]))
+                f_i[pre_1 - self.ratio // 2:pre_1, :] = np.stack((f_i[pre_1, :], f_i[pre_1, :]))
+
             f = f_i
             #f = f_i[self.ratio:-self.ratio, self.ratio:-self.ratio]
             setattr(self, obj[0], f)

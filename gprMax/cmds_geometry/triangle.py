@@ -121,7 +121,7 @@ class Triangle(UserObjectGeometry):
 
         build_triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, normal, thickness, grid.dx, grid.dy, grid.dz, numID, numIDx, numIDy, numIDz, averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
 
-        if grid.messages:
+        if config.is_messages():
             if thickness > 0:
                 if averaging:
                     dielectricsmoothing = 'on'

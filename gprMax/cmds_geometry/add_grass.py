@@ -160,5 +160,5 @@ class AddGrass(UserObjectGeometry):
 
         volume.fractalsurfaces.append(surface)
 
-        if grid.messages:
+        if config.is_messages():
             tqdm.write('{} blades of grass on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}, fractal seeding {}, and range {:g}m to {:g}m, added to {}.'.format(n_blades, xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, surface.dimension, surface.seed, limits[0], limits[1], surface.operatingonID))

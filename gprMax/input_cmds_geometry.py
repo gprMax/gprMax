@@ -246,13 +246,13 @@ def process_geometrycmds(geometry):
             ID = tmp[13]
             # without seed
             if len(tmp) == 14:
-                fb = FractalBox(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, mixing_model_id=mixing_model_id, ID=ID, n_materials=n_materials)
+                fb = FractalBox(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, mixing_model_id=mixing_model_id, id=ID, n_materials=n_materials)
             # with seed
             elif len(tmp) == 15:
-                fb = FractalBox(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, mixing_model_id=mixing_model_id, ID=ID, n_materials=n_materials, seed=tmp[14])
+                fb = FractalBox(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, mixing_model_id=mixing_model_id, id=ID, n_materials=n_materials, seed=tmp[14])
             # user specified averaging
             elif len(tmp) == 16:
-                fb = FractalBox(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, mixing_model_id=mixing_model_id, ID=ID, n_materials=n_materials, seed=tmp[14], averaging=tmp[15].lower())
+                fb = FractalBox(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, mixing_model_id=mixing_model_id, id=ID, n_materials=n_materials, seed=tmp[14], averaging=tmp[15].lower())
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
 

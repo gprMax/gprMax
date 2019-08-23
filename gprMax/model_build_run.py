@@ -81,7 +81,7 @@ class ModelBuildRun:
         self.G = G
         self.sim_config = sim_config
         self.model_config = model_config
-        self.printer = Printer(sim_config)
+        self.printer = Printer(config)
         # Monitor memory usage
         self.p = None
 
@@ -130,9 +130,9 @@ class ModelBuildRun:
                 receiver.zcoord = receiver.zcoordorigin + (currentmodelrun - 1) * G.rxsteps[2]
 
         # Write files for any geometry views and geometry object outputs
-        if not (G.geometryviews or G.geometryobjectswrite) and self.sim_config.geometry_only and config.general['messages']:
+        if not (G.geometryviews or G.geometryobjectswrite) and self.sim_config.geometry_only and config.is_messages():
             print(Fore.RED + '\nWARNING: No geometry views or geometry objects to output found.' + Style.RESET_ALL)
-        if config.general['messages']: print()
+        if config.is_messages(): print()
         for i, geometryview in enumerate(G.geometryviews):
             geometryview.set_filename(self.model_config.appendmodelnumber)
             pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
@@ -153,7 +153,7 @@ class ModelBuildRun:
 
         G = self.G
 
-        printer = Printer(sim_config)
+        printer = Printer(config)
         printer.print(model_config.next_model)
 
         scene = self.build_scene()
@@ -300,7 +300,7 @@ class ModelBuildRun:
         """
         G = self.G
 
-        if config.general['messages']:
+        if config.is_messages():
             iterator = tqdm(range(G.iterations), desc='Running simulation, model ' + str(self.model_config
                             .i + 1) + '/' + str(self.sim_config.model_end), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
         else:

@@ -123,5 +123,5 @@ class AddSurfaceRoughness(UserObjectGeometry):
         surface.generate_fractal_surface(grid)
         volume.fractalsurfaces.append(surface)
 
-        if config.general['messages']:
+        if config.is_messages():
             tqdm.write('Fractal surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}, fractal weightings {:g}, {:g}, fractal seeding {}, and range {:g}m to {:g}m, added to {}.'.format(xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, surface.dimension, surface.weighting[0], surface.weighting[1], surface.seed, limits[0], limits[1], surface.operatingonID))

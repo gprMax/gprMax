@@ -169,7 +169,6 @@ class HertzianDipole(Source):
             j = self.ycoord
             k = self.zcoord
             componentID = 'E' + self.polarisation
-
             if self.polarisation == 'x':
                 Ex[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * self.dl * (1 / (G.dx * G.dy * G.dz))
 

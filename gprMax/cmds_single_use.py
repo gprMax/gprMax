@@ -86,7 +86,7 @@ class DomainSingle(UserObjectSingle):
 
         if G.nx == 0 or G.ny == 0 or G.nz == 0:
             raise CmdInputError(self.__str__ + ' requires at least one cell in every dimension')
-        if config.general['messages']:
+        if config.is_messages():
             print('Domain size: {:g} x {:g} x {:g}m ({:d} x {:d} x {:d} = {:g} cells)'.format(self.kwargs['p1'][0], self.kwargs['p1'][1], self.kwargs['p1'][2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)))
 
         # Time step CFL limit (either 2D or 3D); switch off appropriate PMLs for 2D
@@ -114,7 +114,7 @@ class DomainSingle(UserObjectSingle):
         # Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
         G.dt = round_value(G.dt, decimalplaces=d.getcontext().prec - 1)
 
-        if config.general['messages']:
+        if config.is_messages():
             print('Mode: {}'.format(G.mode))
             print('Time step (at CFL limit): {:g} secs'.format(G.dt))
 
@@ -139,7 +139,7 @@ class DomainSingle(UserObjectSingle):
             G.nthreads = hostinfo['physicalcores']
             os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
 
-        if config.general['messages']:
+        if config.is_messages():
             print('Number of CPU (OpenMP) threads: {}'.format(G.nthreads))
         if G.nthreads > hostinfo['physicalcores']:
             print(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, hostinfo['physicalcores']) + Style.RESET_ALL)
@@ -194,7 +194,7 @@ class Discretisation(UserObjectSingle):
         if G.dl[2] <= 0:
             raise CmdInputError('Discretisation requires the z-direction spatial step to be greater than zero')
 
-        if config.general['messages']:
+        if config.is_messages():
             print('Spatial discretisation: {:g} x {:g} x {:g}m'.format(*G.dl))
 
 
@@ -243,7 +243,7 @@ class TimeWindow(UserObjectSingle):
         if not G.timewindow:
             raise CmdInputError('TimeWindow: Specify a time or number of iterations')
 
-        if config.general['messages']:
+        if config.is_messages():
             print('Time window: {:g} secs ({} iterations)'.format(G.timewindow, G.iterations))
 
 
@@ -291,7 +291,7 @@ class Title(UserObjectSingle):
         except KeyError:
             pass
 
-        if config.general['messages']:
+        if config.is_messages():
             print('Model title: {}'.format(G.title))
 
 class NumThreads(UserObjectSingle):
@@ -321,13 +321,13 @@ class NumThreads(UserObjectSingle):
         G.nthreads = n
         os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
 
-        if config.general['messages']:
+        if config.is_messages():
             print('Number of CPU (OpenMP) threads: {}'.format(G.nthreads))
         if G.nthreads > hostinfo['physicalcores']:
             print(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, hostinfo['physicalcores']) + Style.RESET_ALL)
 
         # Print information about any GPU in use
-        if config.general['messages']:
+        if config.is_messages():
             if G.gpu is not None:
                 print('GPU solving using: {} - {}'.format(G.gpu.deviceID, G.gpu.name))
 
@@ -358,7 +358,7 @@ class TimeStepStabilityFactor(UserObjectSingle):
         if f <= 0 or f > 1:
             raise CmdInputError(self.__str__() + ' requires the value of the time step stability factor to be between zero and one')
         G.dt = G.dt * f
-        if config.general['messages']:
+        if config.is_messages():
             print('Time step (modified): {:g} secs'.format(G.dt))
 
 
@@ -412,7 +412,7 @@ class SrcSteps(UserObjectSingle):
         except KeyError:
             raise CmdInputError('#src_steps: requires exactly three parameters')
         # src_steps
-        if config.general['messages']:
+        if config.is_messages():
             print('Simple sources will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.srcsteps[0] * G.dx, G.srcsteps[1] * G.dy, G.srcsteps[2] * G.dz))
 
 
@@ -429,7 +429,7 @@ class RxSteps(UserObjectSingle):
             G.rxsteps = uip.discretise_point(self.kwargs['p1'])
         except KeyError:
             raise CmdInputError('#rx_steps: requires exactly three parameters')
-        if config.general['messages']:
+        if config.is_messages():
             print('All receivers will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.rxsteps[0] * G.dx, G.rxsteps[1] * G.dy, G.rxsteps[2] * G.dz))
 
 
@@ -455,7 +455,7 @@ class ExcitationFile(UserObjectSingle):
             if not os.path.isfile(excitationfile):
                 excitationfile = os.path.abspath(os.path.join(G.inputdirectory, excitationfile))
 
-            if config.general['messages']:
+            if config.is_messages():
                 print('\nExcitation file: {}'.format(excitationfile))
 
             # Get waveform names
@@ -495,7 +495,7 @@ class ExcitationFile(UserObjectSingle):
                 # Interpolate waveform values
                 w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues, **kwargs)
 
-                if config.general['messages']:
+                if config.is_messages():
                     print('User waveform {} created using {} and, if required, interpolation parameters (kind: {}, fill value: {}).'.format(w.ID, timestr, kwargs['kind'], kwargs['fill_value']))
 
                 G.waveforms.append(w)

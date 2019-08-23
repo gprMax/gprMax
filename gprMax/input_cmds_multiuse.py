@@ -143,11 +143,10 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
             if len(tmp) != 3 and len(tmp) < 5:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' has an incorrect number of parameters')
-
             if len(tmp) == 3:
                 rx = Rx(p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])))
             else:
-                rx = Rx(p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])), ID=tmp[3], outputs=tmp[4:])
+                rx = Rx(p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])), id=tmp[3], outputs=tmp[4:])
             scene_objects.append(rx)
 
     # Receiver array
@@ -196,7 +195,7 @@ def process_multicmds(multicmds):
             if len(tmp) != 5:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly five parameters')
 
-            material = Material(er=float(tmp[0]), se=float(tmp[1]), mr=float(tmp[2]), sm=float(tmp[3]), ID=tmp[4])
+            material = Material(er=float(tmp[0]), se=float(tmp[1]), mr=float(tmp[2]), sm=float(tmp[3]), id=tmp[4])
             scene_objects.append(material)
 
     cmdname = '#add_dispersion_debye'
@@ -274,7 +273,7 @@ def process_multicmds(multicmds):
                                  sand_density=float(tmp[3]),
                                  water_fraction_lower=float(tmp[4]),
                                  water_fraction_upper=float(tmp[5]),
-                                 ID=tmp[6])
+                                 id=tmp[6])
             scene_objects.append(soil)
 
     # Geometry views (creates VTK-based geometry files)

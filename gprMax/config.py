@@ -51,6 +51,12 @@ z0 = np.sqrt(m0 / e0)
 general = {'inputfilepath': 'gprMax', 'outputfilepath': 'gprMax', 'messages': True,
            'progressbars': True, 'mode': '3D', 'cpu': True, 'cuda': False, 'opencl': False, 'autotranslate': False}
 
+
+def is_messages():
+    """Function to return messages."""
+    return general['messages']
+
+
 # Store information about host machine
 hostinfo = get_host_info()
 

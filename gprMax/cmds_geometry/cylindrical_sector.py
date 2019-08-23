@@ -126,7 +126,7 @@ class CylindricalSector(UserObjectGeometry):
 
         build_cylindrical_sector(ctr1, ctr2, level, sectorstartangle, sectorangle, r, normal, thickness, grid.dx, grid.dy, grid.dz, numID, numIDx, numIDy, numIDz, averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
 
-        if grid.messages:
+        if config.is_messages():
             if thickness > 0:
                 if averaging:
                     dielectricsmoothing = 'on'

@@ -38,6 +38,7 @@ import numpy as np
 from .exceptions import GeneralError
 
 
+
 def get_terminal_width():
     """Get/set width of terminal being used.
 
@@ -421,8 +422,8 @@ def timer():
 
 class Printer():
 
-    def __init__(self, sim_config):
-        self.printing = sim_config.general['messages']
+    def __init__(self, config):
+        self.printing = config.is_messages()
 
     def print(self, str):
         if self.printing:

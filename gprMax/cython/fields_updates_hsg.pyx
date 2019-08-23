@@ -1,7 +1,23 @@
+# Copyright (C) 2015-2017: The University of Edinburgh
+#                 Authors: Craig Warren and Antonis Giannopoulos
+#
+# This file is part of gprMax.
+#
+# gprMax is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# gprMax is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 cimport numpy as np
 from cython.parallel import prange
-
 
 cpdef void cython_update_electric_os(
         np.float64_t[:, :] updatecoeffsE,
@@ -208,7 +224,7 @@ cpdef void cython_update_is(
         int nwx,
         int nwy,
         int nwz,
-        double[:, :] updatecoeffsE,
+        np.float64_t[:, :] updatecoeffsE,
         np.uint32_t[:, :, :, :] ID,
         int n,
         int offset,
@@ -216,9 +232,9 @@ cpdef void cython_update_is(
         int nwm,
         int nwn,
         int face,
-        double[:, :, :] field,
-        double[:, :] inc_field_l,
-        double[:, :] inc_field_u,
+        np.float64_t[:, :, :] field,
+        np.float64_t[:, :] inc_field_l,
+        np.float64_t[:, :] inc_field_u,
         Py_ssize_t lookup_id,
         int sign_l,
         int sign_u,

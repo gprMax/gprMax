@@ -1,23 +1,17 @@
-# Copyright (C) 2015-2019: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
-#
-# This file is part of gprMax.
-#
-# gprMax is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# gprMax is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-
 from ..grid import FDTDGrid
+
+from ..materials import Material
+
+from scipy.constants import mu_0
+from scipy.constants import epsilon_0
+from scipy.constants import c
+
 import numpy as np
+
+from colorama import init
+from colorama import Fore
+from colorama import Style
+init()
 
 
 class SubGridBase(FDTDGrid):
@@ -26,8 +20,6 @@ class SubGridBase(FDTDGrid):
         super().__init__()
 
         self.mode = '3D'
-
-        # subgridding ratio
         self.ratio = kwargs['ratio']
 
         if self.ratio % 2 == 0:
@@ -60,17 +52,21 @@ class SubGridBase(FDTDGrid):
         self.n_boundary_cells_y = d_to_pml + self.pmlthickness['y0']
         self.n_boundary_cells_z = d_to_pml + self.pmlthickness['z0']
 
-        # vectorise coordinates
-        #self.p0 = np.array(self.i0, self.j0, self.k0)
-        self.n_boundary_cells_p = np.array([self.n_boundary_cells_x, self.n_boundary_cells_y, self.n_boundary_cells_z])
-
-        # interpolation scheme
         self.interpolation = kwargs['interpolation']
 
-    def main_grid_index_to_subgrid_index(self, p):
-        """
-        Return the equivalent spatial index of the global (i, j, k) in the subgrid.
-        Args:
-              p (numpy.array): i, j, k indices of a point in the main grid.
-        """
-        return self.n_boundary_cells_p + (p - self.p0) * self.ratio
+    def calculate_dt(self):
+        self.dt = (1 / (c * np.sqrt(
+                    (1 / self.dx) * (1 / self.dx) +
+                    (1 / self.dy) * (1 / self.dy) +
+                    (1 / self.dz) * (1 / self.dz))))
+
+
+    def main_grid_index_to_subgrid_index(self, i, j, k):
+        i_s = self.n_boundary_cells_x + (i - self.i0) * self.ratio
+        j_s = self.n_boundary_cells_y + (j - self.j0) * self.ratio
+        k_s = self.n_boundary_cells_z + (k - self.k0) * self.ratio
+
+        return (i_s, j_s, k_s)
+
+    def initialise_geometry_arrays(self):
+        super().initialise_geometry_arrays()

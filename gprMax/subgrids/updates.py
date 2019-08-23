@@ -16,6 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 from ..updates import CPUUpdates
+from gprMax.utilities import timer
+from ..cython.fields_updates_normal import update_electric
+from ..cython.fields_updates_normal import update_magnetic
 
 
 def create_subgrid_updates(G):
@@ -41,12 +44,89 @@ def create_subgrid_updates(G):
     return updates
 
 
+class SubgridSolver:
+
+    """Generic solver for Update objects"""
+
+    def __init__(self, updates):
+        """Context for the model to run in. Sub-class this with contexts
+        i.e. an MPI context.
+
+        Args:
+            updates (Updates): updates contains methods to run FDTD algorithm
+            iterator (iterator): can be range() or tqdm()
+        """
+        self.updates = updates
+
+    def get_G(self):
+        return self.updates.grid
+
+    def update_electric_1(self):
+        """Method to update E fields, PML and electric sources"""
+        G = self.get_G()
+        update_electric(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
+
+        # Update electric field components with the PML correction
+        for pml in G.pmls:
+            pml.update_electric(G)
+        # Update electric field components from sources (update any Hertzian dipole sources last)
+        for source in G.voltagesources + G.transmissionlines + G.hertziandipoles:
+            source.update_electric(G.iteration, G.updatecoeffsE, G.ID, G.Ex, G.Ey, G.Ez, G)
+
+    def update_electric_2(self):
+        return
+
+    def update_magnetic(self):
+        """Method to update H fields, PML and magnetic sources"""
+        # Update magnetic field components
+        G = self.get_G()
+
+        update_magnetic(G.nx, G.ny, G.nz, G.nthreads, G.updatecoeffsH, G.ID, G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz)
+
+        # Update magnetic field components with the PML correction
+        for pml in G.pmls:
+            pml.update_magnetic(G)
+
+        # Update magnetic field components from sources
+        for source in G.transmissionlines + G.magneticdipoles:
+            source.update_magnetic(G.iteration, G.updatecoeffsH, G.ID, G.Hx, G.Hy, G.Hz, G)
+
+    def solve(self, iterator):
+        """Time step the FDTD model."""
+        tsolvestart = timer()
+
+        for iteration in iterator:
+            # Update main grid electric field components including sources
+            self.updates.store_outputs(iteration)
+            self.update_electric_1()
+            #self.updates.update_electric_pml()
+            #self.updates.update_electric_sources(iteration)
+            # Update the fields in the subgrids / main grid
+            self.updates.hsg_1()
+            # apply 2nd dispersive update after OS updates
+            #self.updates.update_electric_b()
+            # Update main grid electric field components including sources
+            self.update_magnetic()
+            #self.updates.update_magnetic_pml()
+            #self.updates.update_magnetic_sources(iteration)
+            # Update the fields in the subgrids / main grid
+            self.updates.hsg_2()
+
+        tsolve = timer() - tsolvestart
+        return tsolve
+
+
 class SubgridUpdates(CPUUpdates):
     """Top level subgrid updater. Manages the collection of subgrids."""
 
     def __init__(self, G, subgrid_updaters):
         super().__init__(G)
         self.subgrid_updaters = subgrid_updaters
+
+    def store_outputs(self, iteration):
+        super().store_outputs(iteration)
+        for updater in self.subgrid_updaters:
+            updater.store_outputs(iteration)
 
     def hsg_1(self):
         """Method to update the subgrids over the first phase"""
@@ -57,14 +137,6 @@ class SubgridUpdates(CPUUpdates):
         """Method to update the subgrids over the second phase"""
         for sg_updater in self.subgrid_updaters:
             sg_updater.hsg_2()
-
-    def update_electric_a(self):
-        super().update_electric_a()
-        self.hsg_1()
-
-    def update_magnetic(self):
-        super().update_magnetic()
-        self.hsg_2()
 
     def set_dispersive_updates(self, props):
         # set the dispersive update functions for the main grid updates
@@ -94,15 +166,22 @@ class SubgridUpdater(CPUUpdates):
         self.source_iteration = 0
         self.G = G
 
+    def update_electric_2(self):
+        return
+
+    def update_electric_1(self):
+        subgrid = self.grid
+        # Update electric field components
+        # All materials are non-dispersive so do standard update
+        update_electric(subgrid.nx, subgrid.ny, subgrid.nz, subgrid.nthreads, subgrid.updatecoeffsE, subgrid.ID, subgrid.Ex, subgrid.Ey, subgrid.Ez, subgrid.Hx, subgrid.Hy, subgrid.Hz)
+
     def hsg_1(self):
-        """This is the first half of the subgrid update. Takes the time step
-        up to the main grid magnetic update"""
+        G = self.G
+        sub_grid = self.grid
+
         precursors = self.precursors
 
         precursors.update_electric()
-
-        # the subgrid
-        sub_grid = self.grid
 
         upper_m = int(sub_grid.ratio / 2 - 0.5)
 
@@ -110,17 +189,28 @@ class SubgridUpdater(CPUUpdates):
 
             # store_outputs(self.grid)
             # STD update, interpolate inc. field in time, apply correction
-            self.update_electric_a()
+            self.update_electric_1()
 
             for pml in sub_grid.pmls:
                 pml.update_electric(sub_grid)
             self.update_sub_grid_electric_sources()
             precursors.interpolate_magnetic_in_time(int(m + sub_grid.ratio / 2 - 0.5))
             sub_grid.update_electric_is(precursors)
-            self.update_electric_b()
+            self.update_electric_2()
 
             # STD update, interpolate inc. field in time, apply correction
-            self.update_magnetic()
+            update_magnetic(sub_grid.nx,
+                            sub_grid.ny,
+                            sub_grid.nz,
+                            G.nthreads,
+                            sub_grid.updatecoeffsH,
+                            sub_grid.ID,
+                            sub_grid.Ex,
+                            sub_grid.Ey,
+                            sub_grid.Ez,
+                            sub_grid.Hx,
+                            sub_grid.Hy,
+                            sub_grid.Hz)
 
             for pml in sub_grid.pmls:
                 pml.update_magnetic(sub_grid)
@@ -129,7 +219,7 @@ class SubgridUpdater(CPUUpdates):
             self.update_sub_grid_magnetic_sources()
 
         # store_outputs(self.grid)
-        self.update_electric_a()
+        self.update_electric_1()
         for pml in sub_grid.pmls:
             pml.update_electric(sub_grid)
 
@@ -137,13 +227,12 @@ class SubgridUpdater(CPUUpdates):
 
         precursors.calc_exact_magnetic_in_time()
         sub_grid.update_electric_is(precursors)
-        self.update_electric_b()
+        self.update_electric_2()
 
-        sub_grid.update_electric_os(self.G)
+        sub_grid.update_electric_os(G)
 
     def hsg_2(self):
-        """This is the first half of the subgrid update. Takes the time step
-        up to the main grid electric update"""
+        G = self.G
         sub_grid = self.grid
         precursors = self.precursors
 
@@ -153,7 +242,18 @@ class SubgridUpdater(CPUUpdates):
 
         for m in range(1, upper_m + 1):
 
-            self.update_magnetic()
+            update_magnetic(sub_grid.nx,
+                            sub_grid.ny,
+                            sub_grid.nz,
+                            G.nthreads,
+                            sub_grid.updatecoeffsH,
+                            sub_grid.ID,
+                            sub_grid.Ex,
+                            sub_grid.Ey,
+                            sub_grid.Ez,
+                            sub_grid.Hx,
+                            sub_grid.Hy,
+                            sub_grid.Hz)
 
             for pml in sub_grid.pmls:
                 pml.update_magnetic(sub_grid)
@@ -163,7 +263,7 @@ class SubgridUpdater(CPUUpdates):
             self.update_sub_grid_magnetic_sources()
 
             # store_outputs(self.grid)
-            self.update_electric_a()
+            self.update_electric_1()
 
             for pml in sub_grid.pmls:
                 pml.update_electric(sub_grid)
@@ -171,9 +271,22 @@ class SubgridUpdater(CPUUpdates):
 
             precursors.interpolate_magnetic_in_time(m)
             sub_grid.update_electric_is(precursors)
-            self.update_electric_b()
+            self.update_electric_2()
 
-        self.update_magnetic()
+        #sub_grid.update_magnetic_os(G)
+
+        update_magnetic(sub_grid.nx,
+                        sub_grid.ny,
+                        sub_grid.nz,
+                        G.nthreads,
+                        sub_grid.updatecoeffsH,
+                        sub_grid.ID,
+                        sub_grid.Ex,
+                        sub_grid.Ey,
+                        sub_grid.Ez,
+                        sub_grid.Hx,
+                        sub_grid.Hy,
+                        sub_grid.Hz)
 
         for pml in sub_grid.pmls:
             pml.update_magnetic(sub_grid)
@@ -182,7 +295,7 @@ class SubgridUpdater(CPUUpdates):
         sub_grid.update_magnetic_is(precursors)
         self.update_sub_grid_magnetic_sources()
 
-        sub_grid.update_magnetic_os(self.G)
+        sub_grid.update_magnetic_os(G)
 
     def update_sub_grid_electric_sources(self):
         """Update any electric sources in the subgrid"""
