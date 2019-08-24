@@ -9,7 +9,15 @@ from tqdm import tqdm
 
 
 class Edge(UserObjectGeometry):
-    """User class for edge command."""
+    """Allows you to introduce a wire with specific properties into the model.
+
+    :param p1: Starting point of the edge.
+    :type p1: list, non-optional
+    :param p2: Ending point of the edge.
+    :type p2: list, non-optional
+    :param material_id: Material identifier that must correspond to material that has already been defined.
+    :type material_id: str, non-optional
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""

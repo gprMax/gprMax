@@ -10,8 +10,21 @@ import gprMax.config as config
 
 
 class Cylinder(UserObjectGeometry):
-    """User class for edge command."""
+    """Allows you to introduce a circular cylinder into the model.
 
+    :param p1: The coordinates (x,y,z) of the centre of the first face of the cylinder.
+    :type p1: list, non-optional
+    :param p2: The coordinates (x,y,z) of the centre of the second face of the cylinder.
+    :type p2: list, non-optional
+    :param r: is the radius of the cylinder.
+    :type r: float, non-optional
+    :param material_id: Material identifier that must correspond to material that has already been defined.
+    :type material_id: str, non-optional
+    :param material_ids:  Material identifiers in the x, y, z directions.
+    :type material_ids: list, non-optional
+    :param averaging:  y or n, used to switch on and off dielectric smoothing.
+    :type averaging: str, non-optional
+    """
     def __init__(self, **kwargs):
         """Constructor."""
         super().__init__(**kwargs)

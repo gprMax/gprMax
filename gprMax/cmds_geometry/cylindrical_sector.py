@@ -9,7 +9,31 @@ import numpy as np
 
 
 class CylindricalSector(UserObjectGeometry):
-    """User class for edge command."""
+    """Allows you to introduce a cylindrical sector (shaped like a slice of pie) into the model.
+
+    :param normal: Direction of the axis of the cylinder from which the sector is defined and can be x, y, or z..
+    :type normal: str, non-optional
+    :param ctr1: First coordinate of the centre of the cylindrical sector.
+    :type ctr1: float, non-optional
+    :param ctr2:  Second coordinate of the centre of the cylindrical sector.
+    :type ctr2: Float, non-optional
+    :param extent1: First thickness from the centre of the cylindrical sector.
+    :type extent1: float, non-optional
+    :param extent2: Second thickness from the centre of the cylindrical sector.
+    :type extent2: float, non-optional
+    :param r: is the radius of the cylindrical sector.
+    :type r: float, non-optional
+    :param start: The starting angle (in degrees) for the cylindrical sector.
+    :type start: float, non-optional
+    :param end: The angle (in degrees) swept by the cylindrical sector
+    :type end: float, non-optional
+    :param material_id: Material identifier that must correspond to material that has already been defined.
+    :type material_id: str, non-optional
+    :param material_ids:  Material identifiers in the x, y, z directions.
+    :type material_ids: list, non-optional
+    :param averaging:  y or n, used to switch on and off dielectric smoothing.
+    :type averaging: str, non-optional
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""

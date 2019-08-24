@@ -11,7 +11,21 @@ import numpy as np
 
 
 class AddGrass(UserObjectGeometry):
-    """User class for Grass command."""
+    """Allows you to add grass with roots to a :class:`FractalBox` in the model.
+
+    :param p1: The lower left (x,y,z) coordinates of a surface on a :class:`FractalBox`
+    :type p1: list, non-optional
+    :param p2: The lower left (x,y,z) coordinates of a surface on a :class:`FractalBox`
+    :type p2: list, non-optional
+    :param frac_dim: is the fractal dimension which, for an orthogonal parallelepiped, should take values between zero and three.
+    :type frac_dim: float, non-optional
+    :param limits: Define lower and upper limits for a range over which the height of the blades of grass can vary.
+    :type limits: list, non-optional
+    :param n_blades: The number of blades of grass that should be applied to the surface area.
+    :type n_blades: int, non-optional
+    :param fractal_box_id:  An identifier for the :class:`FractalBox` that the grass should be applied to
+    :type fractal_box_id: list, non-optional
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""

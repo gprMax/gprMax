@@ -9,7 +9,27 @@ import numpy as np
 
 
 class FractalBox(UserObjectGeometry):
-    """User class for edge command."""
+    """Allows you to introduce an orthogonal parallelepiped with fractal distributed properties which are related to a mixing model or normal material into the model.
+
+    :param p1: The lower left (x,y,z) coordinates of the parallelepiped
+    :type p1: list, non-optional
+    :param p2: The upper right (x,y,z) coordinates of the parallelepiped
+    :type p2: list, non-optional
+    :param frac_dim: The fractal dimension which, for an orthogonal parallelepiped, should take values between zero and three.
+    :type frac_dim: float, non-optional
+    :param weighting: Weightings in the x, y, z direction of the surface.
+    :type weighting: list, non-optional
+    :param n_materials: Number of materials to use for the fractal distribution (defined according to the associated mixing model). This should be set to one if using a normal material instead of a mixing model.
+    :type n_materials: list, non-optional
+    :param mixing_model_id: Is an identifier for the associated mixing model or material.
+    :type mixing_model_id: list, non-optional
+    :param id: Identifier for the fractal box itself.
+    :type id: list, non-optional
+    :param seed: Controls the seeding of the random number generator used to create the fractals..
+    :type seed: float, non-optional
+    :param averaging:  y or n, used to switch on and off dielectric smoothing.
+    :type averaging: str, non-optional
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""
