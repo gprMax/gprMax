@@ -10,11 +10,11 @@ import numpy as np
 
 
 class AddSurfaceRoughness(UserObjectGeometry):
-    """Allows you to add grass with roots to a :class:`FractalBox` in the model.
+    """Allows you to add grass with roots to a :class:`gprMax.cmds_geometry.fractal_box.FractalBox` in the model.
 
-    :param p1: The lower left (x,y,z) coordinates of a surface on a :class:`FractalBox`
+    :param p1: The lower left (x,y,z) coordinates of a surface on a :class:`gprMax.cmds_geometry.fractal_box.FractalBox`
     :type p1: list, non-optional
-    :param p2: The lower left (x,y,z) coordinates of a surface on a :class:`FractalBox`
+    :param p2: The lower left (x,y,z) coordinates of a surface on a :class:`gprMax.cmds_geometry.fractal_box.FractalBox`
     :type p2: list, non-optional
     :param frac_dim: is the fractal dimension which, for an orthogonal parallelepiped, should take values between zero and three.
     :type frac_dim: float, non-optional
@@ -22,7 +22,7 @@ class AddSurfaceRoughness(UserObjectGeometry):
     :type weighting: list, non-optional
     :param limits: Define lower and upper limits for a range over which the roughness can vary.
     :type limits: list, non-optional
-    :param fractal_box_id:  An identifier for the :class:`FractalBox` that the roughness should be applied to
+    :param fractal_box_id:  An identifier for the :class:`gprMax.cmds_geometry.fractal_box.FractalBox` that the roughness should be applied to
     :type fractal_box_id: list, non-optional
     :param seed:  Is an optional parameter which controls the seeding of the random number generator used to create the fractals.
     :type seed: int, optional

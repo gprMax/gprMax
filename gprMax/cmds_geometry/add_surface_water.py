@@ -8,15 +8,15 @@ from tqdm import tqdm
 
 
 class AddSurfaceWater(UserObjectGeometry):
-    """Allows you to add surface water to a :class:`FractalBox` in the model.
+    """Allows you to add surface water to a :class:`gprMax.cmds_geometry.fractal_box.FractalBox` in the model.
 
-    :param p1: The lower left (x,y,z) coordinates of a surface on a :class:`FractalBox`
+    :param p1: The lower left (x,y,z) coordinates of a surface on a :class:`gprMax.cmds_geometry.fractal_box.FractalBox`
     :type p1: list, non-optional
-    :param p2: The lower left (x,y,z) coordinates of a surface on a :class:`FractalBox`
+    :param p2: The lower left (x,y,z) coordinates of a surface on a :class:`gprMax.cmds_geometry.fractal_box.FractalBox`
     :type p2: list, non-optional
     :param depth: Defines the depth of the water, which should be specified relative to the dimensions of the #fractal_box that the surface water is being applied.
     :type depth: float, non-optional
-    :param fractal_box_id:  An identifier for the :class:`FractalBox` that the water should be applied to
+    :param fractal_box_id:  An identifier for the :class:`gprMax.cmds_geometry.fractal_box.FractalBox` that the water should be applied to
     :type fractal_box_id: list, non-optional
     """
 
