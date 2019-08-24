@@ -5,6 +5,7 @@ from ..utilities import round_value
 from ..materials import Material
 from ..fractals import FractalSurface
 from ..fractals import Grass
+import gprMax.config as config
 
 from tqdm import tqdm
 import numpy as np

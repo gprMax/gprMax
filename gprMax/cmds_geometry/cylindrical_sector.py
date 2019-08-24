@@ -6,6 +6,8 @@ from ..cython.geometry_primitives import build_cylindrical_sector
 
 from tqdm import tqdm
 import numpy as np
+import gprMax.config as config
+
 
 
 class CylindricalSector(UserObjectGeometry):

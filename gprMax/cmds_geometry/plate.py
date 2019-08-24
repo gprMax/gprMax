@@ -4,6 +4,7 @@ from ..exceptions import CmdInputError
 from ..cython.geometry_primitives import build_face_yz
 from ..cython.geometry_primitives import build_face_xz
 from ..cython.geometry_primitives import build_face_xy
+import gprMax.config as config
 
 from tqdm import tqdm
 

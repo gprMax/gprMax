@@ -3,6 +3,7 @@ from .cmds_geometry import UserObjectGeometry
 from ..exceptions import CmdInputError
 from ..utilities import round_value
 from ..materials import Material
+import gprMax.config as config
 
 from tqdm import tqdm
 

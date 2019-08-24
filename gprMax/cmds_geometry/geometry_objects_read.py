@@ -2,6 +2,7 @@ from .cmds_geometry import UserObjectGeometry
 from ..exceptions import CmdInputError
 import os
 from tqdm import tqdm
+import gprMax.config as config
 
 
 class GeometryObjectsRead(UserObjectGeometry):

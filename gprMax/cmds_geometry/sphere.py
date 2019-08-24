@@ -3,6 +3,7 @@ from .cmds_geometry import UserObjectGeometry
 from ..exceptions import CmdInputError
 from ..materials import Material
 from ..cython.geometry_primitives import build_sphere
+import gprMax.config as config
 
 from tqdm import tqdm
 import numpy as np
