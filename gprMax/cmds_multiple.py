@@ -624,7 +624,21 @@ class RxArray(UserObjectMulti):
 
 
 class Snapshot(UserObjectMulti):
-    """Snapshot User Object."""
+    """Provides a simple method of defining multiple output points in the model.
+
+    :param p1: The lower left (x,y,z) coordinates of the volume of the snapshot in metres.
+    :type p1: list, non-optional
+    :param p2: the upper right (x,y,z) coordinates of the volume of the snapshot in metres.
+    :type p2: list, non-optional
+    :param dl: are the spatial discretisation of the snapshot in metres.
+    :type dl: list, non-optional
+    :param filename: is the name of the file where the snapshot will be stored
+    :type filename: str, non-optional
+    :param time:  are the time in seconds (float) or the iteration number (integer) which denote the point in time at which the snapshot will be taken.
+    :type time: float, non-optional
+    :param iterations:  are the iteration number (integer) which denote the point in time at which the snapshot will be taken.
+    :type iterations: int, non-optional
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""
@@ -683,7 +697,17 @@ class Snapshot(UserObjectMulti):
         grid.snapshots.append(s)
 
 class Material(UserObjectMulti):
-    """Material User Object."""
+    """Allows you to introduce a material into the model described by a set of constitutive parameters.
+
+    :param er: The relative permittivity.
+    :type er: float, non-optional
+    :param se: The conductivity (Siemens/metre).
+    :type se: float, non-optional
+    :param mr: The relative permeability.
+    :type mr: float, non-optional
+    :param sm: The magnetic loss.
+    :type sm: float, non-optional
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""
@@ -735,7 +759,17 @@ class Material(UserObjectMulti):
 
 
 class AddDebyeDispersion(UserObjectMulti):
-    """Material User Object."""
+    """Allows you to add dispersive properties to an already defined :class:`Material` based on a multiple pole Debye formulation
+
+    :param n_poles: The number of Debye poles.
+    :type n_poles: float, non-optional
+    :param er_delta: The difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency for each pole
+    :type er_delta: list, non-optional
+    :param tau: The relaxation time for each pole.
+    :type tau: list, non-optional
+    :param material_ids: Material ids to apply disperive properties.
+    :type material_ids: list, non-optional
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""
@@ -783,7 +817,19 @@ class AddDebyeDispersion(UserObjectMulti):
 
 
 class AddLorentzDispersion(UserObjectMulti):
-    """Material User Object."""
+    """Allows you to add dispersive properties to an already defined :class:`Material` based on a multiple pole Lorentz formulation
+
+    :param n_poles: The number of Lorentz poles.
+    :type n_poles: float, non-optional
+    :param er_delta: The difference between the zero-frequency relative permittivity and the relative permittivity at infinite frequency for each pole
+    :type er_delta: list, non-optional
+    :param omega: The frequency for each pole.
+    :type omega: list, non-optional
+    :param delta: The damping coefficient (Hertz) for each pole.
+    :type delta: list, non-optional
+    :param material_ids: Material ids to apply disperive properties.
+    :type material_ids: list, non-optional
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""
@@ -831,7 +877,17 @@ class AddLorentzDispersion(UserObjectMulti):
 
 
 class AddDrudeDispersion(UserObjectMulti):
-    """Material User Object."""
+    """Allows you to add dispersive properties to an already defined :class:`Material` based on a multiple pole Drude formulation
+
+    :param n_poles: The number of Drude poles.
+    :type n_poles: float, non-optional
+    :param tau: The inverse of the relaxation time for each pole.
+    :type tau: list, non-optional
+    :param omega: The frequency for each pole.
+    :type omega: list, non-optional
+    :param alpha: The inverse of the relaxation time.
+    :type alpha: list, non-optional
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""
@@ -876,7 +932,21 @@ class AddDrudeDispersion(UserObjectMulti):
 
 
 class SoilPeplinski(UserObjectMulti):
-    """Material User Object."""
+    """Allows you to use a mixing model for soils proposed by Peplinski (http://dx.doi.org/10.1109/36.387598
+
+    :param sand_fraction: The sand fraction of the soil.
+    :type sand_fraction: float, non-optional
+    :param clay_fraction: The clay from of the soil.
+    :type clay_fraction: float, non-optional
+    :param bulk_density: The bulk density of the soil in grams per centimetre cubed.
+    :type bulk_density: float, non-optional
+    :param sand_density: The density of the sand particles in the soil in grams per centimetre cubed.
+    :type sand_density: float, non-optional
+    :param water_fraction_lower: Lower boundary volumetric water fraction of the soil.
+    :type water_fraction_lower: float, non-optional
+    :param water_fraction_upper:  Upper boundary volumetric water fraction of the soil.
+    :type water_fraction_upper: float, non-optional
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""
@@ -924,7 +994,20 @@ class SoilPeplinski(UserObjectMulti):
 
 
 class GeometryView(UserObjectMulti):
-    """Material User Object."""
+    """Allows you output to file(s) information about the geometry of model.
+
+    :param p1: The lower left (x,y,z) coordinates of the volume of the geometry view in metres.
+    :type p1: list, non-optional
+    :param p2: The upper right (x,y,z) coordinates of the volume of the geometry view in metres.
+    :type p2: list, non-optional
+    :param dl: The spatial discretisation of the geometry view in metres.
+    :type dl: list, non-optional
+    :param output_type: can be either n (normal) or f (fine).
+    :type output_type: str, non-optional
+    :param filename: the filename of the file where the geometry view will be stored in the same directory as the input file.
+    :type filename: str, non-optional
+
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""
@@ -996,7 +1079,16 @@ class GeometryView(UserObjectMulti):
 
 
 class GeometryObjectsWrite(UserObjectMulti):
-    """Material User Object."""
+    """Allows you to write geometry generated in a model to file.
+
+    :param p1: The lower left (x,y,z) coordinates of the volume of the output in metres.
+    :type p1: list, non-optional
+    :param p2: The upper right (x,y,z) coordinates of the volume of the output in metres.
+    :type p2: list, non-optional
+    :param filename: the filename of the file where the output will be stored in the same directory as the input file.
+    :type filename: str, non-optional
+
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""
@@ -1026,7 +1118,33 @@ class GeometryObjectsWrite(UserObjectMulti):
 
 
 class PMLCFS(UserObjectMulti):
-    """Material User Object."""
+    """Allows you to write geometry generated in a model to file.
+
+    :param alphascalingprofile: The type of scaling to use for the CFS α parameter
+    :type alphascalingprofile: float, non-optional
+    :param alphascalingdirection: The direction of the scaling to use for the CFS α parameter.
+    :type alphascalingdirection: float, non-optional
+    :param alphamin: Minimum value for the CFS α parameter.
+    :type alphamin: str, non-optional
+    :param alphamax: Minimum value for the CFS α parameter.
+    :type alphamax: str, non-optional
+    :param kappascalingprofile: The type of scaling to use for the CFS κ parameter
+    :type kappascalingprofile: float, non-optional
+    :param kappascalingdirection: The direction of the scaling to use for the CFS κ parameter.
+    :type kappascalingdirection: float, non-optional
+    :param kappamin: Minimum value for the CFS κ parameter.
+    :type kappamin: str, non-optional
+    :param kappamax: Minimum value for the CFS κ parameter.
+    :type kappamax: str, non-optional
+    :param sigmascalingprofile: The type of scaling to use for the CFS σ parameter
+    :type sigmascalingprofile: float, non-optional
+    :param sigmascalingdirection: The direction of the scaling to use for the CFS σ parameter.
+    :type sigmascalingdirection: float, non-optional
+    :param sigmamin: Minimum value for the CFS σ parameter.
+    :type sigmamin: str, non-optional
+    :param sigmamax: Minimum value for the CFS σ parameter.
+    :type sigmamax: str, non-optional
+    """
 
     count = 0
 
