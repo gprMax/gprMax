@@ -1,8 +1,6 @@
 # import the gprMax module
 import gprMax
 
-
-
 # Create simulation objects. The equivalent input commands are given.
 
 #title: Wire antenna - half-wavelength dipole in free-space

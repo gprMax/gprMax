@@ -1,51 +1,101 @@
-.. _commands:
+.. _api:
 
 *******************
 API
 *******************
 
-gprMax can be also be run using its API in additional to input file commands. For instance,
+Introduction
+==================
+In additional to input file command interface gprMax can also be run using its API. The usage of the API differs from the use of the Python blocks syntax as follows. In the API gprMax functionality is called directly from any Python file via the gprMax module. Using the Python blocks syntax the Python code is executed within an embedded interpreter. The API has the advantage that it can be included within any Python file and can be included within any Python script.
+
+There are several advantages to using API. Firstly, users can take advantage of the Python language. For instance, the structural elements of Python can be utilised more easily. gprMax objects can be used directly within functions, classes, modules and packages. In this way collections of components can be defined, reused and modified. For example, multiple SMA type connectors can be imported as a module and combined with an antenna from another module.
+
+The API also allows gprMax to interface with other Python libraries. For example, the API could be used to create a parametric antenna and the external library Scipy could then be used to optimise its parameters. Although, this is possible using Python blocks syntax, the script file can also be debugged.
+
+The syntax of the API is generally more verbose than the input file command syntax. However, for input file commands where there are an undefined number of parameters, such as adding dispersive properties, the user may find the API more manageable.
+
+Example
+==================
+
+The following example is used to give an introduction to the gprMax API. the example file is found in
+``user_models/antenna_wire_dipole_fs.py``.
+
+First, import the gprMax module.
 
 .. code-block:: python
 
   import gprMax
 
-  # Make simulation objects
+Next, simulation objects for the simulation are created from the gprMax module. Each input file command is available as an object. Simulation objects are created by passing the object parameters as key=value option arguments. The following example shows the creation of simulation objects and also their equivalent input file command for clarity.
 
-  #title: GSSI 400MHz 'like' antenna in free-space
-  #domain: 0.380 0.380 0.360
+.. code-block:: python
+
+  #title: Wire antenna - half-wavelength dipole in free-space
+  title = gprMax.Title(name="Wire antenna - half-wavelength dipole in free-space")
+  #domain: 0.050 0.050 0.200
+  domain = gprMax.Domain(p1=(0.050, 0.050, 0.200))
   #dx_dy_dz: 0.001 0.001 0.001
-  #time_window: 12e-9
+  dxdydz = gprMax.Discretisation(p1=(0.001, 0.001, 0.001))
+  #time_window: 60e-9
+  time_window = gprMax.TimeWindow(time=10e-9)
+  #waveform: gaussian 1 1e9 mypulse
+  waveform = gprMax.Waveform(wave_type='gaussian', amp=1, freq=1e9, id='mypulse')
+  #transmission_line: z 0.025 0.025 0.100 73 mypulse
+  transmission_line = gprMax.TransmissionLine(polarisation='z',
+                                              p1=(0.025, 0.025, 0.100),
+                                              resistance=73,
+                                              waveform_id='mypulse')
+  ## 150mm length
+  #edge: 0.025 0.025 0.025 0.025 0.025 0.175 pec
+  e1 = gprMax.Edge(p1=(0.025, 0.025, 0.025),
+                   p2=(0.025, 0.025, 0.175),
+                   material_id='pec')
 
-  # equivalent to 'title: API example'
-  title = gprMax.Title(name='API example')
-  # equivalent to 'dx_dy_dz: 1e-3 1e-3 1e-3'
-  dxdydz = gprMax.Discretisation(p1=(1e-3, 1e-3, 1e-3))
-  # equivalent to 'time_window: 6e-9'
-  tw = gprMax.TimeWindow(time=6e-9)
-  # equivalent to 'domain: 0.15 0.15 0.15'
-  domain = gprMax.Domain(p1=(0.15, 0.15, 0.15))
+  ## 1mm gap at centre of dipole
+  #edge: 0.025 0.025 0.100 0.025 0.025 0.101 free_space
+  e2 = gprMax.Edge(p1=(0.025, 0.025, 0.100),
+                   p2=(0.025, 0.025, 0.100),
+                   material_id='free_space')
 
-  # equivalent to #waveform: ricker 1 1.5e9 myricker
-  waveform = gprMax.Waveform(wave_type='ricker', amp=1, freq=1.5e9, id='my_ricker')
-  # equivalent to 'hertzian_dipole: y 0.045 0.075 0.085 my_ricker'
-  dipole = gprMax.HertzianDipole(p1=(0.045, 0.075, 0.085), polarisation='y', waveform_id='my_ricker')
-  # equivalent to 'rx: 0.045, 0.075 + 10e-3, 0.085'
-  rx = gprMax.Rx(p1=(0.045, 0.075 + 10e-3, 0.085))
+  #geometry_view: 0.020 0.020 0.020 0.030 0.030 0.180 0.001 0.001 0.001 antenna_wire_dipole_fs f
+  gv = gprMax.GeometryView(p1=(0.020, 0.020, 0.020),
+                           p2=(0.030, 0.030, 0.180),
+                           dl=(0.001, 0.001, 0.001),
+                           filename='antenna_wire_dipole_fs',
+                           output_type='n')
 
-  # make a container for the simulation
+
+Next a :class:`gprMax.scene.Scene` object is created. The scene is a container for all the objects required in a simulation. The objects are added to the scene as follows:
+
+.. code-block:: python
+
+  # Create a scene
   scene = gprMax.Scene()
-  # add the objects to the container
-  scene.add(dxdydz)
-  scene.add(tw)
-  scene.add(domain)
+  # Add the simulation objects to the scene
   scene.add(title)
+  scene.add(domain)
+  scene.add(dxdydz)
+  scene.add(time_window)
   scene.add(waveform)
-  scene.add(dipole)
+  scene.add(transmission_line)
+  scene.add(e1)
+  scene.add(e2)
+  scene.add(gv)
+
+
+Once the simulation objects have been added to the scene the simulation is run as follows:
+
+.. code-block:: python
 
   # run the simulation
-  gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile='mysimulation')
+  gprMax.run(scenes=[scene], n=1, outputfile='mysimulation')
 
+The run function arguments are similar to the flags in the CLI. The most notable difference is that a file path for the data output must be provided.
+
+Multiple simulation can be specified by providing multiple scene objects to the run function. Each scene must contain the essential commands and each user object required for that particular model.
+
+Reference
+=========
 
 The commands have been grouped into six categories:
 
@@ -105,11 +155,87 @@ Number of Model Runs
 
 Material
 ========
+
+Material
+--------
+.. autoclass:: gprMax.cmds_multiple.Material
+
+Debye Dispersion
+----------------
+.. autoclass:: gprMax.cmds_multiple.AddDebyeDispersion
+
+Lorentz Dispersion
+------------------
+.. autoclass:: gprMax.cmds_multiple.AddLorentzDispersion
+
+Drude Dispersion
+----------------
+.. autoclass:: gprMax.cmds_multiple.AddDrudeDispersion
+
+Soil Peplinski
+--------------
+.. autoclass:: gprMax.cmds_multiple.SoilPeplinski
+
+
 Object Construction
 ===================
+
+Object construction commands are processed in the order they appear in the scene. Therefore space in the model allocated to a specific material using for example the :class:`gprMax.cmds_geometry.box.Box` command can be reallocated to another material using the same or any other object construction command. Space in the model can be regarded as a canvas in which objects are introduced and one can be overlaid on top of the other overwriting its properties in order to produce the desired geometry. The object construction commands can therefore be used to create complex shapes and configurations.
+
+Box
+---
+.. autoclass:: gprMax.cmds_geometry.box.Box
+
+Cylinder
+--------
+.. autoclass:: gprMax.cmds_geometry.cylinder.Cylinder
+
+Cylindrical Sector
+------------------
+.. autoclass:: gprMax.cmds_geometry.cylindrical_sector.CylindricalSector
+
+Edge
+----
+.. autoclass:: gprMax.cmds_geometry.edge.Edge
+
+Plate
+-----
+.. autoclass:: gprMax.cmds_geometry.plate.Plate
+
+Triangle
+-----
+.. autoclass:: gprMax.cmds_geometry.triangle.Triangle
+
+Sphere
+-----
+.. autoclass:: gprMax.cmds_geometry.sphere.Sphere
+
+Fractal Box
+-----
+.. autoclass:: gprMax.cmds_geometry.fractal_box.FractalBox
+
+Add Grass
+---------
+.. autoclass:: gprMax.cmds_geometry.add_grass.AddGrass
+
+Add Surface Roughness
+---------------------
+.. autoclass:: gprMax.cmds_geometry.add_surface_roughness.AddSurfaceRoughness
+
+Add Surface Water
+-----------------
+.. autoclass:: gprMax.cmds_geometry.add_surface_water.AddSurfaceWater
+
+Geometry View
+-------------
+.. autoclass:: gprMax.cmds_multiple.GeometryView
+
+Geometry Objects Write
+----------------------
+.. autoclass:: gprMax.cmds_multiple.GeometryObjectsWrite
+
 Source and Output
 =================
-
 Waveform
 --------
 .. autoclass:: gprMax.cmds_multiple.Waveform
@@ -150,8 +276,28 @@ Rx Steps
 ------------
 .. autoclass:: gprMax.cmds_single_use.RxSteps
 
+Snapshot
+--------
+.. autoclass:: gprMax.cmds_multiple.Snapshot
+
 PML
 ===
+
+The default behaviour for the absorbing boundary conditions (ABC) is first order Complex Frequency Shifted (CFS) Perfectly Matched Layers (PML), with thicknesses of 10 cells on each of the six sides of the model domain. This can be altered by using the following command
+
 PML Cells
 --------------------------
 .. autoclass:: gprMax.cmds_single_use.PMLCells
+
+PML CFS
+--------------------------
+.. autoclass:: gprMax.cmds_multiple.PMLCFS
+
+
+Additional API objects
+======================
+
+Function to run the simulation
+------------------------------
+.. autofunction:: gprMax.gprMax.run
+.. autoclass:: gprMax.scene.Scene

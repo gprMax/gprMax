@@ -22,9 +22,8 @@ from .solvers import create_solver
 
 import argparse
 
-def api(
+def run(
     scenes=None,
-    id=None,
     inputfile=None,
     outputfile=None,
     n=1,
@@ -40,8 +39,36 @@ def api(
     geometry_fixed=False,
     write_processed=False,
 ):
-    """If installed as a module this is the entry point."""
+    """Run the simulation for the given list of scenes.
 
+    :param scenes: List of the scenes to run the model. Multiple scene objects can given in order to run multiple simulation runs. Each scene must contain the essential simulation objects
+    :type scenes: list, optional
+    :param inputfile:  Input file path. Can also run simulation by providing an input file.
+    :type inputfile: str, optional
+    :param outputfile: File path to the output data file.
+    :type outputfile: str, non-optional
+    :param n: Number of required simulation runs.
+    :type n: int, non-optional
+    :param task: task identifier (model number) when running simulation as a job array on open grid scheduler/grid engine. for further details see the parallel performance section of the user guide
+    :type task: int, optional
+    :param restart: model number to start/restart simulation from. It would typically be used to restart a series of models from a specific model number, with the n argument, e.g. to restart from A-scan 45 when creating a B-scan with 60 traces
+    :type restart: int, optional
+    :param mpi: number of Message Passing Interface (MPI) tasks, i.e. master + workers, for MPI task farm. This option is most usefully combined with n to allow individual models to be farmed out using a MPI task farm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace1. For further details see the parallel performance section of the User Guide
+    :type mpi: int, optional
+    :param mpi_no_spawn: use MPI task farm without spawn mechanism. For further details see the parallel performance section of the User Guide.
+    :type mpi_no_spawn: bool, optional
+    :param gpu: Flag to use NVIDIA GPU or list of NVIDIA GPU device ID(s) for specific GPU card(s)
+    :type gpu: list or bool, optional
+    :param subgrid: Use sub-gridding.
+    :type subgrid: bool, optional
+    :param benchmark: Switch on benchmarking mode. This can be used to benchmark the threading (parallel) performance of gprMax on different hardware. For further details see the benchmarking section of the User Guide
+    :type benchmark: bool, optional
+    :param geometry_only: build a model and produce any geometry views but do not run the simulation.
+    :type geometry_only: bool, optional
+    :param geometry_fixed: build a model and produce any geometry views but do not run the simulation.
+    :type geometry_fixed: bool, optional
+
+    """
     class ImportArguments:
         pass
 

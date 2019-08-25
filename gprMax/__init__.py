@@ -52,7 +52,7 @@ from .cmds_geometry.add_surface_water import AddSurfaceWater
 from .cmds_geometry.add_grass import AddGrass
 
 from .scene import Scene
-from .gprMax import api as run
+from .gprMax import run as run
 
 import gprMax.config as config
 

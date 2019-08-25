@@ -13,11 +13,10 @@ from .utilities import human_size
 
 
 class Scene:
-
-    """Scene stores all of the user created objects
-    """
+    """Scene stores all of the user created objects."""
 
     def __init__(self):
+        """Constructor"""
         self.multiple_cmds = []
         self.single_cmds = []
         self.geometry_cmds = []
@@ -28,12 +27,17 @@ class Scene:
         fbb = FractalBoxBuilder()
         self.add(fbb)
 
-    def add(self, node):
-        if isinstance(node, UserObjectMulti):
-            self.multiple_cmds.append(node)
-        elif isinstance(node, UserObjectGeometry):
-            self.geometry_cmds.append(node)
-        elif isinstance(node, UserObjectSingle):
+    def add(self, user_object):
+        """Add the user object to the scene.
+
+        :param user_object: User object to add to the scene. For example, :class:`gprMax.cmds_single_use.Domain`
+        :type user_object: UserObjectMulti/UserObjectGeometry/UserObjectSingle
+        """
+        if isinstance(user_object, UserObjectMulti):
+            self.multiple_cmds.append(user_object)
+        elif isinstance(user_object, UserObjectGeometry):
+            self.geometry_cmds.append(user_object)
+        elif isinstance(user_object, UserObjectSingle):
             self.single_cmds.append(node)
         else:
             raise Exception('This Object is Unknown to gprMax')
