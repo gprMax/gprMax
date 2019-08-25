@@ -20,14 +20,24 @@ from gprMax.opencl_el_kernels import pml_updates_electric_HORIPML as el_electric
 from gprMax.opencl_el_kernels import pml_updates_magnetic_HORIPML as el_magnetic
 
 class OpenClSolver(object):
+    """
+    OpenCl based accelerated Solver. Class can be used for any device irrespective of their type of architecture
+    if it supports OpenCl.    
+    """
     def __init__(self, platformIdx=None, deviceIdx=None, G=None, context=None, queue=None):
         self.context = context
         self.queue = queue
         self.G = G
+
+        # Jinja2 used for rendering templates of OpenCl Kernels
         self.jinja_env = jinja2.Environment(loader=jinja2.PackageLoader(__name__, 'opencl_kernels'))
 
     def getDeviceParameters(self):
-        warnings.warn("All sizes are in Bytes")
+        """
+        Retrieves relevant parameters for the OpenCl device selected
+        """
+
+        # All sizes are in Bytes
         deviceParam = {}
         deviceParam['GLOBAL_MEM_SIZE'] = self.devices[self.deviceIdx].global_mem_size
         deviceParam['LOCAL_MEM_SIZE'] = self.devices[self.deviceIdx].local_mem_size  
@@ -40,6 +50,11 @@ class OpenClSolver(object):
         self.deviceParam = deviceParam
 
     def getPlatformNDevices(self, mpi_no_spawn, platformIdx=None, deviceIdx=None, gpu=False):
+        """
+        Set Platforms and Device that has to be used.
+        User input is taken for selection of Platform and Device if required.
+        """
+
         # get the opencl supported platforms
         self.platforms = cl.get_platforms() 
         print("Following platform supporting OpenCl were discovered")
@@ -48,6 +63,7 @@ class OpenClSolver(object):
         
         # get the platform index
         if platformIdx is None:
+            # if mpi_no_spawn select the platform with 0 index
             if mpi_no_spawn:
                 self.platformIdx = 0
             else: 
@@ -98,6 +114,9 @@ class OpenClSolver(object):
         return True
 
     def createContext(self):
+        """
+        Create context with event profiling enabled
+        """
         if self.context is None:
             print("Creating context...")
             self.context = cl.Context(devices=[self.devices[self.deviceIdx]])
@@ -105,6 +124,7 @@ class OpenClSolver(object):
         if self.queue is None:
             print("Creating the command queue...")
             try:
+                # enabled event profiling
                 self.queue = cl.CommandQueue(self.context, properties=cl.command_queue_properties.PROFILING_ENABLE)
             except:
                 self.queue = cl.CommandQueue(self.context)
@@ -113,6 +133,9 @@ class OpenClSolver(object):
         return
     
     def setDataTypes(self):
+        """
+        Set data-type parameters
+        """
         self.datatypes = {
             'REAL': 'float',
             'COMPLEX': 'cfloat'
@@ -120,9 +143,14 @@ class OpenClSolver(object):
         return
 
     def elwise_kernel_build(self):
-        
+        """
+        Render and Build opencl kernels with PyOpenCl in-built ElementwiseKernel.
+        Reduces operations overhead.
+        """
+        # Load jinja environment
         elwise_jinja_env = jinja2.Environment(loader=jinja2.PackageLoader(__name__, 'opencl_el_kernels'))
         
+        # for materials with Maxpoles > 0
         if Material.maxpoles > 0:
             ny_matdispcoeffs = self.G.updatecoeffsdispersive.shape[1]
             nx_t = self.G.Tx.shape[1]
@@ -161,6 +189,7 @@ class OpenClSolver(object):
             NY_SRCWAVES=self.G.iterations
         )
 
+        # string.Template used for setting arguments of Kernel function
         if Material.maxpoles > 0:
             update_e_dispersive_A_context = elwise_jinja_env.get_template('update_e_dispersive_A.cl').render(
                 REAL = self.datatypes['REAL'],
@@ -174,6 +203,7 @@ class OpenClSolver(object):
                 NY_T = ny_t,
                 NZ_T = nz_t,                
             )
+
             self.update_e_dispersive_A = ElementwiseKernel(
                 self.context,
                 Template("int NX, int NY, int NZ, int MAXPOLES, __global const ${COMPLEX}_t* restrict updatecoeffsdispersive, __global ${COMPLEX}_t *Tx, __global ${COMPLEX}_t *Ty, __global ${COMPLEX}_t *Tz, __global const unsigned int* restrict ID, __global $REAL *Ex, __global $REAL *Ey, __global $REAL *Ez, __global const $REAL* restrict Hx, __global const $REAL* restrict Hy, __global const $REAL* restrict Hz").substitute({'REAL':self.datatypes['REAL'],'COMPLEX':self.datatypes['COMPLEX']}),
@@ -201,7 +231,8 @@ class OpenClSolver(object):
                 "update_e_dispersive_B",
                 preamble=common_kernel
             )
-            
+
+        # get update-e field Kernel codes    
         e_update_context = elwise_jinja_env.get_template('update_field_e.cl').render(
             NX_FIELDS = self.G.Ex.shape[0],
             NY_FIELDS = self.G.Ex.shape[1],
@@ -210,6 +241,8 @@ class OpenClSolver(object):
             NY_ID = self.G.ID.shape[2],
             NZ_ID = self.G.ID.shape[3]            
         )
+
+        # makes Program for update-e field
         self.update_e_field = ElementwiseKernel(
             self.context,
             Template("int NX, int NY, int NZ, __global const unsigned int* restrict ID, __global $REAL *Ex, __global $REAL *Ey, __global $REAL *Ez, __global const $REAL * restrict Hx, __global const $REAL * restrict Hy, __global const $REAL * restrict Hz").substitute({'REAL':self.datatypes['REAL']}),
@@ -218,6 +251,7 @@ class OpenClSolver(object):
             preamble=common_kernel
         )
 
+        # get update-h field Kernel codes
         h_update_context = elwise_jinja_env.get_template('update_field_h.cl').render(
             NX_FIELDS = self.G.Ex.shape[0],
             NY_FIELDS = self.G.Ex.shape[1],
@@ -226,6 +260,8 @@ class OpenClSolver(object):
             NY_ID = self.G.ID.shape[2],
             NZ_ID = self.G.ID.shape[3]               
         )
+
+        # makes Program for update-h field
         self.update_h_field = ElementwiseKernel(
             self.context,
             Template("int NX, int NY, int NZ, __global const unsigned int* restrict ID, __global $REAL *Hx, __global $REAL *Hy, __global $REAL *Hz, __global const $REAL* restrict Ex, __global const $REAL* restrict Ey, __global const $REAL* restrict Ez").substitute({'REAL':self.datatypes['REAL']}),
@@ -257,6 +293,8 @@ class OpenClSolver(object):
                 pml.cl_initialize_arrays(self.queue)
                 self.memUsage += pml.clMemoryUsage
                 function_name = 'order'+str(len(pml.CFS)) + '_' + pml.direction
+                
+                # make dictionary of all electric PML functions
                 electric_context_dict = {
                     'order1_xminus' : el_electric.order1_xminus,
                     'order2_xminus' : el_electric.order2_xminus,
@@ -272,6 +310,7 @@ class OpenClSolver(object):
                     'order2_zplus' : el_electric.order2_zplus
                 }
 
+                # make dictionary for all arguments of all electric PML functions
                 electric_function_arg_dict = {
                     'order1_xminus' : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const $REAL* restrict Ex, __global $REAL *Ey, __global $REAL *Ez, __global const $REAL* restrict Hx, __global const $REAL* restrict Hy, __global const $REAL* restrict Hz, __global $REAL *PHI1, __global $REAL *PHI2, __global const $REAL* restrict RA, __global const $REAL* restrict RB, __global const $REAL* restrict RE, __global const $REAL* restrict RF, $REAL d", 
                     'order2_xminus' : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const $REAL* restrict Ex, __global $REAL *Ey, __global $REAL *Ez, __global const $REAL* restrict Hx, __global const $REAL* restrict Hy, __global const $REAL* restrict Hz, __global $REAL *PHI1, __global $REAL *PHI2, __global const $REAL* restrict RA, __global const $REAL* restrict RB, __global const $REAL* restrict RE, __global const $REAL* restrict RF, $REAL d",
@@ -287,6 +326,7 @@ class OpenClSolver(object):
                     'order2_zplus' : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global $REAL *Ex, __global $REAL *Ey, __global const $REAL* restrict Ez, __global const $REAL* restrict Hx, __global const $REAL* restrict Hy, __global const $REAL* restrict Hz, __global $REAL *PHI1, __global $REAL *PHI2, __global const $REAL* restrict RA, __global const $REAL* restrict RB, __global const $REAL* restrict RE, __global const $REAL* restrict RF, $REAL d"
                 }
 
+                # build Program for pml_electric_update
                 self.pml_electric_update[function_name] = ElementwiseKernel(
                     self.context,
                     Template(electric_function_arg_dict[function_name]).substitute({'REAL':self.datatypes['REAL']}),
@@ -295,6 +335,7 @@ class OpenClSolver(object):
                     preamble=common_kernel
                 )
 
+                # make dictionary of all magnetic PML functions
                 magnetic_context_dict = {
                     'order1_xminus' : el_magnetic.order1_xminus,
                     'order2_xminus' : el_magnetic.order2_xminus,
@@ -310,6 +351,7 @@ class OpenClSolver(object):
                     'order2_zplus' : el_magnetic.order2_zplus
                 }
 
+                # make dictionary for arguments of all electric PML functions
                 magnetic_function_arg_dict = {
                     "order1_xminus" : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const $REAL* restrict Ex, __global const $REAL* restrict Ey, __global const $REAL* restrict Ez, __global const $REAL* restrict Hx, __global $REAL *Hy, __global $REAL *Hz, __global $REAL *PHI1, __global $REAL *PHI2, __global const $REAL* restrict RA, __global const $REAL* restrict RB, __global const $REAL* restrict RE, __global const $REAL* restrict RF, $REAL d",
                     "order2_xminus" : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const $REAL* restrict Ex, __global const $REAL* restrict Ey, __global const $REAL* restrict Ez, __global const $REAL* restrict Hx, __global $REAL *Hy, __global $REAL *Hz, __global $REAL *PHI1, __global $REAL *PHI2, __global const $REAL* restrict RA, __global const $REAL* restrict RB, __global const $REAL* restrict RE, __global const $REAL* restrict RF, $REAL d",
@@ -325,6 +367,7 @@ class OpenClSolver(object):
                     "order2_zplus" : "int xs, int xf, int ys, int yf, int zs, int zf, int NX_PHI1, int NY_PHI1, int NZ_PHI1, int NX_PHI2, int NY_PHI2, int NZ_PHI2, int NY_R, __global const unsigned int* restrict ID, __global const $REAL* restrict Ex, __global const $REAL* restrict Ey, __global const $REAL* restrict Ez, __global $REAL *Hx, __global $REAL *Hy, __global const $REAL* restrict Hz, __global $REAL *PHI1, __global $REAL *PHI2, __global const $REAL* restrict RA, __global const $REAL* restrict RB, __global const $REAL* restrict RE, __global const $REAL* restrict RF, $REAL d"
                 }
 
+                # build the Program for pml_magnetic_update
                 self.pml_magnetic_update[function_name] = ElementwiseKernel(
                     self.context,
                     Template(magnetic_function_arg_dict[function_name]).substitute({'REAL':self.datatypes['REAL']}),
@@ -332,7 +375,8 @@ class OpenClSolver(object):
                     "pml_updates_magnetic_HORIPML_{}".format(function_name),
                     preamble=common_kernel
                 )
-
+        
+        # for receivers
         if self.G.rxs:
             self.rxcoords_cl, self.rxs_cl = gpu_initialise_rx_arrays(self.G, self.queue, opencl=True)
             self.memUsage += self.rxcoords_cl.nbytes + self.rxs_cl.nbytes
@@ -345,7 +389,10 @@ class OpenClSolver(object):
                 preamble=common_kernel
             )
 
+        # for sources
         if self.G.voltagesources + self.G.hertziandipoles + self.G.magneticdipoles:
+            
+            # for hertizan dipoles
             if self.G.hertziandipoles:
                 hertziandipoles_context = elwise_jinja_env.get_template('update_hertziandipole.cl').render(REAL=self.datatypes['REAL'])
                 self.hertziandipoles_update = ElementwiseKernel(
@@ -358,6 +405,7 @@ class OpenClSolver(object):
                 self.srcinfo1_hertzian_cl, self.srcinfo2_hertzian_cl, self.srcwaves_hertzian_cl = gpu_initialise_src_arrays(self.G.hertziandipoles, self.G, queue=self.queue, opencl=True)
                 self.memUsage += self.srcinfo1_hertzian_cl.nbytes + self.srcinfo2_hertzian_cl.nbytes + self.srcwaves_hertzian_cl.nbytes
 
+            # for voltage sources
             if self.G.voltagesources:
                 voltagesource_context = elwise_jinja_env.get_template('update_voltagesource.cl').render(REAL=self.datatypes['REAL'])
                 self.voltagesource_update = ElementwiseKernel(
@@ -370,6 +418,7 @@ class OpenClSolver(object):
                 self.srcinfo1_voltage_cl, self.srcinfo2_voltage_cl, self.srcwaves_voltage_cl = gpu_initialise_src_arrays(self.G.voltagesources, self.G, queue=self.queue, opencl=True)
                 self.memUsage += self.srcinfo1_voltage_cl.nbytes + self.srcinfo2_voltage_cl.nbytes + self.srcwaves_voltage_cl.nbytes
 
+            # for magnetic dipoles
             if self.G.magneticdipoles:
                 magneticdipole_context = elwise_jinja_env.get_template('update_magneticdipole.cl').render(REAL=self.datatypes['REAL'])
                 self.magneticdipole_update = ElementwiseKernel(
@@ -381,12 +430,16 @@ class OpenClSolver(object):
                 )
                 self.srcinfo1_magnetic_cl, self.srcinfo2_magnetic_cl, self.srcwaves_magnetic_cl = gpu_initialise_src_arrays(self.G.magneticdipoles, self.G, queue=self.queue, opencl=True)
                 self.memUsage += self.srcinfo1_magnetic_cl.nbytes + self.srcinfo2_magnetic_cl.nbytes + self.srcwaves_magnetic_cl.nbytes
-
+        
         if self.G.snapshots:
             raise NotImplementedError
 
 
     def traditional_kernel_build(self):
+        """
+        Rendering and Building Kernels using standard method with cl.Program
+        Efficient method of Simulation
+        """
         # set the jinja engine
         trad_jinja_env = jinja2.Environment(loader=jinja2.PackageLoader(__name__, 'opencl_kernels'))
         
@@ -402,6 +455,7 @@ class OpenClSolver(object):
             ny_t = 1 
             nz_t = 1
 
+        # get the kernel template for field updates 
         kernel_fields_text = trad_jinja_env.get_template('update_fields.cl').render(
             REAL = self.datatypes['REAL'],
             COMPLEX = self.datatypes['COMPLEX'],
@@ -422,8 +476,6 @@ class OpenClSolver(object):
             NZ_T = nz_t
         )
 
-        # check if the total constant memory exceeds the variable nbytes
-
         # init gpu arrays
         self.G.cl_initialize_arrays(self.queue)
 
@@ -431,10 +483,12 @@ class OpenClSolver(object):
         if Material.maxpoles > 0:
             self.G.cl_initialize_dispersive_arrays(self.queue)
 
+        # take accounts of estimated memory usage
         self.memUsage = self.G.clMemoryUsage            
 
         # if pmls
         if self.G.pmls:
+            # get the electric and magnetic kernel files
             pmlmodulelectric = 'pml_updates_electric_' + self.G.pmlformulation + '.cl'
             pmlmodulemagnetic = 'pml_updates_magnetic_' + self.G.pmlformulation + '.cl'
 
@@ -517,6 +571,7 @@ class OpenClSolver(object):
                 self.srcinfo1_voltage_cl, self.srcinfo2_voltage_cl, self.srcwaves_voltage_cl = gpu_initialise_src_arrays(self.G.voltagesources, self.G, queue=self.queue, opencl=True)
                 self.memUsage += self.srcinfo1_voltage_cl.nbytes + self.srcinfo2_voltage_cl.nbytes + self.srcwaves_voltage_cl.nbytes
 
+        # for snapshots 
         if self.G.snapshots:
             self.snapEx_cl, self.snapEy_cl, self.snapEz_cl, self.snapHx_cl, self.snapHy_cl, self.snapHz_cl = cl_initialise_snapshot_array(self.queue, self.G)
             snapshot_text = trad_jinja_env.get_template('snapshots.cl').render(
@@ -607,6 +662,8 @@ class OpenClSolver(object):
             print("Exiting Simulations")
             return 0,0
 
+
+        # use ElementwiseKernel build by appending --elwise in the command 
         if elementwisekernel is True:
             print("Building Kernels using pyopencl.elementwise")
             self.elwise_kernel_build()            
@@ -615,6 +672,7 @@ class OpenClSolver(object):
             if not self.clMemoryCheck(snapsmemsize):
                 return 0,0
 
+            # take account of elapsed time for every simulation in device  
             for iteration in tqdm(range(self.G.iterations), desc="Running simulation model" + str(currentmodelrun) + "/" + str(modelend), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not self.G.progressbars):
 
                 if self.G.rxs:
@@ -626,8 +684,6 @@ class OpenClSolver(object):
                     )
                     event.wait()
                     elapsed += 1e-9*(event.profile.end - event.profile.start)
-
-                # store snapshots
 
                 #update magnetic field
                 event = self.update_h_field(
@@ -655,7 +711,6 @@ class OpenClSolver(object):
                     event.wait()
                     elapsed += 1e-9*(event.profile.end - event.profile.start)
 
-                
                 # magnetic dipoles
                 if self.G.magneticdipoles:
                     event = self.magneticdipole_update(
@@ -728,7 +783,7 @@ class OpenClSolver(object):
                     elapsed += 1e-9*(event.profile.end - event.profile.start)
 
 
-                #
+                # for E updates for dispersive materials 
                 if Material.maxpoles > 0:
                     event = self.update_e_dispersive_B(
                         np.int32(self.G.nx), np.int32(self.G.ny), np.int32(self.G.nz),
