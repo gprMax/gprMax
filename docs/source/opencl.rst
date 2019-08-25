@@ -41,3 +41,5 @@ Using OpenCl with special ElementwiseKernel tool:
 .. note::
 
     For every run on OpenCl Solver, user are prompt for the choice of Platform and Device. In case gpu is toggled, only GPU device are shown. 
+
+OpenCl Implementation is part of GSoC Project. The detailed explanation of implementation details is documentated `here <https://spacevstab.github.io>`_.
