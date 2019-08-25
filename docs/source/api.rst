@@ -280,6 +280,12 @@ Snapshot
 --------
 .. autoclass:: gprMax.cmds_multiple.Snapshot
 
+Subgrid
+-------
+.. autoclass:: gprMax.subgrids.user_objects.SubGridHSG
+
+
+
 PML
 ===
 

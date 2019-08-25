@@ -26,7 +26,7 @@ class SubGridBase(FDTDGrid):
             raise ValueError('Subgrid Error: Only odd ratios are supported')
 
         # Name of the grid
-        self.name = kwargs['ID']
+        self.name = kwargs['id']
 
         self.filter = kwargs['filter']
 

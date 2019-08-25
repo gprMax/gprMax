@@ -130,18 +130,37 @@ class SubGridBase(UserObjectMulti):
 
 
 class SubGridHSG(SubGridBase):
-    """HSG User Object."""
+    """Huygens Surface subgridding (HSG) user object.
+
+    :param p1: Position of the lower left corner of the Inner Surface (x, y, z) in the main grid.
+    :type p1: list, non-optional
+    :param p2: Position of the upper right corner of the Inner Surface (x, y, z) in the main grid.
+    :type p2: list, non-optional
+    :param ratio: Ratio of the main grid spatial step to the sub-grid spatial step. Must be an odd integer.
+    :type ratio: int, non-optional
+    :param id: Identifier for the sub-grid.
+    :type id: str, non-optional
+    :param is_os_sep: Number of main grid cells between the Inner Surface and the Outer Surface. Defaults to 3.
+    :type is_os_sep: str, optional
+    :param pml_separation: Number of sub-grid cells between the Outer Surface and the PML. Defaults to ratio // 2 + 2
+    :type pml_separation: int, optional
+    :param subgrid_pml_thickness: Thickness of the PML on each of the 6 sides of the sub-grid. Defaults to 6.
+    :type subgrid_pml_thickness: int, optional
+    :param interpolation: Degree of the interpolation scheme used for spatil interpolation of the fields at the Inner Surface. Defaults to Linear
+    :type interpolation: str, optional
+    :param filter: Turn on the 3-pole filter. Increases numerical stability. Defaults to True
+    :type filter: bool, optional
+
+    """
     def __init__(self,
                  p1=None,
                  p2=None,
                  ratio=3,
-                 ID='',
+                 id='',
                  is_os_sep=3,
                  pml_separation=4,
                  subgrid_pml_thickness=6,
                  interpolation='linear',
-                 loss_mechanism=False,
-                 loss_factor=False,
                  filter=True,
                  **kwargs):
         """Constructor."""
@@ -152,14 +171,12 @@ class SubGridHSG(SubGridBase):
         kwargs['p1'] = p1
         kwargs['p2'] = p2
         kwargs['ratio'] = ratio
-        kwargs['ID'] = ID
+        kwargs['id'] = id
         kwargs['is_os_sep'] = is_os_sep
         kwargs['pml_separation'] = pml_separation
         kwargs['subgrid_pml_thickness'] = subgrid_pml_thickness
         kwargs['interpolation'] = interpolation
         kwargs['filter'] = filter
-        kwargs['loss_mechanism'] = loss_mechanism
-        kwargs['loss_factor'] = loss_factor
 
         super().__init__(**kwargs)
         self.order = 18
