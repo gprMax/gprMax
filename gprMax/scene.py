@@ -38,7 +38,7 @@ class Scene:
         elif isinstance(user_object, UserObjectGeometry):
             self.geometry_cmds.append(user_object)
         elif isinstance(user_object, UserObjectSingle):
-            self.single_cmds.append(node)
+            self.single_cmds.append(user_object)
         else:
             raise Exception('This Object is Unknown to gprMax')
 
