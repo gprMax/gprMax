@@ -7,6 +7,14 @@ Electromagnetic wave propagation simulation software.
 
 """
 
+import os
+import sys
+# There is a bug with threading and MKL on macOS
+# (https://github.com/gprMax/gprMax/issues/195) . Setting the MKL threading
+# layer to sequential solves it, but must be done before numpy is imported.
+if sys.platform == 'darwin':
+    os.environ["MKL_THREADING_LAYER"] = 'sequential'
+
 from ._version import __version__
 from .cmds_single_use import Discretisation
 from .cmds_single_use import Domain
