@@ -741,14 +741,9 @@ class PrecursorNodes(PrecusorNodes2dBase):
 
     def interpolate_to_sub_grid(self, field, coords):
         x, z, x_sg, z_sg = coords
-        ex_t = np.transpose(field)
-        f = interpolate.interp2d(x, z, ex_t, kind=self.interpolation)
-        #f = interpolate.RectBivariateSpline(x, z, field)
-        ex_inter_t = f(x_sg, z_sg)
-        ex_inter = np.transpose(ex_inter_t)
-        #ex_inter = ex_inter_t
-
-        return ex_inter
+        interp_f = interpolate.RectBivariateSpline(x, z, field, kx=self.interpolation, ky=self.interpolation)
+        f_i = interp_f(x_sg, z_sg)
+        return f_i
 
 
 class PlaneError(Exception):

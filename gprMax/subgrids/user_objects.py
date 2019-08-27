@@ -177,7 +177,7 @@ class SubGridHSG(SubGridBase):
                  is_os_sep=3,
                  pml_separation=4,
                  subgrid_pml_thickness=6,
-                 interpolation='linear',
+                 interpolation=1,
                  filter=True,
                  **kwargs):
         """Constructor."""
