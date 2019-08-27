@@ -118,3 +118,8 @@ class Waveform(object):
         ampvalue *= self.amp
 
         return ampvalue
+
+    def __str__(self):
+        fs = 'Waveform: ID={}, type={}, amp{}, freq={}'
+        s = fs.format(self.ID, self.type, self.amp, self.freq)
+        return s
