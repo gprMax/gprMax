@@ -103,8 +103,9 @@ class SubgridUpdater(CPUUpdates):
             self.update_electric_pml()
             precursors.interpolate_magnetic_in_time(int(m + sub_grid.ratio / 2 - 0.5))
             sub_grid.update_electric_is(precursors)
-            self.update_electric_b()
             self.update_electric_sources()
+            # second dispersive update
+            self.update_electric_b()
 
             # STD update, interpolate inc. field in time, apply correction
             self.update_magnetic()
@@ -118,8 +119,8 @@ class SubgridUpdater(CPUUpdates):
         self.update_electric_pml()
         precursors.calc_exact_magnetic_in_time()
         sub_grid.update_electric_is(precursors)
-        self.update_electric_b()
         self.update_electric_sources()
+        self.update_electric_b()
         sub_grid.update_electric_os(G)
 
     def hsg_2(self):
@@ -148,9 +149,8 @@ class SubgridUpdater(CPUUpdates):
 
             precursors.interpolate_magnetic_in_time(m)
             sub_grid.update_electric_is(precursors)
-            self.update_electric_b()
-
             self.update_electric_sources()
+            self.update_electric_b()
 
         self.update_magnetic()
         self.update_magnetic_pml()
