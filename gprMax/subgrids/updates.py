@@ -15,21 +15,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-from ..cython.fields_updates_normal import update_electric
-from ..cython.fields_updates_normal import update_magnetic
-from ..fields_outputs import store_outputs
-from ..utilities import get_terminal_width
 from ..exceptions import GeneralError
 
 from .subgrid_hsg import SubGridHSG
 from .precursor_nodes import PrecursorNodes as PrecursorNodesHSG
 from .precursor_nodes_filtered import PrecursorNodes as PrecursorNodesFilteredHSG
-
-from tqdm import tqdm
-from time import perf_counter
-
-import os
-import sys
 
 from ..updates import CPUUpdates
 
