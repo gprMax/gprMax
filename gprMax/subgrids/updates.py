@@ -18,8 +18,8 @@
 from ..exceptions import GeneralError
 
 from .subgrid_hsg import SubGridHSG
-from .precursor_nodes import PrecursorNodes as PrecursorNodesHSG
-from .precursor_nodes_filtered import PrecursorNodes as PrecursorNodesFilteredHSG
+from .precursor_nodes import PrecursorNodes
+from .precursor_nodes import PrecursorNodesFiltered
 
 from ..updates import CPUUpdates
 
@@ -32,9 +32,9 @@ def create_updates(G):
         print(sg)
         sg_type = type(sg)
         if sg_type == SubGridHSG and sg.filter:
-            precursors = PrecursorNodesFilteredHSG(G, sg)
+            precursors = PrecursorNodesFiltered(G, sg)
         elif sg_type == SubGridHSG and not sg.filter:
-            precursors = PrecursorNodesHSG(G, sg)
+            precursors = PrecursorNodes(G, sg)
         else:
             raise GeneralError(str(sg) + ' is not a subgrid type')
 
