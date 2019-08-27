@@ -23,6 +23,7 @@ from .precursor_nodes_filtered import PrecursorNodes as PrecursorNodesFilteredHS
 
 from ..updates import CPUUpdates
 
+
 def create_updates(G):
     """Return the solver for the given subgrids."""
     updaters = []
@@ -43,7 +44,9 @@ def create_updates(G):
     updates = SubgridUpdates(G, updaters)
     return updates
 
+
 class SubgridUpdates(CPUUpdates):
+    """Provides update functions for the Sub gridding simulation."""
 
     def __init__(self, G, updaters):
         super().__init__(G)
@@ -51,6 +54,7 @@ class SubgridUpdates(CPUUpdates):
 
     def hsg_1(self):
         """Method to update the subgrids over the first phase."""
+        # updaters update each subgrid
         for sg_updater in self.updaters:
             sg_updater.hsg_1()
 
@@ -87,20 +91,19 @@ class SubgridUpdater(CPUUpdates):
         sub_grid = self.grid
         precursors = self.precursors
 
+        # copy the main grid electric fields at the IS position
         precursors.update_electric()
 
         upper_m = int(sub_grid.ratio / 2 - 0.5)
 
         for m in range(1, upper_m + 1):
 
-            # STD update, interpolate inc. field in time, apply correction
             self.store_outputs()
             self.update_electric_a()
             self.update_electric_pml()
             precursors.interpolate_magnetic_in_time(int(m + sub_grid.ratio / 2 - 0.5))
             sub_grid.update_electric_is(precursors)
             self.update_electric_b()
-
             self.update_electric_sources()
 
             # STD update, interpolate inc. field in time, apply correction
