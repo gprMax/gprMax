@@ -38,6 +38,11 @@ init()
 
 floattype = dtypes['float_or_double']
 
+
+class Properties:
+    pass
+
+
 class UserObjectSingle:
 
     def __init__(self, **kwargs):
@@ -46,6 +51,10 @@ class UserObjectSingle:
         # created before the domain
         self.order = None
         self.kwargs = kwargs
+        self.props = Properties()
+
+        for k, v in kwargs.items():
+            setattr(self.props, k, v)
 
     def __str__(self):
         pass
