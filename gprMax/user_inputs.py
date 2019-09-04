@@ -23,7 +23,6 @@ def create_user_input_points(grid):
     if isinstance(grid, SubGridBase):
 
         if config.general['autotranslate']:
-            print('AUTO-TRANSLATE SUB-GRID POINT ON')
             return SubgridUserInput(grid)
         else:
             return MainGridUserInput(grid)
