@@ -84,23 +84,25 @@ def process_singlecmds(singlecmds):
 
     # Spatial discretisation
     cmd = '#dx_dy_dz'
-    tmp = [float(x) for x in singlecmds[cmd].split()]
-    if len(tmp) != 3:
-        raise CmdInputError(cmd + ' requires exactly three parameters')
+    if singlecmds[cmd] is not None:
+        tmp = [float(x) for x in singlecmds[cmd].split()]
+        if len(tmp) != 3:
+            raise CmdInputError(cmd + ' requires exactly three parameters')
 
-    dl = (tmp[0], tmp[1], tmp[2])
-    discretisation = Discretisation(p1=dl)
-    scene_objects.append(discretisation)
+        dl = (tmp[0], tmp[1], tmp[2])
+        discretisation = Discretisation(p1=dl)
+        scene_objects.append(discretisation)
 
     # Domain
     cmd = '#domain'
-    tmp = [float(x) for x in singlecmds[cmd].split()]
-    if len(tmp) != 3:
-        raise CmdInputError(cmd + ' requires exactly three parameters')
+    if singlecmds[cmd] is not None:
+        tmp = [float(x) for x in singlecmds[cmd].split()]
+        if len(tmp) != 3:
+            raise CmdInputError(cmd + ' requires exactly three parameters')
 
-    p1 = (tmp[0], tmp[1], tmp[2])
-    domain = Domain(p1=p1)
-    scene_objects.append(domain)
+        p1 = (tmp[0], tmp[1], tmp[2])
+        domain = Domain(p1=p1)
+        scene_objects.append(domain)
 
     # Time step stability factor
     cmd = '#time_step_stability_factor'
@@ -111,41 +113,42 @@ def process_singlecmds(singlecmds):
 
     # Time window
     cmd = '#time_window'
-    tmp = singlecmds[cmd].split()
-    if len(tmp) != 1:
-        raise CmdInputError(cmd + ' requires exactly one parameter to specify the time window. Either in seconds or number of iterations.')
-    tmp = tmp[0].lower()
-
-    # If number of iterations given
-    # The +/- 1 used in calculating the number of iterations is to account for
-    # the fact that the solver (iterations) loop runs from 0 to < G.iterations
-    try:
-        tmp = int(tmp)
-        tw = TimeWindow(iterations=tmp)
-    # If real floating point value given
-    except ValueError:
-        tmp = float(tmp)
-        tw = TimeWindow(time=tmp)
-
-    scene_objects.append(tw)
-
-    # PML
-    cmd = '#pml_cells'
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
-        if len(tmp) != 1 and len(tmp) != 6:
-            raise CmdInputError(cmd + ' requires either one or six parameter(s)')
-        if len(tmp) == 1:
-            pml_cells = PMLCells(thickness=int(tmp[0]))
-        else:
-            pml_cells = PMLCells(x0=int(tmp[0]),
-                                 y0=int(tmp[1]),
-                                 z0=int(tmp[2]),
-                                 xmax=int(tmp[3]),
-                                 ymax=int(tmp[4]),
-                                 zmax=int(tmp[5]))
+        if len(tmp) != 1:
+            raise CmdInputError(cmd + ' requires exactly one parameter to specify the time window. Either in seconds or number of iterations.')
+        tmp = tmp[0].lower()
 
-        scene_objects.append(pml_cells)
+        # If number of iterations given
+        # The +/- 1 used in calculating the number of iterations is to account for
+        # the fact that the solver (iterations) loop runs from 0 to < G.iterations
+        try:
+            tmp = int(tmp)
+            tw = TimeWindow(iterations=tmp)
+        # If real floating point value given
+        except ValueError:
+            tmp = float(tmp)
+            tw = TimeWindow(time=tmp)
+
+        scene_objects.append(tw)
+
+        # PML
+        cmd = '#pml_cells'
+        if singlecmds[cmd] is not None:
+            tmp = singlecmds[cmd].split()
+            if len(tmp) != 1 and len(tmp) != 6:
+                raise CmdInputError(cmd + ' requires either one or six parameter(s)')
+            if len(tmp) == 1:
+                pml_cells = PMLCells(thickness=int(tmp[0]))
+            else:
+                pml_cells = PMLCells(x0=int(tmp[0]),
+                                     y0=int(tmp[1]),
+                                     z0=int(tmp[2]),
+                                     xmax=int(tmp[3]),
+                                     ymax=int(tmp[4]),
+                                     zmax=int(tmp[5]))
+
+            scene_objects.append(pml_cells)
 
     # src_steps
     cmd = '#src_steps'
