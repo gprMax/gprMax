@@ -497,5 +497,5 @@ def Iz(x, y, z, Hx, Hy, Hz, G):
     return Iz
 
 
-class GPUGrid(Grid):
+class GPUGrid(FDTDGrid):
     pass
