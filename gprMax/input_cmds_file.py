@@ -252,6 +252,27 @@ def check_cmd_names(processedlines, checkessential=True):
     return singlecmds, multiplecmds, geometry
 
 
+def get_user_objects(processedlines, check=True):
+
+    # Check validity of command names and that
+    # essential commands are present
+    parsed_commands = check_cmd_names(processedlines, checkessential=check)
+
+    # Process parameters for commands that can only occur once in the model
+    single_user_objs = process_singlecmds(parsed_commands[0])
+
+    # Process parameters for commands that can occur multiple times in
+    # the model
+    multiple_user_objs = process_multicmds(parsed_commands[1])
+
+    # Process geometry commands in the order they were given
+    geometry_user_objs = process_geometrycmds(parsed_commands[2])
+
+    user_objs = single_user_objs + multiple_user_objs + geometry_user_objs
+
+    return user_objs
+
+
 def parse_hash_commands(model_config, G, scene):
     """Parse user hash commands and add them to the scene."""
     # Add the current model run to namespace that can be accessed by
@@ -280,26 +301,34 @@ def parse_hash_commands(model_config, G, scene):
         if sim_config.write_processed:
             write_processed_file(processedlines, model_config.appendmodelnumber, G)
 
-        # Check validity of command names and that
-        # essential commands are present
-        parsed_commands = check_cmd_names(processedlines)
-
-        print(parsed_commands)
-
-
-        # Process parameters for commands that can only occur once in the model
-        single_user_objs = process_singlecmds(parsed_commands[0])
-
-        # Process parameters for commands that can occur multiple times in
-        # the model
-        multiple_user_objs = process_multicmds(parsed_commands[1])
-
-        # Process geometry commands in the order they were given
-        geometry_user_objs = process_geometrycmds(parsed_commands[2])
-
-        user_objs = single_user_objs + multiple_user_objs + geometry_user_objs
-
+        user_objs = get_user_objects(processedlines, check=True)
         for user_obj in user_objs:
             scene.add(user_obj)
 
         return scene
+
+
+class Capturing(list):
+    # https://stackoverflow.com/questions/16571150/how-to-capture-stdout-output-from-a-python-function-call
+    """Context manager to capture standard output stream"""
+
+    def __enter__(self):
+        self._stdout = sys.stdout
+        sys.stdout = self._stringio = StringIO()
+        return self
+
+    def __exit__(self, *args):
+        self.extend(self._stringio.getvalue().splitlines())
+        del self._stringio    # free up some memory
+        sys.stdout = self._stdout
+
+
+def user_libs_fn_to_scene_obj(f, *args, **kwargs):
+    """Function to convert library functions in the user_libs directory
+    into geometry objects which can be added to the scene"""
+
+    with Capturing() as str_cmds:
+        f(*args, **kwargs)
+
+    user_objects = get_user_objects(str_cmds, check=False)
+    return user_objects

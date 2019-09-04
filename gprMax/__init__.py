@@ -59,6 +59,8 @@ from .cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from .cmds_geometry.add_surface_water import AddSurfaceWater
 from .cmds_geometry.add_grass import AddGrass
 
+from .input_cmds_file import user_libs_fn_to_scene_obj
+
 from .scene import Scene
 from .gprMax import run as run
 
