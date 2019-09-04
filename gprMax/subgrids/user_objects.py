@@ -46,13 +46,6 @@ class SubGridBase(UserObjectMulti):
         else:
             raise Exception(str(node) + ' This Object can not be added to a sub grid')
 
-    def check_filters(self, grid):
-        """Check the filter of other grids - Only allow filters all on or filters all off."""
-        if grid.subgrids:
-            f = grid.subgrids[0]
-            if f != self.kwargs['filter']:
-                raise CmdInputError(self.__str__() + "Filters should be on or off. Set Filter on or off for all subgrids")
-
     def set_discretisation(self, sg, grid):
         """Set the spatial discretisation."""
         sg.dx = grid.dx / sg.ratio
@@ -94,8 +87,6 @@ class SubGridBase(UserObjectMulti):
         p2 = self.kwargs['p2']
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
-
-        self.check_filters(grid)
 
         self.set_discretisation(sg, grid)
 
