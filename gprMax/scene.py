@@ -61,10 +61,14 @@ class Scene:
             # to build in the correct subgrid.
             sg = sg_cmd.subgrid
             self.process_cmds(sg_cmd.children_multiple, sg)
-            self.process_cmds(sg_cmd.children_geometry, sg)
+            self.process_cmds(sg_cmd.children_geometry, sg, sort=False)
 
-    def process_cmds(self, commands, grid):
-        cmds_sorted = sorted(commands, key=lambda cmd: cmd.order)
+    def process_cmds(self, commands, grid, sort=True):
+        if sort:
+            cmds_sorted = sorted(commands, key=lambda cmd: cmd.order)
+        else:
+            cmds_sorted = commands
+
         for obj in cmds_sorted:
             # in the first level all objects belong to the main grid
             uip = create_user_input_points(grid)
@@ -117,7 +121,7 @@ class Scene:
         G.initialise_grids()
 
         # Process the main grid geometry commands
-        self.process_cmds(self.geometry_cmds, G)
+        self.process_cmds(self.geometry_cmds, G, sort=False)
 
         # Process all the commands for the subgrid
         self.process_subgrid_commands(G.subgrids)
