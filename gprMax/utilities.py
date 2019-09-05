@@ -33,7 +33,7 @@ from colorama import Fore
 from colorama import Style
 init()
 import numpy as np
-from time import process_time
+from time import perf_counter
 
 from gprMax.constants import complextype
 from gprMax.constants import floattype
@@ -238,11 +238,8 @@ def get_host_info():
         except subprocess.CalledProcessError:
             pass
 
-        # Hyperthreading
-        if psutil.cpu_count(logical=False) != psutil.cpu_count(logical=True):
-            hyperthreading = True
-        else:
-            hyperthreading = False
+        physicalcores = psutil.cpu_count(logical=False)
+        logicalcores = psutil.cpu_count(logical=True)
 
         # OS version
         if platform.machine().endswith('64'):
@@ -267,14 +264,12 @@ def get_host_info():
             sockets = int(sockets)
             cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
             cpuID = ' '.join(cpuID.split())
+            physicalcores = subprocess.check_output("sysctl -n hw.physicalcpu", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            physicalcores = int(physicalcores)
+            logicalcores = subprocess.check_output("sysctl -n hw.logicalcpu", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            logicalcores = int(logicalcores)
         except subprocess.CalledProcessError:
             pass
-
-        # Hyperthreading
-        if psutil.cpu_count(logical=False) != psutil.cpu_count(logical=True):
-            hyperthreading = True
-        else:
-            hyperthreading = False
 
         # OS version
         if int(platform.mac_ver()[0].split('.')[1]) < 12:
@@ -301,17 +296,16 @@ def get_host_info():
             allcpuinfo = subprocess.check_output("lscpu", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
             for line in allcpuinfo.split('\n'):
                 if 'Socket(s)' in line:
-                    sockets = int(line.strip()[-1])
+                    sockets = int(re.sub("\D", "", line.strip()))
                 if 'Thread(s) per core' in line:
-                    threadspercore = int(line.strip()[-1])
+                    threadspercore = int(re.sub("\D", "", line.strip()))
+                if 'Core(s) per socket' in line:
+                    corespersocket = int(re.sub("\D", "", line.strip()))
         except subprocess.CalledProcessError:
             pass
 
-        # Hyperthreading
-        if threadspercore == 2:
-            hyperthreading = True
-        else:
-            hyperthreading = False
+        physicalcores = sockets * corespersocket
+        logicalcores = sockets * corespersocket * threadspercore
 
         # OS version
         osrelease = subprocess.check_output("cat /proc/sys/kernel/osrelease", shell=True).decode('utf-8').strip()
@@ -324,13 +318,17 @@ def get_host_info():
     hostinfo['sockets'] = sockets
     hostinfo['cpuID'] = cpuID
     hostinfo['osversion'] = osversion
-    hostinfo['hyperthreading'] = hyperthreading
-    hostinfo['logicalcores'] = psutil.cpu_count()
-    try:
-        # Get number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
-        hostinfo['physicalcores'] = psutil.cpu_count(logical=False)
-    except ValueError:
-        hostinfo['physicalcores'] = hostinfo['logicalcores']
+
+    # Hyperthreading
+    if logicalcores != physicalcores:
+        hostinfo['hyperthreading'] = True
+    else:
+        hostinfo['hyperthreading'] = False
+
+    hostinfo['logicalcores'] = logicalcores
+    # Number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
+    hostinfo['physicalcores'] = physicalcores
+
     # Handle case where cpu_count returns None on some machines
     if not hostinfo['physicalcores']:
         hostinfo['physicalcores'] = hostinfo['logicalcores']
@@ -415,4 +413,4 @@ def detect_check_gpus(deviceIDs):
 
 def timer():
     """Function to return the current process wide time in fractional seconds."""
-    return process_time()
+    return perf_counter()
