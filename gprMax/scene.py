@@ -22,11 +22,6 @@ class Scene:
         self.geometry_cmds = []
         self.essential_cmds = [Domain, TimeWindow, Discretisation]
 
-        # fractal box commands have an additional nonuser object which
-        # process modifications
-        fbb = FractalBoxBuilder()
-        self.add(fbb)
-
     def add(self, user_object):
         """Add the user object to the scene.
 
@@ -96,6 +91,11 @@ class Scene:
 
 
     def create_internal_objects(self, G):
+
+        # fractal box commands have an additional nonuser object which
+        # process modifications
+        fbb = FractalBoxBuilder()
+        self.add(fbb)
 
         # gprMax API presents the user with UserObjects in order to build
         # the internal Rx(), Cylinder() etc... objects. This function
