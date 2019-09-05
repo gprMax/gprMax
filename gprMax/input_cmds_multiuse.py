@@ -157,9 +157,9 @@ def process_multicmds(multicmds):
             if len(tmp) != 9:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly nine parameters')
 
-            p1 = (float(tmp[0], float(tmp[1]), float[tmp[2]]))
-            p2 = (float(tmp[3], float(tmp[4]), float[tmp[5]]))
-            dl = (float(tmp[6], float(tmp[7]), float[tmp[8]]))
+            p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
+            p2 = (float(tmp[3]), float(tmp[4]), float(tmp[5]))
+            dl = (float(tmp[6]), float(tmp[7]), float(tmp[8]))
 
             rx_array = RxArray(p1=p1, p2=p2, dl=dl)
             scene_objects.append(rx_array)
@@ -172,9 +172,9 @@ def process_multicmds(multicmds):
             if len(tmp) != 11:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
 
-            p1 = (float(tmp[0], float(tmp[1]), float[tmp[2]]))
-            p2 = (float(tmp[3], float(tmp[4]), float[tmp[5]]))
-            dl = (float(tmp[6], float(tmp[7]), float[tmp[8]]))
+            p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
+            p2 = (float(tmp[3]), float(tmp[4]), float(tmp[5]))
+            dl = (float(tmp[6]), float(tmp[7]), float(tmp[8]))
             filename = tmp[10]
 
             try:
