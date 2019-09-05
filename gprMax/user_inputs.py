@@ -1,7 +1,6 @@
 from .exceptions import CmdInputError
 from .subgrids.base import SubGridBase
 from .utilities import round_value
-from .utilities import Printer
 import gprMax.config as config
 
 import numpy as np
@@ -18,9 +17,15 @@ are rounding continuous points or checking the point is within the grid.
 Additionally all logic related to rounding points etc is encapulsated here.
 """
 
-def create_user_input_points(grid):
+
+def create_user_input_points(grid, user_obj):
     """Return a point checker class based on the grid supplied."""
     if isinstance(grid, SubGridBase):
+
+        # local object configuration trumps. User can turn of autotranslate for
+        # specfic objects.
+        if not user_obj.autotranslate and config.general['autotranslate']:
+            return MainGridUserInput(grid)
 
         if config.general['autotranslate']:
             return SubgridUserInput(grid)

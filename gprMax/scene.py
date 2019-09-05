@@ -71,7 +71,7 @@ class Scene:
 
         for obj in cmds_sorted:
             # in the first level all objects belong to the main grid
-            uip = create_user_input_points(grid)
+            uip = create_user_input_points(grid, obj)
             # Create an instance to check the geometry points provided by the
             # user. The way the point are checked depends on which grid the
             # points belong to.

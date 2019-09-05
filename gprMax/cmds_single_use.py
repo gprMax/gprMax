@@ -52,6 +52,9 @@ class UserObjectSingle:
         self.order = None
         self.kwargs = kwargs
         self.props = Properties()
+        # auto translate
+        self.autotranslate = True
+
 
         for k, v in kwargs.items():
             setattr(self.props, k, v)

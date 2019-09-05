@@ -10,6 +10,9 @@ class UserObjectGeometry:
         # hash command
         self.hash = '#example'
 
+        # auto translate
+        self.autotranslate = True
+
     def __str__(self):
         """Readble user string as per hash commands."""
         s = ''

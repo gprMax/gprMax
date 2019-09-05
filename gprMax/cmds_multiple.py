@@ -53,6 +53,9 @@ class UserObjectMulti:
         self.kwargs = kwargs
         self.order = None
         self.hash = '#example'
+        # auto translate
+        self.autotranslate = True
+
 
     def __str__(self):
         """Readble user string as per hash commands."""
