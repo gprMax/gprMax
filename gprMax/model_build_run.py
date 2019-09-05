@@ -268,13 +268,14 @@ class ModelBuildRun:
             if not os.path.exists(snapshotdir):
                 os.mkdir(snapshotdir)
 
-            self.printer.print()
+            self.printer.print('')
             for i, snap in enumerate(G.snapshots):
-                snap.filename = snapshotdir + snap.basefilename + '.vti'
+                fn = snapshotdir / Path(self.model_config.output_file_path.stem + '_' + snap.basefilename)
+                snap.filename = fn.with_suffix('.vti')
                 pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte', unit_scale=True, desc='Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
                 snap.write_vtk_imagedata(pbar, G)
                 pbar.close()
-            self.printer.print()
+            self.printer.print('')
 
         memGPU = ''
         if config.cuda['gpus']:

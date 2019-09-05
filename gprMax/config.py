@@ -115,12 +115,11 @@ class ModelConfig():
             self.appendmodelnumber = ''
 
         # outputfilepath for specific model
-        self.output_file_path = Path(*parts[:-2], parts[-1] + self.appendmodelnumber)
+        self.output_file_path = Path(*parts[:-2], parts[-1] + self.appendmodelnumber).with_suffix('')
         self.output_file_path_ext = self.output_file_path.with_suffix('.out')
 
         # make a snapshot directory
-        stem = parts[-1] + '_snaps' + self.appendmodelnumber
-        self.snapshot_dir = Path(*parts[:-2], stem)
+        self.snapshot_dir = '_snaps'
 
         inputfilestr_f = '\n--- Model {}/{}, input file: {}'
         self.inputfilestr = inputfilestr_f.format(self.i + 1, self.sim_config.model_end, self.sim_config.input_file_path)

@@ -688,11 +688,11 @@ class Snapshot(UserObjectMulti):
             raise CmdInputError("'{}' time value is not valid".format(self.__str__()))
 
         # Replace with old style snapshots if there are subgrids
-        if grid.subgrids:
-            from .snapshot_subgrid import Snapshot as SnapshotSub
-            s = SnapshotSub(xs, ys, zs, xf, yf, zf, dx, dy, dz, iterations, filename)
-        else:
-            s = SnapshotUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, iterations, filename)
+        #if grid.subgrids:
+        #    from .snapshot_subgrid import Snapshot as SnapshotSub
+        #    s = SnapshotSub(xs, ys, zs, xf, yf, zf, dx, dy, dz, iterations, filename)
+        #else:
+        s = SnapshotUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, iterations, filename)
 
         if config.is_messages():
             print('Snapshot from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, at {:g} secs with filename {} created.'.format(xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, dx * grid.dx, dy * grid.dy, dz * grid.dz, s.time * grid.dt, s.basefilename))
