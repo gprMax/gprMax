@@ -106,12 +106,14 @@ if 'cleanall' in sys.argv:
     # Now do a normal clean
     sys.argv[1] = 'clean'  # this is what distutils understands
 
+
 # Set compiler options
 # Windows
 if sys.platform == 'win32':
     compile_args = ['/O2', '/openmp', '/w']  # No static linking as no static version of OpenMP library; /w disables warnings
     linker_args = []
     extra_objects = []
+    libraries=[]
 # Mac OS X - needs gcc (usually via HomeBrew) because the default compiler LLVM (clang) does not support OpenMP
 #          - with gcc -fopenmp option implies -pthread
 elif sys.platform == 'darwin':
@@ -124,12 +126,14 @@ elif sys.platform == 'darwin':
         raise('Cannot find gcc 4-9 in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support is required.')
     compile_args = ['-O3', '-w', '-fopenmp', '-march=native']  # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
     linker_args = ['-fopenmp', '-Wl,-rpath,' + rpath]
+    libraries = ['iomp5', 'pthread']
     extra_objects = []
 # Linux
 elif sys.platform == 'linux':
     compile_args = ['-O3', '-w', '-fopenmp', '-march=native']
     linker_args = ['-fopenmp']
     extra_objects = []
+    libraries=[]
 
 # Build a list of all the extensions
 extensions = []
@@ -143,6 +147,7 @@ for file in cythonfiles:
                           [tmp[0] + fileext],
                           language='c',
                           include_dirs=[np.get_include()],
+                          libraries=libraries,
                           extra_compile_args=compile_args,
                           extra_link_args=linker_args,
                           extra_objects=extra_objects)
