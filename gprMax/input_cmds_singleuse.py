@@ -32,6 +32,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+
 from .cmds_single_use import Messages
 from .cmds_single_use import Title
 from .cmds_single_use import NumThreads
@@ -48,16 +49,21 @@ from .exceptions import CmdInputError
 
 
 def process_singlecmds(singlecmds):
-    """Checks the validity of command parameters and creates instances of classes of parameters.
+    """
+    Checks the validity of command parameters and creates instances of
+        classes of parameters.
 
     Args:
         singlecmds (dict): Commands that can only occur once in the model.
-        G (class): Grid class instance - holds essential parameters describing the model.
+        G (Grid): Holds essential parameters describing the model.
+
+    Returns:
+        scene_objects (list): Holds objects in scene.
     """
+
     scene_objects = []
 
     # Check validity of command parameters in order needed
-    # messages
     cmd = '#messages'
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
@@ -67,12 +73,18 @@ def process_singlecmds(singlecmds):
         messages = Messages(yn=str(tmp[0]))
         scene_objects.append(messages)
 
-    # Title
     cmd = '#title'
     if singlecmds[cmd] is not None:
         title = Title(name=str(singlecmds[cmd]))
         scene_objects.append(title)
 
+    # Set the output directory
+    cmd = '#output_dir'
+    if singlecmds[cmd] is not None:
+        output_dir = OutputDir(dir=singlecmds[cmd])
+        scene_objects.append(output_dir)
+
+    # Number of threads for CPU-based (OpenMP) parallelised parts of code
     cmd = '#num_threads'
     if singlecmds[cmd] is not None:
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
@@ -93,7 +105,6 @@ def process_singlecmds(singlecmds):
         discretisation = Discretisation(p1=dl)
         scene_objects.append(discretisation)
 
-    # Domain
     cmd = '#domain'
     if singlecmds[cmd] is not None:
         tmp = [float(x) for x in singlecmds[cmd].split()]
@@ -104,14 +115,12 @@ def process_singlecmds(singlecmds):
         domain = Domain(p1=p1)
         scene_objects.append(domain)
 
-    # Time step stability factor
     cmd = '#time_step_stability_factor'
     if singlecmds[cmd] is not None:
         tmp = tuple(float(x) for x in singlecmds[cmd].split())
         tsf = TimeStepStabilityFactor(f=tmp[0])
         scene_objects.append(tsf)
 
-    # Time window
     cmd = '#time_window'
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
@@ -132,25 +141,23 @@ def process_singlecmds(singlecmds):
 
         scene_objects.append(tw)
 
-        # PML
-        cmd = '#pml_cells'
-        if singlecmds[cmd] is not None:
-            tmp = singlecmds[cmd].split()
-            if len(tmp) != 1 and len(tmp) != 6:
-                raise CmdInputError(cmd + ' requires either one or six parameter(s)')
-            if len(tmp) == 1:
-                pml_cells = PMLCells(thickness=int(tmp[0]))
-            else:
-                pml_cells = PMLCells(x0=int(tmp[0]),
-                                     y0=int(tmp[1]),
-                                     z0=int(tmp[2]),
-                                     xmax=int(tmp[3]),
-                                     ymax=int(tmp[4]),
-                                     zmax=int(tmp[5]))
+    cmd = '#pml_cells'
+    if singlecmds[cmd] is not None:
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1 and len(tmp) != 6:
+            raise CmdInputError(cmd + ' requires either one or six parameter(s)')
+        if len(tmp) == 1:
+            pml_cells = PMLCells(thickness=int(tmp[0]))
+        else:
+            pml_cells = PMLCells(x0=int(tmp[0]),
+                                 y0=int(tmp[1]),
+                                 z0=int(tmp[2]),
+                                 xmax=int(tmp[3]),
+                                 ymax=int(tmp[4]),
+                                 zmax=int(tmp[5]))
 
-            scene_objects.append(pml_cells)
+        scene_objects.append(pml_cells)
 
-    # src_steps
     cmd = '#src_steps'
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
@@ -160,7 +167,6 @@ def process_singlecmds(singlecmds):
         src_steps = SrcSteps(p1=p1)
         scene_objects.append(src_steps)
 
-    # rx_steps
     cmd = '#rx_steps'
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
@@ -184,11 +190,5 @@ def process_singlecmds(singlecmds):
             ex_file = ExcitationFile(filepath=tmp[0])
 
         scene_objects.append(ex_file)
-
-    # Set the output directory
-    cmd = '#output_dir'
-    if singlecmds[cmd] is not None:
-        output_dir = OutputDir(dir=singlecmds[cmd])
-        scene_objects.append(output_dir)
 
     return scene_objects

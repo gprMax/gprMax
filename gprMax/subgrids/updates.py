@@ -15,12 +15,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-from ..exceptions import GeneralError
 
-from .subgrid_hsg import SubGridHSG
+from ..exceptions import GeneralError
 from .precursor_nodes import PrecursorNodes
 from .precursor_nodes import PrecursorNodesFiltered
-
+from .subgrid_hsg import SubGridHSG
 from ..updates import CPUUpdates
 
 
@@ -66,18 +65,17 @@ class SubgridUpdates(CPUUpdates):
 
 class SubgridUpdater(CPUUpdates):
     """Class to handle updating the electric and magnetic fields of an HSG
-    subgrid. The IS, OS, subgrid region and the electric/magnetic sources are updated
-    using the precursor regions.
+        subgrid. The IS, OS, subgrid region and the electric/magnetic sources
+        are updated using the precursor regions.
     """
 
     def __init__(self, subgrid, precursors, G):
         """
         Args:
-            subgrid (SubGrid3d): Subgrid to be updated
+            subgrid (SubGrid3d): Subgrid to be updated.
             precursors (PrecursorNodes): Precursor nodes associated with
-            the subgrid - contain interpolated fields
-            G (class): Grid class instance - holds essential parameters
-            describing the model.
+            the subgrid - contain interpolated fields.
+            G (Grid): Holds essential parameters describing the model.
         """
         super().__init__(subgrid)
         self.precursors = precursors
@@ -86,7 +84,9 @@ class SubgridUpdater(CPUUpdates):
 
     def hsg_1(self):
         """This is the first half of the subgrid update. Takes the time step
-        up to the main grid magnetic update"""
+            up to the main grid magnetic update.
+        """
+
         G = self.G
         sub_grid = self.grid
         precursors = self.precursors
@@ -125,7 +125,9 @@ class SubgridUpdater(CPUUpdates):
 
     def hsg_2(self):
         """This is the first half of the subgrid update. Takes the time step
-        up to the main grid electric update"""
+            up to the main grid electric update.
+        """
+        
         G = self.G
         sub_grid = self.grid
         precursors = self.precursors

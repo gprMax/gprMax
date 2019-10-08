@@ -4,6 +4,8 @@
 Scripting the input file
 ************************
 
+INTEGRATE THIS WHICH API DOCS
+
 The input file has now been made scriptable by permitting blocks of Python code to be specified between ``#python`` and ``#end_python`` commands. The code is executed when the input file is read by gprMax. You don't need any external tools, such as MATLAB, to generate larger, more complex input files for building intricate models. Python scripting means that gprMax now includes :ref:`libraries of more complex objects, such as antennas <antennas>`, that can be easily inserted into a model. You can also access a number of built-in constants from your Python code.
 
 Constants/variables
@@ -21,20 +23,3 @@ You can access the following built-in variables from your Python code:
 * ``current_model_run`` is the current run number of the model that is been executed.
 * ``inputfile`` is the path and name of the input file.
 * ``number_model_runs`` is the total number of runs specified when the model was initially executed, i.e. from ``python -m gprMax my_input_file -n number_of_model_runs``
-
-
-Functions for input commands
-============================
-
-To make it easier to create commands within a block of Python code, there is a built-in module which contains some of the most commonly used input commands in functional form. For example, to use Python to generate a series of cylinders in a model:
-
-.. code-block:: none
-
-    #python:
-    from gprMax.input_cmd_funcs import *
-    domain = domain(0.2, 0.2, 0.2)
-    for x in range(0, 8):
-        cylinder(0.02 + x * 0.02, 0.05, 0, 0.020 + x * 0.02, 0.05, domain[2], 0.005, 'pec’)
-    #end_python:
-
-The ``domain`` function will print the ``#domain`` command to the input file and return a variable with the extent of the domain that can be used elsewhere in a Python code block, e.g. in this case with the ``cylinder`` function. The ``cylinder`` function is just a functional version of the ``#cylinder`` command which prints it to the input file.

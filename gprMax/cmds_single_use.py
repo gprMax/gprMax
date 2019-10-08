@@ -16,10 +16,17 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import decimal as d
 import inspect
 import os
 import sys
-import decimal as d
+
+from colorama import init
+from colorama import Fore
+from colorama import Style
+init()
+import numpy as np
+from scipy import interpolate
 
 import gprMax.config as config
 from .config import c
@@ -29,13 +36,6 @@ from .exceptions import CmdInputError
 from .waveforms import Waveform
 from .utilities import round_value
 
-import numpy as np
-from scipy import interpolate
-from colorama import init
-from colorama import Fore
-from colorama import Style
-init()
-
 floattype = dtypes['float_or_double']
 
 
@@ -44,17 +44,16 @@ class Properties:
 
 
 class UserObjectSingle:
+    """Object that can only occur a single time in a model."""
 
     def __init__(self, **kwargs):
-        # each single command has an order to specify the order in which
-        # the commands are constructed. IE. discretisation must be
+        # Each single command has an order to specify the order in which
+        # the commands are constructed, e.g. discretisation must be
         # created before the domain
         self.order = None
         self.kwargs = kwargs
         self.props = Properties()
-        # auto translate
         self.autotranslate = True
-
 
         for k, v in kwargs.items():
             setattr(self.props, k, v)
@@ -74,8 +73,6 @@ class Domain(UserObjectSingle):
     """
 
     def __init__(self, **kwargs):
-        # dont need to define parameters in advance. Just catch errors
-        # when they occur
         super().__init__(**kwargs)
         self.order = 2
 
@@ -90,8 +87,6 @@ class Domain(UserObjectSingle):
         return s
 
     def create(self, G, uip):
-
-        # code to create the gprMax domain as per input_cmds_singleuse.py
         try:
             G.nx, G.ny, G.nz = uip.discretise_point(self.kwargs['p1'])
         except KeyError:
@@ -122,7 +117,6 @@ class Domain(UserObjectSingle):
             G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
             G.mode = '3D'
 
-        # Round down time step to nearest float with precision one less than hardware maximum. Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
         # Round down time step to nearest float with precision one less than hardware maximum.
         # Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
         G.dt = round_value(G.dt, decimalplaces=d.getcontext().prec - 1)
@@ -164,9 +158,8 @@ class Discretisation(UserObjectSingle):
     :param p1: Specify discretisation in x, y, z direction
     :type p1: list of floats, non-optional
     """
+
     def __init__(self, **kwargs):
-        # dont need to define parameters in advance. Just catch errors
-        # when they occur
         super().__init__(**kwargs)
         self.order = 1
 
@@ -181,11 +174,9 @@ class Discretisation(UserObjectSingle):
         return s
 
     def create(self, G, uip):
-
         try:
             G.dl = np.array(self.kwargs['p1'])
             G.dx, G.dy, G.dz = self.kwargs['p1']
-
         except KeyError:
             raise CmdInputError('Discretisation requires a point')
 
@@ -208,9 +199,8 @@ class TimeWindow(UserObjectSingle):
     :param iterations: Required number of iterations
     :type iterations: int, optional
     """
+
     def __init__(self, **kwargs):
-        # dont need to define parameters in advance. Just catch errors
-        # when they occur
         super().__init__(**kwargs)
         self.order = 4
 
@@ -263,8 +253,6 @@ class Messages(UserObjectSingle):
     """
 
     def __init__(self, **kwargs):
-        # dont need to define parameters in advance. Just catch errors
-        # when they occur
         super().__init__(**kwargs)
         self.order = 0
 
@@ -296,8 +284,6 @@ class Title(UserObjectSingle):
     """
 
     def __init__(self, **kwargs):
-        # dont need to define parameters in advance. Just catch errors
-        # when they occur
         super().__init__(**kwargs)
         self.order = 5
 
@@ -312,6 +298,7 @@ class Title(UserObjectSingle):
         if config.is_messages():
             print('Model title: {}'.format(G.title))
 
+
 class NumThreads(UserObjectSingle):
     """Allows you to control how many OpenMP threads (usually the number of
     physical CPU cores available) are used when running the model.
@@ -319,9 +306,8 @@ class NumThreads(UserObjectSingle):
     :param n: Number of threads.
     :type n: int, optional
     """
+
     def __init__(self, **kwargs):
-        # dont need to define parameters in advance. Just catch errors
-        # when they occur
         super().__init__(**kwargs)
         self.order = 6
 
@@ -356,28 +342,24 @@ class NumThreads(UserObjectSingle):
                 print('GPU solving using: {} - {}'.format(G.gpu.deviceID, G.gpu.name))
 
 
-# Time step stability factor
 class TimeStepStabilityFactor(UserObjectSingle):
     """Factor by which to reduce the time step from the CFL limit.
 
     :param f: Factor to multiple time step.
     :type f: float, optional
     """
+
     def __init__(self, **kwargs):
-        # dont need to define parameters in advance. Just catch errors
-        # when they occur
         super().__init__(**kwargs)
         self.order = 7
 
     def __str__(self):
-
         try:
             return '#time_step_stability_factor: {}'.format(self.kwargs['f'])
         except KeyError:
             return '#time_step_stability_factor:'
 
     def create(self, G, uip):
-
         try:
             f = self.kwargs['f']
         except KeyError:
@@ -410,14 +392,12 @@ class PMLCells(UserObjectSingle):
     :param zmax: Thickness of PML on top side.
     :type zmax: int, optional
     """
+
     def __init__(self, **kwargs):
-        # dont need to define parameters in advance. Just catch errors
-        # when they occur
         super().__init__(**kwargs)
         self.order = 8
 
     def create(self, G, uip):
-
         try:
             thickness = self.kwargs['thickness']
 
@@ -452,8 +432,6 @@ class SrcSteps(UserObjectSingle):
     """
 
     def __init__(self, **kwargs):
-        # dont need to define parameters in advance. Just catch errors
-        # when they occur
         super().__init__(**kwargs)
         self.order = 9
 
@@ -462,7 +440,7 @@ class SrcSteps(UserObjectSingle):
             G.srcsteps = uip.discretise_point(self.kwargs['p1'])
         except KeyError:
             raise CmdInputError('#src_steps: requires exactly three parameters')
-        # src_steps
+
         if config.is_messages():
             print('Simple sources will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.srcsteps[0] * G.dx, G.srcsteps[1] * G.dy, G.srcsteps[2] * G.dz))
 
@@ -475,8 +453,6 @@ class RxSteps(UserObjectSingle):
     """
 
     def __init__(self, **kwargs):
-        # dont need to define parameters in advance. Just catch errors
-        # when they occur
         super().__init__(**kwargs)
         self.order = 10
 
@@ -485,6 +461,7 @@ class RxSteps(UserObjectSingle):
             G.rxsteps = uip.discretise_point(self.kwargs['p1'])
         except KeyError:
             raise CmdInputError('#rx_steps: requires exactly three parameters')
+
         if config.is_messages():
             print('All receivers will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.rxsteps[0] * G.dx, G.rxsteps[1] * G.dy, G.rxsteps[2] * G.dz))
 
@@ -502,7 +479,6 @@ class ExcitationFile(UserObjectSingle):
     """
 
     def create(self, G, uip):
-    # Excitation file for user-defined source waveforms
         try:
             kwargs = dict()
             excitationfile = self.kwargs['filepath']
@@ -574,8 +550,6 @@ class OutputDir(UserObjectSingle):
     :type dir: str, non-optional
     """
     def __init__(self, **kwargs):
-        # dont need to define parameters in advance. Just catch errors
-        # when they occur
         super().__init__(**kwargs)
         self.order = 11
 

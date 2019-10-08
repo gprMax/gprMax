@@ -31,14 +31,12 @@ def store_outputs(G):
         iteration (int): Current iteration number.
         Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic
                                                 field values.
-        G (class): Grid class instance - holds essential parameters describing
-                    the model.
+        G (Grid): Holds essential parameters describing the model.
     """
 
     iteration = G.iteration
-    #import pdb; pdb.set_trace()
-
     Ex, Ey, Ez, Hx, Hy, Hz = G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz
+
     for rx in G.rxs:
         for output in rx.outputs:
             # Store electric or magnetic field components
@@ -107,8 +105,7 @@ def write_hdf5_main_grid_outputfile(outputfile, G):
 
     Args:
         outputfile (str): Name of the output file.
-        Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic field values.
-        G (class): Grid class instance - holds essential parameters describing the model.
+        G (Grid): Holds essential parameters describing the model.
     """
 
     write_data(outputfile, G)
@@ -119,8 +116,7 @@ def write_hdf5_sub_grid_outputfile(outputfile, G):
 
     Args:
         outputfile (str): Name of the output file.
-        Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic field values.
-        G (class): Grid class instance - holds essential parameters describing the model.
+        G (Grid): Holds essential parameters describing the model.
     """
 
     stem = outputfile.stem
@@ -129,13 +125,13 @@ def write_hdf5_sub_grid_outputfile(outputfile, G):
 
     for sg in G.subgrids:
 
-        # create an outputfile for each subgrid
+        # Create an outputfile for each subgrid
         fp = stem + '_' + sg.name + suffix
         fp = parent / Path(fp)
 
         f = write_data(fp, sg)
 
-        # write some additional meta data about the subgrid
+        # Write some additional meta data about the subgrid
         f.attrs['is_os_sep'] = sg.is_os_sep
         f.attrs['pml_separation'] = sg.pml_separation
         f.attrs['subgrid_pml_thickness'] = sg.pmlthickness['x0']
@@ -149,10 +145,7 @@ def write_data(outputfile, G):
 
     Args:
         outputfile (str): Name of the output file.
-        Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic
-                                                field values.
-        G (class): Grid class instance - holds essential parameters describing
-                    the model.
+        G (Grid): Holds essential parameters describing the model.
     """
 
     f = h5py.File(outputfile, 'w')

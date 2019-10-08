@@ -17,22 +17,21 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-
-import cython
-import numpy as np
-from scipy.constants import c
-from scipy.constants import mu_0 as m0
-from scipy.constants import epsilon_0 as e0
-import sys
-
-from .utilities import get_terminal_width
-from .utilities import get_host_info
 from pathlib import Path
+import sys
 
 from colorama import init
 from colorama import Fore
 from colorama import Style
 init()
+import cython
+import numpy as np
+from scipy.constants import c
+from scipy.constants import mu_0 as m0
+from scipy.constants import epsilon_0 as e0
+
+from .utilities import get_host_info
+from .utilities import get_terminal_width
 
 
 # Impedance of free space (Ohms)
@@ -51,11 +50,9 @@ z0 = np.sqrt(m0 / e0)
 general = {'inputfilepath': 'gprMax', 'outputfilepath': 'gprMax', 'messages': True,
            'progressbars': True, 'mode': '3D', 'cpu': True, 'cuda': False, 'opencl': False, 'autotranslate': False}
 
-
 def is_messages():
     """Function to return messages."""
     return general['messages']
-
 
 # Store information about host machine
 hostinfo = get_host_info()
@@ -98,37 +95,38 @@ elif precision == 'double':
 
 
 class ModelConfig():
+    """Configuration parameters for a model.
+        N.B. Multiple models can exist within a simulation
+    """
 
     def __init__(self, sim_config, i):
+        """
+        Args:
+            sim_config (SimConfig): Simulation level configuration object.
+            i (int): Current model number.
+        """
+
         self.sim_config = sim_config
         self.reuse_geometry = False
-
-        # current model number (indexed from 0)
-        self.i = i
-
-        parts = self.sim_config.output_file_path.parts
+        self.i = i # Indexed from 0
 
         if not sim_config.single_model:
-            # 1 indexed
-            self.appendmodelnumber = str(self.i + 1)
+            self.appendmodelnumber = str(self.i + 1) # Indexed from 1
         else:
             self.appendmodelnumber = ''
 
-        # outputfilepath for specific model
-        self.output_file_path = Path(*parts[:-2], parts[-1] + self.appendmodelnumber).with_suffix('')
+        # Output file path for specific model
+        parts = self.sim_config.output_file_path.with_suffix('').parts
+        self.output_file_path = Path(*parts[:-1], parts[-1] + self.appendmodelnumber)
         self.output_file_path_ext = self.output_file_path.with_suffix('.out')
 
-        # make a snapshot directory
+        # Make a snapshot directory
         self.snapshot_dir = '_snaps'
 
+        # String to print at start of each model run
         inputfilestr_f = '\n--- Model {}/{}, input file: {}'
         self.inputfilestr = inputfilestr_f.format(self.i + 1, self.sim_config.model_end, self.sim_config.input_file_path)
-        # string to print at start of each model run
         self.next_model = Fore.GREEN + '{} {}\n'.format(self.inputfilestr, '-' * (get_terminal_width() - 1 - len(self.inputfilestr))) + Style.RESET_ALL
-
-        # Add the current model run to namespace that can be accessed by
-        # user in any Python code blocks in input file
-        #self.usernamespace['current_model_run'] = self.i + 1
 
     def get_scene(self):
         if self.sim_config.scenes:
@@ -146,24 +144,15 @@ class ModelConfig():
 
 
 class SimulationConfig:
+    """Configuration parameters for a standard simulation.
+        N.B. A simulation can consist of multiple models.
+    """
 
     def __init__(self, args):
-        """Adapter for args into Simulation level configuration"""
-
-        # adapt the arg properties to link smoothly with MPIRunner(), CPURunner() etc..
-
-        # args.inputfile
-        # args.n
-        # args.task
-        # args.restart
-        # args.mpi
-        # args.mpi_no_spawn
-        # args.mpicomm
-        # args.gpu
-        # args.benchmark
-        # args.geometry_only
-        # args.geometry_fixed
-        # args.write_processed
+        """
+        Args:
+            args (Namespace): Arguments from either API or CLI.
+        """
 
         self.args = args
         self.n_models = args.n
@@ -177,20 +166,19 @@ class SimulationConfig:
         self.geometry_only = args.geometry_only
         self.write_processed = args.write_processed
 
-        # subgrid parameter may not exist if user uses CLI api
+        # Subgrid parameter may not exist if user enters via CLI
         try:
             self.subgrid = args.subgrid
         except AttributeError:
-            # this must be CLI user. No subgrids are available
             self.subgrid = False
 
-        # scenes parameter may not exist if user uses CLI api
+        # Scenes parameter may not exist if user enters via CLI
         try:
             self.scenes = args.scenes
         except AttributeError:
             self.scenes = []
 
-        # set more complex parameters
+        # Set more complex parameters
         self.set_input_file_path()
         self.set_output_file_path()
         self.set_model_start_end()
@@ -202,10 +190,8 @@ class SimulationConfig:
         else:
             self.single_model = False
 
-    # for example
     def set_model_start_end(self):
-
-        # set range for number of models to run (internally 0 index)
+        # Set range for number of models to run (internally 0 index)
         if self.args.task:
             # Job array feeds args.n number of single tasks
             modelstart = self.args.task - 1
@@ -224,17 +210,15 @@ class SimulationConfig:
         pass
 
     def set_input_file_path(self):
-        """Function to set to inputfile path"""
-
-        # if the API is in use an id for the simulation must be provided.
+        # If the API is in use an id for the simulation must be provided.
         if self.args.inputfile is None:
             self.input_file_path = Path(self.args.outputfile)
         else:
             self.input_file_path = Path(self.args.inputfile)
 
     def set_output_file_path(self):
-        # output file can be provided by the user. if they havent provided None
-        # use the inputfilefile path instead
+        # Output file path can be provided by the user. If they havent provided one
+        # use the inputfile file path instead
         try:
             self.output_file_path = Path(self.args.outputfile)
         except AttributeError:
@@ -242,6 +226,9 @@ class SimulationConfig:
 
 
 class SimulationConfigMPI(SimulationConfig):
+    """Configuration parameters for a MPI simulation.
+        N.B. A simulation can consist of multiple models.
+    """
 
     def __init__(self, args):
         super().__init__(args)
@@ -253,14 +240,33 @@ class SimulationConfigMPI(SimulationConfig):
 
 
 def create_simulation_config(args):
+    """Create simulation level configuration object to hold simulation
+        level parameters.
+
+    Args:
+        args (Namespace): Arguments from either API or CLI.
+
+    Returns:
+        sc (SimulationConfig): Simulation configuration object.
+    """
 
     if not args.mpi and not args.mpi_no_spawn:
         sc = SimulationConfig(args)
     elif args.mpi:
         sc = SimulationConfigMPI(args)
+
     return sc
 
 
 def create_model_config(sim_config, i):
+    """Create model level configuration object to hold model level
+        parameters.
+
+    Args:
+        sim_config (SimConfig): Simulation level configuration object.
+        i (int): Current model number.
+    """
+
     mc = ModelConfig(sim_config, i)
+
     return mc

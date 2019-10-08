@@ -15,17 +15,25 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-from gprMax.updates import CPUUpdates
-from gprMax.updates import GPUUpdates
-from .subgrids.updates import create_updates as create_subgrid_updates
-from gprMax.utilities import timer
+
+import gprMax.config as config
 from .grid import FDTDGrid
 from .grid import GPUGrid
-import gprMax.config as config
+from .subgrids.updates import create_updates as create_subgrid_updates
+from .updates import CPUUpdates
+from .updates import GPUUpdates
 
 
 def create_G(sim_config):
-    """Returns the configured solver."""
+    """Create grid object according to solver.
+
+    Args:
+        sim_config (SimConfig): Simulation level configuration object.
+
+    Returns:
+        G (Grid): Holds essential parameters describing the model.
+    """
+
     if sim_config.gpu:
         G = GPUGrid()
     elif sim_config.subgrid:
@@ -37,37 +45,46 @@ def create_G(sim_config):
 
 
 def create_solver(G, sim_config):
-    """Returns the configured solver."""
+    """Create configured solver object.
+
+    Args:
+        G (Grid): Holds essential parameters describing the model.
+        sim_config (SimConfig): simulation level configuration object.
+
+    Returns:
+        solver (Solver): solver object.
+    """
+
     if sim_config.gpu:
         updates = GPUUpdates(G)
         solver = Solver(updates)
     elif sim_config.subgrid:
         updates = create_subgrid_updates(G)
         solver = Solver(updates, hsg=True)
+        # A large range of different functions exist to advance the time step for
+        # dispersive materials. The correct function is set here based on the
+        # the required numerical precision and dispersive material type.
+        props = updates.adapt_dispersive_config(config)
+        updates.set_dispersive_updates(props)
     else:
         updates = CPUUpdates(G)
         solver = Solver(updates)
-    # a large range of function exist to advance the time step for dispersive
-    # materials. The correct function is set here  based on the
-    # the required numerical precision and dispersive material type.
-    props = updates.adapt_dispersive_config(config)
-    updates.set_dispersive_updates(props)
+        props = updates.adapt_dispersive_config(config)
+        updates.set_dispersive_updates(props)
+
     return solver
 
 
-
 class Solver:
-
     """Generic solver for Update objects"""
 
     def __init__(self, updates, hsg=False):
-        """Context for the model to run in. Sub-class this with contexts
-        i.e. an MPI context.
-
-        Args:
-            updates (Updates): updates contains methods to run FDTD algorithm
-            iterator (iterator): can be range() or tqdm()
         """
+        Args:
+            updates (Updates): Updates contains methods to run FDTD algorithm.
+            hsg (bool): Use sub-gridding.
+        """
+
         self.updates = updates
         self.hsg = hsg
 
@@ -75,8 +92,14 @@ class Solver:
         return self.updates.G
 
     def solve(self, iterator):
-        """Time step the FDTD model."""
-        tsolvestart = timer()
+        """Time step the FDTD model.
+
+        Args:
+            iterator (iterator): can be range() or tqdm()
+        """
+
+        self.updates.time_start()
+
         for iteration in iterator:
             self.updates.store_outputs()
             self.updates.store_snapshots(iteration)
@@ -92,5 +115,8 @@ class Solver:
                 self.updates.hsg_1()
             self.updates.update_electric_b()
 
-        tsolve = timer() - tsolvestart
+        self.updates.finalise()
+        tsolve = self.updates.calculate_tsolve()
+        self.updates.cleanup()
+
         return tsolve

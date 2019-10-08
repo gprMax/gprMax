@@ -29,6 +29,7 @@ gprMax User Guide
     :maxdepth: 2
     :caption: Advanced topics
 
+    api
     python_scripting
     openmp_mpi
     gpu

@@ -32,7 +32,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-from .exceptions import CmdInputError
+
 from .cmds_multiple import Waveform
 from .cmds_multiple import VoltageSource
 from .cmds_multiple import HertzianDipole
@@ -48,6 +48,7 @@ from .cmds_multiple import GeometryView
 from .cmds_multiple import GeometryObjectsWrite
 from .cmds_multiple import PMLCFS
 from .cmds_multiple import Rx
+from .exceptions import CmdInputError
 
 
 def process_multicmds(multicmds):
@@ -57,7 +58,9 @@ def process_multicmds(multicmds):
 
     Args:
         multicmds (dict): Commands that can have multiple instances in the model.
-        G (class): Grid class instance - holds essential parameters describing the model.
+
+    Returns:
+        scene_objects (list): Holds objects in scene.
     """
 
     scene_objects = []
@@ -332,6 +335,7 @@ def process_multicmds(multicmds):
             scene_objects.append(pml_cfs)
 
     return scene_objects
+
 
 def process_subgrid_hsg(cmdinstance):
 

@@ -15,21 +15,24 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-from .subgrid_hsg import SubGridHSG as SubGridHSGUser
-from .multi import ReferenceRx as ReferenceRxUser
-from ..exceptions import CmdInputError
-from ..cmds_multiple import UserObjectMulti
-from ..cmds_geometry.cmds_geometry import UserObjectGeometry
-from ..cmds_multiple import Rx
-from gprMax import config
 
 from copy import copy
 
 import numpy as np
 
+from gprMax import config
+from ..cmds_geometry.cmds_geometry import UserObjectGeometry
+from ..cmds_multiple import UserObjectMulti
+from ..cmds_multiple import Rx
+from ..exceptions import CmdInputError
+from .multi import ReferenceRx as ReferenceRxUser
+from .subgrid_hsg import SubGridHSG as SubGridHSGUser
+
 
 class SubGridBase(UserObjectMulti):
-    """Class to allow UserObjectMulti and UserObjectGeometry to be nested in SubGrid type user objects."""
+    """Class to allow UserObjectMulti and UserObjectGeometry to be nested
+        in SubGrid type user objects.
+    """
 
     def __init__(self, **kwargs):
         """Constructor."""
@@ -196,7 +199,6 @@ class SubGridHSG(SubGridBase):
         if config.is_messages():
             print(sg)
         return sg
-
 
 
 class ReferenceRx(Rx):

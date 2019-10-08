@@ -1,12 +1,29 @@
-"""Class for cylinder command."""
+# Copyright (C) 2015-2019: The University of Edinburgh
+#                 Authors: Craig Warren and Antonis Giannopoulos
+#
+# This file is part of gprMax.
+#
+# gprMax is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# gprMax is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+
+import numpy as np
+from tqdm import tqdm
+
+import gprMax.config as config
 from .cmds_geometry import UserObjectGeometry
+from ..cython.geometry_primitives import build_cylinder
 from ..exceptions import CmdInputError
 from ..materials import Material
-from ..cython.geometry_primitives import build_cylinder
-
-from tqdm import tqdm
-import numpy as np
-import gprMax.config as config
 
 
 class Cylinder(UserObjectGeometry):

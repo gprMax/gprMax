@@ -15,9 +15,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+
+import sys
+
 import numpy as np
 from scipy import interpolate
-import sys
 
 
 def calculate_weighting_coefficients(x1, x):
@@ -180,8 +182,7 @@ class PrecusorNodesBase(object):
             setattr(self, f, val)
 
     def calc_exact_field(self, field_names):
-        """
-            Function to set the fields used in update calculations to the
+        """Function to set the fields used in update calculations to the
             values at the current main time step.
             i.e. ey_left = copy.ey_left_1
         """

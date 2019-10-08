@@ -47,7 +47,7 @@ class Source(object):
         """Calculates all waveform values for source for duration of simulation.
 
         Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
         # Waveform values for electric sources - calculated half a timestep later
         self.waveformvaluesJ = np.zeros((G.iterations), dtype=config.dtypes['float_or_double'])
@@ -85,7 +85,7 @@ class VoltageSource(Source):
             updatecoeffsE (memory view): numpy array of electric field update coefficients.
             ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
             Ex, Ey, Ez (memory view): numpy array of electric field values.
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
@@ -117,7 +117,7 @@ class VoltageSource(Source):
         voltage source conductivity to the underlying parameters.
 
         Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         if self.resistance != 0:
@@ -161,7 +161,7 @@ class HertzianDipole(Source):
             updatecoeffsE (memory view): numpy array of electric field update coefficients.
             ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
             Ex, Ey, Ez (memory view): numpy array of electric field values.
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
@@ -193,7 +193,7 @@ class MagneticDipole(Source):
             updatecoeffsH (memory view): numpy array of magnetic field update coefficients.
             ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
@@ -217,7 +217,7 @@ def gpu_initialise_src_arrays(sources, G):
 
     Args:
         sources (list): List of sources of one class, e.g. HertzianDipoles.
-        G (class): Grid class instance - holds essential parameters describing the model.
+        G (Grid): Holds essential parameters describing the model.
 
     Returns:
         srcinfo1_gpu (int): numpy array of source cell coordinates and polarisation information.
@@ -260,13 +260,13 @@ def gpu_initialise_src_arrays(sources, G):
 
 class TransmissionLine(Source):
     """A transmission line source is a one-dimensional transmission line
-    which is attached virtually to a grid cell.
+        which is attached virtually to a grid cell.
     """
 
     def __init__(self, G):
         """
         Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         super().__init__()
@@ -299,10 +299,11 @@ class TransmissionLine(Source):
 
     def calculate_incident_V_I(self, G):
         """Calculates the incident voltage and current with a long length
-        transmission line not connected to the main grid from: http://dx.doi.org/10.1002/mop.10415
+            transmission line not connected to the main grid
+            from: http://dx.doi.org/10.1002/mop.10415
 
         Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         for iteration in range(G.iterations):
@@ -318,7 +319,7 @@ class TransmissionLine(Source):
         """Updates absorbing boundary condition at end of the transmission line.
 
         Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         h = (config.c * G.dt - self.dl) / (config.c * G.dt + self.dl)
@@ -332,7 +333,7 @@ class TransmissionLine(Source):
 
         Args:
             iteration (int): Current iteration (timestep).
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         # Update all the voltage values along the line
@@ -349,7 +350,7 @@ class TransmissionLine(Source):
 
         Args:
             iteration (int): Current iteration (timestep).
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         # Update all the current values along the line
@@ -366,7 +367,7 @@ class TransmissionLine(Source):
             updatecoeffsE (memory view): numpy array of electric field update coefficients.
             ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
             Ex, Ey, Ez (memory view): numpy array of electric field values.
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
@@ -393,7 +394,7 @@ class TransmissionLine(Source):
             updatecoeffsH (memory view): numpy array of magnetic field update coefficients.
             ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:

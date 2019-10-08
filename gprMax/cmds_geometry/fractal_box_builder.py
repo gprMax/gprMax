@@ -1,14 +1,31 @@
-"""Class for fractal box modifications command."""
-from .cmds_geometry import UserObjectGeometry
-from ..exceptions import CmdInputError
-from ..config import dtypes
-from ..cython.geometry_primitives import build_voxels_from_array
-from ..cython.geometry_primitives import build_voxels_from_array_mask
+# Copyright (C) 2015-2019: The University of Edinburgh
+#                 Authors: Craig Warren and Antonis Giannopoulos
+#
+# This file is part of gprMax.
+#
+# gprMax is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# gprMax is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 
+from .cmds_geometry import UserObjectGeometry
+from ..config import dtypes
+from ..cython.geometry_primitives import build_voxels_from_array
+from ..cython.geometry_primitives import build_voxels_from_array_mask
+from ..exceptions import CmdInputError
 
 floattype = dtypes['float_or_double']
+
 
 class FractalBoxBuilder(UserObjectGeometry):
     """Internal class for fractal box modifications. This class should be used

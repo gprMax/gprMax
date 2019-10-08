@@ -22,7 +22,6 @@ from io import StringIO
 
 import gprMax.config as config
 from .exceptions import CmdInputError
-
 from .input_cmds_geometry import process_geometrycmds
 from .input_cmds_multiuse import process_multicmds
 from .input_cmds_singleuse import process_singlecmds
@@ -113,8 +112,7 @@ def process_python_include_code(inputfile, usernamespace):
 
 
 def process_include_files(hashcmds, inputfile):
-    """
-    Looks for and processes any include file commands and insert
+    """Looks for and processes any include file commands and insert
         the contents of the included file at that location.
 
     Args:
@@ -157,9 +155,8 @@ def process_include_files(hashcmds, inputfile):
 
 
 def write_processed_file(processedlines, appendmodelnumber):
-    """
-    Writes an input file after any Python code and include commands
-    in the original input file have been processed.
+    """Writes an input file after any Python code and include commands
+        in the original input file have been processed.
 
     Args:
         processedlines (list): Input commands after after processing any
@@ -177,8 +174,7 @@ def write_processed_file(processedlines, appendmodelnumber):
 
 
 def check_cmd_names(processedlines, checkessential=True):
-    """
-    Checks the validity of commands, i.e. are they gprMax commands,
+    """Checks the validity of commands, i.e. are they gprMax commands,
         and that all essential commands are present.
 
     Args:
@@ -253,9 +249,17 @@ def check_cmd_names(processedlines, checkessential=True):
 
 
 def get_user_objects(processedlines, check=True):
+    """Make a list of all user objects.
 
-    # Check validity of command names and that
-    # essential commands are present
+    Args:
+        processedlines (list): Input commands after Python processing.
+        check (bool): Whether to check for essential commands or not.
+
+    Returns:
+        user_objs (list): All user objects.
+    """
+
+    # Check validity of command names and that essential commands are present
     parsed_commands = check_cmd_names(processedlines, checkessential=check)
 
     # Process parameters for commands that can only occur once in the model
@@ -274,9 +278,16 @@ def get_user_objects(processedlines, check=True):
 
 
 def parse_hash_commands(model_config, G, scene):
-    """Parse user hash commands and add them to the scene."""
-    # Add the current model run to namespace that can be accessed by
-    # user in any Python code blocks in input file
+    """Parse user hash commands and add them to the scene.
+
+    Args:
+        model_config (ModelConfig): Model level configuration object.
+        G (Grid): Holds essential parameters describing the model.
+        scene (Scene): Scene object.
+
+    Returns:
+        scene (Scene): Scene object.
+    """
 
     sim_config = model_config.sim_config
 
@@ -292,8 +303,7 @@ def parse_hash_commands(model_config, G, scene):
         for key, value in sorted(usernamespace.items()):
             if key != '__builtins__':
                 uservars += '{}: {}, '.format(key, value)
-        usv_s = """Constants/variables used/available for Python \
-        scripting: {{{}}}\n"""
+        usv_s = """Constants/variables used/available for Python scripting: {{{}}}\n"""
         print(usv_s.format(uservars[:-2]))
 
         # Write a file containing the input commands after Python or include
@@ -309,8 +319,8 @@ def parse_hash_commands(model_config, G, scene):
 
 
 class Capturing(list):
+    """Context manager to capture standard output stream."""
     # https://stackoverflow.com/questions/16571150/how-to-capture-stdout-output-from-a-python-function-call
-    """Context manager to capture standard output stream"""
 
     def __enter__(self):
         self._stdout = sys.stdout
@@ -325,10 +335,12 @@ class Capturing(list):
 
 def user_libs_fn_to_scene_obj(f, *args, **kwargs):
     """Function to convert library functions in the user_libs directory
-    into geometry objects which can be added to the scene"""
+        into geometry objects which can be added to the scene.
+    """
 
     with Capturing() as str_cmds:
         f(*args, **kwargs)
 
     user_objects = get_user_objects(str_cmds, check=False)
+
     return user_objects

@@ -48,8 +48,7 @@ def gpu_initialise_rx_arrays(G):
         components for receivers.
 
     Args:
-        G (class): Grid class instance - holds essential parameters
-                    describing the model.
+        G (Grid): Holds essential parameters describing the model.
     """
 
     import pycuda.gpuarray as gpuarray
@@ -80,8 +79,7 @@ def gpu_get_rx_array(rxs_gpu, rxcoords_gpu, G):
         rxs_gpu (float): numpy array of receiver data from GPU - rows are field
                             components; columns are iterations; pages are receivers.
         rxcoords_gpu (float): numpy array of receiver coordinates from GPU.
-        G (class): Grid class instance - holds essential parameters
-                    describing the model.
+        G (Grid): Holds essential parameters describing the model.
     """
 
     for rx in G.rxs:

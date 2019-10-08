@@ -15,38 +15,36 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+import sys
+import numpy as np
+from tqdm import tqdm
 
-"""Object which can be created multiple times."""
 import gprMax.config as config
 from .config import z0
 from .config import dtypes
-from .utilities import round_value
+
 from .cmds_geometry.cmds_geometry import UserObjectGeometry
-from .waveforms import Waveform as WaveformUser
+from .exceptions import CmdInputError
+from .geometry_outputs import GeometryObjects as GeometryObjectsUser
+from .materials import Material as MaterialUser
+from .materials import PeplinskiSoil as PeplinskiSoilUser
+from .pml import CFSParameter
+from .pml import CFS
+from .receivers import Rx as RxUser
+from .snapshots import Snapshot as SnapshotUser
 from .sources import VoltageSource as VoltageSourceUser
 from .sources import HertzianDipole as HertzianDipoleUser
 from .sources import MagneticDipole as MagneticDipoleUser
 from .sources import TransmissionLine as TransmissionLineUser
-from .snapshots import Snapshot as SnapshotUser
-from .receivers import Rx as RxUser
-from .materials import Material as MaterialUser
-from .materials import PeplinskiSoil as PeplinskiSoilUser
-from .geometry_outputs import GeometryObjects as GeometryObjectsUser
-from .pml import CFSParameter
-from .pml import CFS
 from .subgrids.base import SubGridBase
-
-from .exceptions import CmdInputError
-
-
-import numpy as np
-from tqdm import tqdm
+from .utilities import round_value
+from .waveforms import Waveform as WaveformUser
 
 floattype = dtypes['float_or_double']
 
 
 class UserObjectMulti:
-    """Specific multiobject object."""
+    """Object that can occur multiple times in a model."""
 
     def __init__(self, **kwargs):
         """Constructor."""
@@ -58,7 +56,7 @@ class UserObjectMulti:
 
 
     def __str__(self):
-        """Readble user string as per hash commands."""
+        """Readable user string as per hash commands."""
         s = ''
         for k, v in self.kwargs.items():
             if isinstance(v, tuple) or isinstance(v, list):
@@ -86,6 +84,7 @@ class Waveform(UserObjectMulti):
     :param freq: The centre frequency of the waveform (Hertz)
     :type freq: float, non-optional
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.order = 0
@@ -136,6 +135,7 @@ class VoltageSource(UserObjectMulti):
     :param stop: Time to remove the source
     :type stop: float, optional
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.order = 1
@@ -296,7 +296,6 @@ class HertzianDipole(UserObjectMulti):
         except KeyError:
             h.start = 0
             h.stop = grid.timewindow
-            print(grid.timewindow)
             startstop = ' '
 
         h.calculate_waveform_values(grid)
@@ -414,6 +413,7 @@ class TransmissionLine(UserObjectMulti):
     :param stop: Time to remove the source
     :type stop: float, optional
     """
+
     def __init__(self, **kwargs):
         """Constructor."""
         super().__init__(**kwargs)
@@ -505,7 +505,6 @@ class Rx(UserObjectMulti):
     :param outputs: is a list of outputs with this receiver. It can be any
     selection from Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, or Iz.
     :type outputs: list, non-optional
-
     """
 
     def __init__(self, **kwargs):
@@ -553,6 +552,7 @@ class Rx(UserObjectMulti):
         grid.rxs.append(r)
 
         return r
+
 
 class RxArray(UserObjectMulti):
     """Provides a simple method of defining multiple output points in the model.
@@ -698,6 +698,7 @@ class Snapshot(UserObjectMulti):
             print('Snapshot from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m, discretisation {:g}m, {:g}m, {:g}m, at {:g} secs with filename {} created.'.format(xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, dx * grid.dx, dy * grid.dy, dz * grid.dz, s.time * grid.dt, s.basefilename))
 
         grid.snapshots.append(s)
+
 
 class Material(UserObjectMulti):
     """Allows you to introduce a material into the model described by a set of constitutive parameters.
@@ -1219,6 +1220,7 @@ class PMLCFS(UserObjectMulti):
 
         grid.cfs.append(cfs)
 
+
 class Subgrid(UserObjectMulti):
 
     def __init__(self, **kwargs):
@@ -1233,6 +1235,7 @@ class Subgrid(UserObjectMulti):
             self.children_geometry.append(node)
         else:
             raise Exception('This Object is Unknown to gprMax')
+
 
 class SubgridHSG(UserObjectMulti):
 

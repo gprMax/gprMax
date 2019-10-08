@@ -420,8 +420,10 @@ def timer():
     """Function to return the current process wide time in fractional seconds."""
     return perf_counter()
 
-class Printer():
 
+class Printer():
+    """Printing information messages."""
+    
     def __init__(self, config):
         self.printing = config.is_messages()
 

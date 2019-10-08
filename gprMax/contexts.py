@@ -15,28 +15,30 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-from .utilities import get_terminal_width
-from .utilities import timer
-from .model_build_run import ModelBuildRun
+
 import datetime
+
 from .config import create_model_config
+from .model_build_run import ModelBuildRun
 from .solvers import create_solver
 from .solvers import create_G
+from .utilities import get_terminal_width
+from .utilities import timer
 
 
 class Context():
+    """Generic context for the model to run in. Sub-class with specific contexts
+    e.g. an MPI context.
+    """
 
     def __init__(self, sim_config):
-        """Context for the model to run in. Sub-class this with contexts
-        i.e. an MPI context.
-
+        """
         Args:
             sim_config (SimConfig): Simulation level configuration object.
-            solver (Solver): FDTD general solver object.
         """
+
         self.sim_config = sim_config
-        self.model_range = range(sim_config.model_start,
-                                 sim_config.model_end)
+        self.model_range = range(sim_config.model_start, sim_config.model_end)
         self.tsimend = 0
         self.tsimstart = 1
 
@@ -52,11 +54,14 @@ class Context():
         print(s)
 
     def make_time_report(self):
-        """Function to generate a string for the total simulation time bas"""
+        """Function to generate a string for the total simulation time."""
         pass
 
 
 class NoMPIContext(Context):
+    """Standard context - models are run one after another and each model
+        is parallelised using either OpenMP (CPU) or CUDA (GPU).
+    """
 
     def _run(self):
         """Specialise how the models are farmed out."""
@@ -64,9 +69,9 @@ class NoMPIContext(Context):
         for i in self.model_range:
             model_config = create_model_config(self.sim_config, i)
 
-            # always create a solver for the first model
-            # the next model to run only gets a new solver if the
-            # geometry is not re used.
+            # Always create a solver for the first model.
+            # The next model to run only gets a new solver if the
+            # geometry is not re-used.
             if i != 0 and self.sim_config.geometry_fixed:
                 model_config.reuse_geometry = True
             else:
@@ -82,7 +87,9 @@ class NoMPIContext(Context):
 
     def make_time_report(self):
         """Function to specialise the time reporting for the standard Simulation
-        context."""
+            context.
+        """
+
         sim_time = datetime.timedelta(seconds=self.tsimend - self.tsimstart)
         s = '\n=== Simulation on {} completed in [HH:MM:SS]: {}'
         s = s.format(self.simconfig.hostinfo['hostname'], sim_time)
@@ -90,6 +97,15 @@ class NoMPIContext(Context):
 
 
 class MPIContext(Context):
+    """Mixed mode MPI/OpenMP/CUDA context - MPI task farm is used to distribute
+        models, and each model parallelised using either OpenMP (CPU)
+        or CUDA (GPU).
+    """
+
+    def __init__(self):
+        super().__init__()
+
+        from mpi4py import MPI
 
     def _run(self):
         pass
@@ -108,10 +124,18 @@ class MPINoSpawnContext(Context):
 
 
 def create_context(sim_config):
-    """Create a context in which to run the simulation. i.e MPI."""
-    if sim_config.mpi_no_spawn:
+    """Create a context in which to run the simulation. i.e MPI.
+
+    Args:
+        sim_config (SimConfig): Simulation level configuration object.
+
+    Returns:
+        context (Context): Context for the model to run in.
+    """
+
+    if sim_config.mpi:
         context = MPIContext(sim_config)
-    elif sim_config.mpi:
+    elif sim_config.mpi_no_spawn:
         context = MPINoSpawnContext(sim_config)
     else:
         context = NoMPIContext(sim_config)

@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from collections import OrderedDict
+import decimal as d
 
 from colorama import init
 from colorama import Fore
@@ -24,6 +25,7 @@ from colorama import Style
 init()
 import numpy as np
 np.seterr(invalid='raise')
+from scipy.constants import c
 
 import gprMax.config as config
 from .exceptions import GeneralError
@@ -32,10 +34,6 @@ from .pml import CFS
 from .utilities import fft_power
 from .utilities import human_size
 from .utilities import round_value
-
-import decimal as d
-from scipy.constants import c
-
 
 
 class Grid(object):
@@ -104,14 +102,16 @@ class Grid(object):
 
 
 class FDTDGrid(Grid):
-    """
-    Holds attributes associated with the entire grid. A convenient
-    way for accessing regularly used parameters.
+    """Holds attributes associated with entire grid. A convenient
+        way for accessing regularly used parameters.
     """
 
     def __init__(self):
         self.title = ''
         self.memoryusage = 0
+        self.name = 'Main'
+        self.gpu = None
+        self.outputdirectory = ''
 
         self.nx = 0
         self.ny = 0
@@ -120,6 +120,7 @@ class FDTDGrid(Grid):
         self.dy = 0
         self.dz = 0
         self.dt = 0
+        self.iteration = 0
         self.iterations = 0
         self.timewindow = 0
 
@@ -148,14 +149,10 @@ class FDTDGrid(Grid):
         self.rxsteps = [0, 0, 0]
         self.snapshots = []
         self.subgrids = []
-        self.gpu = None
-        self.name = 'Main'
-        self.outputdirectory = ''
-        self.iteration = 0
+
 
     def initialise_geometry_arrays(self):
-        """
-        Initialise an array for volumetric material IDs (solid);
+        """Initialise an array for volumetric material IDs (solid);
             boolean arrays for specifying whether materials can have dielectric smoothing (rigid);
             and an array for cell edge IDs (ID).
         Solid and ID arrays are initialised to free_space (one);
@@ -286,19 +283,19 @@ class FDTDGrid(Grid):
         self.ID[2, 0, :, :] = 0
         self.ID[2, 1, :, :] = 0
 
-    def tmy():
+    def tmy(self):
         # Ex & Ez components
-        G.ID[0, :, 0, :] = 0
-        G.ID[0, :, 1, :] = 0
-        G.ID[2, :, 0, :] = 0
-        G.ID[2, :, 1, :] = 0
+        self.ID[0, :, 0, :] = 0
+        self.ID[0, :, 1, :] = 0
+        self.ID[2, :, 0, :] = 0
+        self.ID[2, :, 1, :] = 0
 
-    def tmz():
+    def tmz(self):
         # Ex & Ey components
-        G.ID[0, :, :, 0] = 0
-        G.ID[0, :, :, 1] = 0
-        G.ID[1, :, :, 0] = 0
-        G.ID[1, :, :, 1] = 0
+        self.ID[0, :, :, 0] = 0
+        self.ID[0, :, :, 1] = 0
+        self.ID[1, :, :, 0] = 0
+        self.ID[1, :, :, 1] = 0
 
 
     def reset_fields(self):
@@ -319,10 +316,8 @@ class FDTDGrid(Grid):
         self.dt = round_value(self.dt, decimalplaces=d.getcontext().prec - 1)
 
 
-
 def dispersion_analysis(G):
-    """
-    Analysis of numerical dispersion (Taflove et al, 2005, p112) -
+    """Analysis of numerical dispersion (Taflove et al, 2005, p112) -
         worse case of maximum frequency and minimum wavelength
 
     Args:
@@ -449,12 +444,11 @@ def Ix(x, y, z, Hx, Hy, Hz, G):
     Args:
         x, y, z (float): Coordinates of position in grid.
         Hx, Hy, Hz (memory view): numpy array of magnetic field values.
-        G (class): Grid class instance - holds essential parameters describing the model.
+        G (Grid): Holds essential parameters describing the model.
     """
 
     if y == 0 or z == 0:
         Ix = 0
-
     else:
         Ix = G.dy * (Hy[x, y, z - 1] - Hy[x, y, z]) + G.dz * (Hz[x, y, z] - Hz[x, y - 1, z])
 
@@ -467,12 +461,11 @@ def Iy(x, y, z, Hx, Hy, Hz, G):
     Args:
         x, y, z (float): Coordinates of position in grid.
         Hx, Hy, Hz (memory view): numpy array of magnetic field values.
-        G (class): Grid class instance - holds essential parameters describing the model.
+        G (Grid): Holds essential parameters describing the model.
     """
 
     if x == 0 or z == 0:
         Iy = 0
-
     else:
         Iy = G.dx * (Hx[x, y, z] - Hx[x, y, z - 1]) + G.dz * (Hz[x - 1, y, z] - Hz[x, y, z])
 
@@ -485,12 +478,11 @@ def Iz(x, y, z, Hx, Hy, Hz, G):
     Args:
         x, y, z (float): Coordinates of position in grid.
         Hx, Hy, Hz (memory view): numpy array of magnetic field values.
-        G (class): Grid class instance - holds essential parameters describing the model.
+        G (Grid): Holds essential parameters describing the model.
     """
 
     if x == 0 or y == 0:
         Iz = 0
-
     else:
         Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (Hy[x, y, z] - Hy[x - 1, y, z])
 

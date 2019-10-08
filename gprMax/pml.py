@@ -177,8 +177,7 @@ class PML(object):
     def __init__(self, G, ID=None, direction=None, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0):
         """
         Args:
-            G (class): Grid class instance - holds essential parameters
-                        describing the model.
+            G (Grid): Holds essential parameters describing the model.
             ID (str): Identifier for PML slab.
             direction (str): Direction of increasing absorption.
             xs, xf, ys, yf, zs, zf (float): Extent of the PML slab.
@@ -249,8 +248,7 @@ class PML(object):
         Args:
             er (float): Average permittivity of underlying material
             mr (float): Average permeability of underlying material
-            G (class): Grid class instance - holds essential parameters
-                        describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         self.ERA = np.zeros((len(self.CFS), self.thickness),
@@ -313,7 +311,7 @@ class PML(object):
         """This functions updates electric field components with the PML correction.
 
         Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         pmlmodule = 'gprMax.cython.pml_updates_electric_' + G.pmlformulation
@@ -327,7 +325,7 @@ class PML(object):
         """This functions updates magnetic field components with the PML correction.
 
         Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         pmlmodule = 'gprMax.cython.pml_updates_magnetic_' + G.pmlformulation
@@ -341,7 +339,7 @@ class PML(object):
         """Set the blocks per grid size used for updating the PML field arrays on a GPU.
 
         Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         self.bpg = (int(np.ceil(((self.EPhi1_gpu.shape[1] + 1) * (self.EPhi1_gpu.shape[2] + 1) * (self.EPhi1_gpu.shape[3] + 1)) / G.tpb[0])), 1, 1)
@@ -394,8 +392,7 @@ class PML(object):
             correction on the GPU.
 
         Args:
-            G (class): Grid class instance - holds essential parameters
-                        describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
 
         self.update_electric_gpu(np.int32(self.xs), np.int32(self.xf), np.int32(self.ys), np.int32(self.yf), np.int32(self.zs), np.int32(self.zf), np.int32(self.EPhi1_gpu.shape[1]), np.int32(self.EPhi1_gpu.shape[2]), np.int32(self.EPhi1_gpu.shape[3]), np.int32(self.EPhi2_gpu.shape[1]), np.int32(self.EPhi2_gpu.shape[2]), np.int32(self.EPhi2_gpu.shape[3]), np.int32(self.thickness), G.ID_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata, self.EPhi1_gpu.gpudata, self.EPhi2_gpu.gpudata, self.ERA_gpu.gpudata, self.ERB_gpu.gpudata, self.ERE_gpu.gpudata, self.ERF_gpu.gpudata, floattype(self.d), block=G.tpb, grid=self.bpg)
@@ -405,14 +402,13 @@ class PML(object):
             correction on the GPU.
 
         Args:
-            G (class): Grid class instance - holds essential parameters
-                        describing the model.
+            G (Grid): Holds essential parameters describing the model.
         """
         self.update_magnetic_gpu(np.int32(self.xs), np.int32(self.xf), np.int32(self.ys), np.int32(self.yf), np.int32(self.zs), np.int32(self.zf), np.int32(self.HPhi1_gpu.shape[1]), np.int32(self.HPhi1_gpu.shape[2]), np.int32(self.HPhi1_gpu.shape[3]), np.int32(self.HPhi2_gpu.shape[1]), np.int32(self.HPhi2_gpu.shape[2]), np.int32(self.HPhi2_gpu.shape[3]), np.int32(self.thickness), G.ID_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata, self.HPhi1_gpu.gpudata, self.HPhi2_gpu.gpudata, self.HRA_gpu.gpudata, self.HRB_gpu.gpudata, self.HRE_gpu.gpudata, self.HRF_gpu.gpudata, floattype(self.d), block=G.tpb, grid=self.bpg)
 
 
 def pml_information(G):
-    # no pml
+    # No pml
     if all(value == 0 for value in G.pmlthickness.values()):
         return 'PML: switched off'
 
@@ -423,7 +419,8 @@ def pml_information(G):
         for key, value in G.pmlthickness.items():
             pmlinfo += '{}: {}, '.format(key, value)
         pmlinfo = pmlinfo[:-2] + ' cells'
-    return 'PML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo)
+    return '\nPML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo)
+
 
 def build_pml(G, key, value):
     """This function builds instances of the PML and calculates the initial
@@ -431,56 +428,57 @@ def build_pml(G, key, value):
         (based on underlying material er and mr from solid array).
 
     Args:
-        G (class): Grid class instance - holds essential parameters
-                    describing the model.
+        G (Grid): Holds essential parameters describing the model.
+        key (str): Identifier of PML slab.
+        value (int): Thickness of PML slab in cells.
     """
-    if value > 0:
-        sumer = 0  # Sum of relative permittivities in PML slab
-        summr = 0  # Sum of relative permeabilities in PML slab
 
-        if key[0] == 'x':
-            if key == 'x0':
-                pml = PML(G, ID=key, direction='xminus', xf=value, yf=G.ny, zf=G.nz)
-            elif key == 'xmax':
-                pml = PML(G, ID=key, direction='xplus', xs=G.nx - value, xf=G.nx, yf=G.ny, zf=G.nz)
-            G.pmls.append(pml)
+    sumer = 0  # Sum of relative permittivities in PML slab
+    summr = 0  # Sum of relative permeabilities in PML slab
+
+    if key[0] == 'x':
+        if key == 'x0':
+            pml = PML(G, ID=key, direction='xminus', xf=value, yf=G.ny, zf=G.nz)
+        elif key == 'xmax':
+            pml = PML(G, ID=key, direction='xplus', xs=G.nx - value, xf=G.nx, yf=G.ny, zf=G.nz)
+        G.pmls.append(pml)
+        for j in range(G.ny):
+            for k in range(G.nz):
+                numID = G.solid[pml.xs, j, k]
+                material = next(x for x in G.materials if x.numID == numID)
+                sumer += material.er
+                summr += material.mr
+        averageer = sumer / (G.ny * G.nz)
+        averagemr = summr / (G.ny * G.nz)
+
+    elif key[0] == 'y':
+        if key == 'y0':
+            pml = PML(G, ID=key, direction='yminus', yf=value, xf=G.nx, zf=G.nz)
+        elif key == 'ymax':
+            pml = PML(G, ID=key, direction='yplus', ys=G.ny - value, xf=G.nx, yf=G.ny, zf=G.nz)
+        G.pmls.append(pml)
+        for i in range(G.nx):
+            for k in range(G.nz):
+                numID = G.solid[i, pml.ys, k]
+                material = next(x for x in G.materials if x.numID == numID)
+                sumer += material.er
+                summr += material.mr
+        averageer = sumer / (G.nx * G.nz)
+        averagemr = summr / (G.nx * G.nz)
+
+    elif key[0] == 'z':
+        if key == 'z0':
+            pml = PML(G, ID=key, direction='zminus', zf=value, xf=G.nx, yf=G.ny)
+        elif key == 'zmax':
+            pml = PML(G, ID=key, direction='zplus', zs=G.nz - value, xf=G.nx, yf=G.ny, zf=G.nz)
+        G.pmls.append(pml)
+        for i in range(G.nx):
             for j in range(G.ny):
-                for k in range(G.nz):
-                    numID = G.solid[pml.xs, j, k]
-                    material = next(x for x in G.materials if x.numID == numID)
-                    sumer += material.er
-                    summr += material.mr
-            averageer = sumer / (G.ny * G.nz)
-            averagemr = summr / (G.ny * G.nz)
+                numID = G.solid[i, j, pml.zs]
+                material = next(x for x in G.materials if x.numID == numID)
+                sumer += material.er
+                summr += material.mr
+        averageer = sumer / (G.nx * G.ny)
+        averagemr = summr / (G.nx * G.ny)
 
-        elif key[0] == 'y':
-            if key == 'y0':
-                pml = PML(G, ID=key, direction='yminus', yf=value, xf=G.nx, zf=G.nz)
-            elif key == 'ymax':
-                pml = PML(G, ID=key, direction='yplus', ys=G.ny - value, xf=G.nx, yf=G.ny, zf=G.nz)
-            G.pmls.append(pml)
-            for i in range(G.nx):
-                for k in range(G.nz):
-                    numID = G.solid[i, pml.ys, k]
-                    material = next(x for x in G.materials if x.numID == numID)
-                    sumer += material.er
-                    summr += material.mr
-            averageer = sumer / (G.nx * G.nz)
-            averagemr = summr / (G.nx * G.nz)
-
-        elif key[0] == 'z':
-            if key == 'z0':
-                pml = PML(G, ID=key, direction='zminus', zf=value, xf=G.nx, yf=G.ny)
-            elif key == 'zmax':
-                pml = PML(G, ID=key, direction='zplus', zs=G.nz - value, xf=G.nx, yf=G.ny, zf=G.nz)
-            G.pmls.append(pml)
-            for i in range(G.nx):
-                for j in range(G.ny):
-                    numID = G.solid[i, j, pml.zs]
-                    material = next(x for x in G.materials if x.numID == numID)
-                    sumer += material.er
-                    summr += material.mr
-            averageer = sumer / (G.nx * G.ny)
-            averagemr = summr / (G.nx * G.ny)
-
-        pml.calculate_update_coeffs(averageer, averagemr, G)
+    pml.calculate_update_coeffs(averageer, averagemr, G)

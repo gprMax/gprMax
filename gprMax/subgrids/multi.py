@@ -15,17 +15,18 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+
 from ..receivers import Rx
 
 
 class ReferenceRx(Rx):
-    """Receiver that micks a receiver in coarse grid."""
-
-    """We often want to compare an output in a fine reference solution with a
-    the solution in the coarse grid of a subgridded solution. This receiver
-    moves the output points in the fine grid such that they are in the same
-    position as the coarse grid.
+    """Receiver that mimicks a receiver in coarse grid.
+        We often want to compare an output in a fine reference solution with a
+        the solution in the coarse grid of a subgridded solution. This receiver
+        moves the output points in the fine grid such that they are in the same
+        position as the coarse grid.
     """
+
     def __init__(self):
         """Constructor."""
         super().__init__()
@@ -33,19 +34,14 @@ class ReferenceRx(Rx):
     def get_field(self, str_id, field):
         """Return the field value at the equivalent coarse yee cell.
 
-        Parameters
-        ----------
-        str_id : str
-            'Ex' etc...
-        field : np array
-            e.g. numpy array of grid.Ez
+        Args:
+            str_id (str): 'Ex' etc...
+            field (nparray): Numpy array of grid.Ez
 
-        Returns
-        -------
-        float
-            Field value
-
+        Returns:
+            e (float): Field value.
         """
+
         d = {
             'Ex': self.get_Ex_from_field,
             'Ey': self.get_Ey_from_field,
@@ -56,21 +52,17 @@ class ReferenceRx(Rx):
         }
 
         e = d[str_id](field)
+
         return e
 
     def get_Ex_from_field(self, Ex):
         """Return the Ex field value from the equivalent coarse yee cell.
 
-        Parameters
-        ----------
-        Ex : 3d numpy array
-            e.g. grid.Ex
+        Args:
+            Ex (nparray): Numpy array of Ex field.
 
-        Returns
-        -------
-        float
-            Ex field value
-
+        Returns:
+            e (float): Ex field value.
         """
 
         # offset = ratio // 2
@@ -80,16 +72,11 @@ class ReferenceRx(Rx):
     def get_Ey_from_field(self, Ey):
         """Return the Ey field value from the equivalent coarse yee cell.
 
-        Parameters
-        ----------
-        Ex : 3d numpy array
-            e.g. grid.Ex
+        Args:
+            Ey (nparray): Numpy array of Ey field.
 
-        Returns
-        -------
-        float
-            Ey field value
-
+        Returns:
+            e (float): Ey field value.
         """
         e = Ey[self.xcoord, self.ycoord + self.offset, self.zcoord]
         return e
@@ -97,33 +84,24 @@ class ReferenceRx(Rx):
     def get_Ez_from_field(self, Ez):
         """Return the Ez field value from the equivalent coarse yee cell.
 
-        Parameters
-        ----------
-        Ex : 3d numpy array
-            e.g. grid.Ez
+        Args:
+            Ez (nparray): Numpy array of Ez field.
 
-        Returns
-        -------
-        float
-            Ez field value
-
+        Returns:
+            e (float): Ez field value.
         """
+
         e = Ez[self.xcoord, self.ycoord, self.zcoord + self.offset]
         return e
 
     def get_Hx_from_field(self, Hx):
         """Return the Hx field value from the equivalent coarse yee cell.
 
-        Parameters
-        ----------
-        Ex : 3d numpy array
-            e.g. grid.Hx
+        Args:
+            Hx (nparray): Numpy array of Hx field.
 
-        Returns
-        -------
-        float
-            Hx field value
-
+        Returns:
+            e (float): Hx field value.
         """
         e = Hx[self.xcoord, self.ycoord + self.offset, self.zcoord + self.offset]
         return e
@@ -131,16 +109,11 @@ class ReferenceRx(Rx):
     def get_Hy_from_field(self, Hy):
         """Return the Hy field value from the equivalent coarse yee cell.
 
-        Parameters
-        ----------
-        Ex : 3d numpy array
-            e.g. grid.Hx
+        Args:
+            Hy (nparray): Numpy array of Hy field.
 
-        Returns
-        -------
-        float
-            Hy field value
-
+        Returns:
+            e (float): Hy field value.
         """
         e = Hy[self.xcoord + self.offset, self.ycoord, self.zcoord + self.offset]
         return e
@@ -148,16 +121,11 @@ class ReferenceRx(Rx):
     def get_Hz_from_field(self, Hz):
         """Return the Hz field value from the equivalent coarse yee cell.
 
-        Parameters
-        ----------
-        Ex : 3d numpy array
-            e.g. grid.Hx
+        Args:
+            Hz (nparray): Numpy array of Hz field.
 
-        Returns
-        -------
-        float
-            Hz field value
-
+        Returns:
+            e (float): Hz field value.
         """
         e = Hz[self.xcoord + self.offset, self.ycoord + self.offset, self.zcoord]
         return e

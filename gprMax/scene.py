@@ -1,14 +1,32 @@
-from .user_inputs import create_user_input_points
-from .materials import create_built_in_materials
+# Copyright (C) 2015-2019: The University of Edinburgh
+#                 Authors: Craig Warren and Antonis Giannopoulos
+#
+# This file is part of gprMax.
+#
+# gprMax is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# gprMax is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+
+from .cmds_geometry.cmds_geometry import UserObjectGeometry
+from .cmds_geometry.fractal_box_builder import FractalBoxBuilder
+from .cmds_multiple import UserObjectMulti
 from .cmds_single_use import UserObjectSingle
 from .cmds_single_use import Domain
 from .cmds_single_use import Discretisation
 from .cmds_single_use import TimeWindow
-from .cmds_multiple import UserObjectMulti
-from .subgrids.user_objects import SubGridBase as SubGridUserBase
-from .cmds_geometry.cmds_geometry import UserObjectGeometry
 from .exceptions import CmdInputError
-from .cmds_geometry.fractal_box_builder import FractalBoxBuilder
+from .materials import create_built_in_materials
+from .subgrids.user_objects import SubGridBase as SubGridUserBase
+from .user_inputs import create_user_input_points
 from .utilities import human_size
 
 
@@ -39,20 +57,20 @@ class Scene:
 
     def process_subgrid_commands(self, subgrids):
 
-        # check for subgrid user objects
+        # Check for subgrid user objects
         def func(obj):
             if isinstance(obj, SubGridUserBase):
                 return True
             else:
                 return False
 
-        # subgrid user objects
+        # Subgrid user objects
         subgrid_cmds = list(filter(func, self.multiple_cmds))
 
-        # iterate through the user command objects under the subgrid user object
+        # Iterate through the user command objects under the subgrid user object
         for sg_cmd in subgrid_cmds:
-            # when the subgrid is created its reference is attached to its user
-            # object. this reference allows the multi and geo user objects
+            # When the subgrid is created its reference is attached to its user
+            # object. This reference allows the multi and geo user objects
             # to build in the correct subgrid.
             sg = sg_cmd.subgrid
             self.process_cmds(sg_cmd.children_multiple, sg)
@@ -88,7 +106,6 @@ class Scene:
                 raise CmdInputError('Your input file is missing essential commands required to run a model. Essential commands are: Domain, Discretisation, Time Window')
 
         self.process_cmds(cmds_unique, G)
-
 
     def create_internal_objects(self, G):
 

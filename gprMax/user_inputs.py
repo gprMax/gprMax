@@ -1,19 +1,37 @@
-from .exceptions import CmdInputError
-from .subgrids.base import SubGridBase
-from .utilities import round_value
-import gprMax.config as config
+# Copyright (C) 2015-2019: The University of Edinburgh
+#                 Authors: Craig Warren and Antonis Giannopoulos
+#
+# This file is part of gprMax.
+#
+# gprMax is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# gprMax is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import numpy as np
 from colorama import init
 from colorama import Fore
 from colorama import Style
-
 init()
+import numpy as np
+
+import gprMax.config as config
+from .exceptions import CmdInputError
+from .subgrids.base import SubGridBase
+from .utilities import round_value
+
 
 """Module contains classes to handle points supplied by a user. The
 classes implement a common interface such that geometry building objects
-such as Box or triangle do not need to have any knowledge which grid to which they
-are rounding continuous points or checking the point is within the grid.
+such as box or triangle do not need to have any knowledge which grid to which 
+they are rounding continuous points or checking the point is within the grid.
 Additionally all logic related to rounding points etc is encapulsated here.
 """
 
@@ -36,7 +54,6 @@ def create_user_input_points(grid, user_obj):
 
 
 class UserInput:
-
     """Base class to handle (x, y, z) points supplied by the user."""
 
     def __init__(self, grid):
@@ -113,8 +130,9 @@ class MainGridUserInput(UserInput):
 
 class SubgridUserInput(MainGridUserInput):
     """Class to handle (x, y, z) points supplied by the user in the sub grid.
-    This class autotranslates points from main grid to subgrid equivalent (within IS). Useful
-    if material traverse is not required."""
+    This class autotranslates points from main grid to subgrid equivalent (within IS).
+    Useful if material traverse is not required.
+    """
 
     def __init__(self, grid):
         super().__init__(grid)

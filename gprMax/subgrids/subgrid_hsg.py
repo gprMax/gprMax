@@ -15,14 +15,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+
+from colorama import init, Fore, Style
+init()
+
 from .base import SubGridBase
 from ..cython.fields_updates_hsg import cython_update_is
 from ..cython.fields_updates_hsg import cython_update_magnetic_os
 from ..cython.fields_updates_hsg import cython_update_electric_os
 from ..utilities import human_size
-
-from colorama import init, Fore, Style
-init()
 
 
 class SubGridHSG(SubGridBase):
@@ -35,9 +36,11 @@ class SubGridHSG(SubGridBase):
 
     def update_magnetic_is(self, precursors):
         """Update the subgrid nodes at the IS with the currents derived
-        from the main grid.
-        Args: nwl, nwm, nwn, face, field, inc_field, lookup_id, sign, mod, co
+            from the main grid.
+            Args:
+                nwl, nwm, nwn, face, field, inc_field, lookup_id, sign, mod, co
         """
+        
         # Hz = c0Hz - c1Ey + c2Ex
         # Hy = c0Hy - c3Ex + c1Ez
         # Hx = c0Hx - c2Ez + c3Ey

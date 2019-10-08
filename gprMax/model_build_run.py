@@ -60,9 +60,11 @@ from .pml import pml_information
 from .receivers import gpu_initialise_rx_arrays
 from .receivers import gpu_get_rx_array
 from .receivers import Rx
+from .scene import Scene
 from .snapshots import Snapshot
 from .snapshots import gpu_initialise_snapshot_array
 from .snapshots import gpu_get_snapshot_array
+from .solvers import create_solver
 from .sources import gpu_initialise_src_arrays
 from .utilities import get_terminal_width
 from .utilities import human_size
@@ -70,12 +72,10 @@ from .utilities import open_path_file
 from .utilities import round32
 from .utilities import timer
 from .utilities import Printer
-from .scene import Scene
-from .solvers import create_solver
-
 
 
 class ModelBuildRun:
+    """Builds and runs (solves) a model."""
 
     def __init__(self, G, sim_config, model_config):
         self.G = G
@@ -86,20 +86,8 @@ class ModelBuildRun:
         self.p = None
 
     def build(self):
-        """Runs a model - processes the input file; builds the Yee cells; calculates update coefficients; runs main FDTD loop.
+        """Builds the Yee cells for a model."""
 
-        Args:
-            args (dict): Namespace with command line arguments
-            currentmodelrun (int): Current model run number.
-            modelend (int): Number of last model to run.
-            numbermodelruns (int): Total number of model runs.
-            inputfile (object): File object for the input file.
-            usernamespace (dict): Namespace that can be accessed by user
-                    in any Python code blocks in input file.
-
-        Returns:
-            tsolve (int): Length of time (seconds) of main FDTD calculations
-        """
         # Monitor memory usage
         self.p = psutil.Process()
 
@@ -114,20 +102,20 @@ class ModelBuildRun:
         # Adjust position of simple sources and receivers if required
         if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
             for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
-                if currentmodelrun == 1:
-                    if source.xcoord + G.srcsteps[0] * modelend < 0 or source.xcoord + G.srcsteps[0] * modelend > G.nx or source.ycoord + G.srcsteps[1] * modelend < 0 or source.ycoord + G.srcsteps[1] * modelend > G.ny or source.zcoord + G.srcsteps[2] * modelend < 0 or source.zcoord + G.srcsteps[2] * modelend > G.nz:
+                if self.model_config.i == 0:
+                    if source.xcoord + G.srcsteps[0] * self.sim_config.model_end < 0 or source.xcoord + G.srcsteps[0] * self.sim_config.model_end > G.nx or source.ycoord + G.srcsteps[1] * self.sim_config.model_end < 0 or source.ycoord + G.srcsteps[1] * self.sim_config.model_end > G.ny or source.zcoord + G.srcsteps[2] * self.sim_config.model_end < 0 or source.zcoord + G.srcsteps[2] * self.sim_config.model_end > G.nz:
                         raise GeneralError('Source(s) will be stepped to a position outside the domain.')
-                source.xcoord = source.xcoordorigin + (currentmodelrun - 1) * G.srcsteps[0]
-                source.ycoord = source.ycoordorigin + (currentmodelrun - 1) * G.srcsteps[1]
-                source.zcoord = source.zcoordorigin + (currentmodelrun - 1) * G.srcsteps[2]
+                source.xcoord = source.xcoordorigin + (self.model_config.i) * G.srcsteps[0]
+                source.ycoord = source.ycoordorigin + (self.model_config.i) * G.srcsteps[1]
+                source.zcoord = source.zcoordorigin + (self.model_config.i) * G.srcsteps[2]
         if G.rxsteps[0] != 0 or G.rxsteps[1] != 0 or G.rxsteps[2] != 0:
             for receiver in G.rxs:
-                if currentmodelrun == 1:
-                    if receiver.xcoord + G.rxsteps[0] * modelend < 0 or receiver.xcoord + G.rxsteps[0] * modelend > G.nx or receiver.ycoord + G.rxsteps[1] * modelend < 0 or receiver.ycoord + G.rxsteps[1] * modelend > G.ny or receiver.zcoord + G.rxsteps[2] * modelend < 0 or receiver.zcoord + G.rxsteps[2] * modelend > G.nz:
+                if self.model_config.i == 0:
+                    if receiver.xcoord + G.rxsteps[0] * self.sim_config.model_end < 0 or receiver.xcoord + G.rxsteps[0] * self.sim_config.model_end > G.nx or receiver.ycoord + G.rxsteps[1] * self.sim_config.model_end < 0 or receiver.ycoord + G.rxsteps[1] * self.sim_config.model_end > G.ny or receiver.zcoord + G.rxsteps[2] * self.sim_config.model_end < 0 or receiver.zcoord + G.rxsteps[2] * self.sim_config.model_end > G.nz:
                         raise GeneralError('Receiver(s) will be stepped to a position outside the domain.')
-                receiver.xcoord = receiver.xcoordorigin + (currentmodelrun - 1) * G.rxsteps[0]
-                receiver.ycoord = receiver.ycoordorigin + (currentmodelrun - 1) * G.rxsteps[1]
-                receiver.zcoord = receiver.zcoordorigin + (currentmodelrun - 1) * G.rxsteps[2]
+                receiver.xcoord = receiver.xcoordorigin + (self.model_config.i) * G.rxsteps[0]
+                receiver.ycoord = receiver.ycoordorigin + (self.model_config.i) * G.rxsteps[1]
+                receiver.zcoord = receiver.zcoordorigin + (self.model_config.i) * G.rxsteps[2]
 
         # Write files for any geometry views and geometry object outputs
         if not (G.geometryviews or G.geometryobjectswrite) and self.sim_config.geometry_only and config.is_messages():
@@ -142,15 +130,15 @@ class ModelBuildRun:
             pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {}/{}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
             geometryobject.write_hdf5(G, pbar)
             pbar.close()
+        if config.is_messages(): print()
 
-        # If only writing geometry information
-        if self.sim_config.geometry_only:
-            tsolve = 0
+        # # If only writing geometry information
+        # if self.sim_config.geometry_only:
+        #     tsolve = 0
 
     def build_geometry(self):
         model_config = self.model_config
         sim_config = self.sim_config
-
         G = self.G
 
         printer = Printer(config)
@@ -158,7 +146,7 @@ class ModelBuildRun:
 
         scene = self.build_scene()
 
-        # combine available grids
+        # Combine available grids
         grids = [G] + G.subgrids
         gridbuilders = [GridBuilder(grid, self.printer) for grid in grids]
 
@@ -199,6 +187,7 @@ class ModelBuildRun:
 
             printer.print('\nMemory (RAM) required - updated (snapshots): ~{}\n'.format(human_size(G.memoryusage)))
 
+        # Build materials
         for gb in gridbuilders:
             gb.build_materials()
 
@@ -213,31 +202,32 @@ class ModelBuildRun:
         elif results['deltavp']:
             printer.print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
 
-
     def reuse_geometry(self):
         G = self.G
-        inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(self.model_config.appendmodelnumber, self.sim_config.model_end, self.sim_config.input_file_path)
-        self.printer.print(Fore.GREEN + '{} {}\n'.format(self.model_config.inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
+        # Reset iteration number
+        G.iteration = 0
+        self.model_config.inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(self.model_config.appendmodelnumber, self.sim_config.model_end, self.sim_config.input_file_path)
+        self.printer.print(Fore.GREEN + '{} {}'.format(self.model_config.inputfilestr, '-' * (get_terminal_width() - 1 - len(self.model_config.inputfilestr))) + Style.RESET_ALL)
         for grid in [G] + G.subgrids:
             grid.reset_fields()
 
     def build_scene(self):
         G = self.G
-        # api for multiple scenes / model runs
+        # API for multiple scenes / model runs
         scene = self.model_config.get_scene()
 
-        # if there is no scene - process the hash commands instead
+        # If there is no scene - process the hash commands instead
         if not scene:
             scene = Scene()
-            # parse the input file into user objects and add them to the scene
+            # Parse the input file into user objects and add them to the scene
             scene = parse_hash_commands(self.model_config, G, scene)
 
         # Creates the internal simulation objects.
         scene.create_internal_objects(G)
+
         return scene
 
     def create_output_directory(self):
-
         if self.G.outputdirectory:
             # Check and set output directory and filename
             try:
@@ -245,17 +235,15 @@ class ModelBuildRun:
                 self.printer.print('\nCreated output directory: {}'.format(self.G.outputdirectory))
             except FileExistsError:
                 pass
-            # modify the output path (hack)
+            # Modify the output path (hack)
             self.model_config.output_file_path_ext = Path(self.G.outputdirectory, self.model_config.output_file_path_ext)
 
-
     def run_model(self, solver):
-
         G = self.G
-
         self.create_output_directory()
-        self.printer.print('\nOutput file: {}\n'.format(self.model_config.output_file_path_ext))
+        self.printer.print('Output file: {}\n'.format(self.model_config.output_file_path_ext))
 
+        # Run solver
         tsolve = self.solve(solver)
 
         # Write an output file in HDF5 format
@@ -292,13 +280,12 @@ class ModelBuildRun:
         electric and magnetic field updates, and PML updates.
 
         Args:
-            currentmodelrun (int): Current model run number.
-            modelend (int): Number of last model to run.
-            G (class): Grid class instance - holds essential parameters describing the model.
+            solver (Solver): solver object.
 
         Returns:
-            tsolve (float): Time taken to execute solving (seconds)
+            tsolve (float): time taken to execute solving (seconds).
         """
+
         G = self.G
 
         if config.is_messages():
@@ -318,21 +305,21 @@ class GridBuilder:
         self.printer = printer
 
     def build_pmls(self):
-
         grid = self.grid
-        # build the PMLS
-        pbar = tqdm(total=sum(1 for value in grid.pmlthickness.values() if value > 0), desc='Building {} Grid PML boundaries'.format(self.grid.name), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
 
+        # Build the PMLS
+        pbar = tqdm(total=sum(1 for value in grid.pmlthickness.values() if value > 0), desc='Building {} Grid PML boundaries'.format(self.grid.name), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
         for pml_id, thickness in grid.pmlthickness.items():
-            build_pml(grid, pml_id, thickness)
-            pbar.update()
+            if thickness > 0:
+                build_pml(grid, pml_id, thickness)
+                pbar.update()
         pbar.close()
 
     def build_components(self):
         # Build the model, i.e. set the material properties (ID) for every edge
         # of every Yee cell
         self.printer.print('')
-        pbar = tqdm(total=2, desc='Building {} grid'.format(self.grid.name), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
+        pbar = tqdm(total=2, desc='Building {} Grid'.format(self.grid.name), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
         build_electric_components(self.grid.solid, self.grid.rigidE, self.grid.ID, self.grid)
         pbar.update()
         build_magnetic_components(self.grid.solid, self.grid.rigidH, self.grid.ID, self.grid)

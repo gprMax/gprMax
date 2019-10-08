@@ -15,10 +15,11 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-from ..grid import FDTDGrid
 
-from scipy.constants import c
 import numpy as np
+from scipy.constants import c
+
+from ..grid import FDTDGrid
 
 
 class SubGridBase(FDTDGrid):

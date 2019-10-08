@@ -15,9 +15,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-import sys
 
-from .utilities import get_terminal_width
+import sys
+import numpy as np
 
 from .cmds_geometry.geometry_objects_read import GeometryObjectsRead
 from .cmds_geometry.edge import Edge
@@ -31,12 +31,7 @@ from .cmds_geometry.sphere import Sphere
 from .cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from .cmds_geometry.add_surface_water import AddSurfaceWater
 from .cmds_geometry.add_grass import AddGrass
-
 from .utilities import round_value
-
-
-from tqdm import tqdm
-import numpy as np
 
 
 def process_geometrycmds(geometry):
@@ -46,21 +41,15 @@ def process_geometrycmds(geometry):
     solid, rigid and ID.
 
     Args:
-        geometry (list): Geometry commands in the model
+        geometry (list): Geometry commands in the model,
+
+    Returns:
+        scene_objects (list): Holds objects in scene.
     """
 
     scene_objects = []
 
-    # Disable progress bar if on Windows as it does not update properly
-    # when messages are printed
-    #if sys.platform == 'win32':
-#        tqdmdisable = True
-    #else:
-    #    tqdmdisable = G.tqdmdisable
-
-    tqdmdisable = False
-
-    for object in tqdm(geometry, desc='Processing geometry related cmds', unit='cmds', ncols=get_terminal_width() - 1, file=sys.stdout, disable=tqdmdisable):
+    for object in geometry:
         tmp = object.split()
 
         if tmp[0] == '#geometry_objects_read:':
