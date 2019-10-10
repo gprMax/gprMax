@@ -33,14 +33,18 @@ import pathlib
 import re
 import shutil
 import sys
-from jinja2 import Environment, PackageLoader, select_autoescape
+
+from jinja2 import Environment
+from jinja2 import PackageLoader
+from jinja2 import select_autoescape
 
 
 def build_dispersive_material_templates():
+    """Function to generate Cython .pyx files for dispersive media update.
+        Jinja2 templates are used to render the various dispersive update
+        functions.
     """
-    Function to generate Cython .pyx files for dispersive media update.
-    Jinja2 templates are used to render the various dispersive update functions.
-    """
+
     env = Environment(
         loader=PackageLoader(__name__, 'gprMax/templates'),
     )
@@ -152,25 +156,25 @@ if 'cleanall' in sys.argv:
         if os.path.isfile(filebase + '.c'):
             try:
                 os.remove(filebase + '.c')
-                print('Removed: {}'.format(filebase + '.c'))
+                print(f'Removed: {filebase} + ".c"')
             except OSError:
-                print('Could not remove: {}'.format(filebase + '.c'))
+                print(f'Could not remove: {filebase} + ".c"')
         # Remove compiled Cython modules
         libfile = glob.glob(os.path.join(os.getcwd(), os.path.splitext(file)[0]) + '*.pyd') + glob.glob(os.path.join(os.getcwd(), os.path.splitext(file)[0]) + '*.so')
         if libfile:
             libfile = libfile[0]
             try:
                 os.remove(libfile)
-                print('Removed: {}'.format(os.path.abspath(libfile)))
+                print(f'Removed: {os.path.abspath(libfile)}')
             except OSError:
-                print('Could not remove: {}'.format(os.path.abspath(libfile)))
+                print(f'Could not remove: {os.path.abspath(libfile)}')
     # Remove build, dist, egg and __pycache__ directories
     shutil.rmtree(os.path.join(os.getcwd(), 'build'), ignore_errors=True)
     shutil.rmtree(os.path.join(os.getcwd(), 'dist'), ignore_errors=True)
     shutil.rmtree(os.path.join(os.getcwd(), 'gprMax.egg-info'), ignore_errors=True)
     for p in pathlib.Path(os.getcwd()).rglob('__pycache__'):
         shutil.rmtree(p, ignore_errors=True)
-        print('Removed: {}'.format(p))
+        print(f'Removed: {p}')
     # Now do a normal clean
     sys.argv[1] = 'clean'  # this is what distutils understands
 

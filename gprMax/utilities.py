@@ -27,7 +27,7 @@ import subprocess
 from shutil import get_terminal_size
 import sys
 import textwrap
-from time import perf_counter
+from time import process_time
 
 from colorama import init
 from colorama import Fore
@@ -36,7 +36,6 @@ init()
 import numpy as np
 
 from .exceptions import GeneralError
-
 
 
 def get_terminal_width():
@@ -75,14 +74,14 @@ def logo(version):
     |___/|_|
                      v""" + version
 
-    print('{} {}\n'.format(description, '=' * (get_terminal_width() - len(description) - 1)))
-    print(Fore.CYAN + '{}\n'.format(logo))
-    print(Style.RESET_ALL + textwrap.fill(copyright, width=get_terminal_width() - 1, initial_indent=' '))
-    print(textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=' '))
-    print()
-    print(textwrap.fill(licenseinfo1, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
-    print(textwrap.fill(licenseinfo2, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
-    print(textwrap.fill(licenseinfo3, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
+    log.info(f'{description} {'=' * (get_terminal_width() - len(description) - 1)}\n')
+    log.info(Fore.CYAN + f'{logo}\n')
+    log.info(Style.RESET_ALL + textwrap.fill(copyright, width=get_terminal_width() - 1, initial_indent=' '))
+    log.info(textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=' '))
+    log.info('')
+    log.info(textwrap.fill(licenseinfo1, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
+    log.info(textwrap.fill(licenseinfo2, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
+    log.info(textwrap.fill(licenseinfo3, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
 
 
 @contextmanager
@@ -401,7 +400,7 @@ def detect_check_gpus(deviceIDs):
     # Check if requested device ID(s) exist
     for ID in deviceIDs:
         if ID not in deviceIDsavail:
-            raise GeneralError('GPU with device ID {} does not exist'.format(ID))
+            raise GeneralError(f'GPU with device ID {ID} does not exist')
 
     # Gather information about selected/detected GPUs
     gpus = []
@@ -411,22 +410,11 @@ def detect_check_gpus(deviceIDs):
         gpu.get_gpu_info(drv)
         if ID in deviceIDs:
             gpus.append(gpu)
-        allgpustext.append('{} - {}, {}'.format(gpu.deviceID, gpu.name, human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)))
+        allgpustext.append(f'{gpu.deviceID} - {gpu.name}, {human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)}')
 
     return gpus, allgpustext
 
 
 def timer():
     """Function to return the current process wide time in fractional seconds."""
-    return perf_counter()
-
-
-class Printer():
-    """Printing information messages."""
-    
-    def __init__(self, config):
-        self.printing = config.is_messages()
-
-    def print(self, str):
-        if self.printing:
-            print(str)
+    return process_time()

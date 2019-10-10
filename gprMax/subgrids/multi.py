@@ -27,10 +27,6 @@ class ReferenceRx(Rx):
         position as the coarse grid.
     """
 
-    def __init__(self):
-        """Constructor."""
-        super().__init__()
-
     def get_field(self, str_id, field):
         """Return the field value at the equivalent coarse yee cell.
 

@@ -308,7 +308,7 @@ def parse_hash_commands(model_config, G, scene):
 
         # Write a file containing the input commands after Python or include
         # file commands have been processed
-        if sim_config.write_processed:
+        if sim_config.args.write_processed:
             write_processed_file(processedlines, model_config.appendmodelnumber, G)
 
         user_objs = get_user_objects(processedlines, check=True)

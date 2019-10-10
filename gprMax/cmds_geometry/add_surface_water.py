@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from tqdm import tqdm
+import logging
 
 import gprMax.config as config
 from .cmds_geometry import UserObjectGeometry
@@ -24,6 +24,8 @@ from ..exceptions import CmdInputError
 from ..materials import Material
 from ..utilities import round_value
 
+
+log = logging.getLogger(__name__)
 
 class AddSurfaceWater(UserObjectGeometry):
     """Allows you to add surface water to a :class:`gprMax.cmds_geometry.fractal_box.FractalBox` in the model.
@@ -54,12 +56,12 @@ class AddSurfaceWater(UserObjectGeometry):
         except KeyError:
             raise CmdInputError(self.__str__() + ' requires exactly eight parameters')
 
-        # grab the correct fractal volume
+        # Get the correct fractal volume
         volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
         if volumes:
             volume = volumes[0]
         else:
-            raise CmdInputError(self.__str__() + ' Cant find FractalBox {}'.format(fractal_box_id))
+            raise CmdInputError(self.__str__() + f' cannot find FractalBox {fractal_box_id}')
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
@@ -143,4 +145,4 @@ class AddSurfaceWater(UserObjectGeometry):
             raise CmdInputError(self.__str__() + ' requires the time step for the model to be less than the relaxation time required to model water.')
 
         if config.is_messages():
-            tqdm.write('Water on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with depth {:g}m, added to {}.'.format(xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, filldepth, surface.operatingonID))
+            log.info('Water on surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with depth {filldepth:g}m, added to {surface.operatingonID}.')

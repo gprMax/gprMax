@@ -63,19 +63,9 @@ class SubGridBase(FDTDGrid):
 
         self.interpolation = kwargs['interpolation']
 
-    def calculate_dt(self):
-        """Calculate dt at the CFL limit."""
-        self.dt = (1 / (c * np.sqrt(
-                  (1 / self.dx) * (1 / self.dx) +
-                  (1 / self.dy) * (1 / self.dy) +
-                  (1 / self.dz) * (1 / self.dz))))
-
     def main_grid_index_to_subgrid_index(self, i, j, k):
         """Calculate local subgrid index from global main grid index."""
         i_s = self.n_boundary_cells_x + (i - self.i0) * self.ratio
         j_s = self.n_boundary_cells_y + (j - self.j0) * self.ratio
         k_s = self.n_boundary_cells_z + (k - self.k0) * self.ratio
         return (i_s, j_s, k_s)
-
-    def initialise_geometry_arrays(self):
-        super().initialise_geometry_arrays()

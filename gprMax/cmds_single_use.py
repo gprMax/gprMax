@@ -18,6 +18,7 @@
 
 import decimal as d
 import inspect
+import logging
 import os
 import sys
 
@@ -26,17 +27,16 @@ from colorama import Fore
 from colorama import Style
 init()
 import numpy as np
+from scipy.constants import c
 from scipy import interpolate
 
 import gprMax.config as config
-from .config import c
-from .config import dtypes
-from .config import hostinfo
 from .exceptions import CmdInputError
 from .waveforms import Waveform
 from .utilities import round_value
 
-floattype = dtypes['float_or_double']
+
+log = logging.getLogger(__name__)
 
 
 class Properties:
@@ -82,7 +82,7 @@ class Domain(UserObjectSingle):
                                            self.kwargs['p1'][1],
                                            self.kwargs['p1'][2])
         except KeyError:
-            print('error message')
+            log.warning('error message')
 
         return s
 
@@ -90,40 +90,35 @@ class Domain(UserObjectSingle):
         try:
             G.nx, G.ny, G.nz = uip.discretise_point(self.kwargs['p1'])
         except KeyError:
-            raise CmdInputError(self.__str__ + ' Please specify a point')
+            raise CmdInputError(f"'{self.params_str()}' please specify a point")
 
         if G.nx == 0 or G.ny == 0 or G.nz == 0:
-            raise CmdInputError(self.__str__ + ' requires at least one cell in every dimension')
-        if config.is_messages():
-            print('Domain size: {:g} x {:g} x {:g}m ({:d} x {:d} x {:d} = {:g} cells)'.format(self.kwargs['p1'][0], self.kwargs['p1'][1], self.kwargs['p1'][2], G.nx, G.ny, G.nz, (G.nx * G.ny * G.nz)))
+            raise CmdInputError(f"'{self.params_str()}' requires at least one cell in every dimension")
 
-        # Time step CFL limit (either 2D or 3D); switch off appropriate PMLs for 2D
+        log.info(f'Domain size: {self.kwargs['p1'][0]:g} x {self.kwargs['p1'][1]:g} x {self.kwargs['p1'][2]:g}m ({G.nx:d} x {G.ny:d} x {G.nz:d} = {(G.nx * G.ny * G.nz):g} cells)')
+
+        # Calculate time step at CFL limit; switch off appropriate PMLs for 2D
         if G.nx == 1:
-            G.dt = 1 / (c * np.sqrt((1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
+            G.calculate_dt()
             G.mode = '2D TMx'
             G.pmlthickness['x0'] = 0
             G.pmlthickness['xmax'] = 0
         elif G.ny == 1:
-            G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dz) * (1 / G.dz)))
+            G.calculate_dt()
             G.mode = '2D TMy'
             G.pmlthickness['y0'] = 0
             G.pmlthickness['ymax'] = 0
         elif G.nz == 1:
-            G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy)))
+            G.calculate_dt()
             G.mode = '2D TMz'
             G.pmlthickness['z0'] = 0
             G.pmlthickness['zmax'] = 0
         else:
-            G.dt = 1 / (c * np.sqrt((1 / G.dx) * (1 / G.dx) + (1 / G.dy) * (1 / G.dy) + (1 / G.dz) * (1 / G.dz)))
+            G.calculate_dt()
             G.mode = '3D'
 
-        # Round down time step to nearest float with precision one less than hardware maximum.
-        # Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
-        G.dt = round_value(G.dt, decimalplaces=d.getcontext().prec - 1)
-
-        if config.is_messages():
-            print('Mode: {}'.format(G.mode))
-            print('Time step (at CFL limit): {:g} secs'.format(G.dt))
+        log.info(f'Mode: {G.mode}')
+        log.info(f'Time step (at CFL limit): {G.dt:g} secs')
 
         # Number of threads (OpenMP) to use
         if sys.platform == 'darwin':
@@ -134,7 +129,7 @@ class Domain(UserObjectSingle):
         # os.environ['OMP_DISPLAY_ENV'] = 'TRUE' # Prints OMP version and environment variables (useful for debug)
 
         # Catch bug with Windows Subsystem for Linux (https://github.com/Microsoft/BashOnWindows/issues/785)
-        if 'Microsoft' in hostinfo['osversion']:
+        if 'Microsoft' in config.hostinfo['osversion']:
             os.environ['KMP_AFFINITY'] = 'disabled'
             del os.environ['OMP_PLACES']
             del os.environ['OMP_PROC_BIND']
@@ -143,13 +138,12 @@ class Domain(UserObjectSingle):
             G.nthreads = int(os.environ.get('OMP_NUM_THREADS'))
         else:
             # Set number of threads to number of physical CPU cores
-            G.nthreads = hostinfo['physicalcores']
+            G.nthreads = config.hostinfo['physicalcores']
             os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
 
-        if config.is_messages():
-            print('Number of CPU (OpenMP) threads: {}'.format(G.nthreads))
-        if G.nthreads > hostinfo['physicalcores']:
-            print(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, hostinfo['physicalcores']) + Style.RESET_ALL)
+        log.info(f'Number of CPU (OpenMP) threads: {G.nthreads}')
+        if G.nthreads > config.hostinfo['physicalcores']:
+            log.warning(Fore.RED + f'You have specified more threads ({G.nthreads}) than available physical CPU cores ({config.hostinfo['physicalcores']}). This may lead to degraded performance.' + Style.RESET_ALL)
 
 
 class Discretisation(UserObjectSingle):
@@ -169,7 +163,7 @@ class Discretisation(UserObjectSingle):
                                              self.kwargs['p1'][1],
                                              self.kwargs['p1'][2])
         except KeyError:
-            print('error message')
+            log.info('error message')
 
         return s
 
@@ -188,7 +182,7 @@ class Discretisation(UserObjectSingle):
             raise CmdInputError('Discretisation requires the z-direction spatial step to be greater than zero')
 
         if config.is_messages():
-            print('Spatial discretisation: {:g} x {:g} x {:g}m'.format(*G.dl))
+            log.info('Spatial discretisation: {:g} x {:g} x {:g}m'.format(*G.dl))
 
 
 class TimeWindow(UserObjectSingle):
@@ -211,7 +205,7 @@ class TimeWindow(UserObjectSingle):
             try:
                 s = '#time_window: {}'.format(self.kwargs['iterations'])
             except KeyError:
-                print('time window error')
+                log.info('time window error')
 
         return s
 
@@ -242,7 +236,7 @@ class TimeWindow(UserObjectSingle):
             raise CmdInputError('TimeWindow: Specify a time or number of iterations')
 
         if config.is_messages():
-            print('Time window: {:g} secs ({} iterations)'.format(G.timewindow, G.iterations))
+            log.info('Time window: {:g} secs ({} iterations)'.format(G.timewindow, G.iterations))
 
 
 class Messages(UserObjectSingle):
@@ -260,7 +254,7 @@ class Messages(UserObjectSingle):
         try:
             s = '#messages: {}'.format(self.kwargs['yn'])
         except KeyError:
-            print('messages problem')
+            log.info('messages problem')
 
     def create(self, G, uip):
         try:
@@ -296,7 +290,7 @@ class Title(UserObjectSingle):
             pass
 
         if config.is_messages():
-            print('Model title: {}'.format(G.title))
+            log.info('Model title: {}'.format(G.title))
 
 
 class NumThreads(UserObjectSingle):
@@ -332,14 +326,14 @@ class NumThreads(UserObjectSingle):
         os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
 
         if config.is_messages():
-            print('Number of CPU (OpenMP) threads: {}'.format(G.nthreads))
-        if G.nthreads > hostinfo['physicalcores']:
-            print(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, hostinfo['physicalcores']) + Style.RESET_ALL)
+            log.info('Number of CPU (OpenMP) threads: {}'.format(G.nthreads))
+        if G.nthreads > config.hostinfo['physicalcores']:
+            log.info(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, config.hostinfo['physicalcores']) + Style.RESET_ALL)
 
         # Print information about any GPU in use
         if config.is_messages():
             if G.gpu is not None:
-                print('GPU solving using: {} - {}'.format(G.gpu.deviceID, G.gpu.name))
+                log.info('GPU solving using: {} - {}'.format(G.gpu.deviceID, G.gpu.name))
 
 
 class TimeStepStabilityFactor(UserObjectSingle):
@@ -369,7 +363,7 @@ class TimeStepStabilityFactor(UserObjectSingle):
             raise CmdInputError(self.__str__() + ' requires the value of the time step stability factor to be between zero and one')
         G.dt = G.dt * f
         if config.is_messages():
-            print('Time step (modified): {:g} secs'.format(G.dt))
+            log.info('Time step (modified): {:g} secs'.format(G.dt))
 
 
 class PMLCells(UserObjectSingle):
@@ -442,7 +436,7 @@ class SrcSteps(UserObjectSingle):
             raise CmdInputError('#src_steps: requires exactly three parameters')
 
         if config.is_messages():
-            print('Simple sources will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.srcsteps[0] * G.dx, G.srcsteps[1] * G.dy, G.srcsteps[2] * G.dz))
+            log.info('Simple sources will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.srcsteps[0] * G.dx, G.srcsteps[1] * G.dy, G.srcsteps[2] * G.dz))
 
 
 class RxSteps(UserObjectSingle):
@@ -463,7 +457,7 @@ class RxSteps(UserObjectSingle):
             raise CmdInputError('#rx_steps: requires exactly three parameters')
 
         if config.is_messages():
-            print('All receivers will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.rxsteps[0] * G.dx, G.rxsteps[1] * G.dy, G.rxsteps[2] * G.dz))
+            log.info('All receivers will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.rxsteps[0] * G.dx, G.rxsteps[1] * G.dy, G.rxsteps[2] * G.dz))
 
 
 class ExcitationFile(UserObjectSingle):
@@ -498,7 +492,7 @@ class ExcitationFile(UserObjectSingle):
                 excitationfile = os.path.abspath(os.path.join(G.inputdirectory, excitationfile))
 
             if config.is_messages():
-                print('\nExcitation file: {}'.format(excitationfile))
+                log.info('\nExcitation file: {}'.format(excitationfile))
 
             # Get waveform names
             with open(excitationfile, 'r') as f:
@@ -538,7 +532,7 @@ class ExcitationFile(UserObjectSingle):
                 w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues, **kwargs)
 
                 if config.is_messages():
-                    print('User waveform {} created using {} and, if required, interpolation parameters (kind: {}, fill value: {}).'.format(w.ID, timestr, kwargs['kind'], kwargs['fill_value']))
+                    log.info('User waveform {} created using {} and, if required, interpolation parameters (kind: {}, fill value: {}).'.format(w.ID, timestr, kwargs['kind'], kwargs['fill_value']))
 
                 G.waveforms.append(w)
 

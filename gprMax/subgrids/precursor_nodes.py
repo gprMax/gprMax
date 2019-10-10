@@ -28,7 +28,7 @@ def calculate_weighting_coefficients(x1, x):
     return (c1, c2)
 
 
-class PrecusorNodesBase(object):
+class PrecusorNodesBase:
 
     def __init__(self, fdtd_grid, sub_grid):
         self.G = fdtd_grid

@@ -16,8 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-cimport numpy as np
-
 from gprMax.config cimport float_or_double
 
 

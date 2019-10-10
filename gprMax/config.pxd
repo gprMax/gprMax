@@ -27,9 +27,3 @@ ctypedef fused float_or_double:
 ctypedef fused float_or_double_complex:
     float complex
     double complex
-
-ctypedef fused real_or_complex:
-    float
-    double
-    float complex
-    double complex

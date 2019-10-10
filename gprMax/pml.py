@@ -81,7 +81,7 @@ class CFS(object):
 
         # Calculation of the maximum value of sigma from http://dx.doi.org/10.1109/8.546249
         m = CFSParameter.scalingprofiles[self.sigma.scalingprofile]
-        self.sigma.max = (0.8 * (m + 1)) / (config.z0 * d * np.sqrt(er * mr))
+        self.sigma.max = (0.8 * (m + 1)) / (config.general['z0'] * d * np.sqrt(er * mr))
 
     def scaling_polynomial(self, order, Evalues, Hvalues):
         """Applies the polynomial to be used for the scaling profile for

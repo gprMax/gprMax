@@ -16,8 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 import numpy as np
-from tqdm import tqdm
 
 import gprMax.config as config
 from .cmds_geometry import UserObjectGeometry
@@ -27,6 +28,8 @@ from ..fractals import Grass
 from ..materials import Material
 from ..utilities import round_value
 
+
+log = logging.getLogger(__name__)
 
 class AddGrass(UserObjectGeometry):
     """Allows you to add grass with roots to a :class:`gprMax.cmds_geometry.fractal_box.FractalBox` in the model.
@@ -68,12 +71,12 @@ class AddGrass(UserObjectGeometry):
         except KeyError:
             seed = None
 
-        # grab the correct fractal volume
+        # Get the correct fractal volume
         volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
         if volumes:
             volume = volumes[0]
         else:
-            raise CmdInputError(self.__str__() + ' Cant find FractalBox {}'.format(fractal_box_id))
+            raise CmdInputError(self.__str__() + f' cannot find FractalBox {fractal_box_id}')
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
@@ -165,7 +168,7 @@ class AddGrass(UserObjectGeometry):
         # Set the fractal surface using the pre-calculated spatial distribution and a random height
         surface.fractalsurface = np.zeros((surface.fractalsurface.shape[0], surface.fractalsurface.shape[1]))
         for i in range(len(bladesindex[0])):
-                surface.fractalsurface[bladesindex[0][i], bladesindex[1][i]] = R.randint(surface.fractalrange[0], surface.fractalrange[1], size=1)
+            surface.fractalsurface[bladesindex[0][i], bladesindex[1][i]] = R.randint(surface.fractalrange[0], surface.fractalrange[1], size=1)
 
         # Create grass geometry parameters
         g = Grass(n_blades)
@@ -193,4 +196,4 @@ class AddGrass(UserObjectGeometry):
         volume.fractalsurfaces.append(surface)
 
         if config.is_messages():
-            tqdm.write('{} blades of grass on surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}, fractal seeding {}, and range {:g}m to {:g}m, added to {}.'.format(n_blades, xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, surface.dimension, surface.seed, limits[0], limits[1], surface.operatingonID))
+            tqdm.write(f'{n_blades} blades of grass on surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with fractal dimension {surface.dimension:g}, fractal seeding {surface.seed}, and range {limits[0]:g}m to {limits[1]:g}m, added to {surface.operatingonID}.')

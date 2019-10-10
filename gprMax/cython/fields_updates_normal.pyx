@@ -1,4 +1,4 @@
-cdef float phi# Copyright (C) 2015-2019: The University of Edinburgh
+# Copyright (C) 2015-2019: The University of Edinburgh
 #                 Authors: Craig Warren and Antonis Giannopoulos
 #
 # This file is part of gprMax.

@@ -17,10 +17,13 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
+import logging
 
 from .config import create_simulation_config
 from .contexts import create_context
 
+
+logging.basicConfig(level=logging.INFO)
 
 def run(
     scenes=None,
@@ -137,3 +140,4 @@ def run_main(args):
     sim_config = create_simulation_config(args)
     context = create_context(sim_config)
     context.run()
+    context.print_time_report()

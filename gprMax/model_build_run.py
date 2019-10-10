@@ -19,6 +19,7 @@
 import datetime
 from importlib import import_module
 import itertools
+import logging
 import os
 import psutil
 import sys
@@ -73,6 +74,8 @@ from .utilities import round32
 from .utilities import timer
 from .utilities import Printer
 
+
+log = logging.getLogger(__name__)
 
 class ModelBuildRun:
     """Builds and runs (solves) a model."""
@@ -159,7 +162,7 @@ class ModelBuildRun:
             gb.grid.initialise_std_update_coeff_arrays()
 
         # Set datatype for dispersive arrays if there are any dispersive materials.
-        if config.materials['maxpoles'] != 0:
+        if self.model_config.materials['maxpoles'] != 0:
             drudelorentz = any([m for m in G.materials if 'drude' in m.type or 'lorentz' in m.type])
             if drudelorentz:
                 config.materials['dispersivedtype'] = config.dtypes['complex']
@@ -206,8 +209,8 @@ class ModelBuildRun:
         G = self.G
         # Reset iteration number
         G.iteration = 0
-        self.model_config.inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(self.model_config.appendmodelnumber, self.sim_config.model_end, self.sim_config.input_file_path)
-        self.printer.print(Fore.GREEN + '{} {}'.format(self.model_config.inputfilestr, '-' * (get_terminal_width() - 1 - len(self.model_config.inputfilestr))) + Style.RESET_ALL)
+        self.model_config.inputfilestr = f'\n--- Model {self.model_config.appendmodelnumber}/{self.sim_config.model_end}, input file (not re-processed, i.e. geometry fixed): {self.sim_config.input_file_path}'
+        log.info(Fore.GREEN + f'{self.model_config.inputfilestr} {'-' * (get_terminal_width() - 1 - len(self.model_config.inputfilestr))}' + Style.RESET_ALL)
         for grid in [G] + G.subgrids:
             grid.reset_fields()
 
@@ -232,52 +235,52 @@ class ModelBuildRun:
             # Check and set output directory and filename
             try:
                 os.mkdir(self.G.outputdirectory)
-                self.printer.print('\nCreated output directory: {}'.format(self.G.outputdirectory))
+                log.info(f'\nCreated output directory: {self.G.outputdirectory}')
             except FileExistsError:
                 pass
             # Modify the output path (hack)
             self.model_config.output_file_path_ext = Path(self.G.outputdirectory, self.model_config.output_file_path_ext)
 
-    def run_model(self, solver):
-        G = self.G
-        self.create_output_directory()
-        self.printer.print('Output file: {}\n'.format(self.model_config.output_file_path_ext))
+    def write_output_data(self):
+        """Write output data, i.e. field data for receivers and snapshots
+            to file(s).
+        """
 
-        # Run solver
-        tsolve = self.solve(solver)
+        G = self.G
 
         # Write an output file in HDF5 format
         write_hdf5_outputfile(self.model_config.output_file_path_ext, G)
 
         # Write any snapshots to file
         if G.snapshots:
-            # Create directory and construct filename from user-supplied name and model run number
+            # Create directory and construct filename from user-supplied name
+            # and model run number
             snapshotdir = self.model_config.snapshot_dir
             if not os.path.exists(snapshotdir):
                 os.mkdir(snapshotdir)
 
-            self.printer.print('')
+            log.info('')
             for i, snap in enumerate(G.snapshots):
                 fn = snapshotdir / Path(self.model_config.output_file_path.stem + '_' + snap.basefilename)
                 snap.filename = fn.with_suffix('.vti')
                 pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte', unit_scale=True, desc='Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
                 snap.write_vtk_imagedata(pbar, G)
                 pbar.close()
-            self.printer.print('')
+            log.info('')
+
+    def print_resource_info(self):
+        """Print resource information on runtime and memory usage."""
 
         memGPU = ''
         if config.cuda['gpus']:
-            memGPU = ' host + ~{} GPU'.format(human_size(self.solver.get_memsolve()))
+            memGPU = f' host + ~{human_size(self.solver.get_memsolve())} GPU'
 
-        self.printer.print('\nMemory (RAM) used: ~{}{}'.format(human_size(self.p.memory_full_info().uss), memGPU))
-        self.printer.print('Solving time [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsolve)))
-
-        return tsolve
+        log.info(f'\nMemory (RAM) used: ~{human_size(self.p.memory_full_info().uss)}{memGPU}')
+        log.info(f'Solving time [HH:MM:SS]: {datetime.timedelta(seconds=tsolve)}')
 
     def solve(self, solver):
         """
-        Solving using FDTD method on CPU. Parallelised using Cython (OpenMP) for
-        electric and magnetic field updates, and PML updates.
+        Solve using FDTD method.
 
         Args:
             solver (Solver): solver object.
@@ -294,7 +297,17 @@ class ModelBuildRun:
         else:
             iterator = range(0, G.iterations)
 
-        tsolve = solver.solve(iterator)
+        self.create_output_directory()
+        log.info(f'Output file: {self.model_config.output_file_path_ext}\n')
+
+        # Run solver
+        tsolve = self.solve(solver)
+
+        # Write output data, i.e. field data for receivers and snapshots to file(s)
+        self.write_output_data
+
+        # Print resource information on runtime and memory usage
+        self.print_resource_info
 
         return tsolve
 
@@ -318,7 +331,7 @@ class GridBuilder:
     def build_components(self):
         # Build the model, i.e. set the material properties (ID) for every edge
         # of every Yee cell
-        self.printer.print('')
+        log.info('')
         pbar = tqdm(total=2, desc='Building {} Grid'.format(self.grid.name), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
         build_electric_components(self.grid.solid, self.grid.rigidE, self.grid.ID, self.grid)
         pbar.update()
@@ -348,5 +361,5 @@ class GridBuilder:
         materialstable.outer_border = False
         materialstable.justify_columns[0] = 'right'
 
-        self.printer.print('\n{} Grid Materials:'.format(self.grid.name))
-        self.printer.print(materialstable.table)
+        log.info(f'\n{self.grid.name} Grid Materials:')
+        log.info(materialstable.table)

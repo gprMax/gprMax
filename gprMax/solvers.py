@@ -18,10 +18,10 @@
 
 import gprMax.config as config
 from .grid import FDTDGrid
-from .grid import GPUGrid
+from .grid import CUDAGrid
 from .subgrids.updates import create_updates as create_subgrid_updates
 from .updates import CPUUpdates
-from .updates import GPUUpdates
+from .updates import CUDAUpdates
 
 
 def create_G(sim_config):
@@ -34,8 +34,8 @@ def create_G(sim_config):
         G (Grid): Holds essential parameters describing the model.
     """
 
-    if sim_config.gpu:
-        G = GPUGrid()
+    if sim_config.general['cuda']:
+        G = CUDAGrid()
     elif sim_config.subgrid:
         G = FDTDGrid()
     else:
@@ -56,7 +56,7 @@ def create_solver(G, sim_config):
     """
 
     if sim_config.gpu:
-        updates = GPUUpdates(G)
+        updates = CUDAUpdates(G)
         solver = Solver(updates)
     elif sim_config.subgrid:
         updates = create_subgrid_updates(G)

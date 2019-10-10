@@ -16,8 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 import numpy as np
-from tqdm import tqdm
 
 import gprMax.config as config
 from .cmds_geometry import UserObjectGeometry
@@ -25,6 +26,8 @@ from ..cython.geometry_primitives import build_box
 from ..exceptions import CmdInputError
 from ..fractals import FractalSurface
 from ..utilities import round_value
+
+log = logging.getLogger(__name__)
 
 
 class AddSurfaceRoughness(UserObjectGeometry):
@@ -62,19 +65,19 @@ class AddSurfaceRoughness(UserObjectGeometry):
             limits = np.array(self.kwargs['limits'])
             fractal_box_id = self.kwargs['fractal_box_id']
         except KeyError:
-            raise CmdInputError(self.__str__() + ' Incorrect parameters')
+            raise CmdInputError(self.__str__() + ' incorrect parameters')
 
         try:
             seed = self.kwargs['seed']
         except KeyError:
             seed = None
 
-        # grab the correct fractal volume
+        # Get the correct fractal volume
         volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
         if volumes:
             volume = volumes[0]
         else:
-            raise CmdInputError(self.__str__() + ' Cant find FractalBox {}'.format(fractal_box_id))
+            raise CmdInputError(self.__str__() + ' cannot find FractalBox {fractal_box_id}')
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
@@ -152,10 +155,10 @@ class AddSurfaceRoughness(UserObjectGeometry):
         # List of existing surfaces IDs
         existingsurfaceIDs = [x.surfaceID for x in volume.fractalsurfaces]
         if surface.surfaceID in existingsurfaceIDs:
-            raise CmdInputError(self.__str__() + ' has already been used on the {} surface'.format(surface.surfaceID))
+            raise CmdInputError(self.__str__() + f' has already been used on the {surface.surfaceID} surface')
 
         surface.generate_fractal_surface(grid)
         volume.fractalsurfaces.append(surface)
 
         if config.is_messages():
-            tqdm.write('Fractal surface from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with fractal dimension {:g}, fractal weightings {:g}, {:g}, fractal seeding {}, and range {:g}m to {:g}m, added to {}.'.format(xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, surface.dimension, surface.weighting[0], surface.weighting[1], surface.seed, limits[0], limits[1], surface.operatingonID))
+            log.info(f'Fractal surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with fractal dimension {surface.dimension:g}, fractal weightings {surface.weighting[0]:g}, {surface.weighting[1]:g}, fractal seeding {surface.seed}, and range {limits[0]:g}m to {limits[1]:g}m, added to {surface.operatingonID}.')

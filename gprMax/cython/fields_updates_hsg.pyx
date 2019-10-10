@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2017: The University of Edinburgh
+# Copyright (C) 2015-2019: The University of Edinburgh
 #                 Authors: Craig Warren and Antonis Giannopoulos
 #
 # This file is part of gprMax.
@@ -15,9 +15,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+
 import numpy as np
 cimport numpy as np
+
 from cython.parallel import prange
+
 
 cpdef void cython_update_electric_os(
         np.float64_t[:, :] updatecoeffsE,

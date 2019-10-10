@@ -18,15 +18,17 @@
 
 import datetime
 
+from ._version import __version__, codename
 from .config import create_model_config
 from .model_build_run import ModelBuildRun
 from .solvers import create_solver
 from .solvers import create_G
 from .utilities import get_terminal_width
+from .utilities import logo
 from .utilities import timer
 
 
-class Context():
+class Context:
     """Generic context for the model to run in. Sub-class with specific contexts
     e.g. an MPI context.
     """
@@ -43,18 +45,23 @@ class Context():
         self.tsimstart = 1
 
     def run(self):
-        """Function to run the simulation in the correct context."""
+        """Run the simulation in the correct context."""
+        self.print_logo_copyright()
         self.tsimstart = timer()
         self._run()
         self.tsimend = timer()
 
+    def print_logo_copyright(self):
+        """Print gprMax logo, version, and copyright/licencing information."""
+        logo(__version__ + ' (' + codename + ')')
+
     def print_time_report(self):
-        """Function to print the total simulation time based on context."""
-        s = self.make_time_report(sim_time)
-        print(s)
+        """Print the total simulation time based on context."""
+        s = self.make_time_report()
+        log.info(s)
 
     def make_time_report(self):
-        """Function to generate a string for the total simulation time."""
+        """Generate a string for the total simulation time."""
         pass
 
 
@@ -62,6 +69,9 @@ class NoMPIContext(Context):
     """Standard context - models are run one after another and each model
         is parallelised using either OpenMP (CPU) or CUDA (GPU).
     """
+
+    def __init__(self):
+        super().__init__()
 
     def _run(self):
         """Specialise how the models are farmed out."""
@@ -83,7 +93,7 @@ class NoMPIContext(Context):
             solver = create_solver(G, self.sim_config)
 
             if not self.sim_config.geometry_only:
-                model.run_model(solver)
+                model.solve(solver)
 
     def make_time_report(self):
         """Function to specialise the time reporting for the standard Simulation
@@ -91,9 +101,8 @@ class NoMPIContext(Context):
         """
 
         sim_time = datetime.timedelta(seconds=self.tsimend - self.tsimstart)
-        s = '\n=== Simulation on {} completed in [HH:MM:SS]: {}'
-        s = s.format(self.simconfig.hostinfo['hostname'], sim_time)
-        return '{} {}\n'.format(s, '=' * (get_terminal_width() - 1 - len(s)))
+        s = f'\n=== Simulation on {self.simconfig.hostinfo['hostname']} completed in [HH:MM:SS]: {sim_time}'
+        return f'{s} {'=' * (get_terminal_width() - 1 - len(s))}\n'
 
 
 class MPIContext(Context):
@@ -116,6 +125,9 @@ class MPIContext(Context):
 
 class MPINoSpawnContext(Context):
 
+    def __init__(self):
+        super().__init__()
+
     def _run(self):
         pass
 
@@ -133,9 +145,9 @@ def create_context(sim_config):
         context (Context): Context for the model to run in.
     """
 
-    if sim_config.mpi:
+    if sim_config.args.mpi:
         context = MPIContext(sim_config)
-    elif sim_config.mpi_no_spawn:
+    elif sim_config.args.mpi_no_spawn:
         context = MPINoSpawnContext(sim_config)
     else:
         context = NoMPIContext(sim_config)

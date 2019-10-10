@@ -36,80 +36,16 @@ from .utilities import human_size
 from .utilities import round_value
 
 
-class Grid(object):
-    """Generic grid/mesh."""
-
-    def __init__(self, grid):
-        self.nx = grid.shape[0]
-        self.ny = grid.shape[1]
-        self.nz = grid.shape[2]
-        self.dx = 1
-        self.dy = 1
-        self.dz = 1
-        self.i_max = self.nx - 1
-        self.j_max = self.ny - 1
-        self.k_max = self.nz - 1
-        self.grid = grid
-
-    def n_edges(self):
-        i = self.nx
-        j = self.ny
-        k = self.nz
-        e = (i * j * (k - 1)) + (j * k * (i - 1)) + (i * k * (j - 1))
-        return e
-
-    def n_nodes(self):
-        return self.nx * self.ny * self.nz
-
-    def n_cells(self):
-        return (self.nx - 1) * (self.ny - 1) * (self.nz - 1)
-
-    def get(self, i, j, k):
-        return self.grid[i, j, k]
-
-    def within_bounds(self, p):
-        if p[0] < 0 or p[0] > self.nx:
-            raise ValueError('x')
-        if p[1] < 0 or p[1] > self.ny:
-            raise ValueError('y')
-        if p[2] < 0 or p[2] > self.nz:
-            raise ValueError('z')
-
-    def discretise_point(self, p):
-        x = round_value(float(p[0]) / self.dx)
-        y = round_value(float(p[1]) / self.dy)
-        z = round_value(float(p[2]) / self.dz)
-        return (x, y, z)
-
-    def round_to_grid(self, p):
-        p = self.discretise_point(p)
-        p_r = (p[0] * self.dx,
-               p[1] * self.dy,
-               p[2] * self.dz)
-        return p_r
-
-
-    def within_pml(self, p):
-        if (p[0] < self.pmlthickness['x0'] or
-            p[0] > self.nx - self.pmlthickness['xmax'] or
-            p[1] < self.pmlthickness['y0'] or
-            p[1] > self.ny - self.pmlthickness['ymax'] or
-            p[2] < self.pmlthickness['z0'] or
-            p[2] > self.nz - self.pmlthickness['zmax']):
-            return True
-        else:
-            return False
-
-
-class FDTDGrid(Grid):
-    """Holds attributes associated with entire grid. A convenient
-        way for accessing regularly used parameters.
+class FDTDGrid:
+    """Holds attributes associated with entire grid. A convenient way for
+        accessing regularly used parameters.
     """
 
     def __init__(self):
         self.title = ''
         self.memoryusage = 0
         self.name = 'Main'
+        self.mode = '' # 2D TMx, 2D TMy, 2D TMz, or 3D
         self.gpu = None
         self.outputdirectory = ''
 
@@ -150,6 +86,50 @@ class FDTDGrid(Grid):
         self.snapshots = []
         self.subgrids = []
 
+    def n_edges(self):
+        i = self.nx
+        j = self.ny
+        k = self.nz
+        e = (i * j * (k - 1)) + (j * k * (i - 1)) + (i * k * (j - 1))
+        return e
+
+    def n_nodes(self):
+        return self.nx * self.ny * self.nz
+
+    def n_cells(self):
+        return (self.nx - 1) * (self.ny - 1) * (self.nz - 1)
+
+    def within_bounds(self, p):
+        if p[0] < 0 or p[0] > self.nx:
+            raise ValueError('x')
+        if p[1] < 0 or p[1] > self.ny:
+            raise ValueError('y')
+        if p[2] < 0 or p[2] > self.nz:
+            raise ValueError('z')
+
+    def discretise_point(self, p):
+        x = round_value(float(p[0]) / self.dx)
+        y = round_value(float(p[1]) / self.dy)
+        z = round_value(float(p[2]) / self.dz)
+        return (x, y, z)
+
+    def round_to_grid(self, p):
+        p = self.discretise_point(p)
+        p_r = (p[0] * self.dx,
+               p[1] * self.dy,
+               p[2] * self.dz)
+        return p_r
+
+    def within_pml(self, p):
+        if (p[0] < self.pmlthickness['x0'] or
+            p[0] > self.nx - self.pmlthickness['xmax'] or
+            p[1] < self.pmlthickness['y0'] or
+            p[1] > self.ny - self.pmlthickness['ymax'] or
+            p[2] < self.pmlthickness['z0'] or
+            p[2] > self.nz - self.pmlthickness['zmax']):
+            return True
+        else:
+            return False
 
     def initialise_geometry_arrays(self):
         """Initialise an array for volumetric material IDs (solid);
@@ -173,9 +153,8 @@ class FDTDGrid(Grid):
         self.Hy = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.dtypes['float_or_double'])
         self.Hz = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.dtypes['float_or_double'])
 
-
     def initialise_grids(self):
-        """Function to call the initialisation of all grids."""
+        """Initialise all grids."""
         for g in [self] + self.subgrids:
             g.initialise_geometry_arrays()
             g.initialise_field_arrays()
@@ -227,32 +206,75 @@ class FDTDGrid(Grid):
 
         self.memoryusage = int(stdoverhead + fieldarrays + solidarray + rigidarrays + pmlarrays)
 
-    def memory_check(self, snapsmemsize=0):
-        """Check if the required amount of memory (RAM) is available on the host and GPU if specified.
-
-        Args:
-            snapsmemsize (int): amount of memory (bytes) required to store all requested snapshots
+    def memory_check(self):
+        """Check if the required amount of memory (RAM) is available to build
+            and/or run model on the host.
         """
-
-        # Check if model can be built and/or run on host
         if self.memoryusage > config.hostinfo['ram']:
-            raise GeneralError('Memory (RAM) required ~{} exceeds {} detected!\n'.format(human_size(self.memoryusage), human_size(config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)))
+            raise GeneralError(f'Memory (RAM) required ~{human_size(self.memoryusage)} exceeds {human_size(config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} detected!\n')
 
-        # Check if model can be run on specified GPU if required
-        if config.cuda['gpus'] is not None:
-            if self.memoryusage - snapsmemsize > config.cuda['gpus'].totalmem:
-                raise GeneralError('Memory (RAM) required ~{} exceeds {} detected on specified {} - {} GPU!\n'.format(human_size(self.memoryusage), human_size(config.cuda['gpus'].totalmem, a_kilobyte_is_1024_bytes=True), config.cuda['gpus'].deviceID, config.cuda['gpus'].name))
+    def tmx(self):
+        """Add PEC boundaries to invariant direction in 2D TMx mode.
+            N.B. 2D modes are a single cell slice of 3D grid.
+        """
+        # Ey & Ez components
+        self.ID[1, 0, :, :] = 0
+        self.ID[1, 1, :, :] = 0
+        self.ID[2, 0, :, :] = 0
+        self.ID[2, 1, :, :] = 0
 
-            # If the required memory without the snapshots will fit on the GPU then transfer and store snaphots on host
-            if snapsmemsize != 0 and self.memoryusage - snapsmemsize < config.cuda['gpus'].totalmem:
-                config.cuda['snapsgpu2cpu'] = True
+    def tmy(self):
+        """Add PEC boundaries to invariant direction in 2D TMy mode.
+            N.B. 2D modes are a single cell slice of 3D grid.
+        """
+        # Ex & Ez components
+        self.ID[0, :, 0, :] = 0
+        self.ID[0, :, 1, :] = 0
+        self.ID[2, :, 0, :] = 0
+        self.ID[2, :, 1, :] = 0
 
-    def gpu_set_blocks_per_grid(self):
+    def tmz(self):
+        """Add PEC boundaries to invariant direction in 2D TMz mode.
+            N.B. 2D modes are a single cell slice of 3D grid.
+        """
+        # Ex & Ey components
+        self.ID[0, :, :, 0] = 0
+        self.ID[0, :, :, 1] = 0
+        self.ID[1, :, :, 0] = 0
+        self.ID[1, :, :, 1] = 0
+
+    def reset_fields(self):
+        """Clear arrays for field components and PMLs."""
+        # Clear arrays for field components
+        self.initialise_field_arrays()
+
+        # Clear arrays for fields in PML
+        for pml in self.pmls:
+            pml.initialise_field_arrays()
+
+    def calculate_dt(self):
+        """Calculate time step at the CFL limit."""
+        self.dt = (1 / (c * np.sqrt(
+                  (1 / self.dx) * (1 / self.dx) +
+                  (1 / self.dy) * (1 / self.dy) +
+                  (1 / self.dz) * (1 / self.dz))))
+
+        # Round down time step to nearest float with precision one less than
+        # hardware maximum. Avoids inadvertently exceeding the CFL due to
+        # binary representation of floating point number.
+        self.dt = round_value(self.dt, decimalplaces=d.getcontext().prec - 1)
+
+
+class CUDAGrid(FDTDGrid):
+    """Additional grid methods for solving on GPU using CUDA."""
+
+    def set_blocks_per_grid(self):
         """Set the blocks per grid size used for updating the electric and magnetic field arrays on a GPU."""
+
         config.cuda['gpus'].bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / config.cuda['gpus'].tpb[0])), 1, 1)
 
-    def gpu_initialise_arrays(self):
-        """Initialise standard field arrays on GPU."""
+    def initialise_arrays(self):
+        """Initialise geometry and field arrays on GPU."""
 
         import pycuda.gpuarray as gpuarray
 
@@ -264,7 +286,7 @@ class FDTDGrid(Grid):
         self.Hy_gpu = gpuarray.to_gpu(self.Hy)
         self.Hz_gpu = gpuarray.to_gpu(self.Hz)
 
-    def gpu_initialise_dispersive_arrays(self):
+    def initialise_dispersive_arrays(self):
         """Initialise dispersive material coefficient arrays on GPU."""
 
         import pycuda.gpuarray as gpuarray
@@ -274,46 +296,19 @@ class FDTDGrid(Grid):
         self.Tz_gpu = gpuarray.to_gpu(self.Tz)
         self.updatecoeffsdispersive_gpu = gpuarray.to_gpu(self.updatecoeffsdispersive)
 
-    # Add PEC boundaries to invariant direction in 2D modes
-    # N.B. 2D modes are a single cell slice of 3D grid
-    def tmx(self):
-        # Ey & Ez components
-        self.ID[1, 0, :, :] = 0
-        self.ID[1, 1, :, :] = 0
-        self.ID[2, 0, :, :] = 0
-        self.ID[2, 1, :, :] = 0
+    def memory_check(self, snapsmemsize=0):
+        """Check if model can be run on specified GPU."""
 
-    def tmy(self):
-        # Ex & Ez components
-        self.ID[0, :, 0, :] = 0
-        self.ID[0, :, 1, :] = 0
-        self.ID[2, :, 0, :] = 0
-        self.ID[2, :, 1, :] = 0
+        super().memory_check()
 
-    def tmz(self):
-        # Ex & Ey components
-        self.ID[0, :, :, 0] = 0
-        self.ID[0, :, :, 1] = 0
-        self.ID[1, :, :, 0] = 0
-        self.ID[1, :, :, 1] = 0
+        if config.cuda['gpus'] is not None:
+            if self.memoryusage - snapsmemsize > config.cuda['gpus'].totalmem:
+                raise GeneralError(f'Memory (RAM) required ~{human_size(self.memoryusage)} exceeds {human_size(config.cuda['gpus'].totalmem, a_kilobyte_is_1024_bytes=True} detected on specified {config.cuda['gpus'].deviceID} - {config.cuda['gpus'].name} GPU!\n')
 
-
-    def reset_fields(self):
-        # Clear arrays for field components
-        self.initialise_field_arrays()
-
-        # Clear arrays for fields in PML
-        for pml in self.pmls:
-            pml.initialise_field_arrays()
-
-    def calculate_dt(self):
-        self.dt = 1 / (c * np.sqrt((1 / self.dx) * (1 / self.dx) + (1 / self.dy) * (1 / self.dy) + (1 / self.dz) * (1 / self.dz)))
-
-    def round_time_step(self):
-        # Round down time step to nearest float with precision one less than hardware maximum. Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
-        # Round down time step to nearest float with precision one less than hardware maximum.
-        # Avoids inadvertently exceeding the CFL due to binary representation of floating point number.
-        self.dt = round_value(self.dt, decimalplaces=d.getcontext().prec - 1)
+            # If the required memory for the model without the snapshots will
+            # fit on the GPU then transfer and store snaphots on host
+            if snapsmemsize != 0 and self.memoryusage - snapsmemsize < config.cuda['gpus'].totalmem:
+                config.cuda['snapsgpu2cpu'] = True
 
 
 def dispersion_analysis(G):
@@ -487,7 +482,3 @@ def Iz(x, y, z, Hx, Hy, Hz, G):
         Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (Hy[x, y, z] - Hy[x - 1, y, z])
 
     return Iz
-
-
-class GPUGrid(FDTDGrid):
-    pass
