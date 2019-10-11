@@ -22,8 +22,8 @@ import logging
 from .config import create_simulation_config
 from .contexts import create_context
 
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
-logging.basicConfig(level=logging.INFO)
 
 def run(
     scenes=None,

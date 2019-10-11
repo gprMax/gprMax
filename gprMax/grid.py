@@ -24,6 +24,7 @@ from colorama import Fore
 from colorama import Style
 init()
 import numpy as np
+from scipy.constants import c
 
 import gprMax.config as config
 from .exceptions import GeneralError
