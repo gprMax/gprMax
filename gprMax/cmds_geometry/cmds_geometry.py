@@ -16,12 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
+log = logging.getLogger(__name__)
+
 
 class UserObjectGeometry:
     """Specific Geometry object."""
 
     def __init__(self, **kwargs):
-        """Constructor."""
         self.kwargs = kwargs
         # define the order of priority for calling create()
         self.order = None
@@ -39,7 +42,7 @@ class UserObjectGeometry:
                 v = ' '.join([str(el) for el in v])
             s += str(v) + ' '
 
-        return '{}: {}'.format(self.hash, s[:-1])
+        return f'{self.hash}: {s[:-1]}'
 
     def params_str(self):
         """Readble string of parameters given to object."""
@@ -47,3 +50,4 @@ class UserObjectGeometry:
 
     def create(self, grid, uip):
         """Create the object and add it to the grid."""
+        log.debug('This method is incomplete')

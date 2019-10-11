@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from tqdm import tqdm
+import logging
 
 import gprMax.config as config
 from .cmds_geometry import UserObjectGeometry
@@ -24,6 +24,8 @@ from ..cython.geometry_primitives import build_face_yz
 from ..cython.geometry_primitives import build_face_xz
 from ..cython.geometry_primitives import build_face_xy
 from ..exceptions import CmdInputError
+
+log = logging.getLogger(__name__)
 
 
 class Plate(UserObjectGeometry):
@@ -40,17 +42,14 @@ class Plate(UserObjectGeometry):
     """
 
     def __init__(self, **kwargs):
-        """Constructor."""
         super().__init__(**kwargs)
         self.order = 3
         self.hash = '#plate'
 
     def create(self, grid, uip):
-
         try:
             p1 = self.kwargs['p1']
             p2 = self.kwargs['p2']
-
         except KeyError:
             raise CmdInputError(self.__str__() + ' 2 points must be specified')
 
@@ -136,5 +135,6 @@ class Plate(UserObjectGeometry):
                 for j in range(ys, yf):
                     build_face_xy(i, j, zs, numIDx, numIDy, grid.rigidE, grid.rigidH, grid.ID)
 
-        if config.is_messages():
-            tqdm.write('Plate from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material(s) {} created.'.format(xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, ', '.join(materialsrequested)))
+        log.info(f"Plate from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, \
+                 to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m of \
+                 material(s) {', '.join(materialsrequested)} created.")

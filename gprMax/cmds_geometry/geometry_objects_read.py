@@ -16,26 +16,26 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import os
-
-from tqdm import tqdm
 
 import gprMax.config as config
 from .cmds_geometry import UserObjectGeometry
 from ..exceptions import CmdInputError
 
+log = logging.getLogger(__name__)
+
 
 class GeometryObjectsRead(UserObjectGeometry):
-    """MORE WORK REQUIRED HERE."""
+
+    log.debug('More work required here.')
 
     def __init__(self, **kwargs):
-        """Constructor."""
         self.order = 1
         self.hash = '#geometry_objects_read'
 
     def create(self, G, uip):
         """Create the object and add it to the grid."""
-
         try:
             p1 = self.kwargs['p1']
             geofile = self.kwargs['geofile']
@@ -101,10 +101,12 @@ class GeometryObjectsRead(UserObjectGeometry):
             G.rigidE[:, xs:xs + rigidE.shape[1], ys:ys + rigidE.shape[2], zs:zs + rigidE.shape[3]] = rigidE
             G.rigidH[:, xs:xs + rigidH.shape[1], ys:ys + rigidH.shape[2], zs:zs + rigidH.shape[3]] = rigidH
             G.ID[:, xs:xs + ID.shape[1], ys:ys + ID.shape[2], zs:zs + ID.shape[3]] = ID + numexistmaterials
-            if G.messages:
-                tqdm.write('Geometry objects from file {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
+            log.info(f'Geometry objects from file {geofile} inserted at {xs * G.dx:g}m, \
+                     {ys * G.dy:g}m, {zs * G.dz:g}m, with corresponding materials \
+                     file {matfile}.')
         except KeyError:
             averaging = False
             build_voxels_from_array(xs, ys, zs, numexistmaterials, averaging, data, G.solid, G.rigidE, G.rigidH, G.ID)
-            if G.messages:
-                tqdm.write('Geometry objects from file (voxels only) {} inserted at {:g}m, {:g}m, {:g}m, with corresponding materials file {}.'.format(geofile, xs * G.dx, ys * G.dy, zs * G.dz, matfile))
+            log.info(f'Geometry objects from file (voxels only){ geofile} \
+                     inserted at {xs * G.dx:g}m, {ys * G.dy:g}m, {zs * G.dz:g}m, \
+                     with corresponding materials file {matfile}.')

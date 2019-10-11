@@ -32,15 +32,12 @@ class FractalBoxBuilder(UserObjectGeometry):
     internally only when surface modification have been made to a fractal box"""
 
     def __init__(self, **kwargs):
-        """Constructor."""
         super().__init__(**kwargs)
         self.order = 13
         self.hash = '#fractal_box_modifications'
 
     def create(self, grid, uip):
-
         for volume in grid.fractalvolumes:
-
             if volume.fractalsurfaces:
                 volume.originalxs = volume.xs
                 volume.originalxf = volume.xf

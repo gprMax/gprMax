@@ -16,14 +16,17 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 import numpy as np
-from tqdm import tqdm
 
 import gprMax.config as config
 from .cmds_geometry import UserObjectGeometry
 from ..cython.geometry_primitives import build_box
 from ..exceptions import CmdInputError
 from ..materials import Material
+
+log = logging.getLogger(__name__)
 
 
 class Box(UserObjectGeometry):
@@ -42,7 +45,6 @@ class Box(UserObjectGeometry):
     """
 
     def __init__(self, **kwargs):
-        """Constructor."""
         super().__init__(**kwargs)
         self.order = 5
         self.hash = '#box'
@@ -114,9 +116,8 @@ class Box(UserObjectGeometry):
 
         build_box(xs, xf, ys, yf, zs, zf, numID, numIDx, numIDy, numIDz, averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
 
-        if config.is_messages():
-            if averaging:
-                dielectricsmoothing = 'on'
-            else:
-                dielectricsmoothing = 'off'
-            tqdm.write('Box from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m of material(s) {} created, dielectric smoothing is {}.'.format(xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, ', '.join(materialsrequested), dielectricsmoothing))
+        dielectricsmoothing = 'on' if averaging else 'off'
+        log.info(f"Box from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, \
+                 to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m of \
+                 material(s) {', '.join(materialsrequested)} created, dielectric \
+                 smoothing is {dielectricsmoothing}.")

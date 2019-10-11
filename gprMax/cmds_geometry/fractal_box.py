@@ -16,13 +16,16 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 import numpy as np
-from tqdm import tqdm
 
 import gprMax.config as config
 from .cmds_geometry import UserObjectGeometry
 from ..exceptions import CmdInputError
 from ..fractals import FractalVolume
+
+log = logging.getLogger(__name__)
 
 
 class FractalBox(UserObjectGeometry):
@@ -49,7 +52,6 @@ class FractalBox(UserObjectGeometry):
     """
 
     def __init__(self, **kwargs):
-        """Constructor."""
         super().__init__(**kwargs)
         self.order = 9
         self.hash = '#fractal_box'
@@ -63,7 +65,6 @@ class FractalBox(UserObjectGeometry):
             n_materials = self.kwargs['n_materials']
             mixing_model_id = self.kwargs['mixing_model_id']
             ID = self.kwargs['id']
-
         except KeyError:
             raise CmdInputError(self.__str__() + ' Incorrect parameters')
 
@@ -120,11 +121,12 @@ class FractalBox(UserObjectGeometry):
         volume.averaging = averagefractalbox
         volume.mixingmodel = mixingmodel
 
-        if config.is_messages():
-            if volume.averaging:
-                dielectricsmoothing = 'on'
-            else:
-                dielectricsmoothing = 'off'
-            tqdm.write('Fractal box {} from {:g}m, {:g}m, {:g}m, to {:g}m, {:g}m, {:g}m with {}, fractal dimension {:g}, fractal weightings {:g}, {:g}, {:g}, fractal seeding {}, with {} material(s) created, dielectric smoothing is {}.'.format(volume.ID, xs * grid.dx, ys * grid.dy, zs * grid.dz, xf * grid.dx, yf * grid.dy, zf * grid.dz, volume.operatingonID, volume.dimension, volume.weighting[0], volume.weighting[1], volume.weighting[2], volume.seed, volume.nbins, dielectricsmoothing))
+        dielectricsmoothing = 'on' if volume.averaging else 'off'
+        log.info(f'Fractal box {volume.ID} from {xs * grid.dx:g}m, {ys * grid.dy:g}m, \
+        {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m \
+        with {volume.operatingonID}, fractal dimension {volume.dimension:g}, fractal \
+        weightings {volume.weighting[0]:g}, {volume.weighting[1]:g}, {volume.weighting[2]:g}, \
+        fractal seeding {volume.seed}, with {volume.nbins} material(s) created, \
+        dielectric smoothing is {dielectricsmoothing}.')
 
         grid.fractalvolumes.append(volume)

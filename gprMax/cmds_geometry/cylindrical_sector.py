@@ -16,14 +16,17 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 import numpy as np
-from tqdm import tqdm
 
 import gprMax.config as config
 from .cmds_geometry import UserObjectGeometry
 from ..cython.geometry_primitives import build_cylindrical_sector
 from ..exceptions import CmdInputError
 from ..materials import Material
+
+log = logging.getLogger(__name__)
 
 
 class CylindricalSector(UserObjectGeometry):
@@ -54,7 +57,6 @@ class CylindricalSector(UserObjectGeometry):
     """
 
     def __init__(self, **kwargs):
-        """Constructor."""
         super().__init__(**kwargs)
         self.order = 7
         self.hash = '#cylindrical_sector'
@@ -168,12 +170,16 @@ class CylindricalSector(UserObjectGeometry):
 
         build_cylindrical_sector(ctr1, ctr2, level, sectorstartangle, sectorangle, r, normal, thickness, grid.dx, grid.dy, grid.dz, numID, numIDx, numIDy, numIDz, averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
 
-        if config.is_messages():
-            if thickness > 0:
-                if averaging:
-                    dielectricsmoothing = 'on'
-                else:
-                    dielectricsmoothing = 'off'
-                tqdm.write('Cylindrical sector with centre {:g}m, {:g}m, radius {:g}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, thickness {:g}m, of material(s) {} created, dielectric smoothing is {}.'.format(ctr1, ctr2, r, (sectorstartangle / (2 * np.pi)) * 360, (sectorangle / (2 * np.pi)) * 360, thickness, ', '.join(materialsrequested), dielectricsmoothing))
-            else:
-                tqdm.write('Cylindrical sector with centre {:g}m, {:g}m, radius {:g}m, starting angle {:.1f} degrees, sector angle {:.1f} degrees, of material(s) {} created.'.format(ctr1, ctr2, r, (sectorstartangle / (2 * np.pi)) * 360, (sectorangle / (2 * np.pi)) * 360, ', '.join(materialsrequested)))
+        if thickness > 0:
+            dielectricsmoothing = 'on' if averaging else 'off'
+            log.info(f"Cylindrical sector with centre {ctr1:g}m, {ctr2:g}m, \
+                     radius {r:g}m, starting angle {(sectorstartangle / (2 * np.pi)) * 360:.1f} \
+                     degrees, sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} \
+                     degrees, thickness {thickness:g}m, of material(s) \
+                     {', '.join(materialsrequested)} created, dielectric smoothing \
+                     is {dielectricsmoothing}.")
+        else:
+            log.info(f"Cylindrical sector with centre {ctr1:g}m, {ctr2:g}m, \
+                     radius {r:g}m, starting angle {(sectorstartangle / (2 * np.pi)) * 360:.1f} \
+                     degrees, sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} \
+                     degrees, of material(s) {', '.join(materialsrequested)} created.")
