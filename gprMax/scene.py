@@ -87,7 +87,10 @@ class Scene:
             # Create an instance to check the geometry points provided by the
             # user. The way the point are checked depends on which grid the
             # points belong to.
-            obj.create(grid, uip)
+            try:
+                obj.create(grid, uip)
+            except CmdInputError:
+                logger.exception('Error creating user input object')
 
         return self
 
