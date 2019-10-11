@@ -39,8 +39,8 @@ from .subgrids.base import SubGridBase
 from .utilities import round_value
 from .waveforms import Waveform as WaveformUser
 
-
 log = logging.getLogger(__name__)
+
 
 class UserObjectMulti:
     """Object that can occur multiple times in a model."""
@@ -143,26 +143,26 @@ class VoltageSource(UserObjectMulti):
             resistance = self.kwargs['resistance']
             waveform_id = self.kwargs['waveform_id']
         except KeyError:
-            raise CmdInputError(f"'{self.__str__()}' requires at least six parameters")
+            raise CmdInputError(f"'{self.params_str()}' requires at least six parameters")
 
         # Check polarity & position parameters
         if polarisation not in ('x', 'y', 'z'):
-            raise CmdInputError(f"'{self.__str__()}' polarisation must be x, y, or z")
+            raise CmdInputError(f"'{self.params_str()}' polarisation must be x, y, or z")
         if '2D TMx' in grid.mode and (polarisation == 'y' or polarisation == 'z'):
-            raise CmdInputError(f"'{self.__str__()}' polarisation must be x in 2D TMx mode")
+            raise CmdInputError(f"'{self.params_str()}' polarisation must be x in 2D TMx mode")
         elif '2D TMy' in grid.mode and (polarisation == 'x' or polarisation == 'z'):
-            raise CmdInputError(f"'{self.__str__()}' polarisation must be y in 2D TMy mode")
+            raise CmdInputError(f"'{self.params_str()}' polarisation must be y in 2D TMy mode")
         elif '2D TMz' in grid.mode and (polarisation == 'x' or polarisation == 'y'):
-            raise CmdInputError(f"'{self.__str__()}' polarisation must be z in 2D TMz mode")
+            raise CmdInputError(f"'{self.params_str()}' polarisation must be z in 2D TMz mode")
 
-        xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.__str__())
+        xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
 
         if resistance < 0:
-            raise CmdInputError(f"'{self.__str__()}' requires a source resistance of zero or greater")
+            raise CmdInputError(f"'{self.params_str()}' requires a source resistance of zero or greater")
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            raise CmdInputError(f"'{self.__str__()}' there is no waveform with the identifier {tmp[5]}")
+            raise CmdInputError(f"'{self.params_str()}' there is no waveform with the identifier {tmp[5]}")
 
         v = VoltageSourceUser()
         v.polarisation = polarisation
@@ -178,11 +178,11 @@ class VoltageSource(UserObjectMulti):
             stop = self.kwargs['stop']
             # Check source start & source remove time parameters
             if start < 0:
-                raise CmdInputError(f"'{self.__str__()}' delay of the initiation of the source should not be less than zero")
+                raise CmdInputError(f"'{self.params_str()}' delay of the initiation of the source should not be less than zero")
             if stop < 0:
-                raise CmdInputError(f"'{self.__str__()}' time to remove the source should not be less than zero")
+                raise CmdInputError(f"'{self.params_str()}' time to remove the source should not be less than zero")
             if stop - start <= 0:
-                raise CmdInputError(f"'{self.__str__()}' duration of the source should not be zero or less")
+                raise CmdInputError(f"'{self.params_str()}' duration of the source should not be zero or less")
             v.start = start
             if stop > grid.timewindow:
                 v.stop = grid.timewindow
@@ -228,23 +228,23 @@ class HertzianDipole(UserObjectMulti):
             p1 = self.kwargs['p1']
             waveform_id = self.kwargs['waveform_id']
         except KeyError:
-            raise CmdInputError(f"'{self.__str__()}' requires at least 3 parameters")
+            raise CmdInputError(f"'{self.params_str()}' requires at least 3 parameters")
 
         # Check polarity & position parameters
         if polarisation not in ('x', 'y', 'z'):
-            raise CmdInputError(f"'{self.__str__()}' polarisation must be x, y, or z")
+            raise CmdInputError(f"'{self.params_str()}' polarisation must be x, y, or z")
         if '2D TMx' in grid.mode and (polarisation == 'y' or polarisation == 'z'):
-            raise CmdInputError(f"'{self.__str__()}' polarisation must be x in 2D TMx mode")
+            raise CmdInputError(f"'{self.params_str()}' polarisation must be x in 2D TMx mode")
         elif '2D TMy' in grid.mode and (polarisation == 'x' or polarisation == 'z'):
-            raise CmdInputError(f"'{self.__str__()}' polarisation must be y in 2D TMy mode")
+            raise CmdInputError(f"'{self.params_str()}' polarisation must be y in 2D TMy mode")
         elif '2D TMz' in grid.mode and (polarisation == 'x' or polarisation == 'y'):
-            raise CmdInputError(f"'{self.__str__()}' polarisation must be z in 2D TMz mode")
+            raise CmdInputError(f"'{self.params_str()}' polarisation must be z in 2D TMz mode")
 
-        xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.__str__())
+        xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            raise CmdInputError(f"'{self.__str__()}' there is no waveform with the identifier {tmp[4]}')
+            raise CmdInputError(f"'{self.params_str()}' there is no waveform with the identifier {tmp[4]}")
 
         h = HertzianDipoleUser()
         h.polarisation = polarisation
@@ -271,11 +271,11 @@ class HertzianDipole(UserObjectMulti):
             start = self.kwargs['start']
             stop = self.kwargs['stop']
             if start < 0:
-                raise CmdInputError(f"'{self.__str__()}' delay of the initiation of the source should not be less than zero")
+                raise CmdInputError(f"'{self.params_str()}' delay of the initiation of the source should not be less than zero")
             if stop < 0:
-                raise CmdInputError(f"'{self.__str__()self.__str__()}' time to remove the source should not be less than zero")
+                raise CmdInputError(f"'{self.params_str()}' time to remove the source should not be less than zero")
             if stop - start <= 0:
-                raise CmdInputError(f"'{self.__str__()}' duration of the source should not be zero or less")
+                raise CmdInputError(f"'{self.params_str()}' duration of the source should not be zero or less")
             h.start = start
             if stop > grid.timewindow:
                 h.stop = grid.timewindow
@@ -324,23 +324,23 @@ class MagneticDipole(UserObjectMulti):
             p1 = self.kwargs['p1']
             waveform_id = self.kwargs['waveform_id']
         except KeyError:
-            raise CmdInputError(f"'{self.__str__()}' requires at least five parameters")
+            raise CmdInputError(f"'{self.params_str()}' requires at least five parameters")
 
         # Check polarity & position parameters
         if polarisation not in ('x', 'y', 'z'):
-            raise CmdInputError(f"'{self.__str__()}' polarisation must be x, y, or z")
+            raise CmdInputError(f"'{self.params_str()}' polarisation must be x, y, or z")
         if '2D TMx' in grid.mode and (polarisation == 'y' or polarisation == 'z'):
-            raise CmdInputError(f"'{self.__str__()}' polarisation must be x in 2D TMx mode")
+            raise CmdInputError(f"'{self.params_str()}' polarisation must be x in 2D TMx mode")
         elif '2D TMy' in grid.mode and (polarisation == 'x' or polarisation == 'z'):
-            raise CmdInputError(f"'{self.__str__()}' polarisation must be y in 2D TMy mode")
+            raise CmdInputError(f"'{self.params_str()}' polarisation must be y in 2D TMy mode")
         elif '2D TMz' in grid.mode and (polarisation == 'x' or polarisation == 'y'):
-            raise CmdInputError(f"'{self.__str__()}' polarisation must be z in 2D TMz mode")
+            raise CmdInputError(f"'{self.params_str()}' polarisation must be z in 2D TMz mode")
 
-        xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.__str__())
+        xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            raise CmdInputError(f"'{self.__str__()}' there is no waveform with the identifier {waveform_id}")
+            raise CmdInputError(f"'{self.params_str()}' there is no waveform with the identifier {waveform_id}")
 
         m = MagneticDipoleUser()
         m.polarisation = polarisation
@@ -358,11 +358,11 @@ class MagneticDipole(UserObjectMulti):
             start = self.kwargs['start']
             stop = self.kwargs['stop']
             if start < 0:
-                raise CmdInputError(f"'{self.__str__()}' delay of the initiation of the source should not be less than zero")
+                raise CmdInputError(f"'{self.params_str()}' delay of the initiation of the source should not be less than zero")
             if stop < 0:
-                raise CmdInputError(f"'{self.__str__()}' time to remove the source should not be less than zero")
+                raise CmdInputError(f"'{self.params_str()}' time to remove the source should not be less than zero")
             if stop - start <= 0:
-                raise CmdInputError(f"'{self.__str__()}' duration of the source should not be zero or less")
+                raise CmdInputError(f"'{self.params_str()}' duration of the source should not be zero or less")
             m.start = start
             if stop > grid.timewindow:
                 m.stop = grid.timewindow
@@ -427,7 +427,7 @@ class TransmissionLine(UserObjectMulti):
         elif '2D TMz' in grid.mode and (polarisation == 'x' or polarisation == 'y'):
             raise CmdInputError(f"'{self.params_str()}' polarisation must be z in 2D TMz mode")
 
-        xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.__str__())
+        xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
 
         if resistance <= 0 or resistance >= z0:
             raise CmdInputError(f"'{self.params_str()}' requires a resistance greater than zero and less than the impedance of free space, i.e. 376.73 Ohms")
@@ -498,9 +498,9 @@ class Rx(UserObjectMulti):
         try:
             p1 = self.kwargs['p1']
         except KeyError:
-            raise CmdInputError(f"'{self.__str__()}' has an incorrect number of parameters")
+            raise CmdInputError(f"'{self.params_str()}' has an incorrect number of parameters")
 
-        p = uip.check_src_rx_point(p1, self.__str__())
+        p = uip.check_src_rx_point(p1, self.params_str())
 
         r = self.constructor()
         r.xcoord, r.ycoord, r.zcoord = p
@@ -519,7 +519,7 @@ class Rx(UserObjectMulti):
                 if field in allowableoutputs:
                     r.outputs[field] = np.zeros(grid.iterations, dtype=config.dtypes['float_or_double'])
                 else:
-                    raise CmdInputError(f"'{self.__str__()}' contains an output type that is not allowable. Allowable outputs in current context are {allowableoutputs}")
+                    raise CmdInputError(f"'{self.params_str()}' contains an output type that is not allowable. Allowable outputs in current context are {allowableoutputs}")
         # If no ID or outputs are specified, use default
         except KeyError:
             r.ID = r.__class__.__name__ + '(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'
@@ -555,31 +555,31 @@ class RxArray(UserObjectMulti):
             p2 = self.kwargs['p2']
             dl = self.kwargs['dl']
         except KeyError:
-            raise CmdInputError(f"'{self.__str__()}' requires exactly 9 parameters")
+            raise CmdInputError(f"'{self.params_str()}' requires exactly 9 parameters")
 
-        xs, ys, zs = uip.check_src_rx_point(p1, self.__str__(), 'lower')
-        xf, yf, zf = uip.check_src_rx_point(p2, self.__str__(), 'upper')
+        xs, ys, zs = uip.check_src_rx_point(p1, self.params_str(), 'lower')
+        xf, yf, zf = uip.check_src_rx_point(p2, self.params_str(), 'upper')
         dx, dy, dz = uip.discretise_point(dl)
 
         if xs > xf or ys > yf or zs > zf:
-            raise CmdInputError(f"'{self.__str__()}' the lower coordinates should be less than the upper coordinates")
+            raise CmdInputError(f"'{self.params_str()}' the lower coordinates should be less than the upper coordinates")
         if dx < 0 or dy < 0 or dz < 0:
-            raise CmdInputError(f"'{self.__str__()}' the step size should not be less than zero")
+            raise CmdInputError(f"'{self.params_str()}' the step size should not be less than zero")
         if dx < 1:
             if dx == 0:
                 dx = 1
             else:
-                raise CmdInputError(f"'{self.__str__()}' the step size should not be less than the spatial discretisation")
+                raise CmdInputError(f"'{self.params_str()}' the step size should not be less than the spatial discretisation")
         if dy < 1:
             if dy == 0:
                 dy = 1
             else:
-                raise CmdInputError(f"'{self.__str__()}' the step size should not be less than the spatial discretisation")
+                raise CmdInputError(f"'{self.params_str()}' the step size should not be less than the spatial discretisation")
         if dz < 1:
             if dz == 0:
                 dz = 1
             else:
-                raise CmdInputError(f"'{self.__str__()}' the step size should not be less than the spatial discretisation")
+                raise CmdInputError(f"'{self.params_str()}' the step size should not be less than the spatial discretisation")
 
         log.info(f'Receiver array {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with steps {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m')
 
@@ -624,16 +624,16 @@ class Snapshot(UserObjectMulti):
 
     def create(self, grid, uip):
         if isinstance(grid, SubGridBase):
-            raise CmdInputError(f"'{self.__str__()}' do not add Snapshots to Subgrids.")
+            raise CmdInputError(f"'{self.params_str()}' do not add Snapshots to Subgrids.")
         try:
             p1 = self.kwargs['p1']
             p2 = self.kwargs['p2']
             dl = self.kwargs['dl']
             filename = self.kwargs['filename']
         except KeyError:
-            raise CmdInputError(f"'{self.__str__()}' requires exactly 11 parameters")
+            raise CmdInputError(f"'{self.params_str()}' requires exactly 11 parameters")
 
-        p1, p2 = uip.check_box_points(p1, p2, self.__str__())
+        p1, p2 = uip.check_box_points(p1, p2, self.params_str())
         xs, ys, zs = p1
         xf, yf, zf = p2
         dx, dy, dz = uip.discretise_point(dl)
@@ -646,18 +646,18 @@ class Snapshot(UserObjectMulti):
             try:
                 time = self.kwargs['time']
             except KeyError:
-                raise CmdInputError(f"'{self.__str__()}' requires exactly 5 parameters")
+                raise CmdInputError(f"'{self.params_str()}' requires exactly 5 parameters")
             if time > 0:
                 iterations = round_value((time / grid.dt)) + 1
             else:
-                raise CmdInputError(f"'{self.__str__()}' time value must be greater than zero")
+                raise CmdInputError(f"'{self.params_str()}' time value must be greater than zero")
 
         if dx < 0 or dy < 0 or dz < 0:
-            raise CmdInputError(f"'{self.__str__()}' the step size should not be less than zero")
+            raise CmdInputError(f"'{self.params_str()}' the step size should not be less than zero")
         if dx < 1 or dy < 1 or dz < 1:
-            raise CmdInputError(f"'{self.__str__()}' the step size should not be less than the spatial discretisation")
+            raise CmdInputError(f"'{self.params_str()}' the step size should not be less than the spatial discretisation")
         if iterations <= 0 or iterations > grid.iterations:
-            raise CmdInputError(f"'{self.__str__()}' time value is not valid")
+            raise CmdInputError(f"'{self.params_str()}' time value is not valid")
 
         # Replace with old style snapshots if there are subgrids
         #if grid.subgrids:
@@ -1005,7 +1005,7 @@ class GeometryView(UserObjectMulti):
 
         GeometryViewUser = self.geometry_view_constructor(grid, output_type)
 
-        p1, p2 = uip.check_box_points(p1, p2, self.__str__())
+        p1, p2 = uip.check_box_points(p1, p2, self.params_str())
         xs, ys, zs = p1
         xf, yf, zf = p2
 
@@ -1061,7 +1061,7 @@ class GeometryObjectsWrite(UserObjectMulti):
         except KeyError:
             raise CmdInputError(f"'{self.params_str()}' requires exactly seven parameters")
 
-        p1, p2 = uip.check_box_points(p1, p2, self.__str__())
+        p1, p2 = uip.check_box_points(p1, p2, self.params_str())
         x0, y0, z0 = p1
         x1, y1, z1 = p2
 

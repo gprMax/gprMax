@@ -23,7 +23,7 @@ import numpy as np
 import gprMax.config as config
 
 
-class Rx(object):
+class Rx:
     """Receiver output points."""
 
     allowableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
@@ -48,7 +48,7 @@ def gpu_initialise_rx_arrays(G):
         components for receivers.
 
     Args:
-        G (Grid): Holds essential parameters describing the model.
+        G (FDTDGrid): Holds essential parameters describing the model.
     """
 
     import pycuda.gpuarray as gpuarray
@@ -79,7 +79,7 @@ def gpu_get_rx_array(rxs_gpu, rxcoords_gpu, G):
         rxs_gpu (float): numpy array of receiver data from GPU - rows are field
                             components; columns are iterations; pages are receivers.
         rxcoords_gpu (float): numpy array of receiver coordinates from GPU.
-        G (Grid): Holds essential parameters describing the model.
+        G (FDTDGrid): Holds essential parameters describing the model.
     """
 
     for rx in G.rxs:

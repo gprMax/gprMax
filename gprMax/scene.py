@@ -34,7 +34,6 @@ class Scene:
     """Scene stores all of the user created objects."""
 
     def __init__(self):
-        """Constructor"""
         self.multiple_cmds = []
         self.single_cmds = []
         self.geometry_cmds = []
@@ -53,7 +52,7 @@ class Scene:
         elif isinstance(user_object, UserObjectSingle):
             self.single_cmds.append(user_object)
         else:
-            raise Exception('This Object is Unknown to gprMax')
+            raise GeneralError('This object is unknown to gprMax')
 
     def process_subgrid_commands(self, subgrids):
 
@@ -94,12 +93,12 @@ class Scene:
 
     def process_singlecmds(self, G):
 
-        # check for duplicate commands and warn user if they exist
+        # Check for duplicate commands and warn user if they exist
         cmds_unique = list(set(self.single_cmds))
         if len(cmds_unique) != len(self.single_cmds):
-            raise CmdInputError('Duplicate Single Commands exist in the input.')
+            raise CmdInputError('Duplicate single-use commands exist in the input.')
 
-        # check essential cmds and warn user if missing
+        # Check essential commands and warn user if missing
         for cmd_type in self.essential_cmds:
             d = any([isinstance(cmd, cmd_type) for cmd in cmds_unique])
             if not d:

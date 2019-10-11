@@ -70,8 +70,8 @@ class NoMPIContext(Context):
         is parallelised using either OpenMP (CPU) or CUDA (GPU).
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, sim_config):
+        super().__init__(sim_config)
 
     def _run(self):
         """Specialise how the models are farmed out."""
@@ -96,13 +96,13 @@ class NoMPIContext(Context):
                 model.solve(solver)
 
     def make_time_report(self):
-        """Function to specialise the time reporting for the standard Simulation
+        """Function to specialise the time reporting for the standard simulation
             context.
         """
 
         sim_time = datetime.timedelta(seconds=self.tsimend - self.tsimstart)
-        s = f'\n=== Simulation on {self.simconfig.hostinfo['hostname']} completed in [HH:MM:SS]: {sim_time}'
-        return f'{s} {'=' * (get_terminal_width() - 1 - len(s))}\n'
+        s = f"\n=== Simulation on {self.simconfig.hostinfo['hostname']} completed in [HH:MM:SS]: {sim_time}"
+        return f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n"
 
 
 class MPIContext(Context):
@@ -111,9 +111,8 @@ class MPIContext(Context):
         or CUDA (GPU).
     """
 
-    def __init__(self):
-        super().__init__()
-
+    def __init__(self, sim_config):
+        super().__init__(sim_config)
         from mpi4py import MPI
 
     def _run(self):
@@ -125,8 +124,9 @@ class MPIContext(Context):
 
 class MPINoSpawnContext(Context):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, sim_config):
+        super().__init__(sim_config)
+        from mpi4py import MPI
 
     def _run(self):
         pass

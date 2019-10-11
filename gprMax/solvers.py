@@ -31,7 +31,7 @@ def create_G(sim_config):
         sim_config (SimConfig): Simulation level configuration object.
 
     Returns:
-        G (Grid): Holds essential parameters describing the model.
+        G (FDTDGrid): Holds essential parameters describing the model.
     """
 
     if sim_config.general['cuda']:
@@ -48,7 +48,7 @@ def create_solver(G, sim_config):
     """Create configured solver object.
 
     Args:
-        G (Grid): Holds essential parameters describing the model.
+        G (FDTDGrid): Holds essential parameters describing the model.
         sim_config (SimConfig): simulation level configuration object.
 
     Returns:

@@ -19,6 +19,7 @@
 from contextlib import contextmanager
 import codecs
 import decimal as d
+import logging
 import os
 import platform
 import psutil
@@ -36,6 +37,8 @@ init()
 import numpy as np
 
 from .exceptions import GeneralError
+
+log = logging.getLogger(__name__)
 
 
 def get_terminal_width():
@@ -74,7 +77,7 @@ def logo(version):
     |___/|_|
                      v""" + version
 
-    log.info(f'{description} {'=' * (get_terminal_width() - len(description) - 1)}\n')
+    log.info(f"{description} {'=' * (get_terminal_width() - len(description) - 1)}\n")
     log.info(Fore.CYAN + f'{logo}\n')
     log.info(Style.RESET_ALL + textwrap.fill(copyright, width=get_terminal_width() - 1, initial_indent=' '))
     log.info(textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=' '))
@@ -336,7 +339,44 @@ def get_host_info():
     return hostinfo
 
 
-class GPU(object):
+def set_openmp_threads():
+    """Sets the number of OpenMP CPU threads for parallelised parts of code.
+
+    Returns:
+        nthreads (int): Number of OpenMP threads.
+    """
+
+    if sys.platform == 'darwin':
+        # Should waiting threads consume CPU power (can drastically effect
+        # performance)
+        os.environ['OMP_WAIT_POLICY'] = 'ACTIVE'
+    # Number of threads may be adjusted by the run time environment to best
+    # utilize system resources
+    os.environ['OMP_DYNAMIC'] = 'FALSE'
+    # Each place corresponds to a single core (having one or more hardware threads)
+    os.environ['OMP_PLACES'] = 'cores'
+    # Bind threads to physical cores
+    os.environ['OMP_PROC_BIND'] = 'TRUE'
+    # Prints OMP version and environment variables (useful for debug)
+    # os.environ['OMP_DISPLAY_ENV'] = 'TRUE'
+
+    # Catch bug with Windows Subsystem for Linux (https://github.com/Microsoft/BashOnWindows/issues/785)
+    if 'Microsoft' in config.hostinfo['osversion']:
+        os.environ['KMP_AFFINITY'] = 'disabled'
+        del os.environ['OMP_PLACES']
+        del os.environ['OMP_PROC_BIND']
+
+    if os.environ.get('OMP_NUM_THREADS'):
+        nthreads = int(os.environ.get('OMP_NUM_THREADS'))
+    else:
+        # Set number of threads to number of physical CPU cores
+        nthreads = config.hostinfo['physicalcores']
+        os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
+
+    return nthreads
+
+
+class GPU:
     """GPU information."""
 
     def __init__(self, deviceID):

@@ -15,23 +15,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-# Copyright (C) 2015-2018: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
-#
-# This file is part of gprMax.
-#
-# gprMax is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# gprMax is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from .cmds_single_use import Messages
 from .cmds_single_use import Title
@@ -55,7 +38,6 @@ def process_singlecmds(singlecmds):
 
     Args:
         singlecmds (dict): Commands that can only occur once in the model.
-        G (Grid): Holds essential parameters describing the model.
 
     Returns:
         scene_objects (list): Holds objects in scene.
@@ -78,7 +60,6 @@ def process_singlecmds(singlecmds):
         title = Title(name=str(singlecmds[cmd]))
         scene_objects.append(title)
 
-    # Set the output directory
     cmd = '#output_dir'
     if singlecmds[cmd] is not None:
         output_dir = OutputDir(dir=singlecmds[cmd])
@@ -94,7 +75,6 @@ def process_singlecmds(singlecmds):
         num_thread = NumThreads(n=tmp[0])
         scene_objects.append(num_thread)
 
-    # Spatial discretisation
     cmd = '#dx_dy_dz'
     if singlecmds[cmd] is not None:
         tmp = [float(x) for x in singlecmds[cmd].split()]
@@ -129,8 +109,6 @@ def process_singlecmds(singlecmds):
         tmp = tmp[0].lower()
 
         # If number of iterations given
-        # The +/- 1 used in calculating the number of iterations is to account for
-        # the fact that the solver (iterations) loop runs from 0 to < G.iterations
         try:
             tmp = int(tmp)
             tw = TimeWindow(iterations=tmp)
@@ -163,6 +141,7 @@ def process_singlecmds(singlecmds):
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
             raise CmdInputError(cmd + ' requires exactly three parameters')
+            
         p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
         src_steps = SrcSteps(p1=p1)
         scene_objects.append(src_steps)

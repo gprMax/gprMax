@@ -34,7 +34,7 @@ import gprMax.config as config
 from .exceptions import CmdInputError
 from .waveforms import Waveform
 from .utilities import round_value
-
+from .utilities import set_openmp_threads
 
 log = logging.getLogger(__name__)
 
@@ -78,11 +78,9 @@ class Domain(UserObjectSingle):
 
     def __str__(self):
         try:
-            s = '#domain: {} {} {}'.format(self.kwargs['p1'][0],
-                                           self.kwargs['p1'][1],
-                                           self.kwargs['p1'][2])
+            s = f"#domain: {self.kwargs['p1'][0]} {self.kwargs['p1'][1]} {self.kwargs['p1'][2]}"
         except KeyError:
-            log.warning('error message')
+            log.exception('error message')
 
         return s
 
@@ -95,7 +93,7 @@ class Domain(UserObjectSingle):
         if G.nx == 0 or G.ny == 0 or G.nz == 0:
             raise CmdInputError(f"'{self.params_str()}' requires at least one cell in every dimension")
 
-        log.info(f'Domain size: {self.kwargs['p1'][0]:g} x {self.kwargs['p1'][1]:g} x {self.kwargs['p1'][2]:g}m ({G.nx:d} x {G.ny:d} x {G.nz:d} = {(G.nx * G.ny * G.nz):g} cells)')
+        log.info(f"Domain size: {self.kwargs['p1'][0]:g} x {self.kwargs['p1'][1]:g} x {self.kwargs['p1'][2]:g}m ({G.nx:d} x {G.ny:d} x {G.nz:d} = {(G.nx * G.ny * G.nz):g} cells)")
 
         # Calculate time step at CFL limit; switch off appropriate PMLs for 2D
         if G.nx == 1:
@@ -121,33 +119,18 @@ class Domain(UserObjectSingle):
         log.info(f'Time step (at CFL limit): {G.dt:g} secs')
 
         # Number of threads (OpenMP) to use
-        if sys.platform == 'darwin':
-            os.environ['OMP_WAIT_POLICY'] = 'ACTIVE'  # Should waiting threads consume CPU power (can drastically effect performance)
-        os.environ['OMP_DYNAMIC'] = 'FALSE'  # Number of threads may be adjusted by the run time environment to best utilize system resources
-        os.environ['OMP_PLACES'] = 'cores'  # Each place corresponds to a single core (having one or more hardware threads)
-        os.environ['OMP_PROC_BIND'] = 'TRUE'  # Bind threads to physical cores
-        # os.environ['OMP_DISPLAY_ENV'] = 'TRUE' # Prints OMP version and environment variables (useful for debug)
-
-        # Catch bug with Windows Subsystem for Linux (https://github.com/Microsoft/BashOnWindows/issues/785)
-        if 'Microsoft' in config.hostinfo['osversion']:
-            os.environ['KMP_AFFINITY'] = 'disabled'
-            del os.environ['OMP_PLACES']
-            del os.environ['OMP_PROC_BIND']
-
-        if os.environ.get('OMP_NUM_THREADS'):
-            G.nthreads = int(os.environ.get('OMP_NUM_THREADS'))
-        else:
-            # Set number of threads to number of physical CPU cores
-            G.nthreads = config.hostinfo['physicalcores']
-            os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
-
+        G.nthreads = set_openmp_threads()
         log.info(f'Number of CPU (OpenMP) threads: {G.nthreads}')
+
         if G.nthreads > config.hostinfo['physicalcores']:
-            log.warning(Fore.RED + f'You have specified more threads ({G.nthreads}) than available physical CPU cores ({config.hostinfo['physicalcores']}). This may lead to degraded performance.' + Style.RESET_ALL)
+            log.warning(Fore.RED + f"You have specified more threads ({G.nthreads}) \
+                        than available physical CPU cores ({config.hostinfo['physicalcores']}). \
+                        This may lead to degraded performance." + Style.RESET_ALL)
 
 
 class Discretisation(UserObjectSingle):
-    """Allows you to specify the discretization of space in the x , y and z directions respectively
+    """Allows you to specify the discretization of space in the x, y, and z
+        directions respectively.
 
     :param p1: Specify discretisation in x, y, z direction
     :type p1: list of floats, non-optional
@@ -159,11 +142,9 @@ class Discretisation(UserObjectSingle):
 
     def __str__(self):
         try:
-            s = '#dx_dy_dz: {} {} {}'.format(self.kwargs['p1'][0],
-                                             self.kwargs['p1'][1],
-                                             self.kwargs['p1'][2])
+            s = f"#dx_dy_dz: {self.kwargs['p1'][0]} {self.kwargs['p1'][1]} {self.kwargs['p1'][2]}"
         except KeyError:
-            log.info('error message')
+            log.exception('error message')
 
         return s
 
@@ -172,17 +153,16 @@ class Discretisation(UserObjectSingle):
             G.dl = np.array(self.kwargs['p1'])
             G.dx, G.dy, G.dz = self.kwargs['p1']
         except KeyError:
-            raise CmdInputError('Discretisation requires a point')
+            raise CmdInputError(f"'{self.params_str()}' discretisation requires a point")
 
         if G.dl[0] <= 0:
-            raise CmdInputError('Discretisation requires the x-direction spatial step to be greater than zero')
+            raise CmdInputError(f"'{self.params_str()}' discretisation requires the x-direction spatial step to be greater than zero")
         if G.dl[1] <= 0:
-            raise CmdInputError(' Discretisation requires the y-direction spatial step to be greater than zero')
+            raise CmdInputError(f"'{self.params_str()}' discretisation requires the y-direction spatial step to be greater than zero")
         if G.dl[2] <= 0:
-            raise CmdInputError('Discretisation requires the z-direction spatial step to be greater than zero')
+            raise CmdInputError(f"'{self.params_str()}' discretisation requires the z-direction spatial step to be greater than zero")
 
-        if config.is_messages():
-            log.info('Spatial discretisation: {:g} x {:g} x {:g}m'.format(*G.dl))
+        log.info(f'Spatial discretisation: {G.dl[0]:g} x {G.dl[1]:g} x {G.dl[2]:g}m')
 
 
 class TimeWindow(UserObjectSingle):
@@ -200,12 +180,12 @@ class TimeWindow(UserObjectSingle):
 
     def __str__(self):
         try:
-            s = '#time_window: {}'.format(self.kwargs['time'])
+            s = f"#time_window: {self.kwargs['time']}"
         except KeyError:
             try:
-                s = '#time_window: {}'.format(self.kwargs['iterations'])
+                s = f"#time_window: {self.kwargs['iterations']}"
             except KeyError:
-                log.info('time window error')
+                log.exception('time window error')
 
         return s
 
@@ -217,7 +197,6 @@ class TimeWindow(UserObjectSingle):
             iterations = int(self.kwargs['iterations'])
             G.timewindow = (iterations - 1) * G.dt
             G.iterations = iterations
-
         except KeyError:
             pass
 
@@ -227,16 +206,14 @@ class TimeWindow(UserObjectSingle):
                 G.timewindow = tmp
                 G.iterations = int(np.ceil(tmp / G.dt)) + 1
             else:
-                raise CmdInputError(self.__str__() + ' must have a value greater than zero')
-
+                raise CmdInputError(f"'{self.params_str()}' must have a value greater than zero")
         except KeyError:
             pass
 
         if not G.timewindow:
-            raise CmdInputError('TimeWindow: Specify a time or number of iterations')
+            raise CmdInputError(f"'{self.params_str()}' specify a time or number of iterations")
 
-        if config.is_messages():
-            log.info('Time window: {:g} secs ({} iterations)'.format(G.timewindow, G.iterations))
+        log.info(f'Time window: {G.timewindow:g} secs ({G.iterations} iterations)')
 
 
 class Messages(UserObjectSingle):

@@ -27,7 +27,7 @@ from .utilities import round_value
 np.seterr(divide='raise')
 
 
-class FractalSurface(object):
+class FractalSurface:
     """Fractal surfaces."""
 
     surfaceIDs = ['xminus', 'xplus', 'yminus', 'yplus', 'zminus', 'zplus']
@@ -109,7 +109,7 @@ class FractalSurface(object):
                                                           - self.fractalrange[0]) / fractalrange) * fractalmin)
 
 
-class FractalVolume(object):
+class FractalVolume:
     """Fractal volumes."""
 
     def __init__(self, xs, xf, ys, yf, zs, zf, dimension):
@@ -209,7 +209,7 @@ class FractalVolume(object):
         self.mask[maskxs:maskxf, maskys:maskyf, maskzs:maskzf] = 1
 
 
-class Grass(object):
+class Grass:
     """Geometry information for blades of grass."""
 
     def __init__(self, numblades):

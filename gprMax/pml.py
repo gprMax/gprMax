@@ -19,12 +19,11 @@
 from importlib import import_module
 
 import numpy as np
-from tqdm import tqdm
 
 import gprMax.config as config
 
 
-class CFSParameter(object):
+class CFSParameter:
     """Individual CFS parameter (e.g. alpha, kappa, or sigma)."""
 
     # Allowable scaling profiles and directions
@@ -52,7 +51,7 @@ class CFSParameter(object):
         self.max = max
 
 
-class CFS(object):
+class CFS:
     """CFS term for PML."""
 
     def __init__(self):
@@ -158,7 +157,7 @@ class CFS(object):
         return Evalues, Hvalues
 
 
-class PML(object):
+class PML:
     """Perfectly Matched Layer (PML) Absorbing Boundary Conditions (ABC)"""
 
     # Available PML formulations:
@@ -177,7 +176,7 @@ class PML(object):
     def __init__(self, G, ID=None, direction=None, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0):
         """
         Args:
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
             ID (str): Identifier for PML slab.
             direction (str): Direction of increasing absorption.
             xs, xf, ys, yf, zs, zf (float): Extent of the PML slab.
@@ -248,7 +247,7 @@ class PML(object):
         Args:
             er (float): Average permittivity of underlying material
             mr (float): Average permeability of underlying material
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         self.ERA = np.zeros((len(self.CFS), self.thickness),
@@ -311,7 +310,7 @@ class PML(object):
         """This functions updates electric field components with the PML correction.
 
         Args:
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         pmlmodule = 'gprMax.cython.pml_updates_electric_' + G.pmlformulation
@@ -325,7 +324,7 @@ class PML(object):
         """This functions updates magnetic field components with the PML correction.
 
         Args:
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         pmlmodule = 'gprMax.cython.pml_updates_magnetic_' + G.pmlformulation
@@ -335,16 +334,13 @@ class PML(object):
              G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.HPhi1, self.HPhi2,
              self.HRA, self.HRB, self.HRE, self.HRF, self.d)
 
-    def gpu_set_blocks_per_grid(self, G):
-        """Set the blocks per grid size used for updating the PML field arrays on a GPU.
 
-        Args:
-            G (Grid): Holds essential parameters describing the model.
-        """
+class CUDAPML(PML):
+    """Perfectly Matched Layer (PML) Absorbing Boundary Conditions (ABC) for
+        solving on GPU using CUDA.
+    """
 
-        self.bpg = (int(np.ceil(((self.EPhi1_gpu.shape[1] + 1) * (self.EPhi1_gpu.shape[2] + 1) * (self.EPhi1_gpu.shape[3] + 1)) / G.tpb[0])), 1, 1)
-
-    def gpu_initialise_arrays(self):
+    def initialise_arrays(self):
         """Initialise PML field and coefficient arrays on GPU."""
 
         import pycuda.gpuarray as gpuarray
@@ -374,7 +370,16 @@ class PML(object):
             self.HPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz), dtype=floattype))
             self.HPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz), dtype=floattype))
 
-    def gpu_get_update_funcs(self, kernelselectric, kernelsmagnetic):
+    def set_blocks_per_grid(self, G):
+        """Set the blocks per grid size used for updating the PML field arrays on a GPU.
+
+        Args:
+            G (FDTDGrid): Holds essential parameters describing the model.
+        """
+
+        self.bpg = (int(np.ceil(((self.EPhi1_gpu.shape[1] + 1) * (self.EPhi1_gpu.shape[2] + 1) * (self.EPhi1_gpu.shape[3] + 1)) / G.tpb[0])), 1, 1)
+
+    def get_update_funcs(self, kernelselectric, kernelsmagnetic):
         """Get update functions from PML kernels.
 
         Args:
@@ -387,28 +392,32 @@ class PML(object):
         self.update_electric_gpu = kernelselectric.get_function('order' + str(len(self.CFS)) + '_' + self.direction)
         self.update_magnetic_gpu = kernelsmagnetic.get_function('order' + str(len(self.CFS)) + '_' + self.direction)
 
-    def gpu_update_electric(self, G):
+    def update_electric(self, G):
         """This functions updates electric field components with the PML
             correction on the GPU.
 
         Args:
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         self.update_electric_gpu(np.int32(self.xs), np.int32(self.xf), np.int32(self.ys), np.int32(self.yf), np.int32(self.zs), np.int32(self.zf), np.int32(self.EPhi1_gpu.shape[1]), np.int32(self.EPhi1_gpu.shape[2]), np.int32(self.EPhi1_gpu.shape[3]), np.int32(self.EPhi2_gpu.shape[1]), np.int32(self.EPhi2_gpu.shape[2]), np.int32(self.EPhi2_gpu.shape[3]), np.int32(self.thickness), G.ID_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata, self.EPhi1_gpu.gpudata, self.EPhi2_gpu.gpudata, self.ERA_gpu.gpudata, self.ERB_gpu.gpudata, self.ERE_gpu.gpudata, self.ERF_gpu.gpudata, floattype(self.d), block=G.tpb, grid=self.bpg)
 
-    def gpu_update_magnetic(self, G):
+    def update_magnetic(self, G):
         """This functions updates magnetic field components with the PML
             correction on the GPU.
 
         Args:
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
         self.update_magnetic_gpu(np.int32(self.xs), np.int32(self.xf), np.int32(self.ys), np.int32(self.yf), np.int32(self.zs), np.int32(self.zf), np.int32(self.HPhi1_gpu.shape[1]), np.int32(self.HPhi1_gpu.shape[2]), np.int32(self.HPhi1_gpu.shape[3]), np.int32(self.HPhi2_gpu.shape[1]), np.int32(self.HPhi2_gpu.shape[2]), np.int32(self.HPhi2_gpu.shape[3]), np.int32(self.thickness), G.ID_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata, self.HPhi1_gpu.gpudata, self.HPhi2_gpu.gpudata, self.HRA_gpu.gpudata, self.HRB_gpu.gpudata, self.HRE_gpu.gpudata, self.HRF_gpu.gpudata, floattype(self.d), block=G.tpb, grid=self.bpg)
 
-
 def pml_information(G):
-    # No pml
+    """Information about PMLs.
+
+    Args:
+        G (FDTDGrid): Holds essential parameters describing the model.
+    """
+    # No PML
     if all(value == 0 for value in G.pmlthickness.values()):
         return 'PML: switched off'
 
@@ -417,9 +426,10 @@ def pml_information(G):
     else:
         pmlinfo = ''
         for key, value in G.pmlthickness.items():
-            pmlinfo += '{}: {}, '.format(key, value)
+            pmlinfo += f'{key}: {value}, '
         pmlinfo = pmlinfo[:-2] + ' cells'
-    return '\nPML: formulation: {}, order: {}, thickness: {}'.format(G.pmlformulation, len(G.cfs), pmlinfo)
+
+    return f'\nPML: formulation: {G.pmlformulation}, order: {len(G.cfs)}, thickness: {pmlinfo}'
 
 
 def build_pml(G, key, value):
@@ -428,7 +438,7 @@ def build_pml(G, key, value):
         (based on underlying material er and mr from solid array).
 
     Args:
-        G (Grid): Holds essential parameters describing the model.
+        G (FDTDGrid): Holds essential parameters describing the model.
         key (str): Identifier of PML slab.
         value (int): Thickness of PML slab in cells.
     """

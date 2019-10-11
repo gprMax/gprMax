@@ -21,7 +21,7 @@ import numpy as np
 import gprMax.config as config
 
 
-class Material(object):
+class Material:
     """Super-class to describe generic, non-dispersive materials,
         their properties and update coefficients.
     """
@@ -49,7 +49,7 @@ class Material(object):
         """Calculates the magnetic update coefficients of the material.
 
         Args:
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing a model.
         """
 
         HA = (config.m0 * self.mr / G.dt) + 0.5 * self.sm
@@ -64,7 +64,7 @@ class Material(object):
         """Calculates the electric update coefficients of the material.
 
         Args:
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing a model.
         """
 
         EA = (config.e0 * self.er / G.dt) + 0.5 * self.se
@@ -126,7 +126,7 @@ class DispersiveMaterial(Material):
         """Calculates the electric update coefficients of the material.
 
         Args:
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing a model.
         """
 
         # The implementation of the dispersive material modelling comes from the
@@ -208,7 +208,7 @@ def process_materials(G):
     store in arrays, and build text list of materials/properties
 
     Args:
-        G (Grid): Holds essential parameters describing the model.
+        G (FDTDGrid): Holds essential parameters describing a model.
 
     Returns:
         materialsdata (list): List of material IDs, names, and properties to
@@ -274,7 +274,7 @@ def process_materials(G):
     return materialsdata
 
 
-class PeplinskiSoil(object):
+class PeplinskiSoil:
     """Soil objects that are characterised according to a mixing model
         by Peplinski (http://dx.doi.org/10.1109/36.387598).
     """
@@ -307,7 +307,7 @@ class PeplinskiSoil(object):
 
         Args:
             nbins (int): Number of bins to use to create the different materials.
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing a model.
         """
 
         # Debye model properties of water
@@ -374,7 +374,7 @@ def create_built_in_materials(G):
     """Create pre-defined (built-in) materials.
 
     Args:
-        G (Grid): Holds essential parameters describing the model.
+        G (FDTDGrid): Holds essential parameters describing a model.
     """
 
     G.n_built_in_materials = len(G.materials)

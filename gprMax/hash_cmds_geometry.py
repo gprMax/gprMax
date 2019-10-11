@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
 import numpy as np
 
 from .cmds_geometry.geometry_objects_read import GeometryObjectsRead
@@ -233,13 +232,11 @@ def process_geometrycmds(geometry):
             n_materials = round_value(tmp[11])
             mixing_model_id = tmp[12]
             ID = tmp[13]
-            # without seed
+
             if len(tmp) == 14:
                 fb = FractalBox(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, mixing_model_id=mixing_model_id, id=ID, n_materials=n_materials)
-            # with seed
             elif len(tmp) == 15:
                 fb = FractalBox(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, mixing_model_id=mixing_model_id, id=ID, n_materials=n_materials, seed=tmp[14])
-            # user specified averaging
             elif len(tmp) == 16:
                 fb = FractalBox(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, mixing_model_id=mixing_model_id, id=ID, n_materials=n_materials, seed=tmp[14], averaging=tmp[15].lower())
             else:
@@ -262,7 +259,6 @@ def process_geometrycmds(geometry):
                     limits = [float(tmp[10]), float(tmp[11])]
                     fractal_box_id = tmp[12]
 
-                    # No seed
                     if len(tmp) == 13:
                         asr = AddSurfaceRoughness(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, limits=limits, fractal_box_id=fractal_box_id)
                     elif len(tmp) == 14:
@@ -295,13 +291,13 @@ def process_geometrycmds(geometry):
                     n_blades = int(tmp[10])
                     fractal_box_id = tmp[11]
 
-                    # no seed
                     if len(tmp) == 12:
                         grass = AddGrass(p1=p1, p2=p2, frac_dim=frac_dim, limits=limits, n_blades=n_blades, fractal_box_id=fractal_box_id)
                     elif len(tmp) == 13:
                         grass = AddGrass(p1=p1, p2=p2, frac_dim=frac_dim, limits=limits, n_blades=n_blades, fractal_box_id=fractal_box_id, seed=int(tmp[12]))
                     else:
                         raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+
                     scene_objects.append(grass)
 
     return scene_objects

@@ -16,13 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import sys
 
 from colorama import init
 from colorama import Fore
-
 init()
 
+log = logging.getLogger(__name__)
 sys.tracebacklimit = None
 
 
@@ -33,7 +34,7 @@ class GeneralError(ValueError):
 
         self.message = message
         super(GeneralError, self).__init__(message, *args)
-        print(Fore.RED)
+        log.exception(Fore.RED)
 
 
 class CmdInputError(ValueError):
@@ -45,4 +46,4 @@ class CmdInputError(ValueError):
 
         self.message = message
         super(CmdInputError, self).__init__(message, *args)
-        print(Fore.RED)
+        log.exception(Fore.RED)

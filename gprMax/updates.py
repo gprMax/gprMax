@@ -35,8 +35,8 @@ from .snapshots import gpu_get_snapshot_array
 from .sources import gpu_initialise_src_arrays
 from .utilities import timer
 
-
 log = logging.getLogger(__name__)
+
 
 class CPUUpdates:
     """Defines update functions for CPU-based solver."""
@@ -44,7 +44,7 @@ class CPUUpdates:
     def __init__(self, G):
         """
         Args:
-            G (FDTDGrid): FDTD grid object
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
         self.grid = G
         self.dispersive_update_a = None
@@ -143,14 +143,21 @@ class CPUUpdates:
             update any Hertzian dipole sources last.
         """
         for source in self.grid.voltagesources + self.grid.transmissionlines + self.grid.hertziandipoles:
-            source.update_electric(self.grid.iteration, self.grid.updatecoeffsE, self.grid.ID, self.grid.Ex, self.grid.Ey, self.grid.Ez, self.grid)
+            source.update_electric(self.grid.iteration,
+                                   self.grid.updatecoeffsE,
+                                   self.grid.ID,
+                                   self.grid.Ex,
+                                   self.grid.Ey,
+                                   self.grid.Ez,
+                                   self.grid)
         self.grid.iteration += 1
 
     def update_electric_b(self):
-        """If there are any dispersive materials do 2nd part of dispersive update -
-            it is split into two parts as it requires present and updated electric
-            field values. Therefore it can only be completely updated after the
-            electric field has been updated by the PML and source updates.
+        """If there are any dispersive materials do 2nd part of dispersive
+            update - it is split into two parts as it requires present and
+            updated electric field values. Therefore it can only be completely
+            updated after the electric field has been updated by the PML and
+            source updates.
         """
         if config.materials['maxpoles'] != 0:
             self.dispersive_update_b(self.grid.nx,
@@ -236,7 +243,7 @@ class CUDAUpdates:
     def __init__(self, G):
         """
         Args:
-            G (FDTDGrid): FDTD grid object
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         self.grid = G
@@ -248,6 +255,7 @@ class CUDAUpdates:
         drv.init()
 
         # Suppress nvcc warnings on Windows
+        log.debug('Move nvcc compiler options to simulation config')
         if sys.platform == 'win32':
             self.compiler_opts = ['-w']
         else:
@@ -269,9 +277,41 @@ class CUDAUpdates:
             get kernel functions.
         """
         if config.materials['maxpoles'] > 0:
-            kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=cudafloattype, COMPLEX=cudacomplextype, N_updatecoeffsE=self.grid.updatecoeffsE.size, N_updatecoeffsH=self.grid.updatecoeffsH.size, NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=self.grid.updatecoeffsdispersive.shape[1], NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1, NX_ID=self.grid.ID.shape[1], NY_ID=self.grid.ID.shape[2], NZ_ID=self.grid.ID.shape[3], NX_T=self.grid.Tx.shape[1], NY_T=self.grid.Tx.shape[2], NZ_T=self.grid.Tx.shape[3]), options=self.compiler_opts)
+            kernels_fields = SourceModule(kernels_template_fields.substitute(
+                                          REAL=cudafloattype,
+                                          COMPLEX=cudacomplextype,
+                                          N_updatecoeffsE=self.grid.updatecoeffsE.size,
+                                          N_updatecoeffsH=self.grid.updatecoeffsH.size,
+                                          NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
+                                          NY_MATDISPCOEFFS=self.grid.updatecoeffsdispersive.shape[1],
+                                          NX_FIELDS=self.grid.nx + 1,
+                                          NY_FIELDS=self.grid.ny + 1,
+                                          NZ_FIELDS=self.grid.nz + 1,
+                                          NX_ID=self.grid.ID.shape[1],
+                                          NY_ID=self.grid.ID.shape[2],
+                                          NZ_ID=self.grid.ID.shape[3],
+                                          NX_T=self.grid.Tx.shape[1],
+                                          NY_T=self.grid.Tx.shape[2],
+                                          NZ_T=self.grid.Tx.shape[3]),
+                                          options=self.compiler_opts)
         else: # Set to one any substitutions for dispersive materials
-            kernels_fields = SourceModule(kernels_template_fields.substitute(REAL=cudafloattype, COMPLEX=cudacomplextype, N_updatecoeffsE=self.grid.updatecoeffsE.size, N_updatecoeffsH=self.grid.updatecoeffsH.size, NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1], NY_MATDISPCOEFFS=1, NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1, NX_ID=self.grid.ID.shape[1], NY_ID=self.grid.ID.shape[2], NZ_ID=self.grid.ID.shape[3], NX_T=1, NY_T=1, NZ_T=1), options=self.compiler_opts)
+            kernels_fields = SourceModule(kernels_template_fields.substitute(
+                                          REAL=cudafloattype,
+                                          COMPLEX=cudacomplextype,
+                                          N_updatecoeffsE=self.grid.updatecoeffsE.size,
+                                          N_updatecoeffsH=self.grid.updatecoeffsH.size,
+                                          NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
+                                          NY_MATDISPCOEFFS=1,
+                                          NX_FIELDS=self.grid.nx + 1,
+                                          NY_FIELDS=self.grid.ny + 1,
+                                          NZ_FIELDS=self.grid.nz + 1,
+                                          NX_ID=self.grid.ID.shape[1],
+                                          NY_ID=self.grid.ID.shape[2],
+                                          NZ_ID=self.grid.ID.shape[3],
+                                          NX_T=1,
+                                          NY_T=1,
+                                          NZ_T=1),
+                                          options=self.compiler_opts)
         self.update_electric = kernels_fields.get_function("update_electric")
         self.update_magnetic = kernels_fields.get_function("update_magnetic")
         if self.grid.updatecoeffsE.nbytes + self.grid.updatecoeffsH.nbytes > self.grid.gpu.constmem:
@@ -292,11 +332,35 @@ class CUDAUpdates:
         """PMLS - prepare kernels and get kernel functions."""
         if self.grid.pmls:
             pmlmodulelectric = 'gprMax.cuda.pml_updates_electric_' + self.grid.pmlformulation
-            kernelelectricfunc = getattr(import_module(pmlmodulelectric), 'kernels_template_pml_electric_' + self.grid.pmlformulation)
+            kernelelectricfunc = getattr(import_module(pmlmodulelectric),
+                                         'kernels_template_pml_electric_' +
+                                         self.grid.pmlformulation)
             pmlmodulemagnetic = 'gprMax.cuda.pml_updates_magnetic_' + self.grid.pmlformulation
-            kernelmagneticfunc = getattr(import_module(pmlmodulemagnetic), 'kernels_template_pml_magnetic_' + self.grid.pmlformulation)
-            kernels_pml_electric = SourceModule(kernelelectricfunc.substitute(REAL=cudafloattype, N_updatecoeffsE=self.grid.updatecoeffsE.size, NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1], NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1, NX_ID=self.grid.ID.shape[1], NY_ID=self.grid.ID.shape[2], NZ_ID=self.grid.ID.shape[3]), options=self.compiler_opts)
-            kernels_pml_magnetic = SourceModule(kernelmagneticfunc.substitute(REAL=cudafloattype, N_updatecoeffsH=self.grid.updatecoeffsH.size, NY_MATCOEFFS=self.grid.updatecoeffsH.shape[1], NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1, NX_ID=self.gridG.ID.shape[1], NY_ID=self.grid.ID.shape[2], NZ_ID=self.grid.ID.shape[3]), options=self.compiler_opts)
+            kernelmagneticfunc = getattr(import_module(pmlmodulemagnetic),
+                                         'kernels_template_pml_magnetic_' +
+                                         self.grid.pmlformulation)
+            kernels_pml_electric = SourceModule(kernelelectricfunc.substitute(
+                                                REAL=cudafloattype,
+                                                N_updatecoeffsE=self.grid.updatecoeffsE.size,
+                                                NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
+                                                NX_FIELDS=self.grid.nx + 1,
+                                                NY_FIELDS=self.grid.ny + 1,
+                                                NZ_FIELDS=self.grid.nz + 1,
+                                                NX_ID=self.grid.ID.shape[1],
+                                                NY_ID=self.grid.ID.shape[2],
+                                                NZ_ID=self.grid.ID.shape[3]),
+                                                options=self.compiler_opts)
+            kernels_pml_magnetic = SourceModule(kernelmagneticfunc.substitute(
+                                                REAL=cudafloattype,
+                                                N_updatecoeffsH=self.grid.updatecoeffsH.size,
+                                                NY_MATCOEFFS=self.grid.updatecoeffsH.shape[1],
+                                                NX_FIELDS=self.grid.nx + 1,
+                                                NY_FIELDS=self.grid.ny + 1,
+                                                NZ_FIELDS=self.grid.nz + 1,
+                                                NX_ID=self.gridG.ID.shape[1],
+                                                NY_ID=self.grid.ID.shape[2],
+                                                NZ_ID=self.grid.ID.shape[3]),
+                                                options=self.compiler_opts)
             self.copy_mat_coeffs()
             # Set block per grid, initialise arrays on GPU, and get kernel functions
             for pml in self.grid.pmls:
@@ -305,20 +369,42 @@ class CUDAUpdates:
                 pml.gpu_set_blocks_per_grid(self.grid)
 
     def set_rx_kernel(self):
-        """Receivers - initialise arrays on GPU, prepare kernel and
-            get kernel function.
+        """Receivers - initialise arrays on GPU, prepare kernel and get kernel
+                        function.
         """
         if self.grid.rxs:
             rxcoords_gpu, rxs_gpu = gpu_initialise_rx_arrays(self.grid)
-            kernel_store_outputs = SourceModule(kernel_template_store_outputs.substitute(REAL=cudafloattype, NY_RXCOORDS=3, NX_RXS=6, NY_RXS=self.grid.iterations, NZ_RXS=len(self.grid.rxs), NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1), options=self.compiler_opts)
+            kernel_store_outputs = SourceModule(kernel_template_store_outputs.substitute(
+                                                REAL=cudafloattype,
+                                                NY_RXCOORDS=3,
+                                                NX_RXS=6,
+                                                NY_RXS=self.grid.iterations,
+                                                NZ_RXS=len(self.grid.rxs),
+                                                NX_FIELDS=self.grid.nx + 1,
+                                                NY_FIELDS=self.grid.ny + 1,
+                                                NZ_FIELDS=self.grid.nz + 1),
+                                                options=self.compiler_opts)
             self.store_outputs = kernel_store_outputs.get_function("store_outputs")
 
     def set_src_kernels(self):
-        """Sources - initialise arrays on GPU, prepare kernel and
-            get kernel function.
+        """Sources - initialise arrays on GPU, prepare kernel and get kernel
+                        function.
         """
         if self.grid.voltagesources + self.grid.hertziandipoles + self.grid.magneticdipoles:
-            kernels_sources = SourceModule(kernels_template_sources.substitute(REAL=cudafloattype, N_updatecoeffsE=self.grid.updatecoeffsE.size, N_updatecoeffsH=self.grid.updatecoeffsH.size, NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1], NY_SRCINFO=4, NY_SRCWAVES=self.grid.iterations, NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1, NX_ID=self.grid.ID.shape[1], NY_ID=self.grid.ID.shape[2], NZ_ID=self.grid.ID.shape[3]), options=self.compiler_opts)
+            kernels_sources = SourceModule(kernels_template_sources.substitute(
+                                           REAL=cudafloattype,
+                                           N_updatecoeffsE=self.grid.updatecoeffsE.size,
+                                           N_updatecoeffsH=self.grid.updatecoeffsH.size,
+                                           NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
+                                           NY_SRCINFO=4,
+                                           NY_SRCWAVES=self.grid.iterations,
+                                           NX_FIELDS=self.grid.nx + 1,
+                                           NY_FIELDS=self.grid.ny + 1,
+                                           NZ_FIELDS=self.grid.nz + 1,
+                                           NX_ID=self.grid.ID.shape[1],
+                                           NY_ID=self.grid.ID.shape[2],
+                                           NZ_ID=self.grid.ID.shape[3]),
+                                           options=self.compiler_opts)
             self.copy_mat_coeffs()
             if self.grid.hertziandipoles:
                 self.srcinfo1_hertzian_gpu, self.srcinfo2_hertzian_gpu, self.srcwaves_hertzian_gpu = gpu_initialise_src_arrays(self.grid.hertziandipoles, self.grid)
@@ -331,12 +417,20 @@ class CUDAUpdates:
                 self.update_voltage_source_gpu = kernels_sources.get_function("update_voltage_source")
 
     def set_snapshot_kernel(self):
-        """Snapshots - initialise arrays on GPU, prepare kernel and
-            get kernel function.
+        """Snapshots - initialise arrays on GPU, prepare kernel and get kernel
+                        function.
         """
         if self.grid.snapshots:
             self.snapEx_gpu, self.snapEy_gpu, self.snapEz_gpu, self.snapHx_gpu, self.snapHy_gpu, self.snapHz_gpu = gpu_initialise_snapshot_array(self.grid)
-            kernel_store_snapshot = SourceModule(kernel_template_store_snapshot.substitute(REAL=cudafloattype, NX_SNAPS=Snapshot.nx_max, NY_SNAPS=Snapshot.ny_max, NZ_SNAPS=Snapshot.nz_max, NX_FIELDS=self.grid.nx + 1, NY_FIELDS=self.grid.ny + 1, NZ_FIELDS=self.grid.nz + 1), options=self.compiler_opts)
+            kernel_store_snapshot = SourceModule(kernel_template_store_snapshot.substitute(
+                                                 REAL=cudafloattype,
+                                                 NX_SNAPS=Snapshot.nx_max,
+                                                 NY_SNAPS=Snapshot.ny_max,
+                                                 NZ_SNAPS=Snapshot.nz_max,
+                                                 NX_FIELDS=self.grid.nx + 1,
+                                                 NY_FIELDS=self.grid.ny + 1,
+                                                 NZ_FIELDS=self.grid.nz + 1),
+                                                 options=self.compiler_opts)
             self.store_snapshot_gpu = kernel_store_snapshot.get_function("store_snapshot")
 
     def copy_mat_coeffs(self):
@@ -528,10 +622,11 @@ class CUDAUpdates:
         self.grid.iteration += 1
 
     def update_electric_b(self):
-        """If there are any dispersive materials do 2nd part of dispersive update -
-            it is split into two parts as it requires present and updated electric
-            field values. Therefore it can only be completely updated after the
-            electric field has been updated by the PML and source updates.
+        """If there are any dispersive materials do 2nd part of dispersive
+            update - it is split into two parts as it requires present and
+            updated electric field values. Therefore it can only be completely
+            updated after the electric field has been updated by the PML and
+            source updates.
         """
         if config.materials['maxpoles'] != 0:
             self.dispersive_update_b(np.int32(self.grid.nx),

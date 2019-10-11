@@ -45,13 +45,13 @@ from .fields_outputs import kernel_template_store_outputs
 from .fields_outputs import write_hdf5_outputfile
 from .grid import FDTDGrid
 from .grid import dispersion_analysis
-from .input_cmds_geometry import process_geometrycmds
-from .input_cmds_file import process_python_include_code
-from .input_cmds_file import write_processed_file
-from .input_cmds_file import check_cmd_names
-from .input_cmds_file import parse_hash_commands
-from .input_cmds_singleuse import process_singlecmds
-from .input_cmds_multiuse import process_multicmds
+from .hash_cmds_geometry import process_geometrycmds
+from .hash_cmds_file import process_python_include_code
+from .hash_cmds_file import write_processed_file
+from .hash_cmds_file import check_cmd_names
+from .hash_cmds_file import parse_hash_commands
+from .hash_cmds_singleuse import process_singlecmds
+from .hash_cmds_multiuse import process_multicmds
 from .materials import Material
 from .materials import process_materials
 from .pml import CFS
@@ -72,10 +72,9 @@ from .utilities import human_size
 from .utilities import open_path_file
 from .utilities import round32
 from .utilities import timer
-from .utilities import Printer
-
 
 log = logging.getLogger(__name__)
+
 
 class ModelBuildRun:
     """Builds and runs (solves) a model."""
@@ -84,7 +83,6 @@ class ModelBuildRun:
         self.G = G
         self.sim_config = sim_config
         self.model_config = model_config
-        self.printer = Printer(config)
         # Monitor memory usage
         self.p = None
 
@@ -122,7 +120,7 @@ class ModelBuildRun:
 
         # Write files for any geometry views and geometry object outputs
         if not (G.geometryviews or G.geometryobjectswrite) and self.sim_config.geometry_only and config.is_messages():
-            print(Fore.RED + '\nWARNING: No geometry views or geometry objects to output found.' + Style.RESET_ALL)
+            log.warning(Fore.RED + f'\nNo geometry views or geometry objects to output found.' + Style.RESET_ALL)
         if config.is_messages(): print()
         for i, geometryview in enumerate(G.geometryviews):
             geometryview.set_filename(self.model_config.appendmodelnumber)
@@ -144,8 +142,7 @@ class ModelBuildRun:
         sim_config = self.sim_config
         G = self.G
 
-        printer = Printer(config)
-        printer.print(model_config.next_model)
+        log.info(model_config.next_model)
 
         scene = self.build_scene()
 
@@ -172,9 +169,11 @@ class ModelBuildRun:
                 config.materials['dispersiveCdtype'] = config.dtypes['C_float_or_double']
 
             # Update estimated memory (RAM) usage
-            G.memoryusage += int(3 * config.materials['maxpoles'] * (G.nx + 1) * (G.ny + 1) * (G.nz + 1) * np.dtype(config.materials['dispersivedtype']).itemsize)
+            G.memoryusage += int(3 * config.materials['maxpoles'] *
+                                 (G.nx + 1) * (G.ny + 1) * (G.nz + 1) *
+                                 np.dtype(config.materials['dispersivedtype']).itemsize)
             G.memory_check()
-            printer.print('\nMemory (RAM) required - updated (dispersive): ~{}\n'.format(human_size(G.memoryusage)))
+            log.info(f'\nMemory (RAM) required - updated (dispersive): ~{human_size(G.memoryusage)}\n')
 
             for gb in gridbuilders:
                 gb.grid.initialise_dispersive_arrays(config.materials['dispersivedtype'])
@@ -188,7 +187,7 @@ class ModelBuildRun:
             G.memoryusage += int(snapsmemsize)
             G.memory_check(snapsmemsize=int(snapsmemsize))
 
-            printer.print('\nMemory (RAM) required - updated (snapshots): ~{}\n'.format(human_size(G.memoryusage)))
+            log.info(f'\nMemory (RAM) required - updated (snapshots): ~{human_size(G.memoryusage)}\n')
 
         # Build materials
         for gb in gridbuilders:
@@ -197,20 +196,33 @@ class ModelBuildRun:
         # Check to see if numerical dispersion might be a problem
         results = dispersion_analysis(G)
         if results['error']:
-            printer.print(Fore.RED + "\nWARNING: Numerical dispersion analysis not carried out as {}".format(results['error']) + Style.RESET_ALL)
+            log.warning(Fore.RED + f"\nNumerical dispersion analysis not carried \
+                        out as {results['error']}" + Style.RESET_ALL)
         elif results['N'] < config.numdispersion['mingridsampling']:
-            raise GeneralError("Non-physical wave propagation: Material '{}' has wavelength sampled by {} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {:g}Hz".format(results['material'].ID, results['N'], results['maxfreq']))
+            raise GeneralError(f"Non-physical wave propagation: Material \
+                               '{results['material'].ID}' has wavelength sampled \
+                               by {results['N']} cells, less than required \
+                               minimum for physical wave propagation. Maximum \
+                               significant frequency estimated as {results['maxfreq']:g}Hz")
         elif results['deltavp'] and np.abs(results['deltavp']) > config.numdispersion['maxnumericaldisp']:
-            printer.print(Fore.RED + "\nWARNING: Potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']) + Style.RESET_ALL)
+            log.warning(Fore.RED + f"\nPotentially significant numerical dispersion. \
+                        Estimated largest physical phase-velocity error is \
+                        {results['deltavp']:.2f}% in material '{results['material'].ID}' \
+                        whose wavelength sampled by {results['N']} cells. Maximum \
+                        significant frequency estimated as {results['maxfreq']:g}Hz" + Style.RESET_ALL)
         elif results['deltavp']:
-            printer.print("\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {:.2f}% in material '{}' whose wavelength sampled by {} cells. Maximum significant frequency estimated as {:g}Hz".format(results['deltavp'], results['material'].ID, results['N'], results['maxfreq']))
+            log.info(f"\nNumerical dispersion analysis: estimated largest physical \
+                     phase-velocity error is {results['deltavp']:.2f}% in material \
+                     '{results['material'].ID}' whose wavelength sampled by {results['N']} \
+                     cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
 
     def reuse_geometry(self):
         G = self.G
         # Reset iteration number
         G.iteration = 0
-        self.model_config.inputfilestr = f'\n--- Model {self.model_config.appendmodelnumber}/{self.sim_config.model_end}, input file (not re-processed, i.e. geometry fixed): {self.sim_config.input_file_path}'
-        log.info(Fore.GREEN + f'{self.model_config.inputfilestr} {'-' * (get_terminal_width() - 1 - len(self.model_config.inputfilestr))}' + Style.RESET_ALL)
+        self.model_config.inputfilestr = f'\n--- Model {self.model_config.appendmodelnumber}/{self.sim_config.model_end}, \
+                                         input file (not re-processed, i.e. geometry fixed): {self.sim_config.input_file_path}'
+        log.info(Fore.GREEN + f"{self.model_config.inputfilestr} {'-' * (get_terminal_width() - 1 - len(self.model_config.inputfilestr))}" + Style.RESET_ALL)
         for grid in [G] + G.subgrids:
             grid.reset_fields()
 

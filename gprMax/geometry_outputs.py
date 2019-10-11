@@ -31,7 +31,7 @@ from .cython.geometry_outputs import define_fine_geometry
 from .utilities import round_value
 
 
-class GeometryView(object):
+class GeometryView:
     """Views of the geometry of the model."""
 
     if sys.byteorder == 'little':
@@ -313,7 +313,7 @@ class GeometryView(object):
         f.write('</gprMax>\n'.encode('utf-8'))
 
 
-class GeometryObjects(object):
+class GeometryObjects:
     """Geometry objects to be written to file."""
 
     def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None, basefilename=None):
@@ -390,12 +390,13 @@ class GeometryObjects(object):
                         fmaterials.write(dispersionstr + '\n')
 
 class GeometryViewFineMultiGrid:
-    """Geometry view for all grids in the simulation."""
+    """Geometry view for all grids in the simulation.
 
-    """"Slicing is not supported by this class :( - only the full extent of the grids
-    are output. The subgrids are output without the non-working regions If you
-    require domainslicing GeometryView seperately for each grid you require and
-    view them at once in Paraview."""
+        Slicing is not supported by this class :( - only the full extent of the grids
+        are output. The subgrids are output without the non-working regions If you
+        require domainslicing GeometryView seperately for each grid you require and
+        view them at once in Paraview.
+    """
 
     if sys.byteorder == 'little':
         byteorder = 'LittleEndian'

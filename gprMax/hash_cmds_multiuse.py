@@ -15,23 +15,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-# Copyright (C) 2015-2018: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
-#
-# This file is part of gprMax.
-#
-# gprMax is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# gprMax is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from .cmds_multiple import Waveform
 from .cmds_multiple import VoltageSource
@@ -65,7 +48,6 @@ def process_multicmds(multicmds):
 
     scene_objects = []
 
-    # Waveform definitions
     cmdname = '#waveform'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -76,7 +58,6 @@ def process_multicmds(multicmds):
             waveform = Waveform(wave_type=tmp[0], amp=float(tmp[1]), freq=float(tmp[2]), id=tmp[3])
             scene_objects.append(waveform)
 
-    # Voltage source
     cmdname = '#voltage_source'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -90,7 +71,6 @@ def process_multicmds(multicmds):
 
             scene_objects.append(voltage_source)
 
-    # Hertzian dipole
     cmdname = '#hertzian_dipole'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -106,7 +86,6 @@ def process_multicmds(multicmds):
 
             scene_objects.append(hertzian_dipole)
 
-    # Magnetic dipole
     cmdname = '#magnetic_dipole'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -122,7 +101,6 @@ def process_multicmds(multicmds):
 
             scene_objects.append(magnetic_dipole)
 
-    # Transmission line
     cmdname = '#transmission_line'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -139,7 +117,6 @@ def process_multicmds(multicmds):
 
             scene_objects.append(tl)
 
-    # Receiver
     cmdname = '#rx'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -150,9 +127,9 @@ def process_multicmds(multicmds):
                 rx = Rx(p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])))
             else:
                 rx = Rx(p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])), id=tmp[3], outputs=tmp[4:])
+
             scene_objects.append(rx)
 
-    # Receiver array
     cmdname = '#rx_array'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -167,7 +144,6 @@ def process_multicmds(multicmds):
             rx_array = RxArray(p1=p1, p2=p2, dl=dl)
             scene_objects.append(rx_array)
 
-    # Snapshot
     cmdname = '#snapshot'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -190,7 +166,6 @@ def process_multicmds(multicmds):
 
             scene_objects.append(snapshot)
 
-    # Materials
     cmdname = '#material'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -279,7 +254,6 @@ def process_multicmds(multicmds):
                                  id=tmp[6])
             scene_objects.append(soil)
 
-    # Geometry views (creates VTK-based geometry files)
     cmdname = '#geometry_view'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -292,10 +266,8 @@ def process_multicmds(multicmds):
             dl = float(tmp[6]), float(tmp[7]), float(tmp[8])
 
             geometry_view = GeometryView(p1=p1, p2=p2, dl=dl, filename=tmp[9], output_type=tmp[10])
-
             scene_objects.append(geometry_view)
 
-    # Geometry object(s) output
     cmdname = '#geometry_objects_write'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
@@ -308,8 +280,6 @@ def process_multicmds(multicmds):
                 gow = GeometryObjectsWrite(p1=p1, p2=p2, filename=tmp[6])
                 scene_objects.append(gow)
 
-
-    # Complex frequency shifted (CFS) PML parameter
     cmdname = '#pml_cfs'
     if multicmds[cmdname] is not None:
         if len(multicmds[cmdname]) > 2:
@@ -335,8 +305,3 @@ def process_multicmds(multicmds):
             scene_objects.append(pml_cfs)
 
     return scene_objects
-
-
-def process_subgrid_hsg(cmdinstance):
-
-    pass

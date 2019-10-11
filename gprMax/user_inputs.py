@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 from colorama import init
 from colorama import Fore
 from colorama import Style
@@ -27,20 +29,22 @@ from .exceptions import CmdInputError
 from .subgrids.base import SubGridBase
 from .utilities import round_value
 
+log = logging.getLogger(__name__)
 
 """Module contains classes to handle points supplied by a user. The
-classes implement a common interface such that geometry building objects
-such as box or triangle do not need to have any knowledge which grid to which 
-they are rounding continuous points or checking the point is within the grid.
-Additionally all logic related to rounding points etc is encapulsated here.
+    classes implement a common interface such that geometry building objects
+    such as box or triangle do not need to have any knowledge which grid to
+    which they are rounding continuous points or checking the point is within
+    the grid. Additionally all logic related to rounding points etc is
+    encapulsated here.
 """
 
 
 def create_user_input_points(grid, user_obj):
     """Return a point checker class based on the grid supplied."""
-    if isinstance(grid, SubGridBase):
 
-        # local object configuration trumps. User can turn of autotranslate for
+    if isinstance(grid, SubGridBase):
+        # Local object configuration trumps. User can turn of autotranslate for
         # specfic objects.
         if not user_obj.autotranslate and config.general['autotranslate']:
             return MainGridUserInput(grid)
@@ -69,12 +73,12 @@ class UserInput:
             # Incorrect index
             i = p[v.index(err.args[0])]
             if name:
-                fs = "'{}' the {} {}-coordinate {:g} is not within the model domain"
-                s = fs.format(cmd_str, err.args[0], name, i * dl)
+                s = f"'{cmd_str}' the {err.args[0]} {name}-coordinate {i * dl:g} \
+                    is not within the model domain"
             else:
-                fs = "'{}' {}-coordinate {:g} is not within the model domain"
-                s = fs.format(cmd_str, err.args[0], i * dl)
-            raise CmdInputError(s)
+                s = f"'{cmd_str}' {err.args[0]}-coordinate {i * dl:g} is not \
+                    within the model domain"
+            raise CmdInputError(log.exception(s))
 
     def discretise_point(self, p):
         """Function to get the index of a continuous point with the grid."""
@@ -102,10 +106,8 @@ class MainGridUserInput(UserInput):
         p = self.check_point(p, cmd_str, name)
 
         if self.grid.within_pml(p):
-            s = """WARNING: '{}' sources and receivers should not normally be \
-            positioned within the PML."""
-            fs = s.format(cmd_str)
-            print(Fore.RED + fs + Style.RESET_ALL)
+            log.warning(Fore.RED + f"'{cmd_str}' sources and receivers should \
+                        not normally be positioned within the PML." + Style.RESET_ALL)
 
         return p
 
@@ -114,9 +116,8 @@ class MainGridUserInput(UserInput):
         p2 = self.check_point(p2, cmd_str, name='upper')
 
         if np.greater(p1, p2).any():
-            s = """'{}' the lower coordinates should be less than the upper \
-            coordinates"""
-            raise CmdInputError(s.format(cmd_str))
+            raise CmdInputError(log.exception(f"'{cmd_str}' the lower coordinates \
+                                should be less than the upper coordinates."))
 
         return p1, p2
 
@@ -130,14 +131,14 @@ class MainGridUserInput(UserInput):
 
 class SubgridUserInput(MainGridUserInput):
     """Class to handle (x, y, z) points supplied by the user in the sub grid.
-    This class autotranslates points from main grid to subgrid equivalent (within IS).
-    Useful if material traverse is not required.
+        This class autotranslates points from main grid to subgrid equivalent
+        (within IS). Useful if material traverse is not required.
     """
 
     def __init__(self, grid):
         super().__init__(grid)
 
-        # defines the region exposed to the user
+        # Defines the region exposed to the user
         self.inner_bound = np.array([
                                     grid.n_boundary_cells_x,
                                     grid.n_boundary_cells_y,
@@ -148,7 +149,8 @@ class SubgridUserInput(MainGridUserInput):
 
     def translate_to_gap(self, p):
         """Function to translate the user input point to the real point in the
-        subgrid"""
+            subgrid.
+        """
 
         p1 = (p[0] - self.grid.i0 * self.grid.ratio) + self.grid.n_boundary_cells_x
         p2 = (p[1] - self.grid.j0 * self.grid.ratio) + self.grid.n_boundary_cells_y
@@ -157,9 +159,10 @@ class SubgridUserInput(MainGridUserInput):
         return np.array([p1, p2, p3])
 
     def discretise_point(self, p):
-        """"Function to discretise a point. Does not provide any checks. The
-        user enters coordinates relative to self.inner_bound. This function
-        translate the user point to the correct index for building objects"""
+        """Function to discretise a point. Does not provide any checks. The
+            user enters coordinates relative to self.inner_bound. This function
+            translate the user point to the correct index for building objects.
+        """
 
         p = super().discretise_point(p)
         p_t = self.translate_to_gap(p)
@@ -177,8 +180,6 @@ class SubgridUserInput(MainGridUserInput):
         # the OS non-working region.
         if (np.less(p_t, self.inner_bound).any() or
             np.greater(p_t, self.outer_bound).any()):
-                s = """WARNING: '{}' This object traverses the Outer Surface. This \
-                is an advanced feature."""
-                print(Fore.RED + s.format(cmd_str) + Style.RESET_ALL)
-
+                log.warning(Fore.RED + f"'{cmd_str}' this object traverses the \
+                            Outer Surface. This is an advanced feature." + Style.RESET_ALL)
         return p_t

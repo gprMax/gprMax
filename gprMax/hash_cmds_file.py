@@ -16,15 +16,18 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from io import StringIO
+import logging
 import os
 import sys
-from io import StringIO
 
 import gprMax.config as config
 from .exceptions import CmdInputError
-from .input_cmds_geometry import process_geometrycmds
-from .input_cmds_multiuse import process_multicmds
-from .input_cmds_singleuse import process_singlecmds
+from .hash_cmds_geometry import process_geometrycmds
+from .hash_cmds_multiuse import process_multicmds
+from .hash_cmds_singleuse import process_singlecmds
+
+log = logging.getLogger(__name__)
 
 
 def process_python_include_code(inputfile, usernamespace):
@@ -95,7 +98,7 @@ def process_python_include_code(inputfile, usernamespace):
 
             # Print any generated output that is not commands
             if pythonout:
-                print('Python messages (from stdout/stderr): {}\n'.format(pythonout))
+                log.info(f'Python messages (from stdout/stderr): {pythonout}\n')
 
         # Add any other commands to list
         elif(inputlines[x].startswith('#')):
@@ -164,13 +167,15 @@ def write_processed_file(processedlines, appendmodelnumber):
         appendmodelnumber (str): Text to append to filename.
     """
 
-    processedfile = os.path.join(config.general['outputfilepath'], os.path.splitext(config.general['inputfilepath'])[0] + appendmodelnumber + '_processed.in')
+    processedfile = (os.path.join(config.general['outputfilepath'],
+                     os.path.splitext(config.general['inputfilepath'])[0] +
+                     appendmodelnumber + '_processed.in'))
 
     with open(processedfile, 'w') as f:
         for item in processedlines:
             f.write('{}'.format(item))
 
-    print('Written input commands, after processing any Python code and include commands, to file: {}\n'.format(processedfile))
+    log.info(f'Written input commands, after processing any Python code and include commands, to file: {processedfile}\n')
 
 
 def check_cmd_names(processedlines, checkessential=True):
@@ -192,7 +197,7 @@ def check_cmd_names(processedlines, checkessential=True):
     essentialcmds = ['#domain', '#dx_dy_dz', '#time_window']
 
     # Commands that there should only be one instance of in a model
-    singlecmds = dict.fromkeys(['#domain', '#dx_dy_dz', '#time_window', '#title', '#messages', '#num_threads', '#time_step_stability_factor', '#pml_formulation', '#pml_cells', '#excitation_file', '#src_steps', '#rx_steps', '#taguchi', '#end_taguchi', '#output_dir'], None)
+    singlecmds = dict.fromkeys(['#domain', '#dx_dy_dz', '#time_window', '#title', '#messages', '#num_threads', '#time_step_stability_factor', '#pml_formulation', '#pml_cells', '#excitation_file', '#src_steps', '#rx_steps', '#output_dir'], None)
 
     # Commands that there can be multiple instances of in a model - these will be lists within the dictionary
     multiplecmds = {key: [] for key in ['#geometry_view', '#geometry_objects_write', '#material', '#soil_peplinski', '#add_dispersion_debye', '#add_dispersion_lorentz', '#add_dispersion_drude', '#waveform', '#voltage_source', '#hertzian_dipole', '#magnetic_dipole', '#transmission_line', '#rx', '#rx_array', '#snapshot', '#pml_cfs', '#include_file']}
@@ -282,7 +287,7 @@ def parse_hash_commands(model_config, G, scene):
 
     Args:
         model_config (ModelConfig): Model level configuration object.
-        G (Grid): Holds essential parameters describing the model.
+        G (FDTDGrid): Holds essential parameters describing a model.
         scene (Scene): Scene object.
 
     Returns:
@@ -302,9 +307,8 @@ def parse_hash_commands(model_config, G, scene):
         uservars = ''
         for key, value in sorted(usernamespace.items()):
             if key != '__builtins__':
-                uservars += '{}: {}, '.format(key, value)
-        usv_s = """Constants/variables used/available for Python scripting: {{{}}}\n"""
-        print(usv_s.format(uservars[:-2]))
+                uservars += f'{key}: {value}, '
+        log.info(f'Constants/variables used/available for Python scripting: {{{uservars[:-2]}}}\n')
 
         # Write a file containing the input commands after Python or include
         # file commands have been processed

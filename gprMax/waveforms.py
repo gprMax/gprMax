@@ -16,21 +16,29 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 import numpy as np
 
+log = logging.getLogger(__name__)
 
-class Waveform(object):
+
+class Waveform:
     """Definitions of waveform shapes that can be used with sources."""
 
-    types = ['gaussian', 'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot', 'gaussiandotdotnorm', 'gaussianprime', 'gaussiandoubleprime', 'ricker', 'sine', 'contsine', 'impulse', 'user']
+    types = ['gaussian', 'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot',
+             'gaussiandotdotnorm', 'gaussianprime', 'gaussiandoubleprime',
+             'ricker', 'sine', 'contsine', 'impulse', 'user']
 
     # Information about specific waveforms:
     #
-    # gaussianprime and gaussiandoubleprime waveforms are the first derivative and second derivative of the 'base' gaussian
-    # waveform, i.e. the centre frequencies of the waveforms will rise for the first and second derivatives.
+    # gaussianprime and gaussiandoubleprime waveforms are the first derivative
+    # and second derivative of the 'base' gaussian waveform, i.e. the centre
+    # frequencies of the waveforms will rise for the first and second derivatives.
     #
-    # gaussiandot, gaussiandotnorm, gaussiandotdot, gaussiandotdotnorm, ricker waveforms have their centre frequencies
-    # specified by the user, i.e. they are not derived from the 'base' gaussian
+    # gaussiandot, gaussiandotnorm, gaussiandotdot, gaussiandotdotnorm,
+    # ricker waveforms have their centre frequencies specified by the user,
+    # i.e. they are not derived from the 'base' gaussian
 
     def __init__(self):
         self.ID = None
@@ -43,7 +51,9 @@ class Waveform(object):
         self.delay = 0
 
     def calculate_coefficients(self):
-        """Calculates coefficients (used to calculate values) for specific waveforms."""
+        """Calculates coefficients (used to calculate values) for specific
+            waveforms.
+        """
 
         if self.type == 'gaussian' or self.type == 'gaussiandot' or self.type == 'gaussiandotnorm' or self.type == 'gaussianprime' or self.type == 'gaussiandoubleprime':
             self.chi = 1 / self.freq
@@ -81,17 +91,20 @@ class Waveform(object):
 
         elif self.type == 'gaussiandotdot' or self.type == 'gaussiandoubleprime':
             delay = time - self.chi
-            ampvalue = 2 * self.zeta * (2 * self.zeta * delay**2 - 1) * np.exp(-self.zeta * delay**2)
+            ampvalue = (2 * self.zeta * (2 * self.zeta * delay**2 - 1) *
+                        np.exp(-self.zeta * delay**2))
 
         elif self.type == 'gaussiandotdotnorm':
             delay = time - self.chi
             normalise = 1 / (2 * self.zeta)
-            ampvalue = 2 * self.zeta * (2 * self.zeta * delay**2 - 1) * np.exp(-self.zeta * delay**2) * normalise
+            ampvalue = (2 * self.zeta * (2 * self.zeta * delay**2 - 1) *
+                        np.exp(-self.zeta * delay**2) * normalise)
 
         elif self.type == 'ricker':
             delay = time - self.chi
             normalise = 1 / (2 * self.zeta)
-            ampvalue = - (2 * self.zeta * (2 * self.zeta * delay**2 - 1) * np.exp(-self.zeta * delay**2)) * normalise
+            ampvalue = - ((2 * self.zeta * (2 * self.zeta * delay**2 - 1) *
+                           np.exp(-self.zeta * delay**2)) * normalise)
 
         elif self.type == 'sine':
             ampvalue = np.sin(2 * np.pi * self.freq * time)
@@ -120,6 +133,5 @@ class Waveform(object):
         return ampvalue
 
     def __str__(self):
-        fs = 'Waveform: ID={}, type={}, amp{}, freq={}'
-        s = fs.format(self.ID, self.type, self.amp, self.freq)
-        return s
+        log.debug('Do we need this?')
+        return f'Waveform: ID={self.ID}, type={self.type}, amp{self.amp}, freq={self.freq}'

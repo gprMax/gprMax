@@ -27,7 +27,7 @@ from .grid import Iz
 from .utilities import round_value
 
 
-class Source(object):
+class Source:
     """Super-class which describes a generic source."""
 
     def __init__(self):
@@ -47,30 +47,33 @@ class Source(object):
         """Calculates all waveform values for source for duration of simulation.
 
         Args:
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
         # Waveform values for electric sources - calculated half a timestep later
-        self.waveformvaluesJ = np.zeros((G.iterations), dtype=config.dtypes['float_or_double'])
+        self.waveformvaluesJ = np.zeros((G.iterations),
+                                        dtype=config.dtypes['float_or_double'])
 
         # Waveform values for magnetic sources
-        self.waveformvaluesM = np.zeros((G.iterations), dtype=config.dtypes['float_or_double'])
+        self.waveformvaluesM = np.zeros((G.iterations),
+                                        dtype=config.dtypes['float_or_double'])
 
         waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
 
         for iteration in range(G.iterations):
             time = G.dt * iteration
             if time >= self.start and time <= self.stop:
-                # Set the time of the waveform evaluation to account for any delay in the start
+                # Set the time of the waveform evaluation to account for any
+                # delay in the start
                 time -= self.start
                 self.waveformvaluesJ[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
                 self.waveformvaluesM[iteration] = waveform.calculate_value(time, G.dt)
 
 
 class VoltageSource(Source):
-    """
-    A voltage source can be a hard source if it's resistance is zero, i.e. the
-    time variation of the specified electric field component is prescribed.
-    If it's resistance is non-zero it behaves as a resistive voltage source.
+    """A voltage source can be a hard source if it's resistance is zero,
+        i.e. the time variation of the specified electric field component
+        is prescribed. If it's resistance is non-zero it behaves as a resistive
+        voltage source.
     """
 
     def __init__(self):
@@ -82,10 +85,12 @@ class VoltageSource(Source):
 
         Args:
             iteration (int): Current iteration (timestep).
-            updatecoeffsE (memory view): numpy array of electric field update coefficients.
-            ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
+            updatecoeffsE (memory view): numpy array of electric field update
+                                            coefficients.
+            ID (memory view): numpy array of numeric IDs corresponding to
+                                materials in the model.
             Ex, Ey, Ez (memory view): numpy array of electric field values.
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
@@ -96,28 +101,34 @@ class VoltageSource(Source):
 
             if self.polarisation == 'x':
                 if self.resistance != 0:
-                    Ex[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * (1 / (self.resistance * G.dy * G.dz))
+                    Ex[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] *
+                                    self.waveformvaluesJ[iteration] *
+                                    (1 / (self.resistance * G.dy * G.dz)))
                 else:
                     Ex[i, j, k] = -1 * self.waveformvaluesJ[iteration] / G.dx
 
             elif self.polarisation == 'y':
                 if self.resistance != 0:
-                    Ey[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * (1 / (self.resistance * G.dx * G.dz))
+                    Ey[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] *
+                                    self.waveformvaluesJ[iteration] *
+                                    (1 / (self.resistance * G.dx * G.dz)))
                 else:
                     Ey[i, j, k] = -1 * self.waveformvaluesJ[iteration] / G.dy
 
             elif self.polarisation == 'z':
                 if self.resistance != 0:
-                    Ez[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * (1 / (self.resistance * G.dx * G.dy))
+                    Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] *
+                                    self.waveformvaluesJ[iteration] *
+                                    (1 / (self.resistance * G.dx * G.dy)))
                 else:
                     Ez[i, j, k] = -1 * self.waveformvaluesJ[iteration] / G.dz
 
     def create_material(self, G):
         """Create a new material at the voltage source location that adds the
-        voltage source conductivity to the underlying parameters.
+            voltage source conductivity to the underlying parameters.
 
         Args:
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         if self.resistance != 0:
@@ -158,10 +169,12 @@ class HertzianDipole(Source):
 
         Args:
             iteration (int): Current iteration (timestep).
-            updatecoeffsE (memory view): numpy array of electric field update coefficients.
-            ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
+            updatecoeffsE (memory view): numpy array of electric field update
+                                            coefficients.
+            ID (memory view): numpy array of numeric IDs corresponding to
+                                materials in the model.
             Ex, Ey, Ez (memory view): numpy array of electric field values.
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
@@ -170,30 +183,35 @@ class HertzianDipole(Source):
             k = self.zcoord
             componentID = 'E' + self.polarisation
             if self.polarisation == 'x':
-                Ex[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * self.dl * (1 / (G.dx * G.dy * G.dz))
+                Ex[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] *
+                                self.waveformvaluesJ[iteration] * self.dl *
+                                (1 / (G.dx * G.dy * G.dz)))
 
             elif self.polarisation == 'y':
-                Ey[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * self.dl * (1 / (G.dx * G.dy * G.dz))
+                Ey[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] *
+                                self.waveformvaluesJ[iteration] * self.dl *
+                                (1 / (G.dx * G.dy * G.dz)))
 
             elif self.polarisation == 'z':
-                Ez[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * self.dl * (1 / (G.dx * G.dy * G.dz))
+                Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] *
+                                self.waveformvaluesJ[iteration] * self.dl *
+                                (1 / (G.dx * G.dy * G.dz)))
 
 
 class MagneticDipole(Source):
     """A magnetic dipole is an additive source (magnetic current density)."""
-
-    def __init__(self):
-        super().__init__()
 
     def update_magnetic(self, iteration, updatecoeffsH, ID, Hx, Hy, Hz, G):
         """Updates magnetic field values for a magnetic dipole.
 
         Args:
             iteration (int): Current iteration (timestep).
-            updatecoeffsH (memory view): numpy array of magnetic field update coefficients.
-            ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
+            updatecoeffsH (memory view): numpy array of magnetic field update
+                                            coefficients.
+            ID (memory view): numpy array of numeric IDs corresponding to
+                                materials in the model.
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
@@ -203,25 +221,34 @@ class MagneticDipole(Source):
             componentID = 'H' + self.polarisation
 
             if self.polarisation == 'x':
-                Hx[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesM[iteration] * (1 / (G.dx * G.dy * G.dz))
+                Hx[i, j, k] -= (updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] *
+                                self.waveformvaluesM[iteration] *
+                                (1 / (G.dx * G.dy * G.dz)))
 
             elif self.polarisation == 'y':
-                Hy[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesM[iteration] * (1 / (G.dx * G.dy * G.dz))
+                Hy[i, j, k] -= (updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] *
+                                self.waveformvaluesM[iteration] *
+                                (1 / (G.dx * G.dy * G.dz)))
 
             elif self.polarisation == 'z':
-                Hz[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesM[iteration] * (1 / (G.dx * G.dy * G.dz))
+                Hz[i, j, k] -= (updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] *
+                                self.waveformvaluesM[iteration] *
+                                (1 / (G.dx * G.dy * G.dz)))
 
 
 def gpu_initialise_src_arrays(sources, G):
-    """Initialise arrays on GPU for source coordinates/polarisation, other source information, and source waveform values.
+    """Initialise arrays on GPU for source coordinates/polarisation, other
+        source information, and source waveform values.
 
     Args:
         sources (list): List of sources of one class, e.g. HertzianDipoles.
-        G (Grid): Holds essential parameters describing the model.
+        G (FDTDGrid): Holds essential parameters describing the model.
 
     Returns:
-        srcinfo1_gpu (int): numpy array of source cell coordinates and polarisation information.
-        srcinfo2_gpu (float): numpy array of other source information, e.g. length, resistance etc...
+        srcinfo1_gpu (int): numpy array of source cell coordinates and
+                            polarisation information.
+        srcinfo2_gpu (float): numpy array of other source information,
+                                e.g. length, resistance etc...
         srcwaves_gpu (float): numpy array of source waveform values.
     """
 
@@ -266,7 +293,7 @@ class TransmissionLine(Source):
     def __init__(self, G):
         """
         Args:
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         super().__init__()
@@ -303,7 +330,7 @@ class TransmissionLine(Source):
             from: http://dx.doi.org/10.1002/mop.10415
 
         Args:
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         for iteration in range(G.iterations):
@@ -319,7 +346,7 @@ class TransmissionLine(Source):
         """Updates absorbing boundary condition at end of the transmission line.
 
         Args:
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         h = (config.c * G.dt - self.dl) / (config.c * G.dt + self.dl)
@@ -333,11 +360,12 @@ class TransmissionLine(Source):
 
         Args:
             iteration (int): Current iteration (timestep).
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         # Update all the voltage values along the line
-        self.voltage[1:self.nl] -= self.resistance * (config.c * G.dt / self.dl) * (self.current[1:self.nl] - self.current[0:self.nl - 1])
+        self.voltage[1:self.nl] -= (self.resistance * (config.c * G.dt / self.dl) *
+                                   (self.current[1:self.nl] - self.current[0:self.nl - 1]))
 
         # Update the voltage at the position of the one-way injector excitation
         self.voltage[self.srcpos] += (config.c * G.dt / self.dl) * self.waveformvaluesJ[iteration]
@@ -350,24 +378,30 @@ class TransmissionLine(Source):
 
         Args:
             iteration (int): Current iteration (timestep).
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         # Update all the current values along the line
-        self.current[0:self.nl - 1] -= (1 / self.resistance) * (config.c * G.dt / self.dl) * (self.voltage[1:self.nl] - self.voltage[0:self.nl - 1])
+        self.current[0:self.nl - 1] -= ((1 / self.resistance) * (config.c * G.dt / self.dl) *
+                                       (self.voltage[1:self.nl] - self.voltage[0:self.nl - 1]))
 
         # Update the current one cell before the position of the one-way injector excitation
-        self.current[self.srcpos - 1] += (1 / self.resistance) * (config.c * G.dt / self.dl) * self.waveformvaluesM[iteration]
+        self.current[self.srcpos - 1] += ((1 / self.resistance) *
+                                         (config.c * G.dt / self.dl) *
+                                         self.waveformvaluesM[iteration])
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
-        """Updates electric field value in the main grid from voltage value in the transmission line.
+        """Updates electric field value in the main grid from voltage value in
+            the transmission line.
 
         Args:
             iteration (int): Current iteration (timestep).
-            updatecoeffsE (memory view): numpy array of electric field update coefficients.
-            ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
+            updatecoeffsE (memory view): numpy array of electric field update
+                                            coefficients.
+            ID (memory view): numpy array of numeric IDs corresponding to
+                                materials in the model.
             Ex, Ey, Ez (memory view): numpy array of electric field values.
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
@@ -387,14 +421,17 @@ class TransmissionLine(Source):
                 Ez[i, j, k] = - self.voltage[self.antpos] / G.dz
 
     def update_magnetic(self, iteration, updatecoeffsH, ID, Hx, Hy, Hz, G):
-        """Updates current value in transmission line from magnetic field values in the main grid.
+        """Updates current value in transmission line from magnetic field values
+            in the main grid.
 
         Args:
             iteration (int): Current iteration (timestep).
-            updatecoeffsH (memory view): numpy array of magnetic field update coefficients.
-            ID (memory view): numpy array of numeric IDs corresponding to materials in the model.
+            updatecoeffsH (memory view): numpy array of magnetic field update
+                                            coefficients.
+            ID (memory view): numpy array of numeric IDs corresponding to
+                                materials in the model.
             Hx, Hy, Hz (memory view): numpy array of magnetic field values.
-            G (Grid): Holds essential parameters describing the model.
+            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:

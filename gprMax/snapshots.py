@@ -16,9 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
-import sys
 from struct import pack
+import sys
 
 import numpy as np
 
@@ -27,7 +26,7 @@ from .cython.snapshots import calculate_snapshot_fields
 from .utilities import round_value
 
 
-class Snapshot(object):
+class Snapshot:
     """Snapshots of the electric and magnetic field values."""
 
     # Dimensions of largest requested snapshot
@@ -151,32 +150,20 @@ class Snapshot(object):
 
         self.filehandle = open(self.filename, 'wb')
         self.filehandle.write('<?xml version="1.0"?>\n'.encode('utf-8'))
-        self.filehandle.write('<VTKFile type="ImageData" version="1.0" byte_order="{}">\n'
-                              .format(Snapshot.byteorder).encode('utf-8'))
-        self.filehandle.write('<ImageData WholeExtent="{} {} {} {} {} {}" Origin="0 0 0" Spacing="{:.3} {:.3} {:.3}">\n'
-                              .format(self.xs, round_value(self.xf / self.dx),
-                                      self.ys, round_value(self.yf / self.dy), self.zs,
-                                      round_value(self.zf / self.dz), self.dx * G.dx,
-                                      self.dy * G.dy, self.dz * G.dz).encode('utf-8'))
-        self.filehandle.write('<Piece Extent="{} {} {} {} {} {}">\n'
-                              .format(self.xs, round_value(self.xf / self.dx),
-                                      self.ys, round_value(self.yf / self.dy),
-                                      self.zs, round_value(self.zf / self.dz)).encode('utf-8'))
+        self.filehandle.write(f'<VTKFile type="ImageData" version="1.0" byte_order="{Snapshot.byteorder}">\n'.encode('utf-8'))
+        self.filehandle.write(f'<ImageData WholeExtent="{self.xs} {round_value(self.xf / self.dx)} {self.ys} {round_value(self.yf / self.dy)} {self.zs} {round_value(self.zf / self.dz)}" Origin="0 0 0" Spacing="{self.dx * G.dx:.3} {self.dy * G.dy:.3} {self.dz * G.dz:.3}">\n'.encode('utf-8'))
+        self.filehandle.write(f'<Piece Extent="{self.xs} {round_value(self.xf / self.dx)} {self.ys} {round_value(self.yf / self.dy)} {self.zs} {round_value(self.zf / self.dz)}">\n'.encode('utf-8'))
 
         if self.fieldoutputs['electric'] and self.fieldoutputs['magnetic']:
             self.filehandle.write('<CellData Vectors="E-field H-field">\n'.encode('utf-8'))
-            self.filehandle.write('<DataArray type="{}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n'
-                                  .format(Snapshot.floatname).encode('utf-8'))
-            self.filehandle.write('<DataArray type="{}" Name="H-field" NumberOfComponents="3" format="appended" offset="{}" />\n'
-                                  .format(Snapshot.floatname, hfield_offset).encode('utf-8'))
+            self.filehandle.write(f'<DataArray type="{Snapshot.floatname}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n'.encode('utf-8'))
+            self.filehandle.write(f'<DataArray type="{Snapshot.floatname}" Name="H-field" NumberOfComponents="3" format="appended" offset="{hfield_offset}" />\n'.encode('utf-8'))
         elif self.fieldoutputs['electric']:
             self.filehandle.write('<CellData Vectors="E-field">\n'.encode('utf-8'))
-            self.filehandle.write('<DataArray type="{}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n'
-                                  .format(Snapshot.floatname).encode('utf-8'))
+            self.filehandle.write(f'<DataArray type="{Snapshot.floatname}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n'.encode('utf-8'))
         elif self.fieldoutputs['magnetic']:
             self.filehandle.write('<CellData Vectors="H-field">\n'.encode('utf-8'))
-            self.filehandle.write('<DataArray type="{}" Name="H-field" NumberOfComponents="3" format="appended" offset="0" />\n'
-                                  .format(Snapshot.floatname).encode('utf-8'))
+            self.filehandle.write(f'<DataArray type="{Snapshot.floatname}" Name="H-field" NumberOfComponents="3" format="appended" offset="0" />\n'.encode('utf-8'))
 
         self.filehandle.write('</CellData>\n</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
 

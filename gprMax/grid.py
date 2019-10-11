@@ -24,8 +24,6 @@ from colorama import Fore
 from colorama import Style
 init()
 import numpy as np
-np.seterr(invalid='raise')
-from scipy.constants import c
 
 import gprMax.config as config
 from .exceptions import GeneralError
@@ -34,6 +32,8 @@ from .pml import CFS
 from .utilities import fft_power
 from .utilities import human_size
 from .utilities import round_value
+
+np.seterr(invalid='raise')
 
 
 class FDTDGrid:
@@ -211,7 +211,8 @@ class FDTDGrid:
             and/or run model on the host.
         """
         if self.memoryusage > config.hostinfo['ram']:
-            raise GeneralError(f'Memory (RAM) required ~{human_size(self.memoryusage)} exceeds {human_size(config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} detected!\n')
+            raise GeneralError(f"Memory (RAM) required ~{human_size(self.memoryusage)} \
+                               exceeds {human_size(config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} detected!\n")
 
     def tmx(self):
         """Add PEC boundaries to invariant direction in 2D TMx mode.
@@ -269,9 +270,14 @@ class CUDAGrid(FDTDGrid):
     """Additional grid methods for solving on GPU using CUDA."""
 
     def set_blocks_per_grid(self):
-        """Set the blocks per grid size used for updating the electric and magnetic field arrays on a GPU."""
+        """Set the blocks per grid size used for updating the electric and
+            magnetic field arrays on a GPU.
+        """
 
-        config.cuda['gpus'].bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / config.cuda['gpus'].tpb[0])), 1, 1)
+        config.cuda['gpus'].bpg = (int(np.ceil(((self.nx + 1) *
+                                                (self.ny + 1) *
+                                                (self.nz + 1)) /
+                                                config.cuda['gpus'].tpb[0])), 1, 1)
 
     def initialise_arrays(self):
         """Initialise geometry and field arrays on GPU."""
@@ -303,7 +309,9 @@ class CUDAGrid(FDTDGrid):
 
         if config.cuda['gpus'] is not None:
             if self.memoryusage - snapsmemsize > config.cuda['gpus'].totalmem:
-                raise GeneralError(f'Memory (RAM) required ~{human_size(self.memoryusage)} exceeds {human_size(config.cuda['gpus'].totalmem, a_kilobyte_is_1024_bytes=True} detected on specified {config.cuda['gpus'].deviceID} - {config.cuda['gpus'].name} GPU!\n')
+                raise GeneralError(f"Memory (RAM) required ~{human_size(self.memoryusage)} \
+                                   exceeds {human_size(config.cuda['gpus'].totalmem, a_kilobyte_is_1024_bytes=True)} \
+                                   detected on specified {config.cuda['gpus'].deviceID} - {config.cuda['gpus'].name} GPU!\n")
 
             # If the required memory for the model without the snapshots will
             # fit on the GPU then transfer and store snaphots on host
@@ -439,7 +447,7 @@ def Ix(x, y, z, Hx, Hy, Hz, G):
     Args:
         x, y, z (float): Coordinates of position in grid.
         Hx, Hy, Hz (memory view): numpy array of magnetic field values.
-        G (Grid): Holds essential parameters describing the model.
+        G (FDTDGrid): Holds essential parameters describing a model.
     """
 
     if y == 0 or z == 0:
@@ -456,7 +464,7 @@ def Iy(x, y, z, Hx, Hy, Hz, G):
     Args:
         x, y, z (float): Coordinates of position in grid.
         Hx, Hy, Hz (memory view): numpy array of magnetic field values.
-        G (Grid): Holds essential parameters describing the model.
+        G (FDTDGrid): Holds essential parameters describing a model.
     """
 
     if x == 0 or z == 0:
@@ -473,7 +481,7 @@ def Iz(x, y, z, Hx, Hy, Hz, G):
     Args:
         x, y, z (float): Coordinates of position in grid.
         Hx, Hy, Hz (memory view): numpy array of magnetic field values.
-        G (Grid): Holds essential parameters describing the model.
+        G (FDTDGrid): Holds essential parameters describing a model.
     """
 
     if x == 0 or y == 0:
