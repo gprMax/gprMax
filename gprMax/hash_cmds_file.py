@@ -294,9 +294,7 @@ def parse_hash_commands(model_config, G, scene):
         scene (Scene): Scene object.
     """
 
-    sim_config = model_config.sim_config
-
-    with open(sim_config.input_file_path) as inputfile:
+    with open(config.sim_config.input_file_path) as inputfile:
 
         usernamespace = model_config.get_usernamespace()
 
@@ -312,7 +310,7 @@ def parse_hash_commands(model_config, G, scene):
 
         # Write a file containing the input commands after Python or include
         # file commands have been processed
-        if sim_config.args.write_processed:
+        if config.sim_config.args.write_processed:
             write_processed_file(processedlines, model_config.appendmodelnumber, G)
 
         user_objs = get_user_objects(processedlines, check=True)

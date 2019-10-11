@@ -122,7 +122,7 @@ class Domain(UserObjectSingle):
         G.nthreads = set_openmp_threads()
         log.info(f'Number of CPU (OpenMP) threads: {G.nthreads}')
 
-        if G.nthreads > config.hostinfo['physicalcores']:
+        if G.nthreads > config.sim_config.hostinfo['physicalcores']:
             log.warning(Fore.RED + f"You have specified more threads ({G.nthreads}) \
                         than available physical CPU cores ({config.hostinfo['physicalcores']}). \
                         This may lead to degraded performance." + Style.RESET_ALL)
@@ -231,7 +231,7 @@ class Messages(UserObjectSingle):
         try:
             s = '#messages: {}'.format(self.kwargs['yn'])
         except KeyError:
-            log.info('messages problem')
+            log.exception('messages problem')
 
     def create(self, G, uip):
         try:
@@ -266,8 +266,7 @@ class Title(UserObjectSingle):
         except KeyError:
             pass
 
-        if config.is_messages():
-            log.info('Model title: {}'.format(G.title))
+        log.info(f'Model title: {G.title}')
 
 
 class NumThreads(UserObjectSingle):
@@ -302,15 +301,16 @@ class NumThreads(UserObjectSingle):
         G.nthreads = n
         os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
 
-        if config.is_messages():
-            log.info('Number of CPU (OpenMP) threads: {}'.format(G.nthreads))
+        log.info(f'Number of CPU (OpenMP) threads: {G.nthreads}')
         if G.nthreads > config.hostinfo['physicalcores']:
-            log.info(Fore.RED + 'WARNING: You have specified more threads ({}) than available physical CPU cores ({}). This may lead to degraded performance.'.format(G.nthreads, config.hostinfo['physicalcores']) + Style.RESET_ALL)
+            log.warning(Fore.RED + f"You have specified more threads ({G.nthreads}) \
+                        than available physical CPU cores (\
+                        {config.sim_config.hostinfo['physicalcores']}). \
+                        This may lead to degraded performance." + Style.RESET_ALL)
 
         # Print information about any GPU in use
-        if config.is_messages():
-            if G.gpu is not None:
-                log.info('GPU solving using: {} - {}'.format(G.gpu.deviceID, G.gpu.name))
+        if G.gpu is not None:
+            log.info(f'GPU solving using: {G.gpu.deviceID} - {G.gpu.name}')
 
 
 class TimeStepStabilityFactor(UserObjectSingle):
@@ -326,7 +326,7 @@ class TimeStepStabilityFactor(UserObjectSingle):
 
     def __str__(self):
         try:
-            return '#time_step_stability_factor: {}'.format(self.kwargs['f'])
+            return f"#time_step_stability_factor: {self.kwargs['f']}"
         except KeyError:
             return '#time_step_stability_factor:'
 
@@ -339,8 +339,7 @@ class TimeStepStabilityFactor(UserObjectSingle):
         if f <= 0 or f > 1:
             raise CmdInputError(self.__str__() + ' requires the value of the time step stability factor to be between zero and one')
         G.dt = G.dt * f
-        if config.is_messages():
-            log.info('Time step (modified): {:g} secs'.format(G.dt))
+        log.info(f'Time step (modified): {G.dt:g} secs')
 
 
 class PMLCells(UserObjectSingle):
@@ -412,8 +411,9 @@ class SrcSteps(UserObjectSingle):
         except KeyError:
             raise CmdInputError('#src_steps: requires exactly three parameters')
 
-        if config.is_messages():
-            log.info('Simple sources will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.srcsteps[0] * G.dx, G.srcsteps[1] * G.dy, G.srcsteps[2] * G.dz))
+        log.info(f'Simple sources will step {G.srcsteps[0] * G.dx:g}m, \
+                 {G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m \
+                 for each model run.')
 
 
 class RxSteps(UserObjectSingle):
@@ -433,8 +433,9 @@ class RxSteps(UserObjectSingle):
         except KeyError:
             raise CmdInputError('#rx_steps: requires exactly three parameters')
 
-        if config.is_messages():
-            log.info('All receivers will step {:g}m, {:g}m, {:g}m for each model run.'.format(G.rxsteps[0] * G.dx, G.rxsteps[1] * G.dy, G.rxsteps[2] * G.dz))
+        log.info(f'All receivers will step {G.rxsteps[0] * G.dx:g}m, \
+                 {G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m \
+                 for each model run.')
 
 
 class ExcitationFile(UserObjectSingle):
@@ -468,8 +469,7 @@ class ExcitationFile(UserObjectSingle):
             if not os.path.isfile(excitationfile):
                 excitationfile = os.path.abspath(os.path.join(G.inputdirectory, excitationfile))
 
-            if config.is_messages():
-                log.info('\nExcitation file: {}'.format(excitationfile))
+            log.info(f'\nExcitation file: {excitationfile}')
 
             # Get waveform names
             with open(excitationfile, 'r') as f:
@@ -490,7 +490,7 @@ class ExcitationFile(UserObjectSingle):
 
             for waveform in range(len(waveformIDs)):
                 if any(x.ID == waveformIDs[waveform] for x in G.waveforms):
-                    raise CmdInputError('Waveform with ID {} already exists'.format(waveformIDs[waveform]))
+                    raise CmdInputError(f'Waveform with ID {waveformIDs[waveform]} already exists')
                 w = Waveform()
                 w.ID = waveformIDs[waveform]
                 w.type = 'user'
@@ -508,8 +508,9 @@ class ExcitationFile(UserObjectSingle):
                 # Interpolate waveform values
                 w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues, **kwargs)
 
-                if config.is_messages():
-                    log.info('User waveform {} created using {} and, if required, interpolation parameters (kind: {}, fill value: {}).'.format(w.ID, timestr, kwargs['kind'], kwargs['fill_value']))
+                log.info(f"User waveform {w.ID} created using {timestr} and, if \
+                         required, interpolation parameters (kind: {kwargs['kind']}, \
+                         fill value: {kwargs['fill_value']}).")
 
                 G.waveforms.append(w)
 

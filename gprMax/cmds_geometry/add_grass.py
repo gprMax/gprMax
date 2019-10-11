@@ -194,8 +194,4 @@ class AddGrass(UserObjectGeometry):
 
         volume.fractalsurfaces.append(surface)
 
-        log.info(f'{n_blades} blades of grass on surface from {xs * grid.dx:g}m, \
-                 {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, \
-                 {yf * grid.dy:g}m, {zf * grid.dz:g}m with fractal dimension \
-                 {surface.dimension:g}, fractal seeding {surface.seed}, and range \
-                 {limits[0]:g}m to {limits[1]:g}m, added to {surface.operatingonID}.')
+        log.info(f'{n_blades} blades of grass on surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with fractal dimension {surface.dimension:g}, fractal seeding {surface.seed}, and range {limits[0]:g}m to {limits[1]:g}m, added to {surface.operatingonID}.')

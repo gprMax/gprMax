@@ -67,8 +67,8 @@ class Material:
             G (FDTDGrid): Holds essential parameters describing a model.
         """
 
-        EA = (config.e0 * self.er / G.dt) + 0.5 * self.se
-        EB = (config.e0 * self.er / G.dt) - 0.5 * self.se
+        EA = (config.sim_config.em_consts['e0'] * self.er / G.dt) + 0.5 * self.se
+        EB = (config.sim_config.em_consts['e0'] * self.er / G.dt) - 0.5 * self.se
 
         if self.ID == 'pec' or self.se == float('inf'):
             self.CA = 0
@@ -100,7 +100,7 @@ class Material:
 
 class DispersiveMaterial(Material):
     """Class to describe materials with frequency dependent properties, e.g.
-        Debye, Drude, Lorenz
+        Debye, Drude, Lorenz.
     """
 
     # Properties of water from: http://dx.doi.org/10.1109/TGRS.2006.873208
@@ -161,8 +161,10 @@ class DispersiveMaterial(Material):
             self.zt[x] = (self.w[x] / self.q[x]) * (1 - self.eqt[x]) / G.dt
             self.zt2[x] = (self.w[x] / self.q[x]) * (1 - self.eqt2[x])
 
-        EA = (config.e0 * self.er / G.dt) + 0.5 * self.se - (config.e0 / G.dt) * np.sum(self.zt2.real)
-        EB = (config.e0 * self.er / G.dt) - 0.5 * self.se - (config.e0 / G.dt) * np.sum(self.zt2.real)
+        EA = ((config.sim_config.em_consts['e0'] * self.er / G.dt) + 0.5 * self.se -
+             (config.sim_config.em_consts['e0'] / G.dt) * np.sum(self.zt2.real))
+        EB = ((config.sim_config.em_consts['e0'] * self.er / G.dt) - 0.5 * self.se -
+             (config.sim_config.em_consts['e0'] / G.dt) * np.sum(self.zt2.real))
 
         self.CA = EB / EA
         self.CBx = (1 / G.dx) * 1 / EA
@@ -186,7 +188,7 @@ class DispersiveMaterial(Material):
         er = self.er
 
         w = 2 * np.pi * freq
-        er += self.se / (w * config.e0)
+        er += self.se / (w * config.sim_config.em_consts['e0'])
         if 'debye' in self.type:
             for pole in range(self.poles):
                 er += self.deltaer[pole] / (1 + 1j * w * self.tau[pole])
@@ -205,7 +207,7 @@ class DispersiveMaterial(Material):
 
 def process_materials(G):
     """Process complete list of materials - calculate update coefficients,
-    store in arrays, and build text list of materials/properties
+        store in arrays, and build text list of materials/properties
 
     Args:
         G (FDTDGrid): Holds essential parameters describing a model.
@@ -236,8 +238,8 @@ def process_materials(G):
         if hasattr(material, 'poles'):
             z = 0
             for pole in range(config.materials['maxpoles']):
-                G.updatecoeffsdispersive[material.numID, z:z + 3] = (config.e0
-                                                                     * material.eqt2[pole], material.eqt[pole], material.zt[pole])
+                G.updatecoeffsdispersive[material.numID, z:z + 3] = (config.sim_config.em_consts['e0'] *
+                                                                     material.eqt2[pole], material.eqt[pole], material.zt[pole])
                 z += 3
 
         # Construct information on material properties for printing table

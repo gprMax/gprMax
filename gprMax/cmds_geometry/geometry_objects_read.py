@@ -107,6 +107,4 @@ class GeometryObjectsRead(UserObjectGeometry):
         except KeyError:
             averaging = False
             build_voxels_from_array(xs, ys, zs, numexistmaterials, averaging, data, G.solid, G.rigidE, G.rigidH, G.ID)
-            log.info(f'Geometry objects from file (voxels only){ geofile} \
-                     inserted at {xs * G.dx:g}m, {ys * G.dy:g}m, {zs * G.dz:g}m, \
-                     with corresponding materials file {matfile}.')
+            log.info(f'Geometry objects from file (voxels only){geofile} inserted at {xs * G.dx:g}m, {ys * G.dy:g}m, {zs * G.dz:g}m, with corresponding materials file {matfile}.')

@@ -159,9 +159,4 @@ class AddSurfaceRoughness(UserObjectGeometry):
         surface.generate_fractal_surface(grid)
         volume.fractalsurfaces.append(surface)
 
-        log.info(f'Fractal surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, \
-                 {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, \
-                 {zf * grid.dz:g}m with fractal dimension {surface.dimension:g}, \
-                 fractal weightings {surface.weighting[0]:g}, {surface.weighting[1]:g}, \
-                 fractal seeding {surface.seed}, and range {limits[0]:g}m to \
-                 {limits[1]:g}m, added to {surface.operatingonID}.')
+        log.info(f'Fractal surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with fractal dimension {surface.dimension:g}, fractal weightings {surface.weighting[0]:g}, {surface.weighting[1]:g}, fractal seeding {surface.seed}, and range {limits[0]:g}m to {limits[1]:g}m, added to {surface.operatingonID}.')

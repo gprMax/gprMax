@@ -40,18 +40,9 @@ class Snapshot:
     bpg = None
 
     # Set string for byte order
-    if sys.byteorder == 'little':
-        byteorder = 'LittleEndian'
-    else:
-        byteorder = 'BigEndian'
+    byteorder = 'LittleEndian' if sys.byteorder == 'little' else 'BigEndian'
 
-    # Set format text and string depending on float type
-    if config.dtypes['float_or_double'] == np.float32:
-        floatname = 'Float32'
-        floatstring = 'f'
-    elif config.dtypes['float_or_double'] == np.float64:
-        floatname = 'Float64'
-        floatstring = 'd'
+
 
     def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None,
                  dx=None, dy=None, dz=None, time=None, filename=None):
@@ -62,6 +53,14 @@ class Snapshot:
             time (int): Iteration number to take the snapshot on.
             filename (str): Filename to save to.
         """
+
+        # Set format text and string depending on float type
+        if config.sim_config.dtypes['float_or_double'] == np.float32:
+            self.floatname = 'Float32'
+            self.floatstring = 'f'
+        elif config.sim_config.dtypes['float_or_double'] == np.float64:
+            self.floatname = 'Float64'
+            self.floatstring = 'd'
 
         self.fieldoutputs = {'electric': True, 'magnetic': True}
         self.xs = xs
@@ -156,14 +155,14 @@ class Snapshot:
 
         if self.fieldoutputs['electric'] and self.fieldoutputs['magnetic']:
             self.filehandle.write('<CellData Vectors="E-field H-field">\n'.encode('utf-8'))
-            self.filehandle.write(f'<DataArray type="{Snapshot.floatname}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n'.encode('utf-8'))
-            self.filehandle.write(f'<DataArray type="{Snapshot.floatname}" Name="H-field" NumberOfComponents="3" format="appended" offset="{hfield_offset}" />\n'.encode('utf-8'))
+            self.filehandle.write(f'<DataArray type="{self.floatname}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n'.encode('utf-8'))
+            self.filehandle.write(f'<DataArray type="{self.floatname}" Name="H-field" NumberOfComponents="3" format="appended" offset="{hfield_offset}" />\n'.encode('utf-8'))
         elif self.fieldoutputs['electric']:
             self.filehandle.write('<CellData Vectors="E-field">\n'.encode('utf-8'))
-            self.filehandle.write(f'<DataArray type="{Snapshot.floatname}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n'.encode('utf-8'))
+            self.filehandle.write(f'<DataArray type="{self.floatname}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n'.encode('utf-8'))
         elif self.fieldoutputs['magnetic']:
             self.filehandle.write('<CellData Vectors="H-field">\n'.encode('utf-8'))
-            self.filehandle.write(f'<DataArray type="{Snapshot.floatname}" Name="H-field" NumberOfComponents="3" format="appended" offset="0" />\n'.encode('utf-8'))
+            self.filehandle.write(f'<DataArray type="{self.floatname}" Name="H-field" NumberOfComponents="3" format="appended" offset="0" />\n'.encode('utf-8'))
 
         self.filehandle.write('</CellData>\n</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
 

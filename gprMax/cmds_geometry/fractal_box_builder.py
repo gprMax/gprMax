@@ -18,13 +18,11 @@
 
 import numpy as np
 
+import gprMax.config as config
 from .cmds_geometry import UserObjectGeometry
-from ..config import dtypes
 from ..cython.geometry_primitives import build_voxels_from_array
 from ..cython.geometry_primitives import build_voxels_from_array_mask
 from ..exceptions import CmdInputError
-
-floattype = dtypes['float_or_double']
 
 
 class FractalBoxBuilder(UserObjectGeometry):
@@ -75,7 +73,7 @@ class FractalBoxBuilder(UserObjectGeometry):
 
                 # If there is only 1 bin then a normal material is being used, otherwise a mixing model
                 if volume.nbins == 1:
-                    volume.fractalvolume = np.ones((volume.nx, volume.ny, volume.nz), dtype=floattype)
+                    volume.fractalvolume = np.ones((volume.nx, volume.ny, volume.nz), dtype=config.sim_config.dtype['float_or_double'])
                     materialnumID = next(x.numID for x in grid.materials if x.ID == volume.operatingonID)
                     volume.fractalvolume *= materialnumID
                 else:

@@ -196,7 +196,7 @@ class VoltageSource(UserObjectMulti):
 
         v.calculate_waveform_values(grid)
 
-        log.info('Voltage source with polarity {} at {:g}m, {:g}m, {:g}m, resistance {:.1f} Ohms,'.format(v.polarisation, v.xcoord * grid.dx, v.ycoord * grid.dy, v.zcoord * grid.dz, v.resistance) + startstop + 'using waveform {} created.'.format(v.waveformID))
+        log.info(f'Voltage source with polarity {v.polarisation} at {v.xcoord * grid.dx:g}m, {v.ycoord * grid.dy:g}m, {v.zcoord * grid.dz:g}m, resistance {v.resistance:.1f} Ohms,' + startstop + f'using waveform {v.waveformID} created.')
 
         grid.voltagesources.append(v)
 
@@ -524,7 +524,7 @@ class Rx(UserObjectMulti):
         except KeyError:
             r.ID = r.__class__.__name__ + '(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'
             for key in RxUser.defaultoutputs:
-                r.outputs[key] = np.zeros(grid.iterations, dtype=config.dtypes['float_or_double'])
+                r.outputs[key] = np.zeros(grid.iterations, dtype=config.sim_config.dtypes['float_or_double'])
 
         log.info(f"Receiver at {r.xcoord * grid.dx:g}m, {r.ycoord * grid.dy:g}m, {r.zcoord * grid.dz:g}m with output component(s) {', '.join(r.outputs)} created.")
 
@@ -1189,3 +1189,4 @@ class SubgridHSG(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        log.debug('Is this required?')

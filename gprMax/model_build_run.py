@@ -79,10 +79,9 @@ log = logging.getLogger(__name__)
 class ModelBuildRun:
     """Builds and runs (solves) a model."""
 
-    def __init__(self, G, sim_config, model_config):
+    def __init__(self, i, G):
+        self.i = i
         self.G = G
-        self.sim_config = sim_config
-        self.model_config = model_config
         # Monitor memory usage
         self.p = None
 
@@ -93,37 +92,34 @@ class ModelBuildRun:
         self.p = psutil.Process()
 
         # Normal model reading/building process; bypassed if geometry information to be reused
-        if self.model_config.reuse_geometry:
-            self.reuse_geometry()
-        else:
-            self.build_geometry()
+        self.reuse_geometry() if config.model_configs[self.i].reuse_geometry else self.build_geometry()
 
         G = self.G
 
         # Adjust position of simple sources and receivers if required
         if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
             for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
-                if self.model_config.i == 0:
+                if config.model_configs[self.i].i == 0:
                     if source.xcoord + G.srcsteps[0] * self.sim_config.model_end < 0 or source.xcoord + G.srcsteps[0] * self.sim_config.model_end > G.nx or source.ycoord + G.srcsteps[1] * self.sim_config.model_end < 0 or source.ycoord + G.srcsteps[1] * self.sim_config.model_end > G.ny or source.zcoord + G.srcsteps[2] * self.sim_config.model_end < 0 or source.zcoord + G.srcsteps[2] * self.sim_config.model_end > G.nz:
                         raise GeneralError('Source(s) will be stepped to a position outside the domain.')
-                source.xcoord = source.xcoordorigin + (self.model_config.i) * G.srcsteps[0]
-                source.ycoord = source.ycoordorigin + (self.model_config.i) * G.srcsteps[1]
-                source.zcoord = source.zcoordorigin + (self.model_config.i) * G.srcsteps[2]
+                source.xcoord = source.xcoordorigin + (config.model_configs[self.i].i) * G.srcsteps[0]
+                source.ycoord = source.ycoordorigin + (config.model_configs[self.i].i) * G.srcsteps[1]
+                source.zcoord = source.zcoordorigin + (config.model_configs[self.i].i) * G.srcsteps[2]
         if G.rxsteps[0] != 0 or G.rxsteps[1] != 0 or G.rxsteps[2] != 0:
             for receiver in G.rxs:
-                if self.model_config.i == 0:
+                if config.model_configs[self.i].i == 0:
                     if receiver.xcoord + G.rxsteps[0] * self.sim_config.model_end < 0 or receiver.xcoord + G.rxsteps[0] * self.sim_config.model_end > G.nx or receiver.ycoord + G.rxsteps[1] * self.sim_config.model_end < 0 or receiver.ycoord + G.rxsteps[1] * self.sim_config.model_end > G.ny or receiver.zcoord + G.rxsteps[2] * self.sim_config.model_end < 0 or receiver.zcoord + G.rxsteps[2] * self.sim_config.model_end > G.nz:
                         raise GeneralError('Receiver(s) will be stepped to a position outside the domain.')
-                receiver.xcoord = receiver.xcoordorigin + (self.model_config.i) * G.rxsteps[0]
-                receiver.ycoord = receiver.ycoordorigin + (self.model_config.i) * G.rxsteps[1]
-                receiver.zcoord = receiver.zcoordorigin + (self.model_config.i) * G.rxsteps[2]
+                receiver.xcoord = receiver.xcoordorigin + (config.model_configs[self.i].i) * G.rxsteps[0]
+                receiver.ycoord = receiver.ycoordorigin + (config.model_configs[self.i].i) * G.rxsteps[1]
+                receiver.zcoord = receiver.zcoordorigin + (config.model_configs[self.i].i) * G.rxsteps[2]
 
         # Write files for any geometry views and geometry object outputs
         if not (G.geometryviews or G.geometryobjectswrite) and self.sim_config.geometry_only and config.is_messages():
             log.warning(Fore.RED + f'\nNo geometry views or geometry objects to output found.' + Style.RESET_ALL)
         if config.is_messages(): print()
         for i, geometryview in enumerate(G.geometryviews):
-            geometryview.set_filename(self.model_config.appendmodelnumber)
+            geometryview.set_filename(config.model_configs[self.i].appendmodelnumber)
             pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
             geometryview.write_vtk(G, pbar)
             pbar.close()
@@ -138,20 +134,18 @@ class ModelBuildRun:
         #     tsolve = 0
 
     def build_geometry(self):
-        model_config = self.model_config
-        sim_config = self.sim_config
         G = self.G
 
-        log.info(model_config.next_model)
+        log.info(config.model_configs[self.i].next_model)
 
         scene = self.build_scene()
 
         # Combine available grids
         grids = [G] + G.subgrids
-        gridbuilders = [GridBuilder(grid, self.printer) for grid in grids]
+        gridbuilders = [GridBuilder(grid) for grid in grids]
 
         for gb in gridbuilders:
-            gb.printer.print(pml_information(gb.grid))
+            pml_information(gb.grid)
             gb.build_pmls()
             gb.build_components()
             gb.tm_grid_update()
@@ -159,7 +153,7 @@ class ModelBuildRun:
             gb.grid.initialise_std_update_coeff_arrays()
 
         # Set datatype for dispersive arrays if there are any dispersive materials.
-        if self.model_config.materials['maxpoles'] != 0:
+        if config.model_configs[self.i].materials['maxpoles'] != 0:
             drudelorentz = any([m for m in G.materials if 'drude' in m.type or 'lorentz' in m.type])
             if drudelorentz:
                 config.materials['dispersivedtype'] = config.dtypes['complex']
@@ -220,22 +214,22 @@ class ModelBuildRun:
         G = self.G
         # Reset iteration number
         G.iteration = 0
-        self.model_config.inputfilestr = f'\n--- Model {self.model_config.appendmodelnumber}/{self.sim_config.model_end}, \
+        config.model_configs[self.i].inputfilestr = f'\n--- Model {config.model_configs[self.i].appendmodelnumber}/{self.sim_config.model_end}, \
                                          input file (not re-processed, i.e. geometry fixed): {self.sim_config.input_file_path}'
-        log.info(Fore.GREEN + f"{self.model_config.inputfilestr} {'-' * (get_terminal_width() - 1 - len(self.model_config.inputfilestr))}" + Style.RESET_ALL)
+        log.info(Fore.GREEN + f"{config.model_configs[self.i].inputfilestr} {'-' * (get_terminal_width() - 1 - len(config.model_configs[self.i].inputfilestr))}" + Style.RESET_ALL)
         for grid in [G] + G.subgrids:
             grid.reset_fields()
 
     def build_scene(self):
         G = self.G
         # API for multiple scenes / model runs
-        scene = self.model_config.get_scene()
+        scene = config.model_configs[self.i].get_scene()
 
         # If there is no scene - process the hash commands instead
         if not scene:
             scene = Scene()
             # Parse the input file into user objects and add them to the scene
-            scene = parse_hash_commands(self.model_config, G, scene)
+            scene = parse_hash_commands(config.model_configs[self.i], G, scene)
 
         # Creates the internal simulation objects.
         scene.create_internal_objects(G)
@@ -251,7 +245,7 @@ class ModelBuildRun:
             except FileExistsError:
                 pass
             # Modify the output path (hack)
-            self.model_config.output_file_path_ext = Path(self.G.outputdirectory, self.model_config.output_file_path_ext)
+            config.model_configs[self.i].output_file_path_ext = Path(self.G.outputdirectory, config.model_configs[self.i].output_file_path_ext)
 
     def write_output_data(self):
         """Write output data, i.e. field data for receivers and snapshots
@@ -261,19 +255,19 @@ class ModelBuildRun:
         G = self.G
 
         # Write an output file in HDF5 format
-        write_hdf5_outputfile(self.model_config.output_file_path_ext, G)
+        write_hdf5_outputfile(config.model_configs[self.i].output_file_path_ext, G)
 
         # Write any snapshots to file
         if G.snapshots:
             # Create directory and construct filename from user-supplied name
             # and model run number
-            snapshotdir = self.model_config.snapshot_dir
+            snapshotdir = config.model_configs[self.i].snapshot_dir
             if not os.path.exists(snapshotdir):
                 os.mkdir(snapshotdir)
 
             log.info('')
             for i, snap in enumerate(G.snapshots):
-                fn = snapshotdir / Path(self.model_config.output_file_path.stem + '_' + snap.basefilename)
+                fn = snapshotdir / Path(config.model_configs[self.i].output_file_path.stem + '_' + snap.basefilename)
                 snap.filename = fn.with_suffix('.vti')
                 pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte', unit_scale=True, desc='Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
                 snap.write_vtk_imagedata(pbar, G)
@@ -304,13 +298,13 @@ class ModelBuildRun:
         G = self.G
 
         if config.is_messages():
-            iterator = tqdm(range(G.iterations), desc='Running simulation, model ' + str(self.model_config
+            iterator = tqdm(range(G.iterations), desc='Running simulation, model ' + str(config.model_configs[self.i]
                             .i + 1) + '/' + str(self.sim_config.model_end), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
         else:
             iterator = range(0, G.iterations)
 
         self.create_output_directory()
-        log.info(f'Output file: {self.model_config.output_file_path_ext}\n')
+        log.info(f'Output file: {config.model_configs[self.i].output_file_path_ext}\n')
 
         # Run solver
         tsolve = self.solve(solver)
@@ -325,15 +319,14 @@ class ModelBuildRun:
 
 
 class GridBuilder:
-    def __init__(self, grid, printer):
+    def __init__(self, grid):
         self.grid = grid
-        self.printer = printer
 
     def build_pmls(self):
         grid = self.grid
 
         # Build the PMLS
-        pbar = tqdm(total=sum(1 for value in grid.pmlthickness.values() if value > 0), desc='Building {} Grid PML boundaries'.format(self.grid.name), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
+        pbar = tqdm(total=sum(1 for value in grid.pmlthickness.values() if value > 0), desc='Building {} Grid PML boundaries'.format(self.grid.name), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
         for pml_id, thickness in grid.pmlthickness.items():
             if thickness > 0:
                 build_pml(grid, pml_id, thickness)
@@ -344,7 +337,7 @@ class GridBuilder:
         # Build the model, i.e. set the material properties (ID) for every edge
         # of every Yee cell
         log.info('')
-        pbar = tqdm(total=2, desc='Building {} Grid'.format(self.grid.name), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
+        pbar = tqdm(total=2, desc='Building {} Grid'.format(self.grid.name), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
         build_electric_components(self.grid.solid, self.grid.rigidE, self.grid.ID, self.grid)
         pbar.update()
         build_magnetic_components(self.grid.solid, self.grid.rigidH, self.grid.ID, self.grid)
@@ -352,11 +345,11 @@ class GridBuilder:
         pbar.close()
 
     def tm_grid_update(self):
-        if '2D TMx' == config.general['mode']:
+        if '2D TMx' == config.sim_config.general['mode']:
             self.grid.tmx()
-        elif '2D TMy' == config.general['mode']:
+        elif '2D TMy' == config.sim_config.general['mode']:
             self.grid.tmy()
-        elif '2D TMz' == config.general['mode']:
+        elif '2D TMz' == config.sim_config.general['mode']:
             self.grid.tmz()
 
     def update_voltage_source_materials(self):

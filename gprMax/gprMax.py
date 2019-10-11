@@ -19,7 +19,7 @@
 import argparse
 import logging
 
-from .config import create_simulation_config
+from .config_parser import write_simulation_config
 from .contexts import create_context
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -137,7 +137,7 @@ def run_main(args):
         args (Namespace): arguments from either API or CLI.
     """
 
-    sim_config = create_simulation_config(args)
-    context = create_context(sim_config)
+    write_simulation_config(args)
+    context = create_context()
     context.run()
     context.print_time_report()

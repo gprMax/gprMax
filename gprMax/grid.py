@@ -24,7 +24,6 @@ from colorama import Fore
 from colorama import Style
 init()
 import numpy as np
-from scipy.constants import c
 
 import gprMax.config as config
 from .exceptions import GeneralError
@@ -147,12 +146,12 @@ class FDTDGrid:
 
     def initialise_field_arrays(self):
         """Initialise arrays for the electric and magnetic field components."""
-        self.Ex = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.dtypes['float_or_double'])
-        self.Ey = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.dtypes['float_or_double'])
-        self.Ez = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.dtypes['float_or_double'])
-        self.Hx = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.dtypes['float_or_double'])
-        self.Hy = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.dtypes['float_or_double'])
-        self.Hz = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.dtypes['float_or_double'])
+        self.Ex = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes['float_or_double'])
+        self.Ey = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes['float_or_double'])
+        self.Ez = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes['float_or_double'])
+        self.Hx = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes['float_or_double'])
+        self.Hy = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes['float_or_double'])
+        self.Hz = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes['float_or_double'])
 
     def initialise_grids(self):
         """Initialise all grids."""
@@ -162,8 +161,8 @@ class FDTDGrid:
 
     def initialise_std_update_coeff_arrays(self):
         """Initialise arrays for storing update coefficients."""
-        self.updatecoeffsE = np.zeros((len(self.materials), 5), dtype=config.dtypes['float_or_double'])
-        self.updatecoeffsH = np.zeros((len(self.materials), 5), dtype=config.dtypes['float_or_double'])
+        self.updatecoeffsE = np.zeros((len(self.materials), 5), dtype=config.sim_config.dtypes['float_or_double'])
+        self.updatecoeffsH = np.zeros((len(self.materials), 5), dtype=config.sim_config.dtypes['float_or_double'])
 
     def initialise_dispersive_arrays(self, dtype):
         """Initialise arrays for storing coefficients when there are dispersive materials present."""
@@ -183,7 +182,7 @@ class FDTDGrid:
         rigidarrays = (12 + 6) * self.nx * self.ny * self.nz * np.dtype(np.int8).itemsize
 
         # 6 x field arrays + 6 x ID arrays
-        fieldarrays = (6 + 6) * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(config.dtypes['float_or_double']).itemsize
+        fieldarrays = (6 + 6) * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(config.sim_config.dtypes['float_or_double']).itemsize
 
         # PML arrays
         pmlarrays = 0
@@ -211,7 +210,7 @@ class FDTDGrid:
         """Check if the required amount of memory (RAM) is available to build
             and/or run model on the host.
         """
-        if self.memoryusage > config.hostinfo['ram']:
+        if self.memoryusage > config.sim_config.hostinfo['ram']:
             raise GeneralError(f"Memory (RAM) required ~{human_size(self.memoryusage)} \
                                exceeds {human_size(config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} detected!\n")
 
@@ -256,7 +255,7 @@ class FDTDGrid:
 
     def calculate_dt(self):
         """Calculate time step at the CFL limit."""
-        self.dt = (1 / (c * np.sqrt(
+        self.dt = (1 / (config.sim_config.em_consts['c'] * np.sqrt(
                   (1 / self.dx) * (1 / self.dx) +
                   (1 / self.dy) * (1 / self.dy) +
                   (1 / self.dz) * (1 / self.dz))))

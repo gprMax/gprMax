@@ -135,6 +135,4 @@ class Plate(UserObjectGeometry):
                 for j in range(ys, yf):
                     build_face_xy(i, j, zs, numIDx, numIDy, grid.rigidE, grid.rigidH, grid.ID)
 
-        log.info(f"Plate from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, \
-                 to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m of \
-                 material(s) {', '.join(materialsrequested)} created.")
+        log.info(f"Plate from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m of material(s) {', '.join(materialsrequested)} created.")

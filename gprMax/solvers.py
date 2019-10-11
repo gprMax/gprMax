@@ -24,19 +24,16 @@ from .updates import CPUUpdates
 from .updates import CUDAUpdates
 
 
-def create_G(sim_config):
+def create_G():
     """Create grid object according to solver.
-
-    Args:
-        sim_config (SimConfig): Simulation level configuration object.
 
     Returns:
         G (FDTDGrid): Holds essential parameters describing the model.
     """
 
-    if sim_config.general['cuda']:
+    if config.sim_config.general['cuda']:
         G = CUDAGrid()
-    elif sim_config.subgrid:
+    elif config.sim_config.subgrid:
         G = FDTDGrid()
     else:
         G = FDTDGrid()
@@ -44,21 +41,20 @@ def create_G(sim_config):
     return G
 
 
-def create_solver(G, sim_config):
+def create_solver(G):
     """Create configured solver object.
 
     Args:
         G (FDTDGrid): Holds essential parameters describing the model.
-        sim_config (SimConfig): simulation level configuration object.
 
     Returns:
         solver (Solver): solver object.
     """
 
-    if sim_config.gpu:
+    if config.sim_config.gpu:
         updates = CUDAUpdates(G)
         solver = Solver(updates)
-    elif sim_config.subgrid:
+    elif config.sim_config.subgrid:
         updates = create_subgrid_updates(G)
         solver = Solver(updates, hsg=True)
         # A large range of different functions exist to advance the time step for

@@ -36,6 +36,7 @@ from colorama import Style
 init()
 import numpy as np
 
+import gprMax.config as config
 from .exceptions import GeneralError
 
 log = logging.getLogger(__name__)
@@ -90,7 +91,7 @@ def logo(version):
 @contextmanager
 def open_path_file(path_or_file):
     """Accepts either a path as a string or a file object and returns a file
-    object (http://stackoverflow.com/a/6783680).
+        object (http://stackoverflow.com/a/6783680).
 
     Args:
         path_or_file: path as a string or a file object.
@@ -361,7 +362,7 @@ def set_openmp_threads():
     # os.environ['OMP_DISPLAY_ENV'] = 'TRUE'
 
     # Catch bug with Windows Subsystem for Linux (https://github.com/Microsoft/BashOnWindows/issues/785)
-    if 'Microsoft' in config.hostinfo['osversion']:
+    if 'Microsoft' in config.sim_config.hostinfo['osversion']:
         os.environ['KMP_AFFINITY'] = 'disabled'
         del os.environ['OMP_PLACES']
         del os.environ['OMP_PROC_BIND']
@@ -370,8 +371,8 @@ def set_openmp_threads():
         nthreads = int(os.environ.get('OMP_NUM_THREADS'))
     else:
         # Set number of threads to number of physical CPU cores
-        nthreads = config.hostinfo['physicalcores']
-        os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
+        nthreads = config.sim_config.hostinfo['physicalcores']
+        os.environ['OMP_NUM_THREADS'] = str(nthreads)
 
     return nthreads
 

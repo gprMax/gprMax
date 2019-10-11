@@ -18,8 +18,9 @@
 
 import datetime
 
+import gprMax.config as config
 from ._version import __version__, codename
-from .config import create_model_config
+from .config_parser import write_model_config
 from .model_build_run import ModelBuildRun
 from .solvers import create_solver
 from .solvers import create_G
@@ -33,14 +34,8 @@ class Context:
     e.g. an MPI context.
     """
 
-    def __init__(self, sim_config):
-        """
-        Args:
-            sim_config (SimConfig): Simulation level configuration object.
-        """
-
-        self.sim_config = sim_config
-        self.model_range = range(sim_config.model_start, sim_config.model_end)
+    def __init__(self):
+        self.model_range = range(config.sim_config.model_start, config.sim_config.model_end)
         self.tsimend = 0
         self.tsimstart = 1
 
@@ -70,29 +65,25 @@ class NoMPIContext(Context):
         is parallelised using either OpenMP (CPU) or CUDA (GPU).
     """
 
-    def __init__(self, sim_config):
-        super().__init__(sim_config)
-
     def _run(self):
         """Specialise how the models are farmed out."""
 
         for i in self.model_range:
-            model_config = create_model_config(self.sim_config, i)
+            write_model_config(i)
 
             # Always create a solver for the first model.
             # The next model to run only gets a new solver if the
             # geometry is not re-used.
-            if i != 0 and self.sim_config.geometry_fixed:
-                model_config.reuse_geometry = True
+            if i != 0 and config.sim_config.args.geometry_fixed:
+                config.model_config[i].reuse_geometry = True
             else:
-                G = create_G(self.sim_config)
+                G = create_G()
 
-            model = ModelBuildRun(G, self.sim_config, model_config)
+            model = ModelBuildRun(i, G)
             model.build()
+            solver = create_solver(G)
 
-            solver = create_solver(G, self.sim_config)
-
-            if not self.sim_config.geometry_only:
+            if not config.sim_config.args.geometry_only:
                 model.solve(solver)
 
     def make_time_report(self):
@@ -111,8 +102,8 @@ class MPIContext(Context):
         or CUDA (GPU).
     """
 
-    def __init__(self, sim_config):
-        super().__init__(sim_config)
+    def __init__(self):
+        super().__init__()
         from mpi4py import MPI
 
     def _run(self):
@@ -124,8 +115,8 @@ class MPIContext(Context):
 
 class MPINoSpawnContext(Context):
 
-    def __init__(self, sim_config):
-        super().__init__(sim_config)
+    def __init__(self):
+        super().__init__()
         from mpi4py import MPI
 
     def _run(self):
@@ -135,21 +126,18 @@ class MPINoSpawnContext(Context):
         pass
 
 
-def create_context(sim_config):
+def create_context():
     """Create a context in which to run the simulation. i.e MPI.
-
-    Args:
-        sim_config (SimConfig): Simulation level configuration object.
 
     Returns:
         context (Context): Context for the model to run in.
     """
 
-    if sim_config.args.mpi:
-        context = MPIContext(sim_config)
-    elif sim_config.args.mpi_no_spawn:
-        context = MPINoSpawnContext(sim_config)
+    if config.sim_config.args.mpi:
+        context = MPIContext()
+    elif config.sim_config.args.mpi_no_spawn:
+        context = MPINoSpawnContext()
     else:
-        context = NoMPIContext(sim_config)
+        context = NoMPIContext()
 
     return context
