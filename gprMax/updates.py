@@ -69,7 +69,7 @@ class CPUUpdates:
         update_magnetic(self.grid.nx,
                         self.grid.ny,
                         self.grid.nz,
-                        config.hostinfo['ompthreads'],
+                        config.sim_config.hostinfo['ompthreads'],
                         self.grid.updatecoeffsH,
                         self.grid.ID,
                         self.grid.Ex,
@@ -98,11 +98,11 @@ class CPUUpdates:
     def update_electric_a(self):
         """Update electric field components."""
         # All materials are non-dispersive so do standard update.
-        if config.materials['maxpoles'] == 0:
+        if config.model_configs[self.grid.model_num].materials['maxpoles'] == 0:
             update_electric(self.grid.nx,
                             self.grid.ny,
                             self.grid.nz,
-                            config.hostinfo['ompthreads'],
+                            config.sim_config.hostinfo['ompthreads'],
                             self.grid.updatecoeffsE,
                             self.grid.ID,
                             self.grid.Ex,
@@ -118,8 +118,8 @@ class CPUUpdates:
             self.dispersive_update_a(self.grid.nx,
                                      self.grid.ny,
                                      self.grid.nz,
-                                     config.hostinfo['ompthreads'],
-                                     config.materials['maxpoles'],
+                                     config.sim_config.hostinfo['ompthreads'],
+                                     config.model_configs[self.grid.model_num].materials['maxpoles'],
                                      self.grid.updatecoeffsE,
                                      self.grid.updatecoeffsdispersive,
                                      self.grid.ID,
@@ -159,12 +159,12 @@ class CPUUpdates:
             updated after the electric field has been updated by the PML and
             source updates.
         """
-        if config.materials['maxpoles'] != 0:
+        if config.model_configs[self.grid.model_num].materials['maxpoles'] != 0:
             self.dispersive_update_b(self.grid.nx,
                                      self.grid.ny,
                                      self.grid.nz,
-                                     config.hostinfo['ompthreads'],
-                                     config.materials['maxpoles'],
+                                     config.sim_config.hostinfo['ompthreads'],
+                                     config.model_configs[self.grid.model_num].materials['maxpoles'],
                                      self.grid.updatecoeffsdispersive,
                                      self.grid.ID,
                                      self.grid.Tx,
@@ -174,26 +174,23 @@ class CPUUpdates:
                                      self.grid.Ey,
                                      self.grid.Ez)
 
-    def adapt_dispersive_config(self, config):
+    def adapt_dispersive_config(self):
         """Set properties for disperive materials.
-
-        Args:
-            config ():
 
         Returns:
             props (Props): Dispersive material properties.
         """
-        if config.materials['maxpoles'] > 1:
+        if config.model_configs[self.grid.model_num].materials['maxpoles'] > 1:
             poles = 'multi'
         else:
             poles = '1'
 
-        if config.precision == 'single':
+        if config.sim_config.general['precision'] == 'single':
             type = 'float'
         else:
             type = 'double'
 
-        if config.materials['dispersivedtype'] == config.dtypes['complex']:
+        if config.model_configs[self.grid.model_num].materials['dispersivedtype'] == config.sim_config.dtypes['complex']:
             dispersion = 'complex'
         else:
             dispersion = 'real'
@@ -276,7 +273,7 @@ class CUDAUpdates:
         """Electric and magnetic field updates - prepare kernels, and
             get kernel functions.
         """
-        if config.materials['maxpoles'] > 0:
+        if config.model_configs[self.grid.model_num].materials['maxpoles'] > 0:
             kernels_fields = SourceModule(kernels_template_fields.substitute(
                                           REAL=cudafloattype,
                                           COMPLEX=cudacomplextype,
@@ -319,7 +316,7 @@ class CUDAUpdates:
         self.copy_mat_coeffs()
 
         # Electric and magnetic field updates - dispersive materials - get kernel functions and initialise array on GPU
-        if config.materials['maxpoles'] > 0:  # If there are any dispersive materials (updates are split into two parts as they require present and updated electric field values).
+        if config.model_configs[self.grid.model_num].materials['maxpoles'] > 0:  # If there are any dispersive materials (updates are split into two parts as they require present and updated electric field values).
             self.dispersive_update_a = kernels_fields.get_function("update_electric_dispersive_A")
             self.dispersive_update_b = kernels_fields.get_function("update_electric_dispersive_B")
             self.grid.gpu_initialise_dispersive_arrays()
@@ -543,7 +540,7 @@ class CUDAUpdates:
     def update_electric_a(self):
         """Update electric field components."""
         # All materials are non-dispersive so do standard update.
-        if config.materials['maxpoles'] == 0:
+        if config.model_configs[self.grid.model_num].materials['maxpoles'] == 0:
             self.update_electric(np.int32(self.grid.nx),
                                  np.int32(self.grid.ny),
                                  np.int32(self.grid.nz),
@@ -563,7 +560,7 @@ class CUDAUpdates:
             self.dispersive_update_a(np.int32(self.grid.nx),
                                      np.int32(self.grid.ny),
                                      np.int32(self.grid.nz),
-                                     np.int32(config.materials['maxpoles']),
+                                     np.int32(config.model_configs[self.grid.model_num].materials['maxpoles']),
                                      self.grid.updatecoeffsdispersive_gpu.gpudata,
                                      self.grid.Tx_gpu,
                                      self.grid.Ty_gpu,
@@ -628,11 +625,11 @@ class CUDAUpdates:
             updated after the electric field has been updated by the PML and
             source updates.
         """
-        if config.materials['maxpoles'] != 0:
+        if config.model_configs[self.grid.model_num].materials['maxpoles'] != 0:
             self.dispersive_update_b(np.int32(self.grid.nx),
                                      np.int32(self.grid.ny),
                                      np.int32(self.grid.nz),
-                                     np.int32(config.materials['maxpoles']),
+                                     np.int32(config.model_configs[self.grid.model_num].materials['maxpoles']),
                                      self.grid.updatecoeffsdispersive_gpu.gpudata,
                                      self.grid.Tx_gpu,
                                      self.grid.Ty_gpu,

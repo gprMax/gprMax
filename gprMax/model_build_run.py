@@ -71,6 +71,7 @@ from .utilities import get_terminal_width
 from .utilities import human_size
 from .utilities import open_path_file
 from .utilities import round32
+from .utilities import set_omp_threads
 from .utilities import timer
 
 log = logging.getLogger(__name__)
@@ -79,8 +80,7 @@ log = logging.getLogger(__name__)
 class ModelBuildRun:
     """Builds and runs (solves) a model."""
 
-    def __init__(self, i, G):
-        self.i = i
+    def __init__(self, G):
         self.G = G
         # Monitor memory usage
         self.p = None
@@ -88,55 +88,67 @@ class ModelBuildRun:
     def build(self):
         """Builds the Yee cells for a model."""
 
+        G = self.G
+
         # Monitor memory usage
         self.p = psutil.Process()
 
         # Normal model reading/building process; bypassed if geometry information to be reused
-        self.reuse_geometry() if config.model_configs[self.i].reuse_geometry else self.build_geometry()
-
-        G = self.G
+        self.reuse_geometry() if config.model_configs[G.model_num].reuse_geometry else self.build_geometry()
 
         # Adjust position of simple sources and receivers if required
         if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
             for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
-                if config.model_configs[self.i].i == 0:
-                    if source.xcoord + G.srcsteps[0] * self.sim_config.model_end < 0 or source.xcoord + G.srcsteps[0] * self.sim_config.model_end > G.nx or source.ycoord + G.srcsteps[1] * self.sim_config.model_end < 0 or source.ycoord + G.srcsteps[1] * self.sim_config.model_end > G.ny or source.zcoord + G.srcsteps[2] * self.sim_config.model_end < 0 or source.zcoord + G.srcsteps[2] * self.sim_config.model_end > G.nz:
+                if config.model_configs[G.model_num] == 0:
+                    if (source.xcoord + G.srcsteps[0] * self.sim_config.model_end < 0 or
+                        source.xcoord + G.srcsteps[0] * self.sim_config.model_end > G.nx or
+                        source.ycoord + G.srcsteps[1] * self.sim_config.model_end < 0 or
+                        source.ycoord + G.srcsteps[1] * self.sim_config.model_end > G.ny or
+                        source.zcoord + G.srcsteps[2] * self.sim_config.model_end < 0 or
+                        source.zcoord + G.srcsteps[2] * self.sim_config.model_end > G.nz):
                         raise GeneralError('Source(s) will be stepped to a position outside the domain.')
-                source.xcoord = source.xcoordorigin + (config.model_configs[self.i].i) * G.srcsteps[0]
-                source.ycoord = source.ycoordorigin + (config.model_configs[self.i].i) * G.srcsteps[1]
-                source.zcoord = source.zcoordorigin + (config.model_configs[self.i].i) * G.srcsteps[2]
+                source.xcoord = source.xcoordorigin + config.model_configs[G.model_num] * G.srcsteps[0]
+                source.ycoord = source.ycoordorigin + config.model_configs[G.model_num] * G.srcsteps[1]
+                source.zcoord = source.zcoordorigin + config.model_configs[G.model_num] * G.srcsteps[2]
         if G.rxsteps[0] != 0 or G.rxsteps[1] != 0 or G.rxsteps[2] != 0:
             for receiver in G.rxs:
-                if config.model_configs[self.i].i == 0:
-                    if receiver.xcoord + G.rxsteps[0] * self.sim_config.model_end < 0 or receiver.xcoord + G.rxsteps[0] * self.sim_config.model_end > G.nx or receiver.ycoord + G.rxsteps[1] * self.sim_config.model_end < 0 or receiver.ycoord + G.rxsteps[1] * self.sim_config.model_end > G.ny or receiver.zcoord + G.rxsteps[2] * self.sim_config.model_end < 0 or receiver.zcoord + G.rxsteps[2] * self.sim_config.model_end > G.nz:
+                if config.model_configs[G.model_num] == 0:
+                    if (receiver.xcoord + G.rxsteps[0] * self.sim_config.model_end < 0 or
+                        receiver.xcoord + G.rxsteps[0] * self.sim_config.model_end > G.nx or
+                        receiver.ycoord + G.rxsteps[1] * self.sim_config.model_end < 0 or
+                        receiver.ycoord + G.rxsteps[1] * self.sim_config.model_end > G.ny or
+                        receiver.zcoord + G.rxsteps[2] * self.sim_config.model_end < 0 or
+                        receiver.zcoord + G.rxsteps[2] * self.sim_config.model_end > G.nz):
                         raise GeneralError('Receiver(s) will be stepped to a position outside the domain.')
-                receiver.xcoord = receiver.xcoordorigin + (config.model_configs[self.i].i) * G.rxsteps[0]
-                receiver.ycoord = receiver.ycoordorigin + (config.model_configs[self.i].i) * G.rxsteps[1]
-                receiver.zcoord = receiver.zcoordorigin + (config.model_configs[self.i].i) * G.rxsteps[2]
+                receiver.xcoord = receiver.xcoordorigin + config.model_configs[G.model_num] * G.rxsteps[0]
+                receiver.ycoord = receiver.ycoordorigin + config.model_configs[G.model_num] * G.rxsteps[1]
+                receiver.zcoord = receiver.zcoordorigin + config.model_configs[G.model_num] * G.rxsteps[2]
 
         # Write files for any geometry views and geometry object outputs
         if not (G.geometryviews or G.geometryobjectswrite) and self.sim_config.geometry_only and config.is_messages():
             log.warning(Fore.RED + f'\nNo geometry views or geometry objects to output found.' + Style.RESET_ALL)
-        if config.is_messages(): print()
+        if config.sim_config.is_messages(): log.info('')
         for i, geometryview in enumerate(G.geometryviews):
-            geometryview.set_filename(config.model_configs[self.i].appendmodelnumber)
-            pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
+            geometryview.set_filename(config.model_configs[G.model_num].appendmodelnumber)
+            pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True,
+                        desc=f'Writing geometry view file {i + 1}/{len(G.geometryviews)}, {geometryview.filename.name}',
+                        ncols=get_terminal_width() - 1, file=sys.stdout,
+                        disable=not config.sim_config.general['progressbars'])
             geometryview.write_vtk(G, pbar)
             pbar.close()
         for i, geometryobject in enumerate(G.geometryobjectswrite):
-            pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry object file {}/{}, {}'.format(i + 1, len(G.geometryobjectswrite), os.path.split(geometryobject.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
+            pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True,
+                        desc=f'Writing geometry object file {i + 1}/{len(G.geometryobjectswrite)}, {geometryobject.filename.name}',
+                        ncols=get_terminal_width() - 1, file=sys.stdout,
+                        disable=not config.sim_config.general['progressbars'])
             geometryobject.write_hdf5(G, pbar)
             pbar.close()
-        if config.is_messages(): print()
-
-        # # If only writing geometry information
-        # if self.sim_config.geometry_only:
-        #     tsolve = 0
+        if config.sim_config.is_messages(): log.info('')
 
     def build_geometry(self):
         G = self.G
 
-        log.info(config.model_configs[self.i].next_model)
+        log.info(config.model_configs[G.model_num].next_model)
 
         scene = self.build_scene()
 
@@ -153,7 +165,7 @@ class ModelBuildRun:
             gb.grid.initialise_std_update_coeff_arrays()
 
         # Set datatype for dispersive arrays if there are any dispersive materials.
-        if config.model_configs[self.i].materials['maxpoles'] != 0:
+        if config.model_configs[G.model_num].materials['maxpoles'] != 0:
             drudelorentz = any([m for m in G.materials if 'drude' in m.type or 'lorentz' in m.type])
             if drudelorentz:
                 config.materials['dispersivedtype'] = config.dtypes['complex']
@@ -163,11 +175,12 @@ class ModelBuildRun:
                 config.materials['dispersiveCdtype'] = config.dtypes['C_float_or_double']
 
             # Update estimated memory (RAM) usage
-            G.memoryusage += int(3 * config.materials['maxpoles'] *
-                                 (G.nx + 1) * (G.ny + 1) * (G.nz + 1) *
-                                 np.dtype(config.materials['dispersivedtype']).itemsize)
+            config.model_configs[G.model_num].memoryusage += int(3 *
+                                                                 config.materials['maxpoles'] *
+                                                                 (G.nx + 1) * (G.ny + 1) * (G.nz + 1) *
+                                                                 np.dtype(config.materials['dispersivedtype']).itemsize)
             G.memory_check()
-            log.info(f'\nMemory (RAM) required - updated (dispersive): ~{human_size(G.memoryusage)}\n')
+            log.info(f'\nMemory (RAM) required - updated (dispersive): ~{human_size(config.model_configs[G.model_num].memoryusage)}\n')
 
             for gb in gridbuilders:
                 gb.grid.initialise_dispersive_arrays(config.materials['dispersivedtype'])
@@ -190,103 +203,93 @@ class ModelBuildRun:
         # Check to see if numerical dispersion might be a problem
         results = dispersion_analysis(G)
         if results['error']:
-            log.warning(Fore.RED + f"\nNumerical dispersion analysis not carried \
-                        out as {results['error']}" + Style.RESET_ALL)
-        elif results['N'] < config.numdispersion['mingridsampling']:
-            raise GeneralError(f"Non-physical wave propagation: Material \
-                               '{results['material'].ID}' has wavelength sampled \
-                               by {results['N']} cells, less than required \
-                               minimum for physical wave propagation. Maximum \
-                               significant frequency estimated as {results['maxfreq']:g}Hz")
-        elif results['deltavp'] and np.abs(results['deltavp']) > config.numdispersion['maxnumericaldisp']:
-            log.warning(Fore.RED + f"\nPotentially significant numerical dispersion. \
-                        Estimated largest physical phase-velocity error is \
-                        {results['deltavp']:.2f}% in material '{results['material'].ID}' \
-                        whose wavelength sampled by {results['N']} cells. Maximum \
-                        significant frequency estimated as {results['maxfreq']:g}Hz" + Style.RESET_ALL)
+            log.warning(Fore.RED + f"\nNumerical dispersion analysis not carried out as {results['error']}" + Style.RESET_ALL)
+        elif results['N'] < config.model_configs[G.model_num].numdispersion['mingridsampling']:
+            raise GeneralError(f"Non-physical wave propagation: Material '{results['material'].ID}' has wavelength sampled by {results['N']} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
+        elif (results['deltavp'] and np.abs(results['deltavp']) >
+              config.model_configs[G.model_num].numdispersion['maxnumericaldisp']):
+            log.warning(Fore.RED + f"\nPotentially significant numerical dispersion. Estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz" + Style.RESET_ALL)
         elif results['deltavp']:
-            log.info(f"\nNumerical dispersion analysis: estimated largest physical \
-                     phase-velocity error is {results['deltavp']:.2f}% in material \
-                     '{results['material'].ID}' whose wavelength sampled by {results['N']} \
-                     cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
+            log.info(f"\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
 
     def reuse_geometry(self):
-        G = self.G
         # Reset iteration number
-        G.iteration = 0
-        config.model_configs[self.i].inputfilestr = f'\n--- Model {config.model_configs[self.i].appendmodelnumber}/{self.sim_config.model_end}, \
-                                         input file (not re-processed, i.e. geometry fixed): {self.sim_config.input_file_path}'
-        log.info(Fore.GREEN + f"{config.model_configs[self.i].inputfilestr} {'-' * (get_terminal_width() - 1 - len(config.model_configs[self.i].inputfilestr))}" + Style.RESET_ALL)
-        for grid in [G] + G.subgrids:
+        self.G.iteration = 0
+        config.model_configs[self.G.model_num].inputfilestr = f'\n--- Model {config.model_configs[self.G.model_num].appendmodelnumber}/{self.sim_config.model_end}, input file (not re-processed, i.e. geometry fixed): {self.sim_config.input_file_path}'
+        log.info(Fore.GREEN + f"{config.model_configs[self.G.model_num].inputfilestr} {'-' * (get_terminal_width() - 1 - len(config.model_configs[self.G.model_num].inputfilestr))}" + Style.RESET_ALL)
+        for grid in [self.G] + self.G.subgrids:
             grid.reset_fields()
 
     def build_scene(self):
-        G = self.G
         # API for multiple scenes / model runs
-        scene = config.model_configs[self.i].get_scene()
+        scene = config.model_configs[self.G.model_num].get_scene()
 
         # If there is no scene - process the hash commands instead
         if not scene:
             scene = Scene()
             # Parse the input file into user objects and add them to the scene
-            scene = parse_hash_commands(config.model_configs[self.i], G, scene)
+            scene = parse_hash_commands(config.model_configs[self.G.model_num], self.G, scene)
 
         # Creates the internal simulation objects.
-        scene.create_internal_objects(G)
+        scene.create_internal_objects(self.G)
 
         return scene
 
     def create_output_directory(self):
-        if self.G.outputdirectory:
-            # Check and set output directory and filename
-            try:
-                os.mkdir(self.G.outputdirectory)
-                log.info(f'\nCreated output directory: {self.G.outputdirectory}')
-            except FileExistsError:
-                pass
-            # Modify the output path (hack)
-            config.model_configs[self.i].output_file_path_ext = Path(self.G.outputdirectory, config.model_configs[self.i].output_file_path_ext)
+        log.debug('Fix output directory path setting')
+        # if self.G.outputdirectory:
+        #     # Check and set output directory and filename
+        #     try:
+        #         os.mkdir(self.G.outputdirectory)
+        #         log.info(f'\nCreated output directory: {self.G.outputdirectory}')
+        #     except FileExistsError:
+        #         pass
+        #     # Modify the output path (hack)
+        #     config.model_configs[G.model_num].output_file_path_ext = Path(self.G.outputdirectory, config.model_configs[G.model_num].output_file_path_ext)
 
     def write_output_data(self):
         """Write output data, i.e. field data for receivers and snapshots
             to file(s).
         """
 
-        G = self.G
-
         # Write an output file in HDF5 format
-        write_hdf5_outputfile(config.model_configs[self.i].output_file_path_ext, G)
+        write_hdf5_outputfile(config.model_configs[self.G.model_num].output_file_path_ext, self.G)
 
         # Write any snapshots to file
-        if G.snapshots:
+        if self.G.snapshots:
             # Create directory and construct filename from user-supplied name
             # and model run number
-            snapshotdir = config.model_configs[self.i].snapshot_dir
+            snapshotdir = config.model_configs[self.G.model_num].snapshot_dir
             if not os.path.exists(snapshotdir):
                 os.mkdir(snapshotdir)
 
             log.info('')
-            for i, snap in enumerate(G.snapshots):
-                fn = snapshotdir / Path(config.model_configs[self.i].output_file_path.stem + '_' + snap.basefilename)
+            for i, snap in enumerate(self.G.snapshots):
+                fn = snapshotdir / Path(config.model_configs[self.G.model_num].output_file_path.stem + '_' + snap.basefilename)
                 snap.filename = fn.with_suffix('.vti')
-                pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte', unit_scale=True, desc='Writing snapshot file {} of {}, {}'.format(i + 1, len(G.snapshots), os.path.split(snap.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
-                snap.write_vtk_imagedata(pbar, G)
+                pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte',
+                            unit_scale=True, desc=f'Writing snapshot file {i + 1} of {len(self.G.snapshots)}, {os.path.split(snap.filename)[1]}', ncols=get_terminal_width() - 1, file=sys.stdout,
+                            disable=not config.general['progressbars'])
+                snap.write_vtk_imagedata(pbar, self.G)
                 pbar.close()
             log.info('')
 
-    def print_resource_info(self):
-        """Print resource information on runtime and memory usage."""
+    def print_resource_info(self, tsolve):
+        """Print resource information on runtime and memory usage.
+
+        Args:
+            tsolve (float): time taken to execute solving (seconds).
+        """
 
         memGPU = ''
-        if config.cuda['gpus']:
+        if config.sim_config.general['cuda']:
             memGPU = f' host + ~{human_size(self.solver.get_memsolve())} GPU'
 
         log.info(f'\nMemory (RAM) used: ~{human_size(self.p.memory_full_info().uss)}{memGPU}')
         log.info(f'Solving time [HH:MM:SS]: {datetime.timedelta(seconds=tsolve)}')
 
     def solve(self, solver):
-        """
-        Solve using FDTD method.
+        """Solve using FDTD method.
 
         Args:
             solver (Solver): solver object.
@@ -295,25 +298,34 @@ class ModelBuildRun:
             tsolve (float): time taken to execute solving (seconds).
         """
 
-        G = self.G
-
-        if config.is_messages():
-            iterator = tqdm(range(G.iterations), desc='Running simulation, model ' + str(config.model_configs[self.i]
-                            .i + 1) + '/' + str(self.sim_config.model_end), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.general['progressbars'])
-        else:
-            iterator = range(0, G.iterations)
-
         self.create_output_directory()
-        log.info(f'Output file: {config.model_configs[self.i].output_file_path_ext}\n')
+        log.info(f'Output file: {config.model_configs[self.G.model_num].output_file_path_ext}')
+
+        # Set and check number of OpenMP threads
+        if config.sim_config.general['cpu']:
+            config.model_configs[self.G.model_num].ompthreads = set_omp_threads(config.model_configs[self.G.model_num].ompthreads)
+            log.info(f'CPU (OpenMP) threads for solving: {config.model_configs[self.G.model_num].ompthreads}')
+            if config.model_configs[self.G.model_num].ompthreads > config.sim_config.hostinfo['physicalcores']:
+                log.warning(Fore.RED + f"You have specified more threads ({config.model_configs[self.G.model_num].ompthreads}) than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). This may lead to degraded performance." + Style.RESET_ALL)
+
+        # Print information about any GPU in use
+        if config.sim_config.general['cuda']:
+            log.info(f"GPU for solving: {config.model_configs[self.G.model_num].cuda['gpu'].deviceID} - {config.model_configs[self.G.model_num].cuda['gpu'].name}")
+
+        # Prepare iterator
+        if config.sim_config.is_messages():
+            iterator = tqdm(range(self.G.iterations), desc='\nRunning simulation, model ' + str(self.G.model_num + 1) + '/' + str(config.sim_config.model_end), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
+        else:
+            iterator = range(0, self.G.iterations)
 
         # Run solver
-        tsolve = self.solve(solver)
+        tsolve = solver.solve(iterator)
 
         # Write output data, i.e. field data for receivers and snapshots to file(s)
-        self.write_output_data
+        self.write_output_data()
 
         # Print resource information on runtime and memory usage
-        self.print_resource_info
+        self.print_resource_info(tsolve)
 
         return tsolve
 
@@ -326,7 +338,10 @@ class GridBuilder:
         grid = self.grid
 
         # Build the PMLS
-        pbar = tqdm(total=sum(1 for value in grid.pmlthickness.values() if value > 0), desc='Building {} Grid PML boundaries'.format(self.grid.name), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
+        pbar = tqdm(total=sum(1 for value in grid.pmlthickness.values() if value > 0),
+                    desc=f'Building {self.grid.name} Grid PML boundaries',
+                    ncols=get_terminal_width() - 1, file=sys.stdout,
+                    disable=not config.sim_config.general['progressbars'])
         for pml_id, thickness in grid.pmlthickness.items():
             if thickness > 0:
                 build_pml(grid, pml_id, thickness)
@@ -337,7 +352,9 @@ class GridBuilder:
         # Build the model, i.e. set the material properties (ID) for every edge
         # of every Yee cell
         log.info('')
-        pbar = tqdm(total=2, desc='Building {} Grid'.format(self.grid.name), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
+        pbar = tqdm(total=2, desc=f'Building {self.grid.name} Grid',
+                    ncols=get_terminal_width() - 1, file=sys.stdout,
+                    disable=not config.sim_config.general['progressbars'])
         build_electric_components(self.grid.solid, self.grid.rigidE, self.grid.ID, self.grid)
         pbar.update()
         build_magnetic_components(self.grid.solid, self.grid.rigidH, self.grid.ID, self.grid)

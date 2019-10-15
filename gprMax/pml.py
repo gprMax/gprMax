@@ -207,7 +207,7 @@ class PML:
 
         self.CFS = G.cfs
 
-        if G.gpu is None:
+        if not config.sim_config.general['cuda']:
             self.initialise_field_arrays()
 
     def initialise_field_arrays(self):

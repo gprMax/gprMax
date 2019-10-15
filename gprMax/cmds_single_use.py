@@ -20,7 +20,6 @@ import decimal as d
 import inspect
 import logging
 import os
-import sys
 
 from colorama import init
 from colorama import Fore
@@ -34,7 +33,6 @@ import gprMax.config as config
 from .exceptions import CmdInputError
 from .waveforms import Waveform
 from .utilities import round_value
-from .utilities import set_openmp_threads
 
 log = logging.getLogger(__name__)
 
@@ -117,15 +115,6 @@ class Domain(UserObjectSingle):
 
         log.info(f'Mode: {G.mode}')
         log.info(f'Time step (at CFL limit): {G.dt:g} secs')
-
-        # Number of threads (OpenMP) to use
-        G.nthreads = set_openmp_threads()
-        log.info(f'Number of CPU (OpenMP) threads: {G.nthreads}')
-
-        if G.nthreads > config.sim_config.hostinfo['physicalcores']:
-            log.warning(Fore.RED + f"You have specified more threads ({G.nthreads}) \
-                        than available physical CPU cores ({config.hostinfo['physicalcores']}). \
-                        This may lead to degraded performance." + Style.RESET_ALL)
 
 
 class Discretisation(UserObjectSingle):
@@ -288,29 +277,14 @@ class NumThreads(UserObjectSingle):
             return '#n_threads:'
 
     def create(self, G, uip):
-        # Get information about host machine
-
         try:
             n = self.kwargs['n']
         except KeyError:
             raise CmdInputError(self.__str__() + ' requires exactly one parameter to specify the number of threads to use')
-
         if n < 1:
             raise CmdInputError(self.__str__() + ' requires the value to be an integer not less than one')
 
-        G.nthreads = n
-        os.environ['OMP_NUM_THREADS'] = str(G.nthreads)
-
-        log.info(f'Number of CPU (OpenMP) threads: {G.nthreads}')
-        if G.nthreads > config.hostinfo['physicalcores']:
-            log.warning(Fore.RED + f"You have specified more threads ({G.nthreads}) \
-                        than available physical CPU cores (\
-                        {config.sim_config.hostinfo['physicalcores']}). \
-                        This may lead to degraded performance." + Style.RESET_ALL)
-
-        # Print information about any GPU in use
-        if G.gpu is not None:
-            log.info(f'GPU solving using: {G.gpu.deviceID} - {G.gpu.name}')
+        config.model_configs[G.model_num].ompthreads = set_omp_threads(n)
 
 
 class TimeStepStabilityFactor(UserObjectSingle):

@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
+import logging
 
 import gprMax.config as config
 from ._version import __version__, codename
@@ -25,8 +26,11 @@ from .model_build_run import ModelBuildRun
 from .solvers import create_solver
 from .solvers import create_G
 from .utilities import get_terminal_width
+from .utilities import human_size
 from .utilities import logo
 from .utilities import timer
+
+log = logging.getLogger(__name__)
 
 
 class Context:
@@ -42,13 +46,20 @@ class Context:
     def run(self):
         """Run the simulation in the correct context."""
         self.print_logo_copyright()
+        self.print_hostinfo()
         self.tsimstart = timer()
         self._run()
         self.tsimend = timer()
+        self.print_time_report()
 
     def print_logo_copyright(self):
         """Print gprMax logo, version, and copyright/licencing information."""
         logo(__version__ + ' (' + codename + ')')
+
+    def print_hostinfo(self):
+        """Print information about the host machine."""
+        hyperthreadingstr = f", {config.sim_config.hostinfo['logicalcores']} cores with Hyper-Threading" if config.sim_config.hostinfo['hyperthreading'] else ''
+        log.info(f"\nHost: {config.sim_config.hostinfo['hostname']} | {config.sim_config.hostinfo['machineID']} | {config.sim_config.hostinfo['sockets']} x {config.sim_config.hostinfo['cpuID']} ({config.sim_config.hostinfo['physicalcores']} cores{hyperthreadingstr}) | {human_size(config.sim_config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} RAM | {config.sim_config.hostinfo['osversion']}")
 
     def print_time_report(self):
         """Print the total simulation time based on context."""
@@ -57,7 +68,8 @@ class Context:
 
     def make_time_report(self):
         """Generate a string for the total simulation time."""
-        pass
+        s = f"\n=== Simulation on {config.sim_config.hostinfo['hostname']} completed in [HH:MM:SS]: {datetime.timedelta(seconds=self.tsimend - self.tsimstart)}"
+        return f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n"
 
 
 class NoMPIContext(Context):
@@ -75,25 +87,16 @@ class NoMPIContext(Context):
             # The next model to run only gets a new solver if the
             # geometry is not re-used.
             if i != 0 and config.sim_config.args.geometry_fixed:
-                config.model_config[i].reuse_geometry = True
+                config.model_configs[i].reuse_geometry = True
             else:
-                G = create_G()
+                G = create_G(i)
 
-            model = ModelBuildRun(i, G)
+            model = ModelBuildRun(G)
             model.build()
             solver = create_solver(G)
 
             if not config.sim_config.args.geometry_only:
                 model.solve(solver)
-
-    def make_time_report(self):
-        """Function to specialise the time reporting for the standard simulation
-            context.
-        """
-
-        sim_time = datetime.timedelta(seconds=self.tsimend - self.tsimstart)
-        s = f"\n=== Simulation on {self.simconfig.hostinfo['hostname']} completed in [HH:MM:SS]: {sim_time}"
-        return f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n"
 
 
 class MPIContext(Context):
@@ -109,9 +112,6 @@ class MPIContext(Context):
     def _run(self):
         pass
 
-    def make_time_report(self):
-        pass
-
 
 class MPINoSpawnContext(Context):
 
@@ -120,9 +120,6 @@ class MPINoSpawnContext(Context):
         from mpi4py import MPI
 
     def _run(self):
-        pass
-
-    def make_time_report(self):
         pass
 
 

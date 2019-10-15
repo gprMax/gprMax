@@ -140,4 +140,3 @@ def run_main(args):
     write_simulation_config(args)
     context = create_context()
     context.run()
-    context.print_time_report()

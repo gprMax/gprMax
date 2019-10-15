@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 from pathlib import Path
 
 from colorama import init
@@ -31,6 +32,9 @@ from scipy.constants import mu_0 as m0
 from .utilities import get_host_info
 from .utilities import get_terminal_width
 
+log = logging.getLogger(__name__)
+
+
 # Single instance of SimConfig to hold simulation configuration parameters.
 sim_config = None
 
@@ -42,13 +46,22 @@ class ModelConfig:
         N.B. Multiple models can exist within a simulation
     """
 
-    def __init__(self, i):
+    def __init__(self, model_num):
         """
         Args:
-            i (int): Current model number.
+            model_num (int): Model number.
         """
 
-        self.i = i # Indexed from 0
+        self.i = model_num # Indexed from 0
+        self.ompthreads = None # Number of OpenMP threads
+
+        # Store information for CUDA solver type
+        #   gpu: GPU object
+        #   snapsgpu2cpu: copy snapshot data from GPU to CPU during simulation
+        #     N.B. This will happen if the requested snapshots are too large to fit
+        #     on the memory of the GPU. If True this will slow performance significantly
+        self.cuda = {'gpu': None, 'snapsgpu2cpu': False}
+        self.memoryusage = 0 # Total memory usage for all grids in the model
         self.reuse_geometry = False
 
         if not sim_config.single_model:
@@ -65,9 +78,8 @@ class ModelConfig:
         self.snapshot_dir = '_snaps'
 
         # String to print at start of each model run
-        inputfilestr_f = '\n--- Model {}/{}, input file: {}'
-        self.inputfilestr = inputfilestr_f.format(self.i + 1, sim_config.model_end, sim_config.input_file_path)
-        self.next_model = Fore.GREEN + '{} {}\n'.format(self.inputfilestr, '-' * (get_terminal_width() - 1 - len(self.inputfilestr))) + Style.RESET_ALL
+        inputfilestr = f'\n--- Model {self.i + 1}/{sim_config.model_end}, input file: {sim_config.input_file_path}'
+        self.next_model = Fore.GREEN + f"{inputfilestr} {'-' * (get_terminal_width() - 1 - len(inputfilestr))}\n" + Style.RESET_ALL
 
         # Numerical dispersion analysis parameters
         #   highestfreqthres: threshold (dB) down from maximum power (0dB) of main frequency used
@@ -85,6 +97,13 @@ class ModelConfig:
         self.materials = {'maxpoles': 0,
                           'dispersivedtype': None,
                           'dispersiveCdtype': None}
+
+    def memory_check(self):
+        """Check if the required amount of memory (RAM) is available to build
+            and/or run model on the host.
+        """
+        if self.memoryusage > config.sim_config.hostinfo['ram']:
+            raise GeneralError(f"Memory (RAM) required ~{human_size(self.memoryusage)} exceeds {human_size(config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} detected!\n")
 
     def get_scene(self):
         if sim_config.scenes:
@@ -113,6 +132,7 @@ class SimulationConfig:
         """
 
         self.args = args
+        log.debug('Fix parsing args')
 
         # General settings for the simulation
         #   inputfilepath: path to inputfile location
@@ -143,12 +163,8 @@ class SimulationConfig:
         # Store information about host machine
         self.hostinfo = get_host_info()
 
-        # Store information for CUDA solver type
-        #   gpus: information about any GPUs as a list of GPU objects
-        #   snapsgpu2cpu: copy snapshot data from GPU to CPU during simulation
-        #     N.B. This will happen if the requested snapshots are too large to fit
-        #     on the memory of the GPU. If True this will slow performance significantly
-        self.cuda = {'gpus': None, 'snapsgpu2cpu': False}
+        # Information about any GPUs as a list of GPU objects
+        self.cuda_gpus = []
 
         # Data type (precision) for electromagnetic field output
         self.dtypes = None

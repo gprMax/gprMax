@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+from pathlib import Path
 import sys
 
 import h5py
@@ -114,8 +115,9 @@ class GeometryView:
             appendmodelnumber (str): Text to append to filename.
         """
 
-        self.filename = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(config.general['inputfilepath'])), self.basefilename + appendmodelnumber))
-        self.filename += self.fileext
+        parts = config.sim_config.input_file_path.parts
+        self.filename = Path(*parts[:-1], parts[-1] + appendmodelnumber)
+        self.filename = self.filename.with_suffix(self.fileext)
 
     def write_vtk(self, G, pbar):
         """

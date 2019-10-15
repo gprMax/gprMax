@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 from .cmds_geometry.cmds_geometry import UserObjectGeometry
 from .cmds_geometry.fractal_box_builder import FractalBoxBuilder
 from .cmds_multiple import UserObjectMulti
@@ -28,6 +30,8 @@ from .materials import create_built_in_materials
 from .subgrids.user_objects import SubGridBase as SubGridUserBase
 from .user_inputs import create_user_input_points
 from .utilities import human_size
+
+log = logging.getLogger(__name__)
 
 
 class Scene:
@@ -90,12 +94,11 @@ class Scene:
             try:
                 obj.create(grid, uip)
             except CmdInputError:
-                logger.exception('Error creating user input object')
+                log.exception('Error creating user input object')
 
         return self
 
     def process_singlecmds(self, G):
-
         # Check for duplicate commands and warn user if they exist
         cmds_unique = list(set(self.single_cmds))
         if len(cmds_unique) != len(self.single_cmds):
@@ -131,7 +134,8 @@ class Scene:
         self.process_cmds(self.multiple_cmds, G)
 
         # Estimate and check memory (RAM) usage
-        G.memory_check()
+        log.debug('Fix memory checks')
+        # G.memory_check()
         #snapshot_memory_check(G)
 
         # Initialise an array for volumetric material IDs (solid), boolean

@@ -41,13 +41,15 @@ class FDTDGrid:
         accessing regularly used parameters.
     """
 
-    def __init__(self):
+    def __init__(self, model_num):
+        """
+        Args:
+            model_num (int): Model number.
+        """
+
         self.title = ''
-        self.memoryusage = 0
         self.name = 'Main'
-        self.mode = '' # 2D TMx, 2D TMy, 2D TMz, or 3D
-        self.gpu = None
-        self.outputdirectory = ''
+        self.model_num = model_num
 
         self.nx = 0
         self.ny = 0
@@ -206,14 +208,6 @@ class FDTDGrid:
 
         self.memoryusage = int(stdoverhead + fieldarrays + solidarray + rigidarrays + pmlarrays)
 
-    def memory_check(self):
-        """Check if the required amount of memory (RAM) is available to build
-            and/or run model on the host.
-        """
-        if self.memoryusage > config.sim_config.hostinfo['ram']:
-            raise GeneralError(f"Memory (RAM) required ~{human_size(self.memoryusage)} \
-                               exceeds {human_size(config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} detected!\n")
-
     def tmx(self):
         """Add PEC boundaries to invariant direction in 2D TMx mode.
             N.B. 2D modes are a single cell slice of 3D grid.
@@ -370,7 +364,7 @@ def dispersion_analysis(G):
 
                     # Set maximum frequency to a threshold drop from maximum power, ignoring DC value
                     try:
-                        freqthres = np.where(power[freqmaxpower:] < -config.numdispersion['highestfreqthres'])[0][0] + freqmaxpower
+                        freqthres = np.where(power[freqmaxpower:] < -config.model_configs[G.model_num].numdispersion['highestfreqthres'])[0][0] + freqmaxpower
                         results['maxfreq'].append(freqs[freqthres])
                     except ValueError:
                         results['error'] = 'unable to calculate maximum power from waveform, most likely due to undersampling.'
@@ -411,9 +405,9 @@ def dispersion_analysis(G):
         minwavelength = minvelocity / results['maxfreq']
 
         # Maximum spatial step
-        if '3D' in config.general['mode']:
+        if '3D' in config.sim_config.general['mode']:
             delta = max(G.dx, G.dy, G.dz)
-        elif '2D' in config.general['mode']:
+        elif '2D' in config.sim_config.general['mode']:
             if G.nx == 1:
                 delta = max(G.dy, G.dz)
             elif G.ny == 1:
@@ -428,7 +422,7 @@ def dispersion_analysis(G):
         results['N'] = minwavelength / delta
 
         # Check grid sampling will result in physical wave propagation
-        if int(np.floor(results['N'])) >= config.numdispersion['mingridsampling']:
+        if int(np.floor(results['N'])) >= config.model_configs[G.model_num].numdispersion['mingridsampling']:
             # Numerical phase velocity
             vp = np.pi / (results['N'] * np.arcsin((1 / S) * np.sin((np.pi * S) / results['N'])))
 

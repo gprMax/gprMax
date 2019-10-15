@@ -340,7 +340,7 @@ def get_host_info():
     return hostinfo
 
 
-def set_openmp_threads():
+def set_omp_threads(nthreads=None):
     """Sets the number of OpenMP CPU threads for parallelised parts of code.
 
     Returns:
@@ -367,7 +367,9 @@ def set_openmp_threads():
         del os.environ['OMP_PLACES']
         del os.environ['OMP_PROC_BIND']
 
-    if os.environ.get('OMP_NUM_THREADS'):
+    if nthreads:
+        os.environ['OMP_NUM_THREADS'] = str(nthreads)
+    elif os.environ.get('OMP_NUM_THREADS'):
         nthreads = int(os.environ.get('OMP_NUM_THREADS'))
     else:
         # Set number of threads to number of physical CPU cores
