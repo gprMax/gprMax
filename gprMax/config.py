@@ -53,6 +53,7 @@ class ModelConfig:
         """
 
         self.i = model_num # Indexed from 0
+        self.grids = []
         self.ompthreads = None # Number of OpenMP threads
 
         # Store information for CUDA solver type
@@ -61,7 +62,10 @@ class ModelConfig:
         #     N.B. This will happen if the requested snapshots are too large to fit
         #     on the memory of the GPU. If True this will slow performance significantly
         self.cuda = {'gpu': None, 'snapsgpu2cpu': False}
-        self.memoryusage = 0 # Total memory usage for all grids in the model
+
+        # Total memory usage for all grids in the model. Starts with 50MB overhead.
+        self.mem_use = 50e6
+
         self.reuse_geometry = False
 
         if not sim_config.single_model:
@@ -79,7 +83,7 @@ class ModelConfig:
 
         # String to print at start of each model run
         inputfilestr = f'\n--- Model {self.i + 1}/{sim_config.model_end}, input file: {sim_config.input_file_path}'
-        self.next_model = Fore.GREEN + f"{inputfilestr} {'-' * (get_terminal_width() - 1 - len(inputfilestr))}\n" + Style.RESET_ALL
+        self.set_inputfilestr(inputfilestr)
 
         # Numerical dispersion analysis parameters
         #   highestfreqthres: threshold (dB) down from maximum power (0dB) of main frequency used
@@ -98,13 +102,6 @@ class ModelConfig:
                           'dispersivedtype': None,
                           'dispersiveCdtype': None}
 
-    def memory_check(self):
-        """Check if the required amount of memory (RAM) is available to build
-            and/or run model on the host.
-        """
-        if self.memoryusage > config.sim_config.hostinfo['ram']:
-            raise GeneralError(f"Memory (RAM) required ~{human_size(self.memoryusage)} exceeds {human_size(config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} detected!\n")
-
     def get_scene(self):
         if sim_config.scenes:
             return sim_config.scenes[self.i]
@@ -118,6 +115,14 @@ class ModelConfig:
                 'number_model_runs': sim_config.model_end + 1,
                 'current_model_run': self.i + 1,
                 'inputfile': sim_config.input_file_path.resolve()}
+
+    def set_inputfilestr(self, inputfilestr):
+        """Set string describing model.
+
+        Args:
+            inputfilestr (str): Description of model.
+        """
+        self.inputfilestr = Fore.GREEN + f"{inputfilestr} {'-' * (get_terminal_width() - 1 - len(inputfilestr))}\n" + Style.RESET_ALL
 
 
 class SimulationConfig:
@@ -165,9 +170,6 @@ class SimulationConfig:
 
         # Information about any GPUs as a list of GPU objects
         self.cuda_gpus = []
-
-        # Data type (precision) for electromagnetic field output
-        self.dtypes = None
 
         # Subgrid parameter may not exist if user enters via CLI
         try:

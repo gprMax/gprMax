@@ -69,6 +69,7 @@ from .solvers import create_solver
 from .sources import gpu_initialise_src_arrays
 from .utilities import get_terminal_width
 from .utilities import human_size
+from .utilities import mem_check
 from .utilities import open_path_file
 from .utilities import round32
 from .utilities import set_omp_threads
@@ -100,34 +101,33 @@ class ModelBuildRun:
         if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
             for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
                 if config.model_configs[G.model_num] == 0:
-                    if (source.xcoord + G.srcsteps[0] * self.sim_config.model_end < 0 or
-                        source.xcoord + G.srcsteps[0] * self.sim_config.model_end > G.nx or
-                        source.ycoord + G.srcsteps[1] * self.sim_config.model_end < 0 or
-                        source.ycoord + G.srcsteps[1] * self.sim_config.model_end > G.ny or
-                        source.zcoord + G.srcsteps[2] * self.sim_config.model_end < 0 or
-                        source.zcoord + G.srcsteps[2] * self.sim_config.model_end > G.nz):
+                    if (source.xcoord + G.srcsteps[0] * config.sim_config.model_end < 0 or
+                        source.xcoord + G.srcsteps[0] * config.sim_config.model_end > G.nx or
+                        source.ycoord + G.srcsteps[1] * config.sim_config.model_end < 0 or
+                        source.ycoord + G.srcsteps[1] * config.sim_config.model_end > G.ny or
+                        source.zcoord + G.srcsteps[2] * config.sim_config.model_end < 0 or
+                        source.zcoord + G.srcsteps[2] * config.sim_config.model_end > G.nz):
                         raise GeneralError('Source(s) will be stepped to a position outside the domain.')
-                source.xcoord = source.xcoordorigin + config.model_configs[G.model_num] * G.srcsteps[0]
-                source.ycoord = source.ycoordorigin + config.model_configs[G.model_num] * G.srcsteps[1]
-                source.zcoord = source.zcoordorigin + config.model_configs[G.model_num] * G.srcsteps[2]
+                source.xcoord = source.xcoordorigin + G.model_num * G.srcsteps[0]
+                source.ycoord = source.ycoordorigin + G.model_num * G.srcsteps[1]
+                source.zcoord = source.zcoordorigin + G.model_num * G.srcsteps[2]
         if G.rxsteps[0] != 0 or G.rxsteps[1] != 0 or G.rxsteps[2] != 0:
             for receiver in G.rxs:
                 if config.model_configs[G.model_num] == 0:
-                    if (receiver.xcoord + G.rxsteps[0] * self.sim_config.model_end < 0 or
-                        receiver.xcoord + G.rxsteps[0] * self.sim_config.model_end > G.nx or
-                        receiver.ycoord + G.rxsteps[1] * self.sim_config.model_end < 0 or
-                        receiver.ycoord + G.rxsteps[1] * self.sim_config.model_end > G.ny or
-                        receiver.zcoord + G.rxsteps[2] * self.sim_config.model_end < 0 or
-                        receiver.zcoord + G.rxsteps[2] * self.sim_config.model_end > G.nz):
+                    if (receiver.xcoord + G.rxsteps[0] * config.sim_config.model_end < 0 or
+                        receiver.xcoord + G.rxsteps[0] * config.sim_config.model_end > G.nx or
+                        receiver.ycoord + G.rxsteps[1] * config.sim_config.model_end < 0 or
+                        receiver.ycoord + G.rxsteps[1] * config.sim_config.model_end > G.ny or
+                        receiver.zcoord + G.rxsteps[2] * config.sim_config.model_end < 0 or
+                        receiver.zcoord + G.rxsteps[2] * config.sim_config.model_end > G.nz):
                         raise GeneralError('Receiver(s) will be stepped to a position outside the domain.')
-                receiver.xcoord = receiver.xcoordorigin + config.model_configs[G.model_num] * G.rxsteps[0]
-                receiver.ycoord = receiver.ycoordorigin + config.model_configs[G.model_num] * G.rxsteps[1]
-                receiver.zcoord = receiver.zcoordorigin + config.model_configs[G.model_num] * G.rxsteps[2]
+                receiver.xcoord = receiver.xcoordorigin + G.model_num * G.rxsteps[0]
+                receiver.ycoord = receiver.ycoordorigin + G.model_num * G.rxsteps[1]
+                receiver.zcoord = receiver.zcoordorigin + G.model_num * G.rxsteps[2]
 
         # Write files for any geometry views and geometry object outputs
-        if not (G.geometryviews or G.geometryobjectswrite) and self.sim_config.geometry_only and config.is_messages():
-            log.warning(Fore.RED + f'\nNo geometry views or geometry objects to output found.' + Style.RESET_ALL)
-        if config.sim_config.is_messages(): log.info('')
+        if not (G.geometryviews or G.geometryobjectswrite) and config.sim_config.args.geometry_only:
+            log.warning(Fore.RED + f'\nNo geometry views or geometry objects found.' + Style.RESET_ALL)
         for i, geometryview in enumerate(G.geometryviews):
             geometryview.set_filename(config.model_configs[G.model_num].appendmodelnumber)
             pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True,
@@ -143,17 +143,21 @@ class ModelBuildRun:
                         disable=not config.sim_config.general['progressbars'])
             geometryobject.write_hdf5(G, pbar)
             pbar.close()
-        if config.sim_config.is_messages(): log.info('')
 
     def build_geometry(self):
         G = self.G
 
-        log.info(config.model_configs[G.model_num].next_model)
+        log.info(config.model_configs[G.model_num].inputfilestr)
 
         scene = self.build_scene()
 
-        # Combine available grids
+        # Combine available grids and check memory requirements
         grids = [G] + G.subgrids
+        for grid in grids:
+            config.model_configs[G.model_num].mem_use += grid.mem_est_basic()
+        mem_check(config.model_configs[G.model_num].mem_use)
+        log.info(f'\nMemory (RAM) required: ~{human_size(config.model_configs[G.model_num].mem_use)}')
+
         gridbuilders = [GridBuilder(grid) for grid in grids]
 
         for gb in gridbuilders:
@@ -168,33 +172,32 @@ class ModelBuildRun:
         if config.model_configs[G.model_num].materials['maxpoles'] != 0:
             drudelorentz = any([m for m in G.materials if 'drude' in m.type or 'lorentz' in m.type])
             if drudelorentz:
-                config.materials['dispersivedtype'] = config.dtypes['complex']
-                config.materials['dispersiveCdtype'] = config.dtypes['C_complex']
+                config.model_configs[G.model_num].materials['dispersivedtype'] = config.sim_config.dtypes['complex']
+                config.model_configs[G.model_num].materials['dispersiveCdtype'] = config.sim_config.dtypes['C_complex']
             else:
-                config.materials['dispersivedtype'] = config.dtypes['float_or_double']
-                config.materials['dispersiveCdtype'] = config.dtypes['C_float_or_double']
+                config.model_configs[G.model_num].materials['dispersivedtype'] = config.sim_config.dtypes['float_or_double']
+                config.model_configs[G.model_num].materials['dispersiveCdtype'] = config.sim_config.dtypes['C_float_or_double']
 
             # Update estimated memory (RAM) usage
-            config.model_configs[G.model_num].memoryusage += int(3 *
-                                                                 config.materials['maxpoles'] *
-                                                                 (G.nx + 1) * (G.ny + 1) * (G.nz + 1) *
-                                                                 np.dtype(config.materials['dispersivedtype']).itemsize)
-            G.memory_check()
-            log.info(f'\nMemory (RAM) required - updated (dispersive): ~{human_size(config.model_configs[G.model_num].memoryusage)}\n')
+            config.model_configs[G.model_num].mem_use += G.mem_est_dispersive()
+            mem_check(config.model_configs[G.model_num].mem_use)
+            log.info(f'Memory (RAM) required - updated (dispersive): ~{human_size(config.model_configs[G.model_num].mem_use)}')
 
             for gb in gridbuilders:
-                gb.grid.initialise_dispersive_arrays(config.materials['dispersivedtype'])
+                gb.grid.initialise_dispersive_arrays(config.model_configs[G.model_num].materials['dispersivedtype'])
 
         # Check there is sufficient memory to store any snapshots
         if G.snapshots:
-            snapsmemsize = 0
+            snaps_mem = 0
             for snap in G.snapshots:
                 # 2 x required to account for electric and magnetic fields
-                snapsmemsize += (2 * snap.datasizefield)
-            G.memoryusage += int(snapsmemsize)
-            G.memory_check(snapsmemsize=int(snapsmemsize))
-
-            log.info(f'\nMemory (RAM) required - updated (snapshots): ~{human_size(G.memoryusage)}\n')
+                snaps_mem += int(2 * snap.datasizefield)
+            config.model_configs[G.model_num].mem_use += snaps_mem
+            # Check if there is sufficient memory on host
+            mem_check(config.model_configs[G.model_num].mem_use)
+            if config.sim_config.general['cuda']:
+                mem_check_gpu_snaps(G.model_num, snaps_mem)
+            log.info(f'Memory (RAM) required - updated (snapshots): ~{human_size(config.model_configs[G.model_num].mem_use)}')
 
         # Build materials
         for gb in gridbuilders:
@@ -215,8 +218,8 @@ class ModelBuildRun:
     def reuse_geometry(self):
         # Reset iteration number
         self.G.iteration = 0
-        config.model_configs[self.G.model_num].inputfilestr = f'\n--- Model {config.model_configs[self.G.model_num].appendmodelnumber}/{self.sim_config.model_end}, input file (not re-processed, i.e. geometry fixed): {self.sim_config.input_file_path}'
-        log.info(Fore.GREEN + f"{config.model_configs[self.G.model_num].inputfilestr} {'-' * (get_terminal_width() - 1 - len(config.model_configs[self.G.model_num].inputfilestr))}" + Style.RESET_ALL)
+        config.model_configs[self.G.model_num].set_inputfilestr(f'\n--- Model {config.model_configs[self.G.model_num].appendmodelnumber}/{config.sim_config.model_end}, input file (not re-processed, i.e. geometry fixed): {config.sim_config.input_file_path}')
+        log.info(config.model_configs[self.G.model_num].inputfilestr)
         for grid in [self.G] + self.G.subgrids:
             grid.reset_fields()
 
@@ -224,13 +227,13 @@ class ModelBuildRun:
         # API for multiple scenes / model runs
         scene = config.model_configs[self.G.model_num].get_scene()
 
-        # If there is no scene - process the hash commands instead
+        # If there is no scene, process the hash commands
         if not scene:
             scene = Scene()
             # Parse the input file into user objects and add them to the scene
             scene = parse_hash_commands(config.model_configs[self.G.model_num], self.G, scene)
 
-        # Creates the internal simulation objects.
+        # Creates the internal simulation objects
         scene.create_internal_objects(self.G)
 
         return scene
@@ -281,11 +284,11 @@ class ModelBuildRun:
             tsolve (float): time taken to execute solving (seconds).
         """
 
-        memGPU = ''
+        mem_GPU = ''
         if config.sim_config.general['cuda']:
-            memGPU = f' host + ~{human_size(self.solver.get_memsolve())} GPU'
+            mem_GPU = f' host + ~{human_size(self.solver.get_memsolve())} GPU'
 
-        log.info(f'\nMemory (RAM) used: ~{human_size(self.p.memory_full_info().uss)}{memGPU}')
+        log.info(f'\nMemory (RAM) used: ~{human_size(self.p.memory_full_info().uss)}{mem_GPU}')
         log.info(f'Solving time [HH:MM:SS]: {datetime.timedelta(seconds=tsolve)}')
 
     def solve(self, solver):
@@ -299,24 +302,23 @@ class ModelBuildRun:
         """
 
         self.create_output_directory()
-        log.info(f'Output file: {config.model_configs[self.G.model_num].output_file_path_ext}')
+        log.info(f'\nOutput file: {config.model_configs[self.G.model_num].output_file_path_ext}')
 
         # Set and check number of OpenMP threads
         if config.sim_config.general['cpu']:
             config.model_configs[self.G.model_num].ompthreads = set_omp_threads(config.model_configs[self.G.model_num].ompthreads)
-            log.info(f'CPU (OpenMP) threads for solving: {config.model_configs[self.G.model_num].ompthreads}')
+            log.info(f'CPU (OpenMP) threads for solving: {config.model_configs[self.G.model_num].ompthreads}\n')
             if config.model_configs[self.G.model_num].ompthreads > config.sim_config.hostinfo['physicalcores']:
                 log.warning(Fore.RED + f"You have specified more threads ({config.model_configs[self.G.model_num].ompthreads}) than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). This may lead to degraded performance." + Style.RESET_ALL)
-
         # Print information about any GPU in use
-        if config.sim_config.general['cuda']:
-            log.info(f"GPU for solving: {config.model_configs[self.G.model_num].cuda['gpu'].deviceID} - {config.model_configs[self.G.model_num].cuda['gpu'].name}")
+        elif config.sim_config.general['cuda']:
+            log.info(f"GPU for solving: {config.model_configs[self.G.model_num].cuda['gpu'].deviceID} - {config.model_configs[self.G.model_num].cuda['gpu'].name}\n")
 
         # Prepare iterator
         if config.sim_config.is_messages():
-            iterator = tqdm(range(self.G.iterations), desc='\nRunning simulation, model ' + str(self.G.model_num + 1) + '/' + str(config.sim_config.model_end), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
+            iterator = tqdm(range(self.G.iterations), desc='Running simulation, model ' + str(self.G.model_num + 1) + '/' + str(config.sim_config.model_end), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
         else:
-            iterator = range(0, self.G.iterations)
+            iterator = range(self.G.iterations)
 
         # Run solver
         tsolve = solver.solve(iterator)
@@ -335,16 +337,14 @@ class GridBuilder:
         self.grid = grid
 
     def build_pmls(self):
-        grid = self.grid
-
-        # Build the PMLS
-        pbar = tqdm(total=sum(1 for value in grid.pmlthickness.values() if value > 0),
+        log.info('')
+        pbar = tqdm(total=sum(1 for value in self.grid.pmlthickness.values() if value > 0),
                     desc=f'Building {self.grid.name} Grid PML boundaries',
                     ncols=get_terminal_width() - 1, file=sys.stdout,
                     disable=not config.sim_config.general['progressbars'])
-        for pml_id, thickness in grid.pmlthickness.items():
+        for pml_id, thickness in self.grid.pmlthickness.items():
             if thickness > 0:
-                build_pml(grid, pml_id, thickness)
+                build_pml(self.grid, pml_id, thickness)
                 pbar.update()
         pbar.close()
 

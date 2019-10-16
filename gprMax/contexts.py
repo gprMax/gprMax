@@ -82,12 +82,13 @@ class NoMPIContext(Context):
 
         for i in self.model_range:
             write_model_config(i)
-
             # Always create a solver for the first model.
             # The next model to run only gets a new solver if the
             # geometry is not re-used.
             if i != 0 and config.sim_config.args.geometry_fixed:
                 config.model_configs[i].reuse_geometry = True
+                # Ensure re-used G is associated correctly with model
+                G.model_num = i
             else:
                 G = create_G(i)
 

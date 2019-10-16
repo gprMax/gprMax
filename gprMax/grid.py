@@ -171,12 +171,14 @@ class FDTDGrid:
         self.Tx = np.zeros((config.materials['maxpoles'], self.nx + 1, self.ny + 1, self.nz + 1), dtype=dtype)
         self.Ty = np.zeros((config.materials['maxpoles'], self.nx + 1, self.ny + 1, self.nz + 1), dtype=dtype)
         self.Tz = np.zeros((config.materials['maxpoles'], self.nx + 1, self.ny + 1, self.nz + 1), dtype=dtype)
-        self.updatecoeffsdispersive = np.zeros((len(self.materials), 3 * config.materials['maxpoles']), dtype=dtype)
+        self.updatecoeffsdispersive = np.zeros((len(self.materials), 3 * config.model_configs[self.model_num].materials['maxpoles']), dtype=dtype)
 
-    def memory_estimate_basic(self):
-        """Estimate the amount of memory (RAM) required to run a model."""
+    def mem_est_basic(self):
+        """Estimate the amount of memory (RAM) required for grid arrays.
 
-        stdoverhead = 50e6
+        Returns:
+            mem_use (int): Memory (bytes).
+        """
 
         solidarray = self.nx * self.ny * self.nz * np.dtype(np.uint32).itemsize
 
@@ -206,7 +208,21 @@ class FDTDGrid:
                     pmlarrays += ((self.nx + 1) * self.ny * v)
                     pmlarrays += (self.nx * (self.ny + 1) * v)
 
-        self.memoryusage = int(stdoverhead + fieldarrays + solidarray + rigidarrays + pmlarrays)
+        mem_use = int(fieldarrays + solidarray + rigidarrays + pmlarrays)
+
+        return mem_use
+
+    def mem_est_dispersive(self):
+        """Estimate the amount of memory (RAM) required for dispersive grid arrays.
+
+        Returns:
+            mem_use (int): Memory (bytes).
+        """
+
+        mem_use = int(3 * config.model_configs[self.model_num].materials['maxpoles'] *
+                       (G.nx + 1) * (G.ny + 1) * (G.nz + 1) *
+                       np.dtype(config.model_configs[self.model_num].materials['dispersivedtype']).itemsize)
+        return mem_use
 
     def tmx(self):
         """Add PEC boundaries to invariant direction in 2D TMx mode.

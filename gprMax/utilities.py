@@ -379,6 +379,34 @@ def set_omp_threads(nthreads=None):
     return nthreads
 
 
+def mem_check(mem):
+    """Check if the required amount of memory (RAM) is available on host.
+
+    Args:
+        mem (int): Memory required (bytes).
+    """
+    if mem > config.sim_config.hostinfo['ram']:
+        raise GeneralError(f"Memory (RAM) required ~{human_size(mem)} exceeds {human_size(config.sim_config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} detected!\n")
+
+
+def mem_check_gpu_snaps(model_num, snaps_mem):
+    """Check if the required amount of memory (RAM) for all snapshots can fit
+        on specified GPU.
+
+    Args:
+        model_num (int): Model number.
+        snaps_mem (int): Memory required for all snapshots (bytes).
+    """
+    if config.model_configs[G.model_num].mem_use - snaps_mem > gpu.totalmem:
+        raise GeneralError(f'Memory (RAM) required ~{human_size(config.model_configs[G.model_num].mem_use)} exceeds {human_size(config.model_configs[G.model_num].gpu.totalmem, a_kilobyte_is_1024_bytes=True)} detected on specified {config.model_configs[G.model_num].gpu.deviceID} - {config.model_configs[G.model_num].gpu.name} GPU!\n')
+
+    # If the required memory without the snapshots will fit on the GPU then
+    # transfer and store snaphots on host
+    if (snaps_mem != 0 and config.model_configs[G.model_num].mem_use -
+        snaps_mem < config.model_configs[G.model_num].gpu.totalmem):
+        config.model_configs[G.model_num].cuda['snapsgpu2cpu'] = True
+
+
 class GPU:
     """GPU information."""
 

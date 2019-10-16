@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import decimal as d
 import inspect
 import logging
 import os
@@ -206,7 +205,8 @@ class TimeWindow(UserObjectSingle):
 
 
 class Messages(UserObjectSingle):
-    """Allows you to control the amount of information displayed on screen when gprMax is run
+    """Allows you to control the amount of information displayed on screen
+        when gprMax is run
 
     :param yn: Whether information should be displayed.
     :type yn: bool, optional
@@ -260,7 +260,7 @@ class Title(UserObjectSingle):
 
 class NumThreads(UserObjectSingle):
     """Allows you to control how many OpenMP threads (usually the number of
-    physical CPU cores available) are used when running the model.
+        physical CPU cores available) are used when running the model.
 
     :param n: Number of threads.
     :type n: int, optional
@@ -369,7 +369,8 @@ class PMLCells(UserObjectSingle):
 
 
 class SrcSteps(UserObjectSingle):
-    """Provides a simple method to allow you to move the location of all simple sources
+    """Provides a simple method to allow you to move the location of all simple
+        sources.
 
     :param p1: increments (x,y,z) to move all simple sources
     :type p1: list, non-optional
@@ -391,7 +392,8 @@ class SrcSteps(UserObjectSingle):
 
 
 class RxSteps(UserObjectSingle):
-    """Provides a simple method to allow you to move the location of all simple receivers
+    """Provides a simple method to allow you to move the location of all simple
+        receivers.
 
     :param p1: increments (x,y,z) to move all simple receivers
     :type p1: list, non-optional
@@ -414,7 +416,8 @@ class RxSteps(UserObjectSingle):
 
 class ExcitationFile(UserObjectSingle):
     """Allows you to specify an ASCII file that contains columns of amplitude
-    values that specify custom waveform shapes that can be used with sources in the model.
+        values that specify custom waveform shapes that can be used with sources
+        in the model.
 
     :param filepath: Excitation file path.
     :type filepath: str, non-optional
@@ -477,14 +480,15 @@ class ExcitationFile(UserObjectSingle):
                     singlewaveformvalues = singlewaveformvalues[:len(waveformtime)]
                 # Zero-pad end of waveform array if it is shorter than time array
                 elif len(singlewaveformvalues) < len(waveformtime):
-                    singlewaveformvalues = np.lib.pad(singlewaveformvalues, (0, len(singlewaveformvalues) - len(waveformvalues)), 'constant', constant_values=0)
+                    singlewaveformvalues = np.lib.pad(singlewaveformvalues,
+                                                      (0, len(singlewaveformvalues) -
+                                                      len(waveformvalues)),
+                                                      'constant', constant_values=0)
 
                 # Interpolate waveform values
                 w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues, **kwargs)
 
-                log.info(f"User waveform {w.ID} created using {timestr} and, if \
-                         required, interpolation parameters (kind: {kwargs['kind']}, \
-                         fill value: {kwargs['fill_value']}).")
+                log.info(f"User waveform {w.ID} created using {timestr} and, if required, interpolation parameters (kind: {kwargs['kind']}, fill value: {kwargs['fill_value']}).")
 
                 G.waveforms.append(w)
 
@@ -505,7 +509,7 @@ class OutputDir(UserObjectSingle):
 
 class NumberOfModelRuns(UserObjectSingle):
     """Number of times to run the simulation. This required when using multiple
-    class:Scene instances.
+        class:Scene instances.
 
     :param n: File path to directory.
     :type n: str, non-optional
