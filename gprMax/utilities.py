@@ -447,6 +447,7 @@ def detect_check_gpus(deviceIDs):
 
     Returns:
         gpus (list): Detected GPU(s) object(s).
+        gpus_str (list): Printable strings of information on GPU(s).
     """
 
     try:
@@ -475,15 +476,15 @@ def detect_check_gpus(deviceIDs):
 
     # Gather information about selected/detected GPUs
     gpus = []
-    allgpustext = []
+    gpus_str = []
     for ID in deviceIDsavail:
         gpu = GPU(deviceID=ID)
         gpu.get_gpu_info(drv)
         if ID in deviceIDs:
             gpus.append(gpu)
-        allgpustext.append(f'{gpu.deviceID} - {gpu.name}, {human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)}')
+        gpus_str.append(f'{gpu.deviceID} - {gpu.name}, {human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)}')
 
-    return gpus, allgpustext
+    return gpus, gpus_str
 
 
 def timer():

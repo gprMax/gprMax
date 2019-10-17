@@ -421,9 +421,9 @@ def dispersion_analysis(G):
         minwavelength = minvelocity / results['maxfreq']
 
         # Maximum spatial step
-        if '3D' in config.sim_config.general['mode']:
+        if '3D' in config.model_configs[G.model_num].mode:
             delta = max(G.dx, G.dy, G.dz)
-        elif '2D' in config.sim_config.general['mode']:
+        elif '2D' in config.model_configs[G.model_num].mode:
             if G.nx == 1:
                 delta = max(G.dy, G.dz)
             elif G.ny == 1:

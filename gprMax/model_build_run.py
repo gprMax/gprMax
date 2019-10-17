@@ -362,11 +362,11 @@ class GridBuilder:
         pbar.close()
 
     def tm_grid_update(self):
-        if '2D TMx' == config.sim_config.general['mode']:
+        if '2D TMx' == config.model_configs[self.grid.model_num].mode:
             self.grid.tmx()
-        elif '2D TMy' == config.sim_config.general['mode']:
+        elif '2D TMy' == config.model_configs[self.grid.model_num].mode:
             self.grid.tmy()
-        elif '2D TMz' == config.sim_config.general['mode']:
+        elif '2D TMz' == config.model_configs[self.grid.model_num].mode:
             self.grid.tmz()
 
     def update_voltage_source_materials(self):

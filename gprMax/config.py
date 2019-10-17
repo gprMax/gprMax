@@ -29,6 +29,7 @@ from scipy.constants import c
 from scipy.constants import epsilon_0 as e0
 from scipy.constants import mu_0 as m0
 
+from .utilities import detect_check_gpus
 from .utilities import get_host_info
 from .utilities import get_terminal_width
 
@@ -53,15 +54,17 @@ class ModelConfig:
         """
 
         self.i = model_num # Indexed from 0
+        self.mode = '3D'
         self.grids = []
         self.ompthreads = None # Number of OpenMP threads
 
-        # Store information for CUDA solver type
+        # Store information for CUDA solver
         #   gpu: GPU object
         #   snapsgpu2cpu: copy snapshot data from GPU to CPU during simulation
         #     N.B. This will happen if the requested snapshots are too large to fit
         #     on the memory of the GPU. If True this will slow performance significantly
-        self.cuda = {'gpu': None, 'snapsgpu2cpu': False}
+        if sim_config.general['cuda']:
+            self.cuda = {'gpu': sim_config.cuda['gpus'], 'snapsgpu2cpu': False}
 
         # Total memory usage for all grids in the model. Starts with 50MB overhead.
         self.mem_use = 50e6
@@ -144,7 +147,6 @@ class SimulationConfig:
         #   outputfilepath: path to outputfile location
         #   messages: whether to print all messages as output to stdout or not
         #   progressbars: whether to show progress bars on stdoout or not
-        #   mode: 2D TMx, 2D TMy, 2D TMz, or 3D
         #   cpu, cuda, opencl: solver type
         #   precision: data type for electromagnetic field output (single/double)
         #   autotranslate: auto translate objects with main grid coordinates
@@ -153,12 +155,12 @@ class SimulationConfig:
         #       within the global subgrid space.
         self.general = {'messages': True,
                         'progressbars': True,
-                        'mode': '3D',
                         'cpu': True,
                         'cuda': False,
                         'opencl': False,
                         'precision': 'single',
                         'autotranslate': False}
+        log.debug('Should autotranslate be a ModelConfig parameter?')
 
         self.em_consts = {'c': c, # Speed of light in free space (m/s)
                           'e0': e0, # Permittivity of free space (F/m)
@@ -168,8 +170,17 @@ class SimulationConfig:
         # Store information about host machine
         self.hostinfo = get_host_info()
 
-        # Information about any GPUs as a list of GPU objects
-        self.cuda_gpus = []
+        # Information about any Nvidia GPUs
+        if self.args.gpu is not None:
+            self.general['cuda'] = True
+            self.general['cpu'] = False
+            self.general['opencl'] = False
+            #   gpus: list of GPU objects
+            #   gpus_str: list of strings describing GPU(s)
+            self.cuda = {'gpus': [],
+                         'gpus_str': []}
+            self.get_gpus()
+            self.set_gpus()
 
         # Subgrid parameter may not exist if user enters via CLI
         try:
@@ -192,6 +203,19 @@ class SimulationConfig:
 
     def is_messages(self):
         return self.general['messages']
+
+    def get_gpus(self):
+        """Get information and setup any Nvidia GPU(s)."""
+        # Flatten a list of lists
+        if any(isinstance(element, list) for element in self.args.gpu):
+            self.cuda['gpus'] = [val for sublist in self.args.gpu for val in sublist]
+
+        self.cuda['gpus'], self.cuda['gpus_str'] = detect_check_gpus(self.cuda['gpus'])
+
+    def set_gpus(self):
+        """Adjust list of GPU object(s) to specify single GPU."""
+        self.cuda['gpus'] = self.cuda['gpus'][0]
+        self.cuda['gpus_str'] = self.cuda['gpus_str'][0]
 
     def set_precision(self):
         """Data type (precision) for electromagnetic field output.
@@ -268,3 +292,7 @@ class SimulationConfigMPI(SimulationConfig):
         # Set range for number of models to run
         self.model_start = self.args.restart if self.args.restart else 1
         self.model_end = self.modelstart + self.args.n
+
+    def set_gpus(self):
+        """Leave list of GPU object(s) as multi-object list."""
+        pass
