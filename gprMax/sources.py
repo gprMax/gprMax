@@ -236,7 +236,7 @@ class MagneticDipole(Source):
                                 (1 / (G.dx * G.dy * G.dz)))
 
 
-def gpu_initialise_src_arrays(sources, G):
+def initialise_src_arrays_gpu(sources, G):
     """Initialise arrays on GPU for source coordinates/polarisation, other
         source information, and source waveform values.
 
@@ -255,8 +255,8 @@ def gpu_initialise_src_arrays(sources, G):
     import pycuda.gpuarray as gpuarray
 
     srcinfo1 = np.zeros((len(sources), 4), dtype=np.int32)
-    srcinfo2 = np.zeros((len(sources)), dtype=config.dtypes['float_or_double'])
-    srcwaves = np.zeros((len(sources), G.iterations), dtype=config.dtypes['float_or_double'])
+    srcinfo2 = np.zeros((len(sources)), dtype=config.sim_config.dtypes['float_or_double'])
+    srcwaves = np.zeros((len(sources), G.iterations), dtype=config.sim_config.dtypes['float_or_double'])
     for i, src in enumerate(sources):
         srcinfo1[i, 0] = src.xcoord
         srcinfo1[i, 1] = src.ycoord

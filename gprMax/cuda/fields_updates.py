@@ -128,7 +128,7 @@ __global__ void update_magnetic(int NX, int NY, int NZ, const unsigned int* __re
 // Electric field updates - dispersive materials //
 ///////////////////////////////////////////////////
 
-__global__ void update_electric_dispersive_A(int NX, int NY, int NZ, int MAXPOLES, const $REAL_OR_COMPLEX* __restrict__ updatecoeffsdispersive, $REAL_OR_COMPLEX *Tx, $REAL_OR_COMPLEX *Ty, $REAL_OR_COMPLEX *Tz, const unsigned int* __restrict__ ID, $REAL *Ex, $REAL *Ey, $REAL *Ez, const $REAL* __restrict__ Hx, const $REAL* __restrict__ Hy, const $REAL* __restrict__ Hz) {
+__global__ void update_electric_dispersive_A(int NX, int NY, int NZ, int MAXPOLES, const $COMPLEX* __restrict__ updatecoeffsdispersive, $COMPLEX *Tx, $COMPLEX *Ty, $COMPLEX *Tz, const unsigned int* __restrict__ ID, $REAL *Ex, $REAL *Ey, $REAL *Ez, const $REAL* __restrict__ Hx, const $REAL* __restrict__ Hy, const $REAL* __restrict__ Hz) {
 
     //  This function is part A of updates to electric field values when dispersive materials (with multiple poles) are present.
     //
@@ -189,7 +189,7 @@ __global__ void update_electric_dispersive_A(int NX, int NY, int NZ, int MAXPOLE
     }
 }
 
-__global__ void update_electric_dispersive_B(int NX, int NY, int NZ, int MAXPOLES, const $REAL_OR_COMPLEX* __restrict__ updatecoeffsdispersive, $REAL_OR_COMPLEX *Tx, $REAL_OR_COMPLEX *Ty, $REAL_OR_COMPLEX *Tz, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez) {
+__global__ void update_electric_dispersive_B(int NX, int NY, int NZ, int MAXPOLES, const $COMPLEX* __restrict__ updatecoeffsdispersive, $COMPLEX *Tx, $COMPLEX *Ty, $COMPLEX *Tz, const unsigned int* __restrict__ ID, const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez) {
 
     //  This function is part B which updates the dispersive field arrays when dispersive materials (with multiple poles) are present.
     //

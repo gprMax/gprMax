@@ -279,15 +279,22 @@ class FDTDGrid:
 class CUDAGrid(FDTDGrid):
     """Additional grid methods for solving on GPU using CUDA."""
 
+    def __init__(self, model_num):
+        super().__init__(model_num)
+
+        # Threads per block - used for main electric/magnetic field updates
+        self.tpb = (256, 1, 1)
+        # Blocks per grid - used for main electric/magnetic field updates
+        self.bpg = None
+
+
     def set_blocks_per_grid(self):
         """Set the blocks per grid size used for updating the electric and
             magnetic field arrays on a GPU.
         """
 
-        config.cuda['gpus'].bpg = (int(np.ceil(((self.nx + 1) *
-                                                (self.ny + 1) *
-                                                (self.nz + 1)) /
-                                                config.cuda['gpus'].tpb[0])), 1, 1)
+        self.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) *
+                   (self.nz + 1)) / self.tpb[0])), 1, 1)
 
     def initialise_arrays(self):
         """Initialise geometry and field arrays on GPU."""

@@ -18,6 +18,7 @@
 
 import logging
 from pathlib import Path
+import sys
 
 from colorama import init
 from colorama import Fore
@@ -64,7 +65,8 @@ class ModelConfig:
         #     N.B. This will happen if the requested snapshots are too large to fit
         #     on the memory of the GPU. If True this will slow performance significantly
         if sim_config.general['cuda']:
-            self.cuda = {'gpu': sim_config.cuda['gpus'], 'snapsgpu2cpu': False}
+            self.cuda = {'gpu': sim_config.cuda['gpus'],
+                         'snapsgpu2cpu': False}
 
         # Total memory usage for all grids in the model. Starts with 50MB overhead.
         self.mem_use = 50e6
@@ -175,10 +177,12 @@ class SimulationConfig:
             self.general['cuda'] = True
             self.general['cpu'] = False
             self.general['opencl'] = False
-            #   gpus: list of GPU objects
-            #   gpus_str: list of strings describing GPU(s)
-            self.cuda = {'gpus': [],
-                         'gpus_str': []}
+            self.general['precision'] = 'single'
+            self.cuda = {'gpus': [], # gpus: list of GPU objects
+                         'gpus_str': [], # gpus_str: list of strings describing GPU(s)
+                         'nvcc_opts': None} # nvcc_opts: nvcc compiler options
+            # Suppress nvcc warnings on Microsoft Windows
+            if sys.platform == 'win32': self.cuda['nvcc_opts'] = '-w'
             self.get_gpus()
             self.set_gpus()
 

@@ -58,15 +58,15 @@ from .pml import CFS
 from .pml import PML
 from .pml import build_pml
 from .pml import pml_information
-from .receivers import gpu_initialise_rx_arrays
-from .receivers import gpu_get_rx_array
+from .receivers import initialise_rx_arrays_gpu
+from .receivers import get_rx_array_gpu
 from .receivers import Rx
 from .scene import Scene
 from .snapshots import Snapshot
-from .snapshots import gpu_initialise_snapshot_array
-from .snapshots import gpu_get_snapshot_array
+from .snapshots import initialise_snapshot_array_gpu
+from .snapshots import get_snapshot_array_gpu
 from .solvers import create_solver
-from .sources import gpu_initialise_src_arrays
+from .sources import initialise_src_arrays_gpu
 from .utilities import get_terminal_width
 from .utilities import human_size
 from .utilities import mem_check
@@ -286,7 +286,8 @@ class ModelBuildRun:
 
         mem_GPU = ''
         if config.sim_config.general['cuda']:
-            mem_GPU = f' host + ~{human_size(self.solver.get_memsolve())} GPU'
+            log.debug('Fix memory used calc for GPU')
+            # mem_GPU = f' host + ~{human_size(self.solver.get_memsolve())} GPU'
 
         log.info(f'\nMemory (RAM) used: ~{human_size(self.p.memory_full_info().uss)}{mem_GPU}')
         log.info(f'Solving time [HH:MM:SS]: {datetime.timedelta(seconds=tsolve)}')

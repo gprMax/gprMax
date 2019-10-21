@@ -421,10 +421,6 @@ class GPU:
         self.pcibusID = None
         self.constmem = None
         self.totalmem = None
-        # Threads per block for main field updates
-        self.tpb = (256, 1, 1)
-        # Blocks per grid for main field updates (set in grid.py)
-        self.bpg = None
 
     def get_gpu_info(self, drv):
         """Set information about GPU.

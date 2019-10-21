@@ -18,21 +18,24 @@
 
 from importlib import import_module
 import logging
-import sys
+
+import numpy as np
 
 import gprMax.config as config
 from .cuda.fields_updates import kernel_template_fields
 from .cuda.snapshots import kernel_template_store_snapshot
 from .cuda.source_updates import kernel_template_sources
-from .cython.fields_updates_normal import update_electric
-from .cython.fields_updates_normal import update_magnetic
-from .fields_outputs import store_outputs
-from .receivers import gpu_initialise_rx_arrays
-from .receivers import gpu_get_rx_array
+from .cython.fields_updates_normal import update_electric as update_electric_cpu
+from .cython.fields_updates_normal import update_magnetic as update_magnetic_cpu
+from .fields_outputs import store_outputs as store_outputs_cpu
+from .fields_outputs import kernel_template_store_outputs
+from .receivers import initialise_rx_arrays_gpu
+from .receivers import get_rx_array_gpu
 from .snapshots import Snapshot
-from .snapshots import gpu_initialise_snapshot_array
-from .snapshots import gpu_get_snapshot_array
-from .sources import gpu_initialise_src_arrays
+from .snapshots import initialise_snapshot_array_gpu
+from .snapshots import get_snapshot_array_gpu
+from .sources import initialise_src_arrays_gpu
+from .utilities import round32
 from .utilities import timer
 
 log = logging.getLogger(__name__)
@@ -52,7 +55,7 @@ class CPUUpdates:
 
     def store_outputs(self):
         """Store field component values for every receiver and transmission line."""
-        store_outputs(self.grid)
+        store_outputs_cpu(self.grid)
 
     def store_snapshots(self, iteration):
         """Store any snapshots.
@@ -66,7 +69,7 @@ class CPUUpdates:
 
     def update_magnetic(self):
         """Update magnetic field components."""
-        update_magnetic(self.grid.nx,
+        update_magnetic_cpu(self.grid.nx,
                         self.grid.ny,
                         self.grid.nz,
                         config.sim_config.hostinfo['ompthreads'],
@@ -99,18 +102,18 @@ class CPUUpdates:
         """Update electric field components."""
         # All materials are non-dispersive so do standard update.
         if config.model_configs[self.grid.model_num].materials['maxpoles'] == 0:
-            update_electric(self.grid.nx,
-                            self.grid.ny,
-                            self.grid.nz,
-                            config.sim_config.hostinfo['ompthreads'],
-                            self.grid.updatecoeffsE,
-                            self.grid.ID,
-                            self.grid.Ex,
-                            self.grid.Ey,
-                            self.grid.Ez,
-                            self.grid.Hx,
-                            self.grid.Hy,
-                            self.grid.Hz)
+            update_electric_cpu(self.grid.nx,
+                                self.grid.ny,
+                                self.grid.nz,
+                                config.sim_config.hostinfo['ompthreads'],
+                                self.grid.updatecoeffsE,
+                                self.grid.ID,
+                                self.grid.Ex,
+                                self.grid.Ey,
+                                self.grid.Ez,
+                                self.grid.Hx,
+                                self.grid.Hy,
+                                self.grid.Hz)
 
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
@@ -247,20 +250,14 @@ class CUDAUpdates:
         self.dispersive_update_a = None
         self.dispersive_update_b = None
 
-        import pycuda.driver as drv
-        from pycuda.compiler import SourceModule
-        drv.init()
-
-        # Suppress nvcc warnings on Windows
-        log.debug('Move nvcc compiler options to simulation config')
-        if sys.platform == 'win32':
-            self.compiler_opts = ['-w']
-        else:
-            self.compiler_opts = None
+        # Import PyCUDA modules
+        self.drv = import_module('pycuda.driver')
+        self.source_module = getattr(import_module('pycuda.compiler'), 'SourceModule')
+        self.drv.init()
 
         # Create device handle and context on specifc GPU device (and make it current context)
-        self.dev = drv.Device(self.grid.gpu.deviceID)
-        self.ctx = dev.make_context()
+        self.dev = self.drv.Device(config.model_configs[self.grid.model_num].cuda['gpu'].deviceID)
+        self.ctx = self.dev.make_context()
 
         # Initialise arrays on GPU, prepare kernels, and get kernel functions
         self.set_field_kernels()
@@ -274,56 +271,56 @@ class CUDAUpdates:
             get kernel functions.
         """
         if config.model_configs[self.grid.model_num].materials['maxpoles'] > 0:
-            kernels_fields = SourceModule(kernels_template_fields.substitute(
-                                          REAL=cudafloattype,
-                                          COMPLEX=cudacomplextype,
-                                          N_updatecoeffsE=self.grid.updatecoeffsE.size,
-                                          N_updatecoeffsH=self.grid.updatecoeffsH.size,
-                                          NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
-                                          NY_MATDISPCOEFFS=self.grid.updatecoeffsdispersive.shape[1],
-                                          NX_FIELDS=self.grid.nx + 1,
-                                          NY_FIELDS=self.grid.ny + 1,
-                                          NZ_FIELDS=self.grid.nz + 1,
-                                          NX_ID=self.grid.ID.shape[1],
-                                          NY_ID=self.grid.ID.shape[2],
-                                          NZ_ID=self.grid.ID.shape[3],
-                                          NX_T=self.grid.Tx.shape[1],
-                                          NY_T=self.grid.Tx.shape[2],
-                                          NZ_T=self.grid.Tx.shape[3]),
-                                          options=self.compiler_opts)
+            kernels_fields = self.source_module(kernels_template_fields.substitute(
+                                                REAL=config.sim_config.dtypes['C_float_or_double'],
+                                                COMPLEX=config.sim_config.dtypes['C_complex'],
+                                                N_updatecoeffsE=self.grid.updatecoeffsE.size,
+                                                N_updatecoeffsH=self.grid.updatecoeffsH.size,
+                                                NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
+                                                NY_MATDISPCOEFFS=self.grid.updatecoeffsdispersive.shape[1],
+                                                NX_FIELDS=self.grid.nx + 1,
+                                                NY_FIELDS=self.grid.ny + 1,
+                                                NZ_FIELDS=self.grid.nz + 1,
+                                                NX_ID=self.grid.ID.shape[1],
+                                                NY_ID=self.grid.ID.shape[2],
+                                                NZ_ID=self.grid.ID.shape[3],
+                                                NX_T=self.grid.Tx.shape[1],
+                                                NY_T=self.grid.Tx.shape[2],
+                                                NZ_T=self.grid.Tx.shape[3]),
+                                                options=config.sim_config.cuda['nvcc_opts'])
         else: # Set to one any substitutions for dispersive materials
-            kernels_fields = SourceModule(kernels_template_fields.substitute(
-                                          REAL=cudafloattype,
-                                          COMPLEX=cudacomplextype,
-                                          N_updatecoeffsE=self.grid.updatecoeffsE.size,
-                                          N_updatecoeffsH=self.grid.updatecoeffsH.size,
-                                          NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
-                                          NY_MATDISPCOEFFS=1,
-                                          NX_FIELDS=self.grid.nx + 1,
-                                          NY_FIELDS=self.grid.ny + 1,
-                                          NZ_FIELDS=self.grid.nz + 1,
-                                          NX_ID=self.grid.ID.shape[1],
-                                          NY_ID=self.grid.ID.shape[2],
-                                          NZ_ID=self.grid.ID.shape[3],
-                                          NX_T=1,
-                                          NY_T=1,
-                                          NZ_T=1),
-                                          options=self.compiler_opts)
-        self.update_electric = kernels_fields.get_function("update_electric")
-        self.update_magnetic = kernels_fields.get_function("update_magnetic")
-        if self.grid.updatecoeffsE.nbytes + self.grid.updatecoeffsH.nbytes > self.grid.gpu.constmem:
-            raise GeneralError(log.exception(f'Too many materials in the model to fit onto constant memory of size {human_size(self.grid.gpu.constmem)} on {self.grid.gpu.deviceID} - {self.grid.gpu.name} GPU'))
-        self.copy_mat_coeffs()
+            kernels_fields = self.source_module(kernel_template_fields.substitute(
+                                                REAL=config.sim_config.dtypes['C_float_or_double'],
+                                                COMPLEX=config.sim_config.dtypes['C_complex'],
+                                                N_updatecoeffsE=self.grid.updatecoeffsE.size,
+                                                N_updatecoeffsH=self.grid.updatecoeffsH.size,
+                                                NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
+                                                NY_MATDISPCOEFFS=1,
+                                                NX_FIELDS=self.grid.nx + 1,
+                                                NY_FIELDS=self.grid.ny + 1,
+                                                NZ_FIELDS=self.grid.nz + 1,
+                                                NX_ID=self.grid.ID.shape[1],
+                                                NY_ID=self.grid.ID.shape[2],
+                                                NZ_ID=self.grid.ID.shape[3],
+                                                NX_T=1,
+                                                NY_T=1,
+                                                NZ_T=1),
+                                                options=config.sim_config.cuda['nvcc_opts'])
+        self.update_electric_gpu = kernels_fields.get_function("update_electric")
+        self.update_magnetic_gpu = kernels_fields.get_function("update_magnetic")
+        if (self.grid.updatecoeffsE.nbytes + self.grid.updatecoeffsH.nbytes > config.model_configs[self.grid.model_num].cuda['gpu'].constmem):
+            raise GeneralError(log.exception(f"Too many materials in the model to fit onto constant memory of size {human_size(config.model_configs[self.grid.model_num].cuda['gpu'].constmem)} on {config.model_configs[self.grid.model_num].cuda['gpu'].deviceID} - {config.model_configs[self.grid.model_num].cuda['gpu'].name} GPU"))
+        self.copy_mat_coeffs(kernels_fields, kernels_fields)
 
         # Electric and magnetic field updates - dispersive materials - get kernel functions and initialise array on GPU
         if config.model_configs[self.grid.model_num].materials['maxpoles'] > 0:  # If there are any dispersive materials (updates are split into two parts as they require present and updated electric field values).
             self.dispersive_update_a = kernels_fields.get_function("update_electric_dispersive_A")
             self.dispersive_update_b = kernels_fields.get_function("update_electric_dispersive_B")
-            self.grid.gpu_initialise_dispersive_arrays()
+            self.grid.initialise_dispersive_arrays()
 
         # Electric and magnetic field updates - set blocks per grid and initialise field arrays on GPU
-        self.grid.gpu_set_blocks_per_grid()
-        self.grid.gpu_initialise_arrays()
+        self.grid.set_blocks_per_grid()
+        self.grid.initialise_arrays()
 
     def set_pml_kernels(self):
         """PMLS - prepare kernels and get kernel functions."""
@@ -336,81 +333,81 @@ class CUDAUpdates:
             kernelmagneticfunc = getattr(import_module(pmlmodulemagnetic),
                                          'kernels_template_pml_magnetic_' +
                                          self.grid.pmlformulation)
-            kernels_pml_electric = SourceModule(kernelelectricfunc.substitute(
-                                                REAL=cudafloattype,
-                                                N_updatecoeffsE=self.grid.updatecoeffsE.size,
-                                                NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
-                                                NX_FIELDS=self.grid.nx + 1,
-                                                NY_FIELDS=self.grid.ny + 1,
-                                                NZ_FIELDS=self.grid.nz + 1,
-                                                NX_ID=self.grid.ID.shape[1],
-                                                NY_ID=self.grid.ID.shape[2],
-                                                NZ_ID=self.grid.ID.shape[3]),
-                                                options=self.compiler_opts)
-            kernels_pml_magnetic = SourceModule(kernelmagneticfunc.substitute(
-                                                REAL=cudafloattype,
-                                                N_updatecoeffsH=self.grid.updatecoeffsH.size,
-                                                NY_MATCOEFFS=self.grid.updatecoeffsH.shape[1],
-                                                NX_FIELDS=self.grid.nx + 1,
-                                                NY_FIELDS=self.grid.ny + 1,
-                                                NZ_FIELDS=self.grid.nz + 1,
-                                                NX_ID=self.gridG.ID.shape[1],
-                                                NY_ID=self.grid.ID.shape[2],
-                                                NZ_ID=self.grid.ID.shape[3]),
-                                                options=self.compiler_opts)
-            self.copy_mat_coeffs()
+            kernels_pml_electric = self.source_module(kernelelectricfunc.substitute(
+                                                      REAL=config.sim_config.dtypes['C_float_or_double'],
+                                                      N_updatecoeffsE=self.grid.updatecoeffsE.size,
+                                                      NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
+                                                      NX_FIELDS=self.grid.nx + 1,
+                                                      NY_FIELDS=self.grid.ny + 1,
+                                                      NZ_FIELDS=self.grid.nz + 1,
+                                                      NX_ID=self.grid.ID.shape[1],
+                                                      NY_ID=self.grid.ID.shape[2],
+                                                      NZ_ID=self.grid.ID.shape[3]),
+                                                      options=config.sim_config.cuda['nvcc_opts'])
+            kernels_pml_magnetic = self.source_module(kernelmagneticfunc.substitute(
+                                                      REAL=config.sim_config.dtypes['C_float_or_double'],
+                                                      N_updatecoeffsH=self.grid.updatecoeffsH.size,
+                                                      NY_MATCOEFFS=self.grid.updatecoeffsH.shape[1],
+                                                      NX_FIELDS=self.grid.nx + 1,
+                                                      NY_FIELDS=self.grid.ny + 1,
+                                                      NZ_FIELDS=self.grid.nz + 1,
+                                                      NX_ID=self.grid.ID.shape[1],
+                                                      NY_ID=self.grid.ID.shape[2],
+                                                      NZ_ID=self.grid.ID.shape[3]),
+                                                      options=config.sim_config.cuda['nvcc_opts'])
+            self.copy_mat_coeffs(kernels_pml_electric, kernels_pml_magnetic)
             # Set block per grid, initialise arrays on GPU, and get kernel functions
             for pml in self.grid.pmls:
-                pml.gpu_initialise_arrays()
-                pml.gpu_get_update_funcs(kernels_pml_electric, kernels_pml_magnetic)
-                pml.gpu_set_blocks_per_grid(self.grid)
+                pml.initialise_field_arrays_gpu()
+                pml.get_update_funcs(kernels_pml_electric, kernels_pml_magnetic)
+                pml.set_blocks_per_grid(self.grid)
 
     def set_rx_kernel(self):
         """Receivers - initialise arrays on GPU, prepare kernel and get kernel
                         function.
         """
         if self.grid.rxs:
-            rxcoords_gpu, rxs_gpu = gpu_initialise_rx_arrays(self.grid)
-            kernel_store_outputs = SourceModule(kernel_template_store_outputs.substitute(
-                                                REAL=cudafloattype,
-                                                NY_RXCOORDS=3,
-                                                NX_RXS=6,
-                                                NY_RXS=self.grid.iterations,
-                                                NZ_RXS=len(self.grid.rxs),
-                                                NX_FIELDS=self.grid.nx + 1,
-                                                NY_FIELDS=self.grid.ny + 1,
-                                                NZ_FIELDS=self.grid.nz + 1),
-                                                options=self.compiler_opts)
-            self.store_outputs = kernel_store_outputs.get_function("store_outputs")
+            self.rxcoords_gpu, self.rxs_gpu = initialise_rx_arrays_gpu(self.grid)
+            kernel_store_outputs = self.source_module(kernel_template_store_outputs.substitute(
+                                                      REAL=config.sim_config.dtypes['C_float_or_double'],
+                                                      NY_RXCOORDS=3,
+                                                      NX_RXS=6,
+                                                      NY_RXS=self.grid.iterations,
+                                                      NZ_RXS=len(self.grid.rxs),
+                                                      NX_FIELDS=self.grid.nx + 1,
+                                                      NY_FIELDS=self.grid.ny + 1,
+                                                      NZ_FIELDS=self.grid.nz + 1),
+                                                      options=config.sim_config.cuda['nvcc_opts'])
+            self.store_outputs_gpu = kernel_store_outputs.get_function("store_outputs")
 
     def set_src_kernels(self):
         """Sources - initialise arrays on GPU, prepare kernel and get kernel
                         function.
         """
         if self.grid.voltagesources + self.grid.hertziandipoles + self.grid.magneticdipoles:
-            kernels_sources = SourceModule(kernels_template_sources.substitute(
-                                           REAL=cudafloattype,
-                                           N_updatecoeffsE=self.grid.updatecoeffsE.size,
-                                           N_updatecoeffsH=self.grid.updatecoeffsH.size,
-                                           NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
-                                           NY_SRCINFO=4,
-                                           NY_SRCWAVES=self.grid.iterations,
-                                           NX_FIELDS=self.grid.nx + 1,
-                                           NY_FIELDS=self.grid.ny + 1,
-                                           NZ_FIELDS=self.grid.nz + 1,
-                                           NX_ID=self.grid.ID.shape[1],
-                                           NY_ID=self.grid.ID.shape[2],
-                                           NZ_ID=self.grid.ID.shape[3]),
-                                           options=self.compiler_opts)
-            self.copy_mat_coeffs()
+            kernels_sources = self.source_module(kernel_template_sources.substitute(
+                                                 REAL=config.sim_config.dtypes['C_float_or_double'],
+                                                 N_updatecoeffsE=self.grid.updatecoeffsE.size,
+                                                 N_updatecoeffsH=self.grid.updatecoeffsH.size,
+                                                 NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
+                                                 NY_SRCINFO=4,
+                                                 NY_SRCWAVES=self.grid.iterations,
+                                                 NX_FIELDS=self.grid.nx + 1,
+                                                 NY_FIELDS=self.grid.ny + 1,
+                                                 NZ_FIELDS=self.grid.nz + 1,
+                                                 NX_ID=self.grid.ID.shape[1],
+                                                 NY_ID=self.grid.ID.shape[2],
+                                                 NZ_ID=self.grid.ID.shape[3]),
+                                                 options=config.sim_config.cuda['nvcc_opts'])
+            self.copy_mat_coeffs(kernels_sources, kernels_sources)
             if self.grid.hertziandipoles:
-                self.srcinfo1_hertzian_gpu, self.srcinfo2_hertzian_gpu, self.srcwaves_hertzian_gpu = gpu_initialise_src_arrays(self.grid.hertziandipoles, self.grid)
+                self.srcinfo1_hertzian_gpu, self.srcinfo2_hertzian_gpu, self.srcwaves_hertzian_gpu = initialise_src_arrays_gpu(self.grid.hertziandipoles, self.grid)
                 self.update_hertzian_dipole_gpu = kernels_sources.get_function("update_hertzian_dipole")
             if self.grid.magneticdipoles:
-                self.srcinfo1_magnetic_gpu, self.srcinfo2_magnetic_gpu, self.srcwaves_magnetic_gpu = gpu_initialise_src_arrays(self.grid.magneticdipoles, self.grid)
+                self.srcinfo1_magnetic_gpu, self.srcinfo2_magnetic_gpu, self.srcwaves_magnetic_gpu = initialise_src_arrays_gpu(self.grid.magneticdipoles, self.grid)
                 self.update_magnetic_dipole_gpu = kernels_sources.get_function("update_magnetic_dipole")
             if self.grid.voltagesources:
-                self.srcinfo1_voltage_gpu, self.srcinfo2_voltage_gpu, self.srcwaves_voltage_gpu = gpu_initialise_src_arrays(self.grid.voltagesources, self.grid)
+                self.srcinfo1_voltage_gpu, self.srcinfo2_voltage_gpu, self.srcwaves_voltage_gpu = initialise_src_arrays_gpu(self.grid.voltagesources, self.grid)
                 self.update_voltage_source_gpu = kernels_sources.get_function("update_voltage_source")
 
     def set_snapshot_kernel(self):
@@ -418,42 +415,46 @@ class CUDAUpdates:
                         function.
         """
         if self.grid.snapshots:
-            self.snapEx_gpu, self.snapEy_gpu, self.snapEz_gpu, self.snapHx_gpu, self.snapHy_gpu, self.snapHz_gpu = gpu_initialise_snapshot_array(self.grid)
-            kernel_store_snapshot = SourceModule(kernel_template_store_snapshot.substitute(
-                                                 REAL=cudafloattype,
-                                                 NX_SNAPS=Snapshot.nx_max,
-                                                 NY_SNAPS=Snapshot.ny_max,
-                                                 NZ_SNAPS=Snapshot.nz_max,
-                                                 NX_FIELDS=self.grid.nx + 1,
-                                                 NY_FIELDS=self.grid.ny + 1,
-                                                 NZ_FIELDS=self.grid.nz + 1),
-                                                 options=self.compiler_opts)
+            self.snapEx_gpu, self.snapEy_gpu, self.snapEz_gpu, self.snapHx_gpu, self.snapHy_gpu, self.snapHz_gpu = initialise_snapshot_array_gpu(self.grid)
+            kernel_store_snapshot = self.source_module(kernel_template_store_snapshot.substitute(
+                                                       REAL=config.sim_config.dtypes['C_float_or_double'],
+                                                       NX_SNAPS=Snapshot.nx_max,
+                                                       NY_SNAPS=Snapshot.ny_max,
+                                                       NZ_SNAPS=Snapshot.nz_max,
+                                                       NX_FIELDS=self.grid.nx + 1,
+                                                       NY_FIELDS=self.grid.ny + 1,
+                                                       NZ_FIELDS=self.grid.nz + 1),
+                                                       options=config.sim_config.cuda['nvcc_opts'])
             self.store_snapshot_gpu = kernel_store_snapshot.get_function("store_snapshot")
 
-    def copy_mat_coeffs(self):
+    def copy_mat_coeffs(self, kernelE, kernelH):
         """Copy material coefficient arrays to constant memory of GPU
             (must be <64KB).
+
+        Args:
+            kernelE (kernel): electric field kernel.
+            kernelH (kernel): magnetic field kernel.
         """
-        updatecoeffsE = kernels_sources.get_global('updatecoeffsE')[0]
-        updatecoeffsH = kernels_sources.get_global('updatecoeffsH')[0]
+        updatecoeffsE = kernelE.get_global('updatecoeffsE')[0]
+        updatecoeffsH = kernelH.get_global('updatecoeffsH')[0]
         self.drv.memcpy_htod(updatecoeffsE, self.grid.updatecoeffsE)
         self.drv.memcpy_htod(updatecoeffsH, self.grid.updatecoeffsH)
 
     def store_outputs(self):
-        """Store field component values for every receiver and transmission line."""
+        """Store field component values for every receiver."""
         if self.grid.rxs:
-            self.store_outputs(np.int32(len(self.grid.rxs)),
-                               np.int32(self.grid.iteration),
-                               self.rxcoords_gpu.gpudata,
-                               self.rxs_gpu.gpudata,
-                               self.grid.Ex_gpu.gpudata,
-                               self.grid.Ey_gpu.gpudata,
-                               self.grid.Ez_gpu.gpudata,
-                               self.grid.Hx_gpu.gpudata,
-                               self.grid.Hy_gpu.gpudata,
-                               self.grid.Hz_gpu.gpudata,
-                               block=(1, 1, 1),
-                               grid=(round32(len(self.grid.rxs)), 1, 1))
+            self.store_outputs_gpu(np.int32(len(self.grid.rxs)),
+                                   np.int32(self.grid.iteration),
+                                   self.rxcoords_gpu.gpudata,
+                                   self.rxs_gpu.gpudata,
+                                   self.grid.Ex_gpu.gpudata,
+                                   self.grid.Ey_gpu.gpudata,
+                                   self.grid.Ez_gpu.gpudata,
+                                   self.grid.Hx_gpu.gpudata,
+                                   self.grid.Hy_gpu.gpudata,
+                                   self.grid.Hz_gpu.gpudata,
+                                   block=(1, 1, 1),
+                                   grid=(round32(len(self.grid.rxs)), 1, 1))
 
     def store_snapshots(self, iteration):
         """Store any snapshots.
@@ -501,32 +502,32 @@ class CUDAUpdates:
 
     def update_magnetic(self):
         """Update magnetic field components."""
-        self.update_magnetic(np.int32(self.grid.nx),
-                        np.int32(self.grid.ny),
-                        np.int32(self.grid.nz),
-                        self.grid.ID_gpu,
-                        self.grid.Hx_gpu,
-                        self.grid.Hy_gpu,
-                        self.grid.Hz_gpu,
-                        self.grid.Ex_gpu,
-                        self.grid.Ey_gpu,
-                        self.grid.Ez_gpu,
-                        block=self.grid.tpb,
-                        grid=self.grid.bpg)
+        self.update_magnetic_gpu(np.int32(self.grid.nx),
+                                 np.int32(self.grid.ny),
+                                 np.int32(self.grid.nz),
+                                 self.grid.ID_gpu,
+                                 self.grid.Hx_gpu,
+                                 self.grid.Hy_gpu,
+                                 self.grid.Hz_gpu,
+                                 self.grid.Ex_gpu,
+                                 self.grid.Ey_gpu,
+                                 self.grid.Ez_gpu,
+                                 block=self.grid.tpb,
+                                 grid=self.grid.bpg)
 
     def update_magnetic_pml(self):
         """Update magnetic field components with the PML correction."""
         for pml in self.grid.pmls:
-            pml.gpu_update_magnetic(self.grid)
+            pml.update_magnetic(self.grid)
 
     def update_magnetic_sources(self):
         """Update magnetic field components from sources."""
         if self.grid.magneticdipoles:
             self.update_magnetic_dipole_gpu(np.int32(len(self.grid.magneticdipoles)),
                                               np.int32(self.grid.iteration),
-                                              config.dtypes['float_or_double'](self.grid.dx),
-                                              config.dtypes['float_or_double'](self.grid.dy),
-                                              config.dtypes['float_or_double'](self.grid.dz),
+                                              config.sim_config.dtypes['float_or_double'](self.grid.dx),
+                                              config.sim_config.dtypes['float_or_double'](self.grid.dy),
+                                              config.sim_config.dtypes['float_or_double'](self.grid.dz),
                                               self.srcinfo1_magnetic_gpu.gpudata,
                                               self.srcinfo2_magnetic_gpu.gpudata,
                                               self.srcwaves_magnetic_gpu.gpudata,
@@ -541,18 +542,18 @@ class CUDAUpdates:
         """Update electric field components."""
         # All materials are non-dispersive so do standard update.
         if config.model_configs[self.grid.model_num].materials['maxpoles'] == 0:
-            self.update_electric(np.int32(self.grid.nx),
-                                 np.int32(self.grid.ny),
-                                 np.int32(self.grid.nz),
-                                 self.grid.ID_gpu,
-                                 self.grid.Ex_gpu,
-                                 self.grid.Ey_gpu,
-                                 self.grid.Ez_gpu,
-                                 self.grid.Hx_gpu,
-                                 self.grid.Hy_gpu,
-                                 self.grid.Hz_gpu,
-                                 block=self.grid.tpb,
-                                 grid=self.grid.bpg)
+            self.update_electric_gpu(np.int32(self.grid.nx),
+                                     np.int32(self.grid.ny),
+                                     np.int32(self.grid.nz),
+                                     self.grid.ID_gpu,
+                                     self.grid.Ex_gpu,
+                                     self.grid.Ey_gpu,
+                                     self.grid.Ez_gpu,
+                                     self.grid.Hx_gpu,
+                                     self.grid.Hy_gpu,
+                                     self.grid.Hz_gpu,
+                                     block=self.grid.tpb,
+                                     grid=self.grid.bpg)
 
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
@@ -578,7 +579,7 @@ class CUDAUpdates:
     def update_electric_pml(self):
         """Update electric field components with the PML correction."""
         for pml in self.grid.pmls:
-            pml.gpu_update_electric(self.grid)
+            pml.update_electric(self.grid)
 
     def update_electric_sources(self):
         """Update electric field components from sources -
@@ -587,9 +588,9 @@ class CUDAUpdates:
         if self.grid.voltagesources:
             self.update_voltage_source_gpu(np.int32(len(self.grid.voltagesources)),
                                            np.int32(self.grid.iteration),
-                                           config.dtypes['float_or_double'](self.grid.dx),
-                                           config.dtypes['float_or_double'](self.grid.dy),
-                                           config.dtypes['float_or_double'](self.grid.dz),
+                                           config.sim_config.dtypes['float_or_double'](self.grid.dx),
+                                           config.sim_config.dtypes['float_or_double'](self.grid.dy),
+                                           config.sim_config.dtypes['float_or_double'](self.grid.dz),
                                            self.srcinfo1_voltage_gpu.gpudata,
                                            self.srcinfo2_voltage_gpu.gpudata,
                                            self.srcwaves_voltage_gpu.gpudata,
@@ -603,9 +604,9 @@ class CUDAUpdates:
         if self.grid.hertziandipoles:
             self.update_hertzian_dipole_gpu(np.int32(len(self.grid.hertziandipoles)),
                                             np.int32(self.grid.iteration),
-                                            config.dtypes['float_or_double'](self.grid.dx),
-                                            config.dtypes['float_or_double'](self.grid.dy),
-                                            config.dtypes['float_or_double'](self.grid.dz),
+                                            config.sim_config.dtypes['float_or_double'](self.grid.dx),
+                                            config.sim_config.dtypes['float_or_double'](self.grid.dy),
+                                            config.sim_config.dtypes['float_or_double'](self.grid.dz),
                                             self.srcinfo1_hertzian_gpu.gpudata,
                                             self.srcinfo2_hertzian_gpu.gpudata,
                                             self.srcwaves_hertzian_gpu.gpudata,
@@ -660,21 +661,20 @@ class CUDAUpdates:
         """Copy data from GPU back to CPU to save to file(s)."""
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
-            gpu_get_rx_array(self.rxs_gpu.get(),
+            get_rx_array_gpu(self.rxs_gpu.get(),
                              self.rxcoords_gpu.get(),
                              self.grid)
 
         # Copy data from any snapshots back to correct snapshot objects
         if self.grid.snapshots and not self.grid.snapsgpu2cpu:
             for i, snap in enumerate(self.grid.snapshots):
-                gpu_get_snapshot_array(self.snapEx_gpu.get(),
+                get_snapshot_array_gpu(self.snapEx_gpu.get(),
                                        self.snapEy_gpu.get(),
                                        self.snapEz_gpu.get(),
                                        self.snapHx_gpu.get(),
                                        self.snapHy_gpu.get(),
                                        self.snapHz_gpu.get(),
-                                       i,
-                                       snap)
+                                       i, snap)
 
     def cleanup(self):
         """Cleanup GPU context."""

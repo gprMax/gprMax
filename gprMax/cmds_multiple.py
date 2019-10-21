@@ -510,14 +510,12 @@ class Rx(UserObjectMulti):
             r.ID = self.kwargs['id']
             outputs = self.kwargs['outputs']
             # Get allowable outputs
-            if grid.gpu is not None:
-                allowableoutputs = RxUser.gpu_allowableoutputs
-            else:
-                allowableoutputs = RxUser.allowableoutputs
+            allowableoutputs = RxUser.allowableoutputs_gpu if config.sim_config.general['cuda'] else RxUser.allowableoutputs
             # Check and add field output names
+            outputs.sort()
             for field in outputs:
                 if field in allowableoutputs:
-                    r.outputs[field] = np.zeros(grid.iterations, dtype=config.dtypes['float_or_double'])
+                    r.outputs[field] = np.zeros(grid.iterations, dtype=config.sim_config.dtypes['float_or_double'])
                 else:
                     raise CmdInputError(f"'{self.params_str()}' contains an output type that is not allowable. Allowable outputs in current context are {allowableoutputs}")
         # If no ID or outputs are specified, use default
