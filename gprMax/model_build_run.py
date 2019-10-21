@@ -86,6 +86,12 @@ class ModelBuildRun:
         # Monitor memory usage
         self.p = None
 
+        # Set number of OpenMP threads to physical threads at this point to be
+        # used with threaded model building methods, e.g. fractals. Can be
+        # changed by #num_threads command in input file or via API later for
+        # use with CPU solver.
+        config.model_configs[self.G.model_num].ompthreads = set_omp_threads(config.model_configs[self.G.model_num].ompthreads)
+
     def build(self):
         """Builds the Yee cells for a model."""
 
@@ -305,9 +311,8 @@ class ModelBuildRun:
         self.create_output_directory()
         log.info(f'\nOutput file: {config.model_configs[self.G.model_num].output_file_path_ext}')
 
-        # Set and check number of OpenMP threads
+        # Check number of OpenMP threads
         if config.sim_config.general['cpu']:
-            config.model_configs[self.G.model_num].ompthreads = set_omp_threads(config.model_configs[self.G.model_num].ompthreads)
             log.info(f'CPU (OpenMP) threads for solving: {config.model_configs[self.G.model_num].ompthreads}\n')
             if config.model_configs[self.G.model_num].ompthreads > config.sim_config.hostinfo['physicalcores']:
                 log.warning(Fore.RED + f"You have specified more threads ({config.model_configs[self.G.model_num].ompthreads}) than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). This may lead to degraded performance." + Style.RESET_ALL)

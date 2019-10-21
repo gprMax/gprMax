@@ -148,12 +148,18 @@ class FDTDGrid:
 
     def initialise_field_arrays(self):
         """Initialise arrays for the electric and magnetic field components."""
-        self.Ex = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes['float_or_double'])
-        self.Ey = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes['float_or_double'])
-        self.Ez = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes['float_or_double'])
-        self.Hx = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes['float_or_double'])
-        self.Hy = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes['float_or_double'])
-        self.Hz = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes['float_or_double'])
+        self.Ex = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1),
+                            dtype=config.sim_config.dtypes['float_or_double'])
+        self.Ey = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1),
+                            dtype=config.sim_config.dtypes['float_or_double'])
+        self.Ez = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1),
+                            dtype=config.sim_config.dtypes['float_or_double'])
+        self.Hx = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1),
+                            dtype=config.sim_config.dtypes['float_or_double'])
+        self.Hy = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1),
+                            dtype=config.sim_config.dtypes['float_or_double'])
+        self.Hz = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1),
+                            dtype=config.sim_config.dtypes['float_or_double'])
 
     def initialise_grids(self):
         """Initialise all grids."""
@@ -163,15 +169,26 @@ class FDTDGrid:
 
     def initialise_std_update_coeff_arrays(self):
         """Initialise arrays for storing update coefficients."""
-        self.updatecoeffsE = np.zeros((len(self.materials), 5), dtype=config.sim_config.dtypes['float_or_double'])
-        self.updatecoeffsH = np.zeros((len(self.materials), 5), dtype=config.sim_config.dtypes['float_or_double'])
+        self.updatecoeffsE = np.zeros((len(self.materials), 5),
+                                       dtype=config.sim_config.dtypes['float_or_double'])
+        self.updatecoeffsH = np.zeros((len(self.materials), 5),
+                                       dtype=config.sim_config.dtypes['float_or_double'])
 
     def initialise_dispersive_arrays(self, dtype):
-        """Initialise arrays for storing coefficients when there are dispersive materials present."""
-        self.Tx = np.zeros((config.materials['maxpoles'], self.nx + 1, self.ny + 1, self.nz + 1), dtype=dtype)
-        self.Ty = np.zeros((config.materials['maxpoles'], self.nx + 1, self.ny + 1, self.nz + 1), dtype=dtype)
-        self.Tz = np.zeros((config.materials['maxpoles'], self.nx + 1, self.ny + 1, self.nz + 1), dtype=dtype)
-        self.updatecoeffsdispersive = np.zeros((len(self.materials), 3 * config.model_configs[self.model_num].materials['maxpoles']), dtype=dtype)
+        """Initialise arrays for storing coefficients when there are dispersive materials present.
+
+        Args:
+            dtype (dtype): Dtype to use for dispersive arrays.
+        """
+        self.Tx = np.zeros((config.model_configs[self.model_num].materials['maxpoles'],
+                            self.nx + 1, self.ny + 1, self.nz + 1), dtype=dtype)
+        self.Ty = np.zeros((config.model_configs[self.model_num].materials['maxpoles'],
+                            self.nx + 1, self.ny + 1, self.nz + 1), dtype=dtype)
+        self.Tz = np.zeros((config.model_configs[self.model_num].materials['maxpoles'],
+                            self.nx + 1, self.ny + 1, self.nz + 1), dtype=dtype)
+        self.updatecoeffsdispersive = np.zeros((len(self.materials), 3 *
+                                                config.model_configs[self.model_num].materials['maxpoles']),
+                                                dtype=dtype)
 
     def mem_est_basic(self):
         """Estimate the amount of memory (RAM) required for grid arrays.
@@ -220,7 +237,7 @@ class FDTDGrid:
         """
 
         mem_use = int(3 * config.model_configs[self.model_num].materials['maxpoles'] *
-                       (G.nx + 1) * (G.ny + 1) * (G.nz + 1) *
+                       (self.nx + 1) * (self.ny + 1) * (self.nz + 1) *
                        np.dtype(config.model_configs[self.model_num].materials['dispersivedtype']).itemsize)
         return mem_use
 
@@ -309,10 +326,16 @@ class CUDAGrid(FDTDGrid):
         self.Hy_gpu = gpuarray.to_gpu(self.Hy)
         self.Hz_gpu = gpuarray.to_gpu(self.Hz)
 
-    def initialise_dispersive_arrays(self):
-        """Initialise dispersive material coefficient arrays on GPU."""
+    def initialise_dispersive_arrays(self, dtype):
+        """Initialise dispersive material coefficient arrays on GPU.
+
+        Args:
+            dtype (dtype): Dtype to use for dispersive arrays.
+        """
 
         import pycuda.gpuarray as gpuarray
+
+        super().initialise_dispersive_arrays(dtype)
 
         self.Tx_gpu = gpuarray.to_gpu(self.Tx)
         self.Ty_gpu = gpuarray.to_gpu(self.Ty)

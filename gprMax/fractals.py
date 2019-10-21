@@ -77,7 +77,7 @@ class FractalSurface:
         elif self.zs == self.zf:
             surfacedims = (self.nx, self.ny)
 
-        self.fractalsurface = np.zeros(surfacedims, dtype=config.dtypes['complex'])
+        self.fractalsurface = np.zeros(surfacedims, dtype=config.sim_config.dtypes['complex'])
 
         # Positional vector at centre of array, scaled by weighting
         v1 = np.array([self.weighting[0] * (surfacedims[0]) / 2, self.weighting[1]
@@ -93,7 +93,7 @@ class FractalSurface:
         A = fftpack.fftshift(A)
 
         # Generate fractal
-        generate_fractal2D(surfacedims[0], surfacedims[1], config.hostinfo['ompthreads'],
+        generate_fractal2D(surfacedims[0], surfacedims[1], config.model_configs[G.model_num].ompthreads,
                            self.b, self.weighting, v1, A, self.fractalsurface)
         # Shift the zero frequency component to start of the array
         self.fractalsurface = fftpack.ifftshift(self.fractalsurface)
@@ -164,7 +164,7 @@ class FractalVolume:
         # Adjust weighting to account for filter scaling
         self.weighting = np.multiply(self.weighting, filterscaling)
 
-        self.fractalvolume = np.zeros((self.nx, self.ny, self.nz), dtype=config.dtypes['complex'])
+        self.fractalvolume = np.zeros((self.nx, self.ny, self.nz), dtype=config.sim_config.dtypes['complex'])
 
         # Positional vector at centre of array, scaled by weighting
         v1 = np.array([self.weighting[0] * self.nx / 2, self.weighting[1]
@@ -180,7 +180,7 @@ class FractalVolume:
         A = fftpack.fftshift(A)
 
         # Generate fractal
-        generate_fractal3D(self.nx, self.ny, self.nz, config.hostinfo['ompthreads'],
+        generate_fractal3D(self.nx, self.ny, self.nz, config.model_configs[G.model_num].ompthreads,
                            self.b, self.weighting, v1, A, self.fractalvolume)
 
         # Shift the zero frequency component to the start of the array

@@ -132,17 +132,17 @@ class DispersiveMaterial(Material):
         # The implementation of the dispersive material modelling comes from the
         # derivation in: http://dx.doi.org/10.1109/TAP.2014.2308549
         self.w = np.zeros(config.model_configs[G.model_num].materials['maxpoles'],
-                          dtype=config.materials['dispersivedtype'])
+                          dtype=config.model_configs[G.model_num].materials['dispersivedtype'])
         self.q = np.zeros(config.model_configs[G.model_num].materials['maxpoles'],
-                          dtype=config.materials['dispersivedtype'])
+                          dtype=config.model_configs[G.model_num].materials['dispersivedtype'])
         self.zt = np.zeros(config.model_configs[G.model_num].materials['maxpoles'],
-                           dtype=config.materials['dispersivedtype'])
+                           dtype=config.model_configs[G.model_num].materials['dispersivedtype'])
         self.zt2 = np.zeros(config.model_configs[G.model_num].materials['maxpoles'],
-                            dtype=config.materials['dispersivedtype'])
+                            dtype=config.model_configs[G.model_num].materials['dispersivedtype'])
         self.eqt = np.zeros(config.model_configs[G.model_num].materials['maxpoles'],
-                            dtype=config.materials['dispersivedtype'])
+                            dtype=config.model_configs[G.model_num].materials['dispersivedtype'])
         self.eqt2 = np.zeros(config.model_configs[G.model_num].materials['maxpoles'],
-                            dtype=config.materials['dispersivedtype'])
+                            dtype=config.model_configs[G.model_num].materials['dispersivedtype'])
 
         for x in range(self.poles):
             if 'debye' in self.type:

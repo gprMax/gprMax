@@ -238,7 +238,7 @@ class PML:
             self.HPhi1 = np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz),
                                   dtype=config.sim_config.dtypes['float_or_double'])
             self.HPhi2 = np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz),
-                                  dtype=config.sim_config.sim_config.dtypes['float_or_double'])
+                                  dtype=config.sim_config.dtypes['float_or_double'])
 
     def calculate_update_coeffs(self, er, mr, G):
         """Calculates electric and magnetic update coefficients for the PML.
