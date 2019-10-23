@@ -103,7 +103,7 @@ class ModelBuildRun:
         # Normal model reading/building process; bypassed if geometry information to be reused
         self.reuse_geometry() if config.model_configs[G.model_num].reuse_geometry else self.build_geometry()
 
-        log.info(f'\nOutput path: {config.model_configs[G.model_num].output_file_path.parent}')
+        log.info(f'\nOutput directory: {config.model_configs[G.model_num].output_file_path.parent.resolve()}')
 
         # Adjust position of simple sources and receivers if required
         if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
@@ -268,19 +268,19 @@ class ModelBuildRun:
                 pbar.close()
             log.info('')
 
-    def print_resource_info(self, tsolve):
+    def print_resource_info(self, tsolve, memsolve):
         """Print resource information on runtime and memory usage.
 
         Args:
-            tsolve (float): time taken to execute solving (seconds).
+            tsolve (float): Time taken to execute solving (seconds).
+            memsolve (float): Memory (RAM) used on GPU.
         """
 
-        mem_GPU = ''
+        memGPU_str = ''
         if config.sim_config.general['cuda']:
-            log.debug('Fix memory used calc for GPU')
-            # mem_GPU = f' host + ~{human_size(self.solver.get_memsolve())} GPU'
+            memGPU_str = f' host + ~{human_size(memsolve)} GPU'
 
-        log.info(f'\nMemory (RAM) used: ~{human_size(self.p.memory_full_info().uss)}{mem_GPU}')
+        log.info(f'\nMemory (RAM) used: ~{human_size(self.p.memory_full_info().uss)}{memGPU_str}')
         log.info(f'Solving time [HH:MM:SS]: {datetime.timedelta(seconds=tsolve)}')
 
     def solve(self, solver):
@@ -293,7 +293,7 @@ class ModelBuildRun:
             tsolve (float): time taken to execute solving (seconds).
         """
 
-        log.info(f'\nOutput file: {config.model_configs[self.G.model_num].output_file_path_ext}')
+        log.info(f'\nOutput file: {config.model_configs[self.G.model_num].output_file_path_ext.name}')
 
         # Check number of OpenMP threads
         if config.sim_config.general['cpu']:
@@ -311,13 +311,13 @@ class ModelBuildRun:
             iterator = range(self.G.iterations)
 
         # Run solver
-        tsolve = solver.solve(iterator)
+        tsolve, memsolve = solver.solve(iterator)
 
         # Write output data, i.e. field data for receivers and snapshots to file(s)
         self.write_output_data()
 
         # Print resource information on runtime and memory usage
-        self.print_resource_info(tsolve)
+        self.print_resource_info(tsolve, memsolve)
 
         return tsolve
 

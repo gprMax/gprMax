@@ -61,7 +61,7 @@ class CPUUpdates:
         """Store any snapshots.
 
         Args:
-            iteration (int): iteration number.
+            iteration (int): Iteration number.
         """
         for snap in self.grid.snapshots:
             if snap.time == iteration + 1:
@@ -225,9 +225,11 @@ class CPUUpdates:
         self.dispersive_update_b = disp_b_f
 
     def time_start(self):
+        """Start timer used to calculate solving time for model."""
         self.timestart = timer()
 
     def calculate_tsolve(self):
+        """Calculate solving time for model."""
         return timer() - self.timestart
 
     def finalise(self):
@@ -243,7 +245,7 @@ class CUDAUpdates:
     def __init__(self, G):
         """
         Args:
-            G (FDTDGrid): Holds essential parameters describing the model.
+            G (FDTDGrid): Parameters describing a grid in a model.
         """
 
         self.grid = G
@@ -465,7 +467,7 @@ class CUDAUpdates:
 
         for i, snap in enumerate(self.grid.snapshots):
             if snap.time == iteration + 1:
-                snapno = 0 if self.grid.snapsgpu2cpu else i
+                snapno = 0 if config.model_configs[self.grid.model_num].cuda['snapsgpu2cpu'] else i
                 self.store_snapshot_gpu(np.int32(snapno),
                                         np.int32(snap.xs),
                                         np.int32(snap.xf),
@@ -490,7 +492,7 @@ class CUDAUpdates:
                                         self.snapHz_gpu.gpudata,
                                         block=Snapshot.tpb,
                                         grid=Snapshot.bpg)
-                if self.grid.snapsgpu2cpu:
+                if config.model_configs[self.grid.model_num].cuda['snapsgpu2cpu']:
                     gpu_get_snapshot_array(self.grid.snapEx_gpu.get(),
                                            self.grid.snapEy_gpu.get(),
                                            self.grid.snapEz_gpu.get(),
@@ -649,6 +651,18 @@ class CUDAUpdates:
         self.iterstart.record()
         self.iterstart.synchronize()
 
+    def calculate_memsolve(iteration):
+        """Calculate memory used on last iteration.
+
+        Args:
+            iteration (int): Iteration number.
+
+        Returns:
+            Memory (RAM) used on GPU.
+        """
+        if iteration == self.grid.iterations - 1:
+            return self.drv.mem_get_info()[1] - self.drv.mem_get_info()[0]
+
     def calculate_tsolve(self):
         """Calculate solving time for model."""
         self.iterend.record()
@@ -666,7 +680,7 @@ class CUDAUpdates:
                              self.grid)
 
         # Copy data from any snapshots back to correct snapshot objects
-        if self.grid.snapshots and not self.grid.snapsgpu2cpu:
+        if self.grid.snapshots and not config.model_configs[self.grid.model_num].cuda['snapsgpu2cpu']:
             for i, snap in enumerate(self.grid.snapshots):
                 get_snapshot_array_gpu(self.snapEx_gpu.get(),
                                        self.snapEy_gpu.get(),

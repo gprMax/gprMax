@@ -280,28 +280,4 @@ def process_multicmds(multicmds):
                 gow = GeometryObjectsWrite(p1=p1, p2=p2, filename=tmp[6])
                 scene_objects.append(gow)
 
-    cmdname = '#pml_cfs'
-    if multicmds[cmdname] is not None:
-        if len(multicmds[cmdname]) > 2:
-            raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' can only be used up to two times, for up to a 2nd order PML')
-        for cmdinstance in multicmds[cmdname]:
-            tmp = cmdinstance.split()
-            if len(tmp) != 12:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly twelve parameters')
-
-            pml_cfs = PMLCFS(alphascalingprofile=tmp[0],
-                             alphascalingdirection=tmp[1],
-                             alphamin=tmp[2],
-                             alphamax=tmp[3],
-                             kappascalingprofile=tmp[4],
-                             kappascalingdirection=tmp[5],
-                             kappamin=tmp[6],
-                             kappamax=tmp[7],
-                             sigmascalingprofile=tmp[8],
-                             sigmascalingdirection=tmp[9],
-                             sigmamin=tmp[10],
-                             sigmamax=tmp[11])
-
-            scene_objects.append(pml_cfs)
-
     return scene_objects

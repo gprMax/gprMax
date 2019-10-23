@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-import sys
+
 import gprMax.config as config
 from .grid import FDTDGrid
 from .grid import CUDAGrid
@@ -92,6 +92,10 @@ class Solver:
 
         Args:
             iterator (iterator): can be range() or tqdm()
+
+        Returns:
+            tsolve (float): Time taken to execute solving (seconds).
+            memsolve (float): Memory (RAM) used.
         """
 
         self.updates.time_start()
@@ -110,9 +114,10 @@ class Solver:
             if self.hsg:
                 self.updates.hsg_1()
             self.updates.update_electric_b()
+            memsolve = self.updates.calculate_memsolve(iteration) if config.sim_config.general['cuda'] else None
 
         self.updates.finalise()
         tsolve = self.updates.calculate_tsolve()
         self.updates.cleanup()
 
-        return tsolve
+        return tsolve, memsolve
