@@ -19,6 +19,7 @@
 from io import StringIO
 import logging
 import os
+from pathlib import Path
 import sys
 
 import gprMax.config as config
@@ -157,23 +158,22 @@ def process_include_files(hashcmds, inputfile):
     return processedincludecmds
 
 
-def write_processed_file(processedlines, appendmodelnumber):
+def write_processed_file(processedlines, G):
     """Writes an input file after any Python code and include commands
         in the original input file have been processed.
 
     Args:
         processedlines (list): Input commands after after processing any
             Python code and include commands.
-        appendmodelnumber (str): Text to append to filename.
+        G (FDTDGrid): Parameters describing a grid in a model.
     """
 
-    processedfile = (os.path.join(config.general['outputfilepath'],
-                     os.path.splitext(config.general['inputfilepath'])[0] +
-                     appendmodelnumber + '_processed.in'))
+    parts = config.model_configs[G.model_num].output_file_path.parts
+    processedfile = (Path(*parts[:-1], parts[-1] + '_processed.in'))
 
     with open(processedfile, 'w') as f:
         for item in processedlines:
-            f.write('{}'.format(item))
+            f.write(f'{item}')
 
     log.info(f'Written input commands, after processing any Python code and include commands, to file: {processedfile}\n')
 
@@ -282,13 +282,12 @@ def get_user_objects(processedlines, check=True):
     return user_objs
 
 
-def parse_hash_commands(model_config, G, scene):
+def parse_hash_commands(scene, G):
     """Parse user hash commands and add them to the scene.
 
     Args:
-        model_config (ModelConfig): Model level configuration object.
-        G (FDTDGrid): Holds essential parameters describing a model.
         scene (Scene): Scene object.
+        G (FDTDGrid): Parameters describing a grid in a model.
 
     Returns:
         scene (Scene): Scene object.
@@ -296,7 +295,7 @@ def parse_hash_commands(model_config, G, scene):
 
     with open(config.sim_config.input_file_path) as inputfile:
 
-        usernamespace = model_config.get_usernamespace()
+        usernamespace = config.model_configs[G.model_num].get_usernamespace()
 
         # Read input file and process any Python and include file commands
         processedlines = process_python_include_code(inputfile, usernamespace)
@@ -311,7 +310,7 @@ def parse_hash_commands(model_config, G, scene):
         # Write a file containing the input commands after Python or include
         # file commands have been processed
         if config.sim_config.args.write_processed:
-            write_processed_file(processedlines, model_config.appendmodelnumber, G)
+            write_processed_file(processedlines, G)
 
         user_objs = get_user_objects(processedlines, check=True)
         for user_obj in user_objs:

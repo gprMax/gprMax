@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import os
 from pathlib import Path
 import sys
@@ -31,16 +32,13 @@ from .cython.geometry_outputs import define_normal_geometry
 from .cython.geometry_outputs import define_fine_geometry
 from .utilities import round_value
 
+log = logging.getLogger(__name__)
+
 
 class GeometryView:
     """Views of the geometry of the model."""
 
-    if sys.byteorder == 'little':
-        byteorder = 'LittleEndian'
-    else:
-        byteorder = 'BigEndian'
-
-    def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None, dx=None, dy=None, dz=None, filename=None, fileext=None, grid=None):
+    def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None, dx=None, dy=None, dz=None, filename=None, fileext=None, G=None):
         """
         Args:
             xs, xf, ys, yf, zs, zf (int): Extent of the volume in cells.
@@ -48,6 +46,7 @@ class GeometryView:
             filename (str): Filename to save to.
             fileext (str): File extension of VTK file - either '.vti' for a per cell
                     geometry view, or '.vtp' for a per cell edge geometry view.
+            G (FDTDGrid): Parameters describing a grid in a model.
         """
 
         self.xs = xs
@@ -64,6 +63,7 @@ class GeometryView:
         self.dz = dz
         self.basefilename = filename
         self.fileext = fileext
+        self.G = G
 
         if self.fileext == '.vti':
             # Calculate number of cells according to requested sampling for geometry view
@@ -77,9 +77,9 @@ class GeometryView:
             self.vtk_nycells = round_value(self.ny / self.dy)
             self.vtk_nzcells = round_value(self.nz / self.dz)
             self.vtk_ncells = self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells
-            self.datawritesize = (np.dtype(np.uint32).itemsize * self.vtk_ncells
-                                  + 2 * np.dtype(np.int8).itemsize * self.vtk_ncells
-                                  + 3 * np.dtype(np.uint32).itemsize)
+            self.datawritesize = (np.dtype(np.uint32).itemsize * self.vtk_ncells +
+                                  2 * np.dtype(np.int8).itemsize * self.vtk_ncells +
+                                  3 * np.dtype(np.uint32).itemsize)
 
         elif self.fileext == '.vtp':
             self.vtk_numpoints = (self.nx + 1) * (self.ny + 1) * (self.nz + 1)
@@ -89,45 +89,44 @@ class GeometryView:
             self.vtk_nylines = self.ny * (self.nx + 1) * (self.nz + 1)
             self.vtk_nzlines = self.nz * (self.nx + 1) * (self.ny + 1)
             self.vtk_numlines = self.vtk_nxlines + self.vtk_nylines + self.vtk_nzlines
-            self.vtk_connectivity_offset = round_value((self.vtk_numpoints
-                                                        * self.vtk_numpoint_components
-                                                        * np.dtype(np.float32).itemsize)
-                                                       + np.dtype(np.uint32).itemsize)
-            self.vtk_offsets_offset = round_value(self.vtk_connectivity_offset
-                                                  + (self.vtk_numlines * self.vtk_numline_components * np.dtype(np.uint32).itemsize)
-                                                  + np.dtype(np.uint32).itemsize)
-            self.vtk_materials_offset = round_value(self.vtk_offsets_offset
-                                                    + (self.vtk_numlines * np.dtype(np.uint32).itemsize)
-                                                    + np.dtype(np.uint32).itemsize)
-            vtk_cell_offsets = ((self.vtk_numline_components * self.vtk_numlines)
-                                + self.vtk_numline_components - self.vtk_numline_components - 1) // self.vtk_numline_components + 1
-            self.datawritesize = (np.dtype(np.float32).itemsize * self.vtk_numpoints * self.vtk_numpoint_components
-                                  + np.dtype(np.uint32).itemsize * self.vtk_numlines * self.vtk_numline_components
-                                  + np.dtype(np.uint32).itemsize * self.vtk_numlines
-                                  + np.dtype(np.uint32).itemsize * vtk_cell_offsets
-                                  + np.dtype(np.uint32).itemsize * 4)
+            self.vtk_connectivity_offset = round_value((self.vtk_numpoints *
+                                                       self.vtk_numpoint_components *
+                                                       np.dtype(np.float32).itemsize) +
+                                                       np.dtype(np.uint32).itemsize)
+            self.vtk_offsets_offset = round_value(self.vtk_connectivity_offset +
+                                                 (self.vtk_numlines *
+                                                 self.vtk_numline_components *
+                                                 np.dtype(np.uint32).itemsize) +
+                                                 np.dtype(np.uint32).itemsize)
+            self.vtk_materials_offset = round_value(self.vtk_offsets_offset +
+                                                   (self.vtk_numlines *
+                                                   np.dtype(np.uint32).itemsize) +
+                                                   np.dtype(np.uint32).itemsize)
+            vtk_cell_offsets = (((self.vtk_numline_components * self.vtk_numlines) +
+                               self.vtk_numline_components - self.vtk_numline_components - 1) //
+                               self.vtk_numline_components + 1)
+            self.datawritesize = (np.dtype(np.float32).itemsize * self.vtk_numpoints *
+                                 self.vtk_numpoint_components + np.dtype(np.uint32).itemsize *
+                                 self.vtk_numlines * self.vtk_numline_components +
+                                 np.dtype(np.uint32).itemsize * self.vtk_numlines +
+                                 np.dtype(np.uint32).itemsize * vtk_cell_offsets +
+                                 np.dtype(np.uint32).itemsize * 4)
 
-    def set_filename(self, appendmodelnumber):
-        """
-        Construct filename from user-supplied name and model run number.
-
-        Args:
-            appendmodelnumber (str): Text to append to filename.
-        """
-
-        parts = config.sim_config.input_file_path.parts
-        self.filename = Path(*parts[:-1], parts[-1] + appendmodelnumber)
+    def set_filename(self):
+        """Construct filename from user-supplied name and model run number."""
+        parts = config.model_configs[self.G.model_num].output_file_path.with_suffix('').parts
+        self.filename = Path(*parts[:-1], parts[-1])
         self.filename = self.filename.with_suffix(self.fileext)
 
     def write_vtk(self, G, pbar):
-        """
-        Writes the geometry information to a VTK file. Either ImageData (.vti) for a
-        per-cell geometry view, or PolygonalData (.vtp) for a per-cell-edge geometry view.
+        """Writes the geometry information to a VTK file.
+            Either ImageData (.vti) for a per-cell geometry view, or
+            PolygonalData (.vtp) for a per-cell-edge geometry view.
 
             N.B. No Python 3 support for VTK at time of writing (03/2015)
 
         Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (FDTDGrid): Parameters describing a grid in a model.
             pbar (class): Progress bar class instance.
         """
 
@@ -143,18 +142,29 @@ class GeometryView:
             for index, rx in enumerate(G.rxs):
                 self.rxs[rx.xcoord, rx.ycoord, rx.zcoord] = index + 1
 
-            vtk_srcs_pml_offset = round_value((np.dtype(np.uint32).itemsize * self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells) + np.dtype(np.uint32).itemsize)
-            vtk_rxs_offset = round_value((np.dtype(np.uint32).itemsize * self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells) + np.dtype(np.uint32).itemsize + (np.dtype(np.int8).itemsize * self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells) + np.dtype(np.uint32).itemsize)
+            vtk_srcs_pml_offset = round_value((np.dtype(np.uint32).itemsize *
+                                               self.vtk_nxcells *
+                                               self.vtk_nycells *
+                                               self.vtk_nzcells) +
+                                               np.dtype(np.uint32).itemsize)
+            vtk_rxs_offset = round_value((np.dtype(np.uint32).itemsize *
+                                          self.vtk_nxcells * self.vtk_nycells *
+                                          self.vtk_nzcells) +
+                                          np.dtype(np.uint32).itemsize +
+                                          (np.dtype(np.int8).itemsize *
+                                          self.vtk_nxcells * self.vtk_nycells *
+                                          self.vtk_nzcells) +
+                                          np.dtype(np.uint32).itemsize)
 
             with open(self.filename, 'wb') as f:
                 f.write('<?xml version="1.0"?>\n'.encode('utf-8'))
-                f.write('<VTKFile type="ImageData" version="1.0" byte_order="{}">\n'.format(GeometryView.byteorder).encode('utf-8'))
-                f.write('<ImageData WholeExtent="{} {} {} {} {} {}" Origin="0 0 0" Spacing="{:.3} {:.3} {:.3}">\n'.format(self.vtk_xscells, self.vtk_xfcells, self.vtk_yscells, self.vtk_yfcells, self.vtk_zscells, self.vtk_zfcells, self.dx * G.dx, self.dy * G.dy, self.dz * G.dz).encode('utf-8'))
-                f.write('<Piece Extent="{} {} {} {} {} {}">\n'.format(self.vtk_xscells, self.vtk_xfcells, self.vtk_yscells, self.vtk_yfcells, self.vtk_zscells, self.vtk_zfcells).encode('utf-8'))
+                f.write(f'<VTKFile type="ImageData" version="1.0" byte_order="{config.sim_config.vtk_byteorder}">\n'.encode('utf-8'))
+                f.write(f'<ImageData WholeExtent="{self.vtk_xscells} {self.vtk_xfcells} {self.vtk_yscells} {self.vtk_yfcells} {self.vtk_zscells} {self.vtk_zfcells}" Origin="0 0 0" Spacing="{self.dx * G.dx:.3} {self.dy * G.dy:.3} {self.dz * G.dz:.3}">\n'.encode('utf-8'))
+                f.write(f'<Piece Extent="{self.vtk_xscells} {self.vtk_xfcells} {self.vtk_yscells} {self.vtk_yfcells} {self.vtk_zscells} {self.vtk_zfcells}">\n'.encode('utf-8'))
                 f.write('<CellData Scalars="Material">\n'.encode('utf-8'))
                 f.write('<DataArray type="UInt32" Name="Material" format="appended" offset="0" />\n'.encode('utf-8'))
-                f.write('<DataArray type="Int8" Name="Sources_PML" format="appended" offset="{}" />\n'.format(vtk_srcs_pml_offset).encode('utf-8'))
-                f.write('<DataArray type="Int8" Name="Receivers" format="appended" offset="{}" />\n'.format(vtk_rxs_offset).encode('utf-8'))
+                f.write(f'<DataArray type="Int8" Name="Sources_PML" format="appended" offset="{vtk_srcs_pml_offset}" />\n'.encode('utf-8'))
+                f.write(f'<DataArray type="Int8" Name="Receivers" format="appended" offset="{vtk_rxs_offset}" />\n'.encode('utf-8'))
                 f.write('</CellData>\n'.encode('utf-8'))
                 f.write('</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
 
@@ -207,33 +217,30 @@ class GeometryView:
         elif self.fileext == '.vtp':
             with open(self.filename, 'wb') as f:
                 f.write('<?xml version="1.0"?>\n'.encode('utf-8'))
-                f.write('<VTKFile type="PolyData" version="1.0" byte_order="{}">\n'.format(GeometryView.byteorder).encode('utf-8'))
-                f.write('<PolyData>\n<Piece NumberOfPoints="{}" NumberOfVerts="0" NumberOfLines="{}" NumberOfStrips="0" NumberOfPolys="0">\n'.format(self.vtk_numpoints, self.vtk_numlines).encode('utf-8'))
-
+                f.write(f'<VTKFile type="PolyData" version="1.0" byte_order="{config.sim_config.vtk_byteorder}">\n'.encode('utf-8'))
+                f.write(f'<PolyData>\n<Piece NumberOfPoints="{self.vtk_numpoints}" NumberOfVerts="0" NumberOfLines="{self.vtk_numlines}" NumberOfStrips="0" NumberOfPolys="0">\n'.encode('utf-8'))
                 f.write('<Points>\n<DataArray type="Float32" NumberOfComponents="3" format="appended" offset="0" />\n</Points>\n'.encode('utf-8'))
-                f.write('<Lines>\n<DataArray type="UInt32" Name="connectivity" format="appended" offset="{}" />\n'.format(self.vtk_connectivity_offset).encode('utf-8'))
-                f.write('<DataArray type="UInt32" Name="offsets" format="appended" offset="{}" />\n</Lines>\n'.format(self.vtk_offsets_offset).encode('utf-8'))
-
+                f.write(f'<Lines>\n<DataArray type="UInt32" Name="connectivity" format="appended" offset="{self.vtk_connectivity_offset}" />\n'.encode('utf-8'))
+                f.write(f'<DataArray type="UInt32" Name="offsets" format="appended" offset="{self.vtk_offsets_offset}" />\n</Lines>\n'.encode('utf-8'))
                 f.write('<CellData Scalars="Material">\n'.encode('utf-8'))
                 f.write('<DataArray type="UInt32" Name="Material" format="appended" offset="{}" />\n'.format(self.vtk_materials_offset).encode('utf-8'))
                 f.write('</CellData>\n'.encode('utf-8'))
-
                 f.write('</Piece>\n</PolyData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
 
                 # Coordinates of each point
                 points = np.zeros((self.vtk_numpoints, 3), dtype=np.float32)
 
-                # Number of x components
-
                 # Node connectivity. Each index contains a pair of connected x nodes
                 x_lines = np.zeros((self.vtk_nxlines, 2), dtype=np.uint32)
                 # Material at Ex location in Yee cell.
                 x_materials = np.zeros((self.vtk_nxlines), dtype=np.uint32)
-
+                # Node connectivity. Each index contains a pair of connected y nodes
                 y_lines = np.zeros((self.vtk_nylines, 2), dtype=np.uint32)
+                # Material at Ey location in Yee cell.
                 y_materials = np.zeros((self.vtk_nylines), dtype=np.uint32)
-
+                # Node connectivity. Each index contains a pair of connected z nodes
                 z_lines = np.zeros((self.vtk_nzlines, 2), dtype=np.uint32)
+                # Material at Ez location in Yee cell.
                 z_materials = np.zeros((self.vtk_nzlines), dtype=np.uint32)
 
                 define_fine_geometry(self.nx,
@@ -263,7 +270,8 @@ class GeometryView:
                 pbar.update(n=points.nbytes)
 
                 # Write connectivity data
-                f.write(pack('I', np.dtype(np.uint32).itemsize * self.vtk_numlines * self.vtk_numline_components))
+                f.write(pack('I', np.dtype(np.uint32).itemsize *
+                                  self.vtk_numlines * self.vtk_numline_components))
                 pbar.update(n=4)
                 f.write(x_lines)
                 pbar.update(n=x_lines.nbytes)
@@ -275,7 +283,9 @@ class GeometryView:
                 # Write cell type (line) offsets
                 f.write(pack('I', np.dtype(np.uint32).itemsize * self.vtk_numlines))
                 pbar.update(n=4)
-                for vtk_offsets in range(self.vtk_numline_components, (self.vtk_numline_components * self.vtk_numlines) + self.vtk_numline_components, self.vtk_numline_components):
+                for vtk_offsets in range(self.vtk_numline_components,
+                                        (self.vtk_numline_components * self.vtk_numlines) +
+                                        self.vtk_numline_components, self.vtk_numline_components):
                     f.write(pack('I', vtk_offsets))
                     pbar.update(n=4)
 
@@ -293,25 +303,24 @@ class GeometryView:
                 self.write_gprmax_info(f, G, materialsonly=True)
 
     def write_gprmax_info(self, f, G, materialsonly=False):
-        """
-        Writes gprMax specific information relating material, source,
-        and receiver names to numeric identifiers.
+        """Writes gprMax specific information relating material, source,
+            and receiver names to numeric identifiers.
 
         Args:
             f (filehandle): VTK file.
-            G (class): Grid class instance - holds essential parameters describing the model.
-            materialsonly (boolean): Only write information on materials
+            G (FDTDGrid): Parameters describing a grid in a model.
+            materialsonly (bool): Only write information on materials
         """
 
         f.write('\n\n<gprMax>\n'.encode('utf-8'))
         for material in G.materials:
-            f.write('<Material name="{}">{}</Material>\n'.format(material.ID, material.numID).encode('utf-8'))
+            f.write(f'<Material name="{material.ID}">{material.numID}</Material>\n'.encode('utf-8'))
         if not materialsonly:
             f.write('<PML name="PML boundary region">1</PML>\n'.encode('utf-8'))
             for index, src in enumerate(G.hertziandipoles + G.magneticdipoles + G.voltagesources + G.transmissionlines):
-                f.write('<Sources name="{}">{}</Sources>\n'.format(src.ID, index + 2).encode('utf-8'))
+                f.write(f'<Sources name="{src.ID}">{index + 2}</Sources>\n'.encode('utf-8'))
             for index, rx in enumerate(G.rxs):
-                f.write('<Receivers name="{}">{}</Receivers>\n'.format(rx.ID, index + 1).encode('utf-8'))
+                f.write(f'<Receivers name="{rx.ID}">{index + 1}</Receivers>\n'.encode('utf-8'))
         f.write('</gprMax>\n'.encode('utf-8'))
 
 
@@ -334,8 +343,13 @@ class GeometryObjects:
         self.nx = self.xf - self.xs
         self.ny = self.yf - self.ys
         self.nz = self.zf - self.zs
-        self.filename = basefilename + '.h5'
-        self.materialsfilename = basefilename + '_materials.txt'
+
+        # Set filenames
+        parts = config.sim_config.input_file_path.with_suffix('').parts
+        self.filename_hdf5 = Path(*parts[:-1], basefilename)
+        self.filename_hdf5 = self.filename_hdf5.with_suffix('.h5')
+        self.filename_materials = Path(*parts[:-1], basefilename + '_materials')
+        self.filename_materials = self.filename_materials.with_suffix('.txt')
 
         # Sizes of arrays to write necessary to update progress bar
         self.solidsize = (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(np.int16).itemsize
@@ -347,12 +361,12 @@ class GeometryObjects:
         """Write a geometry objects file in HDF5 format.
 
         Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (FDTDGrid): Parameters describing a grid in a model.
             pbar (class): Progress bar class instance.
         """
 
         # Write the geometry objects to a HDF5 file
-        fdata = h5py.File(os.path.abspath(os.path.join(G.inputdirectory, self.filename)), 'w')
+        fdata = h5py.File(self.filename_hdf5, 'w')
         fdata.attrs['gprMax'] = __version__
         fdata.attrs['Title'] = G.title
         fdata.attrs['dx_dy_dz'] = (G.dx, G.dy, G.dz)
@@ -370,26 +384,27 @@ class GeometryObjects:
 
         # Write materials list to a text file
         # This includes all materials in range whether used in volume or not
-        fmaterials = open(os.path.abspath(os.path.join(G.inputdirectory, self.materialsfilename)), 'w')
+        fmaterials = open(self.filename_materials, 'w')
         for numID in range(minmat, maxmat + 1):
             for material in G.materials:
                 if material.numID == numID:
-                    fmaterials.write('#material: {:g} {:g} {:g} {:g} {}\n'.format(material.er, material.se, material.mr, material.sm, material.ID))
+                    fmaterials.write(f'#material: {material.er:g} {material.se:g} {material.mr:g} {material.sm:g} {material.ID}\n')
                     if material.poles > 0:
                         if 'debye' in material.type:
-                            dispersionstr = '#add_dispersion_debye: {:g} '.format(material.poles)
+                            dispersionstr = f'#add_dispersion_debye: {material.poles:g} '
                             for pole in range(material.poles):
-                                dispersionstr += '{:g} {:g} '.format(material.deltaer[pole], material.tau[pole])
+                                dispersionstr += f'{material.deltaer[pole]:g} {material.tau[pole]:g} '
                         elif 'lorenz' in material.type:
-                            dispersionstr = '#add_dispersion_lorenz: {:g} '.format(material.poles)
+                            dispersionstr = f'#add_dispersion_lorenz: {material.poles:g} '
                             for pole in range(material.poles):
-                                dispersionstr += '{:g} {:g} {:g} '.format(material.deltaer[pole], material.tau[pole], material.alpha[pole])
+                                dispersionstr += f'{material.deltaer[pole]:g} {material.tau[pole]:g} {material.alpha[pole]:g} '
                         elif 'drude' in material.type:
-                            dispersionstr = '#add_dispersion_drude: {:g} '.format(material.poles)
+                            dispersionstr = f'#add_dispersion_drude: {material.poles:g} '
                             for pole in range(material.poles):
-                                dispersionstr += '{:g} {:g} '.format(material.tau[pole], material.alpha[pole])
+                                dispersionstr += f'{material.tau[pole]:g} {material.alpha[pole]:g} '
                         dispersionstr += material.ID
                         fmaterials.write(dispersionstr + '\n')
+
 
 class GeometryViewFineMultiGrid:
     """Geometry view for all grids in the simulation.
@@ -399,11 +414,6 @@ class GeometryViewFineMultiGrid:
         require domainslicing GeometryView seperately for each grid you require and
         view them at once in Paraview.
     """
-
-    if sys.byteorder == 'little':
-        byteorder = 'LittleEndian'
-    else:
-        byteorder = 'BigEndian'
 
     def __init__(self, xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, fileext, G):
         """
@@ -432,7 +442,6 @@ class GeometryViewFineMultiGrid:
             # total additional lines required for subgrid
             self.additional_lines += sg_gv.n_total_lines
             # total additional points required for subgrid
-
             self.additional_points += sg_gv.n_total_points
 
         self.vtk_numpoints = self.additional_points + (self.nx + 1) * (self.ny + 1) * (self.nz + 1)
@@ -444,24 +453,21 @@ class GeometryViewFineMultiGrid:
         self.vtk_materials_offset = round_value(int(self.vtk_offsets_offset + (self.vtk_numlines * np.dtype(np.uint32).itemsize) + np.dtype(np.uint32).itemsize))
         self.datawritesize = np.dtype(np.float32).itemsize * self.vtk_numpoints * self.vtk_numpoint_components + np.dtype(np.uint32).itemsize * self.vtk_numlines * self.vtk_numline_components + np.dtype(np.uint32).itemsize * self.vtk_numlines + np.dtype(np.uint32).itemsize * self.vtk_numlines
 
-    def set_filename(self, appendmodelnumber):
-        """
-        Construct filename from user-supplied name and model run number.
-
-        Args:
-            appendmodelnumber (str): Text to append to filename.
-        """
-
-        self.filename = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(config.general['inputfilepath'])), self.basefilename + appendmodelnumber))
-        self.filename += self.fileext
+    def set_filename(self):
+        """Construct filename from user-supplied name and model run number."""
+        parts = config.model_configs[self.G.model_num].input_file_path.parts
+        self.filename = Path(*parts[:-1], parts[-1] + config.model_configs[self.G.model_num].appendmodelnumber)
+        self.filename = self.filename.with_suffix(self.fileext)
 
     def write_vtk(self, *args):
-        """
-        Writes the geometry information to a VTK file. Either ImageData (.vti) for a
-        per-cell geometry view, or PolygonalData (.vtp) for a per-cell-edge geometry view.
+        """Writes the geometry information to a VTK file.
+            Either ImageData (.vti) for a per-cell geometry view, or
+            PolygonalData (.vtp) for a per-cell-edge geometry view.
+
             N.B. No Python 3 support for VTK at time of writing (03/2015)
+
         Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
+            G (FDTDGrid): Parameters describing a grid in a model.
         """
 
         G = self.G
@@ -471,7 +477,7 @@ class GeometryViewFineMultiGrid:
             # refine parameters for subgrid
 
             f.write('<?xml version="1.0"?>\n'.encode('utf-8'))
-            f.write('<VTKFile type="PolyData" version="1.0" byte_order="{}">\n'.format(GeometryViewFineMultiGrid.byteorder).encode('utf-8'))
+            f.write('<VTKFile type="PolyData" version="1.0" byte_order="{}">\n'.format(config.sim_config.vtk_byteorder).encode('utf-8'))
             f.write('<PolyData>\n<Piece NumberOfPoints="{}" NumberOfVerts="0" NumberOfLines="{}" NumberOfStrips="0" NumberOfPolys="0">\n'.format(self.vtk_numpoints, self.vtk_numlines).encode('utf-8'))
 
             f.write('<Points>\n<DataArray type="Float32" NumberOfComponents="3" format="appended" offset="0" />\n</Points>\n'.encode('utf-8'))
@@ -484,7 +490,7 @@ class GeometryViewFineMultiGrid:
             f.write('</Piece>\n</PolyData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
 
             # Write points
-            print('writing points main grid')
+            log.info('writing points main grid')
             datasize = np.dtype(np.float32).itemsize * self.vtk_numpoints * self.vtk_numpoint_components
             f.write(pack('I', datasize))
             for i in range(0, G.nx + 1):
@@ -493,7 +499,7 @@ class GeometryViewFineMultiGrid:
                         f.write(pack('fff', i * G.dx, j * G.dy, k * G.dz))
 
             for sg_v in self.sg_views:
-                print('writing points subgrid')
+                log.info('writing points subgrid')
                 sg_v.write_points(f, G)
 
             n_x_lines = self.nx * (self.ny + 1) * (self.nz + 1)
@@ -508,7 +514,7 @@ class GeometryViewFineMultiGrid:
             z_lines = np.zeros((n_z_lines, 2), dtype=np.uint32)
             z_materials = np.zeros((n_z_lines), dtype=np.uint32)
 
-            print('calculate connectivity main grid')
+            log.info('calculate connectivity main grid')
             label = 0
             counter_x = 0
             counter_y = 0
@@ -540,7 +546,7 @@ class GeometryViewFineMultiGrid:
 
                         label = label + 1
 
-            print('calculate connectivity subgrids')
+            log.info('calculate connectivity subgrids')
             for sg_v in self.sg_views:
                 sg_v.populate_connectivity_and_materials(label)
                 # use the last subgrids label for the next view
@@ -584,13 +590,13 @@ class GeometryViewFineMultiGrid:
             #self.write_gprmax_info(f, G, materialsonly=True)
 
     def write_gprmax_info(self, f, G, materialsonly=False):
-        """
-        Writes gprMax specific information relating material, source,
-        and receiver names to numeric identifiers.
+        """Writes gprMax specific information relating material, source,
+            and receiver names to numeric identifiers.
+
         Args:
             f (filehandle): VTK file.
-            G (class): Grid class instance - holds essential parameters describing the model.
-            materialsonly (boolean): Only write information on materials
+            G (FDTDGrid): Parameters describing a grid in a model.
+            materialsonly (bool): Only write information on materials.
         """
 
         f.write('\n\n<gprMax>\n'.encode('utf-8'))
@@ -607,6 +613,7 @@ class GeometryViewFineMultiGrid:
 
 
 class SubgridGeometryView:
+
     def __init__(self, sg):
 
         self.sg = sg
@@ -646,8 +653,10 @@ class SubgridGeometryView:
                     f.write(pack('fff', p_x, p_y, p_z))
 
     def populate_connectivity_and_materials(self, label):
-        """Label is the starting label. 0 if no other grids are present but +1 the last label used
-        for a multigrid view"""
+        """Label is the starting label. 0 if no other grids are present but
+        +1 the last label used for a multigrid view.
+        """
+
         sg = self.sg
         self.label = label
 

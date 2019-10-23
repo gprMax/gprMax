@@ -339,10 +339,12 @@ class CUDAPML(PML):
         solving on GPU using CUDA.
     """
 
-    def initialise_field_arrays_gpu(self):
+    def initialise_field_arrays(self):
         """Initialise PML field and coefficient arrays on GPU."""
 
         import pycuda.gpuarray as gpuarray
+
+        super().initialise_field_arrays()
 
         self.ERA_gpu = gpuarray.to_gpu(self.ERA)
         self.ERB_gpu = gpuarray.to_gpu(self.ERB)
@@ -352,52 +354,16 @@ class CUDAPML(PML):
         self.HRB_gpu = gpuarray.to_gpu(self.HRB)
         self.HRE_gpu = gpuarray.to_gpu(self.HRE)
         self.HRF_gpu = gpuarray.to_gpu(self.HRF)
-
-        if self.direction[0] == 'x':
-            self.EPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS),
-                                             self.nx + 1, self.ny, self.nz + 1),
-                                             dtype=config.sim_config.dtypes['float_or_double']))
-            self.EPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS),
-                                             self.nx + 1, self.ny + 1, self.nz),
-                                             dtype=config.sim_config.dtypes['float_or_double']))
-            self.HPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS),
-                                             self.nx, self.ny + 1, self.nz),
-                                             dtype=config.sim_config.dtypes['float_or_double']))
-            self.HPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS),
-                                             self.nx, self.ny, self.nz + 1),
-                                             dtype=config.sim_config.dtypes['float_or_double']))
-        elif self.direction[0] == 'y':
-            self.EPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS),
-                                             self.nx, self.ny + 1, self.nz + 1),
-                                             dtype=config.sim_config.dtypes['float_or_double']))
-            self.EPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS),
-                                             self.nx + 1, self.ny + 1, self.nz),
-                                             dtype=config.sim_config.dtypes['float_or_double']))
-            self.HPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS),
-                                             self.nx + 1, self.ny, self.nz),
-                                             dtype=config.sim_config.dtypes['float_or_double']))
-            self.HPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS),
-                                             self.nx, self.ny, self.nz + 1),
-                                             dtype=config.sim_config.dtypes['float_or_double']))
-        elif self.direction[0] == 'z':
-            self.EPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS),
-                                             self.nx, self.ny + 1, self.nz + 1),
-                                             dtype=config.sim_config.dtypes['float_or_double']))
-            self.EPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS),
-                                             self.nx + 1, self.ny, self.nz + 1),
-                                             dtype=config.sim_config.dtypes['float_or_double']))
-            self.HPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS),
-                                             self.nx + 1, self.ny, self.nz),
-                                             dtype=config.sim_config.dtypes['float_or_double']))
-            self.HPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS),
-                                             self.nx, self.ny + 1, self.nz),
-                                             dtype=config.sim_config.dtypes['float_or_double']))
+        self.EPhi1_gpu = gpuarray.to_gpu(self.EPhi1)
+        self.EPhi2_gpu = gpuarray.to_gpu(self.EPhi2)
+        self.HPhi1_gpu = gpuarray.to_gpu(self.HPhi1)
+        self.HPhi2_gpu = gpuarray.to_gpu(self.HPhi2)
 
     def set_blocks_per_grid(self, G):
         """Set the blocks per grid size used for updating the PML field arrays on a GPU.
 
         Args:
-            G (FDTDGrid): Holds essential parameters describing the model.
+            G (FDTDGrid): Parameters describing a grid in a model.
         """
 
         self.bpg = (int(np.ceil(((self.EPhi1_gpu.shape[1] + 1) *
@@ -422,7 +388,7 @@ class CUDAPML(PML):
             correction on the GPU.
 
         Args:
-            G (FDTDGrid): Holds essential parameters describing the model.
+            G (FDTDGrid): Parameters describing a grid in a model.
         """
 
         self.update_electric_gpu(np.int32(self.xs), np.int32(self.xf),
@@ -449,7 +415,7 @@ class CUDAPML(PML):
             correction on the GPU.
 
         Args:
-            G (FDTDGrid): Holds essential parameters describing the model.
+            G (FDTDGrid): Parameters describing a grid in a model.
         """
         self.update_magnetic_gpu(np.int32(self.xs), np.int32(self.xf),
                                  np.int32(self.ys), np.int32(self.yf),
@@ -474,7 +440,7 @@ def pml_information(G):
     """Information about PMLs.
 
     Args:
-        G (FDTDGrid): Holds essential parameters describing the model.
+        G (FDTDGrid): Parameters describing a grid in a model.
     """
     # No PML
     if all(value == 0 for value in G.pmlthickness.values()):
@@ -497,7 +463,7 @@ def build_pml(G, key, value):
         (based on underlying material er and mr from solid array).
 
     Args:
-        G (FDTDGrid): Holds essential parameters describing the model.
+        G (FDTDGrid): Parameters describing a grid in a model.
         key (str): Identifier of PML slab.
         value (int): Thickness of PML slab in cells.
     """

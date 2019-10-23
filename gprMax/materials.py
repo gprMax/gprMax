@@ -49,7 +49,7 @@ class Material:
         """Calculates the magnetic update coefficients of the material.
 
         Args:
-            G (FDTDGrid): Holds essential parameters describing a model.
+            G (FDTDGrid): Parameters describing a grid in a model.
         """
 
         HA = (config.m0 * self.mr / G.dt) + 0.5 * self.sm
@@ -64,7 +64,7 @@ class Material:
         """Calculates the electric update coefficients of the material.
 
         Args:
-            G (FDTDGrid): Holds essential parameters describing a model.
+            G (FDTDGrid): Parameters describing a grid in a model.
         """
 
         EA = (config.sim_config.em_consts['e0'] * self.er / G.dt) + 0.5 * self.se
@@ -126,7 +126,7 @@ class DispersiveMaterial(Material):
         """Calculates the electric update coefficients of the material.
 
         Args:
-            G (FDTDGrid): Holds essential parameters describing a model.
+            G (FDTDGrid): Parameters describing a grid in a model.
         """
 
         # The implementation of the dispersive material modelling comes from the
@@ -216,7 +216,7 @@ def process_materials(G):
         store in arrays, and build text list of materials/properties
 
     Args:
-        G (FDTDGrid): Holds essential parameters describing a model.
+        G (FDTDGrid): Parameters describing a grid in a model.
 
     Returns:
         materialsdata (list): List of material IDs, names, and properties to
@@ -315,7 +315,7 @@ class PeplinskiSoil:
 
         Args:
             nbins (int): Number of bins to use to create the different materials.
-            G (FDTDGrid): Holds essential parameters describing a model.
+            G (FDTDGrid): Parameters describing a grid in a model.
         """
 
         # Debye model properties of water
@@ -382,7 +382,7 @@ def create_built_in_materials(G):
     """Create pre-defined (built-in) materials.
 
     Args:
-        G (FDTDGrid): Holds essential parameters describing a model.
+        G (FDTDGrid): Parameters describing a grid in a model.
     """
 
     G.n_built_in_materials = len(G.materials)

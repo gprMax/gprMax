@@ -73,22 +73,20 @@ class ModelConfig:
 
         self.reuse_geometry = False
 
+        # String to print at start of each model run
+        inputfilestr = f'\n--- Model {self.i + 1}/{sim_config.model_end}, input file: {sim_config.input_file_path}'
+        self.set_inputfilestr(inputfilestr)
+
         if not sim_config.single_model:
             self.appendmodelnumber = str(self.i + 1) # Indexed from 1
         else:
             self.appendmodelnumber = ''
 
         # Output file path for specific model
-        parts = sim_config.output_file_path.with_suffix('').parts
-        self.output_file_path = Path(*parts[:-1], parts[-1] + self.appendmodelnumber)
-        self.output_file_path_ext = self.output_file_path.with_suffix('.out')
+        self.set_output_file_path()
 
-        # Make a snapshot directory
-        self.snapshot_dir = '_snaps'
-
-        # String to print at start of each model run
-        inputfilestr = f'\n--- Model {self.i + 1}/{sim_config.model_end}, input file: {sim_config.input_file_path}'
-        self.set_inputfilestr(inputfilestr)
+        # Specify a snapshot directory
+        self.set_snapshots_file_path()
 
         # Numerical dispersion analysis parameters
         #   highestfreqthres: threshold (dB) down from maximum power (0dB) of main frequency used
@@ -129,6 +127,34 @@ class ModelConfig:
         """
         self.inputfilestr = Fore.GREEN + f"{inputfilestr} {'-' * (get_terminal_width() - 1 - len(inputfilestr))}\n" + Style.RESET_ALL
 
+    def set_output_file_path(self, outputdir=None):
+        """Output file path can be provided by the user via the API or an input file
+            command. If they haven't provided one use the input file path instead.
+
+        Args:
+            outputdir (str): Output file directory given from input file command.
+        """
+
+        if not outputdir:
+            try:
+                self.output_file_path = Path(self.args.outputfile)
+            except AttributeError:
+                self.output_file_path = sim_config.input_file_path.with_suffix('')
+        else:
+            try:
+                Path(outputdir).mkdir(exist_ok=True)
+                self.output_file_path = Path(outputdir, sim_config.input_file_path.stem)
+            except AttributeError:
+                self.output_file_path = sim_config.input_file_path.with_suffix('')
+
+        parts = self.output_file_path.parts
+        self.output_file_path = Path(*parts[:-1], parts[-1] + self.appendmodelnumber)
+        self.output_file_path_ext = self.output_file_path.with_suffix('.out')
+
+    def set_snapshots_file_path(self):
+        """Set directory to store any snapshots."""
+        parts = self.output_file_path.with_suffix('').parts
+        self.snapshot_file_path = Path(*parts[:-1], parts[-1] + '_snaps')
 
 class SimulationConfig:
     """Configuration parameters for a standard simulation.
@@ -200,8 +226,8 @@ class SimulationConfig:
 
         # Set more complex parameters
         self.set_precision()
+        self.get_byteorder()
         self.set_input_file_path()
-        self.set_output_file_path()
         self.set_model_start_end()
         self.set_single_model()
 
@@ -237,14 +263,22 @@ class SimulationConfig:
                       'cython_float_or_double': cython.float,
                       'cython_complex': cython.floatcomplex,
                       'C_float_or_double': 'float',
-                      'C_complex': 'pycuda::complex<float>'}
+                      'C_complex': 'pycuda::complex<float>',
+                      'vtk_float': 'Float32'}
         elif self.general['precision'] == 'double':
             self.dtypes = {'float_or_double': np.float64,
                       'complex': np.complex128,
                       'cython_float_or_double': cython.double,
                       'cython_complex': cython.doublecomplex,
                       'C_float_or_double': 'double',
-                      'C_complex': 'pycuda::complex<double>'}
+                      'C_complex': 'pycuda::complex<double>',
+                      'vtk_float': 'Float64'}
+
+    def get_byteorder(self):
+        """Check the byte order of system to use for VTK files, i.e. geometry
+            views and snapshots.
+        """
+        self.vtk_byteorder = 'LittleEndian' if sys.byteorder == 'little' else 'BigEndian'
 
     def set_single_model(self):
         if self.model_start == 0 and self.model_end == 1:
@@ -269,19 +303,11 @@ class SimulationConfig:
         self.model_end = modelend
 
     def set_input_file_path(self):
-        """If the API is in use an id for the simulation must be provided."""
+        """Set input file path for CLI or API."""
         if self.args.inputfile is None:
             self.input_file_path = Path(self.args.outputfile)
         else:
             self.input_file_path = Path(self.args.inputfile)
-
-    def set_output_file_path(self):
-        """Output file path can be provided by the user. If they havent provided one
-            use the inputfile file path instead."""
-        try:
-            self.output_file_path = Path(self.args.outputfile)
-        except AttributeError:
-            self.output_file_path = Path(self.input_file_path)
 
 
 class SimulationConfigMPI(SimulationConfig):

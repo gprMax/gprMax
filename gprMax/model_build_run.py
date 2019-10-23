@@ -103,6 +103,8 @@ class ModelBuildRun:
         # Normal model reading/building process; bypassed if geometry information to be reused
         self.reuse_geometry() if config.model_configs[G.model_num].reuse_geometry else self.build_geometry()
 
+        log.info(f'\nOutput path: {config.model_configs[G.model_num].output_file_path.parent}')
+
         # Adjust position of simple sources and receivers if required
         if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
             for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
@@ -135,7 +137,8 @@ class ModelBuildRun:
         if not (G.geometryviews or G.geometryobjectswrite) and config.sim_config.args.geometry_only:
             log.warning(Fore.RED + f'\nNo geometry views or geometry objects found.' + Style.RESET_ALL)
         for i, geometryview in enumerate(G.geometryviews):
-            geometryview.set_filename(config.model_configs[G.model_num].appendmodelnumber)
+            log.info('')
+            geometryview.set_filename()
             pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True,
                         desc=f'Writing geometry view file {i + 1}/{len(G.geometryviews)}, {geometryview.filename.name}',
                         ncols=get_terminal_width() - 1, file=sys.stdout,
@@ -143,6 +146,7 @@ class ModelBuildRun:
             geometryview.write_vtk(G, pbar)
             pbar.close()
         for i, geometryobject in enumerate(G.geometryobjectswrite):
+            log.info('')
             pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True,
                         desc=f'Writing geometry object file {i + 1}/{len(G.geometryobjectswrite)}, {geometryobject.filename.name}',
                         ncols=get_terminal_width() - 1, file=sys.stdout,
@@ -157,22 +161,11 @@ class ModelBuildRun:
 
         scene = self.build_scene()
 
-        # Combine available grids and check memory requirements
+        # Combine available grids and check basic memory requirements
         grids = [G] + G.subgrids
         for grid in grids:
             config.model_configs[G.model_num].mem_use += grid.mem_est_basic()
         mem_check(config.model_configs[G.model_num].mem_use)
-        log.info(f'\nMemory (RAM) required: ~{human_size(config.model_configs[G.model_num].mem_use)}')
-
-        gridbuilders = [GridBuilder(grid) for grid in grids]
-
-        for gb in gridbuilders:
-            pml_information(gb.grid)
-            gb.build_pmls()
-            gb.build_components()
-            gb.tm_grid_update()
-            gb.update_voltage_source_materials()
-            gb.grid.initialise_std_update_coeff_arrays()
 
         # Set datatype for dispersive arrays if there are any dispersive materials.
         if config.model_configs[G.model_num].materials['maxpoles'] != 0:
@@ -187,10 +180,6 @@ class ModelBuildRun:
             # Update estimated memory (RAM) usage
             config.model_configs[G.model_num].mem_use += G.mem_est_dispersive()
             mem_check(config.model_configs[G.model_num].mem_use)
-            log.info(f'Memory (RAM) required - updated (dispersive): ~{human_size(config.model_configs[G.model_num].mem_use)}')
-
-            for gb in gridbuilders:
-                gb.grid.initialise_dispersive_arrays(config.model_configs[G.model_num].materials['dispersivedtype'])
 
         # Check there is sufficient memory to store any snapshots
         if G.snapshots:
@@ -203,10 +192,20 @@ class ModelBuildRun:
             mem_check(config.model_configs[G.model_num].mem_use)
             if config.sim_config.general['cuda']:
                 mem_check_gpu_snaps(G.model_num, snaps_mem)
-            log.info(f'Memory (RAM) required - updated (snapshots): ~{human_size(config.model_configs[G.model_num].mem_use)}')
 
-        # Build materials
+        log.info(f'\nMemory (RAM) required: ~{human_size(config.model_configs[G.model_num].mem_use)}')
+
+        # Build grids
+        gridbuilders = [GridBuilder(grid) for grid in grids]
         for gb in gridbuilders:
+            pml_information(gb.grid)
+            gb.build_pmls()
+            gb.build_components()
+            gb.tm_grid_update()
+            gb.update_voltage_source_materials()
+            gb.grid.initialise_std_update_coeff_arrays()
+            if config.model_configs[G.model_num].materials['maxpoles'] != 0:
+                gb.grid.initialise_dispersive_arrays()
             gb.build_materials()
 
         # Check to see if numerical dispersion might be a problem
@@ -237,24 +236,12 @@ class ModelBuildRun:
         if not scene:
             scene = Scene()
             # Parse the input file into user objects and add them to the scene
-            scene = parse_hash_commands(config.model_configs[self.G.model_num], self.G, scene)
+            scene = parse_hash_commands(scene, self.G)
 
         # Creates the internal simulation objects
         scene.create_internal_objects(self.G)
 
         return scene
-
-    def create_output_directory(self):
-        log.debug('Fix output directory path setting')
-        # if self.G.outputdirectory:
-        #     # Check and set output directory and filename
-        #     try:
-        #         os.mkdir(self.G.outputdirectory)
-        #         log.info(f'\nCreated output directory: {self.G.outputdirectory}')
-        #     except FileExistsError:
-        #         pass
-        #     # Modify the output path (hack)
-        #     config.model_configs[G.model_num].output_file_path_ext = Path(self.G.outputdirectory, config.model_configs[G.model_num].output_file_path_ext)
 
     def write_output_data(self):
         """Write output data, i.e. field data for receivers and snapshots
@@ -266,19 +253,17 @@ class ModelBuildRun:
 
         # Write any snapshots to file
         if self.G.snapshots:
-            # Create directory and construct filename from user-supplied name
-            # and model run number
-            snapshotdir = config.model_configs[self.G.model_num].snapshot_dir
-            if not os.path.exists(snapshotdir):
-                os.mkdir(snapshotdir)
+            # Create directory for snapshots
+            config.model_configs[self.G.model_num].set_snapshots_file_path()
+            snapshotdir = config.model_configs[self.G.model_num].snapshot_file_path
+            snapshotdir.mkdir(exist_ok=True)
 
             log.info('')
             for i, snap in enumerate(self.G.snapshots):
-                fn = snapshotdir / Path(config.model_configs[self.G.model_num].output_file_path.stem + '_' + snap.basefilename)
+                fn = snapshotdir / Path(snap.filename)
                 snap.filename = fn.with_suffix('.vti')
                 pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte',
-                            unit_scale=True, desc=f'Writing snapshot file {i + 1} of {len(self.G.snapshots)}, {os.path.split(snap.filename)[1]}', ncols=get_terminal_width() - 1, file=sys.stdout,
-                            disable=not config.general['progressbars'])
+                            unit_scale=True, desc=f'Writing snapshot file {i + 1} of {len(self.G.snapshots)}, {snap.filename.name}', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
                 snap.write_vtk_imagedata(pbar, self.G)
                 pbar.close()
             log.info('')
@@ -308,7 +293,6 @@ class ModelBuildRun:
             tsolve (float): time taken to execute solving (seconds).
         """
 
-        self.create_output_directory()
         log.info(f'\nOutput file: {config.model_configs[self.G.model_num].output_file_path_ext}')
 
         # Check number of OpenMP threads

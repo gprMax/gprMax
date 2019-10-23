@@ -31,7 +31,7 @@ def store_outputs(G):
         iteration (int): Current iteration number.
         Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic
                                                 field values.
-        G (FDTDGrid): Holds essential parameters describing a model.
+        G (FDTDGrid): Parameters describing a grid in a model.
     """
 
     iteration = G.iteration
@@ -105,7 +105,7 @@ def write_hdf5_main_grid_outputfile(outputfile, G):
 
     Args:
         outputfile (str): Name of the output file.
-        G (FDTDGrid): Holds essential parameters describing a model.
+        G (FDTDGrid): Parameters describing a grid in a model.
     """
 
     write_data(outputfile, G)
@@ -116,7 +116,7 @@ def write_hdf5_sub_grid_outputfile(outputfile, G):
 
     Args:
         outputfile (str): Name of the output file.
-        G (FDTDGrid): Holds essential parameters describing a model.
+        G (FDTDGrid): Parameters describing a grid in a model.
     """
 
     stem = outputfile.stem
@@ -145,7 +145,7 @@ def write_data(outputfile, G):
 
     Args:
         outputfile (str): Name of the output file.
-        G (FDTDGrid): Holds essential parameters describing a model.
+        G (FDTDGrid): Parameters describing a grid in a model.
     """
 
     f = h5py.File(outputfile, 'w')

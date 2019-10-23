@@ -75,7 +75,7 @@ class SubgridUpdater(CPUUpdates):
             subgrid (SubGrid3d): Subgrid to be updated.
             precursors (PrecursorNodes): Precursor nodes associated with
             the subgrid - contain interpolated fields.
-            G (FDTDGrid): Holds essential parameters describing a model.
+            G (FDTDGrid): Parameters describing a grid in a model.
         """
         super().__init__(subgrid)
         self.precursors = precursors

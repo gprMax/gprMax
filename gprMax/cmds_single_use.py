@@ -504,7 +504,7 @@ class OutputDir(UserObjectSingle):
         self.order = 11
 
     def create(self, grid, uip):
-        grid.outputdirectory = self.kwargs['dir']
+        config.model_configs[grid.model_num].set_output_file_path(self.kwargs['dir'])
 
 
 class NumberOfModelRuns(UserObjectSingle):
