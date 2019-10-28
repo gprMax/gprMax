@@ -62,7 +62,7 @@ def process_python_include_code(inputfile, usernamespace):
 
         # Process any Python code
         if(inputlines[x].startswith('#python:')):
-
+            log.warning('#python blocks are deprecated and will be removed in the next release of gprMax. Please convert your model to use our Python API instead.')
             # String to hold Python code to be executed
             pythoncode = ''
             x += 1

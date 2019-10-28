@@ -26,6 +26,7 @@ from .cmds_geometry.cmds_geometry import UserObjectGeometry
 from .exceptions import CmdInputError
 from .geometry_outputs import GeometryObjects as GeometryObjectsUser
 from .materials import Material as MaterialUser
+from .materials import DispersiveMaterial as DispersiveMaterialUser
 from .materials import PeplinskiSoil as PeplinskiSoilUser
 from .pml import CFSParameter
 from .pml import CFS
@@ -508,7 +509,7 @@ class Rx(UserObjectMulti):
 
         try:
             r.ID = self.kwargs['id']
-            outputs = self.kwargs['outputs']
+            outputs = [self.kwargs['outputs']]
             # Get allowable outputs
             allowableoutputs = RxUser.allowableoutputs_gpu if config.sim_config.general['cuda'] else RxUser.allowableoutputs
             # Check and add field output names
@@ -767,20 +768,28 @@ class AddDebyeDispersion(UserObjectMulti):
             raise CmdInputError(f"'{self.params_str()}' material(s) {notfound} do not exist")
 
         for material in materials:
-            material.type = 'debye'
-            material.poles = poles
-            material.averagable = False
+            disp_material = DispersiveMaterialUser(material.numID, material.ID)
+            disp_material.er = material.er
+            disp_material.se = material.se
+            disp_material.mr = material.mr
+            disp_material.sm = material.sm
+            disp_material.type = 'debye'
+            disp_material.poles = poles
+            disp_material.averagable = False
             for i in range(0, poles):
-                # N.B Not checking if relaxation times are greater than time-step
                 if tau[i] > 0:
-                    material.deltaer.append(er_delta[i])
-                    material.tau.append(tau[i])
+                    log.debug('Not checking if relaxation times are greater than time-step')
+                    disp_material.deltaer.append(er_delta[i])
+                    disp_material.tau.append(tau[i])
                 else:
                     raise CmdInputError(f"'{self.params_str()}' requires positive values for the permittivity difference.")
-            if material.poles > MaterialUser.maxpoles:
-                MaterialUser.maxpoles = material.poles
+            if disp_material.poles > config.model_configs[grid.model_num].materials['maxpoles']:
+                config.model_configs[grid.model_num].materials['maxpoles'] = disp_material.poles
 
-            log.info(f"Debye disperion added to {material.ID} with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in material.deltaer)}, and tau={', '.join('%4.3e' % tau for tau in material.tau)} secs created.")
+            # Replace original material with newly created DispersiveMaterial
+            grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
+
+            log.info(f"Debye disperion added to {disp_material.ID} with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, and tau={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs created.")
 
 
 class AddLorentzDispersion(UserObjectMulti):
@@ -1028,7 +1037,7 @@ class GeometryView(UserObjectMulti):
 
         g = GeometryViewUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, fileext, grid)
 
-        log.info(f'Geometry view from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, multi_grid={self.multi_grid}, grid={grid.name}, with filename base {g.basefilename} created.')
+        log.info(f'Geometry view from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, multi_grid={self.multi_grid}, grid={grid.name}, with filename base {g.filename} created.')
 
         # Append the new GeometryView object to the geometry views list
         grid.geometryviews.append(g)

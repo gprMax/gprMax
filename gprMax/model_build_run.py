@@ -209,16 +209,17 @@ class ModelBuildRun:
             gb.build_materials()
 
         # Check to see if numerical dispersion might be a problem
-        results = dispersion_analysis(G)
-        if results['error']:
-            log.warning(Fore.RED + f"\nNumerical dispersion analysis not carried out as {results['error']}" + Style.RESET_ALL)
-        elif results['N'] < config.model_configs[G.model_num].numdispersion['mingridsampling']:
-            raise GeneralError(f"Non-physical wave propagation: Material '{results['material'].ID}' has wavelength sampled by {results['N']} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
-        elif (results['deltavp'] and np.abs(results['deltavp']) >
-              config.model_configs[G.model_num].numdispersion['maxnumericaldisp']):
-            log.warning(Fore.RED + f"\nPotentially significant numerical dispersion. Estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz" + Style.RESET_ALL)
-        elif results['deltavp']:
-            log.info(f"\nNumerical dispersion analysis: estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
+        for grid in grids:
+            results = dispersion_analysis(grid)
+            if results['error']:
+                log.warning(Fore.RED + f"\nNumerical dispersion analysis ({grid.name}) not carried out as {results['error']}" + Style.RESET_ALL)
+            elif results['N'] < config.model_configs[G.model_num].numdispersion['mingridsampling']:
+                raise GeneralError(f"\nNon-physical wave propagation in {grid.name} detected. Material '{results['material'].ID}' has wavelength sampled by {results['N']} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
+            elif (results['deltavp'] and np.abs(results['deltavp']) >
+                  config.model_configs[G.model_num].numdispersion['maxnumericaldisp']):
+                log.warning(Fore.RED + f"\n{grid.name} has potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz" + Style.RESET_ALL)
+            elif results['deltavp']:
+                log.info(f"\nNumerical dispersion analysis ({grid.name}): estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
 
     def reuse_geometry(self):
         # Reset iteration number
@@ -293,8 +294,6 @@ class ModelBuildRun:
             tsolve (float): time taken to execute solving (seconds).
         """
 
-        log.info(f'\nOutput file: {config.model_configs[self.G.model_num].output_file_path_ext.name}')
-
         # Check number of OpenMP threads
         if config.sim_config.general['cpu']:
             log.info(f'CPU (OpenMP) threads for solving: {config.model_configs[self.G.model_num].ompthreads}\n')
@@ -306,7 +305,7 @@ class ModelBuildRun:
 
         # Prepare iterator
         if config.sim_config.is_messages():
-            iterator = tqdm(range(self.G.iterations), desc='Running simulation, model ' + str(self.G.model_num + 1) + '/' + str(config.sim_config.model_end), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
+            iterator = tqdm(range(self.G.iterations), desc=f'Running model {self.G.model_num + 1}/{config.sim_config.model_end}, {config.model_configs[self.G.model_num].output_file_path_ext.name}', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
         else:
             iterator = range(self.G.iterations)
 
@@ -329,7 +328,7 @@ class GridBuilder:
     def build_pmls(self):
         log.info('')
         pbar = tqdm(total=sum(1 for value in self.grid.pmlthickness.values() if value > 0),
-                    desc=f'Building {self.grid.name} Grid PML boundaries',
+                    desc=f'Building PML boundaries ({self.grid.name})',
                     ncols=get_terminal_width() - 1, file=sys.stdout,
                     disable=not config.sim_config.general['progressbars'])
         for pml_id, thickness in self.grid.pmlthickness.items():
@@ -342,7 +341,7 @@ class GridBuilder:
         # Build the model, i.e. set the material properties (ID) for every edge
         # of every Yee cell
         log.info('')
-        pbar = tqdm(total=2, desc=f'Building {self.grid.name} Grid',
+        pbar = tqdm(total=2, desc=f'Building Yee cells ({self.grid.name})',
                     ncols=get_terminal_width() - 1, file=sys.stdout,
                     disable=not config.sim_config.general['progressbars'])
         build_electric_components(self.grid.solid, self.grid.rigidE, self.grid.ID, self.grid)
@@ -373,5 +372,5 @@ class GridBuilder:
         materialstable.outer_border = False
         materialstable.justify_columns[0] = 'right'
 
-        log.info(f'\n{self.grid.name} Grid Materials:')
+        log.info(f'\nMaterials ({self.grid.name}):')
         log.info(materialstable.table)

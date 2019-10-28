@@ -28,7 +28,7 @@ import subprocess
 from shutil import get_terminal_size
 import sys
 import textwrap
-from time import process_time
+from time import perf_counter
 
 from colorama import init
 from colorama import Fore
@@ -485,4 +485,4 @@ def detect_check_gpus(deviceIDs):
 
 def timer():
     """Function to return the current process wide time in fractional seconds."""
-    return process_time()
+    return perf_counter()

@@ -48,7 +48,7 @@ class FDTDGrid:
         """
 
         self.title = ''
-        self.name = 'Main'
+        self.name = 'main_grid'
         self.model_num = model_num
 
         self.nx = 0
@@ -346,7 +346,7 @@ class CUDAGrid(FDTDGrid):
 
     def reset_fields(self):
         """Clear arrays for field components and PMLs."""
-        
+
         super().reset_fields()
 
         # Clear arrays for field components

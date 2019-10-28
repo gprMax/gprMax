@@ -46,10 +46,10 @@ def create_user_input_points(grid, user_obj):
     if isinstance(grid, SubGridBase):
         # Local object configuration trumps. User can turn of autotranslate for
         # specfic objects.
-        if not user_obj.autotranslate and config.general['autotranslate']:
+        if not user_obj.autotranslate and config.sim_config.general['autotranslate']:
             return MainGridUserInput(grid)
 
-        if config.general['autotranslate']:
+        if config.sim_config.general['autotranslate']:
             return SubgridUserInput(grid)
         else:
             return MainGridUserInput(grid)

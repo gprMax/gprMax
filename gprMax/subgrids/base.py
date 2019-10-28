@@ -24,8 +24,8 @@ from ..grid import FDTDGrid
 
 class SubGridBase(FDTDGrid):
 
-    def __init__(self, **kwargs):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(args[0])
 
         self.mode = '3D'
         self.ratio = kwargs['ratio']

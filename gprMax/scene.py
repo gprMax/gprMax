@@ -133,11 +133,6 @@ class Scene:
         # Process main grid multiple commands
         self.process_cmds(self.multiple_cmds, G)
 
-        # Estimate and check memory (RAM) usage
-        log.debug('Fix memory checks')
-        # G.memory_check()
-        #snapshot_memory_check(G)
-
         # Initialise an array for volumetric material IDs (solid), boolean
         # arrays for specifying materials not to be averaged (rigid),
         # an array for cell edge IDs (ID)

@@ -19,7 +19,6 @@
 import logging
 import os
 from pathlib import Path
-import sys
 
 import h5py
 import numpy as np
@@ -61,7 +60,7 @@ class GeometryView:
         self.dx = dx
         self.dy = dy
         self.dz = dz
-        self.basefilename = filename
+        self.filename = filename
         self.fileext = fileext
         self.G = G
 
@@ -89,19 +88,19 @@ class GeometryView:
             self.vtk_nylines = self.ny * (self.nx + 1) * (self.nz + 1)
             self.vtk_nzlines = self.nz * (self.nx + 1) * (self.ny + 1)
             self.vtk_numlines = self.vtk_nxlines + self.vtk_nylines + self.vtk_nzlines
-            self.vtk_connectivity_offset = round_value((self.vtk_numpoints *
-                                                       self.vtk_numpoint_components *
-                                                       np.dtype(np.float32).itemsize) +
-                                                       np.dtype(np.uint32).itemsize)
-            self.vtk_offsets_offset = round_value(self.vtk_connectivity_offset +
-                                                 (self.vtk_numlines *
-                                                 self.vtk_numline_components *
-                                                 np.dtype(np.uint32).itemsize) +
-                                                 np.dtype(np.uint32).itemsize)
-            self.vtk_materials_offset = round_value(self.vtk_offsets_offset +
-                                                   (self.vtk_numlines *
-                                                   np.dtype(np.uint32).itemsize) +
-                                                   np.dtype(np.uint32).itemsize)
+            self.vtk_connectivity_offset = ((self.vtk_numpoints *
+                                           self.vtk_numpoint_components *
+                                           np.dtype(np.float32).itemsize) +
+                                           np.dtype(np.uint32).itemsize)
+            self.vtk_offsets_offset = (self.vtk_connectivity_offset +
+                                      (self.vtk_numlines *
+                                      self.vtk_numline_components *
+                                      np.dtype(np.uint32).itemsize) +
+                                      np.dtype(np.uint32).itemsize)
+            self.vtk_materials_offset = (self.vtk_offsets_offset +
+                                        (self.vtk_numlines *
+                                        np.dtype(np.uint32).itemsize) +
+                                        np.dtype(np.uint32).itemsize)
             vtk_cell_offsets = (((self.vtk_numline_components * self.vtk_numlines) +
                                self.vtk_numline_components - self.vtk_numline_components - 1) //
                                self.vtk_numline_components + 1)
@@ -114,8 +113,8 @@ class GeometryView:
 
     def set_filename(self):
         """Construct filename from user-supplied name and model run number."""
-        parts = config.model_configs[self.G.model_num].output_file_path.with_suffix('').parts
-        self.filename = Path(*parts[:-1], parts[-1])
+        parts = config.model_configs[self.G.model_num].output_file_path.parts
+        self.filename = Path(*parts[:-1], self.filename + config.model_configs[self.G.model_num].appendmodelnumber)
         self.filename = self.filename.with_suffix(self.fileext)
 
     def write_vtk(self, G, pbar):
@@ -142,19 +141,15 @@ class GeometryView:
             for index, rx in enumerate(G.rxs):
                 self.rxs[rx.xcoord, rx.ycoord, rx.zcoord] = index + 1
 
-            vtk_srcs_pml_offset = round_value((np.dtype(np.uint32).itemsize *
-                                               self.vtk_nxcells *
-                                               self.vtk_nycells *
-                                               self.vtk_nzcells) +
-                                               np.dtype(np.uint32).itemsize)
-            vtk_rxs_offset = round_value((np.dtype(np.uint32).itemsize *
-                                          self.vtk_nxcells * self.vtk_nycells *
-                                          self.vtk_nzcells) +
-                                          np.dtype(np.uint32).itemsize +
-                                          (np.dtype(np.int8).itemsize *
-                                          self.vtk_nxcells * self.vtk_nycells *
-                                          self.vtk_nzcells) +
-                                          np.dtype(np.uint32).itemsize)
+            vtk_srcs_pml_offset = ((np.dtype(np.uint32).itemsize * self.vtk_nxcells *
+                                  self.vtk_nycells * self.vtk_nzcells) +
+                                  np.dtype(np.uint32).itemsize)
+            vtk_rxs_offset = ((np.dtype(np.uint32).itemsize * self.vtk_nxcells *
+                             self.vtk_nycells * self.vtk_nzcells) +
+                             np.dtype(np.uint32).itemsize +
+                             (np.dtype(np.int8).itemsize * self.vtk_nxcells *
+                             self.vtk_nycells * self.vtk_nzcells) +
+                             np.dtype(np.uint32).itemsize)
 
             with open(self.filename, 'wb') as f:
                 f.write('<?xml version="1.0"?>\n'.encode('utf-8'))
@@ -428,7 +423,7 @@ class GeometryViewFineMultiGrid:
         self.nx = G.nx
         self.ny = G.ny
         self.nz = G.nz
-        self.basefilename = filename
+        self.filename = filename
         self.fileext = '.vtp'
         self.sg_views = []
 
@@ -455,8 +450,8 @@ class GeometryViewFineMultiGrid:
 
     def set_filename(self):
         """Construct filename from user-supplied name and model run number."""
-        parts = config.model_configs[self.G.model_num].input_file_path.parts
-        self.filename = Path(*parts[:-1], parts[-1] + config.model_configs[self.G.model_num].appendmodelnumber)
+        parts = config.model_configs[self.G.model_num].output_file_path.parts
+        self.filename = Path(*parts[:-1], self.filename + config.model_configs[self.G.model_num].appendmodelnumber)
         self.filename = self.filename.with_suffix(self.fileext)
 
     def write_vtk(self, *args):

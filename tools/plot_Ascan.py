@@ -18,7 +18,6 @@
 
 import argparse
 import os
-import sys
 
 import h5py
 import numpy as np
@@ -51,7 +50,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
 
     # Check there are any receivers
     if nrx == 0:
-        raise CmdInputError('No receivers found in {}'.format(filename))
+        raise CmdInputError(f'No receivers found in {filename}')
 
     # Check for single output component when doing a FFT
     if fft:
@@ -77,7 +76,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                 output = outputs[0]
 
             if output not in availableoutputs:
-                raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(output, ', '.join(availableoutputs)))
+                raise CmdInputError(f"{output} output requested to plot, but the available output for receiver 1 is {', '.join(availableoutputs)}")
 
             outputdata = f[path + output][:] * polarity
 
@@ -165,7 +164,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
 
                 # Check if requested output is in file
                 if output not in availableoutputs:
-                    raise CmdInputError('Output(s) requested to plot: {}, but available output(s) for receiver {} in the file: {}'.format(', '.join(outputs), rx, ', '.join(availableoutputs)))
+                    raise CmdInputError(f"Output(s) requested to plot: {', '.join(outputs)}, but available output(s) for receiver {rx} in the file: {', '.join(availableoutputs)}")
 
                 outputdata = f[path + output][:] * polarity
 

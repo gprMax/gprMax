@@ -30,8 +30,8 @@ class SubGridHSG(SubGridBase):
 
     gridtype = '3DSUBGRID'
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, model_num, **kwargs):
+        super().__init__(model_num, **kwargs)
         self.gridtype = SubGridHSG.gridtype
 
     def update_magnetic_is(self, precursors):
@@ -40,7 +40,7 @@ class SubGridHSG(SubGridBase):
             Args:
                 nwl, nwm, nwn, face, field, inc_field, lookup_id, sign, mod, co
         """
-        
+
         # Hz = c0Hz - c1Ey + c2Ex
         # Hy = c0Hy - c3Ex + c1Ez
         # Hx = c0Hx - c2Ez + c3Ey
@@ -131,37 +131,29 @@ class SubGridHSG(SubGridBase):
 
     def __str__(self):
 
-        self.memory_estimate_basic()
+        mem_use = self.mem_est_basic()
 
         s = '\n'
         s += Fore.CYAN
         s += 'Sub Grid HSG\n'
-        s += 'Name: {}\n'.format(self.name)
-        s += 'dx, dy, dz: {}m {}m {}m\n'.format(self.dx, self.dy, self.dz)
-        s += 'dt: {}s\n'.format(self.dt)
-        s += 'Memory Estimate: {}\n'.format(human_size(self.memoryusage))
-        s += 'Position: ({}m, {}m, {}m), ({}m, {}m, {}m)\n'.format(self.x1,
-                                                                   self.y1,
-                                                                   self.z1,
-                                                                   self.x2,
-                                                                   self.y2,
-                                                                   self.z2)
-        s += 'Main Grid Indices: lower left({}, {}, {}), upper right({}, {}, {})\n'.format(self.i0, self.j0, self.k0, self.i1, self.j1, self.k1)
-        s += 'Total Cells: {} {} {}\n'.format(self.nx, self.ny, self.nz)
-        s += 'Working Region Cells: {} {} {}\n'.format(self.nwx,
-                                                       self.nwy,
-                                                       self.nwz)
+        s += f'Name: {self.name}\n'
+        s += f'dx, dy, dz: {self.dx}m {self.dy}m {self.dz}m\n'
+        s += f'dt: {self.dt}s\n'
+        s += f'Memory Estimate: {human_size(mem_use)}\n'
+        s += f'Position: ({self.x1}m, {self.y1}m, {self.z1}m), ({self.x2}m, {self.y2}m, {self.z2}m)\n'
+        s += f'Main Grid Indices: lower left({self.io}, {self.j0}, {self.k0}), upper right({self.i1}, {self.j1}, {self.k1})\n'
+        s += f'Total Cells: {self.nx} {self.ny} {self.nz}\n'
+        s += f'Working Region Cells: {self.nwx} {self.nwy} {self.nwz}\n'
+
         for h in self.hertziandipoles:
-            s += 'Hertizian dipole: {} {} {}\n'.format(h.xcoord,
-                                                       h.ycoord,
-                                                       h.zcoord)
+            s += f'Hertizian dipole: {h.xcoord} {h.ycoord} {h.zcoord}\n'
             s += str([x for x in self.waveforms
                       if x.ID == h.waveformID][0]) + '\n'
         for r in self.rxs:
-            s += 'Receiver: {} {} {}\n'.format(r.xcoord, r.ycoord, r.zcoord)
+            s += f'Receiver: {r.xcoord} {r.ycoord} {r.zcoord}\n'
 
         for tl in self.transmissionlines:
-            s += 'Transmission Line: {} {} {}\n'.format(tl.xcoord, tl.ycoord, tl.zcoord)
+            s += f'Transmission Line: {tl.xcoord} {tl.ycoord} {tl.zcoord}\n'
             s += str([x for x in self.waveforms
                       if x.ID == tl.waveformID][0]) + '\n'
         s += Style.RESET_ALL

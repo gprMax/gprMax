@@ -73,7 +73,8 @@ class FractalBoxBuilder(UserObjectGeometry):
 
                 # If there is only 1 bin then a normal material is being used, otherwise a mixing model
                 if volume.nbins == 1:
-                    volume.fractalvolume = np.ones((volume.nx, volume.ny, volume.nz), dtype=config.sim_config.dtype['float_or_double'])
+                    volume.fractalvolume = np.ones((volume.nx, volume.ny, volume.nz),
+                                                    dtype=config.sim_config.dtypes['float_or_double'])
                     materialnumID = next(x.numID for x in grid.materials if x.ID == volume.operatingonID)
                     volume.fractalvolume *= materialnumID
                 else:
@@ -115,7 +116,8 @@ class FractalBoxBuilder(UserObjectGeometry):
                                     if surface.fractalsurface[j - surface.ys, k - surface.zs] > 0:
                                         height = 0
                                         for i in range(volume.xs, surface.fractalrange[1]):
-                                            if i < surface.fractalsurface[j - surface.ys, k - surface.zs] and volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] != 1:
+                                            if (i < surface.fractalsurface[j - surface.ys, k - surface.zs] and
+                                                volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] != 1):
                                                 y, z = g.calculate_blade_geometry(blade, height)
                                                 # Add y, z coordinates to existing location
                                                 yy = int(j - volume.ys + y)
@@ -136,7 +138,8 @@ class FractalBoxBuilder(UserObjectGeometry):
                                         depth = 0
                                         i = volume.xf - 1
                                         while i > volume.xs:
-                                            if i > volume.originalxf - (surface.fractalsurface[j - surface.ys, k - surface.zs] - volume.originalxf) and volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] == 1:
+                                            if (i > volume.originalxf - (surface.fractalsurface[j - surface.ys, k - surface.zs] -
+                                                volume.originalxf) and volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] == 1):
                                                 y, z = g.calculate_root_geometry(root, depth)
                                                 # Add y, z coordinates to existing location
                                                 yy = int(j - volume.ys + y)
@@ -181,7 +184,8 @@ class FractalBoxBuilder(UserObjectGeometry):
                                     if surface.fractalsurface[i - surface.xs, k - surface.zs] > 0:
                                         height = 0
                                         for j in range(volume.ys, surface.fractalrange[1]):
-                                            if j < surface.fractalsurface[i - surface.xs, k - surface.zs] and volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] != 1:
+                                            if (j < surface.fractalsurface[i - surface.xs, k - surface.zs] and
+                                                volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] != 1):
                                                 x, z = g.calculate_blade_geometry(blade, height)
                                                 # Add x, z coordinates to existing location
                                                 xx = int(i - volume.xs + x)
@@ -202,7 +206,8 @@ class FractalBoxBuilder(UserObjectGeometry):
                                         depth = 0
                                         j = volume.yf - 1
                                         while j > volume.ys:
-                                            if j > volume.originalyf - (surface.fractalsurface[i - surface.xs, k - surface.zs] - volume.originalyf) and volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] == 1:
+                                            if (j > volume.originalyf - (surface.fractalsurface[i - surface.xs, k - surface.zs] -
+                                                volume.originalyf) and volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] == 1):
                                                 x, z = g.calculate_root_geometry(root, depth)
                                                 # Add x, z coordinates to existing location
                                                 xx = int(i - volume.xs + x)
@@ -247,7 +252,8 @@ class FractalBoxBuilder(UserObjectGeometry):
                                     if surface.fractalsurface[i - surface.xs, j - surface.ys] > 0:
                                         height = 0
                                         for k in range(volume.zs, surface.fractalrange[1]):
-                                            if k < surface.fractalsurface[i - surface.xs, j - surface.ys] and volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] != 1:
+                                            if (k < surface.fractalsurface[i - surface.xs, j - surface.ys] and
+                                                volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] != 1):
                                                 x, y = g.calculate_blade_geometry(blade, height)
                                                 # Add x, y coordinates to existing location
                                                 xx = int(i - volume.xs + x)
@@ -268,7 +274,8 @@ class FractalBoxBuilder(UserObjectGeometry):
                                         depth = 0
                                         k = volume.zf - 1
                                         while k > volume.zs:
-                                            if k > volume.originalzf - (surface.fractalsurface[i - surface.xs, j - surface.ys] - volume.originalzf) and volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] == 1:
+                                            if (k > volume.originalzf - (surface.fractalsurface[i - surface.xs, j - surface.ys] -
+                                                volume.originalzf) and volume.mask[i - volume.xs, j - volume.ys, k - volume.zs] == 1):
                                                 x, y = g.calculate_root_geometry(root, depth)
                                                 # Add x, y coordinates to existing location
                                                 xx = int(i - volume.xs + x)
@@ -287,7 +294,10 @@ class FractalBoxBuilder(UserObjectGeometry):
                 grassnumID = next((x.numID for x in grid.materials if x.ID == 'grass'), 0)
                 data = volume.fractalvolume.astype('int16', order='C')
                 mask = volume.mask.copy(order='C')
-                build_voxels_from_array_mask(volume.xs, volume.ys, volume.zs, waternumID, grassnumID, volume.averaging, mask, data, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
+                build_voxels_from_array_mask(volume.xs, volume.ys, volume.zs,
+                                             waternumID, grassnumID, volume.averaging,
+                                             mask, data, grid.solid, grid.rigidE,
+                                             grid.rigidH, grid.ID)
 
             else:
                 if volume.nbins == 1:
@@ -297,4 +307,6 @@ class FractalBoxBuilder(UserObjectGeometry):
                     volume.fractalvolume += volume.mixingmodel.startmaterialnum
 
                 data = volume.fractalvolume.astype('int16', order='C')
-                build_voxels_from_array(volume.xs, volume.ys, volume.zs, 0, volume.averaging, data, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
+                build_voxels_from_array(volume.xs, volume.ys, volume.zs, 0,
+                                        volume.averaging, data, grid.solid,
+                                        grid.rigidE, grid.rigidH, grid.ID)

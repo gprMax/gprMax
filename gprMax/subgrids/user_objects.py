@@ -96,9 +96,6 @@ class SubGridBase(UserObjectMulti):
         # Set the temporal discretisation
         sg.calculate_dt()
 
-        # ensure stability
-        sg.round_time_step()
-
         # set the indices related to the subgrids main grid placement
         self.set_main_grid_indices(sg, grid, uip, p1, p2)
 
@@ -128,8 +125,6 @@ class SubGridBase(UserObjectMulti):
 
         # Copy over built in materials
         sg.materials = [copy(m) for m in grid.materials if m.numID in range(0, grid.n_built_in_materials + 1)]
-        # use same number of threads
-        sg.nthreads = grid.nthreads
 
         # Dont mix and match different subgrids
         for sg_made in grid.subgrids:
@@ -194,10 +189,8 @@ class SubGridHSG(SubGridBase):
         self.hash = '#subgrid_hsg'
 
     def create(self, grid, uip):
-        sg = SubGridHSGUser(**self.kwargs)
+        sg = SubGridHSGUser(grid.model_num, **self.kwargs)
         self.setup(sg, grid, uip)
-        if config.is_messages():
-            print(sg)
         return sg
 
 
@@ -219,4 +212,4 @@ class ReferenceRx(Rx):
             r.offset = ratio // 2
 
         except KeyError:
-            raise CmdInputError("'{}' has an no ratio parameter".format(self.__str__()))
+            raise CmdInputError(f"'{self.__str__()}' has an no ratio parameter")
