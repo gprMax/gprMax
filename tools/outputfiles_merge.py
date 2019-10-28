@@ -86,11 +86,16 @@ def merge_files(basefilename, removefiles=False):
 
         # Write properties for merged file on first iteration
         if model == 0:
-            fout.attrs['Title'] = fin.attrs['Title']
             fout.attrs['gprMax'] = __version__
             fout.attrs['Iterations'] = fin.attrs['Iterations']
+            fout.attrs['nx_ny_nz'] = fin.attrs['nx_ny_nz']
+            fout.attrs['dx_dy_dz'] = fin.attrs['dx_dy_dz']
             fout.attrs['dt'] = fin.attrs['dt']
+            fout.attrs['nsrc'] = fin.attrs['nsrc']
             fout.attrs['nrx'] = fin.attrs['nrx']
+            fout.attrs['srcsteps'] = fin.attrs['srcsteps']
+            fout.attrs['rxsteps'] = fin.attrs['rxsteps']
+
             for rx in range(1, nrx + 1):
                 path = '/rxs/rx' + str(rx)
                 grp = fout.create_group(path)
