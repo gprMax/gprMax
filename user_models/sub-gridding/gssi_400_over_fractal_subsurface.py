@@ -105,11 +105,11 @@ for i in range(1, 51):
     snap = gprMax.Snapshot(p1=(0, y / 2, 0), p2=(x, y / 2 + dl, z), dl=(dl, dl, dl),
                            filename=Path(*parts[:-1], parts[-1] + '_' + str(i)).name,
                            time=i * tw / 50)
-    scene.add(snap)
+    # scene.add(snap)
 
 # create a geometry view of the main grid and the sub grid stitched together
 gv = gprMax.GeometryView(p1=(0, 0, 0),
-                         p2=domain.props.p1,
+                         p2=(1, 1, 1),
                          dl=dl,
                          filename=fn.name,
                          output_type='f',
@@ -134,4 +134,4 @@ scene.add(fb)
 sr = gprMax.AddSurfaceRoughness(p1=(0, 0, 1), p2=(3, 1, 1), frac_dim=1.5, weighting=(1, 1), limits=(0.4, 1.2), fractal_box_id='fbox', seed=1)
 scene.add(sr)
 
-gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn.parent, subgrid=True, autotranslate=True)
+gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn, subgrid=True, autotranslate=True)
