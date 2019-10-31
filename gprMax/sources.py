@@ -317,12 +317,12 @@ class TransmissionLine(Source):
         # Cell position of where line connects to antenna/main grid
         self.antpos = 10
 
-        self.voltage = np.zeros(self.nl, dtype=config.dtypes['float_or_double'])
-        self.current = np.zeros(self.nl, dtype=config.dtypes['float_or_double'])
-        self.Vinc = np.zeros(G.iterations, dtype=config.dtypes['float_or_double'])
-        self.Iinc = np.zeros(G.iterations, dtype=config.dtypes['float_or_double'])
-        self.Vtotal = np.zeros(G.iterations, dtype=config.dtypes['float_or_double'])
-        self.Itotal = np.zeros(G.iterations, dtype=config.dtypes['float_or_double'])
+        self.voltage = np.zeros(self.nl, dtype=config.sim_config.dtypes['float_or_double'])
+        self.current = np.zeros(self.nl, dtype=config.sim_config.dtypes['float_or_double'])
+        self.Vinc = np.zeros(G.iterations, dtype=config.sim_config.dtypes['float_or_double'])
+        self.Iinc = np.zeros(G.iterations, dtype=config.sim_config.dtypes['float_or_double'])
+        self.Vtotal = np.zeros(G.iterations, dtype=config.sim_config.dtypes['float_or_double'])
+        self.Itotal = np.zeros(G.iterations, dtype=config.sim_config.dtypes['float_or_double'])
 
     def calculate_incident_V_I(self, G):
         """Calculates the incident voltage and current with a long length

@@ -17,7 +17,6 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import sys
 
 import numpy as np
 
@@ -415,7 +414,7 @@ class TransmissionLine(UserObjectMulti):
             raise CmdInputError(f"'{self.params_str()}' requires at least six parameters")
 
         # Warn about using a transmission line on GPU
-        if grid.gpu is not None:
+        if config.sim_config.general['cuda']:
             raise CmdInputError(f"'{self.params_str()}' A #transmission_line cannot currently be used with GPU solving. Consider using a #voltage_source instead.")
 
         # Check polarity & position parameters
@@ -430,12 +429,12 @@ class TransmissionLine(UserObjectMulti):
 
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
 
-        if resistance <= 0 or resistance >= z0:
+        if resistance <= 0 or resistance >= config.sim_config.em_consts['z0']:
             raise CmdInputError(f"'{self.params_str()}' requires a resistance greater than zero and less than the impedance of free space, i.e. 376.73 Ohms")
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            raise CmdInputError(f"'{self.params_str()}' there is no waveform with the identifier {tmp[5]}")
+            raise CmdInputError(f"'{self.params_str()}' there is no waveform with the identifier {waveform_id}")
 
         t = TransmissionLineUser(grid)
         t.polarisation = polarisation

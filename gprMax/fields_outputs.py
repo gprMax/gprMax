@@ -124,7 +124,6 @@ def write_hdf5_sub_grid_outputfile(outputfile, G):
     parent = outputfile.parent
 
     for sg in G.subgrids:
-
         # Create an outputfile for each subgrid
         fp = stem + '_' + sg.name + suffix
         fp = parent / Path(fp)
@@ -146,6 +145,9 @@ def write_data(outputfile, G):
     Args:
         outputfile (str): Name of the output file.
         G (FDTDGrid): Parameters describing a grid in a model.
+
+    Returns:
+        f (file object): File object.
     """
 
     f = h5py.File(outputfile, 'w')

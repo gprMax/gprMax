@@ -21,3 +21,8 @@ dist/
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
+
+# Craig's files
+user_models/GPU-paper-landmines/
+user_models/IWAGPR2017-challenge/
+user_models/to-update/

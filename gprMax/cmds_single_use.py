@@ -18,7 +18,7 @@
 
 import inspect
 import logging
-import os
+from pathlib import Path
 
 from colorama import init
 from colorama import Fore
@@ -427,6 +427,10 @@ class ExcitationFile(UserObjectSingle):
     :type fill_value: float, optional
     """
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.order = 11
+
     def create(self, G, uip):
         try:
             kwargs = dict()
@@ -442,55 +446,56 @@ class ExcitationFile(UserObjectSingle):
             except KeyError:
                 raise CmdInputError('#excitation_file: requires either one or three parameter(s)')
 
-            # See if file exists at specified path and if not try input file directory
-            if not os.path.isfile(excitationfile):
-                excitationfile = os.path.abspath(os.path.join(G.inputdirectory, excitationfile))
+        # See if file exists at specified path and if not try input file directory
+        excitationfile = Path(excitationfile)
+        if not excitationfile.exists():
+            excitationfile = Path(config.sim_config.input_file_path.parent, excitationfile)
 
-            log.info(f'\nExcitation file: {excitationfile}')
+        log.info(f'Excitation file: {excitationfile}')
 
-            # Get waveform names
-            with open(excitationfile, 'r') as f:
-                waveformIDs = f.readline().split()
+        # Get waveform names
+        with open(excitationfile, 'r') as f:
+            waveformIDs = f.readline().split()
 
-            # Read all waveform values into an array
-            waveformvalues = np.loadtxt(excitationfile, skiprows=1, dtype=floattype)
+        # Read all waveform values into an array
+        waveformvalues = np.loadtxt(excitationfile, skiprows=1, dtype=config.sim_config.dtypes['float_or_double'])
 
-            # Time array (if specified) for interpolation, otherwise use simulation time
-            if waveformIDs[0].lower() == 'time':
-                waveformIDs = waveformIDs[1:]
-                waveformtime = waveformvalues[:, 0]
-                waveformvalues = waveformvalues[:, 1:]
-                timestr = 'user-defined time array'
-            else:
-                waveformtime = np.arange(0, G.timewindow + G.dt, G.dt)
-                timestr = 'simulation time array'
+        # Time array (if specified) for interpolation, otherwise use simulation time
+        if waveformIDs[0].lower() == 'time':
+            waveformIDs = waveformIDs[1:]
+            waveformtime = waveformvalues[:, 0]
+            waveformvalues = waveformvalues[:, 1:]
+            timestr = 'user-defined time array'
+        else:
+            waveformtime = np.arange(0, G.timewindow + G.dt, G.dt)
+            timestr = 'simulation time array'
 
-            for waveform in range(len(waveformIDs)):
-                if any(x.ID == waveformIDs[waveform] for x in G.waveforms):
-                    raise CmdInputError(f'Waveform with ID {waveformIDs[waveform]} already exists')
-                w = Waveform()
-                w.ID = waveformIDs[waveform]
-                w.type = 'user'
+        for waveform in range(len(waveformIDs)):
+            if any(x.ID == waveformIDs[waveform] for x in G.waveforms):
+                raise CmdInputError(f'Waveform with ID {waveformIDs[waveform]} already exists')
+            w = Waveform()
+            w.ID = waveformIDs[waveform]
+            w.type = 'user'
 
-                # Select correct column of waveform values depending on array shape
-                singlewaveformvalues = waveformvalues[:] if len(waveformvalues.shape) == 1 else waveformvalues[:, waveform]
+            # Select correct column of waveform values depending on array shape
+            singlewaveformvalues = waveformvalues[:] if len(waveformvalues.shape) == 1 else waveformvalues[:, waveform]
 
-                # Truncate waveform array if it is longer than time array
-                if len(singlewaveformvalues) > len(waveformtime):
-                    singlewaveformvalues = singlewaveformvalues[:len(waveformtime)]
-                # Zero-pad end of waveform array if it is shorter than time array
-                elif len(singlewaveformvalues) < len(waveformtime):
-                    singlewaveformvalues = np.lib.pad(singlewaveformvalues,
-                                                      (0, len(singlewaveformvalues) -
-                                                      len(waveformvalues)),
-                                                      'constant', constant_values=0)
+            # Truncate waveform array if it is longer than time array
+            if len(singlewaveformvalues) > len(waveformtime):
+                singlewaveformvalues = singlewaveformvalues[:len(waveformtime)]
+            # Zero-pad end of waveform array if it is shorter than time array
+            elif len(singlewaveformvalues) < len(waveformtime):
+                singlewaveformvalues = np.lib.pad(singlewaveformvalues,
+                                                  (0, len(singlewaveformvalues) -
+                                                  len(waveformvalues)),
+                                                  'constant', constant_values=0)
 
-                # Interpolate waveform values
-                w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues, **kwargs)
+            # Interpolate waveform values
+            w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues, **kwargs)
 
-                log.info(f"User waveform {w.ID} created using {timestr} and, if required, interpolation parameters (kind: {kwargs['kind']}, fill value: {kwargs['fill_value']}).")
+            log.info(f"User waveform {w.ID} created using {timestr} and, if required, interpolation parameters (kind: {kwargs['kind']}, fill value: {kwargs['fill_value']}).")
 
-                G.waveforms.append(w)
+            G.waveforms.append(w)
 
 
 class OutputDir(UserObjectSingle):
@@ -501,7 +506,7 @@ class OutputDir(UserObjectSingle):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 11
+        self.order = 12
 
     def create(self, grid, uip):
         config.model_configs[grid.model_num].set_output_file_path(self.kwargs['dir'])
@@ -516,7 +521,7 @@ class NumberOfModelRuns(UserObjectSingle):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 12
+        self.order = 13
 
     def create(self, grid, uip):
         try:

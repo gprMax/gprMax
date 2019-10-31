@@ -210,7 +210,7 @@ class SimulationConfig:
             # Suppress nvcc warnings on Microsoft Windows
             if sys.platform == 'win32': self.cuda['nvcc_opts'] = '-w'
             self.get_gpus()
-            self.set_gpus()
+            self.set_single_gpu()
 
         # Subgrid parameter may not exist if user enters via CLI
         try:
@@ -242,7 +242,7 @@ class SimulationConfig:
 
         self.cuda['gpus'], self.cuda['gpus_str'] = detect_check_gpus(self.cuda['gpus'])
 
-    def set_gpus(self):
+    def set_single_gpu(self):
         """Adjust list of GPU object(s) to specify single GPU."""
         self.cuda['gpus'] = self.cuda['gpus'][0]
         self.cuda['gpus_str'] = self.cuda['gpus_str'][0]
@@ -304,8 +304,10 @@ class SimulationConfig:
 
     def set_input_file_path(self):
         """Set input file path for CLI or API."""
+        # API
         if self.args.inputfile is None:
             self.input_file_path = Path(self.args.outputfile)
+        # CLI
         else:
             self.input_file_path = Path(self.args.inputfile)
 

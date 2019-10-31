@@ -147,7 +147,7 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001):
     c8 = gprMax.Cylinder(p1=(x + 0.147, y + 0.008, z + skidthickness),
                          p2=(x + 0.147, y + 0.008,
                          z + skidthickness + casesize[2] - casethickness),
-                         r=0.007, 'free_space')
+                         r=0.007, material_id='free_space')
     b6 = gprMax.Box(p1=(x + 0.054, y + casesize[1] - 0.016, z + skidthickness),
                     p2=(x + 0.056, y + casesize[1] - 0.014,
                     z + skidthickness + casesize[2] - casethickness),
@@ -341,7 +341,7 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001):
                           p2=(tx[0] + 0.020, tx[1] + bowtieheight + 0.006, tx[2]),
                           material_id='txresupper')
         e16 = gprMax.Edge(p1=(tx[0] + 0.020 + dx, tx[1] + bowtieheight + 0.002, tx[2]),
-                          p2=tx[0] + 0.020 + dx, tx[1] + bowtieheight + 0.006, tx[2]),
+                          p2=(tx[0] + 0.020 + dx, tx[1] + bowtieheight + 0.006, tx[2]),
                           material_id='txresupper')
         scene_objects.extend((e11, e12, e13, e14, e15, e16))
 
@@ -354,7 +354,7 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001):
                           p2=(tx[0] - 0.023 + dx + 0.076, tx[1] - bowtieheight - dy, tx[2]),
                           material_id='rxreslower')
         e19 = gprMax.Edge(p1=(tx[0] + 0.076, tx[1] - bowtieheight - 0.004, tx[2]),
-                          p1=(tx[0] + 0.076, tx[1] - bowtieheight - dy, tx[2]),
+                          p2=(tx[0] + 0.076, tx[1] - bowtieheight - dy, tx[2]),
                           material_id='rxreslower')
         e20 = gprMax.Edge(p1=(tx[0] + dx + 0.076, tx[1] - bowtieheight - 0.004, tx[2]),
                           p2=(tx[0] + dx + 0.076, tx[1] - bowtieheight - dy, tx[2]),

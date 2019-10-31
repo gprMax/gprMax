@@ -17,11 +17,17 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import os
+from pathlib import Path
+
+import h5py
 
 import gprMax.config as config
 from .cmds_geometry import UserObjectGeometry
+from ..cython.geometry_primitives import build_voxels_from_array
 from ..exceptions import CmdInputError
+from ..hash_cmds_file import check_cmd_names
+from ..hash_cmds_multiuse import process_multicmds
+from ..utilities import round_value
 
 log = logging.getLogger(__name__)
 
@@ -31,6 +37,7 @@ class GeometryObjectsRead(UserObjectGeometry):
     log.debug('More work required here.')
 
     def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.order = 1
         self.hash = '#geometry_objects_read'
 
@@ -49,10 +56,12 @@ class GeometryObjectsRead(UserObjectGeometry):
         xs, ys, zs = uip.discretise_point(p1)
 
         # See if material file exists at specified path and if not try input file directory
-        if not os.path.isfile(matfile):
-            matfile = os.path.abspath(os.path.join(G.inputdirectory, matfile))
+        matfile = Path(matfile)
 
-        matstr = os.path.splitext(os.path.split(matfile)[1])[0]
+        if not matfile.exists():
+            matfile = Path(config.sim_config.input_file_path.parent, matfile)
+
+        matstr = matfile.with_suffix('').name
         numexistmaterials = len(G.materials)
 
         # Read materials from file
@@ -64,7 +73,7 @@ class GeometryObjectsRead(UserObjectGeometry):
         singlecmdsimport, multicmdsimport, geometryimport = check_cmd_names(materials, checkessential=False)
 
         # Process parameters for commands that can occur multiple times in the model
-        process_multicmds(multicmdsimport, G)
+        process_multicmds(multicmdsimport)
 
         # Update material type
         for material in G.materials:
@@ -75,8 +84,9 @@ class GeometryObjectsRead(UserObjectGeometry):
                     material.type = 'imported'
 
         # See if geometry object file exists at specified path and if not try input file directory
-        if not os.path.isfile(geofile):
-            geofile = os.path.abspath(os.path.join(G.inputdirectory, geofile))
+        geofile = Path(geofile)
+        if not geofile.exists():
+            geofile = Path(config.sim_config.input_file_path.parent, geofile)
 
         # Open geometry object file and read/check spatial resolution attribute
         f = h5py.File(geofile, 'r')

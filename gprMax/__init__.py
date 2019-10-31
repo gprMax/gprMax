@@ -49,6 +49,7 @@ from .cmds_geometry.fractal_box import FractalBox
 from .cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from .cmds_geometry.add_surface_water import AddSurfaceWater
 from .cmds_geometry.add_grass import AddGrass
+from .cmds_geometry.geometry_objects_read import GeometryObjectsRead
 
 from .hash_cmds_file import user_libs_fn_to_scene_obj
 

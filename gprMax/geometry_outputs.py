@@ -405,9 +405,9 @@ class GeometryViewFineMultiGrid:
     """Geometry view for all grids in the simulation.
 
         Slicing is not supported by this class :( - only the full extent of the grids
-        are output. The subgrids are output without the non-working regions If you
-        require domainslicing GeometryView seperately for each grid you require and
-        view them at once in Paraview.
+        are output. The subgrids are output without the non-working regions.
+        If you require domain slicing, GeometryView seperately for each grid you
+        require and view them at once in Paraview.
     """
 
     def __init__(self, xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, fileext, G):
@@ -418,7 +418,9 @@ class GeometryViewFineMultiGrid:
             filename (str): Filename to save to.
             fileext (str): File extension of VTK file - either '.vti' for a per cell
                     geometry view, or '.vtp' for a per cell edge geometry view.
+            G (FDTDGrid): Parameters describing a grid in a model.
         """
+
         self.G = G
         self.nx = G.nx
         self.ny = G.ny
@@ -460,41 +462,36 @@ class GeometryViewFineMultiGrid:
             PolygonalData (.vtp) for a per-cell-edge geometry view.
 
             N.B. No Python 3 support for VTK at time of writing (03/2015)
-
-        Args:
-            G (FDTDGrid): Parameters describing a grid in a model.
         """
 
         G = self.G
 
         with open(self.filename, 'wb') as f:
-
             # refine parameters for subgrid
-
             f.write('<?xml version="1.0"?>\n'.encode('utf-8'))
-            f.write('<VTKFile type="PolyData" version="1.0" byte_order="{}">\n'.format(config.sim_config.vtk_byteorder).encode('utf-8'))
-            f.write('<PolyData>\n<Piece NumberOfPoints="{}" NumberOfVerts="0" NumberOfLines="{}" NumberOfStrips="0" NumberOfPolys="0">\n'.format(self.vtk_numpoints, self.vtk_numlines).encode('utf-8'))
+            f.write(f"""<VTKFile type="PolyData" version="1.0" byte_order="{config.sim_config.vtk_byteorder}">\n""".encode('utf-8'))
+            f.write(f"""<PolyData>\n<Piece NumberOfPoints="{self.vtk_numpoints}" NumberOfVerts="0" NumberOfLines="{self.vtk_numlines}" NumberOfStrips="0" NumberOfPolys="0">\n""".encode('utf-8'))
 
             f.write('<Points>\n<DataArray type="Float32" NumberOfComponents="3" format="appended" offset="0" />\n</Points>\n'.encode('utf-8'))
-            f.write('<Lines>\n<DataArray type="UInt32" Name="connectivity" format="appended" offset="{}" />\n'.format(self.vtk_connectivity_offset).encode('utf-8'))
-            f.write('<DataArray type="UInt32" Name="offsets" format="appended" offset="{}" />\n</Lines>\n'.format(self.vtk_offsets_offset).encode('utf-8'))
+            f.write(f"""<Lines>\n<DataArray type="UInt32" Name="connectivity" format="appended" offset="{self.vtk_connectivity_offset}" />\n""".encode('utf-8'))
+            f.write(f"""<DataArray type="UInt32" Name="offsets" format="appended" offset="{self.vtk_offsets_offset}" />\n</Lines>\n""".encode('utf-8'))
             f.write('<CellData Scalars="Material">\n'.encode('utf-8'))
-            f.write('<DataArray type="UInt32" Name="Material" format="appended" offset="{}" />\n'.format(self.vtk_materials_offset).encode('utf-8'))
+            f.write(f"""<DataArray type="UInt32" Name="Material" format="appended" offset="{self.vtk_materials_offset}" />\n""".encode('utf-8'))
             f.write('</CellData>\n'.encode('utf-8'))
 
             f.write('</Piece>\n</PolyData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
 
             # Write points
-            log.info('writing points main grid')
+            log.info('\nWriting points main grid')
             datasize = np.dtype(np.float32).itemsize * self.vtk_numpoints * self.vtk_numpoint_components
             f.write(pack('I', datasize))
             for i in range(0, G.nx + 1):
                 for j in range(0, G.ny + 1):
-                    for k in range(0, self.G.nz + 1):
+                    for k in range(0, G.nz + 1):
                         f.write(pack('fff', i * G.dx, j * G.dy, k * G.dz))
 
             for sg_v in self.sg_views:
-                log.info('writing points subgrid')
+                log.info('Writing points subgrid')
                 sg_v.write_points(f, G)
 
             n_x_lines = self.nx * (self.ny + 1) * (self.nz + 1)
@@ -509,7 +506,7 @@ class GeometryViewFineMultiGrid:
             z_lines = np.zeros((n_z_lines, 2), dtype=np.uint32)
             z_materials = np.zeros((n_z_lines), dtype=np.uint32)
 
-            log.info('calculate connectivity main grid')
+            log.info('Calculate connectivity main grid')
             label = 0
             counter_x = 0
             counter_y = 0
@@ -541,7 +538,7 @@ class GeometryViewFineMultiGrid:
 
                         label = label + 1
 
-            log.info('calculate connectivity subgrids')
+            log.info('Calculate connectivity subgrids')
             for sg_v in self.sg_views:
                 sg_v.populate_connectivity_and_materials(label)
                 # use the last subgrids label for the next view
@@ -596,15 +593,14 @@ class GeometryViewFineMultiGrid:
 
         f.write('\n\n<gprMax>\n'.encode('utf-8'))
         for material in G.materials:
-            f.write('<Material name="{}">{}</Material>\n'.format(material.ID, material.numID).encode('utf-8'))
+            f.write(f"""<Material name="{material.ID}">{material.numID}</Material>\n""".encode('utf-8'))
         if not materialsonly:
             f.write('<PML name="PML boundary region">1</PML>\n'.encode('utf-8'))
             for index, src in enumerate(G.hertziandipoles + G.magneticdipoles + G.voltagesources + G.transmissionlines):
-                f.write('<Sources name="{}">{}</Sources>\n'.format(src.ID, index + 2).encode('utf-8'))
+                f.write(f"""<Sources name="{src.ID}">{index + 2}</Sources>\n""".encode('utf-8'))
             for index, rx in enumerate(G.rxs):
-                f.write('<Receivers name="{}">{}</Receivers>\n'.format(rx.ID, index + 1).encode('utf-8'))
+                f.write(f"""<Receivers name="{rx.ID}">{index + 1}</Receivers>\n""".encode('utf-8'))
         f.write('</gprMax>\n'.encode('utf-8'))
-        return None
 
 
 class SubgridGeometryView:
@@ -649,7 +645,7 @@ class SubgridGeometryView:
 
     def populate_connectivity_and_materials(self, label):
         """Label is the starting label. 0 if no other grids are present but
-        +1 the last label used for a multigrid view.
+            +1 the last label used for a multigrid view.
         """
 
         sg = self.sg
