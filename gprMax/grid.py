@@ -313,19 +313,17 @@ class CUDAGrid(FDTDGrid):
         self.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) *
                    (self.nz + 1)) / self.tpb[0])), 1, 1)
 
-    def initialise_geometry_arrays(self):
+    def initialise_geometry_arrays_gpu(self):
         """Initialise an array for cell edge IDs (ID) on GPU."""
         import pycuda.gpuarray as gpuarray
 
-        super().initialise_geometry_arrays()
         self.ID_gpu = gpuarray.to_gpu(self.ID)
 
-    def initialise_field_arrays(self):
+    def initialise_field_arrays_gpu(self):
         """Initialise geometry and field arrays on GPU."""
 
         import pycuda.gpuarray as gpuarray
 
-        super().initialise_field_arrays()
         self.Ex_gpu = gpuarray.to_gpu(self.Ex)
         self.Ey_gpu = gpuarray.to_gpu(self.Ey)
         self.Ez_gpu = gpuarray.to_gpu(self.Ez)
@@ -333,12 +331,19 @@ class CUDAGrid(FDTDGrid):
         self.Hy_gpu = gpuarray.to_gpu(self.Hy)
         self.Hz_gpu = gpuarray.to_gpu(self.Hz)
 
-    def initialise_dispersive_arrays(self):
+    def initialise_grids_gpu(self):
+        """Initialise all grids."""
+        for g in [self] + self.subgrids:
+            g.initialise_geometry_arrays_gpu()
+            g.initialise_field_arrays_gpu()
+            if config.model_configs[g.model_num].materials['maxpoles'] > 0:
+                g.initialise_dispersive_arrays_gpu()
+
+    def initialise_dispersive_arrays_gpu(self):
         """Initialise dispersive material coefficient arrays on GPU."""
 
         import pycuda.gpuarray as gpuarray
 
-        super().initialise_dispersive_arrays()
         self.Tx_gpu = gpuarray.to_gpu(self.Tx)
         self.Ty_gpu = gpuarray.to_gpu(self.Ty)
         self.Tz_gpu = gpuarray.to_gpu(self.Tz)
@@ -350,29 +355,26 @@ class CUDAGrid(FDTDGrid):
         super().reset_fields()
 
         # Clear arrays for field components
-        self.initialise_field_arrays()
-        if config.model_configs[self.model_num].materials['maxpoles'] != 0:
-            self.initialise_dispersive_arrays()
+        self.initialise_grids_gpu()
 
         # Clear arrays for fields in PML
         for pml in self.pmls:
-            pml.initialise_field_arrays()
+            pml.initialise_field_arrays_gpu()
 
     def memory_check(self, snapsmemsize=0):
         """Check if model can be run on specified GPU."""
 
-        super().memory_check()
+        memuse = super().mem_est_basic()
 
-        if config.cuda['gpus'] is not None:
-            if self.memoryusage - snapsmemsize > config.cuda['gpus'].totalmem:
-                raise GeneralError(f"Memory (RAM) required ~{human_size(self.memoryusage)} \
-                                   exceeds {human_size(config.cuda['gpus'].totalmem, a_kilobyte_is_1024_bytes=True)} \
-                                   detected on specified {config.cuda['gpus'].deviceID} - {config.cuda['gpus'].name} GPU!\n")
+        if config.sim_config.general['cuda']
+            if memuse - snapsmemsize > config.model_configs[self.model_num].cuda['gpu'].totalmem:
+                raise GeneralError(f"Memory (RAM) required ~{human_size(memuse)} exceeds {human_size(config.model_configs[self.model_num].cuda['gpu'].totalmem, a_kilobyte_is_1024_bytes=True)} detected on specified {config.model_configs[self.model_num].cuda['gpu'].deviceID} - {config.model_configs[self.model_num].cuda['gpu'].name} GPU!\n")
 
             # If the required memory for the model without the snapshots will
             # fit on the GPU then transfer and store snaphots on host
-            if snapsmemsize != 0 and self.memoryusage - snapsmemsize < config.cuda['gpus'].totalmem:
-                config.cuda['snapsgpu2cpu'] = True
+            if (snapsmemsize != 0 and memuse - snapsmemsize <
+                config.model_configs[self.model_num].cuda['gpu'].totalmem):
+                config.model_configs[self.model_num].cuda['snapsgpu2cpu'] = True
 
 
 def dispersion_analysis(G):

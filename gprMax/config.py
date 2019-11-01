@@ -186,9 +186,7 @@ class SimulationConfig:
                         'cpu': True,
                         'cuda': False,
                         'opencl': False,
-                        'precision': 'single',
-                        'autotranslate': self.args.autotranslate}
-        log.debug('Should autotranslate be a ModelConfig parameter?')
+                        'precision': 'single'}
 
         self.em_consts = {'c': c, # Speed of light in free space (m/s)
                           'e0': e0, # Permittivity of free space (F/m)

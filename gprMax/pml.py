@@ -339,12 +339,10 @@ class CUDAPML(PML):
         solving on GPU using CUDA.
     """
 
-    def initialise_field_arrays(self):
+    def initialise_field_arrays_gpu(self):
         """Initialise PML field and coefficient arrays on GPU."""
 
         import pycuda.gpuarray as gpuarray
-
-        super().initialise_field_arrays()
 
         self.ERA_gpu = gpuarray.to_gpu(self.ERA)
         self.ERB_gpu = gpuarray.to_gpu(self.ERB)

@@ -25,8 +25,8 @@ import gprMax.config as config
 from .cmds_geometry import UserObjectGeometry
 from ..cython.geometry_primitives import build_voxels_from_array
 from ..exceptions import CmdInputError
-from ..hash_cmds_file import check_cmd_names
-from ..hash_cmds_multiuse import process_multicmds
+# from ..hash_cmds_file import check_cmd_names
+# from ..hash_cmds_multiuse import process_multicmds
 from ..utilities import round_value
 
 log = logging.getLogger(__name__)

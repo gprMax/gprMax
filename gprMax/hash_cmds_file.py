@@ -24,7 +24,7 @@ import sys
 
 import gprMax.config as config
 from .exceptions import CmdInputError
-# from .hash_cmds_geometry import process_geometrycmds
+from .hash_cmds_geometry import process_geometrycmds
 from .hash_cmds_multiuse import process_multicmds
 from .hash_cmds_singleuse import process_singlecmds
 

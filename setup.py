@@ -29,7 +29,7 @@ except ImportError:
 
 import glob
 import os
-import pathlib
+from pathlib import Path
 import re
 import shutil
 import sys
@@ -156,9 +156,9 @@ if 'cleanall' in sys.argv:
         if os.path.isfile(filebase + '.c'):
             try:
                 os.remove(filebase + '.c')
-                print(f'Removed: {filebase} + ".c"')
+                print(f'Removed: {filebase + ".c"}')
             except OSError:
-                print(f'Could not remove: {filebase} + ".c"')
+                print(f'Could not remove: {filebase + ".c"}')
         # Remove compiled Cython modules
         libfile = glob.glob(os.path.join(os.getcwd(), os.path.splitext(file)[0]) + '*.pyd') + glob.glob(os.path.join(os.getcwd(), os.path.splitext(file)[0]) + '*.so')
         if libfile:
@@ -169,10 +169,10 @@ if 'cleanall' in sys.argv:
             except OSError:
                 print(f'Could not remove: {os.path.abspath(libfile)}')
     # Remove build, dist, egg and __pycache__ directories
-    shutil.rmtree(os.path.join(os.getcwd(), 'build'), ignore_errors=True)
-    shutil.rmtree(os.path.join(os.getcwd(), 'dist'), ignore_errors=True)
-    shutil.rmtree(os.path.join(os.getcwd(), 'gprMax.egg-info'), ignore_errors=True)
-    for p in pathlib.Path(os.getcwd()).rglob('__pycache__'):
+    shutil.rmtree(Path.cwd().joinpath('build'), ignore_errors=True)
+    shutil.rmtree(Path.cwd().joinpath('dist'), ignore_errors=True)
+    shutil.rmtree(Path.cwd().joinpath('gprMax.egg-info'), ignore_errors=True)
+    for p in Path.cwd().rglob('__pycache__'):
         shutil.rmtree(p, ignore_errors=True)
         print(f'Removed: {p}')
     # Now do a normal clean

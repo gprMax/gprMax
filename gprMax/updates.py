@@ -273,7 +273,7 @@ class CUDAUpdates:
             get kernel functions.
         """
         if config.model_configs[self.grid.model_num].materials['maxpoles'] > 0:
-            kernels_fields = self.source_module(kernels_template_fields.substitute(
+            kernels_fields = self.source_module(kernel_template_fields.substitute(
                                                 REAL=config.sim_config.dtypes['C_float_or_double'],
                                                 COMPLEX=config.sim_config.dtypes['C_complex'],
                                                 N_updatecoeffsE=self.grid.updatecoeffsE.size,
@@ -318,11 +318,10 @@ class CUDAUpdates:
         if config.model_configs[self.grid.model_num].materials['maxpoles'] > 0:  # If there are any dispersive materials (updates are split into two parts as they require present and updated electric field values).
             self.dispersive_update_a = kernels_fields.get_function("update_electric_dispersive_A")
             self.dispersive_update_b = kernels_fields.get_function("update_electric_dispersive_B")
-            self.grid.initialise_dispersive_arrays()
 
         # Electric and magnetic field updates - set blocks per grid and initialise field arrays on GPU
         self.grid.set_blocks_per_grid()
-        self.grid.initialise_arrays()
+        self.grid.initialise_grids_gpu()
 
     def set_pml_kernels(self):
         """PMLS - prepare kernels and get kernel functions."""
@@ -651,7 +650,7 @@ class CUDAUpdates:
         self.iterstart.record()
         self.iterstart.synchronize()
 
-    def calculate_memsolve(iteration):
+    def calculate_memsolve(self, iteration):
         """Calculate memory used on last iteration.
 
         Args:
