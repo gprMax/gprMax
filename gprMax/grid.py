@@ -366,7 +366,7 @@ class CUDAGrid(FDTDGrid):
 
         memuse = super().mem_est_basic()
 
-        if config.sim_config.general['cuda']
+        if config.sim_config.general['cuda']:
             if memuse - snapsmemsize > config.model_configs[self.model_num].cuda['gpu'].totalmem:
                 raise GeneralError(f"Memory (RAM) required ~{human_size(memuse)} exceeds {human_size(config.model_configs[self.model_num].cuda['gpu'].totalmem, a_kilobyte_is_1024_bytes=True)} detected on specified {config.model_configs[self.model_num].cuda['gpu'].deviceID} - {config.model_configs[self.model_num].cuda['gpu'].name} GPU!\n")
 
