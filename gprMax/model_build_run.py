@@ -305,7 +305,7 @@ class ModelBuildRun:
 
         # Prepare iterator
         if config.sim_config.is_messages():
-            iterator = tqdm(range(self.G.iterations), desc=f'Running model {self.G.model_num + 1}/{config.sim_config.model_end}, {config.model_configs[self.G.model_num].output_file_path_ext.name}', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
+            iterator = tqdm(range(self.G.iterations), desc=f'Running model {self.G.model_num + 1}/{config.sim_config.model_end}', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
         else:
             iterator = range(self.G.iterations)
 

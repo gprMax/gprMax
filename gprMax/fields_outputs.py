@@ -16,12 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 from string import Template
 from pathlib import Path
 
 import h5py
 
 from ._version import __version__
+
+log = logging.getLogger(__name__)
 
 
 def store_outputs(G):
@@ -109,6 +112,7 @@ def write_hdf5_main_grid_outputfile(outputfile, G):
     """
 
     write_data(outputfile, G)
+    log.info(f'Written output file: {outputfile.name}')
 
 
 def write_hdf5_sub_grid_outputfile(outputfile, G):
@@ -138,6 +142,7 @@ def write_hdf5_sub_grid_outputfile(outputfile, G):
         f.attrs['ratio'] = sg.ratio
         f.attrs['interpolation'] = sg.interpolation
 
+        log.info(f'Written output file: {fp.name}')
 
 def write_data(outputfile, G):
     """Write an output file in HDF5 format.
