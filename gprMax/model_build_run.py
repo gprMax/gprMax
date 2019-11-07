@@ -55,9 +55,8 @@ from .hash_cmds_multiuse import process_multicmds
 from .materials import Material
 from .materials import process_materials
 from .pml import CFS
-from .pml import PML
 from .pml import build_pml
-from .pml import pml_information
+from .pml import pml_info
 from .receivers import initialise_rx_arrays_gpu
 from .receivers import get_rx_array_gpu
 from .receivers import Rx
@@ -108,7 +107,7 @@ class ModelBuildRun:
         # Adjust position of simple sources and receivers if required
         if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
             for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
-                if config.model_configs[G.model_num] == 0:
+                if G.model_num == 0:
                     if (source.xcoord + G.srcsteps[0] * config.sim_config.model_end < 0 or
                         source.xcoord + G.srcsteps[0] * config.sim_config.model_end > G.nx or
                         source.ycoord + G.srcsteps[1] * config.sim_config.model_end < 0 or
@@ -121,7 +120,7 @@ class ModelBuildRun:
                 source.zcoord = source.zcoordorigin + G.model_num * G.srcsteps[2]
         if G.rxsteps[0] != 0 or G.rxsteps[1] != 0 or G.rxsteps[2] != 0:
             for receiver in G.rxs:
-                if config.model_configs[G.model_num] == 0:
+                if G.model_num == 0:
                     if (receiver.xcoord + G.rxsteps[0] * config.sim_config.model_end < 0 or
                         receiver.xcoord + G.rxsteps[0] * config.sim_config.model_end > G.nx or
                         receiver.ycoord + G.rxsteps[1] * config.sim_config.model_end < 0 or
@@ -198,8 +197,9 @@ class ModelBuildRun:
         # Build grids
         gridbuilders = [GridBuilder(grid) for grid in grids]
         for gb in gridbuilders:
-            pml_information(gb.grid)
-            gb.build_pmls()
+            log.info(pml_info(gb.grid))
+            if not all(value == 0 for value in gb.grid.pmlthickness.values()):
+                gb.build_pmls()
             gb.build_components()
             gb.tm_grid_update()
             gb.update_voltage_source_materials()
@@ -326,7 +326,6 @@ class GridBuilder:
         self.grid = grid
 
     def build_pmls(self):
-        log.info('')
         pbar = tqdm(total=sum(1 for value in self.grid.pmlthickness.values() if value > 0),
                     desc=f'Building PML boundaries ({self.grid.name})',
                     ncols=get_terminal_width() - 1, file=sys.stdout,

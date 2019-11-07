@@ -46,7 +46,9 @@ class Context:
     def run(self):
         """Run the simulation in the correct context."""
         self.print_logo_copyright()
-        self.print_hostinfo()
+        self.print_host_info()
+        if config.sim_config.general['cuda']:
+            self.print_gpu_info()
         self.tsimstart = timer()
         self._run()
         self.tsimend = timer()
@@ -56,10 +58,17 @@ class Context:
         """Print gprMax logo, version, and copyright/licencing information."""
         logo(__version__ + ' (' + codename + ')')
 
-    def print_hostinfo(self):
+    def print_host_info(self):
         """Print information about the host machine."""
         hyperthreadingstr = f", {config.sim_config.hostinfo['logicalcores']} cores with Hyper-Threading" if config.sim_config.hostinfo['hyperthreading'] else ''
         log.info(f"\nHost: {config.sim_config.hostinfo['hostname']} | {config.sim_config.hostinfo['machineID']} | {config.sim_config.hostinfo['sockets']} x {config.sim_config.hostinfo['cpuID']} ({config.sim_config.hostinfo['physicalcores']} cores{hyperthreadingstr}) | {human_size(config.sim_config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} RAM | {config.sim_config.hostinfo['osversion']}")
+
+    def print_gpu_info(self):
+        """Print information about any NVIDIA CUDA GPUs detected."""
+        gpus_info = []
+        for gpu in config.sim_config.cuda['gpus']:
+            gpus_info.append(f'{gpu.deviceID} - {gpu.name}, {human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)}')
+        log.info(f" with GPU(s): {' | '.join(gpus_info)}")
 
     def print_time_report(self):
         """Print the total simulation time based on context."""

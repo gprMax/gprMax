@@ -133,7 +133,7 @@ class FDTDGrid:
         else:
             return False
 
-    def initialise_geometry_arrays(self):
+    def _initialise_geometry_arrays(self):
         """Initialise an array for volumetric material IDs (solid);
             boolean arrays for specifying whether materials can have dielectric smoothing (rigid);
             and an array for cell edge IDs (ID).
@@ -146,7 +146,7 @@ class FDTDGrid:
         self.ID = np.ones((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
         self.IDlookup = {'Ex': 0, 'Ey': 1, 'Ez': 2, 'Hx': 3, 'Hy': 4, 'Hz': 5}
 
-    def initialise_field_arrays(self):
+    def _initialise_field_arrays(self):
         """Initialise arrays for the electric and magnetic field components."""
         self.Ex = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1),
                             dtype=config.sim_config.dtypes['float_or_double'])
@@ -164,8 +164,8 @@ class FDTDGrid:
     def initialise_grids(self):
         """Initialise all grids."""
         for g in [self] + self.subgrids:
-            g.initialise_geometry_arrays()
-            g.initialise_field_arrays()
+            g._initialise_geometry_arrays()
+            g._initialise_field_arrays()
 
     def initialise_std_update_coeff_arrays(self):
         """Initialise arrays for storing update coefficients."""
@@ -300,7 +300,7 @@ class CUDAGrid(FDTDGrid):
         super().__init__(model_num)
 
         # Threads per block - used for main electric/magnetic field updates
-        self.tpb = (256, 1, 1)
+        self.tpb = (128, 1, 1)
         # Blocks per grid - used for main electric/magnetic field updates
         self.bpg = None
 
@@ -313,13 +313,13 @@ class CUDAGrid(FDTDGrid):
         self.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) *
                    (self.nz + 1)) / self.tpb[0])), 1, 1)
 
-    def initialise_geometry_arrays_gpu(self):
+    def _initialise_geometry_arrays_gpu(self):
         """Initialise an array for cell edge IDs (ID) on GPU."""
         import pycuda.gpuarray as gpuarray
 
         self.ID_gpu = gpuarray.to_gpu(self.ID)
 
-    def initialise_field_arrays_gpu(self):
+    def _initialise_field_arrays_gpu(self):
         """Initialise geometry and field arrays on GPU."""
 
         import pycuda.gpuarray as gpuarray
@@ -332,14 +332,14 @@ class CUDAGrid(FDTDGrid):
         self.Hz_gpu = gpuarray.to_gpu(self.Hz)
 
     def initialise_grids_gpu(self):
-        """Initialise all grids."""
+        """Initialise all grids. Called when CUDAUpdates is initialised."""
         for g in [self] + self.subgrids:
-            g.initialise_geometry_arrays_gpu()
-            g.initialise_field_arrays_gpu()
+            g._initialise_geometry_arrays_gpu()
+            g._initialise_field_arrays_gpu()
             if config.model_configs[g.model_num].materials['maxpoles'] > 0:
-                g.initialise_dispersive_arrays_gpu()
+                g._initialise_dispersive_arrays_gpu()
 
-    def initialise_dispersive_arrays_gpu(self):
+    def _initialise_dispersive_arrays_gpu(self):
         """Initialise dispersive material coefficient arrays on GPU."""
 
         import pycuda.gpuarray as gpuarray

@@ -7,7 +7,7 @@ from user_libs.antennas.GSSI import antenna_like_GSSI_1500
 fn = Path(__file__)
 
 # Discretisation
-dl = 0.002
+dl = 0.001
 
 # Domain
 x = 0.250
@@ -32,4 +32,4 @@ for obj in gssi_objects:
     scene.add(obj)
 
 # Run model
-gprMax.run(scenes=[scene], geometry_only=False, outputfile=fn)
+gprMax.run(scenes=[scene], geometry_only=False, outputfile=fn, gpu=[0])

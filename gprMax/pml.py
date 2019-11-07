@@ -434,7 +434,7 @@ class CUDAPML(PML):
                                  config.sim_config.dtypes['float_or_double'](self.d),
                                  block=G.tpb, grid=self.bpg)
 
-def pml_information(G):
+def pml_info(G):
     """Information about PMLs.
 
     Args:
@@ -442,7 +442,7 @@ def pml_information(G):
     """
     # No PML
     if all(value == 0 for value in G.pmlthickness.values()):
-        return 'PML: switched off'
+        return f'\nPML boundaries ({G.name}): switched off'
 
     if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
         pmlinfo = str(G.pmlthickness['x0'])
@@ -450,9 +450,9 @@ def pml_information(G):
         pmlinfo = ''
         for key, value in G.pmlthickness.items():
             pmlinfo += f'{key}: {value}, '
-        pmlinfo = pmlinfo[:-2] + ' cells'
+        pmlinfo = pmlinfo[:-2]
 
-    return f'\nPML: formulation: {G.pmlformulation}, order: {len(G.cfs)}, thickness: {pmlinfo}'
+    return f'\nPML boundaries ({G.name}): {{formulation: {G.pmlformulation}, order: {len(G.cfs)}, thickness (cells): {pmlinfo}}}'
 
 
 def build_pml(G, key, value):

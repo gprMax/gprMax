@@ -65,7 +65,8 @@ class ModelConfig:
         #     N.B. This will happen if the requested snapshots are too large to fit
         #     on the memory of the GPU. If True this will slow performance significantly
         if sim_config.general['cuda']:
-            self.cuda = {'gpu': sim_config.cuda['gpus'],
+            gpu = sim_config.set_model_gpu()
+            self.cuda = {'gpu': gpu,
                          'snapsgpu2cpu': False}
 
         # Total memory usage for all grids in the model. Starts with 50MB overhead.
@@ -207,8 +208,12 @@ class SimulationConfig:
                          'nvcc_opts': None} # nvcc_opts: nvcc compiler options
             # Suppress nvcc warnings on Microsoft Windows
             if sys.platform == 'win32': self.cuda['nvcc_opts'] = '-w'
-            self.get_gpus()
-            self.set_single_gpu()
+
+            # Flatten a list of lists
+            if any(isinstance(element, list) for element in self.args.gpu):
+                self.args.gpu = [val for sublist in self.args.gpu for val in sublist]
+
+            self.cuda['gpus'] = detect_check_gpus(self.args.gpu)
 
         # Subgrid parameter may not exist if user enters via CLI
         try:
@@ -232,18 +237,9 @@ class SimulationConfig:
     def is_messages(self):
         return self.general['messages']
 
-    def get_gpus(self):
-        """Get information and setup any Nvidia GPU(s)."""
-        # Flatten a list of lists
-        if any(isinstance(element, list) for element in self.args.gpu):
-            self.cuda['gpus'] = [val for sublist in self.args.gpu for val in sublist]
-
-        self.cuda['gpus'], self.cuda['gpus_str'] = detect_check_gpus(self.cuda['gpus'])
-
-    def set_single_gpu(self):
-        """Adjust list of GPU object(s) to specify single GPU."""
-        self.cuda['gpus'] = self.cuda['gpus'][0]
-        self.cuda['gpus_str'] = self.cuda['gpus_str'][0]
+    def set_model_gpu(self):
+        """Specify single GPU object for model."""
+        return self.cuda['gpus'][0]
 
     def set_precision(self):
         """Data type (precision) for electromagnetic field output.

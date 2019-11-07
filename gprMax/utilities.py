@@ -298,7 +298,9 @@ def get_host_info():
             for line in cpuIDinfo.split('\n'):
                 if re.search('model name', line):
                     cpuID = re.sub('.*model name.*:', '', line, 1).strip()
-            allcpuinfo = subprocess.check_output("lscpu", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            # Run lscpu with English locale
+            myenv = {**os.environ, 'LANG': 'en_US.utf8'}
+            allcpuinfo = subprocess.check_output("lscpu", shell=True, stderr=subprocess.STDOUT, env=myenv).decode('utf-8').strip()
             for line in allcpuinfo.split('\n'):
                 if 'Socket(s)' in line:
                     sockets = int(line.strip()[-1])
@@ -472,15 +474,13 @@ def detect_check_gpus(deviceIDs):
 
     # Gather information about selected/detected GPUs
     gpus = []
-    gpus_str = []
     for ID in deviceIDsavail:
         gpu = GPU(deviceID=ID)
         gpu.get_gpu_info(drv)
         if ID in deviceIDs:
             gpus.append(gpu)
-        gpus_str.append(f'{gpu.deviceID} - {gpu.name}, {human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)}')
 
-    return gpus, gpus_str
+    return gpus
 
 
 def timer():
