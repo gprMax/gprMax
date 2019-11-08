@@ -17,10 +17,9 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
-from importlib import import_module
 import itertools
 import logging
-import os
+from pathlib import Path
 import psutil
 import sys
 
@@ -28,51 +27,28 @@ from colorama import init
 from colorama import Fore
 from colorama import Style
 init()
-import cython
 import numpy as np
 from terminaltables import SingleTable
 from tqdm import tqdm
-from pathlib import Path
 
 import gprMax.config as config
-from .cuda.fields_updates import kernel_template_fields
-from .cuda.snapshots import kernel_template_store_snapshot
-from .cuda.source_updates import kernel_template_sources
 from .cython.yee_cell_build import build_electric_components
 from .cython.yee_cell_build import build_magnetic_components
 from .exceptions import GeneralError
-from .fields_outputs import kernel_template_store_outputs
 from .fields_outputs import write_hdf5_outputfile
-from .grid import FDTDGrid
 from .grid import dispersion_analysis
-from .hash_cmds_geometry import process_geometrycmds
-from .hash_cmds_file import process_python_include_code
-from .hash_cmds_file import write_processed_file
-from .hash_cmds_file import check_cmd_names
 from .hash_cmds_file import parse_hash_commands
-from .hash_cmds_singleuse import process_singlecmds
-from .hash_cmds_multiuse import process_multicmds
 from .materials import Material
 from .materials import process_materials
-from .pml import CFS
 from .pml import build_pml
-from .pml import pml_info
-from .receivers import initialise_rx_arrays_gpu
-from .receivers import get_rx_array_gpu
-from .receivers import Rx
+from .pml import print_pml_info
 from .scene import Scene
 from .snapshots import Snapshot
-from .snapshots import initialise_snapshot_array_gpu
-from .snapshots import get_snapshot_array_gpu
 from .solvers import create_solver
-from .sources import initialise_src_arrays_gpu
 from .utilities import get_terminal_width
 from .utilities import human_size
-from .utilities import mem_check
-from .utilities import open_path_file
-from .utilities import round32
+from .utilities import mem_check_all
 from .utilities import set_omp_threads
-from .utilities import timer
 
 log = logging.getLogger(__name__)
 
@@ -160,66 +136,38 @@ class ModelBuildRun:
 
         scene = self.build_scene()
 
-        # Combine available grids and check basic memory requirements
+        # Combine available grids and check memory requirements
         grids = [G] + G.subgrids
-        for grid in grids:
-            config.model_configs[G.model_num].mem_use += grid.mem_est_basic()
-        mem_check(config.model_configs[G.model_num].mem_use)
-
-        # Set datatype for dispersive arrays if there are any dispersive materials.
-        if config.model_configs[G.model_num].materials['maxpoles'] != 0:
-            drudelorentz = any([m for m in G.materials if 'drude' in m.type or 'lorentz' in m.type])
-            if drudelorentz:
-                config.model_configs[G.model_num].materials['dispersivedtype'] = config.sim_config.dtypes['complex']
-                config.model_configs[G.model_num].materials['dispersiveCdtype'] = config.sim_config.dtypes['C_complex']
-            else:
-                config.model_configs[G.model_num].materials['dispersivedtype'] = config.sim_config.dtypes['float_or_double']
-                config.model_configs[G.model_num].materials['dispersiveCdtype'] = config.sim_config.dtypes['C_float_or_double']
-
-            # Update estimated memory (RAM) usage
-            config.model_configs[G.model_num].mem_use += G.mem_est_dispersive()
-            mem_check(config.model_configs[G.model_num].mem_use)
-
-        # Check there is sufficient memory to store any snapshots
-        if G.snapshots:
-            snaps_mem = 0
-            for snap in G.snapshots:
-                # 2 x required to account for electric and magnetic fields
-                snaps_mem += int(2 * snap.datasizefield)
-            config.model_configs[G.model_num].mem_use += snaps_mem
-            # Check if there is sufficient memory on host
-            mem_check(config.model_configs[G.model_num].mem_use)
-            if config.sim_config.general['cuda']:
-                mem_check_gpu_snaps(G.model_num, snaps_mem)
-
-        log.info(f'\nMemory (RAM) required: ~{human_size(config.model_configs[G.model_num].mem_use)}')
+        total_mem = mem_check_all(grids)
+        log.info(f'\nMemory (RAM) required: ~{human_size(total_mem)}')
 
         # Build grids
         gridbuilders = [GridBuilder(grid) for grid in grids]
         for gb in gridbuilders:
-            log.info(pml_info(gb.grid))
+            log.info(print_pml_info(gb.grid))
             if not all(value == 0 for value in gb.grid.pmlthickness.values()):
                 gb.build_pmls()
             gb.build_components()
             gb.tm_grid_update()
             gb.update_voltage_source_materials()
+            gb.grid.initialise_field_arrays()
             gb.grid.initialise_std_update_coeff_arrays()
-            if config.model_configs[G.model_num].materials['maxpoles'] != 0:
+            if config.model_configs[gb.grid.model_num].materials['maxpoles'] > 0:
                 gb.grid.initialise_dispersive_arrays()
+                gb.grid.initialise_dispersive_update_coeff_array()
             gb.build_materials()
 
-        # Check to see if numerical dispersion might be a problem
-        for grid in grids:
-            results = dispersion_analysis(grid)
+            # Check to see if numerical dispersion might be a problem
+            results = dispersion_analysis(gb.grid)
             if results['error']:
-                log.warning(Fore.RED + f"\nNumerical dispersion analysis ({grid.name}) not carried out as {results['error']}" + Style.RESET_ALL)
-            elif results['N'] < config.model_configs[G.model_num].numdispersion['mingridsampling']:
-                raise GeneralError(f"\nNon-physical wave propagation in {grid.name} detected. Material '{results['material'].ID}' has wavelength sampled by {results['N']} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
+                log.warning(Fore.RED + f"\nNumerical dispersion analysis ({gb.grid.name}) not carried out as {results['error']}" + Style.RESET_ALL)
+            elif results['N'] < config.model_configs[gb.grid.model_num].numdispersion['mingridsampling']:
+                raise GeneralError(f"\nNon-physical wave propagation in {gb.grid.name} detected. Material '{results['material'].ID}' has wavelength sampled by {results['N']} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
             elif (results['deltavp'] and np.abs(results['deltavp']) >
-                  config.model_configs[G.model_num].numdispersion['maxnumericaldisp']):
-                log.warning(Fore.RED + f"\n{grid.name} has potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz" + Style.RESET_ALL)
+                  config.model_configs[gb.grid.model_num].numdispersion['maxnumericaldisp']):
+                log.warning(Fore.RED + f"\n{gb.grid.name} has potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz" + Style.RESET_ALL)
             elif results['deltavp']:
-                log.info(f"\nNumerical dispersion analysis ({grid.name}): estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
+                log.info(f"\nNumerical dispersion analysis ({gb.grid.name}): estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
 
     def reuse_geometry(self):
         # Reset iteration number

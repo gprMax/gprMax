@@ -236,12 +236,12 @@ class MagneticDipole(Source):
                                 (1 / (G.dx * G.dy * G.dz)))
 
 
-def initialise_src_arrays_gpu(sources, G):
+def htod_src_arrays(sources, G):
     """Initialise arrays on GPU for source coordinates/polarisation, other
         source information, and source waveform values.
 
     Args:
-        sources (list): List of sources of one class, e.g. HertzianDipoles.
+        sources (list): List of sources of one type, e.g. HertzianDipole
         G (FDTDGrid): Holds essential parameters describing the model.
 
     Returns:

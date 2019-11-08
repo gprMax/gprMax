@@ -133,7 +133,7 @@ class FDTDGrid:
         else:
             return False
 
-    def _initialise_geometry_arrays(self):
+    def initialise_geometry_arrays(self):
         """Initialise an array for volumetric material IDs (solid);
             boolean arrays for specifying whether materials can have dielectric smoothing (rigid);
             and an array for cell edge IDs (ID).
@@ -146,7 +146,7 @@ class FDTDGrid:
         self.ID = np.ones((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
         self.IDlookup = {'Ex': 0, 'Ey': 1, 'Ez': 2, 'Hx': 3, 'Hy': 4, 'Hz': 5}
 
-    def _initialise_field_arrays(self):
+    def initialise_field_arrays(self):
         """Initialise arrays for the electric and magnetic field components."""
         self.Ex = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1),
                             dtype=config.sim_config.dtypes['float_or_double'])
@@ -161,12 +161,6 @@ class FDTDGrid:
         self.Hz = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1),
                             dtype=config.sim_config.dtypes['float_or_double'])
 
-    def initialise_grids(self):
-        """Initialise all grids."""
-        for g in [self] + self.subgrids:
-            g._initialise_geometry_arrays()
-            g._initialise_field_arrays()
-
     def initialise_std_update_coeff_arrays(self):
         """Initialise arrays for storing update coefficients."""
         self.updatecoeffsE = np.zeros((len(self.materials), 5),
@@ -175,18 +169,32 @@ class FDTDGrid:
                                        dtype=config.sim_config.dtypes['float_or_double'])
 
     def initialise_dispersive_arrays(self):
-        """Initialise arrays for storing coefficients when there are dispersive
-            materials present.
-        """
+        """Initialise field arrays when there are dispersive materials present."""
         self.Tx = np.zeros((config.model_configs[self.model_num].materials['maxpoles'],
                             self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.model_configs[self.model_num].materials['dispersivedtype'])
         self.Ty = np.zeros((config.model_configs[self.model_num].materials['maxpoles'],
                             self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.model_configs[self.model_num].materials['dispersivedtype'])
         self.Tz = np.zeros((config.model_configs[self.model_num].materials['maxpoles'],
                             self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.model_configs[self.model_num].materials['dispersivedtype'])
+
+    def initialise_dispersive_update_coeff_array(self):
+        """Initialise array for storing update coefficients when there are dispersive
+            materials present.
+        """
         self.updatecoeffsdispersive = np.zeros((len(self.materials), 3 *
                                                 config.model_configs[self.model_num].materials['maxpoles']),
                                                 dtype=config.model_configs[self.model_num].materials['dispersivedtype'])
+
+    def reset_fields(self):
+        """Clear arrays for field components and PMLs."""
+        # Clear arrays for field components
+        self.initialise_field_arrays()
+        if config.model_configs[self.model_num].materials['maxpoles'] > 0:
+            self.initialise_dispersive_arrays()
+
+        # Clear arrays for fields in PML
+        for pml in self.pmls:
+            pml.initialise_field_arrays()
 
     def mem_est_basic(self):
         """Estimate the amount of memory (RAM) required for grid arrays.
@@ -269,17 +277,6 @@ class FDTDGrid:
         self.ID[1, :, :, 0] = 0
         self.ID[1, :, :, 1] = 0
 
-    def reset_fields(self):
-        """Clear arrays for field components and PMLs."""
-        # Clear arrays for field components
-        self.initialise_field_arrays()
-        if config.model_configs[self.model_num].materials['maxpoles'] != 0:
-            self.initialise_dispersive_arrays()
-
-        # Clear arrays for fields in PML
-        for pml in self.pmls:
-            pml.initialise_field_arrays()
-
     def calculate_dt(self):
         """Calculate time step at the CFL limit."""
         self.dt = (1 / (config.sim_config.em_consts['c'] * np.sqrt(
@@ -304,7 +301,6 @@ class CUDAGrid(FDTDGrid):
         # Blocks per grid - used for main electric/magnetic field updates
         self.bpg = None
 
-
     def set_blocks_per_grid(self):
         """Set the blocks per grid size used for updating the electric and
             magnetic field arrays on a GPU.
@@ -313,13 +309,13 @@ class CUDAGrid(FDTDGrid):
         self.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) *
                    (self.nz + 1)) / self.tpb[0])), 1, 1)
 
-    def _initialise_geometry_arrays_gpu(self):
+    def htod_geometry_arrays(self):
         """Initialise an array for cell edge IDs (ID) on GPU."""
         import pycuda.gpuarray as gpuarray
 
         self.ID_gpu = gpuarray.to_gpu(self.ID)
 
-    def _initialise_field_arrays_gpu(self):
+    def htod_field_arrays(self):
         """Initialise geometry and field arrays on GPU."""
 
         import pycuda.gpuarray as gpuarray
@@ -331,15 +327,7 @@ class CUDAGrid(FDTDGrid):
         self.Hy_gpu = gpuarray.to_gpu(self.Hy)
         self.Hz_gpu = gpuarray.to_gpu(self.Hz)
 
-    def initialise_grids_gpu(self):
-        """Initialise all grids. Called when CUDAUpdates is initialised."""
-        for g in [self] + self.subgrids:
-            g._initialise_geometry_arrays_gpu()
-            g._initialise_field_arrays_gpu()
-            if config.model_configs[g.model_num].materials['maxpoles'] > 0:
-                g._initialise_dispersive_arrays_gpu()
-
-    def _initialise_dispersive_arrays_gpu(self):
+    def htod_dispersive_arrays(self):
         """Initialise dispersive material coefficient arrays on GPU."""
 
         import pycuda.gpuarray as gpuarray
@@ -354,27 +342,15 @@ class CUDAGrid(FDTDGrid):
 
         super().reset_fields()
 
-        # Clear arrays for field components
-        self.initialise_grids_gpu()
+        # Copy arrays geometry and field component arrays
+        self.htod_geometry_arrays()
+        self.htod_field_arrays()
+        if config.model_configs[self.model_num].materials['maxpoles'] > 0:
+            self.htod_dispersive_arrays()
 
-        # Clear arrays for fields in PML
+        # Copy arrays for fields in PML
         for pml in self.pmls:
             pml.initialise_field_arrays_gpu()
-
-    def memory_check(self, snapsmemsize=0):
-        """Check if model can be run on specified GPU."""
-
-        memuse = super().mem_est_basic()
-
-        if config.sim_config.general['cuda']:
-            if memuse - snapsmemsize > config.model_configs[self.model_num].cuda['gpu'].totalmem:
-                raise GeneralError(f"Memory (RAM) required ~{human_size(memuse)} exceeds {human_size(config.model_configs[self.model_num].cuda['gpu'].totalmem, a_kilobyte_is_1024_bytes=True)} detected on specified {config.model_configs[self.model_num].cuda['gpu'].deviceID} - {config.model_configs[self.model_num].cuda['gpu'].name} GPU!\n")
-
-            # If the required memory for the model without the snapshots will
-            # fit on the GPU then transfer and store snaphots on host
-            if (snapsmemsize != 0 and memuse - snapsmemsize <
-                config.model_configs[self.model_num].cuda['gpu'].totalmem):
-                config.model_configs[self.model_num].cuda['snapsgpu2cpu'] = True
 
 
 def dispersion_analysis(G):

@@ -42,7 +42,7 @@ class Rx:
         self.zcoordorigin = None
 
 
-def initialise_rx_arrays_gpu(G):
+def htod_rx_arrays(G):
     """Initialise arrays on GPU for receiver coordinates and to store field
         components for receivers.
 
@@ -79,7 +79,7 @@ def initialise_rx_arrays_gpu(G):
     return rxcoords_gpu, rxs_gpu
 
 
-def get_rx_array_gpu(rxs_gpu, rxcoords_gpu, G):
+def dtoh_rx_array(rxs_gpu, rxcoords_gpu, G):
     """Copy output from receivers array used on GPU back to receiver objects.
 
     Args:

@@ -182,6 +182,7 @@ class PML:
             xs, xf, ys, yf, zs, zf (float): Extent of the PML slab.
         """
 
+        self.G = G
         self.ID = ID
         self.direction = direction
         self.xs = xs
@@ -196,16 +197,16 @@ class PML:
 
         # Spatial discretisation and thickness
         if self.direction[0] == 'x':
-            self.d = G.dx
+            self.d = self.G.dx
             self.thickness = self.nx
         elif self.direction[0] == 'y':
-            self.d = G.dy
+            self.d = self.G.dy
             self.thickness = self.ny
         elif self.direction[0] == 'z':
-            self.d = G.dz
+            self.d = self.G.dz
             self.thickness = self.nz
 
-        self.CFS = G.cfs
+        self.CFS = self.G.cfs
 
         self.initialise_field_arrays()
 
@@ -240,13 +241,12 @@ class PML:
             self.HPhi2 = np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz),
                                   dtype=config.sim_config.dtypes['float_or_double'])
 
-    def calculate_update_coeffs(self, er, mr, G):
+    def calculate_update_coeffs(self, er, mr):
         """Calculates electric and magnetic update coefficients for the PML.
 
         Args:
             er (float): Average permittivity of underlying material
             mr (float): Average permeability of underlying material
-            G (FDTDGrid): Holds essential parameters describing the model.
         """
 
         self.ERA = np.zeros((len(self.CFS), self.thickness),
@@ -268,70 +268,63 @@ class PML:
 
         for x, cfs in enumerate(self.CFS):
             if not cfs.sigma.max:
-                cfs.calculate_sigmamax(self.d, er, mr, G)
+                cfs.calculate_sigmamax(self.d, er, mr, self.G)
             Ealpha, Halpha = cfs.calculate_values(self.thickness, cfs.alpha)
             Ekappa, Hkappa = cfs.calculate_values(self.thickness, cfs.kappa)
             Esigma, Hsigma = cfs.calculate_values(self.thickness, cfs.sigma)
 
             # Define different parameters depending on PML formulation
-            if G.pmlformulation == 'HORIPML':
+            if self.G.pmlformulation == 'HORIPML':
                 # HORIPML electric update coefficients
-                tmp = (2 * config.sim_config.em_consts['e0'] * Ekappa) + G.dt * (Ealpha * Ekappa + Esigma)
-                self.ERA[x, :] = (2 * config.sim_config.em_consts['e0'] + G.dt * Ealpha) / tmp
+                tmp = (2 * config.sim_config.em_consts['e0'] * Ekappa) + self.G.dt * (Ealpha * Ekappa + Esigma)
+                self.ERA[x, :] = (2 * config.sim_config.em_consts['e0'] + self.G.dt * Ealpha) / tmp
                 self.ERB[x, :] = (2 * config.sim_config.em_consts['e0'] * Ekappa) / tmp
-                self.ERE[x, :] = ((2 * config.sim_config.em_consts['e0'] * Ekappa) - G.dt
+                self.ERE[x, :] = ((2 * config.sim_config.em_consts['e0'] * Ekappa) - self.G.dt
                                   * (Ealpha * Ekappa + Esigma)) / tmp
-                self.ERF[x, :] = (2 * Esigma * G.dt) / (Ekappa * tmp)
+                self.ERF[x, :] = (2 * Esigma * self.G.dt) / (Ekappa * tmp)
 
                 # HORIPML magnetic update coefficients
-                tmp = (2 * config.sim_config.em_consts['e0'] * Hkappa) + G.dt * (Halpha * Hkappa + Hsigma)
-                self.HRA[x, :] = (2 * config.sim_config.em_consts['e0'] + G.dt * Halpha) / tmp
+                tmp = (2 * config.sim_config.em_consts['e0'] * Hkappa) + self.G.dt * (Halpha * Hkappa + Hsigma)
+                self.HRA[x, :] = (2 * config.sim_config.em_consts['e0'] + self.G.dt * Halpha) / tmp
                 self.HRB[x, :] = (2 * config.sim_config.em_consts['e0'] * Hkappa) / tmp
-                self.HRE[x, :] = ((2 * config.sim_config.em_consts['e0'] * Hkappa) - G.dt
+                self.HRE[x, :] = ((2 * config.sim_config.em_consts['e0'] * Hkappa) - self.G.dt
                                   * (Halpha * Hkappa + Hsigma)) / tmp
-                self.HRF[x, :] = (2 * Hsigma * G.dt) / (Hkappa * tmp)
+                self.HRF[x, :] = (2 * Hsigma * self.G.dt) / (Hkappa * tmp)
 
-            elif G.pmlformulation == 'MRIPML':
-                tmp = 2 * config.sim_config.em_consts['e0'] + G.dt * Ealpha
-                self.ERA[x, :] = Ekappa + (G.dt * Esigma) / tmp
+            elif self.G.pmlformulation == 'MRIPML':
+                # MRIPML electric update coefficients
+                tmp = 2 * config.sim_config.em_consts['e0'] + self.G.dt * Ealpha
+                self.ERA[x, :] = Ekappa + (self.G.dt * Esigma) / tmp
                 self.ERB[x, :] = (2 * config.sim_config.em_consts['e0']) / tmp
-                self.ERE[x, :] = ((2 * config.sim_config.em_consts['e0']) - G.dt * Ealpha) / tmp
-                self.ERF[x, :] = (2 * Esigma * G.dt) / tmp
+                self.ERE[x, :] = ((2 * config.sim_config.em_consts['e0']) - self.G.dt * Ealpha) / tmp
+                self.ERF[x, :] = (2 * Esigma * self.G.dt) / tmp
 
                 # MRIPML magnetic update coefficients
-                tmp = 2 * config.sim_config.em_consts['e0'] + G.dt * Halpha
-                self.HRA[x, :] = Hkappa + (G.dt * Hsigma) / tmp
+                tmp = 2 * config.sim_config.em_consts['e0'] + self.G.dt * Halpha
+                self.HRA[x, :] = Hkappa + (self.G.dt * Hsigma) / tmp
                 self.HRB[x, :] = (2 * config.sim_config.em_consts['e0']) / tmp
-                self.HRE[x, :] = ((2 * config.sim_config.sim_config.em_consts['e0']) - G.dt * Halpha) / tmp
-                self.HRF[x, :] = (2 * Hsigma * G.dt) / tmp
+                self.HRE[x, :] = ((2 * config.sim_config.sim_config.em_consts['e0']) - self.G.dt * Halpha) / tmp
+                self.HRF[x, :] = (2 * Hsigma * self.G.dt) / tmp
 
-    def update_electric(self, G):
-        """This functions updates electric field components with the PML correction.
+    def update_electric(self):
+        """This functions updates electric field components with the PML correction."""
 
-        Args:
-            G (FDTDGrid): Holds essential parameters describing the model.
-        """
-
-        pmlmodule = 'gprMax.cython.pml_updates_electric_' + G.pmlformulation
+        pmlmodule = 'gprMax.cython.pml_updates_electric_' + self.G.pmlformulation
         func = getattr(import_module(pmlmodule), 'order' + str(len(self.CFS)) + '_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf,
-             config.sim_config.hostinfo['ompthreads'], G.updatecoeffsE, G.ID,
-             G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.EPhi1, self.EPhi2,
-             self.ERA, self.ERB, self.ERE, self.ERF, self.d)
+             config.sim_config.hostinfo['ompthreads'], self.G.updatecoeffsE, self.G.ID,
+             self.G.Ex, self.G.Ey, self.G.Ez, self.G.Hx, self.G.Hy, self.G.Hz,
+             self.EPhi1, self.EPhi2, self.ERA, self.ERB, self.ERE, self.ERF, self.d)
 
-    def update_magnetic(self, G):
-        """This functions updates magnetic field components with the PML correction.
+    def update_magnetic(self):
+        """This functions updates magnetic field components with the PML correction."""
 
-        Args:
-            G (FDTDGrid): Holds essential parameters describing the model.
-        """
-
-        pmlmodule = 'gprMax.cython.pml_updates_magnetic_' + G.pmlformulation
+        pmlmodule = 'gprMax.cython.pml_updates_magnetic_' + self.G.pmlformulation
         func = getattr(import_module(pmlmodule), 'order' + str(len(self.CFS)) + '_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf,
-             config.sim_config.hostinfo['ompthreads'], G.updatecoeffsH, G.ID,
-             G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz, self.HPhi1, self.HPhi2,
-             self.HRA, self.HRB, self.HRE, self.HRF, self.d)
+             config.sim_config.hostinfo['ompthreads'], self.G.updatecoeffsH, self.G.ID,
+             self.G.Ex, self.G.Ey, self.G.Ez, self.G.Hx, self.G.Hy, self.G.Hz,
+             self.HPhi1, self.HPhi2, self.HRA, self.HRB, self.HRE, self.HRF, self.d)
 
 
 class CUDAPML(PML):
@@ -339,7 +332,7 @@ class CUDAPML(PML):
         solving on GPU using CUDA.
     """
 
-    def initialise_field_arrays_gpu(self):
+    def htod_field_arrays(self):
         """Initialise PML field and coefficient arrays on GPU."""
 
         import pycuda.gpuarray as gpuarray
@@ -357,16 +350,12 @@ class CUDAPML(PML):
         self.HPhi1_gpu = gpuarray.to_gpu(self.HPhi1)
         self.HPhi2_gpu = gpuarray.to_gpu(self.HPhi2)
 
-    def set_blocks_per_grid(self, G):
-        """Set the blocks per grid size used for updating the PML field arrays on a GPU.
-
-        Args:
-            G (FDTDGrid): Parameters describing a grid in a model.
-        """
-
+    def set_blocks_per_grid(self):
+        """Set the blocks per grid size used for updating the PML field arrays
+            on a GPU."""
         self.bpg = (int(np.ceil(((self.EPhi1_gpu.shape[1] + 1) *
                    (self.EPhi1_gpu.shape[2] + 1) *
-                   (self.EPhi1_gpu.shape[3] + 1)) / G.tpb[0])), 1, 1)
+                   (self.EPhi1_gpu.shape[3] + 1)) / self.G.tpb[0])), 1, 1)
 
     def get_update_funcs(self, kernelselectric, kernelsmagnetic):
         """Get update functions from PML kernels.
@@ -381,14 +370,10 @@ class CUDAPML(PML):
         self.update_electric_gpu = kernelselectric.get_function('order' + str(len(self.CFS)) + '_' + self.direction)
         self.update_magnetic_gpu = kernelsmagnetic.get_function('order' + str(len(self.CFS)) + '_' + self.direction)
 
-    def update_electric(self, G):
+    def update_electric(self):
         """This functions updates electric field components with the PML
             correction on the GPU.
-
-        Args:
-            G (FDTDGrid): Parameters describing a grid in a model.
         """
-
         self.update_electric_gpu(np.int32(self.xs), np.int32(self.xf),
                                  np.int32(self.ys), np.int32(self.yf),
                                  np.int32(self.zs), np.int32(self.zf),
@@ -399,21 +384,18 @@ class CUDAPML(PML):
                                  np.int32(self.EPhi2_gpu.shape[2]),
                                  np.int32(self.EPhi2_gpu.shape[3]),
                                  np.int32(self.thickness),
-                                 G.ID_gpu.gpudata,
-                                 G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                                 G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                                 self.G.ID_gpu.gpudata,
+                                 self.G.Ex_gpu.gpudata, self.G.Ey_gpu.gpudata, self.G.Ez_gpu.gpudata,
+                                 self.G.Hx_gpu.gpudata, self.G.Hy_gpu.gpudata, self.G.Hz_gpu.gpudata,
                                  self.EPhi1_gpu.gpudata, self.EPhi2_gpu.gpudata,
                                  self.ERA_gpu.gpudata, self.ERB_gpu.gpudata,
                                  self.ERE_gpu.gpudata, self.ERF_gpu.gpudata,
                                  config.sim_config.dtypes['float_or_double'](self.d),
-                                 block=G.tpb, grid=self.bpg)
+                                 block=self.G.tpb, grid=self.bpg)
 
-    def update_magnetic(self, G):
+    def update_magnetic(self):
         """This functions updates magnetic field components with the PML
             correction on the GPU.
-
-        Args:
-            G (FDTDGrid): Parameters describing a grid in a model.
         """
         self.update_magnetic_gpu(np.int32(self.xs), np.int32(self.xf),
                                  np.int32(self.ys), np.int32(self.yf),
@@ -425,16 +407,16 @@ class CUDAPML(PML):
                                  np.int32(self.HPhi2_gpu.shape[2]),
                                  np.int32(self.HPhi2_gpu.shape[3]),
                                  np.int32(self.thickness),
-                                 G.ID_gpu.gpudata,
-                                 G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata,
-                                 G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata,
+                                 self.G.ID_gpu.gpudata,
+                                 self.G.Ex_gpu.gpudata, self.G.Ey_gpu.gpudata, self.G.Ez_gpu.gpudata,
+                                 self.G.Hx_gpu.gpudata, self.G.Hy_gpu.gpudata, self.G.Hz_gpu.gpudata,
                                  self.HPhi1_gpu.gpudata, self.HPhi2_gpu.gpudata,
                                  self.HRA_gpu.gpudata, self.HRB_gpu.gpudata,
                                  self.HRE_gpu.gpudata, self.HRF_gpu.gpudata,
                                  config.sim_config.dtypes['float_or_double'](self.d),
-                                 block=G.tpb, grid=self.bpg)
+                                 block=self.G.tpb, grid=self.bpg)
 
-def pml_info(G):
+def print_pml_info(G):
     """Information about PMLs.
 
     Args:
@@ -516,4 +498,4 @@ def build_pml(G, key, value):
         averageer = sumer / (G.nx * G.ny)
         averagemr = summr / (G.nx * G.ny)
 
-    pml.calculate_update_coeffs(averageer, averagemr, G)
+    pml.calculate_update_coeffs(averageer, averagemr)

@@ -253,8 +253,8 @@ def process_materials(G):
         materialtext.append(str(material.numID))
         materialtext.append(material.ID[:50] if len(material.ID) > 50 else material.ID)
         materialtext.append(material.type)
-        materialtext.append('{:g}'.format(material.er))
-        materialtext.append('{:g}'.format(material.se))
+        materialtext.append(f'{material.er:g}')
+        materialtext.append(f'{material.se:g}')
         if config.model_configs[G.model_num].materials['maxpoles'] > 0:
             if 'debye' in material.type:
                 materialtext.append('\n'.join('{:g}'.format(deltaer) for deltaer in material.deltaer))
@@ -274,8 +274,8 @@ def process_materials(G):
             else:
                 materialtext.extend(['', '', '', '', ''])
 
-        materialtext.append('{:g}'.format(material.mr))
-        materialtext.append('{:g}'.format(material.sm))
+        materialtext.append(f'{material.mr:g}')
+        materialtext.append(f'{material.sm:g}')
         materialtext.append(material.averagable)
         materialsdata.append(materialtext)
 

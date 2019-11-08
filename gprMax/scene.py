@@ -59,7 +59,6 @@ class Scene:
             raise GeneralError('This object is unknown to gprMax')
 
     def process_subgrid_commands(self, subgrids):
-
         # Check for subgrid user objects
         def func(obj):
             if isinstance(obj, SubGridUserBase):
@@ -113,30 +112,28 @@ class Scene:
         self.process_cmds(cmds_unique, G)
 
     def create_internal_objects(self, G):
+        """API presents the user with UserObjects in order to build the internal
+            Rx(), Cylinder() etc... objects. This function essentially calls the
+            UserObject.create() function in the correct way.
+        """
 
-        # fractal box commands have an additional nonuser object which
-        # process modifications
+        # Fractal box commands have an additional nonuser object which
+        # processes modifications
         fbb = FractalBoxBuilder()
         self.add(fbb)
 
-        # gprMax API presents the user with UserObjects in order to build
-        # the internal Rx(), Cylinder() etc... objects. This function
-        # essentially calls the UserObject.create() function in the correct
-        # way
-
-        # Traverse all the user objects in the correct order and create them.
+        # Create pre-defined (built-in) materials
         create_built_in_materials(G)
 
-        # process commands that can onlyhave a single instance
+        # Process commands that can only have a single instance
         self.process_singlecmds(G)
 
         # Process main grid multiple commands
         self.process_cmds(self.multiple_cmds, G)
 
-        # Initialise an array for volumetric material IDs (solid), boolean
-        # arrays for specifying materials not to be averaged (rigid),
-        # an array for cell edge IDs (ID)
-        G.initialise_grids()
+        # Initialise geometry arrays for main and subgrids
+        for grid in [G] + G.subgrids:
+            grid.initialise_geometry_arrays()
 
         # Process the main grid geometry commands
         self.process_cmds(self.geometry_cmds, G, sort=False)

@@ -118,7 +118,8 @@ def round_value(value, decimalplaces=0):
 
     Args:
         value (float): Number to round.
-        decimalplaces (int): Number of decimal places of float to represent rounded value.
+        decimalplaces (int): Number of decimal places of float to represent
+                                rounded value.
 
     Returns:
         rounded (int/float): Rounded value.
@@ -143,7 +144,7 @@ def round32(value):
 
 def fft_power(waveform, dt):
     """Calculate a FFT of the given waveform of amplitude values;
-    converted to decibels and shifted so that maximum power is 0dB
+        converted to decibels and shifted so that maximum power is 0dB
 
     Args:
         waveform (ndarray): time domain waveform
@@ -200,7 +201,8 @@ def get_host_info():
 
     Returns:
         hostinfo (dict): Manufacturer and model of machine; description of CPU
-                type, speed, cores; RAM; name and version of operating system.
+                            type, speed, cores; RAM; name and
+                            version of operating system.
     """
 
     # Default to 'unknown' if any of the detection fails
@@ -381,7 +383,7 @@ def set_omp_threads(nthreads=None):
     return nthreads
 
 
-def mem_check(mem):
+def mem_check_host(mem):
     """Check if the required amount of memory (RAM) is available on host.
 
     Args:
@@ -391,22 +393,72 @@ def mem_check(mem):
         raise GeneralError(f"Memory (RAM) required ~{human_size(mem)} exceeds {human_size(config.sim_config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} detected!\n")
 
 
-def mem_check_gpu_snaps(model_num, snaps_mem):
+def mem_check_gpu_snaps(model_num, total_mem, snaps_mem):
     """Check if the required amount of memory (RAM) for all snapshots can fit
         on specified GPU.
 
     Args:
         model_num (int): Model number.
+        total_mem (int): Total memory required for model (bytes).
         snaps_mem (int): Memory required for all snapshots (bytes).
     """
-    if config.model_configs[G.model_num].mem_use - snaps_mem > gpu.totalmem:
-        raise GeneralError(f'Memory (RAM) required ~{human_size(config.model_configs[G.model_num].mem_use)} exceeds {human_size(config.model_configs[G.model_num].gpu.totalmem, a_kilobyte_is_1024_bytes=True)} detected on specified {config.model_configs[G.model_num].gpu.deviceID} - {config.model_configs[G.model_num].gpu.name} GPU!\n')
+    if total_mem - snaps_mem > config.model_configs[model_num].cuda['gpu'].totalmem:
+        raise GeneralError(f"Memory (RAM) required ~{human_size(total_mem)} exceeds {human_size(config.model_configs[model_num].cuda['gpu'].totalmem, a_kilobyte_is_1024_bytes=True)} detected on specified {config.model_configs[model_num].cuda['gpu'].deviceID} - {config.model_configs[model_num].cuda['gpu'].name} GPU!\n")
 
     # If the required memory without the snapshots will fit on the GPU then
     # transfer and store snaphots on host
-    if (snaps_mem != 0 and config.model_configs[G.model_num].mem_use -
-        snaps_mem < config.model_configs[G.model_num].gpu.totalmem):
-        config.model_configs[G.model_num].cuda['snapsgpu2cpu'] = True
+    if snaps_mem != 0 and total_mem - snaps_mem < config.model_configs[model_num].cuda['gpu'].totalmem:
+        config.model_configs[model_num].cuda['snapsgpu2cpu'] = True
+
+
+def mem_check_all(grids):
+    """Check memory for all grids, including for any dispersive materials,
+        snapshots, and if solver with GPU, whether snapshots will fit on GPU
+        memory.
+
+    Args:
+        grids (list): FDTDGrid objects.
+
+    Returns:
+        total_mem (int): Total memory required for all grids.
+    """
+
+    total_mem = 0
+    total_snaps_mem = 0
+
+    for grid in grids:
+        config.model_configs[grid.model_num].mem_use += grid.mem_est_basic()
+
+        # Set datatype for dispersive arrays if there are any dispersive materials.
+        if config.model_configs[grid.model_num].materials['maxpoles'] != 0:
+            drudelorentz = any([m for m in grid.materials if 'drude' in m.type or 'lorentz' in m.type])
+            if drudelorentz:
+                config.model_configs[grid.model_num].materials['dispersivedtype'] = config.sim_config.dtypes['complex']
+                config.model_configs[grid.model_num].materials['dispersiveCdtype'] = config.sim_config.dtypes['C_complex']
+            else:
+                config.model_configs[grid.model_num].materials['dispersivedtype'] = config.sim_config.dtypes['float_or_double']
+                config.model_configs[grid.model_num].materials['dispersiveCdtype'] = config.sim_config.dtypes['C_float_or_double']
+
+            # Update estimated memory (RAM) usage
+            config.model_configs[grid.model_num].mem_use += grid.mem_est_dispersive()
+
+        # Calculate snapshot memory
+        if grid.snapshots:
+            for snap in grid.snapshots:
+                # 2 x required to account for electric and magnetic fields
+                config.model_configs[grid.model_num].mem_use += int(2 * snap.datasizefield)
+                total_snaps_mem += int(2 * snap.datasizefield)
+
+        total_mem += config.model_configs[grid.model_num].mem_use
+
+    # Check if there is sufficient memory on host
+    mem_check_host(total_mem)
+
+    # Check if there is sufficient memory for any snapshots on GPU
+    if config.sim_config.general['cuda']:
+        mem_check_gpu_snaps(grid.model_num, total_mem, total_snaps_mem)
+
+    return total_mem
 
 
 class GPU:

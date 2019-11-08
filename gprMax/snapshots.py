@@ -170,7 +170,7 @@ class Snapshot:
         self.filehandle.close()
 
 
-def initialise_snapshot_array_gpu(G):
+def htod_snapshot_array(G):
     """Initialise array on GPU for to store field data for snapshots.
 
     Args:
@@ -224,7 +224,7 @@ def initialise_snapshot_array_gpu(G):
     return snapEx_gpu, snapEy_gpu, snapEz_gpu, snapHx_gpu, snapHy_gpu, snapHz_gpu
 
 
-def get_snapshot_array_gpu(snapEx_gpu, snapEy_gpu, snapEz_gpu, snapHx_gpu, snapHy_gpu, snapHz_gpu, i, snap):
+def dtoh_snapshot_array(snapEx_gpu, snapEy_gpu, snapEz_gpu, snapHx_gpu, snapHy_gpu, snapHz_gpu, i, snap):
     """Copy snapshot array used on GPU back to snapshot objects and store in format for Paraview.
 
     Args:
