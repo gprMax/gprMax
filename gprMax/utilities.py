@@ -289,7 +289,9 @@ def get_host_info():
 
         # CPU information
         try:
-            cpuIDinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            my_env = os.environ.copy()
+            my_env["LC_ALL"] = "C"
+            cpuIDinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True, env=my_env, stderr=subprocess.STDOUT).decode('utf-8').strip()
             for line in cpuIDinfo.split('\n'):
                 if re.search('model name', line):
                     cpuID = re.sub('.*model name.*:', '', line, 1).strip()
