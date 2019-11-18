@@ -296,12 +296,12 @@ def get_host_info():
 
         # CPU information
         try:
-            cpuIDinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            # Locale to ensure English
+            myenv = {**os.environ, 'LANG': 'en_US.utf8'}
+            cpuIDinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True, stderr=subprocess.STDOUT, env=myenv).decode('utf-8').strip()
             for line in cpuIDinfo.split('\n'):
                 if re.search('model name', line):
-                    cpuID = re.sub('.*model name.*:', '', line, 1).strip()
-            # Run lscpu with English locale
-            myenv = {**os.environ, 'LANG': 'en_US.utf8'}
+                    cpuID = re.sub('.*model name.*:', '', line, 1).strip()            
             allcpuinfo = subprocess.check_output("lscpu", shell=True, stderr=subprocess.STDOUT, env=myenv).decode('utf-8').strip()
             for line in allcpuinfo.split('\n'):
                 if 'Socket(s)' in line:
@@ -393,22 +393,21 @@ def mem_check_host(mem):
         raise GeneralError(f"Memory (RAM) required ~{human_size(mem)} exceeds {human_size(config.sim_config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} detected!\n")
 
 
-def mem_check_gpu_snaps(model_num, total_mem, snaps_mem):
+def mem_check_gpu_snaps(total_mem, snaps_mem):
     """Check if the required amount of memory (RAM) for all snapshots can fit
         on specified GPU.
 
     Args:
-        model_num (int): Model number.
         total_mem (int): Total memory required for model (bytes).
         snaps_mem (int): Memory required for all snapshots (bytes).
     """
-    if total_mem - snaps_mem > config.model_configs[model_num].cuda['gpu'].totalmem:
-        raise GeneralError(f"Memory (RAM) required ~{human_size(total_mem)} exceeds {human_size(config.model_configs[model_num].cuda['gpu'].totalmem, a_kilobyte_is_1024_bytes=True)} detected on specified {config.model_configs[model_num].cuda['gpu'].deviceID} - {config.model_configs[model_num].cuda['gpu'].name} GPU!\n")
+    if total_mem - snaps_mem > config.get_model_config().cuda['gpu'].totalmem:
+        raise GeneralError(f"Memory (RAM) required ~{human_size(total_mem)} exceeds {human_size(config.get_model_config().cuda['gpu'].totalmem, a_kilobyte_is_1024_bytes=True)} detected on specified {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name} GPU!\n")
 
     # If the required memory without the snapshots will fit on the GPU then
     # transfer and store snaphots on host
-    if snaps_mem != 0 and total_mem - snaps_mem < config.model_configs[model_num].cuda['gpu'].totalmem:
-        config.model_configs[model_num].cuda['snapsgpu2cpu'] = True
+    if snaps_mem != 0 and total_mem - snaps_mem < config.get_model_config().cuda['gpu'].totalmem:
+        config.get_model_config().cuda['snapsgpu2cpu'] = True
 
 
 def mem_check_all(grids):
@@ -427,36 +426,36 @@ def mem_check_all(grids):
     total_snaps_mem = 0
 
     for grid in grids:
-        config.model_configs[grid.model_num].mem_use += grid.mem_est_basic()
+        config.get_model_config().mem_use += grid.mem_est_basic()
 
         # Set datatype for dispersive arrays if there are any dispersive materials.
-        if config.model_configs[grid.model_num].materials['maxpoles'] != 0:
+        if config.get_model_config().materials['maxpoles'] != 0:
             drudelorentz = any([m for m in grid.materials if 'drude' in m.type or 'lorentz' in m.type])
             if drudelorentz:
-                config.model_configs[grid.model_num].materials['dispersivedtype'] = config.sim_config.dtypes['complex']
-                config.model_configs[grid.model_num].materials['dispersiveCdtype'] = config.sim_config.dtypes['C_complex']
+                config.get_model_config().materials['dispersivedtype'] = config.sim_config.dtypes['complex']
+                config.get_model_config().materials['dispersiveCdtype'] = config.sim_config.dtypes['C_complex']
             else:
-                config.model_configs[grid.model_num].materials['dispersivedtype'] = config.sim_config.dtypes['float_or_double']
-                config.model_configs[grid.model_num].materials['dispersiveCdtype'] = config.sim_config.dtypes['C_float_or_double']
+                config.get_model_config().materials['dispersivedtype'] = config.sim_config.dtypes['float_or_double']
+                config.get_model_config().materials['dispersiveCdtype'] = config.sim_config.dtypes['C_float_or_double']
 
             # Update estimated memory (RAM) usage
-            config.model_configs[grid.model_num].mem_use += grid.mem_est_dispersive()
+            config.get_model_config().mem_use += grid.mem_est_dispersive()
 
         # Calculate snapshot memory
         if grid.snapshots:
             for snap in grid.snapshots:
                 # 2 x required to account for electric and magnetic fields
-                config.model_configs[grid.model_num].mem_use += int(2 * snap.datasizefield)
+                config.get_model_config().mem_use += int(2 * snap.datasizefield)
                 total_snaps_mem += int(2 * snap.datasizefield)
 
-        total_mem += config.model_configs[grid.model_num].mem_use
+        total_mem += config.get_model_config().mem_use
 
     # Check if there is sufficient memory on host
     mem_check_host(total_mem)
 
     # Check if there is sufficient memory for any snapshots on GPU
     if config.sim_config.general['cuda']:
-        mem_check_gpu_snaps(grid.model_num, total_mem, total_snaps_mem)
+        mem_check_gpu_snaps(total_mem, total_snaps_mem)
 
     return total_mem
 

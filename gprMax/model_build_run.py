@@ -35,7 +35,7 @@ import gprMax.config as config
 from .cython.yee_cell_build import build_electric_components
 from .cython.yee_cell_build import build_magnetic_components
 from .exceptions import GeneralError
-from .fields_outputs import write_hdf5_outputfile
+from .fields_outputs import write_hdf5_outputfiles
 from .grid import dispersion_analysis
 from .hash_cmds_file import parse_hash_commands
 from .materials import Material
@@ -65,7 +65,7 @@ class ModelBuildRun:
         # used with threaded model building methods, e.g. fractals. Can be
         # changed by #num_threads command in input file or via API later for
         # use with CPU solver.
-        config.model_configs[self.G.model_num].ompthreads = set_omp_threads(config.model_configs[self.G.model_num].ompthreads)
+        config.get_model_config().ompthreads = set_omp_threads(config.get_model_config().ompthreads)
 
     def build(self):
         """Builds the Yee cells for a model."""
@@ -76,14 +76,14 @@ class ModelBuildRun:
         self.p = psutil.Process()
 
         # Normal model reading/building process; bypassed if geometry information to be reused
-        self.reuse_geometry() if config.model_configs[G.model_num].reuse_geometry else self.build_geometry()
+        self.reuse_geometry() if config.get_model_config().reuse_geometry else self.build_geometry()
 
-        log.info(f'\nOutput directory: {config.model_configs[G.model_num].output_file_path.parent.resolve()}')
+        log.info(f'\nOutput directory: {config.get_model_config().output_file_path.parent.resolve()}')
 
         # Adjust position of simple sources and receivers if required
         if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
             for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
-                if G.model_num == 0:
+                if config.model_num == 0:
                     if (source.xcoord + G.srcsteps[0] * config.sim_config.model_end < 0 or
                         source.xcoord + G.srcsteps[0] * config.sim_config.model_end > G.nx or
                         source.ycoord + G.srcsteps[1] * config.sim_config.model_end < 0 or
@@ -91,12 +91,12 @@ class ModelBuildRun:
                         source.zcoord + G.srcsteps[2] * config.sim_config.model_end < 0 or
                         source.zcoord + G.srcsteps[2] * config.sim_config.model_end > G.nz):
                         raise GeneralError('Source(s) will be stepped to a position outside the domain.')
-                source.xcoord = source.xcoordorigin + G.model_num * G.srcsteps[0]
-                source.ycoord = source.ycoordorigin + G.model_num * G.srcsteps[1]
-                source.zcoord = source.zcoordorigin + G.model_num * G.srcsteps[2]
+                source.xcoord = source.xcoordorigin + config.model_num * G.srcsteps[0]
+                source.ycoord = source.ycoordorigin + config.model_num * G.srcsteps[1]
+                source.zcoord = source.zcoordorigin + config.model_num * G.srcsteps[2]
         if G.rxsteps[0] != 0 or G.rxsteps[1] != 0 or G.rxsteps[2] != 0:
             for receiver in G.rxs:
-                if G.model_num == 0:
+                if config.model_num == 0:
                     if (receiver.xcoord + G.rxsteps[0] * config.sim_config.model_end < 0 or
                         receiver.xcoord + G.rxsteps[0] * config.sim_config.model_end > G.nx or
                         receiver.ycoord + G.rxsteps[1] * config.sim_config.model_end < 0 or
@@ -104,9 +104,9 @@ class ModelBuildRun:
                         receiver.zcoord + G.rxsteps[2] * config.sim_config.model_end < 0 or
                         receiver.zcoord + G.rxsteps[2] * config.sim_config.model_end > G.nz):
                         raise GeneralError('Receiver(s) will be stepped to a position outside the domain.')
-                receiver.xcoord = receiver.xcoordorigin + G.model_num * G.rxsteps[0]
-                receiver.ycoord = receiver.ycoordorigin + G.model_num * G.rxsteps[1]
-                receiver.zcoord = receiver.zcoordorigin + G.model_num * G.rxsteps[2]
+                receiver.xcoord = receiver.xcoordorigin + config.model_num * G.rxsteps[0]
+                receiver.ycoord = receiver.ycoordorigin + config.model_num * G.rxsteps[1]
+                receiver.zcoord = receiver.zcoordorigin + config.model_num * G.rxsteps[2]
 
         # Write files for any geometry views and geometry object outputs
         if not (G.geometryviews or G.geometryobjectswrite) and config.sim_config.args.geometry_only:
@@ -132,7 +132,7 @@ class ModelBuildRun:
     def build_geometry(self):
         G = self.G
 
-        log.info(config.model_configs[G.model_num].inputfilestr)
+        log.info(config.get_model_config().inputfilestr)
 
         scene = self.build_scene()
 
@@ -152,7 +152,7 @@ class ModelBuildRun:
             gb.update_voltage_source_materials()
             gb.grid.initialise_field_arrays()
             gb.grid.initialise_std_update_coeff_arrays()
-            if config.model_configs[gb.grid.model_num].materials['maxpoles'] > 0:
+            if config.get_model_config().materials['maxpoles'] > 0:
                 gb.grid.initialise_dispersive_arrays()
                 gb.grid.initialise_dispersive_update_coeff_array()
             gb.build_materials()
@@ -161,10 +161,10 @@ class ModelBuildRun:
             results = dispersion_analysis(gb.grid)
             if results['error']:
                 log.warning(Fore.RED + f"\nNumerical dispersion analysis ({gb.grid.name}) not carried out as {results['error']}" + Style.RESET_ALL)
-            elif results['N'] < config.model_configs[gb.grid.model_num].numdispersion['mingridsampling']:
+            elif results['N'] < config.get_model_config().numdispersion['mingridsampling']:
                 raise GeneralError(f"\nNon-physical wave propagation in {gb.grid.name} detected. Material '{results['material'].ID}' has wavelength sampled by {results['N']} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
             elif (results['deltavp'] and np.abs(results['deltavp']) >
-                  config.model_configs[gb.grid.model_num].numdispersion['maxnumericaldisp']):
+                  config.get_model_config().numdispersion['maxnumericaldisp']):
                 log.warning(Fore.RED + f"\n{gb.grid.name} has potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz" + Style.RESET_ALL)
             elif results['deltavp']:
                 log.info(f"\nNumerical dispersion analysis ({gb.grid.name}): estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
@@ -172,14 +172,14 @@ class ModelBuildRun:
     def reuse_geometry(self):
         # Reset iteration number
         self.G.iteration = 0
-        config.model_configs[self.G.model_num].set_inputfilestr(f'\n--- Model {config.model_configs[self.G.model_num].appendmodelnumber}/{config.sim_config.model_end}, input file (not re-processed, i.e. geometry fixed): {config.sim_config.input_file_path}')
-        log.info(config.model_configs[self.G.model_num].inputfilestr)
+        config.get_model_config().set_inputfilestr(f'\n--- Model {config.get_model_config().appendmodelnumber}/{config.sim_config.model_end}, input file (not re-processed, i.e. geometry fixed): {config.sim_config.input_file_path}')
+        log.info(config.get_model_config().inputfilestr)
         for grid in [self.G] + self.G.subgrids:
             grid.reset_fields()
 
     def build_scene(self):
         # API for multiple scenes / model runs
-        scene = config.model_configs[self.G.model_num].get_scene()
+        scene = config.get_model_config().get_scene()
 
         # If there is no scene, process the hash commands
         if not scene:
@@ -197,14 +197,14 @@ class ModelBuildRun:
             to file(s).
         """
 
-        # Write an output file in HDF5 format
-        write_hdf5_outputfile(config.model_configs[self.G.model_num].output_file_path_ext, self.G)
+        # Write an output file(s) in HDF5 format
+        write_hdf5_outputfiles(config.get_model_config().output_file_path_ext, self.G)
 
         # Write any snapshots to file
         if self.G.snapshots:
             # Create directory for snapshots
-            config.model_configs[self.G.model_num].set_snapshots_file_path()
-            snapshotdir = config.model_configs[self.G.model_num].snapshot_file_path
+            config.get_model_config().set_snapshots_file_path()
+            snapshotdir = config.get_model_config().snapshot_file_path
             snapshotdir.mkdir(exist_ok=True)
 
             log.info('')
@@ -244,16 +244,16 @@ class ModelBuildRun:
 
         # Check number of OpenMP threads
         if config.sim_config.general['cpu']:
-            log.info(f'CPU (OpenMP) threads for solving: {config.model_configs[self.G.model_num].ompthreads}\n')
-            if config.model_configs[self.G.model_num].ompthreads > config.sim_config.hostinfo['physicalcores']:
-                log.warning(Fore.RED + f"You have specified more threads ({config.model_configs[self.G.model_num].ompthreads}) than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). This may lead to degraded performance." + Style.RESET_ALL)
+            log.info(f'CPU (OpenMP) threads for solving: {config.get_model_config().ompthreads}\n')
+            if config.get_model_config().ompthreads > config.sim_config.hostinfo['physicalcores']:
+                log.warning(Fore.RED + f"You have specified more threads ({config.get_model_config().ompthreads}) than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). This may lead to degraded performance." + Style.RESET_ALL)
         # Print information about any GPU in use
         elif config.sim_config.general['cuda']:
-            log.info(f"GPU for solving: {config.model_configs[self.G.model_num].cuda['gpu'].deviceID} - {config.model_configs[self.G.model_num].cuda['gpu'].name}\n")
+            log.info(f"GPU for solving: {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name}\n")
 
         # Prepare iterator
         if config.sim_config.is_messages():
-            iterator = tqdm(range(self.G.iterations), desc=f'Running model {self.G.model_num + 1}/{config.sim_config.model_end}', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
+            iterator = tqdm(range(self.G.iterations), desc=f'Running model {config.model_num + 1}/{config.sim_config.model_end}', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
         else:
             iterator = range(self.G.iterations)
 
@@ -298,11 +298,11 @@ class GridBuilder:
         pbar.close()
 
     def tm_grid_update(self):
-        if '2D TMx' == config.model_configs[self.grid.model_num].mode:
+        if '2D TMx' == config.get_model_config().mode:
             self.grid.tmx()
-        elif '2D TMy' == config.model_configs[self.grid.model_num].mode:
+        elif '2D TMy' == config.get_model_config().mode:
             self.grid.tmy()
-        elif '2D TMz' == config.model_configs[self.grid.model_num].mode:
+        elif '2D TMz' == config.get_model_config().mode:
             self.grid.tmz()
 
     def update_voltage_source_materials(self):

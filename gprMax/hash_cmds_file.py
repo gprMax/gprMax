@@ -62,7 +62,7 @@ def process_python_include_code(inputfile, usernamespace):
 
         # Process any Python code
         if(inputlines[x].startswith('#python:')):
-            log.warning('#python blocks are deprecated and will be removed in the next release of gprMax. Please convert your model to use our Python API instead.')
+            log.warning('#python blocks are deprecated and will be removed in the next release of gprMax. Please convert your model to use our Python API instead.\n')
             # String to hold Python code to be executed
             pythoncode = ''
             x += 1
@@ -168,7 +168,7 @@ def write_processed_file(processedlines, G):
         G (FDTDGrid): Parameters describing a grid in a model.
     """
 
-    parts = config.model_configs[G.model_num].output_file_path.parts
+    parts = config.get_model_config().output_file_path.parts
     processedfile = (Path(*parts[:-1], parts[-1] + '_processed.in'))
 
     with open(processedfile, 'w') as f:
@@ -295,7 +295,7 @@ def parse_hash_commands(scene, G):
 
     with open(config.sim_config.input_file_path) as inputfile:
 
-        usernamespace = config.model_configs[G.model_num].get_usernamespace()
+        usernamespace = config.get_model_config().get_usernamespace()
 
         # Read input file and process any Python and include file commands
         processedlines = process_python_include_code(inputfile, usernamespace)

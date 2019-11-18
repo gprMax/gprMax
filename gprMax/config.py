@@ -43,18 +43,22 @@ sim_config = None
 # Instance of ModelConfig that hold model configuration parameters.
 model_configs = []
 
+# Each model in a simulation is given a unique number when the instance of
+# ModelConfig is created
+model_num = 0
+
+def get_model_config():
+    """Return ModelConfig instace for specific model."""
+    return model_configs[model_num]
+
+
 class ModelConfig:
     """Configuration parameters for a model.
         N.B. Multiple models can exist within a simulation
     """
 
-    def __init__(self, model_num):
-        """
-        Args:
-            model_num (int): Model number.
-        """
+    def __init__(self):
 
-        self.i = model_num # Indexed from 0
         self.mode = '3D'
         self.grids = []
         self.ompthreads = None # Number of OpenMP threads
@@ -75,11 +79,11 @@ class ModelConfig:
         self.reuse_geometry = False
 
         # String to print at start of each model run
-        inputfilestr = f'\n--- Model {self.i + 1}/{sim_config.model_end}, input file: {sim_config.input_file_path}'
+        inputfilestr = f'\n--- Model {model_num + 1}/{sim_config.model_end}, input file: {sim_config.input_file_path}'
         self.set_inputfilestr(inputfilestr)
 
         if not sim_config.single_model:
-            self.appendmodelnumber = str(self.i + 1) # Indexed from 1
+            self.appendmodelnumber = str(model_num + 1) # Indexed from 1
         else:
             self.appendmodelnumber = ''
 
@@ -108,7 +112,7 @@ class ModelConfig:
 
     def get_scene(self):
         if sim_config.scenes:
-            return sim_config.scenes[self.i]
+            return sim_config.scenes[model_num]
         else: return None
 
     def get_usernamespace(self):
@@ -116,8 +120,8 @@ class ModelConfig:
                 'e0': e0, # Permittivity of free space (F/m)
                 'm0': m0, # Permeability of free space (H/m)
                 'z0': np.sqrt(m0 / e0), # Impedance of free space (Ohms)
-                'number_model_runs': sim_config.model_end + 1,
-                'current_model_run': self.i + 1,
+                'number_model_runs': sim_config.model_end,
+                'current_model_run': model_num + 1,
                 'inputfile': sim_config.input_file_path.resolve()}
 
     def set_inputfilestr(self, inputfilestr):
@@ -169,7 +173,6 @@ class SimulationConfig:
         """
 
         self.args = args
-        log.debug('Fix parsing args')
 
         # General settings for the simulation
         #   inputfilepath: path to inputfile location
@@ -177,17 +180,15 @@ class SimulationConfig:
         #   messages: whether to print all messages as output to stdout or not
         #   progressbars: whether to show progress bars on stdoout or not
         #   cpu, cuda, opencl: solver type
+        #   subgrid: whether the simulation uses sub-grids
         #   precision: data type for electromagnetic field output (single/double)
-        #   autotranslate: auto translate objects with main grid coordinates
-        #       to their equivalent local grid coordinate within the subgrid.
-        #       If this option is off users must specify sub-grid object point
-        #       within the global subgrid space.
         self.general = {'messages': True,
                         'progressbars': True,
                         'cpu': True,
                         'cuda': False,
                         'opencl': False,
-                        'precision': 'single'}
+                        'subgrid': False,
+                        'precision': 'double'}
 
         self.em_consts = {'c': c, # Speed of light in free space (m/s)
                           'e0': e0, # Permittivity of free space (F/m)
@@ -217,9 +218,9 @@ class SimulationConfig:
 
         # Subgrid parameter may not exist if user enters via CLI
         try:
-            self.subgrid = args.subgrid
+            self.general['subgrid'] = self.args.subgrid
         except AttributeError:
-            self.subgrid = False
+            self.general['subgrid'] = False
 
         # Scenes parameter may not exist if user enters via CLI
         try:

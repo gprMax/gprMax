@@ -98,9 +98,12 @@ __global__ void store_outputs(int NRX, int iteration, const int* __restrict__ rx
 """)
 
 
-def write_hdf5_outputfile(outputfile, G):
-    write_hdf5_main_grid_outputfile(outputfile, G)
-    write_hdf5_sub_grid_outputfile(outputfile, G)
+def write_hdf5_outputfiles(outputfile, G):
+    if G.rxs:
+        write_hdf5_main_grid_outputfile(outputfile, G)
+    sg_rxs = [True for sg in G.subgrids if sg.rxs]
+    if sg_rxs:
+        write_hdf5_sub_grid_outputfile(outputfile, G)
 
 
 def write_hdf5_main_grid_outputfile(outputfile, G):

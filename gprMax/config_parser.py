@@ -34,14 +34,11 @@ def write_simulation_config(args):
         config.sim_config = config.SimulationConfig(args)
 
 
-def write_model_config(model_num):
+def write_model_config():
     """Write model level configuration parameters to config module. As there can
         only be one instance of the config module objects are always found via
         'import gprMax.config'
-
-    Args:
-        model_num (int): Model number.
     """
 
-    model_config = config.ModelConfig(model_num)
+    model_config = config.ModelConfig()
     config.model_configs.append(model_config)

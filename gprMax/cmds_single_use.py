@@ -272,9 +272,9 @@ class NumThreads(UserObjectSingle):
 
     def __str__(self):
         try:
-            return '#n_threads: {}'.format(self.kwargs['n'])
+            return f"#num_threads: {self.kwargs['n']}"
         except KeyError:
-            return '#n_threads:'
+            return '#num_threads:'
 
     def create(self, G, uip):
         try:
@@ -284,7 +284,7 @@ class NumThreads(UserObjectSingle):
         if n < 1:
             raise CmdInputError(self.__str__() + ' requires the value to be an integer not less than one')
 
-        config.model_configs[G.model_num].ompthreads = set_omp_threads(n)
+        config.get_model_config().ompthreads = set_omp_threads(n)
 
 
 class TimeStepStabilityFactor(UserObjectSingle):
@@ -386,9 +386,7 @@ class SrcSteps(UserObjectSingle):
         except KeyError:
             raise CmdInputError('#src_steps: requires exactly three parameters')
 
-        log.info(f'Simple sources will step {G.srcsteps[0] * G.dx:g}m, \
-                 {G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m \
-                 for each model run.')
+        log.info(f'Simple sources will step {G.srcsteps[0] * G.dx:g}m, {G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m for each model run.')
 
 
 class RxSteps(UserObjectSingle):
@@ -409,9 +407,7 @@ class RxSteps(UserObjectSingle):
         except KeyError:
             raise CmdInputError('#rx_steps: requires exactly three parameters')
 
-        log.info(f'All receivers will step {G.rxsteps[0] * G.dx:g}m, \
-                 {G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m \
-                 for each model run.')
+        log.info(f'All receivers will step {G.rxsteps[0] * G.dx:g}m, {G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m for each model run.')
 
 
 class ExcitationFile(UserObjectSingle):
@@ -509,7 +505,7 @@ class OutputDir(UserObjectSingle):
         self.order = 12
 
     def create(self, grid, uip):
-        config.model_configs[grid.model_num].set_output_file_path(self.kwargs['dir'])
+        config.get_model_config().set_output_file_path(self.kwargs['dir'])
 
 
 class NumberOfModelRuns(UserObjectSingle):

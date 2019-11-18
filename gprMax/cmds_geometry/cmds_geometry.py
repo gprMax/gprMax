@@ -35,7 +35,7 @@ class UserObjectGeometry:
         self.autotranslate = True
 
     def __str__(self):
-        """Readble user string as per hash commands."""
+        """Readable string of parameters given to object."""
         s = ''
         for k, v in self.kwargs.items():
             if isinstance(v, tuple) or isinstance(v, list):
@@ -45,7 +45,7 @@ class UserObjectGeometry:
         return f'{self.hash}: {s[:-1]}'
 
     def params_str(self):
-        """Readble string of parameters given to object."""
+        """Readable user string as per hash commands."""
         return self.hash + ': ' + str(self.kwargs)
 
     def create(self, grid, uip):

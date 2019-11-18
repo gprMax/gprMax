@@ -35,7 +35,7 @@ log = logging.getLogger(__name__)
 
 class Context:
     """Generic context for the model to run in. Sub-class with specific contexts
-    e.g. an MPI context.
+        e.g. an MPI context.
     """
 
     def __init__(self):
@@ -90,16 +90,17 @@ class NoMPIContext(Context):
         """Specialise how the models are farmed out."""
 
         for i in self.model_range:
-            write_model_config(i)
+            config.model_num = i
+            write_model_config()
             # Always create a solver for the first model.
             # The next model to run only gets a new solver if the
             # geometry is not re-used.
             if i != 0 and config.sim_config.args.geometry_fixed:
-                config.model_configs[i].reuse_geometry = True
+                config.get_model_config().reuse_geometry = True
                 # Ensure re-used G is associated correctly with model
-                G.model_num = i
+                # G.model_num = i
             else:
-                G = create_G(i)
+                G = create_G()
 
             model = ModelBuildRun(G)
             model.build()

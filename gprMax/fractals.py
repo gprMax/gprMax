@@ -93,7 +93,7 @@ class FractalSurface:
         A = fftpack.fftshift(A)
 
         # Generate fractal
-        generate_fractal2D(surfacedims[0], surfacedims[1], config.model_configs[G.model_num].ompthreads,
+        generate_fractal2D(surfacedims[0], surfacedims[1], config.get_model_config().ompthreads,
                            self.b, self.weighting, v1, A, self.fractalsurface)
         # Shift the zero frequency component to start of the array
         self.fractalsurface = fftpack.ifftshift(self.fractalsurface)
@@ -180,7 +180,7 @@ class FractalVolume:
         A = fftpack.fftshift(A)
 
         # Generate fractal
-        generate_fractal3D(self.nx, self.ny, self.nz, config.model_configs[G.model_num].ompthreads,
+        generate_fractal3D(self.nx, self.ny, self.nz, config.get_model_config().ompthreads,
                            self.b, self.weighting, v1, A, self.fractalvolume)
 
         # Shift the zero frequency component to the start of the array

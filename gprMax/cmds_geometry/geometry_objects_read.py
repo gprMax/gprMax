@@ -25,8 +25,7 @@ import gprMax.config as config
 from .cmds_geometry import UserObjectGeometry
 from ..cython.geometry_primitives import build_voxels_from_array
 from ..exceptions import CmdInputError
-# from ..hash_cmds_file import check_cmd_names
-# from ..hash_cmds_multiuse import process_multicmds
+from ..hash_cmds_file import get_user_objects
 from ..utilities import round_value
 
 log = logging.getLogger(__name__)
@@ -69,11 +68,15 @@ class GeometryObjectsRead(UserObjectGeometry):
             # Strip out any newline characters and comments that must begin with double hashes
             materials = [line.rstrip() + '{' + matstr + '}\n' for line in f if(not line.startswith('##') and line.rstrip('\n'))]
 
-        # Check validity of command names
-        singlecmdsimport, multicmdsimport, geometryimport = check_cmd_names(materials, checkessential=False)
+        # build scene
+        # API for multiple scenes / model runs
+        scene = config.get_model_config().get_scene()
+        user_objs = get_user_objects(materials, check=False)
+        for user_obj in user_objs:
+            scene.add(user_obj)
 
-        # Process parameters for commands that can occur multiple times in the model
-        process_multicmds(multicmdsimport)
+        # Creates the internal simulation objects
+        # scene.create_internal_objects(self.G)
 
         # Update material type
         for material in G.materials:

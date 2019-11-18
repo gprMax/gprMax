@@ -113,8 +113,8 @@ class GeometryView:
 
     def set_filename(self):
         """Construct filename from user-supplied name and model run number."""
-        parts = config.model_configs[self.G.model_num].output_file_path.parts
-        self.filename = Path(*parts[:-1], self.filename + config.model_configs[self.G.model_num].appendmodelnumber)
+        parts = config.get_model_config().output_file_path.parts
+        self.filename = Path(*parts[:-1], self.filename + config.get_model_config().appendmodelnumber)
         self.filename = self.filename.with_suffix(self.fileext)
 
     def write_vtk(self, G, pbar):
@@ -452,8 +452,8 @@ class GeometryViewFineMultiGrid:
 
     def set_filename(self):
         """Construct filename from user-supplied name and model run number."""
-        parts = config.model_configs[self.G.model_num].output_file_path.parts
-        self.filename = Path(*parts[:-1], self.filename + config.model_configs[self.G.model_num].appendmodelnumber)
+        parts = config.get_model_config().output_file_path.parts
+        self.filename = Path(*parts[:-1], self.filename + config.get_model_config().appendmodelnumber)
         self.filename = self.filename.with_suffix(self.fileext)
 
     def write_vtk(self, *args):

@@ -127,7 +127,7 @@ class SubgridUpdater(CPUUpdates):
         """This is the first half of the subgrid update. Takes the time step
             up to the main grid electric update.
         """
-        
+
         G = self.G
         sub_grid = self.grid
         precursors = self.precursors

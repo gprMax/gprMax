@@ -24,22 +24,17 @@ from .updates import CPUUpdates
 from .updates import CUDAUpdates
 
 
-def create_G(model_num):
+def create_G():
     """Create grid object according to solver.
-
-    Args:
-        model_num (int): Model number.
 
     Returns:
         G (FDTDGrid): Holds essential parameters describing the model.
     """
 
     if config.sim_config.general['cpu']:
-        G = FDTDGrid(model_num)
+        G = FDTDGrid()
     elif config.sim_config.general['cuda']:
-        G = CUDAGrid(model_num)
-    elif config.sim_config.subgrid:
-        G = FDTDGrid(model_num)
+        G = CUDAGrid()
 
     return G
 
@@ -54,15 +49,7 @@ def create_solver(G):
         solver (Solver): solver object.
     """
 
-    if config.sim_config.general['cpu']:
-        updates = CPUUpdates(G)
-        solver = Solver(updates)
-        props = updates.adapt_dispersive_config()
-        updates.set_dispersive_updates(props)
-    elif config.sim_config.general['cuda']:
-        updates = CUDAUpdates(G)
-        solver = Solver(updates)
-    elif config.sim_config.subgrid:
+    if config.sim_config.general['subgrid']:
         updates = create_subgrid_updates(G)
         solver = Solver(updates, hsg=True)
         # A large range of different functions exist to advance the time step for
@@ -70,6 +57,15 @@ def create_solver(G):
         # the required numerical precision and dispersive material type.
         props = updates.adapt_dispersive_config()
         updates.set_dispersive_updates(props)
+    elif config.sim_config.general['cpu']:
+        updates = CPUUpdates(G)
+        solver = Solver(updates)
+        props = updates.adapt_dispersive_config()
+        updates.set_dispersive_updates(props)
+    elif config.sim_config.general['cuda']:
+        updates = CUDAUpdates(G)
+        solver = Solver(updates)
+
 
     return solver
 

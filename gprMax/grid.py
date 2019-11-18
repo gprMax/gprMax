@@ -41,15 +41,9 @@ class FDTDGrid:
         accessing regularly used parameters.
     """
 
-    def __init__(self, model_num):
-        """
-        Args:
-            model_num (int): Model number.
-        """
-
+    def __init__(self):
         self.title = ''
         self.name = 'main_grid'
-        self.model_num = model_num
 
         self.nx = 0
         self.ny = 0
@@ -170,26 +164,26 @@ class FDTDGrid:
 
     def initialise_dispersive_arrays(self):
         """Initialise field arrays when there are dispersive materials present."""
-        self.Tx = np.zeros((config.model_configs[self.model_num].materials['maxpoles'],
-                            self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.model_configs[self.model_num].materials['dispersivedtype'])
-        self.Ty = np.zeros((config.model_configs[self.model_num].materials['maxpoles'],
-                            self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.model_configs[self.model_num].materials['dispersivedtype'])
-        self.Tz = np.zeros((config.model_configs[self.model_num].materials['maxpoles'],
-                            self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.model_configs[self.model_num].materials['dispersivedtype'])
+        self.Tx = np.zeros((config.get_model_config().materials['maxpoles'],
+                            self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.get_model_config().materials['dispersivedtype'])
+        self.Ty = np.zeros((config.get_model_config().materials['maxpoles'],
+                            self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.get_model_config().materials['dispersivedtype'])
+        self.Tz = np.zeros((config.get_model_config().materials['maxpoles'],
+                            self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.get_model_config().materials['dispersivedtype'])
 
     def initialise_dispersive_update_coeff_array(self):
         """Initialise array for storing update coefficients when there are dispersive
             materials present.
         """
         self.updatecoeffsdispersive = np.zeros((len(self.materials), 3 *
-                                                config.model_configs[self.model_num].materials['maxpoles']),
-                                                dtype=config.model_configs[self.model_num].materials['dispersivedtype'])
+                                                config.get_model_config().materials['maxpoles']),
+                                                dtype=config.get_model_config().materials['dispersivedtype'])
 
     def reset_fields(self):
         """Clear arrays for field components and PMLs."""
         # Clear arrays for field components
         self.initialise_field_arrays()
-        if config.model_configs[self.model_num].materials['maxpoles'] > 0:
+        if config.get_model_config().materials['maxpoles'] > 0:
             self.initialise_dispersive_arrays()
 
         # Clear arrays for fields in PML
@@ -242,9 +236,9 @@ class FDTDGrid:
             mem_use (int): Memory (bytes).
         """
 
-        mem_use = int(3 * config.model_configs[self.model_num].materials['maxpoles'] *
+        mem_use = int(3 * config.get_model_config().materials['maxpoles'] *
                        (self.nx + 1) * (self.ny + 1) * (self.nz + 1) *
-                       np.dtype(config.model_configs[self.model_num].materials['dispersivedtype']).itemsize)
+                       np.dtype(config.get_model_config().materials['dispersivedtype']).itemsize)
         return mem_use
 
     def tmx(self):
@@ -293,8 +287,7 @@ class FDTDGrid:
 class CUDAGrid(FDTDGrid):
     """Additional grid methods for solving on GPU using CUDA."""
 
-    def __init__(self, model_num):
-        super().__init__(model_num)
+    def __init__(self):
 
         # Threads per block - used for main electric/magnetic field updates
         self.tpb = (128, 1, 1)
@@ -345,7 +338,7 @@ class CUDAGrid(FDTDGrid):
         # Copy arrays geometry and field component arrays
         self.htod_geometry_arrays()
         self.htod_field_arrays()
-        if config.model_configs[self.model_num].materials['maxpoles'] > 0:
+        if config.get_model_config().materials['maxpoles'] > 0:
             self.htod_dispersive_arrays()
 
         # Copy arrays for fields in PML
@@ -404,7 +397,7 @@ def dispersion_analysis(G):
 
                     # Set maximum frequency to a threshold drop from maximum power, ignoring DC value
                     try:
-                        freqthres = np.where(power[freqmaxpower:] < -config.model_configs[G.model_num].numdispersion['highestfreqthres'])[0][0] + freqmaxpower
+                        freqthres = np.where(power[freqmaxpower:] < -config.get_model_config().numdispersion['highestfreqthres'])[0][0] + freqmaxpower
                         results['maxfreq'].append(freqs[freqthres])
                     except ValueError:
                         results['error'] = 'unable to calculate maximum power from waveform, most likely due to undersampling.'
@@ -445,9 +438,9 @@ def dispersion_analysis(G):
         minwavelength = minvelocity / results['maxfreq']
 
         # Maximum spatial step
-        if '3D' in config.model_configs[G.model_num].mode:
+        if '3D' in config.get_model_config().mode:
             delta = max(G.dx, G.dy, G.dz)
-        elif '2D' in config.model_configs[G.model_num].mode:
+        elif '2D' in config.get_model_config().mode:
             if G.nx == 1:
                 delta = max(G.dy, G.dz)
             elif G.ny == 1:
@@ -462,7 +455,7 @@ def dispersion_analysis(G):
         results['N'] = minwavelength / delta
 
         # Check grid sampling will result in physical wave propagation
-        if int(np.floor(results['N'])) >= config.model_configs[G.model_num].numdispersion['mingridsampling']:
+        if int(np.floor(results['N'])) >= config.get_model_config().numdispersion['mingridsampling']:
             # Numerical phase velocity
             vp = np.pi / (results['N'] * np.arcsin((1 / S) * np.sin((np.pi * S) / results['N'])))
 

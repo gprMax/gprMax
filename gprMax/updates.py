@@ -101,7 +101,7 @@ class CPUUpdates:
     def update_electric_a(self):
         """Update electric field components."""
         # All materials are non-dispersive so do standard update.
-        if config.model_configs[self.grid.model_num].materials['maxpoles'] == 0:
+        if config.get_model_config().materials['maxpoles'] == 0:
             update_electric_cpu(self.grid.nx,
                                 self.grid.ny,
                                 self.grid.nz,
@@ -122,7 +122,7 @@ class CPUUpdates:
                                      self.grid.ny,
                                      self.grid.nz,
                                      config.sim_config.hostinfo['ompthreads'],
-                                     config.model_configs[self.grid.model_num].materials['maxpoles'],
+                                     config.get_model_config().materials['maxpoles'],
                                      self.grid.updatecoeffsE,
                                      self.grid.updatecoeffsdispersive,
                                      self.grid.ID,
@@ -162,12 +162,12 @@ class CPUUpdates:
             updated after the electric field has been updated by the PML and
             source updates.
         """
-        if config.model_configs[self.grid.model_num].materials['maxpoles'] != 0:
+        if config.get_model_config().materials['maxpoles'] != 0:
             self.dispersive_update_b(self.grid.nx,
                                      self.grid.ny,
                                      self.grid.nz,
                                      config.sim_config.hostinfo['ompthreads'],
-                                     config.model_configs[self.grid.model_num].materials['maxpoles'],
+                                     config.get_model_config().materials['maxpoles'],
                                      self.grid.updatecoeffsdispersive,
                                      self.grid.ID,
                                      self.grid.Tx,
@@ -183,7 +183,7 @@ class CPUUpdates:
         Returns:
             props (Props): Dispersive material properties.
         """
-        if config.model_configs[self.grid.model_num].materials['maxpoles'] > 1:
+        if config.get_model_config().materials['maxpoles'] > 1:
             poles = 'multi'
         else:
             poles = '1'
@@ -193,7 +193,7 @@ class CPUUpdates:
         else:
             type = 'double'
 
-        if config.model_configs[self.grid.model_num].materials['dispersivedtype'] == config.sim_config.dtypes['complex']:
+        if config.get_model_config().materials['dispersivedtype'] == config.sim_config.dtypes['complex']:
             dispersion = 'complex'
         else:
             dispersion = 'real'
@@ -258,7 +258,7 @@ class CUDAUpdates:
         self.drv.init()
 
         # Create device handle and context on specifc GPU device (and make it current context)
-        self.dev = self.drv.Device(config.model_configs[self.grid.model_num].cuda['gpu'].deviceID)
+        self.dev = self.drv.Device(config.get_model_config().cuda['gpu'].deviceID)
         self.ctx = self.dev.make_context()
 
         # Initialise arrays on GPU, prepare kernels, and get kernel functions
@@ -276,7 +276,7 @@ class CUDAUpdates:
         """Electric and magnetic field updates - prepare kernels, and
             get kernel functions.
         """
-        if config.model_configs[self.grid.model_num].materials['maxpoles'] > 0:
+        if config.get_model_config().materials['maxpoles'] > 0:
             kernels_fields = self.source_module(kernel_template_fields.substitute(
                                                 REAL=config.sim_config.dtypes['C_float_or_double'],
                                                 COMPLEX=config.sim_config.dtypes['C_complex'],
@@ -320,7 +320,7 @@ class CUDAUpdates:
         # - get kernel functions and initialise array on GPU
         # If there are any dispersive materials (updates are split into two
         # parts as they require present and updated electric field values).
-        if config.model_configs[self.grid.model_num].materials['maxpoles'] > 0:
+        if config.get_model_config().materials['maxpoles'] > 0:
             self.dispersive_update_a = kernels_fields.get_function("update_electric_dispersive_A")
             self.dispersive_update_b = kernels_fields.get_function("update_electric_dispersive_B")
 
@@ -329,7 +329,7 @@ class CUDAUpdates:
         self.grid.set_blocks_per_grid()
         self.grid.htod_geometry_arrays()
         self.grid.htod_field_arrays()
-        if config.model_configs[self.grid.model_num].materials['maxpoles'] > 0:
+        if config.get_model_config().materials['maxpoles'] > 0:
             self.grid.htod_dispersive_arrays()
 
     def _set_pml_kernels(self):
@@ -445,8 +445,8 @@ class CUDAUpdates:
 
         # Check if coefficient arrays will fit on constant memory of GPU
         if (self.grid.updatecoeffsE.nbytes + self.grid.updatecoeffsH.nbytes
-            > config.model_configs[self.grid.model_num].cuda['gpu'].constmem):
-            raise GeneralError(f"Too many materials in the model to fit onto constant memory of size {human_size(config.model_configs[self.grid.model_num].cuda['gpu'].constmem)} on {config.model_configs[self.grid.model_num].cuda['gpu'].deviceID} - {config.model_configs[self.grid.model_num].cuda['gpu'].name} GPU")
+            > config.get_model_config().cuda['gpu'].constmem):
+            raise GeneralError(f"Too many materials in the model to fit onto constant memory of size {human_size(config.get_model_config().cuda['gpu'].constmem)} on {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name} GPU")
 
         updatecoeffsE = kernelE.get_global('updatecoeffsE')[0]
         updatecoeffsH = kernelH.get_global('updatecoeffsH')[0]
@@ -478,7 +478,7 @@ class CUDAUpdates:
 
         for i, snap in enumerate(self.grid.snapshots):
             if snap.time == iteration + 1:
-                snapno = 0 if config.model_configs[self.grid.model_num].cuda['snapsgpu2cpu'] else i
+                snapno = 0 if config.get_model_config().cuda['snapsgpu2cpu'] else i
                 self.store_snapshot_gpu(np.int32(snapno),
                                         np.int32(snap.xs),
                                         np.int32(snap.xf),
@@ -503,7 +503,7 @@ class CUDAUpdates:
                                         self.snapHz_gpu.gpudata,
                                         block=Snapshot.tpb,
                                         grid=Snapshot.bpg)
-                if config.model_configs[self.grid.model_num].cuda['snapsgpu2cpu']:
+                if config.get_model_config().cuda['snapsgpu2cpu']:
                     dtoh_snapshot_array(self.grid.snapEx_gpu.get(),
                                         self.grid.snapEy_gpu.get(),
                                         self.grid.snapEz_gpu.get(),
@@ -553,7 +553,7 @@ class CUDAUpdates:
     def update_electric_a(self):
         """Update electric field components."""
         # All materials are non-dispersive so do standard update.
-        if config.model_configs[self.grid.model_num].materials['maxpoles'] == 0:
+        if config.get_model_config().materials['maxpoles'] == 0:
             self.update_electric_gpu(np.int32(self.grid.nx),
                                      np.int32(self.grid.ny),
                                      np.int32(self.grid.nz),
@@ -573,7 +573,7 @@ class CUDAUpdates:
             self.dispersive_update_a(np.int32(self.grid.nx),
                                      np.int32(self.grid.ny),
                                      np.int32(self.grid.nz),
-                                     np.int32(config.model_configs[self.grid.model_num].materials['maxpoles']),
+                                     np.int32(config.get_model_config().materials['maxpoles']),
                                      self.grid.updatecoeffsdispersive_gpu.gpudata,
                                      self.grid.Tx_gpu.gpudata,
                                      self.grid.Ty_gpu.gpudata,
@@ -638,11 +638,11 @@ class CUDAUpdates:
             updated after the electric field has been updated by the PML and
             source updates.
         """
-        if config.model_configs[self.grid.model_num].materials['maxpoles'] > 0:
+        if config.get_model_config().materials['maxpoles'] > 0:
             self.dispersive_update_b(np.int32(self.grid.nx),
                                      np.int32(self.grid.ny),
                                      np.int32(self.grid.nz),
-                                     np.int32(config.model_configs[self.grid.model_num].materials['maxpoles']),
+                                     np.int32(config.get_model_config().materials['maxpoles']),
                                      self.grid.updatecoeffsdispersive_gpu.gpudata,
                                      self.grid.Tx_gpu.gpudata,
                                      self.grid.Ty_gpu.gpudata,
@@ -690,7 +690,7 @@ class CUDAUpdates:
                           self.grid)
 
         # Copy data from any snapshots back to correct snapshot objects
-        if self.grid.snapshots and not config.model_configs[self.grid.model_num].cuda['snapsgpu2cpu']:
+        if self.grid.snapshots and not config.get_model_config().cuda['snapsgpu2cpu']:
             for i, snap in enumerate(self.grid.snapshots):
                 dtoh_snapshot_arra(self.snapEx_gpu.get(),
                                    self.snapEy_gpu.get(),
