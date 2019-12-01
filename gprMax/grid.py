@@ -288,6 +288,7 @@ class CUDAGrid(FDTDGrid):
     """Additional grid methods for solving on GPU using CUDA."""
 
     def __init__(self):
+        super().__init__()
 
         # Threads per block - used for main electric/magnetic field updates
         self.tpb = (128, 1, 1)

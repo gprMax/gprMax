@@ -199,7 +199,7 @@ def htod_snapshot_array(G):
     # 4D arrays to store snapshots on GPU, e.g. snapEx(time, x, y, z);
     # if snapshots are not being stored on the GPU during the simulation then
     # they are copied back to the host after each iteration, hence numsnaps = 1
-    numsnaps = 1 if config.model_configs[G.model_num].cuda['snapsgpu2cpu'] else len(G.snapshots)
+    numsnaps = 1 if config.get_model_config().cuda['snapsgpu2cpu'] else len(G.snapshots)
     snapEx = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
                       dtype=config.sim_config.dtypes['float_or_double'])
     snapEy = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),

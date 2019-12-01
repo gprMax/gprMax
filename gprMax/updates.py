@@ -421,8 +421,7 @@ class CUDAUpdates:
         """Snapshots - initialise arrays on GPU, prepare kernel and get kernel
                         function.
         """
-        self.snapEx_gpu, self.snapEy_gpu, self.snapEz_gpu,
-        self.snapHx_gpu, self.snapHy_gpu, self.snapHz_gpu = htod_snapshot_array(self.grid)
+        self.snapEx_gpu, self.snapEy_gpu, self.snapEz_gpu, self.snapHx_gpu, self.snapHy_gpu, self.snapHz_gpu = htod_snapshot_array(self.grid)
         kernel_store_snapshot = self.source_module(kernel_template_store_snapshot.substitute(
                                                    REAL=config.sim_config.dtypes['C_float_or_double'],
                                                    NX_SNAPS=Snapshot.nx_max,
@@ -504,12 +503,12 @@ class CUDAUpdates:
                                         block=Snapshot.tpb,
                                         grid=Snapshot.bpg)
                 if config.get_model_config().cuda['snapsgpu2cpu']:
-                    dtoh_snapshot_array(self.grid.snapEx_gpu.get(),
-                                        self.grid.snapEy_gpu.get(),
-                                        self.grid.snapEz_gpu.get(),
-                                        self.grid.snapHx_gpu.get(),
-                                        self.grid.snapHy_gpu.get(),
-                                        self.grid.snapHz_gpu.get(),
+                    dtoh_snapshot_array(self.snapEx_gpu.get(),
+                                        self.snapEy_gpu.get(),
+                                        self.snapEz_gpu.get(),
+                                        self.snapHx_gpu.get(),
+                                        self.snapHy_gpu.get(),
+                                        self.snapHz_gpu.get(),
                                         0, snap)
 
     def update_magnetic(self):

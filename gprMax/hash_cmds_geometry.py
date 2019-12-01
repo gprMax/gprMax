@@ -18,7 +18,6 @@
 
 import numpy as np
 
-from .cmds_geometry.geometry_objects_read import GeometryObjectsRead
 from .cmds_geometry.edge import Edge
 from .cmds_geometry.plate import Plate
 from .cmds_geometry.triangle import Triangle
@@ -52,6 +51,8 @@ def process_geometrycmds(geometry):
         tmp = object.split()
 
         if tmp[0] == '#geometry_objects_read:':
+            from .cmds_geometry.geometry_objects_read import GeometryObjectsRead
+            
             if len(tmp) != 6:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly five parameters')
 

@@ -193,7 +193,7 @@ def process_multicmds(multicmds):
                 er_delta.append(float(tmp[pole]))
                 tau.append(float(tmp[pole + 1]))
 
-            debye_dispersion = AddDebyeDispersion(pole=poles, er_delta=er_delta, tau=tau, material_ids=material_ids)
+            debye_dispersion = AddDebyeDispersion(poles=poles, er_delta=er_delta, tau=tau, material_ids=material_ids)
             scene_objects.append(debye_dispersion)
 
     cmdname = '#add_dispersion_lorentz'

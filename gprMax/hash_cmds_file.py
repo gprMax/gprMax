@@ -140,8 +140,9 @@ def process_include_files(hashcmds, inputfile):
             includefile = includefile[1]
 
             # See if file exists at specified path and if not try input file directory
-            if not os.path.isfile(includefile):
-                includefile = os.path.join(os.path.dirname(inputfile.name), includefile)
+            includefile = Path(includefile)
+            if not includefile.exists():
+                includefile = Path(config.sim_config.input_file_path.parent, includefile)
 
             with open(includefile, 'r') as f:
                 # Strip out any newline characters and comments that must begin with double hashes

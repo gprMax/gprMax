@@ -84,7 +84,7 @@ class Waveform(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 0
+        self.order = 1
         self.hash = '#waveform'
 
     def create(self, grid, uip):
@@ -133,7 +133,7 @@ class VoltageSource(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 1
+        self.order = 2
         self.hash = '#voltage_source'
 
     def create(self, grid, uip):
@@ -219,7 +219,7 @@ class HertzianDipole(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 2
+        self.order = 3
         self.hash = '#hertzian_dipole'
 
     def create(self, grid, uip):
@@ -315,7 +315,7 @@ class MagneticDipole(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 3
+        self.order = 4
         self.hash = '#magnetic_dipole'
 
     def create(self, grid, uip):
@@ -401,7 +401,7 @@ class TransmissionLine(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 4
+        self.order = 5
         self.hash = '#transmission_line'
 
     def create(self, grid, uip):
@@ -490,7 +490,7 @@ class Rx(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 5
+        self.order = 6
         self.hash = '#rx'
         self.constructor = RxUser
 
@@ -544,7 +544,7 @@ class RxArray(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 6
+        self.order = 7
         self.hash = '#rx_array'
 
     def create(self, grid, uip):
@@ -617,7 +617,7 @@ class Snapshot(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 19
+        self.order = 8
         self.hash = '#snapshot'
 
     def create(self, grid, uip):
@@ -684,7 +684,7 @@ class Material(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 8
+        self.order = 9
         self.hash = '#material'
 
     def create(self, grid, uip):
@@ -744,12 +744,12 @@ class AddDebyeDispersion(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 9
+        self.order = 10
         self.hash = '#add_dispersion_debye'
 
     def create(self, grid, uip):
         try:
-            poles = self.kwargs['n_poles']
+            poles = self.kwargs['poles']
             er_delta = self.kwargs['er_delta']
             tau = self.kwargs['tau']
             material_ids = self.kwargs['material_ids']
@@ -782,8 +782,8 @@ class AddDebyeDispersion(UserObjectMulti):
                     disp_material.tau.append(tau[i])
                 else:
                     raise CmdInputError(f"'{self.params_str()}' requires positive values for the permittivity difference.")
-            if disp_material.poles > config.model_configs[grid.model_num].materials['maxpoles']:
-                config.model_configs[grid.model_num].materials['maxpoles'] = disp_material.poles
+            if disp_material.poles > config.get_model_config().materials['maxpoles']:
+                config.get_model_config().materials['maxpoles'] = disp_material.poles
 
             # Replace original material with newly created DispersiveMaterial
             grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
@@ -808,12 +808,12 @@ class AddLorentzDispersion(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 10
+        self.order = 11
         self.hash = '#add_dispersion_lorentz'
 
     def create(self, grid, uip):
         try:
-            poles = self.kwargs['n_poles']
+            poles = self.kwargs['poles']
             er_delta = self.kwargs['er_delta']
             tau = self.kwargs['omega']
             alpha = self.kwargs['delta']
@@ -832,20 +832,28 @@ class AddLorentzDispersion(UserObjectMulti):
             raise CmdInputError(f"'{self.params_str()}' material(s) {notfound} do not exist")
 
         for material in materials:
-            material.type = 'lorentz'
-            material.poles = poles
-            material.averagable = False
+            disp_material = DispersiveMaterialUser(material.numID, material.ID)
+            disp_material.er = material.er
+            disp_material.se = material.se
+            disp_material.mr = material.mr
+            disp_material.sm = material.sm
+            disp_material.type = 'lorentz'
+            disp_material.poles = poles
+            disp_material.averagable = False
             for i in range(0, poles):
                 if er_delta[i] > 0 and tau[i] > grid.dt and alpha[i] > grid.dt:
-                    material.deltaer.append(er_delta[i])
-                    material.tau.append(tau[i])
-                    material.alpha.append(alpha[i])
+                    disp_material.deltaer.append(er_delta[i])
+                    disp_material.tau.append(tau[i])
+                    disp_material.alpha.append(alpha[i])
                 else:
                     raise CmdInputError(f"'{self.params_str()}' requires positive values for the permittivity difference and frequencies, and associated times that are greater than the time step for the model.")
-            if material.poles > MaterialUser.maxpoles:
-                MaterialUser.maxpoles = material.poles
+            if disp_material.poles > config.get_model_config().materials['maxpoles']:
+                config.get_model_config().materials['maxpoles'] = disp_material.poles
 
-            log.info(f"Lorentz disperion added to {material.ID} with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in material.deltaer)}, omega={', '.join('%4.3e' % tau for tau in material.tau)} secs, and gamma={', '.join('%4.3e' % alpha for alpha in material.alpha)} created.")
+            # Replace original material with newly created DispersiveMaterial
+            grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
+
+            log.info(f"Lorentz disperion added to {disp_material.ID} with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, omega={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs, and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} created.")
 
 
 class AddDrudeDispersion(UserObjectMulti):
@@ -863,12 +871,12 @@ class AddDrudeDispersion(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 11
-        self.hash = '#add_dispersion_Drude'
+        self.order = 12
+        self.hash = '#add_dispersion_drude'
 
     def create(self, grid, uip):
         try:
-            poles = self.kwargs['n_poles']
+            poles = self.kwargs['poles']
             tau = self.kwargs['tau']
             alpha = self.kwargs['alpha']
             material_ids = self.kwargs['material_ids']
@@ -886,19 +894,27 @@ class AddDrudeDispersion(UserObjectMulti):
             raise CmdInputError(f"'{self.params_str()}' material(s) {notfound} do not exist")
 
         for material in materials:
-            material.type = 'drude'
-            material.poles = poles
-            material.averagable = False
+            disp_material = DispersiveMaterialUser(material.numID, material.ID)
+            disp_material.er = material.er
+            disp_material.se = material.se
+            disp_material.mr = material.mr
+            disp_material.sm = material.sm
+            disp_material.type = 'drude'
+            disp_material.poles = poles
+            disp_material.averagable = False
             for i in range(0, poles):
                 if tau[i] > 0 and alpha[i] > grid.dt:
-                    material.tau.append(tau[i])
-                    material.alpha.append(alpha[i])
+                    disp_material.tau.append(tau[i])
+                    disp_material.alpha.append(alpha[i])
                 else:
                     raise CmdInputError(f"'{self.params_str()}' requires positive values for the frequencies, and associated times that are greater than the time step for the model.")
-            if material.poles > MaterialUser.maxpoles:
-                MaterialUser.maxpoles = material.poles
+            if disp_material.poles > config.get_model_config().materials['maxpoles']:
+                config.get_model_config().materials['maxpoles'] = disp_material.poles
 
-            log.info(f"Drude disperion added to {material.ID} with omega={', '.join('%4.3e' % tau for tau in material.tau)} secs, and gamma={', '.join('%4.3e' % alpha for alpha in material.alpha)} secs created.")
+            # Replace original material with newly created DispersiveMaterial
+            grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
+
+            log.info(f"Drude disperion added to {disp_material.ID} with omega={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs, and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} secs created.")
 
 
 class SoilPeplinski(UserObjectMulti):
@@ -920,7 +936,7 @@ class SoilPeplinski(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 12
+        self.order = 13
         self.hash = '#soil_peplinski'
 
     def create(self, grid, uip):
@@ -977,7 +993,7 @@ class GeometryView(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 18
+        self.order = 14
         self.hash = '#geometry_view'
         self.multi_grid = False
 
@@ -1056,7 +1072,7 @@ class GeometryObjectsWrite(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 14
+        self.order = 15
         self.hash = '#geometry_objects_write'
 
     def create(self, grid, uip):
@@ -1112,7 +1128,7 @@ class PMLCFS(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 15
+        self.order = 16
         self.hash = '#pml_cfs'
         PMLCFS.count += 1
         if PMLCFS.count == 2:
