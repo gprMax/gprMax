@@ -33,8 +33,6 @@ log = logging.getLogger(__name__)
 
 class GeometryObjectsRead(UserObjectGeometry):
 
-    log.debug('More work required here.')
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.order = 1
@@ -71,12 +69,12 @@ class GeometryObjectsRead(UserObjectGeometry):
         # build scene
         # API for multiple scenes / model runs
         scene = config.get_model_config().get_scene()
-        user_objs = get_user_objects(materials, check=False)
-        for user_obj in user_objs:
-            scene.add(user_obj)
+        material_objs = get_user_objects(materials, check=False)
+        for material_obj in material_objs:
+            scene.add(material_obj)
 
         # Creates the internal simulation objects
-        # scene.create_internal_objects(self.G)
+        scene.process_cmds(material_objs, G, sort=False)
 
         # Update material type
         for material in G.materials:
@@ -114,9 +112,7 @@ class GeometryObjectsRead(UserObjectGeometry):
             G.rigidE[:, xs:xs + rigidE.shape[1], ys:ys + rigidE.shape[2], zs:zs + rigidE.shape[3]] = rigidE
             G.rigidH[:, xs:xs + rigidH.shape[1], ys:ys + rigidH.shape[2], zs:zs + rigidH.shape[3]] = rigidH
             G.ID[:, xs:xs + ID.shape[1], ys:ys + ID.shape[2], zs:zs + ID.shape[3]] = ID + numexistmaterials
-            log.info(f'Geometry objects from file {geofile} inserted at {xs * G.dx:g}m, \
-                     {ys * G.dy:g}m, {zs * G.dz:g}m, with corresponding materials \
-                     file {matfile}.')
+            log.info(f'Geometry objects from file {geofile} inserted at {xs * G.dx:g}m, {ys * G.dy:g}m, {zs * G.dz:g}m, with corresponding materials file {matfile}.')
         except KeyError:
             averaging = False
             build_voxels_from_array(xs, ys, zs, numexistmaterials, averaging, data, G.solid, G.rigidE, G.rigidH, G.ID)
