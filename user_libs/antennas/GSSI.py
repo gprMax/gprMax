@@ -84,7 +84,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001):
         rxres = 925  # Resistance at Rx bowtie
         absorber1 = gprMax.Material(er=1, se=0, mr=1, sm=0, id='absorber1')
         # Eccosorb LS22 3-pole Debye model (https://bitbucket.org/uoyaeg/aegboxts/wiki/Home)
-        absorber1_disp = gprMax.AddDebyeDispersion(n_poles=3, er_delta=[3.7733, 3.14418, 20.2441],
+        absorber1_disp = gprMax.AddDebyeDispersion(poles=3, er_delta=[3.7733, 3.14418, 20.2441],
                                                    tau=[1.00723e-11, 1.55686e-10, 3.44129e-10],
                                                    material_ids=['absorber1'])
         absorber2 = gprMax.Material(er=3, se=0, mr=1, sm=0, id='absorber2') # Foam modelled as PCB material
