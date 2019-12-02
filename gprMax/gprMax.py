@@ -167,8 +167,9 @@ def run_main(args):
         else:
             # Mixed mode MPI with OpenMP or CUDA - MPI task farm for models with each model parallelised with OpenMP (CPU) or CUDA (GPU)
             if args.mpi:
-                if args.n == 1:
-                    raise GeneralError('MPI is not beneficial when there is only one model to run')
+                # NOTE: this must be disabled to allow spawn mode
+                # if args.n == 1:
+                #     raise GeneralError('MPI is not beneficial when there is only one model to run')
                 if args.task:
                     raise GeneralError('MPI cannot be combined with job array mode')
                 run_mpi_sim(args, inputfile, usernamespace)
@@ -400,7 +401,8 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         worklist += ([StopIteration] * numworkers)
 
         # Spawn workers
-        newcomm = comm.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [workerflag], maxprocs=numworkers)
+        # NOTE: always spawn from COMM_SELF
+        newcomm = MPI.COMM_SELF.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [workerflag], maxprocs=numworkers)
 
         # Reply to whoever asks until done
         for work in worklist:
