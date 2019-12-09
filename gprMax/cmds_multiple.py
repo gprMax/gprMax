@@ -244,7 +244,7 @@ class HertzianDipole(UserObjectMulti):
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            raise CmdInputError(f"'{self.params_str()}' there is no waveform with the identifier {tmp[4]}")
+            raise CmdInputError(f"'{self.params_str()}' there is no waveform with the identifier {waveform_id}")
 
         h = HertzianDipoleUser()
         h.polarisation = polarisation
@@ -498,7 +498,7 @@ class Rx(UserObjectMulti):
         try:
             p1 = self.kwargs['p1']
         except KeyError:
-            raise CmdInputError(f"'{self.params_str()}' has an incorrect number of parameters")
+            log.exception(f'KeyError with {self.params_str()}')
 
         p = uip.check_src_rx_point(p1, self.params_str())
 
@@ -509,20 +509,21 @@ class Rx(UserObjectMulti):
         try:
             r.ID = self.kwargs['id']
             outputs = [self.kwargs['outputs']]
+        except KeyError:
+            # If no ID or outputs are specified, use default
+            r.ID = r.__class__.__name__ + '(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'
+            for key in RxUser.defaultoutputs:
+                r.outputs[key] = np.zeros(grid.iterations, dtype=config.sim_config.dtypes['float_or_double'])
+        else:
+            outputs.sort()
             # Get allowable outputs
             allowableoutputs = RxUser.allowableoutputs_gpu if config.sim_config.general['cuda'] else RxUser.allowableoutputs
             # Check and add field output names
-            outputs.sort()
             for field in outputs:
                 if field in allowableoutputs:
                     r.outputs[field] = np.zeros(grid.iterations, dtype=config.sim_config.dtypes['float_or_double'])
                 else:
                     raise CmdInputError(f"'{self.params_str()}' contains an output type that is not allowable. Allowable outputs in current context are {allowableoutputs}")
-        # If no ID or outputs are specified, use default
-        except KeyError:
-            r.ID = r.__class__.__name__ + '(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'
-            for key in RxUser.defaultoutputs:
-                r.outputs[key] = np.zeros(grid.iterations, dtype=config.sim_config.dtypes['float_or_double'])
 
         log.info(f"Receiver at {r.xcoord * grid.dx:g}m, {r.ycoord * grid.dy:g}m, {r.zcoord * grid.dz:g}m with output component(s) {', '.join(r.outputs)} created.")
 
