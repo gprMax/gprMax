@@ -72,13 +72,8 @@ class Context:
 
     def print_time_report(self):
         """Print the total simulation time based on context."""
-        s = self.make_time_report()
-        log.info(s)
-
-    def make_time_report(self):
-        """Generate a string for the total simulation time."""
         s = f"\n=== Simulation on {config.sim_config.hostinfo['hostname']} completed in [HH:MM:SS]: {datetime.timedelta(seconds=self.tsimend - self.tsimstart)}"
-        return f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n"
+        log.info(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")
 
 
 class NoMPIContext(Context):

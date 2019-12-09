@@ -16,11 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 from ..exceptions import GeneralError
 from .precursor_nodes import PrecursorNodes
 from .precursor_nodes import PrecursorNodesFiltered
 from .subgrid_hsg import SubGridHSG
 from ..updates import CPUUpdates
+
+log = logging.getLogger(__name__)
 
 
 def create_updates(G):
@@ -28,7 +32,7 @@ def create_updates(G):
     updaters = []
 
     for sg in G.subgrids:
-        print(sg)
+        log.info(sg)
         sg_type = type(sg)
         if sg_type == SubGridHSG and sg.filter:
             precursors = PrecursorNodesFiltered(G, sg)

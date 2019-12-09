@@ -169,7 +169,6 @@ class SubGridHSG(SubGridBase):
                  interpolation=1,
                  filter=True,
                  **kwargs):
-        """Constructor."""
 
         pml_separation = ratio // 2 + 2
 
@@ -189,7 +188,7 @@ class SubGridHSG(SubGridBase):
         self.hash = '#subgrid_hsg'
 
     def create(self, grid, uip):
-        sg = SubGridHSGUser(grid.model_num, **self.kwargs)
+        sg = SubGridHSGUser(**self.kwargs)
         self.setup(sg, grid, uip)
         return sg
 

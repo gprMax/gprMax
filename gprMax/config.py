@@ -40,7 +40,7 @@ log = logging.getLogger(__name__)
 # Single instance of SimConfig to hold simulation configuration parameters.
 sim_config = None
 
-# Instance of ModelConfig that hold model configuration parameters.
+# Instances of ModelConfig that hold model configuration parameters.
 model_configs = []
 
 # Each model in a simulation is given a unique number when the instance of
@@ -74,24 +74,21 @@ class ModelConfig:
                          'snapsgpu2cpu': False}
 
         # Total memory usage for all grids in the model. Starts with 50MB overhead.
-        self.mem_use = 50e6
+        self.mem_overhead = 50e6
+        self.mem_use = self.mem_overhead
 
         self.reuse_geometry = False
 
         # String to print at start of each model run
-        inputfilestr = f'\n--- Model {model_num + 1}/{sim_config.model_end}, input file: {sim_config.input_file_path}'
-        self.set_inputfilestr(inputfilestr)
+        s = f'\n--- Model {model_num + 1}/{sim_config.model_end}, input file: {sim_config.input_file_path}'
+        self.inputfilestr = Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
 
-        if not sim_config.single_model:
-            self.appendmodelnumber = str(model_num + 1) # Indexed from 1
-        else:
-            self.appendmodelnumber = ''
-
-        # Output file path for specific model
+        # Output file path and name for specific model
+        self.appendmodelnumber = '' if sim_config.single_model else str(model_num + 1) # Indexed from 1
         self.set_output_file_path()
 
         # Specify a snapshot directory
-        self.set_snapshots_file_path()
+        self.set_snapshots_dir()
 
         # Numerical dispersion analysis parameters
         #   highestfreqthres: threshold (dB) down from maximum power (0dB) of main frequency used
@@ -124,13 +121,18 @@ class ModelConfig:
                 'current_model_run': model_num + 1,
                 'inputfile': sim_config.input_file_path.resolve()}
 
-    def set_inputfilestr(self, inputfilestr):
-        """Set string describing model.
-
-        Args:
-            inputfilestr (str): Description of model.
+    def set_dispersive_material_types(self):
+        """Set data type for disperive materials. Complex if Drude or Lorentz
+            materials are present. Real if Debye materials.
         """
-        self.inputfilestr = Fore.GREEN + f"{inputfilestr} {'-' * (get_terminal_width() - 1 - len(inputfilestr))}\n" + Style.RESET_ALL
+        if self.materials['drudelorentz']:
+            self.materials['cuda_real_func'] = '.real()'
+            self.materials['dispersivedtype'] = sim_config.dtypes['complex']
+            self.materials['dispersiveCdtype'] = sim_config.dtypes['C_complex']
+        else:
+            self.materials['cuda_real_func'] = ''
+            self.materials['dispersivedtype'] = sim_config.dtypes['float_or_double']
+            self.materials['dispersiveCdtype'] = sim_config.dtypes['C_float_or_double']
 
     def set_output_file_path(self, outputdir=None):
         """Output file path can be provided by the user via the API or an input file
@@ -156,10 +158,11 @@ class ModelConfig:
         self.output_file_path = Path(*parts[:-1], parts[-1] + self.appendmodelnumber)
         self.output_file_path_ext = self.output_file_path.with_suffix('.out')
 
-    def set_snapshots_file_path(self):
+    def set_snapshots_dir(self):
         """Set directory to store any snapshots."""
         parts = self.output_file_path.with_suffix('').parts
-        self.snapshot_file_path = Path(*parts[:-1], parts[-1] + '_snaps')
+        self.snapshot_dir = Path(*parts[:-1], parts[-1] + '_snaps')
+
 
 class SimulationConfig:
     """Configuration parameters for a standard simulation.
@@ -188,7 +191,7 @@ class SimulationConfig:
                         'cuda': False,
                         'opencl': False,
                         'subgrid': False,
-                        'precision': 'double'}
+                        'precision': 'single'}
 
         self.em_consts = {'c': c, # Speed of light in free space (m/s)
                           'e0': e0, # Permittivity of free space (F/m)
@@ -203,12 +206,14 @@ class SimulationConfig:
             self.general['cuda'] = True
             self.general['cpu'] = False
             self.general['opencl'] = False
+            # Both single and double precision are possible on GPUs, but single
+            # provides best performance.
             self.general['precision'] = 'single'
             self.cuda = {'gpus': [], # gpus: list of GPU objects
                          'gpus_str': [], # gpus_str: list of strings describing GPU(s)
                          'nvcc_opts': None} # nvcc_opts: nvcc compiler options
             # Suppress nvcc warnings on Microsoft Windows
-            if sys.platform == 'win32': self.cuda['nvcc_opts'] = '-w'
+            if sys.platform == 'win32': self.cuda['nvcc_opts'] = ['-w']
 
             # Flatten a list of lists
             if any(isinstance(element, list) for element in self.args.gpu):
@@ -302,7 +307,7 @@ class SimulationConfig:
         # API
         if self.args.inputfile is None:
             self.input_file_path = Path(self.args.outputfile)
-        # CLI
+        # API/CLI
         else:
             self.input_file_path = Path(self.args.inputfile)
 

@@ -76,7 +76,7 @@ class ModelBuildRun:
         self.p = psutil.Process()
 
         # Normal model reading/building process; bypassed if geometry information to be reused
-        self.reuse_geometry() if config.get_model_config().reuse_geometry else self.build_geometry()
+        self.build_geometry() if not config.get_model_config().reuse_geometry else self.reuse_geometry()
 
         log.info(f'\nOutput directory: {config.get_model_config().output_file_path.parent.resolve()}')
 
@@ -136,10 +136,21 @@ class ModelBuildRun:
 
         scene = self.build_scene()
 
-        # Combine available grids and check memory requirements
+        # Combine available grids
         grids = [G] + G.subgrids
-        total_mem = mem_check_all(grids)
-        log.info(f'\nMemory (RAM) required: ~{human_size(total_mem)}')
+
+        # Check for dispersive materials and specific type
+        for grid in grids:
+            if config.get_model_config().materials['maxpoles'] != 0:
+                config.get_model_config().materials['drudelorentz'] = any([m for m in grid.materials if 'drude' in m.type or 'lorentz' in m.type])
+
+        # Set data type if any dispersive materials (must be done before memory checks)
+        if config.get_model_config().materials['maxpoles'] != 0:
+            config.get_model_config().set_dispersive_material_types()
+
+        # Check memory requirements
+        total_mem, mem_strs = mem_check_all(grids)
+        log.info(f'\nMemory required: {" + ".join(mem_strs)} + ~{human_size(config.get_model_config().mem_overhead)} overhead = {human_size(total_mem)}')
 
         # Build grids
         gridbuilders = [GridBuilder(grid) for grid in grids]
@@ -172,7 +183,7 @@ class ModelBuildRun:
     def reuse_geometry(self):
         # Reset iteration number
         self.G.iteration = 0
-        config.get_model_config().set_inputfilestr(f'\n--- Model {config.get_model_config().appendmodelnumber}/{config.sim_config.model_end}, input file (not re-processed, i.e. geometry fixed): {config.sim_config.input_file_path}')
+        config.get_model_config().inputfilestr = f'\n--- Model {config.get_model_config().appendmodelnumber}/{config.sim_config.model_end}, input file (not re-processed, i.e. geometry fixed): {config.sim_config.input_file_path}'
         log.info(config.get_model_config().inputfilestr)
         for grid in [self.G] + self.G.subgrids:
             grid.reset_fields()
@@ -225,11 +236,11 @@ class ModelBuildRun:
             memsolve (float): Memory (RAM) used on GPU.
         """
 
-        memGPU_str = ''
+        mem_str = ''
         if config.sim_config.general['cuda']:
-            memGPU_str = f' host + ~{human_size(memsolve)} GPU'
+            mem_str = f' host + ~{human_size(memsolve)} GPU'
 
-        log.info(f'\nMemory (RAM) used: ~{human_size(self.p.memory_full_info().uss)}{memGPU_str}')
+        log.info(f'\nMemory used: ~{human_size(self.p.memory_full_info().uss)}{mem_str}')
         log.info(f'Solving time [HH:MM:SS]: {datetime.timedelta(seconds=tsolve)}')
 
     def solve(self, solver):

@@ -73,11 +73,9 @@ class UserInput:
             # Incorrect index
             i = p[v.index(err.args[0])]
             if name:
-                s = f"'{cmd_str}' the {err.args[0]} {name}-coordinate {i * dl:g} \
-                    is not within the model domain"
+                s = f"'{cmd_str}' the {err.args[0]} {name}-coordinate {i * dl:g} is not within the model domain"
             else:
-                s = f"'{cmd_str}' {err.args[0]}-coordinate {i * dl:g} is not \
-                    within the model domain"
+                s = f"'{cmd_str}' {err.args[0]}-coordinate {i * dl:g} is not within the model domain"
             raise CmdInputError(log.exception(s))
 
     def discretise_point(self, p):
@@ -106,8 +104,7 @@ class MainGridUserInput(UserInput):
         p = self.check_point(p, cmd_str, name)
 
         if self.grid.within_pml(p):
-            log.warning(Fore.RED + f"'{cmd_str}' sources and receivers should \
-                        not normally be positioned within the PML." + Style.RESET_ALL)
+            log.warning(Fore.RED + f"'{cmd_str}' sources and receivers should not normally be positioned within the PML." + Style.RESET_ALL)
 
         return p
 
@@ -116,8 +113,7 @@ class MainGridUserInput(UserInput):
         p2 = self.check_point(p2, cmd_str, name='upper')
 
         if np.greater(p1, p2).any():
-            raise CmdInputError(log.exception(f"'{cmd_str}' the lower coordinates \
-                                should be less than the upper coordinates."))
+            raise CmdInputError(log.exception(f"'{cmd_str}' the lower coordinates should be less than the upper coordinates."))
 
         return p1, p2
 
@@ -139,10 +135,9 @@ class SubgridUserInput(MainGridUserInput):
         super().__init__(grid)
 
         # Defines the region exposed to the user
-        self.inner_bound = np.array([
-                                    grid.n_boundary_cells_x,
-                                    grid.n_boundary_cells_y,
-                                    grid.n_boundary_cells_z])
+        self.inner_bound = np.array([grid.n_boundary_cells_x,
+                                     grid.n_boundary_cells_y,
+                                     grid.n_boundary_cells_z])
 
         self.outer_bound = np.subtract([grid.nx, grid.ny, grid.nz],
                                        self.inner_bound)
@@ -180,6 +175,5 @@ class SubgridUserInput(MainGridUserInput):
         # the OS non-working region.
         if (np.less(p_t, self.inner_bound).any() or
             np.greater(p_t, self.outer_bound).any()):
-                log.warning(Fore.RED + f"'{cmd_str}' this object traverses the \
-                            Outer Surface. This is an advanced feature." + Style.RESET_ALL)
+                log.warning(Fore.RED + f"'{cmd_str}' this object traverses the Outer Surface. This is an advanced feature." + Style.RESET_ALL)
         return p_t

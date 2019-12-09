@@ -28,7 +28,12 @@ import subprocess
 from shutil import get_terminal_size
 import sys
 import textwrap
-from time import perf_counter
+
+try:
+    from time import thread_time as timer_fn
+except ImportError:
+    from time import perf_counter as timer_fn
+
 
 from colorama import init
 from colorama import Fore
@@ -301,7 +306,7 @@ def get_host_info():
             cpuIDinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True, stderr=subprocess.STDOUT, env=myenv).decode('utf-8').strip()
             for line in cpuIDinfo.split('\n'):
                 if re.search('model name', line):
-                    cpuID = re.sub('.*model name.*:', '', line, 1).strip()            
+                    cpuID = re.sub('.*model name.*:', '', line, 1).strip()
             allcpuinfo = subprocess.check_output("lscpu", shell=True, stderr=subprocess.STDOUT, env=myenv).decode('utf-8').strip()
             for line in allcpuinfo.split('\n'):
                 if 'Socket(s)' in line:
@@ -420,44 +425,44 @@ def mem_check_all(grids):
 
     Returns:
         total_mem (int): Total memory required for all grids.
+        mem_strs (list): Strings containing text of memory requirements for
+                            each grid.
     """
 
-    total_mem = 0
     total_snaps_mem = 0
+    mem_strs = []
 
     for grid in grids:
+        # Memory required for main grid arrays
         config.get_model_config().mem_use += grid.mem_est_basic()
+        grid.mem_use += grid.mem_est_basic()
 
-        # Set datatype for dispersive arrays if there are any dispersive materials.
+        # Additional memory required if there are any dispersive materials.
         if config.get_model_config().materials['maxpoles'] != 0:
-            drudelorentz = any([m for m in grid.materials if 'drude' in m.type or 'lorentz' in m.type])
-            if drudelorentz:
-                config.get_model_config().materials['dispersivedtype'] = config.sim_config.dtypes['complex']
-                config.get_model_config().materials['dispersiveCdtype'] = config.sim_config.dtypes['C_complex']
-            else:
-                config.get_model_config().materials['dispersivedtype'] = config.sim_config.dtypes['float_or_double']
-                config.get_model_config().materials['dispersiveCdtype'] = config.sim_config.dtypes['C_float_or_double']
-
-            # Update estimated memory (RAM) usage
             config.get_model_config().mem_use += grid.mem_est_dispersive()
+            grid.mem_use += grid.mem_est_dispersive()
 
-        # Calculate snapshot memory
+        # Additional memory required if there are any snapshots
         if grid.snapshots:
             for snap in grid.snapshots:
                 # 2 x required to account for electric and magnetic fields
-                config.get_model_config().mem_use += int(2 * snap.datasizefield)
-                total_snaps_mem += int(2 * snap.datasizefield)
+                snap_mem = int(2 * snap.datasizefield)
+                config.get_model_config().mem_use += snap_mem
+                total_snaps_mem += snap_mem
+                grid.mem_use += snap_mem
 
-        total_mem += config.get_model_config().mem_use
+        mem_strs.append(f'~{human_size(grid.mem_use)} ({grid.name})')
+
+    total_mem = config.get_model_config().mem_use
 
     # Check if there is sufficient memory on host
     mem_check_host(total_mem)
 
     # Check if there is sufficient memory for any snapshots on GPU
-    if config.sim_config.general['cuda']:
+    if total_snaps_mem > 0 and config.sim_config.general['cuda']:
         mem_check_gpu_snaps(total_mem, total_snaps_mem)
 
-    return total_mem
+    return total_mem, mem_strs
 
 
 class GPU:
@@ -535,5 +540,6 @@ def detect_check_gpus(deviceIDs):
 
 
 def timer():
-    """Function to return the current process wide time in fractional seconds."""
-    return perf_counter()
+    """Function to return time in fractional seconds."""
+    log.debug('Review "thread_time" not currently available in macOS and bug (https://bugs.python.org/issue36205) with "process_time"')
+    return timer_fn()

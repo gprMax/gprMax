@@ -279,7 +279,8 @@ class CUDAUpdates:
         if config.get_model_config().materials['maxpoles'] > 0:
             kernels_fields = self.source_module(kernel_template_fields.substitute(
                                                 REAL=config.sim_config.dtypes['C_float_or_double'],
-                                                COMPLEX=config.sim_config.dtypes['C_complex'],
+                                                REALFUNC=config.get_model_config().materials['cuda_real_func'],
+                                                COMPLEX=config.get_model_config().materials['dispersiveCdtype'],
                                                 N_updatecoeffsE=self.grid.updatecoeffsE.size,
                                                 N_updatecoeffsH=self.grid.updatecoeffsH.size,
                                                 NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
@@ -294,9 +295,11 @@ class CUDAUpdates:
                                                 NY_T=self.grid.Tx.shape[2],
                                                 NZ_T=self.grid.Tx.shape[3]),
                                                 options=config.sim_config.cuda['nvcc_opts'])
-        else: # Set to one any substitutions for dispersive materials
+        else: # Set to one any substitutions for dispersive materials.
+              # Value of COMPLEX is not relevant.
             kernels_fields = self.source_module(kernel_template_fields.substitute(
                                                 REAL=config.sim_config.dtypes['C_float_or_double'],
+                                                REALFUNC=config.get_model_config().materials['cuda_real_func'],
                                                 COMPLEX=config.sim_config.dtypes['C_complex'],
                                                 N_updatecoeffsE=self.grid.updatecoeffsE.size,
                                                 N_updatecoeffsH=self.grid.updatecoeffsH.size,

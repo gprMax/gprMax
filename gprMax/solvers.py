@@ -66,7 +66,6 @@ def create_solver(G):
         updates = CUDAUpdates(G)
         solver = Solver(updates)
 
-
     return solver
 
 

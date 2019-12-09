@@ -160,7 +160,7 @@ __global__ void update_electric_dispersive_A(int NX, int NY, int NZ, int MAXPOLE
         int materialEx = ID[INDEX4D_ID(0,i_ID,j_ID,k_ID)];
         $REAL phi = 0;
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            phi = phi + updatecoeffsdispersive[INDEX2D_MATDISP(materialEx,pole*3)].real() * Tx[INDEX4D_T(pole,i_T,j_T,k_T)].real();
+            phi = phi + updatecoeffsdispersive[INDEX2D_MATDISP(materialEx,pole*3)]$REALFUNC * Tx[INDEX4D_T(pole,i_T,j_T,k_T)]$REALFUNC;
             Tx[INDEX4D_T(pole,i_T,j_T,k_T)] = updatecoeffsdispersive[INDEX2D_MATDISP(materialEx,1+(pole*3))] * Tx[INDEX4D_T(pole,i_T,j_T,k_T)] + updatecoeffsdispersive[INDEX2D_MATDISP(materialEx,2+(pole*3))] * Ex[INDEX3D_FIELDS(i,j,k)];
         }
         Ex[INDEX3D_FIELDS(i,j,k)] = updatecoeffsE[INDEX2D_MAT(materialEx,0)] * Ex[INDEX3D_FIELDS(i,j,k)] + updatecoeffsE[INDEX2D_MAT(materialEx,2)] * (Hz[INDEX3D_FIELDS(i,j,k)] - Hz[INDEX3D_FIELDS(i,j-1,k)]) - updatecoeffsE[INDEX2D_MAT(materialEx,3)] * (Hy[INDEX3D_FIELDS(i,j,k)] - Hy[INDEX3D_FIELDS(i,j,k-1)]) - updatecoeffsE[INDEX2D_MAT(materialEx,4)] * phi;
@@ -171,7 +171,7 @@ __global__ void update_electric_dispersive_A(int NX, int NY, int NZ, int MAXPOLE
         int materialEy = ID[INDEX4D_ID(1,i_ID,j_ID,k_ID)];
         $REAL phi = 0;
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            phi = phi + updatecoeffsdispersive[INDEX2D_MATDISP(materialEy,pole*3)].real() * Ty[INDEX4D_T(pole,i_T,j_T,k_T)].real();
+            phi = phi + updatecoeffsdispersive[INDEX2D_MATDISP(materialEy,pole*3)]$REALFUNC * Ty[INDEX4D_T(pole,i_T,j_T,k_T)]$REALFUNC;
             Ty[INDEX4D_T(pole,i_T,j_T,k_T)] = updatecoeffsdispersive[INDEX2D_MATDISP(materialEy,1+(pole*3))] * Ty[INDEX4D_T(pole,i_T,j_T,k_T)] + updatecoeffsdispersive[INDEX2D_MATDISP(materialEy,2+(pole*3))] * Ey[INDEX3D_FIELDS(i,j,k)];
         }
         Ey[INDEX3D_FIELDS(i,j,k)] = updatecoeffsE[INDEX2D_MAT(materialEy,0)] * Ey[INDEX3D_FIELDS(i,j,k)] + updatecoeffsE[INDEX2D_MAT(materialEy,3)] * (Hx[INDEX3D_FIELDS(i,j,k)] - Hx[INDEX3D_FIELDS(i,j,k-1)]) - updatecoeffsE[INDEX2D_MAT(materialEy,1)] * (Hz[INDEX3D_FIELDS(i,j,k)] - Hz[INDEX3D_FIELDS(i-1,j,k)]) - updatecoeffsE[INDEX2D_MAT(materialEy,4)] * phi;
@@ -182,7 +182,7 @@ __global__ void update_electric_dispersive_A(int NX, int NY, int NZ, int MAXPOLE
         int materialEz = ID[INDEX4D_ID(2,i_ID,j_ID,k_ID)];
         $REAL phi = 0;
         for (int pole = 0; pole < MAXPOLES; pole++) {
-            phi = phi + updatecoeffsdispersive[INDEX2D_MATDISP(materialEz,pole*3)].real() * Tz[INDEX4D_T(pole,i_T,j_T,k_T)].real();
+            phi = phi + updatecoeffsdispersive[INDEX2D_MATDISP(materialEz,pole*3)]$REALFUNC * Tz[INDEX4D_T(pole,i_T,j_T,k_T)]$REALFUNC;
             Tz[INDEX4D_T(pole,i_T,j_T,k_T)] = updatecoeffsdispersive[INDEX2D_MATDISP(materialEz,1+(pole*3))] * Tz[INDEX4D_T(pole,i_T,j_T,k_T)] + updatecoeffsdispersive[INDEX2D_MATDISP(materialEz,2+(pole*3))] * Ez[INDEX3D_FIELDS(i,j,k)];
         }
         Ez[INDEX3D_FIELDS(i,j,k)] = updatecoeffsE[INDEX2D_MAT(materialEz,0)] * Ez[INDEX3D_FIELDS(i,j,k)] + updatecoeffsE[INDEX2D_MAT(materialEz,1)] * (Hy[INDEX3D_FIELDS(i,j,k)] - Hy[INDEX3D_FIELDS(i-1,j,k)]) - updatecoeffsE[INDEX2D_MAT(materialEz,2)] * (Hx[INDEX3D_FIELDS(i,j,k)] - Hx[INDEX3D_FIELDS(i,j-1,k)]) - updatecoeffsE[INDEX2D_MAT(materialEz,4)] * phi;
