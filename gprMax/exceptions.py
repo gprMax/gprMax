@@ -17,33 +17,28 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import sys
 
 from colorama import init
 from colorama import Fore
 init()
 
 log = logging.getLogger(__name__)
-sys.tracebacklimit = None
 
 
 class GeneralError(ValueError):
     """Handles general errors. Subclasses the ValueError class."""
-
     def __init__(self, message, *args):
-
         self.message = message
         super(GeneralError, self).__init__(message, *args)
         log.exception(Fore.RED)
 
 
-class CmdInputError(ValueError):
+class CmdInputError(Exception):
     """Handles errors in user specified commands. Subclasses the ValueError
         class.
     """
-
-    def __init__(self, message, *args):
-
-        self.message = message
-        super(CmdInputError, self).__init__(message, *args)
-        log.exception(Fore.RED)
+    pass
+    # def __init__(self, message, *args):
+    #     self.message = message
+    #     super(CmdInputError, self).__init__(message, *args)
+    #     log.exception(Fore.RED)

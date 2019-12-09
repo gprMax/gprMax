@@ -22,6 +22,9 @@ import logging
 from .config_parser import write_simulation_config
 from .contexts import create_context
 
+# Configure logging
+log = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.DEBUG, format='%(module)s %(lineno)d %(message)s')
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 
@@ -133,7 +136,10 @@ def run(
     args.geometry_fixed = geometry_fixed
     args.write_processed = write_processed
 
-    run_main(args)
+    try:
+        run_main(args)
+    except Exception:
+        log.exception('Error from main API function', exc_info=True)
 
 
 def main():
@@ -154,8 +160,10 @@ def main():
     parser.add_argument('--write-processed', action='store_true', default=False, help='flag to write an input file after any Python code and include commands in the original input file have been processed')
     args = parser.parse_args()
 
-    run_main(args)
-
+    try:
+        run_main(args)
+    except Exception:
+        log.exception('Error from main CLI function', exc_info=True)
 
 def run_main(args):
     """Called by either run (API) or main (CLI).
