@@ -63,7 +63,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001):
 
     # Specify optimisation state of antenna model
     optstate = ['WarrenThesis', 'DebyeAbsorber', 'GiannakisPaper']
-    optstate = optstate[1]
+    optstate = optstate[0]
 
     if optstate == 'WarrenThesis':
         # Original optimised values from http://hdl.handle.net/1842/4074
