@@ -20,9 +20,7 @@ import gprMax.config as config
 
 
 def write_simulation_config(args):
-    """Write simulation level configuration parameters to config module. As
-        there can only be one instance of the config module objects are always
-        found via 'import gprMax.config'
+    """Write simulation level configuration parameters to config module.
 
     Args:
         args (Namespace): Arguments from either API or CLI.
@@ -37,7 +35,7 @@ def write_simulation_config(args):
 def write_model_config():
     """Write model level configuration parameters to config module. As there can
         only be one instance of the config module objects are always found via
-        'import gprMax.config'
+        config.get_model_config()
     """
 
     model_config = config.ModelConfig()
