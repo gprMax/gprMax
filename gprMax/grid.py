@@ -44,6 +44,7 @@ class FDTDGrid:
     def __init__(self):
         self.title = ''
         self.name = 'main_grid'
+        self.mem_use = 0
 
         self.nx = 0
         self.ny = 0
@@ -273,10 +274,18 @@ class FDTDGrid:
 
     def calculate_dt(self):
         """Calculate time step at the CFL limit."""
-        self.dt = (1 / (config.sim_config.em_consts['c'] * np.sqrt(
-                  (1 / self.dx) * (1 / self.dx) +
-                  (1 / self.dy) * (1 / self.dy) +
-                  (1 / self.dz) * (1 / self.dz))))
+        if self.mode == '2D TMx':
+            self.dt = 1 / (config.sim_config.em_consts['c'] *
+                           np.sqrt((1 / self.dy**2) + (1 / self.dz**2)))
+        elif self.mode == '2D TMy':
+            self.dt = 1 / (config.sim_config.em_consts['c'] *
+                           np.sqrt((1 / self.dx**2) + (1 / self.dz**2)))
+        elif self.mode == '2D TMz':
+            self.dt = 1 / (config.sim_config.em_consts['c'] *
+                           np.sqrt((1 / self.dx**2) + (1 / self.dy**2)))
+        else:
+            self.dt = 1 / (config.sim_config.em_consts['c'] *
+                           np.sqrt((1 / self.dx**2) + (1 / self.dy**2) + (1 / self.dz**2)))
 
         # Round down time step to nearest float with precision one less than
         # hardware maximum. Avoids inadvertently exceeding the CFL due to

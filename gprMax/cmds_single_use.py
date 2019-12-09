@@ -55,11 +55,54 @@ class UserObjectSingle:
         for k, v in kwargs.items():
             setattr(self.props, k, v)
 
-    def __str__(self):
-        pass
-
     def create(self, grid, uip):
         pass
+
+
+class Messages(UserObjectSingle):
+    """Allows you to control the amount of information displayed on screen
+        when gprMax is run
+
+    :param yn: Whether information should be displayed.
+    :type yn: bool, optional
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.order = 0
+
+    def create(self, G, uip):
+        try:
+            yn = self.kwargs['yn']
+        except KeyError:
+            raise CmdInputError(self.__str__() + ' requires exactly one parameter')
+
+        if yn.lower() == 'y':
+            config.sim_config.general['messages'] = True
+        elif yn.lower() == 'n':
+            config.sim_config.general['messages'] = False
+        else:
+            raise CmdInputError(self.__str__() + ' requires input values of either y or n')
+
+
+class Title(UserObjectSingle):
+    """Allows you to include a title for your model.
+
+    :param name: Simulation title.
+    :type name: str, optional
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.order = 1
+
+    def create(self, G, uip):
+        try:
+            title = self.kwargs['name']
+            G.title = title
+            log.info(f'Model title: {G.title}')
+        except KeyError:
+            pass
 
 
 class Domain(UserObjectSingle):
@@ -71,15 +114,7 @@ class Domain(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 2
-
-    def __str__(self):
-        try:
-            s = f"#domain: {self.kwargs['p1'][0]} {self.kwargs['p1'][1]} {self.kwargs['p1'][2]}"
-        except KeyError:
-            log.exception('error message')
-
-        return s
+        self.order = 3
 
     def create(self, G, uip):
         try:
@@ -94,23 +129,20 @@ class Domain(UserObjectSingle):
 
         # Calculate time step at CFL limit; switch off appropriate PMLs for 2D
         if G.nx == 1:
-            G.calculate_dt()
             G.mode = '2D TMx'
             G.pmlthickness['x0'] = 0
             G.pmlthickness['xmax'] = 0
         elif G.ny == 1:
-            G.calculate_dt()
             G.mode = '2D TMy'
             G.pmlthickness['y0'] = 0
             G.pmlthickness['ymax'] = 0
         elif G.nz == 1:
-            G.calculate_dt()
             G.mode = '2D TMz'
             G.pmlthickness['z0'] = 0
             G.pmlthickness['zmax'] = 0
         else:
-            G.calculate_dt()
             G.mode = '3D'
+        G.calculate_dt()
 
         log.info(f'Mode: {G.mode}')
         log.info(f'Time step (at CFL limit): {G.dt:g} secs')
@@ -126,15 +158,7 @@ class Discretisation(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 1
-
-    def __str__(self):
-        try:
-            s = f"#dx_dy_dz: {self.kwargs['p1'][0]} {self.kwargs['p1'][1]} {self.kwargs['p1'][2]}"
-        except KeyError:
-            log.exception('error message')
-
-        return s
+        self.order = 2
 
     def create(self, G, uip):
         try:
@@ -166,17 +190,6 @@ class TimeWindow(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 4
 
-    def __str__(self):
-        try:
-            s = f"#time_window: {self.kwargs['time']}"
-        except KeyError:
-            try:
-                s = f"#time_window: {self.kwargs['iterations']}"
-            except KeyError:
-                log.exception('time window error')
-
-        return s
-
     def create(self, G, uip):
         # If number of iterations given
         # The +/- 1 used in calculating the number of iterations is to account for
@@ -204,60 +217,6 @@ class TimeWindow(UserObjectSingle):
         log.info(f'Time window: {G.timewindow:g} secs ({G.iterations} iterations)')
 
 
-class Messages(UserObjectSingle):
-    """Allows you to control the amount of information displayed on screen
-        when gprMax is run
-
-    :param yn: Whether information should be displayed.
-    :type yn: bool, optional
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 0
-
-    def __str__(self):
-        try:
-            s = '#messages: {}'.format(self.kwargs['yn'])
-        except KeyError:
-            log.exception('messages problem')
-
-    def create(self, G, uip):
-        try:
-            yn = self.kwargs['yn']
-        except KeyError:
-            raise CmdInputError(self.__str__() + ' requires exactly one parameter')
-
-        if yn.lower() == 'y':
-            config.general['messages'] = True
-        elif yn.lower() == 'n':
-            config.general['messages'] = False
-        else:
-            raise CmdInputError(self.__str__() + ' requires input values of either y or n')
-
-
-class Title(UserObjectSingle):
-    """Allows you to include a title for your model.
-
-    :param name: Simulation title.
-    :type name: str, optional
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 5
-
-    def create(self, G, uip):
-        # Title
-        try:
-            title = self.kwargs['name']
-            G.title = title
-        except KeyError:
-            pass
-
-        log.info(f'Model title: {G.title}')
-
-
 class NumThreads(UserObjectSingle):
     """Allows you to control how many OpenMP threads (usually the number of
         physical CPU cores available) are used when running the model.
@@ -269,12 +228,6 @@ class NumThreads(UserObjectSingle):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.order = 6
-
-    def __str__(self):
-        try:
-            return f"#num_threads: {self.kwargs['n']}"
-        except KeyError:
-            return '#num_threads:'
 
     def create(self, G, uip):
         try:
@@ -298,12 +251,6 @@ class TimeStepStabilityFactor(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 7
 
-    def __str__(self):
-        try:
-            return f"#time_step_stability_factor: {self.kwargs['f']}"
-        except KeyError:
-            return '#time_step_stability_factor:'
-
     def create(self, G, uip):
         try:
             f = self.kwargs['f']
@@ -313,6 +260,7 @@ class TimeStepStabilityFactor(UserObjectSingle):
         if f <= 0 or f > 1:
             raise CmdInputError(self.__str__() + ' requires the value of the time step stability factor to be between zero and one')
         G.dt = G.dt * f
+
         log.info(f'Time step (modified): {G.dt:g} secs')
 
 
@@ -344,7 +292,6 @@ class PMLCells(UserObjectSingle):
     def create(self, G, uip):
         try:
             thickness = self.kwargs['thickness']
-
             for key in G.pmlthickness.keys():
                 G.pmlthickness[key] = int(thickness)
 
