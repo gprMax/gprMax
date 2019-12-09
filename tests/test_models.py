@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
+from pathlib import Path
 import sys
 
 from colorama import init, Fore, Style
@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 if sys.platform == 'linux':
     plt.switch_backend('agg')
 
-from gprMax.gprMax import api
+import gprMax
 from gprMax.exceptions import GeneralError
 from tests.analytical_solutions import hertzian_dipole_fs
 
@@ -39,13 +39,17 @@ from tests.analytical_solutions import hertzian_dipole_fs
         python -m tests.test_models
 """
 
-basepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models_')
-basepath += 'basic'
-# basepath += 'advanced'
-# basepath += 'pmls'
+# Specify directoty with set of models to test
+modelset = 'models_basic'
+# modelset += 'models_advanced'
+# modelset += 'models_pmls'
+
+basepath = Path(__file__).parents[0] / 'tests' / modelset
+
 
 # List of available basic test models
-testmodels = ['hertzian_dipole_fs_analytical', '2D_ExHyHz', '2D_EyHxHz', '2D_EzHxHy', 'cylinder_Ascan_2D', 'hertzian_dipole_fs', 'hertzian_dipole_hs', 'hertzian_dipole_dispersive', 'magnetic_dipole_fs']
+# testmodels = ['hertzian_dipole_fs_analytical', '2D_ExHyHz', '2D_EyHxHz', '2D_EzHxHy', 'cylinder_Ascan_2D', 'hertzian_dipole_fs', 'hertzian_dipole_hs', 'hertzian_dipole_dispersive', 'magnetic_dipole_fs']
+testmodels = ['2D_ExHyHz', '2D_EyHxHz', '2D_EzHxHy']
 
 # List of available advanced test models
 # testmodels = ['antenna_GSSI_1500_fs', 'antenna_MALA_1200_fs']
@@ -67,13 +71,13 @@ for i, model in enumerate(testmodels):
     testresults[model] = {}
 
     # Run model
-    inputfile = os.path.join(basepath, model + os.path.sep + model + '.in')
-    api(inputfile, gpu=None)
+    file = basepath / model / model
+    gprMax.run(inputfile=file.with_suffix('.in'), gpu=None)
 
     # Special case for analytical comparison
     if model == 'hertzian_dipole_fs_analytical':
         # Get output for model file
-        filetest = h5py.File(os.path.join(basepath, model + os.path.sep + model + '.out'), 'r')
+        filetest = h5py.File(file.with_suffix('.out'), 'r')
         testresults[model]['Test version'] = filetest.attrs['gprMax']
 
         # Get available field output component names
@@ -103,8 +107,10 @@ for i, model in enumerate(testmodels):
 
     else:
         # Get output for model and reference files
-        fileref = h5py.File(os.path.join(basepath, model + os.path.sep + model + '_ref.out'), 'r')
-        filetest = h5py.File(os.path.join(basepath, model + os.path.sep + model + '.out'), 'r')
+        fileref = file.stem + '_ref'
+        fileref = file.parent / Path(fileref)
+        fileref = h5py.File(fileref.with_suffix('.out'), 'r')
+        filetest = h5py.File(file.with_suffix('.out'), 'r')
         testresults[model]['Ref version'] = fileref.attrs['gprMax']
         testresults[model]['Test version'] = filetest.attrs['gprMax']
 
@@ -116,7 +122,7 @@ for i, model in enumerate(testmodels):
 
         # Check that type of float used to store fields matches
         if filetest[path + outputstest[0]].dtype != fileref[path + outputsref[0]].dtype:
-            print(Fore.RED + 'WARNING: Type of floating point number in test model ({}) does not match type in reference solution ({})\n'.format(filetest[path + outputstest[0]].dtype, fileref[path + outputsref[0]].dtype) + Style.RESET_ALL)
+            print(Fore.RED + f'WARNING: Type of floating point number in test model ({filetest[path + outputstest[0]].dtype}) does not match type in reference solution ({fileref[path + outputsref[0]].dtype})\n' + Style.RESET_ALL)
         float_or_doubleref = fileref[path + outputsref[0]].dtype
         float_or_doubletest = filetest[path + outputstest[0]].dtype
 
@@ -191,15 +197,16 @@ for i, model in enumerate(testmodels):
         ax.grid()
 
     # Save a PDF/PNG of the figure
-    savename = os.path.join(basepath, model + os.path.sep + model)
-    # fig1.savefig(savename + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    # fig2.savefig(savename + '_diffs.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    fig1.savefig(savename + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
-    fig2.savefig(savename + '_diffs.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    filediffs = file.stem + '_diffs'
+    filediffs = file.parent / Path(filediffs)
+    # fig1.savefig(file.with_suffix('.pdf'), dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    # fig2.savefig(savediffs.with_suffix('.pdf'), dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    # fig1.savefig(file.with_suffix('.png'), dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    # fig2.savefig(filediffs.with_suffix('.png'), dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
 # Summary of results
 for name, data in sorted(testresults.items()):
     if 'analytical' in name:
-        print(Fore.CYAN + "Test '{}.in' using v.{} compared to analytical solution. Max difference {:.2f}dB.".format(name, data['Test version'], data['Max diff']) + Style.RESET_ALL)
+        print(Fore.CYAN + f"Test '{name}.in' using v.{data['Test version']} compared to analytical solution. Max difference {data['Max diff']:.2f}dB." + Style.RESET_ALL)
     else:
-        print(Fore.CYAN + "Test '{}.in' using v.{} compared to reference solution using v.{}. Max difference {:.2f}dB.".format(name, data['Test version'], data['Ref version'], data['Max diff']) + Style.RESET_ALL)
+        print(Fore.CYAN + f"Test '{name}.in' using v.{data['Test version']} compared to reference solution using v.{data['Ref version']}. Max difference {data['Max diff']:.2f}dB." + Style.RESET_ALL)
