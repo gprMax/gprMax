@@ -279,7 +279,7 @@ class CUDAUpdates:
         if config.get_model_config().materials['maxpoles'] > 0:
             kernels_fields = self.source_module(kernel_template_fields.substitute(
                                                 REAL=config.sim_config.dtypes['C_float_or_double'],
-                                                REALFUNC=config.get_model_config().materials['cuda_real_func'],
+                                                REALFUNC=config.get_model_config().materials['cudarealfunc'],
                                                 COMPLEX=config.get_model_config().materials['dispersiveCdtype'],
                                                 N_updatecoeffsE=self.grid.updatecoeffsE.size,
                                                 N_updatecoeffsH=self.grid.updatecoeffsH.size,
@@ -299,8 +299,8 @@ class CUDAUpdates:
               # Value of COMPLEX is not relevant.
             kernels_fields = self.source_module(kernel_template_fields.substitute(
                                                 REAL=config.sim_config.dtypes['C_float_or_double'],
-                                                REALFUNC=config.get_model_config().materials['cuda_real_func'],
-                                                COMPLEX=config.sim_config.dtypes['C_complex'],
+                                                REALFUNC=config.get_model_config().materials['cudarealfunc'],
+                                                COMPLEX=config.sim_config.dtypes['C_float_or_double'],
                                                 N_updatecoeffsE=self.grid.updatecoeffsE.size,
                                                 N_updatecoeffsH=self.grid.updatecoeffsH.size,
                                                 NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
