@@ -28,7 +28,7 @@ For example to plot the ``Ez`` output component with it's FFT:
 
 .. code-block:: none
 
-    python -m tools.plot_Ascan my_outputfile.out --outputs Ez -fft
+    python -m tools.plot_Ascan my_outputfile.h5 --outputs Ez -fft
 
 B-scans
 =======
@@ -239,5 +239,3 @@ where :math:`R_c` is set to :math:`0.25` and :math:`f` is the frequency.
 .. figure:: images/contsine.png
 
     Example of the ``contsine`` waveform - time domain and power spectrum.
-
-

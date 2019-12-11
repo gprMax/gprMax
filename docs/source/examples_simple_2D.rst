@@ -108,11 +108,11 @@ You can now run the model:
 View the results
 ----------------
 
-You should have produced an output file ``cylinder_Ascan_2D.out``. You can view the results (see :ref:`output` section) using the command:
+You should have produced an output file ``cylinder_Ascan_2D.h5``. You can view the results (see :ref:`output` section) using the command:
 
 .. code-block:: none
 
-    python -m tools.plot_Ascan user_models/cylinder_Ascan_2D.out
+    python -m tools.plot_Ascan user_models/cylinder_Ascan_2D.h5
 
 :numref:`cylinder_Ascan_results` shows the time history of the electric and magnetic field components and currents at the receiver location. The :math:`E_z` field component can be converted to voltage which represents the A-scan (trace). The initial part of the signal (~0.5-1.5 ns) represents the direct wave from transmitter to receiver. Then comes the reflected wavelet (~1.8-2.6 ns), which has opposite polarity, from the metal cylinder.
 
@@ -149,19 +149,19 @@ To run the model to create a B-scan you must pass an optional argument to specif
 Results
 -------
 
-You should have produced 60 output files, one for each A-scan, with names ``cylinder_Bscan_2D1.out``, ``cylinder_Bscan_2D2.out`` etc... These can be combined into a single file using the command:
+You should have produced 60 output files, one for each A-scan, with names ``cylinder_Bscan_2D1.h5``, ``cylinder_Bscan_2D2.h5`` etc... These can be combined into a single file using the command:
 
 .. code-block:: none
 
     python -m tools.outputfiles_merge user_models/cylinder_Bscan_2D
 
-You should see a combined output file ``cylinder_Bscan_2D_merged.out``. You can add the optional argument ``--remove-files`` if you want to automatically delete the original single A-scan output files.
+You should see a combined output file ``cylinder_Bscan_2D_merged.h5``. You can add the optional argument ``--remove-files`` if you want to automatically delete the original single A-scan output files.
 
 You can now view an image of the B-scan using the command:
 
 .. code-block:: none
 
-    python -m tools.plot_Bscan user_models/cylinder_Bscan_2D_merged.out Ez
+    python -m tools.plot_Bscan user_models/cylinder_Bscan_2D_merged.h5 Ez
 
 :numref:`cylinder_Bscan_results` shows the B-scan (of the :math:`E_z` field component). Again, the initial part of the signal (~0.5-1.5 ns) represents the direct wave from transmitter to receiver. Then comes the refelected wave (~2-3 ns) from the metal cylinder which creates the hyperbolic shape.
 

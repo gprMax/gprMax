@@ -29,7 +29,7 @@ gprMax produces a separate output file for each trace (A-scan) in a B-scan. This
 
 where:
 
-* ``basefilename`` is the base name file of the output file series, e.g. for ``myoutput1.out``, ``myoutput2.out`` the base file name would be ``myoutput``
+* ``basefilename`` is the base name file of the output file series, e.g. for ``myoutput1.h5``, ``myoutput2.h5`` the base file name would be ``myoutput``
 * ``remove-files`` is an optional argument (flag) that when given will remove the separate output files after the merge.
 
 
