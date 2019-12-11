@@ -171,19 +171,20 @@ class ModelBuildRun:
             # Check to see if numerical dispersion might be a problem
             results = dispersion_analysis(gb.grid)
             if results['error']:
-                log.warning(Fore.RED + f"\nNumerical dispersion analysis ({gb.grid.name}) not carried out as {results['error']}" + Style.RESET_ALL)
+                log.warning(Fore.RED + f"\nNumerical dispersion analysis on {gb.grid.name} not carried out as {results['error']}" + Style.RESET_ALL)
             elif results['N'] < config.get_model_config().numdispersion['mingridsampling']:
                 raise GeneralError(f"\nNon-physical wave propagation in {gb.grid.name} detected. Material '{results['material'].ID}' has wavelength sampled by {results['N']} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
             elif (results['deltavp'] and np.abs(results['deltavp']) >
                   config.get_model_config().numdispersion['maxnumericaldisp']):
                 log.warning(Fore.RED + f"\n{gb.grid.name} has potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz" + Style.RESET_ALL)
             elif results['deltavp']:
-                log.info(f"\nNumerical dispersion analysis ({gb.grid.name}): estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
+                log.info(f"\nNumerical dispersion analysis on {gb.grid.name}: estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
 
     def reuse_geometry(self):
         # Reset iteration number
         self.G.iteration = 0
-        config.get_model_config().inputfilestr = f'\n--- Model {config.get_model_config().appendmodelnumber}/{config.sim_config.model_end}, input file (not re-processed, i.e. geometry fixed): {config.sim_config.input_file_path}'
+        s = f'\n--- Model {config.get_model_config().appendmodelnumber}/{config.sim_config.model_end}, input file (not re-processed, i.e. geometry fixed): {config.sim_config.input_file_path}'
+        config.get_model_config().inputfilestr = Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
         log.info(config.get_model_config().inputfilestr)
         for grid in [self.G] + self.G.subgrids:
             grid.reset_fields()
@@ -286,7 +287,7 @@ class GridBuilder:
 
     def build_pmls(self):
         pbar = tqdm(total=sum(1 for value in self.grid.pmlthickness.values() if value > 0),
-                    desc=f'Building PML boundaries ({self.grid.name})',
+                    desc=f'Building PML boundaries [{self.grid.name}]',
                     ncols=get_terminal_width() - 1, file=sys.stdout,
                     disable=not config.sim_config.general['progressbars'])
         for pml_id, thickness in self.grid.pmlthickness.items():
@@ -299,7 +300,7 @@ class GridBuilder:
         # Build the model, i.e. set the material properties (ID) for every edge
         # of every Yee cell
         log.info('')
-        pbar = tqdm(total=2, desc=f'Building Yee cells ({self.grid.name})',
+        pbar = tqdm(total=2, desc=f'Building Yee cells [{self.grid.name}]',
                     ncols=get_terminal_width() - 1, file=sys.stdout,
                     disable=not config.sim_config.general['progressbars'])
         build_electric_components(self.grid.solid, self.grid.rigidE, self.grid.ID, self.grid)
@@ -330,5 +331,5 @@ class GridBuilder:
         materialstable.outer_border = False
         materialstable.justify_columns[0] = 'right'
 
-        log.info(f'\nMaterials ({self.grid.name}):')
+        log.info(f'\nMaterials [{self.grid.name}]:')
         log.info(materialstable.table)

@@ -40,8 +40,8 @@ class Context:
 
     def __init__(self):
         self.model_range = range(config.sim_config.model_start, config.sim_config.model_end)
-        self.tsimend = 0
-        self.tsimstart = 1
+        self.tsimend = None
+        self.tsimstart = None
 
     def run(self):
         """Run the simulation in the correct context."""
@@ -91,13 +91,11 @@ class NoMPIContext(Context):
         for i in self.model_range:
             config.model_num = i
             write_model_config()
-            # Always create a solver for the first model.
-            # The next model to run only gets a new solver if the
-            # geometry is not re-used.
+
+            # Always create a grid for the first model. The next model to run
+            # only gets a new grid if the geometry is not re-used.
             if i != 0 and config.sim_config.args.geometry_fixed:
                 config.get_model_config().reuse_geometry = True
-                # Ensure re-used G is associated correctly with model
-                # G.model_num = i
             else:
                 G = create_G()
 

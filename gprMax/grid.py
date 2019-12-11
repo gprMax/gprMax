@@ -340,21 +340,6 @@ class CUDAGrid(FDTDGrid):
         self.Tz_gpu = gpuarray.to_gpu(self.Tz)
         self.updatecoeffsdispersive_gpu = gpuarray.to_gpu(self.updatecoeffsdispersive)
 
-    def reset_fields(self):
-        """Clear arrays for field components and PMLs."""
-
-        super().reset_fields()
-
-        # Copy arrays geometry and field component arrays
-        self.htod_geometry_arrays()
-        self.htod_field_arrays()
-        if config.get_model_config().materials['maxpoles'] > 0:
-            self.htod_dispersive_arrays()
-
-        # Copy arrays for fields in PML
-        for pml in self.pmls:
-            pml.initialise_field_arrays_gpu()
-
 
 def dispersion_analysis(G):
     """Analysis of numerical dispersion (Taflove et al, 2005, p112) -
