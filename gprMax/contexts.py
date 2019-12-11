@@ -78,11 +78,15 @@ class Context:
 
 class NoMPIContext(Context):
     """Standard context - models are run one after another and each model
-        is parallelised using either OpenMP (CPU) or CUDA (GPU).
+        can exploit parallelisation using either OpenMP (CPU) or CUDA (GPU).
     """
 
     def _run(self):
         """Specialise how the models are farmed out."""
+
+        # Clear list of model configs. It can be retained with gprMax is
+        # called in a loop, and want to avoid this.
+        config.model_configs = []
 
         for i in self.model_range:
             config.model_num = i
