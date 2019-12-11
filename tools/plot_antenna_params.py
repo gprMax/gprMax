@@ -82,7 +82,7 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
         availableoutputs = list(f[rxpath].keys())
 
         if rxcomponent not in availableoutputs:
-            raise CmdInputError(f'{rxcomponent} output requested, but the available output for receiver {rxnumber} is {', '.join(availableoutputs)}')
+            raise CmdInputError(f"{rxcomponent} output requested, but the available output for receiver {rxnumber} is {', '.join(availableoutputs)}")
 
         rxpath += rxcomponent
 
