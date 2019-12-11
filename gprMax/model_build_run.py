@@ -136,6 +136,10 @@ class ModelBuildRun:
 
         scene = self.build_scene()
 
+        # Print info on any subgrids
+        for grid in G.subgrids:
+            log.info(grid)
+
         # Combine available grids
         grids = [G] + G.subgrids
 

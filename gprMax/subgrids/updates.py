@@ -32,7 +32,6 @@ def create_updates(G):
     updaters = []
 
     for sg in G.subgrids:
-        log.info(sg)
         sg_type = type(sg)
         if sg_type == SubGridHSG and sg.filter:
             precursors = PrecursorNodesFiltered(G, sg)

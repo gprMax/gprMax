@@ -424,7 +424,7 @@ def print_pml_info(G):
     """
     # No PML
     if all(value == 0 for value in G.pmlthickness.values()):
-        return f'\nPML boundaries ({G.name}): switched off'
+        return f'\nPML boundaries [{G.name}]: switched off'
 
     if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
         pmlinfo = str(G.pmlthickness['x0'])
