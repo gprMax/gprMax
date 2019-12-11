@@ -103,9 +103,14 @@ class ModelConfig:
         #   maxpoles: Maximum number of dispersive material poles in a model
         #   dispersivedtype: Data type for dispersive materials
         #   dispersiveCdtype: Data type for dispersive materials in Cython
+        #   drudelorentz: True/False model contains Drude or Lorentz materials
+        #   cudarealfunc: String to substitute into CUDA kernels for fields
+        #                   dependent on dispersive material type
         self.materials = {'maxpoles': 0,
                           'dispersivedtype': None,
-                          'dispersiveCdtype': None}
+                          'dispersiveCdtype': None,
+                          'drudelorentz': None,
+                          'cudarealfunc': ''}
 
     def get_scene(self):
         if sim_config.scenes:
@@ -126,11 +131,10 @@ class ModelConfig:
             materials are present. Real if Debye materials.
         """
         if self.materials['drudelorentz']:
-            self.materials['cuda_real_func'] = '.real()'
+            self.materials['cudarealfunc'] = '.real()'
             self.materials['dispersivedtype'] = sim_config.dtypes['complex']
             self.materials['dispersiveCdtype'] = sim_config.dtypes['C_complex']
         else:
-            self.materials['cuda_real_func'] = ''
             self.materials['dispersivedtype'] = sim_config.dtypes['float_or_double']
             self.materials['dispersiveCdtype'] = sim_config.dtypes['C_float_or_double']
 
@@ -156,7 +160,7 @@ class ModelConfig:
 
         parts = self.output_file_path.parts
         self.output_file_path = Path(*parts[:-1], parts[-1] + self.appendmodelnumber)
-        self.output_file_path_ext = self.output_file_path.with_suffix('.out')
+        self.output_file_path_ext = self.output_file_path.with_suffix('.h5')
 
     def set_snapshots_dir(self):
         """Set directory to store any snapshots."""
@@ -226,6 +230,10 @@ class SimulationConfig:
             self.general['subgrid'] = self.args.subgrid
         except AttributeError:
             self.general['subgrid'] = False
+
+        # Double precision should be used with subgrid for best accuracy
+        if self.general['subgrid']:
+            self.general['precision'] = 'double'
 
         # Scenes parameter may not exist if user enters via CLI
         try:
