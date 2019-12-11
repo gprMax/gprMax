@@ -17,8 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-import os
-import sys
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -82,21 +81,22 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
         timeiter.iternext()
 
     print('Waveform characteristics...')
-    print('Type: {}'.format(w.type))
-    print('Maximum (absolute) amplitude: {:g}'.format(np.max(np.abs(waveform))))
+    print(f'Type: {w.type}')
+    print(f'Maximum (absolute) amplitude: {np.max(np.abs(waveform)):g}')
 
     if w.freq and not w.type == 'gaussian':
-        print('Centre frequency: {:g} Hz'.format(w.freq))
+        print(f'Centre frequency: {w.freq:g} Hz')
 
-    if w.type == 'gaussian' or w.type == 'gaussiandot' or w.type == 'gaussiandotnorm' or w.type == 'gaussianprime' or w.type == 'gaussiandoubleprime':
+    if (w.type == 'gaussian' or w.type == 'gaussiandot' or w.type == 'gaussiandotnorm'
+        or w.type == 'gaussianprime' or w.type == 'gaussiandoubleprime'):
         delay = 1 / w.freq
-        print('Time to centre of pulse: {:g} s'.format(delay))
+        print(f'Time to centre of pulse: {delay:g} s')
     elif w.type == 'gaussiandotdot' or w.type == 'gaussiandotdotnorm' or w.type == 'ricker':
         delay = np.sqrt(2) / w.freq
-        print('Time to centre of pulse: {:g} s'.format(delay))
+        print(f'Time to centre of pulse: {delay:g} s')
 
-    print('Time window: {:g} s ({} iterations)'.format(timewindow, iterations))
-    print('Time step: {:g} s'.format(dt))
+    print(f'Time window: {timewindow:g} s ({iterations} iterations)')
+    print(f'Time step: {dt:g} s')
 
     if fft:
         # FFT
@@ -111,7 +111,9 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
             pltrange = np.where(freqs > 4 * w.freq)[0][0]
         pltrange = np.s_[0:pltrange]
 
-        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num=w.type, figsize=(20, 10), facecolor='w', edgecolor='w')
+        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num=w.type,
+                                       figsize=(20, 10), facecolor='w',
+                                       edgecolor='w')
 
         # Plot waveform
         ax1.plot(time, waveform, 'r', lw=2)
@@ -119,7 +121,8 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
         ax1.set_ylabel('Amplitude')
 
         # Plot frequency spectra
-        markerline, stemlines, baseline = ax2.stem(freqs[pltrange], power[pltrange], '-.')
+        markerline, stemlines, baseline = ax2.stem(freqs[pltrange], power[pltrange],
+                                                   '-.', use_line_collection=True)
         plt.setp(baseline, 'linewidth', 0)
         plt.setp(stemlines, 'color', 'r')
         plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
@@ -128,18 +131,23 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
         ax2.set_ylabel('Power [dB]')
 
     else:
-        fig, ax1 = plt.subplots(num=w.type, figsize=(20, 10), facecolor='w', edgecolor='w')
+        fig, ax1 = plt.subplots(num=w.type, figsize=(20, 10), facecolor='w',
+                                edgecolor='w')
 
         # Plot waveform
         ax1.plot(time, waveform, 'r', lw=2)
         ax1.set_xlabel('Time [s]')
         ax1.set_ylabel('Amplitude')
 
-    [ax.grid(which='both', axis='both', linestyle='-.') for ax in fig.axes]  # Turn on grid
+    # Turn on grid
+    [ax.grid(which='both', axis='both', linestyle='-.') for ax in fig.axes]
 
     # Save a PDF/PNG of the figure
-    # fig.savefig(os.path.dirname(os.path.abspath(__file__)) + os.sep + w.type + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    # fig.savefig(os.path.dirname(os.path.abspath(__file__)) + os.sep + w.type + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    savefile = Path(__file__).parent / w.type
+    # fig.savefig(savefile.with_suffix('.pdf'), dpi=None, format='pdf',
+    #             bbox_inches='tight', pad_inches=0.1)
+    # fig.savefig(savefile.with_suffix('.png'), dpi=150, format='png',
+    #             bbox_inches='tight', pad_inches=0.1)
 
     return plt
 
@@ -158,7 +166,7 @@ if __name__ == "__main__":
 
     # Check waveform parameters
     if args.type.lower() not in Waveform.types:
-        raise CmdInputError('The waveform must have one of the following types {}'.format(', '.join(Waveform.types)))
+        raise CmdInputError(f"The waveform must have one of the following types {', '.join(Waveform.types)}")
     if args.freq <= 0:
         raise CmdInputError('The waveform requires an excitation frequency value of greater than zero')
 

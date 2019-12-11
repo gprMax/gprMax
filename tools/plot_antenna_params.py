@@ -17,8 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-import os
-import sys
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -29,7 +28,8 @@ from gprMax.exceptions import CmdInputError
 
 
 def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=None, rxcomponent=None):
-    """Calculates antenna parameters - incident, reflected and total volatges and currents; s11, (s21) and input impedance.
+    """Calculates antenna parameters - incident, reflected and total volatges
+        and currents; s11, (s21) and input impedance.
 
     Args:
         filename (string): Filename (including path) of output file.
@@ -43,7 +43,8 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     """
 
     # Open output file and read some attributes
-    f = h5py.File(filename, 'r')
+    file = Path(filename)
+    f = h5py.File(file, 'r')
     dxdydz = f.attrs['dx_dy_dz']
     dt = f.attrs['dt']
     iterations = f.attrs['Iterations']
@@ -52,9 +53,9 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     time = np.linspace(0, (iterations - 1) * dt, num=iterations)
     df = 1 / np.amax(time)
 
-    print('Time window: {:g} s ({} iterations)'.format(np.amax(time), iterations))
-    print('Time step: {:g} s'.format(dt))
-    print('Frequency bin spacing: {:g} Hz'.format(df))
+    print(f'Time window: {np.amax(time):g} s ({iterations} iterations)')
+    print(f'Time step: {dt:g} s')
+    print(f'Frequency bin spacing: {df:g} Hz')
 
     # Read/calculate voltages and currents from transmitter antenna
     tltxpath = '/tls/tl' + str(tltxnumber) + '/'
@@ -81,7 +82,7 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
         availableoutputs = list(f[rxpath].keys())
 
         if rxcomponent not in availableoutputs:
-            raise CmdInputError('{} output requested, but the available output for receiver {} is {}'.format(rxcomponent, rxnumber, ', '.join(availableoutputs)))
+            raise CmdInputError(f'{rxcomponent} output requested, but the available output for receiver {rxnumber} is {', '.join(availableoutputs)}')
 
         rxpath += rxcomponent
 
@@ -145,7 +146,8 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
 
 
 def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref, Irefp, Vtotal, Vtotalp, Itotal, Itotalp, s11, zin, yin, s21=None):
-    """Plots antenna parameters - incident, reflected and total volatges and currents; s11, (s21) and input impedance.
+    """Plots antenna parameters - incident, reflected and total volatges and
+        currents; s11, (s21) and input impedance.
 
     Args:
         filename (string): Filename (including path) of output file.
@@ -166,20 +168,21 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     # To a certain drop from maximum power
     pltrangemax = np.where((np.amax(Vincp[1::]) - Vincp[1::]) > 60)[0][0] + 1
     # To a maximum frequency
-    # pltrangemax = np.where(freqs > 6e9)[0][0]
+    pltrangemax = np.where(freqs > 3e9)[0][0]
     pltrange = np.s_[pltrangemin:pltrangemax]
 
     # Print some useful values from s11, and input impedance
     s11minfreq = np.where(s11[pltrange] == np.amin(s11[pltrange]))[0][0]
-    print('s11 minimum: {:g} dB at {:g} Hz'.format(np.amin(s11[pltrange]), freqs[s11minfreq + pltrangemin]))
-    print('At {:g} Hz...'.format(freqs[s11minfreq + pltrangemin]))
-    print('Input impedance: {:.1f}{:+.1f}j Ohms'.format(np.abs(zin[s11minfreq + pltrangemin]), zin[s11minfreq + pltrangemin].imag))
-    # print('Input admittance (mag): {:g} S'.format(np.abs(yin[s11minfreq + pltrangemin])))
-    # print('Input admittance (phase): {:.1f} deg'.format(np.angle(yin[s11minfreq + pltrangemin], deg=True)))
+    print(f's11 minimum: {np.amin(s11[pltrange]):g} dB at {freqs[s11minfreq + pltrangemin]:g} Hz')
+    print(f'At {freqs[s11minfreq + pltrangemin]:g} Hz...')
+    print(f'Input impedance: {np.abs(zin[s11minfreq + pltrangemin]):.1f}{zin[s11minfreq + pltrangemin].imag:+.1f}j Ohms')
+    # print(f'Input admittance (mag): {np.abs(yin[s11minfreq + pltrangemin]):g} S')
+    # print(f'Input admittance (phase): {np.angle(yin[s11minfreq + pltrangemin], deg=True):.1f} deg')
 
     # Figure 1
     # Plot incident voltage
-    fig1, ax = plt.subplots(num='Transmitter transmission line parameters', figsize=(20, 12), facecolor='w', edgecolor='w')
+    fig1, ax = plt.subplots(num='Transmitter transmission line parameters',
+                            figsize=(20, 12), facecolor='w', edgecolor='w')
     gs1 = gridspec.GridSpec(4, 2, hspace=0.7)
     ax = plt.subplot(gs1[0, 0])
     ax.plot(time, Vinc, 'r', lw=2, label='Vinc')
@@ -191,7 +194,8 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot frequency spectra of incident voltage
     ax = plt.subplot(gs1[0, 1])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vincp[pltrange], '-.')
+    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vincp[pltrange],
+                                              '-.', use_line_collection=True)
     plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'r')
     plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
@@ -212,7 +216,8 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot frequency spectra of incident current
     ax = plt.subplot(gs1[1, 1])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Iincp[pltrange], '-.')
+    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Iincp[pltrange],
+                                              '-.', use_line_collection=True)
     plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'b')
     plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
@@ -233,7 +238,8 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot frequency spectra of total voltage
     ax = plt.subplot(gs1[2, 1])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vtotalp[pltrange], '-.')
+    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vtotalp[pltrange],
+                                              '-.', use_line_collection=True)
     plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'r')
     plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
@@ -254,7 +260,8 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot frequency spectra of total current
     ax = plt.subplot(gs1[3, 1])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Itotalp[pltrange], '-.')
+    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Itotalp[pltrange],
+                                              '-.', use_line_collection=True)
     plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'b')
     plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
@@ -275,7 +282,8 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot frequency spectra of reflected voltage
     # ax = plt.subplot(gs1[4, 1])
-    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vrefp[pltrange], '-.')
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vrefp[pltrange],
+    #                                           '-.', use_line_collection=True)
     # plt.setp(baseline, 'linewidth', 0)
     # plt.setp(stemlines, 'color', 'r')
     # plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
@@ -296,7 +304,8 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot frequency spectra of reflected current
     # ax = plt.subplot(gs1[5, 1])
-    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Irefp[pltrange], '-.')
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Irefp[pltrange],
+    #                                           '-.', use_line_collection=True)
     # plt.setp(baseline, 'linewidth', 0)
     # plt.setp(stemlines, 'color', 'b')
     # plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
@@ -308,10 +317,12 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Figure 2
     # Plot frequency spectra of s11
-    fig2, ax = plt.subplots(num='Antenna parameters', figsize=(20, 12), facecolor='w', edgecolor='w')
+    fig2, ax = plt.subplots(num='Antenna parameters', figsize=(20, 12),
+                            facecolor='w', edgecolor='w')
     gs2 = gridspec.GridSpec(2, 2, hspace=0.3)
     ax = plt.subplot(gs2[0, 0])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], s11[pltrange], '-.')
+    markerline, stemlines, baseline = ax.stem(freqs[pltrange], s11[pltrange],
+                                              '-.', use_line_collection=True)
     plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'g')
     plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
@@ -326,7 +337,8 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     # Plot frequency spectra of s21
     if s21 is not None:
         ax = plt.subplot(gs2[0, 1])
-        markerline, stemlines, baseline = ax.stem(freqs[pltrange], s21[pltrange], '-.')
+        markerline, stemlines, baseline = ax.stem(freqs[pltrange], s21[pltrange],
+                                                  '-.', use_line_collection=True)
         plt.setp(baseline, 'linewidth', 0)
         plt.setp(stemlines, 'color', 'g')
         plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
@@ -340,7 +352,8 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot input resistance (real part of impedance)
     ax = plt.subplot(gs2[1, 0])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], zin[pltrange].real, '-.')
+    markerline, stemlines, baseline = ax.stem(freqs[pltrange], zin[pltrange].real,
+                                              '-.', use_line_collection=True)
     plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'g')
     plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
@@ -355,7 +368,8 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot input reactance (imaginery part of impedance)
     ax = plt.subplot(gs2[1, 1])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], zin[pltrange].imag, '-.')
+    markerline, stemlines, baseline = ax.stem(freqs[pltrange], zin[pltrange].imag,
+                                              '-.', use_line_collection=True)
     plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'g')
     plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
@@ -369,7 +383,8 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot input admittance (magnitude)
     # ax = plt.subplot(gs2[2, 0])
-    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.abs(yin[pltrange]), '-.')
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.abs(yin[pltrange]),
+    #                                           '-.', use_line_collection=True)
     # plt.setp(baseline, 'linewidth', 0)
     # plt.setp(stemlines, 'color', 'g')
     # plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
@@ -383,7 +398,8 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot input admittance (phase)
     # ax = plt.subplot(gs2[2, 1])
-    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.angle(yin[pltrange], deg=True), '-.')
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.angle(yin[pltrange], deg=True),
+    #                                           '-.', use_line_collection=True)
     # plt.setp(baseline, 'linewidth', 0)
     # plt.setp(stemlines, 'color', 'g')
     # plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
@@ -396,10 +412,18 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     # ax.grid(which='both', axis='both', linestyle='-.')
 
     # Save a PDF/PNG of the figure
-    # fig1.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_tl_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
-    # fig2.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_ant_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
-    # fig1.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_tl_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    # fig2.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_ant_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    savename1 = file.stem + '_tl_params'
+    savename1 = file.parent / savename1
+    savename2 = file.stem + '_ant_params'
+    savename2 = file.parent / savename2
+    # fig1.savefig(savename1.with_suffix('.png'), dpi=150, format='png',
+    #              bbox_inches='tight', pad_inches=0.1)
+    # fig2.savefig(savename2.with_suffix('.png'), dpi=150, format='png',
+    #              bbox_inches='tight', pad_inches=0.1)
+    # fig1.savefig(savename1.with_suffix('.pdf'), dpi=None, format='pdf',
+    #              bbox_inches='tight', pad_inches=0.1)
+    # fig2.savefig(savename2.with_suffix('.pdf'), dpi=None, format='pdf',
+    #              bbox_inches='tight', pad_inches=0.1)
 
     return plt
 

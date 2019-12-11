@@ -19,6 +19,7 @@
 import argparse
 import glob
 import os
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -46,14 +47,14 @@ def get_output_data(filename, rxnumber, rxcomponent):
 
     # Check there are any receivers
     if nrx == 0:
-        raise CmdInputError('No receivers found in {}'.format(filename))
+        raise CmdInputError(f'No receivers found in {filename}')
 
     path = '/rxs/rx' + str(rxnumber) + '/'
     availableoutputs = list(f[path].keys())
 
     # Check if requested output is in file
     if rxcomponent not in availableoutputs:
-        raise CmdInputError('{} output requested to plot, but the available output for receiver 1 is {}'.format(rxcomponent, ', '.join(availableoutputs)))
+        raise CmdInputError(f"{rxcomponent} output requested to plot, but the available output for receiver 1 is {', '.join(availableoutputs)}")
 
     outputdata = f[path + '/' + rxcomponent]
     outputdata = np.array(outputdata)
@@ -71,17 +72,16 @@ def merge_files(basefilename, removefiles=False):
         outputs (boolean): Flag to remove individual output files after merge.
     """
 
-    outputfile = basefilename + '_merged.out'
-    files = glob.glob(basefilename + '*.out')
+    outputfile = basefilename + '_merged.h5'
+    files = glob.glob(basefilename + '*.h5')
     outputfiles = [filename for filename in files if '_merged' not in filename]
     modelruns = len(outputfiles)
 
     # Combined output file
     fout = h5py.File(outputfile, 'w')
 
-    # Add positional data for rxs
     for model in range(modelruns):
-        fin = h5py.File(basefilename + str(model + 1) + '.out', 'r')
+        fin = h5py.File(basefilename + str(model + 1) + '.h5', 'r')
         nrx = fin.attrs['nrx']
 
         # Write properties for merged file on first iteration
@@ -117,7 +117,7 @@ def merge_files(basefilename, removefiles=False):
 
     if removefiles:
         for model in range(modelruns):
-            file = basefilename + str(model + 1) + '.out'
+            file = basefilename + str(model + 1) + '.h5'
             os.remove(file)
 
 if __name__ == "__main__":

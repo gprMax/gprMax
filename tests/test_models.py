@@ -44,12 +44,11 @@ modelset = 'models_basic'
 # modelset += 'models_advanced'
 # modelset += 'models_pmls'
 
-basepath = Path(__file__).parents[0] / 'tests' / modelset
+basepath = Path(__file__).parents[0] / modelset
 
 
 # List of available basic test models
-# testmodels = ['hertzian_dipole_fs_analytical', '2D_ExHyHz', '2D_EyHxHz', '2D_EzHxHy', 'cylinder_Ascan_2D', 'hertzian_dipole_fs', 'hertzian_dipole_hs', 'hertzian_dipole_dispersive', 'magnetic_dipole_fs']
-testmodels = ['2D_ExHyHz', '2D_EyHxHz', '2D_EzHxHy']
+testmodels = ['hertzian_dipole_fs_analytical', '2D_ExHyHz', '2D_EyHxHz', '2D_EzHxHy', 'cylinder_Ascan_2D', 'hertzian_dipole_fs', 'hertzian_dipole_hs', 'hertzian_dipole_dispersive', 'magnetic_dipole_fs']
 
 # List of available advanced test models
 # testmodels = ['antenna_GSSI_1500_fs', 'antenna_MALA_1200_fs']
@@ -72,12 +71,12 @@ for i, model in enumerate(testmodels):
 
     # Run model
     file = basepath / model / model
-    gprMax.run(inputfile=file.with_suffix('.in'), gpu=None)
+    gprMax.run(inputfile=file.with_suffix('.in'), gpu=[0])
 
     # Special case for analytical comparison
     if model == 'hertzian_dipole_fs_analytical':
         # Get output for model file
-        filetest = h5py.File(file.with_suffix('.out'), 'r')
+        filetest = h5py.File(file.with_suffix('.h5'), 'r')
         testresults[model]['Test version'] = filetest.attrs['gprMax']
 
         # Get available field output component names
@@ -109,8 +108,8 @@ for i, model in enumerate(testmodels):
         # Get output for model and reference files
         fileref = file.stem + '_ref'
         fileref = file.parent / Path(fileref)
-        fileref = h5py.File(fileref.with_suffix('.out'), 'r')
-        filetest = h5py.File(file.with_suffix('.out'), 'r')
+        fileref = h5py.File(fileref.with_suffix('.h5'), 'r')
+        filetest = h5py.File(file.with_suffix('.h5'), 'r')
         testresults[model]['Ref version'] = fileref.attrs['gprMax']
         testresults[model]['Test version'] = filetest.attrs['gprMax']
 
@@ -201,8 +200,8 @@ for i, model in enumerate(testmodels):
     filediffs = file.parent / Path(filediffs)
     # fig1.savefig(file.with_suffix('.pdf'), dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
     # fig2.savefig(savediffs.with_suffix('.pdf'), dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    # fig1.savefig(file.with_suffix('.png'), dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
-    # fig2.savefig(filediffs.with_suffix('.png'), dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    fig1.savefig(file.with_suffix('.png'), dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    fig2.savefig(filediffs.with_suffix('.png'), dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
 
 # Summary of results
 for name, data in sorted(testresults.items()):

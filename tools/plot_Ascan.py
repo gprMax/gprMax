@@ -17,7 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-import os
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -30,7 +30,9 @@ from gprMax.utilities import fft_power
 
 
 def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
-    """Plots electric and magnetic fields and currents from all receiver points in the given output file. Each receiver point is plotted in a new figure window.
+    """Plots electric and magnetic fields and currents from all receiver points
+        in the given output file. Each receiver point is plotted in a new figure
+        window.
 
     Args:
         filename (string): Filename (including path) of output file.
@@ -41,8 +43,10 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
         plt (object): matplotlib plot object.
     """
 
+    file = Path(filename)
+
     # Open output file and read some attributes
-    f = h5py.File(filename, 'r')
+    f = h5py.File(file, 'r')
     nrx = f.attrs['nrx']
     dt = f.attrs['dt']
     iterations = f.attrs['Iterations']
@@ -50,7 +54,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
 
     # Check there are any receivers
     if nrx == 0:
-        raise CmdInputError(f'No receivers found in {filename}')
+        raise CmdInputError(f'No receivers found in {file}')
 
     # Check for single output component when doing a FFT
     if fft:
@@ -96,7 +100,9 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                 pltrange = np.s_[0:pltrange]
 
                 # Plot time history of output component
-                fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
+                fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num='rx' + str(rx),
+                                               figsize=(20, 10), facecolor='w',
+                                               edgecolor='w')
                 line1 = ax1.plot(time, outputdata, 'r', lw=2, label=outputtext)
                 ax1.set_xlabel('Time [s]')
                 ax1.set_ylabel(outputtext + ' field strength [V/m]')
@@ -104,7 +110,9 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                 ax1.grid(which='both', axis='both', linestyle='-.')
 
                 # Plot frequency spectra
-                markerline, stemlines, baseline = ax2.stem(freqs[pltrange], power[pltrange], '-.')
+                markerline, stemlines, baseline = ax2.stem(freqs[pltrange],
+                                                           power[pltrange], '-.',
+                                                           use_line_collection=True)
                 plt.setp(baseline, 'linewidth', 0)
                 plt.setp(stemlines, 'color', 'r')
                 plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
@@ -131,7 +139,10 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
 
             # Plotting if no FFT required
             else:
-                fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]', ylabel=outputtext + ' field strength [V/m]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
+                fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]',
+                                       ylabel=outputtext + ' field strength [V/m]'),
+                                       num='rx' + str(rx), figsize=(20, 10),
+                                       facecolor='w', edgecolor='w')
                 line = ax.plot(time, outputdata, 'r', lw=2, label=outputtext)
                 ax.set_xlim([0, np.amax(time)])
                 # ax.set_ylim([-15, 20])
@@ -146,7 +157,9 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
 
         # If multiple outputs required, create all nine subplots and populate only the specified ones
         else:
-            fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]'), num='rx' + str(rx), figsize=(20, 10), facecolor='w', edgecolor='w')
+            fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]'),
+                                   num='rx' + str(rx), figsize=(20, 10),
+                                   facecolor='w', edgecolor='w')
             if len(outputs) == 9:
                 gs = gridspec.GridSpec(3, 3, hspace=0.3, wspace=0.3)
             else:
@@ -215,8 +228,12 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                 ax.grid(which='both', axis='both', linestyle='-.')
 
         # Save a PDF/PNG of the figure
-        # fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-        # fig.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_rx' + str(rx) + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+        savename = file.stem + '_rx' + str(rx)
+        savename = file.parent / savename
+        # fig.savefig(savename.with_suffix('.pdf'), dpi=None, format='pdf',
+        #             bbox_inches='tight', pad_inches=0.1)
+        # fig.savefig(savename.with_suffix('.png'), dpi=150, format='png',
+        #             bbox_inches='tight', pad_inches=0.1)
 
     f.close()
 
@@ -228,8 +245,12 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Plots electric and magnetic fields and currents from all receiver points in the given output file. Each receiver point is plotted in a new figure window.', usage='cd gprMax; python -m tools.plot_Ascan outputfile')
     parser.add_argument('outputfile', help='name of output file including path')
-    parser.add_argument('--outputs', help='outputs to be plotted', default=Rx.defaultoutputs, choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz', 'Ex-', 'Ey-', 'Ez-', 'Hx-', 'Hy-', 'Hz-', 'Ix-', 'Iy-', 'Iz-'], nargs='+')
-    parser.add_argument('-fft', action='store_true', help='plot FFT (single output must be specified)', default=False)
+    parser.add_argument('--outputs', help='outputs to be plotted',
+                        default=Rx.defaultoutputs,
+                        choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz', 'Ex-', 'Ey-', 'Ez-', 'Hx-', 'Hy-', 'Hz-', 'Ix-', 'Iy-', 'Iz-'],
+                        nargs='+')
+    parser.add_argument('-fft', action='store_true', help='plot FFT (single output must be specified)',
+                        default=False)
     args = parser.parse_args()
 
     plthandle = mpl_plot(args.outputfile, args.outputs, fft=args.fft)
