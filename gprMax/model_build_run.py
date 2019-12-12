@@ -89,7 +89,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         currentmodelrun (int): Current model run number.
         modelend (int): Number of last model to run.
         numbermodelruns (int): Total number of model runs.
-        inputfile (object): File object for the input file.
+        inputfile (str): Path to the input file.
         usernamespace (dict): Namespace that can be accessed by user
                 in any Python code blocks in input file.
 
@@ -120,9 +120,9 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         if args.gpu:
             G.gpu = args.gpu
 
-        G.inputfilename = os.path.split(inputfile.name)[1]
-        G.inputdirectory = os.path.dirname(os.path.abspath(inputfile.name))
-        inputfilestr = '\n--- Model {}/{}, input file: {}'.format(currentmodelrun, modelend, inputfile.name)
+        G.inputfilename = os.path.split(inputfile)[1]
+        G.inputdirectory = os.path.dirname(os.path.abspath(inputfile))
+        inputfilestr = '\n--- Model {}/{}, input file: {}'.format(currentmodelrun, modelend, inputfile)
         if G.messages:
             print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
@@ -131,7 +131,8 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
         usernamespace['current_model_run'] = currentmodelrun
 
         # Read input file and process any Python and include file commands
-        processedlines = process_python_include_code(inputfile, usernamespace)
+        with open(inputfile, 'r') as fh:
+            processedlines = process_python_include_code(fh, usernamespace)
 
         # Print constants/variables in user-accessable namespace
         uservars = ''

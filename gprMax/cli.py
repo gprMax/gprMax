@@ -43,12 +43,13 @@ from gprMax.utilities import logo
 from gprMax.utilities import open_path_file
 from gprMax.utilities import timer
 
+
 def main():
     """This is the main function for gprMax."""
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(prog='gprMax', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('inputfile', help='path to, and name of inputfile or file object')
+    parser.add_argument('inputfile', help='path to, and name of inputfile')
     parser.add_argument('-n', default=1, type=int, help='number of times to run the input file, e.g. to create a B-scan')
     parser.add_argument('-task', type=int, help='task identifier (model number) for job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)')
     parser.add_argument('-restart', type=int, help='model number to restart from, e.g. when creating B-scan')
@@ -116,77 +117,77 @@ def run_main(args):
     # Print gprMax logo, version, and licencing/copyright information
     logo(__version__ + ' (' + codename + ')')
 
-    with open_path_file(args.inputfile) as inputfile:
+    # Get information about host machine
+    hostinfo = get_host_info()
+    hyperthreading = ', {} cores with Hyper-Threading'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
+    print('\nHost: {} | {} | {} x {} ({} cores{}) | {} RAM | {}'.format(hostinfo['hostname'],
+                                                                        hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'],
+                                                                        hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
 
-        # Get information about host machine
-        hostinfo = get_host_info()
-        hyperthreading = ', {} cores with Hyper-Threading'.format(hostinfo['logicalcores']) if hostinfo['hyperthreading'] else ''
-        print('\nHost: {} | {} | {} x {} ({} cores{}) | {} RAM | {}'.format(hostinfo['hostname'],
-                                                                            hostinfo['machineID'], hostinfo['sockets'], hostinfo['cpuID'], hostinfo['physicalcores'],
-                                                                            hyperthreading, human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True), hostinfo['osversion']))
+    inputfile = args.inputfile
 
-        # Get information/setup any Nvidia GPU(s)
-        if args.gpu is not None:
-            # Flatten a list of lists
-            if any(isinstance(element, list) for element in args.gpu):
-                args.gpu = [val for sublist in args.gpu for val in sublist]
-            gpus, allgpustext = detect_check_gpus(args.gpu)
-            print('GPU(s) detected: {}'.format(' | '.join(allgpustext)))
+    # Get information/setup any Nvidia GPU(s)
+    if args.gpu is not None:
+        # Flatten a list of lists
+        if any(isinstance(element, list) for element in args.gpu):
+            args.gpu = [val for sublist in args.gpu for val in sublist]
+        gpus, allgpustext = detect_check_gpus(args.gpu)
+        print('GPU(s) detected: {}'.format(' | '.join(allgpustext)))
 
-            # If in MPI mode or benchmarking provide list of GPU objects, otherwise
-            # provide single GPU object
-            if args.mpi or args.mpi_no_spawn or args.benchmark:
-                args.gpu = gpus
-            else:
-                args.gpu = gpus[0]
-
-        # Create a separate namespace that users can access in any Python code blocks in the input file
-        usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': args.n, 'inputfile': os.path.abspath(inputfile.name)}
-
-        #######################################
-        # Process for benchmarking simulation #
-        #######################################
-        if args.benchmark:
-            if args.mpi or args.opt_taguchi or args.task or args.n > 1:
-                raise GeneralError('Benchmarking mode cannot be combined with MPI, job array, or Taguchi optimisation modes, or multiple model runs.')
-            run_benchmark_sim(args, inputfile, usernamespace)
-
-        ####################################################
-        # Process for simulation with Taguchi optimisation #
-        ####################################################
-        elif args.opt_taguchi:
-            if args.mpi_worker:  # Special case for MPI spawned workers - they do not need to enter the Taguchi optimisation mode
-                run_mpi_sim(args, inputfile, usernamespace)
-            else:
-                from gprMax.optimisation_taguchi import run_opt_sim
-                run_opt_sim(args, inputfile, usernamespace)
-
-        ################################################
-        # Process for standard simulation (CPU or GPU) #
-        ################################################
+        # If in MPI mode or benchmarking provide list of GPU objects, otherwise
+        # provide single GPU object
+        if args.mpi or args.mpi_no_spawn or args.benchmark:
+            args.gpu = gpus
         else:
-            # Mixed mode MPI with OpenMP or CUDA - MPI task farm for models with each model parallelised with OpenMP (CPU) or CUDA (GPU)
-            if args.mpi:
-                # NOTE: this must be disabled to allow spawn mode
-                # if args.n == 1:
-                #     raise GeneralError('MPI is not beneficial when there is only one model to run')
-                if args.task:
-                    raise GeneralError('MPI cannot be combined with job array mode')
-                run_mpi_sim(args, inputfile, usernamespace)
+            args.gpu = gpus[0]
 
-            # Alternate MPI configuration that does not use MPI spawn mechanism
-            elif args.mpi_no_spawn:
-                if args.n == 1:
-                    raise GeneralError('MPI is not beneficial when there is only one model to run')
-                if args.task:
-                    raise GeneralError('MPI cannot be combined with job array mode')
-                run_mpi_no_spawn_sim(args, inputfile, usernamespace)
+    # Create a separate namespace that users can access in any Python code blocks in the input file
+    usernamespace = {'c': c, 'e0': e0, 'm0': m0, 'z0': z0, 'number_model_runs': args.n, 'inputfile': os.path.abspath(inputfile)}
 
-            # Standard behaviour - models run serially with each model parallelised with OpenMP (CPU) or CUDA (GPU)
-            else:
-                if args.task and args.restart:
-                    raise GeneralError('Job array and restart modes cannot be used together')
-                run_std_sim(args, inputfile, usernamespace)
+    #######################################
+    # Process for benchmarking simulation #
+    #######################################
+    if args.benchmark:
+        if args.mpi or args.opt_taguchi or args.task or args.n > 1:
+            raise GeneralError('Benchmarking mode cannot be combined with MPI, job array, or Taguchi optimisation modes, or multiple model runs.')
+        run_benchmark_sim(args, inputfile, usernamespace)
+
+    ####################################################
+    # Process for simulation with Taguchi optimisation #
+    ####################################################
+    elif args.opt_taguchi:
+        if args.mpi_worker:  # Special case for MPI spawned workers - they do not need to enter the Taguchi optimisation mode
+            run_mpi_sim(args, inputfile, usernamespace)
+        else:
+            from gprMax.optimisation_taguchi import run_opt_sim
+            run_opt_sim(args, inputfile, usernamespace)
+
+    ################################################
+    # Process for standard simulation (CPU or GPU) #
+    ################################################
+    else:
+        # Mixed mode MPI with OpenMP or CUDA - MPI task farm for models with each model parallelised with OpenMP (CPU) or CUDA (GPU)
+        if args.mpi:
+            # NOTE: this must be disabled to allow spawn mode
+            # if args.n == 1:
+            #     raise GeneralError('MPI is not beneficial when there is only one model to run')
+            if args.task:
+                raise GeneralError('MPI cannot be combined with job array mode')
+            run_mpi_sim(args, inputfile, usernamespace)
+
+        # Alternate MPI configuration that does not use MPI spawn mechanism
+        elif args.mpi_no_spawn:
+            if args.n == 1:
+                raise GeneralError('MPI is not beneficial when there is only one model to run')
+            if args.task:
+                raise GeneralError('MPI cannot be combined with job array mode')
+            run_mpi_no_spawn_sim(args, inputfile, usernamespace)
+
+        # Standard behaviour - models run serially with each model parallelised with OpenMP (CPU) or CUDA (GPU)
+        else:
+            if args.task and args.restart:
+                raise GeneralError('Job array and restart modes cannot be used together')
+            run_std_sim(args, inputfile, usernamespace)
 
 
 def run_std_sim(args, inputfile, usernamespace, optparams=None):
@@ -196,7 +197,7 @@ def run_std_sim(args, inputfile, usernamespace, optparams=None):
 
     Args:
         args (dict): Namespace with command line arguments
-        inputfile (object): File object for the input file.
+        inputfile (str): Full path to the input file.
         usernamespace (dict): Namespace that can be accessed by user in any
                 Python code blocks in input file.
         optparams (dict): Optional argument. For Taguchi optimisation it
@@ -241,7 +242,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
 
     Args:
         args (dict): Namespace with command line arguments
-        inputfile (object): File object for the input file.
+        inputfile (str): Full path to the input file.
         usernamespace (dict): Namespace that can be accessed by user in any
                 Python code blocks in input file.
     """
@@ -306,15 +307,15 @@ def run_benchmark_sim(args, inputfile, usernamespace):
         # Get model size (in cells) and number of iterations
         if currentmodelrun == 1:
             if numbermodelruns == 1:
-                outputfile = os.path.splitext(args.inputfile)[0] + '.out'
+                outputfile = os.path.splitext(inputfile)[0] + '.out'
             else:
-                outputfile = os.path.splitext(args.inputfile)[0] + str(currentmodelrun) + '.out'
+                outputfile = os.path.splitext(inputfile)[0] + str(currentmodelrun) + '.out'
             f = h5py.File(outputfile, 'r')
             iterations = f.attrs['Iterations']
             numcells = f.attrs['nx_ny_nz']
 
     # Save number of threads and benchmarking times to NumPy archive
-    np.savez(os.path.splitext(inputfile.name)[0], machineID=machineIDlong, gpuIDs=gpuIDs, cputhreads=cputhreads, cputimes=cputimes, gputimes=gputimes, iterations=iterations, numcells=numcells, version=__version__)
+    np.savez(os.path.splitext(inputfile)[0], machineID=machineIDlong, gpuIDs=gpuIDs, cputhreads=cputhreads, cputimes=cputimes, gputimes=gputimes, iterations=iterations, numcells=numcells, version=__version__)
 
     simcompletestr = '\n=== Simulation completed'
     print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
@@ -327,7 +328,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
 
     Args:
         args (dict): Namespace with command line arguments
-        inputfile (object): File object for the input file.
+        inputfile (str): Full path to the input file.
         usernamespace (dict): Namespace that can be accessed by user in any
                 Python code blocks in input file.
         optparams (dict): Optional argument. For Taguchi optimisation it
@@ -468,7 +469,7 @@ def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
 
     Args:
         args (dict): Namespace with command line arguments
-        inputfile (object): File object for the input file.
+        inputfile (str): Full path to the input file.
         usernamespace (dict): Namespace that can be accessed by user in any
                 Python code blocks in input file.
         optparams (dict): Optional argument. For Taguchi optimisation it

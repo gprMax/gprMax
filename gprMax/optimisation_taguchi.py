@@ -30,8 +30,8 @@ import numpy as np
 
 from gprMax.constants import floattype
 from gprMax.exceptions import CmdInputError
-from gprMax.gprMax import run_std_sim
-from gprMax.gprMax import run_mpi_sim
+from gprMax.cli import run_std_sim
+from gprMax.cli import run_mpi_sim
 from gprMax.utilities import get_terminal_width
 from gprMax.utilities import open_path_file
 
@@ -41,7 +41,7 @@ def run_opt_sim(args, inputfile, usernamespace):
 
     Args:
         args (dict): Namespace with command line arguments
-        inputfile (object): File object for the input file.
+        inputfile (str): Full path to the input file.
         usernamespace (dict): Namespace that can be accessed by user
                 in any Python code blocks in input file.
     """
@@ -51,7 +51,7 @@ def run_opt_sim(args, inputfile, usernamespace):
     if args.n > 1:
         raise CmdInputError('When a Taguchi optimisation is being carried out the number of model runs argument is not required')
 
-    inputfileparts = os.path.splitext(inputfile.name)
+    inputfileparts = os.path.splitext(inputfile)
 
     # Default maximum number of iterations of optimisation to perform (used
     # if the stopping criterion is not achieved)
@@ -198,7 +198,7 @@ def taguchi_code_blocks(inputfile, taguchinamespace):
     with a double hash (##), and any blank lines.
 
     Args:
-        inputfile (object): File object for the input file.
+        inputfile (str): Full path to the input file.
         taguchinamespace (dict): Namespace that can be accessed by user a
                 Taguchi code block in input file.
 
@@ -207,10 +207,8 @@ def taguchi_code_blocks(inputfile, taguchinamespace):
     """
 
     # Strip out any newline characters and comments that must begin with double hashes
-    inputlines = [line.rstrip() for line in inputfile if(not line.startswith('##') and line.rstrip('\n'))]
-
-    # Rewind input file in preparation for passing to standard command reading function
-    inputfile.seek(0)
+    with open(inputfile, 'r') as fh:
+        inputlines = [line.rstrip() for line in fh if(not line.startswith('##') and line.rstrip('\n'))]
 
     # Store length of dict
     taglength = len(taguchinamespace)

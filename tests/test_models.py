@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 if sys.platform == 'linux':
     plt.switch_backend('agg')
 
-from gprMax.gprMax import api
+from gprMax.cli import api
 from gprMax.exceptions import GeneralError
 from tests.analytical_solutions import hertzian_dipole_fs
 

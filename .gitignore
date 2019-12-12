@@ -2,6 +2,9 @@
 *.pyc
 *.pyo
 
+# Python virtual environment
+venv/
+
 # Cython
 *.c
 *.so
@@ -20,3 +23,13 @@ dist/
 
 # Jupyter notebook checkpoints
 .ipynb_checkpoints/
+
+# IDE files
+.idea
+
+# log files
+log*.txt
+
+# model output
+*.out
+*.vti
