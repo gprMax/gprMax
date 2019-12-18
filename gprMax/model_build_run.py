@@ -74,7 +74,6 @@ from gprMax.source_updates_gpu import kernels_template_sources
 from gprMax.utilities import get_host_info
 from gprMax.utilities import get_terminal_width
 from gprMax.utilities import human_size
-from gprMax.utilities import open_path_file
 from gprMax.utilities import round32
 from gprMax.utilities import timer
 from gprMax.yee_cell_build_ext import build_electric_components
@@ -294,7 +293,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
     # If geometry information to be reused between model runs
     else:
-        inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(currentmodelrun, modelend, inputfile.name)
+        inputfilestr = '\n--- Model {}/{}, input file (not re-processed, i.e. geometry fixed): {}'.format(currentmodelrun, modelend, inputfile)
         if G.messages:
             print(Fore.GREEN + '{} {}\n'.format(inputfilestr, '-' * (get_terminal_width() - 1 - len(inputfilestr))) + Style.RESET_ALL)
 
