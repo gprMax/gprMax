@@ -119,7 +119,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
         ax1.set_ylabel('Amplitude')
 
         # Plot frequency spectra
-        markerline, stemlines, baseline = ax2.stem(freqs[pltrange], power[pltrange], '-.')
+        markerline, stemlines, baseline = ax2.stem(freqs[pltrange], power[pltrange], '-.' use_line_collection=True)
         plt.setp(baseline, 'linewidth', 0)
         plt.setp(stemlines, 'color', 'r')
         plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
