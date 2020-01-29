@@ -13,7 +13,7 @@ Simulations are becoming ever larger and more complex, which often means their m
 
 **Difficulty:** Hard
 
-**Mentor(s):** Dr Antonis Giannopoulos (antonis@gprmax.com) and Dr Craig Warren (craig@gprmax.com)
+**Mentor(s):** Dr Antonis Giannopoulos (antonis@gprmax.com)
 
 
 ## 2. Improved installation tools
@@ -65,7 +65,7 @@ Output data from electromagnetic simulations often requires to be processed usin
 
 **Difficulty:** Medium
 
-**Mentor(s):** Dr Antonis Giannopoulos (antonis@gprmax.com) and Dr Craig Warren (craig@gprmax.com)
+**Mentor(s):** Dr Craig Warren (craig@gprmax.com) and Mr Dimitris Angelis (dimitris.angelis@northumbria.ac.uk)
 
 
 ## 6. Web-based framework for model building
@@ -91,7 +91,7 @@ Often materials that required to be simulated have complex electromagnetic prope
 
 **Difficulty:** Medium
 
-**Mentor(s):** Dr Craig Warren (craig@gprmax.com) and Dr Antonis Giannopoulos (antonis@gprmax.com)
+**Mentor(s):** Dr Iraklis Giannakis () and Dr Antonis Giannopoulos (antonis@gprmax.com)
 
 
 ## 8. Importing geometrical information from laser scanners
@@ -104,4 +104,4 @@ A laser scanner takes distance measurements in every direction to rapidly captur
 
 **Difficulty:** Medium
 
-**Mentor(s):** Dr Craig Warren (craig@gprmax.com) and Dr Antonis Giannopoulos (antonis@gprmax.com)
+**Mentor(s):** Dr Craig Warren (craig@gprmax.com) and Dr Iraklis Giannakis ()
