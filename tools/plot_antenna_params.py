@@ -191,7 +191,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot frequency spectra of incident voltage
     ax = plt.subplot(gs1[0, 1])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vincp[pltrange], '-.' use_line_collection=True)
+    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vincp[pltrange], '-.', use_line_collection=True)
     plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'r')
     plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
@@ -212,7 +212,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot frequency spectra of incident current
     ax = plt.subplot(gs1[1, 1])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Iincp[pltrange], '-.' use_line_collection=True)
+    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Iincp[pltrange], '-.', use_line_collection=True)
     plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'b')
     plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
@@ -233,7 +233,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot frequency spectra of total voltage
     ax = plt.subplot(gs1[2, 1])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vtotalp[pltrange], '-.' use_line_collection=True)
+    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vtotalp[pltrange], '-.', use_line_collection=True)
     plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'r')
     plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
@@ -254,7 +254,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot frequency spectra of total current
     ax = plt.subplot(gs1[3, 1])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Itotalp[pltrange], '-.' use_line_collection=True)
+    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Itotalp[pltrange], '-.', use_line_collection=True)
     plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'b')
     plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
@@ -275,7 +275,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot frequency spectra of reflected voltage
     # ax = plt.subplot(gs1[4, 1])
-    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vrefp[pltrange], '-.' use_line_collection=True)
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vrefp[pltrange], '-.', use_line_collection=True)
     # plt.setp(baseline, 'linewidth', 0)
     # plt.setp(stemlines, 'color', 'r')
     # plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
@@ -296,7 +296,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot frequency spectra of reflected current
     # ax = plt.subplot(gs1[5, 1])
-    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Irefp[pltrange], '-.' use_line_collection=True)
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Irefp[pltrange], '-.', use_line_collection=True)
     # plt.setp(baseline, 'linewidth', 0)
     # plt.setp(stemlines, 'color', 'b')
     # plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
@@ -311,7 +311,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     fig2, ax = plt.subplots(num='Antenna parameters', figsize=(20, 12), facecolor='w', edgecolor='w')
     gs2 = gridspec.GridSpec(2, 2, hspace=0.3)
     ax = plt.subplot(gs2[0, 0])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], s11[pltrange], '-.' use_line_collection=True)
+    markerline, stemlines, baseline = ax.stem(freqs[pltrange], s11[pltrange], '-.', use_line_collection=True)
     plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'g')
     plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
@@ -326,7 +326,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     # Plot frequency spectra of s21
     if s21 is not None:
         ax = plt.subplot(gs2[0, 1])
-        markerline, stemlines, baseline = ax.stem(freqs[pltrange], s21[pltrange], '-.' use_line_collection=True)
+        markerline, stemlines, baseline = ax.stem(freqs[pltrange], s21[pltrange], '-.', use_line_collection=True)
         plt.setp(baseline, 'linewidth', 0)
         plt.setp(stemlines, 'color', 'g')
         plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
