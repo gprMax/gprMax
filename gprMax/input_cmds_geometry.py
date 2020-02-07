@@ -78,7 +78,8 @@ def process_geometrycmds(geometry, G):
             geofile = tmp[4]
             matfile = tmp[5]
 
-            # See if material file exists at specified path and if not try input file directory
+            # See if material file exists at specified path and if not try input
+            # file directory
             if not os.path.isfile(matfile):
                 matfile = os.path.abspath(os.path.join(G.inputdirectory, matfile))
 
@@ -87,8 +88,9 @@ def process_geometrycmds(geometry, G):
 
             # Read materials from file
             with open(matfile, 'r') as f:
-                # Strip out any newline characters and comments that must begin with double hashes
-                materials = [line.rstrip() + '{' + matstr + '}\n' for line in f if(not line.startswith('##') and line.rstrip('\n'))]
+                # Read any lines that begin with a hash. Strip out any newline
+                # characters and comments that must begin with double hashes.
+                materials = [line.rstrip() + '{' + matstr + '}\n' for line in f if(line.startswith('#') and not line.startswith('##') and line.rstrip('\n'))]
 
             # Check validity of command names
             singlecmdsimport, multicmdsimport, geometryimport = check_cmd_names(materials, checkessential=False)
