@@ -310,8 +310,7 @@ def get_host_info():
         logicalcores = sockets * corespersocket * threadspercore
 
         # OS version
-        osrelease = subprocess.check_output("cat /proc/sys/kernel/osrelease", shell=True).decode('utf-8').strip()
-        osversion = 'Linux (' + osrelease + ', ' + platform.linux_distribution()[0] + ')'
+        osversion = platform.platform()
 
     # Dictionary of host information
     hostinfo = {}
