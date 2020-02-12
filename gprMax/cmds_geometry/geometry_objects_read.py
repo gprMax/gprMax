@@ -52,7 +52,8 @@ class GeometryObjectsRead(UserObjectGeometry):
         # the main grid or the subgrid.
         xs, ys, zs = uip.discretise_point(p1)
 
-        # See if material file exists at specified path and if not try input file directory
+        # See if material file exists at specified path and if not try input
+        # file directory
         matfile = Path(matfile)
 
         if not matfile.exists():
@@ -63,8 +64,9 @@ class GeometryObjectsRead(UserObjectGeometry):
 
         # Read materials from file
         with open(matfile, 'r') as f:
-            # Strip out any newline characters and comments that must begin with double hashes
-            materials = [line.rstrip() + '{' + matstr + '}\n' for line in f if(not line.startswith('##') and line.rstrip('\n'))]
+            # Read any lines that begin with a hash. Strip out any newline
+            # characters and comments that must begin with double hashes.
+            materials = [line.rstrip() + '{' + matstr + '}\n' for line in f if(line.startswith('#') and not line.startswith('##') and line.rstrip('\n'))]
 
         # build scene
         # API for multiple scenes / model runs
