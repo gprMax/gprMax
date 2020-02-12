@@ -175,14 +175,14 @@ class ModelBuildRun:
             # Check to see if numerical dispersion might be a problem
             results = dispersion_analysis(gb.grid)
             if results['error']:
-                log.warning(Fore.RED + f"\nNumerical dispersion analysis on {gb.grid.name} not carried out as {results['error']}" + Style.RESET_ALL)
+                log.warning(Fore.RED + f"\nNumerical dispersion analysis [{gb.grid.name}] not carried out as {results['error']}" + Style.RESET_ALL)
             elif results['N'] < config.get_model_config().numdispersion['mingridsampling']:
-                raise GeneralError(f"\nNon-physical wave propagation in {gb.grid.name} detected. Material '{results['material'].ID}' has wavelength sampled by {results['N']} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
+                raise GeneralError(f"\nNon-physical wave propagation in [{gb.grid.name}] detected. Material '{results['material'].ID}' has wavelength sampled by {results['N']} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
             elif (results['deltavp'] and np.abs(results['deltavp']) >
                   config.get_model_config().numdispersion['maxnumericaldisp']):
-                log.warning(Fore.RED + f"\n{gb.grid.name} has potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz" + Style.RESET_ALL)
+                log.warning(Fore.RED + f"\n[{gb.grid.name}] has potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz" + Style.RESET_ALL)
             elif results['deltavp']:
-                log.info(f"\nNumerical dispersion analysis on {gb.grid.name}: estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
+                log.info(f"\nNumerical dispersion analysis [{gb.grid.name}]: estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
 
     def reuse_geometry(self):
         # Reset iteration number

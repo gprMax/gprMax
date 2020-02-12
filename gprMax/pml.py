@@ -434,7 +434,7 @@ def print_pml_info(G):
             pmlinfo += f'{key}: {value}, '
         pmlinfo = pmlinfo[:-2]
 
-    return f'\nPML boundaries ({G.name}): {{formulation: {G.pmlformulation}, order: {len(G.cfs)}, thickness (cells): {pmlinfo}}}'
+    return f'\nPML boundaries [{G.name}]: {{formulation: {G.pmlformulation}, order: {len(G.cfs)}, thickness (cells): {pmlinfo}}}'
 
 
 def build_pml(G, key, value):

@@ -450,7 +450,7 @@ def mem_check_all(grids):
                 total_snaps_mem += snap_mem
                 grid.mem_use += snap_mem
 
-        mem_strs.append(f'~{human_size(grid.mem_use)} ({grid.name})')
+        mem_strs.append(f'~{human_size(grid.mem_use)} [{grid.name}]')
 
     total_mem = config.get_model_config().mem_use
 
