@@ -121,16 +121,6 @@ class MPIContext(Context):
         pass
 
 
-class MPINoSpawnContext(Context):
-
-    def __init__(self):
-        super().__init__()
-        from mpi4py import MPI
-
-    def _run(self):
-        pass
-
-
 def create_context():
     """Create a context in which to run the simulation. i.e MPI.
 
@@ -140,8 +130,6 @@ def create_context():
 
     if config.sim_config.args.mpi:
         context = MPIContext()
-    elif config.sim_config.args.mpi_no_spawn:
-        context = MPINoSpawnContext()
     else:
         context = NoMPIContext()
 

@@ -26,7 +26,7 @@ def write_simulation_config(args):
         args (Namespace): Arguments from either API or CLI.
     """
 
-    if args.mpi or args.mpi_no_spawn:
+    if args.mpi:
         config.sim_config = config.SimulationConfigMPI(args)
     else:
         config.sim_config = config.SimulationConfig(args)

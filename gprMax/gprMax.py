@@ -83,11 +83,6 @@ def run(
                 parallel performance section of the User Guide.
     :type mpi: int, optional
 
-    :param mpi_no_spawn: flag to use MPI task farm without spawn mechanism.
-                            For further details see the parallel performance
-                            section of the User Guide.
-    :type mpi_no_spawn: bool, optional
-
     :param gpu: flag to use NVIDIA GPU or list of NVIDIA GPU device ID(s) for
                 specific GPU card(s).
     :type gpu: list or bool, optional
@@ -127,7 +122,6 @@ def run(
     args.task = task
     args.restart = restart
     args.mpi = mpi
-    args.mpi_no_spawn = mpi_no_spawn
     args.mpicomm = mpicomm
     args.gpu = gpu
     args.subgrid = subgrid
@@ -152,8 +146,6 @@ def main():
     parser.add_argument('-task', type=int, help='task identifier (model number) for job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)')
     parser.add_argument('-restart', type=int, help='model number to restart from, e.g. when creating B-scan')
     parser.add_argument('-mpi', type=int, help='number of MPI tasks, i.e. master + workers')
-    parser.add_argument('--mpi-no-spawn', action='store_true', default=False, help='flag to use MPI without spawn mechanism')
-    parser.add_argument('--mpi-worker', action='store_true', default=False, help=argparse.SUPPRESS)
     parser.add_argument('-gpu', type=int, action='append', nargs='*', help='flag to use Nvidia GPU or option to give list of device ID(s)')
     parser.add_argument('--geometry-only', action='store_true', default=False, help='flag to only build model and produce geometry file(s)')
     parser.add_argument('--geometry-fixed', action='store_true', default=False, help='flag to not reprocess model geometry, e.g. for B-scans where the geometry is fixed')
