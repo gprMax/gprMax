@@ -35,7 +35,7 @@ import gprMax.config as config
 from .cython.yee_cell_build import build_electric_components
 from .cython.yee_cell_build import build_magnetic_components
 from .exceptions import GeneralError
-from .fields_outputs import write_hdf5_outputfiles
+from .fields_outputs import write_hdf5_outputfile
 from .grid import dispersion_analysis
 from .hash_cmds_file import parse_hash_commands
 from .materials import Material
@@ -213,8 +213,8 @@ class ModelBuildRun:
             to file(s).
         """
 
-        # Write an output file(s) in HDF5 format
-        write_hdf5_outputfiles(config.get_model_config().output_file_path_ext, self.G)
+        # Write an output file in HDF5 format
+        write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.G)
 
         # Write any snapshots to file
         if self.G.snapshots:

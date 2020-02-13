@@ -98,90 +98,77 @@ __global__ void store_outputs(int NRX, int iteration, const int* __restrict__ rx
 """)
 
 
-def write_hdf5_outputfiles(outputfile, G):
-    if G.rxs:
-        write_hdf5_main_grid_outputfile(outputfile, G)
+def write_hdf5_outputfile(outputfile, G):
+    """Write an output file in HDF5 format.
+
+    Args:
+        outputfile (str): Name of the output file.
+        G (FDTDGrid): Parameters describing a grid in a model.
+    """
+
+    # Check for any receivers in subgrids
     sg_rxs = [True for sg in G.subgrids if sg.rxs]
+
+    # Create output file and write top-level meta data
+    if G.rxs or sg_rxs:
+        f = h5py.File(outputfile, 'w')
+        f.attrs['gprMax'] = __version__
+        f.attrs['Title'] = G.title
+
+    # Write meta data and data for main grid
+    if G.rxs:
+        write_grid(f, G)
+
+    # Write meta data and data for any subgrids
     if sg_rxs:
-        write_hdf5_sub_grid_outputfile(outputfile, G)
+        for sg in G.subgrids:
+            grp = f.create_group('/subgrids/' + sg.name)
+            write_grid(grp, sg, is_subgrid=True)
+
+    if G.rxs or sg_rxs:
+        log.info(f'Written output file: {outputfile.name}')
 
 
-def write_hdf5_main_grid_outputfile(outputfile, G):
-    """Write an output file in HDF5 format.
-
-    Args:
-        outputfile (str): Name of the output file.
-        G (FDTDGrid): Parameters describing a grid in a model.
-    """
-
-    write_data(outputfile, G)
-    log.info(f'Written output file: {outputfile.name}')
-
-
-def write_hdf5_sub_grid_outputfile(outputfile, G):
-    """Write an output file in HDF5 format.
+def write_grid(basegrp, G, is_subgrid=False):
+    """Write grid meta data and data to HDF5 group.
 
     Args:
-        outputfile (str): Name of the output file.
+        basegrp (dict): HDF5 group.
         G (FDTDGrid): Parameters describing a grid in a model.
+        is_subgrid (bool): Is grid instance the main grid or a subgrid.
     """
 
-    stem = outputfile.stem
-    suffix = outputfile.suffix
-    parent = outputfile.parent
-
-    for sg in G.subgrids:
-        # Create an outputfile for each subgrid
-        fp = stem + '_' + sg.name + suffix
-        fp = parent / Path(fp)
-
-        f = write_data(fp, sg)
-
-        # Write some additional meta data about the subgrid
-        f.attrs['is_os_sep'] = sg.is_os_sep
-        f.attrs['pml_separation'] = sg.pml_separation
-        f.attrs['subgrid_pml_thickness'] = sg.pmlthickness['x0']
-        f.attrs['filter'] = sg.filter
-        f.attrs['ratio'] = sg.ratio
-        f.attrs['interpolation'] = sg.interpolation
-
-        log.info(f'Written output file: {fp.name}')
-
-def write_data(outputfile, G):
-    """Write an output file in HDF5 format.
-
-    Args:
-        outputfile (str): Name of the output file.
-        G (FDTDGrid): Parameters describing a grid in a model.
-
-    Returns:
-        f (file object): File object.
-    """
-
-    f = h5py.File(outputfile, 'w')
-    f.attrs['gprMax'] = __version__
-    f.attrs['Title'] = G.title
-    f.attrs['Iterations'] = G.iterations
-    f.attrs['nx_ny_nz'] = (G.nx, G.ny, G.nz)
-    f.attrs['dx_dy_dz'] = (G.dx, G.dy, G.dz)
-    f.attrs['dt'] = G.dt
+    # Write meta data for grid
+    basegrp.attrs['Iterations'] = G.iterations
+    basegrp.attrs['nx_ny_nz'] = (G.nx, G.ny, G.nz)
+    basegrp.attrs['dx_dy_dz'] = (G.dx, G.dy, G.dz)
+    basegrp.attrs['dt'] = G.dt
     nsrc = len(G.voltagesources + G.hertziandipoles + G.magneticdipoles + G.transmissionlines)
-    f.attrs['nsrc'] = nsrc
-    f.attrs['nrx'] = len(G.rxs)
-    f.attrs['srcsteps'] = G.srcsteps
-    f.attrs['rxsteps'] = G.rxsteps
+    basegrp.attrs['nsrc'] = nsrc
+    basegrp.attrs['nrx'] = len(G.rxs)
+    basegrp.attrs['srcsteps'] = G.srcsteps
+    basegrp.attrs['rxsteps'] = G.rxsteps
+
+    if is_subgrid:
+        # Write additional meta data about subgrid
+        basegrp.attrs['is_os_sep'] = G.is_os_sep
+        basegrp.attrs['pml_separation'] = G.pml_separation
+        basegrp.attrs['subgrid_pml_thickness'] = G.pmlthickness['x0']
+        basegrp.attrs['filter'] = G.filter
+        basegrp.attrs['ratio'] = G.ratio
+        basegrp.attrs['interpolation'] = G.interpolation
 
     # Create group for sources (except transmission lines); add type and positional data attributes
     srclist = G.voltagesources + G.hertziandipoles + G.magneticdipoles
     for srcindex, src in enumerate(srclist):
-        grp = f.create_group('/srcs/src' + str(srcindex + 1))
+        grp = basegrp.create_group('srcs/src' + str(srcindex + 1))
         grp.attrs['Type'] = type(src).__name__
         grp.attrs['Position'] = (src.xcoord * G.dx, src.ycoord * G.dy, src.zcoord * G.dz)
 
     # Create group for transmission lines; add positional data, line resistance and
     # line discretisation attributes; write arrays for line voltages and currents
     for tlindex, tl in enumerate(G.transmissionlines):
-        grp = f.create_group('/tls/tl' + str(tlindex + 1))
+        grp = basegrp.create_group('tls/tl' + str(tlindex + 1))
         grp.attrs['Position'] = (tl.xcoord * G.dx, tl.ycoord * G.dy, tl.zcoord * G.dz)
         grp.attrs['Resistance'] = tl.resistance
         grp.attrs['dl'] = tl.dl
@@ -189,17 +176,15 @@ def write_data(outputfile, G):
         grp['Vinc'] = tl.Vinc
         grp['Iinc'] = tl.Iinc
         # Save total voltage and current
-        f['/tls/tl' + str(tlindex + 1) + '/Vtotal'] = tl.Vtotal
-        f['/tls/tl' + str(tlindex + 1) + '/Itotal'] = tl.Itotal
+        basegrp['tls/tl' + str(tlindex + 1) + '/Vtotal'] = tl.Vtotal
+        basegrp['tls/tl' + str(tlindex + 1) + '/Itotal'] = tl.Itotal
 
     # Create group, add positional data and write field component arrays for receivers
     for rxindex, rx in enumerate(G.rxs):
-        grp = f.create_group('/rxs/rx' + str(rxindex + 1))
+        grp = basegrp.create_group('rxs/rx' + str(rxindex + 1))
         if rx.ID:
             grp.attrs['Name'] = rx.ID
         grp.attrs['Position'] = (rx.xcoord * G.dx, rx.ycoord * G.dy, rx.zcoord * G.dz)
 
         for output in rx.outputs:
-            f['/rxs/rx' + str(rxindex + 1) + '/' + output] = rx.outputs[output]
-
-    return f
+            basegrp['rxs/rx' + str(rxindex + 1) + '/' + output] = rx.outputs[output]
