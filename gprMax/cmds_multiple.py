@@ -84,7 +84,6 @@ class Waveform(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 1
         self.hash = '#waveform'
 
     def create(self, grid, uip):
@@ -133,7 +132,6 @@ class VoltageSource(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 2
         self.hash = '#voltage_source'
 
     def create(self, grid, uip):
@@ -219,7 +217,6 @@ class HertzianDipole(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 3
         self.hash = '#hertzian_dipole'
 
     def create(self, grid, uip):
@@ -315,7 +312,6 @@ class MagneticDipole(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 4
         self.hash = '#magnetic_dipole'
 
     def create(self, grid, uip):
@@ -401,7 +397,6 @@ class TransmissionLine(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 5
         self.hash = '#transmission_line'
 
     def create(self, grid, uip):
@@ -490,7 +485,6 @@ class Rx(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 6
         self.hash = '#rx'
         self.constructor = RxUser
 
@@ -545,7 +539,6 @@ class RxArray(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 7
         self.hash = '#rx_array'
 
     def create(self, grid, uip):
@@ -618,7 +611,6 @@ class Snapshot(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 8
         self.hash = '#snapshot'
 
     def create(self, grid, uip):
@@ -685,7 +677,6 @@ class Material(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 9
         self.hash = '#material'
 
     def create(self, grid, uip):
@@ -745,7 +736,6 @@ class AddDebyeDispersion(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 10
         self.hash = '#add_dispersion_debye'
 
     def create(self, grid, uip):
@@ -809,7 +799,6 @@ class AddLorentzDispersion(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 11
         self.hash = '#add_dispersion_lorentz'
 
     def create(self, grid, uip):
@@ -872,7 +861,6 @@ class AddDrudeDispersion(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 12
         self.hash = '#add_dispersion_drude'
 
     def create(self, grid, uip):
@@ -937,7 +925,6 @@ class SoilPeplinski(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 13
         self.hash = '#soil_peplinski'
 
     def create(self, grid, uip):
@@ -994,7 +981,6 @@ class GeometryView(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 14
         self.hash = '#geometry_view'
         self.multi_grid = False
 
@@ -1073,7 +1059,6 @@ class GeometryObjectsWrite(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 15
         self.hash = '#geometry_objects_write'
 
     def create(self, grid, uip):
@@ -1129,7 +1114,6 @@ class PMLCFS(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 16
         self.hash = '#pml_cfs'
         PMLCFS.count += 1
         if PMLCFS.count == 2:
@@ -1193,7 +1177,8 @@ class PMLCFS(UserObjectMulti):
 
 
 class Subgrid(UserObjectMulti):
-
+    """
+    """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.children_multiple = []
@@ -1209,7 +1194,8 @@ class Subgrid(UserObjectMulti):
 
 
 class SubgridHSG(UserObjectMulti):
-
+    """
+    """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         log.debug('Is this required?')
