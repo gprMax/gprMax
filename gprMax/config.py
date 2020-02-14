@@ -229,15 +229,12 @@ class SimulationConfig:
         # Subgrid parameter may not exist if user enters via CLI
         try:
             self.general['subgrid'] = self.args.subgrid
+            # Double precision should be used with subgrid for best accuracy
+            self.general['precision'] = 'double'
+            if self.general['cuda']:
+                raise GeneralError('The CUDA-based solver cannot currently be used with models that contain sub-grids.')
         except AttributeError:
             self.general['subgrid'] = False
-
-        # Double precision should be used with subgrid for best accuracy
-        if self.general['subgrid']:
-            self.general['precision'] = 'double'
-
-        if self.general['subgrid'] and self.general['cuda']:
-            raise GeneralError('The CUDA-based solver cannot currently be used with models that contain sub-grids.')
 
         # Scenes parameter may not exist if user enters via CLI
         try:
