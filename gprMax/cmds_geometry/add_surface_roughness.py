@@ -51,7 +51,6 @@ class AddSurfaceRoughness(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 10
         self.hash = '#add_surface_roughness'
 
     def create(self, grid, uip):

@@ -42,7 +42,6 @@ class AddSurfaceWater(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 11
         self.hash = '#add_surface_water'
 
     def create(self, grid, uip):

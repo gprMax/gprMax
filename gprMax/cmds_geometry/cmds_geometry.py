@@ -26,12 +26,7 @@ class UserObjectGeometry:
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
-        # define the order of priority for calling create()
-        self.order = None
-        # hash command
         self.hash = '#example'
-
-        # auto translate
         self.autotranslate = True
 
     def __str__(self):

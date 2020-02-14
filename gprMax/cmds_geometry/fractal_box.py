@@ -53,7 +53,6 @@ class FractalBox(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 9
         self.hash = '#fractal_box'
 
     def create(self, grid, uip):

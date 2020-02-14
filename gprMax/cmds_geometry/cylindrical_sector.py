@@ -58,7 +58,6 @@ class CylindricalSector(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 7
         self.hash = '#cylindrical_sector'
 
     def create(self, grid, uip):

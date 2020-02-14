@@ -46,7 +46,6 @@ class Box(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 5
         self.hash = '#box'
 
     def create(self, grid, uip):

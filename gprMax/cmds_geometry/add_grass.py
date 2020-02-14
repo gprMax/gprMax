@@ -50,7 +50,6 @@ class AddGrass(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 12
         self.hash = '#add_grass'
 
     def create(self, grid, uip):

@@ -41,7 +41,6 @@ class Edge(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 2
         self.hash = '#edge'
 
     def create(self, grid, uip):
