@@ -47,7 +47,6 @@ class Cylinder(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 6
         self.hash = '#cylinder'
 
     def create(self, grid, uip):

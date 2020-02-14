@@ -46,7 +46,6 @@ class Sphere(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 8
         self.hash = '#sphere'
 
     def create(self, grid, uip):

@@ -35,7 +35,6 @@ class GeometryObjectsRead(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 1
         self.hash = '#geometry_objects_read'
 
     def create(self, G, uip):

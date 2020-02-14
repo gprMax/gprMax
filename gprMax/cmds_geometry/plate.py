@@ -43,7 +43,6 @@ class Plate(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 3
         self.hash = '#plate'
 
     def create(self, grid, uip):

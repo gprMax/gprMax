@@ -50,7 +50,6 @@ class Triangle(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 4
         self.hash = '#triangle'
 
     def create(self, grid, uip):

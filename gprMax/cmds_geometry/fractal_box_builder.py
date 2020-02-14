@@ -31,7 +31,6 @@ class FractalBoxBuilder(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 13
         self.hash = '#fractal_box_modifications'
 
     def create(self, grid, uip):
