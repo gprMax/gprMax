@@ -550,25 +550,25 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001, rotate90=False):
     # Excitation - Gaussian pulse
     print('#waveform: gaussian 1 {} myGaussian'.format(excitationfreq))
     if src_type == 'voltage_source':
-        print('#voltage_source: y {} {} {} {} myGaussian'.format(tx[0], tx[1], tx[2], sourceresistance))
+        voltage_source('y', tx[0], tx[1], tx[2], sourceresistance, 'myGaussian', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
     elif src_type == 'transmission_line':
-        print('#transmission_line: y {} {} {} {} myGaussian'.format(tx[0], tx[1], tx[2], sourceresistance))
+        transmission_line('y', tx[0], tx[1], tx[2], sourceresistance, 'myGaussian', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
 
     # Output point - receiver bowtie
     print('#waveform: gaussian 0 4e8 my_zero_src')
 
     if resolution == 0.001 or resolution == 0.0005:
         if src_type == 'transmission_line':
-            print('#transmission_line: y {} {} {} {} my_zero_src'.format(tx[0] + 0.16, tx[1], tx[2], receiverresistance))
+            transmission_line('y', tx[0] + 0.16, tx[1], tx[2], receiverresistance, 'my_zero_src', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
         elif src_type == 'voltage_source':
-            print('#voltage_source: y {} {} {} {} my_zero_src'.format(tx[0] + 0.16, tx[1], tx[2], receiverresistance))
-        print('#rx: {} {} {} {} {}'.format(tx[0] + 0.16, tx[1], tx[2], 'rx1', 'Ey'))
+            voltage_source('y', tx[0] + 0.16, tx[1], tx[2], receiverresistance, 'my_zero_src', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
+        rx(tx[0] + 0.16, tx[1], tx[2], identifier='rx1', to_save=[output], polarisation='y', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
 
     elif resolution == 0.002:
         if src_type == 'transmission_line':
-            print('#transmission_line: y {} {} {} {} my_zero_src'.format(tx[0] + 0.162, tx[1], tx[2], receiverresistance))
+            transmission_line('y', tx[0] + 0.162, tx[1], tx[2], receiverresistance, 'my_zero_src', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
         elif src_type == 'voltage_source':
-            print('#rx: {} {} {} {} {}'.format(tx[0] + 0.162, tx[1], tx[2], 'rx1', 'Ey'))
+            rx(tx[0] + 0.162, tx[1], tx[2], identifier='rx1', to_save=[output], polarisation='y', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
 
     # Geometry views
     # geometry_view(x - dx, y - dy, z - dz, x + casesize[0] + dx, y + casesize[1] + dy, z + skidthickness + casesize[2] + dz, dx, dy, dz, 'antenna_like_GSSI_400')
