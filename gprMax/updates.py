@@ -38,8 +38,6 @@ from .sources import htod_src_arrays
 from .utilities import round32
 from .utilities import timer
 
-log = logging.getLogger(__name__)
-
 
 class CPUUpdates:
     """Defines update functions for CPU-based solver."""

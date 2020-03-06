@@ -39,7 +39,7 @@ from .subgrids.base import SubGridBase
 from .utilities import round_value
 from .waveforms import Waveform as WaveformUser
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class UserObjectMulti:
@@ -84,6 +84,7 @@ class Waveform(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 1
         self.hash = '#waveform'
 
     def create(self, grid, uip):
@@ -108,7 +109,7 @@ class Waveform(UserObjectMulti):
         w.amp = amp
         w.freq = freq
 
-        log.info(f'Waveform {w.ID} of type {w.type} with maximum amplitude scaling {w.amp:g}, frequency {w.freq:g}Hz created.')
+        logger.info(f'Waveform {w.ID} of type {w.type} with maximum amplitude scaling {w.amp:g}, frequency {w.freq:g}Hz created.')
 
         grid.waveforms.append(w)
 
@@ -132,6 +133,7 @@ class VoltageSource(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 2
         self.hash = '#voltage_source'
 
     def create(self, grid, uip):
@@ -194,7 +196,7 @@ class VoltageSource(UserObjectMulti):
 
         v.calculate_waveform_values(grid)
 
-        log.info(f'Voltage source with polarity {v.polarisation} at {v.xcoord * grid.dx:g}m, {v.ycoord * grid.dy:g}m, {v.zcoord * grid.dz:g}m, resistance {v.resistance:.1f} Ohms,' + startstop + f'using waveform {v.waveformID} created.')
+        logger.info(f'Voltage source with polarity {v.polarisation} at {v.xcoord * grid.dx:g}m, {v.ycoord * grid.dy:g}m, {v.zcoord * grid.dz:g}m, resistance {v.resistance:.1f} Ohms,' + startstop + f'using waveform {v.waveformID} created.')
 
         grid.voltagesources.append(v)
 
@@ -217,6 +219,7 @@ class HertzianDipole(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 3
         self.hash = '#hertzian_dipole'
 
     def create(self, grid, uip):
@@ -287,9 +290,9 @@ class HertzianDipole(UserObjectMulti):
         h.calculate_waveform_values(grid)
 
         if grid.mode == '2D':
-            log.info(f'Hertzian dipole is a line source in 2D with polarity {h.polarisation} at {h.xcoord * grid.dx:g}m, {h.ycoord * grid.dy:g}m, {h.zcoord * grid.dz:g}m,' + startstop + f'using waveform {h.waveformID} created.')
+            logger.info(f'Hertzian dipole is a line source in 2D with polarity {h.polarisation} at {h.xcoord * grid.dx:g}m, {h.ycoord * grid.dy:g}m, {h.zcoord * grid.dz:g}m,' + startstop + f'using waveform {h.waveformID} created.')
         else:
-            log.info(f'Hertzian dipole with polarity {h.polarisation} at {h.xcoord * grid.dx:g}m, {h.ycoord * grid.dy:g}m, {h.zcoord * grid.dz:g}m,' + startstop + f'using waveform {h.waveformID} created.')
+            logger.info(f'Hertzian dipole with polarity {h.polarisation} at {h.xcoord * grid.dx:g}m, {h.ycoord * grid.dy:g}m, {h.zcoord * grid.dz:g}m,' + startstop + f'using waveform {h.waveformID} created.')
 
         grid.hertziandipoles.append(h)
 
@@ -312,6 +315,7 @@ class MagneticDipole(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 4
         self.hash = '#magnetic_dipole'
 
     def create(self, grid, uip):
@@ -372,7 +376,7 @@ class MagneticDipole(UserObjectMulti):
 
         m.calculate_waveform_values(grid)
 
-        log.info(f'Magnetic dipole with polarity {m.polarisation} at {m.xcoord * grid.dx:g}m, {m.ycoord * grid.dy:g}m, {m.zcoord * grid.dz:g}m,' + startstop + f'using waveform {m.waveformID} created.')
+        logger.info(f'Magnetic dipole with polarity {m.polarisation} at {m.xcoord * grid.dx:g}m, {m.ycoord * grid.dy:g}m, {m.zcoord * grid.dz:g}m,' + startstop + f'using waveform {m.waveformID} created.')
 
         grid.magneticdipoles.append(m)
 
@@ -397,6 +401,7 @@ class TransmissionLine(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 5
         self.hash = '#transmission_line'
 
     def create(self, grid, uip):
@@ -464,7 +469,7 @@ class TransmissionLine(UserObjectMulti):
         t.calculate_waveform_values(grid)
         t.calculate_incident_V_I(grid)
 
-        log.info(f'Transmission line with polarity {t.polarisation} at {t.xcoord * grid.dx:g}m, {t.ycoord * grid.dy:g}m, {t.zcoord * grid.dz:g}m, resistance {t.resistance:.1f} Ohms,' + startstop + f'using waveform {t.waveformID} created.')
+        logger.info(f'Transmission line with polarity {t.polarisation} at {t.xcoord * grid.dx:g}m, {t.ycoord * grid.dy:g}m, {t.zcoord * grid.dz:g}m, resistance {t.resistance:.1f} Ohms,' + startstop + f'using waveform {t.waveformID} created.')
 
         grid.transmissionlines.append(t)
 
@@ -485,6 +490,7 @@ class Rx(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 6
         self.hash = '#rx'
         self.constructor = RxUser
 
@@ -492,7 +498,7 @@ class Rx(UserObjectMulti):
         try:
             p1 = self.kwargs['p1']
         except KeyError:
-            log.exception(f'KeyError with {self.params_str()}')
+            logger.exception(f'KeyError with {self.params_str()}')
 
         p = uip.check_src_rx_point(p1, self.params_str())
 
@@ -519,7 +525,7 @@ class Rx(UserObjectMulti):
                 else:
                     raise CmdInputError(f"'{self.params_str()}' contains an output type that is not allowable. Allowable outputs in current context are {allowableoutputs}")
 
-        log.info(f"Receiver at {r.xcoord * grid.dx:g}m, {r.ycoord * grid.dy:g}m, {r.zcoord * grid.dz:g}m with output component(s) {', '.join(r.outputs)} created.")
+        logger.info(f"Receiver at {r.xcoord * grid.dx:g}m, {r.ycoord * grid.dy:g}m, {r.zcoord * grid.dz:g}m with output component(s) {', '.join(r.outputs)} created.")
 
         grid.rxs.append(r)
 
@@ -539,6 +545,7 @@ class RxArray(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 7
         self.hash = '#rx_array'
 
     def create(self, grid, uip):
@@ -573,7 +580,7 @@ class RxArray(UserObjectMulti):
             else:
                 raise CmdInputError(f"'{self.params_str()}' the step size should not be less than the spatial discretisation")
 
-        log.info(f'Receiver array {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with steps {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m')
+        logger.info(f'Receiver array {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with steps {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m')
 
         for x in range(xs, xf + 1, dx):
             for y in range(ys, yf + 1, dy):
@@ -588,7 +595,7 @@ class RxArray(UserObjectMulti):
                     r.ID = r.__class__.__name__ + '(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
                     for key in RxUser.defaultoutputs:
                         r.outputs[key] = np.zeros(grid.iterations, dtype=config.dtypes['float_or_double'])
-                    log.info(f"  Receiver at {r.xcoord * grid.dx:g}m, {r.ycoord * grid.dy:g}m, {r.zcoord * grid.dz:g}m with output component(s) {', '.join(r.outputs)} created.")
+                    logger.info(f"  Receiver at {r.xcoord * grid.dx:g}m, {r.ycoord * grid.dy:g}m, {r.zcoord * grid.dz:g}m with output component(s) {', '.join(r.outputs)} created.")
                     grid.rxs.append(r)
 
 
@@ -611,6 +618,7 @@ class Snapshot(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 8
         self.hash = '#snapshot'
 
     def create(self, grid, uip):
@@ -657,7 +665,7 @@ class Snapshot(UserObjectMulti):
         #else:
         s = SnapshotUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, iterations, filename)
 
-        log.info(f'Snapshot from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, at {s.time * grid.dt:g} secs with filename {s.filename} created.')
+        logger.info(f'Snapshot from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, at {s.time * grid.dt:g} secs with filename {s.filename} created.')
 
         grid.snapshots.append(s)
 
@@ -677,6 +685,7 @@ class Material(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 9
         self.hash = '#material'
 
     def create(self, grid, uip):
@@ -715,7 +724,7 @@ class Material(UserObjectMulti):
         if m.se == float('inf'):
             m.averagable = False
 
-        log.info(f'Material {m.ID} with eps_r={m.er:g}, sigma={m.se:g} S/m; mu_r={m.mr:g}, sigma*={m.sm:g} Ohm/m created.')
+        logger.info(f'Material {m.ID} with eps_r={m.er:g}, sigma={m.se:g} S/m; mu_r={m.mr:g}, sigma*={m.sm:g} Ohm/m created.')
 
         # Append the new material object to the materials list
         grid.materials.append(m)
@@ -736,6 +745,7 @@ class AddDebyeDispersion(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 10
         self.hash = '#add_dispersion_debye'
 
     def create(self, grid, uip):
@@ -768,7 +778,7 @@ class AddDebyeDispersion(UserObjectMulti):
             disp_material.averagable = False
             for i in range(0, poles):
                 if tau[i] > 0:
-                    log.debug('Not checking if relaxation times are greater than time-step')
+                    logger.debug('Not checking if relaxation times are greater than time-step')
                     disp_material.deltaer.append(er_delta[i])
                     disp_material.tau.append(tau[i])
                 else:
@@ -779,7 +789,7 @@ class AddDebyeDispersion(UserObjectMulti):
             # Replace original material with newly created DispersiveMaterial
             grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
 
-            log.info(f"Debye disperion added to {disp_material.ID} with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, and tau={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs created.")
+            logger.info(f"Debye disperion added to {disp_material.ID} with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, and tau={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs created.")
 
 
 class AddLorentzDispersion(UserObjectMulti):
@@ -799,6 +809,7 @@ class AddLorentzDispersion(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 11
         self.hash = '#add_dispersion_lorentz'
 
     def create(self, grid, uip):
@@ -843,7 +854,7 @@ class AddLorentzDispersion(UserObjectMulti):
             # Replace original material with newly created DispersiveMaterial
             grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
 
-            log.info(f"Lorentz disperion added to {disp_material.ID} with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, omega={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs, and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} created.")
+            logger.info(f"Lorentz disperion added to {disp_material.ID} with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, omega={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs, and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} created.")
 
 
 class AddDrudeDispersion(UserObjectMulti):
@@ -861,6 +872,7 @@ class AddDrudeDispersion(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 12
         self.hash = '#add_dispersion_drude'
 
     def create(self, grid, uip):
@@ -903,7 +915,7 @@ class AddDrudeDispersion(UserObjectMulti):
             # Replace original material with newly created DispersiveMaterial
             grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
 
-            log.info(f"Drude disperion added to {disp_material.ID} with omega={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs, and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} secs created.")
+            logger.info(f"Drude disperion added to {disp_material.ID} with omega={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs, and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} secs created.")
 
 
 class SoilPeplinski(UserObjectMulti):
@@ -925,6 +937,7 @@ class SoilPeplinski(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 13
         self.hash = '#soil_peplinski'
 
     def create(self, grid, uip):
@@ -957,7 +970,7 @@ class SoilPeplinski(UserObjectMulti):
         # Create a new instance of the Material class material (start index after pec & free_space)
         s = PeplinskiSoilUser(ID, sand_fraction, clay_fraction, bulk_density, sand_density, (water_fraction_lower, water_fraction_upper))
 
-        log.info(f'Mixing model (Peplinski) used to create {s.ID} with sand fraction {s.S:g}, clay fraction {s.C:g}, bulk density {s.rb:g}g/cm3, sand particle density {s.rs:g}g/cm3, and water volumetric fraction {s.mu[0]:g} to {s.mu[1]:g} created.')
+        logger.info(f'Mixing model (Peplinski) used to create {s.ID} with sand fraction {s.S:g}, clay fraction {s.C:g}, bulk density {s.rb:g}g/cm3, sand particle density {s.rs:g}g/cm3, and water volumetric fraction {s.mu[0]:g} to {s.mu[1]:g} created.')
 
         # Append the new material object to the materials list
         grid.mixingmodels.append(s)
@@ -981,6 +994,7 @@ class GeometryView(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 14
         self.hash = '#geometry_view'
         self.multi_grid = False
 
@@ -1039,7 +1053,7 @@ class GeometryView(UserObjectMulti):
 
         g = GeometryViewUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, fileext, grid)
 
-        log.info(f'Geometry view from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, multi_grid={self.multi_grid}, grid={grid.name}, with filename base {g.filename} created.')
+        logger.info(f'Geometry view from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, multi_grid={self.multi_grid}, grid={grid.name}, with filename base {g.filename} created.')
 
         # Append the new GeometryView object to the geometry views list
         grid.geometryviews.append(g)
@@ -1059,6 +1073,7 @@ class GeometryObjectsWrite(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 15
         self.hash = '#geometry_objects_write'
 
     def create(self, grid, uip):
@@ -1075,7 +1090,7 @@ class GeometryObjectsWrite(UserObjectMulti):
 
         g = GeometryObjectsUser(x0, y0, z0, x1, y1, z1, filename)
 
-        log.info(f'Geometry objects in the volume from {p1[0] * grid.dx:g}m, {p1[1] * grid.dy:g}m, {p1[2] * grid.dz:g}m, to {p2[0] * grid.dx:g}m, {p2[1] * grid.dy:g}m, {p2[2] * grid.dz:g}m, will be written to {g.filename}, with materials written to {g.materialsfilename}')
+        logger.info(f'Geometry objects in the volume from {p1[0] * grid.dx:g}m, {p1[1] * grid.dy:g}m, {p1[2] * grid.dz:g}m, to {p2[0] * grid.dx:g}m, {p2[1] * grid.dy:g}m, {p2[2] * grid.dz:g}m, will be written to {g.filename}, with materials written to {g.materialsfilename}')
 
         # Append the new GeometryView object to the geometry objects to write list
         grid.geometryobjectswrite.append(g)
@@ -1114,6 +1129,7 @@ class PMLCFS(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.order = 16
         self.hash = '#pml_cfs'
         PMLCFS.count += 1
         if PMLCFS.count == 2:
@@ -1171,7 +1187,7 @@ class PMLCFS(UserObjectMulti):
         cfs.kappa = cfskappa
         cfs.sigma = cfssigma
 
-        log.info(f'PML CFS parameters: alpha (scaling: {cfsalpha.scalingprofile}, scaling direction: {cfsalpha.scalingdirection}, min: {cfsalpha.min:g}, max: {cfsalpha.max:g}), kappa (scaling: {cfskappa.scalingprofile}, scaling direction: {cfskappa.scalingdirection}, min: {cfskappa.min:g}, max: {cfskappa.max:g}), sigma (scaling: {cfssigma.scalingprofile}, scaling direction: {cfssigma.scalingdirection}, min: {cfssigma.min:g}, max: {cfssigma.max:g}) created.')
+        logger.info(f'PML CFS parameters: alpha (scaling: {cfsalpha.scalingprofile}, scaling direction: {cfsalpha.scalingdirection}, min: {cfsalpha.min:g}, max: {cfsalpha.max:g}), kappa (scaling: {cfskappa.scalingprofile}, scaling direction: {cfskappa.scalingdirection}, min: {cfskappa.min:g}, max: {cfskappa.max:g}), sigma (scaling: {cfssigma.scalingprofile}, scaling direction: {cfssigma.scalingdirection}, min: {cfssigma.min:g}, max: {cfssigma.max:g}) created.')
 
         grid.cfs.append(cfs)
 
@@ -1198,4 +1214,4 @@ class SubgridHSG(UserObjectMulti):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        log.debug('Is this required?')
+        logger.debug('Is this required?')

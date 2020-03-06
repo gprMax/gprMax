@@ -31,7 +31,7 @@ from .cython.geometry_outputs import define_normal_geometry
 from .cython.geometry_outputs import define_fine_geometry
 from .utilities import round_value
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class GeometryView:
@@ -482,7 +482,7 @@ class GeometryViewFineMultiGrid:
             f.write('</Piece>\n</PolyData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
 
             # Write points
-            log.info('\nWriting points main grid')
+            logger.info('\nWriting points main grid')
             datasize = np.dtype(np.float32).itemsize * self.vtk_numpoints * self.vtk_numpoint_components
             f.write(pack('I', datasize))
             for i in range(0, G.nx + 1):
@@ -491,7 +491,7 @@ class GeometryViewFineMultiGrid:
                         f.write(pack('fff', i * G.dx, j * G.dy, k * G.dz))
 
             for sg_v in self.sg_views:
-                log.info('Writing points subgrid')
+                logger.info('Writing points subgrid')
                 sg_v.write_points(f, G)
 
             n_x_lines = self.nx * (self.ny + 1) * (self.nz + 1)
@@ -506,7 +506,7 @@ class GeometryViewFineMultiGrid:
             z_lines = np.zeros((n_z_lines, 2), dtype=np.uint32)
             z_materials = np.zeros((n_z_lines), dtype=np.uint32)
 
-            log.info('Calculate connectivity main grid')
+            logger.info('Calculate connectivity main grid')
             label = 0
             counter_x = 0
             counter_y = 0
@@ -538,7 +538,7 @@ class GeometryViewFineMultiGrid:
 
                         label = label + 1
 
-            log.info('Calculate connectivity subgrids')
+            logger.info('Calculate connectivity subgrids')
             for sg_v in self.sg_views:
                 sg_v.populate_connectivity_and_materials(label)
                 # use the last subgrids label for the next view

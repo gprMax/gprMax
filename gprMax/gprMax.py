@@ -21,11 +21,9 @@ import logging
 
 from .config_parser import write_simulation_config
 from .contexts import create_context
+from .utilities import setup_logging
 
-# Configure logging
-log = logging.getLogger(__name__)
-# logging.basicConfig(level=logging.DEBUG, format='%(module)s %(lineno)d %(message)s')
-logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger(__name__)
 
 
 def run(
@@ -36,8 +34,6 @@ def run(
     task=None,
     restart=None,
     mpi=False,
-    mpi_no_spawn=False,
-    mpicomm=None,
     gpu=None,
     subgrid=None,
     autotranslate=False,
@@ -45,7 +41,7 @@ def run(
     geometry_fixed=False,
     write_processed=False,
 ):
-    """This is the main function for gprMax when entering as application
+    """This is the main function for gprMax when entering using application
         programming interface (API). Run the simulation for the
         given list of scenes.
 
@@ -75,13 +71,13 @@ def run(
                     from A-scan 45 when creating a B-scan with 60 traces.
     :type restart: int, optional
 
-    :param mpi: number of Message Passing Interface (MPI) tasks,
-                i.e. master + workers, for MPI task farm. This option is most
-                usefully combined with n to allow individual models to be farmed
-                out using a MPI task farm, e.g. to create a B-scan with 60 traces
-                and use MPI to farm out each trace1. For further details see the
-                parallel performance section of the User Guide.
-    :type mpi: int, optional
+    :param mpi: flag to use Message Passing Interface (MPI) task farm. This
+                option is most usefully combined with n to allow individual
+                models to be farmed out using a MPI task farm, e.g. to create a
+                B-scan with 60 traces and use MPI to farm out each trace.
+                For further details see the parallel performance section of the
+                User Guide.
+    :type mpi: bool, optional
 
     :param gpu: flag to use NVIDIA GPU or list of NVIDIA GPU device ID(s) for
                 specific GPU card(s).
@@ -122,7 +118,6 @@ def run(
     args.task = task
     args.restart = restart
     args.mpi = mpi
-    args.mpicomm = mpicomm
     args.gpu = gpu
     args.subgrid = subgrid
     args.autotranslate = autotranslate
@@ -133,29 +128,47 @@ def run(
     try:
         run_main(args)
     except Exception:
-        log.exception('Error from main API function', exc_info=True)
+        logger.exception('Error from main API function', exc_info=True)
 
 
 def main():
-    """Main function for gprMax when entering from the command line interface (CLI)."""
+    """Main function for gprMax when entering using the command line interface (CLI)."""
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(prog='gprMax', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('inputfile', help='path to, and name of inputfile or file object')
-    parser.add_argument('-n', default=1, type=int, help='number of times to run the input file, e.g. to create a B-scan')
-    parser.add_argument('-task', type=int, help='task identifier (model number) for job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)')
-    parser.add_argument('-restart', type=int, help='model number to restart from, e.g. when creating B-scan')
-    parser.add_argument('-mpi', type=int, help='number of MPI tasks, i.e. master + workers')
-    parser.add_argument('-gpu', type=int, action='append', nargs='*', help='flag to use Nvidia GPU or option to give list of device ID(s)')
-    parser.add_argument('--geometry-only', action='store_true', default=False, help='flag to only build model and produce geometry file(s)')
-    parser.add_argument('--geometry-fixed', action='store_true', default=False, help='flag to not reprocess model geometry, e.g. for B-scans where the geometry is fixed')
-    parser.add_argument('--write-processed', action='store_true', default=False, help='flag to write an input file after any Python code and include commands in the original input file have been processed')
+    parser.add_argument('inputfile',
+                        help='relative or absolute path to inputfile')
+    parser.add_argument('-n', default=1, type=int,
+                        help='number of times to run the input file, e.g. to create a B-scan')
+    parser.add_argument('-task', type=int,
+                        help='task identifier (model number) for job array on '
+                        'Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)')
+    parser.add_argument('-r', '--restart', type=int,
+                        help='model number to restart from, e.g. when creating B-scan')
+    parser.add_argument('-mpi', action='store_true', default=False,
+                        help='flag to enable MPI task farming')
+    parser.add_argument('-gpu', type=int, action='append', nargs='*',
+                        help='flag to use Nvidia GPU or option to give list of device ID(s)')
+    parser.add_argument('--geometry-only', action='store_true', default=False,
+                        help='flag to only build model and produce geometry file(s)')
+    parser.add_argument('--geometry-fixed', action='store_true', default=False,
+                        help='flag to not reprocess model geometry, e.g. for B-scans where the geometry is fixed')
+    parser.add_argument('--write-processed', action='store_true', default=False,
+                        help='flag to write an input file after any Python code and include commands '
+                        'in the original input file have been processed')
+    parser.add_argument('-l', '--logfile', action='store_true', default=False,
+                        help='flag to enable writing to a log file')
+    parser.add_argument('-v', '--verbose', action='store_true', default=False,
+                        help="flag to increase output")
     args = parser.parse_args()
+
+    setup_logging()
 
     try:
         run_main(args)
     except Exception:
-        log.exception('Error from main CLI function', exc_info=True)
+        logger.exception('Error from main CLI function', exc_info=True)
+
 
 def run_main(args):
     """Called by either run (API) or main (CLI).

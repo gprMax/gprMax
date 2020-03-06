@@ -50,7 +50,7 @@ from .utilities import human_size
 from .utilities import mem_check_all
 from .utilities import set_omp_threads
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class ModelBuildRun:
@@ -78,7 +78,7 @@ class ModelBuildRun:
         # Normal model reading/building process; bypassed if geometry information to be reused
         self.build_geometry() if not config.get_model_config().reuse_geometry else self.reuse_geometry()
 
-        log.info(f'\nOutput directory: {config.get_model_config().output_file_path.parent.resolve()}')
+        logger.info(f'\nOutput directory: {config.get_model_config().output_file_path.parent.resolve()}')
 
         # Adjust position of simple sources and receivers if required
         if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
@@ -110,9 +110,9 @@ class ModelBuildRun:
 
         # Write files for any geometry views and geometry object outputs
         if not (G.geometryviews or G.geometryobjectswrite) and config.sim_config.args.geometry_only:
-            log.warning(Fore.RED + f'\nNo geometry views or geometry objects found.' + Style.RESET_ALL)
+            logger.warning(Fore.RED + f'\nNo geometry views or geometry objects found.' + Style.RESET_ALL)
         for i, geometryview in enumerate(G.geometryviews):
-            log.info('')
+            logger.info('')
             geometryview.set_filename()
             pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True,
                         desc=f'Writing geometry view file {i + 1}/{len(G.geometryviews)}, {geometryview.filename.name}',
@@ -121,7 +121,7 @@ class ModelBuildRun:
             geometryview.write_vtk(G, pbar)
             pbar.close()
         for i, geometryobject in enumerate(G.geometryobjectswrite):
-            log.info('')
+            logger.info('')
             pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True,
                         desc=f'Writing geometry object file {i + 1}/{len(G.geometryobjectswrite)}, {geometryobject.filename.name}',
                         ncols=get_terminal_width() - 1, file=sys.stdout,
@@ -132,13 +132,13 @@ class ModelBuildRun:
     def build_geometry(self):
         G = self.G
 
-        log.info(config.get_model_config().inputfilestr)
+        logger.info(config.get_model_config().inputfilestr)
 
         scene = self.build_scene()
 
         # Print info on any subgrids
         for grid in G.subgrids:
-            log.info(grid)
+            logger.info(grid)
 
         # Combine available grids
         grids = [G] + G.subgrids
@@ -154,12 +154,12 @@ class ModelBuildRun:
 
         # Check memory requirements
         total_mem, mem_strs = mem_check_all(grids)
-        log.info(f'\nMemory required: {" + ".join(mem_strs)} + ~{human_size(config.get_model_config().mem_overhead)} overhead = {human_size(total_mem)}')
+        logger.info(f'\nMemory required: {" + ".join(mem_strs)} + ~{human_size(config.get_model_config().mem_overhead)} overhead = {human_size(total_mem)}')
 
         # Build grids
         gridbuilders = [GridBuilder(grid) for grid in grids]
         for gb in gridbuilders:
-            log.info(print_pml_info(gb.grid))
+            logger.info(print_pml_info(gb.grid))
             if not all(value == 0 for value in gb.grid.pmlthickness.values()):
                 gb.build_pmls()
             gb.build_components()
@@ -175,21 +175,21 @@ class ModelBuildRun:
             # Check to see if numerical dispersion might be a problem
             results = dispersion_analysis(gb.grid)
             if results['error']:
-                log.warning(Fore.RED + f"\nNumerical dispersion analysis [{gb.grid.name}] not carried out as {results['error']}" + Style.RESET_ALL)
+                logger.warning(Fore.RED + f"\nNumerical dispersion analysis [{gb.grid.name}] not carried out as {results['error']}" + Style.RESET_ALL)
             elif results['N'] < config.get_model_config().numdispersion['mingridsampling']:
                 raise GeneralError(f"\nNon-physical wave propagation in [{gb.grid.name}] detected. Material '{results['material'].ID}' has wavelength sampled by {results['N']} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
             elif (results['deltavp'] and np.abs(results['deltavp']) >
                   config.get_model_config().numdispersion['maxnumericaldisp']):
-                log.warning(Fore.RED + f"\n[{gb.grid.name}] has potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz" + Style.RESET_ALL)
+                logger.warning(Fore.RED + f"\n[{gb.grid.name}] has potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz" + Style.RESET_ALL)
             elif results['deltavp']:
-                log.info(f"\nNumerical dispersion analysis [{gb.grid.name}]: estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
+                logger.info(f"\nNumerical dispersion analysis [{gb.grid.name}]: estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
 
     def reuse_geometry(self):
         # Reset iteration number
         self.G.iteration = 0
         s = f'\n--- Model {config.get_model_config().appendmodelnumber}/{config.sim_config.model_end}, input file (not re-processed, i.e. geometry fixed): {config.sim_config.input_file_path}'
         config.get_model_config().inputfilestr = Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
-        log.info(config.get_model_config().inputfilestr)
+        logger.info(config.get_model_config().inputfilestr)
         for grid in [self.G] + self.G.subgrids:
             grid.reset_fields()
 
@@ -223,7 +223,7 @@ class ModelBuildRun:
             snapshotdir = config.get_model_config().snapshot_file_path
             snapshotdir.mkdir(exist_ok=True)
 
-            log.info('')
+            logger.info('')
             for i, snap in enumerate(self.G.snapshots):
                 fn = snapshotdir / Path(snap.filename)
                 snap.filename = fn.with_suffix('.vti')
@@ -231,7 +231,7 @@ class ModelBuildRun:
                             unit_scale=True, desc=f'Writing snapshot file {i + 1} of {len(self.G.snapshots)}, {snap.filename.name}', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
                 snap.write_vtk_imagedata(pbar, self.G)
                 pbar.close()
-            log.info('')
+            logger.info('')
 
     def print_resource_info(self, tsolve, memsolve):
         """Print resource information on runtime and memory usage.
@@ -245,8 +245,8 @@ class ModelBuildRun:
         if config.sim_config.general['cuda']:
             mem_str = f' host + ~{human_size(memsolve)} GPU'
 
-        log.info(f'\nMemory used: ~{human_size(self.p.memory_full_info().uss)}{mem_str}')
-        log.info(f'Solving time [HH:MM:SS]: {datetime.timedelta(seconds=tsolve)}')
+        logger.info(f'\nMemory used: ~{human_size(self.p.memory_full_info().uss)}{mem_str}')
+        logger.info(f'Solving time [HH:MM:SS]: {datetime.timedelta(seconds=tsolve)}')
 
     def solve(self, solver):
         """Solve using FDTD method.
@@ -260,15 +260,15 @@ class ModelBuildRun:
 
         # Check number of OpenMP threads
         if config.sim_config.general['cpu']:
-            log.info(f'CPU (OpenMP) threads for solving: {config.get_model_config().ompthreads}\n')
+            logger.info(f'CPU (OpenMP) threads for solving: {config.get_model_config().ompthreads}\n')
             if config.get_model_config().ompthreads > config.sim_config.hostinfo['physicalcores']:
-                log.warning(Fore.RED + f"You have specified more threads ({config.get_model_config().ompthreads}) than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). This may lead to degraded performance." + Style.RESET_ALL)
+                logger.warning(Fore.RED + f"You have specified more threads ({config.get_model_config().ompthreads}) than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). This may lead to degraded performance." + Style.RESET_ALL)
         # Print information about any GPU in use
         elif config.sim_config.general['cuda']:
-            log.info(f"GPU for solving: {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name}\n")
+            logger.info(f"GPU for solving: {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name}\n")
 
         # Prepare iterator
-        if config.sim_config.is_messages():
+        if config.sim_config.general['progressbars']:
             iterator = tqdm(range(self.G.iterations), desc=f'Running model {config.model_num + 1}/{config.sim_config.model_end}', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
         else:
             iterator = range(self.G.iterations)
@@ -303,7 +303,7 @@ class GridBuilder:
     def build_components(self):
         # Build the model, i.e. set the material properties (ID) for every edge
         # of every Yee cell
-        log.info('')
+        logger.info('')
         pbar = tqdm(total=2, desc=f'Building Yee cells [{self.grid.name}]',
                     ncols=get_terminal_width() - 1, file=sys.stdout,
                     disable=not config.sim_config.general['progressbars'])
@@ -335,5 +335,5 @@ class GridBuilder:
         materialstable.outer_border = False
         materialstable.justify_columns[0] = 'right'
 
-        log.info(f'\nMaterials [{self.grid.name}]:')
-        log.info(materialstable.table)
+        logger.info(f'\nMaterials [{self.grid.name}]:')
+        logger.info(materialstable.table)

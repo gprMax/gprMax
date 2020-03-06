@@ -26,7 +26,7 @@ from ..cython.geometry_primitives import build_sphere
 from ..exceptions import CmdInputError
 from ..materials import Material
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Sphere(UserObjectGeometry):
@@ -115,4 +115,4 @@ class Sphere(UserObjectGeometry):
         build_sphere(xc, yc, zc, r, grid.dx, grid.dy, grid.dz, numID, numIDx, numIDy, numIDz, averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
 
         dielectricsmoothing = 'on' if averaging else 'off'
-        log.info(f"Sphere with centre {xc * grid.dx:g}m, {yc * grid.dy:g}m, {zc * grid.dz:g}m, radius {r:g}m, of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")
+        logger.info(f"Sphere with centre {xc * grid.dx:g}m, {yc * grid.dy:g}m, {zc * grid.dz:g}m, radius {r:g}m, of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")

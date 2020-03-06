@@ -50,9 +50,32 @@ class Context:
         if config.sim_config.general['cuda']:
             self.print_gpu_info()
         self.tsimstart = timer()
+        # Clear list of model configs. It can be retained when gprMax is
+        # called in a loop, and want to avoid this.
+        config.model_configs = []
         self._run()
         self.tsimend = timer()
         self.print_time_report()
+
+    def _run_model(self, i):
+        """Process for running a single model."""
+
+        config.model_num = i
+        write_model_config()
+
+        # Always create a grid for the first model. The next model to run
+        # only gets a new grid if the geometry is not re-used.
+        if i != 0 and config.sim_config.args.geometry_fixed:
+            config.get_model_config().reuse_geometry = True
+        else:
+            G = create_G()
+
+        model = ModelBuildRun(G)
+        model.build()
+        solver = create_solver(G)
+
+        if not config.sim_config.args.geometry_only:
+            model.solve(solver)
 
     def print_logo_copyright(self):
         """Print gprMax logo, version, and copyright/licencing information."""
@@ -82,29 +105,9 @@ class NoMPIContext(Context):
     """
 
     def _run(self):
-        """Specialise how the models are farmed out."""
-
-        # Clear list of model configs. It can be retained with gprMax is
-        # called in a loop, and want to avoid this.
-        config.model_configs = []
-
+        """Specialise how models are run."""
         for i in self.model_range:
-            config.model_num = i
-            write_model_config()
-
-            # Always create a grid for the first model. The next model to run
-            # only gets a new grid if the geometry is not re-used.
-            if i != 0 and config.sim_config.args.geometry_fixed:
-                config.get_model_config().reuse_geometry = True
-            else:
-                G = create_G()
-
-            model = ModelBuildRun(G)
-            model.build()
-            solver = create_solver(G)
-
-            if not config.sim_config.args.geometry_only:
-                model.solve(solver)
+            self._run_model(i)
 
 
 class MPIContext(Context):
@@ -116,9 +119,27 @@ class MPIContext(Context):
     def __init__(self):
         super().__init__()
         from mpi4py import MPI
+        from gprMax.mpi import MPIExecutor
+
+        self.comm = MPI.COMM_WORLD
+        self.rank = self.comm.rank
+        self.MPIExecutor = MPIExecutor
 
     def _run(self):
-        pass
+        """Specialise how the models are run."""
+
+        # compile jobs
+        jobs = []
+        for i in range(config.sim_config.args.n):
+            jobs.append({'i': i})
+
+        # Execute jobs
+        log.info(f'Starting execution of {config.sim_config.args.n} gprMax model runs.')
+        with self.MPIExecutor(self._run_model, comm=self.comm) as executor:
+            if executor is not None:
+                results = executor.submit(jobs)
+                log.info('Results: %s' % str(results))
+        log.info('Finished.')
 
 
 def create_context():

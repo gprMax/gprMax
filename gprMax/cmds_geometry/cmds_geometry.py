@@ -18,7 +18,7 @@
 
 import logging
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class UserObjectGeometry:
@@ -45,4 +45,4 @@ class UserObjectGeometry:
 
     def create(self, grid, uip):
         """Create the object and add it to the grid."""
-        log.debug('This method is incomplete')
+        logger.debug('This method is incomplete')

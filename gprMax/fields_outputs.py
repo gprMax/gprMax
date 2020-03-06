@@ -24,7 +24,7 @@ import h5py
 
 from ._version import __version__
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def store_outputs(G):
@@ -126,7 +126,7 @@ def write_hdf5_outputfile(outputfile, G):
             write_grid(grp, sg, is_subgrid=True)
 
     if G.rxs or sg_rxs:
-        log.info(f'Written output file: {outputfile.name}')
+        logger.info(f'Written output file: {outputfile.name}')
 
 
 def write_grid(basegrp, G, is_subgrid=False):

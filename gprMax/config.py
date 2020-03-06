@@ -35,8 +35,7 @@ from .utilities import detect_check_gpus
 from .utilities import get_host_info
 from .utilities import get_terminal_width
 
-log = logging.getLogger(__name__)
-
+logger = logging.getLogger(__name__)
 
 # Single instance of SimConfig to hold simulation configuration parameters.
 sim_config = None
@@ -185,12 +184,12 @@ class SimulationConfig:
         # General settings for the simulation
         #   inputfilepath: path to inputfile location
         #   outputfilepath: path to outputfile location
-        #   messages: whether to print all messages as output to stdout or not
         #   progressbars: whether to show progress bars on stdoout or not
         #   cpu, cuda, opencl: solver type
         #   subgrid: whether the simulation uses sub-grids
         #   precision: data type for electromagnetic field output (single/double)
-        self.general = {'messages': True,
+
+        self.general = {'log_level': logging.WARNING,
                         'progressbars': True,
                         'cpu': True,
                         'cuda': False,
@@ -224,6 +223,10 @@ class SimulationConfig:
             if any(isinstance(element, list) for element in self.args.gpu):
                 self.args.gpu = [val for sublist in self.args.gpu for val in sublist]
 
+            # If no deviceID is given default to 0
+            if not self.args.gpu:
+                self.args.gpu = [0]
+
             self.cuda['gpus'] = detect_check_gpus(self.args.gpu)
 
         # Subgrid parameter may not exist if user enters via CLI
@@ -243,20 +246,21 @@ class SimulationConfig:
             self.scenes = []
 
         # Set more complex parameters
-        self.set_precision()
-        self.get_byteorder()
-        self.set_input_file_path()
-        self.set_model_start_end()
-        self.set_single_model()
-
-    def is_messages(self):
-        return self.general['messages']
+        self._set_precision()
+        self._get_byteorder()
+        self._set_input_file_path()
+        self._set_model_start_end()
+        self._set_single_model()
 
     def set_model_gpu(self):
-        """Specify single GPU object for model."""
-        return self.cuda['gpus'][0]
+        """Specify single GPU object for model.
+            Uses first GPU deviceID if list of deviceID given."""
 
-    def set_precision(self):
+        for gpu in self.cuda['gpus']:
+            if gpu.deviceID == self.args.gpu[0]:
+                return gpu
+
+    def _set_precision(self):
         """Data type (precision) for electromagnetic field output.
 
             Solid and ID arrays use 32-bit integers (0 to 4294967295)
@@ -283,19 +287,19 @@ class SimulationConfig:
                       'C_complex': 'pycuda::complex<double>',
                       'vtk_float': 'Float64'}
 
-    def get_byteorder(self):
+    def _get_byteorder(self):
         """Check the byte order of system to use for VTK files, i.e. geometry
             views and snapshots.
         """
         self.vtk_byteorder = 'LittleEndian' if sys.byteorder == 'little' else 'BigEndian'
 
-    def set_single_model(self):
+    def _set_single_model(self):
         if self.model_start == 0 and self.model_end == 1:
             self.single_model = True
         else:
             self.single_model = False
 
-    def set_model_start_end(self):
+    def _set_model_start_end(self):
         """Set range for number of models to run (internally 0 index)."""
         if self.args.task:
             # Job array feeds args.n number of single tasks
@@ -311,7 +315,7 @@ class SimulationConfig:
         self.model_start = modelstart
         self.model_end = modelend
 
-    def set_input_file_path(self):
+    def _set_input_file_path(self):
         """Set input file path for CLI or API."""
         # API
         if self.args.inputfile is None:
@@ -329,11 +333,11 @@ class SimulationConfigMPI(SimulationConfig):
     def __init__(self, args):
         super().__init__(args)
 
-    def set_model_start_end(self):
+    def _set_model_start_end(self):
         # Set range for number of models to run
         self.model_start = self.args.restart if self.args.restart else 1
-        self.model_end = self.modelstart + self.args.n
+        self.model_end = self.model_start + self.args.n
 
-    def set_gpus(self):
+    def set_model_gpu(self):
         """Leave list of GPU object(s) as multi-object list."""
         pass

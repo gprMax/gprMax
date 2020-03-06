@@ -26,7 +26,7 @@ from ..cython.geometry_primitives import build_triangle
 from ..exceptions import CmdInputError
 from ..materials import Material
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Triangle(UserObjectGeometry):
@@ -156,6 +156,6 @@ class Triangle(UserObjectGeometry):
 
         if thickness > 0:
             dielectricsmoothing = 'on' if averaging else 'off'
-            log.info(f"Triangle with coordinates {x1:g}m {y1:g}m {z1:g}m, {x2:g}m {y2:g}m {z2:g}m, {x3:g}m {y3:g}m {z3:g}m and thickness {thickness:g}m of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")
+            logger.info(f"Triangle with coordinates {x1:g}m {y1:g}m {z1:g}m, {x2:g}m {y2:g}m {z2:g}m, {x3:g}m {y3:g}m {z3:g}m and thickness {thickness:g}m of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")
         else:
-            log.info(f"Triangle with coordinates {x1:g}m {y1:g}m {z1:g}m, {x2:g}m {y2:g}m {z2:g}m, {x3:g}m {y3:g}m {z3:g}m of material(s) {', '.join(materialsrequested)} created.")
+            logger.info(f"Triangle with coordinates {x1:g}m {y1:g}m {z1:g}m, {x2:g}m {y2:g}m {z2:g}m, {x3:g}m {y3:g}m {z3:g}m of material(s) {', '.join(materialsrequested)} created.")

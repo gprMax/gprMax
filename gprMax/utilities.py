@@ -44,7 +44,35 @@ import numpy as np
 import gprMax.config as config
 from .exceptions import GeneralError
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+
+
+def setup_logging(level=logging.INFO, logfile=False):
+    """Setup and configure logging.
+
+    Args:
+        level (logging level): set logging level to stdout.
+        logfile (bool): additional logging to file.
+    """
+
+    # Get root logger
+    logger = logging.getLogger()
+    logger.setLevel(level)
+
+    # Logging to console
+    mh = logging.StreamHandler()
+    formatter = logging.Formatter('%(message)s')
+    mh.setLevel(level)
+    mh.setFormatter(formatter)
+    logger.addHandler(mh)
+
+    # Logging to file
+    if logfile:
+        mh = logging.FileHandler("log_gprMax.txt", mode='w')
+        formatter = logging.Formatter('%(asctime)s:%(name)s:%(levelname)s: %(message)s')
+        mh.setLevel(logging.DEBUG)
+        mh.setFormatter(formatter)
+        logger.addHandler(mh)
 
 
 def get_terminal_width():
@@ -83,39 +111,14 @@ def logo(version):
     |___/|_|
                      v""" + version
 
-    log.info(f"{description} {'=' * (get_terminal_width() - len(description) - 1)}\n")
-    log.info(Fore.CYAN + f'{logo}\n')
-    log.info(Style.RESET_ALL + textwrap.fill(copyright, width=get_terminal_width() - 1, initial_indent=' '))
-    log.info(textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=' '))
-    log.info('')
-    log.info(textwrap.fill(licenseinfo1, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
-    log.info(textwrap.fill(licenseinfo2, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
-    log.info(textwrap.fill(licenseinfo3, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
-
-
-@contextmanager
-def open_path_file(path_or_file):
-    """Accepts either a path as a string or a file object and returns a file
-        object (http://stackoverflow.com/a/6783680).
-
-    Args:
-        path_or_file: path as a string or a file object.
-
-    Returns:
-        f (object): File object.
-    """
-
-    if isinstance(path_or_file, str):
-        f = file_to_close = codecs.open(path_or_file, 'r', encoding='utf-8')
-    else:
-        f = path_or_file
-        file_to_close = None
-
-    try:
-        yield f
-    finally:
-        if file_to_close:
-            file_to_close.close()
+    logger.info(f"{description} {'=' * (get_terminal_width() - len(description) - 1)}\n")
+    logger.info(Fore.CYAN + f'{logo}\n')
+    logger.info(Style.RESET_ALL + textwrap.fill(copyright, width=get_terminal_width() - 1, initial_indent=' '))
+    logger.info(textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=' '))
+    logger.info('')
+    logger.info(textwrap.fill(licenseinfo1, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
+    logger.info(textwrap.fill(licenseinfo2, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
+    logger.info(textwrap.fill(licenseinfo3, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
 
 
 def round_value(value, decimalplaces=0):
@@ -518,10 +521,6 @@ def detect_check_gpus(deviceIDs):
     else:
         deviceIDsavail = range(drv.Device.count())
 
-    # If no device ID is given use default of 0
-    if not deviceIDs:
-        deviceIDs = [0]
-
     # Check if requested device ID(s) exist
     for ID in deviceIDs:
         if ID not in deviceIDsavail:
@@ -532,13 +531,12 @@ def detect_check_gpus(deviceIDs):
     for ID in deviceIDsavail:
         gpu = GPU(deviceID=ID)
         gpu.get_gpu_info(drv)
-        if ID in deviceIDs:
-            gpus.append(gpu)
+        gpus.append(gpu)
 
     return gpus
 
 
 def timer():
     """Function to return time in fractional seconds."""
-    log.debug('Review "thread_time" not currently available in macOS and bug (https://bugs.python.org/issue36205) with "process_time"')
+    logger.debug('"thread_time" not currently available in macOS and bug (https://bugs.python.org/issue36205) with "process_time"')
     return timer_fn()

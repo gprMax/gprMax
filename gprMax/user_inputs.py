@@ -29,7 +29,7 @@ from .exceptions import CmdInputError
 from .subgrids.base import SubGridBase
 from .utilities import round_value
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 """Module contains classes to handle points supplied by a user. The
     classes implement a common interface such that geometry building objects
@@ -76,7 +76,7 @@ class UserInput:
                 s = f"'{cmd_str}' the {err.args[0]} {name}-coordinate {i * dl:g} is not within the model domain"
             else:
                 s = f"'{cmd_str}' {err.args[0]}-coordinate {i * dl:g} is not within the model domain"
-            raise CmdInputError(log.exception(s))
+            raise CmdInputError(logger.exception(s))
 
     def discretise_point(self, p):
         """Function to get the index of a continuous point with the grid."""
@@ -104,7 +104,7 @@ class MainGridUserInput(UserInput):
         p = self.check_point(p, cmd_str, name)
 
         if self.grid.within_pml(p):
-            log.warning(Fore.RED + f"'{cmd_str}' sources and receivers should not normally be positioned within the PML." + Style.RESET_ALL)
+            logger.warning(Fore.RED + f"'{cmd_str}' sources and receivers should not normally be positioned within the PML." + Style.RESET_ALL)
 
         return p
 
@@ -113,7 +113,7 @@ class MainGridUserInput(UserInput):
         p2 = self.check_point(p2, cmd_str, name='upper')
 
         if np.greater(p1, p2).any():
-            raise CmdInputError(log.exception(f"'{cmd_str}' the lower coordinates should be less than the upper coordinates."))
+            raise CmdInputError(logger.exception(f"'{cmd_str}' the lower coordinates should be less than the upper coordinates."))
 
         return p1, p2
 
@@ -175,5 +175,5 @@ class SubgridUserInput(MainGridUserInput):
         # the OS non-working region.
         if (np.less(p_t, self.inner_bound).any() or
             np.greater(p_t, self.outer_bound).any()):
-                log.warning(Fore.RED + f"'{cmd_str}' this object traverses the Outer Surface. This is an advanced feature." + Style.RESET_ALL)
+                logger.warning(Fore.RED + f"'{cmd_str}' this object traverses the Outer Surface. This is an advanced feature." + Style.RESET_ALL)
         return p_t

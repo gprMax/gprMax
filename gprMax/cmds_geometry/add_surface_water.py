@@ -24,7 +24,7 @@ from ..exceptions import CmdInputError
 from ..materials import Material
 from ..utilities import round_value
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class AddSurfaceWater(UserObjectGeometry):
@@ -142,4 +142,4 @@ class AddSurfaceWater(UserObjectGeometry):
         if testwater:
             raise CmdInputError(self.__str__() + ' requires the time step for the model to be less than the relaxation time required to model water.')
 
-        log.info(f'Water on surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with depth {filldepth:g}m, added to {surface.operatingonID}.')
+        logger.info(f'Water on surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with depth {filldepth:g}m, added to {surface.operatingonID}.')

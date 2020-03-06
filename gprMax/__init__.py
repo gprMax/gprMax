@@ -11,7 +11,6 @@ from ._version import __version__
 from .cmds_single_use import Discretisation
 from .cmds_single_use import Domain
 from .cmds_single_use import TimeWindow
-from .cmds_single_use import Messages
 from .cmds_single_use import Title
 from .cmds_single_use import NumThreads
 from .cmds_single_use import TimeStepStabilityFactor

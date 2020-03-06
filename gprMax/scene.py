@@ -31,7 +31,7 @@ from .subgrids.user_objects import SubGridBase as SubGridUserBase
 from .user_inputs import create_user_input_points
 from .utilities import human_size
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Scene:
@@ -93,7 +93,7 @@ class Scene:
             try:
                 obj.create(grid, uip)
             except CmdInputError:
-                log.exception('Error creating user input object')
+                logger.exception('Error creating user input object')
 
         return self
 

@@ -22,7 +22,7 @@ from colorama import init
 from colorama import Fore
 init()
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class GeneralError(ValueError):
@@ -30,7 +30,7 @@ class GeneralError(ValueError):
     def __init__(self, message, *args):
         self.message = message
         super(GeneralError, self).__init__(message, *args)
-        log.exception(Fore.RED)
+        logger.exception(Fore.RED)
 
 
 class CmdInputError(Exception):
@@ -41,4 +41,4 @@ class CmdInputError(Exception):
     # def __init__(self, message, *args):
     #     self.message = message
     #     super(CmdInputError, self).__init__(message, *args)
-    #     log.exception(Fore.RED)
+    #     logger.exception(Fore.RED)

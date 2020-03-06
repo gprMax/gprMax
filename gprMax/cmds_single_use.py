@@ -33,7 +33,7 @@ from .exceptions import CmdInputError
 from .waveforms import Waveform
 from .utilities import round_value
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Properties:
@@ -59,32 +59,6 @@ class UserObjectSingle:
         pass
 
 
-class Messages(UserObjectSingle):
-    """Allows you to control the amount of information displayed on screen
-        when gprMax is run
-
-    :param yn: Whether information should be displayed.
-    :type yn: bool, optional
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 0
-
-    def create(self, G, uip):
-        try:
-            yn = self.kwargs['yn']
-        except KeyError:
-            raise CmdInputError(self.__str__() + ' requires exactly one parameter')
-
-        if yn.lower() == 'y':
-            config.sim_config.general['messages'] = True
-        elif yn.lower() == 'n':
-            config.sim_config.general['messages'] = False
-        else:
-            raise CmdInputError(self.__str__() + ' requires input values of either y or n')
-
-
 class Title(UserObjectSingle):
     """Allows you to include a title for your model.
 
@@ -100,7 +74,7 @@ class Title(UserObjectSingle):
         try:
             title = self.kwargs['name']
             G.title = title
-            log.info(f'Model title: {G.title}')
+            logger.info(f'Model title: {G.title}')
         except KeyError:
             pass
 
@@ -125,7 +99,7 @@ class Domain(UserObjectSingle):
         if G.nx == 0 or G.ny == 0 or G.nz == 0:
             raise CmdInputError(f"'{self.params_str()}' requires at least one cell in every dimension")
 
-        log.info(f"Domain size: {self.kwargs['p1'][0]:g} x {self.kwargs['p1'][1]:g} x {self.kwargs['p1'][2]:g}m ({G.nx:d} x {G.ny:d} x {G.nz:d} = {(G.nx * G.ny * G.nz):g} cells)")
+        logger.info(f"Domain size: {self.kwargs['p1'][0]:g} x {self.kwargs['p1'][1]:g} x {self.kwargs['p1'][2]:g}m ({G.nx:d} x {G.ny:d} x {G.nz:d} = {(G.nx * G.ny * G.nz):g} cells)")
 
         # Calculate time step at CFL limit; switch off appropriate PMLs for 2D
         if G.nx == 1:
@@ -144,8 +118,8 @@ class Domain(UserObjectSingle):
             G.mode = '3D'
         G.calculate_dt()
 
-        log.info(f'Mode: {G.mode}')
-        log.info(f'Time step (at CFL limit): {G.dt:g} secs')
+        logger.info(f'Mode: {G.mode}')
+        logger.info(f'Time step (at CFL limit): {G.dt:g} secs')
 
 
 class Discretisation(UserObjectSingle):
@@ -174,7 +148,7 @@ class Discretisation(UserObjectSingle):
         if G.dl[2] <= 0:
             raise CmdInputError(f"'{self.params_str()}' discretisation requires the z-direction spatial step to be greater than zero")
 
-        log.info(f'Spatial discretisation: {G.dl[0]:g} x {G.dl[1]:g} x {G.dl[2]:g}m')
+        logger.info(f'Spatial discretisation: {G.dl[0]:g} x {G.dl[1]:g} x {G.dl[2]:g}m')
 
 
 class TimeWindow(UserObjectSingle):
@@ -214,7 +188,7 @@ class TimeWindow(UserObjectSingle):
         if not G.timewindow:
             raise CmdInputError(f"'{self.params_str()}' specify a time or number of iterations")
 
-        log.info(f'Time window: {G.timewindow:g} secs ({G.iterations} iterations)')
+        logger.info(f'Time window: {G.timewindow:g} secs ({G.iterations} iterations)')
 
 
 class NumThreads(UserObjectSingle):
@@ -261,7 +235,7 @@ class TimeStepStabilityFactor(UserObjectSingle):
             raise CmdInputError(self.__str__() + ' requires the value of the time step stability factor to be between zero and one')
         G.dt = G.dt * f
 
-        log.info(f'Time step (modified): {G.dt:g} secs')
+        logger.info(f'Time step (modified): {G.dt:g} secs')
 
 
 class PMLCells(UserObjectSingle):
@@ -333,7 +307,7 @@ class SrcSteps(UserObjectSingle):
         except KeyError:
             raise CmdInputError('#src_steps: requires exactly three parameters')
 
-        log.info(f'Simple sources will step {G.srcsteps[0] * G.dx:g}m, {G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m for each model run.')
+        logger.info(f'Simple sources will step {G.srcsteps[0] * G.dx:g}m, {G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m for each model run.')
 
 
 class RxSteps(UserObjectSingle):
@@ -354,7 +328,7 @@ class RxSteps(UserObjectSingle):
         except KeyError:
             raise CmdInputError('#rx_steps: requires exactly three parameters')
 
-        log.info(f'All receivers will step {G.rxsteps[0] * G.dx:g}m, {G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m for each model run.')
+        logger.info(f'All receivers will step {G.rxsteps[0] * G.dx:g}m, {G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m for each model run.')
 
 
 class ExcitationFile(UserObjectSingle):
@@ -394,7 +368,7 @@ class ExcitationFile(UserObjectSingle):
         if not excitationfile.exists():
             excitationfile = Path(config.sim_config.input_file_path.parent, excitationfile)
 
-        log.info(f'Excitation file: {excitationfile}')
+        logger.info(f'Excitation file: {excitationfile}')
 
         # Get waveform names
         with open(excitationfile, 'r') as f:
@@ -436,7 +410,7 @@ class ExcitationFile(UserObjectSingle):
             # Interpolate waveform values
             w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues, **kwargs)
 
-            log.info(f"User waveform {w.ID} created using {timestr} and, if required, interpolation parameters (kind: {kwargs['kind']}, fill value: {kwargs['fill_value']}).")
+            logger.info(f"User waveform {w.ID} created using {timestr} and, if required, interpolation parameters (kind: {kwargs['kind']}, fill value: {kwargs['fill_value']}).")
 
             G.waveforms.append(w)
 

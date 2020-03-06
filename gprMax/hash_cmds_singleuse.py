@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from .cmds_single_use import Messages
 from .cmds_single_use import Title
 from .cmds_single_use import NumThreads
 from .cmds_single_use import Discretisation
@@ -46,15 +45,6 @@ def process_singlecmds(singlecmds):
     scene_objects = []
 
     # Check validity of command parameters in order needed
-    cmd = '#messages'
-    if singlecmds[cmd] is not None:
-        tmp = singlecmds[cmd].split()
-        if len(tmp) != 1:
-            raise CmdInputError(cmd + ' requires exactly one parameter')
-
-        messages = Messages(yn=str(tmp[0]))
-        scene_objects.append(messages)
-
     cmd = '#title'
     if singlecmds[cmd] is not None:
         title = Title(name=str(singlecmds[cmd]))
@@ -141,7 +131,7 @@ def process_singlecmds(singlecmds):
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
             raise CmdInputError(cmd + ' requires exactly three parameters')
-            
+
         p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
         src_steps = SrcSteps(p1=p1)
         scene_objects.append(src_steps)

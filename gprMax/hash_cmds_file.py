@@ -28,7 +28,7 @@ from .hash_cmds_geometry import process_geometrycmds
 from .hash_cmds_multiuse import process_multicmds
 from .hash_cmds_singleuse import process_singlecmds
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def process_python_include_code(inputfile, usernamespace):
@@ -62,7 +62,7 @@ def process_python_include_code(inputfile, usernamespace):
 
         # Process any Python code
         if(inputlines[x].startswith('#python:')):
-            log.warning('#python blocks are deprecated and will be removed in the next release of gprMax. Please convert your model to use our Python API instead.\n')
+            logger.warning('#python blocks are deprecated and will be removed in the next release of gprMax. Please convert your model to use our Python API instead.\n')
             # String to hold Python code to be executed
             pythoncode = ''
             x += 1
@@ -99,7 +99,7 @@ def process_python_include_code(inputfile, usernamespace):
 
             # Print any generated output that is not commands
             if pythonout:
-                log.info(f'Python messages (from stdout/stderr): {pythonout}\n')
+                logger.info(f'Python messages (from stdout/stderr): {pythonout}\n')
 
         # Add any other commands to list
         elif(inputlines[x].startswith('#')):
@@ -157,7 +157,7 @@ def process_include_files(hashcmds, inputfile):
         x += 1
 
     return processedincludecmds
-
+logger
 
 def write_processed_file(processedlines, G):
     """Writes an input file after any Python code and include commands
@@ -176,7 +176,7 @@ def write_processed_file(processedlines, G):
         for item in processedlines:
             f.write(f'{item}')
 
-    log.info(f'Written input commands, after processing any Python code and include commands, to file: {processedfile}\n')
+    logger.info(f'Written input commands, after processing any Python code and include commands, to file: {processedfile}\n')
 
 
 def check_cmd_names(processedlines, checkessential=True):
@@ -306,7 +306,7 @@ def parse_hash_commands(scene, G):
         for key, value in sorted(usernamespace.items()):
             if key != '__builtins__':
                 uservars += f'{key}: {value}, '
-        log.info(f'Constants/variables used/available for Python scripting: {{{uservars[:-2]}}}\n')
+        logger.info(f'Constants/variables used/available for Python scripting: {{{uservars[:-2]}}}\n')
 
         # Write a file containing the input commands after Python or include
         # file commands have been processed
