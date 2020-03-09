@@ -21,7 +21,6 @@ import logging
 
 import gprMax.config as config
 from ._version import __version__, codename
-from .config_parser import write_model_config
 from .model_build_run import ModelBuildRun
 from .solvers import create_solver
 from .solvers import create_G
@@ -30,12 +29,12 @@ from .utilities import human_size
 from .utilities import logo
 from .utilities import timer
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class Context:
-    """Generic context for the model to run in. Sub-class with specific contexts
-        e.g. an MPI context.
+    """Standard context - models are run one after another and each model
+        can exploit parallelisation using either OpenMP (CPU) or CUDA (GPU).
     """
 
     def __init__(self):
@@ -50,32 +49,32 @@ class Context:
         if config.sim_config.general['cuda']:
             self.print_gpu_info()
         self.tsimstart = timer()
+
         # Clear list of model configs. It can be retained when gprMax is
         # called in a loop, and want to avoid this.
         config.model_configs = []
-        self._run()
+
+        for i in self.model_range:
+            config.model_num = i
+            model_config = config.ModelConfig()
+            config.model_configs.append(model_config)
+
+            # Always create a grid for the first model. The next model to run
+            # only gets a new grid if the geometry is not re-used.
+            if i != 0 and config.sim_config.args.geometry_fixed:
+                config.get_model_config().reuse_geometry = True
+            else:
+                G = create_G()
+
+            model = ModelBuildRun(G)
+            model.build()
+            solver = create_solver(G)
+
+            if not config.sim_config.args.geometry_only:
+                model.solve(solver)
+
         self.tsimend = timer()
         self.print_time_report()
-
-    def _run_model(self, i):
-        """Process for running a single model."""
-
-        config.model_num = i
-        write_model_config()
-
-        # Always create a grid for the first model. The next model to run
-        # only gets a new grid if the geometry is not re-used.
-        if i != 0 and config.sim_config.args.geometry_fixed:
-            config.get_model_config().reuse_geometry = True
-        else:
-            G = create_G()
-
-        model = ModelBuildRun(G)
-        model.build()
-        solver = create_solver(G)
-
-        if not config.sim_config.args.geometry_only:
-            model.solve(solver)
 
     def print_logo_copyright(self):
         """Print gprMax logo, version, and copyright/licencing information."""
@@ -84,30 +83,19 @@ class Context:
     def print_host_info(self):
         """Print information about the host machine."""
         hyperthreadingstr = f", {config.sim_config.hostinfo['logicalcores']} cores with Hyper-Threading" if config.sim_config.hostinfo['hyperthreading'] else ''
-        log.info(f"\nHost: {config.sim_config.hostinfo['hostname']} | {config.sim_config.hostinfo['machineID']} | {config.sim_config.hostinfo['sockets']} x {config.sim_config.hostinfo['cpuID']} ({config.sim_config.hostinfo['physicalcores']} cores{hyperthreadingstr}) | {human_size(config.sim_config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} RAM | {config.sim_config.hostinfo['osversion']}")
+        logger.basic(f"\nHost: {config.sim_config.hostinfo['hostname']} | {config.sim_config.hostinfo['machineID']} | {config.sim_config.hostinfo['sockets']} x {config.sim_config.hostinfo['cpuID']} ({config.sim_config.hostinfo['physicalcores']} cores{hyperthreadingstr}) | {human_size(config.sim_config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} RAM | {config.sim_config.hostinfo['osversion']}")
 
     def print_gpu_info(self):
         """Print information about any NVIDIA CUDA GPUs detected."""
         gpus_info = []
         for gpu in config.sim_config.cuda['gpus']:
             gpus_info.append(f'{gpu.deviceID} - {gpu.name}, {human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)}')
-        log.info(f" with GPU(s): {' | '.join(gpus_info)}")
+        logger.basic(f" with GPU(s): {' | '.join(gpus_info)}")
 
     def print_time_report(self):
         """Print the total simulation time based on context."""
         s = f"\n=== Simulation on {config.sim_config.hostinfo['hostname']} completed in [HH:MM:SS]: {datetime.timedelta(seconds=self.tsimend - self.tsimstart)}"
-        log.info(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")
-
-
-class NoMPIContext(Context):
-    """Standard context - models are run one after another and each model
-        can exploit parallelisation using either OpenMP (CPU) or CUDA (GPU).
-    """
-
-    def _run(self):
-        """Specialise how models are run."""
-        for i in self.model_range:
-            self._run_model(i)
+        logger.basic(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")
 
 
 class MPIContext(Context):
@@ -125,21 +113,65 @@ class MPIContext(Context):
         self.rank = self.comm.rank
         self.MPIExecutor = MPIExecutor
 
-    def _run(self):
+    def _run_model(self, i, GPUdeviceID):
+        """Process for running a single model."""
+
+        config.model_num = i
+        model_config = config.ModelConfig()
+        if config.sim_config.general['cuda']:
+            config.sim_config.set_model_gpu(GPUdeviceID)
+        config.model_configs = model_config
+
+        G = create_G()
+        model = ModelBuildRun(G)
+        model.build()
+        solver = create_solver(G)
+
+        if not config.sim_config.args.geometry_only:
+            model.solve(solver)
+
+    def run(self):
         """Specialise how the models are run."""
 
-        # compile jobs
-        jobs = []
-        for i in range(config.sim_config.args.n):
-            jobs.append({'i': i})
+        self.tsimstart = timer()
 
-        # Execute jobs
-        log.info(f'Starting execution of {config.sim_config.args.n} gprMax model runs.')
-        with self.MPIExecutor(self._run_model, comm=self.comm) as executor:
-            if executor is not None:
-                results = executor.submit(jobs)
-                log.info('Results: %s' % str(results))
-        log.info('Finished.')
+        # Contruct MPIExecutor
+        executor = self.MPIExecutor(self._run_model, comm=self.comm)
+
+        # Compile jobs
+        jobs = []
+        for i in self.model_range:
+            jobs.append({'i': i,
+                         'GPUdeviceID': 0})
+
+        # if executor.is_master():
+        #     self.print_logo_copyright()
+        # self.print_host_info()
+        # if config.sim_config.general['cuda']:
+        #     self.print_gpu_info()
+
+        # Send the workers to their work loop
+        executor.start()
+        if executor.is_master():
+            results = executor.submit(jobs)
+
+        # Make the workers exit their work loop and join the main loop again
+        executor.join()
+
+        # with self.MPIExecutor(self._run_model, comm=self.comm) as executor:
+        #     if executor is not None:
+        #         results = executor.submit(jobs)
+        #         logger.info('Results: %s' % str(results))
+        # logger.basic('Finished.')
+
+        self.tsimend = timer()
+        if executor.is_master():
+            self.print_time_report()
+
+    def print_time_report(self):
+        """Print the total simulation time based on context."""
+        s = f"\n=== Simulation on {config.sim_config.hostinfo['hostname']} completed in [HH:MM:SS]: {datetime.timedelta(seconds=self.tsimend - self.tsimstart)}"
+        logger.basic(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")
 
 
 def create_context():
@@ -152,6 +184,6 @@ def create_context():
     if config.sim_config.args.mpi:
         context = MPIContext()
     else:
-        context = NoMPIContext()
+        context = Context()
 
     return context

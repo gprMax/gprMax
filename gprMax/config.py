@@ -49,8 +49,10 @@ model_num = 0
 
 def get_model_config():
     """Return ModelConfig instace for specific model."""
-    return model_configs[model_num]
-
+    if sim_config.args.mpi:
+        return model_configs
+    else:
+        return model_configs[model_num]
 
 class ModelConfig:
     """Configuration parameters for a model.
@@ -169,7 +171,7 @@ class ModelConfig:
 
 
 class SimulationConfig:
-    """Configuration parameters for a standard simulation.
+    """Configuration parameters for a simulation.
         N.B. A simulation can consist of multiple models.
     """
 
@@ -181,6 +183,9 @@ class SimulationConfig:
 
         self.args = args
 
+        if args.mpi and args.geometry_fixed:
+            raise GeneralError('The geometry fixed option cannot be used with MPI.')
+
         # General settings for the simulation
         #   inputfilepath: path to inputfile location
         #   outputfilepath: path to outputfile location
@@ -189,13 +194,15 @@ class SimulationConfig:
         #   subgrid: whether the simulation uses sub-grids
         #   precision: data type for electromagnetic field output (single/double)
 
-        self.general = {'log_level': logging.WARNING,
-                        'progressbars': True,
-                        'cpu': True,
+        self.general = {'cpu': True,
                         'cuda': False,
                         'opencl': False,
                         'subgrid': False,
                         'precision': 'single'}
+
+        # Progress bars on stdoout or not - switch off progressbars
+        # when > basic logging level is used
+        self.general['progressbars'] = False if logging.root.level > 20 else True
 
         self.em_consts = {'c': c, # Speed of light in free space (m/s)
                           'e0': e0, # Permittivity of free space (F/m)
@@ -252,12 +259,12 @@ class SimulationConfig:
         self._set_model_start_end()
         self._set_single_model()
 
-    def set_model_gpu(self):
-        """Specify single GPU object for model.
-            Uses first GPU deviceID if list of deviceID given."""
-
+    def set_model_gpu(self, deviceID=0):
+        """Specify GPU object for model. Defaults to first GPU deviceID in
+            list of deviceID given.
+        """
         for gpu in self.cuda['gpus']:
-            if gpu.deviceID == self.args.gpu[0]:
+            if gpu.deviceID == self.args.gpu[deviceID]:
                 return gpu
 
     def _set_precision(self):
@@ -301,11 +308,7 @@ class SimulationConfig:
 
     def _set_model_start_end(self):
         """Set range for number of models to run (internally 0 index)."""
-        if self.args.task:
-            # Job array feeds args.n number of single tasks
-            modelstart = self.args.task - 1
-            modelend = self.args.task
-        elif self.args.restart:
+        if self.args.restart:
             modelstart = self.args.restart - 1
             modelend = modelstart + self.args.n - 1
         else:
@@ -323,21 +326,3 @@ class SimulationConfig:
         # API/CLI
         else:
             self.input_file_path = Path(self.args.inputfile)
-
-
-class SimulationConfigMPI(SimulationConfig):
-    """Configuration parameters for a MPI simulation.
-        N.B. A simulation can consist of multiple models.
-    """
-
-    def __init__(self, args):
-        super().__init__(args)
-
-    def _set_model_start_end(self):
-        # Set range for number of models to run
-        self.model_start = self.args.restart if self.args.restart else 1
-        self.model_end = self.model_start + self.args.n
-
-    def set_model_gpu(self):
-        """Leave list of GPU object(s) as multi-object list."""
-        pass

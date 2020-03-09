@@ -19,12 +19,12 @@
 import argparse
 import logging
 
-from .config_parser import write_simulation_config
+import gprMax.config as config
 from .contexts import create_context
 from .utilities import setup_logging
 
 logger = logging.getLogger(__name__)
-
+setup_logging(level=25)
 
 def run(
     scenes=None,
@@ -112,6 +112,7 @@ def run(
     args = ImportArguments()
 
     args.scenes = scenes
+    args.subgrid = subgrid
     args.inputfile = inputfile
     args.outputfile = outputfile
     args.n = n
@@ -119,7 +120,6 @@ def run(
     args.restart = restart
     args.mpi = mpi
     args.gpu = gpu
-    args.subgrid = subgrid
     args.autotranslate = autotranslate
     args.geometry_only = geometry_only
     args.geometry_fixed = geometry_fixed
@@ -156,13 +156,7 @@ def main():
     parser.add_argument('--write-processed', action='store_true', default=False,
                         help='flag to write an input file after any Python code and include commands '
                         'in the original input file have been processed')
-    parser.add_argument('-l', '--logfile', action='store_true', default=False,
-                        help='flag to enable writing to a log file')
-    parser.add_argument('-v', '--verbose', action='store_true', default=False,
-                        help="flag to increase output")
     args = parser.parse_args()
-
-    setup_logging()
 
     try:
         run_main(args)
@@ -177,6 +171,7 @@ def run_main(args):
         args (Namespace): arguments from either API or CLI.
     """
 
-    write_simulation_config(args)
+
+    config.sim_config = config.SimulationConfig(args)
     context = create_context()
     context.run()

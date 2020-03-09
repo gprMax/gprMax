@@ -132,7 +132,7 @@ class ModelBuildRun:
     def build_geometry(self):
         G = self.G
 
-        logger.info(config.get_model_config().inputfilestr)
+        logger.basic(config.get_model_config().inputfilestr)
 
         scene = self.build_scene()
 
@@ -189,7 +189,7 @@ class ModelBuildRun:
         self.G.iteration = 0
         s = f'\n--- Model {config.get_model_config().appendmodelnumber}/{config.sim_config.model_end}, input file (not re-processed, i.e. geometry fixed): {config.sim_config.input_file_path}'
         config.get_model_config().inputfilestr = Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
-        logger.info(config.get_model_config().inputfilestr)
+        logger.basic(config.get_model_config().inputfilestr)
         for grid in [self.G] + self.G.subgrids:
             grid.reset_fields()
 
@@ -260,12 +260,12 @@ class ModelBuildRun:
 
         # Check number of OpenMP threads
         if config.sim_config.general['cpu']:
-            logger.info(f'CPU (OpenMP) threads for solving: {config.get_model_config().ompthreads}\n')
+            logger.basic(f'CPU (OpenMP) threads for solving: {config.get_model_config().ompthreads}\n')
             if config.get_model_config().ompthreads > config.sim_config.hostinfo['physicalcores']:
                 logger.warning(Fore.RED + f"You have specified more threads ({config.get_model_config().ompthreads}) than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). This may lead to degraded performance." + Style.RESET_ALL)
         # Print information about any GPU in use
         elif config.sim_config.general['cuda']:
-            logger.info(f"GPU for solving: {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name}\n")
+            logger.basic(f"GPU for solving: {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name}\n")
 
         # Prepare iterator
         if config.sim_config.general['progressbars']:

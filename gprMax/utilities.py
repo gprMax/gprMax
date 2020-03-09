@@ -55,6 +55,14 @@ def setup_logging(level=logging.INFO, logfile=False):
         logfile (bool): additional logging to file.
     """
 
+    # Add a custom log level
+    BASIC_NUM = 25
+    logging.addLevelName(BASIC_NUM, "BASIC")
+    def basic(self, message, *args, **kws):
+        if self.isEnabledFor(BASIC_NUM):
+            self._log(BASIC_NUM, message, args, **kws)
+    logging.Logger.basic = basic
+
     # Get root logger
     logger = logging.getLogger()
     logger.setLevel(level)
@@ -111,14 +119,14 @@ def logo(version):
     |___/|_|
                      v""" + version
 
-    logger.info(f"{description} {'=' * (get_terminal_width() - len(description) - 1)}\n")
-    logger.info(Fore.CYAN + f'{logo}\n')
-    logger.info(Style.RESET_ALL + textwrap.fill(copyright, width=get_terminal_width() - 1, initial_indent=' '))
-    logger.info(textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=' '))
-    logger.info('')
-    logger.info(textwrap.fill(licenseinfo1, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
-    logger.info(textwrap.fill(licenseinfo2, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
-    logger.info(textwrap.fill(licenseinfo3, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
+    logger.basic(f"{description} {'=' * (get_terminal_width() - len(description) - 1)}\n")
+    logger.basic(Fore.CYAN + f'{logo}\n')
+    logger.basic(Style.RESET_ALL + textwrap.fill(copyright, width=get_terminal_width() - 1, initial_indent=' '))
+    logger.basic(textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=' '))
+    logger.basic('')
+    logger.basic(textwrap.fill(licenseinfo1, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
+    logger.basic(textwrap.fill(licenseinfo2, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
+    logger.basic(textwrap.fill(licenseinfo3, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
 
 
 def round_value(value, decimalplaces=0):

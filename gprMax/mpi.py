@@ -22,7 +22,7 @@ import time
 
 from mpi4py import MPI
 
-_log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 """
@@ -151,9 +151,9 @@ class MPIExecutor(object):
 
         master = int(master)
         if master < 0:
-            raise ValueError('master rank must be non-negative')
+            raise ValueError('Master rank must be non-negative')
         elif master >= self.size:
-            raise ValueError('master not in comm')
+            raise ValueError('Master not in comm')
         else:
             self.master = master
 
@@ -161,16 +161,16 @@ class MPIExecutor(object):
         self.workers = tuple(set(range(self.size)) - {self.master})
         # the worker function
         if not callable(func):
-            raise TypeError('func must be a callable')
+            raise TypeError('Func must be a callable')
         self.func = func
         # holds the state of workers on the master
         self.busy = [False] * len(self.workers)
 
-        _log.debug(f'MPIExecutor on comm: {self.comm.name}, Master: {self.master}, Workers: {self.workers}')
+        logger.basic(f'Rank {self.rank}: MPIExecutor on comm: {self.comm.name}, Master: {self.master}, Workers: {self.workers}')
         if self.is_master():
-            _log.debug('*** MASTER ***')
+            logger.debug(f'Rank {self.rank} = MASTER')
         else:
-            _log.debug('*** WORKER ***')
+            logger.debug(f'Rank {self.rank} = WORKER')
 
     def __enter__(self):
         """Context manager enter.
@@ -186,12 +186,11 @@ class MPIExecutor(object):
         """Context manager exit.
         """
         if exc_type is not None:
-            _log.exception(exc_val)
+            logger.exception(exc_val)
             return False
 
-        # no exception handling necessary
-        # since we catch everything in __guarded_work
-        # exc_type should always be None
+        # No exception handling necessary since we catch everything
+        # in __guarded_work exc_type should always be None
         self.join()
         return True
 
@@ -223,10 +222,10 @@ class MPIExecutor(object):
         """
         if self.is_master():
             if self._up:
-                raise RuntimeError('start has already been called')
+                raise RuntimeError('Start has already been called')
             self._up = True
 
-        _log.info('Starting up MPIExecutor master/workers')
+        logger.basic(f'Rank {self.rank}: Starting up MPIExecutor master/workers')
         if self.is_worker():
             self.__wait()
 
@@ -235,12 +234,12 @@ class MPIExecutor(object):
         """
         if self.is_master():
 
-            _log.debug('Terminating. Sending sentinel to all workers.')
-            # send sentinel to all workers
+            logger.basic(f'Rank {self.rank}: Terminating. Sending sentinel to all workers.')
+            # Send sentinel to all workers
             for worker in self.workers:
                 self.comm.send(None, dest=worker, tag=Tags.EXIT)
 
-            _log.debug('Waiting for all workers to terminate.')
+            logger.basic(f'Rank {self.rank}: Waiting for all workers to terminate.')
 
             down = [False] * len(self.workers)
             while True:
@@ -252,7 +251,7 @@ class MPIExecutor(object):
                     break
 
             self._up = False
-            _log.debug('All workers terminated.')
+            logger.basic(f'Rank {self.rank}: All workers terminated.')
 
     def submit(self, jobs, sleep=0.0):
         """Submits a list of jobs to the workers and returns the results.
@@ -273,9 +272,9 @@ class MPIExecutor(object):
             the order of `jobs`.
         """
         if not self._up:
-            raise RuntimeError('cannot run jobs without a call to start()')
+            raise RuntimeError('Cannot run jobs without a call to start()')
 
-        _log.info('Running {:d} jobs.'.format(len(jobs)))
+        logger.basic(f'Rank {self.rank}: Running {len(jobs):d} jobs.')
         assert self.is_master(), 'run() must not be called on a worker process'
 
         my_jobs = jobs.copy()
@@ -287,7 +286,7 @@ class MPIExecutor(object):
 
                 if self.comm.Iprobe(source=worker, tag=Tags.DONE):
                     job_idx, result = self.comm.recv(source=worker, tag=Tags.DONE)
-                    _log.debug(f'Received finished job {job_idx} from worker {worker:d}.')
+                    logger.basic(f'Rank {self.rank}: Received finished job {job_idx} from worker {worker:d}.')
                     results[job_idx] = result
                     self.busy[i] = False
                 elif self.comm.Iprobe(source=worker, tag=Tags.READY):
@@ -295,16 +294,17 @@ class MPIExecutor(object):
                         self.comm.recv(source=worker, tag=Tags.READY)
                         self.busy[i] = True
                         job_idx = num_jobs - len(my_jobs)
-                        _log.debug(f'Sending job {job_idx} to worker {worker:d}.')
+                        logger.basic(f'Rank {self.rank}: Sending job {job_idx} to worker {worker:d}.')
                         self.comm.send((job_idx, my_jobs.pop(0)), dest=worker, tag=Tags.START)
                 elif self.comm.Iprobe(source=worker, tag=Tags.EXIT):
-                    _log.debug(f'Worker on rank {worker:d} has terminated.')
+                    logger.basic(f'Rank {self.rank}: Worker on rank {worker:d} has terminated.')
                     self.comm.recv(source=worker, tag=Tags.EXIT)
                     self.busy[i] = False
 
             time.sleep(sleep)
 
-        _log.info('Finished all jobs.')
+        logger.basic(f'Rank {self.rank}: Finished all jobs.')
+
         return results
 
     def __wait(self):
@@ -318,27 +318,26 @@ class MPIExecutor(object):
 
         status = MPI.Status()
 
-        _log.debug(f'Starting up worker.')
+        logger.basic(f'Rank {self.rank}: Starting up worker.')
 
         while True:
-
             self.comm.send(None, dest=self.master, tag=Tags.READY)
-            _log.debug(f'Worker on rank {self.rank} waiting for job.')
+            logger.basic(f'Rank {self.rank}: Worker on rank {self.rank} waiting for job.')
 
             data = self.comm.recv(source=self.master, tag=MPI.ANY_TAG, status=status)
             tag = status.tag
 
             if tag == Tags.START:
                 job_idx, work = data
-                _log.debug(f'Received job {job_idx} (work={work}).')
+                logger.basic(f'Rank {self.rank}: Received job {job_idx} (work={work}).')
                 result = self.__guarded_work(work)
-                _log.debug(f'Finished job. Sending results to master.')
+                logger.basic(f'Rank {self.rank}: Finished job. Sending results to master.')
                 self.comm.send((job_idx, result), dest=self.master, tag=Tags.DONE)
             elif tag == Tags.EXIT:
-                _log.debug(f'Received sentinel from master.')
+                logger.basic(f'Rank {self.rank}: Received sentinel from master.')
                 break
 
-        _log.debug('Terminating worker.')
+        logger.basic(f'Rank {self.rank}: Terminating worker.')
         self.comm.send(None, dest=self.master, tag=Tags.EXIT)
 
     def __guarded_work(self, work):
@@ -358,7 +357,7 @@ class MPIExecutor(object):
         try:
             return self.func(**work)
         except Exception as e:
-            _log.exception(str(e))
+            logger.exception(str(e))
             return None
 
 

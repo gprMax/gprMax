@@ -126,7 +126,7 @@ def write_hdf5_outputfile(outputfile, G):
             write_grid(grp, sg, is_subgrid=True)
 
     if G.rxs or sg_rxs:
-        logger.info(f'Written output file: {outputfile.name}')
+        logger.basic(f'Written output file: {outputfile.name}')
 
 
 def write_grid(basegrp, G, is_subgrid=False):

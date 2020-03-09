@@ -32,6 +32,7 @@ import gprMax.config as config
 from .exceptions import CmdInputError
 from .waveforms import Waveform
 from .utilities import round_value
+from .utilities import set_omp_threads
 
 logger = logging.getLogger(__name__)
 
