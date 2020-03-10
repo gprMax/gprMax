@@ -166,11 +166,8 @@ class MPIExecutor(object):
         # holds the state of workers on the master
         self.busy = [False] * len(self.workers)
 
-        logger.basic(f'Rank {self.rank}: MPIExecutor on comm: {self.comm.name}, Master: {self.master}, Workers: {self.workers}')
         if self.is_master():
-            logger.debug(f'Rank {self.rank} = MASTER')
-        else:
-            logger.debug(f'Rank {self.rank} = WORKER')
+            logger.basic(f'\nMPIExecutor on comm: {self.comm.name}, Master: {self.master}, Workers: {self.workers}')
 
     def __enter__(self):
         """Context manager enter.
@@ -225,7 +222,7 @@ class MPIExecutor(object):
                 raise RuntimeError('Start has already been called')
             self._up = True
 
-        logger.basic(f'Rank {self.rank}: Starting up MPIExecutor master/workers')
+        logger.debug('Starting up MPIExecutor master/workers...')
         if self.is_worker():
             self.__wait()
 
@@ -234,12 +231,12 @@ class MPIExecutor(object):
         """
         if self.is_master():
 
-            logger.basic(f'Rank {self.rank}: Terminating. Sending sentinel to all workers.')
+            logger.debug('Terminating. Sending sentinel to all workers.')
             # Send sentinel to all workers
             for worker in self.workers:
                 self.comm.send(None, dest=worker, tag=Tags.EXIT)
 
-            logger.basic(f'Rank {self.rank}: Waiting for all workers to terminate.')
+            logger.debug('Waiting for all workers to terminate.')
 
             down = [False] * len(self.workers)
             while True:
@@ -251,7 +248,7 @@ class MPIExecutor(object):
                     break
 
             self._up = False
-            logger.basic(f'Rank {self.rank}: All workers terminated.')
+            logger.debug('All workers terminated.')
 
     def submit(self, jobs, sleep=0.0):
         """Submits a list of jobs to the workers and returns the results.
@@ -274,19 +271,17 @@ class MPIExecutor(object):
         if not self._up:
             raise RuntimeError('Cannot run jobs without a call to start()')
 
-        logger.basic(f'Rank {self.rank}: Running {len(jobs):d} jobs.')
+        logger.basic(f'Running {len(jobs):d} jobs.')
         assert self.is_master(), 'run() must not be called on a worker process'
 
         my_jobs = jobs.copy()
         num_jobs = len(my_jobs)
         results = [None] * num_jobs
         while len(my_jobs) or not self.is_idle():
-
             for i, worker in enumerate(self.workers):
-
                 if self.comm.Iprobe(source=worker, tag=Tags.DONE):
                     job_idx, result = self.comm.recv(source=worker, tag=Tags.DONE)
-                    logger.basic(f'Rank {self.rank}: Received finished job {job_idx} from worker {worker:d}.')
+                    logger.debug(f'Received finished job {job_idx} from worker {worker:d}.')
                     results[job_idx] = result
                     self.busy[i] = False
                 elif self.comm.Iprobe(source=worker, tag=Tags.READY):
@@ -294,16 +289,16 @@ class MPIExecutor(object):
                         self.comm.recv(source=worker, tag=Tags.READY)
                         self.busy[i] = True
                         job_idx = num_jobs - len(my_jobs)
-                        logger.basic(f'Rank {self.rank}: Sending job {job_idx} to worker {worker:d}.')
+                        logger.debug(f'Sending job {job_idx} to worker {worker:d}.')
                         self.comm.send((job_idx, my_jobs.pop(0)), dest=worker, tag=Tags.START)
                 elif self.comm.Iprobe(source=worker, tag=Tags.EXIT):
-                    logger.basic(f'Rank {self.rank}: Worker on rank {worker:d} has terminated.')
+                    logger.debug(f'Worker on rank {worker:d} has terminated.')
                     self.comm.recv(source=worker, tag=Tags.EXIT)
                     self.busy[i] = False
 
             time.sleep(sleep)
 
-        logger.basic(f'Rank {self.rank}: Finished all jobs.')
+        logger.debug('Finished all jobs.')
 
         return results
 
@@ -318,26 +313,26 @@ class MPIExecutor(object):
 
         status = MPI.Status()
 
-        logger.basic(f'Rank {self.rank}: Starting up worker.')
+        logger.debug('Starting up worker.')
 
         while True:
             self.comm.send(None, dest=self.master, tag=Tags.READY)
-            logger.basic(f'Rank {self.rank}: Worker on rank {self.rank} waiting for job.')
+            logger.debug(f'Worker on rank {self.rank} waiting for job.')
 
             data = self.comm.recv(source=self.master, tag=MPI.ANY_TAG, status=status)
             tag = status.tag
 
             if tag == Tags.START:
                 job_idx, work = data
-                logger.basic(f'Rank {self.rank}: Received job {job_idx} (work={work}).')
+                logger.debug(f'Received job {job_idx} (work={work}).')
                 result = self.__guarded_work(work)
-                logger.basic(f'Rank {self.rank}: Finished job. Sending results to master.')
+                logger.debug('Finished job. Sending results to master.')
                 self.comm.send((job_idx, result), dest=self.master, tag=Tags.DONE)
             elif tag == Tags.EXIT:
-                logger.basic(f'Rank {self.rank}: Received sentinel from master.')
+                logger.debug('Received sentinel from master.')
                 break
 
-        logger.basic(f'Rank {self.rank}: Terminating worker.')
+        logger.debug('Terminating worker.')
         self.comm.send(None, dest=self.master, tag=Tags.EXIT)
 
     def __guarded_work(self, work):
@@ -359,104 +354,3 @@ class MPIExecutor(object):
         except Exception as e:
             logger.exception(str(e))
             return None
-
-
-# def main(args=None):
-#     """CLI for gprMax in MPI mode.
-#     Example Usage:
-#         mpirun -np 4 python -m mpi -n 10 my_input_file.in
-#     """
-#     import argparse
-#     import os
-#     from gprMax.constants import c, e0, m0, z0
-#     from gprMax.model_build_run import run_model
-#
-#     # Parse command line arguments
-#     parser = argparse.ArgumentParser(prog='gprMax', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-#     parser.add_argument(
-#         'inputfile',
-#         help='relative or absolute path to inputfile.')
-#     parser.add_argument(
-#         '-n', '--num-traces', type=int, default=1,
-#         help='number of model runs (traces) to create a B-scan')
-#     parser.add_argument(
-#         '--geometry-only', action='store_true', default=False,
-#         help='flag to only build model and produce geometry file(s)')
-#     parser.add_argument(
-#         '--geometry-fixed', action='store_true', default=False,
-#         help='flag to not reprocess model geometry, e.g. for B-scans where the geometry is fixed')
-#     parser.add_argument(
-#         '--write-processed', action='store_true', default=False,
-#         help='flag to write an input file after any Python code and include commands '
-#              'in the original input file have been processed')
-#     parser.add_argument(
-#         '-r', '--restart', type=int, default=1,
-#         help='model number to restart from, e.g. when creating B-scan')
-#     parser.add_argument(
-#         '-l', '--logfile', action='store_true', default=False,
-#         help='flag to enable writing to a log file')
-#     parser.add_argument(
-#         '-v', '--verbose', action='store_true', default=False,
-#         help="flag to increase output")
-#     parser.add_argument(
-#         '--gpu', type=int, action='append', nargs='*',
-#         help='flag to use Nvidia GPU or option to give list of device ID(s)')
-#
-#     args = parser.parse_args(args)
-#
-#     comm = MPI.COMM_WORLD
-#     rank = comm.rank
-#
-#     # set-up logging
-#     logger = logging.getLogger('gprMax')
-#     level = logging.DEBUG if args.verbose else logging.INFO
-#     logger.setLevel(level)
-#
-#     if args.logfile != "":
-#         mh = logging.FileHandler(f"log_{rank}.txt", mode='w')
-#         mh.setLevel(level)
-#         formatter = logging.Formatter('%(asctime)s:%(name)s:%(levelname)s: %(message)s')
-#         mh.setFormatter(formatter)
-#         logger.addHandler(mh)
-#
-#     namespace = {
-#         'c': c,
-#         'e0': e0,
-#         'm0': m0,
-#         'z0': z0,
-#         'number_model_runs': args.num_traces,
-#         'inputfile': os.path.abspath(args.inputfile)
-#     }
-#
-#     model_args = argparse.Namespace(**{
-#         'geometry_only': args.geometry_only,
-#         'geometry_fixed': args.geometry_fixed,
-#         'write_processed': args.write_processed,
-#         'task': False,
-#         'restart': False,
-#         'gpu': args.gpu
-#     })
-#
-#     # compile jobs
-#     jobs = []
-#     for i in range(args.num_traces):
-#         jobs.append({
-#             'args': model_args,
-#             'inputfile': args.inputfile,
-#             'currentmodelrun': i + 1,
-#             'modelend': args.num_traces,
-#             'numbermodelruns': args.num_traces,
-#             'usernamespace': namespace.copy()
-#         })
-#
-#     # execute jobs
-#     logger.info(f'Starting execution of {args.num_traces} gprMax model runs.')
-#     with MPIExecutor(run_model, comm=comm) as gpr:
-#         if gpr is not None:
-#             results = gpr.submit(jobs)
-#             logger.info('Results: %s' % str(results))
-#     logger.info('Finished.')
-#
-#
-# if __name__ == '__main__':
-#     main()

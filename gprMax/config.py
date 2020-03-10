@@ -264,7 +264,7 @@ class SimulationConfig:
             list of deviceID given.
         """
         for gpu in self.cuda['gpus']:
-            if gpu.deviceID == self.args.gpu[deviceID]:
+            if gpu.deviceID == deviceID:
                 return gpu
 
     def _set_precision(self):

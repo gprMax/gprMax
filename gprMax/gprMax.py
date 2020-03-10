@@ -171,7 +171,6 @@ def run_main(args):
         args (Namespace): arguments from either API or CLI.
     """
 
-
     config.sim_config = config.SimulationConfig(args)
     context = create_context()
     context.run()

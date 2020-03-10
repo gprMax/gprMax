@@ -18,6 +18,7 @@
 
 import datetime
 import logging
+import time
 
 import gprMax.config as config
 from ._version import __version__, codename
@@ -113,13 +114,17 @@ class MPIContext(Context):
         self.rank = self.comm.rank
         self.MPIExecutor = MPIExecutor
 
-    def _run_model(self, i, GPUdeviceID):
+    def _run_model(self, i):
         """Process for running a single model."""
 
+        # Create configuration for model
         config.model_num = i
         model_config = config.ModelConfig()
+        # Set GPU deviceID according to worker rank
         if config.sim_config.general['cuda']:
-            config.sim_config.set_model_gpu(GPUdeviceID)
+            gpu = config.sim_config.set_model_gpu(deviceID=self.rank - 1)
+            model_config.cuda = {'gpu': gpu,
+                                 'snapsgpu2cpu': False}
         config.model_configs = model_config
 
         G = create_G()
@@ -133,22 +138,24 @@ class MPIContext(Context):
     def run(self):
         """Specialise how the models are run."""
 
-        self.tsimstart = timer()
+        if self.rank == 0:
+            self.tsimstart = timer()
+            self.print_logo_copyright()
+            self.print_host_info()
+            if config.sim_config.general['cuda']:
+                self.print_gpu_info()
+
+        time.sleep(0.1)
 
         # Contruct MPIExecutor
         executor = self.MPIExecutor(self._run_model, comm=self.comm)
 
-        # Compile jobs
+        # Create job list
         jobs = []
         for i in self.model_range:
-            jobs.append({'i': i,
-                         'GPUdeviceID': 0})
+            jobs.append({'i': i})
 
-        # if executor.is_master():
-        #     self.print_logo_copyright()
-        # self.print_host_info()
-        # if config.sim_config.general['cuda']:
-        #     self.print_gpu_info()
+
 
         # Send the workers to their work loop
         executor.start()
@@ -158,20 +165,9 @@ class MPIContext(Context):
         # Make the workers exit their work loop and join the main loop again
         executor.join()
 
-        # with self.MPIExecutor(self._run_model, comm=self.comm) as executor:
-        #     if executor is not None:
-        #         results = executor.submit(jobs)
-        #         logger.info('Results: %s' % str(results))
-        # logger.basic('Finished.')
-
-        self.tsimend = timer()
         if executor.is_master():
+            self.tsimend = timer()
             self.print_time_report()
-
-    def print_time_report(self):
-        """Print the total simulation time based on context."""
-        s = f"\n=== Simulation on {config.sim_config.hostinfo['hostname']} completed in [HH:MM:SS]: {datetime.timedelta(seconds=self.tsimend - self.tsimstart)}"
-        logger.basic(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")
 
 
 def create_context():
