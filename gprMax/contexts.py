@@ -18,10 +18,11 @@
 
 import datetime
 import logging
-import time
+import sys
 
 import gprMax.config as config
 from ._version import __version__, codename
+from .exceptions import GeneralError
 from .model_build_run import ModelBuildRun
 from .solvers import create_solver
 from .solvers import create_G
@@ -144,18 +145,21 @@ class MPIContext(Context):
             self.print_host_info()
             if config.sim_config.general['cuda']:
                 self.print_gpu_info()
-
-        time.sleep(0.1)
+            sys.stdout.flush()
 
         # Contruct MPIExecutor
         executor = self.MPIExecutor(self._run_model, comm=self.comm)
+
+        # Check GPU resources versus number of MPI tasks
+        if executor.is_master():
+            if config.sim_config.general['cuda']:
+                if executor.size - 1 > len(config.sim_config.cuda['gpus']):
+                    raise GeneralError(f'Not enough GPU resources for number of MPI tasks requested. Number of MPI tasks should be equal to number of GPUs + 1.')
 
         # Create job list
         jobs = []
         for i in self.model_range:
             jobs.append({'i': i})
-
-
 
         # Send the workers to their work loop
         executor.start()

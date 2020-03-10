@@ -31,7 +31,7 @@ from scipy.constants import epsilon_0 as e0
 from scipy.constants import mu_0 as m0
 
 from .exceptions import GeneralError
-from .utilities import detect_check_gpus
+from .utilities import detect_gpus
 from .utilities import get_host_info
 from .utilities import get_terminal_width
 
@@ -71,8 +71,15 @@ class ModelConfig:
         #     N.B. This will happen if the requested snapshots are too large to fit
         #     on the memory of the GPU. If True this will slow performance significantly
         if sim_config.general['cuda']:
-            gpu = sim_config.set_model_gpu()
-            self.cuda = {'gpu': gpu,
+            # If a list of lists of GPU deviceIDs is found, flatten it
+            if any(isinstance(element, list) for element in sim_config.args.gpu):
+                deviceID = [val for sublist in sim_config.args.gpu for val in sublist]
+
+            # If no deviceID is given default to using deviceID 0. Else if either
+            # a single deviceID or list of deviceIDs is given use first one.
+            deviceID = 0 if not deviceID else deviceID[0]
+
+            self.cuda = {'gpu': sim_config.set_model_gpu(deviceID),
                          'snapsgpu2cpu': False}
 
         # Total memory usage for all grids in the model. Starts with 50MB overhead.
@@ -221,20 +228,12 @@ class SimulationConfig:
             # provides best performance.
             self.general['precision'] = 'single'
             self.cuda = {'gpus': [], # gpus: list of GPU objects
-                         'gpus_str': [], # gpus_str: list of strings describing GPU(s)
                          'nvcc_opts': None} # nvcc_opts: nvcc compiler options
             # Suppress nvcc warnings on Microsoft Windows
             if sys.platform == 'win32': self.cuda['nvcc_opts'] = ['-w']
 
-            # Flatten a list of lists
-            if any(isinstance(element, list) for element in self.args.gpu):
-                self.args.gpu = [val for sublist in self.args.gpu for val in sublist]
-
-            # If no deviceID is given default to 0
-            if not self.args.gpu:
-                self.args.gpu = [0]
-
-            self.cuda['gpus'] = detect_check_gpus(self.args.gpu)
+            # List of GPU objects of available GPUs
+            self.cuda['gpus'] = detect_gpus()
 
         # Subgrid parameter may not exist if user enters via CLI
         try:
@@ -259,13 +258,24 @@ class SimulationConfig:
         self._set_model_start_end()
         self._set_single_model()
 
-    def set_model_gpu(self, deviceID=0):
-        """Specify GPU object for model. Defaults to first GPU deviceID in
-            list of deviceID given.
+    def set_model_gpu(self, deviceID):
+        """Specify GPU object for model.
+
+        Args:
+            deviceID (int): Requested deviceID of GPU
+
+        Returns:
+            gpu (GPU object): Requested GPU object.
         """
+
+        found = False
         for gpu in self.cuda['gpus']:
             if gpu.deviceID == deviceID:
+                found = True
                 return gpu
+
+        if not found:
+            raise GeneralError(f'GPU with device ID {deviceID} does not exist')
 
     def _set_precision(self):
         """Data type (precision) for electromagnetic field output.

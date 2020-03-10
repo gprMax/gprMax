@@ -503,15 +503,11 @@ class GPU:
         self.totalmem = drv.Device(self.deviceID).total_memory()
 
 
-def detect_check_gpus(deviceIDs):
+def detect_gpus():
     """Get information about Nvidia GPU(s).
-
-    Args:
-        deviceIDs (list): List of integers of device IDs.
 
     Returns:
         gpus (list): Detected GPU(s) object(s).
-        gpus_str (list): Printable strings of information on GPU(s).
     """
 
     try:
@@ -529,6 +525,23 @@ def detect_check_gpus(deviceIDs):
     else:
         deviceIDsavail = range(drv.Device.count())
 
+    # Gather information about selected/detected GPUs
+    gpus = []
+    for ID in deviceIDsavail:
+        gpu = GPU(deviceID=ID)
+        gpu.get_gpu_info(drv)
+        gpus.append(gpu)
+
+    return gpus
+
+
+def check_gpus(gpus):
+    """Check if requested Nvidia GPU(s) deviceID(s) exist.
+
+    Args:
+        gpus (list): List of GPU object(s).
+    """
+
     # Check if requested device ID(s) exist
     for ID in deviceIDs:
         if ID not in deviceIDsavail:
@@ -540,8 +553,6 @@ def detect_check_gpus(deviceIDs):
         gpu = GPU(deviceID=ID)
         gpu.get_gpu_info(drv)
         gpus.append(gpu)
-
-    return gpus
 
 
 def timer():
