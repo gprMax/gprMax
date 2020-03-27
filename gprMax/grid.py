@@ -418,7 +418,7 @@ def dispersion_analysis(G):
                 er = x.er
                 # If there are dispersive materials calculate the complex relative permittivity
                 # at maximum frequency and take the real part
-                if x.__class__.__name__ is 'DispersiveMaterial':
+                if x.__class__.__name__ == 'DispersiveMaterial':
                     er = x.calculate_er(results['maxfreq'])
                     er = er.real
                 if er > maxer:
