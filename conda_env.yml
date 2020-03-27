@@ -9,7 +9,7 @@ dependencies:
 - h5py
 - jupyter
 - matplotlib
-- numpy
+- numpy==1.17.4
 - pip
 - psutil
 - scipy
