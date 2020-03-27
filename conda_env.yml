@@ -1,5 +1,5 @@
 # This file may be used to create a conda environment using:
-# $ conda create --name gprMax --file <this file>
+# $ conda env create -f <this file>
 
 name: gprMax
 dependencies:
