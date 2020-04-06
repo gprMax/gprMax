@@ -123,7 +123,7 @@ class MPIContext(Context):
         model_config = config.ModelConfig()
         # Set GPU deviceID according to worker rank
         if config.sim_config.general['cuda']:
-            gpu = config.sim_config.set_model_gpu(deviceID=self.rank - 1)
+            gpu = config.sim_config.cuda['gpus'][self.rank - 1]
             model_config.cuda = {'gpu': gpu,
                                  'snapsgpu2cpu': False}
         config.model_configs = model_config

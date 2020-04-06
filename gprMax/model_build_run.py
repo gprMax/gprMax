@@ -265,7 +265,8 @@ class ModelBuildRun:
                 logger.warning(Fore.RED + f"You have specified more threads ({config.get_model_config().ompthreads}) than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). This may lead to degraded performance." + Style.RESET_ALL)
         # Print information about any GPU in use
         elif config.sim_config.general['cuda']:
-            logger.basic(f"GPU for solving: {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name}\n")
+            import platform
+            logger.basic(f"GPU (on {platform.node()}) for solving: {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name}\n")
 
         # Prepare iterator
         if config.sim_config.general['progressbars']:
