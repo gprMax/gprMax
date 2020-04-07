@@ -92,7 +92,7 @@ class Context:
         """Print information about any NVIDIA CUDA GPUs detected."""
         gpus_info = []
         for gpu in config.sim_config.cuda['gpus']:
-            gpus_info.append(f'{gpu.deviceID} {gpu.pcibusID} - {gpu.name}, {human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)} (on {gpu.hostname})')
+            gpus_info.append(f'{gpu.deviceID} {gpu.pcibusID} - {gpu.name}, {human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)}')
         logger.basic(f"GPU resources: {' | '.join(gpus_info)}")
 
     def print_time_report(self):
