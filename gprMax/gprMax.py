@@ -25,7 +25,7 @@ from .contexts import MPIContext
 from .utilities import setup_logging
 
 logger = logging.getLogger(__name__)
-setup_logging(level=20)
+setup_logging(level=25)
 
 def run(
     scenes=None,
