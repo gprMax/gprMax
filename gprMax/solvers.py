@@ -17,11 +17,10 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import gprMax.config as config
-from .grid import FDTDGrid
-from .grid import CUDAGrid
+
+from .grid import CUDAGrid, FDTDGrid
 from .subgrids.updates import create_updates as create_subgrid_updates
-from .updates import CPUUpdates
-from .updates import CUDAUpdates
+from .updates import CPUUpdates, CUDAUpdates
 
 
 def create_G():

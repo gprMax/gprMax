@@ -19,12 +19,10 @@
 import argparse
 from pathlib import Path
 
-import numpy as np
 import matplotlib.pyplot as plt
-
+import numpy as np
 from gprMax.exceptions import CmdInputError
-from gprMax.utilities import fft_power
-from gprMax.utilities import round_value
+from gprMax.utilities import fft_power, round_value
 from gprMax.waveforms import Waveform
 
 

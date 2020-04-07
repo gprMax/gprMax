@@ -16,21 +16,21 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
-from colorama import init, Fore, Style
-init()
+import gprMax
 import h5py
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+from colorama import Fore, Style, init
+init()
+from gprMax.exceptions import GeneralError
+from tests.analytical_solutions import hertzian_dipole_fs
 
 if sys.platform == 'linux':
     plt.switch_backend('agg')
 
-import gprMax
-from gprMax.exceptions import GeneralError
-from tests.analytical_solutions import hertzian_dipole_fs
 
 """Compare field outputs
 

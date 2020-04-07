@@ -17,8 +17,8 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-from string import Template
 from pathlib import Path
+from string import Template
 
 import h5py
 

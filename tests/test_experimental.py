@@ -17,13 +17,12 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import h5py
-import numpy as np
 import matplotlib.pyplot as plt
-
+import numpy as np
 from gprMax.exceptions import CmdInputError
 
 """Plots a comparison of fields between given simulation output and experimental data files."""

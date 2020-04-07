@@ -20,19 +20,16 @@ import inspect
 import logging
 from pathlib import Path
 
-from colorama import init
-from colorama import Fore
-from colorama import Style
-init()
-import numpy as np
-from scipy.constants import c
-from scipy import interpolate
-
 import gprMax.config as config
+import numpy as np
+from colorama import Fore, Style, init
+init()
+from scipy import interpolate
+from scipy.constants import c
+
 from .exceptions import CmdInputError
+from .utilities import round_value, set_omp_threads
 from .waveforms import Waveform
-from .utilities import round_value
-from .utilities import set_omp_threads
 
 logger = logging.getLogger(__name__)
 
@@ -95,31 +92,31 @@ class Domain(UserObjectSingle):
         try:
             G.nx, G.ny, G.nz = uip.discretise_point(self.kwargs['p1'])
         except KeyError:
-            raise CmdInputError(f"'{self.params_str()}' please specify a point")
+            raise CmdInputError(self.__str__() + ' please specify a point')
 
         if G.nx == 0 or G.ny == 0 or G.nz == 0:
-            raise CmdInputError(f"'{self.params_str()}' requires at least one cell in every dimension")
+            raise CmdInputError(self.__str__() + ' requires at least one cell in every dimension')
 
         logger.info(f"Domain size: {self.kwargs['p1'][0]:g} x {self.kwargs['p1'][1]:g} x {self.kwargs['p1'][2]:g}m ({G.nx:d} x {G.ny:d} x {G.nz:d} = {(G.nx * G.ny * G.nz):g} cells)")
 
         # Calculate time step at CFL limit; switch off appropriate PMLs for 2D
         if G.nx == 1:
-            G.mode = '2D TMx'
+            config.get_model_config().mode = '2D TMx'
             G.pmlthickness['x0'] = 0
             G.pmlthickness['xmax'] = 0
         elif G.ny == 1:
-            G.mode = '2D TMy'
+            config.get_model_config().mode = '2D TMy'
             G.pmlthickness['y0'] = 0
             G.pmlthickness['ymax'] = 0
         elif G.nz == 1:
-            G.mode = '2D TMz'
+            config.get_model_config().mode = '2D TMz'
             G.pmlthickness['z0'] = 0
             G.pmlthickness['zmax'] = 0
         else:
-            G.mode = '3D'
+            config.get_model_config().mode = '3D'
         G.calculate_dt()
 
-        logger.info(f'Mode: {G.mode}')
+        logger.info(f'Mode: {config.get_model_config().mode}')
         logger.info(f'Time step (at CFL limit): {G.dt:g} secs')
 
 
@@ -140,14 +137,14 @@ class Discretisation(UserObjectSingle):
             G.dl = np.array(self.kwargs['p1'])
             G.dx, G.dy, G.dz = self.kwargs['p1']
         except KeyError:
-            raise CmdInputError(f"'{self.params_str()}' discretisation requires a point")
+            raise CmdInputError(self.__str__() + ' discretisation requires a point')
 
         if G.dl[0] <= 0:
-            raise CmdInputError(f"'{self.params_str()}' discretisation requires the x-direction spatial step to be greater than zero")
+            raise CmdInputError(self.__str__() + ' discretisation requires the x - direction spatial step to be greater than zero')
         if G.dl[1] <= 0:
-            raise CmdInputError(f"'{self.params_str()}' discretisation requires the y-direction spatial step to be greater than zero")
+            raise CmdInputError(self.__str__() + ' discretisation requires the y - direction spatial step to be greater than zero')
         if G.dl[2] <= 0:
-            raise CmdInputError(f"'{self.params_str()}' discretisation requires the z-direction spatial step to be greater than zero")
+            raise CmdInputError(self.__str__() + ' discretisation requires the z - direction spatial step to be greater than zero')
 
         logger.info(f'Spatial discretisation: {G.dl[0]:g} x {G.dl[1]:g} x {G.dl[2]:g}m')
 
@@ -182,12 +179,12 @@ class TimeWindow(UserObjectSingle):
                 G.timewindow = tmp
                 G.iterations = int(np.ceil(tmp / G.dt)) + 1
             else:
-                raise CmdInputError(f"'{self.params_str()}' must have a value greater than zero")
+                raise CmdInputError(self.__str__() + ' must have a value greater than zero')
         except KeyError:
             pass
 
         if not G.timewindow:
-            raise CmdInputError(f"'{self.params_str()}' specify a time or number of iterations")
+            raise CmdInputError(self.__str__() + ' specify a time or number of iterations')
 
         logger.info(f'Time window: {G.timewindow:g} secs ({G.iterations} iterations)')
 

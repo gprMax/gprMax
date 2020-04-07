@@ -21,15 +21,12 @@ import logging
 import sys
 
 import gprMax.config as config
+
 from ._version import __version__, codename
 from .exceptions import GeneralError
 from .model_build_run import ModelBuildRun
-from .solvers import create_solver
-from .solvers import create_G
-from .utilities import get_terminal_width
-from .utilities import human_size
-from .utilities import logo
-from .utilities import timer
+from .solvers import create_G, create_solver
+from .utilities import get_terminal_width, human_size, logo, timer
 
 logger = logging.getLogger(__name__)
 

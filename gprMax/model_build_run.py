@@ -19,37 +19,31 @@
 import datetime
 import itertools
 import logging
-from pathlib import Path
 import platform
-import psutil
 import sys
+from pathlib import Path
 
-from colorama import init
-from colorama import Fore
-from colorama import Style
-init()
+import gprMax.config as config
 import numpy as np
+import psutil
+from colorama import Fore, Style, init
+init()
 from terminaltables import SingleTable
 from tqdm import tqdm
 
-import gprMax.config as config
-from .cython.yee_cell_build import build_electric_components
-from .cython.yee_cell_build import build_magnetic_components
+from .cython.yee_cell_build import (build_electric_components,
+                                    build_magnetic_components)
 from .exceptions import GeneralError
 from .fields_outputs import write_hdf5_outputfile
 from .grid import dispersion_analysis
 from .hash_cmds_file import parse_hash_commands
-from .materials import Material
-from .materials import process_materials
-from .pml import build_pml
-from .pml import print_pml_info
+from .materials import Material, process_materials
+from .pml import build_pml, print_pml_info
 from .scene import Scene
 from .snapshots import Snapshot
 from .solvers import create_solver
-from .utilities import get_terminal_width
-from .utilities import human_size
-from .utilities import mem_check_all
-from .utilities import set_omp_threads
+from .utilities import (get_terminal_width, human_size, mem_check_all,
+                        set_omp_threads)
 
 logger = logging.getLogger(__name__)
 

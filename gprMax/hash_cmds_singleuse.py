@@ -16,17 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from .cmds_single_use import Title
-from .cmds_single_use import NumThreads
-from .cmds_single_use import Discretisation
-from .cmds_single_use import Domain
-from .cmds_single_use import TimeStepStabilityFactor
-from .cmds_single_use import TimeWindow
-from .cmds_single_use import PMLCells
-from .cmds_single_use import SrcSteps
-from .cmds_single_use import RxSteps
-from .cmds_single_use import ExcitationFile
-from .cmds_single_use import OutputDir
+from .cmds_single_use import (Discretisation, Domain, ExcitationFile,
+                              NumThreads, OutputDir, PMLCells, RxSteps,
+                              SrcSteps, TimeStepStabilityFactor, TimeWindow,
+                              Title)
 from .exceptions import CmdInputError
 
 

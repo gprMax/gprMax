@@ -16,12 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from struct import pack
 import sys
-
-import numpy as np
+from struct import pack
 
 import gprMax.config as config
+import numpy as np
+
 from .cython.snapshots import calculate_snapshot_fields
 from .utilities import round_value
 

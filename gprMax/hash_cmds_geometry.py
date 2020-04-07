@@ -18,17 +18,18 @@
 
 import numpy as np
 
-from .cmds_geometry.edge import Edge
-from .cmds_geometry.plate import Plate
-from .cmds_geometry.triangle import Triangle
+from .cmds_geometry.add_grass import AddGrass
+from .cmds_geometry.add_surface_roughness import AddSurfaceRoughness
+from .cmds_geometry.add_surface_water import AddSurfaceWater
 from .cmds_geometry.box import Box
 from .cmds_geometry.cylinder import Cylinder
 from .cmds_geometry.cylindrical_sector import CylindricalSector
+from .cmds_geometry.edge import Edge
 from .cmds_geometry.fractal_box import FractalBox
+from .cmds_geometry.plate import Plate
 from .cmds_geometry.sphere import Sphere
-from .cmds_geometry.add_surface_roughness import AddSurfaceRoughness
-from .cmds_geometry.add_surface_water import AddSurfaceWater
-from .cmds_geometry.add_grass import AddGrass
+from .cmds_geometry.triangle import Triangle
+from .exceptions import CmdInputError
 from .utilities import round_value
 
 
@@ -181,15 +182,18 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with no user specified averaging
             if len(tmp) == 10:
-                CylindricalSector(normal=normal, ctl1=ctl1, ctl2=ctl2, extent1=extent1, extent2=extent2, r=r, start=start, end=end, msterial_id=tmp[9])
+                cylindrical_sector = CylindricalSector(normal=normal, ctr1=ctr1, ctr2=ctr2, extent1=extent1,
+                                  extent2=extent2, r=r, start=start, end=end, msterial_id=tmp[9])
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 11:
-                CylindricalSector(normal=normal, ctl1=ctl1, ctl2=ctl2, extent1=extent1, extent2=extent2, r=r, start=start, end=end, averaging=tmp[10], material_id=tmp[9])
+                cylindrical_sector = CylindricalSector(normal=normal, ctr1=ctr1, ctr2=ctr2, extent1=extent1, extent2=extent2,
+                                  r=r, start=start, end=end, averaging=tmp[10], material_id=tmp[9])
 
             # Uniaxial anisotropic case
             elif len(tmp) == 12:
-                CylindricalSector(normal=normal, ctl1=ctl1, ctl2=ctl2, extent1=extent1, extent2=extent2, r=r, start=start, end=end, material_ids=tmp[9:])
+                cylindrical_sector = CylindricalSector(normal=normal, ctr1=ctr1, ctr2=ctr2, extent1=extent1,
+                                  extent2=extent2, r=r, start=start, end=end, material_ids=tmp[9:])
 
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')

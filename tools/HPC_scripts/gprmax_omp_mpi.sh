@@ -16,7 +16,7 @@
 #$ -pe mpi 176
 
 ### Job script name:
-#$ -N gprmax_omp_mpi.sh
+#$ -N gprmax_omp_mpi_no_spawn.sh
 #####################################################################################
 
 ### Initialise environment module
@@ -34,4 +34,4 @@ export OMP_NUM_THREADS=16
 
 ### Run gprMax with input file
 cd $HOME/gprMax
-python -m gprMax mymodel.in -n 10 -mpi 11
+mpirun -n 11 python -m gprMax mymodel.in -n 10 -mpi

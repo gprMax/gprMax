@@ -16,27 +16,26 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from importlib import import_module
 import logging
-
-import numpy as np
+from importlib import import_module
 
 import gprMax.config as config
+import numpy as np
+
 from .cuda.fields_updates import kernel_template_fields
 from .cuda.snapshots import kernel_template_store_snapshot
 from .cuda.source_updates import kernel_template_sources
-from .cython.fields_updates_normal import update_electric as update_electric_cpu
-from .cython.fields_updates_normal import update_magnetic as update_magnetic_cpu
-from .fields_outputs import store_outputs as store_outputs_cpu
+from .cython.fields_updates_normal import \
+    update_electric as update_electric_cpu
+from .cython.fields_updates_normal import \
+    update_magnetic as update_magnetic_cpu
+from .exceptions import GeneralError
 from .fields_outputs import kernel_template_store_outputs
-from .receivers import htod_rx_arrays
-from .receivers import dtoh_rx_array
-from .snapshots import Snapshot
-from .snapshots import htod_snapshot_array
-from .snapshots import dtoh_snapshot_array
+from .fields_outputs import store_outputs as store_outputs_cpu
+from .receivers import dtoh_rx_array, htod_rx_arrays
+from .snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
 from .sources import htod_src_arrays
-from .utilities import round32
-from .utilities import timer
+from .utilities import human_size, round32, timer
 
 
 class CPUUpdates:
@@ -692,7 +691,7 @@ class CUDAUpdates:
         # Copy data from any snapshots back to correct snapshot objects
         if self.grid.snapshots and not config.get_model_config().cuda['snapsgpu2cpu']:
             for i, snap in enumerate(self.grid.snapshots):
-                dtoh_snapshot_arra(self.snapEx_gpu.get(),
+                dtoh_snapshot_array(self.snapEx_gpu.get(),
                                    self.snapEy_gpu.get(),
                                    self.snapEz_gpu.get(),
                                    self.snapHx_gpu.get(),

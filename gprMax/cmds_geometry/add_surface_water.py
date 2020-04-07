@@ -19,10 +19,11 @@
 import logging
 
 import gprMax.config as config
-from .cmds_geometry import UserObjectGeometry
+
 from ..exceptions import CmdInputError
-from ..materials import Material
+from ..materials import DispersiveMaterial
 from ..utilities import round_value
+from .cmds_geometry import UserObjectGeometry
 
 logger = logging.getLogger(__name__)
 
@@ -126,15 +127,15 @@ class AddSurfaceWater(UserObjectGeometry):
 
         # Check to see if water has been already defined as a material
         if not any(x.ID == 'water' for x in grid.materials):
-            m = Material(len(grid.materials), 'water')
+            m = DispersiveMaterial(len(grid.materials), 'water')
             m.averagable = False
             m.type = 'builtin, debye'
-            m.er = Material.watereri
-            m.deltaer.append(Material.waterdeltaer)
-            m.tau.append(Material.watertau)
+            m.er = DispersiveMaterial.watereri
+            m.deltaer.append(DispersiveMaterial.waterdeltaer)
+            m.tau.append(DispersiveMaterial.watertau)
             grid.materials.append(m)
-            if Material.maxpoles == 0:
-                Material.maxpoles = 1
+            if config.get_model_config().materials['maxpoles'] == 0:
+                config.get_model_config().materials['maxpoles'] = 1
 
         # Check if time step for model is suitable for using water
         water = next((x for x in grid.materials if x.ID == 'water'))

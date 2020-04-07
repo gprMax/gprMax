@@ -19,11 +19,10 @@
 from copy import copy
 
 import numpy as np
-
 from gprMax import config
+
 from ..cmds_geometry.cmds_geometry import UserObjectGeometry
-from ..cmds_multiple import UserObjectMulti
-from ..cmds_multiple import Rx
+from ..cmds_multiple import Rx, UserObjectMulti
 from ..exceptions import CmdInputError
 from .multi import ReferenceRx as ReferenceRxUser
 from .subgrid_hsg import SubGridHSG as SubGridHSGUser

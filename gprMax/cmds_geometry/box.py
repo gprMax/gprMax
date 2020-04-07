@@ -18,13 +18,13 @@
 
 import logging
 
+import gprMax.config as config
 import numpy as np
 
-import gprMax.config as config
-from .cmds_geometry import UserObjectGeometry
 from ..cython.geometry_primitives import build_box
 from ..exceptions import CmdInputError
 from ..materials import Material
+from .cmds_geometry import UserObjectGeometry
 
 logger = logging.getLogger(__name__)
 

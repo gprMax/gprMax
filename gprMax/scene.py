@@ -21,11 +21,9 @@ import logging
 from .cmds_geometry.cmds_geometry import UserObjectGeometry
 from .cmds_geometry.fractal_box_builder import FractalBoxBuilder
 from .cmds_multiple import UserObjectMulti
-from .cmds_single_use import UserObjectSingle
-from .cmds_single_use import Domain
-from .cmds_single_use import Discretisation
-from .cmds_single_use import TimeWindow
-from .exceptions import CmdInputError
+from .cmds_single_use import (Discretisation, Domain, TimeWindow,
+                              UserObjectSingle)
+from .exceptions import CmdInputError, GeneralError
 from .materials import create_built_in_materials
 from .subgrids.user_objects import SubGridBase as SubGridUserBase
 from .user_inputs import create_user_input_points

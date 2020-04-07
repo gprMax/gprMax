@@ -16,7 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class Waveform:
@@ -129,5 +132,5 @@ class Waveform:
         return ampvalue
 
     def __str__(self):
-        log.debug('Do we need this?')
+        logger.debug('Do we need this?')
         return f'Waveform: ID={self.ID}, type={self.type}, amp{self.amp}, freq={self.freq}'

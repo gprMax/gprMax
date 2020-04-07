@@ -23,8 +23,8 @@ from pathlib import Path
 
 import h5py
 import numpy as np
-
 from gprMax._version import __version__
+from gprMax.exceptions import CmdInputError
 
 
 def get_output_data(filename, rxnumber, rxcomponent):

@@ -18,23 +18,22 @@
 
 import logging
 
+import gprMax.config as config
 import numpy as np
 
-import gprMax.config as config
 from .cmds_geometry.cmds_geometry import UserObjectGeometry
-from .exceptions import CmdInputError
+from .exceptions import CmdInputError, GeneralError
 from .geometry_outputs import GeometryObjects as GeometryObjectsUser
-from .materials import Material as MaterialUser
 from .materials import DispersiveMaterial as DispersiveMaterialUser
+from .materials import Material as MaterialUser
 from .materials import PeplinskiSoil as PeplinskiSoilUser
-from .pml import CFSParameter
-from .pml import CFS
+from .pml import CFS, CFSParameter
 from .receivers import Rx as RxUser
 from .snapshots import Snapshot as SnapshotUser
-from .sources import VoltageSource as VoltageSourceUser
 from .sources import HertzianDipole as HertzianDipoleUser
 from .sources import MagneticDipole as MagneticDipoleUser
 from .sources import TransmissionLine as TransmissionLineUser
+from .sources import VoltageSource as VoltageSourceUser
 from .subgrids.base import SubGridBase
 from .utilities import round_value
 from .waveforms import Waveform as WaveformUser
@@ -162,7 +161,7 @@ class VoltageSource(UserObjectMulti):
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            raise CmdInputError(f"'{self.params_str()}' there is no waveform with the identifier {tmp[5]}")
+            raise CmdInputError(f"'{self.params_str()}' there is no waveform with the identifier {waveform_id}")
 
         v = VoltageSourceUser()
         v.polarisation = polarisation
@@ -594,7 +593,7 @@ class RxArray(UserObjectMulti):
                     r.zcoordorigin = z
                     r.ID = r.__class__.__name__ + '(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
                     for key in RxUser.defaultoutputs:
-                        r.outputs[key] = np.zeros(grid.iterations, dtype=config.dtypes['float_or_double'])
+                        r.outputs[key] = np.zeros(grid.iterations, dtype=config.sim_config.dtypes['float_or_double'])
                     logger.info(f"  Receiver at {r.xcoord * grid.dx:g}m, {r.ycoord * grid.dy:g}m, {r.zcoord * grid.dz:g}m with output component(s) {', '.join(r.outputs)} created.")
                     grid.rxs.append(r)
 
@@ -1080,7 +1079,7 @@ class GeometryObjectsWrite(UserObjectMulti):
         try:
             p1 = self.kwargs['p1']
             p2 = self.kwargs['p2']
-            filename = self.kwargs['filename']
+            basefilename = self.kwargs['filename']
         except KeyError:
             raise CmdInputError(f"'{self.params_str()}' requires exactly seven parameters")
 
@@ -1088,9 +1087,9 @@ class GeometryObjectsWrite(UserObjectMulti):
         x0, y0, z0 = p1
         x1, y1, z1 = p2
 
-        g = GeometryObjectsUser(x0, y0, z0, x1, y1, z1, filename)
+        g = GeometryObjectsUser(x0, y0, z0, x1, y1, z1, basefilename)
 
-        logger.info(f'Geometry objects in the volume from {p1[0] * grid.dx:g}m, {p1[1] * grid.dy:g}m, {p1[2] * grid.dz:g}m, to {p2[0] * grid.dx:g}m, {p2[1] * grid.dy:g}m, {p2[2] * grid.dz:g}m, will be written to {g.filename}, with materials written to {g.materialsfilename}')
+        logger.info(f'Geometry objects in the volume from {p1[0] * grid.dx:g}m, {p1[1] * grid.dy:g}m, {p1[2] * grid.dz:g}m, to {p2[0] * grid.dx:g}m, {p2[1] * grid.dy:g}m, {p2[2] * grid.dz:g}m, will be written to {g.filename_hdf5}, with materials written to {g.filename_materials}')
 
         # Append the new GeometryView object to the geometry objects to write list
         grid.geometryobjectswrite.append(g)

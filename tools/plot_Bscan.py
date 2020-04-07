@@ -20,10 +20,10 @@ import argparse
 from pathlib import Path
 
 import h5py
-import numpy as np
 import matplotlib.pyplot as plt
-
+import numpy as np
 from gprMax.exceptions import CmdInputError
+
 from .outputfiles_merge import get_output_data
 
 

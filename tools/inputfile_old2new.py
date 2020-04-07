@@ -223,7 +223,7 @@ while(lindex < len(inputlines)):
             lindex += 1
 
         elif cmdname == '#bowtie':
-            print("Command '{}', is no longer supported. You can create the bowtie shape using two triangle commands.".format(inputlines[lindex], replacement))
+            print("Command '{}', is no longer supported. You can create the bowtie shape using two triangle commands.".format(inputlines[lindex]))
             inputlines.pop(lindex)
 
         elif cmdname == '#cylinder':

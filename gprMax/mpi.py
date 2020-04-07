@@ -16,9 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from enum import IntEnum
 import logging
 import time
+from enum import IntEnum
 
 from mpi4py import MPI
 

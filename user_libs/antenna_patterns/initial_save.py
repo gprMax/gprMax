@@ -9,13 +9,10 @@ import argparse
 import os
 import sys
 
+import gprMax.config as config
 import h5py
-import numpy as np
 import matplotlib.pyplot as plt
-
-from gprMax.config import c
-from gprMax.config import z0
-
+import numpy as np
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Calculate and store (in a Numpy file) field patterns from a simulation with receivers positioned in circles around an antenna.', usage='cd gprMax; python -m user_libs.antenna_patterns.initial_save outputfile')
@@ -55,9 +52,9 @@ traceno = np.s_[:]  # All traces
 # Critical angle and velocity
 if epsr:
     mr = 1
-    z1 = np.sqrt(mr / epsr) * z0
-    v1 = c / np.sqrt(epsr)
-    thetac = np.round(np.arcsin(v1 / c) * (180 / np.pi))
+    z1 = np.sqrt(mr / epsr) * config.sim_config.em_consts['z0']
+    v1 = config.sim_config.em_consts['c'] / np.sqrt(epsr)
+    thetac = np.round(np.arcsin(v1 / config.sim_config.em_consts['c']) * (180 / np.pi))
     wavelength = v1 / f
 
 # Print some useful information
@@ -164,8 +161,8 @@ for radius in range(0, len(radii)):
             Ethetasum[index] = np.sum(Etheta[:, index]**2) / z1
             Hthetasum[index] = np.sum(Htheta[:, index]**2) / z1
         else:
-            Ethetasum[index] = np.sum(Etheta[:, index]**2) / z0
-            Hthetasum[index] = np.sum(Htheta[:, index]**2) / z0
+            Ethetasum[index] = np.sum(Etheta[:, index]**2) / config.sim_config.em_consts['z0']
+            Hthetasum[index] = np.sum(Htheta[:, index]**2) / config.sim_config.em_consts['z0']
 
         index += 1
 

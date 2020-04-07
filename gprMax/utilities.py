@@ -16,33 +16,29 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from contextlib import contextmanager
 import codecs
 import decimal as d
 import logging
 import os
 import platform
-import psutil
 import re
 import subprocess
-from shutil import get_terminal_size
 import sys
 import textwrap
+from contextlib import contextmanager
+from shutil import get_terminal_size
+
+import gprMax.config as config
+import numpy as np
+import psutil
+from colorama import Fore, Style, init
+init()
+from .exceptions import GeneralError
 
 try:
     from time import thread_time as timer_fn
 except ImportError:
     from time import perf_counter as timer_fn
-
-
-from colorama import init
-from colorama import Fore
-from colorama import Style
-init()
-import numpy as np
-
-import gprMax.config as config
-from .exceptions import GeneralError
 
 logger = logging.getLogger(__name__)
 
@@ -525,7 +521,7 @@ def detect_gpus():
     else:
         deviceIDsavail = range(drv.Device.count())
 
-    # Gather information about selected/detected GPUs
+    # Gather information about detected GPUs
     gpus = []
     for ID in deviceIDsavail:
         gpu = GPU(deviceID=ID)
@@ -535,24 +531,24 @@ def detect_gpus():
     return gpus
 
 
-def check_gpus(gpus):
-    """Check if requested Nvidia GPU(s) deviceID(s) exist.
+# def check_gpus(gpus):
+#     """Check if requested Nvidia GPU(s) deviceID(s) exist.
 
-    Args:
-        gpus (list): List of GPU object(s).
-    """
+#     Args:
+#         gpus (list): List of GPU object(s).
+#     """
 
-    # Check if requested device ID(s) exist
-    for ID in deviceIDs:
-        if ID not in deviceIDsavail:
-            raise GeneralError(f'GPU with device ID {ID} does not exist')
+#     # Check if requested device ID(s) exist
+#     for ID in deviceIDs:
+#         if ID not in deviceIDsavail:
+#             raise GeneralError(f'GPU with device ID {ID} does not exist')
 
-    # Gather information about selected/detected GPUs
-    gpus = []
-    for ID in deviceIDsavail:
-        gpu = GPU(deviceID=ID)
-        gpu.get_gpu_info(drv)
-        gpus.append(gpu)
+#     # Gather information about selected/detected GPUs
+#     gpus = []
+#     for ID in deviceIDsavail:
+#         gpu = GPU(deviceID=ID)
+#         gpu.get_gpu_info(drv)
+#         gpus.append(gpu)
 
 
 def timer():

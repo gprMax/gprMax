@@ -16,16 +16,16 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from colorama import init
-from colorama import Fore
-from colorama import Style
+import gprMax.config as config
+from colorama import Fore, Style, init
+
+from ..cython.fields_updates_hsg import (cython_update_electric_os,
+                                         cython_update_is,
+                                         cython_update_magnetic_os)
+from .base import SubGridBase
+
 init()
 
-import gprMax.config as config
-from .base import SubGridBase
-from ..cython.fields_updates_hsg import cython_update_is
-from ..cython.fields_updates_hsg import cython_update_magnetic_os
-from ..cython.fields_updates_hsg import cython_update_electric_os
 
 
 class SubGridHSG(SubGridBase):

@@ -16,12 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import gprMax.config as config
 import numpy as np
 from scipy import fftpack
 
-import gprMax.config as config
-from .cython.fractals_generate import generate_fractal2D
-from .cython.fractals_generate import generate_fractal3D
+from .cython.fractals_generate import generate_fractal2D, generate_fractal3D
 from .utilities import round_value
 
 np.seterr(divide='raise')
@@ -220,7 +219,7 @@ class Grass:
 
         self.numblades = numblades
         self.geometryparams = np.zeros((self.numblades, 6),
-                                       dtype=config.dtypes['float_or_double'])
+                                       dtype=config.sim_config.dtypes['float_or_double'])
         self.seed = None
 
         # Randomly defined parameters that will be used to calculate geometry

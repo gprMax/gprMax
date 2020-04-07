@@ -18,9 +18,8 @@
 
 from importlib import import_module
 
-import numpy as np
-
 import gprMax.config as config
+import numpy as np
 
 
 class CFSParameter:

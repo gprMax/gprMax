@@ -19,14 +19,14 @@
 import logging
 from pathlib import Path
 
+import gprMax.config as config
 import h5py
 
-import gprMax.config as config
-from .cmds_geometry import UserObjectGeometry
 from ..cython.geometry_primitives import build_voxels_from_array
 from ..exceptions import CmdInputError
 from ..hash_cmds_file import get_user_objects
 from ..utilities import round_value
+from .cmds_geometry import UserObjectGeometry
 
 logger = logging.getLogger(__name__)
 

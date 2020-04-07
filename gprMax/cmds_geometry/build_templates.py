@@ -16,9 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from jinja2 import Environment
-from jinja2 import PackageLoader
-from jinja2 import select_autoescape
+from jinja2 import Environment, PackageLoader, select_autoescape
 
 env = Environment(
     loader=PackageLoader(__name__, 'templates'),

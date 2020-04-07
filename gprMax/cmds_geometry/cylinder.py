@@ -17,13 +17,14 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import numpy as np
 
 import gprMax.config as config
-from .cmds_geometry import UserObjectGeometry
+import numpy as np
+
 from ..cython.geometry_primitives import build_cylinder
 from ..exceptions import CmdInputError
 from ..materials import Material
+from .cmds_geometry import UserObjectGeometry
 
 logger = logging.getLogger(__name__)
 

@@ -18,15 +18,14 @@
 
 import logging
 
+import gprMax.config as config
 import numpy as np
 
-import gprMax.config as config
-from .cmds_geometry import UserObjectGeometry
 from ..exceptions import CmdInputError
-from ..fractals import FractalSurface
-from ..fractals import Grass
-from ..materials import Material
+from ..fractals import FractalSurface, Grass
+from ..materials import DispersiveMaterial
 from ..utilities import round_value
+from .cmds_geometry import UserObjectGeometry
 
 logger = logging.getLogger(__name__)
 
@@ -175,15 +174,15 @@ class AddGrass(UserObjectGeometry):
 
         # Check to see if grass has been already defined as a material
         if not any(x.ID == 'grass' for x in grid.materials):
-            m = Material(len(grid.materials), 'grass')
+            m = DispersiveMaterial(len(grid.materials), 'grass')
             m.averagable = False
             m.type = 'builtin, debye'
-            m.er = Material.grasseri
-            m.deltaer.append(Material.grassdeltaer)
-            m.tau.append(Material.grasstau)
+            m.er = DispersiveMaterial.grasseri
+            m.deltaer.append(DispersiveMaterial.grassdeltaer)
+            m.tau.append(DispersiveMaterial.grasstau)
             grid.materials.append(m)
-            if Material.maxpoles == 0:
-                Material.maxpoles = 1
+            if config.get_model_config().materials['maxpoles'] == 0:
+                config.get_model_config().materials['maxpoles'] = 1
 
         # Check if time step for model is suitable for using grass
         grass = next((x for x in grid.materials if x.ID == 'grass'))

@@ -18,18 +18,16 @@
 
 import logging
 
-from colorama import init
-from colorama import Fore
-from colorama import Style
-init()
-import numpy as np
-
 import gprMax.config as config
+import numpy as np
+from colorama import Fore, Style, init
+init()
 from .exceptions import CmdInputError
 from .subgrids.base import SubGridBase
 from .utilities import round_value
 
 logger = logging.getLogger(__name__)
+
 
 """Module contains classes to handle points supplied by a user. The
     classes implement a common interface such that geometry building objects

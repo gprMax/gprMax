@@ -18,8 +18,7 @@
 
 import logging
 
-from colorama import init
-from colorama import Fore
+from colorama import Fore, init
 init()
 
 logger = logging.getLogger(__name__)

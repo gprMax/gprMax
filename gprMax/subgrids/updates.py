@@ -19,10 +19,9 @@
 import logging
 
 from ..exceptions import GeneralError
-from .precursor_nodes import PrecursorNodes
-from .precursor_nodes import PrecursorNodesFiltered
-from .subgrid_hsg import SubGridHSG
 from ..updates import CPUUpdates
+from .precursor_nodes import PrecursorNodes, PrecursorNodesFiltered
+from .subgrid_hsg import SubGridHSG
 
 log = logging.getLogger(__name__)
 

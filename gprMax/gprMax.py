@@ -20,8 +20,8 @@ import argparse
 import logging
 
 import gprMax.config as config
-from .contexts import Context
-from .contexts import MPIContext
+
+from .contexts import Context, MPIContext
 from .utilities import setup_logging
 
 logger = logging.getLogger(__name__)

@@ -18,12 +18,12 @@
 
 import logging
 
+import gprMax.config as config
 import numpy as np
 
-import gprMax.config as config
-from .cmds_geometry import UserObjectGeometry
 from ..exceptions import CmdInputError
 from ..fractals import FractalVolume
+from .cmds_geometry import UserObjectGeometry
 
 logger = logging.getLogger(__name__)
 

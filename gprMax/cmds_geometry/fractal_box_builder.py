@@ -16,13 +16,13 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import gprMax.config as config
 import numpy as np
 
-import gprMax.config as config
-from .cmds_geometry import UserObjectGeometry
-from ..cython.geometry_primitives import build_voxels_from_array
-from ..cython.geometry_primitives import build_voxels_from_array_mask
+from ..cython.geometry_primitives import (build_voxels_from_array,
+                                          build_voxels_from_array_mask)
 from ..exceptions import CmdInputError
+from .cmds_geometry import UserObjectGeometry
 
 
 class FractalBoxBuilder(UserObjectGeometry):

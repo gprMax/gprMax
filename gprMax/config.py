@@ -17,23 +17,19 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-from pathlib import Path
 import sys
+from pathlib import Path
 
-from colorama import init
-from colorama import Fore
-from colorama import Style
-init()
 import cython
 import numpy as np
+from colorama import Fore, Style, init
+init()
 from scipy.constants import c
 from scipy.constants import epsilon_0 as e0
 from scipy.constants import mu_0 as m0
 
 from .exceptions import GeneralError
-from .utilities import detect_gpus
-from .utilities import get_host_info
-from .utilities import get_terminal_width
+from .utilities import detect_gpus, get_host_info, get_terminal_width
 
 logger = logging.getLogger(__name__)
 

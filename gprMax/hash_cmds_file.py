@@ -16,13 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from io import StringIO
 import logging
 import os
-from pathlib import Path
 import sys
+from io import StringIO
+from pathlib import Path
 
 import gprMax.config as config
+
 from .exceptions import CmdInputError
 from .hash_cmds_geometry import process_geometrycmds
 from .hash_cmds_multiuse import process_multicmds

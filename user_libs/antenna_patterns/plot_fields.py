@@ -9,12 +9,9 @@ import argparse
 import os
 import sys
 
-import numpy as np
+import gprMax.config as config
 import matplotlib.pyplot as plt
-
-from gprMax.config import c
-from gprMax.config import z0
-
+import numpy as np
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Plot field patterns from a simulation with receivers positioned in circles around an antenna. This module should be used after the field pattern data has been processed and stored using the initial_save.py module.', usage='cd gprMax; python -m user_libs.antenna_patterns.plot_fields numpyfile')
@@ -52,9 +49,9 @@ step = 12
 # Critical angle and velocity
 if epsr:
     mr = 1
-    z1 = np.sqrt(mr / epsr) * z0
-    v1 = c / np.sqrt(epsr)
-    thetac = np.round(np.rad2deg(np.arcsin(v1 / c)))
+    z1 = np.sqrt(mr / epsr) * config.sim_config.em_consts['z0']
+    v1 = config.sim_config.em_consts['c'] / np.sqrt(epsr)
+    thetac = np.round(np.rad2deg(np.arcsin(v1 / config.sim_config.em_consts['c'])))
     wavelength = v1 / f
 
 # Print some useful information

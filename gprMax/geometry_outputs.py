@@ -19,16 +19,15 @@
 import logging
 import os
 from pathlib import Path
-
-import h5py
-import numpy as np
 from struct import pack
 
 import gprMax.config as config
+import h5py
+import numpy as np
 
 from ._version import __version__
-from .cython.geometry_outputs import define_normal_geometry
-from .cython.geometry_outputs import define_fine_geometry
+from .cython.geometry_outputs import (define_fine_geometry,
+                                      define_normal_geometry)
 from .utilities import round_value
 
 logger = logging.getLogger(__name__)

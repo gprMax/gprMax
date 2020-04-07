@@ -7,54 +7,32 @@ Electromagnetic wave propagation simulation software.
 
 """
 
-from ._version import __version__
-from .cmds_single_use import Discretisation
-from .cmds_single_use import Domain
-from .cmds_single_use import TimeWindow
-from .cmds_single_use import Title
-from .cmds_single_use import NumThreads
-from .cmds_single_use import TimeStepStabilityFactor
-from .cmds_single_use import PMLCells
-from .cmds_single_use import SrcSteps
-from .cmds_single_use import RxSteps
-from .cmds_single_use import ExcitationFile
-from .cmds_multiple import Waveform
-from .cmds_multiple import VoltageSource
-from .cmds_multiple import HertzianDipole
-from .cmds_multiple import MagneticDipole
-from .cmds_multiple import TransmissionLine
-from .cmds_multiple import Rx
-from .cmds_multiple import RxArray
-from .cmds_multiple import Snapshot
-from .cmds_multiple import Material
-from .cmds_multiple import AddDebyeDispersion
-from .cmds_multiple import AddLorentzDispersion
-from .cmds_multiple import AddDrudeDispersion
-from .cmds_multiple import SoilPeplinski
-from .cmds_multiple import GeometryView
-from .cmds_multiple import GeometryObjectsWrite
-from .cmds_multiple import PMLCFS
-from .subgrids.user_objects import SubGridHSG
-from .subgrids.user_objects import ReferenceRx
+import gprMax.config as config
 
-from .cmds_geometry.edge import Edge
-from .cmds_geometry.plate import Plate
-from .cmds_geometry.triangle import Triangle
+from ._version import __version__
+from .cmds_geometry.add_grass import AddGrass
+from .cmds_geometry.add_surface_roughness import AddSurfaceRoughness
+from .cmds_geometry.add_surface_water import AddSurfaceWater
 from .cmds_geometry.box import Box
 from .cmds_geometry.cylinder import Cylinder
 from .cmds_geometry.cylindrical_sector import CylindricalSector
-from .cmds_geometry.sphere import Sphere
+from .cmds_geometry.edge import Edge
 from .cmds_geometry.fractal_box import FractalBox
-from .cmds_geometry.add_surface_roughness import AddSurfaceRoughness
-from .cmds_geometry.add_surface_water import AddSurfaceWater
-from .cmds_geometry.add_grass import AddGrass
 from .cmds_geometry.geometry_objects_read import GeometryObjectsRead
-
-from .hash_cmds_file import user_libs_fn_to_scene_obj
-
-from .scene import Scene
+from .cmds_geometry.plate import Plate
+from .cmds_geometry.sphere import Sphere
+from .cmds_geometry.triangle import Triangle
+from .cmds_multiple import (PMLCFS, AddDebyeDispersion, AddDrudeDispersion,
+                            AddLorentzDispersion, GeometryObjectsWrite,
+                            GeometryView, HertzianDipole, MagneticDipole,
+                            Material, Rx, RxArray, Snapshot, SoilPeplinski,
+                            TransmissionLine, VoltageSource, Waveform)
+from .cmds_single_use import (Discretisation, Domain, ExcitationFile,
+                              NumThreads, PMLCells, RxSteps, SrcSteps,
+                              TimeStepStabilityFactor, TimeWindow, Title)
 from .gprMax import run as run
-
-import gprMax.config as config
+from .hash_cmds_file import user_libs_fn_to_scene_obj
+from .scene import Scene
+from .subgrids.user_objects import ReferenceRx, SubGridHSG
 
 __name__ = 'gprMax'

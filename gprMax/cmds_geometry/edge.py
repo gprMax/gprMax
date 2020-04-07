@@ -19,11 +19,11 @@
 import logging
 
 import gprMax.config as config
-from .cmds_geometry import UserObjectGeometry
-from ..cython.geometry_primitives import build_edge_x
-from ..cython.geometry_primitives import build_edge_y
-from ..cython.geometry_primitives import build_edge_z
+
+from ..cython.geometry_primitives import (build_edge_x, build_edge_y,
+                                          build_edge_z)
 from ..exceptions import CmdInputError
+from .cmds_geometry import UserObjectGeometry
 
 logger = logging.getLogger(__name__)
 

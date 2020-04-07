@@ -24,11 +24,11 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 from gprMax.exceptions import CmdInputError
+from scipy.io import loadmat
 
 
 def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=None, rxcomponent=None):
-    """Calculates antenna parameters - incident, reflected and total volatges
-        and currents; s11, (s21) and input impedance.
+    """Calculates antenna parameters - incident, reflected and total volatges and currents; s11, (s21) and input impedance.
 
     Args:
         filename (string): Filename (including path) of output file.
@@ -145,8 +145,7 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
 
 
 def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref, Irefp, Vtotal, Vtotalp, Itotal, Itotalp, s11, zin, yin, s21=None):
-    """Plots antenna parameters - incident, reflected and total volatges and
-        currents; s11, (s21) and input impedance.
+    """Plots antenna parameters - incident, reflected and total volatges and currents; s11, (s21) and input impedance.
 
     Args:
         filename (string): Filename (including path) of output file.
@@ -180,95 +179,90 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Figure 1
     # Plot incident voltage
-    fig1, ax = plt.subplots(num='Transmitter transmission line parameters',
-                            figsize=(20, 12), facecolor='w', edgecolor='w')
-    gs1 = gridspec.GridSpec(4, 2, hspace=0.7)
-    ax = plt.subplot(gs1[0, 0])
-    ax.plot(time, Vinc, 'r', lw=2, label='Vinc')
-    ax.set_title('Incident voltage')
-    ax.set_xlabel('Time [s]')
-    ax.set_ylabel('Voltage [V]')
-    ax.set_xlim([0, np.amax(time)])
-    ax.grid(which='both', axis='both', linestyle='-.')
-
-    # Plot frequency spectra of incident voltage
-    ax = plt.subplot(gs1[0, 1])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vincp[pltrange],
-                                              '-.', use_line_collection=True)
-    plt.setp(baseline, 'linewidth', 0)
-    plt.setp(stemlines, 'color', 'r')
-    plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
-    ax.plot(freqs[pltrange], Vincp[pltrange], 'r', lw=2)
-    ax.set_title('Incident voltage')
-    ax.set_xlabel('Frequency [Hz]')
-    ax.set_ylabel('Power [dB]')
-    ax.grid(which='both', axis='both', linestyle='-.')
-
-    # Plot incident current
-    ax = plt.subplot(gs1[1, 0])
-    ax.plot(time, Iinc, 'b', lw=2, label='Vinc')
-    ax.set_title('Incident current')
-    ax.set_xlabel('Time [s]')
-    ax.set_ylabel('Current [A]')
-    ax.set_xlim([0, np.amax(time)])
-    ax.grid(which='both', axis='both', linestyle='-.')
-
-    # Plot frequency spectra of incident current
-    ax = plt.subplot(gs1[1, 1])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Iincp[pltrange],
-                                              '-.', use_line_collection=True)
-    plt.setp(baseline, 'linewidth', 0)
-    plt.setp(stemlines, 'color', 'b')
-    plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
-    ax.plot(freqs[pltrange], Iincp[pltrange], 'b', lw=2)
-    ax.set_title('Incident current')
-    ax.set_xlabel('Frequency [Hz]')
-    ax.set_ylabel('Power [dB]')
-    ax.grid(which='both', axis='both', linestyle='-.')
-
-    # Plot total voltage
-    ax = plt.subplot(gs1[2, 0])
-    ax.plot(time, Vtotal, 'r', lw=2, label='Vinc')
-    ax.set_title('Total (incident + reflected) voltage')
-    ax.set_xlabel('Time [s]')
-    ax.set_ylabel('Voltage [V]')
-    ax.set_xlim([0, np.amax(time)])
-    ax.grid(which='both', axis='both', linestyle='-.')
-
-    # Plot frequency spectra of total voltage
-    ax = plt.subplot(gs1[2, 1])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vtotalp[pltrange],
-                                              '-.', use_line_collection=True)
-    plt.setp(baseline, 'linewidth', 0)
-    plt.setp(stemlines, 'color', 'r')
-    plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
-    ax.plot(freqs[pltrange], Vtotalp[pltrange], 'r', lw=2)
-    ax.set_title('Total (incident + reflected) voltage')
-    ax.set_xlabel('Frequency [Hz]')
-    ax.set_ylabel('Power [dB]')
-    ax.grid(which='both', axis='both', linestyle='-.')
-
-    # Plot total current
-    ax = plt.subplot(gs1[3, 0])
-    ax.plot(time, Itotal, 'b', lw=2, label='Vinc')
-    ax.set_title('Total (incident + reflected) current')
-    ax.set_xlabel('Time [s]')
-    ax.set_ylabel('Current [A]')
-    ax.set_xlim([0, np.amax(time)])
-    ax.grid(which='both', axis='both', linestyle='-.')
-
-    # Plot frequency spectra of total current
-    ax = plt.subplot(gs1[3, 1])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], Itotalp[pltrange],
-                                              '-.', use_line_collection=True)
-    plt.setp(baseline, 'linewidth', 0)
-    plt.setp(stemlines, 'color', 'b')
-    plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
-    ax.plot(freqs[pltrange], Itotalp[pltrange], 'b', lw=2)
-    ax.set_title('Total (incident + reflected) current')
-    ax.set_xlabel('Frequency [Hz]')
-    ax.set_ylabel('Power [dB]')
-    ax.grid(which='both', axis='both', linestyle='-.')
+    # fig1, ax = plt.subplots(num='Transmitter transmission line parameters', figsize=(20, 12), facecolor='w', edgecolor='w')
+    # gs1 = gridspec.GridSpec(4, 2, hspace=0.7)
+    # ax = plt.subplot(gs1[0, 0])
+    # ax.plot(time, Vinc, 'r', lw=2, label='Vinc')
+    # ax.set_title('Incident voltage')
+    # ax.set_xlabel('Time [s]')
+    # ax.set_ylabel('Voltage [V]')
+    # ax.set_xlim([0, np.amax(time)])
+    # ax.grid(which='both', axis='both', linestyle='-.')
+    #
+    # # Plot frequency spectra of incident voltage
+    # ax = plt.subplot(gs1[0, 1])
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vincp[pltrange], '-.', use_line_collection=True)
+    # plt.setp(baseline, 'linewidth', 0)
+    # plt.setp(stemlines, 'color', 'r')
+    # plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
+    # ax.plot(freqs[pltrange], Vincp[pltrange], 'r', lw=2)
+    # ax.set_title('Incident voltage')
+    # ax.set_xlabel('Frequency [Hz]')
+    # ax.set_ylabel('Power [dB]')
+    # ax.grid(which='both', axis='both', linestyle='-.')
+    #
+    # # Plot incident current
+    # ax = plt.subplot(gs1[1, 0])
+    # ax.plot(time, Iinc, 'b', lw=2, label='Vinc')
+    # ax.set_title('Incident current')
+    # ax.set_xlabel('Time [s]')
+    # ax.set_ylabel('Current [A]')
+    # ax.set_xlim([0, np.amax(time)])
+    # ax.grid(which='both', axis='both', linestyle='-.')
+    #
+    # # Plot frequency spectra of incident current
+    # ax = plt.subplot(gs1[1, 1])
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Iincp[pltrange], '-.', use_line_collection=True)
+    # plt.setp(baseline, 'linewidth', 0)
+    # plt.setp(stemlines, 'color', 'b')
+    # plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
+    # ax.plot(freqs[pltrange], Iincp[pltrange], 'b', lw=2)
+    # ax.set_title('Incident current')
+    # ax.set_xlabel('Frequency [Hz]')
+    # ax.set_ylabel('Power [dB]')
+    # ax.grid(which='both', axis='both', linestyle='-.')
+    #
+    # # Plot total voltage
+    # ax = plt.subplot(gs1[2, 0])
+    # ax.plot(time, Vtotal, 'r', lw=2, label='Vinc')
+    # ax.set_title('Total (incident + reflected) voltage')
+    # ax.set_xlabel('Time [s]')
+    # ax.set_ylabel('Voltage [V]')
+    # ax.set_xlim([0, np.amax(time)])
+    # ax.grid(which='both', axis='both', linestyle='-.')
+    #
+    # # Plot frequency spectra of total voltage
+    # ax = plt.subplot(gs1[2, 1])
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vtotalp[pltrange], '-.', use_line_collection=True)
+    # plt.setp(baseline, 'linewidth', 0)
+    # plt.setp(stemlines, 'color', 'r')
+    # plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
+    # ax.plot(freqs[pltrange], Vtotalp[pltrange], 'r', lw=2)
+    # ax.set_title('Total (incident + reflected) voltage')
+    # ax.set_xlabel('Frequency [Hz]')
+    # ax.set_ylabel('Power [dB]')
+    # ax.grid(which='both', axis='both', linestyle='-.')
+    #
+    # # Plot total current
+    # ax = plt.subplot(gs1[3, 0])
+    # ax.plot(time, Itotal, 'b', lw=2, label='Vinc')
+    # ax.set_title('Total (incident + reflected) current')
+    # ax.set_xlabel('Time [s]')
+    # ax.set_ylabel('Current [A]')
+    # ax.set_xlim([0, np.amax(time)])
+    # ax.grid(which='both', axis='both', linestyle='-.')
+    #
+    # # Plot frequency spectra of total current
+    # ax = plt.subplot(gs1[3, 1])
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Itotalp[pltrange], '-.', use_line_collection=True)
+    # plt.setp(baseline, 'linewidth', 0)
+    # plt.setp(stemlines, 'color', 'b')
+    # plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
+    # ax.plot(freqs[pltrange], Itotalp[pltrange], 'b', lw=2)
+    # ax.set_title('Total (incident + reflected) current')
+    # ax.set_xlabel('Frequency [Hz]')
+    # ax.set_ylabel('Power [dB]')
+    # ax.grid(which='both', axis='both', linestyle='-.')
 
     # Plot reflected (reflected) voltage
     # ax = plt.subplot(gs1[4, 0])
@@ -281,8 +275,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot frequency spectra of reflected voltage
     # ax = plt.subplot(gs1[4, 1])
-    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vrefp[pltrange],
-    #                                           '-.', use_line_collection=True)
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Vrefp[pltrange], '-.', use_line_collection=True)
     # plt.setp(baseline, 'linewidth', 0)
     # plt.setp(stemlines, 'color', 'r')
     # plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
@@ -303,8 +296,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot frequency spectra of reflected current
     # ax = plt.subplot(gs1[5, 1])
-    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Irefp[pltrange],
-    #                                           '-.', use_line_collection=True)
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], Irefp[pltrange], '-.', use_line_collection=True)
     # plt.setp(baseline, 'linewidth', 0)
     # plt.setp(stemlines, 'color', 'b')
     # plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
@@ -315,29 +307,35 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     # ax.grid(which='both', axis='both', linestyle='-.')
 
     # Figure 2
+    # Load measured s11
+    s11_meas = loadmat('/Volumes/Users/cwarren/Dropbox (Northumbria University)/Research/GPR-antennas/Utsi Electronics/500MHz_Vivaldi_antenna/measured/s11_measured.mat')
+
     # Plot frequency spectra of s11
-    fig2, ax = plt.subplots(num='Antenna parameters', figsize=(20, 12),
-                            facecolor='w', edgecolor='w')
-    gs2 = gridspec.GridSpec(2, 2, hspace=0.3)
+    fig2, ax = plt.subplots(num='Antenna parameters', figsize=(20, 12), facecolor='w', edgecolor='w')
+    gs2 = gridspec.GridSpec(1, 1, hspace=0.3)
     ax = plt.subplot(gs2[0, 0])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], s11[pltrange],
-                                              '-.', use_line_collection=True)
+    markerline, stemlines, baseline = ax.stem(freqs[pltrange], s11[pltrange], '-.', use_line_collection=True)
+    markerline2, stemlines2, baseline2 = ax.stem(s11_meas['f'], s11_meas['s11_t'], '-.', use_line_collection=True)
     plt.setp(baseline, 'linewidth', 0)
-    plt.setp(stemlines, 'color', 'g')
+    plt.setp(stemlines, 'color', 'w')
     plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
-    ax.plot(freqs[pltrange], s11[pltrange], 'g', lw=2)
+    plt.setp(baseline2, 'linewidth', 0)
+    plt.setp(stemlines2, 'color', 'w')
+    plt.setp(markerline2, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
+    ax.plot(freqs[pltrange], s11[pltrange], 'g', lw=2, label='Simulation (Debye, 50$\Omega$)')
+    ax.plot(s11_meas['f'], s11_meas['s11_t'], 'b', lw=2, label='Measured')
     ax.set_title('s11')
     ax.set_xlabel('Frequency [Hz]')
     ax.set_ylabel('Power [dB]')
-    # ax.set_xlim([0, 5e9])
-    # ax.set_ylim([-25, 0])
+    ax.set_xlim([0, 3e9])
+    ax.set_ylim([-40, 0])
     ax.grid(which='both', axis='both', linestyle='-.')
+    ax.legend(fontsize=12, frameon=False)
 
     # Plot frequency spectra of s21
     if s21 is not None:
         ax = plt.subplot(gs2[0, 1])
-        markerline, stemlines, baseline = ax.stem(freqs[pltrange], s21[pltrange],
-                                                  '-.', use_line_collection=True)
+        markerline, stemlines, baseline = ax.stem(freqs[pltrange], s21[pltrange], '-.', use_line_collection=True)
         plt.setp(baseline, 'linewidth', 0)
         plt.setp(stemlines, 'color', 'g')
         plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
@@ -350,40 +348,37 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
         ax.grid(which='both', axis='both', linestyle='-.')
 
     # Plot input resistance (real part of impedance)
-    ax = plt.subplot(gs2[1, 0])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], zin[pltrange].real,
-                                              '-.', use_line_collection=True)
-    plt.setp(baseline, 'linewidth', 0)
-    plt.setp(stemlines, 'color', 'g')
-    plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
-    ax.plot(freqs[pltrange], zin[pltrange].real, 'g', lw=2)
-    ax.set_title('Input impedance (resistive)')
-    ax.set_xlabel('Frequency [Hz]')
-    ax.set_ylabel('Resistance [Ohms]')
-    # ax.set_xlim([0.88e9, 1.02e9])
-    ax.set_ylim(bottom=0)
-    # ax.set_ylim([0, 300])
-    ax.grid(which='both', axis='both', linestyle='-.')
-
-    # Plot input reactance (imaginery part of impedance)
-    ax = plt.subplot(gs2[1, 1])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], zin[pltrange].imag,
-                                              '-.', use_line_collection=True)
-    plt.setp(baseline, 'linewidth', 0)
-    plt.setp(stemlines, 'color', 'g')
-    plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
-    ax.plot(freqs[pltrange], zin[pltrange].imag, 'g', lw=2)
-    ax.set_title('Input impedance (reactive)')
-    ax.set_xlabel('Frequency [Hz]')
-    ax.set_ylabel('Reactance [Ohms]')
-    # ax.set_xlim([0.88e9, 1.02e9])
-    # ax.set_ylim([-300, 300])
-    ax.grid(which='both', axis='both', linestyle='-.')
+    # ax = plt.subplot(gs2[1, 0])
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], zin[pltrange].real, '-.', use_line_collection=True)
+    # plt.setp(baseline, 'linewidth', 0)
+    # plt.setp(stemlines, 'color', 'g')
+    # plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
+    # ax.plot(freqs[pltrange], zin[pltrange].real, 'g', lw=2)
+    # ax.set_title('Input impedance (resistive)')
+    # ax.set_xlabel('Frequency [Hz]')
+    # ax.set_ylabel('Resistance [Ohms]')
+    # # ax.set_xlim([0.88e9, 1.02e9])
+    # ax.set_ylim(bottom=0)
+    # # ax.set_ylim([0, 300])
+    # ax.grid(which='both', axis='both', linestyle='-.')
+    #
+    # # Plot input reactance (imaginery part of impedance)
+    # ax = plt.subplot(gs2[1, 1])
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], zin[pltrange].imag, '-.', use_line_collection=True)
+    # plt.setp(baseline, 'linewidth', 0)
+    # plt.setp(stemlines, 'color', 'g')
+    # plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
+    # ax.plot(freqs[pltrange], zin[pltrange].imag, 'g', lw=2)
+    # ax.set_title('Input impedance (reactive)')
+    # ax.set_xlabel('Frequency [Hz]')
+    # ax.set_ylabel('Reactance [Ohms]')
+    # # ax.set_xlim([0.88e9, 1.02e9])
+    # # ax.set_ylim([-300, 300])
+    # ax.grid(which='both', axis='both', linestyle='-.')
 
     # Plot input admittance (magnitude)
     # ax = plt.subplot(gs2[2, 0])
-    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.abs(yin[pltrange]),
-    #                                           '-.', use_line_collection=True)
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.abs(yin[pltrange]), '-.', use_line_collection=True)
     # plt.setp(baseline, 'linewidth', 0)
     # plt.setp(stemlines, 'color', 'g')
     # plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
@@ -397,8 +392,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot input admittance (phase)
     # ax = plt.subplot(gs2[2, 1])
-    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.angle(yin[pltrange], deg=True),
-    #                                           '-.', use_line_collection=True)
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.angle(yin[pltrange], deg=True), '-.', use_line_collection=True)
     # plt.setp(baseline, 'linewidth', 0)
     # plt.setp(stemlines, 'color', 'g')
     # plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
@@ -411,18 +405,10 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     # ax.grid(which='both', axis='both', linestyle='-.')
 
     # Save a PDF/PNG of the figure
-    savename1 = filename.stem + '_tl_params'
-    savename1 = filename.parent / savename1
-    savename2 = filename.stem + '_ant_params'
-    savename2 = filename.parent / savename2
-    # fig1.savefig(savename1.with_suffix('.png'), dpi=150, format='png',
-    #              bbox_inches='tight', pad_inches=0.1)
-    # fig2.savefig(savename2.with_suffix('.png'), dpi=150, format='png',
-    #              bbox_inches='tight', pad_inches=0.1)
-    # fig1.savefig(savename1.with_suffix('.pdf'), dpi=None, format='pdf',
-    #              bbox_inches='tight', pad_inches=0.1)
-    # fig2.savefig(savename2.with_suffix('.pdf'), dpi=None, format='pdf',
-    #              bbox_inches='tight', pad_inches=0.1)
+    # fig1.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_tl_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    # fig2.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_ant_params.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    # fig1.savefig(os.path.splitext(os.path.abspath(filename))[0] + '_tl_params.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+    fig2.savefig(filename.with_suffix('.pdf'), dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
 
     return plt
 

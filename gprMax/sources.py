@@ -18,12 +18,10 @@
 
 from copy import deepcopy
 
+import gprMax.config as config
 import numpy as np
 
-import gprMax.config as config
-from .grid import Ix
-from .grid import Iy
-from .grid import Iz
+from .grid import Ix, Iy, Iz
 from .utilities import round_value
 
 

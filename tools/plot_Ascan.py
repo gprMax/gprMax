@@ -20,10 +20,9 @@ import argparse
 from pathlib import Path
 
 import h5py
-import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-
+import matplotlib.pyplot as plt
+import numpy as np
 from gprMax.exceptions import CmdInputError
 from gprMax.receivers import Rx
 from gprMax.utilities import fft_power

@@ -16,21 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from .cmds_multiple import Waveform
-from .cmds_multiple import VoltageSource
-from .cmds_multiple import HertzianDipole
-from .cmds_multiple import MagneticDipole
-from .cmds_multiple import TransmissionLine
-from .cmds_multiple import Material
-from .cmds_multiple import Snapshot
-from .cmds_multiple import AddDebyeDispersion
-from .cmds_multiple import AddLorentzDispersion
-from .cmds_multiple import AddDrudeDispersion
-from .cmds_multiple import SoilPeplinski
-from .cmds_multiple import GeometryView
-from .cmds_multiple import GeometryObjectsWrite
-from .cmds_multiple import PMLCFS
-from .cmds_multiple import Rx
+from .cmds_multiple import (PMLCFS, AddDebyeDispersion, AddDrudeDispersion,
+                            AddLorentzDispersion, GeometryObjectsWrite,
+                            GeometryView, HertzianDipole, MagneticDipole,
+                            Material, Rx, RxArray, Snapshot, SoilPeplinski,
+                            TransmissionLine, VoltageSource, Waveform)
 from .exceptions import CmdInputError
 
 
@@ -275,9 +265,9 @@ def process_multicmds(multicmds):
             if len(tmp) != 7:
                 raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly seven parameters')
 
-                p1 = float(tmp[0]), float(tmp[1]), float(tmp[2])
-                p2 = float(tmp[3]), float(tmp[4]), float(tmp[5])
-                gow = GeometryObjectsWrite(p1=p1, p2=p2, filename=tmp[6])
-                scene_objects.append(gow)
+            p1 = float(tmp[0]), float(tmp[1]), float(tmp[2])
+            p2 = float(tmp[3]), float(tmp[4]), float(tmp[5])
+            gow = GeometryObjectsWrite(p1=p1, p2=p2, filename=tmp[6])
+            scene_objects.append(gow)
 
     return scene_objects

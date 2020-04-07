@@ -16,22 +16,16 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from collections import OrderedDict
 import decimal as d
-
-from colorama import init
-from colorama import Fore
-from colorama import Style
-init()
-import numpy as np
+from collections import OrderedDict
 
 import gprMax.config as config
+import numpy as np
+from colorama import Fore, Style, init
+init()
 from .exceptions import GeneralError
-from .pml import PML
-from .pml import CFS
-from .utilities import fft_power
-from .utilities import human_size
-from .utilities import round_value
+from .pml import CFS, PML
+from .utilities import fft_power, human_size, round_value
 
 np.seterr(invalid='raise')
 
@@ -274,13 +268,13 @@ class FDTDGrid:
 
     def calculate_dt(self):
         """Calculate time step at the CFL limit."""
-        if self.mode == '2D TMx':
+        if config.get_model_config().mode == '2D TMx':
             self.dt = 1 / (config.sim_config.em_consts['c'] *
                            np.sqrt((1 / self.dy**2) + (1 / self.dz**2)))
-        elif self.mode == '2D TMy':
+        elif config.get_model_config().mode == '2D TMy':
             self.dt = 1 / (config.sim_config.em_consts['c'] *
                            np.sqrt((1 / self.dx**2) + (1 / self.dz**2)))
-        elif self.mode == '2D TMz':
+        elif config.get_model_config().mode == '2D TMz':
             self.dt = 1 / (config.sim_config.em_consts['c'] *
                            np.sqrt((1 / self.dx**2) + (1 / self.dy**2)))
         else:
@@ -352,9 +346,12 @@ def dispersion_analysis(G):
         results (dict): Results from dispersion analysis
     """
 
-    # Physical phase velocity error (percentage); grid sampling density;
-    # material with maximum permittivity; maximum significant frequency; error message
-    results = {'deltavp': False, 'N': False, 'material': False, 'maxfreq': [], 'error': ''}
+    # deltavp: physical phase velocity error (percentage)
+    # N: grid sampling density
+    # material: material with maximum permittivity
+    # maxfreq: maximum significant frequency
+    # error: error message
+    results = {'deltavp': None, 'N': None, 'material': None, 'maxfreq': [], 'error': ''}
 
     # Find maximum significant frequency
     if G.waveforms:
