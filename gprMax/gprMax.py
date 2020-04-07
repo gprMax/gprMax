@@ -20,7 +20,8 @@ import argparse
 import logging
 
 import gprMax.config as config
-from .contexts import create_context
+from .contexts import Context
+from .contexts import MPIContext
 from .utilities import setup_logging
 
 logger = logging.getLogger(__name__)
@@ -172,5 +173,8 @@ def run_main(args):
     """
 
     config.sim_config = config.SimulationConfig(args)
-    context = create_context()
+    if config.sim_config.args.mpi:
+        context = MPIContext()
+    else:
+        context = Context()
     context.run()

@@ -167,7 +167,7 @@ class MPIExecutor(object):
         self.busy = [False] * len(self.workers)
 
         if self.is_master():
-            logger.basic(f'\nMPIExecutor on comm: {self.comm.name}, Master: {self.master}, Workers: {self.workers}')
+            logger.basic(f'\nMPIExecutor with comm: {self.comm.name}, Master: {self.master}, Workers: {self.workers}')
 
     def __enter__(self):
         """Context manager enter.

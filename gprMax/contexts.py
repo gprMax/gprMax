@@ -18,6 +18,7 @@
 
 import datetime
 import logging
+import platform
 import sys
 
 import gprMax.config as config
@@ -91,8 +92,8 @@ class Context:
         """Print information about any NVIDIA CUDA GPUs detected."""
         gpus_info = []
         for gpu in config.sim_config.cuda['gpus']:
-            gpus_info.append(f'{gpu.deviceID} - {gpu.name}, {human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)}')
-        logger.basic(f" with GPU(s): {' | '.join(gpus_info)}")
+            gpus_info.append(f'{gpu.deviceID} {gpu.pcibusID} - {gpu.name}, {human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)} (on {gpu.hostname})')
+        logger.basic(f"GPU resources: {' | '.join(gpus_info)}")
 
     def print_time_report(self):
         """Print the total simulation time based on context."""
@@ -146,7 +147,7 @@ class MPIContext(Context):
             if config.sim_config.general['cuda']:
                 self.print_gpu_info()
             sys.stdout.flush()
-
+        logger.basic(platform.node())
         # Contruct MPIExecutor
         executor = self.MPIExecutor(self._run_model, comm=self.comm)
 
@@ -172,18 +173,3 @@ class MPIContext(Context):
         if executor.is_master():
             self.tsimend = timer()
             self.print_time_report()
-
-
-def create_context():
-    """Create a context in which to run the simulation. i.e MPI.
-
-    Returns:
-        context (Context): Context for the model to run in.
-    """
-
-    if config.sim_config.args.mpi:
-        context = MPIContext()
-    else:
-        context = Context()
-
-    return context

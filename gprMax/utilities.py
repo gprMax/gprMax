@@ -68,7 +68,7 @@ def setup_logging(level=logging.INFO, logfile=False):
     logger.setLevel(level)
 
     # Logging to console
-    mh = logging.StreamHandler()
+    mh = logging.StreamHandler(sys.stdout)
     formatter = logging.Formatter('%(message)s')
     mh.setLevel(level)
     mh.setFormatter(formatter)
