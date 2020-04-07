@@ -18,7 +18,6 @@
 
 import datetime
 import logging
-import platform
 import sys
 
 import gprMax.config as config
@@ -92,12 +91,12 @@ class Context:
         """Print information about any NVIDIA CUDA GPUs detected."""
         gpus_info = []
         for gpu in config.sim_config.cuda['gpus']:
-            gpus_info.append(f'{gpu.deviceID} {gpu.pcibusID} - {gpu.name}, {human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)}')
+            gpus_info.append(f'{gpu.deviceID} - {gpu.name}, {human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)}')
         logger.basic(f"GPU resources: {' | '.join(gpus_info)}")
 
     def print_time_report(self):
         """Print the total simulation time based on context."""
-        s = f"\n=== Simulation on {config.sim_config.hostinfo['hostname']} completed in [HH:MM:SS]: {datetime.timedelta(seconds=self.tsimend - self.tsimstart)}"
+        s = f"\n=== Simulation completed in [HH:MM:SS]: {datetime.timedelta(seconds=self.tsimend - self.tsimstart)}"
         logger.basic(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")
 
 
@@ -124,8 +123,7 @@ class MPIContext(Context):
         model_config = config.ModelConfig()
         # Set GPU deviceID according to worker rank
         if config.sim_config.general['cuda']:
-            gpu = config.sim_config.cuda['gpus'][self.rank - 1]
-            model_config.cuda = {'gpu': gpu,
+            model_config.cuda = {'gpu': config.sim_config.cuda['gpus'][self.rank - 1],
                                  'snapsgpu2cpu': False}
         config.model_configs = model_config
 
@@ -147,7 +145,7 @@ class MPIContext(Context):
             if config.sim_config.general['cuda']:
                 self.print_gpu_info()
             sys.stdout.flush()
-        logger.basic(platform.node())
+
         # Contruct MPIExecutor
         executor = self.MPIExecutor(self._run_model, comm=self.comm)
 
