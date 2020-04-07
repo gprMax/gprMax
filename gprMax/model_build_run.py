@@ -261,7 +261,7 @@ class ModelBuildRun:
 
         # Check number of OpenMP threads
         if config.sim_config.general['cpu']:
-            logger.basic(f'CPU (OpenMP) solver: {config.get_model_config().ompthreads} threads on {platform.node()}\n')
+            logger.basic(f'CPU (OpenMP) solver: {config.get_model_config().ompthreads} thread(s) on {platform.node()}\n')
             if config.get_model_config().ompthreads > config.sim_config.hostinfo['physicalcores']:
                 logger.warning(Fore.RED + f"You have specified more threads ({config.get_model_config().ompthreads}) than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). This may lead to degraded performance." + Style.RESET_ALL)
         # Print information about any GPU in use
