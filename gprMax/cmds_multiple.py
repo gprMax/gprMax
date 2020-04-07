@@ -50,7 +50,6 @@ class UserObjectMulti:
         self.hash = '#example'
         self.autotranslate = True
 
-
     def __str__(self):
         """Readable user string as per hash commands."""
         s = ''
@@ -232,11 +231,11 @@ class HertzianDipole(UserObjectMulti):
         # Check polarity & position parameters
         if polarisation not in ('x', 'y', 'z'):
             raise CmdInputError(f"'{self.params_str()}' polarisation must be x, y, or z")
-        if '2D TMx' in grid.mode and (polarisation == 'y' or polarisation == 'z'):
+        if '2D TMx' in config.get_model_config().mode and (polarisation == 'y' or polarisation == 'z'):
             raise CmdInputError(f"'{self.params_str()}' polarisation must be x in 2D TMx mode")
-        elif '2D TMy' in grid.mode and (polarisation == 'x' or polarisation == 'z'):
+        elif '2D TMy' in config.get_model_config().mode and (polarisation == 'x' or polarisation == 'z'):
             raise CmdInputError(f"'{self.params_str()}' polarisation must be y in 2D TMy mode")
-        elif '2D TMz' in grid.mode and (polarisation == 'x' or polarisation == 'y'):
+        elif '2D TMz' in config.get_model_config().mode and (polarisation == 'x' or polarisation == 'y'):
             raise CmdInputError(f"'{self.params_str()}' polarisation must be z in 2D TMz mode")
 
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
@@ -288,7 +287,7 @@ class HertzianDipole(UserObjectMulti):
 
         h.calculate_waveform_values(grid)
 
-        if grid.mode == '2D':
+        if config.get_model_config().mode == '2D':
             logger.info(f'Hertzian dipole is a line source in 2D with polarity {h.polarisation} at {h.xcoord * grid.dx:g}m, {h.ycoord * grid.dy:g}m, {h.zcoord * grid.dz:g}m,' + startstop + f'using waveform {h.waveformID} created.')
         else:
             logger.info(f'Hertzian dipole with polarity {h.polarisation} at {h.xcoord * grid.dx:g}m, {h.ycoord * grid.dy:g}m, {h.zcoord * grid.dz:g}m,' + startstop + f'using waveform {h.waveformID} created.')
