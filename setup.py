@@ -29,14 +29,14 @@ except ImportError:
 
 import glob
 import os
-from pathlib import Path
 import re
 import shutil
 import sys
+from pathlib import Path
 
-from jinja2 import Environment
-from jinja2 import PackageLoader
-from jinja2 import select_autoescape
+# SetupTools Required to make package
+import setuptools
+from jinja2 import Environment, PackageLoader, select_autoescape
 
 
 def build_dispersive_material_templates():
@@ -237,8 +237,6 @@ if USE_CYTHON:
                            },
                            annotate=False)
 
-# SetupTools Required to make package
-import setuptools
 
 setup(name=packagename,
       version=version,
