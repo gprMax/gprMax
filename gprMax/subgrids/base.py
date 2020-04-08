@@ -16,10 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import numpy as np
-from scipy.constants import c
 
 from ..grid import FDTDGrid
+
+logger = logging.getLogger(__name__)
 
 
 class SubGridBase(FDTDGrid):
@@ -65,6 +67,7 @@ class SubGridBase(FDTDGrid):
 
     def main_grid_index_to_subgrid_index(self, i, j, k):
         """Calculate local subgrid index from global main grid index."""
+        logger.debug('SubGridBase has no i0, j0, k0 members.')
         i_s = self.n_boundary_cells_x + (i - self.i0) * self.ratio
         j_s = self.n_boundary_cells_y + (j - self.j0) * self.ratio
         k_s = self.n_boundary_cells_z + (k - self.k0) * self.ratio

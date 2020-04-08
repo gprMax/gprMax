@@ -324,10 +324,7 @@ def get_host_info():
             pass
 
         # Hyperthreading
-        if threadspercore == 2:
-            hyperthreading = True
-        else:
-            hyperthreading = False
+        hyperthreading = True if threadspercore == 2 else False
 
         # OS version
         osversion = platform.platform()
@@ -341,14 +338,17 @@ def get_host_info():
     hostinfo['osversion'] = osversion
     hostinfo['hyperthreading'] = hyperthreading
     hostinfo['logicalcores'] = psutil.cpu_count()
+
     try:
         # Get number of physical CPU cores, i.e. avoid hyperthreading with OpenMP
         hostinfo['physicalcores'] = psutil.cpu_count(logical=False)
     except ValueError:
         hostinfo['physicalcores'] = hostinfo['logicalcores']
+
     # Handle case where cpu_count returns None on some machines
     if not hostinfo['physicalcores']:
         hostinfo['physicalcores'] = hostinfo['logicalcores']
+
     hostinfo['ram'] = psutil.virtual_memory().total
     hostinfo['ompthreads'] = 1
 
@@ -366,13 +366,17 @@ def set_omp_threads(nthreads=None):
         # Should waiting threads consume CPU power (can drastically effect
         # performance)
         os.environ['OMP_WAIT_POLICY'] = 'ACTIVE'
+
     # Number of threads may be adjusted by the run time environment to best
     # utilize system resources
     os.environ['OMP_DYNAMIC'] = 'FALSE'
+
     # Each place corresponds to a single core (having one or more hardware threads)
     os.environ['OMP_PLACES'] = 'cores'
+
     # Bind threads to physical cores
     os.environ['OMP_PROC_BIND'] = 'TRUE'
+
     # Prints OMP version and environment variables (useful for debug)
     # os.environ['OMP_DISPLAY_ENV'] = 'TRUE'
 
@@ -531,27 +535,7 @@ def detect_gpus():
     return gpus
 
 
-# def check_gpus(gpus):
-#     """Check if requested Nvidia GPU(s) deviceID(s) exist.
-
-#     Args:
-#         gpus (list): List of GPU object(s).
-#     """
-
-#     # Check if requested device ID(s) exist
-#     for ID in deviceIDs:
-#         if ID not in deviceIDsavail:
-#             raise GeneralError(f'GPU with device ID {ID} does not exist')
-
-#     # Gather information about selected/detected GPUs
-#     gpus = []
-#     for ID in deviceIDsavail:
-#         gpu = GPU(deviceID=ID)
-#         gpu.get_gpu_info(drv)
-#         gpus.append(gpu)
-
-
 def timer():
     """Function to return time in fractional seconds."""
-    logger.debug('"thread_time" not currently available in macOS and bug (https://bugs.python.org/issue36205) with "process_time"')
+    logger.debug('"thread_time" not currently available in macOS and bug (https://bugs.python.org/issue36205) with "process_time", so use "perf_counter".')
     return timer_fn()

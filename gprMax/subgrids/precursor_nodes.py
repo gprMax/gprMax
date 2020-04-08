@@ -16,10 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
-
+import logging
 import numpy as np
 from scipy import interpolate
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_weighting_coefficients(x1, x):
@@ -28,7 +29,7 @@ def calculate_weighting_coefficients(x1, x):
     return (c1, c2)
 
 
-class PrecusorNodesBase:
+class PrecursorNodesBase:
 
     def __init__(self, fdtd_grid, sub_grid):
         self.G = fdtd_grid
@@ -65,7 +66,6 @@ class PrecusorNodesBase:
 
         self.initialize_magnetic_slices_array()
         self.initialize_electric_slices_array()
-
 
     def _initialize_fields(self):
 
@@ -276,7 +276,7 @@ class PrecusorNodesBase:
             setattr(self, obj[0], f)
 
 
-class PrecursorNodes(PrecusorNodesBase):
+class PrecursorNodes(PrecursorNodesBase):
 
     def __init__(self, fdtd_grid, sub_grid):
         super().__init__(fdtd_grid, sub_grid)
@@ -402,7 +402,7 @@ class PrecursorNodes(PrecusorNodesBase):
         return f_1, f_2
 
 
-class PrecursorNodesFiltered(PrecusorNodesBase):
+class PrecursorNodesFiltered(PrecursorNodesBase):
 
     def __init__(self, fdtd_grid, sub_grid):
         super().__init__(fdtd_grid, sub_grid)

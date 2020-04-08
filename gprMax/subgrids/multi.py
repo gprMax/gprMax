@@ -16,7 +16,11 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 from ..receivers import Rx
+
+logger = logging.getLogger(__name__)
 
 
 class ReferenceRx(Rx):
@@ -26,6 +30,8 @@ class ReferenceRx(Rx):
         moves the output points in the fine grid such that they are in the same
         position as the coarse grid.
     """
+
+    logger.debug('ReferenceRx has no offset member.')
 
     def get_field(self, str_id, field):
         """Return the field value at the equivalent coarse yee cell.

@@ -130,6 +130,12 @@ class FractalVolume:
         self.nx = xf - xs
         self.ny = yf - ys
         self.nz = zf - zs
+        self.originalxs = xs
+        self.originalxf = xf
+        self.originalys = ys
+        self.originalyf = yf
+        self.originalzs = zs
+        self.originalzf = zf
         self.averaging = False
         self.seed = None
         self.dimension = dimension

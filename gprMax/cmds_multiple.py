@@ -53,7 +53,7 @@ class UserObjectMulti:
     def __str__(self):
         """Readable user string as per hash commands."""
         s = ''
-        for k, v in self.kwargs.items():
+        for _, v in self.kwargs.items():
             if isinstance(v, tuple) or isinstance(v, list):
                 v = ' '.join([str(el) for el in v])
             s += str(v) + ' '
