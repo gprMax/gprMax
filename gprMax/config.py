@@ -187,7 +187,7 @@ class SimulationConfig:
 
         if args.mpi and args.geometry_fixed:
             logger.exception('The geometry fixed option cannot be used with MPI.')
-            raise
+            raise ValueError
 
         # General settings for the simulation
         #   inputfilepath: path to inputfile location
@@ -238,7 +238,7 @@ class SimulationConfig:
             self.general['precision'] = 'double'
             if self.general['cuda']:
                 logger.exception('The CUDA-based solver cannot currently be used with models that contain sub-grids.')
-                raise
+                raise ValueError
         except AttributeError:
             self.general['subgrid'] = False
 
@@ -273,7 +273,7 @@ class SimulationConfig:
 
         if not found:
             logger.exception(f'GPU with device ID {deviceID} does not exist')
-            raise
+            raise ValueError
 
     def _set_precision(self):
         """Data type (precision) for electromagnetic field output.

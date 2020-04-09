@@ -20,8 +20,7 @@ import logging
 
 import gprMax.config as config
 import numpy as np
-from colorama import Fore, Style, init
-init()
+
 from .subgrids.base import SubGridBase
 from .utilities import round_value
 
@@ -174,5 +173,5 @@ class SubgridUserInput(MainGridUserInput):
         # the OS non-working region.
         if (np.less(p_t, self.inner_bound).any() or
             np.greater(p_t, self.outer_bound).any()):
-                logger.warning(Fore.RED + f"'{cmd_str}' this object traverses the Outer Surface. This is an advanced feature." + Style.RESET_ALL)
+                logger.warning(f"'{cmd_str}' this object traverses the Outer Surface. This is an advanced feature.")
         return p_t

@@ -106,7 +106,7 @@ class ModelBuildRun:
 
         # Write files for any geometry views and geometry object outputs
         if not (G.geometryviews or G.geometryobjectswrite) and config.sim_config.args.geometry_only:
-            logger.warning(Fore.RED + f'\nNo geometry views or geometry objects found.' + Style.RESET_ALL)
+            logger.warning('\nNo geometry views or geometry objects found.')
         for i, geometryview in enumerate(G.geometryviews):
             logger.info('')
             geometryview.set_filename()
@@ -171,13 +171,13 @@ class ModelBuildRun:
             # Check to see if numerical dispersion might be a problem
             results = dispersion_analysis(gb.grid)
             if results['error']:
-                logger.warning(Fore.RED + f"\nNumerical dispersion analysis [{gb.grid.name}] not carried out as {results['error']}" + Style.RESET_ALL)
+                logger.warning(f"\nNumerical dispersion analysis [{gb.grid.name}] not carried out as {results['error']}")
             elif results['N'] < config.get_model_config().numdispersion['mingridsampling']:
                 logger.exception(f"\nNon-physical wave propagation in [{gb.grid.name}] detected. Material '{results['material'].ID}' has wavelength sampled by {results['N']} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
                 raise ValueError
             elif (results['deltavp'] and np.abs(results['deltavp']) >
                   config.get_model_config().numdispersion['maxnumericaldisp']):
-                logger.warning(Fore.RED + f"\n[{gb.grid.name}] has potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz" + Style.RESET_ALL)
+                logger.warning(f"\n[{gb.grid.name}] has potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
             elif results['deltavp']:
                 logger.info(f"\nNumerical dispersion analysis [{gb.grid.name}]: estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
 
@@ -259,7 +259,7 @@ class ModelBuildRun:
         if config.sim_config.general['cpu']:
             logger.basic(f'CPU solver using: {config.get_model_config().ompthreads} OpenMP thread(s) on {platform.node()}\n')
             if config.get_model_config().ompthreads > config.sim_config.hostinfo['physicalcores']:
-                logger.warning(Fore.RED + f"You have specified more threads ({config.get_model_config().ompthreads}) than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). This may lead to degraded performance." + Style.RESET_ALL)
+                logger.warning(f"You have specified more threads ({config.get_model_config().ompthreads}) than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). This may lead to degraded performance.")
         # Print information about any GPU in use
         elif config.sim_config.general['cuda']:
             logger.basic(f"GPU solver using: {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name} on {platform.node()}\n")
