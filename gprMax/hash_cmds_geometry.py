@@ -162,6 +162,7 @@ def process_geometrycmds(geometry):
             # Uniaxial anisotropic case
             elif len(tmp) == 11:
                 cylinder = Cylinder(p1=p1, p2=p2, r=r, material_ids=tmp[8:])
+                
             else:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
 

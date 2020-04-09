@@ -19,6 +19,7 @@
 import numpy as np
 cimport numpy as np
 
+
 # Get and set functions for the rigid electric component array. The rigid array
 # is 4D with the 1st dimension holding the 12 electric edge components of a
 # cell - Ex1, Ex2, Ex3, Ex4, Ey1, Ey2, Ey3, Ey4, Ez1, Ez2, Ez3, Ez4

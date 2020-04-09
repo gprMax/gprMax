@@ -71,10 +71,11 @@ class UserInput:
             # Incorrect index
             i = p[v.index(err.args[0])]
             if name:
-                s = f"'{cmd_str}' the {err.args[0]} {name}-coordinate {i * dl:g} is not within the model domain"
+                s = f"\n'{cmd_str}' {err.args[0]} {name}-coordinate {i * dl:g} is not within the model domain"
             else:
-                s = f"'{cmd_str}' {err.args[0]}-coordinate {i * dl:g} is not within the model domain"
-            raise CmdInputError(logger.exception(s))
+                s = f"\n'{cmd_str}' {err.args[0]}-coordinate {i * dl:g} is not within the model domain"
+            logger.exception(s)
+            raise
 
     def discretise_point(self, p):
         """Function to get the index of a continuous point with the grid."""

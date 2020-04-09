@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 from copy import copy
 
 import numpy as np
@@ -23,9 +24,10 @@ from gprMax import config
 
 from ..cmds_geometry.cmds_geometry import UserObjectGeometry
 from ..cmds_multiple import Rx, UserObjectMulti
-from ..exceptions import CmdInputError
 from .multi import ReferenceRx as ReferenceRxUser
 from .subgrid_hsg import SubGridHSG as SubGridHSGUser
+
+logger = logging.getLogger(__name__)
 
 
 class SubGridBase(UserObjectMulti):
@@ -46,7 +48,8 @@ class SubGridBase(UserObjectMulti):
         elif isinstance(node, UserObjectGeometry):
             self.children_geometry.append(node)
         else:
-            raise Exception(str(node) + ' This Object can not be added to a sub grid')
+            logger.exception(str(node) + ' this Object can not be added to a sub grid')
+            raise ValueError
 
     def set_discretisation(self, sg, grid):
         """Set the spatial discretisation."""
@@ -105,7 +108,8 @@ class SubGridBase(UserObjectMulti):
         except CmdInputError:
             es_f = 'The subgrid should extend at least {} cells'
             es = es_f.format(sg.is_os_sep * 2)
-            raise CmdInputError(cmd_str, es)
+            logger.exception(cmd_str, es)
+            raise ValueError
         """
 
         self.set_working_region_cells(sg)
@@ -128,7 +132,8 @@ class SubGridBase(UserObjectMulti):
         # Dont mix and match different subgrids
         for sg_made in grid.subgrids:
             if type(sg) != type(sg_made):
-                raise CmdInputError(self.__str__() + ' Please only use one type of subgrid')
+                logger.exception(self.__str__() + ' please only use one type of subgrid')
+                raise ValueError
 
         # Reference the sub grid under the main grid to which it belongs.
         grid.subgrids.append(sg)
@@ -201,13 +206,11 @@ class ReferenceRx(Rx):
         self.constructor = ReferenceRxUser
 
     def create(self, grid, uip):
-
         r = super().create(grid, uip)
-
         try:
             ratio = self.kwargs['ratio']
             r.ratio = ratio
             r.offset = ratio // 2
-
         except KeyError:
-            raise CmdInputError(f"'{self.__str__()}' has an no ratio parameter")
+            logger.exception(self.__str__() + ' has an no ratio parameter')
+            raise

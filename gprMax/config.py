@@ -28,7 +28,6 @@ from scipy.constants import c
 from scipy.constants import epsilon_0 as e0
 from scipy.constants import mu_0 as m0
 
-from .exceptions import GeneralError
 from .utilities import detect_gpus, get_host_info, get_terminal_width
 
 logger = logging.getLogger(__name__)
@@ -187,7 +186,8 @@ class SimulationConfig:
         self.args = args
 
         if args.mpi and args.geometry_fixed:
-            raise GeneralError('The geometry fixed option cannot be used with MPI.')
+            logger.exception('The geometry fixed option cannot be used with MPI.')
+            raise
 
         # General settings for the simulation
         #   inputfilepath: path to inputfile location
@@ -237,7 +237,8 @@ class SimulationConfig:
             # Double precision should be used with subgrid for best accuracy
             self.general['precision'] = 'double'
             if self.general['cuda']:
-                raise GeneralError('The CUDA-based solver cannot currently be used with models that contain sub-grids.')
+                logger.exception('The CUDA-based solver cannot currently be used with models that contain sub-grids.')
+                raise
         except AttributeError:
             self.general['subgrid'] = False
 
@@ -271,7 +272,8 @@ class SimulationConfig:
                 return gpu
 
         if not found:
-            raise GeneralError(f'GPU with device ID {deviceID} does not exist')
+            logger.exception(f'GPU with device ID {deviceID} does not exist')
+            raise
 
     def _set_precision(self):
         """Data type (precision) for electromagnetic field output.

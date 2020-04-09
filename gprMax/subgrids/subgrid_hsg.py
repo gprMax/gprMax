@@ -18,14 +18,11 @@
 
 import gprMax.config as config
 from colorama import Fore, Style, init
-
+init()
 from ..cython.fields_updates_hsg import (cython_update_electric_os,
                                          cython_update_is,
                                          cython_update_magnetic_os)
 from .base import SubGridBase
-
-init()
-
 
 
 class SubGridHSG(SubGridBase):

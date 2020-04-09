@@ -18,12 +18,11 @@
 
 import logging
 
-from ..exceptions import GeneralError
 from ..updates import CPUUpdates
 from .precursor_nodes import PrecursorNodes, PrecursorNodesFiltered
 from .subgrid_hsg import SubGridHSG
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def create_updates(G):
@@ -37,7 +36,8 @@ def create_updates(G):
         elif sg_type == SubGridHSG and not sg.filter:
             precursors = PrecursorNodes(G, sg)
         else:
-            raise GeneralError(str(sg) + ' is not a subgrid type')
+            logger.exception(str(sg) + ' is not a subgrid type')
+            raise ValueError
 
         sgu = SubgridUpdater(sg, precursors, G)
         updaters.append(sgu)

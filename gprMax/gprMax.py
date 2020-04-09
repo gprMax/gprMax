@@ -25,7 +25,9 @@ from .contexts import Context, MPIContext
 from .utilities import setup_logging
 
 logger = logging.getLogger(__name__)
-setup_logging(level=20)
+level = 20
+setup_logging(level=level)
+
 
 def run(
     scenes=None,
@@ -126,10 +128,7 @@ def run(
     args.geometry_fixed = geometry_fixed
     args.write_processed = write_processed
 
-    try:
-        run_main(args)
-    except Exception:
-        logger.exception('Error from main API function', exc_info=True)
+    run_main(args)
 
 
 def main():
@@ -159,10 +158,7 @@ def main():
                         'in the original input file have been processed')
     args = parser.parse_args()
 
-    try:
-        run_main(args)
-    except Exception:
-        logger.exception('Error from main CLI function', exc_info=True)
+    run_main(args)
 
 
 def run_main(args):

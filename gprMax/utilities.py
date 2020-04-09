@@ -26,6 +26,7 @@ import subprocess
 import sys
 import textwrap
 from contextlib import contextmanager
+from copy import copy
 from shutil import get_terminal_size
 
 import gprMax.config as config
@@ -33,7 +34,6 @@ import numpy as np
 import psutil
 from colorama import Fore, Style, init
 init()
-from .exceptions import GeneralError
 
 try:
     from time import thread_time as timer_fn
@@ -41,6 +41,32 @@ except ImportError:
     from time import perf_counter as timer_fn
 
 logger = logging.getLogger(__name__)
+
+
+class CustomFormatter(logging.Formatter):
+    """Logging Formatter to add colors and count warning / errors 
+        (https://stackoverflow.com/a/56944256)."""
+
+    grey = "\x1b[38;21m"
+    yellow = "\x1b[33;21m"
+    red = "\x1b[31;21m"
+    bold_red = "\x1b[31;1m"
+    reset = "\x1b[0m"
+    # format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
+    format = "%(message)s"
+
+    FORMATS = {
+        logging.DEBUG: grey + format + reset,
+        logging.INFO: grey + format + reset,
+        logging.WARNING: yellow + format + reset,
+        logging.ERROR: red + format + reset,
+        logging.CRITICAL: bold_red + format + reset
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
 
 
 def setup_logging(level=logging.INFO, logfile=False):
@@ -64,19 +90,19 @@ def setup_logging(level=logging.INFO, logfile=False):
     logger.setLevel(level)
 
     # Logging to console
-    mh = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter('%(message)s')
-    mh.setLevel(level)
-    mh.setFormatter(formatter)
-    logger.addHandler(mh)
+    handler = logging.StreamHandler(sys.stdout)
+    formatter = CustomFormatter()
+    handler.setLevel(level)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
     # Logging to file
     if logfile:
-        mh = logging.FileHandler("log_gprMax.txt", mode='w')
+        handler = logging.FileHandler("log_gprMax.txt", mode='w')
         formatter = logging.Formatter('%(asctime)s:%(name)s:%(levelname)s: %(message)s')
-        mh.setLevel(logging.DEBUG)
-        mh.setFormatter(formatter)
-        logger.addHandler(mh)
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
 
 def get_terminal_width():
@@ -405,7 +431,8 @@ def mem_check_host(mem):
         mem (int): Memory required (bytes).
     """
     if mem > config.sim_config.hostinfo['ram']:
-        raise GeneralError(f"Memory (RAM) required ~{human_size(mem)} exceeds {human_size(config.sim_config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} detected!\n")
+        logger.exception(f"Memory (RAM) required ~{human_size(mem)} exceeds {human_size(config.sim_config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} detected!\n")
+        raise
 
 
 def mem_check_gpu_snaps(total_mem, snaps_mem):
@@ -417,7 +444,8 @@ def mem_check_gpu_snaps(total_mem, snaps_mem):
         snaps_mem (int): Memory required for all snapshots (bytes).
     """
     if total_mem - snaps_mem > config.get_model_config().cuda['gpu'].totalmem:
-        raise GeneralError(f"Memory (RAM) required ~{human_size(total_mem)} exceeds {human_size(config.get_model_config().cuda['gpu'].totalmem, a_kilobyte_is_1024_bytes=True)} detected on specified {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name} GPU!\n")
+        logger.exception(f"Memory (RAM) required ~{human_size(total_mem)} exceeds {human_size(config.get_model_config().cuda['gpu'].totalmem, a_kilobyte_is_1024_bytes=True)} detected on specified {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name} GPU!\n")
+        raise
 
     # If the required memory without the snapshots will fit on the GPU then
     # transfer and store snaphots on host
@@ -513,12 +541,14 @@ def detect_gpus():
     try:
         import pycuda.driver as drv
     except ImportError:
-        raise ImportError('To use gprMax in GPU mode the pycuda package must be installed, and you must have a NVIDIA CUDA-Enabled GPU (https://developer.nvidia.com/cuda-gpus).')
+        logger.exception('To use gprMax in GPU mode the pycuda package must be installed, and you must have a NVIDIA CUDA-Enabled GPU (https://developer.nvidia.com/cuda-gpus).')
+        raise
     drv.init()
 
     # Check and list any CUDA-Enabled GPUs
     if drv.Device.count() == 0:
-        raise GeneralError('No NVIDIA CUDA-Enabled GPUs detected (https://developer.nvidia.com/cuda-gpus)')
+        logger.exception('No NVIDIA CUDA-Enabled GPUs detected (https://developer.nvidia.com/cuda-gpus)')
+        raise
     elif 'CUDA_VISIBLE_DEVICES' in os.environ:
         deviceIDsavail = os.environ.get('CUDA_VISIBLE_DEVICES')
         deviceIDsavail = [int(s) for s in deviceIDsavail.split(',')]
