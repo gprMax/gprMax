@@ -21,7 +21,6 @@ import logging
 import gprMax.config as config
 import numpy as np
 
-from ..exceptions import CmdInputError
 from ..fractals import FractalVolume
 from .cmds_geometry import UserObjectGeometry
 
@@ -65,7 +64,8 @@ class FractalBox(UserObjectGeometry):
             mixing_model_id = self.kwargs['mixing_model_id']
             ID = self.kwargs['id']
         except KeyError:
-            raise CmdInputError(self.__str__() + ' Incorrect parameters')
+            logger.exception(self.__str__() + ' Incorrect parameters')
+            raise
 
         try:
             seed = self.kwargs['seed']
@@ -88,15 +88,19 @@ class FractalBox(UserObjectGeometry):
         xf, yf, zf = p2
 
         if frac_dim < 0:
-            raise CmdInputError(self.__str__() + ' requires a positive value for the fractal dimension')
+            logger.exception(self.__str__() + ' requires a positive value for the fractal dimension')
+            raise ValueError
         if weighting[0] < 0:
-            raise CmdInputError(self.__str__() + ' requires a positive value for the fractal weighting in the x direction')
+            logger.exception(self.__str__() + ' requires a positive value for the fractal weighting in the x direction')
+            raise ValueError
         if weighting[1] < 0:
-            raise CmdInputError(self.__str__() + ' requires a positive value for the fractal weighting in the y direction')
+            logger.exception(self.__str__() + ' requires a positive value for the fractal weighting in the y direction')
+            raise ValueError
         if weighting[2] < 0:
-            raise CmdInputError(self.__str__() + ' requires a positive value for the fractal weighting in the z direction')
+            logger.exception(self.__str__() + ' requires a positive value for the fractal weighting in the z direction')
         if n_materials < 0:
-            raise CmdInputError(self.__str__() + ' requires a positive value for the number of bins')
+            logger.exception(self.__str__() + ' requires a positive value for the number of bins')
+            raise ValueError
 
         # Find materials to use to build fractal volume, either from mixing models or normal materials
         mixingmodel = next((x for x in grid.mixingmodels if x.ID == mixing_model_id), None)
@@ -105,11 +109,13 @@ class FractalBox(UserObjectGeometry):
 
         if mixingmodel:
             if nbins == 1:
-                raise CmdInputError(self.__str__() + ' must be used with more than one material from the mixing model.')
+                logger.exception(self.__str__() + ' must be used with more than one material from the mixing model.')
+                raise ValueError
             # Create materials from mixing model as number of bins now known from fractal_box command
             mixingmodel.calculate_debye_properties(nbins, grid)
         elif not material:
-            raise CmdInputError(self.__str__() + ' mixing model or material with ID {} does not exist'.format(mixing_model_id))
+            logger.exception(self.__str__() + f' mixing model or material with ID {mixing_model_id} does not exist')
+            raise ValueError
 
         volume = FractalVolume(xs, xf, ys, yf, zs, zf, frac_dim)
         volume.ID = ID

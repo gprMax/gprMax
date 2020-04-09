@@ -22,7 +22,6 @@ import gprMax.config as config
 
 from ..cython.geometry_primitives import (build_edge_x, build_edge_y,
                                           build_edge_z)
-from ..exceptions import CmdInputError
 from .cmds_geometry import UserObjectGeometry
 
 logger = logging.getLogger(__name__)
@@ -50,7 +49,8 @@ class Edge(UserObjectGeometry):
             p2 = self.kwargs['p2']
             material_id = self.kwargs['material_id']
         except KeyError:
-            raise CmdInputError(self.__str__() + ' requires exactly 3 parameters')
+            logger.exception(self.__str__() + ' requires exactly 3 parameters')
+            raise
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
@@ -59,13 +59,15 @@ class Edge(UserObjectGeometry):
         material = next((x for x in grid.materials if x.ID == material_id), None)
 
         if not material:
-            raise CmdInputError('Material with ID {} does not exist'.format(material_id))
+            logger.exception(f'Material with ID {material_id} does not exist')
+            raise ValueError
 
         # Check for valid orientations
         # x-orientated wire
         if xs != xf:
             if ys != yf or zs != zf:
-                raise CmdInputError(self.__str__() + ' the edge is not specified correctly')
+                logger.exception(self.__str__() + ' the edge is not specified correctly')
+                raise ValueError
             else:
                 for i in range(xs, xf):
                     build_edge_x(i, ys, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID)
@@ -73,7 +75,8 @@ class Edge(UserObjectGeometry):
         # y-orientated wire
         elif ys != yf:
             if xs != xf or zs != zf:
-                raise CmdInputError(self.__str__() + ' the edge is not specified correctly')
+                logger.exception(self.__str__() + ' the edge is not specified correctly')
+                raise ValueError
             else:
                 for j in range(ys, yf):
                     build_edge_y(xs, j, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID)
@@ -81,7 +84,8 @@ class Edge(UserObjectGeometry):
         # z-orientated wire
         elif zs != zf:
             if xs != xf or ys != yf:
-                raise CmdInputError(self.__str__() + ' the edge is not specified correctly')
+                logger.exception(self.__str__() + ' the edge is not specified correctly')
+                raise ValueError
             else:
                 for k in range(zs, zf):
                     build_edge_z(xs, ys, k, material.numID, grid.rigidE, grid.rigidH, grid.ID)

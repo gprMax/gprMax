@@ -32,17 +32,17 @@ class UserObjectGeometry:
     def __str__(self):
         """Readable string of parameters given to object."""
         s = ''
-        for k, v in self.kwargs.items():
+        for _, v in self.kwargs.items():
             if isinstance(v, tuple) or isinstance(v, list):
                 v = ' '.join([str(el) for el in v])
             s += str(v) + ' '
 
         return f'{self.hash}: {s[:-1]}'
 
-    def params_str(self):
-        """Readable user string as per hash commands."""
-        return self.hash + ': ' + str(self.kwargs)
-
     def create(self, grid, uip):
         """Create the object and add it to the grid."""
-        logger.debug('This method is incomplete')
+        pass
+
+    def rotate(self):
+        """Rotate geometry object."""
+        logger.debug('Must complete rotate method.')

@@ -20,7 +20,6 @@ import logging
 
 import gprMax.config as config
 
-from ..exceptions import CmdInputError
 from ..materials import DispersiveMaterial
 from ..utilities import round_value
 from .cmds_geometry import UserObjectGeometry
@@ -53,28 +52,33 @@ class AddSurfaceWater(UserObjectGeometry):
             fractal_box_id = self.kwargs['fractal_box_id']
             depth = self.kwargs['depth']
         except KeyError:
-            raise CmdInputError(self.__str__() + ' requires exactly eight parameters')
+            logger.exception(self.__str__() + ' requires exactly eight parameters')
+            raise
 
         # Get the correct fractal volume
         volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
         if volumes:
             volume = volumes[0]
         else:
-            raise CmdInputError(self.__str__() + f' cannot find FractalBox {fractal_box_id}')
+            logger.exception(self.__str__() + f' cannot find FractalBox {fractal_box_id}')
+            raise ValueError
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
         xf, yf, zf = p2
 
         if depth <= 0:
-            raise CmdInputError(self.__str__() + ' requires a positive value for the depth of water')
+            logger.exception(self.__str__() + ' requires a positive value for the depth of water')
+            raise ValueError
 
         # Check for valid orientations
         if xs == xf:
             if ys == yf or zs == zf:
-                raise CmdInputError(self.__str__() + ' dimensions are not specified correctly')
+                logger.exception(self.__str__() + ' dimensions are not specified correctly')
+                raise ValueError
             if xs != volume.xs and xs != volume.xf:
-                raise CmdInputError(self.__str__() + ' can only be used on the external surfaces of a fractal box')
+                logger.exception(self.__str__() + ' can only be used on the external surfaces of a fractal box')
+                raise ValueError
             # xminus surface
             if xs == volume.xs:
                 requestedsurface = 'xminus'
@@ -86,9 +90,11 @@ class AddSurfaceWater(UserObjectGeometry):
 
         elif ys == yf:
             if xs == xf or zs == zf:
-                raise CmdInputError(self.__str__() + ' dimensions are not specified correctly')
+                logger.exception(self.__str__() + ' dimensions are not specified correctly')
+                raise ValueError
             if ys != volume.ys and ys != volume.yf:
-                raise CmdInputError(self.__str__() + ' can only be used on the external surfaces of a fractal box')
+                logger.exception(self.__str__() + ' can only be used on the external surfaces of a fractal box')
+                raise ValueError
             # yminus surface
             if ys == volume.ys:
                 requestedsurface = 'yminus'
@@ -100,9 +106,11 @@ class AddSurfaceWater(UserObjectGeometry):
 
         elif zs == zf:
             if xs == xf or ys == yf:
-                raise CmdInputError(self.__str__() + ' dimensions are not specified correctly')
+                logger.exception(self.__str__() + ' dimensions are not specified correctly')
+                raise ValueError
             if zs != volume.zs and zs != volume.zf:
-                raise CmdInputError(self.__str__() + ' can only be used on the external surfaces of a fractal box')
+                logger.exception(self.__str__() + ' can only be used on the external surfaces of a fractal box')
+                raise ValueError
             # zminus surface
             if zs == volume.zs:
                 requestedsurface = 'zminus'
@@ -113,17 +121,20 @@ class AddSurfaceWater(UserObjectGeometry):
             filldepth = filldepthcells * grid.dz
 
         else:
-            raise CmdInputError(self.__str__() + ' dimensions are not specified correctly')
+            logger.exception(self.__str__() + ' dimensions are not specified correctly')
+            raise ValueError
 
         surface = next((x for x in volume.fractalsurfaces if x.surfaceID == requestedsurface), None)
         if not surface:
-            raise CmdInputError(self.__str__() + ' specified surface {} does not have a rough surface applied'.format(requestedsurface))
+            logger.exception(self.__str__() + f' specified surface {requestedsurface} does not have a rough surface applied')
+            raise ValueError
 
         surface.filldepth = filldepthcells
 
         # Check that requested fill depth falls within range of surface roughness
         if surface.filldepth < surface.fractalrange[0] or surface.filldepth > surface.fractalrange[1]:
-            raise CmdInputError(self.__str__() + ' requires a value for the depth of water that lies with the range of the requested surface roughness')
+            logger.exception(self.__str__() + ' requires a value for the depth of water that lies with the range of the requested surface roughness')
+            raise ValueError
 
         # Check to see if water has been already defined as a material
         if not any(x.ID == 'water' for x in grid.materials):
@@ -141,6 +152,7 @@ class AddSurfaceWater(UserObjectGeometry):
         water = next((x for x in grid.materials if x.ID == 'water'))
         testwater = next((x for x in water.tau if x < grid.dt), None)
         if testwater:
-            raise CmdInputError(self.__str__() + ' requires the time step for the model to be less than the relaxation time required to model water.')
+            logger.exception(self.__str__() + ' requires the time step for the model to be less than the relaxation time required to model water.')
+            raise ValueError
 
         logger.info(f'Water on surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with depth {filldepth:g}m, added to {surface.operatingonID}.')

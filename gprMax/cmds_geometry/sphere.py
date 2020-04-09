@@ -22,7 +22,6 @@ import gprMax.config as config
 import numpy as np
 
 from ..cython.geometry_primitives import build_sphere
-from ..exceptions import CmdInputError
 from ..materials import Material
 from .cmds_geometry import UserObjectGeometry
 
@@ -53,7 +52,8 @@ class Sphere(UserObjectGeometry):
             p1 = self.kwargs['p1']
             r = self.kwargs['r']
         except KeyError:
-            raise CmdInputError(self.__str__() + ' Please specify a point and a radius.')
+            logger.exception(self.__str__() + ' please specify a point and a radius.')
+            raise
 
         # check averaging
         try:
@@ -72,7 +72,8 @@ class Sphere(UserObjectGeometry):
             try:
                 materialsrequested = self.kwargs['material_ids']
             except KeyError:
-                raise CmdInputError(self.__str__() + ' No materials have been specified')
+                logger.exception(self.__str__() + ' no materials have been specified')
+                raise
 
         # Centre of sphere
         xc, yc, zc = uip.round_to_grid(p1)
@@ -82,7 +83,8 @@ class Sphere(UserObjectGeometry):
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            raise CmdInputError(self.__str__() + ' material(s) {} do not exist'.format(notfound))
+            logger.exception(self.__str__() + f' material(s) {notfound} do not exist')
+            raise ValueError
 
         # Isotropic case
         if len(materials) == 1:

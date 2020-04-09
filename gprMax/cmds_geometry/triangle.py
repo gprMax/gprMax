@@ -22,7 +22,6 @@ import gprMax.config as config
 import numpy as np
 
 from ..cython.geometry_primitives import build_triangle
-from ..exceptions import CmdInputError
 from ..materials import Material
 from .cmds_geometry import UserObjectGeometry
 
@@ -59,7 +58,8 @@ class Triangle(UserObjectGeometry):
             up3 = self.kwargs['p3']
             thickness = self.kwargs['thickness']
         except KeyError:
-            raise CmdInputError(self.params_str() + ' Specify 3 points and a thickness')
+            logger.exception(self.__str__() + ' specify 3 points and a thickness')
+            raise
 
         # check averaging
         try:
@@ -78,7 +78,8 @@ class Triangle(UserObjectGeometry):
             try:
                 materialsrequested = self.kwargs['material_ids']
             except KeyError:
-                raise CmdInputError(self.__str__() + ' No materials have been specified')
+                logger.exception(self.__str__() + ' no materials have been specified')
+                raise
 
         # Check whether points are valid against grid
         uip.check_tri_points(up1, up2, up3, object)
@@ -88,7 +89,8 @@ class Triangle(UserObjectGeometry):
         x3, y3, z3 = uip.round_to_grid(up3)
 
         if thickness < 0:
-            raise CmdInputError(self.__str__() + ' requires a positive value for thickness')
+            logger.exception(self.__str__() + ' requires a positive value for thickness')
+            raise ValueError
 
         # Check for valid orientations
         # yz-plane triangle
@@ -101,14 +103,16 @@ class Triangle(UserObjectGeometry):
         elif z1 == z2 and z2 == z3:
             normal = 'z'
         else:
-            raise CmdInputError(self.__str__() + ' the triangle is not specified correctly')
+            logger.exception(self.__str__() + ' the triangle is not specified correctly')
+            raise ValueError
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            raise CmdInputError(self.__str__() + ' material(s) {} do not exist'.format(notfound))
+            logger.exception(self.__str__() + f' material(s) {notfound} do not exist')
+            raise ValueError
 
         if thickness > 0:
             # Isotropic case

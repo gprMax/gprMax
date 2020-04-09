@@ -23,7 +23,6 @@ import gprMax.config as config
 import h5py
 
 from ..cython.geometry_primitives import build_voxels_from_array
-from ..exceptions import CmdInputError
 from ..hash_cmds_file import get_user_objects
 from ..utilities import round_value
 from .cmds_geometry import UserObjectGeometry
@@ -43,8 +42,9 @@ class GeometryObjectsRead(UserObjectGeometry):
             p1 = self.kwargs['p1']
             geofile = self.kwargs['geofile']
             matfile = self.kwargs['matfile']
-        except:
-            raise CmdInputError(self.__str__() + 'requires exactly five parameters')
+        except KeyError:
+            logger.exception(self.__str__() + 'requires exactly five parameters')
+            raise
 
         # discretise the point using uip object. This has different behaviour
         # depending on the type of uip object. So we can use it for
@@ -94,7 +94,8 @@ class GeometryObjectsRead(UserObjectGeometry):
         f = h5py.File(geofile, 'r')
         dx_dy_dz = f.attrs['dx_dy_dz']
         if round_value(dx_dy_dz[0] / G.dx) != 1 or round_value(dx_dy_dz[1] / G.dy) != 1 or round_value(dx_dy_dz[2] / G.dz) != 1:
-            raise CmdInputError(self.__str__() + ' requires the spatial resolution of the geometry objects file to match the spatial resolution of the model')
+            logger.exception(self.__str__() + ' requires the spatial resolution of the geometry objects file to match the spatial resolution of the model')
+            raise ValueError
 
         data = f['/data'][:]
 

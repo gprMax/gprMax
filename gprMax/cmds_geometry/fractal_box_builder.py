@@ -16,13 +16,16 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 import gprMax.config as config
 import numpy as np
 
 from ..cython.geometry_primitives import (build_voxels_from_array,
                                           build_voxels_from_array_mask)
-from ..exceptions import CmdInputError
 from .cmds_geometry import UserObjectGeometry
+
+logger = logging.getLogger(__name__)
 
 
 class FractalBoxBuilder(UserObjectGeometry):
@@ -300,7 +303,8 @@ class FractalBoxBuilder(UserObjectGeometry):
 
             else:
                 if volume.nbins == 1:
-                    raise CmdInputError(self.__str__() + ' is being used with a single material and no modifications, therefore please use a #box command instead.')
+                    logger.exception(self.__str__() + ' is being used with a single material and no modifications, therefore please use a #box command instead.')
+                    raise ValueError
                 else:
                     volume.generate_fractal_volume(grid)
                     volume.fractalvolume += volume.mixingmodel.startmaterialnum

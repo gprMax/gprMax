@@ -22,7 +22,6 @@ import gprMax.config as config
 import numpy as np
 
 from ..cython.geometry_primitives import build_cylinder
-from ..exceptions import CmdInputError
 from ..materials import Material
 from .cmds_geometry import UserObjectGeometry
 
@@ -55,16 +54,16 @@ class Cylinder(UserObjectGeometry):
             p1 = self.kwargs['p1']
             p2 = self.kwargs['p2']
             r = self.kwargs['r']
-
         except KeyError:
-            raise CmdInputError(self.__str__() + ' Please specify 2 points and a radius')
+            logger.exception(self.__str__() + ' please specify 2 points and a radius')
+            raise
 
         # check averaging
         try:
             # go with user specified averaging
             averagecylinder = self.kwargs['averaging']
         except KeyError:
-            # if they havent specfied - go with the grid default
+            # if they havent specified - go with the grid default
             averagecylinder = grid.averagevolumeobjects
 
         # check materials have been specified
@@ -76,20 +75,23 @@ class Cylinder(UserObjectGeometry):
             try:
                 materialsrequested = self.kwargs['material_ids']
             except KeyError:
-                raise CmdInputError(self.__str__() + ' No materials have been specified')
+                logger.exception(self.__str__() + ' no materials have been specified')
+                raise
 
         x1, y1, z1 = uip.round_to_grid(p1)
         x2, y2, z2 = uip.round_to_grid(p2)
 
         if r <= 0:
-            raise CmdInputError(self.__str__() + ' the radius {:g} should be a positive value.'.format(r))
+            logger.exception(self.__str__() + f' the radius {r:g} should be a positive value.')
+            raise ValueError
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            raise CmdInputError(self.__str__() + ' material(s) {} do not exist'.format(notfound))
+            logger.exception(self.__str__() + f' material(s) {notfound} do not exist')
+            raise ValueError
 
         # Isotropic case
         if len(materials) == 1:

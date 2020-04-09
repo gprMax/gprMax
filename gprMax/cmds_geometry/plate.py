@@ -22,7 +22,6 @@ import gprMax.config as config
 
 from ..cython.geometry_primitives import (build_face_xy, build_face_xz,
                                           build_face_yz)
-from ..exceptions import CmdInputError
 from .cmds_geometry import UserObjectGeometry
 
 logger = logging.getLogger(__name__)
@@ -50,7 +49,8 @@ class Plate(UserObjectGeometry):
             p1 = self.kwargs['p1']
             p2 = self.kwargs['p2']
         except KeyError:
-            raise CmdInputError(self.__str__() + ' 2 points must be specified')
+            logger.exception(self.__str__() + ' 2 points must be specified')
+            raise
 
         # isotropic
         try:
@@ -60,7 +60,8 @@ class Plate(UserObjectGeometry):
             try:
                 materialsrequested = self.kwargs['material_ids']
             except KeyError:
-                raise CmdInputError(self.__str__() + ' No materials have been specified')
+                logger.exception(self.__str__() + ' No materials have been specified')
+                raise
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
@@ -69,25 +70,30 @@ class Plate(UserObjectGeometry):
         # Check for valid orientations
         if xs == xf:
             if ys == yf or zs == zf:
-                raise CmdInputError(self.__str__() + ' the plate is not specified correctly')
+                logger.exception(self.__str__() + ' the plate is not specified correctly')
+                raise ValueError
 
         elif ys == yf:
             if xs == xf or zs == zf:
-                raise CmdInputError(self.__str__() + ' the plate is not specified correctly')
+                logger.exception(self.__str__() + ' the plate is not specified correctly')
+                raise ValueError
 
         elif zs == zf:
             if xs == xf or ys == yf:
-                raise CmdInputError(self.__str__() + ' the plate is not specified correctly')
+                logger.exception(self.__str__() + ' the plate is not specified correctly')
+                raise ValueError
 
         else:
-            raise CmdInputError(self.__str__() + ' the plate is not specified correctly')
+            logger.exception(self.__str__() + ' the plate is not specified correctly')
+            raise ValueError
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            raise CmdInputError(self.__str__() + ' material(s) {} do not exist'.format(notfound))
+            logger.exception(self.__str__() + f' material(s) {notfound} do not exist')
+            raise ValueError
 
         # yz-plane plate
         if xs == xf:

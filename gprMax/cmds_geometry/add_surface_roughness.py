@@ -21,7 +21,6 @@ import logging
 import gprMax.config as config
 import numpy as np
 
-from ..exceptions import CmdInputError
 from ..fractals import FractalSurface
 from ..utilities import round_value
 from .cmds_geometry import UserObjectGeometry
@@ -62,7 +61,8 @@ class AddSurfaceRoughness(UserObjectGeometry):
             limits = np.array(self.kwargs['limits'])
             fractal_box_id = self.kwargs['fractal_box_id']
         except KeyError:
-            raise CmdInputError(self.__str__() + ' incorrect parameters')
+            logger.exception(self.__str__() + ' incorrect parameters')
+            raise
 
         try:
             seed = self.kwargs['seed']
@@ -74,73 +74,90 @@ class AddSurfaceRoughness(UserObjectGeometry):
         if volumes:
             volume = volumes[0]
         else:
-            raise CmdInputError(self.__str__() + ' cannot find FractalBox {fractal_box_id}')
+            logger.exception(self.__str__() + f' cannot find FractalBox {fractal_box_id}')
+            raise ValueError
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
         xf, yf, zf = p2
 
         if frac_dim < 0:
-            raise CmdInputError(self.__str__() + ' requires a positive value for the fractal dimension')
+            logger.exception(self.__str__() + ' requires a positive value for the fractal dimension')
+            raise ValueError
         if weighting[0] < 0:
-            raise CmdInputError(self.__str__() + ' requires a positive value for the fractal weighting in the first direction of the surface')
+            logger.exception(self.__str__() + ' requires a positive value for the fractal weighting in the first direction of the surface')
+            raise ValueError
         if weighting[1] < 0:
-            raise CmdInputError(self.__str__() + ' requires a positive value for the fractal weighting in the second direction of the surface')
+            logger.exception(self.__str__() + ' requires a positive value for the fractal weighting in the second direction of the surface')
+            raise ValueError
 
         # Check for valid orientations
         if xs == xf:
             if ys == yf or zs == zf:
-                raise CmdInputError(self.__str__() + ' dimensions are not specified correctly')
+                logger.exception(self.__str__() + ' dimensions are not specified correctly')
+                raise ValueError
             if xs != volume.xs and xs != volume.xf:
-                raise CmdInputError(self.__str__() + ' can only be used on the external surfaces of a fractal box')
+                logger.exception(self.__str__() + ' can only be used on the external surfaces of a fractal box')
+                raise ValueError
             fractalrange = (round_value(limits[0] / grid.dx), round_value(limits[1] / grid.dx))
             # xminus surface
             if xs == volume.xs:
                 if fractalrange[0] < 0 or fractalrange[1] > volume.xf:
-                    raise CmdInputError(self.__str__() + ' cannot apply fractal surface to fractal box as it would exceed either the upper coordinates of the fractal box or the domain in the x direction')
+                    logger.exception(self.__str__() + ' cannot apply fractal surface to fractal box as it would exceed either the upper coordinates of the fractal box or the domain in the x direction')
+                    raise ValueError
                 requestedsurface = 'xminus'
             # xplus surface
             elif xf == volume.xf:
                 if fractalrange[0] < volume.xs or fractalrange[1] > grid.nx:
-                    raise CmdInputError(self.__str__() + ' cannot apply fractal surface to fractal box as it would exceed either the lower coordinates of the fractal box or the domain in the x direction')
+                    logger.exception(self.__str__() + ' cannot apply fractal surface to fractal box as it would exceed either the lower coordinates of the fractal box or the domain in the x direction')
+                    raise ValueError
                 requestedsurface = 'xplus'
 
         elif ys == yf:
             if xs == xf or zs == zf:
-                raise CmdInputError(self.__str__() + ' dimensions are not specified correctly')
+                logger.exception(self.__str__() + ' dimensions are not specified correctly')
+                raise ValueError
             if ys != volume.ys and ys != volume.yf:
-                raise CmdInputError(self.__str__() + ' can only be used on the external surfaces of a fractal box')
+                logger.exception(self.__str__() + ' can only be used on the external surfaces of a fractal box')
+                raise ValueError
             fractalrange = (round_value(limits[0] / grid.dy), round_value(limits[1] / grid.dy))
             # yminus surface
             if ys == volume.ys:
                 if fractalrange[0] < 0 or fractalrange[1] > volume.yf:
-                    raise CmdInputError(self.__str__() + ' cannot apply fractal surface to fractal box as it would exceed either the upper coordinates of the fractal box or the domain in the y direction')
+                    logger.exception(self.__str__() + ' cannot apply fractal surface to fractal box as it would exceed either the upper coordinates of the fractal box or the domain in the y direction')
+                    raise ValueError
                 requestedsurface = 'yminus'
             # yplus surface
             elif yf == volume.yf:
                 if fractalrange[0] < volume.ys or fractalrange[1] > grid.ny:
-                    raise CmdInputError(self.__str__() + ' cannot apply fractal surface to fractal box as it would exceed either the lower coordinates of the fractal box or the domain in the y direction')
+                    logger.exception(self.__str__() + ' cannot apply fractal surface to fractal box as it would exceed either the lower coordinates of the fractal box or the domain in the y direction')
+                    raise ValueError
                 requestedsurface = 'yplus'
 
         elif zs == zf:
             if xs == xf or ys == yf:
-                raise CmdInputError(self.__str__() + ' dimensions are not specified correctly')
+                logger.exception(self.__str__() + ' dimensions are not specified correctly')
+                raise ValueError
             if zs != volume.zs and zs != volume.zf:
-                raise CmdInputError(self.__str__() + ' can only be used on the external surfaces of a fractal box')
+                logger.exception(self.__str__() + ' can only be used on the external surfaces of a fractal box')
+                raise ValueError
             fractalrange = (round_value(limits[0] / grid.dz), round_value(limits[1] / grid.dz))
             # zminus surface
             if zs == volume.zs:
                 if fractalrange[0] < 0 or fractalrange[1] > volume.zf:
-                    raise CmdInputError(self.__str__() + ' cannot apply fractal surface to fractal box as it would exceed either the upper coordinates of the fractal box or the domain in the x direction')
+                    logger.exception(self.__str__() + ' cannot apply fractal surface to fractal box as it would exceed either the upper coordinates of the fractal box or the domain in the x direction')
+                    raise ValueError
                 requestedsurface = 'zminus'
             # zplus surface
             elif zf == volume.zf:
                 if fractalrange[0] < volume.zs or fractalrange[1] > grid.nz:
-                    raise CmdInputError(self.__str__() + ' cannot apply fractal surface to fractal box as it would exceed either the lower coordinates of the fractal box or the domain in the z direction')
+                    logger.exception(self.__str__() + ' cannot apply fractal surface to fractal box as it would exceed either the lower coordinates of the fractal box or the domain in the z direction')
+                    raise ValueError
                 requestedsurface = 'zplus'
 
         else:
-            raise CmdInputError(self.__str__() + ' dimensions are not specified correctly')
+            logger.exception(self.__str__() + ' dimensions are not specified correctly')
+            raise ValueError
 
         surface = FractalSurface(xs, xf, ys, yf, zs, zf, frac_dim)
         surface.surfaceID = requestedsurface
@@ -152,7 +169,8 @@ class AddSurfaceRoughness(UserObjectGeometry):
         # List of existing surfaces IDs
         existingsurfaceIDs = [x.surfaceID for x in volume.fractalsurfaces]
         if surface.surfaceID in existingsurfaceIDs:
-            raise CmdInputError(self.__str__() + f' has already been used on the {surface.surfaceID} surface')
+            logger.exception(self.__str__() + f' has already been used on the {surface.surfaceID} surface')
+            raise ValueError
 
         surface.generate_fractal_surface(grid)
         volume.fractalsurfaces.append(surface)

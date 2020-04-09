@@ -22,7 +22,6 @@ import gprMax.config as config
 import numpy as np
 
 from ..cython.geometry_primitives import build_cylindrical_sector
-from ..exceptions import CmdInputError
 from ..materials import Material
 from .cmds_geometry import UserObjectGeometry
 
@@ -73,7 +72,8 @@ class CylindricalSector(UserObjectGeometry):
             r = self.kwargs['r']
             thickness = extent2 - extent1
         except KeyError:
-            raise CmdInputError(self.__str__())
+            logger.exception(self.__str__())
+            raise
 
         # check averaging
         try:
@@ -92,26 +92,31 @@ class CylindricalSector(UserObjectGeometry):
             try:
                 materialsrequested = self.kwargs['material_ids']
             except KeyError:
-                raise CmdInputError(self.__str__() + ' No materials have been specified')
+                logger.exception(self.__str__() + ' No materials have been specified')
+                raise
 
         sectorstartangle = 2 * np.pi * (start / 360)
         sectorangle = 2 * np.pi * (end / 360)
 
         if normal != 'x' and normal != 'y' and normal != 'z':
-            raise CmdInputError(self.__str__() + ' the normal direction must be either x, y or z.')
+            logger.exception(self.__str__() + ' the normal direction must be either x, y or z.')
+            raise ValueError
         if r <= 0:
-            raise CmdInputError(self.__str__() + ' the radius {:g} should be a positive value.'.format(r))
+            logger.exception(self.__str__() + f' the radius {r:g} should be a positive value.')
         if sectorstartangle < 0 or sectorangle <= 0:
-            raise CmdInputError(self.__str__() + ' the starting angle and sector angle should be a positive values.')
+            logger.exception(self.__str__() + ' the starting angle and sector angle should be a positive values.')
+            raise ValueError
         if sectorstartangle >= 2 * np.pi or sectorangle >= 2 * np.pi:
-            raise CmdInputError(self.__str__() + ' the starting angle and sector angle must be less than 360 degrees.')
+            logger.exception(self.__str__() + ' the starting angle and sector angle must be less than 360 degrees.')
+            raise ValueError
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            raise CmdInputError(self.__str__() + ' material(s) {} do not exist'.format(notfound))
+            logger.exception(self.__str__() + f' material(s) {notfound} do not exist')
+            raise ValueError
 
         if thickness > 0:
             # Isotropic case
