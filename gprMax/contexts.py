@@ -23,7 +23,6 @@ import sys
 import gprMax.config as config
 
 from ._version import __version__, codename
-from .exceptions import GeneralError
 from .model_build_run import ModelBuildRun
 from .solvers import create_G, create_solver
 from .utilities import get_terminal_width, human_size, logo, timer
@@ -150,7 +149,8 @@ class MPIContext(Context):
         if executor.is_master():
             if config.sim_config.general['cuda']:
                 if executor.size - 1 > len(config.sim_config.cuda['gpus']):
-                    raise GeneralError(f'Not enough GPU resources for number of MPI tasks requested. Number of MPI tasks should be equal to number of GPUs + 1.')
+                    logger.exception('Not enough GPU resources for number of MPI tasks requested. Number of MPI tasks should be equal to number of GPUs + 1.')
+                    raise ValueError
 
         # Create job list
         jobs = []

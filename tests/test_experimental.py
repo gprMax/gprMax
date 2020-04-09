@@ -23,7 +23,6 @@ from pathlib import Path
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-from gprMax.exceptions import CmdInputError
 
 """Plots a comparison of fields between given simulation output and experimental data files."""
 
@@ -50,7 +49,8 @@ else:
     polarity = 1
 
 if args.output[0] not in availablecomponents:
-    raise CmdInputError(f"{args.output[0]} output requested to plot, but the available output for receiver 1 is {', '.join(availablecomponents)}")
+    logger.exception(f"{args.output[0]} output requested to plot, but the available output for receiver 1 is {', '.join(availablecomponents)}")
+    raise ValueError
 
 floattype = f[path + args.output[0]].dtype
 iterations = f.attrs['Iterations']

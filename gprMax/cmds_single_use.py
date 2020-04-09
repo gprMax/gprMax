@@ -27,7 +27,6 @@ init()
 from scipy import interpolate
 from scipy.constants import c
 
-from .exceptions import CmdInputError
 from .utilities import round_value, set_omp_threads
 from .waveforms import Waveform
 
@@ -92,10 +91,12 @@ class Domain(UserObjectSingle):
         try:
             G.nx, G.ny, G.nz = uip.discretise_point(self.kwargs['p1'])
         except KeyError:
-            raise CmdInputError(self.__str__() + ' please specify a point')
+            logger.exception(self.__str__() + ' please specify a point')
+            raise
 
         if G.nx == 0 or G.ny == 0 or G.nz == 0:
-            raise CmdInputError(self.__str__() + ' requires at least one cell in every dimension')
+            logger.exception(self.__str__() + ' requires at least one cell in every dimension')
+            raise ValueError
 
         logger.info(f"Domain size: {self.kwargs['p1'][0]:g} x {self.kwargs['p1'][1]:g} x {self.kwargs['p1'][2]:g}m ({G.nx:d} x {G.ny:d} x {G.nz:d} = {(G.nx * G.ny * G.nz):g} cells)")
 
@@ -137,14 +138,18 @@ class Discretisation(UserObjectSingle):
             G.dl = np.array(self.kwargs['p1'])
             G.dx, G.dy, G.dz = self.kwargs['p1']
         except KeyError:
-            raise CmdInputError(self.__str__() + ' discretisation requires a point')
+            logger.exception(self.__str__() + ' discretisation requires a point')
+            raise
 
         if G.dl[0] <= 0:
-            raise CmdInputError(self.__str__() + ' discretisation requires the x - direction spatial step to be greater than zero')
+            logger.exception(self.__str__() + ' discretisation requires the x-direction spatial step to be greater than zero')
+            raise ValueError
         if G.dl[1] <= 0:
-            raise CmdInputError(self.__str__() + ' discretisation requires the y - direction spatial step to be greater than zero')
+            logger.exception(self.__str__() + ' discretisation requires the y-direction spatial step to be greater than zero')
+            raise ValueError
         if G.dl[2] <= 0:
-            raise CmdInputError(self.__str__() + ' discretisation requires the z - direction spatial step to be greater than zero')
+            logger.exception(self.__str__() + ' discretisation requires the z-direction spatial step to be greater than zero')
+            raise ValueError
 
         logger.info(f'Spatial discretisation: {G.dl[0]:g} x {G.dl[1]:g} x {G.dl[2]:g}m')
 
@@ -179,12 +184,14 @@ class TimeWindow(UserObjectSingle):
                 G.timewindow = tmp
                 G.iterations = int(np.ceil(tmp / G.dt)) + 1
             else:
-                raise CmdInputError(self.__str__() + ' must have a value greater than zero')
+                logger.exception(self.__str__() + ' must have a value greater than zero')
+                raise ValueError
         except KeyError:
             pass
 
         if not G.timewindow:
-            raise CmdInputError(self.__str__() + ' specify a time or number of iterations')
+            logger.exception(self.__str__() + ' specify a time or number of iterations')
+            raise ValueError
 
         logger.info(f'Time window: {G.timewindow:g} secs ({G.iterations} iterations)')
 
@@ -205,9 +212,11 @@ class NumThreads(UserObjectSingle):
         try:
             n = self.kwargs['n']
         except KeyError:
-            raise CmdInputError(self.__str__() + ' requires exactly one parameter to specify the number of threads to use')
+            logger.exception(self.__str__() + ' requires exactly one parameter to specify the number of threads to use')
+            raise
         if n < 1:
-            raise CmdInputError(self.__str__() + ' requires the value to be an integer not less than one')
+            logger.exception(self.__str__() + ' requires the value to be an integer not less than one')
+            raise ValueError
 
         config.get_model_config().ompthreads = set_omp_threads(n)
 
@@ -227,10 +236,12 @@ class TimeStepStabilityFactor(UserObjectSingle):
         try:
             f = self.kwargs['f']
         except KeyError:
-            raise CmdInputError(self.__str__() + ' requires exactly one parameter')
+            logger.exception(self.__str__() + ' requires exactly one parameter')
+            raise
 
         if f <= 0 or f > 1:
-            raise CmdInputError(self.__str__() + ' requires the value of the time step stability factor to be between zero and one')
+            logger.exception(self.__str__() + ' requires the value of the time step stability factor to be between zero and one')
+            raise ValueError
         G.dt = G.dt * f
 
         logger.info(f'Time step (modified): {G.dt:g} secs')
@@ -276,7 +287,8 @@ class PMLCells(UserObjectSingle):
                 G.pmlthickness['ymax'] = int(self.kwargs['ymax'])
                 G.pmlthickness['zmax'] = int(self.kwargs['zmax'])
             except KeyError:
-                raise CmdInputError('#pml_cells: requires either one or six parameter(s)')
+                logger.exception(self.__str__() + ' requires either one or six parameter(s)')
+                raise
 
         if (2 * G.pmlthickness['x0'] >= G.nx or
             2 * G.pmlthickness['y0'] >= G.ny or
@@ -284,7 +296,8 @@ class PMLCells(UserObjectSingle):
             2 * G.pmlthickness['xmax'] >= G.nx or
             2 * G.pmlthickness['ymax'] >= G.ny or
             2 * G.pmlthickness['zmax'] >= G.nz):
-                raise CmdInputError('#pml_thickness: has too many cells for the domain size')
+                logger.exception(self.__str__() + ' has too many cells for the domain size')
+                raise ValueError
 
 
 class SrcSteps(UserObjectSingle):
@@ -303,7 +316,8 @@ class SrcSteps(UserObjectSingle):
         try:
             G.srcsteps = uip.discretise_point(self.kwargs['p1'])
         except KeyError:
-            raise CmdInputError('#src_steps: requires exactly three parameters')
+            logger.exception(self.__str__() + ' requires exactly three parameters')
+            raise
 
         logger.info(f'Simple sources will step {G.srcsteps[0] * G.dx:g}m, {G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m for each model run.')
 
@@ -324,7 +338,8 @@ class RxSteps(UserObjectSingle):
         try:
             G.rxsteps = uip.discretise_point(self.kwargs['p1'])
         except KeyError:
-            raise CmdInputError('#rx_steps: requires exactly three parameters')
+            logger.exception(self.__str__() + ' requires exactly three parameters')
+            raise
 
         logger.info(f'All receivers will step {G.rxsteps[0] * G.dx:g}m, {G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m for each model run.')
 
@@ -359,7 +374,8 @@ class ExcitationFile(UserObjectSingle):
                 args, varargs, keywords, defaults = inspect.getargspec(interpolate.interp1d)
                 kwargs = dict(zip(reversed(args), reversed(defaults)))
             except KeyError:
-                raise CmdInputError('#excitation_file: requires either one or three parameter(s)')
+                logger.exception(self.__str__() + ' requires either one or three parameter(s)')
+                raise
 
         # See if file exists at specified path and if not try input file directory
         excitationfile = Path(excitationfile)
@@ -387,7 +403,8 @@ class ExcitationFile(UserObjectSingle):
 
         for waveform in range(len(waveformIDs)):
             if any(x.ID == waveformIDs[waveform] for x in G.waveforms):
-                raise CmdInputError(f'Waveform with ID {waveformIDs[waveform]} already exists')
+                logger.exception(f'Waveform with ID {waveformIDs[waveform]} already exists')
+                raise ValueError
             w = Waveform()
             w.ID = waveformIDs[waveform]
             w.type = 'user'
@@ -442,4 +459,5 @@ class NumberOfModelRuns(UserObjectSingle):
         try:
             grid.numberofmodelruns = self.kwargs['n']
         except KeyError:
-            raise CmdInputError('#numberofmodelruns: requires exactly one parameter')
+            logger.exception(self.__str__() + ' requires exactly one parameter')
+            raise

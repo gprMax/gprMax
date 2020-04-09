@@ -23,7 +23,6 @@ import gprMax.config as config
 import numpy as np
 from colorama import Fore, Style, init
 init()
-from .exceptions import GeneralError
 from .pml import CFS, PML
 from .utilities import fft_power, human_size, round_value
 

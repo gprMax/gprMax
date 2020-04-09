@@ -24,7 +24,6 @@ from pathlib import Path
 
 import gprMax.config as config
 
-from .exceptions import CmdInputError
 from .hash_cmds_geometry import process_geometrycmds
 from .hash_cmds_multiuse import process_multicmds
 from .hash_cmds_singleuse import process_singlecmds
@@ -72,7 +71,8 @@ def process_python_include_code(inputfile, usernamespace):
                 pythoncode += inputlines[x] + '\n'
                 x += 1
                 if x == len(inputlines):
-                    raise CmdInputError('Cannot find the end of the Python code block, i.e. missing #end_python: command.')
+                    logger.exception('Cannot find the end of the Python code block, i.e. missing #end_python: command.')
+                    raise SyntaxError
             # Compile code for faster execution
             pythoncompiledcode = compile(pythoncode, '<string>', 'exec')
             # Redirect stdout to a text stream
@@ -136,7 +136,8 @@ def process_include_files(hashcmds, inputfile):
             includefile = hashcmds[x].split()
 
             if len(includefile) != 2:
-                raise CmdInputError('#include_file requires exactly one parameter')
+                logger.exception('#include_file requires exactly one parameter')
+                raise ValueError
 
             includefile = includefile[1]
 
@@ -223,11 +224,13 @@ def check_cmd_names(processedlines, checkessential=True):
         # check first character of parameter string. Ignore case when there
         # are no parameters for a command, e.g. for #taguchi:
         if ' ' not in cmdparams[0] and len(cmdparams.strip('\n')) != 0:
-            raise CmdInputError('There must be a space between the command name and parameters in ' + processedlines[lindex])
+            logger.exception('There must be a space between the command name and parameters in ' + processedlines[lindex])
+            raise SyntaxError
 
         # Check if command name is valid
         if cmdname not in essentialcmds and cmdname not in singlecmds and cmdname not in multiplecmds and cmdname not in geometrycmds:
-            raise CmdInputError('Your input file contains an invalid command: ' + cmdname)
+            logger.exception('Your input file contains an invalid command: ' + cmdname)
+            raise SyntaxError
 
         # Count essential commands
         if cmdname in essentialcmds:
@@ -238,7 +241,8 @@ def check_cmd_names(processedlines, checkessential=True):
             if singlecmds[cmdname] is None:
                 singlecmds[cmdname] = cmd[1].strip(' \t\n')
             else:
-                raise CmdInputError('You can only have a single instance of ' + cmdname + ' in your model')
+                logger.exception('You can only have a single instance of ' + cmdname + ' in your model')
+                raise SyntaxError
 
         elif cmdname in multiplecmds:
             multiplecmds[cmdname].append(cmd[1].strip(' \t\n'))
@@ -250,7 +254,8 @@ def check_cmd_names(processedlines, checkessential=True):
 
     if checkessential:
         if (countessentialcmds < len(essentialcmds)):
-            raise CmdInputError('Your input file is missing essential commands required to run a model. Essential commands are: ' + ', '.join(essentialcmds))
+            logger.exception('Your input file is missing essential commands required to run a model. Essential commands are: ' + ', '.join(essentialcmds))
+            raise SyntaxError
 
     return singlecmds, multiplecmds, geometry
 

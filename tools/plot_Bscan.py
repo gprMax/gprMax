@@ -17,14 +17,16 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
+import logging
 from pathlib import Path
 
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-from gprMax.exceptions import CmdInputError
 
 from .outputfiles_merge import get_output_data
+
+logger = logging.getLogger(__name__)
 
 
 def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
@@ -89,7 +91,8 @@ if __name__ == "__main__":
 
     # Check there are any receivers
     if nrx == 0:
-        raise CmdInputError(f'No receivers found in {args.outputfile}')
+        logger.exception(f'No receivers found in {args.outputfile}')
+        raise ValueError
 
     for rx in range(1, nrx + 1):
         outputdata, dt = get_output_data(args.outputfile, rx, args.rx_component)

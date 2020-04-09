@@ -17,13 +17,15 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
+import logging
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from gprMax.exceptions import CmdInputError
 from gprMax.utilities import fft_power, round_value
 from gprMax.waveforms import Waveform
+
+logger = logging.getLogger(__name__)
 
 
 def check_timewindow(timewindow, dt):
@@ -51,7 +53,8 @@ def check_timewindow(timewindow, dt):
         if timewindow > 0:
             iterations = round_value((timewindow / dt)) + 1
         else:
-            raise CmdInputError('Time window must have a value greater than zero')
+            logger.exception('Time window must have a value greater than zero')
+            raise ValueError
 
     return timewindow, iterations
 
@@ -164,9 +167,11 @@ if __name__ == "__main__":
 
     # Check waveform parameters
     if args.type.lower() not in Waveform.types:
-        raise CmdInputError(f"The waveform must have one of the following types {', '.join(Waveform.types)}")
+        logger.exception(f"The waveform must have one of the following types {', '.join(Waveform.types)}")
+        raise ValueError
     if args.freq <= 0:
-        raise CmdInputError('The waveform requires an excitation frequency value of greater than zero')
+        logger.exception('The waveform requires an excitation frequency value of greater than zero')
+        raise ValueError
 
     # Create waveform instance
     w = Waveform()

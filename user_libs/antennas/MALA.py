@@ -5,8 +5,11 @@
 #
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
+import logging
+
 import gprMax
-from gprMax.exceptions import CmdInputError
+
+logger = logging.getLogger(__name__)
 
 
 def antenna_like_MALA_1200(x, y, z, resolution=0.001):
@@ -66,7 +69,8 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001):
         bowtieheight = 0.024
         tx = x + 0.062, y + 0.052, z + skidthickness
     else:
-        raise CmdInputError('This antenna module can only be used with a spatial resolution of 1mm or 2mm')
+        logger.exception('This antenna module can only be used with a spatial resolution of 1mm or 2mm')
+        raise ValueError
 
     # SMD resistors - 3 on each Tx & Rx bowtie arm
     txres = 470  # Ohms

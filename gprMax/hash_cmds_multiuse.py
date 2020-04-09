@@ -16,12 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 from .cmds_multiple import (PMLCFS, AddDebyeDispersion, AddDrudeDispersion,
                             AddLorentzDispersion, GeometryObjectsWrite,
                             GeometryView, HertzianDipole, MagneticDipole,
                             Material, Rx, RxArray, Snapshot, SoilPeplinski,
                             TransmissionLine, VoltageSource, Waveform)
-from .exceptions import CmdInputError
+
+logger = logging.getLogger(__name__)
 
 
 def process_multicmds(multicmds):
@@ -43,7 +46,8 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 4:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly four parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly four parameters')
+                raise ValueError
 
             waveform = Waveform(wave_type=tmp[0], amp=float(tmp[1]), freq=float(tmp[2]), id=tmp[3])
             scene_objects.append(waveform)
@@ -57,7 +61,8 @@ def process_multicmds(multicmds):
             elif len(tmp) == 8:
                 voltage_source = VoltageSource(polarisation=tmp[0].lower(), p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])), resistance=float(tmp[4]), waveform_id=tmp[5], start=float(tmp[6]), end=float(tmp[7]))
             else:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
+                raise ValueError
 
             scene_objects.append(voltage_source)
 
@@ -66,13 +71,15 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) < 5:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
+                raise ValueError
             if len(tmp) == 5:
                 hertzian_dipole = HertzianDipole(polarisation=tmp[0], p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])), waveform_id=tmp[4])
             elif len(tmp) == 7:
                 hertzian_dipole = HertzianDipole(polarisation=tmp[0], p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])), waveform_id=tmp[4], start=float(tmp[5]), end=float(tmp[6]))
             else:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' too many parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' too many parameters')
+                raise ValueError
 
             scene_objects.append(hertzian_dipole)
 
@@ -81,13 +88,15 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) < 5:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
+                raise ValueError
             if len(tmp) == 5:
                 magnetic_dipole = MagneticDipole(polarisation=tmp[0], p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])), waveform_id=tmp[4])
             elif len(tmp) == 7:
                 magnetic_dipole = MagneticDipole(polarisation=tmp[0], p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])), waveform_id=tmp[4], start=float(tmp[5]), end=float(tmp[6]))
             else:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' too many parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' too many parameters')
+                raise ValueError
 
             scene_objects.append(magnetic_dipole)
 
@@ -96,14 +105,16 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) < 6:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least six parameters')
+                raise ValueError
 
             if len(tmp) == 6:
                 tl = TransmissionLine(polarisation=tmp[0], p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])), resistance=float(tmp[4]), waveform_id=tmp[5])
             elif len(tmp) == 8:
                 tl = TransmissionLine(polarisation=tmp[0], p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])), resistance=float(tmp[4]), waveform_id=tmp[5], start=tmp[6], end=tmp[7])
             else:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' too many parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' too many parameters')
+                raise ValueError
 
             scene_objects.append(tl)
 
@@ -112,7 +123,8 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 3 and len(tmp) < 5:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' has an incorrect number of parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' has an incorrect number of parameters')
+                raise ValueError
             if len(tmp) == 3:
                 rx = Rx(p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])))
             else:
@@ -125,7 +137,8 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 9:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly nine parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly nine parameters')
+                raise ValueError
 
             p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
             p2 = (float(tmp[3]), float(tmp[4]), float(tmp[5]))
@@ -139,7 +152,8 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 11:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
+                raise ValueError
 
             p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
             p2 = (float(tmp[3]), float(tmp[4]), float(tmp[5]))
@@ -161,7 +175,8 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 5:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly five parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly five parameters')
+                raise ValueError
 
             material = Material(er=float(tmp[0]), se=float(tmp[1]), mr=float(tmp[2]), sm=float(tmp[3]), id=tmp[4])
             scene_objects.append(material)
@@ -172,7 +187,8 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
 
             if len(tmp) < 4:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least four parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least four parameters')
+                raise ValueError
 
             poles = int(tmp[0])
             er_delta = []
@@ -192,7 +208,8 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
 
             if len(tmp) < 5:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
+                raise ValueError
 
             poles = int(tmp[0])
             material_ids = tmp[(3 * poles) + 1:len(tmp)]
@@ -214,7 +231,8 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
 
             if len(tmp) < 5:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at least five parameters')
+                raise ValueError
 
             poles = int(tmp[0])
             material_ids = tmp[(3 * poles) + 1:len(tmp)]
@@ -234,7 +252,8 @@ def process_multicmds(multicmds):
             tmp = cmdinstance.split()
 
             if len(tmp) != 7:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at exactly seven parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at exactly seven parameters')
+                raise ValueError
             soil = SoilPeplinski(sand_fraction=float(tmp[0]),
                                  clay_fraction=float(tmp[1]),
                                  bulk_density=float(tmp[2]),
@@ -249,7 +268,8 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 11:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly eleven parameters')
+                raise ValueError
 
             p1 = float(tmp[0]), float(tmp[1]), float(tmp[2])
             p2 = float(tmp[3]), float(tmp[4]), float(tmp[5])
@@ -263,7 +283,8 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
             if len(tmp) != 7:
-                raise CmdInputError("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly seven parameters')
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly seven parameters')
+                raise ValueError
 
             p1 = float(tmp[0]), float(tmp[1]), float(tmp[2])
             p2 = float(tmp[3]), float(tmp[4]), float(tmp[5])

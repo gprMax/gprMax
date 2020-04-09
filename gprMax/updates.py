@@ -29,7 +29,6 @@ from .cython.fields_updates_normal import \
     update_electric as update_electric_cpu
 from .cython.fields_updates_normal import \
     update_magnetic as update_magnetic_cpu
-from .exceptions import GeneralError
 from .fields_outputs import kernel_template_store_outputs
 from .fields_outputs import store_outputs as store_outputs_cpu
 from .receivers import dtoh_rx_array, htod_rx_arrays
@@ -445,7 +444,8 @@ class CUDAUpdates:
         # Check if coefficient arrays will fit on constant memory of GPU
         if (self.grid.updatecoeffsE.nbytes + self.grid.updatecoeffsH.nbytes
             > config.get_model_config().cuda['gpu'].constmem):
-            raise GeneralError(f"Too many materials in the model to fit onto constant memory of size {human_size(config.get_model_config().cuda['gpu'].constmem)} on {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name} GPU")
+            logger.exception(f"Too many materials in the model to fit onto constant memory of size {human_size(config.get_model_config().cuda['gpu'].constmem)} on {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name} GPU")
+            raise ValueError
 
         updatecoeffsE = kernelE.get_global('updatecoeffsE')[0]
         updatecoeffsH = kernelH.get_global('updatecoeffsH')[0]

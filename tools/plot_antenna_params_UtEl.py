@@ -17,14 +17,16 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
+import logging
 from pathlib import Path
 
 import h5py
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
-from gprMax.exceptions import CmdInputError
 from scipy.io import loadmat
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=None, rxcomponent=None):
@@ -81,7 +83,8 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
         availableoutputs = list(f[rxpath].keys())
 
         if rxcomponent not in availableoutputs:
-            raise CmdInputError(f"{rxcomponent} output requested, but the available output for receiver {rxnumber} is {', '.join(availableoutputs)}")
+            logger.exception(f"{rxcomponent} output requested, but the available output for receiver {rxnumber} is {', '.join(availableoutputs)}")
+            raise ValueError
 
         rxpath += rxcomponent
 

@@ -6,6 +6,7 @@
 # Please use the attribution at http://dx.doi.org/10.1016/j.sigpro.2016.04.010
 
 import argparse
+import logging
 import os
 import sys
 
@@ -13,6 +14,9 @@ import gprMax.config as config
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+
+logger = logging.getLogger(__name__)
+
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Calculate and store (in a Numpy file) field patterns from a simulation with receivers positioned in circles around an antenna.', usage='cd gprMax; python -m user_libs.antenna_patterns.initial_save outputfile')
@@ -58,13 +62,13 @@ if epsr:
     wavelength = v1 / f
 
 # Print some useful information
-print('Centre frequency: {} GHz'.format(f / 1e9))
+logger.info('Centre frequency: {} GHz'.format(f / 1e9))
 if epsr:
-    print('Critical angle for Er {} is {} degrees'.format(epsr, thetac))
-    print('Wavelength: {:.3f} m'.format(wavelength))
-    print('Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)'.format(radii[0], radii[0] / wavelength, radii[-1], radii[-1] / wavelength))
-    print('Theoretical boundary between reactive & radiating near-field (0.62*sqrt((D^3/wavelength): {:.3f} m'.format(0.62 * np.sqrt((D**3) / wavelength)))
-    print('Theoretical boundary between radiating near-field & far-field (2*D^2/wavelength): {:.3f} m'.format((2 * D**2) / wavelength))
+    logger.info('Critical angle for Er {} is {} degrees'.format(epsr, thetac))
+    logger.info('Wavelength: {:.3f} m'.format(wavelength))
+    logger.info('Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)'.format(radii[0], radii[0] / wavelength, radii[-1], radii[-1] / wavelength))
+    logger.info('Theoretical boundary between reactive & radiating near-field (0.62*sqrt((D^3/wavelength): {:.3f} m'.format(0.62 * np.sqrt((D**3) / wavelength)))
+    logger.info('Theoretical boundary between radiating near-field & far-field (2*D^2/wavelength): {:.3f} m'.format((2 * D**2) / wavelength))
 
 # Load text file with coordinates of pattern origin
 origin = np.loadtxt(os.path.splitext(outputfile)[0] + '_rxsorigin.txt')
@@ -176,4 +180,4 @@ for radius in range(0, len(radii)):
 
 # Save pattern to numpy file
 np.save(os.path.splitext(outputfile)[0], patternsave)
-print('Written Numpy file: {}.npy'.format(os.path.splitext(outputfile)[0]))
+logger.info('Written Numpy file: {}.npy'.format(os.path.splitext(outputfile)[0]))

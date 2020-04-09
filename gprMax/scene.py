@@ -23,7 +23,6 @@ from .cmds_geometry.fractal_box_builder import FractalBoxBuilder
 from .cmds_multiple import UserObjectMulti
 from .cmds_single_use import (Discretisation, Domain, TimeWindow,
                               UserObjectSingle)
-from .exceptions import CmdInputError, GeneralError
 from .materials import create_built_in_materials
 from .subgrids.user_objects import SubGridBase as SubGridUserBase
 from .user_inputs import create_user_input_points
@@ -54,7 +53,8 @@ class Scene:
         elif isinstance(user_object, UserObjectSingle):
             self.single_cmds.append(user_object)
         else:
-            raise GeneralError('This object is unknown to gprMax')
+            logger.exception('This object is unknown to gprMax')
+            raise ValueError
 
     def process_subgrid_commands(self, subgrids):
         # Check for subgrid user objects
@@ -90,8 +90,9 @@ class Scene:
             # points belong to.
             try:
                 obj.create(grid, uip)
-            except CmdInputError:
+            except ValueError:
                 logger.exception('Error creating user input object')
+                raise
 
         return self
 
@@ -99,13 +100,15 @@ class Scene:
         # Check for duplicate commands and warn user if they exist
         cmds_unique = list(set(self.single_cmds))
         if len(cmds_unique) != len(self.single_cmds):
-            raise CmdInputError('Duplicate single-use commands exist in the input.')
+            logger.exception('Duplicate single-use commands exist in the input.')
+            raise ValueError
 
         # Check essential commands and warn user if missing
         for cmd_type in self.essential_cmds:
             d = any([isinstance(cmd, cmd_type) for cmd in cmds_unique])
             if not d:
-                raise CmdInputError('Your input file is missing essential commands required to run a model. Essential commands are: Domain, Discretisation, Time Window')
+                logger.exception('Your input file is missing essential commands required to run a model. Essential commands are: Domain, Discretisation, Time Window')
+                raise ValueError
 
         self.process_cmds(cmds_unique, G)
 

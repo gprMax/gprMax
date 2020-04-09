@@ -33,7 +33,6 @@ from tqdm import tqdm
 
 from .cython.yee_cell_build import (build_electric_components,
                                     build_magnetic_components)
-from .exceptions import GeneralError
 from .fields_outputs import write_hdf5_outputfile
 from .grid import dispersion_analysis
 from .hash_cmds_file import parse_hash_commands
@@ -85,7 +84,8 @@ class ModelBuildRun:
                         source.ycoord + G.srcsteps[1] * config.sim_config.model_end > G.ny or
                         source.zcoord + G.srcsteps[2] * config.sim_config.model_end < 0 or
                         source.zcoord + G.srcsteps[2] * config.sim_config.model_end > G.nz):
-                        raise GeneralError('Source(s) will be stepped to a position outside the domain.')
+                        logger.exception('Source(s) will be stepped to a position outside the domain.')
+                        raise ValueError
                 source.xcoord = source.xcoordorigin + config.model_num * G.srcsteps[0]
                 source.ycoord = source.ycoordorigin + config.model_num * G.srcsteps[1]
                 source.zcoord = source.zcoordorigin + config.model_num * G.srcsteps[2]
@@ -98,7 +98,8 @@ class ModelBuildRun:
                         receiver.ycoord + G.rxsteps[1] * config.sim_config.model_end > G.ny or
                         receiver.zcoord + G.rxsteps[2] * config.sim_config.model_end < 0 or
                         receiver.zcoord + G.rxsteps[2] * config.sim_config.model_end > G.nz):
-                        raise GeneralError('Receiver(s) will be stepped to a position outside the domain.')
+                        logger.exception('Receiver(s) will be stepped to a position outside the domain.')
+                        raise ValueError
                 receiver.xcoord = receiver.xcoordorigin + config.model_num * G.rxsteps[0]
                 receiver.ycoord = receiver.ycoordorigin + config.model_num * G.rxsteps[1]
                 receiver.zcoord = receiver.zcoordorigin + config.model_num * G.rxsteps[2]
@@ -172,7 +173,8 @@ class ModelBuildRun:
             if results['error']:
                 logger.warning(Fore.RED + f"\nNumerical dispersion analysis [{gb.grid.name}] not carried out as {results['error']}" + Style.RESET_ALL)
             elif results['N'] < config.get_model_config().numdispersion['mingridsampling']:
-                raise GeneralError(f"\nNon-physical wave propagation in [{gb.grid.name}] detected. Material '{results['material'].ID}' has wavelength sampled by {results['N']} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
+                logger.exception(f"\nNon-physical wave propagation in [{gb.grid.name}] detected. Material '{results['material'].ID}' has wavelength sampled by {results['N']} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
+                raise ValueError
             elif (results['deltavp'] and np.abs(results['deltavp']) >
                   config.get_model_config().numdispersion['maxnumericaldisp']):
                 logger.warning(Fore.RED + f"\n[{gb.grid.name}] has potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz" + Style.RESET_ALL)

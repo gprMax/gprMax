@@ -18,13 +18,15 @@
 
 import argparse
 import glob
+import logging
 import os
 from pathlib import Path
 
 import h5py
 import numpy as np
 from gprMax._version import __version__
-from gprMax.exceptions import CmdInputError
+
+logger = logging.getLogger(__name__)
 
 
 def get_output_data(filename, rxnumber, rxcomponent):
@@ -47,14 +49,16 @@ def get_output_data(filename, rxnumber, rxcomponent):
 
     # Check there are any receivers
     if nrx == 0:
-        raise CmdInputError(f'No receivers found in {filename}')
+        logger.exception(f'No receivers found in {filename}')
+        raise ValueError
 
     path = '/rxs/rx' + str(rxnumber) + '/'
     availableoutputs = list(f[path].keys())
 
     # Check if requested output is in file
     if rxcomponent not in availableoutputs:
-        raise CmdInputError(f"{rxcomponent} output requested to plot, but the available output for receiver 1 is {', '.join(availableoutputs)}")
+        logger.exception(f"{rxcomponent} output requested to plot, but the available output for receiver 1 is {', '.join(availableoutputs)}")
+        raise ValueError
 
     outputdata = f[path + '/' + rxcomponent]
     outputdata = np.array(outputdata)

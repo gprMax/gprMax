@@ -16,11 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 from .cmds_single_use import (Discretisation, Domain, ExcitationFile,
                               NumThreads, OutputDir, PMLCells, RxSteps,
                               SrcSteps, TimeStepStabilityFactor, TimeWindow,
                               Title)
-from .exceptions import CmdInputError
+
+logger = logging.getLogger(__name__)
 
 
 def process_singlecmds(singlecmds):
@@ -53,7 +56,8 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
         if len(tmp) != 1:
-            raise CmdInputError(cmd + ' requires exactly one parameter to specify the number of threads to use')
+            logger.exception(cmd + ' requires exactly one parameter to specify the number of threads to use')
+            raise ValueError
 
         num_thread = NumThreads(n=tmp[0])
         scene_objects.append(num_thread)
@@ -62,7 +66,8 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = [float(x) for x in singlecmds[cmd].split()]
         if len(tmp) != 3:
-            raise CmdInputError(cmd + ' requires exactly three parameters')
+            logger.exception(cmd + ' requires exactly three parameters')
+            raise ValueError
 
         dl = (tmp[0], tmp[1], tmp[2])
         discretisation = Discretisation(p1=dl)
@@ -72,7 +77,8 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = [float(x) for x in singlecmds[cmd].split()]
         if len(tmp) != 3:
-            raise CmdInputError(cmd + ' requires exactly three parameters')
+            logger.exception(cmd + ' requires exactly three parameters')
+            raise ValueError
 
         p1 = (tmp[0], tmp[1], tmp[2])
         domain = Domain(p1=p1)
@@ -88,7 +94,8 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 1:
-            raise CmdInputError(cmd + ' requires exactly one parameter to specify the time window. Either in seconds or number of iterations.')
+            logger.exception(cmd + ' requires exactly one parameter to specify the time window. Either in seconds or number of iterations.')
+            raise ValueError
         tmp = tmp[0].lower()
 
         # If number of iterations given
@@ -106,7 +113,8 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 1 and len(tmp) != 6:
-            raise CmdInputError(cmd + ' requires either one or six parameter(s)')
+            logger.exception(cmd + ' requires either one or six parameter(s)')
+            raise ValueError
         if len(tmp) == 1:
             pml_cells = PMLCells(thickness=int(tmp[0]))
         else:
@@ -123,7 +131,8 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
-            raise CmdInputError(cmd + ' requires exactly three parameters')
+            logger.exception(cmd + ' requires exactly three parameters')
+            raise ValueError
 
         p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
         src_steps = SrcSteps(p1=p1)
@@ -133,7 +142,8 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
-            raise CmdInputError(cmd + ' requires exactly three parameters')
+            logger.exception(cmd + ' requires exactly three parameters')
+            raise ValueError
 
         p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
         rx_steps = RxSteps(p1=p1)
@@ -144,7 +154,8 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 1 and len(tmp) != 3:
-            raise CmdInputError(cmd + ' requires either one or three parameter(s)')
+            logger.exception(cmd + ' requires either one or three parameter(s)')
+            raise ValueError
 
         if len(tmp) > 1:
             ex_file = ExcitationFile(filepath=tmp[0], kind=tmp[1], fill_value=tmp[2])

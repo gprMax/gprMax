@@ -22,7 +22,6 @@ import gprMax.config as config
 import numpy as np
 from colorama import Fore, Style, init
 init()
-from .exceptions import CmdInputError
 from .subgrids.base import SubGridBase
 from .utilities import round_value
 
@@ -103,7 +102,7 @@ class MainGridUserInput(UserInput):
         p = self.check_point(p, cmd_str, name)
 
         if self.grid.within_pml(p):
-            logger.warning(Fore.RED + f"'{cmd_str}' sources and receivers should not normally be positioned within the PML." + Style.RESET_ALL)
+            logger.warning(f"'{cmd_str}' sources and receivers should not normally be positioned within the PML.")
 
         return p
 
@@ -112,7 +111,8 @@ class MainGridUserInput(UserInput):
         p2 = self.check_point(p2, cmd_str, name='upper')
 
         if np.greater(p1, p2).any():
-            raise CmdInputError(logger.exception(f"'{cmd_str}' the lower coordinates should be less than the upper coordinates."))
+            logger.exception(f"'{cmd_str}' the lower coordinates should be less than the upper coordinates.")
+            raise ValueError
 
         return p1, p2
 

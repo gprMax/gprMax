@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import sys
 from pathlib import Path
 
@@ -25,8 +26,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from colorama import Fore, Style, init
 init()
-from gprMax.exceptions import GeneralError
 from tests.analytical_solutions import hertzian_dipole_fs
+
+logger = logging.getLogger(__name__)
 
 if sys.platform == 'linux':
     plt.switch_backend('agg')
@@ -92,7 +94,8 @@ for i, model in enumerate(testmodels):
         for ID, name in enumerate(outputstest):
             datatest[:, ID] = filetest[path + str(name)][:]
             if np.any(np.isnan(datatest[:, ID])):
-                raise GeneralError('Test data contains NaNs')
+                logger.exception('Test data contains NaNs')
+                raise ValueError
 
         # Tx/Rx position to feed to analytical solution
         rxpos = filetest[path].attrs['Position']
@@ -117,7 +120,8 @@ for i, model in enumerate(testmodels):
         outputsref = list(fileref[path].keys())
         outputstest = list(filetest[path].keys())
         if outputsref != outputstest:
-            raise GeneralError('Field output components do not match reference solution')
+            logger.exception('Field output components do not match reference solution')
+            raise ValueError
 
         # Check that type of float used to store fields matches
         if filetest[path + outputstest[0]].dtype != fileref[path + outputsref[0]].dtype:
@@ -138,7 +142,8 @@ for i, model in enumerate(testmodels):
             dataref[:, ID] = fileref[path + str(name)][:]
             datatest[:, ID] = filetest[path + str(name)][:]
             if np.any(np.isnan(datatest[:, ID])):
-                raise GeneralError('Test data contains NaNs')
+                logger.exception('Test data contains NaNs')
+                raise ValueError
 
         fileref.close()
         filetest.close()

@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import numpy as np
 
 from .cmds_geometry.add_grass import AddGrass
@@ -29,8 +30,9 @@ from .cmds_geometry.fractal_box import FractalBox
 from .cmds_geometry.plate import Plate
 from .cmds_geometry.sphere import Sphere
 from .cmds_geometry.triangle import Triangle
-from .exceptions import CmdInputError
 from .utilities import round_value
+
+logger = logging.getLogger(__name__)
 
 
 def process_geometrycmds(geometry):
@@ -55,7 +57,8 @@ def process_geometrycmds(geometry):
             from .cmds_geometry.geometry_objects_read import GeometryObjectsRead
             
             if len(tmp) != 6:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly five parameters')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' requires exactly five parameters')
+                raise ValueError
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
 
@@ -64,7 +67,8 @@ def process_geometrycmds(geometry):
 
         elif tmp[0] == '#edge:':
             if len(tmp) != 8:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly seven parameters')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' requires exactly seven parameters')
+                raise ValueError
 
             edge = Edge(p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
                         p2=(float(tmp[4]), float(tmp[5]), float(tmp[6])),
@@ -74,7 +78,8 @@ def process_geometrycmds(geometry):
 
         elif tmp[0] == '#plate:':
             if len(tmp) < 8:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least seven parameters')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least seven parameters')
+                raise ValueError
 
             # Isotropic case
             if len(tmp) == 8:
@@ -89,13 +94,15 @@ def process_geometrycmds(geometry):
                               material_ids=tmp[7:])
 
             else:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                raise ValueError
 
             scene_objects.append(plate)
 
         elif tmp[0] == '#triangle:':
             if len(tmp) < 12:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least eleven parameters')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least eleven parameters')
+                raise ValueError
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
             p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
@@ -115,13 +122,15 @@ def process_geometrycmds(geometry):
                 triangle = Triangle(p1=p1, p2=p2, p3=p3, thickness=thickness, material_ids=tmp[11:])
 
             else:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                raise ValueError
 
             scene_objects.append(triangle)
 
         elif tmp[0] == '#box:':
             if len(tmp) < 8:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least seven parameters')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least seven parameters')
+                raise ValueError
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
             p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
@@ -139,13 +148,15 @@ def process_geometrycmds(geometry):
                 box = Box(p1=p1, p2=p2, material_ids=tmp[7:])
 
             else:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                raise ValueError
 
             scene_objects.append(box)
 
         elif tmp[0] == '#cylinder:':
             if len(tmp) < 9:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least eight parameters')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least eight parameters')
+                raise ValueError
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
             p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
@@ -164,13 +175,15 @@ def process_geometrycmds(geometry):
                 cylinder = Cylinder(p1=p1, p2=p2, r=r, material_ids=tmp[8:])
                 
             else:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                raise ValueError
 
             scene_objects.append(cylinder)
 
         elif tmp[0] == '#cylindrical_sector:':
             if len(tmp) < 10:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least nine parameters')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least nine parameters')
+                raise ValueError
 
             normal = tmp[1].lower()
             ctr1 = float(tmp[2])
@@ -197,13 +210,15 @@ def process_geometrycmds(geometry):
                                   extent2=extent2, r=r, start=start, end=end, material_ids=tmp[9:])
 
             else:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                raise ValueError
 
             scene_objects.append(cylindrical_sector)
 
         elif tmp[0] == '#sphere:':
             if len(tmp) < 6:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least five parameters')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least five parameters')
+                raise ValueError
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
             r = float(tmp[4])
@@ -221,7 +236,8 @@ def process_geometrycmds(geometry):
                 sphere = Sphere(p1=p1, r=r, material_id=tmp[5:])
 
             else:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                raise ValueError
 
             scene_objects.append(sphere)
 
@@ -229,7 +245,8 @@ def process_geometrycmds(geometry):
             # Default is no dielectric smoothing for a fractal box
 
             if len(tmp) < 14:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least thirteen parameters')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least thirteen parameters')
+                raise ValueError
 
             p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
             p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
@@ -246,7 +263,8 @@ def process_geometrycmds(geometry):
             elif len(tmp) == 16:
                 fb = FractalBox(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, mixing_model_id=mixing_model_id, id=ID, n_materials=n_materials, seed=tmp[14], averaging=tmp[15].lower())
             else:
-                raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                logger.exception("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                raise ValueError
 
             scene_objects.append(fb)
 
@@ -256,7 +274,8 @@ def process_geometrycmds(geometry):
 
                 if tmp[0] == '#add_surface_roughness:':
                     if len(tmp) < 13:
-                        raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least twelve parameters')
+                        logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least twelve parameters')
+                        raise ValueError
 
                     p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
                     p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
@@ -270,13 +289,15 @@ def process_geometrycmds(geometry):
                     elif len(tmp) == 14:
                         asr = AddSurfaceRoughness(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, limits=limits, fractal_box_id=fractal_box_id, seed=int(tmp[13]))
                     else:
-                        raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                        logger.exception("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                        raise ValueError
 
                     scene_objects.append(asr)
 
                 if tmp[0] == '#add_surface_water:':
                     if len(tmp) != 9:
-                        raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires exactly eight parameters')
+                        logger.exception("'" + ' '.join(tmp) + "'" + ' requires exactly eight parameters')
+                        raise ValueError
 
                     p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
                     p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
@@ -288,7 +309,8 @@ def process_geometrycmds(geometry):
 
                 if tmp[0] == '#add_grass:':
                     if len(tmp) < 12:
-                        raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires at least eleven parameters')
+                        logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least eleven parameters')
+                        raise ValueError
 
                     p1 = (float(tmp[1]), float(tmp[2]), float(tmp[3]))
                     p2 = (float(tmp[4]), float(tmp[5]), float(tmp[6]))
@@ -302,7 +324,8 @@ def process_geometrycmds(geometry):
                     elif len(tmp) == 13:
                         grass = AddGrass(p1=p1, p2=p2, frac_dim=frac_dim, limits=limits, n_blades=n_blades, fractal_box_id=fractal_box_id, seed=int(tmp[12]))
                     else:
-                        raise CmdInputError("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                        logger.exception("'" + ' '.join(tmp) + "'" + ' too many parameters have been given')
+                        raise ValueError
 
                     scene_objects.append(grass)
 

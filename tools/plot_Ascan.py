@@ -17,15 +17,17 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
+import logging
 from pathlib import Path
 
 import h5py
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
-from gprMax.exceptions import CmdInputError
 from gprMax.receivers import Rx
 from gprMax.utilities import fft_power
+
+logger = logging.getLogger(__name__)
 
 
 def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
@@ -65,7 +67,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
 
     # Check there are any receivers
     if not paths:
-        raise CmdInputError(f'No receivers found in {file}')
+        logger.exception(f'No receivers found in {file}')
+        raise ValueError
 
     # Loop through all grids
     for path in paths:
@@ -77,7 +80,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
         # Check for single output component when doing a FFT
         if fft:
             if not len(outputs) == 1:
-                raise CmdInputError('A single output must be specified when using the -fft option')
+                logger.exception('A single output must be specified when using the -fft option')
+                raise ValueError
 
         # New plot for each receiver
         for rx in range(1, nrx + 1):
@@ -98,7 +102,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                     output = outputs[0]
 
                 if output not in availableoutputs:
-                    raise CmdInputError(f"{output} output requested to plot, but the available output for receiver 1 is {', '.join(availableoutputs)}")
+                    logger.exception(f"{output} output requested to plot, but the available output for receiver 1 is {', '.join(availableoutputs)}")
+                    raise ValueError
 
                 outputdata = f[rxpath + output][:] * polarity
 
@@ -196,7 +201,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
 
                     # Check if requested output is in file
                     if output not in availableoutputs:
-                        raise CmdInputError(f"Output(s) requested to plot: {', '.join(outputs)}, but available output(s) for receiver {rx} in the file: {', '.join(availableoutputs)}")
+                        logger.exception(f"Output(s) requested to plot: {', '.join(outputs)}, but available output(s) for receiver {rx} in the file: {', '.join(availableoutputs)}")
+                        raise ValueError
 
                     outputdata = f[rxpath + output][:] * polarity
 

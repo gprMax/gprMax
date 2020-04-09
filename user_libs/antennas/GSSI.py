@@ -5,8 +5,11 @@
 #
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 
+import logging
+
 import gprMax
-from gprMax.exceptions import CmdInputError
+
+logger = logging.getLogger(__name__)
 
 
 def antenna_like_GSSI_1500(x, y, z, resolution=0.001):
@@ -59,7 +62,8 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001):
         patchheight = 0.016
         tx = x + 0.114, y + 0.052, z + skidthickness
     else:
-        raise CmdInputError('This antenna module can only be used with a spatial discretisation of 1mm or 2mm')
+        logger.exception('This antenna module can only be used with a spatial discretisation of 1mm or 2mm')
+        raise ValueError
 
     # Specify optimisation state of antenna model
     optstate = ['WarrenThesis', 'DebyeAbsorber', 'GiannakisPaper']
@@ -367,7 +371,8 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001):
         metalboxheight = 0.088
         tx = x + 0.01 + 0.004 + 0.056, y + casethickness + 0.005 + 0.143 - 0.002, z + skidthickness
     else:
-        raise CmdInputError('This antenna module can only be used with a spatial discretisation of 0.5mm, 1mm, 2mm')
+        logger.exception('This antenna module can only be used with a spatial discretisation of 0.5mm, 1mm, 2mm')
+        raise ValueError
 
     # Material definitions
     absorber = gprMax.Material(er=absorberEr, se=absorbersig, mr=1, sm=0, id='absorber')

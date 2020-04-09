@@ -432,7 +432,7 @@ def mem_check_host(mem):
     """
     if mem > config.sim_config.hostinfo['ram']:
         logger.exception(f"Memory (RAM) required ~{human_size(mem)} exceeds {human_size(config.sim_config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} detected!\n")
-        raise
+        raise ValueError
 
 
 def mem_check_gpu_snaps(total_mem, snaps_mem):
@@ -445,7 +445,7 @@ def mem_check_gpu_snaps(total_mem, snaps_mem):
     """
     if total_mem - snaps_mem > config.get_model_config().cuda['gpu'].totalmem:
         logger.exception(f"Memory (RAM) required ~{human_size(total_mem)} exceeds {human_size(config.get_model_config().cuda['gpu'].totalmem, a_kilobyte_is_1024_bytes=True)} detected on specified {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name} GPU!\n")
-        raise
+        raise ValueError
 
     # If the required memory without the snapshots will fit on the GPU then
     # transfer and store snaphots on host
@@ -548,7 +548,7 @@ def detect_gpus():
     # Check and list any CUDA-Enabled GPUs
     if drv.Device.count() == 0:
         logger.exception('No NVIDIA CUDA-Enabled GPUs detected (https://developer.nvidia.com/cuda-gpus)')
-        raise
+        raise ValueError
     elif 'CUDA_VISIBLE_DEVICES' in os.environ:
         deviceIDsavail = os.environ.get('CUDA_VISIBLE_DEVICES')
         deviceIDsavail = [int(s) for s in deviceIDsavail.split(',')]
