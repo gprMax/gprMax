@@ -104,7 +104,8 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
     global G
 
     # Used for naming geometry and output files
-    appendmodelnumber = '' if numbermodelruns == 1 and not args.task and not args.restart else str(currentmodelrun)
+    appendmodelnumber = '' if numbermodelruns == 1 and not args.task and not args.restart else '_'+str(currentmodelrun)
+    appendmodelnumberGeometry = '' if numbermodelruns == 1 and not args.task and not args.restart or args.geometry_fixed else '_'+str(currentmodelrun)
 
     # Normal model reading/building process; bypassed if geometry information to be reused
     if 'G' not in globals():
@@ -326,10 +327,10 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
     # Write files for any geometry views and geometry object outputs
     if not (G.geometryviews or G.geometryobjectswrite) and args.geometry_only and G.messages:
         print(Fore.RED + '\nWARNING: No geometry views or geometry objects to output found.' + Style.RESET_ALL)
-    if G.geometryviews:
+    if G.geometryviews and (not args.geometry_fixed or currentmodelrun == 1):
         if G.messages: print()
         for i, geometryview in enumerate(G.geometryviews):
-            geometryview.set_filename(appendmodelnumber, G)
+            geometryview.set_filename(appendmodelnumberGeometry, G)
             pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True, desc='Writing geometry view file {}/{}, {}'.format(i + 1, len(G.geometryviews), os.path.split(geometryview.filename)[1]), ncols=get_terminal_width() - 1, file=sys.stdout, disable=not G.progressbars)
             geometryview.write_vtk(G, pbar)
             pbar.close()
