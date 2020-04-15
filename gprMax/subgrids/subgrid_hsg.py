@@ -17,8 +17,6 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import gprMax.config as config
-from colorama import Fore, Style, init
-init()
 from ..cython.fields_updates_hsg import (cython_update_electric_os,
                                          cython_update_is,
                                          cython_update_magnetic_os)
@@ -57,10 +55,12 @@ class SubGridHSG(SubGridBase):
         cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwx + 1, self.nwz, self.nwy, 3, self.Hx, precursors.ez_front, precursors.ez_back, self.IDlookup['Hx'], 1, -1, 2, config.get_model_config().ompthreads)
 
     def update_electric_is(self, precursors):
-        """
+        """Update the subgrid nodes at the IS with the currents derived
+            from the main grid.
 
+        Args:
+            nwl, nwm, nwn, face, field, inc_field, lookup_id, sign, mod, co
         """
-        # Args: nwl, nwm, nwn, face, field, inc_field, lookup_id, sign, mod, co
 
         # Ex = c0(Ex) + c2(dHz) - c3(dHy)
         # Ey = c0(Ey) + c3(dHx) - c1(dHz)
@@ -140,26 +140,25 @@ class SubGridHSG(SubGridBase):
     def __str__(self):
 
         s = '\n'
-        s += Fore.CYAN
-        s += 'Sub Grid HSG\n'
-        s += f'Name: {self.name}\n'
-        s += f'Spatial discretisation: {self.dx:g} x {self.dy:g} x {self.dz:g}m\n'
-        s += f'Time step (at CFL limit): {self.dt:g} secs\n'
-        s += f'Position: ({self.x1}m, {self.y1}m, {self.z1}m), ({self.x2}m, {self.y2}m, {self.z2}m)\n'
-        s += f'Main Grid Indices: lower left({self.i0}, {self.j0}, {self.k0}), upper right({self.i1}, {self.j1}, {self.k1})\n'
-        s += f'Total Cells: {self.nx} {self.ny} {self.nz}\n'
-        s += f'Working Region Cells: {self.nwx} {self.nwy} {self.nwz}\n'
+        s += f' Name: {self.name}\n'
+        s += f' Type: {self.gridtype}\n'
+        s += f' Ratio: 1:{self.ratio}\n'
+        s += f' Spatial discretisation: {self.dx:g} x {self.dy:g} x {self.dz:g}m\n'
+        s += f' Time step (at CFL limit): {self.dt:g} secs\n'
+        # s += f' Extent from {self.i0 * self.dx * self.ratio}m, {self.j0 * self.dy * self.ratio}m, {self.k0 * self.dz * self.ratio}m to {self.i1 * self.dx * self.ratio}m, {self.j1 * self.dy * self.ratio}m, {self.k1 * self.dz * self.ratio}m\n'
+        s += f' Extent from {self.i0}, {self.j0}, {self.k0} to {self.i1}, {self.j1}, {self.k1} cells (main grid)\n'
+        s += f' Total cells: {self.nx} x {self.ny} x {self.nz}\n'
+        s += f' Working region cells: {self.nwx} x {self.nwy} x {self.nwz}\n'
 
         for h in self.hertziandipoles:
-            s += f'Hertizian dipole: {h.xcoord} {h.ycoord} {h.zcoord}\n'
-            s += str([x for x in self.waveforms
+            s += f' Hertizian dipole at {h.xcoord} {h.ycoord} {h.zcoord}\n'
+            s += ' ' + str([x for x in self.waveforms
                       if x.ID == h.waveformID][0]) + '\n'
         for r in self.rxs:
-            s += f'Receiver: {r.xcoord} {r.ycoord} {r.zcoord}\n'
+            s += f' Receiver at {r.xcoord} {r.ycoord} {r.zcoord}\n'
 
         for tl in self.transmissionlines:
-            s += f'Transmission Line: {tl.xcoord} {tl.ycoord} {tl.zcoord}\n'
-            s += str([x for x in self.waveforms
+            s += f' Transmission line: {tl.xcoord} {tl.ycoord} {tl.zcoord}\n'
+            s += ' ' + str([x for x in self.waveforms
                       if x.ID == tl.waveformID][0]) + '\n'
-        s += Style.RESET_ALL
         return s
