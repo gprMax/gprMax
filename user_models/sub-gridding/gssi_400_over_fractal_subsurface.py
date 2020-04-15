@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2019, John Hartley
+# Copyright (C) 2015-2020, John Hartley
 #
 # This module is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
 # To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
@@ -11,7 +11,7 @@ from user_libs.antennas.GSSI import antenna_like_GSSI_400
 import numpy as np
 
 # file path step
-fn = Path(__file__).with_suffix('')
+fn = Path(__file__)
 parts = fn.parts
 
 # subgrid Discretisation is 1 mm in x, y, z directions. This allows us
@@ -73,8 +73,8 @@ scene.add(sg)
 halfspace = gprMax.Box(p1=(0, 0, 0), p2=(x, y, antenna_p[2]), material_id='soil')
 scene.add(halfspace)
 
-# position half space box in the subgrid. The  halfspace has to be positioned
-# manually because it traverses the grid. Grid traversal requries that objects extend
+# position half space box in the subgrid. The halfspace has to be positioned
+# manually because it traverses the grid. Grid traversal requires that objects extend
 # beyond the OS. Turning off autotranslate allows you to place objects beyond the OS.
 
 # PML seperation from the OS
@@ -111,7 +111,7 @@ for i in range(1, 51):
 gv = gprMax.GeometryView(p1=(0, 0, 0),
                          p2=(1, 1, 1),
                          dl=dl,
-                         filename=fn.name,
+                         filename=fn.with_suffix('').parts[-1],
                          output_type='f',
                          multi_grid=True)
 
@@ -119,7 +119,7 @@ gv = gprMax.GeometryView(p1=(0, 0, 0),
 gv_normal = gprMax.GeometryView(p1=(0, 0, 0),
                          p2=domain.props.p1,
                          dl=dl,
-                         filename=Path(*parts[:-1], parts[-1] + '_voxels').name,
+                         filename=fn.with_suffix('').parts[-1] + '_voxels',
                          output_type='n')
 # scene.add(gv)
 scene.add(gv_normal)
