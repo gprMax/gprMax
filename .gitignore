@@ -15,6 +15,7 @@ gprMax/cython/fields_updates_dispersive.pyx
 build/
 dist/
 *.egg-info/
+docs/.buildinfo
 
 # Backup files
 *~
@@ -23,6 +24,11 @@ dist/
 .ipynb_checkpoints/
 
 # Craig's files
+.vscode
+user_libs/landmines/*
+user_libs/rocks/*
 user_models/GPU-paper-landmines/
 user_models/IWAGPR2017-challenge/
 user_models/to-update/
+tests/*.out
+tests/*.png
