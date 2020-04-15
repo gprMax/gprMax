@@ -81,7 +81,7 @@ def merge_files(basefilename, removefiles=False):
 
     # Add positional data for rxs
     for model in range(modelruns):
-        fin = h5py.File(basefilename + str(model + 1) + '.out', 'r')
+        fin = h5py.File(basefilename + "_" + str(model + 1) + '.out', 'r')
         nrx = fin.attrs['nrx']
 
         # Write properties for merged file on first iteration
@@ -112,7 +112,7 @@ def merge_files(basefilename, removefiles=False):
 
     if removefiles:
         for model in range(modelruns):
-            file = basefilename + str(model + 1) + '.out'
+            file = basefilename + "_" + str(model + 1) + '.out'
             os.remove(file)
 
 if __name__ == "__main__":
