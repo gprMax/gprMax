@@ -176,9 +176,7 @@ class PrecursorNodesBase:
             try:
                 val = c1 * getattr(self, f + '_0') + c2 * getattr(self, f + '_1')
             except ValueError:
-                print(self.ex_front_0.shape)
-                print(self.ex_front_1.shape)
-                raise Exception(f)
+                raise
             setattr(self, f, val)
 
     def calc_exact_field(self, field_names):
