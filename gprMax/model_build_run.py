@@ -216,11 +216,11 @@ class ModelBuildRun:
         # Write any snapshots to file
         if self.G.snapshots:
             # Create directory for snapshots
-            config.get_model_config().set_snapshots_file_path()
-            snapshotdir = config.get_model_config().snapshot_file_path
+            snapshotdir = config.get_model_config().set_snapshots_dir()
             snapshotdir.mkdir(exist_ok=True)
-
             logger.info('')
+            logger.info(f'Snapshot directory: {snapshotdir.resolve()}')
+
             for i, snap in enumerate(self.G.snapshots):
                 fn = snapshotdir / Path(snap.filename)
                 snap.filename = fn.with_suffix('.vti')

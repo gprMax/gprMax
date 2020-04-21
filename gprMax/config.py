@@ -91,9 +91,6 @@ class ModelConfig:
         self.appendmodelnumber = '' if sim_config.single_model else str(model_num + 1) # Indexed from 1
         self.set_output_file_path()
 
-        # Specify a snapshot directory
-        self.set_snapshots_dir()
-
         # Numerical dispersion analysis parameters
         #   highestfreqthres: threshold (dB) down from maximum power (0dB) of main frequency used
         #     to calculate highest frequency for numerical dispersion analysis
@@ -167,9 +164,15 @@ class ModelConfig:
         self.output_file_path_ext = self.output_file_path.with_suffix('.h5')
 
     def set_snapshots_dir(self):
-        """Set directory to store any snapshots."""
+        """Set directory to store any snapshots.
+        
+        Returns:
+            snapshot_dir (Path): directory to store snapshot files in.
+        """
         parts = self.output_file_path.with_suffix('').parts
-        self.snapshot_dir = Path(*parts[:-1], parts[-1] + '_snaps')
+        snapshot_dir = Path(*parts[:-1], parts[-1] + '_snaps')
+        
+        return snapshot_dir
 
 
 class SimulationConfig:
