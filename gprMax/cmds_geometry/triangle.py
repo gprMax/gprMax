@@ -18,7 +18,6 @@
 
 import logging
 
-import gprMax.config as config
 import numpy as np
 
 from ..cython.geometry_primitives import build_triangle

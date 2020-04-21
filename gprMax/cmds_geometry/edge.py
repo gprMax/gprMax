@@ -18,8 +18,6 @@
 
 import logging
 
-import gprMax.config as config
-
 from ..cython.geometry_primitives import (build_edge_x, build_edge_y,
                                           build_edge_z)
 from .cmds_geometry import UserObjectGeometry
