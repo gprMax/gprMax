@@ -159,7 +159,7 @@ def process_include_files(hashcmds, inputfile):
         x += 1
 
     return processedincludecmds
-logger
+
 
 def write_processed_file(processedlines, G):
     """Writes an input file after any Python code and include commands

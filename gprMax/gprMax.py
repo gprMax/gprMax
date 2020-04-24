@@ -42,7 +42,7 @@ def run(
     autotranslate=False,
     geometry_only=False,
     geometry_fixed=False,
-    write_processed=False,
+    write_processed=False
 ):
     """This is the main function for gprMax when entering using application
         programming interface (API). Run the simulation for the
