@@ -41,15 +41,15 @@ rxs = []
 with open(model.FileName[0], 'rb') as f:
     for line in f:
         if line.startswith(b'<Material'):
-            line.rstrip('\n')
+            line.rstrip(b'\n')
             tmp = (int(ET.fromstring(line).text), ET.fromstring(line).attrib.get('name'))
             materials.append(tmp)
         elif line.startswith(b'<Sources') or line.startswith(b'<PML'):
-            line.rstrip('\n')
+            line.rstrip(b'\n')
             tmp = (int(ET.fromstring(line).text), ET.fromstring(line).attrib.get('name'))
             srcs_pml.append(tmp)
         elif line.startswith(b'<Receivers'):
-            line.rstrip('\n')
+            line.rstrip(b'\n')
             tmp = (int(ET.fromstring(line).text), ET.fromstring(line).attrib.get('name'))
             rxs.append(tmp)
 
