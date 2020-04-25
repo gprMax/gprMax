@@ -96,6 +96,8 @@ This will make sure conda is up-to-date, install Git, get the latest gprMax sour
 
 If you prefer to install Python and the required Python packages manually, i.e. without using Anaconda/Miniconda, look in the ``conda_env.yml`` file for a list of the requirements.
 
+If you are using Arch Linux (https://www.archlinux.org/) you may need to also install ``wxPython`` by adding it to the conda environment file (``conda_env.yml``).
+
 2. Install a C compiler which supports OpenMP
 ---------------------------------------------
 
