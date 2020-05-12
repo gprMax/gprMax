@@ -25,6 +25,7 @@ import re
 import subprocess
 import sys
 import textwrap
+import xml.dom.minidom
 from contextlib import contextmanager
 from copy import copy
 from shutil import get_terminal_size
@@ -149,6 +150,24 @@ def logo(version):
     logger.basic(textwrap.fill(licenseinfo1, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
     logger.basic(textwrap.fill(licenseinfo2, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
     logger.basic(textwrap.fill(licenseinfo3, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
+
+
+def pretty_xml(roughxml):
+    """Nicely format XML string.
+
+    Args:
+        roughxml (str): XML string to format
+
+    Returns:
+        prettyxml (str): nicely formatted XML string
+    """
+
+    prettyxml = xml.dom.minidom.parseString(roughxml).toprettyxml()
+    # Remove the weird newline issue
+    prettyxml = os.linesep.join(
+        [s for s in prettyxml.splitlines() if s.strip()])
+
+    return prettyxml
 
 
 def round_value(value, decimalplaces=0):

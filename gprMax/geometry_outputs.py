@@ -16,6 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+try:
+    import xml.etree.cElementTree as ET
+except ImportError:
+    import xml.etree.ElementTree as ET
 import logging
 import os
 from pathlib import Path
@@ -28,7 +32,7 @@ import numpy as np
 from ._version import __version__
 from .cython.geometry_outputs import (define_fine_geometry,
                                       define_normal_geometry)
-from .utilities import round_value
+from .utilities import pretty_xml, round_value
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +65,7 @@ class GeometryView:
         self.dz = dz
         self.filename = filename
         self.fileext = fileext
+        self.set_filename_called = False
         self.G = G
 
         if self.fileext == '.vti':
@@ -76,7 +81,6 @@ class GeometryView:
             self.vtk_nzcells = round_value(self.nz / self.dz)
             self.vtk_ncells = self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells
             self.datawritesize = (np.dtype(np.uint32).itemsize * self.vtk_ncells +
-                                  2 * np.dtype(np.int8).itemsize * self.vtk_ncells +
                                   3 * np.dtype(np.uint32).itemsize)
 
         elif self.fileext == '.vtp':
@@ -112,9 +116,11 @@ class GeometryView:
 
     def set_filename(self):
         """Construct filename from user-supplied name and model run number."""
-        parts = config.get_model_config().output_file_path.parts
-        self.filename = Path(*parts[:-1], self.filename + config.get_model_config().appendmodelnumber)
-        self.filename = self.filename.with_suffix(self.fileext)
+        if not self.set_filename_called:
+            self.set_filename_called = True
+            parts = config.get_model_config().output_file_path.parts
+            self.filename = Path(*parts[:-1], self.filename + config.get_model_config().appendmodelnumber)
+            self.filename = self.filename.with_suffix(self.fileext)
 
     def write_vtk(self, G, pbar):
         """Writes the geometry information to a VTK file.
@@ -129,42 +135,18 @@ class GeometryView:
         """
 
         if self.fileext == '.vti':
-            # Create arrays and add numeric IDs for PML, sources and receivers
-            # (0 is not set, 1 is PML, srcs and rxs numbered thereafter)
-            self.srcs_pml = np.zeros((G.nx + 1, G.ny + 1, G.nz + 1), dtype=np.int8)
-            self.rxs = np.zeros((G.nx + 1, G.ny + 1, G.nz + 1), dtype=np.int8)
-            for pml in G.pmls:
-                self.srcs_pml[pml.xs:pml.xf, pml.ys:pml.yf, pml.zs:pml.zf] = 1
-            for index, src in enumerate(G.hertziandipoles + G.magneticdipoles + G.voltagesources + G.transmissionlines):
-                self.srcs_pml[src.xcoord, src.ycoord, src.zcoord] = index + 2
-            for index, rx in enumerate(G.rxs):
-                self.rxs[rx.xcoord, rx.ycoord, rx.zcoord] = index + 1
-
-            vtk_srcs_pml_offset = ((np.dtype(np.uint32).itemsize * self.vtk_nxcells *
-                                  self.vtk_nycells * self.vtk_nzcells) +
-                                  np.dtype(np.uint32).itemsize)
-            vtk_rxs_offset = ((np.dtype(np.uint32).itemsize * self.vtk_nxcells *
-                             self.vtk_nycells * self.vtk_nzcells) +
-                             np.dtype(np.uint32).itemsize +
-                             (np.dtype(np.int8).itemsize * self.vtk_nxcells *
-                             self.vtk_nycells * self.vtk_nzcells) +
-                             np.dtype(np.uint32).itemsize)
-
             with open(self.filename, 'wb') as f:
                 f.write('<?xml version="1.0"?>\n'.encode('utf-8'))
                 f.write(f'<VTKFile type="ImageData" version="1.0" byte_order="{config.sim_config.vtk_byteorder}">\n'.encode('utf-8'))
-                f.write(f'<ImageData WholeExtent="{self.vtk_xscells} {self.vtk_xfcells} {self.vtk_yscells} {self.vtk_yfcells} {self.vtk_zscells} {self.vtk_zfcells}" Origin="0 0 0" Spacing="{self.dx * G.dx:.3} {self.dy * G.dy:.3} {self.dz * G.dz:.3}">\n'.encode('utf-8'))
-                f.write(f'<Piece Extent="{self.vtk_xscells} {self.vtk_xfcells} {self.vtk_yscells} {self.vtk_yfcells} {self.vtk_zscells} {self.vtk_zfcells}">\n'.encode('utf-8'))
+                extent = f'{self.vtk_xscells} {self.vtk_xfcells} {self.vtk_yscells} {self.vtk_yfcells} {self.vtk_zscells} {self.vtk_zfcells}'
+                f.write(f'<ImageData WholeExtent="{extent}" Origin="0 0 0" Spacing="{self.dx * G.dx:.3} {self.dy * G.dy:.3} {self.dz * G.dz:.3}">\n'.encode('utf-8'))
+                f.write(f'<Piece Extent="{extent}">\n'.encode('utf-8'))
                 f.write('<CellData Scalars="Material">\n'.encode('utf-8'))
                 f.write('<DataArray type="UInt32" Name="Material" format="appended" offset="0" />\n'.encode('utf-8'))
-                f.write(f'<DataArray type="Int8" Name="Sources_PML" format="appended" offset="{vtk_srcs_pml_offset}" />\n'.encode('utf-8'))
-                f.write(f'<DataArray type="Int8" Name="Receivers" format="appended" offset="{vtk_rxs_offset}" />\n'.encode('utf-8'))
                 f.write('</CellData>\n'.encode('utf-8'))
                 f.write('</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
 
                 solid_geometry = np.zeros((self.vtk_ncells), dtype=np.uint32)
-                srcs_pml_geometry = np.zeros((self.vtk_ncells), dtype=np.int8)
-                rxs_geometry = np.zeros((self.vtk_ncells), dtype=np.int8)
 
                 define_normal_geometry(
                     self.xs,
@@ -177,11 +159,7 @@ class GeometryView:
                     self.dy,
                     self.dz,
                     G.solid,
-                    self.srcs_pml,
-                    self.rxs,
-                    solid_geometry,
-                    srcs_pml_geometry,
-                    rxs_geometry)
+                    solid_geometry)
 
                 # Write number of bytes of appended data as UInt32
                 f.write(pack('I', solid_geometry.nbytes))
@@ -190,22 +168,7 @@ class GeometryView:
                 f.write(solid_geometry)
                 pbar.update(n=solid_geometry.nbytes)
 
-                # Write number of bytes of appended data as UInt32
-                f.write(pack('I', srcs_pml_geometry.nbytes))
-                pbar.update(n=4)
-                # Write sources and PML positions
-                f.write(srcs_pml_geometry)
-                pbar.update(n=srcs_pml_geometry.nbytes)
-
-                # Write number of bytes of appended data as UInt32
-                f.write(pack('I', rxs_geometry.nbytes))
-                pbar.update(n=4)
-                # Write receiver positions
-                f.write(rxs_geometry)
-                pbar.update(n=rxs_geometry.nbytes)
-
-                f.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
-
+                f.write('\n</AppendedData>\n</VTKFile>\n\n'.encode('utf-8'))
                 self.write_gprmax_info(f, G)
 
         elif self.fileext == '.vtp':
@@ -293,7 +256,7 @@ class GeometryView:
                 f.write(z_materials)
                 pbar.update(n=z_materials.nbytes)
 
-                f.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
+                f.write('\n</AppendedData>\n</VTKFile>\n\n'.encode('utf-8'))
                 self.write_gprmax_info(f, G, materialsonly=True)
 
     def write_gprmax_info(self, f, G, materialsonly=False):
@@ -306,16 +269,71 @@ class GeometryView:
             materialsonly (bool): Only write information on materials
         """
 
-        f.write('\n\n<gprMax>\n'.encode('utf-8'))
+        root = ET.Element('gprMax')
+        root.set('Version', __version__)
+        root.set('dx_dy_dz', (G.dx, G.dy, G.dz))
+        root.set('nx_ny_nz', (G.nx, G.ny, G.nz))
+
+        # Write the name and numeric ID for each material
+        mats_el = ET.SubElement(root, 'Materials')
         for material in G.materials:
-            f.write(f'<Material name="{material.ID}">{material.numID}</Material>\n'.encode('utf-8'))
+            mat_el = ET.SubElement(mats_el, 'Material')
+            mat_el.set('ID', material.ID)
+            mat_el.set('numID', str(material.numID))
+
+        # Write information on PMLs, sources, and receivers
         if not materialsonly:
-            f.write('<PML name="PML boundary region">1</PML>\n'.encode('utf-8'))
-            for index, src in enumerate(G.hertziandipoles + G.magneticdipoles + G.voltagesources + G.transmissionlines):
-                f.write(f'<Sources name="{src.ID}">{index + 2}</Sources>\n'.encode('utf-8'))
-            for index, rx in enumerate(G.rxs):
-                f.write(f'<Receivers name="{rx.ID}">{index + 1}</Receivers>\n'.encode('utf-8'))
-        f.write('</gprMax>\n'.encode('utf-8'))
+            # Information on PML thickness
+            if G.pmls:
+                root.set('PMLthickness', list(G.pmlthickness.values()))
+            # Location of sources and receivers
+            srcs = G.hertziandipoles + G.magneticdipoles + G.voltagesources + G.transmissionlines
+            if srcs:
+                srcs_el = ET.SubElement(root, 'Sources')
+                for src in srcs:
+                    src_el = ET.SubElement(srcs_el, 'Source')
+                    src_el.set('name', src.ID)
+                    src_el.set('position', (src.xcoord * G.dx,
+                                            src.ycoord * G.dy,
+                                            src.zcoord * G.dz))                          
+            if G.rxs:
+                rxs_el = ET.SubElement(root, 'Receivers')
+                for rx in G.rxs:
+                    rx_el = ET.SubElement(rxs_el, 'Receiver')
+                    rx_el.set('name', rx.ID)
+                    rx_el.set('position', (rx.xcoord * G.dx,
+                                           rx.ycoord * G.dy,
+                                           rx.zcoord * G.dz))
+
+        xml_string = pretty_xml(ET.tostring(root))
+        f.write(str.encode(xml_string))
+
+    def write_vtk_pvd(self, geometryviews):
+        """Write a Paraview data file (.pvd) - PVD file provides pointers to the 
+            collection of data files, i.e. GeometryViews.
+
+        Args:
+            geometryviews (list): list of GeometryViews to collect together.
+        """
+
+        root = ET.Element('VTKFile')
+        root.set('type', 'Collection')
+        root.set('version', '0.1')
+        root.set('byte_order', str(config.sim_config.vtk_byteorder))
+        collection = ET.SubElement(root, 'Collection')
+        for gv in geometryviews:
+            gv.set_filename()
+            dataset = ET.SubElement(collection, 'DataSet')
+            dataset.set('timestep', '0')
+            dataset.set('group', '')
+            dataset.set('part', '0')
+            dataset.set('file', str(gv.filename.name))
+
+        xml_string = pretty_xml(ET.tostring(root))
+
+        self.pvdfile = config.get_model_config().output_file_path.with_suffix('.pvd')
+        with open(self.pvdfile, 'w') as f:
+            f.write(xml_string)
 
 
 class GeometryObjects:
@@ -577,29 +595,7 @@ class GeometryViewFineMultiGrid:
                 f.write(sg_v.z_s_materials.tostring())
 
             f.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
-
             #self.write_gprmax_info(f, G, materialsonly=True)
-
-    def write_gprmax_info(self, f, G, materialsonly=False):
-        """Writes gprMax specific information relating material, source,
-            and receiver names to numeric identifiers.
-
-        Args:
-            f (filehandle): VTK file.
-            G (FDTDGrid): Parameters describing a grid in a model.
-            materialsonly (bool): Only write information on materials.
-        """
-
-        f.write('\n\n<gprMax>\n'.encode('utf-8'))
-        for material in G.materials:
-            f.write(f"""<Material name="{material.ID}">{material.numID}</Material>\n""".encode('utf-8'))
-        if not materialsonly:
-            f.write('<PML name="PML boundary region">1</PML>\n'.encode('utf-8'))
-            for index, src in enumerate(G.hertziandipoles + G.magneticdipoles + G.voltagesources + G.transmissionlines):
-                f.write(f"""<Sources name="{src.ID}">{index + 2}</Sources>\n""".encode('utf-8'))
-            for index, rx in enumerate(G.rxs):
-                f.write(f"""<Receivers name="{rx.ID}">{index + 1}</Receivers>\n""".encode('utf-8'))
-        f.write('</gprMax>\n'.encode('utf-8'))
 
 
 class SubgridGeometryView:
