@@ -66,9 +66,9 @@ class Context:
 
             model = ModelBuildRun(G)
             model.build()
-            solver = create_solver(G)
-
+            
             if not config.sim_config.args.geometry_only:
+                solver = create_solver(G)
                 model.solve(solver)
 
         self.tsimend = timer()
@@ -126,9 +126,9 @@ class MPIContext(Context):
         G = create_G()
         model = ModelBuildRun(G)
         model.build()
-        solver = create_solver(G)
-
+        
         if not config.sim_config.args.geometry_only:
+            solver = create_solver(G)
             model.solve(solver)
 
     def run(self):
