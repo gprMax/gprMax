@@ -38,7 +38,7 @@ def run(
     restart=None,
     mpi=False,
     gpu=None,
-    subgrid=None,
+    subgrid=False,
     autotranslate=False,
     geometry_only=False,
     geometry_fixed=False,
