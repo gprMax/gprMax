@@ -40,7 +40,6 @@ from .materials import Material, process_materials
 from .pml import build_pml, print_pml_info
 from .scene import Scene
 from .snapshots import Snapshot
-from .solvers import create_solver
 from .utilities import (get_terminal_width, human_size, mem_check_all,
                         set_omp_threads)
 
@@ -106,24 +105,33 @@ class ModelBuildRun:
 
         # Write files for any geometry views and geometry object outputs
         if not (G.geometryviews or G.geometryobjectswrite) and config.sim_config.args.geometry_only:
-            logger.warning('\nNo geometry views or geometry objects found.')
-        for i, geometryview in enumerate(G.geometryviews):
+            logger.exception('\nNo geometry views or geometry objects found.')
+            raise ValueError
+        if G.geometryviews:
             logger.info('')
-            geometryview.set_filename()
-            pbar = tqdm(total=geometryview.datawritesize, unit='byte', unit_scale=True,
-                        desc=f'Writing geometry view file {i + 1}/{len(G.geometryviews)}, {geometryview.filename.name}',
-                        ncols=get_terminal_width() - 1, file=sys.stdout,
-                        disable=not config.sim_config.general['progressbars'])
-            geometryview.write_vtk(G, pbar)
-            pbar.close()
-        for i, geometryobject in enumerate(G.geometryobjectswrite):
+            # Write a Paraview data file (.pvd) if there is more than one GeometryView
+            if len(G.geometryviews) > 1:
+                G.geometryviews[0].write_vtk_pvd(G.geometryviews)
+                logger.info(f'Written wrapper for geometry files: {G.geometryviews[0].pvdfile.name}')
+            for i, gv in enumerate(G.geometryviews):
+                gv.set_filename()
+                pbar = tqdm(total=gv.datawritesize, unit='byte', unit_scale=True,
+                            desc=f'Writing geometry view file {i + 1}/{len(G.geometryviews)}, {gv.filename.name}',
+                            ncols=get_terminal_width() - 1, file=sys.stdout,
+                            disable=not config.sim_config.general['progressbars'])
+                gv.write_vtk(G, pbar)
+                pbar.close()
             logger.info('')
-            pbar = tqdm(total=geometryobject.datawritesize, unit='byte', unit_scale=True,
-                        desc=f'Writing geometry object file {i + 1}/{len(G.geometryobjectswrite)}, {geometryobject.filename.name}',
-                        ncols=get_terminal_width() - 1, file=sys.stdout,
-                        disable=not config.sim_config.general['progressbars'])
-            geometryobject.write_hdf5(G, pbar)
-            pbar.close()
+        if G.geometryobjectswrite:
+            logger.info('')
+            for i, go in enumerate(G.geometryobjectswrite):
+                pbar = tqdm(total=go.datawritesize, unit='byte', unit_scale=True,
+                            desc=f'Writing geometry object file {i + 1}/{len(G.geometryobjectswrite)}, {go.filename.name}',
+                            ncols=get_terminal_width() - 1, file=sys.stdout,
+                            disable=not config.sim_config.general['progressbars'])
+                go.write_hdf5(G, pbar)
+                pbar.close()
+            logger.info('')
 
     def build_geometry(self):
         G = self.G
