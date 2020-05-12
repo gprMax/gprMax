@@ -58,7 +58,7 @@ class ModelConfig:
 
         self.mode = '3D'
         self.grids = []
-        self.ompthreads = None # Number of OpenMP threads
+        self.ompthreads = None
 
         # Store information for CUDA solver
         #   gpu: GPU object
@@ -72,7 +72,10 @@ class ModelConfig:
 
             # If no deviceID is given default to using deviceID 0. Else if either
             # a single deviceID or list of deviceIDs is given use first one.
-            deviceID = 0 if not deviceID else deviceID[0]
+            try:
+                deviceID = deviceID[0]
+            except:
+                deviceID = 0
 
             self.cuda = {'gpu': sim_config.set_model_gpu(deviceID),
                          'snapsgpu2cpu': False}
@@ -239,7 +242,7 @@ class SimulationConfig:
             self.general['subgrid'] = self.args.subgrid
             # Double precision should be used with subgrid for best accuracy
             self.general['precision'] = 'double'
-            if self.general['cuda']:
+            if self.general['subgrid'] and self.general['cuda']:
                 logger.exception('The CUDA-based solver cannot currently be used with models that contain sub-grids.')
                 raise ValueError
         except AttributeError:
