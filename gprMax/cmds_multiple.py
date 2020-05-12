@@ -63,6 +63,9 @@ class UserObjectMulti:
         """Create the object and add it to the grid."""
         pass
 
+    def rotate(self, axis, angle):
+        pass
+
     def params_str(self):
         """Readble string of parameters given to object."""
         return self.hash + ': ' + str(self.kwargs)
@@ -549,7 +552,7 @@ class Rx(UserObjectMulti):
 
         try:
             r.ID = self.kwargs['id']
-            outputs = [self.kwargs['outputs']]
+            outputs = self.kwargs['outputs']
         except KeyError:
             # If no ID or outputs are specified, use default
             r.ID = r.__class__.__name__ + '(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'

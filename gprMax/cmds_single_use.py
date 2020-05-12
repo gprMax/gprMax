@@ -55,6 +55,9 @@ class UserObjectSingle:
     def create(self, grid, uip):
         pass
 
+    def rotate(self, axis, angle):
+        pass
+
 
 class Title(UserObjectSingle):
     """Allows you to include a title for your model.
