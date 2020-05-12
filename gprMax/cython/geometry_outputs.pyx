@@ -92,11 +92,7 @@ cpdef void define_normal_geometry(
                     int dy,
                     int dz,
                     np.uint32_t[:, :, :] solid,
-                    np.int8_t[:, :, :] srcs_pml,
-                    np.int8_t[:, :, :] rxs,
                     np.uint32_t[:] solid_geometry,
-                    np.int8_t[:] srcs_pml_geometry,
-                    np.int8_t[:] rxs_geometry,
             ):
 
     cdef Py_ssize_t i, j, k
@@ -106,6 +102,4 @@ cpdef void define_normal_geometry(
         for j in range(ys, yf, dy):
             for i in range(xs, xf, dx):
                 solid_geometry[counter] = solid[i, j, k]
-                srcs_pml_geometry[counter] = srcs_pml[i, j, k]
-                rxs_geometry[counter] = rxs[i, j, k]
                 counter = counter + 1
