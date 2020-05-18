@@ -340,7 +340,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot input resistance (real part of impedance)
     ax = plt.subplot(gs2[1, 0])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], zin[pltrange].real, '-.' use_line_collection=True)
+    markerline, stemlines, baseline = ax.stem(freqs[pltrange], zin[pltrange].real, '-.', use_line_collection=True)
     plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'g')
     plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
@@ -355,7 +355,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot input reactance (imaginery part of impedance)
     ax = plt.subplot(gs2[1, 1])
-    markerline, stemlines, baseline = ax.stem(freqs[pltrange], zin[pltrange].imag, '-.' use_line_collection=True)
+    markerline, stemlines, baseline = ax.stem(freqs[pltrange], zin[pltrange].imag, '-.', use_line_collection=True)
     plt.setp(baseline, 'linewidth', 0)
     plt.setp(stemlines, 'color', 'g')
     plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
@@ -369,7 +369,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot input admittance (magnitude)
     # ax = plt.subplot(gs2[2, 0])
-    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.abs(yin[pltrange]), '-.' use_line_collection=True)
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.abs(yin[pltrange]), '-.', use_line_collection=True)
     # plt.setp(baseline, 'linewidth', 0)
     # plt.setp(stemlines, 'color', 'g')
     # plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
@@ -383,7 +383,7 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Plot input admittance (phase)
     # ax = plt.subplot(gs2[2, 1])
-    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.angle(yin[pltrange], deg=True), '-.' use_line_collection=True)
+    # markerline, stemlines, baseline = ax.stem(freqs[pltrange], np.angle(yin[pltrange], deg=True), '-.', use_line_collection=True)
     # plt.setp(baseline, 'linewidth', 0)
     # plt.setp(stemlines, 'color', 'g')
     # plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
