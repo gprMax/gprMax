@@ -12,7 +12,7 @@ import gprMax
 logger = logging.getLogger(__name__)
 
 
-def antenna_like_MALA_1200(x, y, z, resolution=0.001):
+def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     """Inserts a description of an antenna similar to the MALA 1.2GHz antenna.
         Can be used with 1mm (default) or 2mm spatial resolution.
         The external dimensions of the antenna are 184x109x46mm.
@@ -21,8 +21,13 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001):
         of the electric field (x component if the antenna is rotated 90 degrees).
 
     Args:
-        x, y, z (float): Coordinates of a location in the model to insert the antenna. Coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction.
+        x, y, z (float): Coordinates of a location in the model to insert the
+                            antenna. Coordinates are relative to the geometric
+                            centre of the antenna in the x-y plane and the
+                            bottom of the antenna skid in the z direction.
         resolution (float): Spatial resolution for the antenna model.
+        kwargs (dict): Optional variables, e.g. can be fed from an optimisation 
+                        process.
 
     Returns:
         scene_objects (list): All model objects that will be part of a scene.
@@ -42,11 +47,21 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001):
     skidthickness = 0.006
     bowtieheight = 0.025
 
-    # Original optimised values from http://hdl.handle.net/1842/4074
-    excitationfreq = 0.978e9
-    sourceresistance = 1000
-    absorberEr = 6.49
-    absorbersig = 0.252
+    # If using parameters from an optimisation
+    try:
+        kwargs
+        excitationfreq = kwargs['excitationfreq']
+        sourceresistance = kwargs['sourceresistance']
+        absorberEr = kwargs['absorberEr']
+        absorbersig = kwargs['absorbersig']
+
+    # Otherwise choose pre-set optimised parameters
+    except:
+        # Original optimised values from http://hdl.handle.net/1842/4074
+        excitationfreq = 0.978e9
+        sourceresistance = 1000
+        absorberEr = 6.49
+        absorbersig = 0.252
 
     x = x - (casesize[0] / 2)
     y = y - (casesize[1] / 2)
