@@ -22,14 +22,14 @@ from .cmds_geometry.geometry_objects_read import GeometryObjectsRead
 from .cmds_geometry.plate import Plate
 from .cmds_geometry.sphere import Sphere
 from .cmds_geometry.triangle import Triangle
-from .cmds_multiple import (PMLCFS, AddDebyeDispersion, AddDrudeDispersion,
+from .cmds_multiuse import (PMLCFS, AddDebyeDispersion, AddDrudeDispersion,
                             AddLorentzDispersion, GeometryObjectsWrite,
                             GeometryView, HertzianDipole, MagneticDipole,
                             Material, Rx, RxArray, Snapshot, SoilPeplinski,
                             TransmissionLine, VoltageSource, Waveform)
-from .cmds_single_use import (Discretisation, Domain, ExcitationFile,
-                              NumThreads, PMLCells, RxSteps, SrcSteps,
-                              TimeStepStabilityFactor, TimeWindow, Title)
+from .cmds_singleuse import (Discretisation, Domain, ExcitationFile,
+                             NumThreads, PMLCells, RxSteps, SrcSteps,
+                             TimeStepStabilityFactor, TimeWindow, Title)
 from .gprMax import run as run
 from .hash_cmds_file import user_libs_fn_to_scene_obj
 from .scene import Scene

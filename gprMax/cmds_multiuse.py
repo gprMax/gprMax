@@ -48,6 +48,7 @@ class UserObjectMulti:
         self.order = None
         self.hash = '#example'
         self.autotranslate = True
+        self.rotate_point = UserObjectGeometry.rotate_point
 
     def __str__(self):
         """Readable user string as per hash commands."""
@@ -63,11 +64,11 @@ class UserObjectMulti:
         """Create the object and add it to the grid."""
         pass
 
-    def rotate(self, axis, angle):
+    def rotate(self, axis, angle, origin=None):
         pass
 
     def params_str(self):
-        """Readble string of parameters given to object."""
+        """Readable string of parameters given to object."""
         return self.hash + ': ' + str(self.kwargs)
 
 
@@ -139,6 +140,70 @@ class VoltageSource(UserObjectMulti):
         super().__init__(**kwargs)
         self.order = 2
         self.hash = '#voltage_source'
+
+    def rotate(self, axis, angle, origin=(0, 0, 0)):
+        """Rotate geometry object.
+        
+        Args:
+            axis (str): axis about which to perform rotation (x, y, or z)
+            angle (int): angle of rotation (degrees)
+            origin (tuple): point about which to perform rotation (x, y, z)
+        """
+
+        # Check angle value is suitable
+        angle = int(angle)
+        if angle < 0 or angle > 360:
+            logger.exception(
+                self.__str__() + ' angle of rotation must be between 0-360 degrees')
+            raise ValueError
+        if angle % 90 != 0:
+            logger.exception(
+                self.__str__() + ' angle of rotation must be a multiple of 90 degrees')
+            raise ValueError
+
+        # Check axis is valid
+        if axis != 'x' and axis != 'y' and axis != 'z':
+            logger.exception(self.__str__() +
+                             ' axis of rotation must be x, y, or z')
+            raise ValueError
+
+        # Save original point
+        origp = self.kwargs['p1']
+        
+        # Rotate point
+        p = self.rotate_point(self, origp, axis, angle, origin)
+        p = np.array([p])
+
+        # Reset coordinates of invariant direction
+        # - only needed for 2D models, has no effect on 3D models.
+        # Set polarisation depending on rotation angle
+        if axis == 'x':
+            p[0] = origp[0]
+            if self.kwargs['polarisation'].lower() == 'y':
+                if angle == 90 or angle == 270:
+                     self.kwargs['polarisation'] = 'z'
+            elif self.kwargs['polarisation'].lower() =='z':
+                if angle == 90 or angle == 270:
+                     self.kwargs['polarisation'] = 'y'
+        elif axis == 'y':
+            p[1] = origp[1]
+            if self.kwargs['polarisation'].lower() == 'x':
+                if angle == 90 or angle == 270:
+                     self.kwargs['polarisation'] = 'z'
+            elif self.kwargs['polarisation'].lower() == 'z':
+                if angle == 90 or angle == 270:
+                     self.kwargs['polarisation'] = 'x'
+        elif axis == 'z':
+            p[2] = origp[2]
+            if self.kwargs['polarisation'].lower() == 'x':
+                if angle == 90 or angle == 270:
+                     self.kwargs['polarisation'] = 'y'
+            elif self.kwargs['polarisation'].lower() == 'y':
+                if angle == 90 or angle == 270:
+                     self.kwargs['polarisation'] = 'x'
+
+        # Write point back to original tuple
+        self.kwargs['p1'] = tuple(p)
 
     def create(self, grid, uip):
         try:
@@ -552,7 +617,7 @@ class Rx(UserObjectMulti):
 
         try:
             r.ID = self.kwargs['id']
-            outputs = self.kwargs['outputs']
+            outputs = [self.kwargs['outputs']]
         except KeyError:
             # If no ID or outputs are specified, use default
             r.ID = r.__class__.__name__ + '(' + str(r.xcoord) + ',' + str(r.ycoord) + ',' + str(r.zcoord) + ')'

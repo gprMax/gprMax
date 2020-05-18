@@ -36,6 +36,9 @@ class GeometryObjectsRead(UserObjectGeometry):
         super().__init__(**kwargs)
         self.hash = '#geometry_objects_read'
 
+    def rotate(self, axis, angle, origin=None):
+        pass
+
     def create(self, G, uip):
         """Create the object and add it to the grid."""
         try:

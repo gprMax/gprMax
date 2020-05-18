@@ -285,7 +285,24 @@ class GeometryView:
         if not materialsonly:
             # Information on PML thickness
             if G.pmls:
-                root.set('PMLthickness', list(G.pmlthickness.values()))
+                # Only render PMLs if they are in the geometry view
+                pmlstorender = dict.fromkeys(G.pmlthickness, 0)
+                xmax = G.nx - self.vtk_xfcells
+                ymax = G.ny - self.vtk_yfcells
+                zmax = G.nz - self.vtk_zfcells
+                if G.pmlthickness['x0'] - self.vtk_xscells > 0:
+                    pmlstorender['x0'] = G.pmlthickness['x0']
+                if G.pmlthickness['y0'] - self.vtk_yscells > 0:
+                    pmlstorender['y0'] = G.pmlthickness['y0']
+                if G.pmlthickness['z0'] - self.vtk_zscells > 0:
+                    pmlstorender['z0'] = G.pmlthickness['z0']
+                if self.vtk_xfcells > G.nx - G.pmlthickness['xmax']:
+                    pmlstorender['xmax'] = G.pmlthickness['xmax']
+                if self.vtk_yfcells > G.ny - G.pmlthickness['ymax']:
+                    pmlstorender['ymax'] = G.pmlthickness['ymax']
+                if self.vtk_zfcells > G.nz - G.pmlthickness['zmax']:
+                    pmlstorender['zmax'] = G.pmlthickness['zmax']
+                root.set('PMLthickness', list(pmlstorender.values()))
             # Location of sources and receivers
             srcs = G.hertziandipoles + G.magneticdipoles + G.voltagesources + G.transmissionlines
             if srcs:

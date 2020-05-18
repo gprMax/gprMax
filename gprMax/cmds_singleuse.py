@@ -55,7 +55,7 @@ class UserObjectSingle:
     def create(self, grid, uip):
         pass
 
-    def rotate(self, axis, angle):
+    def rotate(self, axis, angle, origin=None):
         pass
 
 

@@ -151,7 +151,7 @@ class SubGridHSG(SubGridBase):
         s += f' Working region cells: {self.nwx} x {self.nwy} x {self.nwz}\n'
 
         for h in self.hertziandipoles:
-            s += f' Hertizian dipole at {h.xcoord} {h.ycoord} {h.zcoord}\n'
+            s += f' Hertzian dipole at {h.xcoord} {h.ycoord} {h.zcoord}\n'
             s += ' ' + str([x for x in self.waveforms
                       if x.ID == h.waveformID][0]) + '\n'
         for r in self.rxs:

@@ -32,7 +32,8 @@ class SubGridBase(FDTDGrid):
         self.ratio = kwargs['ratio']
 
         if self.ratio % 2 == 0:
-            raise ValueError('Subgrid Error: Only odd ratios are supported')
+            logger.exception('Subgrid Error: Only odd ratios are supported')
+            raise ValueError
 
         # Name of the grid
         self.name = kwargs['id']

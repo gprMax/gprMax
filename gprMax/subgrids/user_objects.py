@@ -23,7 +23,7 @@ import numpy as np
 from gprMax import config
 
 from ..cmds_geometry.cmds_geometry import UserObjectGeometry
-from ..cmds_multiple import Rx, UserObjectMulti
+from ..cmds_multiuse import Rx, UserObjectMulti
 from .multi import ReferenceRx as ReferenceRxUser
 from .subgrid_hsg import SubGridHSG as SubGridHSGUser
 
@@ -129,13 +129,13 @@ class SubGridBase(UserObjectMulti):
         # Copy over built in materials
         sg.materials = [copy(m) for m in grid.materials if m.numID in range(0, grid.n_built_in_materials + 1)]
 
-        # Dont mix and match different subgrids
+        # Don't mix and match different subgrid types
         for sg_made in grid.subgrids:
             if type(sg) != type(sg_made):
                 logger.exception(self.__str__() + ' please only use one type of subgrid')
                 raise ValueError
 
-        # Reference the sub grid under the main grid to which it belongs.
+        # Reference the subgrid under the main grid to which it belongs
         grid.subgrids.append(sg)
 
 

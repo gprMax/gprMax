@@ -20,9 +20,9 @@ import logging
 
 from .cmds_geometry.cmds_geometry import UserObjectGeometry
 from .cmds_geometry.fractal_box_builder import FractalBoxBuilder
-from .cmds_multiple import UserObjectMulti
-from .cmds_single_use import (Discretisation, Domain, TimeWindow,
-                              UserObjectSingle)
+from .cmds_multiuse import UserObjectMulti
+from .cmds_singleuse import (Discretisation, Domain, TimeWindow,
+                             UserObjectSingle)
 from .materials import create_built_in_materials
 from .subgrids.user_objects import SubGridBase as SubGridUserBase
 from .user_inputs import create_user_input_points

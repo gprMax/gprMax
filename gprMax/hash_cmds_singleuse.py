@@ -18,10 +18,10 @@
 
 import logging
 
-from .cmds_single_use import (Discretisation, Domain, ExcitationFile,
-                              NumThreads, OutputDir, PMLCells, RxSteps,
-                              SrcSteps, TimeStepStabilityFactor, TimeWindow,
-                              Title)
+from .cmds_singleuse import (Discretisation, Domain, ExcitationFile,
+                             NumThreads, OutputDir, PMLCells, RxSteps,
+                             SrcSteps, TimeStepStabilityFactor, TimeWindow,
+                             Title)
 
 logger = logging.getLogger(__name__)
 

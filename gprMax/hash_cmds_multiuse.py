@@ -18,7 +18,7 @@
 
 import logging
 
-from .cmds_multiple import (PMLCFS, AddDebyeDispersion, AddDrudeDispersion,
+from .cmds_multiuse import (PMLCFS, AddDebyeDispersion, AddDrudeDispersion,
                             AddLorentzDispersion, GeometryObjectsWrite,
                             GeometryView, HertzianDipole, MagneticDipole,
                             Material, Rx, RxArray, Snapshot, SoilPeplinski,
@@ -128,7 +128,7 @@ def process_multicmds(multicmds):
             if len(tmp) == 3:
                 rx = Rx(p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])))
             else:
-                rx = Rx(p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])), id=tmp[3], outputs=tmp[4:])
+                rx = Rx(p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])), id=tmp[3], outputs=' '.join(tmp[4:]))
 
             scene_objects.append(rx)
 

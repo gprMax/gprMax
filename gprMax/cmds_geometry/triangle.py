@@ -50,6 +50,10 @@ class Triangle(UserObjectGeometry):
         super().__init__(**kwargs)
         self.hash = '#triangle'
 
+    def rotate(self, axis, angle, origin=None):
+        logger.debug('Add rotate method.')
+        pass
+
     def create(self, grid, uip):
         try:
             up1 = self.kwargs['p1']
