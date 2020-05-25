@@ -18,6 +18,8 @@
 
 import logging
 
+import numpy as np
+
 from ..cython.geometry_primitives import (build_edge_x, build_edge_y,
                                           build_edge_z)
 from .cmds_geometry import UserObjectGeometry
@@ -40,6 +42,13 @@ class Edge(UserObjectGeometry):
         super().__init__(**kwargs)
         self.hash = '#edge'
 
+    def rotate(self, axis, angle, origin=None):
+        pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
+        rotation = UserObjectGeometry.rotate_2point_object
+        rot_pts = rotation(self, pts, axis, angle, origin)
+        self.kwargs['p1'] = tuple(rot_pts[0, :])
+        self.kwargs['p2'] = tuple(rot_pts[1, :])
+        
     def create(self, grid, uip):
         """Create edge and add it to the grid."""
         try:

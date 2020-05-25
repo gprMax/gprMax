@@ -18,6 +18,8 @@
 
 import logging
 
+import numpy as np
+
 from ..cython.geometry_primitives import (build_face_xy, build_face_xz,
                                           build_face_yz)
 from .cmds_geometry import UserObjectGeometry
@@ -42,6 +44,13 @@ class Plate(UserObjectGeometry):
         super().__init__(**kwargs)
         self.hash = '#plate'
 
+    def rotate(self, axis, angle, origin=None):
+        pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
+        rotation = UserObjectGeometry.rotate_2point_object
+        rot_pts = rotation(self, pts, axis, angle, origin)
+        self.kwargs['p1'] = tuple(rot_pts[0, :])
+        self.kwargs['p2'] = tuple(rot_pts[1, :])
+        
     def create(self, grid, uip):
         try:
             p1 = self.kwargs['p1']

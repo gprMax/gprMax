@@ -46,12 +46,12 @@ class Box(UserObjectGeometry):
         super().__init__(**kwargs)
         self.hash = '#box'
 
-    def rotate(self, pts, axis, angle, origin=None):
-        pts = np.array([[self.kwargs['p1']], [self.kwargs['p1']]])
+    def rotate(self, axis, angle, origin=None):
+        pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
         rotation = UserObjectGeometry.rotate_2point_object
         rot_pts = rotation(self, pts, axis, angle, origin)
         self.kwargs['p1'] = tuple(rot_pts[0, :])
-        self.kwargs['p1'] = tuple(rot_pts[1, :])
+        self.kwargs['p2'] = tuple(rot_pts[1, :])
 
     def create(self, grid, uip):
         try:

@@ -19,6 +19,7 @@
 import logging
 
 import gprMax.config as config
+import numpy as np
 
 from ..materials import DispersiveMaterial
 from ..utilities import round_value
@@ -44,6 +45,13 @@ class AddSurfaceWater(UserObjectGeometry):
         super().__init__(**kwargs)
         self.hash = '#add_surface_water'
 
+    def rotate(self, axis, angle, origin=None):
+        pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
+        rotation = UserObjectGeometry.rotate_2point_object
+        rot_pts = rotation(self, pts, axis, angle, origin)
+        self.kwargs['p1'] = tuple(rot_pts[0, :])
+        self.kwargs['p2'] = tuple(rot_pts[1, :])
+        
     def create(self, grid, uip):
         """"Create surface water on fractal box."""
         try:

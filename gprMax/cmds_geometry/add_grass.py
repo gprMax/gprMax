@@ -50,6 +50,13 @@ class AddGrass(UserObjectGeometry):
         super().__init__(**kwargs)
         self.hash = '#add_grass'
 
+    def rotate(self, axis, angle, origin=None):
+        pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
+        rotation = UserObjectGeometry.rotate_2point_object
+        rot_pts = rotation(self, pts, axis, angle, origin)
+        self.kwargs['p1'] = tuple(rot_pts[0, :])
+        self.kwargs['p2'] = tuple(rot_pts[1, :])
+
     def create(self, grid, uip):
         """Add Grass to fractal box."""
         try:

@@ -141,42 +141,25 @@ class VoltageSource(UserObjectMulti):
         self.order = 2
         self.hash = '#voltage_source'
 
-    def rotate(self, axis, angle, origin=(0, 0, 0)):
-        """Rotate geometry object.
-        
-        Args:
-            axis (str): axis about which to perform rotation (x, y, or z)
-            angle (int): angle of rotation (degrees)
-            origin (tuple): point about which to perform rotation (x, y, z)
-        """
+    def rotate(self, axis, angle, origin=None):
+        pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
+        dxdydz = (0.001, 0.001, 0.001)
+        if self.kwargs['polarisation'].lower() == 'x':
+            new_pt = (self.kwargs['p1'][0] + dxdydz[0], 
+                      self.kwargs['p1'][1], 
+                      self.kwargs['p1'][2])
+            if axis == 'y' and angle == 90 or angle == 270:
+                self.kwargs['polarisation'] = 'z'
+            if axis == 'z' and angle == 90 or angle == 270:
+                self.kwargs['polarisation'] = 'y'
 
-        # Check angle value is suitable
-        angle = int(angle)
-        if angle < 0 or angle > 360:
-            logger.exception(
-                self.__str__() + ' angle of rotation must be between 0-360 degrees')
-            raise ValueError
-        if angle % 90 != 0:
-            logger.exception(
-                self.__str__() + ' angle of rotation must be a multiple of 90 degrees')
-            raise ValueError
+        pts = np.array([self.kwargs['p1'], new_pt])
 
-        # Check axis is valid
-        if axis != 'x' and axis != 'y' and axis != 'z':
-            logger.exception(self.__str__() +
-                             ' axis of rotation must be x, y, or z')
-            raise ValueError
+        rotation = UserObjectGeometry.rotate_2point_object
+        rot_pts = rotation(self, pts, axis, angle, origin)
+        self.kwargs['p1'] = tuple(rot_pts[0, :])
 
-        # Save original point
-        origp = self.kwargs['p1']
-        
-        # Rotate point
-        p = self.rotate_point(self, origp, axis, angle, origin)
-        p = np.array([p])
 
-        # Reset coordinates of invariant direction
-        # - only needed for 2D models, has no effect on 3D models.
-        # Set polarisation depending on rotation angle
         if axis == 'x':
             p[0] = origp[0]
             if self.kwargs['polarisation'].lower() == 'y':
@@ -202,8 +185,6 @@ class VoltageSource(UserObjectMulti):
                 if angle == 90 or angle == 270:
                      self.kwargs['polarisation'] = 'x'
 
-        # Write point back to original tuple
-        self.kwargs['p1'] = tuple(p)
 
     def create(self, grid, uip):
         try:

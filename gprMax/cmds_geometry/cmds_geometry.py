@@ -47,6 +47,10 @@ class UserObjectGeometry:
         """Create the object and add it to the grid."""
         pass
 
+    def rotate(self, axis, angle, origin=None):
+        """Rotate object - specialised for each object."""
+        pass
+
     def rotate_point(self, p, axis, angle, origin=(0, 0, 0)):
         """Rotate a point.
         
@@ -60,7 +64,7 @@ class UserObjectGeometry:
             p (array): coordinates of rotated point (x, y, z)
         """
 
-        origin = np.array([origin])
+        origin = np.array(origin)
 
         # Move point to axis of rotation
         p -= origin
