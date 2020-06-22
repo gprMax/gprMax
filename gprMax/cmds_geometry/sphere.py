@@ -46,9 +46,6 @@ class Sphere(UserObjectGeometry):
         super().__init__(**kwargs)
         self.hash = '#sphere'
 
-    def rotate(self, axis, angle, origin=None):
-        pass
-
     def create(self, grid, uip):
         try:
             p1 = self.kwargs['p1']

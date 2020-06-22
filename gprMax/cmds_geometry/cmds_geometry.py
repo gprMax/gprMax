@@ -44,95 +44,140 @@ class UserObjectGeometry:
         return f'{self.hash}: {s[:-1]}'
 
     def create(self, grid, uip):
-        """Create the object and add it to the grid."""
+        """Create object and add it to the grid."""
         pass
 
     def rotate(self, axis, angle, origin=None):
         """Rotate object - specialised for each object."""
         pass
 
-    def rotate_point(self, p, axis, angle, origin=(0, 0, 0)):
-        """Rotate a point.
+
+def rotate_point(p, axis, angle, origin=(0, 0, 0)):
+    """Rotate a point.
+    
+    Args:
+        p (array): coordinates of point (x, y, z)
+        axis (str): axis about which to perform rotation (x, y, or z)
+        angle (int): angle of rotation (degrees)
+        origin (tuple): point about which to perform rotation (x, y, z)
+
+    Returns:
+        p (array): coordinates of rotated point (x, y, z)
+    """
+
+    origin = np.array(origin)
+
+    # Move point to axis of rotation
+    p -= origin
+
+    # Calculate rotation matrix
+    r = R.from_euler(axis, angle, degrees=True)
+
+    # Apply rotation
+    p = r.apply(p)
+
+    # Move object back to original axis
+    p += origin
+
+    return p
         
-        Args:
-            p (array): coordinates of point (x, y, z)
-            axis (str): axis about which to perform rotation (x, y, or z)
-            angle (int): angle of rotation (degrees)
-            origin (tuple): point about which to perform rotation (x, y, z)
 
-        Returns:
-            p (array): coordinates of rotated point (x, y, z)
-        """
+def rotate_2point_object(pts, axis, angle, origin=None):
+    """Rotate a geometry object that is defined by 2 points.
+    
+    Args:
+        pts (array): coordinates of points of object to be rotated
+        axis (str): axis about which to perform rotation (x, y, or z)
+        angle (int): angle of rotation (degrees)
+        origin (tuple): point about which to perform rotation (x, y, z)
 
-        origin = np.array(origin)
+    Returns:
+        new_pts (array): coordinates of points of rotated object
+    """
+    
+    # Use origin at centre of object if not given
+    if not origin:
+        origin = pts[0,:] + (pts[1,:] - pts[0,:]) / 2
+    
+    # Check angle value is suitable
+    angle = int(angle)
+    if angle < 0 or angle > 360:
+        logger.exception(self.__str__() + ' angle of rotation must be between 0-360 degrees')
+        raise ValueError
+    if angle % 90 != 0:
+        logger.exception(self.__str__() + ' angle of rotation must be a multiple of 90 degrees')
+        raise ValueError
 
-        # Move point to axis of rotation
-        p -= origin
+    # Check axis is valid
+    if axis != 'x' and axis != 'y' and axis != 'z':
+        logger.exception(self.__str__() + ' axis of rotation must be x, y, or z')
+        raise ValueError
 
-        # Calculate rotation matrix
-        r = R.from_euler(axis, angle, degrees=True)
+    # Save original points
+    orig_pts = pts
 
-        # Apply rotation
-        p = r.apply(p)
+    # Rotate points that define object
+    pts[0, :] = rotate_point(pts[0, :], axis, angle, origin)
+    pts[1, :] = rotate_point(pts[1, :], axis, angle, origin)
 
-        # Move object back to original axis
-        p += origin
+    # Get lower left and upper right coordinates to define new object
+    new_pts = np.zeros(pts.shape)
+    new_pts[0, :] = np.min(pts, axis=0)
+    new_pts[1, :] = np.max(pts, axis=0)
 
-        return p
-        
-    def rotate_2point_object(self, pts, axis, angle, origin=None):
-        """Rotate a geometry object that is defined by 2 points.
-        
-        Args:
-            pts (array): coordinates of points of object to be rotated
-            axis (str): axis about which to perform rotation (x, y, or z)
-            angle (int): angle of rotation (degrees)
-            origin (tuple): point about which to perform rotation (x, y, z)
+    # Reset coordinates of invariant direction 
+    # - only needed for 2D models, has no effect on 3D models.
+    if axis =='x':
+        new_pts[0, 0] = orig_pts[0, 0]
+        new_pts[1, 0] = orig_pts[1, 0]
+    elif axis == 'y':
+        new_pts[0, 1] = orig_pts[0, 1]
+        new_pts[1, 1] = orig_pts[1, 1]
+    elif axis == 'z':
+        new_pts[0, 2] = orig_pts[0, 2]
+        new_pts[1, 2] = orig_pts[1, 2]
 
-        Returns:
-            new_pts (array): coordinates of points of rotated object
-        """
+    return new_pts
 
-        # Use origin at centre of object if not given
-        if not origin:
-            origin = pts[0,:] + (pts[1,:] - pts[0,:]) / 2
 
-        # Check angle value is suitable
-        angle = int(angle)
-        if angle < 0 or angle > 360:
-            logger.exception(self.__str__() + ' angle of rotation must be between 0-360 degrees')
-            raise ValueError
-        if angle % 90 != 0:
-            logger.exception(self.__str__() + ' angle of rotation must be a multiple of 90 degrees')
-            raise ValueError
+def rotate_polarisation(p, polarisation, axis, angle):
+    """Rotate a geometry object that is defined by 2 points.
+    
+    Args:
+        p (array): coordinates of point (x, y, z)
+        polarisation (str): current polarisation (x, y, or z)
+        axis (str): axis about which to perform rotation (x, y, or z)
+        angle (int): angle of rotation (degrees)
 
-        # Check axis is valid
-        if axis != 'x' and axis != 'y' and axis != 'z':
-            logger.exception(self.__str__() + ' axis of rotation must be x, y, or z')
-            raise ValueError
+    Returns:
+        pts (array): coordinates of points of rotated object
+        new_polarisation (str): new polarisation (x, y, or z)
+    """
 
-        # Save original points
-        orig_pts = pts
+    logger.debug('Need to get dxdydz into this function')
+    dxdydz = np.array([0.001, 0.001, 0.001])
 
-        # Rotate points that define object
-        pts[0, :] = self.rotate_point(pts[0, :], axis, angle, origin)
-        pts[1, :] = self.rotate_point(pts[1, :], axis, angle, origin)
+    if polarisation.lower() == 'x':
+        new_pt = (p[0] + dxdydz[0], p[1], p[2])
+        if axis == 'y' and angle == 90 or angle == 270:
+            new_polarisation = 'z'
+        if axis == 'z' and angle == 90 or angle == 270:
+            new_polarisation = 'y'
 
-        # Get lower left and upper right coordinates to define new object
-        new_pts = np.zeros(pts.shape)
-        new_pts[0, :] = np.min(pts, axis=0)
-        new_pts[1, :] = np.max(pts, axis=0)
+    elif polarisation.lower() == 'y':
+        new_pt = (p[0], p[1] + dxdydz[1], p[2])
+        if axis == 'x' and angle == 90 or angle == 270:
+            new_polarisation = 'z'
+        if axis == 'z' and angle == 90 or angle == 270:
+            new_polarisation = 'x'
 
-        # Reset coordinates of invariant direction 
-        # - only needed for 2D models, has no effect on 3D models.
-        if axis =='x':
-            new_pts[0, 0] = orig_pts[0, 0]
-            new_pts[1, 0] = orig_pts[1, 0]
-        elif axis == 'y':
-            new_pts[0, 1] = orig_pts[0, 1]
-            new_pts[1, 1] = orig_pts[1, 1]
-        elif axis == 'z':
-            new_pts[0, 2] = orig_pts[0, 2]
-            new_pts[1, 2] = orig_pts[1, 2]
+    elif polarisation.lower() == 'z':
+        new_pt = (p[0], p[1], p[2] + dxdydz[2])
+        if axis == 'x' and angle == 90 or angle == 270:
+            new_polarisation = 'y'
+        if axis == 'y' and angle == 90 or angle == 270:
+            new_polarisation = 'x'
 
-        return new_pts
+    pts = np.array([p, new_pt])
+
+    return pts, new_polarisation

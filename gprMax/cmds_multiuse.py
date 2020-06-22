@@ -18,10 +18,13 @@
 
 import logging
 
-import gprMax.config as config
 import numpy as np
 
-from .cmds_geometry.cmds_geometry import UserObjectGeometry
+import gprMax.config as config
+
+from .cmds_geometry.cmds_geometry import (UserObjectGeometry,
+                                          rotate_2point_object,
+                                          rotate_polarisation)
 from .geometry_outputs import GeometryObjects as GeometryObjectsUser
 from .materials import DispersiveMaterial as DispersiveMaterialUser
 from .materials import Material as MaterialUser
@@ -48,7 +51,6 @@ class UserObjectMulti:
         self.order = None
         self.hash = '#example'
         self.autotranslate = True
-        self.rotate_point = UserObjectGeometry.rotate_point
 
     def __str__(self):
         """Readable user string as per hash commands."""
@@ -61,10 +63,11 @@ class UserObjectMulti:
         return f'{self.hash}: {s[:-1]}'
 
     def create(self, grid, uip):
-        """Create the object and add it to the grid."""
+        """Create object and add it to the grid."""
         pass
 
     def rotate(self, axis, angle, origin=None):
+        """Rotate object - specialised for each object."""
         pass
 
     def params_str(self):
@@ -142,49 +145,9 @@ class VoltageSource(UserObjectMulti):
         self.hash = '#voltage_source'
 
     def rotate(self, axis, angle, origin=None):
-        pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
-        dxdydz = (0.001, 0.001, 0.001)
-        if self.kwargs['polarisation'].lower() == 'x':
-            new_pt = (self.kwargs['p1'][0] + dxdydz[0], 
-                      self.kwargs['p1'][1], 
-                      self.kwargs['p1'][2])
-            if axis == 'y' and angle == 90 or angle == 270:
-                self.kwargs['polarisation'] = 'z'
-            if axis == 'z' and angle == 90 or angle == 270:
-                self.kwargs['polarisation'] = 'y'
-
-        pts = np.array([self.kwargs['p1'], new_pt])
-
-        rotation = UserObjectGeometry.rotate_2point_object
-        rot_pts = rotation(self, pts, axis, angle, origin)
+        rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], self.kwargs['polarisation'], axis, angle)
+        rot_pts = rotate_2point_object(rot_pol_pts, axis, angle, origin)
         self.kwargs['p1'] = tuple(rot_pts[0, :])
-
-
-        if axis == 'x':
-            p[0] = origp[0]
-            if self.kwargs['polarisation'].lower() == 'y':
-                if angle == 90 or angle == 270:
-                     self.kwargs['polarisation'] = 'z'
-            elif self.kwargs['polarisation'].lower() =='z':
-                if angle == 90 or angle == 270:
-                     self.kwargs['polarisation'] = 'y'
-        elif axis == 'y':
-            p[1] = origp[1]
-            if self.kwargs['polarisation'].lower() == 'x':
-                if angle == 90 or angle == 270:
-                     self.kwargs['polarisation'] = 'z'
-            elif self.kwargs['polarisation'].lower() == 'z':
-                if angle == 90 or angle == 270:
-                     self.kwargs['polarisation'] = 'x'
-        elif axis == 'z':
-            p[2] = origp[2]
-            if self.kwargs['polarisation'].lower() == 'x':
-                if angle == 90 or angle == 270:
-                     self.kwargs['polarisation'] = 'y'
-            elif self.kwargs['polarisation'].lower() == 'y':
-                if angle == 90 or angle == 270:
-                     self.kwargs['polarisation'] = 'x'
-
 
     def create(self, grid, uip):
         try:
@@ -281,6 +244,11 @@ class HertzianDipole(UserObjectMulti):
         super().__init__(**kwargs)
         self.order = 3
         self.hash = '#hertzian_dipole'
+
+    def rotate(self, axis, angle, origin=None):
+        rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], self.kwargs['polarisation'], axis, angle)
+        rot_pts = rotate_2point_object(rot_pol_pts, axis, angle, origin)
+        self.kwargs['p1'] = tuple(rot_pts[0, :])
 
     def create(self, grid, uip):
         try:
@@ -387,6 +355,11 @@ class MagneticDipole(UserObjectMulti):
         self.order = 4
         self.hash = '#magnetic_dipole'
 
+    def rotate(self, axis, angle, origin=None):
+        rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], self.kwargs['polarisation'], axis, angle)
+        rot_pts = rotate_2point_object(rot_pol_pts, axis, angle, origin)
+        self.kwargs['p1'] = tuple(rot_pts[0, :])
+
     def create(self, grid, uip):
         try:
             polarisation = self.kwargs['polarisation'].lower()
@@ -481,6 +454,11 @@ class TransmissionLine(UserObjectMulti):
         super().__init__(**kwargs)
         self.order = 5
         self.hash = '#transmission_line'
+
+    def rotate(self, axis, angle, origin=None):
+        rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], self.kwargs['polarisation'], axis, angle)
+        rot_pts = rotate_2point_object(rot_pol_pts, axis, angle, origin)
+        self.kwargs['p1'] = tuple(rot_pts[0, :])
 
     def create(self, grid, uip):
         try:
@@ -582,6 +560,24 @@ class Rx(UserObjectMulti):
         self.order = 6
         self.hash = '#rx'
         self.constructor = RxUser
+
+    def rotate(self, axis, angle, origin=None):
+        logger.debug('Need to get dxdydz into this function')
+        dxdydz = np.array([0.001, 0.001, 0.001])
+        new_pt = (self.kwargs['p1'][0] + dxdydz[0], self.kwargs['p1'][1] + dxdydz[1], self.kwargs['p1'][2] + dxdydz[2])
+        pts = np.array([self.kwargs['p1'], new_pt])
+        rot_pts = rotate_2point_object(pts, axis, angle, origin)
+        self.kwargs['p1'] = tuple(rot_pts[0, :])
+
+        # If specific field components are specified, set to output all components
+        try:
+            ID = self.kwargs['id']
+            outputs = [self.kwargs['outputs']]
+            rxargs = dict(self.kwargs)
+            del rxargs['outputs']
+            self.kwargs = rxargs
+        except KeyError:
+            pass
 
     def create(self, grid, uip):
         try:
