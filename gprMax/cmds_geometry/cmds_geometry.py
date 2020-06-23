@@ -102,15 +102,15 @@ def rotate_2point_object(pts, axis, angle, origin=None):
     # Check angle value is suitable
     angle = int(angle)
     if angle < 0 or angle > 360:
-        logger.exception(self.__str__() + ' angle of rotation must be between 0-360 degrees')
+        logger.exception('Angle of rotation must be between 0-360 degrees')
         raise ValueError
     if angle % 90 != 0:
-        logger.exception(self.__str__() + ' angle of rotation must be a multiple of 90 degrees')
+        logger.exception('Angle of rotation must be a multiple of 90 degrees')
         raise ValueError
 
     # Check axis is valid
     if axis != 'x' and axis != 'y' and axis != 'z':
-        logger.exception(self.__str__() + ' axis of rotation must be x, y, or z')
+        logger.exception('Axis of rotation must be x, y, or z')
         raise ValueError
 
     # Save original points

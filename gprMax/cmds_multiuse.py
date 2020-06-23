@@ -571,8 +571,8 @@ class Rx(UserObjectMulti):
 
         # If specific field components are specified, set to output all components
         try:
-            ID = self.kwargs['id']
-            outputs = [self.kwargs['outputs']]
+            self.kwargs['id']
+            self.kwargs['outputs']
             rxargs = dict(self.kwargs)
             del rxargs['outputs']
             self.kwargs = rxargs

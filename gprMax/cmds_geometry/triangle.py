@@ -22,7 +22,7 @@ import numpy as np
 
 from ..cython.geometry_primitives import build_triangle
 from ..materials import Material
-from .cmds_geometry import UserObjectGeometry
+from .cmds_geometry import UserObjectGeometry, rotate_point
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +51,12 @@ class Triangle(UserObjectGeometry):
         self.hash = '#triangle'
 
     def rotate(self, axis, angle, origin=None):
-        logger.debug('Add rotate method.')
-        pass
+        p1 = rotate_point(self.kwargs['p1'], axis, angle, origin)
+        p2 = rotate_point(self.kwargs['p2'], axis, angle, origin)
+        p3 = rotate_point(self.kwargs['p3'], axis, angle, origin)
+        self.kwargs['p1'] = tuple(p1)
+        self.kwargs['p2'] = tuple(p2)
+        self.kwargs['p3'] = tuple(p3)
 
     def create(self, grid, uip):
         try:
