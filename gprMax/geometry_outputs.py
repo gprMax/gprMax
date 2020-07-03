@@ -113,6 +113,9 @@ class GeometryView:
                                  np.dtype(np.uint32).itemsize * self.vtk_numlines +
                                  np.dtype(np.uint32).itemsize * vtk_cell_offsets +
                                  np.dtype(np.uint32).itemsize * 4)
+    
+    def initialise(self):
+        pass
 
     def set_filename(self):
         """Construct filename from user-supplied name and model run number."""
@@ -466,6 +469,16 @@ class GeometryViewFineMultiGrid:
         self.additional_lines = 0
         self.additional_points = 0
 
+    def set_filename(self):
+        """Construct filename from user-supplied name and model run number."""
+        parts = config.get_model_config().output_file_path.parts
+        self.filename = Path(*parts[:-1], self.filename + config.get_model_config().appendmodelnumber)
+        self.filename = self.filename.with_suffix(self.fileext)
+    
+    def initialise(self):
+
+        G = self.G
+    
         for sg in G.subgrids:
             # create an object to contain data relevant to the geometry processing
             sg_gv = SubgridGeometryView(sg)
@@ -484,11 +497,6 @@ class GeometryViewFineMultiGrid:
         self.vtk_materials_offset = round_value(int(self.vtk_offsets_offset + (self.vtk_numlines * np.dtype(np.uint32).itemsize) + np.dtype(np.uint32).itemsize))
         self.datawritesize = np.dtype(np.float32).itemsize * self.vtk_numpoints * self.vtk_numpoint_components + np.dtype(np.uint32).itemsize * self.vtk_numlines * self.vtk_numline_components + np.dtype(np.uint32).itemsize * self.vtk_numlines + np.dtype(np.uint32).itemsize * self.vtk_numlines
 
-    def set_filename(self):
-        """Construct filename from user-supplied name and model run number."""
-        parts = config.get_model_config().output_file_path.parts
-        self.filename = Path(*parts[:-1], self.filename + config.get_model_config().appendmodelnumber)
-        self.filename = self.filename.with_suffix(self.fileext)
 
     def write_vtk(self, *args):
         """Writes the geometry information to a VTK file.
@@ -612,7 +620,73 @@ class GeometryViewFineMultiGrid:
                 f.write(sg_v.z_s_materials.tostring())
 
             f.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
-            #self.write_gprmax_info(f, G, materialsonly=True)
+            self.write_gprmax_info(f, G, materialsonly=True)
+    
+    def write_gprmax_info(self, f, G, materialsonly=False):
+        """Writes gprMax specific information relating material, source,
+            and receiver names to numeric identifiers.
+
+        Args:
+            f (filehandle): VTK file.
+            G (FDTDGrid): Parameters describing a grid in a model.
+            materialsonly (bool): Only write information on materials
+        """
+
+        root = ET.Element('gprMax')
+        root.set('Version', __version__)
+        root.set('dx_dy_dz', (G.dx, G.dy, G.dz))
+        root.set('nx_ny_nz', (G.nx, G.ny, G.nz))
+
+        # Write the name and numeric ID for each material
+        mats_el = ET.SubElement(root, 'Materials')
+        for material in G.materials:
+            mat_el = ET.SubElement(mats_el, 'Material')
+            mat_el.set('ID', material.ID)
+            mat_el.set('numID', str(material.numID))
+
+        # Write information on PMLs, sources, and receivers
+        if not materialsonly:
+            # Information on PML thickness
+            if G.pmls:
+                # Only render PMLs if they are in the geometry view
+                pmlstorender = dict.fromkeys(G.pmlthickness, 0)
+                xmax = G.nx - self.vtk_xfcells
+                ymax = G.ny - self.vtk_yfcells
+                zmax = G.nz - self.vtk_zfcells
+                if G.pmlthickness['x0'] - self.vtk_xscells > 0:
+                    pmlstorender['x0'] = G.pmlthickness['x0']
+                if G.pmlthickness['y0'] - self.vtk_yscells > 0:
+                    pmlstorender['y0'] = G.pmlthickness['y0']
+                if G.pmlthickness['z0'] - self.vtk_zscells > 0:
+                    pmlstorender['z0'] = G.pmlthickness['z0']
+                if self.vtk_xfcells > G.nx - G.pmlthickness['xmax']:
+                    pmlstorender['xmax'] = G.pmlthickness['xmax']
+                if self.vtk_yfcells > G.ny - G.pmlthickness['ymax']:
+                    pmlstorender['ymax'] = G.pmlthickness['ymax']
+                if self.vtk_zfcells > G.nz - G.pmlthickness['zmax']:
+                    pmlstorender['zmax'] = G.pmlthickness['zmax']
+                root.set('PMLthickness', list(pmlstorender.values()))
+            # Location of sources and receivers
+            srcs = G.hertziandipoles + G.magneticdipoles + G.voltagesources + G.transmissionlines
+            if srcs:
+                srcs_el = ET.SubElement(root, 'Sources')
+                for src in srcs:
+                    src_el = ET.SubElement(srcs_el, 'Source')
+                    src_el.set('name', src.ID)
+                    src_el.set('position', (src.xcoord * G.dx,
+                                            src.ycoord * G.dy,
+                                            src.zcoord * G.dz))                          
+            if G.rxs:
+                rxs_el = ET.SubElement(root, 'Receivers')
+                for rx in G.rxs:
+                    rx_el = ET.SubElement(rxs_el, 'Receiver')
+                    rx_el.set('name', rx.ID)
+                    rx_el.set('position', (rx.xcoord * G.dx,
+                                           rx.ycoord * G.dy,
+                                           rx.zcoord * G.dz))
+
+        xml_string = pretty_xml(ET.tostring(root))
+        f.write(str.encode(xml_string))
 
 
 class SubgridGeometryView:
@@ -659,7 +733,6 @@ class SubgridGeometryView:
         """Label is the starting label. 0 if no other grids are present but
             +1 the last label used for a multigrid view.
         """
-
         sg = self.sg
         self.label = label
 
