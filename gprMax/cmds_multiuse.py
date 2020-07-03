@@ -1156,10 +1156,12 @@ class GeometryView(UserObjectMulti):
         except KeyError:
             logger.exception(self.params_str() + ' requires exactly eleven parameters')
             raise
-
         GeometryViewUser = self.geometry_view_constructor(grid, output_type)
-
-        p1, p2 = uip.check_box_points(p1, p2, self.params_str())
+        try:
+            p1, p2 = uip.check_box_points(p1, p2, self.params_str())
+        except ValueError:
+            logger.exception(self.params_str() + ' point is outside the domain')
+            raise
         xs, ys, zs = p1
         xf, yf, zf = p2
 
