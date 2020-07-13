@@ -382,6 +382,7 @@ class ExcitationFile(UserObjectSingle):
 
         # See if file exists at specified path and if not try input file directory
         excitationfile = Path(excitationfile)
+        # excitationfile = excitationfile.resolve()
         if not excitationfile.exists():
             excitationfile = Path(config.sim_config.input_file_path.parent, excitationfile)
 
@@ -420,9 +421,9 @@ class ExcitationFile(UserObjectSingle):
                 singlewaveformvalues = singlewaveformvalues[:len(waveformtime)]
             # Zero-pad end of waveform array if it is shorter than time array
             elif len(singlewaveformvalues) < len(waveformtime):
-                singlewaveformvalues = np.lib.pad(singlewaveformvalues,
-                                                  (0, len(singlewaveformvalues) -
-                                                  len(waveformvalues)),
+                singlewaveformvalues = np.pad(singlewaveformvalues,
+                                                  (0, len(waveformtime) -
+                                                  len(singlewaveformvalues)),
                                                   'constant', constant_values=0)
 
             # Interpolate waveform values
