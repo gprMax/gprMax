@@ -114,6 +114,7 @@ class ModelBuildRun:
                 G.geometryviews[0].write_vtk_pvd(G.geometryviews)
                 logger.info(f'Written wrapper for geometry files: {G.geometryviews[0].pvdfile.name}')
             for i, gv in enumerate(G.geometryviews):
+                gv.initialise()
                 gv.set_filename()
                 pbar = tqdm(total=gv.datawritesize, unit='byte', unit_scale=True,
                             desc=f'Writing geometry view file {i + 1}/{len(G.geometryviews)}, {gv.filename.name}',
