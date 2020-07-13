@@ -141,7 +141,7 @@ class VoltageSource(Source):
             newmaterial.ID = material.ID + '+' + self.ID
             newmaterial.numID = len(G.materials)
             newmaterial.averagable = False
-            newmaterial.type += ',\nvoltage-source'
+            newmaterial.type += ',\nvoltage-source' if newmaterial.type else 'voltage-source'
 
             # Add conductivity of voltage source to underlying conductivity
             if self.polarisation == 'x':
