@@ -105,7 +105,7 @@ for patt in range(0, len(radii)):
 # Theta axis options
 ax.set_theta_zero_location('N')
 ax.set_theta_direction('clockwise')
-ax.set_thetagrids(np.arange(0, 360, 30), frac=1.1)
+ax.set_thetagrids(np.arange(0, 360, 30))
 
 # Radial axis options
 ax.set_rmax(0)
