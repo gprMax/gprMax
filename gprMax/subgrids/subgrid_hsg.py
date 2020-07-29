@@ -147,7 +147,7 @@ class SubGridHSG(SubGridBase):
         s += f' Time step (at CFL limit): {self.dt:g} secs\n'
         # s += f' Extent from {self.i0 * self.dx * self.ratio}m, {self.j0 * self.dy * self.ratio}m, {self.k0 * self.dz * self.ratio}m to {self.i1 * self.dx * self.ratio}m, {self.j1 * self.dy * self.ratio}m, {self.k1 * self.dz * self.ratio}m\n'
         s += f' Extent from {self.i0}, {self.j0}, {self.k0} to {self.i1}, {self.j1}, {self.k1} cells (main grid)\n'
-        s += f' Total cells: {self.nx} x {self.ny} x {self.nz}\n'
+        s += f' Total cells: {self.nx:d} x {self.ny:d} x {self.nz:d} = {(self.nx * self.ny * self.nz):g} cells\n'
         s += f' Working region cells: {self.nwx} x {self.nwy} x {self.nwz}\n'
 
         for h in self.hertziandipoles:
