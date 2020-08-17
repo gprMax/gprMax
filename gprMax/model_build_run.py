@@ -143,7 +143,7 @@ class ModelBuildRun:
 
         # Print info on any subgrids
         for grid in G.subgrids:
-            logger.info(grid)
+            grid.print_info()
 
         # Combine available grids
         grids = [G] + G.subgrids

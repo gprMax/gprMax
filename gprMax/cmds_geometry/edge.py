@@ -96,4 +96,4 @@ class Edge(UserObjectGeometry):
                 for k in range(zs, zf):
                     build_edge_z(xs, ys, k, material.numID, grid.rigidE, grid.rigidH, grid.ID)
 
-        logger.info(f'Edge from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m of material {material_id} created.')
+        logger.info(self.grid_name(grid) + f'Edge from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m of material {material_id} created.')

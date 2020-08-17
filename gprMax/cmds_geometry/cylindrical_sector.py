@@ -178,6 +178,6 @@ class CylindricalSector(UserObjectGeometry):
 
         if thickness > 0:
             dielectricsmoothing = 'on' if averaging else 'off'
-            logger.info(f"Cylindrical sector with centre {ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle {(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} degrees, thickness {thickness:g}m, of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")
+            logger.info(self.grid_name(grid) + f"Cylindrical sector with centre {ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle {(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} degrees, thickness {thickness:g}m, of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")
         else:
-            logger.info(f"Cylindrical sector with centre {ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle {(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} degrees, of material(s) {', '.join(materialsrequested)} created.")
+            logger.info(self.grid_name(grid) + f"Cylindrical sector with centre {ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle {(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} degrees, of material(s) {', '.join(materialsrequested)} created.")

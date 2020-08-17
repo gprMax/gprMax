@@ -21,7 +21,7 @@ import logging
 import gprMax.config as config
 import numpy as np
 
-from ..materials import DispersiveMaterial
+from ..materials import create_water
 from ..utilities import round_value
 from .cmds_geometry import UserObjectGeometry, rotate_2point_object
 
@@ -145,15 +145,7 @@ class AddSurfaceWater(UserObjectGeometry):
 
         # Check to see if water has been already defined as a material
         if not any(x.ID == 'water' for x in grid.materials):
-            m = DispersiveMaterial(len(grid.materials), 'water')
-            m.averagable = False
-            m.type = 'builtin, debye'
-            m.er = DispersiveMaterial.watereri
-            m.deltaer.append(DispersiveMaterial.waterdeltaer)
-            m.tau.append(DispersiveMaterial.watertau)
-            grid.materials.append(m)
-            if config.get_model_config().materials['maxpoles'] == 0:
-                config.get_model_config().materials['maxpoles'] = 1
+            create_water(grid)
 
         # Check if time step for model is suitable for using water
         water = next((x for x in grid.materials if x.ID == 'water'))
@@ -162,4 +154,4 @@ class AddSurfaceWater(UserObjectGeometry):
             logger.exception(self.__str__() + ' requires the time step for the model to be less than the relaxation time required to model water.')
             raise ValueError
 
-        logger.info(f'Water on surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with depth {filldepth:g}m, added to {surface.operatingonID}.')
+        logger.info(self.grid_name(grid) + f'Water on surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with depth {filldepth:g}m, added to {surface.operatingonID}.')

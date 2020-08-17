@@ -51,6 +51,16 @@ class UserObjectGeometry:
         """Rotate object - specialised for each object."""
         pass
 
+    def grid_name(self, grid):
+        """Return subgrid name for use with logging info. Return an empty
+            string if the grid is the main grid.
+        """
+
+        if config.sim_config.general['subgrid'] and grid.name != 'main_grid':
+            return f'[{grid.name}] '  
+        else:
+            return ''
+
 
 def rotate_point(p, axis, angle, origin=(0, 0, 0)):
     """Rotate a point.

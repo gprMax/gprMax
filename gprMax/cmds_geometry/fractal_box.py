@@ -132,6 +132,6 @@ class FractalBox(UserObjectGeometry):
         volume.mixingmodel = mixingmodel
 
         dielectricsmoothing = 'on' if volume.averaging else 'off'
-        logger.info(f'Fractal box {volume.ID} from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with {volume.operatingonID}, fractal dimension {volume.dimension:g}, fractal weightings {volume.weighting[0]:g}, {volume.weighting[1]:g}, {volume.weighting[2]:g}, fractal seeding {volume.seed}, with {volume.nbins} material(s) created, dielectric smoothing is {dielectricsmoothing}.')
+        logger.info(self.grid_name(grid) + f'Fractal box {volume.ID} from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with {volume.operatingonID}, fractal dimension {volume.dimension:g}, fractal weightings {volume.weighting[0]:g}, {volume.weighting[1]:g}, {volume.weighting[2]:g}, fractal seeding {volume.seed}, with {volume.nbins} material(s) created, dielectric smoothing is {dielectricsmoothing}.')
 
         grid.fractalvolumes.append(volume)

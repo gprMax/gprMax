@@ -117,8 +117,8 @@ class GeometryObjectsRead(UserObjectGeometry):
             G.rigidE[:, xs:xs + rigidE.shape[1], ys:ys + rigidE.shape[2], zs:zs + rigidE.shape[3]] = rigidE
             G.rigidH[:, xs:xs + rigidH.shape[1], ys:ys + rigidH.shape[2], zs:zs + rigidH.shape[3]] = rigidH
             G.ID[:, xs:xs + ID.shape[1], ys:ys + ID.shape[2], zs:zs + ID.shape[3]] = ID + numexistmaterials
-            logger.info(f'Geometry objects from file {geofile} inserted at {xs * G.dx:g}m, {ys * G.dy:g}m, {zs * G.dz:g}m, with corresponding materials file {matfile}.')
+            logger.info(self.grid_name(grid) + f'Geometry objects from file {geofile} inserted at {xs * G.dx:g}m, {ys * G.dy:g}m, {zs * G.dz:g}m, with corresponding materials file {matfile}.')
         except KeyError:
             averaging = False
             build_voxels_from_array(xs, ys, zs, numexistmaterials, averaging, data, G.solid, G.rigidE, G.rigidH, G.ID)
-            logger.info(f'Geometry objects from file (voxels only){geofile} inserted at {xs * G.dx:g}m, {ys * G.dy:g}m, {zs * G.dz:g}m, with corresponding materials file {matfile}.')
+            logger.info(self.grid_name(grid) + f'Geometry objects from file (voxels only){geofile} inserted at {xs * G.dx:g}m, {ys * G.dy:g}m, {zs * G.dz:g}m, with corresponding materials file {matfile}.')

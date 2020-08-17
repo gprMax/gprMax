@@ -22,7 +22,7 @@ import gprMax.config as config
 import numpy as np
 
 from ..fractals import FractalSurface, Grass
-from ..materials import DispersiveMaterial
+from ..materials import create_grass
 from ..utilities import round_value
 from .cmds_geometry import UserObjectGeometry, rotate_2point_object
 
@@ -197,15 +197,7 @@ class AddGrass(UserObjectGeometry):
 
         # Check to see if grass has been already defined as a material
         if not any(x.ID == 'grass' for x in grid.materials):
-            m = DispersiveMaterial(len(grid.materials), 'grass')
-            m.averagable = False
-            m.type = 'builtin, debye'
-            m.er = DispersiveMaterial.grasseri
-            m.deltaer.append(DispersiveMaterial.grassdeltaer)
-            m.tau.append(DispersiveMaterial.grasstau)
-            grid.materials.append(m)
-            if config.get_model_config().materials['maxpoles'] == 0:
-                config.get_model_config().materials['maxpoles'] = 1
+            create_grass(grid)
 
         # Check if time step for model is suitable for using grass
         grass = next((x for x in grid.materials if x.ID == 'grass'))
@@ -216,4 +208,4 @@ class AddGrass(UserObjectGeometry):
 
         volume.fractalsurfaces.append(surface)
 
-        logger.info(f'{n_blades} blades of grass on surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with fractal dimension {surface.dimension:g}, fractal seeding {surface.seed}, and range {limits[0]:g}m to {limits[1]:g}m, added to {surface.operatingonID}.')
+        logger.info(self.grid_name(grid) + f'{n_blades} blades of grass on surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with fractal dimension {surface.dimension:g}, fractal seeding {surface.seed}, and range {limits[0]:g}m to {limits[1]:g}m, added to {surface.operatingonID}.')

@@ -74,6 +74,16 @@ class UserObjectMulti:
         """Readable string of parameters given to object."""
         return self.hash + ': ' + str(self.kwargs)
 
+    def grid_name(self, grid):
+        """Return subgrid name for use with logging info. Return an empty
+            string if the grid is the main grid.
+        """
+
+        if config.sim_config.general['subgrid'] and grid.name != 'main_grid':
+            return f'[{grid.name}] '  
+        else:
+            return ''
+
 
 class Waveform(UserObjectMulti):
     """Allows you to specify waveforms to use with sources in the model.
@@ -117,7 +127,7 @@ class Waveform(UserObjectMulti):
         w.amp = amp
         w.freq = freq
 
-        logger.info(f'Waveform {w.ID} of type {w.type} with maximum amplitude scaling {w.amp:g}, frequency {w.freq:g}Hz created.')
+        logger.info(self.grid_name(grid) + f'Waveform {w.ID} of type {w.type} with maximum amplitude scaling {w.amp:g}, frequency {w.freq:g}Hz created.')
 
         grid.waveforms.append(w)
 
@@ -219,7 +229,7 @@ class VoltageSource(UserObjectMulti):
 
         v.calculate_waveform_values(grid)
 
-        logger.info(f'Voltage source with polarity {v.polarisation} at {v.xcoord * grid.dx:g}m, {v.ycoord * grid.dy:g}m, {v.zcoord * grid.dz:g}m, resistance {v.resistance:.1f} Ohms,' + startstop + f'using waveform {v.waveformID} created.')
+        logger.info(self.grid_name(grid) + f'Voltage source with polarity {v.polarisation} at {v.xcoord * grid.dx:g}m, {v.ycoord * grid.dy:g}m, {v.zcoord * grid.dz:g}m, resistance {v.resistance:.1f} Ohms,' + startstop + f'using waveform {v.waveformID} created.')
 
         grid.voltagesources.append(v)
 
@@ -327,9 +337,9 @@ class HertzianDipole(UserObjectMulti):
         h.calculate_waveform_values(grid)
 
         if config.get_model_config().mode == '2D':
-            logger.info(f'Hertzian dipole is a line source in 2D with polarity {h.polarisation} at {h.xcoord * grid.dx:g}m, {h.ycoord * grid.dy:g}m, {h.zcoord * grid.dz:g}m,' + startstop + f'using waveform {h.waveformID} created.')
+            logger.info(self.grid_name(grid) + f'Hertzian dipole is a line source in 2D with polarity {h.polarisation} at {h.xcoord * grid.dx:g}m, {h.ycoord * grid.dy:g}m, {h.zcoord * grid.dz:g}m,' + startstop + f'using waveform {h.waveformID} created.')
         else:
-            logger.info(f'Hertzian dipole with polarity {h.polarisation} at {h.xcoord * grid.dx:g}m, {h.ycoord * grid.dy:g}m, {h.zcoord * grid.dz:g}m,' + startstop + f'using waveform {h.waveformID} created.')
+            logger.info(self.grid_name(grid) + f'Hertzian dipole with polarity {h.polarisation} at {h.xcoord * grid.dx:g}m, {h.ycoord * grid.dy:g}m, {h.zcoord * grid.dz:g}m,' + startstop + f'using waveform {h.waveformID} created.')
 
         grid.hertziandipoles.append(h)
 
@@ -427,7 +437,7 @@ class MagneticDipole(UserObjectMulti):
 
         m.calculate_waveform_values(grid)
 
-        logger.info(f'Magnetic dipole with polarity {m.polarisation} at {m.xcoord * grid.dx:g}m, {m.ycoord * grid.dy:g}m, {m.zcoord * grid.dz:g}m,' + startstop + f'using waveform {m.waveformID} created.')
+        logger.info(self.grid_name(grid) + f'Magnetic dipole with polarity {m.polarisation} at {m.xcoord * grid.dx:g}m, {m.ycoord * grid.dy:g}m, {m.zcoord * grid.dz:g}m,' + startstop + f'using waveform {m.waveformID} created.')
 
         grid.magneticdipoles.append(m)
 
@@ -536,7 +546,7 @@ class TransmissionLine(UserObjectMulti):
         t.calculate_waveform_values(grid)
         t.calculate_incident_V_I(grid)
 
-        logger.info(f'Transmission line with polarity {t.polarisation} at {t.xcoord * grid.dx:g}m, {t.ycoord * grid.dy:g}m, {t.zcoord * grid.dz:g}m, resistance {t.resistance:.1f} Ohms,' + startstop + f'using waveform {t.waveformID} created.')
+        logger.info(self.grid_name(grid) + f'Transmission line with polarity {t.polarisation} at {t.xcoord * grid.dx:g}m, {t.ycoord * grid.dy:g}m, {t.zcoord * grid.dz:g}m, resistance {t.resistance:.1f} Ohms,' + startstop + f'using waveform {t.waveformID} created.')
 
         grid.transmissionlines.append(t)
 
@@ -587,6 +597,8 @@ class Rx(UserObjectMulti):
             raise
 
         p = uip.check_src_rx_point(p1, self.params_str())
+        print(p1)
+        print(p)
 
         r = self.constructor()
         r.xcoord, r.ycoord, r.zcoord = p
@@ -612,7 +624,7 @@ class Rx(UserObjectMulti):
                     logger.exception(self.params_str() + f' contains an output type that is not allowable. Allowable outputs in current context are {allowableoutputs}')
                     raise ValueError
 
-        logger.info(f"Receiver at {r.xcoord * grid.dx:g}m, {r.ycoord * grid.dy:g}m, {r.zcoord * grid.dz:g}m with output component(s) {', '.join(r.outputs)} created.")
+        logger.info(self.grid_name(grid) + f"Receiver at {r.xcoord * grid.dx:g}m, {r.ycoord * grid.dy:g}m, {r.zcoord * grid.dz:g}m with output component(s) {', '.join(r.outputs)} created.")
 
         grid.rxs.append(r)
 
@@ -673,7 +685,7 @@ class RxArray(UserObjectMulti):
                 logger.exception(self.params_str() + ' the step size should not be less than the spatial discretisation')
                 raise ValueError
 
-        logger.info(f'Receiver array {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with steps {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m')
+        logger.info(self.grid_name(grid) + f'Receiver array {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with steps {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m')
 
         for x in range(xs, xf + 1, dx):
             for y in range(ys, yf + 1, dy):
@@ -832,7 +844,7 @@ class Material(UserObjectMulti):
         if m.se == float('inf'):
             m.averagable = False
 
-        logger.info(f'Material {m.ID} with eps_r={m.er:g}, sigma={m.se:g} S/m; mu_r={m.mr:g}, sigma*={m.sm:g} Ohm/m created.')
+        logger.info(self.grid_name(grid) + f'Material {m.ID} with eps_r={m.er:g}, sigma={m.se:g} S/m; mu_r={m.mr:g}, sigma*={m.sm:g} Ohm/m created.')
 
         # Append the new material object to the materials list
         grid.materials.append(m)
@@ -901,7 +913,7 @@ class AddDebyeDispersion(UserObjectMulti):
             # Replace original material with newly created DispersiveMaterial
             grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
 
-            logger.info(f"Debye disperion added to {disp_material.ID} with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, and tau={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs created.")
+            logger.info(self.grid_name(grid) + f"Debye disperion added to {disp_material.ID} with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, and tau={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs created.")
 
 
 class AddLorentzDispersion(UserObjectMulti):
@@ -970,7 +982,7 @@ class AddLorentzDispersion(UserObjectMulti):
             # Replace original material with newly created DispersiveMaterial
             grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
 
-            logger.info(f"Lorentz disperion added to {disp_material.ID} with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, omega={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs, and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} created.")
+            logger.info(self.grid_name(grid) + f"Lorentz disperion added to {disp_material.ID} with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, omega={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs, and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} created.")
 
 
 class AddDrudeDispersion(UserObjectMulti):
@@ -1035,7 +1047,7 @@ class AddDrudeDispersion(UserObjectMulti):
             # Replace original material with newly created DispersiveMaterial
             grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
 
-            logger.info(f"Drude disperion added to {disp_material.ID} with omega={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs, and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} secs created.")
+            logger.info(self.grid_name(grid) + f"Drude disperion added to {disp_material.ID} with omega={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs, and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} secs created.")
 
 
 class SoilPeplinski(UserObjectMulti):
@@ -1098,7 +1110,7 @@ class SoilPeplinski(UserObjectMulti):
         # Create a new instance of the Material class material (start index after pec & free_space)
         s = PeplinskiSoilUser(ID, sand_fraction, clay_fraction, bulk_density, sand_density, (water_fraction_lower, water_fraction_upper))
 
-        logger.info(f'Mixing model (Peplinski) used to create {s.ID} with sand fraction {s.S:g}, clay fraction {s.C:g}, bulk density {s.rb:g}g/cm3, sand particle density {s.rs:g}g/cm3, and water volumetric fraction {s.mu[0]:g} to {s.mu[1]:g} created.')
+        logger.info(self.grid_name(grid) + f'Mixing model (Peplinski) used to create {s.ID} with sand fraction {s.S:g}, clay fraction {s.C:g}, bulk density {s.rb:g}g/cm3, sand particle density {s.rs:g}g/cm3, and water volumetric fraction {s.mu[0]:g} to {s.mu[1]:g} created.')
 
         # Append the new material object to the materials list
         grid.mixingmodels.append(s)

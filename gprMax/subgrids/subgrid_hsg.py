@@ -16,11 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 import gprMax.config as config
 from ..cython.fields_updates_hsg import (cython_update_electric_os,
                                          cython_update_is,
                                          cython_update_magnetic_os)
 from .base import SubGridBase
+
+logger = logging.getLogger(__name__)
 
 
 class SubGridHSG(SubGridBase):
@@ -137,28 +141,22 @@ class SubGridHSG(SubGridBase):
         cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 1, i_l, i_u, j_l, j_u + 1, k_l - 1, k_u, self.nwz, main_grid.IDlookup['Hy'], main_grid.Hy, self.Ex, 3, -1, 1, 1, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
         cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 1, i_l, i_u + 1, j_l, j_u, k_l - 1, k_u, self.nwz, main_grid.IDlookup['Hx'], main_grid.Hx, self.Ey, 3, 1, -1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
 
-    def __str__(self):
-
-        s = '\n'
-        s += f' Name: {self.name}\n'
-        s += f' Type: {self.gridtype}\n'
-        s += f' Ratio: 1:{self.ratio}\n'
-        s += f' Spatial discretisation: {self.dx:g} x {self.dy:g} x {self.dz:g}m\n'
-        s += f' Time step (at CFL limit): {self.dt:g} secs\n'
-        # s += f' Extent from {self.i0 * self.dx * self.ratio}m, {self.j0 * self.dy * self.ratio}m, {self.k0 * self.dz * self.ratio}m to {self.i1 * self.dx * self.ratio}m, {self.j1 * self.dy * self.ratio}m, {self.k1 * self.dz * self.ratio}m\n'
-        s += f' Extent from {self.i0}, {self.j0}, {self.k0} to {self.i1}, {self.j1}, {self.k1} cells (main grid)\n'
-        s += f' Total cells: {self.nx:d} x {self.ny:d} x {self.nz:d} = {(self.nx * self.ny * self.nz):g} cells\n'
-        s += f' Working region cells: {self.nwx} x {self.nwy} x {self.nwz}\n'
-
-        for h in self.hertziandipoles:
-            s += f' Hertzian dipole at {h.xcoord} {h.ycoord} {h.zcoord}\n'
-            s += ' ' + str([x for x in self.waveforms
-                      if x.ID == h.waveformID][0]) + '\n'
-        for r in self.rxs:
-            s += f' Receiver at {r.xcoord} {r.ycoord} {r.zcoord}\n'
-
-        for tl in self.transmissionlines:
-            s += f' Transmission line: {tl.xcoord} {tl.ycoord} {tl.zcoord}\n'
-            s += ' ' + str([x for x in self.waveforms
-                      if x.ID == tl.waveformID][0]) + '\n'
-        return s
+    def print_info(self):
+        """Print information about the subgrid."""
+        
+        logger.info('')
+        logger.info(f'[{self.name}] Type: {self.gridtype}')
+        logger.info(f'[{self.name}] Ratio: 1:{self.ratio}')
+        logger.info(f'[{self.name}] Spatial discretisation: {self.dx:g} x {self.dy:g} x {self.dz:g}m')
+        logger.info(f'[{self.name}] Extent: {self.i0 * self.dx * self.ratio}m, {self.j0 * self.dy * self.ratio}m, {self.k0 * self.dz * self.ratio}m to {self.i1 * self.dx * self.ratio}m, {self.j1 * self.dy * self.ratio}m, {self.k1 * self.dz * self.ratio}m')
+        logger.debug(f'[{self.name}] Working region: {self.nwx} x {self.nwy} x {self.nwz} cells')
+        logger.debug(f'[{self.name}] Total region: {self.nx:d} x {self.ny:d} x {self.nz:d} = {(self.nx * self.ny * self.nz):g} cells')
+        # Total region = working region + 2 * (is_os_sep * pml_separation * pml_thickness)
+        # is_os_sep - number of main grid cells between the Inner Surface and 
+        #               the Outer Surface. Defaults to 3. Multiply by ratio to 
+        #               get sub-grid cells.
+        # pml_separation - number of sub-grid cells between the Outer Surface 
+        #                   and the PML. Defaults to ratio // 2 + 2.
+        # pml_thickness - number of PML cells on each of the 6 sides of the 
+        #                   sub-grid. Defaults to 6.
+        logger.info(f'[{self.name}] Time step (at CFL limit): {self.dt:g} secs')
