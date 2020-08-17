@@ -318,11 +318,13 @@ class PeplinskiSoil:
             G (FDTDGrid): Parameters describing a grid in a model.
         """
 
-        # Debye model properties of water
+        # Debye model properties of water at 25C & zero salinity
+        T = 25
+        S = 0
+        watereri, waterer, watertau, watersig = calculate_water_properties(T, S)
         f = 1.3e9
         w = 2 * np.pi * f
-        erealw = DispersiveMaterial.watereri + ((DispersiveMaterial.waterdeltaer)
-                                                / (1 + (w * DispersiveMaterial.watertau)**2))
+        erealw = watereri + ((waterer - watereri) / (1 + (w * watertau)**2))
 
         a = 0.65  # Experimentally derived constant
         es = (1.01 + 0.44 * self.rs)**2 - 0.062  #  Relative permittivity of sand particles
@@ -396,5 +398,91 @@ def create_built_in_materials(G):
     m = Material(1, 'free_space')
     m.type = 'builtin'
     G.materials.append(m)
+
+    G.n_built_in_materials = len(G.materials)
+
+
+def calculate_water_properties(T=25, S=0):
+    """Get extended Debye model properties for water.
+
+    Args:
+        T (float): Temperature of water (degrees centigrade)
+        S (float): Salinity of water (part per thousand)
+
+    Returns:
+        eri (float): Relative permittivity at infinite frequency.
+        er (float): Static relative permittivity.
+        tau (float): Relaxation time (s).
+        sig (float): Conductivity (S/m)
+    """
+
+    # Properties of water from: https://doi.org/10.1109/JOE.1977.1145319
+    eri = 4.9
+    er = 88.045 - 0.4147 * T + 6.295e-4 * T**2 + 1.075e-5 * T**3
+    tau = (1 / (2 * np.pi)) * (1.1109e-10 - 3.824e-12 * T + 6.938e-14 * T**2 - 5.096e-16 * T**3)
+
+    delta = 25 - T
+    beta = 2.033e-2 + 1.266e-4 * delta + 2.464e-6 * delta**2 - S * (1.849e-5 - 2.551e-7 * delta + 2.551e-8 * delta**2)
+    sig_25s = S * (0.182521 - 1.46192e-3 * S + 2.09324e-5 * S**2 - 1.28205e-7 * S**3)
+    sig = sig_25s * np.exp(-delta * beta)
+
+    return eri, er, tau, sig
+
+
+def create_water(G, T=25, S=0):
+    """Create single-pole Debye model for water with specified temperature and
+        salinity.
+
+    Args:
+        T (float): Temperature of water (degrees centigrade)
+        S (float): Salinity of water (part per thousand)
+        G (FDTDGrid): Parameters describing a grid in a model.
+    """
+
+    eri, er, tau, sig = calculate_water_properties(T, S)
+    
+    G.n_built_in_materials = len(G.materials)
+
+    m = DispersiveMaterial(len(G.materials), 'water')
+    m.averagable = False
+    m.type = 'builtin, debye'
+    m.poles = 1
+    m.er = eri
+    m.se = sig
+    m.deltaer.append(er - eri)
+    m.tau.append(tau)
+    G.materials.append(m)
+    if config.get_model_config().materials['maxpoles'] == 0:
+        config.get_model_config().materials['maxpoles'] = 1
+
+    G.n_built_in_materials = len(G.materials)
+
+
+def create_grass(G):
+    """Create single-pole Debye model for grass
+
+    Args:
+        G (FDTDGrid): Parameters describing a grid in a model.
+    """
+
+    # Properties of grass from: http://dx.doi.org/10.1007/BF00902994
+    er = 18.5087
+    eri = 12.7174
+    tau = 1.0793e-11
+    sig = 0
+
+    G.n_built_in_materials = len(G.materials)
+
+    m = DispersiveMaterial(len(G.materials), 'grass')
+    m.averagable = False
+    m.type = 'builtin, debye'
+    m.poles = 1
+    m.er = eri
+    m.se = sig
+    m.deltaer.append(er - eri)
+    m.tau.append(tau)
+    G.materials.append(m)
+    if config.get_model_config().materials['maxpoles'] == 0:
+        config.get_model_config().materials['maxpoles'] = 1
 
     G.n_built_in_materials = len(G.materials)
