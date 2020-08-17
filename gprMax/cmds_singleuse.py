@@ -121,6 +121,13 @@ class Domain(UserObjectSingle):
         G.calculate_dt()
 
         logger.info(f'Mode: {config.get_model_config().mode}')
+
+        # Sub-grids cannot be used with 2D models. There would typically be
+        # minimal performance benefit with sub-gridding and 2D models.
+        if '2D' in config.get_model_config().mode and config.sim_config.general['subgrid']:
+            logger.exception('Sub-gridding cannot be used with 2D models')
+            raise ValueError
+
         logger.info(f'Time step (at CFL limit): {G.dt:g} secs')
 
 
