@@ -156,7 +156,7 @@ class SubGridHSG(SubGridBase):
     :type pml_separation: int, optional
     :param subgrid_pml_thickness: Thickness of the PML on each of the 6 sides of the sub-grid. Defaults to 6.
     :type subgrid_pml_thickness: int, optional
-    :param interpolation: Degree of the interpolation scheme used for spatil interpolation of the fields at the Inner Surface. Defaults to Linear
+    :param interpolation: Degree of the interpolation scheme used for spatial interpolation of the fields at the Inner Surface. Defaults to Linear
     :type interpolation: str, optional
     :param filter: Turn on the 3-pole filter. Increases numerical stability. Defaults to True
     :type filter: bool, optional
