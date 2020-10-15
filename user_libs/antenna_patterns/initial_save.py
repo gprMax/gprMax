@@ -36,7 +36,7 @@ epsr = 5
 
 # Observation radii and angles
 radii = np.linspace(0.1, 0.3, 20)
-theta = np.linspace(3, 357, 60) * (180 / np.pi)
+theta = np.linspace(3, 357, 60) * (np.pi / 180)
 
 # Scaling of time-domain field pattern values by material impedance
 impscaling = False
