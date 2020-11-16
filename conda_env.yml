@@ -9,7 +9,7 @@ dependencies:
 - h5py
 - jupyter
 - matplotlib
-- numpy==1.17.4
+- numpy
 - pip
 - psutil
 - scipy
@@ -17,5 +17,5 @@ dependencies:
 - pip:
   - terminaltables
   - tqdm
-# - mpi4py
-# - pycuda
+ # - mpi4py
+ # - pycuda
