@@ -43,8 +43,16 @@ class Edge(UserObjectGeometry):
         self.hash = '#edge'
 
     def rotate(self, axis, angle, origin=None):
+        """Set parameters for rotation."""
+        self.axis = axis
+        self.angle = angle
+        self.origin = origin
+        self.dorotate = True
+
+    def __dorotate(self):
+        """Perform rotation."""
         pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
-        rot_pts = rotate_2point_object(pts, axis, angle, origin)
+        rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
         self.kwargs['p1'] = tuple(rot_pts[0, :])
         self.kwargs['p2'] = tuple(rot_pts[1, :])
         
@@ -57,6 +65,9 @@ class Edge(UserObjectGeometry):
         except KeyError:
             logger.exception(self.__str__() + ' requires exactly 3 parameters')
             raise
+
+        if self.dorotate:
+            self.__dorotate()
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1

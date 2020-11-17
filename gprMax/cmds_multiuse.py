@@ -51,6 +51,7 @@ class UserObjectMulti:
         self.order = None
         self.hash = '#example'
         self.autotranslate = True
+        self.dorotate = False
 
     def __str__(self):
         """Readable user string as per hash commands."""
@@ -155,8 +156,20 @@ class VoltageSource(UserObjectMulti):
         self.hash = '#voltage_source'
 
     def rotate(self, axis, angle, origin=None):
-        rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], self.kwargs['polarisation'], axis, angle)
-        rot_pts = rotate_2point_object(rot_pol_pts, axis, angle, origin)
+        """Set parameters for rotation."""
+        self.axis = axis
+        self.angle = angle
+        self.origin = origin
+        self.dorotate = True
+
+    def __dorotate(self, grid):
+        """Perform rotation."""
+        rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], 
+                                                                       self.kwargs['polarisation'], 
+                                                                       self.axis, 
+                                                                       self.angle, 
+                                                                       grid)
+        rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs['p1'] = tuple(rot_pts[0, :])
 
     def create(self, grid, uip):
@@ -168,6 +181,9 @@ class VoltageSource(UserObjectMulti):
         except KeyError:
             logger.exception(self.params_str() + ' requires at least six parameters')
             raise
+
+        if self.dorotate:
+            self.__dorotate(grid)
 
         # Check polarity & position parameters
         if polarisation not in ('x', 'y', 'z'):
@@ -256,8 +272,20 @@ class HertzianDipole(UserObjectMulti):
         self.hash = '#hertzian_dipole'
 
     def rotate(self, axis, angle, origin=None):
-        rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], self.kwargs['polarisation'], axis, angle)
-        rot_pts = rotate_2point_object(rot_pol_pts, axis, angle, origin)
+        """Set parameters for rotation."""
+        self.axis = axis
+        self.angle = angle
+        self.origin = origin
+        self.dorotate = True
+
+    def __dorotate(self, grid):
+        """Perform rotation."""
+        rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], 
+                                                                       self.kwargs['polarisation'], 
+                                                                       self.axis, 
+                                                                       self.angle, 
+                                                                       grid)
+        rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs['p1'] = tuple(rot_pts[0, :])
 
     def create(self, grid, uip):
@@ -268,6 +296,9 @@ class HertzianDipole(UserObjectMulti):
         except KeyError:
             logger.exception(self.params_str() + ' requires at least 3 parameters')
             raise
+
+        if self.dorotate:
+            self.__dorotate(grid)
 
         # Check polarity & position parameters
         if polarisation not in ('x', 'y', 'z'):
@@ -366,8 +397,20 @@ class MagneticDipole(UserObjectMulti):
         self.hash = '#magnetic_dipole'
 
     def rotate(self, axis, angle, origin=None):
-        rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], self.kwargs['polarisation'], axis, angle)
-        rot_pts = rotate_2point_object(rot_pol_pts, axis, angle, origin)
+        """Set parameters for rotation."""
+        self.axis = axis
+        self.angle = angle
+        self.origin = origin
+        self.dorotate = True
+
+    def __dorotate(self, grid):
+        """Perform rotation."""
+        rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], 
+                                                                       self.kwargs['polarisation'], 
+                                                                       self.axis, 
+                                                                       self.angle, 
+                                                                       grid)
+        rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs['p1'] = tuple(rot_pts[0, :])
 
     def create(self, grid, uip):
@@ -378,6 +421,9 @@ class MagneticDipole(UserObjectMulti):
         except KeyError:
             logger.exception(self.params_str() + ' requires at least five parameters')
             raise
+
+        if self.dorotate:
+            self.__dorotate(grid)
 
         # Check polarity & position parameters
         if polarisation not in ('x', 'y', 'z'):
@@ -466,8 +512,20 @@ class TransmissionLine(UserObjectMulti):
         self.hash = '#transmission_line'
 
     def rotate(self, axis, angle, origin=None):
-        rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], self.kwargs['polarisation'], axis, angle)
-        rot_pts = rotate_2point_object(rot_pol_pts, axis, angle, origin)
+        """Set parameters for rotation."""
+        self.axis = axis
+        self.angle = angle
+        self.origin = origin
+        self.dorotate = True
+
+    def __dorotate(self, grid):
+        """Perform rotation."""
+        rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], 
+                                                                       self.kwargs['polarisation'], 
+                                                                       self.axis, 
+                                                                       self.angle, 
+                                                                       grid)
+        rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs['p1'] = tuple(rot_pts[0, :])
 
     def create(self, grid, uip):
@@ -479,6 +537,9 @@ class TransmissionLine(UserObjectMulti):
         except KeyError:
             logger.exception(self.params_str() + ' requires at least six parameters')
             raise
+
+        if self.dorotate:
+            self.__dorotate(grid)
 
         # Warn about using a transmission line on GPU
         if config.sim_config.general['cuda']:
@@ -572,11 +633,17 @@ class Rx(UserObjectMulti):
         self.constructor = RxUser
 
     def rotate(self, axis, angle, origin=None):
-        logger.debug('Need to get dxdydz into this function')
-        dxdydz = np.array([0.001, 0.001, 0.001])
-        new_pt = (self.kwargs['p1'][0] + dxdydz[0], self.kwargs['p1'][1] + dxdydz[1], self.kwargs['p1'][2] + dxdydz[2])
+        """Set parameters for rotation."""
+        self.axis = axis
+        self.angle = angle
+        self.origin = origin
+        self.dorotate = True
+
+    def __dorotate(self, G):
+        """Perform rotation."""
+        new_pt = (self.kwargs['p1'][0] + G.dx, self.kwargs['p1'][1] + G.dy, self.kwargs['p1'][2] + G.dz)
         pts = np.array([self.kwargs['p1'], new_pt])
-        rot_pts = rotate_2point_object(pts, axis, angle, origin)
+        rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
         self.kwargs['p1'] = tuple(rot_pts[0, :])
 
         # If specific field components are specified, set to output all components
@@ -595,6 +662,9 @@ class Rx(UserObjectMulti):
         except KeyError:
             logger.exception(self.params_str())
             raise
+
+        if self.dorotate:
+            self.__dorotate(grid)
 
         p = uip.check_src_rx_point(p1, self.params_str())
         print(p1)

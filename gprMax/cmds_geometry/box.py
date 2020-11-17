@@ -47,8 +47,16 @@ class Box(UserObjectGeometry):
         self.hash = '#box'
 
     def rotate(self, axis, angle, origin=None):
+        """Set parameters for rotation."""
+        self.axis = axis
+        self.angle = angle
+        self.origin = origin
+        self.dorotate = True
+
+    def __dorotate(self):
+        """Perform rotation."""
         pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
-        rot_pts = rotate_2point_object(pts, axis, angle, origin)
+        rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
         self.kwargs['p1'] = tuple(rot_pts[0, :])
         self.kwargs['p2'] = tuple(rot_pts[1, :])
 
@@ -59,6 +67,9 @@ class Box(UserObjectGeometry):
         except KeyError:
             logger.exception(self.__str__() + ' Please specify two points.')
             raise
+
+        if self.dorotate:
+            self.__dorotate()
 
         # check materials have been specified
         # isotropic case

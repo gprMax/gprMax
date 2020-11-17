@@ -51,9 +51,17 @@ class Triangle(UserObjectGeometry):
         self.hash = '#triangle'
 
     def rotate(self, axis, angle, origin=None):
-        p1 = rotate_point(self.kwargs['p1'], axis, angle, origin)
-        p2 = rotate_point(self.kwargs['p2'], axis, angle, origin)
-        p3 = rotate_point(self.kwargs['p3'], axis, angle, origin)
+        """Set parameters for rotation."""
+        self.axis = axis
+        self.angle = angle
+        self.origin = origin
+        self.dorotate = True
+
+    def __dorotate(self):
+        """Perform rotation."""
+        p1 = rotate_point(self.kwargs['p1'], self.axis, self.angle, self.origin)
+        p2 = rotate_point(self.kwargs['p2'], self.axis, self.angle, self.origin)
+        p3 = rotate_point(self.kwargs['p3'], self.axis, self.angle, self.origin)
         self.kwargs['p1'] = tuple(p1)
         self.kwargs['p2'] = tuple(p2)
         self.kwargs['p3'] = tuple(p3)
@@ -67,6 +75,9 @@ class Triangle(UserObjectGeometry):
         except KeyError:
             logger.exception(self.__str__() + ' specify 3 points and a thickness')
             raise
+        
+        if self.dorotate:
+            self.__dorotate()
 
         # check averaging
         try:

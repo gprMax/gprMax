@@ -58,9 +58,6 @@ class CylindricalSector(UserObjectGeometry):
         super().__init__(**kwargs)
         self.hash = '#cylindrical_sector'
 
-    def rotate(self, axis, angle, origin=None):
-        pass
-
     def create(self, grid, uip):
 
         try:

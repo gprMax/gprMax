@@ -32,6 +32,7 @@ class UserObjectGeometry:
         self.kwargs = kwargs
         self.hash = '#example'
         self.autotranslate = True
+        self.dorotate = False
 
     def __str__(self):
         """Readable string of parameters given to object."""
@@ -150,39 +151,38 @@ def rotate_2point_object(pts, axis, angle, origin=None):
     return new_pts
 
 
-def rotate_polarisation(p, polarisation, axis, angle):
-    """Rotate a geometry object that is defined by 2 points.
+def rotate_polarisation(p, polarisation, axis, angle, G):
+    """Rotate a geometry object that is defined by a point and polarisation.
     
     Args:
         p (array): coordinates of point (x, y, z)
         polarisation (str): current polarisation (x, y, or z)
         axis (str): axis about which to perform rotation (x, y, or z)
         angle (int): angle of rotation (degrees)
+        G (class): Grid class instance - holds essential parameters
+                        describing the model.
 
     Returns:
         pts (array): coordinates of points of rotated object
         new_polarisation (str): new polarisation (x, y, or z)
     """
 
-    logger.debug('Need to get dxdydz into this function')
-    dxdydz = np.array([0.001, 0.001, 0.001])
-
     if polarisation.lower() == 'x':
-        new_pt = (p[0] + dxdydz[0], p[1], p[2])
+        new_pt = (p[0] + G.dx, p[1], p[2])
         if axis == 'y' and angle == 90 or angle == 270:
             new_polarisation = 'z'
         if axis == 'z' and angle == 90 or angle == 270:
             new_polarisation = 'y'
 
     elif polarisation.lower() == 'y':
-        new_pt = (p[0], p[1] + dxdydz[1], p[2])
+        new_pt = (p[0], p[1] + G.dy, p[2])
         if axis == 'x' and angle == 90 or angle == 270:
             new_polarisation = 'z'
         if axis == 'z' and angle == 90 or angle == 270:
             new_polarisation = 'x'
 
     elif polarisation.lower() == 'z':
-        new_pt = (p[0], p[1], p[2] + dxdydz[2])
+        new_pt = (p[0], p[1], p[2] + G.dz)
         if axis == 'x' and angle == 90 or angle == 270:
             new_polarisation = 'y'
         if axis == 'y' and angle == 90 or angle == 270:
