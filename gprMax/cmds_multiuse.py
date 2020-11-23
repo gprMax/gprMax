@@ -80,7 +80,7 @@ class UserObjectMulti:
             string if the grid is the main grid.
         """
 
-        if config.sim_config.general['subgrid'] and grid.name != 'main_grid':
+        if isinstance(grid, SubGridBase):
             return f'[{grid.name}] '  
         else:
             return ''
