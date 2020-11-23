@@ -19,9 +19,12 @@
 import sys
 from struct import pack
 
-import gprMax.config as config
+import h5py
 import numpy as np
 
+import gprMax.config as config
+
+from ._version import __version__
 from .cython.snapshots import calculate_snapshot_fields
 from .utilities import round_value
 
@@ -91,12 +94,12 @@ class Snapshot:
         Hzslice = np.ascontiguousarray(G.Hz[self.sx, self.sy, self.sz])
 
         # Create arrays to hold the field data for snapshot
-        Exsnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.sim_config.dtypes['float_or_double'])
-        Eysnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.sim_config.dtypes['float_or_double'])
-        Ezsnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.sim_config.dtypes['float_or_double'])
-        Hxsnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.sim_config.dtypes['float_or_double'])
-        Hysnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.sim_config.dtypes['float_or_double'])
-        Hzsnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.sim_config.dtypes['float_or_double'])
+        self.Exsnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.sim_config.dtypes['float_or_double'])
+        self.Eysnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.sim_config.dtypes['float_or_double'])
+        self.Ezsnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.sim_config.dtypes['float_or_double'])
+        self.Hxsnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.sim_config.dtypes['float_or_double'])
+        self.Hysnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.sim_config.dtypes['float_or_double'])
+        self.Hzsnap = np.zeros((self.nx, self.ny, self.nz), dtype=config.sim_config.dtypes['float_or_double'])
 
         # Calculate field values at points (comes from averaging field components in cells)
         calculate_snapshot_fields(
@@ -109,19 +112,15 @@ class Snapshot:
             Hxslice,
             Hyslice,
             Hzslice,
-            Exsnap,
-            Eysnap,
-            Ezsnap,
-            Hxsnap,
-            Hysnap,
-            Hzsnap)
-
-        # Convert to format for Paraview
-        self.electric = np.stack((Exsnap, Eysnap, Ezsnap)).reshape(-1, order='F')
-        self.magnetic = np.stack((Hxsnap, Hysnap, Hzsnap)).reshape(-1, order='F')
+            self.Exsnap,
+            self.Eysnap,
+            self.Ezsnap,
+            self.Hxsnap,
+            self.Hysnap,
+            self.Hzsnap)
 
     def write_vtk_imagedata(self, pbar, G):
-        """Write snapshot data to a VTK ImageData (.vti) file.
+        """Write snapshot file in VTK ImageData (.vti) format.
 
             N.B. No Python 3 support for VTK at time of writing (03/2015)
 
@@ -133,41 +132,73 @@ class Snapshot:
         hfield_offset = (3 * np.dtype(config.sim_config.dtypes['float_or_double']).itemsize
                          * self.ncells + np.dtype(np.uint32).itemsize)
 
-        self.filehandle = open(self.filename, 'wb')
-        self.filehandle.write('<?xml version="1.0"?>\n'.encode('utf-8'))
-        self.filehandle.write(f'<VTKFile type="ImageData" version="1.0" byte_order="{config.sim_config.vtk_byteorder}">\n'.encode('utf-8'))
-        self.filehandle.write(f'<ImageData WholeExtent="{self.xs} {round_value(self.xf / self.dx)} {self.ys} {round_value(self.yf / self.dy)} {self.zs} {round_value(self.zf / self.dz)}" Origin="0 0 0" Spacing="{self.dx * G.dx:.3} {self.dy * G.dy:.3} {self.dz * G.dz:.3}">\n'.encode('utf-8'))
-        self.filehandle.write(f'<Piece Extent="{self.xs} {round_value(self.xf / self.dx)} {self.ys} {round_value(self.yf / self.dy)} {self.zs} {round_value(self.zf / self.dz)}">\n'.encode('utf-8'))
+        f = open(self.filename, 'wb')
+        f.write('<?xml version="1.0"?>\n'.encode('utf-8'))
+        f.write(f'<VTKFile type="ImageData" version="1.0" byte_order="{config.sim_config.vtk_byteorder}">\n'.encode('utf-8'))
+        f.write(f'<ImageData WholeExtent="{self.xs} {round_value(self.xf / self.dx)} {self.ys} {round_value(self.yf / self.dy)} {self.zs} {round_value(self.zf / self.dz)}" Origin="0 0 0" Spacing="{self.dx * G.dx:.3} {self.dy * G.dy:.3} {self.dz * G.dz:.3}">\n'.encode('utf-8'))
+        f.write(f'<Piece Extent="{self.xs} {round_value(self.xf / self.dx)} {self.ys} {round_value(self.yf / self.dy)} {self.zs} {round_value(self.zf / self.dz)}">\n'.encode('utf-8'))
 
         if self.fieldoutputs['electric'] and self.fieldoutputs['magnetic']:
-            self.filehandle.write('<CellData Vectors="E-field H-field">\n'.encode('utf-8'))
-            self.filehandle.write(f"""<DataArray type="{config.sim_config.dtypes['vtk_float']}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n""".encode('utf-8'))
-            self.filehandle.write(f"""<DataArray type="{config.sim_config.dtypes['vtk_float']}" Name="H-field" NumberOfComponents="3" format="appended" offset="{hfield_offset}" />\n""".encode('utf-8'))
+            f.write('<CellData Vectors="E-field H-field">\n'.encode('utf-8'))
+            f.write(f"""<DataArray type="{config.sim_config.dtypes['vtk_float']}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n""".encode('utf-8'))
+            f.write(f"""<DataArray type="{config.sim_config.dtypes['vtk_float']}" Name="H-field" NumberOfComponents="3" format="appended" offset="{hfield_offset}" />\n""".encode('utf-8'))
         elif self.fieldoutputs['electric']:
-            self.filehandle.write('<CellData Vectors="E-field">\n'.encode('utf-8'))
-            self.filehandle.write(f"""<DataArray type="{config.sim_config.dtypes['vtk_float']}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n""".encode('utf-8'))
+            f.write('<CellData Vectors="E-field">\n'.encode('utf-8'))
+            f.write(f"""<DataArray type="{config.sim_config.dtypes['vtk_float']}" Name="E-field" NumberOfComponents="3" format="appended" offset="0" />\n""".encode('utf-8'))
         elif self.fieldoutputs['magnetic']:
-            self.filehandle.write('<CellData Vectors="H-field">\n'.encode('utf-8'))
-            self.filehandle.write(f"""<DataArray type="{config.sim_config.dtypes['vtk_float']}" Name="H-field" NumberOfComponents="3" format="appended" offset="0" />\n""".encode('utf-8'))
+            f.write('<CellData Vectors="H-field">\n'.encode('utf-8'))
+            f.write(f"""<DataArray type="{config.sim_config.dtypes['vtk_float']}" Name="H-field" NumberOfComponents="3" format="appended" offset="0" />\n""".encode('utf-8'))
 
-        self.filehandle.write('</CellData>\n</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
+        f.write('</CellData>\n</Piece>\n</ImageData>\n<AppendedData encoding="raw">\n_'.encode('utf-8'))
 
         if self.fieldoutputs['electric']:
             # Write number of bytes of appended data as UInt32
-            self.filehandle.write(pack('I', self.datasizefield))
+            f.write(pack('I', self.datasizefield))
             pbar.update(n=4)
-            self.electric.tofile(self.filehandle)
+            # Convert to format for Paraview
+            electric = np.stack((self.Exsnap, self.Eysnap, self.Ezsnap)).reshape(-1, order='F')
+            electric.tofile(f)
             pbar.update(n=self.datasizefield)
 
         if self.fieldoutputs['magnetic']:
             # Write number of bytes of appended data as UInt32
-            self.filehandle.write(pack('I', self.datasizefield))
+            f.write(pack('I', self.datasizefield))
             pbar.update(n=4)
-            self.magnetic.tofile(self.filehandle)
+            magnetic = np.stack((self.Hxsnap, self.Hysnap, self.Hzsnap)).reshape(-1, order='F')
+            magnetic.tofile(f)
             pbar.update(n=self.datasizefield)
 
-        self.filehandle.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
-        self.filehandle.close()
+        f.write('\n</AppendedData>\n</VTKFile>'.encode('utf-8'))
+        f.close()
+
+    def write_hdf5(self, pbar, G):
+        """Write snapshot file in HDF5 (.h5) format.
+
+        Args:
+            pbar (class): Progress bar class instance.
+            G (FDTDGrid): Parameters describing a grid in a model.
+        """
+
+        f = h5py.File(self.filename, 'w')
+        f.attrs['gprMax'] = __version__
+        f.attrs['Title'] = G.title
+        f.attrs['nx_ny_nz'] = (self.nx, self.ny, self.nz)
+        f.attrs['dx_dy_dz'] = (self.dx * G.dx, self.dy * G.dy, self.dz * G.dz)
+        f.attrs['time'] = self.time * G.dt
+
+        if self.fieldoutputs['electric']:
+            f['Ex'] = self.Exsnap
+            f['Ey'] = self.Eysnap
+            f['Ez'] = self.Ezsnap
+            pbar.update(n=self.datasizefield)
+
+        if self.fieldoutputs['magnetic']:
+            f['Hx'] = self.Hxsnap
+            f['Hy'] = self.Hysnap
+            f['Hz'] = self.Hzsnap
+            pbar.update(n=self.datasizefield)
+
+        f.close()
 
 
 def htod_snapshot_array(G):
