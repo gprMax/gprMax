@@ -99,7 +99,7 @@ __global__ void store_outputs(int NRX, int iteration, const int* __restrict__ rx
 
 
 def write_hdf5_outputfile(outputfile, G):
-    """Write an output file in HDF5 format.
+    """Write an output file in HDF5 (.h5) format.
 
     Args:
         outputfile (str): Name of the output file.
