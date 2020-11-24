@@ -620,10 +620,10 @@ class Rx(UserObjectMulti):
     :param p1: Position of the receiver x, y, z
     :type p1: list, non-optional
     :param id: Identifier for the receiver
-    :type id: str, non-optional
+    :type id: str, optional
     :param outputs: is a list of outputs with this receiver. It can be any
     selection from Ex, Ey, Ez, Hx, Hy, Hz, Ix, Iy, or Iz.
-    :type outputs: list, non-optional
+    :type outputs: list, optional
     """
 
     def __init__(self, **kwargs):
@@ -787,8 +787,10 @@ class Snapshot(UserObjectMulti):
     :type filename: str, non-optional
     :param time:  are the time in seconds (float) or the iteration number (integer) which denote the point in time at which the snapshot will be taken.
     :type time: float, non-optional
-    :param iterations:  are the iteration number (integer) which denote the point in time at which the snapshot will be taken.
+    :param iterations: are the iteration number (integer) which denote the point in time at which the snapshot will be taken.
     :type iterations: int, non-optional
+    :param fileext: indicates file type for snapshot file, either 'vti' (default) or 'h5'
+    :type fileext: str, optional
     """
 
     def __init__(self, **kwargs):
@@ -830,6 +832,14 @@ class Snapshot(UserObjectMulti):
                 logger.exception(self.params_str() + ' time value must be greater than zero')
                 raise ValueError
 
+        try:
+            fileext = self.kwargs['fileext']
+            if fileext not in SnapshotUser.fileexts:
+                logger.exception(f"'{fileext}' is not a valid format for a snapshot file. Valid options are: {' '.join(SnapshotUser.fileexts)}")
+                raise ValueError
+        except KeyError:
+            fileext = SnapshotUser.fileexts[0]
+
         if dx < 0 or dy < 0 or dz < 0:
             logger.exception(self.params_str() + ' the step size should not be less than zero')
             raise ValueError
@@ -847,9 +857,9 @@ class Snapshot(UserObjectMulti):
         #    s = SnapshotSub(xs, ys, zs, xf, yf, zf, dx, dy, dz, iterations, filename)
         #else:
 
-        s = SnapshotUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, iterations, filename)
+        s = SnapshotUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, iterations, filename, fileext=fileext)
 
-        logger.info(f'Snapshot from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, at {s.time * grid.dt:g} secs with filename {s.filename} created.')
+        logger.info(f'Snapshot from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, at {s.time * grid.dt:g} secs with filename {s.filename}{s.fileext} will be created.')
 
         grid.snapshots.append(s)
 
