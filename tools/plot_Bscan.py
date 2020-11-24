@@ -18,7 +18,6 @@
 
 import argparse
 import os
-import sys
 
 import h5py
 import numpy as np
@@ -44,8 +43,12 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
 
     (path, filename) = os.path.split(filename)
 
-    fig = plt.figure(num=filename + ' - rx' + str(rxnumber), figsize=(20, 10), facecolor='w', edgecolor='w')
-    plt.imshow(outputdata, extent=[0, outputdata.shape[1], outputdata.shape[0] * dt, 0], interpolation='nearest', aspect='auto', cmap='seismic', vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
+    fig = plt.figure(num=filename + ' - rx' + str(rxnumber), 
+                     figsize=(20, 10), facecolor='w', edgecolor='w')
+    plt.imshow(outputdata, 
+               extent=[0, outputdata.shape[1], outputdata.shape[0] * dt, 0], 
+               interpolation='nearest', aspect='auto', cmap='seismic', 
+               vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
     plt.xlabel('Trace number')
     plt.ylabel('Time [s]')
     # plt.title('{}'.format(filename))
@@ -64,8 +67,10 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
 
     # Save a PDF/PNG of the figure
     # savefile = os.path.splitext(filename)[0]
-    # fig.savefig(path + os.sep + savefile + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-    # fig.savefig(path + os.sep + savefile + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+    # fig.savefig(path + os.sep + savefile + '.pdf', dpi=None, format='pdf', 
+    #             bbox_inches='tight', pad_inches=0.1)
+    # fig.savefig(path + os.sep + savefile + '.png', dpi=150, format='png', 
+    #             bbox_inches='tight', pad_inches=0.1)
 
     return plt
 
@@ -73,9 +78,11 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
 if __name__ == "__main__":
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Plots a B-scan image.', usage='cd gprMax; python -m tools.plot_Bscan outputfile output')
+    parser = argparse.ArgumentParser(description='Plots a B-scan image.', 
+                                     usage='cd gprMax; python -m tools.plot_Bscan outputfile output')
     parser.add_argument('outputfile', help='name of output file including path')
-    parser.add_argument('rx_component', help='name of output component to be plotted', choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz'])
+    parser.add_argument('rx_component', help='name of output component to be plotted', 
+                        choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz'])
     args = parser.parse_args()
 
     # Open output file and read number of outputs (receivers)
