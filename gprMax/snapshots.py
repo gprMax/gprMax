@@ -32,6 +32,10 @@ from .utilities import round_value
 class Snapshot:
     """Snapshots of the electric and magnetic field values."""
 
+    # Snapshots can be output as VTK ImageData (.vti) format or 
+    # HDF5 format (.h5) files
+    fileexts = ['.vti', '.h5']
+
     # Dimensions of largest requested snapshot
     nx_max = 0
     ny_max = 0
@@ -43,15 +47,22 @@ class Snapshot:
     bpg = None
 
     def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None,
-                 dx=None, dy=None, dz=None, time=None, filename=None):
+                 dx=None, dy=None, dz=None, time=None, filename=None, fileext=None):
         """
         Args:
             xs, xf, ys, yf, zs, zf (int): Extent of the volume in cells.
             dx, dy, dz (int): Spatial discretisation in cells.
             time (int): Iteration number to take the snapshot on.
             filename (str): Filename to save to.
+            fileext (str): File extension.
         """
 
+        self.fileext = fileext
+        self.filename = filename
+        self.time = time
+        # Select a set of field outputs - electric (Ex, Ey, Ez) 
+        # and/or magnetic (Hx, Hy, Hz). Only affects field outputs written to
+        # file, i.e. ALL field outputs are still stored in memory
         self.fieldoutputs = {'electric': True, 'magnetic': True}
         self.xs = xs
         self.ys = ys
@@ -75,8 +86,6 @@ class Snapshot:
                                   self.fieldoutputs['magnetic']) *
                                   self.datasizefield + (self.fieldoutputs['electric'] +
                                   self.fieldoutputs['magnetic']) * np.dtype(np.uint32).itemsize)
-        self.time = time
-        self.filename = filename
 
     def store(self, G):
         """Store (in memory) electric and magnetic field values for snapshot.
@@ -118,6 +127,20 @@ class Snapshot:
             self.Hxsnap,
             self.Hysnap,
             self.Hzsnap)
+
+    def write_file(self, pbar, G):
+        """Write snapshot file either as VTK ImageData (.vti) format 
+            or HDF5 format (.h5) files
+
+        Args:
+            pbar (class): Progress bar class instance.
+            G (FDTDGrid): Parameters describing a grid in a model.
+        """
+
+        if self.fileext == '.vti':
+            self.write_vtk_imagedata(pbar, G)
+        elif self.fileext == '.h5':
+            self.write_hdf5(pbar, G)
 
     def write_vtk_imagedata(self, pbar, G):
         """Write snapshot file in VTK ImageData (.vti) format.
@@ -264,9 +287,9 @@ def dtoh_snapshot_array(snapEx_gpu, snapEy_gpu, snapEz_gpu, snapHx_gpu, snapHy_g
         snap (class): Snapshot class instance
     """
 
-    snap.electric = np.stack((snapEx_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
-                              snapEy_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
-                              snapEz_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf])).reshape(-1, order='F')
-    snap.magnetic = np.stack((snapHx_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
-                              snapHy_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf],
-                              snapHz_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf])).reshape(-1, order='F')
+    snap.Exsnap = snapEx_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.Eysnap = snapEy_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.Ezsnap = snapEz_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.Hxsnap = snapHx_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.Hysnap = snapHy_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.Hzsnap = snapHz_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
