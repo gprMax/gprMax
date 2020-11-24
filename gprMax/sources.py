@@ -97,21 +97,27 @@ class VoltageSource(Source):
 
             if self.polarisation == 'x':
                 if self.resistance != 0:
-                    Ex[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * (1 / (self.resistance * G.dy * G.dz))
+                    Ex[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
+                                    * self.waveformvaluesJ[iteration] 
+                                    * (1 / (self.resistance * G.dy * G.dz)))
                 else:
-                    Ex[i, j, k] = -1 * self.waveformvaluesJ[iteration] / G.dx
+                    Ex[i, j, k] = - self.waveformvaluesJ[iteration] / G.dx
 
             elif self.polarisation == 'y':
                 if self.resistance != 0:
-                    Ey[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * (1 / (self.resistance * G.dx * G.dz))
+                    Ey[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
+                                    * self.waveformvaluesJ[iteration] 
+                                    * (1 / (self.resistance * G.dx * G.dz)))
                 else:
-                    Ey[i, j, k] = -1 * self.waveformvaluesJ[iteration] / G.dy
+                    Ey[i, j, k] = - self.waveformvaluesJ[iteration] / G.dy
 
             elif self.polarisation == 'z':
                 if self.resistance != 0:
-                    Ez[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * (1 / (self.resistance * G.dx * G.dy))
+                    Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
+                                    * self.waveformvaluesJ[iteration] 
+                                    * (1 / (self.resistance * G.dx * G.dy)))
                 else:
-                    Ez[i, j, k] = -1 * self.waveformvaluesJ[iteration] / G.dz
+                    Ez[i, j, k] = - self.waveformvaluesJ[iteration] / G.dz
 
     def create_material(self, G):
         """
@@ -173,13 +179,19 @@ class HertzianDipole(Source):
             componentID = 'E' + self.polarisation
 
             if self.polarisation == 'x':
-                Ex[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * self.dl * (1 / (G.dx * G.dy * G.dz))
+                Ex[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
+                                * self.waveformvaluesJ[iteration] 
+                                * self.dl * (1 / (G.dx * G.dy * G.dz)))
 
             elif self.polarisation == 'y':
-                Ey[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * self.dl * (1 / (G.dx * G.dy * G.dz))
+                Ey[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
+                                * self.waveformvaluesJ[iteration] 
+                                * self.dl * (1 / (G.dx * G.dy * G.dz)))
 
             elif self.polarisation == 'z':
-                Ez[i, j, k] -= updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesJ[iteration] * self.dl * (1 / (G.dx * G.dy * G.dz))
+                Ez[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] 
+                                * self.waveformvaluesJ[iteration] 
+                                * self.dl * (1 / (G.dx * G.dy * G.dz)))
 
 
 class MagneticDipole(Source):
@@ -206,17 +218,24 @@ class MagneticDipole(Source):
             componentID = 'H' + self.polarisation
 
             if self.polarisation == 'x':
-                Hx[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesM[iteration] * (1 / (G.dx * G.dy * G.dz))
+                Hx[i, j, k] -= (updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] 
+                                * self.waveformvaluesM[iteration] 
+                                * (1 / (G.dx * G.dy * G.dz)))
 
             elif self.polarisation == 'y':
-                Hy[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesM[iteration] * (1 / (G.dx * G.dy * G.dz))
+                Hy[i, j, k] -= (updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] 
+                                * self.waveformvaluesM[iteration] 
+                                * (1 / (G.dx * G.dy * G.dz)))
 
             elif self.polarisation == 'z':
-                Hz[i, j, k] -= updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] * self.waveformvaluesM[iteration] * (1 / (G.dx * G.dy * G.dz))
+                Hz[i, j, k] -= (updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] 
+                                * self.waveformvaluesM[iteration] 
+                                * (1 / (G.dx * G.dy * G.dz)))
 
 
 def gpu_initialise_src_arrays(sources, G):
-    """Initialise arrays on GPU for source coordinates/polarisation, other source information, and source waveform values.
+    """Initialise arrays on GPU for source coordinates/polarisation, 
+        other source information, and source waveform values.
 
     Args:
         sources (list): List of sources of one class, e.g. HertzianDipoles.
@@ -264,7 +283,8 @@ def gpu_initialise_src_arrays(sources, G):
 class TransmissionLine(Source):
     """
     A transmission line source is a one-dimensional transmission
-    line which is attached virtually to a grid cell.
+        line which is attached virtually to a grid cell. An example of this
+        type of model can be found in: https://doi.org/10.1109/8.277228
     """
 
     def __init__(self, G):
@@ -304,7 +324,8 @@ class TransmissionLine(Source):
     def calculate_incident_V_I(self, G):
         """
         Calculates the incident voltage and current with a long length
-        transmission line not connected to the main grid from: http://dx.doi.org/10.1002/mop.10415
+            transmission line, initially not connected to the main grid.
+            This idea comes from: http://dx.doi.org/10.1002/mop.10415
 
         Args:
             G (class): Grid class instance - holds essential parameters describing the model.
@@ -327,7 +348,6 @@ class TransmissionLine(Source):
         """
 
         h = (c * G.dt - self.dl) / (c * G.dt + self.dl)
-
         self.voltage[0] = h * (self.voltage[1] - self.abcv0) + self.abcv1
         self.abcv0 = self.voltage[0]
         self.abcv1 = self.voltage[1]
@@ -341,7 +361,8 @@ class TransmissionLine(Source):
         """
 
         # Update all the voltage values along the line
-        self.voltage[1:self.nl] -= self.resistance * (c * G.dt / self.dl) * (self.current[1:self.nl] - self.current[0:self.nl - 1])
+        self.voltage[1:self.nl] -= (self.resistance * (c * G.dt / self.dl) 
+                                    * (self.current[1:self.nl] - self.current[0:self.nl - 1]))
 
         # Update the voltage at the position of the one-way injector excitation
         self.voltage[self.srcpos] += (c * G.dt / self.dl) * self.waveformvaluesJ[iteration]
@@ -358,10 +379,12 @@ class TransmissionLine(Source):
         """
 
         # Update all the current values along the line
-        self.current[0:self.nl - 1] -= (1 / self.resistance) * (c * G.dt / self.dl) * (self.voltage[1:self.nl] - self.voltage[0:self.nl - 1])
+        self.current[0:self.nl - 1] -= ((1 / self.resistance) * (c * G.dt / self.dl) 
+                                        * (self.voltage[1:self.nl] - self.voltage[0:self.nl - 1]))
 
         # Update the current one cell before the position of the one-way injector excitation
-        self.current[self.srcpos - 1] += (1 / self.resistance) * (c * G.dt / self.dl) * self.waveformvaluesM[iteration]
+        self.current[self.srcpos - 1] += ((1 / self.resistance) * (c * G.dt / self.dl) 
+                                          * self.waveformvaluesM[iteration])
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field value in the main grid from voltage value in the transmission line.
@@ -416,95 +439,3 @@ class TransmissionLine(Source):
                 self.current[self.antpos] = Iz(i, j, k, G.Hx, G.Hy, G.Hz, G)
 
             self.update_current(iteration, G)
-
-
-class PlaneWave(Source):
-    """A plane wave source. It uses a total-field/scattered-field (TF/SF) formulation."""
-
-    def __init__(self, G):
-        """
-        Args:
-            G (class): Grid class instance - holds essential parameters describing the model.
-        """
-
-        super(Source, self).__init__()
-
-        # Coordinates defining Huygen's surface
-        self.xs = 0
-        self.xf = 0
-        self.ys = 0
-        self.yf = 0
-        self.zs = 0
-        self.zf = 0
-
-        # Spherical coordinates defining incident unit wavevector (k)
-        self.theta = 0  # 0 <= theta <= 180
-        self.phi = 0  # 0 <= phi <= 360
-
-        # Angle that incident electric field makes with k cross z
-        self.psi = 0  # 0 <= psi <= 360
-
-    def calculate_origin(self, G):
-        """Calculate origin of TF/SF interface with incident wavefront."""
-
-        if self.theta >= 0 and self.theta <= 90:
-            if self.phi >= 0 and self.phi <= 90:
-                self.xcoordorigin = 0
-                self.ycoordorigin = 0
-                self.zcoordorigin = 0
-
-            elif self.phi > 90 and self.phi <= 180:
-                self.xcoordorigin = G.nx
-                self.ycoordorigin = 0
-                self.zcoordorigin = 0
-
-            elif self.phi > 180 and self.phi <= 270:
-                self.xcoordorigin = G.nx
-                self.ycoordorigin = G.ny
-                self.zcoordorigin = 0
-
-            elif self.phi > 270 and self.phi <= 360:
-                self.xcoordorigin = 0
-                self.ycoordorigin = G.ny
-                self.zcoordorigin = 0
-
-        elif self.theta > 90 and self.theta <= 180:
-            if self.phi >= 0 and self.phi <= 90:
-                self.xcoordorigin = 0
-                self.ycoordorigin = 0
-                self.zcoordorigin = G.nz
-
-            elif self.phi > 90 and self.phi <= 180:
-                self.xcoordorigin = G.nx
-                self.ycoordorigin = 0
-                self.zcoordorigin = G.nz
-
-            elif self.phi > 180 and self.phi <= 270:
-                self.xcoordorigin = G.nx
-                self.ycoordorigin = G.ny
-                self.zcoordorigin = G.nz
-
-            elif self.phi > 270 and self.phi <= 360:
-                self.xcoordorigin = 0
-                self.ycoordorigin = G.ny
-                self.zcoordorigin = G.nz
-
-    def calculate_vector_components(self):
-        """Calculate components of incident fields."""
-
-        self.theta = np.deg2rad(self.theta)
-        self.phi = np.deg2rad(self.phi)
-        self.psi = np.deg2rad(self.psi)
-
-        # Components of incident unit wavevector
-        self.kx = np.sin(self.theta) * np.cos(self.phi)
-        self.ky = np.sin(self.theta) * np.sin(self.phi)
-        self.kz = np.cos(self.theta)
-
-        # Components of incident field vectors
-        self.Exinc = np.cos(self.psi) * np.sin(self.phi) - np.sin(self.psi) * np.cos(self.theta) * np.cos(self.phi)
-        self.Eyinc = -np.cos(self.psi) * np.cos(self.phi) - np.sin(self.psi) * np.cos(self.theta) * np.sin(self.phi)
-        self.Ezinc = np.sin(self.psi) * np.sin(self.theta)
-        self.Hxinc = np.sin(self.psi) * np.sin(self.phi) + np.cos(self.psi) * np.cos(self.theta) * np.cos(self.phi)
-        self.Hyinc = -np.sin(self.psi) * np.cos(self.phi) + np.cos(self.psi) * np.cos(self.theta) * np.sin(self.phi)
-        self.Hzinc = -np.cos(self.psi) * np.sin(self.theta)
