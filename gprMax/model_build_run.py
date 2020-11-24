@@ -232,10 +232,12 @@ class ModelBuildRun:
 
             for i, snap in enumerate(self.G.snapshots):
                 fn = snapshotdir / Path(snap.filename)
-                snap.filename = fn.with_suffix('.vti')
+                snap.filename = fn.with_suffix(snap.fileext)
                 pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte',
-                            unit_scale=True, desc=f'Writing snapshot file {i + 1} of {len(self.G.snapshots)}, {snap.filename.name}', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
-                snap.write_vtk_imagedata(pbar, self.G)
+                            unit_scale=True, desc=f'Writing snapshot file {i + 1} of {len(self.G.snapshots)}, {snap.filename.name}', 
+                            ncols=get_terminal_width() - 1, file=sys.stdout, 
+                            disable=not config.sim_config.general['progressbars'])
+                snap.write_file(pbar, self.G)
                 pbar.close()
             logger.info('')
 
