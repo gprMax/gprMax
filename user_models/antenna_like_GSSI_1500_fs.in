@@ -7,3 +7,5 @@
 from user_libs.antennas.GSSI import antenna_like_GSSI_1500
 antenna_like_GSSI_1500(0.125, 0.094, 0.100, resolution=0.001)
 #end_python:
+
+#geometry_view: 0 0 0 0.250 0.188 0.220 0.001 0.001 0.001 cylinder_GSSI_1500 n

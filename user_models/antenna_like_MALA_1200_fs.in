@@ -1,9 +1,11 @@
 #title: MALA 1.2GHz 'like' antenna in free-space
 #domain: 0.264 0.189 0.220
-#dx_dy_dz: 0.001 0.001 0.001
+#dx_dy_dz: 0.0005 0.0005 0.0005
 #time_window: 6e-9
 
 #python:
-from user_libs.antennas.MALA import antenna_like_MALA_1200
-antenna_like_MALA_1200(0.132, 0.095, 0.100, 0.001)
+from user_libs.antennas.TEM_Horn import horn_burr
+horn_burr(0.132, 0.095, 0.100, 0.0005)
 #end_python:
+
+#geometry_view: 0 0 0 0.264 0.189 0.220 0.0005 0.0005 0.0005 Horn_antenna n
