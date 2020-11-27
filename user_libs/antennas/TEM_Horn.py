@@ -10,7 +10,7 @@ import numpy as np
 from gprMax.exceptions import CmdInputError
 from gprMax.input_cmd_funcs import *
 
-def horn_burr(x, y, z, resolution = 0.001, rotation = 0, measurement ='monostatic'):
+def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostatic'):
     """
     Insert a TEM Hornantenna simila to the antenna ..... (insert paperlink)
 
@@ -35,7 +35,6 @@ def horn_burr(x, y, z, resolution = 0.001, rotation = 0, measurement ='monostati
     C1      = 1.190859
     deltaB  = 0.02          # mm
     B2      = B + deltaB    # mm
-    slopeAngel  = 52.291
     lBalun  = 0.014         # mm
     balunDiaBig = 0.011     # mm
     balunDiaSmall = 0.008    # mm
@@ -45,6 +44,7 @@ def horn_burr(x, y, z, resolution = 0.001, rotation = 0, measurement ='monostati
     C1side  = 9.906525
     C2side  = -4.406525
     arcRadius   = 0.025     # mm
+    slopeAngel  = 52.291
     arcAngle    = 90        # deg
     arcStart    = slopeAngel - 90 #deg
     arcStop     = arcAngle
@@ -64,6 +64,7 @@ def horn_burr(x, y, z, resolution = 0.001, rotation = 0, measurement ='monostati
     
     material(5, 0, 1, 0, 'smaTeflon')
     material(10, 0, 1, 0, 'myTest')
+    material(5, 0, 1, 0, 'myTest2')
 
     # end of balun/begin horn x, y, z center
     sma_center = x, y, z + lBalun
@@ -74,22 +75,22 @@ def horn_burr(x, y, z, resolution = 0.001, rotation = 0, measurement ='monostati
     # bottom plate
     box(sma_center[0]-(G/2+resolution), sma_center[1]-balunDiaSmall/2, z, sma_center[0]-(G/2), sma_center[1]+balunDiaSmall/2, sma_center[2],  'myTest')
     # top big part
-    cylinder(sma_center[0]+G/2, sma_center[1], sma_center[2], sma_center[0]+(G/2+resolution), sma_center[1], sma_center[2], balunDiaBig/2, 'pec')
+    cylinder(sma_center[0]+G/2, sma_center[1], sma_center[2], sma_center[0]+(G/2+resolution), sma_center[1], sma_center[2], balunDiaBig/2, 'myTest2')
     # substract hole 
     cylinder(sma_center[0]+G/2, sma_center[1], sma_center[2], sma_center[0]+(G/2+resolution), sma_center[1], sma_center[2], 0.004/2, 'free_space')
     # bottom small part
-    cylinder(sma_center[0]-G/2, sma_center[1], sma_center[2], sma_center[0]-(G/2+resolution), sma_center[1], sma_center[2], balunDiaSmall/2, 'pec')
+    cylinder(sma_center[0]-G/2, sma_center[1], sma_center[2], sma_center[0]-(G/2+resolution), sma_center[1], sma_center[2], balunDiaSmall/2, 'myTest2')
 
 
     ### SMA Connector ###
     cylinder(sma_center[0]+(G/2+resolution), sma_center[1], sma_center[2], sma_center[0]+G/2+0.002+resolution, sma_center[1], sma_center[2], smaSocketDia/2, 'pec' )
-    cylinder(sma_center[0]-(G/2+resolution), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2], smaScrwDia/2, 'pec')
-    cylinder(sma_center[0]-(G/2+resolution), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2], smaTeflonDia/2, 'smaTeflon')
-    cylinder(sma_center[0]-(G/2+resolution+0.002), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2], smaDia/2, 'pec')
+    cylinder(sma_center[0]+(G/2+resolution), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2], smaScrwDia/2, 'pec')
+    cylinder(sma_center[0]-(G/2), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2], smaTeflonDia/2, 'smaTeflon')
+    cylinder(sma_center[0]-(G/2+resolution+0.001), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2], smaDia/2, 'pec')
     #edge(sma_center[0]-(G/2+0.002), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010, sma_center[1], sma_center[2], 'myTest')
 
     ### Source on SMA Connector ###
-    tx = sma_center[0]+G/2+0.010, sma_center[1], sma_center[2]
+    tx = sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2]
     print('#waveform: gaussian 1 1e9 myGaussian')
     voltage_source('y', tx[0], tx[1], tx[2], sourceresistance, 'myGaussian', dxdy=(resolution, resolution))
 
