@@ -6,9 +6,11 @@
 #
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 import numpy as np
+import matplotlib.pyplot as plt
 
 from gprMax.exceptions import CmdInputError
 from gprMax.input_cmd_funcs import *
+from user_libs.antennas.discretGeo import disGeometryGprMax
 
 def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostatic'):
     """
@@ -24,36 +26,36 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostat
     # z = (C1*exp(R*t)+C2)
     # y = C1_SIDE*exp(R_SIDE*t)+C2_SIDE+(W_FEED/2)-W_FEED/2
     # x = t
-    L       = 0.2           # mm
-    G       = 0.0024        # mm
-    wfeed   =  0.011        # mm
-    R       = 0.019978589752617
-    B       = 0.17          # mm
-    Lfeed   = 0.02          # mm
-    W1      = 0.13          # mm
-    #C1      = W1 /(2) - G/(2) / (np.exp(R*L) - np.exp(R)
-    C1      = 1.190859
-    deltaB  = 0.02          # mm
-    B2      = B + deltaB    # mm
-    lBalun  = 0.014         # mm
-    balunDiaBig = 0.011     # mm
-    balunDiaSmall = 0.008    # mm
-    #c1Foil  = ( W_FOIL / 2 mm - ( G / 2 mm + D_FOIL / 1 mm ) ) / ( exp(R * L_FOIL_GES / 1 mm) - exp(R * 0 oE) ) = 1.191475
-    c1Foil  = 1.191475
-    C2      = 0.259141
-    C1side  = 9.906525
-    C2side  = -4.406525
-    arcRadius   = 0.025     # mm
-    slopeAngel  = 52.291
-    arcAngle    = 90        # deg
-    arcStart    = slopeAngel - 90 #deg
+
+    L           = 0.2               # mm
+    L_plate     = 0.07
+    resolution  = 0.0005            # mm
+    R           = 0.019978589752617
+    Rside       = 0.011
+    B           = 170                   # mm
+    tol3d       = 0.0003
+    G           = 0.0023 + tol3d    # mm
+    arcRadius   = 0.025            # mm
+    W1          = 0.13              # mm
+    wfeed       = 0.011             # mm
+    C1          = ((W1*1e3/2) - (G*1e3/2))/(np.exp(R*L*1e3)-np.exp(R*0))
+    C2          = (G*1e3/2 * np.exp(R*L*1e3)-W1*1e3/2 * np.exp(R*0))/(np.exp(R*L*1e3)-np.exp(R*0))  # 0.259141  ( G / 2 mm * exp(R * L / 1 mm) - W1 / 2 mm * exp(0 oE) ) / ( exp(R * L / 1 mm) - exp(0 oE) )
+    slopeAngel  = np.arctan(C1*R*np.exp(R*L*1e3))  # 52.291047
+    arcAngle    = np.deg2rad(90)                # deg
+    arcStart    = (slopeAngel - arcAngle)       # deg
     arcStop     = arcAngle
     arcDelta    = arcStop - arcStart
+    Lfeed       = 0.02                  # m
+    deltaB      = 0.02                  # m
+    B2          = B + deltaB            # m
+    lBalun      = 0.014                 # m
+    balunDiaBig = 0.011                 # m
+    balunDiaSmall = 0.008               # m
     smaDia      = 0.001
-    smaTeflonDia   = 0.005
-    smaSocketDia    = 0.008
+    smaTeflonDia= 0.005
+    smaSocketDia= 0.008
     smaScrwDia  = 0.006
-    sourceresistance = 200 # ohm
+    sourceresistance = 200              # ohm
     
     # if resolution == 0.001:
     #     dx = 0.001
@@ -89,6 +91,24 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostat
     cylinder(sma_center[0]-(G/2+resolution+0.001), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2], smaDia/2, 'pec')
     #edge(sma_center[0]-(G/2+0.002), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010, sma_center[1], sma_center[2], 'myTest')
 
+    ### Horn ###
+    print('C1:'+str(C1)+' C2:'+str(C2) + ' SlopeAngel:' + str(np.rad2deg(slopeAngel))+'\n'+'ArcStart:'+ str(np.rad2deg(arcStart)))
+    z=np.arange(0, (L+resolution)*1e3, resolution*1e3)
+    alpha=np.linspace(arcStart, arcStop, num=200, endpoint=True)
+    # horn
+    x_z=C1 * np.exp((z*R))+C2      # horn part
+    y_z=
+    # radius
+    x_alpah=W1*1e3/2+arcRadius*1e3*np.sin(alpha)+np.cos(slopeAngel)*arcRadius*1e3
+    z_alpha=L*1e3+arcRadius*1e3*np.cos(alpha)-np.sin(slopeAngel)*arcRadius*1e3
+
+    zz, xx_z = disGeometryGprMax(z, x_z, resolution*1e3)
+    z_a, x_a = disGeometryGprMax(z_alpha,x_alpah, resolution*1e3)
+
+    plt.plot(zz, xx_z, z_a, x_a)
+    plt.axis([0, 220, 0, 120])
+    plt.show()
+
     ### Source on SMA Connector ###
     tx = sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2]
     print('#waveform: gaussian 1 1e9 myGaussian')
@@ -105,7 +125,4 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostat
     else:
         raise CmdInputError('This antenna have 3 measuremnt methods - tx, rx, monostatic')
     
-    #rx(tx[0] - 0.059, tx[1], tx[2], identifier=identifier, to_save=[output], polarisation='y', dxdy=(resolution, resolution), rotate90origin=rotate90origin)
-
-  
-    
+    #rx(tx[0] - 0.059, tx[1], tx[2], identifier=identifier, polarisation='y', dxdy=(resolution, resolution))
