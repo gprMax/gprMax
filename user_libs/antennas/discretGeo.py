@@ -49,17 +49,21 @@ def disGeometryGprMax(x, y, resolution):
 # G = 0.0023*1e3  +tol3d      # mm
 # arcRadius = 0.025*1e3         # mm
 # W1 = 0.13*1e3          # mm
-# wFeed = 0.011*1e3   # mm
+# wfeed = 0.011*1e3   # mm
 # # 1.190859  ( W1 / ( 2 mm ) - G / ( 2 mm ) ) / ( exp(R * L / 1 mm) - exp(R * 0 oE) )
 # C1 = ((W1/2) - (G/2))/(np.exp(R*L)-np.exp(R*0))
+# C1_side     = (B/2-wfeed/2)/(np.exp(Rside*L)-np.exp(Rside*0))
+
 # C2 = (G/2 * np.exp(R*L)-W1/2 * np.exp(R*0))/(np.exp(R*L)-np.exp(R*0))  # 0.259141  ( G / 2 mm * exp(R * L / 1 mm) - W1 / 2 mm * exp(0 oE) ) / ( exp(R * L / 1 mm) - exp(0 oE) )
+# C2_side     = (wfeed/2*np.exp(Rside*L)-B/2*np.exp(Rside*0))/(np.exp(Rside*L)-np.exp(Rside*0))
+
 # slopeAngel=np.arctan(C1*R*np.exp(R*L))  # 52.291047
 # arcAngle=np.deg2rad(90)                # deg
 # arcStart=(slopeAngel - arcAngle)  # deg
 # arcStop=arcAngle
 # arcDelta=arcStop - arcStart
 
-# print('C1:'+str(C1)+' C2:'+str(C2) + ' SlopeAngel:' + str(np.rad2deg(slopeAngel))+'\n'+'ArcStart:'+ str(np.rad2deg(arcStart)))
+# print('C1:'+str(C1)+str(C1_side)+' C2:'+str(C2) +str(C2_side)+ ' SlopeAngel:' + str(np.rad2deg(slopeAngel))+'\n'+'ArcStart:'+ str(np.rad2deg(arcStart)))
 # ### geometry ###
 # l=np.arange(0, (L+resolution), resolution)
 # # SLOPE_ANGLE / 1 grd - 90 oE ARC_ANGLE / 1 grd
