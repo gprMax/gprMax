@@ -39,52 +39,70 @@ def disGeometryGprMax(x, y, resolution):
 
     return xn, ys
 
-# L = 0.2*1e3                  # mm
-# L_plate = 0.07*1e3
-# resolution = 0.0005*1e3            # mm
-# R = 0.019978589752617
-# Rside = 0.011
-# B = 170 # mm
-# tol3d = 0.0003*1e3
-# G = 0.0023*1e3  +tol3d      # mm
-# arcRadius = 0.025*1e3         # mm
-# W1 = 0.13*1e3          # mm
-# wfeed = 0.011*1e3   # mm
-# # 1.190859  ( W1 / ( 2 mm ) - G / ( 2 mm ) ) / ( exp(R * L / 1 mm) - exp(R * 0 oE) )
-# C1 = ((W1/2) - (G/2))/(np.exp(R*L)-np.exp(R*0))
-# C1_side     = (B/2-wfeed/2)/(np.exp(Rside*L)-np.exp(Rside*0))
+def createPoints(self, parameter_list):
+    """
+    docstring
+    """
+    pass
 
-# C2 = (G/2 * np.exp(R*L)-W1/2 * np.exp(R*0))/(np.exp(R*L)-np.exp(R*0))  # 0.259141  ( G / 2 mm * exp(R * L / 1 mm) - W1 / 2 mm * exp(0 oE) ) / ( exp(R * L / 1 mm) - exp(0 oE) )
-# C2_side     = (wfeed/2*np.exp(Rside*L)-B/2*np.exp(Rside*0))/(np.exp(Rside*L)-np.exp(Rside*0))
+L           = 0.2               # m
+L_plate     = 0.07
+resolution  = 0.0005            # m
+R           = 0.019978589752617
+Rside       = 0.011
+B           = 0.17                   # m
+tol3d       = 0.0003
+G           = 0.0023 + tol3d    # m
+arcRadius   = 0.025            # m
+W1          = 0.13              # m
+wfeed       = 0.011 + tol3d          # m
+C1          = ((W1*1e3/2) - (G*1e3/2))/(np.exp(R*L*1e3)-np.exp(R*0))
+C1_side     = (B*1e3/2-wfeed*1e3/2)/(np.exp(Rside*L*1e3)-np.exp(Rside*0))
+C2          = (G*1e3/2 * np.exp(R*L*1e3)-W1*1e3/2 * np.exp(R*0))/(np.exp(R*L*1e3)-np.exp(R*0))  # 0.259141  ( G / 2 mm * exp(R * L / 1 mm) - W1 / 2 mm * exp(0 oE) ) / ( exp(R * L / 1 mm) - exp(0 oE) )
+C2_side     = (wfeed*1e3/2*np.exp(Rside*L*1e3)-B*1e3/2*np.exp(Rside*0))/(np.exp(Rside*L*1e3)-np.exp(Rside*0))
+slopeAngel  = np.arctan(C1*R*np.exp(R*L*1e3))  # 52.291047
+arcAngle    = np.deg2rad(90)                # deg
+arcStart    = (slopeAngel - arcAngle)       # deg
+arcStop     = arcAngle
+arcDelta    = arcStop - arcStart
+Lfeed       = 0.02                  # m
+deltaB      = 0.02                  # m
+B2          = B + deltaB            # m
+lBalun      = 0.014                 # m
+balunDiaBig = 0.011                 # m
+balunDiaSmall = 0.008               # m
+smaDia      = 0.001
+smaTeflonDia= 0.005
+smaSocketDia= 0.008
+smaScrwDia  = 0.006
+sourceresistance = 200              # ohm
 
-# slopeAngel=np.arctan(C1*R*np.exp(R*L))  # 52.291047
-# arcAngle=np.deg2rad(90)                # deg
-# arcStart=(slopeAngel - arcAngle)  # deg
-# arcStop=arcAngle
-# arcDelta=arcStop - arcStart
+print('C1:'+str(C1)+' C1side:'+str(C1_side)+' C2:'+str(C2)+' C2side:'+str(C2_side) + ' SlopeAngel:' + str(np.rad2deg(slopeAngel))+'\n'+'ArcStart:'+ str(np.rad2deg(arcStart)))
+zl = np.arange(0, (L+resolution)*1e3, resolution*1e3)
+alpha = np.linspace(arcStart, arcStop, num=200, endpoint=True)
+# horn
+x_z = C1 * np.exp((zl*R))+C2      # horn part
+y_z = C1_side*np.exp(Rside*zl)+C2_side+(wfeed*1e3/2)-wfeed*1e3/2   # c1_side*efk^(R_side*v*u)+c2_side+(w_feed/2*v)-w_feed/2 # C1_SIDE*exp(R_SIDE*t)+C2_SIDE+(W_FEED/2mm)-W_FEED/2
+x_alpah = W1*1e3/2+arcRadius*1e3*np.sin(alpha)+np.cos(slopeAngel)*arcRadius*1e3
+y_alpah = B*1e3/2+deltaB*1e3/2*(alpha-arcStart)/arcDelta #B/2+(DELTA_B)/2*(t-ARC_START/1grd)/(ARC_DELTA/1grd)
+z_alpha = L*1e3+arcRadius*1e3*np.cos(alpha)-np.sin(slopeAngel)*arcRadius*1e3
 
-# print('C1:'+str(C1)+str(C1_side)+' C2:'+str(C2) +str(C2_side)+ ' SlopeAngel:' + str(np.rad2deg(slopeAngel))+'\n'+'ArcStart:'+ str(np.rad2deg(arcStart)))
-# ### geometry ###
-# l=np.arange(0, (L+resolution), resolution)
-# # SLOPE_ANGLE / 1 grd - 90 oE ARC_ANGLE / 1 grd
-# alpha=np.linspace(arcStart, arcStop, num=200, endpoint=True)
-# # ll      = np.arange(L_plate*1e3, (L+resolution)*1e3, resolution*1e3)
-# # horn
-# x_l=C1 * np.exp((l*R))+C2      # horn part
+# discret funcion
+zzy, yy_z = disGeometryGprMax(zl, y_z, resolution*1e3)
+zzx, xx_z = disGeometryGprMax(zl, x_z, resolution*1e3)
+zx_a, x_za = disGeometryGprMax(z_alpha, x_alpah, resolution*1e3)
+zy_a, y_za = disGeometryGprMax(z_alpha, y_alpah, resolution*1e3)
 
-# # radius
-# # Z:ARC_RADIUS*sin(t)+W1/2+cos(SLOPE_ANGLE)*ARC_RADIUS
-# # X:ARC_RADIUS*cos(t)+L-sin(SLOPE_ANGLE)*ARC_RADIUS
-# y_alpah=W1/2+arcRadius*np.sin(alpha)+np.cos(slopeAngel)*arcRadius
-# x_alpha=L+arcRadius*np.cos(alpha)-np.sin(slopeAngel)*arcRadius
+# build geometry
 
-# xx, yy = disGeometryGprMax(l, x_l, resolution)
-# print('x: '+str(xx)+'\n'+'y: '+str(yy))
-# print(len(xx), len(yy))
+zz = np.append(zzy, zzx)
+zz = np.sort(zz)
+print('zzy:'+str(zzy)+'\n zzx'+str(zzx)+'\n zconnect and sorted:'+str(np.unique(zz)))
 
-# xa, ya = disGeometryGprMax(x_alpha, y_alpah, resolution)
-
-# plt.plot(l, x_l, x_alpha, y_alpah, xx, yy, xa, ya)
-# plt.axis([0, 220, 0, 120])
-# plt.show()
-
+# zreal = z-zzx/1e3
+# xx_zreal = x + xx_z/1e3
+plt.plot(zzx, xx_z, zx_a, x_za, zzy, yy_z, zy_a, y_za)
+plt.axis('equal')
+#plt.axis([0, 220, 0, 120])
+# plt.plot(zreal, xx_zreal)
+plt.show()

@@ -95,15 +95,21 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostat
     # horn
     x_z = C1 * np.exp((zl*R))+C2      # horn part
     y_z = C1_side*np.exp(Rside*zl)+C2_side+(wfeed*1e3/2)-wfeed*1e3/2   # c1_side*efk^(R_side*v*u)+c2_side+(w_feed/2*v)-w_feed/2 # C1_SIDE*exp(R_SIDE*t)+C2_SIDE+(W_FEED/2mm)-W_FEED/2
-    # radius C1_SIDE*exp(R_SIDE*t)+C2_SIDE+(W_FEED/2mm)-W_FEED/2
     x_alpah = W1*1e3/2+arcRadius*1e3*np.sin(alpha)+np.cos(slopeAngel)*arcRadius*1e3
     y_alpah = B*1e3/2+deltaB*1e3/2*(alpha-arcStart)/arcDelta #B/2+(DELTA_B)/2*(t-ARC_START/1grd)/(ARC_DELTA/1grd)
     z_alpha = L*1e3+arcRadius*1e3*np.cos(alpha)-np.sin(slopeAngel)*arcRadius*1e3
 
+    # discret funcion
     zzy, yy_z = disGeometryGprMax(zl, y_z, resolution*1e3)
     zzx, xx_z = disGeometryGprMax(zl, x_z, resolution*1e3)
     zx_a, x_za = disGeometryGprMax(z_alpha, x_alpah, resolution*1e3)
     zy_a, y_za = disGeometryGprMax(z_alpha, y_alpah, resolution*1e3)
+    
+    # build geometry
+    zz = np.append(zzy, zzx)
+    zz = np.sort(zz)
+    print('zzy:'+str(zzy)+'\n zzx'+str(zzx)+'\n zconnect and sorted:'+str(np.unique(zz)))
+
     zreal = z-zzx/1e3
     xx_zreal = x + xx_z/1e3
     plt.plot(zzx, xx_z, zx_a, x_za, zzy, yy_z, zy_a, y_za)
