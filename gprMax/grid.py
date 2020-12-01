@@ -421,7 +421,6 @@ def Ix(x, y, z, Hx, Hy, Hz, G):
 
     if y == 0 or z == 0:
         Ix = 0
-
     else:
         Ix = G.dy * (Hy[x, y, z - 1] - Hy[x, y, z]) + G.dz * (Hz[x, y, z] - Hz[x, y - 1, z])
 
@@ -439,7 +438,6 @@ def Iy(x, y, z, Hx, Hy, Hz, G):
 
     if x == 0 or z == 0:
         Iy = 0
-
     else:
         Iy = G.dx * (Hx[x, y, z] - Hx[x, y, z - 1]) + G.dz * (Hz[x - 1, y, z] - Hz[x, y, z])
 
@@ -457,7 +455,6 @@ def Iz(x, y, z, Hx, Hy, Hz, G):
 
     if x == 0 or y == 0:
         Iz = 0
-
     else:
         Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (Hy[x, y, z] - Hy[x - 1, y, z])
 
