@@ -1,43 +1,59 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def disGeometryGprMax(x, y, resolution):
+def disGeometryGprMax(x, y, z, resolution):
     """
     deiscret geometryfunction in different parts
     """
     i=0
-    ys = np.array([0], dtype=float)
     xn = np.array([0], dtype=float)
+    yn = np.array([0], dtype=float)
+    zn = np.array([0], dtype=float)
 
     for n in range(0, len(y)):
         if n == 0:
-            ys[0] = resolution*round(y[0]/resolution)
-            xn[0] = resolution*round(x[0]/resolution)
-            #print(ys[-1])
+            xn[0] = round(x[0]/resolution)* resolution
+            yn[0] = round(y[0]/resolution)* resolution
+            zn[0] = round(z[0]/resolution)* resolution
         
-        if (y[n])-ys[-1] >=resolution:            
-            #print(x[n],y[n])
-            i = i+1            
-            #print('deltaX:'+str(x[n]-xn[-1])+'\n'+'deltaY: '+str(y[n]-ys[-1]))
-            fitX = round((x[n]-xn[-1])/resolution)*resolution
-            fitY = round((y[n]-ys[-1])/resolution)*resolution
-            #print(str(fitX)+'fitDeltaY:'+str(fitY))
+        if (y[n]-yn[-1]) >=resolution:                 
+            fitX = round((x[n]-xn[-1])/resolution)* resolution
+            fitY = round((y[n]-yn[-1])/resolution)* resolution
             xn = np.append(xn, xn[-1]+fitX)
-            ys = np.append(ys, ys[-1]+fitY)            
-    
+            yn = np.append(yn, yn[-1])
+            zn = np.append(zn, zn[-1])
+            xn = np.append(xn, xn[-1])
+            yn = np.append(yn, yn[-1]+fitY)
+            zn = np.append(zn, zn[-1])
+
+        if (z[n]-zn[-1]) >=resolution:
+            fitX = round((x[n]-xn[-1])/resolution)* resolution
+            fitZ = round((z[n]-zn[-1])/resolution)* resolution
+            xn = np.append(xn, xn[-1]+fitX)
+            yn = np.append(yn, yn[-1])
+            zn = np.append(zn, zn[-1])
+            xn = np.append(xn, xn[-1])
+            yn = np.append(yn, yn[-1])
+            zn = np.append(zn, zn[-1]+fitZ)
+
     # check last point
     dx = x[-1]-xn[-1]
-    if np.abs(dx) >= resolution:
+    dy = y[-1]-yn[-1]
+    dz = z[-1]-zn[-1]
+
+    if np.abs(dx) or np.abs(dy) or np.abs(dz) >= resolution:
         fitX = round((x[-1]-xn[-1])/resolution)*resolution
-        fitY = round((y[-1]-ys[-1])/resolution)*resolution
+        fitY = round((y[-1]-yn[-1])/resolution)*resolution
+        fitZ = round((z[-1]-zn[-1])/resolution)*resolution
         xn = np.append(xn, xn[-1]+fitX)
-        ys = np.append(ys, ys[-1]+fitY)    
+        yn = np.append(yn, yn[-1]+fitY)
+        zn = np.append(zn, zn[-1]+fitZ)    
 
     # plt.plot(xn, ys)
     # plt.axis([0, 220, 0, 120])
     # plt.show()
 
-    return xn, ys
+    return xn, yn, zn
 
 def createPoints(self, parameter_list):
     """
@@ -88,21 +104,34 @@ y_alpah = B*1e3/2+deltaB*1e3/2*(alpha-arcStart)/arcDelta #B/2+(DELTA_B)/2*(t-ARC
 z_alpha = L*1e3+arcRadius*1e3*np.cos(alpha)-np.sin(slopeAngel)*arcRadius*1e3
 
 # discret funcion
-zzy, yy_z = disGeometryGprMax(zl, y_z, resolution*1e3)
-zzx, xx_z = disGeometryGprMax(zl, x_z, resolution*1e3)
-zx_a, x_za = disGeometryGprMax(z_alpha, x_alpah, resolution*1e3)
-zy_a, y_za = disGeometryGprMax(z_alpha, y_alpah, resolution*1e3)
+zn, yn_z, xn_z = disGeometryGprMax(zl, y_z, x_z, resolution*1e3)
+# zzx, xx_z = disGeometryGprMax(zl, x_z, resolution*1e3)
+# zx_a, x_za = disGeometryGprMax(z_alpha, x_alpah, resolution*1e3)
+# zy_a, y_za = disGeometryGprMax(z_alpha, y_alpah, resolution*1e3)
 
 # build geometry
 
-zz = np.append(zzy, zzx)
-zz = np.sort(zz)
-print('zzy:'+str(zzy)+'\n zzx'+str(zzx)+'\n zconnect and sorted:'+str(np.unique(zz)))
+# zz = np.append(zzy, zzx)
+# zz = np.sort(zz)
+# print('zzy:'+str(zzy)+'\n zzx'+str(zzx)+'\n zconnect and sorted:'+str(np.unique(zz)))
+
+plt.plot(zn, yn_z)
+plt.show()
+plt.plot(zn, xn_z)
+plt.show()
+
+fig = plt.figure()
+ax = fig.gca(projection='3d')
+plt.plot(zn, yn_z, xn_z)
+# ax.set_xlim3d(0,50)
+# ax.set_ylim3d(0,20)
+# ax.set_zlim3d(0,30)
+
 
 # zreal = z-zzx/1e3
 # xx_zreal = x + xx_z/1e3
-plt.plot(zzx, xx_z, zx_a, x_za, zzy, yy_z, zy_a, y_za)
-plt.axis('equal')
+# plt.plot(zzx, xx_z, zx_a, x_za, zzy, yy_z, zy_a, y_za)
+# plt.axis('equal')
 #plt.axis([0, 220, 0, 120])
 # plt.plot(zreal, xx_zreal)
 plt.show()
