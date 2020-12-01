@@ -14,11 +14,11 @@ from user_libs.antennas.discretGeo import disGeometryGprMax
 
 def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostatic'):
     """
-    Insert a TEM Hornantenna simila to the antenna ..... (insert paperlink)
+    Insert a TEM Hornantenna similar to the antenna ..... (insert paperlink)
 
     Args:
         x, y, z (float): Coordinates of a location in the model to insert the antenna.
-        resolution (float): Spatial resolution for the antenna model.
+        resolution (float): Spatial resolution for the antenna model =< 1 mm.
         rotation (float): Rotate model in degrees CCW in xy plane.
         measurement ='monostatic', 'rx', 'tx'
     """
@@ -32,7 +32,7 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostat
     G           = 0.0023 + tol3d    # m
     arcRadius   = 0.025            # m
     W1          = 0.13              # m
-    wfeed       = 0.011 + tol3d          # m
+    wfeed       = 0.012 #+ tol3d          # m
     C1          = ((W1*1e3/2) - (G*1e3/2))/(np.exp(R*L*1e3)-np.exp(R*0))
     C1_side     = (B*1e3/2-wfeed*1e3/2)/(np.exp(Rside*L*1e3)-np.exp(Rside*0))
     C2          = (G*1e3/2 * np.exp(R*L*1e3)-W1*1e3/2 * np.exp(R*0))/(np.exp(R*L*1e3)-np.exp(R*0))  # 0.259141  ( G / 2 mm * exp(R * L / 1 mm) - W1 / 2 mm * exp(0 oE) ) / ( exp(R * L / 1 mm) - exp(0 oE) )
@@ -62,23 +62,25 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostat
     #     raise CmdInputError('This antenna module can only be used with a spatial discretisation of 1mm')
     
     material(5, 0, 1, 0, 'smaTeflon')
-    material(10, 0, 1, 0, 'myTest')
-    material(5, 0, 1, 0, 'myTest2')
 
     # end of balun/begin horn x, y, z center
     sma_center = x, y, z + lBalun
 
     ### Balun ###
     # top plate
-    box(sma_center[0]+(G/2), sma_center[1]-balunDiaBig/2, z, sma_center[0]+(G/2+resolution), sma_center[1]+balunDiaBig/2, sma_center[2],  'myTest')
+    box(sma_center[0]+(G/2), sma_center[1]-balunDiaBig/2, z, sma_center[0]+(G/2+resolution), sma_center[1]+balunDiaBig/2, sma_center[2],  'pec')
     # bottom plate
-    box(sma_center[0]-(G/2+resolution), sma_center[1]-balunDiaSmall/2, z, sma_center[0]-(G/2), sma_center[1]+balunDiaSmall/2, sma_center[2],  'myTest')
+    box(sma_center[0]-(G/2+resolution), sma_center[1]-balunDiaSmall/2, z, sma_center[0]-(G/2), sma_center[1]+balunDiaSmall/2, sma_center[2],  'pec')
+    triangle(sma_center[0]-(G/2+resolution), sma_center[1]+balunDiaSmall/2, sma_center[2], sma_center[0]-(G/2+resolution), sma_center[1]+balunDiaSmall/2, z, sma_center[0]-(G/2+resolution), sma_center[1]+wfeed/2, z, resolution, 'pec')
+    triangle(sma_center[0]-(G/2+resolution), sma_center[1]-balunDiaSmall/2, sma_center[2], sma_center[0]-(G/2+resolution), sma_center[1]-balunDiaSmall/2, z, sma_center[0]-(G/2+resolution), sma_center[1]-wfeed/2, z, resolution, 'pec')
+
     # top big part
-    cylinder(sma_center[0]+G/2, sma_center[1], sma_center[2], sma_center[0]+(G/2+resolution), sma_center[1], sma_center[2], balunDiaBig/2, 'myTest2')
+    cylinder(sma_center[0]+G/2, sma_center[1], sma_center[2], sma_center[0]+(G/2+resolution), sma_center[1], sma_center[2], balunDiaBig/2, 'pec')
     # substract hole 
     cylinder(sma_center[0]+G/2, sma_center[1], sma_center[2], sma_center[0]+(G/2+resolution), sma_center[1], sma_center[2], 0.004/2, 'free_space')
     # bottom small part
-    cylinder(sma_center[0]-G/2, sma_center[1], sma_center[2], sma_center[0]-(G/2+resolution), sma_center[1], sma_center[2], balunDiaSmall/2, 'myTest2')
+    cylinder(sma_center[0]-G/2, sma_center[1], sma_center[2], sma_center[0]-(G/2+resolution), sma_center[1], sma_center[2], balunDiaSmall/2, 'pec')
+    
 
 
     ### SMA Connector ###
@@ -188,4 +190,4 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostat
     else:
         raise CmdInputError('This antenna have 3 measuremnt methods - tx, rx, monostatic')
     
-    rx(tx[0], tx[1], tx[2], identifier=identifier)
+    rx(tx[0], tx[1]-resolution, tx[2]-resolution)#, identifier=identifier)
