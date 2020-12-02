@@ -52,7 +52,7 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostat
     smaTeflonDia= 0.005                 # m
     smaSocketDia= 0.008                 # m
     smaScrwDia  = 0.006                 # m
-    sourceresistance = 200              # ohm
+    sourceresistance = 150              # ohm
     
     # if resolution == 0.001:
     #     dx = 0.001
@@ -61,7 +61,7 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostat
     # else:
     #     raise CmdInputError('This antenna module can only be used with a spatial discretisation of 1mm')
     
-    material(5, 0, 1, 0, 'smaTeflon')
+    material(2.1, 0, 1, 0, 'smaTeflon')
 
     # end of balun/begin horn x, y, z center
     sma_center = x, y, z + lBalun
@@ -71,17 +71,16 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostat
     box(sma_center[0]+(G/2), sma_center[1]-balunDiaBig/2, z, sma_center[0]+(G/2+resolution), sma_center[1]+balunDiaBig/2, sma_center[2],  'pec')
     # bottom plate
     box(sma_center[0]-(G/2+resolution), sma_center[1]-balunDiaSmall/2, z, sma_center[0]-(G/2), sma_center[1]+balunDiaSmall/2, sma_center[2],  'pec')
-    triangle(sma_center[0]-(G/2+resolution), sma_center[1]+balunDiaSmall/2, sma_center[2], sma_center[0]-(G/2+resolution), sma_center[1]+balunDiaSmall/2, z, sma_center[0]-(G/2+resolution), sma_center[1]+wfeed/2, z, resolution, 'pec')
-    triangle(sma_center[0]-(G/2+resolution), sma_center[1]-balunDiaSmall/2, sma_center[2], sma_center[0]-(G/2+resolution), sma_center[1]-balunDiaSmall/2, z, sma_center[0]-(G/2+resolution), sma_center[1]-wfeed/2, z, resolution, 'pec')
-
+    triangle(sma_center[0]-(G/2+resolution), sma_center[1]+balunDiaSmall/2, sma_center[2], sma_center[0]-(G/2+resolution),
+                sma_center[1]+balunDiaSmall/2, z, sma_center[0]-(G/2+resolution), sma_center[1]+wfeed/2, z, resolution, 'pec')
+    triangle(sma_center[0]-(G/2+resolution), sma_center[1]-balunDiaSmall/2, sma_center[2], sma_center[0]-(G/2+resolution), 
+                sma_center[1]-balunDiaSmall/2, z, sma_center[0]-(G/2+resolution), sma_center[1]-wfeed/2, z, resolution, 'pec')
     # top big part
     cylinder(sma_center[0]+G/2, sma_center[1], sma_center[2], sma_center[0]+(G/2+resolution), sma_center[1], sma_center[2], balunDiaBig/2, 'pec')
     # substract hole 
     cylinder(sma_center[0]+G/2, sma_center[1], sma_center[2], sma_center[0]+(G/2+resolution), sma_center[1], sma_center[2], 0.004/2, 'free_space')
     # bottom small part
-    cylinder(sma_center[0]-G/2, sma_center[1], sma_center[2], sma_center[0]-(G/2+resolution), sma_center[1], sma_center[2], balunDiaSmall/2, 'pec')
-    
-
+    cylinder(sma_center[0]-G/2, sma_center[1], sma_center[2], sma_center[0]-(G/2+resolution), sma_center[1], sma_center[2], balunDiaSmall/2, 'pec') 
 
     ### SMA Connector ###
     cylinder(sma_center[0]+(G/2+resolution), sma_center[1], sma_center[2], sma_center[0]+G/2+0.002+resolution, sma_center[1], sma_center[2], smaSocketDia/2, 'pec' )
@@ -175,9 +174,10 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostat
         
 
     ### Source on SMA Connector ###
+    #TODO: find and fix tx solution
     tx = sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2]
     print('#waveform: gaussian 1 1e9 myGaussian')
-    voltage_source('y', tx[0], tx[1], tx[2], sourceresistance, 'myGaussian', dxdy=(resolution, resolution))
+    voltage_source('x', tx[0], tx[1], tx[2], sourceresistance, 'myGaussian', dxdy=(resolution, resolution))
 
     ### Reciever on SMA Connector ###
     if measurement == 'monostatic':
