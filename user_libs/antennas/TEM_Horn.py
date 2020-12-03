@@ -7,12 +7,15 @@
 # Please use the attribution at http://dx.doi.org/10.1190/1.3548506
 import numpy as np
 import matplotlib.pyplot as plt
+import tkinter as tk
+
+from tkinter import ttk
 
 from gprMax.exceptions import CmdInputError
 from gprMax.input_cmd_funcs import *
 from user_libs.antennas.discretGeo import disGeometryGprMax
 
-def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostatic'):
+def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, source = 'voltage',measurement ='monostatic'):
     """
     Insert a TEM Hornantenna similar to the antenna ..... (insert paperlink)
 
@@ -52,7 +55,7 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostat
     smaTeflonDia= 0.005                 # m
     smaSocketDia= 0.008                 # m
     smaScrwDia  = 0.006                 # m
-    sourceresistance = 150              # ohm
+    sourceresistance = 50              # ohm
     
     # if resolution == 0.001:
     #     dx = 0.001
@@ -83,11 +86,12 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostat
     cylinder(sma_center[0]-G/2, sma_center[1], sma_center[2], sma_center[0]-(G/2+resolution), sma_center[1], sma_center[2], balunDiaSmall/2, 'pec') 
 
     ### SMA Connector ###
-    cylinder(sma_center[0]+(G/2+resolution), sma_center[1], sma_center[2], sma_center[0]+G/2+0.002+resolution, sma_center[1], sma_center[2], smaSocketDia/2, 'pec' )
-    cylinder(sma_center[0]+(G/2+resolution), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2], smaScrwDia/2, 'pec')
-    cylinder(sma_center[0]-(G/2), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2], smaTeflonDia/2, 'smaTeflon')
-    cylinder(sma_center[0]-(G/2+resolution+0.001), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2], smaDia/2, 'pec')
-    #edge(sma_center[0]-(G/2+0.002), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010, sma_center[1], sma_center[2], 'myTest')
+    if source == 'voltage':
+        cylinder(sma_center[0]+(G/2+resolution), sma_center[1], sma_center[2], sma_center[0]+G/2+0.002+resolution, sma_center[1], sma_center[2], smaSocketDia/2, 'pec' )
+        cylinder(sma_center[0]+(G/2+resolution), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2], smaScrwDia/2, 'pec')
+        cylinder(sma_center[0]-(G/2), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2], smaTeflonDia/2, 'smaTeflon')
+        cylinder(sma_center[0]-(G/2+resolution+0.001), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2], smaDia/2, 'pec')
+        #edge(sma_center[0]-(G/2+0.002), sma_center[1], sma_center[2], sma_center[0]+G/2+0.010, sma_center[1], sma_center[2], 'myTest')
 
     ### Horn ###
     print('C1:'+str(C1)+' C1side:'+str(C1_side)+' C2:'+str(C2)+' C2side:'+str(C2_side) + ' SlopeAngel:' + str(np.rad2deg(slopeAngel))+'\n'+'ArcStart:'+ str(np.rad2deg(arcStart)))
@@ -176,8 +180,15 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostat
     ### Source on SMA Connector ###
     #TODO: find and fix tx solution
     tx = sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2]
-    print('#waveform: gaussian 1 1e9 myGaussian')
-    voltage_source('x', tx[0], tx[1], tx[2], sourceresistance, 'myGaussian', dxdy=(resolution, resolution))
+    if source == 'voltage':
+        print('#waveform: gaussian 1 1e9 myGaussian')
+        voltage_source('x', tx[0], tx[1], tx[2], sourceresistance, 'myGaussian', dxdy=(resolution, resolution))
+        cylinder(tx[1], tx[2], tx[3], tx[1]+resolution, tx[2], tx[3], smaScrwDia/2, 'pec')
+
+    if source == 'transmissionline':
+        popupmsg('Transmissionline not supportet just jet!!')
+        raise CmdInputError('Transmissionline not supportet just jet!!')
+
 
     ### Reciever on SMA Connector ###
     if measurement == 'monostatic':
@@ -191,3 +202,12 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, measurement ='monostat
         raise CmdInputError('This antenna have 3 measuremnt methods - tx, rx, monostatic')
     
     rx(tx[0], tx[1]-resolution, tx[2]-resolution)#, identifier=identifier)
+
+def popupmsg(msg):
+    popup = tk.Tk()
+    popup.wm_title("!")
+    label = ttk.Label(popup, text=msg, font="Verdana")
+    label.pack(side="top", fill="x", pady=10)
+    B1 = ttk.Button(popup, text="Okay", command = popup.destroy)
+    B1.pack()
+    popup.mainloop()
