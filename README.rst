@@ -118,12 +118,11 @@ macOS
 
 Microsoft Windows
 ^^^^^^^^^^^^^^^^^
-
-* Download and install `Microsoft Visual C++ 2015 Build Tools <http://download.microsoft.com/download/5/F/7/5F7ACAEB-8363-451F-9425-68A90F98B238/visualcppbuildtools_full.exe>`_ (currently you must use the 2015 version, not 2017). Use the custom installation option and deselect everything apart from the Windows SDK for your version of Windows.
+ 
+* Download and install Microsoft `Build Tools for Visual Studio 2019 <https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=BuildTools&rel=16>`_ (direct link). You can also find it on the `Microsoft Visual Studio downloads page <https://visualstudio.microsoft.com/downloads/>`_ by scrolling down to the 'All Downloads' section, clicking the disclosure triangle by 'Tools for Visual Studio 2019', then clicking the download button next to 'Build Tools for Visual Studio 2019'. When installing, choose the 'C++ build tools' Workload and select only 'MSVC v142' and 'Windows 10 SDK' options.
+* Set the Path and Environment Variables - this can be done by following the `instructions from Microsoft <https://docs.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=msvc-160#developer_command_file_locations>`_, or manually by adding a form of :code:`C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Tools\MSVC\14.23.28105\bin\Hostx64\x64` (this may vary according to your exact machine and installation) to your system Path environment variable. 
 
 Alternatively if you are using Windows 10 and feeling adventurous you can install the `Windows Subsystem for Linux <https://docs.microsoft.com/en-gb/windows/wsl/about>`_ and then follow the Linux install instructions for gprMax. Note however that currently WSL does not aim to support GUI desktops or applications, e.g. Gnome, KDE, etc....
-
-
 
 3. Build and install gprMax
 ---------------------------
@@ -138,8 +137,6 @@ Once you have installed the aforementioned tools follow these steps to build and
     (gprMax)$ python setup.py install
 
 **You are now ready to proceed to running gprMax.**
-
-If you have problems with building gprMax on Microsoft Windows, you may need to add :code:`C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin` to your path environment variable.
 
 Running gprMax
 ==============
