@@ -14,6 +14,7 @@ horn_burr(0.125, 0.1, 0.27, 0.0005, source= 'voltage')
 
 #python:
 for i in range(1, 51):
-    snapshot(0, 0.1, 0, 0.25, 0.101, 0.3, 0.0005, 0.0005, 0.0005, (i/10)*1e-9, 'horn'+str(i))
+    snapshot(0, 0.1, 0, 0.25, 0.1005, 0.3, 0.0005, 0.0005, 0.0005, (i/10)*1e-9, 'hornXZ'+str(i))
+    snapshot(0.125, 0, 0, 0.1255, 0.2, 0.3, 0.0005, 0.0005, 0.0005, (i/10)*1e-9, 'hornYZ'+str(i))
 
 #end_python:

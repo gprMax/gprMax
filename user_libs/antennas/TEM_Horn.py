@@ -182,7 +182,8 @@ def horn_burr(x, y, z, resolution = 0.0005, rotation = 0, source = 'voltage',mea
     tx = sma_center[0]+G/2+0.010+resolution, sma_center[1], sma_center[2]
     if source == 'voltage':
         print('#waveform: gaussian 1 1e9 myGaussian')
-        cylinder(tx[0], tx[1], tx[2], tx[0]+resolution, tx[1], tx[2], smaScrwDia/2, 'pec')
+        cylinder(tx[0], tx[1], tx[2], tx[0]+2*resolution, tx[1], tx[2], smaScrwDia/2, 'pec')
+        cylinder(tx[0], tx[1], tx[2], tx[0]+resolution, tx[1], tx[2], smaScrwDia/2-resolution, 'free_space')
         voltage_source('x', tx[0], tx[1], tx[2], sourceresistance, 'myGaussian', dxdy=(resolution, resolution))
     if source == 'transmissionline':
         popupmsg('Transmissionline not supportet just jet!!')
