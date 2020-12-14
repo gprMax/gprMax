@@ -1,7 +1,7 @@
 import random as rd
 from gprMax.input_cmd_funcs import *
 
-def gravel(dSmin, dSmax, dxSmin, dxSmax, surfaceS, simx, simy, simz):
+def gravel(dSmin, dSmax, dxSmin, dxSmax, surfaceS, simx, simy, simz, material):
     """
     min/max Stone diameter, min max Stone distance, max domain
     """
@@ -21,6 +21,6 @@ def gravel(dSmin, dSmax, dxSmin, dxSmax, surfaceS, simx, simy, simz):
             y = yy + dy
             dx = rd.randrange(dxSmin, dSmax, 2)/intFac
             x = xx + dx
-            cylinder(x, y, 0, x, y, simz, dS/2 ,'my_sand')
+            cylinder(x, y, 0, x, y, simz, dS/2 ,material)
             xx = xx + dx
         yy = yy+dxSmax/2/intFac

@@ -6,11 +6,7 @@
 from gprMax.input_cmd_funcs import *
 from user_libs.gravel.gravel import gravel
 
-## import other stuff
-##import numpy as np
-import random as rd
-
-simTime     = 50
+simTime     = 1
 simx        = 5.0
 simy        = 5.6 
 simz        = 0.001
@@ -20,44 +16,13 @@ dxRx        = 0.016
 
 domain(simx, simy, simz)
 dx_dy_dz(0.001, 0.001, 0.001)
-time_window(simTime*1e-9)
 material(5, 0.01, 1, 0, 'my_sand')
-
-hertzian_dipole('z', simrxX+dxRx*(current_model_run-1), simrxY, 0, 'my_testwave1')
-rx(simrxX+dxRx*(current_model_run-1), simrxY, 0)
-rx(simrxX+dxRx*(current_model_run-1), 0.3, 0)
-rx(simrxX+0.2+dxRx*(current_model_run-1), simrxY, 0)
+time_window(simTime*1e-9)
 
 ##Gravel
-##intFac      = 1000 
-##dSmin       = int(0.01 *intFac)         ## pebble diameter min
-##dSmax       = int(0.06  *intFac)		## pebble diameter max
-##dxSmin      = int(0.008	*intFac)		## distance center x
-##dxSmax      = int(0.05	*intFac)		## distance center y
-##surfaceS    = 1.3	        ## surface
+gravel(dSmin=0.01, dSmax=0.06, dxSmin=0.008, dxSmax=0.05, surfaceS=1.3, simx=simx, simy= simy, simz=simz, material='my_sand')
 
-gravel(dSmin=0.01, dSmax=0.06, dxSmin=0.008, dxSmax=0.05, surfaceS=1.3, simx=simx, simy= simy, simz=simz)
-
-##Pebble arrangement
-# # yy = dSmax/2/intFac
-# # while yy <= surfaceS-(dSmin/2/intFac):    
-# #     xx =  (rd.randrange(70, 130, 10)/100)*dSmax/2/intFac
-# #     while xx <= simx-(dSmax/2/intFac):
-# #         dS = rd.randrange(dSmin, dSmax, 2)/intFac
-# #         dy = rd.randrange(dxSmin, dSmax, 2)/intFac
-# #         y = yy + dy
-# #         dx = rd.randrange(dxSmin, dSmax, 2)/intFac
-# #         x = xx + dx
-# #         cylinder(x, y, 0, x, y, simz, dS/2 ,'my_sand')
-# #         xx = xx + dx
-# #     yy = yy+dxSmax/2/intFac
-    
-##Objekt
-box(2.3, 0.45, 0, 2.7, 0.5, 0.001,'pec')
-##for i in range(1, simTime*10+1):
-	##snapshot(0, 0, 0, simx, simy, simz, 0.001, 0.001, 0.001, (i/10)*1e-9, 'gravel_new_V1'+str(i))
-
-geometry_view(0, 0, 0, simx, simy, simz, 0.001, 0.001, 0.001, 'gravel_new_V1')
+geometry_view(0, 0, 0, simx, simy, simz, 0.001, 0.001, 0.001, 'gravel_mix_001_006')
 #end_python:		
 
-
+#geometry_objects_write: 0 0 0 5 5.6 0.001 600_gravel_test
