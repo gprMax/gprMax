@@ -1,0 +1,6 @@
+#material: 1 inf 1 0 pec
+#material: 1 0 1 0 free_space
+#material: 5 0.01 1 0 my_sand
+#material: 2 0.0025 1 0 my_sand+free_space+free_space+free_space
+#material: 3 0.005 1 0 my_sand+free_space+free_space+my_sand
+#material: 4 0.0075 1 0 my_sand+my_sand+free_space+my_sand

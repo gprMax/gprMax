@@ -1,0 +1,7 @@
+Gravle to do:
+-pebbel: 2-8		changed to dS :gravel(dSmin=0.002, dSmax=0.008, dxSmin=70, dxSmax=130, surfaceS=1.3, simx=simx, simy= simy, simz=simz, material='my_sand')
+-pebbel: 16-22		gravel2(dSmin=0.016, dSmax=0.022, dxSmin=0.01, dxSmax=0.036,surfaceS=1.3, simx=simx, simy= simy, simz=simz, material='my_sand')
+-pebbel: 60-120		gravel2(dSmin=0.06, dSmax=0.120, dxSmin=0.06, dxSmax=0.130, surfaceS=1.3, simx=simx, simy= simy, simz=simz, material='my_sand')
+
+-pebbel: 8-50		gravel2(dSmin=0.008, dSmax=0.050, dxSmin=0.01, dxSmax=0.045, surfaceS=1.3, simx=simx, simy= simy, simz=simz, material='my_sand')
+-pebbel: 10-100		gravel(dSmin=0.010, dSmax=0.100, dxSmin=70, dxSmax=130, dySmin=80, dySmax=120, surfaceS=1.3, simx=simx, simy= simy, simz=simz, material='my_sand')
