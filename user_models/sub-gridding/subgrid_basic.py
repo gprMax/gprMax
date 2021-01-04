@@ -81,6 +81,12 @@ gv = gprMax.GeometryView(p1=(0, 0, 0),
                          output_type='f',
                          multi_grid=True)
 
+# create a geometry view of the sub grid
+gv_sg = gprMax.GeometryView(p1=sg_p0,
+                         p2=sg_p1,
+                         dl=(1e-3, 1e-3, 1e-3),
+                         filename=fn.with_suffix('').parts[-1] + '_only',
+                         output_type='f')
 
 # create a geometry view of the main grid and the sub grid stitched together
 gv_normal = gprMax.GeometryView(p1=(0, 0, 0),
@@ -88,7 +94,8 @@ gv_normal = gprMax.GeometryView(p1=(0, 0, 0),
                          dl=dl,
                          filename=fn.with_suffix('').parts[-1] + '_voxels',
                          output_type='n')
-scene.add(gv)
+#scene.add(gv)
+sg.add(gv_sg)
 #scene.add(gv_normal)
 
 gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn, subgrid=True, autotranslate=True)

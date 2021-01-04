@@ -122,6 +122,9 @@ class MainGridUserInput(UserInput):
 
         return p1, p2, p3
 
+    def discretise_static_point(self, p):
+        """Function to get the index of a continuous point regardless of the point of origin of the grid."""
+        return super().discretise_point(p)
 
 class SubgridUserInput(MainGridUserInput):
     """Class to handle (x, y, z) points supplied by the user in the sub grid.
@@ -175,3 +178,8 @@ class SubgridUserInput(MainGridUserInput):
             np.greater(p_t, self.outer_bound).any()):
                 logger.warning(f"'{cmd_str}' this object traverses the Outer Surface. This is an advanced feature.")
         return p_t
+    
+    def discretise_static_point(self, p):
+        """Function to get the index of a continuous point regardless of the point of origin of the grid."""
+        return super().discretise_point(p)
+

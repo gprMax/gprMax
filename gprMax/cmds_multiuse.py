@@ -1257,7 +1257,7 @@ class GeometryView(UserObjectMulti):
         xs, ys, zs = p1
         xf, yf, zf = p2
 
-        dx, dy, dz = uip.discretise_point(dl)
+        dx, dy, dz = uip.discretise_static_point(dl)
 
         if dx < 0 or dy < 0 or dz < 0:
             logger.exception(self.params_str() + ' the step size should not be less than zero')
