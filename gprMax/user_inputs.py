@@ -126,6 +126,11 @@ class MainGridUserInput(UserInput):
         """Function to get the index of a continuous point regardless of the point of origin of the grid."""
         return super().discretise_point(p)
 
+    def round_to_grid_static_point(self, p):
+        """Function to get the index of a continuous point regardless of the point of origin of the grid."""
+        return super().discretise_point(p) * self.grid.dl
+
+
 class SubgridUserInput(MainGridUserInput):
     """Class to handle (x, y, z) points supplied by the user in the sub grid.
         This class autotranslates points from main grid to subgrid equivalent
@@ -182,4 +187,9 @@ class SubgridUserInput(MainGridUserInput):
     def discretise_static_point(self, p):
         """Function to get the index of a continuous point regardless of the point of origin of the grid."""
         return super().discretise_point(p)
+    
+    def round_to_grid_static_point(self, p):
+        """Function to get the index of a continuous point regardless of the point of origin of the grid."""
+        return super().discretise_point(p) * self.grid.dl
+
 

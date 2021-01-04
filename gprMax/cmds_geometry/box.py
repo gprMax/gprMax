@@ -91,9 +91,12 @@ class Box(UserObjectGeometry):
             # if they havent specfied - go with the grid default
             averagebox = grid.averagevolumeobjects
 
-        p1, p2 = uip.check_box_points(p1, p2, self.__str__())
-        xs, ys, zs = p1
-        xf, yf, zf = p2
+        p3, p4 = uip.check_box_points(p1, p2, self.__str__())
+        # find nearest point on grid without translation
+        p5 = uip.round_to_grid_static_point(p1)
+        p6 = uip.round_to_grid_static_point(p2)
+        xs, ys, zs = p3
+        xf, yf, zf = p4
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
@@ -134,4 +137,5 @@ class Box(UserObjectGeometry):
         build_box(xs, xf, ys, yf, zs, zf, numID, numIDx, numIDy, numIDz, averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
 
         dielectricsmoothing = 'on' if averaging else 'off'
-        logger.info(self.grid_name(grid) + f"Box from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")
+
+        logger.info(self.grid_name(grid) + f"Box from {p5[0]:g}m, {p5[1]:g}m, {p5[2]:g}m, to {p6[0]:g}m, {p6[1]:g}m, {p6[2]:g}m of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")
