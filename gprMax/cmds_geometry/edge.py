@@ -68,13 +68,13 @@ class Edge(UserObjectGeometry):
 
         if self.dorotate:
             self.__dorotate()
-
+        
+        p3 = uip.round_to_grid_static_point(p1)
+        p4 = uip.round_to_grid_static_point(p2)
+        
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
         xf, yf, zf = p2
-
-        p3 = uip.round_to_grid_static_point(p1)
-        p4 = uip.round_to_grid_static_point(p2)
 
         material = next((x for x in grid.materials if x.ID == material_id), None)
 
