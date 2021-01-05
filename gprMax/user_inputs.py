@@ -83,6 +83,10 @@ class UserInput:
     def round_to_grid(self, p):
         """Function to get the nearest continuous point on the grid from a continuous point in space."""
         return self.discretise_point(p) * self.grid.dl
+    
+    def descretised_to_continuous(self, p):
+        """Function to return a point given as indices to a continous point in the real space."""
+        return p * self.grid.dl
 
 
 class MainGridUserInput(UserInput):

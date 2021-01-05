@@ -200,6 +200,7 @@ class VoltageSource(UserObjectMulti):
             raise ValueError
 
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
+        p2 = uip.round_to_grid_static_point(p1)
 
         if resistance < 0:
             logger.exception(self.params_str() + ' requires a source resistance of zero or greater')
@@ -245,7 +246,7 @@ class VoltageSource(UserObjectMulti):
 
         v.calculate_waveform_values(grid)
 
-        logger.info(self.grid_name(grid) + f'Voltage source with polarity {v.polarisation} at {v.xcoord * grid.dx:g}m, {v.ycoord * grid.dy:g}m, {v.zcoord * grid.dz:g}m, resistance {v.resistance:.1f} Ohms,' + startstop + f'using waveform {v.waveformID} created.')
+        logger.info(self.grid_name(grid) + f'Voltage source with polarity {v.polarisation} at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m, resistance {v.resistance:.1f} Ohms,' + startstop + f'using waveform {v.waveformID} created.')
 
         grid.voltagesources.append(v)
 
@@ -315,6 +316,8 @@ class HertzianDipole(UserObjectMulti):
             raise ValueError
 
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
+        p2 = uip.round_to_grid_static_point(p1)
+
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
@@ -368,9 +371,9 @@ class HertzianDipole(UserObjectMulti):
         h.calculate_waveform_values(grid)
 
         if config.get_model_config().mode == '2D':
-            logger.info(self.grid_name(grid) + f'Hertzian dipole is a line source in 2D with polarity {h.polarisation} at {h.xcoord * grid.dx:g}m, {h.ycoord * grid.dy:g}m, {h.zcoord * grid.dz:g}m,' + startstop + f'using waveform {h.waveformID} created.')
+            logger.info(self.grid_name(grid) + f'Hertzian dipole is a line source in 2D with polarity {h.polarisation} at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,' + startstop + f'using waveform {h.waveformID} created.')
         else:
-            logger.info(self.grid_name(grid) + f'Hertzian dipole with polarity {h.polarisation} at {h.xcoord * grid.dx:g}m, {h.ycoord * grid.dy:g}m, {h.zcoord * grid.dz:g}m,' + startstop + f'using waveform {h.waveformID} created.')
+            logger.info(self.grid_name(grid) + f'Hertzian dipole with polarity {h.polarisation} at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,' + startstop + f'using waveform {h.waveformID} created.')
 
         grid.hertziandipoles.append(h)
 
@@ -440,6 +443,8 @@ class MagneticDipole(UserObjectMulti):
             raise ValueError
 
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
+        p2 = uip.round_to_grid_static_point(p1)
+
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
@@ -483,7 +488,7 @@ class MagneticDipole(UserObjectMulti):
 
         m.calculate_waveform_values(grid)
 
-        logger.info(self.grid_name(grid) + f'Magnetic dipole with polarity {m.polarisation} at {m.xcoord * grid.dx:g}m, {m.ycoord * grid.dy:g}m, {m.zcoord * grid.dz:g}m,' + startstop + f'using waveform {m.waveformID} created.')
+        logger.info(self.grid_name(grid) + f'Magnetic dipole with polarity {m.polarisation} at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,' + startstop + f'using waveform {m.waveformID} created.')
 
         grid.magneticdipoles.append(m)
 
@@ -561,6 +566,8 @@ class TransmissionLine(UserObjectMulti):
             raise ValueError
 
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
+        p2 = uip.round_to_grid_static_point(p1)
+
 
         if resistance <= 0 or resistance >= config.sim_config.em_consts['z0']:
             logger.exception(self.params_str() + ' requires a resistance greater than zero and less than the impedance of free space, i.e. 376.73 Ohms')
@@ -607,7 +614,7 @@ class TransmissionLine(UserObjectMulti):
         t.calculate_waveform_values(grid)
         t.calculate_incident_V_I(grid)
 
-        logger.info(self.grid_name(grid) + f'Transmission line with polarity {t.polarisation} at {t.xcoord * grid.dx:g}m, {t.ycoord * grid.dy:g}m, {t.zcoord * grid.dz:g}m, resistance {t.resistance:.1f} Ohms,' + startstop + f'using waveform {t.waveformID} created.')
+        logger.info(self.grid_name(grid) + f'Transmission line with polarity {t.polarisation} at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m, resistance {t.resistance:.1f} Ohms,' + startstop + f'using waveform {t.waveformID} created.')
 
         grid.transmissionlines.append(t)
 
@@ -667,8 +674,7 @@ class Rx(UserObjectMulti):
             self.__dorotate(grid)
 
         p = uip.check_src_rx_point(p1, self.params_str())
-        print(p1)
-        print(p)
+        p2 = uip.round_to_grid_static_point(p1)
 
         r = self.constructor()
         r.xcoord, r.ycoord, r.zcoord = p
@@ -694,7 +700,7 @@ class Rx(UserObjectMulti):
                     logger.exception(self.params_str() + f' contains an output type that is not allowable. Allowable outputs in current context are {allowableoutputs}')
                     raise ValueError
 
-        logger.info(self.grid_name(grid) + f"Receiver at {r.xcoord * grid.dx:g}m, {r.ycoord * grid.dy:g}m, {r.zcoord * grid.dz:g}m with output component(s) {', '.join(r.outputs)} created.")
+        logger.info(self.grid_name(grid) + f"Receiver at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m with output component(s) {', '.join(r.outputs)} created.")
 
         grid.rxs.append(r)
 
@@ -728,6 +734,8 @@ class RxArray(UserObjectMulti):
 
         xs, ys, zs = uip.check_src_rx_point(p1, self.params_str(), 'lower')
         xf, yf, zf = uip.check_src_rx_point(p2, self.params_str(), 'upper')
+        p3 = uip.round_to_grid_static_point(p1)
+        p4 = uip.round_to_grid_static_point(p2)
         dx, dy, dz = uip.discretise_point(dl)
 
         if xs > xf or ys > yf or zs > zf:
@@ -755,7 +763,7 @@ class RxArray(UserObjectMulti):
                 logger.exception(self.params_str() + ' the step size should not be less than the spatial discretisation')
                 raise ValueError
 
-        logger.info(self.grid_name(grid) + f'Receiver array {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with steps {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m')
+        logger.info(self.grid_name(grid) + f'Receiver array {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m with steps {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m')
 
         for x in range(xs, xf + 1, dx):
             for y in range(ys, yf + 1, dy):
@@ -767,10 +775,14 @@ class RxArray(UserObjectMulti):
                     r.xcoordorigin = x
                     r.ycoordorigin = y
                     r.zcoordorigin = z
+                    # Point relative to main grid
+                    p5 = np.array([x, y, z])
+                    p5 = uip.descretised_to_continuous(p5)
+                    p5 = uip.round_to_grid_static_point(p5)
                     r.ID = r.__class__.__name__ + '(' + str(x) + ',' + str(y) + ',' + str(z) + ')'
                     for key in RxUser.defaultoutputs:
                         r.outputs[key] = np.zeros(grid.iterations, dtype=config.sim_config.dtypes['float_or_double'])
-                    logger.info(f"  Receiver at {r.xcoord * grid.dx:g}m, {r.ycoord * grid.dy:g}m, {r.zcoord * grid.dz:g}m with output component(s) {', '.join(r.outputs)} created.")
+                    logger.info(f"  Receiver at {p5[0]:g}m, {p5[1]:g}m, {p5[2]:g}m with output component(s) {', '.join(r.outputs)} created.")
                     grid.rxs.append(r)
 
 
@@ -816,6 +828,9 @@ class Snapshot(UserObjectMulti):
         xf, yf, zf = p2
         dx, dy, dz = uip.discretise_point(dl)
 
+        p3 = uip.round_to_grid_static_point(p1)
+        p4 = uip.round_to_grid_static_point(p2)
+
         # If number of iterations given
         try:
             iterations = self.kwargs['iterations']
@@ -859,7 +874,7 @@ class Snapshot(UserObjectMulti):
 
         s = SnapshotUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, iterations, filename, fileext=fileext)
 
-        logger.info(f'Snapshot from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, at {s.time * grid.dt:g} secs with filename {s.filename}{s.fileext} will be created.')
+        logger.info(f'Snapshot from {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, at {s.time * grid.dt:g} secs with filename {s.filename}{s.fileext} will be created.')
 
         grid.snapshots.append(s)
 
@@ -1258,6 +1273,8 @@ class GeometryView(UserObjectMulti):
         xf, yf, zf = p2
 
         dx, dy, dz = uip.discretise_static_point(dl)
+        p3 = uip.round_to_grid_static_point(p1)
+        p4 = uip.round_to_grid_static_point(p2)
 
         if dx < 0 or dy < 0 or dz < 0:
             logger.exception(self.params_str() + ' the step size should not be less than zero')
@@ -1283,7 +1300,7 @@ class GeometryView(UserObjectMulti):
 
         g = GeometryViewUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, fileext, grid)
 
-        logger.info(f'Geometry view from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, multi_grid={self.multi_grid}, grid={grid.name}, with filename base {g.filename} created.')
+        logger.info(f'Geometry view from {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, multi_grid={self.multi_grid}, grid={grid.name}, with filename base {g.filename} created.')
 
         # Append the new GeometryView object to the geometry views list
         grid.geometryviews.append(g)
