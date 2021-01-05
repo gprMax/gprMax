@@ -1265,6 +1265,8 @@ class GeometryView(UserObjectMulti):
             raise
         GeometryViewUser = self.geometry_view_constructor(grid, output_type)
         try:
+            p3 = uip.round_to_grid_static_point(p1)
+            p4 = uip.round_to_grid_static_point(p2)
             p1, p2 = uip.check_box_points(p1, p2, self.params_str())
         except ValueError:
             logger.exception(self.params_str() + ' point is outside the domain')
@@ -1273,8 +1275,6 @@ class GeometryView(UserObjectMulti):
         xf, yf, zf = p2
 
         dx, dy, dz = uip.discretise_static_point(dl)
-        p3 = uip.round_to_grid_static_point(p1)
-        p4 = uip.round_to_grid_static_point(p2)
 
         if dx < 0 or dy < 0 or dz < 0:
             logger.exception(self.params_str() + ' the step size should not be less than zero')
