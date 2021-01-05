@@ -99,13 +99,13 @@ class FractalBox(UserObjectGeometry):
             # if they havent specfied - go with the grid default
             averagefractalbox = False
 
+        p3 = uip.round_to_grid_static_point(p1)
+        p4 = uip.round_to_grid_static_point(p2)
+
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
         xf, yf, zf = p2
         
-        p3 = uip.round_to_grid_static_point(p1)
-        p4 = uip.round_to_grid_static_point(p2)
-
         if frac_dim < 0:
             logger.exception(self.__str__() + ' requires a positive value for the fractal dimension')
             raise ValueError
