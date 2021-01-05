@@ -99,6 +99,10 @@ class Triangle(UserObjectGeometry):
                 logger.exception(self.__str__() + ' no materials have been specified')
                 raise
 
+        p4 = uip.round_to_grid_static_point(up1)
+        p5 = uip.round_to_grid_static_point(up2)
+        p6 = uip.round_to_grid_static_point(up3)
+
         # Check whether points are valid against grid
         uip.check_tri_points(up1, up2, up3, object)
         # Convert points to metres
@@ -106,10 +110,6 @@ class Triangle(UserObjectGeometry):
         x2, y2, z2 = uip.round_to_grid(up2)
         x3, y3, z3 = uip.round_to_grid(up3)
         
-        p4 = uip.round_to_grid_static_point(up1)
-        p5 = uip.round_to_grid_static_point(up2)
-        p6 = uip.round_to_grid_static_point(up3)
-
         if thickness < 0:
             logger.exception(self.__str__() + ' requires a positive value for thickness')
             raise ValueError
@@ -182,6 +182,6 @@ class Triangle(UserObjectGeometry):
 
         if thickness > 0:
             dielectricsmoothing = 'on' if averaging else 'off'
-            logger.info(self.grid_name(grid) + f"Triangle with coordinates {p3[0]:g}m {p3[1]:g}m {p3[2]:g}m, {p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m {p5[2]:g}m and thickness {thickness:g}m of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")
+            logger.info(self.grid_name(grid) + f"Triangle with coordinates {p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m {p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m and thickness {thickness:g}m of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")
         else:
-            logger.info(self.grid_name(grid) + f"Triangle with coordinates {p3[0]:g}m {p3[1]:g}m {p3[2]:g}m, {p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m {p5[2]:g}m of material(s) {', '.join(materialsrequested)} created.")
+            logger.info(self.grid_name(grid) + f"Triangle with coordinates {p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m {p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m of material(s) {', '.join(materialsrequested)} created.")
