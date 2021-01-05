@@ -77,6 +77,9 @@ class Cylinder(UserObjectGeometry):
                 logger.exception(self.__str__() + ' no materials have been specified')
                 raise
 
+        p3 = uip.round_to_grid_static_point(p1)
+        p4 = uip.round_to_grid_static_point(p2)
+
         x1, y1, z1 = uip.round_to_grid(p1)
         x2, y2, z2 = uip.round_to_grid(p2)
 
@@ -123,4 +126,4 @@ class Cylinder(UserObjectGeometry):
         build_cylinder(x1, y1, z1, x2, y2, z2, r, grid.dx, grid.dy, grid.dz, numID, numIDx, numIDy, numIDz, averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
 
         dielectricsmoothing = 'on' if averaging else 'off'
-        logger.info(self.grid_name(grid) + f"Cylinder with face centres {x1:g}m, {y1:g}m, {z1:g}m and {x2:g}m, {y2:g}m, {z2:g}m, with radius {r:g}m, of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")
+        logger.info(self.grid_name(grid) + f"Cylinder with face centres {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m and {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, with radius {r:g}m, of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")

@@ -73,6 +73,9 @@ class Edge(UserObjectGeometry):
         xs, ys, zs = p1
         xf, yf, zf = p2
 
+        p3 = uip.round_to_grid_static_point(p1)
+        p4 = uip.round_to_grid_static_point(p2)
+
         material = next((x for x in grid.materials if x.ID == material_id), None)
 
         if not material:
@@ -107,4 +110,4 @@ class Edge(UserObjectGeometry):
                 for k in range(zs, zf):
                     build_edge_z(xs, ys, k, material.numID, grid.rigidE, grid.rigidH, grid.ID)
 
-        logger.info(self.grid_name(grid) + f'Edge from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m of material {material_id} created.')
+        logger.info(self.grid_name(grid) + f'Edge from {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of material {material_id} created.')

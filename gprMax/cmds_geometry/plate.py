@@ -83,6 +83,8 @@ class Plate(UserObjectGeometry):
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
         xf, yf, zf = p2
+        p3 = uip.round_to_grid_static_point(p1)
+        p4 = uip.round_to_grid_static_point(p2)
 
         # Check for valid orientations
         if xs == xf:
@@ -157,4 +159,4 @@ class Plate(UserObjectGeometry):
                 for j in range(ys, yf):
                     build_face_xy(i, j, zs, numIDx, numIDy, grid.rigidE, grid.rigidH, grid.ID)
 
-        logger.info(self.grid_name(grid) + f"Plate from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m of material(s) {', '.join(materialsrequested)} created.")
+        logger.info(self.grid_name(grid) + f"Plate from {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of material(s) {', '.join(materialsrequested)} created.")
