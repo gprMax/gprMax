@@ -75,8 +75,8 @@ class Sphere(UserObjectGeometry):
                 raise
 
         # Centre of sphere
-        xc, yc, zc = uip.round_to_grid(p1)
         p2 = uip.round_to_grid_static_point(p1)
+        xc, yc, zc = uip.round_to_grid(p1)
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
