@@ -24,6 +24,7 @@ import os
 import sys
 
 from enum import Enum
+from io import StringIO
 
 import h5py
 import numpy as np
@@ -372,7 +373,10 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
             if value:
                 # Input file name always comes first
                 if 'inputfile' in key:
-                    myargv.append(value)
+                    if isinstance(value, StringIO):
+                        myargv.append(value.name)
+                    else:
+                        myargv.append(value)
                 elif 'gpu' in key:
                     myargv.append('-' + key)
                     # Add GPU device ID(s) from GPU objects
@@ -431,7 +435,10 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         if args.gpu is not None:
             # Set device ID based on rank from list of GPUs
             args.gpu = args.gpu[rank]
-            gpuinfo = ' using {} - {}, {} RAM '.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
+            gpuinfo = ' using {} - {}, {} RAM '.format(args.gpu.deviceID, 
+                                                       args.gpu.name, 
+                                                       human_size(args.gpu.totalmem, 
+                                                       a_kilobyte_is_1024_bytes=True))
 
         # Ask for work until stop sentinel
         for work in iter(lambda: comm.sendrecv(0, dest=0), StopIteration):
