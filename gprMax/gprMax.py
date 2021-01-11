@@ -357,10 +357,10 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         if hasattr(args, 'mpicomm'):
             comm = args.mpicomm
         else:
-            try:
-                comm = MPI.COMM_WORLD
-            except:
-                comm.name = ''
+            comm = MPI.COMM_WORLD
+
+        if not hasattr(comm, 'name'):
+            comm.name = ''
 
         tsimstart = timer()
         mpistartstr = '\n=== MPI task farm (USING MPI Spawn)'
