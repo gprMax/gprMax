@@ -360,8 +360,8 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
             try:
                 comm = MPI.COMM_WORLD
             except:
-                comm = ''
-                
+                comm.name = ''
+
         tsimstart = timer()
         mpistartstr = '\n=== MPI task farm (USING MPI Spawn)'
         print('{} {}'.format(mpistartstr, '=' * (get_terminal_width() - 1 - len(mpistartstr))))
