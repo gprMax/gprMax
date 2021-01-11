@@ -401,7 +401,6 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         worklist += ([StopIteration] * numworkers)
 
         # Spawn workers
-        print(['-m', 'gprMax'] + myargv + [workerflag])
         newcomm = comm.Spawn(sys.executable, args=['-m', 'gprMax'] + myargv + [workerflag], maxprocs=numworkers)
 
         # Reply to whoever asks until done
