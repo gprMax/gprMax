@@ -373,10 +373,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
             if value:
                 # Input file name always comes first
                 if 'inputfile' in key:
-                    if isinstance(value, StringIO):
-                        myargv.append(value.name)
-                    else:
-                        myargv.append(value)
+                    myargv.append(value)
                 elif 'gpu' in key:
                     myargv.append('-' + key)
                     # Add GPU device ID(s) from GPU objects
