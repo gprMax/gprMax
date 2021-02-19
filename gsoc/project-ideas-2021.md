@@ -3,20 +3,44 @@
 gprMax is planning to participate in the [Google Summer of Code](https://summerofcode.withgoogle.com) 2021 program, following a successful debut in 2019. Here is list of some potential project ideas (in no particular order):
 
 
-## 1. MPI domain decomposition
+## 1. Automatic Realisation of AI-Based Electromagnetic Models
 
-The aim of the project is to create version of the solver engine that uses domain decomposition based on the [Message Passing Interface (MPI)](https://en.wikipedia.org/wiki/Message_Passing_Interface) model.
+The aim of this project is to develop user-friendly tools with which the user will be able to effectively parametrise the investigated problem and define the expected range of the parameters. Subsequently, big data will be generated in an automatic manner to be subsequently used for training a deep learning scheme to predict the electromagnetic (EM) response subject to the parameters of the models. An AI-based real-time EM solver will be orders of magnitude faster than conventional FDTD and it will facilitate electromagnetic imaging, microwave tomography, antenna design etc.  
 
-Simulations are becoming ever larger and more complex, which often means their memory requirements exceed that available on a single machine or [high-performance computing (HPC)](https://en.wikipedia.org/wiki/Supercomputer) node. It is possible to use MPI to decompose (or split up) the model domain, and each part can be computed on separate machines or nodes of a HPC.
-
-**Skills required:** Python, C, MPI, some knowledge of HPC environments would be beneficial.
+**Skills required:** Python, Machine Learning, Keras, Tensoflow etc.
 
 **Difficulty:** Hard
 
-**Mentor(s):** Dr Antonis Giannopoulos (antonis@gprmax.com)
+**Mentor(s):** Dr Iraklis Giannakis (), Dr Craig Warren (craig@gprmax.com), and Dr Antonis Giannopoulos (antonis@gprmax.com) 
 
 
-## 2. Improved installation tools
+## 2. An Automatic Framework for Generating EM Big Data
+
+The aim of this project is to develop user-friendly tools with which the user will be able to effectively parametrise the investigated problem and define the expected range of the parameters. 
+
+Machine learning relies on coherent, equally distributed, and well-labelled datasets. Most often, adequate training data are not available, and numerical modelling can provide an alternative platform for generating training data. gprMax has been successfully utilised for this purpose, proving that numerical data can provide a reliable solution when real data are not available. The current project aims at making the process of generating big data trivially available to the end-user by developing a user-friendly big-data module within gprMax.   
+ 
+**Skills required:** Python
+
+**Difficulty:** Easy
+
+**Mentor(s):** Dr Iraklis Giannakis (), Dr Craig Warren (craig@gprmax.com), and Dr Antonis Giannopoulos (antonis@gprmax.com)
+
+
+## 3. Web-based framework for model building
+
+The aim of this project is to develop a web-based framework that allows models to be graphically built.
+
+Many models, especially for Ground Penetrating Radar (GPR), can be easily specified using a text-based input file, which is currently what is done. This approach can be beneficial when executing large simulations in [high-performance computing (HPC)](https://en.wikipedia.org/wiki/Supercomputer) environments. However, there are also simulations that require fine, complex details to be modelled or where existing geometries already exist (for example in CAD format). In these cases a graphical-based model building environment would be beneficial, and one that does not require bespoke software to be installed. A web-based framework would therefore be a very useful for model building and construction.
+
+**Skills required:** Python, web frameworks for 2D/3D visualisation.
+
+**Difficulty:** Medium
+
+**Mentor(s):** Dr Antonis Giannopoulos (antonis@gprmax.com) and Dr Craig Warren (craig@gprmax.com)
+
+
+## 4. Improved installation tools
 
 The aim of this project is to create a simplified and more user-friendly installation workflow for the software.
 
@@ -29,7 +53,7 @@ gprMax is predominately written in Python, but some of the performance-critical 
 **Mentor(s):** Dr Craig Warren (craig@gprmax.com)
 
 
-## 3. Comprehensive test and benchmarking suite
+## 5. Comprehensive test and benchmarking suite
 
 The aim of this project is to develop a comprehensive test suite and benchmarking toolset.
 
@@ -42,7 +66,7 @@ Currently gprMax includes a series of tests that verify specific simulation resu
 **Mentor(s):** Dr Antonis Giannopoulos (antonis@gprmax.com) and Dr Craig Warren (craig@gprmax.com)
 
 
-## 4. Geometry visualisation
+## 6. Geometry visualisation
 
 The aim of this project is to improve the handling and visualisation of model geometries.
 
@@ -53,32 +77,6 @@ Being able to visualise and check the geometry and materials of models before ru
 **Difficulty:** Medium
 
 **Mentor(s):** Dr Craig Warren (craig@gprmax.com)
-
-
-## 5. Web-based framework for GPR data processing
-
-The aim of this project is to develop a web-based framework that allows data output from the simulations to be visualised and processed within a web browser.
-
-Output data from electromagnetic simulations often requires to be processed using the same algorithms and workflows as data that has been acquired from sensors in the lab or field. The data can be a time-varying waveform or 2D/3D image. A variety of platform-specific processing tools current exist that use custom file formats. This does not permit easy sharing and comparison of data. A web-based framework for processing would be a platform-agnostic tool and could be designed to permit users to design and use their own processing plugins around a basic core. A local/remote processing model would lightweight processing tasks to be handled locally and more intensive tasks to be offloaded to remote/cloud compute.
-
-**Skills required:** Python, web frameworks for 2D/3D visualisation.
-
-**Difficulty:** Medium
-
-**Mentor(s):** Dr Craig Warren (craig@gprmax.com) and Mr Dimitris Angelis (dimitris.angelis@northumbria.ac.uk)
-
-
-## 6. Web-based framework for model building
-
-The aim of this project is to develop a web-based framework that allows models to be graphically built.
-
-Many models, especially for Ground Penetrating Radar (GPR), can be easily specified using a text-based input file, which is currently what is done. This approach can be beneficial when executing large simulations in [high-performance computing (HPC)](https://en.wikipedia.org/wiki/Supercomputer) environments. However, there are also simulations that require fine, complex details to be modelled or where existing geometries already exist (for example in CAD format). In these cases a graphical-based model building environment would be beneficial, and one that does not require bespoke software to be installed. A web-based framework would therefore be a very useful for model building and construction.
-
-**Skills required:** Python, web frameworks for 2D/3D visualisation.
-
-**Difficulty:** Medium
-
-**Mentor(s):** Dr Antonis Giannopoulos (antonis@gprmax.com) and Dr Craig Warren (craig@gprmax.com)
 
 
 ## 7. Modelling complex materials
@@ -105,3 +103,16 @@ A laser scanner takes distance measurements in every direction to rapidly captur
 **Difficulty:** Medium
 
 **Mentor(s):** Dr Craig Warren (craig@gprmax.com) and Dr Iraklis Giannakis ()
+
+
+## 9. MPI domain decomposition
+
+The aim of the project is to create version of the solver engine that uses domain decomposition based on the [Message Passing Interface (MPI)](https://en.wikipedia.org/wiki/Message_Passing_Interface) model.
+
+Simulations are becoming ever larger and more complex, which often means their memory requirements exceed that available on a single machine or [high-performance computing (HPC)](https://en.wikipedia.org/wiki/Supercomputer) node. It is possible to use MPI to decompose (or split up) the model domain, and each part can be computed on separate machines or nodes of a HPC.
+
+**Skills required:** Python, C, MPI, some knowledge of HPC environments would be beneficial.
+
+**Difficulty:** Hard
+
+**Mentor(s):** Dr Antonis Giannopoulos (antonis@gprmax.com)
