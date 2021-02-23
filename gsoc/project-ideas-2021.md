@@ -40,7 +40,7 @@ Many models, especially for Ground Penetrating Radar (GPR), can be easily specif
 **Mentor(s):** Dr John Hartley (johnmatthewhartley@gmail.com), Dr Antonis Giannopoulos (antonis@gprmax.com) and Dr Craig Warren (craig@gprmax.com)
 
 
-## 5. GPU based sub-gridding
+## 4. GPU accelerated sub-gridding
 
 The aim of the project is to create use NVIDIA CUDA to accelerate our code for sub-gridded meshes to enable running on GPU. The performance (speed) of the solver is a critical feature as simulations become ever larger and more complex.
 
@@ -53,7 +53,7 @@ The solver is based on the [Finite-Difference Time-Domain (FDTD)](https://en.wik
 **Mentor(s):** Dr John Hartley (johnmatthewhartley@gmail.com) and Dr Craig Warren (craig@gprmax.com)
 
 
-## 6. Improved installation tools
+## 5. Improved installation tools
 
 The aim of this project is to create a simplified and more user-friendly installation workflow for the software.
 
@@ -66,7 +66,7 @@ gprMax is predominately written in Python, but some of the performance-critical 
 **Mentor(s):** Dr John Hartley (johnmatthewhartley@gmail.com) and Dr Craig Warren (craig@gprmax.com)
 
 
-## 7. Comprehensive test and benchmarking suite
+## 6. Comprehensive test and benchmarking suite
 
 The aim of this project is to develop a comprehensive test suite and benchmarking toolset.
 
@@ -79,7 +79,7 @@ Currently gprMax includes a series of tests that verify specific simulation resu
 **Mentor(s):** Dr Craig Warren (craig@gprmax.com) and Dr Antonis Giannopoulos (antonis@gprmax.com) and 
 
 
-## 8. Geometry visualisation
+## 7. Geometry visualisation
 
 The aim of this project is to improve the handling and visualisation of model geometries.
 
@@ -92,7 +92,7 @@ Being able to visualise and check the geometry and materials of models before ru
 **Mentor(s):** Dr Craig Warren (craig@gprmax.com)
 
 
-## 9. Modelling complex materials
+## 8. Modelling complex materials
 
 The aim of this project is to couple and enhance a series of scripts that have been developed to allow materials with complex (frequency dependent) properties to be modelled.
 
@@ -105,7 +105,7 @@ Often materials that required to be simulated have complex electromagnetic prope
 **Mentor(s):** Dr Iraklis Giannakis (iraklis.giannakis@abdn.ac.uk) and Dr Antonis Giannopoulos (antonis@gprmax.com)
 
 
-## 10. Importing geometrical information from laser scanners
+## 9. Importing geometrical information from laser scanners
 
 The aim of this project is to import geometric data acquired from terrestrial laser scanners. The ability to directly model real objects and topographies without entering their geometries manually would be very useful development.
 
@@ -118,7 +118,7 @@ A laser scanner takes distance measurements in every direction to rapidly captur
 **Mentor(s):** Dr Craig Warren (craig@gprmax.com) and Dr Iraklis Giannakis ()
 
 
-## 11. MPI domain decomposition
+## 10. MPI domain decomposition
 
 The aim of the project is to create version of the solver engine that uses domain decomposition based on the [Message Passing Interface (MPI)](https://en.wikipedia.org/wiki/Message_Passing_Interface) model.
 
