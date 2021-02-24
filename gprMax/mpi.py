@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2020: The University of Edinburgh
+# Copyright (C) 2015-2021: The University of Edinburgh
 #                 Authors: Tobias Schruff
 #
 # This file is part of gprMax.
