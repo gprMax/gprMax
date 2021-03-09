@@ -25,6 +25,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 from gprMax._version import __version__
+from gprMax.utilities import natural_keys
 
 logger = logging.getLogger(__name__)
 
@@ -43,53 +44,49 @@ def get_output_data(filename, rxnumber, rxcomponent):
     """
 
     # Open output file and read some attributes
-    f = h5py.File(filename, 'r')
-    nrx = f.attrs['nrx']
-    dt = f.attrs['dt']
+    with h5py.File(filename, 'r') as f:
+        nrx = f.attrs['nrx']
+        dt = f.attrs['dt']
 
-    # Check there are any receivers
-    if nrx == 0:
-        logger.exception(f'No receivers found in {filename}')
-        raise ValueError
+        # Check there are any receivers
+        if nrx == 0:
+            logger.exception(f'No receivers found in {filename}')
+            raise ValueError
 
-    path = '/rxs/rx' + str(rxnumber) + '/'
-    availableoutputs = list(f[path].keys())
+        path = '/rxs/rx' + str(rxnumber) + '/'
+        availableoutputs = list(f[path].keys())
 
-    # Check if requested output is in file
-    if rxcomponent not in availableoutputs:
-        logger.exception(f"{rxcomponent} output requested to plot, but the available output for receiver 1 is {', '.join(availableoutputs)}")
-        raise ValueError
+        # Check if requested output is in file
+        if rxcomponent not in availableoutputs:
+            logger.exception(f"{rxcomponent} output requested to plot, but the available output for receiver 1 is {', '.join(availableoutputs)}")
+            raise ValueError
 
-    outputdata = f[path + '/' + rxcomponent]
-    outputdata = np.array(outputdata)
-    f.close()
+        outputdata = f[path + '/' + rxcomponent]
+        outputdata = np.array(outputdata)
 
     return outputdata, dt
 
 
-def merge_files(basefilename, removefiles=False):
+def merge_files(outputfiles, removefiles=False):
     """Merges traces (A-scans) from multiple output files into one new file,
         then optionally removes the series of output files.
 
     Args:
-        basefilename (string): Base name of output file series including path.
-        outputs (boolean): Flag to remove individual output files after merge.
+        outputfiles (list): List of output files to be merged.
+        removefiles (boolean): Flag to remove individual output files after merge.
     """
 
-    outputfile = basefilename + '_merged.h5'
-    files = glob.glob(basefilename + '*.h5')
-    outputfiles = [filename for filename in files if '_merged' not in filename]
-    modelruns = len(outputfiles)
+    merged_outputfile = os.path.commonprefix(outputfiles) + '_merged.h5'
 
     # Combined output file
-    fout = h5py.File(outputfile, 'w')
+    fout = h5py.File(merged_outputfile, 'w')
 
-    for model in range(modelruns):
-        fin = h5py.File(basefilename + str(model + 1) + '.h5', 'r')
+    for i, outputfile in enumerate(outputfiles):
+        fin = h5py.File(outputfile, 'r')
         nrx = fin.attrs['nrx']
 
         # Write properties for merged file on first iteration
-        if model == 0:
+        if i == 0:
             fout.attrs['gprMax'] = __version__
             fout.attrs['Iterations'] = fin.attrs['Iterations']
             fout.attrs['nx_ny_nz'] = fin.attrs['nx_ny_nz']
@@ -105,7 +102,9 @@ def merge_files(basefilename, removefiles=False):
                 grp = fout.create_group(path)
                 availableoutputs = list(fin[path].keys())
                 for output in availableoutputs:
-                    grp.create_dataset(output, (fout.attrs['Iterations'], modelruns), dtype=fin[path + '/' + output].dtype)
+                    grp.create_dataset(output, 
+                                       (fout.attrs['Iterations'], len(outputfiles)), 
+                                       dtype=fin[path + '/' + output].dtype)
 
         # For all receivers
         for rx in range(1, nrx + 1):
@@ -113,16 +112,14 @@ def merge_files(basefilename, removefiles=False):
             availableoutputs = list(fin[path].keys())
             # For all receiver outputs
             for output in availableoutputs:
-                fout[path + '/' + output][:, model] = fin[path + '/' + output][:]
+                fout[path + '/' + output][:, i] = fin[path + '/' + output][:]
 
         fin.close()
-
     fout.close()
 
     if removefiles:
-        for model in range(modelruns):
-            file = basefilename + str(model + 1) + '.h5'
-            os.remove(file)
+        for outputfile in outputfiles:
+            os.remove(outputfile)
 
 if __name__ == "__main__":
 
@@ -132,4 +129,7 @@ if __name__ == "__main__":
     parser.add_argument('--remove-files', action='store_true', default=False, help='flag to remove individual output files after merge')
     args = parser.parse_args()
 
-    merge_files(args.basefilename, removefiles=args.remove_files)
+    files = glob.glob(args.basefilename + '*.h5')
+    outputfiles = [filename for filename in files if '_merged' not in filename]
+    outputfiles.sort(key=natural_keys)
+    merge_files(outputfiles, removefiles=args.remove_files)
