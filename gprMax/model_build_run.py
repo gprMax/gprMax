@@ -19,7 +19,6 @@
 import datetime
 import itertools
 import logging
-import platform
 import sys
 from pathlib import Path
 
@@ -36,10 +35,9 @@ from .cython.yee_cell_build import (build_electric_components,
 from .fields_outputs import write_hdf5_outputfile
 from .grid import dispersion_analysis
 from .hash_cmds_file import parse_hash_commands
-from .materials import Material, process_materials
+from .materials import process_materials
 from .pml import build_pml, print_pml_info
 from .scene import Scene
-from .snapshots import Snapshot
 from .utilities import (get_terminal_width, human_size, mem_check_all,
                         set_omp_threads)
 
@@ -275,12 +273,12 @@ class ModelBuildRun:
 
         # Check number of OpenMP threads
         if config.sim_config.general['cpu']:
-            logger.basic(f'CPU solver using: {config.get_model_config().ompthreads} OpenMP thread(s) on {platform.node()}\n')
+            logger.basic(f"CPU solver using: {config.get_model_config().ompthreads} OpenMP thread(s) on {config.sim_config.hostinfo['hostname']}\n")
             if config.get_model_config().ompthreads > config.sim_config.hostinfo['physicalcores']:
                 logger.warning(f"You have specified more threads ({config.get_model_config().ompthreads}) than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). This may lead to degraded performance.")
         # Print information about any GPU in use
         elif config.sim_config.general['cuda']:
-            logger.basic(f"GPU solver using: {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name} on {platform.node()}\n")
+            logger.basic(f"GPU solver using: {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name} on {config.sim_config.hostinfo['hostname']}\n")
 
         # Prepare iterator
         if config.sim_config.general['progressbars']:
