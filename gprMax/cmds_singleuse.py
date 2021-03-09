@@ -22,12 +22,9 @@ from pathlib import Path
 
 import gprMax.config as config
 import numpy as np
-from colorama import Fore, Style, init
-init()
 from scipy import interpolate
-from scipy.constants import c
 
-from .utilities import round_value, set_omp_threads
+from .utilities import set_omp_threads
 from .waveforms import Waveform
 
 logger = logging.getLogger(__name__)
@@ -206,7 +203,7 @@ class TimeWindow(UserObjectSingle):
         logger.info(f'Time window: {G.timewindow:g} secs ({G.iterations} iterations)')
 
 
-class NumThreads(UserObjectSingle):
+class OMPThreads(UserObjectSingle):
     """Allows you to control how many OpenMP threads (usually the number of
         physical CPU cores available) are used when running the model.
 
@@ -222,7 +219,7 @@ class NumThreads(UserObjectSingle):
         try:
             n = self.kwargs['n']
         except KeyError:
-            logger.exception(self.__str__() + ' requires exactly one parameter to specify the number of threads to use')
+            logger.exception(self.__str__() + ' requires exactly one parameter to specify the number of CPU OpenMP threads to use')
             raise
         if n < 1:
             logger.exception(self.__str__() + ' requires the value to be an integer not less than one')
