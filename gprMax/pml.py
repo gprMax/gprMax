@@ -311,7 +311,7 @@ class PML:
         pmlmodule = 'gprMax.cython.pml_updates_electric_' + self.G.pmlformulation
         func = getattr(import_module(pmlmodule), 'order' + str(len(self.CFS)) + '_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf,
-             config.sim_config.hostinfo['ompthreads'], self.G.updatecoeffsE, self.G.ID,
+             config.get_model_config().ompthreads, self.G.updatecoeffsE, self.G.ID,
              self.G.Ex, self.G.Ey, self.G.Ez, self.G.Hx, self.G.Hy, self.G.Hz,
              self.EPhi1, self.EPhi2, self.ERA, self.ERB, self.ERE, self.ERF, self.d)
 
@@ -321,7 +321,7 @@ class PML:
         pmlmodule = 'gprMax.cython.pml_updates_magnetic_' + self.G.pmlformulation
         func = getattr(import_module(pmlmodule), 'order' + str(len(self.CFS)) + '_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf,
-             config.sim_config.hostinfo['ompthreads'], self.G.updatecoeffsH, self.G.ID,
+             config.get_model_config().ompthreads, self.G.updatecoeffsH, self.G.ID,
              self.G.Ex, self.G.Ey, self.G.Ez, self.G.Hx, self.G.Hy, self.G.Hz,
              self.HPhi1, self.HPhi2, self.HRA, self.HRB, self.HRE, self.HRF, self.d)
 
