@@ -19,7 +19,7 @@
 import logging
 
 from .cmds_singleuse import (Discretisation, Domain, ExcitationFile,
-                             NumThreads, OutputDir, PMLCells, RxSteps,
+                             OMPThreads, OutputDir, PMLCells, RxSteps,
                              SrcSteps, TimeStepStabilityFactor, TimeWindow,
                              Title)
 
@@ -52,15 +52,15 @@ def process_singlecmds(singlecmds):
         scene_objects.append(output_dir)
 
     # Number of threads for CPU-based (OpenMP) parallelised parts of code
-    cmd = '#num_threads'
+    cmd = '#cpu_threads'
     if singlecmds[cmd] is not None:
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
         if len(tmp) != 1:
-            logger.exception(cmd + ' requires exactly one parameter to specify the number of threads to use')
+            logger.exception(cmd + ' requires exactly one parameter to specify the number of CPU OpenMP threads to use')
             raise ValueError
 
-        num_thread = NumThreads(n=tmp[0])
-        scene_objects.append(num_thread)
+        omp_threads = OMPThreads(n=tmp[0])
+        scene_objects.append(omp_threads)
 
     cmd = '#dx_dy_dz'
     if singlecmds[cmd] is not None:
