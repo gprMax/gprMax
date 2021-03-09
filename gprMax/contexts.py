@@ -38,16 +38,16 @@ class Context:
     def __init__(self):
         self.model_range = range(config.sim_config.model_start, config.sim_config.model_end)
         self.tsimend = None
-        self.tsimstart = None
+        self.tsimstart = None        
 
     def run(self):
         """Run the simulation in the correct context."""
+        self.tsimstart = timer()
         self.print_logo_copyright()
         self.print_host_info()
         if config.sim_config.general['cuda']:
             self.print_gpu_info()
-        self.tsimstart = timer()
-
+        
         # Clear list of model configs. It can be retained when gprMax is
         # called in a loop, and want to avoid this.
         config.model_configs = []
@@ -76,7 +76,8 @@ class Context:
 
     def print_logo_copyright(self):
         """Print gprMax logo, version, and copyright/licencing information."""
-        logo(__version__ + ' (' + codename + ')')
+        logo_copyright = logo(__version__ + ' (' + codename + ')')
+        logger.basic(logo_copyright)
 
     def print_host_info(self):
         """Print information about the host machine."""
@@ -133,7 +134,6 @@ class MPIContext(Context):
 
     def run(self):
         """Specialise how the models are run."""
-
         if self.rank == 0:
             self.tsimstart = timer()
             self.print_logo_copyright()
@@ -168,3 +168,40 @@ class MPIContext(Context):
         if executor.is_master():
             self.tsimend = timer()
             self.print_time_report()
+
+
+class SPOTPYContext(Context):
+    """Specialised context used when gprMax is coupled with SPOTPY 
+        (https://github.com/thouska/spotpy). SPOTPY coupling can utilise 2 levels
+        of MPI parallelism - where the top level is where SPOPTY optmisation 
+        algorithms can be parallelised, and the lower level is where gprMax
+        models can be parallelised using either OpenMP (CPU) or CUDA (GPU).
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def run(self, i):
+        """Process for running a single model."""
+
+        # self.print_logo_copyright()
+        # self.print_host_info()
+        # if config.sim_config.general['cuda']:
+        #     self.print_gpu_info()
+        self.tsimstart = timer()
+
+        # Create configuration for model
+        config.model_num = i
+        model_config = config.ModelConfig()
+        config.model_configs = model_config
+
+        G = create_G()
+        model = ModelBuildRun(G)
+        model.build()
+        
+        if not config.sim_config.args.geometry_only:
+            solver = create_solver(G)
+            model.solve(solver)
+
+        self.tsimend = timer()
+        self.print_time_report()
