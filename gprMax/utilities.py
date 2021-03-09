@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import codecs
+import datetime
 import decimal as d
 import logging
 import os
@@ -26,8 +26,6 @@ import subprocess
 import sys
 import textwrap
 import xml.dom.minidom
-from contextlib import contextmanager
-from copy import copy
 from shutil import get_terminal_size
 
 import gprMax.config as config
@@ -36,13 +34,15 @@ import psutil
 from colorama import Fore, Style, init
 init()
 
+logger = logging.getLogger(__name__)
+
 try:
     from time import thread_time as timer_fn
 except ImportError:
     from time import perf_counter as timer_fn
-
-logger = logging.getLogger(__name__)
-
+    logger.debug('"thread_time" not currently available in macOS and bug'\
+                   ' (https://bugs.python.org/issue36205) with "process_time", so use "perf_counter".')
+    
 
 class CustomFormatter(logging.Formatter):
     """Logging Formatter to add colors and count warning / errors 
@@ -70,15 +70,17 @@ class CustomFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def setup_logging(level=logging.INFO, logfile=False):
+def logging_config(name='gprMax', level=logging.INFO, log_file=False):
     """Setup and configure logging.
 
     Args:
+        name (str): name of logger to create.
         level (logging level): set logging level to stdout.
-        logfile (bool): additional logging to file.
+        log_file (bool): additional logging to file.
     """
 
-    # Add a custom log level
+    # Adds a custom log level to the root logger 
+    # from which new loggers are derived
     BASIC_NUM = 25
     logging.addLevelName(BASIC_NUM, "BASIC")
     def basic(self, message, *args, **kws):
@@ -86,20 +88,21 @@ def setup_logging(level=logging.INFO, logfile=False):
             self._log(BASIC_NUM, message, args, **kws)
     logging.Logger.basic = basic
 
-    # Get root logger
-    logger = logging.getLogger()
-    logger.setLevel(level)
+    # Create main top-level logger
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
 
-    # Logging to console
+    # Config for logging to console
     handler = logging.StreamHandler(sys.stdout)
     formatter = CustomFormatter()
     handler.setLevel(level)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
-    # Logging to file
-    if logfile:
-        handler = logging.FileHandler("log_gprMax.txt", mode='w')
+    # Config for logging to file if required
+    if log_file:
+        filename = name + '-log-' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        handler = logging.FileHandler(filename, mode='w')
         formatter = logging.Formatter('%(asctime)s:%(name)s:%(levelname)s: %(message)s')
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(formatter)
@@ -125,10 +128,14 @@ def logo(version):
 
     Args:
         version (str): Version number.
+
+    Returns:
+        (str): Containing logo, version, and licencing/copyright information.
     """
 
     description = '\n=== Electromagnetic modelling software based on the Finite-Difference Time-Domain (FDTD) method'
-    copyright = 'Copyright (C) 2015-2020: The University of Edinburgh'
+    current_year = datetime.datetime.now().year
+    copyright = f'Copyright (C) 2015-{current_year}: The University of Edinburgh'
     authors = 'Authors: Craig Warren and Antonis Giannopoulos'
     licenseinfo1 = 'gprMax is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.\n'
     licenseinfo2 = 'gprMax is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.'
@@ -140,16 +147,17 @@ def logo(version):
    | (_| | |_) | |  | |  | | (_| |>  <
     \__, | .__/|_|  |_|  |_|\__,_/_/\_\\
     |___/|_|
-                     v""" + version
+                     v""" + version + '\n\n'
 
-    logger.basic(f"{description} {'=' * (get_terminal_width() - len(description) - 1)}\n")
-    logger.basic(Fore.CYAN + f'{logo}\n')
-    logger.basic(Style.RESET_ALL + textwrap.fill(copyright, width=get_terminal_width() - 1, initial_indent=' '))
-    logger.basic(textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=' '))
-    logger.basic('')
-    logger.basic(textwrap.fill(licenseinfo1, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
-    logger.basic(textwrap.fill(licenseinfo2, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
-    logger.basic(textwrap.fill(licenseinfo3, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  '))
+    str = f"{description} {'=' * (get_terminal_width() - len(description) - 1)}\n\n"
+    str += Fore.CYAN + f'{logo}'
+    str += Style.RESET_ALL + textwrap.fill(copyright, width=get_terminal_width() - 1, initial_indent=' ') + '\n'
+    str += textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=' ') + '\n\n'
+    str += textwrap.fill(licenseinfo1, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  ') + '\n'
+    str += textwrap.fill(licenseinfo2, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  ') + '\n'
+    str += textwrap.fill(licenseinfo3, width=get_terminal_width() - 1, initial_indent=' ', subsequent_indent='  ')
+
+    return str
 
 
 def pretty_xml(roughxml):
@@ -251,6 +259,16 @@ def human_size(size, a_kilobyte_is_1024_bytes=False):
             return '{:.3g}{}'.format(size, suffix)
 
     raise ValueError('Number is too large.')
+
+
+def atoi(text):
+    """Converts a string into an integer."""
+    return int(text) if text.isdigit() else text
+
+
+def natural_keys(text):
+    """Human sorting of a string."""
+    return [atoi(c) for c in re.split(r'(\d+)', text)]
 
 
 def get_host_info():
@@ -395,7 +413,6 @@ def get_host_info():
         hostinfo['physicalcores'] = hostinfo['logicalcores']
 
     hostinfo['ram'] = psutil.virtual_memory().total
-    hostinfo['ompthreads'] = 1
 
     return hostinfo
 
@@ -586,5 +603,4 @@ def detect_gpus():
 
 def timer():
     """Function to return time in fractional seconds."""
-    logger.debug('"thread_time" not currently available in macOS and bug (https://bugs.python.org/issue36205) with "process_time", so use "perf_counter".')
     return timer_fn()
