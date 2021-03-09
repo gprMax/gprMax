@@ -3,7 +3,7 @@
 import gprMax.gprMax
 
 if __name__ == '__main__':
-    gprMax.gprMax.main()
+    gprMax.gprMax.cli()
 
 # Code profiling
 # Time profiling
