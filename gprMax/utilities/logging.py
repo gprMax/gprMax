@@ -73,11 +73,14 @@ def logging_config(name='gprMax', level=logging.INFO, format_style='std', log_fi
         log_file (bool): additional logging to file.
     """
 
+    format_std = "%(message)s"
+    format_full = "%(asctime)s:%(levelname)s:%(name)s:%(lineno)d: %(message)s"
+
     # Set format style
-    if format_style == 'std':
-        format = "%(message)s"
-    elif format_style == 'full':
-        format = "%(asctime)s:%(levelname)s:%(name)s:%(lineno)d: %(message)s"
+    if format_style == 'full' or level == logging.DEBUG:
+        format = format_full
+    elif format_style == 'std':
+        format = format_std
 
     # Create main top-level logger
     logger = logging.getLogger(name)
@@ -96,7 +99,7 @@ def logging_config(name='gprMax', level=logging.INFO, format_style='std', log_fi
     if log_file:
         filename = name + '-log-' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + '.txt'
         handler = logging.FileHandler(filename, mode='w')
-        formatter = logging.Formatter('%(asctime)s:%(name)s:%(levelname)s: %(message)s (%(filename)s:%(lineno)d)')
+        formatter = logging.Formatter(format_full)
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(formatter)
         logger.addHandler(handler)
