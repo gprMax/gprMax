@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -19,16 +19,14 @@
 import argparse
 import itertools
 import os
-import sys
 
-import h5py
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
 
 from gprMax._version import __version__
-from gprMax.utilities import get_host_info
-from gprMax.utilities import human_size
+from gprMax.utilities.host_info import get_host_info
+from gprMax.utilities.utilities import human_size
 
 
 """Plots execution times and speedup factors from benchmarking models run with different numbers of CPU (OpenMP) threads. Can also benchmark GPU(s) if required. Results are read from a NumPy archive."""

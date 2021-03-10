@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -21,7 +21,7 @@ import numpy as np
 from scipy import fftpack
 
 from .cython.fractals_generate import generate_fractal2D, generate_fractal3D
-from .utilities import round_value
+from .utilities.utilities import round_value
 
 np.seterr(divide='raise')
 

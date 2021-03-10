@@ -62,8 +62,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'gprMax'
-copyright = '2015-2019, The University of Edinburgh. Authors: Craig Warren and Antonis Giannopoulos'
-author = 'Craig Warren and Antonis Giannopoulos'
+copyright = '2015-2019, The University of Edinburgh. Authors: Craig Warren, Antonis Giannopoulos, and John Hartley'
+author = 'Craig Warren, Antonis Giannopoulos, and John Hartley'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -241,7 +241,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'gprMax.tex', 'gprMax User Guide',
-     'Craig Warren and Antonis Giannopoulos', 'manual'),
+     'Craig Warren, Antonis Giannopoulos, and John Hartley', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of

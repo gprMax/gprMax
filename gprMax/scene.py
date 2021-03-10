@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -26,7 +26,6 @@ from .cmds_singleuse import (Discretisation, Domain, TimeWindow,
 from .materials import create_built_in_materials
 from .subgrids.user_objects import SubGridBase as SubGridUserBase
 from .user_inputs import create_user_input_points
-from .utilities import human_size
 
 logger = logging.getLogger(__name__)
 

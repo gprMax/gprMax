@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -37,7 +37,7 @@ from .sources import MagneticDipole as MagneticDipoleUser
 from .sources import TransmissionLine as TransmissionLineUser
 from .sources import VoltageSource as VoltageSourceUser
 from .subgrids.base import SubGridBase
-from .utilities import round_value
+from .utilities.utilities import round_value
 from .waveforms import Waveform as WaveformUser
 
 logger = logging.getLogger(__name__)

@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -28,7 +28,8 @@ from scipy.constants import c
 from scipy.constants import epsilon_0 as e0
 from scipy.constants import mu_0 as m0
 
-from .utilities import detect_gpus, get_host_info, get_terminal_width
+from .utilities.host_info import detect_gpus, get_host_info
+from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
 

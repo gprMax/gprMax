@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import sys
 from struct import pack
 
 import h5py
@@ -26,7 +25,7 @@ import gprMax.config as config
 
 from ._version import __version__
 from .cython.snapshots import calculate_snapshot_fields
-from .utilities import round_value
+from .utilities.utilities import round_value
 
 
 class Snapshot:

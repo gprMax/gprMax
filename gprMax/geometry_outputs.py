@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -21,7 +21,6 @@ try:
 except ImportError:
     import xml.etree.ElementTree as ET
 import logging
-import os
 from pathlib import Path
 from struct import pack
 
@@ -32,7 +31,7 @@ import numpy as np
 from ._version import __version__
 from .cython.geometry_outputs import (define_fine_geometry,
                                       define_normal_geometry)
-from .utilities import pretty_xml, round_value
+from .utilities.utilities import pretty_xml, round_value
 
 logger = logging.getLogger(__name__)
 

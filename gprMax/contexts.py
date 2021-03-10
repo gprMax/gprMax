@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -25,7 +25,7 @@ import gprMax.config as config
 from ._version import __version__, codename
 from .model_build_run import ModelBuildRun
 from .solvers import create_G, create_solver
-from .utilities import get_terminal_width, human_size, logo, timer
+from .utilities.utilities import get_terminal_width, human_size, logo, timer
 
 logger = logging.getLogger(__name__)
 

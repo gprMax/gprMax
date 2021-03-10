@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -111,7 +111,8 @@ with open('gprMax/_version.py', 'r') as fd:
     version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
                         fd.read(), re.MULTILINE).group(1)
 
-# Parse package name from init file. Importing __init__.py / gprMax will break as gprMax depends on compiled .pyx files.
+# Parse package name from init file. Importing __init__.py / gprMax will break 
+# as gprMax depends on compiled .pyx files.
 with open('gprMax/__init__.py', 'r') as fd:
     packagename = re.search(r'^__name__\s*=\s*[\'"]([^\'"]*)[\'"]',
                             fd.read(), re.MULTILINE).group(1)
@@ -133,14 +134,16 @@ if 'build' in sys.argv:
     sys.argv.append('build_ext')
     sys.argv.append('--inplace')
 
-# Process '--no-cython' command line argument - either Cythonize or just compile the .c files
+# Process '--no-cython' command line argument - either Cythonize or just compile 
+# the .c files
 if '--no-cython' in sys.argv:
     USE_CYTHON = False
     sys.argv.remove('--no-cython')
 else:
     USE_CYTHON = True
 
-# Build a list of all the files that need to be Cythonized looking in gprMax directory
+# Build a list of all the files that need to be Cythonized looking in gprMax 
+# directory
 cythonfiles = []
 for root, dirs, files in os.walk(os.path.join(os.getcwd(), packagename), topdown=True):
     for file in files:
@@ -160,7 +163,9 @@ if 'cleanall' in sys.argv:
             except OSError:
                 print(f'Could not remove: {filebase + ".c"}')
         # Remove compiled Cython modules
-        libfile = glob.glob(os.path.join(os.getcwd(), os.path.splitext(file)[0]) + '*.pyd') + glob.glob(os.path.join(os.getcwd(), os.path.splitext(file)[0]) + '*.so')
+        libfile = glob.glob(os.path.join(os.getcwd(), 
+                            os.path.splitext(file)[0]) + '*.pyd') + glob.glob(os.path.join(os.getcwd(), 
+                            os.path.splitext(file)[0]) + '*.so')
         if libfile:
             libfile = libfile[0]
             try:
@@ -185,8 +190,8 @@ if sys.platform == 'win32':
     linker_args = []
     extra_objects = []
     libraries=[]
-# macOS - needs gcc (usually via HomeBrew) because the default compiler LLVM (clang) does not support OpenMP
-#          - with gcc -fopenmp option implies -pthread
+# macOS - needs gcc (usually via HomeBrew) because the default compiler LLVM 
+#           (clang) does not support OpenMP. With gcc -fopenmp option implies -pthread
 elif sys.platform == 'darwin':
     gccpath = glob.glob('/usr/local/bin/gcc-[4-9]*')
     gccpath += glob.glob('/usr/local/bin/gcc-[10-11]*')
@@ -241,7 +246,7 @@ if USE_CYTHON:
 
 setup(name=packagename,
       version=version,
-      author='Craig Warren and Antonis Giannopoulos',
+      author='Craig Warren, Antonis Giannopoulos, and John Hartley',
       url='http://www.gprmax.com',
       description='Electromagnetic Modelling Software based on the Finite-Difference Time-Domain (FDTD) method',
       long_description=long_description,

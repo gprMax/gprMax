@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -30,7 +30,7 @@ from .cmds_geometry.fractal_box import FractalBox
 from .cmds_geometry.plate import Plate
 from .cmds_geometry.sphere import Sphere
 from .cmds_geometry.triangle import Triangle
-from .utilities import round_value
+from .utilities.utilities import round_value
 
 logger = logging.getLogger(__name__)
 

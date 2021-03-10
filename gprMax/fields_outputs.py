@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -17,7 +17,6 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-from pathlib import Path
 from string import Template
 
 import h5py

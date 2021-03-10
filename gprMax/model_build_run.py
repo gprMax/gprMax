@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -22,11 +22,13 @@ import logging
 import sys
 from pathlib import Path
 
-import gprMax.config as config
 import numpy as np
 import psutil
 from colorama import Fore, Style, init
 init()
+
+import gprMax.config as config
+
 from terminaltables import SingleTable
 from tqdm import tqdm
 
@@ -38,8 +40,8 @@ from .hash_cmds_file import parse_hash_commands
 from .materials import process_materials
 from .pml import build_pml, print_pml_info
 from .scene import Scene
-from .utilities import (get_terminal_width, human_size, mem_check_all,
-                        set_omp_threads)
+from .utilities.host_info import mem_check_all, set_omp_threads
+from .utilities.utilities import get_terminal_width, human_size
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -25,7 +25,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 from gprMax.receivers import Rx
-from gprMax.utilities import fft_power
+from gprMax.utilities.utilities import fft_power
 
 logger = logging.getLogger(__name__)
 

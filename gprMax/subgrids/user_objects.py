@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -20,7 +20,6 @@ import logging
 from copy import copy
 
 import numpy as np
-from gprMax import config
 
 from ..cmds_geometry.cmds_geometry import UserObjectGeometry
 from ..cmds_multiuse import Rx, UserObjectMulti

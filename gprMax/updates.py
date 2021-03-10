@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -19,8 +19,9 @@
 import logging
 from importlib import import_module
 
-import gprMax.config as config
 import numpy as np
+
+import gprMax.config as config
 
 from .cuda.fields_updates import kernel_template_fields
 from .cuda.snapshots import kernel_template_store_snapshot
@@ -34,7 +35,9 @@ from .fields_outputs import store_outputs as store_outputs_cpu
 from .receivers import dtoh_rx_array, htod_rx_arrays
 from .snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
 from .sources import htod_src_arrays
-from .utilities import human_size, round32, timer
+from .utilities.utilities import human_size, round32, timer
+
+logger = logging.getLogger(__name__)
 
 
 class CPUUpdates:

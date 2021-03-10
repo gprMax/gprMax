@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -18,11 +18,10 @@
 
 import logging
 
-import gprMax.config as config
 import numpy as np
 
 from ..materials import create_water
-from ..utilities import round_value
+from ..utilities.utilities import round_value
 from .cmds_geometry import UserObjectGeometry, rotate_2point_object
 
 logger = logging.getLogger(__name__)

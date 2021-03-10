@@ -1,5 +1,5 @@
 # Copyright (C) 2015-2021: The University of Edinburgh
-#                 Authors: Craig Warren and Antonis Giannopoulos
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
 #
@@ -24,7 +24,7 @@ import h5py
 
 from ..cython.geometry_primitives import build_voxels_from_array
 from ..hash_cmds_file import get_user_objects
-from ..utilities import round_value
+from ..utilities.utilities import round_value
 from .cmds_geometry import UserObjectGeometry
 
 logger = logging.getLogger(__name__)
