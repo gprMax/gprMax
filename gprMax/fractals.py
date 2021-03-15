@@ -81,8 +81,8 @@ class FractalSurface(object):
         v1 = np.array([self.weighting[0] * (surfacedims[0]) / 2, self.weighting[1] * (surfacedims[1]) / 2])
 
         # 2D array of random numbers to be convolved with the fractal function
-        R = np.random.RandomState(self.seed)
-        A = R.randn(surfacedims[0], surfacedims[1])
+        rng = np.random.default_rng(seed=self.seed)
+        A = rng.standard_normal(size=(surfacedims[0], surfacedims[1]))
 
         # 2D FFT
         A = fftpack.fftn(A)
@@ -163,8 +163,8 @@ class FractalVolume(object):
         v1 = np.array([self.weighting[0] * self.nx / 2, self.weighting[1] * self.ny / 2, self.weighting[2] * self.nz / 2])
 
         # 3D array of random numbers to be convolved with the fractal function
-        R = np.random.RandomState(self.seed)
-        A = R.randn(self.nx, self.ny, self.nz)
+        rng = np.random.default_rng(seed=self.seed)
+        A = rng.standard_normal(size=(self.nx, self.ny, self.nz))
 
         # 3D FFT
         A = fftpack.fftn(A)
