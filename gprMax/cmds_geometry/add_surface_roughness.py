@@ -179,7 +179,7 @@ class AddSurfaceRoughness(UserObjectGeometry):
         surface.surfaceID = requestedsurface
         surface.fractalrange = fractalrange
         surface.operatingonID = volume.ID
-        surface.seed = seed
+        surface.seed = int(seed)
         surface.weighting = weighting
 
         # List of existing surfaces IDs

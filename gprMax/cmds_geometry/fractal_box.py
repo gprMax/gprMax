@@ -140,7 +140,7 @@ class FractalBox(UserObjectGeometry):
         volume.ID = ID
         volume.operatingonID = mixing_model_id
         volume.nbins = nbins
-        volume.seed = seed
+        volume.seed = int(seed)
         volume.weighting = weighting
         volume.averaging = averagefractalbox
         volume.mixingmodel = mixingmodel
