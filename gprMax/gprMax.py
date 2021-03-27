@@ -21,6 +21,7 @@
 import argparse
 import datetime
 import os
+import platform
 import sys
 
 from enum import Enum
@@ -338,7 +339,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     from mpi4py import MPI
 
     status = MPI.Status()
-    hostname = MPI.Get_processor_name()
+    hostname = platform.node()
 
     # Set range for number of models to run
     modelstart = args.restart if args.restart else 1
@@ -489,7 +490,7 @@ def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
     size = comm.Get_size()  # total number of processes
     rank = comm.Get_rank()  # rank of this process
     status = MPI.Status()   # get MPI status object
-    hostname = MPI.Get_processor_name()     # get name of processor/host
+    hostname = platform.node()     # get name of processor/host
 
     # Set range for number of models to run
     modelstart = args.restart if args.restart else 1
