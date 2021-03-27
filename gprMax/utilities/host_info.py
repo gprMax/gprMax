@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 import os
 import platform
 import re
@@ -26,6 +27,8 @@ import gprMax.config as config
 import psutil
 
 from .utilities import human_size
+
+logger = logging.getLogger(__name__)
 
 
 def get_host_info():
