@@ -433,7 +433,13 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         gpuinfo = ''
         if args.gpu is not None:
             # Set device ID based on rank from list of GPUs
-            args.gpu = args.gpu[rank]
+            try:
+                args.gpu = args.gpu[rank]
+            # GPUs on multiple nodes where CUDA_VISIBLE_DEVICES is the same 
+            # on each node
+            except: 
+                args.gpu = args.gpu[rank % len(args.gpu)]
+                
             gpuinfo = ' using {} - {}, {} RAM '.format(args.gpu.deviceID, 
                                                        args.gpu.name, 
                                                        human_size(args.gpu.totalmem, 
