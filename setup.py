@@ -205,4 +205,5 @@ setup(name=packagename,
       ext_modules=extensions,
       packages=packages,
       include_package_data=True,
-      include_dirs=[np.get_include()])
+      include_dirs=[np.get_include()],
+      zip_safe=False)
