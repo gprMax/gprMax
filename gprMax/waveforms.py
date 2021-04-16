@@ -17,14 +17,15 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-
+import h5py
 from gprMax.utilities import round_value
 
 
 class Waveform(object):
     """Definitions of waveform shapes that can be used with sources."""
 
-    types = ['gaussian', 'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot', 'gaussiandotdotnorm', 'gaussianprime', 'gaussiandoubleprime', 'ricker', 'sine', 'contsine', 'impulse', 'user']
+    types = ['gaussian', 'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot', 'gaussiandotdotnorm', 'gaussianprime', 'gaussiandoubleprime', 'ricker', 'sine', 'contsine', 'impulse', 'user',
+             'resshot_0', 'resshot_1','resshot_2','resshot_3','resshot_4']
 
     # Information about specific waveforms:
     #
@@ -53,6 +54,13 @@ class Waveform(object):
         elif self.type == 'gaussiandotdot' or self.type == 'gaussiandotdotnorm' or self.type == 'ricker':
             self.chi = np.sqrt(2) / self.freq
             self.zeta = np.pi**2 * self.freq**2
+
+    def residual_source(self, time, dt, shot_index):
+        folder = '/home/yzi/research/gprMax-FWI/output/forward/forward_curr'
+        time_index = int(time/dt)
+        h5_file = h5py.File(folder + '/residual_source.h5', 'r')
+        X = h5_file['X']
+        return X[int(shot_index)][time_index]
 
     def calculate_value(self, time, dt):
         """Calculates value of the waveform at a specific time.
@@ -116,6 +124,10 @@ class Waveform(object):
 
         elif self.type == 'user':
             ampvalue = self.userfunc(time)
+
+        elif self.type.split('_')[0] == 'resshot':
+            shot_index = self.type.split('_')[1]
+            ampvalue = self.residual_source(time, dt, shot_index)
 
         ampvalue *= self.amp
 
