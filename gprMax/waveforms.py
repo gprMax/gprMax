@@ -122,6 +122,7 @@ class Waveform(object):
             elif time >= dt:
                 ampvalue = 0
 
+
         elif self.type == 'user':
             ampvalue = self.userfunc(time)
 
