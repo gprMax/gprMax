@@ -201,8 +201,12 @@ class GeometryView:
         y = np.arange(0, ly + 0.1 * G.dx, G.dy, dtype='float64')
         z = np.arange(0, lz + 0.1 * G.dx, G.dz, dtype='float64')
 
+        # illustrative pml region
+        pml = np.ones((G.nx, G.ny, G.nz))
+        pml[10:-10, 10:-10, 10:-10] = 0
+
         fp = './test-evtk-hl'
-        rectilinearToVTK(fp, x, y, z, cellData = {"solid" : G.solid}, comments = ['hi', 'world'])
+        rectilinearToVTK(fp, x, y, z, cellData = {"materials" : G.solid, "pml": pml}, comments = ['hi', 'world'])
 
     def write_vtk(self, G, pbar):
         """Writes the geometry information to a VTK file.
