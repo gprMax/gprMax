@@ -23,10 +23,13 @@ except ImportError:
 import logging
 from pathlib import Path
 from struct import pack
+from xml.etree.ElementTree import indent
 
 import gprMax.config as config
 import h5py
 import numpy as np
+from evtk.hl import rectilinearToVTK
+from evtk.hl import linesToVTK
 
 from ._version import __version__
 from .cython.geometry_outputs import (define_fine_geometry,
@@ -124,6 +127,83 @@ class GeometryView:
             self.filename = Path(*parts[:-1], self.filename + config.get_model_config().appendmodelnumber)
             self.filename = self.filename.with_suffix(self.fileext)
 
+
+    def evtk_line(self):
+
+        G = self.G
+        # line counter
+        lc = 0
+        # point counter
+        pc = 0
+
+        n_x_lines = self.nx * (self.ny + 1) * (self.nz + 1)
+        n_y_lines = self.ny * (self.nx + 1) * (self.nz + 1)
+        n_z_lines = self.nz * (self.nx + 1) * (self.ny + 1)
+
+        n_lines = n_x_lines + n_y_lines + n_z_lines
+
+        # a line is defined by 2 points. Each line must have 2 new points
+        n_points = 2 * n_lines
+
+        x = np.zeros(n_points)
+        y = np.zeros(n_points)
+        z = np.zeros(n_points)
+
+        l = np.zeros(n_lines)
+
+        for i in range(self.nx):
+            for j in range(self.ny):
+                for k in range(self.nz):
+                    
+                    # x yee cell edge
+                    # line the line property to the relevent material
+
+                    l[lc] = G.ID[0][i, j, k]
+                    # set the starting point position of the edge
+                    x[pc], y[pc], z[pc] = i * self.dx, j * self.dy, k * self.dz
+                    # next point
+                    pc += 1
+                    # set the end point position of the edge
+                    x[pc], y[pc], z[pc] = (i + 1) * self.dx, j * self.dy, k * self.dz
+                    # next point
+                    pc += 1
+
+                    # next line
+                    lc += 1
+                    
+                    # y yee cell edge
+                    l[lc] = self.G.ID[1, i, j, k]
+                    x[pc], y[pc], z[pc] = i * self.dx, j * self.dy, k * self.dz
+                    pc += 1
+                    x[pc], y[pc], z[pc] = i * self.dx, (j + 1) * self.dy, k * self.dz
+                    pc += 1
+                    lc += 1
+
+                    # z yee cell edge
+                    l[lc] = self.G.ID[2, i, j, k]
+                    x[pc], y[pc], z[pc] = i * self.dx, j * self.dy, k * self.dz
+                    pc += 1
+                    x[pc], y[pc], z[pc] = i * self.dx, j * self.dy, (k + 1) * self.dz
+                    pc += 1
+                    lc += 1
+        
+        comments = [ "comment 1", "comment 2" ]
+        linesToVTK('./linesToVTK', x, y, z, cellData = {"Yee materials" : l})
+
+    def evtk_voxels(self):# have a go with evtk-hl library
+        G = self.G
+        lx = G.solid.shape[0] * G.dx
+        ly = G.solid.shape[1] * G.dy
+        lz = G.solid.shape[2] * G.dz
+
+        # Coordinates
+        x = np.arange(0, lx + 0.1 * G.dx, G.dx, dtype='float64')
+        y = np.arange(0, ly + 0.1 * G.dx, G.dy, dtype='float64')
+        z = np.arange(0, lz + 0.1 * G.dx, G.dz, dtype='float64')
+
+        fp = './test-evtk-hl'
+        rectilinearToVTK(fp, x, y, z, cellData = {"solid" : G.solid}, comments = ['hi', 'world'])
+
     def write_vtk(self, G, pbar):
         """Writes the geometry information to a VTK file.
             Either ImageData (.vti) for a per-cell geometry view, or
@@ -173,26 +253,12 @@ class GeometryView:
                 f.write('\n</AppendedData>\n</VTKFile>\n\n'.encode('utf-8'))
                 self.write_gprmax_info(f, G)
 
-                # have a go with evtk-hl library
-                from time import perf_counter
-                t0 = perf_counter()
-                import os
-                from evtk.hl import rectilinearToVTK
-
-                lx = G.solid.shape[0] * G.dx
-                ly = G.solid.shape[1] * G.dy
-                lz = G.solid.shape[2] * G.dz
-
-                # Coordinates
-                x = np.arange(0, lx + 0.1 * G.dx, G.dx, dtype='float64')
-                y = np.arange(0, ly + 0.1 * G.dx, G.dy, dtype='float64')
-                z = np.arange(0, lz + 0.1 * G.dx, G.dz, dtype='float64')
-
-                fp = './test-evtk-hl'
-                rectilinearToVTK(fp, x, y, z, cellData = {"solid" : G.solid}, comments = ['hi', 'world'])
-                print(f'time to write using evtk-hl {perf_counter() - t0}')
+                self.evtk_voxels()
 
         elif self.fileext == '.vtp':
+            
+            self.evtk_line()
+            
             with open(self.filename, 'wb') as f:
                 f.write('<?xml version="1.0"?>\n'.encode('utf-8'))
                 f.write(f'<VTKFile type="PolyData" version="1.0" byte_order="{config.sim_config.vtk_byteorder}">\n'.encode('utf-8'))
