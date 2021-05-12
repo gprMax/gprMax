@@ -67,7 +67,19 @@ if ms:
         if i != 1:
             thresholddisplay = Show(threshold, renderview)
         thresholddisplay.ColorArrayName = ['CELLS', 'Material']
-    threshold.UpdatePipeline()
+        threshold.UpdatePipeline()
+
+# create a threshold filter for the pml
+threshold = Threshold(Input=model)
+threshold.ThresholdRange = [1, 1]
+threshold.Scalars = ['CELLS', 'pml']
+RenameSource('pml', threshold)
+
+# Show data in view, except for free_space
+thresholddisplay = Show(threshold, renderview)
+thresholddisplay.ColorArrayName = ['CELLS', 'pml']
+thresholddisplay.Opacity = 0.5
+threshold.UpdatePipeline()
 
 RenderAllViews()
 
