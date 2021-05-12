@@ -173,6 +173,25 @@ class GeometryView:
                 f.write('\n</AppendedData>\n</VTKFile>\n\n'.encode('utf-8'))
                 self.write_gprmax_info(f, G)
 
+                # have a go with evtk-hl library
+                from time import perf_counter
+                t0 = perf_counter()
+                import os
+                from evtk.hl import rectilinearToVTK
+
+                lx = G.solid.shape[0] * G.dx
+                ly = G.solid.shape[1] * G.dy
+                lz = G.solid.shape[2] * G.dz
+
+                # Coordinates
+                x = np.arange(0, lx + 0.1 * G.dx, G.dx, dtype='float64')
+                y = np.arange(0, ly + 0.1 * G.dx, G.dy, dtype='float64')
+                z = np.arange(0, lz + 0.1 * G.dx, G.dz, dtype='float64')
+
+                fp = './test-evtk-hl'
+                rectilinearToVTK(fp, x, y, z, cellData = {"solid" : G.solid}, comments = ['hi', 'world'])
+                print(f'time to write using evtk-hl {perf_counter() - t0}')
+
         elif self.fileext == '.vtp':
             with open(self.filename, 'wb') as f:
                 f.write('<?xml version="1.0"?>\n'.encode('utf-8'))
