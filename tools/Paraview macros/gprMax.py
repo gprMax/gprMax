@@ -99,10 +99,11 @@ def display_pmls_new(pmlthick, dx_dy_dz, nx_ny_nz):
             tmp.append(pmls[pml])
 
     # Create a group of PMLs to switch on/off easily
-    pml_gp = AppendDatasets(Input=tmp)
-    RenameSource('PML - All', pml_gp)
-    pml_view = Show(pml_gp)
-    pml_view.Opacity = 0.5
+    if tmp:
+        pml_gp = AppendDatasets(Input=tmp)
+        RenameSource('PML - All', pml_gp)
+        pml_view = Show(pml_gp)
+        pml_view.Opacity = 0.5
 
 
 # Get whatever source is loaded (should be model)
