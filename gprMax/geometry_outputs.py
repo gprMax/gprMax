@@ -205,8 +205,10 @@ class GeometryView:
         pml = np.ones((G.nx, G.ny, G.nz))
         pml[10:-10, 10:-10, 10:-10] = 0
 
+        material_ids = ','.join([m.ID for m in G.materials if '+' not in m.ID])
+
         fp = './test-evtk-hl'
-        rectilinearToVTK(fp, x, y, z, cellData = {"materials" : G.solid, "pml": pml}, comments = ['hi', 'world'])
+        rectilinearToVTK(fp, x, y, z, cellData = {"Material" : G.solid, "pml": pml}, comments = [material_ids, 'world'])
 
     def write_vtk(self, G, pbar):
         """Writes the geometry information to a VTK file.

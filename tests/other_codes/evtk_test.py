@@ -48,7 +48,6 @@ scene.add(title_gpr)
 scene.add(dxdydz)
 scene.add(time_window)
 
-
 # plastic box in sub grid
 material = gprMax.Material(er=3, mr=1, se=0, sm=0, id='plastic')
 scene.add(material)
