@@ -191,34 +191,30 @@ class GeometryView:
                     lc += 1
 
         comments = ["comment 1", "comment 2"]
-        linesToVTK(self.format_filename_evtk(self.filename), x, y, z, cellData={"Yee materials": l})
+        linesToVTK(self.format_filename_evtk(self.filename),
+                   x, y, z, cellData={"Yee materials": l})
 
     def evtk_voxels(self):
         G = self.G
 
-        solid = np.copy(G.solid[self.xs:self.xf, self.ys:self.yf, self.zs:self.zf])
+        solid = np.copy(G.solid[self.xs:self.xf:self.dx,
+                        self.ys:self.yf:self.dx, self.zs:self.zf:self.dx])
+
+        # length is number of vertices in each direction * size of each block + starting offset
+        # vertices are number of cell + 1
         
-        lx = solid.shape[0] * G.dx
-        ly = solid.shape[1] * G.dy
-        lz = solid.shape[2] * G.dz
-
-        # Coordinates
-        #x = np.arange(self.xs * G.dx, self.xs * G.dx + lx + 0.1 * G.dx, G.dx, dtype='float64')
-        #y = np.arange(self.ys * G.dy, self.ys * G.dy + ly + 0.1 * G.dx, G.dy, dtype='float64')
-        #z = np.arange(self.zs * G.dz, self.zs * G.dz + lz + 0.1 * G.dx, G.dz, dtype='float64')
-
-        x = np.arange(0, solid.shape[0] + 1, dtype='float64') * G.dx + (self.xs * G.dx)   
-        y = np.arange(0, solid.shape[1] + 1, dtype='float64') * G.dy + (self.ys * G.dy)   
-        z = np.arange(0, solid.shape[2] + 1, dtype='float64') * G.dz + (self.zs * G.dz)   
-
-        assert len(x) == int(solid.shape[0] + 1)
-        assert len(y) == int(solid.shape[1] + 1)
-        assert len(z) == int(solid.shape[2] + 1)
+        # origin
+        x = np.arange(
+            0, solid.shape[0] + 1) * (G.dx * self.dx) + (self.xs * G.dx)
+        y = np.arange(
+            0, solid.shape[1] + 1) * (G.dy * self.dy) + (self.ys * G.dy)
+        z = np.arange(
+            0, solid.shape[2] + 1) * (G.dz * self.dz) + (self.zs * G.dz)
 
         # get information about pml, sources, receivers
         info = self.get_gprmax_info(G, materialsonly=False)
         comments = json.dumps(info)
-        
+
         rectilinearToVTK(self.format_filename_evtk(self.filename), x, y, z, cellData={
                          "Material": solid}, comments=[comments])
 
@@ -347,7 +343,7 @@ class GeometryObjects:
 
         # Sizes of arrays to write necessary to update progress bar
         self.solidsize = (self.nx + 1) * (self.ny + 1) * \
-            (self.nz + 1) * np.dtype(np.int16).itemsize
+            (self.nz + 1) * n.itemsize
         self.rigidsize = 18 * (self.nx + 1) * (self.ny + 1) * \
             (self.nz + 1) * np.dtype(np.int8).itemsize
         self.IDsize = 6 * (self.nx + 1) * (self.ny + 1) * \
