@@ -113,14 +113,14 @@ class ModelBuildRun:
             if grid.geometryviews:
                 logger.info('')
                 # Write a Paraview data file (.pvd) if there is more than one GeometryView
-                if len(grid.geometryviews) > 1:
+                """if len(grid.geometryviews) > 1:
                     grid.geometryviews[0].write_vtk_pvd(grid.geometryviews)
-                    logger.info(f'Written wrapper for geometry files: {grid.geometryviews[0].pvdfile.name}')
+                    logger.info(f'Written wrapper for geometry files: {grid.geometryviews[0].pvdfile.name}')"""
                 for i, gv in enumerate(grid.geometryviews):
                     gv.initialise()
                     gv.set_filename()
                     pbar = tqdm(total=gv.datawritesize, unit='byte', unit_scale=True,
-                                desc=f'Writing geometry view file {i + 1}/{len(grid.geometryviews)}, {gv.filename.name}',
+                                desc=f'Writing geometry view file {i + 1}/{len(grid.geometryviews)}, {gv.filename.name} {gv.output_type}',
                                 ncols=get_terminal_width() - 1, file=sys.stdout,
                                 disable=not config.sim_config.general['progressbars'])
                     gv.write_vtk(grid, pbar)
