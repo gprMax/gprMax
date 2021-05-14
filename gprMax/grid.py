@@ -282,6 +282,9 @@ class FDTDGrid:
         # hardware maximum. Avoids inadvertently exceeding the CFL due to
         # binary representation of floating point number.
         self.dt = round_value(self.dt, decimalplaces=d.getcontext().prec - 1)
+    
+    def get_srcs(self):
+        return self.hertziandipoles + self.magneticdipoles + self.voltagesources + self.transmissionlines
 
 
 class CUDAGrid(FDTDGrid):
