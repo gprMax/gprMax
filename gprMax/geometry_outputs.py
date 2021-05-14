@@ -195,6 +195,7 @@ class GeometryView:
                    x, y, z, cellData={"Yee materials": l})
 
     def evtk_voxels(self):
+        """Function to export the user selected voxels to VTK (.vdr)"""
         G = self.G
 
         # sample the solid array
