@@ -204,3 +204,12 @@ def natural_keys(text):
 def timer():
     """Function to return time in fractional seconds."""
     return timer_fn()
+
+
+def numeric_list_to_int_list(l):
+    """Return a list of int from a numerical list"""
+    return list(map(int, l))
+
+def numeric_list_to_float_list(l):
+    """Return a list of int from a numerical list"""
+    return list(map(float, l))
