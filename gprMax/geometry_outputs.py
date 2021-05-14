@@ -197,13 +197,12 @@ class GeometryView:
     def evtk_voxels(self):
         G = self.G
 
+        # sample the solid array
         solid = np.copy(G.solid[self.xs:self.xf:self.dx,
                         self.ys:self.yf:self.dx, self.zs:self.zf:self.dx])
 
-        # length is number of vertices in each direction * size of each block + starting offset
-        # vertices are number of cell + 1
-        
-        # origin
+        # coordinates of vertices (rectilinear)
+        # (length is number of vertices in each direction) * (size of each block [m]) + (starting offset)
         x = np.arange(
             0, solid.shape[0] + 1) * (G.dx * self.dx) + (self.xs * G.dx)
         y = np.arange(
@@ -211,10 +210,11 @@ class GeometryView:
         z = np.arange(
             0, solid.shape[2] + 1) * (G.dz * self.dz) + (self.zs * G.dz)
 
-        # get information about pml, sources, receivers
+        # Get information about pml, sources, receivers
         info = self.get_gprmax_info(G, materialsonly=False)
         comments = json.dumps(info)
 
+        # Write the VTK file .vtr
         rectilinearToVTK(self.format_filename_evtk(self.filename), x, y, z, cellData={
                          "Material": solid}, comments=[comments])
 
