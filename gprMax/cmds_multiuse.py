@@ -1249,7 +1249,10 @@ class GeometryView(UserObjectMulti):
             self.multi_grid = True
         except KeyError:
             self.multi_grid = False
-            from .geometry_outputs import GeometryView as GeometryViewUser
+            if output_type == 'n':
+                from .geometry_outputs import GeometryViewVoxels as GeometryViewUser            
+            else:
+                from .geometry_outputs import GeometryViewLines as GeometryViewUser
 
         return GeometryViewUser
 
@@ -1292,7 +1295,7 @@ class GeometryView(UserObjectMulti):
             logger.exception(self.params_str() + ' requires the spatial discretisation for the geometry view to be the same as the model for geometry view of type f (fine)')
             raise ValueError
 
-        g = GeometryViewUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, output_type, grid)
+        g = GeometryViewUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, grid)
 
         logger.info(f'Geometry view from {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, multi_grid={self.multi_grid}, grid={grid.name}, with filename base {g.filename} created.')
 

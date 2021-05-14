@@ -123,7 +123,7 @@ class ModelBuildRun:
                                 desc=f'Writing geometry view file {i + 1}/{len(grid.geometryviews)}, {gv.filename.name} {gv.output_type}',
                                 ncols=get_terminal_width() - 1, file=sys.stdout,
                                 disable=not config.sim_config.general['progressbars'])
-                    gv.write_vtk(grid, pbar)
+                    gv.write_vtk(pbar)
                     pbar.close()
                 logger.info('')
         

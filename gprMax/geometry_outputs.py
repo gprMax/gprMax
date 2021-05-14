@@ -35,16 +35,14 @@ from .utilities.utilities import pretty_xml, round_value, numeric_list_to_int_li
 logger = logging.getLogger(__name__)
 
 
-class GeometryView:
-    """Views of the geometry of the model."""
-
-    def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None, dx=None, dy=None, dz=None, filename=None, output_type=None, G=None):
+class GeometryView():
+    def __init__(self, xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, grid):
         """
         Args:
             xs, xf, ys, yf, zs, zf (int): Extent of the volume in cells.
             dx, dy, dz (int): Spatial discretisation in cells.
             filename (str): Filename to save to.
-            G (FDTDGrid): Parameters describing a grid in a model.
+            grid (FDTDGrid): Parameters describing a grid in a model.
         """
         # indices start
         self.xs = xs
@@ -64,57 +62,12 @@ class GeometryView:
         self.dz = dz
 
         self.filename = filename
-        self.output_type = output_type
         self.set_filename_called = False
-        self.G = G
+        self.grid = grid
+        self.datawritesize = self.calculate_writesize()
 
-        # voxel
-        if self.output_type == 'n':
-            # Calculate number of cells according to requested sampling for geometry view
-            self.vtk_xscells = round_value(self.xs / self.dx)
-            self.vtk_xfcells = round_value(self.xf / self.dx)
-            self.vtk_yscells = round_value(self.ys / self.dy)
-            self.vtk_yfcells = round_value(self.yf / self.dy)
-            self.vtk_zscells = round_value(self.zs / self.dz)
-            self.vtk_zfcells = round_value(self.zf / self.dz)
-            self.vtk_nxcells = round_value(self.nx / self.dx)
-            self.vtk_nycells = round_value(self.ny / self.dy)
-            self.vtk_nzcells = round_value(self.nz / self.dz)
-            self.vtk_ncells = self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells
-            self.datawritesize = (np.dtype(np.uint32).itemsize * self.vtk_ncells +
-                                  3 * np.dtype(np.uint32).itemsize)
-
-        # line
-        elif self.output_type == 'f':
-            self.vtk_numpoints = (self.nx + 1) * (self.ny + 1) * (self.nz + 1)
-            self.vtk_numpoint_components = 3
-            self.vtk_numline_components = 2
-            self.vtk_nxlines = self.nx * (self.ny + 1) * (self.nz + 1)
-            self.vtk_nylines = self.ny * (self.nx + 1) * (self.nz + 1)
-            self.vtk_nzlines = self.nz * (self.nx + 1) * (self.ny + 1)
-            self.vtk_numlines = self.vtk_nxlines + self.vtk_nylines + self.vtk_nzlines
-            self.vtk_connectivity_offset = ((self.vtk_numpoints *
-                                             self.vtk_numpoint_components *
-                                             np.dtype(np.float32).itemsize) +
-                                            np.dtype(np.uint32).itemsize)
-            self.vtk_offsets_offset = (self.vtk_connectivity_offset +
-                                       (self.vtk_numlines *
-                                        self.vtk_numline_components *
-                                        np.dtype(np.uint32).itemsize) +
-                                       np.dtype(np.uint32).itemsize)
-            self.vtk_materials_offset = (self.vtk_offsets_offset +
-                                         (self.vtk_numlines *
-                                          np.dtype(np.uint32).itemsize) +
-                                         np.dtype(np.uint32).itemsize)
-            vtk_cell_offsets = (((self.vtk_numline_components * self.vtk_numlines) +
-                                 self.vtk_numline_components - self.vtk_numline_components - 1) //
-                                self.vtk_numline_components + 1)
-            self.datawritesize = (np.dtype(np.float32).itemsize * self.vtk_numpoints *
-                                  self.vtk_numpoint_components + np.dtype(np.uint32).itemsize *
-                                  self.vtk_numlines * self.vtk_numline_components +
-                                  np.dtype(np.uint32).itemsize * self.vtk_numlines +
-                                  np.dtype(np.uint32).itemsize * vtk_cell_offsets +
-                                  np.dtype(np.uint32).itemsize * 4)
+    def format_filename_evtk(self, filename):
+        return str(filename)
 
     def initialise(self):
         pass
@@ -126,11 +79,56 @@ class GeometryView:
             parts = config.get_model_config().output_file_path.parts
             self.filename = Path(
                 *parts[:-1], self.filename + config.get_model_config().appendmodelnumber)
-            #self.filename = self.filename.with_suffix(self.fileext)
 
-    def evtk_line(self):
 
-        G = self.G
+class GeometryViewLines(GeometryView):
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.output_type = 'f'
+
+    def calculate_writesize(self):
+
+        self.vtk_numpoints = (self.nx + 1) * (self.ny + 1) * (self.nz + 1)
+        self.vtk_numpoint_components = 3
+        self.vtk_numline_components = 2
+        self.vtk_nxlines = self.nx * (self.ny + 1) * (self.nz + 1)
+        self.vtk_nylines = self.ny * (self.nx + 1) * (self.nz + 1)
+        self.vtk_nzlines = self.nz * (self.nx + 1) * (self.ny + 1)
+        self.vtk_numlines = self.vtk_nxlines + self.vtk_nylines + self.vtk_nzlines
+        self.vtk_connectivity_offset = ((self.vtk_numpoints *
+                                        self.vtk_numpoint_components *
+                                        np.dtype(np.float32).itemsize) +
+                                        np.dtype(np.uint32).itemsize)
+        self.vtk_offsets_offset = (self.vtk_connectivity_offset +
+                                   (self.vtk_numlines *
+                                    self.vtk_numline_components *
+                                    np.dtype(np.uint32).itemsize) +
+                                   np.dtype(np.uint32).itemsize)
+        self.vtk_materials_offset = (self.vtk_offsets_offset +
+                                     (self.vtk_numlines *
+                                      np.dtype(np.uint32).itemsize) +
+                                     np.dtype(np.uint32).itemsize)
+        vtk_cell_offsets = (((self.vtk_numline_components * self.vtk_numlines) +
+                            self.vtk_numline_components - self.vtk_numline_components - 1) //
+                            self.vtk_numline_components + 1)
+        return (np.dtype(np.float32).itemsize * self.vtk_numpoints *
+                self.vtk_numpoint_components + np.dtype(np.uint32).itemsize *
+                self.vtk_numlines * self.vtk_numline_components +
+                np.dtype(np.uint32).itemsize * self.vtk_numlines +
+                np.dtype(np.uint32).itemsize * vtk_cell_offsets +
+                np.dtype(np.uint32).itemsize * 4)
+
+    def write_vtk(self, pbar):
+        """Writes the geometry information to a VTK file.
+            Unstructured edge (.vtu) for a per-cell geometry view
+
+            N.B. No Python 3 support for VTK at time of writing (03/2015)
+
+        Args:
+            pbar (class): Progress bar class instance.
+        """
+
         # line counter
         lc = 0
         # point counter
@@ -158,7 +156,7 @@ class GeometryView:
                     # x yee cell edge
                     # line the line property to the relevent material
 
-                    l[lc] = G.ID[0][i, j, k]
+                    l[lc] = self.grid.ID[0][i, j, k]
                     # set the starting point position of the edge
                     x[pc], y[pc], z[pc] = i * self.dx, j * self.dy, k * self.dz
                     # next point
@@ -173,7 +171,7 @@ class GeometryView:
                     lc += 1
 
                     # y yee cell edge
-                    l[lc] = self.G.ID[1, i, j, k]
+                    l[lc] = self.grid.ID[1, i, j, k]
                     x[pc], y[pc], z[pc] = i * self.dx, j * self.dy, k * self.dz
                     pc += 1
                     x[pc], y[pc], z[pc] = i * \
@@ -182,7 +180,7 @@ class GeometryView:
                     lc += 1
 
                     # z yee cell edge
-                    l[lc] = self.G.ID[2, i, j, k]
+                    l[lc] = self.grid.ID[2, i, j, k]
                     x[pc], y[pc], z[pc] = i * self.dx, j * self.dy, k * self.dz
                     pc += 1
                     x[pc], y[pc], z[pc] = i * self.dx, j * \
@@ -194,58 +192,75 @@ class GeometryView:
         linesToVTK(self.format_filename_evtk(self.filename),
                    x, y, z, cellData={"Yee materials": l})
 
-    def evtk_voxels(self):
-        """Function to export the user selected voxels to VTK (.vdr)"""
-        G = self.G
+
+class GeometryViewVoxels(GeometryView):
+    """Views of the geometry of the model."""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.output_type = 'n'
+
+    def calculate_writesize(self):
+        # Calculate number of cells according to requested sampling for geometry view
+        self.vtk_xscells = round_value(self.xs / self.dx)
+        self.vtk_xfcells = round_value(self.xf / self.dx)
+        self.vtk_yscells = round_value(self.ys / self.dy)
+        self.vtk_yfcells = round_value(self.yf / self.dy)
+        self.vtk_zscells = round_value(self.zs / self.dz)
+        self.vtk_zfcells = round_value(self.zf / self.dz)
+        self.vtk_nxcells = round_value(self.nx / self.dx)
+        self.vtk_nycells = round_value(self.ny / self.dy)
+        self.vtk_nzcells = round_value(self.nz / self.dz)
+        self.vtk_ncells = self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells
+        return (np.dtype(np.uint32).itemsize * self.vtk_ncells +
+                3 * np.dtype(np.uint32).itemsize)
+
+    def write_vtk(self, pbar):
+        """Writes the geometry information to a VTK file.
+            Rectilinear (.vtr) for a per-cell geometry view, or
+
+            N.B. No Python 3 support for VTK at time of writing (03/2015)
+
+        Args:
+            pbar (class): Progress bar class instance.
+        """
+        grid = self.grid
 
         # sample the solid array
-        solid = np.copy(G.solid[self.xs:self.xf:self.dx,
+        solid = np.copy(grid.solid[self.xs:self.xf:self.dx,
                         self.ys:self.yf:self.dx, self.zs:self.zf:self.dx])
 
         # coordinates of vertices (rectilinear)
         # (length is number of vertices in each direction) * (size of each block [m]) + (starting offset)
         x = np.arange(
-            0, solid.shape[0] + 1) * (G.dx * self.dx) + (self.xs * G.dx)
+            0, solid.shape[0] + 1) * (grid.dx * self.dx) + (self.xs * grid.dx)
         y = np.arange(
-            0, solid.shape[1] + 1) * (G.dy * self.dy) + (self.ys * G.dy)
+            0, solid.shape[1] + 1) * (grid.dy * self.dy) + (self.ys * grid.dy)
         z = np.arange(
-            0, solid.shape[2] + 1) * (G.dz * self.dz) + (self.zs * G.dz)
+            0, solid.shape[2] + 1) * (grid.dz * self.dz) + (self.zs * grid.dz)
 
         # Get information about pml, sources, receivers
-        info = self.get_gprmax_info(G, materialsonly=False)
+        comments = Comments(grid, self)
+        info = comments.get_gprmax_info(materialsonly=False)
         comments = json.dumps(info)
 
         # Write the VTK file .vtr
         rectilinearToVTK(self.format_filename_evtk(self.filename), x, y, z, cellData={
                          "Material": solid}, comments=[comments])
 
-    def format_filename_evtk(self, filename):
-        return str(filename)
 
-    def write_vtk(self, G, pbar):
-        """Writes the geometry information to a VTK file.
-            Either ImageData (.vtr) for a per-cell geometry view, or
-            PolygonalData (.vtu) for a per-cell-edge geometry view.
+class Comments():
 
-            N.B. No Python 3 support for VTK at time of writing (03/2015)
+    def __init__(self, grid, geoview):
+        self.geoview = geoview
+        self.grid = grid
 
-        Args:
-            G (FDTDGrid): Parameters describing a grid in a model.
-            pbar (class): Progress bar class instance.
-        """
-
-        if self.output_type == 'n':
-            self.evtk_voxels()
-
-        elif self.output_type == 'f':
-            self.evtk_line()
-
-    def get_gprmax_info(self, G, materialsonly=False):
+    def get_gprmax_info(self, materialsonly=False):
         """Returns gprMax specific information relating material, source,
             and receiver names to numeric identifiers.
 
         Args:
-            G (FDTDGrid): Parameters describing a grid in a model.
+            grid (FDTDGrid): Parameters describing a grid in a model.
             materialsonly (bool): Only write information on materials
         """
 
@@ -253,49 +268,53 @@ class GeometryView:
         comments = {}
 
         comments['Version'] = __version__
-        comments['dx_dy_dz'] = self.dx_dy_dz_comment(G)
-        comments['nx_ny_nz'] = self.nx_ny_nz_comment(G)
+        comments['dx_dy_dz'] = self.dx_dy_dz_comment()
+        comments['nx_ny_nz'] = self.nx_ny_nz_comment()
         # Write the name and numeric ID for each material
-        comments['Materials'] = self.materials_comment(G)
+        comments['Materials'] = self.materials_comment()
 
         # Write information on PMLs, sources, and receivers
         if not materialsonly:
             # Information on PML thickness
-            if G.pmls:
-                comments['PMLthickness'] = self.pml_geoview_comment(G)
-            srcs = G.get_srcs()
+            if self.grid.pmls:
+                comments['PMLthickness'] = self.pml_geoview_comment()
+            srcs = self.grid.get_srcs()
             if srcs:
-                comments['Sources'] = self.srcs_rx_geoview_comment(G, srcs)
-            if G.rxs:
-                comments['Receivers'] = self.srcs_rx_geoview_comment(G, G.rxs)
+                comments['Sources'] = self.srcs_rx_geoview_comment(srcs)
+            if self.grid.rxs:
+                comments['Receivers'] = self.srcs_rx_geoview_comment(
+                    self.grid.rxs)
 
         return comments
 
-    def pml_geoview_comment(self, G):
-        # Only render PMLs if they are in the geometry view
-        pmlstorender = dict.fromkeys(G.pmlthickness, 0)
+    def pml_geoview_comment(self):
 
-        if G.pmlthickness['x0'] - self.vtk_xscells > 0:
-            pmlstorender['x0'] = G.pmlthickness['x0']
-        if G.pmlthickness['y0'] - self.vtk_yscells > 0:
-            pmlstorender['y0'] = G.pmlthickness['y0']
-        if G.pmlthickness['z0'] - self.vtk_zscells > 0:
-            pmlstorender['z0'] = G.pmlthickness['z0']
-        if self.vtk_xfcells > G.nx - G.pmlthickness['xmax']:
-            pmlstorender['xmax'] = G.pmlthickness['xmax']
-        if self.vtk_yfcells > G.ny - G.pmlthickness['ymax']:
-            pmlstorender['ymax'] = G.pmlthickness['ymax']
-        if self.vtk_zfcells > G.nz - G.pmlthickness['zmax']:
-            pmlstorender['zmax'] = G.pmlthickness['zmax']
+        grid = self.grid
+        # Only render PMLs if they are in the geometry view
+        pmlstorender = dict.fromkeys(grid.pmlthickness, 0)
+
+        if grid.pmlthickness['x0'] - self.geoview.vtk_xscells > 0:
+            pmlstorender['x0'] = grid.pmlthickness['x0']
+        if grid.pmlthickness['y0'] - self.geoview.vtk_yscells > 0:
+            pmlstorender['y0'] = grid.pmlthickness['y0']
+        if grid.pmlthickness['z0'] - self.geoview.vtk_zscells > 0:
+            pmlstorender['z0'] = grid.pmlthickness['z0']
+        if self.geoview.vtk_xfcells > grid.nx - grid.pmlthickness['xmax']:
+            pmlstorender['xmax'] = grid.pmlthickness['xmax']
+        if self.geoview.vtk_yfcells > grid.ny - grid.pmlthickness['ymax']:
+            pmlstorender['ymax'] = grid.pmlthickness['ymax']
+        if self.geoview.vtk_zfcells > grid.nz - grid.pmlthickness['zmax']:
+            pmlstorender['zmax'] = grid.pmlthickness['zmax']
 
         return list(pmlstorender.values())
 
-    def srcs_rx_geoview_comment(self, G, srcs):
+    def srcs_rx_geoview_comment(self, srcs):
+
         sc = []
         for src in srcs:
-            p = (src.xcoord * G.dx,
-                 src.ycoord * G.dy,
-                 src.zcoord * G.dz)
+            p = (src.xcoord * self.grid.dx,
+                 src.ycoord * self.grid.dy,
+                 src.zcoord * self.grid.dz)
             p = numeric_list_to_float_list(p)
 
             s = {'name': src.ID,
@@ -304,14 +323,14 @@ class GeometryView:
             sc.append(s)
         return sc
 
-    def dx_dy_dz_comment(self, G):
-        return numeric_list_to_float_list([G.dx, G.dy, G.dz])
+    def dx_dy_dz_comment(self):
+        return numeric_list_to_float_list([self.grid.dx, self.grid.dy, self.grid.dz])
 
-    def nx_ny_nz_comment(self, G):
-        return numeric_list_to_int_list([G.nx, G.ny, G.nz])
+    def nx_ny_nz_comment(self):
+        return numeric_list_to_int_list([self.grid.nx, self.grid.ny, self.grid.nz])
 
-    def materials_comment(self, G):
-        return [m.ID for m in G.materials if '+' not in m.ID]
+    def materials_comment(self):
+        return [m.ID for m in self.grid.materials if '+' not in m.ID]
 
 
 class GeometryObjects:
