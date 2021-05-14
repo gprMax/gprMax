@@ -1292,13 +1292,7 @@ class GeometryView(UserObjectMulti):
             logger.exception(self.params_str() + ' requires the spatial discretisation for the geometry view to be the same as the model for geometry view of type f (fine)')
             raise ValueError
 
-        # Set type of geometry file
-        if output_type == 'n':
-            fileext = '.vti'
-        else:
-            fileext = '.vtp'
-
-        g = GeometryViewUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, fileext, grid)
+        g = GeometryViewUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, output_type, grid)
 
         logger.info(f'Geometry view from {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, multi_grid={self.multi_grid}, grid={grid.name}, with filename base {g.filename} created.')
 
