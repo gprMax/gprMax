@@ -36,7 +36,7 @@ from pathlib import Path
 
 # SetupTools Required to make package
 import setuptools
-from jinja2 import Environment, PackageLoader, select_autoescape
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 
 def build_dispersive_material_templates():
@@ -46,7 +46,7 @@ def build_dispersive_material_templates():
     """
 
     env = Environment(
-        loader=PackageLoader(__name__, 'gprMax/templates'),
+        loader=FileSystemLoader('gprMax/templates'),
     )
 
     template = env.get_template('fields_updates_dispersive_template')
