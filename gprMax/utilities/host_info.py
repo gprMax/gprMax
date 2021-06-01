@@ -302,32 +302,30 @@ def mem_check_all(grids):
 class GPU:
     """GPU information."""
 
-    def __init__(self, deviceID):
-        """
-        Args:
-            deviceID (int): Device ID for GPU.
-        """
+    def __init__(self):
 
-        self.deviceID = deviceID
+        self.deviceID = None
         self.name = None
         self.pcibusID = None
         self.constmem = None
         self.totalmem = None
 
-    def get_gpu_info(self, drv):
+    def get_cuda_gpu_info(self, drv, deviceID):
         """Set information about GPU.
 
         Args:
-            drv (object): PyCuda driver.
+            drv (object): pycuda driver.
+            deviceID (int): Device ID for GPU.
         """
 
+        self.deviceID = deviceID
         self.name = drv.Device(self.deviceID).name()
         self.pcibusID = drv.Device(self.deviceID).pci_bus_id()
         self.constmem = drv.Device(self.deviceID).total_constant_memory
         self.totalmem = drv.Device(self.deviceID).total_memory()
 
 
-def detect_gpus():
+def detect_cuda_gpus():
     """Get information about Nvidia GPU(s).
 
     Returns:
@@ -336,26 +334,52 @@ def detect_gpus():
 
     try:
         import pycuda.driver as drv
+        has_pycuda = True
     except ImportError:
-        logger.exception('To use gprMax in GPU mode the pycuda package must be installed, and you must have a NVIDIA CUDA-Enabled GPU (https://developer.nvidia.com/cuda-gpus).')
-        raise
-    drv.init()
+        logger.warning('pycuda not detected - to use gprMax in GPU mode the pycuda package must be installed, and you must have a NVIDIA CUDA-Enabled GPU (https://developer.nvidia.com/cuda-gpus).')
+        has_pycuda = False
+    
+    if has_pycuda:
+        drv.init()
 
-    # Check and list any CUDA-Enabled GPUs
-    if drv.Device.count() == 0:
-        logger.exception('No NVIDIA CUDA-Enabled GPUs detected (https://developer.nvidia.com/cuda-gpus)')
-        raise ValueError
-    elif 'CUDA_VISIBLE_DEVICES' in os.environ:
-        deviceIDsavail = os.environ.get('CUDA_VISIBLE_DEVICES')
-        deviceIDsavail = [int(s) for s in deviceIDsavail.split(',')]
+        # Check and list any CUDA-Enabled GPUs
+        if drv.Device.count() == 0:
+            logger.exception('No NVIDIA CUDA-Enabled GPUs detected (https://developer.nvidia.com/cuda-gpus)')
+            raise ValueError
+        elif 'CUDA_VISIBLE_DEVICES' in os.environ:
+            deviceIDsavail = os.environ.get('CUDA_VISIBLE_DEVICES')
+            deviceIDsavail = [int(s) for s in deviceIDsavail.split(',')]
+        else:
+            deviceIDsavail = range(drv.Device.count())
+
+        # Gather information about detected GPUs
+        gpus = []
+        for ID in deviceIDsavail:
+            gpu = GPU()
+            gpu.get_cuda_gpu_info(drv, ID)
+            gpus.append(gpu)
+
     else:
-        deviceIDsavail = range(drv.Device.count())
-
-    # Gather information about detected GPUs
-    gpus = []
-    for ID in deviceIDsavail:
-        gpu = GPU(deviceID=ID)
-        gpu.get_gpu_info(drv)
-        gpus.append(gpu)
+        gpus = None
 
     return gpus
+
+
+def detect_opencl():
+    """Get information about OpenCL platforms and devices.
+
+    Returns:
+        gpus (list): Detected GPU(s) object(s).
+    """
+
+    try:
+        import pyopencl as cl
+        has_pyopencl = True
+    except ImportError:
+        logger.warning('pyopencl not detected - to use gprMax with OpenCL, the pyopencl package must be installed, and you must have at least one OpenCL capable platform.')
+        has_pyopencl = False
+
+    if has_pyopencl:
+        platforms = cl.get_platforms()
+        platform_names = [p.name for p in platforms]
+        logger.info(platform_names)

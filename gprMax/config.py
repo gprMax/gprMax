@@ -28,7 +28,7 @@ from scipy.constants import c
 from scipy.constants import epsilon_0 as e0
 from scipy.constants import mu_0 as m0
 
-from .utilities.host_info import detect_gpus, get_host_info
+from .utilities.host_info import detect_cuda_gpus, get_host_info
 from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
@@ -236,7 +236,7 @@ class SimulationConfig:
             if sys.platform == 'win32': self.cuda['nvcc_opts'] = ['-w']
 
             # List of GPU objects of available GPUs
-            self.cuda['gpus'] = detect_gpus()
+            self.cuda['gpus'] = detect_cuda_gpus()
 
         # Subgrid parameter may not exist if user enters via CLI
         try:
