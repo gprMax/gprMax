@@ -3,6 +3,16 @@ Setting up gprMax on WSL2
 
 In this doc, we will go through the process of setting up gprMax on `Windows Subsystem for Linux <https://docs.microsoft.com/en-us/windows/wsl/about>`_.
 
+Why setup gprMax on WSL2?
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+While building and installing gprMax normally on Windows, we ran into a compilation error that had something to do with ``cl.exe`` file of Visual Studio 2019. There were two ways to solve this:
+
+- Dual Boot your PC to run both Windows and Linux, OR
+- Enabling WSL2.
+
+The former can be a daunting and time consuming process if you only want to use gprMax. Therefore, WSL2 is an easier option to go with.
+
 Prerequisites
 -------------
 
@@ -71,8 +81,13 @@ After installing Miniconda, install Open MPI using the commands:
     $ sudo apt install libopenmpi-dev
     $ pip install mpi4py
 
-Then you need to install PyCUDA manually. Get the latest release from `here <https://pypi.org/project/pycuda/2021.1/#history>`_ and follow `this guide <https://wiki.tiker.net/PyCuda/Installation/Linux/>`_ to install PyCUDA on WSL.
+Then you need to install PyCUDA manually. Get the latest release from `here <https://pypi.org/project/pycuda/2021.1/#history>`_ (The downloaded file will have a .tar extension) and follow `this guide <https://wiki.tiker.net/PyCuda/Installation/Linux/>`_ to install PyCUDA on WSL.
 
 **Note:** Install ``pytest`` using ``pip install pytest`` before running the PyCUDA test. You may also see warning messages during the testing of PyCUDA.
 
 After everything is done, follow the normal procedure to create the virtual environment and building and installing gprMax.
+
+Setting up GUI Elements for WSL2 (OPTIONAL)
+-------------------------------------------
+
+If you want to set up some GUI elements for seeing Ascan graphs, you can do so by follow the steps given `here <https://stackoverflow.com/questions/43397162/show-matplotlib-plots-and-other-gui-in-ubuntu-wsl1-wsl2>`_.
