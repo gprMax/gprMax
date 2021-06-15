@@ -172,28 +172,28 @@ nl = c['nx_ny_nz']
 try:
     ml = c['Materials']
     load_materials(ml)
-except IndexError:
+except KeyError:
     print('No Materials to load')
 
 # load sources
 try:
     srcs = c['Sources']
     load_src_rx(srcs, dl)
-except IndexError:
-    print('No sources to load}')
+except KeyError:
+    print('No sources to load')
 
 # load rxs
 try:
     rxs = c['Receivers']
     load_src_rx(rxs, dl)
-except IndexError:
+except KeyError:
     print('No receivers to load')
 
 # load pmls
 try:
     pt = c['PMLthickness']
     display_pmls_new(pt, dl, nl)
-except IndexError:
+except KeyError:
     print('No PMLs to load')
 
 RenderAllViews()

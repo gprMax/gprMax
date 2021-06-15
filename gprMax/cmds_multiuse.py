@@ -1250,7 +1250,10 @@ class GeometryView(UserObjectMulti):
         except KeyError:
             self.multi_grid = False
             if output_type == 'n':
-                from .geometry_outputs import GeometryViewVoxels as GeometryViewUser            
+                if isinstance(grid, SubGridBase):
+                    from .geometry_outputs import GeometryViewSubgridVoxels as GeometryViewUser            
+                else:
+                    from .geometry_outputs import GeometryViewVoxels as GeometryViewUser            
             else:
                 from .geometry_outputs import GeometryViewLines as GeometryViewUser
 
@@ -1278,6 +1281,7 @@ class GeometryView(UserObjectMulti):
         xf, yf, zf = p2
 
         dx, dy, dz = uip.discretise_static_point(dl)
+
 
         if dx < 0 or dy < 0 or dz < 0:
             logger.exception(self.params_str() + ' the step size should not be less than zero')
