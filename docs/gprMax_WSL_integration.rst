@@ -7,6 +7,7 @@ Prerequisites
 -------------
 
 Before we build and install gprMax on WSL, the following conditions must be met:
+
 - The Windows OS build version must be **20145 or higher**.
 - You must have **WSL2** set up on your Windows machine.
 - **NVIDIA preview driver** for WSL2 must be installed.
