@@ -256,7 +256,6 @@ class GeometryViewVoxels(GeometryView):
         else:
             # this array is contiguous by design.
             solid = self.grid.solid
-        
         return solid
     
     def get_coordinates(self, solid):
@@ -296,9 +295,15 @@ class GeometryViewSubgridVoxels(GeometryViewVoxels):
     """Views of the geometry of the model."""
 
     def __init__(self, *args):
+        # for sub-grid we are only going to export the entire grid. temporary fix.
+        xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, grid = args
+        xs, ys, zs = 0, 0, 0
+        xf, yf, zf = grid.nx, grid.ny, grid.nz
+        dx, dy, dz = 1, 1, 1
+        args = xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, grid
         super().__init__(*args)
         self.output_type = 'normal'
-    
+    """
     def get_coordinates(self, solid):
         # (length is number of vertices in each direction) * (size of each block [m]) + (starting offset) + grid offset
         x = np.arange(
@@ -308,6 +313,7 @@ class GeometryViewSubgridVoxels(GeometryViewVoxels):
         z = np.arange(
             0, solid.shape[2] + 1) * (self.grid.dz * self.dz) + ((self.zs - self.grid.n_boundary_cells_z) * self.grid.dz)# + self.grid.z1
         return x, y, z
+    """
 
 class Comments():
 
