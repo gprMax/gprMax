@@ -16,6 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+
+# TODO
+# Get progress bar working
+# 
+
+
 import json
 import logging
 from pathlib import Path
@@ -85,7 +91,22 @@ class GeometryViewLines(GeometryView):
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.output_type = 'f'
+        self.output_type = 'fine'
+    
+    def sample_ID(self):
+        """Function to sub sample the solid array"""                
+        # only create a new array if subsampling is required.
+        if (self.grid.solid.shape != (self.xf, self.yf, self.zf) or
+            (self.dx, self.dy, self.dz) != (1, 1, 1) or
+                (self.xs, self.ys, self.zs) != (0, 0, 0)):
+            # require contiguous for evtk library
+            ID = np.ascontiguousarray(self.grid.ID[:, self.xs:self.xf:self.dx,
+                                                    self.ys:self.yf:self.dy, self.zs:self.zf:self.dz])
+        else:
+            # this array is contiguous by design.
+            ID = self.grid.ID
+        
+        return ID
 
     def calculate_writesize(self):
 
@@ -123,11 +144,12 @@ class GeometryViewLines(GeometryView):
         """Writes the geometry information to a VTK file.
             Unstructured edge (.vtu) for a per-cell geometry view
 
-            N.B. No Python 3 support for VTK at time of writing (03/2015)
-
         Args:
             pbar (class): Progress bar class instance.
         """
+
+        # sample self.grid.id at the user specified region and discretisation
+        id = self.sample_ID()
 
         # line counter
         lc = 0
@@ -156,7 +178,7 @@ class GeometryViewLines(GeometryView):
                     # x yee cell edge
                     # line the line property to the relevent material
 
-                    l[lc] = self.grid.ID[0][i, j, k]
+                    l[lc] = id[0][i, j, k]
                     # set the starting point position of the edge
                     x[pc], y[pc], z[pc] = i * self.dx, j * self.dy, k * self.dz
                     # next point
@@ -171,7 +193,7 @@ class GeometryViewLines(GeometryView):
                     lc += 1
 
                     # y yee cell edge
-                    l[lc] = self.grid.ID[1, i, j, k]
+                    l[lc] = id[1, i, j, k]
                     x[pc], y[pc], z[pc] = i * self.dx, j * self.dy, k * self.dz
                     pc += 1
                     x[pc], y[pc], z[pc] = i * \
@@ -180,7 +202,7 @@ class GeometryViewLines(GeometryView):
                     lc += 1
 
                     # z yee cell edge
-                    l[lc] = self.grid.ID[2, i, j, k]
+                    l[lc] = id[2, i, j, k]
                     x[pc], y[pc], z[pc] = i * self.dx, j * self.dy, k * self.dz
                     pc += 1
                     x[pc], y[pc], z[pc] = i * self.dx, j * \
@@ -188,9 +210,15 @@ class GeometryViewLines(GeometryView):
                     pc += 1
                     lc += 1
 
-        comments = ["comment 1", "comment 2"]
+        # Get information about pml, sources, receivers
+        comments = Comments(self.grid, self)
+        comments.averaged_materials = True
+        comments.materials_only = True
+        info = comments.get_gprmax_info()
+        comments = json.dumps(info)
+
         linesToVTK(self.format_filename_evtk(self.filename),
-                   x, y, z, cellData={"Yee materials": l})
+                   x, y, z, cellData={"Material": l}, comments=[comments])
 
 
 class GeometryViewVoxels(GeometryView):
@@ -198,7 +226,7 @@ class GeometryViewVoxels(GeometryView):
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.output_type = 'n'
+        self.output_type = 'normal'
 
     def calculate_writesize(self):
         # Calculate number of cells according to requested sampling for geometry view
@@ -214,34 +242,49 @@ class GeometryViewVoxels(GeometryView):
         self.vtk_ncells = self.vtk_nxcells * self.vtk_nycells * self.vtk_nzcells
         return (np.dtype(np.uint32).itemsize * self.vtk_ncells +
                 3 * np.dtype(np.uint32).itemsize)
+    
+    def sample_solid(self):
+        """Function to sub sample the solid array"""
+        
+        # only create a new array if subsampling is required.
+        if (self.grid.solid.shape != (self.xf, self.yf, self.zf) or
+            (self.dx, self.dy, self.dz) != (1, 1, 1) or
+                (self.xs, self.ys, self.zs) != (0, 0, 0)):
+            # require contiguous for evtk library
+            solid = np.ascontiguousarray(self.grid.solid[self.xs:self.xf:self.dx,
+                                                    self.ys:self.yf:self.dy, self.zs:self.zf:self.dz])
+        else:
+            # this array is contiguous by design.
+            solid = self.grid.solid
+        
+        return solid
+    
+    def get_coordinates(self, solid):
+        # (length is number of vertices in each direction) * (size of each block [m]) + (starting offset)
+        x = np.arange(
+            0, solid.shape[0] + 1) * (self.grid.dx * self.dx) + (self.xs * self.grid.dx)
+        y = np.arange(
+            0, solid.shape[1] + 1) * (self.grid.dy * self.dy) + (self.ys * self.grid.dy)
+        z = np.arange(
+            0, solid.shape[2] + 1) * (self.grid.dz * self.dz) + (self.zs * self.grid.dz)
+        return x, y, z
 
     def write_vtk(self, pbar):
         """Writes the geometry information to a VTK file.
             Rectilinear (.vtr) for a per-cell geometry view, or
-
-            N.B. No Python 3 support for VTK at time of writing (03/2015)
-
         Args:
             pbar (class): Progress bar class instance.
         """
         grid = self.grid
 
-        # sample the solid array
-        solid = np.copy(grid.solid[self.xs:self.xf:self.dx,
-                        self.ys:self.yf:self.dx, self.zs:self.zf:self.dx])
+        solid = self.sample_solid()
 
         # coordinates of vertices (rectilinear)
-        # (length is number of vertices in each direction) * (size of each block [m]) + (starting offset)
-        x = np.arange(
-            0, solid.shape[0] + 1) * (grid.dx * self.dx) + (self.xs * grid.dx)
-        y = np.arange(
-            0, solid.shape[1] + 1) * (grid.dy * self.dy) + (self.ys * grid.dy)
-        z = np.arange(
-            0, solid.shape[2] + 1) * (grid.dz * self.dz) + (self.zs * grid.dz)
+        x, y, z = self.get_coordinates(solid)
 
         # Get information about pml, sources, receivers
         comments = Comments(grid, self)
-        info = comments.get_gprmax_info(materialsonly=False)
+        info = comments.get_gprmax_info()
         comments = json.dumps(info)
 
         # Write the VTK file .vtr
@@ -249,13 +292,32 @@ class GeometryViewVoxels(GeometryView):
                          "Material": solid}, comments=[comments])
 
 
+class GeometryViewSubgridVoxels(GeometryViewVoxels):
+    """Views of the geometry of the model."""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.output_type = 'normal'
+    
+    def get_coordinates(self, solid):
+        # (length is number of vertices in each direction) * (size of each block [m]) + (starting offset) + grid offset
+        x = np.arange(
+            0, solid.shape[0] + 1) * (self.grid.dx * self.dx) + ((self.xs - self.grid.n_boundary_cells_x) * self.grid.dx)# + self.grid.x1
+        y = np.arange(
+            0, solid.shape[1] + 1) * (self.grid.dy * self.dy) + ((self.ys - self.grid.n_boundary_cells_y) * self.grid.dy)# + self.grid.y1
+        z = np.arange(
+            0, solid.shape[2] + 1) * (self.grid.dz * self.dz) + ((self.zs - self.grid.n_boundary_cells_z) * self.grid.dz)# + self.grid.z1
+        return x, y, z
+
 class Comments():
 
     def __init__(self, grid, geoview):
         self.geoview = geoview
         self.grid = grid
+        self.averaged_materials = False
+        self.materials_only = False
 
-    def get_gprmax_info(self, materialsonly=False):
+    def get_gprmax_info(self):
         """Returns gprMax specific information relating material, source,
             and receiver names to numeric identifiers.
 
@@ -274,7 +336,7 @@ class Comments():
         comments['Materials'] = self.materials_comment()
 
         # Write information on PMLs, sources, and receivers
-        if not materialsonly:
+        if not self.materials_only:
             # Information on PML thickness
             if self.grid.pmls:
                 comments['PMLthickness'] = self.pml_geoview_comment()
@@ -330,7 +392,10 @@ class Comments():
         return numeric_list_to_int_list([self.grid.nx, self.grid.ny, self.grid.nz])
 
     def materials_comment(self):
-        return [m.ID for m in self.grid.materials if '+' not in m.ID]
+        if not self.averaged_materials:
+            return [m.ID for m in self.grid.materials if '+' not in m.ID]
+        else:
+            return [m.ID for m in self.grid.materials]
 
 
 class GeometryObjects:
@@ -424,6 +489,7 @@ class GeometryObjects:
                                 dispersionstr += f'{material.tau[pole]:g} {material.alpha[pole]:g} '
                         dispersionstr += material.ID
                         fmaterials.write(dispersionstr + '\n')
+
 
 
 class GeometryViewFineMultiGrid:
