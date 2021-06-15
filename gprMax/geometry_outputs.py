@@ -19,7 +19,7 @@
 
 # TODO
 # Get progress bar working
-# 
+# subgrids geometry export
 
 
 import json
