@@ -6,8 +6,6 @@
 from pathlib import Path
 import sys
 import gprMax
-from user_libs.antennas.GSSI import antenna_like_GSSI_400
-
 import numpy as np
 
 # file path step
@@ -73,37 +71,14 @@ scene.add(material)
 plastic_box = gprMax.Box(p1=(30*dl, 30*dl, 30*dl), p2=(31*dl, 31*dl, 31*dl), material_id='plastic')
 sg.add(plastic_box)
 
-# create a geometry view of the main grid and the sub grid stitched together
-gv = gprMax.GeometryView(p1=(0, 0, 0),
-                         p2=domain.props.p1,
-                         dl=dl,
-                         filename=fn.with_suffix('').parts[-1],
-                         output_type='f',
-                         multi_grid=True)
-
-# create a geometry view of the sub grid only
-gv_sg = gprMax.GeometryView(p1=sg_p0,
-                         p2=sg_p1,
-                         dl=(1e-3, 1e-3, 1e-3),
-                         filename=fn.with_suffix('').parts[-1] + '_only',
-                         output_type='f')
-
-# create a geometry view of the sub grid only
+# create a geometry view of the sub grid only. This command currently exports the entire subgrid regardless of p1, p2
 gv_sg_normal = gprMax.GeometryView(p1=sg_p0,
                          p2=sg_p1,
                          dl=(1e-3, 1e-3, 1e-3),
-                         filename=fn.with_suffix('').parts[-1] + '_only',
+                         filename=fn.with_suffix('').parts[-1] + '_subgrid_normal',
                          output_type='n')
 
-# create a geometry view of the main grid and the sub grid stitched together
-gv_normal = gprMax.GeometryView(p1=(0, 0, 0),
-                         p2=domain.props.p1,
-                         dl=dl,
-                         filename=fn.with_suffix('').parts[-1] + '_voxels',
-                         output_type='n')
-scene.add(gv)
-sg.add(gv_sg)
+# add the subgrid geometry view to the sub grid object 
 sg.add(gv_sg_normal)
-#scene.add(gv_normal)
 
 gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn, subgrid=True, autotranslate=True)
