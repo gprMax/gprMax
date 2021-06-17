@@ -108,27 +108,32 @@ class ModelBuildRun:
             logger.exception('\nNo geometry views or geometry objects found.')
             raise ValueError
         
-        def save_geometry_views(grid):
-            """Create and save the geometryviews under given grid."""
-            if grid.geometryviews:
-                logger.info('')
-                # Write a Paraview data file (.pvd) if there is more than one GeometryView
-                """if len(grid.geometryviews) > 1:
-                    grid.geometryviews[0].write_vtk_pvd(grid.geometryviews)
-                    logger.info(f'Written wrapper for geometry files: {grid.geometryviews[0].pvdfile.name}')"""
-                for i, gv in enumerate(grid.geometryviews):
-                    gv.initialise()
-                    gv.set_filename()
-                    pbar = tqdm(total=gv.datawritesize, unit='byte', unit_scale=True,
-                                desc=f'Writing geometry view file {i + 1}/{len(grid.geometryviews)}, {gv.filename.name} {gv.output_type}',
-                                ncols=get_terminal_width() - 1, file=sys.stdout,
-                                disable=not config.sim_config.general['progressbars'])
-                    gv.write_vtk(pbar)
-                    pbar.close()
-                logger.info('')
+        def save_geometry_views(G):
+            """Create and save the geometryviews"""
+
+            gvs = [] + G.geometryviews
+            for sg in G.subgrids:
+                for gv in sg.geometryviews:
+                    gvs.append(gv)
+            
+            logger.info('')
+            # Write a Paraview data file (.pvd) if there is more than one GeometryView
+            
+            for i, gv in enumerate(gvs):
+                gv.set_filename()
+                pbar = tqdm(total=gv.get_size(), unit='byte', unit_scale=True,
+                            desc=f'Writing geometry view file {i + 1}/{len(gvs)}, {gv.filename.name} {gv.output_type}',
+                            ncols=get_terminal_width() - 1, file=sys.stdout,
+                            disable=not config.sim_config.general['progressbars'])
+                gv.write_vtk(pbar)
+                pbar.close()
+            logger.info('')
+
+            if len(gvs) > 1:
+                gvs[0].write_vtk_pvd(gvs)
+                logger.info(f'Written wrapper for geometry files: {gvs[0].pvdfile.name}')
         
         save_geometry_views(G)
-        [save_geometry_views(sg) for sg in G.subgrids]
         
         if G.geometryobjectswrite:
             logger.info('')
