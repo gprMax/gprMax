@@ -20,86 +20,74 @@ import numpy as np
 cimport numpy as np
 
 
-cpdef void define_fine_geometry(
-                    int nx,
-                    int ny,
-                    int nz,
-                    int xs,
-                    int xf,
-                    int ys,
-                    int yf,
-                    int zs,
-                    int zf,
-                    float dx,
-                    float dy,
-                    float dz,
-                    np.uint32_t[:, :, :, :] ID,
-                    np.float32_t[:, :] points,
-                    np.uint32_t[:, :] x_lines,
-                    np.uint32_t[:] x_materials,
-                    np.uint32_t[:, :] y_lines,
-                    np.uint32_t[:] y_materials,
-                    np.uint32_t[:, :] z_lines,
-                    np.uint32_t[:] z_materials
-            ):
+cpdef write_lines(int nx, int ny, int nz, float dx, float dy, float dz,
+                  np.uint32_t[:, :, :, :] ID):
+    """This function generates arrays with to be written as lines (cell edges) 
+        to a VTK file.
+
+    Args:
+        nx, ny, nz (int): Size of the volume in cells
+        dx, dy, dz (int): Spatial discretisation of geometry view in cells
+        ID (nparray): Sampled ID array according to geometry view spatial 
+                            discretisation
+
+    Returns:
+        x, y, z (nparray): 1D arrays with coordinates of the vertex of the lines
+        lines (nparray): array of material IDs for each line (cell edge) required
+    """
 
     cdef Py_ssize_t i, j, k
-    cdef Py_ssize_t label = 0
-    cdef Py_ssize_t counter_x = 0
-    cdef Py_ssize_t counter_y = 0
-    cdef Py_ssize_t counter_z = 0
+    cdef Py_ssize_t lc = 0 # Line counter
+    cdef Py_ssize_t pc = 0 # Point counter
+    cdef Py_ssize_t n_x_lines = 0
+    cdef Py_ssize_t n_y_lines = 0
+    cdef Py_ssize_t n_z_lines = 0
+    cdef Py_ssize_t n_lines = 0
+    cdef Py_ssize_t n_points = 0
 
-    cdef int label_x, label_y, label_z
+    n_x_lines = nx * (ny + 1) * (nz + 1)
+    n_y_lines = ny * (nx + 1) * (nz + 1)
+    n_z_lines = nz * (nx + 1) * (ny + 1)
+    n_lines = n_x_lines + n_y_lines + n_z_lines
+    n_points = 2 * n_lines # A line is defined by 2 points
 
-    for i in range(xs, xf + 1):
-        for j in range(ys, yf + 1):
-            for k in range(zs, zf + 1):
-                points[label][0] = i * dx
-                points[label][1] = j * dy
-                points[label][2] = k * dz
-                if i < xf:
-                    # x connectivity
-                    label_x = label + (ny + 1) * (nz + 1)
-                    x_lines[counter_x][0] = label
-                    x_lines[counter_x][1] = label_x
-                    # material for the line
-                    x_materials[counter_x] = ID[0, i, j, k]
-                    counter_x += 1
-                if j < yf:
-                    label_y = label + nz + 1
-                    y_lines[counter_y][0] = label
-                    y_lines[counter_y][1] = label_y
-                    y_materials[counter_y] = ID[1, i, j, k]
-                    counter_y += 1
-                if k < zf:
-                    label_z = label + 1
-                    z_lines[counter_z][0] = label
-                    z_lines[counter_z][1] = label_z
-                    z_materials[counter_z] = ID[2, i, j, k]
-                    counter_z += 1
+    x = np.zeros(n_points)
+    y = np.zeros(n_points)
+    z = np.zeros(n_points)
+    lines = np.zeros(n_lines)
 
-                label = label + 1
+    for i in range(nx):
+        for j in range(ny):
+            for k in range(nz):
 
+                # x-direction cell edge
+                # Material ID of line
+                lines[lc] = ID[0][i, j, k]
+                # Set the starting point position of the edge
+                x[pc], y[pc], z[pc] = i * dx, j * dy, k * dz
+                # Next point
+                pc += 1
+                # Set the end point position of the edge
+                x[pc], y[pc], z[pc] = (i + 1) * dx, j * dy, k * dz
+                # Next point
+                pc += 1
+                # Next line
+                lc += 1
 
-cpdef void define_normal_geometry(
-                    int xs,
-                    int xf,
-                    int ys,
-                    int yf,
-                    int zs,
-                    int zf,
-                    int dx,
-                    int dy,
-                    int dz,
-                    np.uint32_t[:, :, :] solid,
-                    np.uint32_t[:] solid_geometry,
-            ):
+                # y-direction cell edge
+                lines[lc] = ID[1, i, j, k]
+                x[pc], y[pc], z[pc] = i * dx, j * dy, k * dz
+                pc += 1
+                x[pc], y[pc], z[pc] = i * dx, (j + 1) * dy, k * dz
+                pc += 1
+                lc += 1
 
-    cdef Py_ssize_t i, j, k
-    cdef Py_ssize_t counter = 0
+                # z-direction cell edge
+                lines[lc] = ID[2, i, j, k]
+                x[pc], y[pc], z[pc] = i * dx, j * dy, k * dz
+                pc += 1
+                x[pc], y[pc], z[pc] = i * dx, j * dy, (k + 1) * dz
+                pc += 1
+                lc += 1
 
-    for k in range(zs, zf, dz):
-        for j in range(ys, yf, dy):
-            for i in range(xs, xf, dx):
-                solid_geometry[counter] = solid[i, j, k]
-                counter = counter + 1
+    return x, y, z, lines 
