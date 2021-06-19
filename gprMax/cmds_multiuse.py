@@ -1231,31 +1231,19 @@ class GeometryView(UserObjectMulti):
         super().__init__(**kwargs)
         self.order = 14
         self.hash = '#geometry_view'
-        self.multi_grid = False
 
     def geometry_view_constructor(self, grid, output_type):
-        # Check if user want geometry output for all grids
-        try:
-            self.kwargs['multi_grid']
-            # there is no voxel output for multi grid output
+        """Select appropriate class for geometry view dependent on grid type and
+            geometry view type, i.e. normal or fine.
+        """
+
+        if output_type == 'n':
             if isinstance(grid, SubGridBase):
-                logger.exception(self.params_str() + ' do not add multi_grid output to subgrid user object. Please add to Scene')
-                raise ValueError
-            if output_type == 'n':
-                logger.exception(self.params_str() + ' voxel output type (n) is not supported for multigrid output.')
-                raise ValueError
-            # Change constructor to the multi grid output
-            from .geometry_outputs import GeometryViewFineMultiGrid as GeometryViewUser
-            self.multi_grid = True
-        except KeyError:
-            self.multi_grid = False
-            if output_type == 'n':
-                if isinstance(grid, SubGridBase):
-                    from .geometry_outputs import GeometryViewSubgridVoxels as GeometryViewUser            
-                else:
-                    from .geometry_outputs import GeometryViewVoxels as GeometryViewUser            
+                from .geometry_outputs import GeometryViewSubgridVoxels as GeometryViewUser            
             else:
-                from .geometry_outputs import GeometryViewLines as GeometryViewUser
+                from .geometry_outputs import GeometryViewVoxels as GeometryViewUser            
+        else:
+            from .geometry_outputs import GeometryViewLines as GeometryViewUser
 
         return GeometryViewUser
 
@@ -1301,7 +1289,7 @@ class GeometryView(UserObjectMulti):
 
         g = GeometryViewUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, grid)
 
-        logger.info(f'Geometry view from {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, multi_grid={self.multi_grid}, grid={grid.name}, with filename base {g.filename} created.')
+        logger.info(self.grid_name(grid) + f'Geometry view from {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, discretisation {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, with filename base {g.filename} created.')
 
         # Append the new GeometryView object to the geometry views list
         grid.geometryviews.append(g)
