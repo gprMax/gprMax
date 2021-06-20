@@ -35,6 +35,7 @@ from tqdm import tqdm
 from .cython.yee_cell_build import (build_electric_components,
                                     build_magnetic_components)
 from .fields_outputs import write_hdf5_outputfile
+from .geometry_outputs import save_geometry_views
 from .grid import dispersion_analysis
 from .hash_cmds_file import parse_hash_commands
 from .materials import process_materials
@@ -108,32 +109,9 @@ class ModelBuildRun:
             logger.exception('\nNo geometry views or geometry objects found.')
             raise ValueError
         
-        def save_geometry_views(G):
-            """Create and save the geometryviews"""
-
-            gvs = [] + G.geometryviews
-            for sg in G.subgrids:
-                for gv in sg.geometryviews:
-                    gvs.append(gv)
-            
-            logger.info('')
-            # Write a Paraview data file (.pvd) if there is more than one GeometryView
-            
-            for i, gv in enumerate(gvs):
-                gv.set_filename()
-                pbar = tqdm(total=gv.get_size(), unit='byte', unit_scale=True,
-                            desc=f'Writing geometry view file {i + 1}/{len(gvs)}, {gv.filename.name} {gv.output_type}',
-                            ncols=get_terminal_width() - 1, file=sys.stdout,
-                            disable=not config.sim_config.general['progressbars'])
-                gv.write_vtk(pbar)
-                pbar.close()
-            logger.info('')
-
-            if len(gvs) > 1:
-                gvs[0].write_vtk_pvd(gvs)
-                logger.info(f'Written wrapper for geometry files: {gvs[0].pvdfile.name}')
-        
-        save_geometry_views(G)
+        # Save any geometry views
+        gvs = G.geometryviews + [gv for sg in G.subgrids for gv in sg.geometryviews]
+        save_geometry_views(gvs)
         
         if G.geometryobjectswrite:
             logger.info('')
