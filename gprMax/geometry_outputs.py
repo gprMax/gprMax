@@ -18,213 +18,147 @@
 
 
 # TODO
-# Get progress bar working
 # subgrids geometry export
-# have a look in evtk package for filesize estimation.
-# cythonise line connectivity code
 # user specifies subgrid in main grid coordinates
-# write get size function
 # if grid.pmlthickness['x0'] - self.geoview.vtk_xscells > 0:
 #   if dx not 1 this above will break - fix
-# can we get self.extension from evtk
-
-try:
-    import xml.etree.cElementTree as ET
-except ImportError:
-    import xml.etree.ElementTree as ET
 
 import json
 import logging
+import sys
 from pathlib import Path
-from struct import pack
 
-import gprMax.config as config
 import h5py
 import numpy as np
-from evtk.hl import rectilinearToVTK
-from evtk.hl import linesToVTK
+from evtk.hl import linesToVTK, rectilinearToVTK
+from evtk.vtk import VtkGroup, VtkRectilinearGrid, VtkUnstructuredGrid
+from tqdm import tqdm
+
+import gprMax.config as config
 
 from ._version import __version__
-from .cython.geometry_outputs import (define_fine_geometry,
-                                      define_normal_geometry)
-from .utilities.utilities import pretty_xml, round_value, numeric_list_to_int_list, numeric_list_to_float_list
+from .cython.geometry_outputs import write_lines
+from .utilities.utilities import (get_terminal_width,
+                                  numeric_list_to_float_list,
+                                  numeric_list_to_int_list, round_value)
 
 logger = logging.getLogger(__name__)
 
 
+def write_vtk_pvd(gvs):
+    """Write a Paraview data file (.pvd) - provides pointers to a collection of 
+        data files, i.e. GeometryViews.
+
+    Args:
+        gvs (list): list of all GeometryViews.
+    """
+
+    filename = config.get_model_config().output_file_path
+    pvd = VtkGroup(str(filename))
+
+    # Add filenames of all GeometryViews to group
+    for gv in gvs:
+        sim_time = 0
+        pvd.addFile(str(gv.filename.name) + gv.vtkfiletype.ext, sim_time, 
+                    group = "", part = "0")
+    pvd.save()
+    
+    logger.info(f'Written wrapper for geometry files: {filename.name}.pvd')
+
+
+def save_geometry_views(gvs):
+    """Create and save the geometryviews.
+    
+    Args:
+        gvs (list): list of all GeometryViews.
+    """
+    
+    logger.info('')
+    for i, gv in enumerate(gvs):
+        gv.set_filename()
+        gvsample = gv.sample()
+        pbar = tqdm(total=gvsample.nbytes, unit='byte', unit_scale=True,
+                    desc=f'Writing geometry view file {i + 1}/{len(gvs)}, {gv.filename.name}{gv.vtkfiletype.ext}',
+                    ncols=get_terminal_width() - 1, file=sys.stdout,
+                    disable=not config.sim_config.general['progressbars'])
+        gv.write_vtk(gvsample)
+        pbar.update(gvsample.nbytes)
+        pbar.close()
+
+    # Write a Paraview data file (.pvd) if there is more than one GeometryView
+    if len(gvs) > 1:
+        write_vtk_pvd(gvs)
+    
+    logger.info('')
+        
+
 class GeometryView():
+    """Base class for Geometry Views."""
+
     def __init__(self, xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, grid):
         """
         Args:
-            xs, xf, ys, yf, zs, zf (int): Extent of the volume in cells.
-            dx, dy, dz (int): Spatial discretisation in cells.
-            filename (str): Filename to save to.
-            grid (FDTDGrid): Parameters describing a grid in a model.
+            xs, xf, ys, yf, zs, zf (int): Extent of the volume in cells
+            dx, dy, dz (int): Spatial discretisation of geometry view in cells
+            filename (str): Filename to save to
+            grid (FDTDGrid): Parameters describing a grid in a model
         """
-        # indices start
+
         self.xs = xs
         self.ys = ys
         self.zs = zs
-        # indices stop
         self.xf = xf
         self.yf = yf
         self.zf = zf
-
         self.nx = self.xf - self.xs
         self.ny = self.yf - self.ys
         self.nz = self.zf - self.zs
-        # sampling
         self.dx = dx
         self.dy = dy
         self.dz = dz
-
-        # 
-        self.vtk_xscells = round_value(self.xs / self.dx)
-        self.vtk_xfcells = round_value(self.xf / self.dx)
-        self.vtk_yscells = round_value(self.ys / self.dy)
-        self.vtk_yfcells = round_value(self.yf / self.dy)
-        self.vtk_zscells = round_value(self.zs / self.dz)
-        self.vtk_zfcells = round_value(self.zf / self.dz)
-
         self.filename = filename
-        self.set_filename_called = False
         self.grid = grid
-
-    def format_filename_evtk(self, filename):
-        return str(filename)
 
     def set_filename(self):
         """Construct filename from user-supplied name and model run number."""
-        if not self.set_filename_called:
-            self.set_filename_called = True
-            parts = config.get_model_config().output_file_path.parts
-            self.filename = Path(
-                *parts[:-1], self.filename + config.get_model_config().appendmodelnumber)
-
-    
-    def write_vtk_pvd(self, geometryviews):
-        """Write a Paraview data file (.pvd) - PVD file provides pointers to the 
-            collection of data files, i.e. GeometryViews.
-
-        Args:
-            geometryviews (list): list of GeometryViews to collect together.
-        """
-
-        root = ET.Element('VTKFile')
-        root.set('type', 'Collection')
-        root.set('version', '0.1')
-        root.set('byte_order', str(config.sim_config.vtk_byteorder))
-        collection = ET.SubElement(root, 'Collection')
-        for gv in geometryviews:
-            gv.set_filename()
-            dataset = ET.SubElement(collection, 'DataSet')
-            dataset.set('timestep', '0')
-            dataset.set('group', '')
-            dataset.set('part', '0')
-            dataset.set('file', str(gv.filename.name) + self.extension)
-
-        xml_string = pretty_xml(ET.tostring(root))
-
-        self.pvdfile = config.get_model_config().output_file_path.with_suffix('.pvd')
-        with open(self.pvdfile, 'w') as f:
-            f.write(xml_string)
-
-
-    def get_size(self):
-        return 100
+        parts = config.get_model_config().output_file_path.parts
+        self.filename = Path(*parts[:-1], 
+                             self.filename + config.get_model_config().appendmodelnumber)
 
 
 class GeometryViewLines(GeometryView):
+    """Unstructured grid (.vtu) for a per-cell-edge geometry view."""
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.output_type = 'fine'
-        self.extension = '.vtu'
+        self.vtkfiletype = VtkUnstructuredGrid
     
-    def sample_ID(self):
-        """Function to sub sample the ID array."""                
-        # only create a new array if subsampling is required.
-        if (self.grid.solid.shape != (self.xf, self.yf, self.zf) or
+    def sample(self):
+        """Sample ID array according to geometry view spatial discretisation."""                
+        # Only create a new array if subsampling is required
+        if (self.grid.ID.shape != (self.xf, self.yf, self.zf) or
             (self.dx, self.dy, self.dz) != (1, 1, 1) or
                 (self.xs, self.ys, self.zs) != (0, 0, 0)):
-            # require contiguous for evtk library
+            # Require contiguous for evtk library
             ID = np.ascontiguousarray(self.grid.ID[:, self.xs:self.xf:self.dx,
-                                                    self.ys:self.yf:self.dy, self.zs:self.zf:self.dz])
+                                                      self.ys:self.yf:self.dy, 
+                                                      self.zs:self.zf:self.dz])
         else:
-            # this array is contiguous by design.
+            # This array is contiguous by design
             ID = self.grid.ID
         
         return ID
 
-    def write_vtk(self, pbar):
+    def write_vtk(self, ID):
         """Writes the geometry information to a VTK file.
-            Unstructured edge (.vtu) for a per-cell geometry view
-
+        
         Args:
-            pbar (class): Progress bar class instance.
+            ID (array): sampled ID array at the user specified region and 
+                            discretisation.
         """
 
-        # sample self.grid.id at the user specified region and discretisation
-        id = self.sample_ID()
-
-        # line counter
-        lc = 0
-        # point counter
-        pc = 0
-
-        n_x_lines = self.nx * (self.ny + 1) * (self.nz + 1)
-        n_y_lines = self.ny * (self.nx + 1) * (self.nz + 1)
-        n_z_lines = self.nz * (self.nx + 1) * (self.ny + 1)
-
-        n_lines = n_x_lines + n_y_lines + n_z_lines
-
-        # a line is defined by 2 points. Each line must have 2 new points
-        n_points = 2 * n_lines
-
-        x = np.zeros(n_points)
-        y = np.zeros(n_points)
-        z = np.zeros(n_points)
-
-        l = np.zeros(n_lines)
-
-        for i in range(self.nx):
-            for j in range(self.ny):
-                for k in range(self.nz):
-
-                    # x yee cell edge
-                    # line the line property to the relevent material
-
-                    l[lc] = id[0][i, j, k]
-                    # set the starting point position of the edge
-                    x[pc], y[pc], z[pc] = i * self.dx, j * self.dy, k * self.dz
-                    # next point
-                    pc += 1
-                    # set the end point position of the edge
-                    x[pc], y[pc], z[pc] = (
-                        i + 1) * self.dx, j * self.dy, k * self.dz
-                    # next point
-                    pc += 1
-
-                    # next line
-                    lc += 1
-
-                    # y yee cell edge
-                    l[lc] = id[1, i, j, k]
-                    x[pc], y[pc], z[pc] = i * self.dx, j * self.dy, k * self.dz
-                    pc += 1
-                    x[pc], y[pc], z[pc] = i * \
-                        self.dx, (j + 1) * self.dy, k * self.dz
-                    pc += 1
-                    lc += 1
-
-                    # z yee cell edge
-                    l[lc] = id[2, i, j, k]
-                    x[pc], y[pc], z[pc] = i * self.dx, j * self.dy, k * self.dz
-                    pc += 1
-                    x[pc], y[pc], z[pc] = i * self.dx, j * \
-                        self.dy, (k + 1) * self.dz
-                    pc += 1
-                    lc += 1
+        x, y, z, lines = write_lines(self.nx, self.ny, self.nz,
+                                     self.dx, self.dy, self.dz, ID)
 
         # Get information about pml, sources, receivers
         comments = Comments(self.grid, self)
@@ -233,68 +167,65 @@ class GeometryViewLines(GeometryView):
         info = comments.get_gprmax_info()
         comments = json.dumps(info)
 
-        linesToVTK(self.format_filename_evtk(self.filename),
-                   x, y, z, cellData={"Material": l}, comments=[comments])
+        linesToVTK(str(self.filename), x, y, z, cellData={"Material": lines}, 
+                   comments=[comments])
 
 
 class GeometryViewVoxels(GeometryView):
-    """Views of the geometry of the model."""
+    """Rectilinear grid (.vtr) for a per-cell geometry view."""
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.output_type = 'normal'
-        self.extension = '.vtr'
+        self.vtkfiletype = VtkRectilinearGrid
     
-    def sample_solid(self):
-        """Function to sub sample the solid array"""
+    def sample(self):
+        """Sample solid array according to geometry view spatial discretisation."""
         
-        # only create a new array if subsampling is required.
+        # Only create a new array if subsampling is required
         if (self.grid.solid.shape != (self.xf, self.yf, self.zf) or
             (self.dx, self.dy, self.dz) != (1, 1, 1) or
                 (self.xs, self.ys, self.zs) != (0, 0, 0)):
-            # require contiguous for evtk library
+            # Require contiguous for evtk library
             solid = np.ascontiguousarray(self.grid.solid[self.xs:self.xf:self.dx,
-                                                    self.ys:self.yf:self.dy, self.zs:self.zf:self.dz])
+                                                         self.ys:self.yf:self.dy, 
+                                                         self.zs:self.zf:self.dz])
         else:
-            # this array is contiguous by design.
+            # This array is contiguous by design
             solid = self.grid.solid
+
         return solid
     
     def get_coordinates(self, solid):
         # (length is number of vertices in each direction) * (size of each block [m]) + (starting offset)
-        x = np.arange(
-            0, solid.shape[0] + 1) * (self.grid.dx * self.dx) + (self.xs * self.grid.dx)
-        y = np.arange(
-            0, solid.shape[1] + 1) * (self.grid.dy * self.dy) + (self.ys * self.grid.dy)
-        z = np.arange(
-            0, solid.shape[2] + 1) * (self.grid.dz * self.dz) + (self.zs * self.grid.dz)
+        x = np.arange(0, solid.shape[0] + 1) * (self.grid.dx * self.dx) + (self.xs * self.grid.dx)
+        y = np.arange(0, solid.shape[1] + 1) * (self.grid.dy * self.dy) + (self.ys * self.grid.dy)
+        z = np.arange(0, solid.shape[2] + 1) * (self.grid.dz * self.dz) + (self.zs * self.grid.dz)
+
         return x, y, z
 
-    def write_vtk(self, pbar):
+    def write_vtk(self, solid):
         """Writes the geometry information to a VTK file.
-            Rectilinear (.vtr) for a per-cell geometry view, or
+        
         Args:
-            pbar (class): Progress bar class instance.
+            solid (array): sampled solid array at the user specified region and 
+                            discretisation.
         """
-        grid = self.grid
-
-        solid = self.sample_solid()
 
         # coordinates of vertices (rectilinear)
         x, y, z = self.get_coordinates(solid)
 
         # Get information about pml, sources, receivers
-        comments = Comments(grid, self)
+        comments = Comments(self.grid, self)
         info = comments.get_gprmax_info()
         comments = json.dumps(info)
 
         # Write the VTK file .vtr
-        rectilinearToVTK(self.format_filename_evtk(self.filename), x, y, z, cellData={
-                         "Material": solid}, comments=[comments])
+        rectilinearToVTK(str(self.filename), x, y, z, cellData={"Material": solid}, 
+                         comments=[comments])
 
 
 class GeometryViewSubgridVoxels(GeometryViewVoxels):
-    """Views of the geometry of the model."""
+    """Rectilinear grid (.vtr) for a per-cell geometry view for sub-grids."""
 
     def __init__(self, *args):
         # for sub-grid we are only going to export the entire grid. temporary fix.
@@ -318,28 +249,28 @@ class GeometryViewSubgridVoxels(GeometryViewVoxels):
     """
 
 class Comments():
+    """Comments can be strings included in the header of XML VTK file, and are
+        used to hold extra (gprMax) information about the VTK data.
+    """
 
-    def __init__(self, grid, geoview):
-        self.geoview = geoview
+    def __init__(self, grid, gv):
         self.grid = grid
+        self.gv = gv
         self.averaged_materials = False
         self.materials_only = False
 
     def get_gprmax_info(self):
         """Returns gprMax specific information relating material, source,
             and receiver names to numeric identifiers.
-
-        Args:
-            grid (FDTDGrid): Parameters describing a grid in a model.
-            materialsonly (bool): Only write information on materials
         """
 
-        # list containing comments for paraview macro
+        # Comments for Paraview macro
         comments = {}
 
-        comments['Version'] = __version__
+        comments['gprMax_version'] = __version__
         comments['dx_dy_dz'] = self.dx_dy_dz_comment()
         comments['nx_ny_nz'] = self.nx_ny_nz_comment()
+
         # Write the name and numeric ID for each material
         comments['Materials'] = self.materials_comment()
 
@@ -347,39 +278,40 @@ class Comments():
         if not self.materials_only:
             # Information on PML thickness
             if self.grid.pmls:
-                comments['PMLthickness'] = self.pml_geoview_comment()
+                comments['PMLthickness'] = self.pml_gv_comment()
             srcs = self.grid.get_srcs()
             if srcs:
-                comments['Sources'] = self.srcs_rx_geoview_comment(srcs)
+                comments['Sources'] = self.srcs_rx_gv_comment(srcs)
             if self.grid.rxs:
-                comments['Receivers'] = self.srcs_rx_geoview_comment(
-                    self.grid.rxs)
+                comments['Receivers'] = self.srcs_rx_gv_comment(self.grid.rxs)
 
         return comments
 
-    def pml_geoview_comment(self):
+    def pml_gv_comment(self):
 
         grid = self.grid
+
         # Only render PMLs if they are in the geometry view
         pmlstorender = dict.fromkeys(grid.pmlthickness, 0)
 
-        if grid.pmlthickness['x0'] - self.geoview.vtk_xscells > 0:
-            pmlstorender['x0'] = grid.pmlthickness['x0']
-        if grid.pmlthickness['y0'] - self.geoview.vtk_yscells > 0:
-            pmlstorender['y0'] = grid.pmlthickness['y0']
-        if grid.pmlthickness['z0'] - self.geoview.vtk_zscells > 0:
-            pmlstorender['z0'] = grid.pmlthickness['z0']
-        if self.geoview.vtk_xfcells > grid.nx - grid.pmlthickness['xmax']:
-            pmlstorender['xmax'] = grid.pmlthickness['xmax']
-        if self.geoview.vtk_yfcells > grid.ny - grid.pmlthickness['ymax']:
-            pmlstorender['ymax'] = grid.pmlthickness['ymax']
-        if self.geoview.vtk_zfcells > grid.nz - grid.pmlthickness['zmax']:
-            pmlstorender['zmax'] = grid.pmlthickness['zmax']
+        # Casting to int required as json does not handle numpy types
+        if grid.pmlthickness['x0'] - self.gv.xs > 0:
+            pmlstorender['x0'] = int(grid.pmlthickness['x0'] - self.gv.xs)
+        if grid.pmlthickness['y0'] - self.gv.ys > 0:
+            pmlstorender['y0'] = int(grid.pmlthickness['y0'] - self.gv.ys)
+        if grid.pmlthickness['z0'] - self.gv.zs > 0:
+            pmlstorender['z0'] = int(grid.pmlthickness['z0'] - self.gv.zs)
+        if self.gv.xf > grid.nx - grid.pmlthickness['xmax']:
+            pmlstorender['xmax'] = int(self.gv.xf - (grid.nx - grid.pmlthickness['xmax']))
+        if self.gv.yf > grid.ny - grid.pmlthickness['ymax']:
+            pmlstorender['ymax'] = int(self.gv.yf - (grid.ny - grid.pmlthickness['ymax']))
+        if self.gv.zf > grid.nz - grid.pmlthickness['zmax']:
+            pmlstorender['zmax'] = int(self.gv.zf - (grid.nz - grid.pmlthickness['zmax']))
 
         return list(pmlstorender.values())
 
-    def srcs_rx_geoview_comment(self, srcs):
-
+    def srcs_rx_gv_comment(self, srcs):
+        """Used to name sources and/or receivers."""
         sc = []
         for src in srcs:
             p = (src.xcoord * self.grid.dx,
@@ -388,9 +320,9 @@ class Comments():
             p = numeric_list_to_float_list(p)
 
             s = {'name': src.ID,
-                 'position': p
-                 }
+                 'position': p}
             sc.append(s)
+
         return sc
 
     def dx_dy_dz_comment(self):
