@@ -32,7 +32,7 @@ class Box(UserObjectGeometry):
 
     :param p1: The lower left (x,y,z) coordinates of a the box.
     :type p1: list, non-optional
-    :param p2: The lower left (x,y,z) coordinates of the box.
+    :param p2: The upper right (x,y,z) coordinates of the box.
     :type p2: list, non-optional
     :param material_id: Material identifier that must correspond to material that has already been defined.
     :type material_id: str, non-optional
