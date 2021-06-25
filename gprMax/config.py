@@ -92,7 +92,7 @@ class ModelConfig:
         self.inputfilestr = Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
 
         # Output file path and name for specific model
-        self.appendmodelnumber = '' if sim_config.single_model else str(model_num + 1) # Indexed from 1
+        self.appendmodelnumber = '' if sim_config.single_model else '_' + str(model_num + 1) # Indexed from 1
         self.set_output_file_path()
 
         # Numerical dispersion analysis parameters
@@ -166,6 +166,8 @@ class ModelConfig:
         parts = self.output_file_path.parts
         self.output_file_path = Path(*parts[:-1], parts[-1] + self.appendmodelnumber)
         self.output_file_path_ext = self.output_file_path.with_suffix('.h5')
+
+        self.output_file_path_ext_random = Path(*parts[:-1], parts[-1])
 
     def set_snapshots_dir(self):
         """Set directory to store any snapshots.

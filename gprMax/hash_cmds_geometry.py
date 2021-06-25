@@ -18,7 +18,8 @@
 
 import logging
 import numpy as np
-from .random_create import Rand_Create
+from .random_create import (Rand_Create, Save_Params)
+import gprMax.config as config
 
 from .cmds_geometry.add_grass import AddGrass
 from .cmds_geometry.add_surface_roughness import AddSurfaceRoughness
@@ -36,7 +37,7 @@ from .utilities.utilities import round_value
 logger = logging.getLogger(__name__)
 
 
-def process_geometrycmds(geometry):
+def process_geometrycmds(geometry, hash_count_geometrycmds):
     """
     This function checks the validity of command parameters, creates instances
     of classes of parameters, and calls functions to directly set arrays
@@ -62,10 +63,16 @@ def process_geometrycmds(geometry):
                 gor = GeometryObjectsRead(p1=p1, geofile=tmp[4], matfile=tmp[5])
 
             elif len(tmp) == 10:
+                rand_params = []
                 distr = tmp[1].lower()
                 p1 = (Rand_Create(distr, float(tmp[2]), float(tmp[3])), 
                       Rand_Create(distr, float(tmp[4]), float(tmp[5])), 
                       Rand_Create(distr, float(tmp[6]), float(tmp[7])))
+
+                rand_params.extend([p1])
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                Save_Params(rand_params, str(config.get_model_config().output_file_path_ext_random) + '_' + tmp[0][:-1] + str(hash_count_geometrycmds[tmp[0][:-1]]) + '.csv')
+                
                 gor = GeometryObjectsRead(p1=p1, geofile=tmp[8], matfile=tmp[9])
 
             else:
@@ -78,16 +85,24 @@ def process_geometrycmds(geometry):
             if len(tmp) == 8:
                 edge = Edge(p1=(float(tmp[1]), float(tmp[2]), float(tmp[3])),
                             p2=(float(tmp[4]), float(tmp[5]), float(tmp[6])),
-                            material_id=tmp[7])                           
+                            material_id=tmp[7])      
+
             elif len(tmp) == 15:
+                rand_params = []
                 distr = tmp[1].lower()
-                edge = Edge(p1 = (Rand_Create(distr, float(tmp[2]), float(tmp[3])), 
-                                  Rand_Create(distr, float(tmp[4]), float(tmp[5])), 
-                                  Rand_Create(distr, float(tmp[6]), float(tmp[7]))),
-                            p2 = (Rand_Create(distr, float(tmp[8]), float(tmp[9])), 
-                                  Rand_Create(distr, float(tmp[10]), float(tmp[11])), 
-                                  Rand_Create(distr, float(tmp[12]), float(tmp[13]))),
-                            material_id=tmp[14])
+                p1 = (Rand_Create(distr, float(tmp[2]), float(tmp[3])), 
+                      Rand_Create(distr, float(tmp[4]), float(tmp[5])), 
+                      Rand_Create(distr, float(tmp[6]), float(tmp[7]))),
+                p2 = (Rand_Create(distr, float(tmp[8]), float(tmp[9])), 
+                      Rand_Create(distr, float(tmp[10]), float(tmp[11])), 
+                      Rand_Create(distr, float(tmp[12]), float(tmp[13])))
+
+                rand_params.extend((p1, p2))
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                Save_Params(rand_params, str(config.get_model_config().output_file_path_ext_random) + '_' + tmp[0][:-1] + str(hash_count_geometrycmds[tmp[0][:-1]]) + '.csv')
+                
+                edge = Edge(p1=p1, p2=p2, material_id=tmp[14])
+
             else:
                 logger.exception("'" + ' '.join(tmp) + "'" + ' requires exactly seven parameters (if single values entered) or fourteen parameters (if range of values entered)')
                 raise ValueError
@@ -116,6 +131,7 @@ def process_geometrycmds(geometry):
                     logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least fourteen parameters (if range of values entered)')
                     raise ValueError
 
+                rand_params = []
                 distr = tmp[1].lower()
                 p1 = (Rand_Create(distr, float(tmp[2]), float(tmp[3])), 
                       Rand_Create(distr, float(tmp[4]), float(tmp[5])), 
@@ -123,6 +139,10 @@ def process_geometrycmds(geometry):
                 p2 = (Rand_Create(distr, float(tmp[8]), float(tmp[9])), 
                       Rand_Create(distr, float(tmp[10]), float(tmp[11])), 
                       Rand_Create(distr, float(tmp[12]), float(tmp[13])))
+
+                rand_params.extend((p1, p2))
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                Save_Params(rand_params, str(config.get_model_config().output_file_path_ext_random) + '_' + tmp[0][:-1] + str(hash_count_geometrycmds[tmp[0][:-1]]) + '.csv')
 
                 # Isotropic case
                 if len(tmp) == 15:
@@ -166,6 +186,7 @@ def process_geometrycmds(geometry):
                     logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least twenty two parameters (if range of values entered)')
                     raise ValueError
 
+                rand_params = []
                 distr = tmp[1].lower()
                 p1 = (Rand_Create(distr, float(tmp[2]), float(tmp[3])), 
                       Rand_Create(distr, float(tmp[4]), float(tmp[5])), 
@@ -173,10 +194,14 @@ def process_geometrycmds(geometry):
                 p2 = (Rand_Create(distr, float(tmp[8]), float(tmp[9])), 
                       Rand_Create(distr, float(tmp[10]), float(tmp[11])), 
                       Rand_Create(distr, float(tmp[12]), float(tmp[13])))
-                p2 = (Rand_Create(distr, float(tmp[14]), float(tmp[15])), 
+                p3 = (Rand_Create(distr, float(tmp[14]), float(tmp[15])), 
                       Rand_Create(distr, float(tmp[16]), float(tmp[17])), 
                       Rand_Create(distr, float(tmp[18]), float(tmp[19])))
                 thickness = Rand_Create(distr, float(tmp[20]), float(tmp[21]))
+
+                rand_params.extend((p1, p2, p3, thickness))
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                Save_Params(rand_params, str(config.get_model_config().output_file_path_ext_random) + '_' + tmp[0][:-1] + str(hash_count_geometrycmds[tmp[0][:-1]]) + '.csv')
 
                 # Isotropic case with no user specified averaging
                 if len(tmp) == 23:
@@ -222,6 +247,7 @@ def process_geometrycmds(geometry):
                     logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least fourteen parameters (if range of values entered)')
                     raise ValueError
 
+                rand_params = []
                 distr = tmp[1].lower()
                 p1 = (Rand_Create(distr, float(tmp[2]), float(tmp[3])), 
                       Rand_Create(distr, float(tmp[4]), float(tmp[5])), 
@@ -229,6 +255,10 @@ def process_geometrycmds(geometry):
                 p2 = (Rand_Create(distr, float(tmp[8]), float(tmp[9])), 
                       Rand_Create(distr, float(tmp[10]), float(tmp[11])), 
                       Rand_Create(distr, float(tmp[12]), float(tmp[13])))
+
+                rand_params.extend((p1, p2))
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                Save_Params(rand_params, str(config.get_model_config().output_file_path_ext_random) + '_' + tmp[0][:-1] + str(hash_count_geometrycmds[tmp[0][:-1]]) + '.csv')
 
                 # Isotropic case with no user specified averaging
                 if len(tmp) == 15:
@@ -275,6 +305,7 @@ def process_geometrycmds(geometry):
                     logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least sixteen parameters (if range of values entered)')
                     raise ValueError
 
+                rand_params = []
                 distr = tmp[1].lower()
                 p1 = (Rand_Create(distr, float(tmp[2]), float(tmp[3])), 
                       Rand_Create(distr, float(tmp[4]), float(tmp[5])), 
@@ -283,6 +314,10 @@ def process_geometrycmds(geometry):
                       Rand_Create(distr, float(tmp[10]), float(tmp[11])), 
                       Rand_Create(distr, float(tmp[12]), float(tmp[13])))               
                 r = Rand_Create(distr, float(tmp[14]), float(tmp[15]))
+
+                rand_params.extend((p1, p2, r))
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                Save_Params(rand_params, str(config.get_model_config().output_file_path_ext_random) + '_' + tmp[0][:-1] + str(hash_count_geometrycmds[tmp[0][:-1]]) + '.csv')
 
                 # Isotropic case with no user specified averaging
                 if len(tmp) == 17:
@@ -337,6 +372,7 @@ def process_geometrycmds(geometry):
                     logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least seventeen parameters (if range of values entered)')
                     raise ValueError
 
+                rand_params = []
                 distr = tmp[1].lower()
                 normal = tmp[2].lower()
                 ctr1 = Rand_Create(distr, float(tmp[3]), float(tmp[4]))
@@ -346,6 +382,10 @@ def process_geometrycmds(geometry):
                 r = Rand_Create(distr, float(tmp[11]), float(tmp[12]))
                 start = Rand_Create(distr, float(tmp[13]), float(tmp[14]))
                 end = Rand_Create(distr, float(tmp[15]), float(tmp[16]))
+
+                rand_params.extend((ctr1, ctr2, extent1, extent2, r, start, end))
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                Save_Params(rand_params, str(config.get_model_config().output_file_path_ext_random) + '_' + tmp[0][:-1] + str(hash_count_geometrycmds[tmp[0][:-1]]) + '.csv')
 
                 # Isotropic case with no user specified averaging
                 if len(tmp) == 18:
@@ -394,11 +434,16 @@ def process_geometrycmds(geometry):
                     logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least ten parameters (if range of values entered)')
                     raise ValueError
 
+                rand_params = []
                 distr = tmp[1].lower()
                 p1 = (Rand_Create(distr, float(tmp[2]), float(tmp[3])), 
                       Rand_Create(distr, float(tmp[4]), float(tmp[5])), 
                       Rand_Create(distr, float(tmp[6]), float(tmp[7])))
                 r = Rand_Create(distr, float(tmp[8]), float(tmp[9]))
+
+                rand_params.extend((p1, r))
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                Save_Params(rand_params, str(config.get_model_config().output_file_path_ext_random) + '_' + tmp[0][:-1] + str(hash_count_geometrycmds[tmp[0][:-1]]) + '.csv')
 
                 # Isotropic case with no user specified averaging
                 if len(tmp) == 11:
@@ -445,6 +490,7 @@ def process_geometrycmds(geometry):
                     logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least twenty four parameters (if range of values entered)')
                     raise ValueError
 
+                rand_params = []
                 distr = tmp[1].lower()
                 p1 = (Rand_Create(distr, float(tmp[2]), float(tmp[3])), 
                       Rand_Create(distr, float(tmp[4]), float(tmp[5])), 
@@ -459,6 +505,10 @@ def process_geometrycmds(geometry):
                 n_materials = round_value(tmp[22])
                 mixing_model_id = tmp[23]
                 ID = tmp[24]
+
+                rand_params.extend((p1, p2, frac_dim, weighting))
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                Save_Params(rand_params, str(config.get_model_config().output_file_path_ext_random) + '_' + tmp[0][:-1] + str(hash_count_geometrycmds[tmp[0][:-1]]) + '.csv')
 
                 if len(tmp) == 25:
                     fb = FractalBox(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, mixing_model_id=mixing_model_id, id=ID, n_materials=n_materials)
@@ -499,6 +549,7 @@ def process_geometrycmds(geometry):
                             logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least twenty four parameters (if range of values entered)')
                             raise ValueError
         
+                        rand_params = []
                         distr = tmp[1].lower()
                         p1 = (Rand_Create(distr, float(tmp[2]), float(tmp[3])), 
                               Rand_Create(distr, float(tmp[4]), float(tmp[5])), 
@@ -513,6 +564,10 @@ def process_geometrycmds(geometry):
                                   Rand_Create(distr, float(tmp[22]), float(tmp[23]))]
                         fractal_box_id = tmp[24]
 
+                        rand_params.extend((p1, p2, frac_dim, weighting, limits))
+                        hash_count_geometrycmds[tmp[0][:-1]] += 1
+                        Save_Params(rand_params, str(config.get_model_config().output_file_path_ext_random) + '_' + tmp[0][:-1] + str(hash_count_geometrycmds[tmp[0][:-1]]) + '.csv')
+                
                         if len(tmp) == 24:
                             asr = AddSurfaceRoughness(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, limits=limits, fractal_box_id=fractal_box_id)
                         elif len(tmp) == 25:
@@ -533,6 +588,7 @@ def process_geometrycmds(geometry):
                         asf = AddSurfaceWater(p1=p1, p2=p2, depth=depth, fractal_box_id=fractal_box_id)
 
                     elif len(tmp) == 17:
+                        rand_params = []
                         distr = tmp[1].lower()
                         p1 = (Rand_Create(distr, float(tmp[2]), float(tmp[3])), 
                               Rand_Create(distr, float(tmp[4]), float(tmp[5])), 
@@ -542,6 +598,10 @@ def process_geometrycmds(geometry):
                               Rand_Create(distr, float(tmp[12]), float(tmp[13])))   
                         depth = Rand_Create(distr, float(tmp[14]), float(tmp[15]))
                         fractal_box_id = tmp[16]
+
+                        rand_params.extend((p1, p2, depth))
+                        hash_count_geometrycmds[tmp[0][:-1]] += 1
+                        Save_Params(rand_params, str(config.get_model_config().output_file_path_ext_random) + '_' + tmp[0][:-1] + str(hash_count_geometrycmds[tmp[0][:-1]]) + '.csv')
 
                         asf = AddSurfaceWater(p1=p1, p2=p2, depth=depth, fractal_box_id=fractal_box_id)
                     
@@ -574,6 +634,7 @@ def process_geometrycmds(geometry):
                             logger.exception("'" + ' '.join(tmp) + "'" + ' requires at least twenty one parameters (if range of values entered)')
                             raise ValueError
 
+                        rand_params = []
                         distr = tmp[1].lower()
                         p1 = (Rand_Create(distr, float(tmp[2]), float(tmp[3])), 
                               Rand_Create(distr, float(tmp[4]), float(tmp[5])), 
@@ -586,6 +647,10 @@ def process_geometrycmds(geometry):
                                   Rand_Create(distr, float(tmp[18]), float(tmp[19]))]
                         n_blades = int(tmp[20])
                         fractal_box_id = tmp[21]
+
+                        rand_params.extend((p1, p2, frac_dim, limits))
+                        hash_count_geometrycmds[tmp[0][:-1]] += 1
+                        Save_Params(rand_params, str(config.get_model_config().output_file_path_ext_random) + '_' + tmp[0][:-1] + str(hash_count_geometrycmds[tmp[0][:-1]]) + '.csv')
 
                         if len(tmp) == 22:
                             grass = AddGrass(p1=p1, p2=p2, frac_dim=frac_dim, limits=limits, n_blades=n_blades, fractal_box_id=fractal_box_id)

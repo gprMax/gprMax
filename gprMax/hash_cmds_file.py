@@ -288,6 +288,22 @@ def get_user_objects(processedlines, check=True):
         user_objs (list): All user objects.
     """
 
+    hash_count_geometrycmds = {key: 0 for key in ['#geometry_objects_read', '#edge', '#plate', '#triangle', 
+                                                  '#box', '#sphere', '#cylinder', '#cylindrical_sector', 
+                                                  '#fractal_box', '#add_surface_roughness', 
+                                                  '#add_surface_water', '#add_grass']}
+
+    hash_count_multiplecmds = {key: 0 for key in ['#geometry_view', 
+                                                  '#geometry_objects_write', '#material', 
+                                                  '#soil_peplinski', 
+                                                  '#add_dispersion_debye', 
+                                                  '#add_dispersion_lorentz', 
+                                                  '#add_dispersion_drude', 
+                                                  '#waveform', '#voltage_source', 
+                                                  '#hertzian_dipole', '#magnetic_dipole', 
+                                                  '#transmission_line', '#rx', '#rx_array', 
+                                                  '#snapshot', '#include_file']}
+        
     # Check validity of command names and that essential commands are present
     parsed_commands = check_cmd_names(processedlines, checkessential=check)
 
@@ -296,10 +312,10 @@ def get_user_objects(processedlines, check=True):
 
     # Process parameters for commands that can occur multiple times in
     # the model
-    multiple_user_objs = process_multicmds(parsed_commands[1])
+    multiple_user_objs = process_multicmds(parsed_commands[1], hash_count_multiplecmds)
 
     # Process geometry commands in the order they were given
-    geometry_user_objs = process_geometrycmds(parsed_commands[2])
+    geometry_user_objs = process_geometrycmds(parsed_commands[2], hash_count_geometrycmds)
 
     user_objs = single_user_objs + multiple_user_objs + geometry_user_objs
 
