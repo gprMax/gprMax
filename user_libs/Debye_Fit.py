@@ -25,12 +25,191 @@ import scipy.interpolate
 from tqdm import tqdm
 
 
+class Optimizer(object):
+    
+    def fit(self):
+        """
+        Call the optimization function that tries to find an optimal set
+        of relaxation times that minimise the error
+        between the actual and the approximated electric permittivity.
+        """
+        raise NotImplementedError()
+
+    @staticmethod
+    def plot(x, y):
+        """
+        Dynamically plot the error as the optimisation takes place.
+
+        Args:
+            x (array): The number of current iterations.
+            y (array): The objective value at for all x points.
+        """
+        plt.rcParams["axes.facecolor"] = "black"
+        plt.plot(x, y, "b-", linewidth=3.0)
+        plt.ylim(min(y) - 0.1 * min(y),
+                 max(y) + 0.1 * max(y))
+        plt.xlim(min(x), max(x))
+        plt.grid(b=True, which="major", color="w",
+                 linewidth=0.2, linestyle="--")
+        plt.suptitle("Debye fitting process")
+        plt.xlabel("Iteration")
+        plt.ylabel("Average Error")
+        plt.pause(0.0001)
+
+
+class Particle_swarm(Optimizer):
+    def __init__(self, swarmsize=40, maxiter=50,
+                 omega=0.9, phip=0.9, phig=0.9,
+                 minstep=1e-8, pflag=False):
+        """
+        Create particle swarm optimisation object with predefined parameters.
+
+        Args:
+            swarmsize (int): The number of particles in the swarm (Default: 40).
+            maxiter (int): The maximum number of iterations for the swarm
+                        to search (Default: 50).
+            omega (float): Particle velocity scaling factor (Default: 0.9).
+            phip (float): Scaling factor to search away from the particle's
+                        best known position (Default: 0.9).
+            phig (float):  Scaling factor to search away from the swarm's
+                        best known position (Default: 0.9).
+            minstep (float): The minimum stepsize of swarm's best position
+                             before the search terminates (Default: 1e-8).
+            pflag (bool): if True will plot the actual and the approximated
+                          value during optimization process (Default: False).
+        """
+        self.swarmsize = swarmsize
+        self.maxiter = maxiter
+        self.omega = omega
+        self.phip = phip
+        self.phig = phig
+        self.minstep = minstep
+        self.pflag = pflag
+
+    def fit(self, func, lb, ub, funckwargs={}):
+        """
+        A particle swarm optimisation that tries to find an optimal set
+        of relaxation times that minimise the error
+        between the actual and the approximated electric permittivity.
+        The current class is a modified edition of the pyswarm package
+        which can be found at https://pythonhosted.org/pyswarm/
+
+        Args:
+            func (function): The function to be minimized
+            lb (array): The lower bounds of the design variable(s)
+            ub (array): The upper bounds of the design variable(s)
+            funckwargs (dict): Additional keyword arguments passed to
+                               objective and constraint function
+                               (Default: empty dict)
+
+        Returns:
+            g (float): The swarm's best known position (optimal design).
+            fg (float): The objective value at ``g``.
+        """
+        # check input parameters
+        assert len(lb) == len(ub), 'Lower- and upper-bounds must be the same length'
+        assert hasattr(func, '__call__'), 'Invalid function handle'
+        lb = np.array(lb)
+        ub = np.array(ub)
+        assert np.all(ub > lb), 'All upper-bound values must be greater than lower-bound values'
+
+        vhigh = np.abs(ub - lb)
+        vlow = -vhigh
+
+        # Initialize objective function
+        obj = lambda x: func(x=x, **funckwargs)
+
+        # Initialize the particle swarm
+        d = len(lb)  # the number of dimensions each particle has
+        x = np.random.rand(self.swarmsize, d)  # particle positions
+        v = np.zeros_like(x)  # particle velocities
+        p = np.zeros_like(x)  # best particle positions
+        fp = np.zeros(self.swarmsize)  # best particle function values
+        g = []  # best swarm position
+        fg = np.inf  # artificial best swarm position starting value
+
+        for i in range(self.swarmsize):
+            # Initialize the particle's position
+            x[i, :] = lb + x[i, :] * (ub - lb)
+            # Initialize the particle's best known position
+            p[i, :] = x[i, :]
+            # Calculate the objective's value at the current particle's
+            fp[i] = obj(p[i, :])
+            # At the start, there may not be any feasible starting point,
+            # so just
+            # give it a temporary "best" point since it's likely to change
+            if i == 0:
+                g = p[0, :].copy()
+            # If the current particle's position is better than the swarm's,
+            # update the best swarm position
+            if fp[i] < fg:
+                fg = fp[i]
+                g = p[i, :].copy()
+            # Initialize the particle's velocity
+            v[i, :] = vlow + np.random.rand(d) * (vhigh - vlow)
+
+        # Iterate until termination criterion met
+        for it in tqdm(range(2, self.maxiter + 2), desc='Debye fitting'):
+            rp = np.random.uniform(size=(self.swarmsize, d))
+            rg = np.random.uniform(size=(self.swarmsize, d))
+            for i in range(self.swarmsize):
+                # Update the particle's velocity
+                v[i, :] = self.omega * v[i, :] + self.phip * rp[i, :] * \
+                          (p[i, :] - x[i, :]) + \
+                          self.phig * rg[i, :] * (g - x[i, :])
+                # Update the particle's position,
+                # correcting lower and upper bound
+                # violations, then update the objective function value
+                x[i, :] = x[i, :] + v[i, :]
+                mark1 = x[i, :] < lb
+                mark2 = x[i, :] > ub
+                x[i, mark1] = lb[mark1]
+                x[i, mark2] = ub[mark2]
+                fx = obj(x[i, :])
+                # Compare particle's best position
+                # (if constraints are satisfied)
+                if fx < fp[i]:
+                    p[i, :] = x[i, :].copy()
+                    fp[i] = fx
+                    # Compare swarm's best position to current
+                    # particle's position
+                    # (Can only get here if constraints are satisfied)
+                    if fx < fg:
+                        tmp = x[i, :].copy()
+                        stepsize = np.sqrt(np.sum((g - tmp) ** 2))
+                        if stepsize <= self.minstep:
+                            print(f'Stopping search: Swarm best position change less than {self.minstep}')
+                            return tmp, fx
+                        else:
+                            g = tmp.copy()
+                            fg = fx
+
+            # Dynamically plot the error as the optimisation takes place
+            if self.pflag:
+                if it == 2:
+                    xpp = [0]
+                    ypp = [fg]
+                else:
+                    xpp.append(it - 1)
+                    ypp.append(fg)
+                Particle_swarm.plot(xpp, ypp)
+
+        return g, fg
+
+
 class Relaxation(object):
 
     def __init__(self, number_of_debye_poles,
                  sigma, mu, mu_sigma,
-                 material_name, plot=False,
-                 pso=[40, 50, 0.9, 0.9, 0.9]):
+                 material_name, plot=True,
+                 optimizer=Particle_swarm,
+                 optimizer_options={'pflag': True,
+                                    'swarmsize': 40,
+                                    'maxiter': 50,
+                                    'omega': 0.9,
+                                    'phip': 0.9,
+                                    'phig': 0.9,
+                                    'minstep': 1e-8}):
         """
         Create Relaxation function object for complex material.
 
@@ -59,7 +238,7 @@ class Relaxation(object):
         self.mu_sigma = mu_sigma
         self.material_name = material_name
         self.plot = plot
-        self.pso = pso
+        self.optimizer = optimizer(**optimizer_options)
 
     def run(self):
         """
@@ -69,13 +248,15 @@ class Relaxation(object):
         """
         # Check the validity of the inputs
         self.check_inputs()
-        # Calculate both real and imaginary parts
-        # for the frequencies included in the vector freq
-        self.calculation()
         # Print information about chosen approximation settings
         self.print_info()
+        # Calculate both real and imaginary parts
+        # for the frequencies included in the vector freq
+        q = self.calculation()
+        # Set the real and the imaginary part of the relaxation function
+        self.rl, self.im = q.real, q.imag
         # Calling the main optimisation module
-        self.results()
+        self.optimize()
 
     def check_inputs(self):
         """
@@ -105,7 +286,7 @@ class Relaxation(object):
         """
         raise NotImplementedError()
 
-    def results(self):
+    def optimize(self):
         """
         Calling the main optimisation module.
         """
@@ -114,9 +295,13 @@ class Relaxation(object):
                      -np.log10(np.max(self.freq)) - 3)
         ub = np.full(self.number_of_debye_poles,
                      -np.log10(np.min(self.freq)) + 3)
-        # Call particle swarm optimisation to minimize the Cost_function.
-        xmp, _ = Pso.pso(cost_function, lb, ub, self.plot, self.pso,
-                         self.rl, self.im, self.freq)
+        # Call particle swarm optimisation to minimize the cost function.
+        xmp, _ = self.optimizer.fit(func=cost_function,
+                                    lb=lb, ub=ub,
+                                    funckwargs={'rl_g':self.rl,
+                                                'im_g': self.im,
+                                                'freq_g': self.freq}
+                                    )
         _, _, mx, ee, rp, ip = linear(self.rl, self.im, xmp, self.freq)
         # if one of the weights is negative increase the stabiliser
         # and repeat the optimisation
@@ -147,20 +332,20 @@ class Relaxation(object):
         out_t += " {}".format(self.material_name)
         print(out_t)
 
-    def plot_result(self, rl1, im1):
+    def plot_result(self, rl_exp, im_exp):
         """Plot the actual and the approximated electric permittivity using a semilogarithm X axes"""
         plt.close("all")
         plt.rcParams["axes.facecolor"] = "black"
-        plt.semilogx(self.freq / 10 ** 6, rl1, "b-", linewidth=2.0, label="Debye Expansion: Real")
-        plt.semilogx(self.freq / 10 ** 6, -im1, "w-", linewidth=2.0, label="Debye Expansion: Imaginary")
-        plt.semilogx(self.freq / 10 ** 6, self.rl, "ro", linewidth=2.0, label="Chosen Function: Real")
-        plt.semilogx(self.freq / 10 ** 6, -np.array(self.im), "go", linewidth=2.0, label="Chosen Function: Imaginary")
+        plt.semilogx(self.freq * 1e-6, rl_exp, "b-", linewidth=2.0, label="Debye Expansion: Real")
+        plt.semilogx(self.freq * 1e-6, -im_exp, "w-", linewidth=2.0, label="Debye Expansion: Imaginary")
+        plt.semilogx(self.freq * 1e-6, self.rl, "ro", linewidth=2.0, label="Chosen Function: Real")
+        plt.semilogx(self.freq * 1e-6, -self.im, "go", linewidth=2.0, label="Chosen Function: Imaginary")
 
         plt.rcParams["axes.facecolor"] = "white"
         plt.grid(b=True, which="major", color="w", linewidth=0.2, linestyle="--")
         axes = plt.gca()
-        axes.set_xlim([np.min(self.freq / (10 ** 6)), np.max(self.freq / (10 ** 6))])
-        axes.set_ylim([-1, np.max([np.max(self.rl), np.max(-np.array(self.im))]) + 1])
+        axes.set_xlim([np.min(self.freq * 1e-6), np.max(self.freq * 1e-6)])
+        axes.set_ylim([-1, np.max(np.concatenate([self.rl,-self.im])) + 1])
         plt.legend()
         plt.xlabel("Frequency (MHz)")
         plt.ylabel("Relative permittivity")
@@ -172,7 +357,15 @@ class HavriliakNegami(Relaxation):
     def __init__(self, number_of_debye_poles,
                  freq1, freq2, alfa, bita, einf, de, t0,
                  sigma, mu, mu_sigma,
-                 material_name, plot=False, pso=[40, 50, 0.9, 0.9, 0.9]):
+                 material_name, plot=False,
+                 optimizer=Particle_swarm,
+                 optimizer_options={'pflag': True,
+                                    'swarmsize': 40,
+                                    'maxiter': 50,
+                                    'omega': 0.9,
+                                    'phip': 0.9,
+                                    'phig': 0.9,
+                                    'minstep': 1e-8}):
         """
         Approximate a given Havriliak-Negami function
         Havriliak-Negami function = einf + de / (1 + (1j * 2 * math.pi * f *t0 )**alfa )**bita,
@@ -217,7 +410,7 @@ class HavriliakNegami(Relaxation):
         """
         super(HavriliakNegami, self).__init__(number_of_debye_poles,
                                               sigma, mu, mu_sigma,
-                                              material_name, plot, pso)
+                                              material_name, plot, optimizer, optimizer_options)
         # Place the lower frequency bound at fr1 and the upper frequency bound at fr2
         if freq1 > freq2:
             self.freq1, self.freq2 = freq2, freq1
@@ -257,22 +450,23 @@ class HavriliakNegami(Relaxation):
 
     def calculation(self):
         """Calculates the Havriliak-Negami function for the given parameters."""
-        q = [self.einf + self.de / (np.array(1 + np.array(1j * 2 * math.pi *
-             f * self.t0) ** self.alfa) ** self.bita) for f in self.freq]
-        # Return the real and the imaginary part of the relaxation function
-        if len(q) > 1:
-            self.rl = [q[i].real for i in range(0, len(q))]
-            self.im = [q[i].imag for i in range(0, len(q))]
-        else:
-            self.rl = q[0].real
-            self.im = q[0].imag
+        return self.einf + self.de / (np.array(1 + np.array(1j * 2 * math.pi *
+               self.freq * self.t0) ** self.alfa) ** self.bita)
 
 
 class Jonscher(Relaxation):
     def __init__(self, number_of_debye_poles,
                  freq1, freq2, einf, ap, omegap, n_p,
                  sigma, mu, mu_sigma,
-                 material_name, plot=False, pso=[40, 50, 0.9, 0.9, 0.9]):
+                 material_name, plot=False, 
+                 optimizer=Particle_swarm,
+                 optimizer_options={'pflag': True,
+                                    'swarmsize': 40,
+                                    'maxiter': 50,
+                                    'omega': 0.9,
+                                    'phip': 0.9,
+                                    'phig': 0.9,
+                                    'minstep': 1e-8}):
         """
         Approximate a given Johnsher function
         Jonscher function = einf - ap*( -1j * 2 * math.pi * f / omegap ) ** n_p,
@@ -310,7 +504,7 @@ class Jonscher(Relaxation):
         """
         super(Jonscher, self).__init__(number_of_debye_poles,
                                        sigma, mu, mu_sigma,
-                                       material_name, plot, pso)
+                                       material_name, plot, optimizer, optimizer_options)
         # Place the lower frequency bound at fr1 and the upper frequency bound at fr2
         if freq1 > freq2:
             self.freq1, self.freq2 = freq2, freq1
@@ -352,15 +546,8 @@ class Jonscher(Relaxation):
 
     def calculation(self):
         """Calculates the Q function for the given parameters"""
-        q = [self.einf + (self.ap * np.array(2*math.pi*f / self.omegap)**(self.n_p-1))
-             * (1 - 1j/math.tan(self.n_p * math.pi/2)) for f in self.freq]
-        # Return the real and the imaginary part of the Jonscher function
-        if len(q) > 1:
-            self.rl = [q[i].real for i in range(0, len(q))]
-            self.im = [q[i].imag for i in range(0, len(q))]
-        else:
-            self.rl = q[0].real
-            self.im = q[0].imag
+        return self.einf + (self.ap * np.array(2*math.pi*self.freq / self.omegap
+               )**(self.n_p-1)) * (1 - 1j/math.tan(self.n_p * math.pi/2))
 
 
 class Crim(Relaxation):
@@ -368,7 +555,14 @@ class Crim(Relaxation):
     def __init__(self, number_of_debye_poles,
                  freq1, freq2, a, f1, e1, sigma,
                  mu, mu_sigma, material_name, plot=False,
-                 pso=[40, 50, 0.9, 0.9, 0.9]):
+                 optimizer=Particle_swarm,
+                 optimizer_options={'pflag': True,
+                                    'swarmsize': 40,
+                                    'maxiter': 50,
+                                    'omega': 0.9,
+                                    'phip': 0.9,
+                                    'phig': 0.9,
+                                    'minstep': 1e-8}):
         """
         Approximate a given CRIM function
         CRIM = (sum([volumetric_fraction[i]*(material[i][0] + material[i][1] /
@@ -405,7 +599,7 @@ class Crim(Relaxation):
         """
         super(Crim, self).__init__(number_of_debye_poles,
                                    sigma, mu, mu_sigma,
-                                   material_name, plot, pso)
+                                   material_name, plot, optimizer, optimizer_options)
         # Place the lower frequency bound at fr1 and the upper frequency bound at fr2
         if freq1 > freq2:
             self.freq1, self.freq2 = freq2, freq1
@@ -465,19 +659,12 @@ class Crim(Relaxation):
     def calculation(self):
         """Calculates the Crim function for the given parameters"""
         q = np.zeros(len(self.freq))
-        for i in range(0, len(self.f1)):
+        for i in range(len(self.f1)):
             q = q + self.f1[i]*np.array(
                 [self.e1[i][0] + self.e1[i][1] /
                  (np.array(1 + np.array(1j * 2 * math.pi * f * self.e1[i][2])))
                  for f in self.freq])**self.a
-        q = q**(1 / self.a)
-        # Set the real and the imaginary partof the Havriliak-Negami function
-        if len(q) > 1:
-            self.rl = [q[i].real for i in range(0, len(q))]
-            self.im = [q[i].imag for i in range(0, len(q))]
-        else:
-            self.rl = q[0].real
-            self.im = q[0].imag
+        return q**(1 / self.a)
 
 
 class Rawdata(Relaxation):
@@ -486,7 +673,14 @@ class Rawdata(Relaxation):
                  filename,
                  sigma, mu, mu_sigma,
                  material_name, plot=False,
-                 pso=[40, 50, 0.9, 0.9, 0.9]):
+                 optimizer=Particle_swarm,
+                 optimizer_options={'pflag': True,
+                                    'swarmsize': 40,
+                                    'maxiter': 50,
+                                    'omega': 0.9,
+                                    'phip': 0.9,
+                                    'phig': 0.9,
+                                    'minstep': 1e-8}):
         """
         Interpolate data given from a text file
 
@@ -513,7 +707,8 @@ class Rawdata(Relaxation):
         """
         super(Rawdata, self).__init__(number_of_debye_poles,
                                       sigma, mu, mu_sigma,
-                                      material_name, plot, pso)
+                                      material_name, plot,
+                                      optimizer, optimizer_options)
         self.filename = filename
 
     def check_inputs(self):
@@ -552,8 +747,7 @@ class Rawdata(Relaxation):
                                 50)
         rl_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 1])
         im_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 2])
-        self.rl = rl_interp(self.freq)
-        self.im = im_interp(self.freq)
+        return rl_interp(self.freq) + 1j * im_interp(self.freq)
 
 
 def cost_function(x, rl_g, im_g, freq_g):
@@ -621,136 +815,6 @@ def calc(cal_inputs, freq):
         rl = q[0].real
         im = q[0].imag
     return rl, im
-
-
-class Pso:
-    def pso(func, lb, ub, plot, pso, rl, im, freq):
-        """
-        A particle swarm optimisation that tries to find an optimal set
-        of relaxation times that minimise the error
-        between the actual adn the approximated electric permittivity.
-        The current class is a modified edition of the pyswarm package
-        which can be found at https://pythonhosted.org/pyswarm/
-
-        Returns:
-            xmp: The resulting optimised relaxation times of the Debye poles
-            ob: The final error for the given relaxation times
-                calculate the optimised weights
-        """
-        print("\n")
-
-        # Predefine the parameters of the particle swarm optimisation
-        omega, phip, phig = pso[2], pso[3], pso[4]
-        s = pso[1]
-
-        obj = lambda x: func(x, rl_g=rl, im_g=im, freq_g=freq)
-        plt.close("all")
-        lb = np.array(lb)
-        ub = np.array(ub)
-        vhigh = np.abs(ub - lb)
-        vlow = -vhigh
-        # Initialize the particle swarm
-        d = len(lb)  # the number of dimensions each particle has
-        x = np.random.rand(s, d)  # particle positions
-        v = np.zeros_like(x)  # particle velocities
-        p = np.zeros_like(x)  # best particle positions
-        fp = np.zeros(s)  # best particle function values
-        g = []  # best swarm position
-        fg = 1e100  # artificial best swarm position starting value
-
-        for i in range(s):
-            # Initialize the particle's position
-            x[i, :] = lb + x[i, :] * (ub - lb)
-
-            # Initialize the particle's best known position
-            p[i, :] = x[i, :]
-
-            # Calculate the objective's value at the current particle's
-            fp[i] = obj(p[i, :])
-
-            # At the start, there may not be any feasible starting point,
-            # so just
-            # give it a temporary "best" point since it's likely to change
-            if i == 0:
-                g = p[0, :].copy()
-
-            # If the current particle's position is better than the swarm's,
-            # update the best swarm position
-            if fp[i] < fg:
-                fg = fp[i]
-                g = p[i, :].copy()
-
-            # Initialize the particle's velocity
-            v[i, :] = vlow + np.random.rand(d) * (vhigh - vlow)
-
-        # Iterate until termination criterion met
-        for it in tqdm(range(2, pso[0]+2), desc='Debye fitting'):
-            rp = np.random.uniform(size=(s, d))
-            rg = np.random.uniform(size=(s, d))
-            for i in range(s):
-
-                # Update the particle's velocity
-                v[i, :] = omega * v[i, :] + phip * rp[i, :] * \
-                          (p[i, :] - x[i, :]) + \
-                          phig * rg[i, :] * (g - x[i, :])
-
-                # Update the particle's position,
-                # correcting lower and upper bound
-                # violations, then update the objective function value
-                x[i, :] = x[i, :] + v[i, :]
-                mark1 = x[i, :] < lb
-                mark2 = x[i, :] > ub
-                x[i, mark1] = lb[mark1]
-                x[i, mark2] = ub[mark2]
-                fx = obj(x[i, :])
-
-                # Compare particle's best position
-                # (if constraints are satisfied)
-                if fx < fp[i]:
-                    p[i, :] = x[i, :].copy()
-                    fp[i] = fx
-
-                    # Compare swarm's best position to current
-                    # particle's position
-                    # (Can only get here if constraints are satisfied)
-                    if fx < fg:
-                        tmp = x[i, :].copy()
-                        stepsize = np.sqrt(np.sum((g - tmp) ** 2))
-                        if stepsize <= 1e-8:
-                            return tmp, fx
-                        else:
-                            g = tmp.copy()
-                            fg = fx
-
-            # Dynamically plot the error as the optimisation takes place
-            if plot:
-                if it == 2:
-                    xpp = [0]
-                    ypp = [fg]
-                    plt.rcParams["axes.facecolor"] = "black"
-
-                    fig = plt.figure()
-                    ax = fig.add_subplot(111)
-                    line1, = ax.plot(xpp, ypp, "b-", linewidth=3.0)
-                else:
-                    xpp.append(it - 1)
-                    ypp.append(fg)
-
-                    line1.set_ydata(ypp)
-                    line1.set_xdata(xpp)
-                    plt.ylim(min(ypp) - 0.1 * min(ypp),
-                             max(ypp) + 0.1 * max(ypp))
-                    plt.xlim(min(xpp), max(xpp))
-                    plt.grid(b=True, which="major", color="w",
-                             linewidth=0.2, linestyle="--")
-                    plt.suptitle("Debye fitting process")
-                    fig.canvas.draw()
-
-                    plt.xlabel("Iteration")
-                    plt.ylabel("Average Error")
-                    plt.pause(0.0001)
-
-        return g, fg
 
 
 if __name__ == "__main__":
