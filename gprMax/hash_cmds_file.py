@@ -26,6 +26,7 @@ import gprMax.config as config
 from .hash_cmds_geometry import process_geometrycmds
 from .hash_cmds_multiuse import process_multicmds
 from .hash_cmds_singleuse import process_singlecmds
+from .random_gen import save_params
 
 logger = logging.getLogger(__name__)
 
@@ -288,38 +289,28 @@ def get_user_objects(processedlines, check=True):
         user_objs (list): All user objects.
     """
 
-    hash_count_geometrycmds = {key: 0 for key in ['#geometry_objects_read', '#edge', '#plate', '#triangle', 
-                                                  '#box', '#sphere', '#cylinder', '#cylindrical_sector', 
-                                                  '#fractal_box', '#add_surface_roughness', 
-                                                  '#add_surface_water', '#add_grass']}
-
-    hash_count_multiplecmds = {key: 0 for key in ['#geometry_view', 
-                                                  '#geometry_objects_write', '#material', 
-                                                  '#soil_peplinski', 
-                                                  '#add_dispersion_debye', 
-                                                  '#add_dispersion_lorentz', 
-                                                  '#add_dispersion_drude', 
-                                                  '#waveform', '#voltage_source', 
-                                                  '#hertzian_dipole', '#magnetic_dipole', 
-                                                  '#transmission_line', '#rx', '#rx_array', 
-                                                  '#snapshot', '#include_file']}
-        
     # Check validity of command names and that essential commands are present
     parsed_commands = check_cmd_names(processedlines, checkessential=check)
 
     # Process parameters for commands that can only occur once in the model
-    single_user_objs = process_singlecmds(parsed_commands[0])
+    single_user_objs, domain_bounds = process_singlecmds(parsed_commands[0])
 
-    # Process parameters for commands that can occur multiple times in
-    # the model
-    multiple_user_objs = process_multicmds(parsed_commands[1], hash_count_multiplecmds)
+    # Process parameters for commands that can occur multiple times in the model
+    multiple_user_objs, rand_params_multi, data_labels_multi = process_multicmds(parsed_commands[1], domain_bounds)
 
     # Process geometry commands in the order they were given
-    geometry_user_objs = process_geometrycmds(parsed_commands[2], hash_count_geometrycmds)
+    geometry_user_objs, rand_params_geo, data_labels_geo = process_geometrycmds(parsed_commands[2], domain_bounds)
 
     user_objs = single_user_objs + multiple_user_objs + geometry_user_objs
 
-    return user_objs
+    # Save random parameters
+    rand_params = rand_params_multi + rand_params_geo
+    data_labels = data_labels_multi + data_labels_geo
+
+    if rand_params != []:
+        save_params(rand_params, config.get_model_config().output_file_path_ext_random)
+
+    return user_objs, [data_labels]
 
 
 def parse_hash_commands(scene, G):
@@ -352,11 +343,11 @@ def parse_hash_commands(scene, G):
         if config.sim_config.args.write_processed:
             write_processed_file(processedlines, G)
 
-        user_objs = get_user_objects(processedlines, check=True)
+        user_objs, data_labels = get_user_objects(processedlines, check=True)
         for user_obj in user_objs:
             scene.add(user_obj)
 
-        return scene
+        return scene, data_labels
 
 
 class Capturing(list):

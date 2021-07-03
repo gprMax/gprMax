@@ -167,7 +167,9 @@ class ModelConfig:
         self.output_file_path = Path(*parts[:-1], parts[-1] + self.appendmodelnumber)
         self.output_file_path_ext = self.output_file_path.with_suffix('.h5')
 
-        self.output_file_path_ext_random = Path(*parts[:-1], parts[-1])
+        # Path for saving random parameters
+        self.output_file_path_random = Path(*parts[:-1], parts[-1])
+        self.output_file_path_ext_random = self.output_file_path_random.with_suffix('.pkl')
 
     def set_snapshots_dir(self):
         """Set directory to store any snapshots.

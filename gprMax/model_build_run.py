@@ -54,6 +54,9 @@ class ModelBuildRun:
         self.G = G
         # Monitor memory usage
         self.p = None
+        
+        # Data labels for random parameters
+        self.data_labels = None
 
         # Set number of OpenMP threads to physical threads at this point to be
         # used with threaded model building methods, e.g. fractals. Can be
@@ -197,11 +200,14 @@ class ModelBuildRun:
         if not scene:
             scene = Scene()
             # Parse the input file into user objects and add them to the scene
-            scene = parse_hash_commands(scene, self.G)
+            scene, data_labels = parse_hash_commands(scene, self.G)
 
         # Creates the internal simulation objects
         scene.create_internal_objects(self.G)
 
+        # Update data labels for the user to check the order in which random parameters are saved
+        self.data_labels = data_labels
+        
         return scene
 
     def write_output_data(self):

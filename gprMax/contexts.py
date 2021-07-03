@@ -27,6 +27,9 @@ from .model_build_run import ModelBuildRun
 from .solvers import create_G, create_solver
 from .utilities.utilities import get_terminal_width, human_size, logo, timer
 
+import os
+from .random_gen import compress_pkl_dat
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,7 +41,8 @@ class Context:
     def __init__(self):
         self.model_range = range(config.sim_config.model_start, config.sim_config.model_end)
         self.tsimend = None
-        self.tsimstart = None        
+        self.tsimstart = None       
+        self.data_labels = None 
 
     def run(self):
         """Run the simulation in the correct context."""
@@ -66,6 +70,7 @@ class Context:
 
             model = ModelBuildRun(G)
             model.build()
+            self.data_labels = model.data_labels
             
             if not config.sim_config.args.geometry_only:
                 solver = create_solver(G)
@@ -73,6 +78,8 @@ class Context:
 
         self.tsimend = timer()
         self.print_time_report()
+        self.display_labels(self.data_labels)
+        self.save_compressed_data()
 
     def print_logo_copyright(self):
         """Print gprMax logo, version, and copyright/licencing information."""
@@ -96,6 +103,20 @@ class Context:
         s = f"\n=== Simulation completed in [HH:MM:SS]: {datetime.timedelta(seconds=self.tsimend - self.tsimstart)}"
         logger.basic(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")
 
+    def save_compressed_data(self):
+        """Remove all redundant features and save compressed data file containing randomly generated parameters"""
+        if os.path.isfile(config.get_model_config().output_file_path_ext_random):
+            compress_pkl_dat(config.get_model_config().output_file_path_ext_random, str(config.get_model_config().output_file_path_random) + '_compressed.pkl')
+
+    def display_labels(self, labels):
+        """Display labels corresponding to the random parameters in the order they are saved"""
+        from terminaltables import SingleTable
+        labels_table = SingleTable(labels)
+        labels_table.outer_border = False
+        labels_table.justify_columns[0] = 'right'
+        logger.info(f'-> Data Labels \n')
+        logger.info(labels_table.table)
+
 
 class MPIContext(Context):
     """Mixed mode MPI/OpenMP/CUDA context - MPI task farm is used to distribute
@@ -111,6 +132,7 @@ class MPIContext(Context):
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.rank
         self.MPIExecutor = MPIExecutor
+        self.data_labels = None
 
     def _run_model(self, i):
         """Process for running a single model."""
@@ -127,6 +149,7 @@ class MPIContext(Context):
         G = create_G()
         model = ModelBuildRun(G)
         model.build()
+        self.data_labels = model.data_labels
         
         if not config.sim_config.args.geometry_only:
             solver = create_solver(G)
@@ -168,6 +191,8 @@ class MPIContext(Context):
         if executor.is_master():
             self.tsimend = timer()
             self.print_time_report()
+            self.display_labels(self.data_labels)
+            self.save_compressed_data()
 
 
 class SPOTPYContext(Context):
@@ -180,6 +205,7 @@ class SPOTPYContext(Context):
 
     def __init__(self):
         super().__init__()
+        self.data_labels = None
 
     def run(self, i):
         """Process for running a single model."""
@@ -198,6 +224,7 @@ class SPOTPYContext(Context):
         G = create_G()
         model = ModelBuildRun(G)
         model.build()
+        self.data_labels = model.data_labels
         
         if not config.sim_config.args.geometry_only:
             solver = create_solver(G)
@@ -205,3 +232,5 @@ class SPOTPYContext(Context):
 
         self.tsimend = timer()
         self.print_time_report()
+        self.display_labels(self.data_labels)
+        self.save_compressed_data()
