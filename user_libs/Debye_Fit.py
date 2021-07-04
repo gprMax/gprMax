@@ -26,6 +26,16 @@ from tqdm import tqdm
 
 class Optimizer(object):
 
+    def __init__(self, seed=None):
+        """
+        Create particle swarm optimisation object.
+
+        Args:
+            seed (int): Seed for RandomState.
+                        Must be convertible to 32 bit unsigned integers.
+        """
+        self.seed = seed
+
     def fit(self):
         """
         Call the optimization function that tries to find an optimal set
@@ -59,7 +69,7 @@ class Optimizer(object):
 class Particle_swarm(Optimizer):
     def __init__(self, swarmsize=40, maxiter=50,
                  omega=0.9, phip=0.9, phig=0.9,
-                 minstep=1e-8, pflag=False):
+                 minstep=1e-8, pflag=False, seed=None):
         """
         Create particle swarm optimisation object with predefined parameters.
 
@@ -77,6 +87,7 @@ class Particle_swarm(Optimizer):
             pflag (bool): if True will plot the actual and the approximated
                           value during optimization process (Default: False).
         """
+        super(Particle_swarm, self).__init__(seed)
         self.swarmsize = swarmsize
         self.maxiter = maxiter
         self.omega = omega
@@ -105,6 +116,7 @@ class Particle_swarm(Optimizer):
             g (array): The swarm's best known position (optimal design).
             fg (float): The objective value at ``g``.
         """
+        np.random.seed(self.seed)
         # check input parameters
         assert len(lb) == len(ub), 'Lower- and upper-bounds must be the same length'
         assert hasattr(func, '__call__'), 'Invalid function handle'
@@ -199,9 +211,10 @@ class Relaxation(object):
 
     def __init__(self, number_of_debye_poles,
                  sigma, mu, mu_sigma,
-                 material_name, plot=True,
+                 material_name, plot=True, save=True,
                  optimizer=Particle_swarm,
-                 optimizer_options={'pflag': True,
+                 optimizer_options={'seed': 111,
+                                    'pflag': True,
                                     'swarmsize': 40,
                                     'maxiter': 50,
                                     'omega': 0.9,
@@ -223,12 +236,12 @@ class Relaxation(object):
             plot (bool): if True will plot the actual and the approximated
                          permittivity (it can be neglected).
                          The argument is optional and if neglected plot=False.
-            pso (list): A vector which contains 5 parameters [a1,a2,a3,a4,a5].
-                        a1 denotes the number of particles to be used in
-                        the particle swarm optimisation. a2 denotes the number
-                        of iterations. a3 is the inertia component.
-                        a4 is the cognitive, a5 - social scaling parameters.
-                        By default pso = [40, 50, 0.9, 0.9, 0.9]
+            save (bool): if True will save approximated material parameters
+                         The argument is optional and if neglected save=False.
+            optimizer (Optimizer class): chosen optimization method:
+                                         Particle Swarm, Genetic or Simmulated Annealing.
+            optimizer_options (dict): Additional keyword arguments passed to
+                                      optimizer class.
         """
         self.number_of_debye_poles = number_of_debye_poles
         self.sigma = sigma
@@ -236,8 +249,8 @@ class Relaxation(object):
         self.mu_sigma = mu_sigma
         self.material_name = material_name
         self.plot = plot
+        self.save = save
         self.optimizer = optimizer(**optimizer_options)
-        self.save = True
 
     def run(self):
         """
@@ -394,9 +407,10 @@ class HavriliakNegami(Relaxation):
     def __init__(self, number_of_debye_poles,
                  freq1, freq2, alfa, bita, einf, de, t0,
                  sigma, mu, mu_sigma,
-                 material_name, plot=False,
+                 material_name, plot=False, save=True,
                  optimizer=Particle_swarm,
-                 optimizer_options={'pflag': True,
+                 optimizer_options={'seed': 111,
+                                    'pflag': True,
                                     'swarmsize': 40,
                                     'maxiter': 50,
                                     'omega': 0.9,
@@ -436,18 +450,20 @@ class HavriliakNegami(Relaxation):
             material_name (str): A string containing the given name of
                                  the material (e.g. "Clay").
             plot (bool): if True will plot the actual and the approximated
-                         permittivity (it can be neglected).
-                         The argument is optional and if neglected plot=False.
-            pso (list): A vector which contains 5 parameters [a1,a2,a3,a4,a5].
-                        a1 denotes the number of particles to be used in
-                        the particle swarm optimisation. a2 denotes the number
-                        of iterations. a3 is the inertia component.
-                        a4 is the cognitive, a5 - social scaling parameters.
-                        By default pso = [40, 50, 0.9, 0.9, 0.9]
+                         permittivity. The argument is optional and
+                         if neglected plot=False.
+            save (bool): if True will save approximated material parameters
+                         The argument is optional and if neglected save=False.
+            optimizer (Optimizer class): chosen optimization method:
+                                         Particle Swarm, Genetic or Simmulated Annealing.
+                                         (Default: Partocle_swarm)
+            optimizer_options (dict): Additional keyword arguments passed to
+                                      optimizer class.
         """
         super(HavriliakNegami, self).__init__(number_of_debye_poles,
                                               sigma, mu, mu_sigma,
-                                              material_name, plot, optimizer, optimizer_options)
+                                              material_name, plot, save,
+                                              optimizer, optimizer_options)
         # Place the lower frequency bound at fr1 and the upper frequency bound at fr2
         if freq1 > freq2:
             self.freq1, self.freq2 = freq2, freq1
@@ -498,9 +514,10 @@ class Jonscher(Relaxation):
     def __init__(self, number_of_debye_poles,
                  freq1, freq2, einf, ap, omegap, n_p,
                  sigma, mu, mu_sigma,
-                 material_name, plot=False,
+                 material_name, plot=False, save=True,
                  optimizer=Particle_swarm,
-                 optimizer_options={'pflag': True,
+                 optimizer_options={'seed': 111,
+                                    'pflag': True,
                                     'swarmsize': 40,
                                     'maxiter': 50,
                                     'omega': 0.9,
@@ -533,18 +550,19 @@ class Jonscher(Relaxation):
             material_name (str): A string containing the given name of
                                  the material (e.g. "Clay").
             plot (bool): if True will plot the actual and the approximated
-                         permittivity (it can be neglected).
-                         The argument is optional and if neglected plot=False.
-            pso (list): A vector which contains 5 parameters [a1,a2,a3,a4,a5].
-                        a1 denotes the number of particles to be used in
-                        the particle swarm optimisation. a2 denotes the number
-                        of iterations. a3 is the inertia component.
-                        a4 is the cognitive, a5 - social scaling parameters.
-                        By default pso = [40, 50, 0.9, 0.9, 0.9]
+                         permittivity. The argument is optional and
+                         if neglected plot=False.
+            save (bool): if True will save approximated material parameters
+                         The argument is optional and if neglected save=False.
+            optimizer (Optimizer class): chosen optimization method:
+                                         Particle Swarm, Genetic or Simmulated Annealing.
+            optimizer_options (dict): Additional keyword arguments passed to
+                                      optimizer class.
         """
         super(Jonscher, self).__init__(number_of_debye_poles,
                                        sigma, mu, mu_sigma,
-                                       material_name, plot, optimizer, optimizer_options)
+                                       material_name, plot, save,
+                                       optimizer, optimizer_options)
         # Place the lower frequency bound at fr1 and the upper frequency bound at fr2
         if freq1 > freq2:
             self.freq1, self.freq2 = freq2, freq1
@@ -596,9 +614,10 @@ class Crim(Relaxation):
 
     def __init__(self, number_of_debye_poles,
                  freq1, freq2, a, f1, e1, sigma,
-                 mu, mu_sigma, material_name, plot=False,
+                 mu, mu_sigma, material_name, plot=False, save=True,
                  optimizer=Particle_swarm,
-                 optimizer_options={'pflag': True,
+                 optimizer_options={'seed': 111,
+                                    'pflag': True,
                                     'swarmsize': 40,
                                     'maxiter': 50,
                                     'omega': 0.9,
@@ -630,18 +649,19 @@ class Crim(Relaxation):
             material_name (str): A string containing the given name of
                                  the material (e.g. "Clay").
             plot (bool): if True will plot the actual and the approximated
-                         permittivity (it can be neglected).
-                         The argument is optional and if neglected plot=False.
-            pso (list): A vector which contains 5 parameters [a1,a2,a3,a4,a5].
-                        a1 denotes the number of particles to be used in
-                        the particle swarm optimisation. a2 denotes the number
-                        of iterations. a3 is the inertia component.
-                        a4 is the cognitive, a5 - social scaling parameters.
-                        By default pso = [40, 50, 0.9, 0.9, 0.9]
+                         permittivity. The argument is optional and
+                         if neglected plot=False.
+            save (bool): if True will save approximated material parameters
+                         The argument is optional and if neglected save=False.
+            optimizer (Optimizer class): chosen optimization method:
+                                         Particle Swarm, Genetic or Simmulated Annealing.
+            optimizer_options (dict): Additional keyword arguments passed to
+                                      optimizer class.
         """
         super(Crim, self).__init__(number_of_debye_poles,
                                    sigma, mu, mu_sigma,
-                                   material_name, plot, optimizer, optimizer_options)
+                                   material_name, plot, save,
+                                   optimizer, optimizer_options)
         # Place the lower frequency bound at fr1 and the upper frequency bound at fr2
         if freq1 > freq2:
             self.freq1, self.freq2 = freq2, freq1
@@ -714,9 +734,10 @@ class Rawdata(Relaxation):
     def __init__(self, number_of_debye_poles,
                  filename,
                  sigma, mu, mu_sigma,
-                 material_name, plot=False,
+                 material_name, plot=False, save=True,
                  optimizer=Particle_swarm,
-                 optimizer_options={'pflag': True,
+                 optimizer_options={'seed': 111,
+                                    'pflag': True,
                                     'swarmsize': 40,
                                     'maxiter': 50,
                                     'omega': 0.9,
@@ -740,16 +761,16 @@ class Rawdata(Relaxation):
             plot (bool): if True will plot the actual and the approximated
                          permittivity (it can be neglected).
                          The argument is optional and if neglected plot=False.
-            pso (list): A vector which contains 5 parameters [a1,a2,a3,a4,a5].
-                        a1 denotes the number of particles to be used in
-                        the particle swarm optimisation. a2 denotes the number
-                        of iterations. a3 is the inertia component.
-                        a4 is the cognitive, a5 - social scaling parameters.
-                        By default pso = [40, 50, 0.9, 0.9, 0.9]
+            save (bool): if True will save approximated material parameters
+                         The argument is optional and if neglected save=False.
+            optimizer (Optimizer class): chosen optimization method:
+                                         Particle Swarm, Genetic or Simmulated Annealing.
+            optimizer_options (dict): Additional keyword arguments passed to
+                                      optimizer class.
         """
         super(Rawdata, self).__init__(number_of_debye_poles,
                                       sigma, mu, mu_sigma,
-                                      material_name, plot,
+                                      material_name, plot, save,
                                       optimizer, optimizer_options)
         self.filename = filename
 
@@ -860,7 +881,6 @@ def calc(cal_inputs, freq):
 
 
 if __name__ == "__main__":
-    np.random.seed(111)
     setup = Rawdata(3, "Test.txt", 0.1, 1, 0.1, "M1", plot=True)
     setup.run()
     setup = HavriliakNegami(6, 1e12, 1e-3, 0.5, 1, 10, 5,
