@@ -37,7 +37,7 @@ from .utilities.utilities import round_value
 logger = logging.getLogger(__name__)
 
 
-def process_geometrycmds(geometry, domain_bounds):
+def process_geometrycmds(geometry, domain_bounds, hash_count_geometrycmds):
     """
     This function checks the validity of command parameters, creates instances
     of classes of parameters, and calls functions to directly set arrays
@@ -70,7 +70,8 @@ def process_geometrycmds(geometry, domain_bounds):
                       rand_param_create(distr, float(tmp[4]), float(tmp[5]), (0, domain_bounds[1]), tmp[0]), 
                       rand_param_create(distr, float(tmp[6]), float(tmp[7]), (0, domain_bounds[2]), tmp[0]))
                 rand_params.extend(p1)
-                data_labels = make_data_label(data_labels, tmp[0][1:-1], [' (p1)'])
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                data_labels = make_data_label(data_labels, tmp[0][1:-1] + (' #' + str(hash_count_geometrycmds[tmp[0][:-1]]) if hash_count_geometrycmds[tmp[0][:-1]]>1 else ''), [' (p1)'])
                 
                 gor = GeometryObjectsRead(p1=p1, geofile=tmp[8], matfile=tmp[9])
 
@@ -96,7 +97,8 @@ def process_geometrycmds(geometry, domain_bounds):
                       rand_param_create(distr, float(tmp[12]), float(tmp[13]), (0, domain_bounds[2]), tmp[0]))
                 p2 = check_upper_greater(p1, p2, tmp[0])
                 rand_params.extend(p1); rand_params.extend(p2)
-                data_labels = make_data_label(data_labels, tmp[0][1:-1], [' (p1)', ' (p2)'])
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                data_labels = make_data_label(data_labels, tmp[0][1:-1] + (' #' + str(hash_count_geometrycmds[tmp[0][:-1]]) if hash_count_geometrycmds[tmp[0][:-1]]>1 else ''), [' (p1)', ' (p2)'])
 
                 edge = Edge(p1=p1, p2=p2, material_id=tmp[14])
 
@@ -137,7 +139,8 @@ def process_geometrycmds(geometry, domain_bounds):
                       rand_param_create(distr, float(tmp[12]), float(tmp[13]), (0, domain_bounds[2]), tmp[0]))
                 p2 = check_upper_greater(p1, p2, tmp[0])
                 rand_params.extend(p1); rand_params.extend(p2)
-                data_labels = make_data_label(data_labels, tmp[0][1:-1], [' (p1)', ' (p2)'])
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                data_labels = make_data_label(data_labels, tmp[0][1:-1] + (' #' + str(hash_count_geometrycmds[tmp[0][:-1]]) if hash_count_geometrycmds[tmp[0][:-1]]>1 else ''), [' (p1)', ' (p2)'])
 
                 # Isotropic case
                 if len(tmp) == 15:
@@ -194,7 +197,8 @@ def process_geometrycmds(geometry, domain_bounds):
                 thickness = rand_param_create(distr, float(tmp[20]), float(tmp[21]), (0, np.inf), tmp[0])
                 
                 rand_params.extend(p1); rand_params.extend(p2); rand_params.extend(p3); rand_params.extend([thickness])
-                data_labels = make_data_label(data_labels, tmp[0][1:-1], [' (p1)', ' (p2)', ' (p3)', ' (thickness)'])
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                data_labels = make_data_label(data_labels, tmp[0][1:-1] + (' #' + str(hash_count_geometrycmds[tmp[0][:-1]]) if hash_count_geometrycmds[tmp[0][:-1]]>1 else ''), [' (p1)', ' (p2)', ' (p3)', ' (thickness)'])
 
                 # Isotropic case with no user specified averaging
                 if len(tmp) == 23:
@@ -250,7 +254,8 @@ def process_geometrycmds(geometry, domain_bounds):
                 p2 = check_upper_greater(p1, p2, tmp[0])
 
                 rand_params.extend(p1); rand_params.extend(p2)
-                data_labels = make_data_label(data_labels, tmp[0][1:-1], [' (p1)', ' (p2)'])
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                data_labels = make_data_label(data_labels, tmp[0][1:-1] + (' #' + str(hash_count_geometrycmds[tmp[0][:-1]]) if hash_count_geometrycmds[tmp[0][:-1]]>1 else ''), [' (p1)', ' (p2)'])
 
                 # Isotropic case with no user specified averaging
                 if len(tmp) == 15:
@@ -307,7 +312,8 @@ def process_geometrycmds(geometry, domain_bounds):
                 r = rand_param_create(distr, float(tmp[14]), float(tmp[15]), (sys.float_info.epsilon, np.inf), tmp[0])
 
                 rand_params.extend(p1); rand_params.extend(p2); rand_params.extend([r])
-                data_labels = make_data_label(data_labels, tmp[0][1:-1], [' (p1)', ' (p2)', ' (r)'])
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                data_labels = make_data_label(data_labels, tmp[0][1:-1] + (' #' + str(hash_count_geometrycmds[tmp[0][:-1]]) if hash_count_geometrycmds[tmp[0][:-1]]>1 else ''), [' (p1)', ' (p2)', ' (r)'])
 
                 # Isotropic case with no user specified averaging
                 if len(tmp) == 17:
@@ -374,7 +380,8 @@ def process_geometrycmds(geometry, domain_bounds):
 
                 rand_params.extend([ctr1]); rand_params.extend([ctr2]); rand_params.extend([extent1]); rand_params.extend([extent2])
                 rand_params.extend([r]); rand_params.extend([start]); rand_params.extend([end])
-                data_labels = make_data_label(data_labels, tmp[0][1:-1], [' (ctr1)', ' (ctr2)', ' (extent1)', ' (extent2)', ' (r)', ' (start)', ' (end)'])
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                data_labels = make_data_label(data_labels, tmp[0][1:-1] + (' #' + str(hash_count_geometrycmds[tmp[0][:-1]]) if hash_count_geometrycmds[tmp[0][:-1]]>1 else ''), [' (ctr1)', ' (ctr2)', ' (extent1)', ' (extent2)', ' (r)', ' (start)', ' (end)'])
 
                 # Isotropic case with no user specified averaging
                 if len(tmp) == 18:
@@ -430,7 +437,8 @@ def process_geometrycmds(geometry, domain_bounds):
                 r = rand_param_create(distr, float(tmp[8]), float(tmp[9]), (sys.float_info.epsilon, np.inf), tmp[0])
 
                 rand_params.extend(p1); rand_params.extend([r])
-                data_labels = make_data_label(data_labels, tmp[0][1:-1], [' (p1)', ' (r)'])
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                data_labels = make_data_label(data_labels, tmp[0][1:-1] + (' #' + str(hash_count_geometrycmds[tmp[0][:-1]]) if hash_count_geometrycmds[tmp[0][:-1]]>1 else ''), [' (p1)', ' (r)'])
 
                 # Isotropic case with no user specified averaging
                 if len(tmp) == 11:
@@ -495,7 +503,8 @@ def process_geometrycmds(geometry, domain_bounds):
                 ID = tmp[24]
 
                 rand_params.extend(p1); rand_params.extend(p2); rand_params.extend([frac_dim]); rand_params.extend(weighting)
-                data_labels = make_data_label(data_labels, tmp[0][1:-1], [' (p1)', ' (p2)', ' (frac_dim)', ' (weighting)'])
+                hash_count_geometrycmds[tmp[0][:-1]] += 1
+                data_labels = make_data_label(data_labels, tmp[0][1:-1] + (' #' + str(hash_count_geometrycmds[tmp[0][:-1]]) if hash_count_geometrycmds[tmp[0][:-1]]>1 else ''), [' (p1)', ' (p2)', ' (frac_dim)', ' (weighting)'])
 
                 if len(tmp) == 25:
                     fb = FractalBox(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, mixing_model_id=mixing_model_id, id=ID, n_materials=n_materials)
@@ -552,7 +561,8 @@ def process_geometrycmds(geometry, domain_bounds):
                         fractal_box_id = tmp[24]
 
                         rand_params.extend(p1); rand_params.extend(p2); rand_params.extend([frac_dim]); rand_params.extend(weighting); rand_params.extend(limits)
-                        data_labels = make_data_label(data_labels, tmp[0][1:-1], [' (p1)', ' (p2)', ' (frac_dim)', ' (weighting)', ' (limits)'])   
+                        hash_count_geometrycmds[tmp[0][:-1]] += 1
+                        data_labels = make_data_label(data_labels, tmp[0][1:-1] + (' #' + str(hash_count_geometrycmds[tmp[0][:-1]]) if hash_count_geometrycmds[tmp[0][:-1]]>1 else ''), [' (p1)', ' (p2)', ' (frac_dim)', ' (weighting)', ' (limits)'])   
 
                         if len(tmp) == 24:
                             asr = AddSurfaceRoughness(p1=p1, p2=p2, frac_dim=frac_dim, weighting=weighting, limits=limits, fractal_box_id=fractal_box_id)
@@ -586,7 +596,8 @@ def process_geometrycmds(geometry, domain_bounds):
                         fractal_box_id = tmp[16]
 
                         rand_params.extend(p1); rand_params.extend(p2); rand_params.extend([depth])
-                        data_labels = make_data_label(data_labels, tmp[0][1:-1], [' (p1)', ' (p2)', ' (depth)'])  
+                        hash_count_geometrycmds[tmp[0][:-1]] += 1
+                        data_labels = make_data_label(data_labels, tmp[0][1:-1] + (' #' + str(hash_count_geometrycmds[tmp[0][:-1]]) if hash_count_geometrycmds[tmp[0][:-1]]>1 else ''), [' (p1)', ' (p2)', ' (depth)'])  
 
                         asf = AddSurfaceWater(p1=p1, p2=p2, depth=depth, fractal_box_id=fractal_box_id)
                     
@@ -634,7 +645,8 @@ def process_geometrycmds(geometry, domain_bounds):
                         fractal_box_id = tmp[21]
 
                         rand_params.extend(p1); rand_params.extend(p2); rand_params.extend([frac_dim]); rand_params.extend(limits)
-                        data_labels = make_data_label(data_labels, tmp[0][1:-1], [' (p1)', ' (p2)', ' (frac_dim)', ' (limits)'])  
+                        hash_count_geometrycmds[tmp[0][:-1]] += 1
+                        data_labels = make_data_label(data_labels, tmp[0][1:-1] + (' #' + str(hash_count_geometrycmds[tmp[0][:-1]]) if hash_count_geometrycmds[tmp[0][:-1]]>1 else ''), [' (p1)', ' (p2)', ' (frac_dim)', ' (limits)'])  
 
                         if len(tmp) == 22:
                             grass = AddGrass(p1=p1, p2=p2, frac_dim=frac_dim, limits=limits, n_blades=n_blades, fractal_box_id=fractal_box_id)

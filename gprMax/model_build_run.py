@@ -44,6 +44,9 @@ from .scene import Scene
 from .utilities.host_info import mem_check_all, set_omp_threads
 from .utilities.utilities import get_terminal_width, human_size
 
+from .random_gen import save_h5_to_pkl
+import os
+
 logger = logging.getLogger(__name__)
 
 
@@ -285,6 +288,10 @@ class ModelBuildRun:
 
         # Print resource information on runtime and memory usage
         self.print_resource_info(tsolve, memsolve)
+
+        # Extract A-scans from .h5 output and save to .pkl (if parameters generated randomly)
+        if os.path.isfile(config.get_model_config().output_file_path_ext_random):
+            save_h5_to_pkl(config.get_model_config().output_file_path_ext, str(config.get_model_config().output_file_path_h5)+'_{field_outputs}.pkl')
 
         return tsolve
 

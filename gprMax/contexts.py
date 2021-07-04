@@ -106,7 +106,7 @@ class Context:
     def save_compressed_data(self):
         """Remove all redundant features and save compressed data file containing randomly generated parameters"""
         if os.path.isfile(config.get_model_config().output_file_path_ext_random):
-            compress_pkl_dat(config.get_model_config().output_file_path_ext_random, str(config.get_model_config().output_file_path_random) + '_compressed.pkl')
+            compress_pkl_dat(config.get_model_config().output_file_path_ext_random, str(config.get_model_config().output_file_path_random) + '_{compressed}.pkl')
 
     def display_labels(self, labels):
         """Display labels corresponding to the random parameters in the order they are saved"""

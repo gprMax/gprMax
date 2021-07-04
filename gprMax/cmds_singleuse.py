@@ -71,7 +71,7 @@ class Title(UserObjectSingle):
         try:
             title = self.kwargs['name']
             G.title = title
-            logger.info(f'Model title: {G.title}')
+            logger.info(f'\nModel title: {G.title}')
         except KeyError:
             pass
 

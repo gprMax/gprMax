@@ -31,7 +31,7 @@ from .cmds_multiuse import (PMLCFS, AddDebyeDispersion, AddDrudeDispersion,
 logger = logging.getLogger(__name__)
 
 
-def process_multicmds(multicmds, domain_bounds):
+def process_multicmds(multicmds, domain_bounds, hash_count_multiplecmds):
     """
     Checks the validity of command parameters and creates instances of
         classes of parameters.
@@ -59,7 +59,8 @@ def process_multicmds(multicmds, domain_bounds):
                 amp = rand_param_create(distr, float(tmp[2]), float(tmp[3]))
                 freq = rand_param_create(distr, float(tmp[4]), float(tmp[5]), (sys.float_info.epsilon, np.inf), cmdname)
                 rand_params.extend([amp]); rand_params.extend([freq])
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (amp)', ' (freq)'])  
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (amp)', ' (freq)'])  
                 waveform = Waveform(wave_type=tmp[1], amp=amp, freq=freq, id=tmp[6])
             else:
                 logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly four parameters (if single values entered) or seven parameters (if range of values entered)')
@@ -86,7 +87,8 @@ def process_multicmds(multicmds, domain_bounds):
                       rand_param_create(distr, float(tmp[6]), float(tmp[7]), (0, domain_bounds[2]), cmdname))
                 resistance = rand_param_create(distr, float(tmp[8]), float(tmp[9]), (0, np.inf), cmdname)
                 rand_params.extend(p1); rand_params.extend([resistance])
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (p1)', ' (resistance)'])  
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (p1)', ' (resistance)'])  
                 voltage_source = VoltageSource(polarisation=tmp[1].lower(), p1=p1, resistance=resistance, waveform_id = tmp[10])
 
             elif len(tmp) == 15:
@@ -98,7 +100,8 @@ def process_multicmds(multicmds, domain_bounds):
                 start = rand_param_create(distr, float(tmp[11]), float(tmp[12]), (0, np.inf), cmdname) 
                 end = rand_param_create(distr, float(tmp[13]), float(tmp[14]), (start + sys.float_info.epsilon, np.inf), cmdname)
                 rand_params.extend(p1); rand_params.extend([resistance]); rand_params.extend([start]); rand_params.extend([end])
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (p1)', ' (resistance)', ' (start)', ' (end)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (p1)', ' (resistance)', ' (start)', ' (end)'])
                 voltage_source = VoltageSource(polarisation=tmp[1].lower(), p1=p1, resistance=resistance, waveform_id=tmp[10], start=start, end=end)
             
             else:
@@ -125,7 +128,8 @@ def process_multicmds(multicmds, domain_bounds):
                       rand_param_create(distr, float(tmp[4]), float(tmp[5]), (0, domain_bounds[1]), cmdname), 
                       rand_param_create(distr, float(tmp[6]), float(tmp[7]), (0, domain_bounds[2]), cmdname))
                 rand_params.extend(p1)
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (p1)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (p1)'])
                 hertzian_dipole = HertzianDipole(polarisation = tmp[1].lower(), p1=p1, waveform_id=tmp[8])
             
             elif len(tmp) == 13:
@@ -136,7 +140,8 @@ def process_multicmds(multicmds, domain_bounds):
                 start = rand_param_create(distr, float(tmp[9]), float(tmp[10]), (0, np.inf), cmdname)
                 end = rand_param_create(distr, float(tmp[11]), float(tmp[12]), (start + sys.float_info.epsilon, np.inf), cmdname)
                 rand_params.extend(p1); rand_params.extend([start]); rand_params.extend([end]) 
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (p1)', ' (start)', ' (end)'])          
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (p1)', ' (start)', ' (end)'])          
                 hertzian_dipole = HertzianDipole(polarisation = tmp[1].lower(), p1=p1, waveform_id = tmp[8], start=start, end=end)
             
             else:
@@ -163,7 +168,8 @@ def process_multicmds(multicmds, domain_bounds):
                       rand_param_create(distr, float(tmp[4]), float(tmp[5]), (0, domain_bounds[1]), cmdname), 
                       rand_param_create(distr, float(tmp[6]), float(tmp[7]), (0, domain_bounds[2]), cmdname))
                 rand_params.extend(p1)
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (p1)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (p1)'])
                 magnetic_dipole = MagneticDipole(polarisation = tmp[1].lower(), p1=p1, waveform_id=tmp[8])
 
             elif len(tmp) == 13:
@@ -174,7 +180,8 @@ def process_multicmds(multicmds, domain_bounds):
                 start = rand_param_create(distr, float(tmp[9]), float(tmp[10]), (0, np.inf), cmdname)
                 end = rand_param_create(distr, float(tmp[11]), float(tmp[12]), (start + sys.float_info.epsilon, np.inf), cmdname)
                 rand_params.extend(p1); rand_params.extend([start]); rand_params.extend([end])
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (p1)', ' (start)', ' (end)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (p1)', ' (start)', ' (end)'])
                 magnetic_dipole = MagneticDipole(polarisation = tmp[1].lower(), p1=p1, waveform_id=tmp[8], start=start, end=end)
             
             else:
@@ -202,7 +209,8 @@ def process_multicmds(multicmds, domain_bounds):
                       rand_param_create(distr, float(tmp[6]), float(tmp[7]), (0, domain_bounds[2]), cmdname))
                 resistance = rand_param_create(distr, float(tmp[8]), float(tmp[9]), (0, config.sim_config.em_consts['z0']), cmdname)
                 rand_params.extend(p1); rand_params.extend([resistance])
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (p1)', ' (resistance)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (p1)', ' (resistance)'])
                 tl = TransmissionLine(polarisation=tmp[1].lower(), p1=p1, resistance=resistance, waveform_id=tmp[10])
 
             elif len(tmp) == 15:
@@ -214,7 +222,8 @@ def process_multicmds(multicmds, domain_bounds):
                 start = rand_param_create(distr, float(tmp[11]), float(tmp[12]), (0, np.inf), cmdname), 
                 end = rand_param_create(distr, float(tmp[13]), float(tmp[14]), (start + sys.float_info.epsilon, np.inf), cmdname)
                 rand_params.extend(p1); rand_params.extend([resistance]); rand_params.extend([start]); rand_params.extend([end])
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (p1)', ' (resistance)', ' (start)', ' (end)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (p1)', ' (resistance)', ' (start)', ' (end)'])
                 tl = TransmissionLine(polarisation = tmp[1].lower(), p1=p1, resistance=resistance, waveform_id=tmp[10], start=start, end=end)
 
             else:
@@ -252,7 +261,8 @@ def process_multicmds(multicmds, domain_bounds):
                       rand_param_create(distr, float(tmp[3]), float(tmp[4]), (0, domain_bounds[1]), cmdname), 
                       rand_param_create(distr, float(tmp[5]), float(tmp[6]), (0, domain_bounds[2]), cmdname))                      
                 rand_params.extend(p1)
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (p1)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (p1)'])
 
                 if len(tmp) == 7:
                     rx = Rx(p1=p1)
@@ -285,7 +295,8 @@ def process_multicmds(multicmds, domain_bounds):
                       rand_param_create(distr, float(tmp[15]), float(tmp[16]), (1, np.inf), cmdname), 
                       rand_param_create(distr, float(tmp[17]), float(tmp[18]), (1, np.inf), cmdname))
                 rand_params.extend(p1); rand_params.extend(p2); rand_params.extend(dl)
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (p1)', ' (p2)', ' (dl)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (p1)', ' (p2)', ' (dl)'])
                 rx_array = RxArray(p1=p1, p2=p2, dl=dl)
             
             else:
@@ -335,7 +346,8 @@ def process_multicmds(multicmds, domain_bounds):
                       rand_param_create(distr, float(tmp[17]), float(tmp[18]), (1, np.inf), cmdname))
                 filename = tmp[20]
                 rand_params.extend(p1); rand_params.extend(p2); rand_params.extend(dl)
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (p1)', ' (p2)', ' (dl)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (p1)', ' (p2)', ' (dl)'])
 
                 try:
                     iterations = int(tmp[19])
@@ -360,7 +372,8 @@ def process_multicmds(multicmds, domain_bounds):
                 mr = rand_param_create(distr, float(tmp[5]), float(tmp[6]), (1, np.inf), cmdname) 
                 sm = rand_param_create(distr, float(tmp[7]), float(tmp[8]), (0, np.inf), cmdname)
                 rand_params.extend([er]); rand_params.extend([se]); rand_params.extend([mr]);rand_params.extend([sm])
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (er)', ' (se)', ' (mr)', ' (sm)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (er)', ' (se)', ' (mr)', ' (sm)'])
                 material = Material(er=er, se=se, mr=mr, sm=sm, id = tmp[9])
             else:
                 logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires exactly five parameters (if single values entered) or ten parameters (if range of values entered)')
@@ -410,7 +423,8 @@ def process_multicmds(multicmds, domain_bounds):
                     tau.append(rand_param_create(distr, float(tmp[pole+2]), float(tmp[pole+3]), (sys.float_info.epsilon, np.inf), cmdname))
                 
                 rand_params.extend(er_delta); rand_params.extend(tau)
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (er_delta)', ' (tau)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (er_delta)', ' (tau)'])
                 debye_dispersion = AddDebyeDispersion(poles=poles, er_delta=er_delta, tau=tau, material_ids=material_ids)
 
             else:
@@ -465,7 +479,8 @@ def process_multicmds(multicmds, domain_bounds):
                     alpha.append(rand_param_create(distr, float(tmp[pole+4]), float(tmp[pole+5])))
 
                 rand_params.extend(er_delta); rand_params.extend(tau); rand_params.extend(alpha)
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (er_delta)', ' (tau)', ' (alpha)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (er_delta)', ' (tau)', ' (alpha)'])
                 lorentz_dispersion = AddLorentzDispersion(poles=poles, material_ids=material_ids, er_delta=er_delta, tau=tau, alpha=alpha)
 
             else:
@@ -516,7 +531,8 @@ def process_multicmds(multicmds, domain_bounds):
                     alpha.append(rand_param_create(distr, float(tmp[pole+2]), float(tmp[pole+3])))
 
                 rand_params.extend(tau); rand_params.extend(alpha)
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (tau)', ' (alpha)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (tau)', ' (alpha)'])
                 drude_dispersion = AddDrudeDispersion(poles=poles, material_ids=material_ids, tau=tau, alpha=alpha)  
 
             else:
@@ -549,7 +565,8 @@ def process_multicmds(multicmds, domain_bounds):
 
                 rand_params.extend([sand_fraction]); rand_params.extend([clay_fraction]); rand_params.extend([bulk_density]) 
                 rand_params.extend([sand_density]); rand_params.extend([water_fraction_lower]); rand_params.extend([water_fraction_upper])
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (sand_fraction)', ' (clay_fraction)', ' (bulk_density)', ' (sand_density)', ' (water_fraction_lower)', ' (water_fraction_upper)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (sand_fraction)', ' (clay_fraction)', ' (bulk_density)', ' (sand_density)', ' (water_fraction_lower)', ' (water_fraction_upper)'])
 
                 soil = SoilPeplinski(sand_fraction=sand_fraction, clay_fraction=clay_fraction, bulk_density=bulk_density, sand_density=sand_density, 
                                      water_fraction_lower=water_fraction_lower, water_fraction_upper=water_fraction_upper, id = tmp[13])
@@ -592,7 +609,8 @@ def process_multicmds(multicmds, domain_bounds):
                       rand_param_create(distr, float(tmp[17]), float(tmp[18])), (1, np.inf), cmdname)
 
                 rand_params.extend(p1); rand_params.extend(p2); rand_params.extend(dl)
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (p1)', ' (p2)', ' (dl)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (p1)', ' (p2)', ' (dl)'])
                 geometry_view = GeometryView(p1=p1, p2=p2, dl=dl, filename=tmp[19], output_type=tmp[20])  
 
             scene_objects.append(geometry_view)
@@ -626,7 +644,8 @@ def process_multicmds(multicmds, domain_bounds):
                 p2 = check_upper_greater(p1, p2, cmdname)
 
                 rand_params.extend(p1); rand_params.extend(p2)
-                data_labels = make_data_label(data_labels, cmdname[1:], [' (p1)', ' (p2)'])
+                hash_count_multiplecmds[cmdname] += 1
+                data_labels = make_data_label(data_labels, cmdname[1:] + (' #' + str(hash_count_multiplecmds[cmdname]) if hash_count_multiplecmds[cmdname]>1 else ''), [' (p1)', ' (p2)'])
                 gow = GeometryObjectsWrite(p1=p1, p2=p2, filename=tmp[13])
                 
             scene_objects.append(gow)
