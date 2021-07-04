@@ -18,7 +18,6 @@
 
 import numpy as np
 import os
-import math
 from matplotlib import pylab as plt
 import sys
 import scipy.interpolate
@@ -26,7 +25,7 @@ from tqdm import tqdm
 
 
 class Optimizer(object):
-    
+
     def fit(self):
         """
         Call the optimization function that tries to find an optimal set
@@ -103,7 +102,7 @@ class Particle_swarm(Optimizer):
                                (Default: empty dict)
 
         Returns:
-            g (float): The swarm's best known position (optimal design).
+            g (array): The swarm's best known position (optimal design).
             fg (float): The objective value at ``g``.
         """
         # check input parameters
@@ -149,7 +148,7 @@ class Particle_swarm(Optimizer):
             v[i, :] = vlow + np.random.rand(d) * (vhigh - vlow)
 
         # Iterate until termination criterion met
-        for it in tqdm(range(2, self.maxiter + 2), desc='Debye fitting'):
+        for it in tqdm(range(self.maxiter), desc='Debye fitting'):
             rp = np.random.uniform(size=(self.swarmsize, d))
             rg = np.random.uniform(size=(self.swarmsize, d))
             for i in range(self.swarmsize):
@@ -186,14 +185,13 @@ class Particle_swarm(Optimizer):
 
             # Dynamically plot the error as the optimisation takes place
             if self.pflag:
-                if it == 2:
-                    xpp = [0]
+                if it == 0:
+                    xpp = [it]
                     ypp = [fg]
                 else:
-                    xpp.append(it - 1)
+                    xpp.append(it)
                     ypp.append(fg)
                 Particle_swarm.plot(xpp, ypp)
-
         return g, fg
 
 
@@ -239,6 +237,7 @@ class Relaxation(object):
         self.material_name = material_name
         self.plot = plot
         self.optimizer = optimizer(**optimizer_options)
+        self.save = True
 
     def run(self):
         """
@@ -298,7 +297,7 @@ class Relaxation(object):
         # Call particle swarm optimisation to minimize the cost function.
         xmp, _ = self.optimizer.fit(func=cost_function,
                                     lb=lb, ub=ub,
-                                    funckwargs={'rl_g':self.rl,
+                                    funckwargs={'rl_g': self.rl,
                                                 'im_g': self.im,
                                                 'freq_g': self.freq}
                                     )
@@ -306,46 +305,84 @@ class Relaxation(object):
         # if one of the weights is negative increase the stabiliser
         # and repeat the optimisation
         # Print the results in gprMax format style
-        self.print_output(xmp, mx, ee)
+        properties = self.print_output(xmp, mx, ee)
+        if self.save:
+            self.save_result(properties)
         # Plot the actual and the approximate dielectric properties
         if self.plot:
             self.plot_result(rp + ee, ip)
 
     def print_output(self, xmp, mx, ee):
         """Print out the resulting Debye parameters in a gprMax format"""
-        print("Debye expansion parameters : ")
-        print("         |     e_inf     |       De      |         log(t0)        |")
-        print("__________________________________________________________________")
+        print("Debye expansion parameters: ")
+        print(f"        |{'e_inf':^14s}|{'De':^14s}|{'log(t0)':^25s}|")
+        print("_" * 65)
         for i in range(0, len(xmp)):
-
-            print("Debye {0:}:|"
-                  .format(i + 1), "  {0:s}    |    {1:s}    |         {2:s}        | "
-                  .format(str(ee/len(xmp))[0:7], str(mx[i])[0:7], str(xmp[i])[0:7]))
-            print("__________________________________________________________________\n")
-        print("\n")
+            print("Debye {0:}:|{1:^14.5f}|{2:^14.5f}|{3:^25.5f}| "
+                  .format(i + 1, ee/len(xmp), mx[i],
+                          xmp[i]))
+            print("_" * 65)
 
         # Print the Debye expnasion in a gprMax format
-        print("#material: {} {} {} {} {}".format(ee, self.sigma, self.mu, self.mu_sigma, self.material_name))
-        out_t = "#add_dispersion_debye: {} {} {}".format(len(xmp), mx[0], 10**xmp[0])
+        material_prop = "#material: {} {} {} {} {}".format(ee, self.sigma,
+                                                           self.mu,
+                                                           self.mu_sigma,
+                                                           self.material_name)
+        print(material_prop)
+        material_prop = [material_prop + '\n']
+        dispersion_prop = "#add_dispersion_debye: {} {} {}".format(len(xmp),
+                                                                   mx[0],
+                                                                   10**xmp[0])
         for i in range(1, len(xmp)):
-            out_t += " {} {}".format(mx[i], 10**xmp[i])
-        out_t += " {}".format(self.material_name)
-        print(out_t)
+            dispersion_prop += " {} {}".format(mx[i], 10**xmp[i])
+        dispersion_prop += " {}".format(self.material_name)
+        print(dispersion_prop)
+        material_prop.append(dispersion_prop + '\n')
+        return material_prop
+
+    @staticmethod
+    def save_result(output, fdir="materials"):
+        """Save the resulting Debye parameters in a gprMax format"""
+        if fdir != "materials" and os.path.isdir(fdir):
+            file_path = os.path.join(fdir, "my_materials.txt")
+        elif os.path.isdir("materials"):
+            file_path = os.path.join("materials",
+                                     "my_materials.txt")
+        elif os.path.isdir("user_libs/materials"):
+            file_path = os.path.join("user_libs", "materials",
+                                     "my_materials.txt")
+        else:
+            sys.exit("Cannot save material properties "
+                     f"in {os.path.join(fdir, 'my_materials.txt')}!")
+        fileH = open(file_path, "a")
+        fileH.write(f"## {output[0].split(' ')[-1]}")
+        fileH.writelines(output)
+        fileH.write("\n")
+        fileH.close()
+        print(f"Material properties save at: {file_path}")
 
     def plot_result(self, rl_exp, im_exp):
-        """Plot the actual and the approximated electric permittivity using a semilogarithm X axes"""
+        """
+        Plot the actual and the approximated electric permittivity
+        using a semilogarithm X axes
+        """
         plt.close("all")
         plt.rcParams["axes.facecolor"] = "black"
-        plt.semilogx(self.freq * 1e-6, rl_exp, "b-", linewidth=2.0, label="Debye Expansion: Real")
-        plt.semilogx(self.freq * 1e-6, -im_exp, "w-", linewidth=2.0, label="Debye Expansion: Imaginary")
-        plt.semilogx(self.freq * 1e-6, self.rl, "ro", linewidth=2.0, label="Chosen Function: Real")
-        plt.semilogx(self.freq * 1e-6, -self.im, "go", linewidth=2.0, label="Chosen Function: Imaginary")
+        plt.semilogx(self.freq * 1e-6, rl_exp, "b-", linewidth=2.0,
+                     label="Debye Expansion: Real")
+        plt.semilogx(self.freq * 1e-6, -im_exp, "w-", linewidth=2.0,
+                     label="Debye Expansion: Imaginary")
+        plt.semilogx(self.freq * 1e-6, self.rl, "ro",
+                     linewidth=2.0, label="Chosen Function: Real")
+        plt.semilogx(self.freq * 1e-6, -self.im, "go", linewidth=2.0,
+                     label="Chosen Function: Imaginary")
 
         plt.rcParams["axes.facecolor"] = "white"
-        plt.grid(b=True, which="major", color="w", linewidth=0.2, linestyle="--")
+        plt.grid(b=True, which="major", color="w", linewidth=0.2,
+                 linestyle="--")
         axes = plt.gca()
         axes.set_xlim([np.min(self.freq * 1e-6), np.max(self.freq * 1e-6)])
-        axes.set_ylim([-1, np.max(np.concatenate([self.rl,-self.im])) + 1])
+        axes.set_ylim([-1, np.max(np.concatenate([self.rl, -self.im])) + 1])
         plt.legend()
         plt.xlabel("Frequency (MHz)")
         plt.ylabel("Relative permittivity")
@@ -368,7 +405,7 @@ class HavriliakNegami(Relaxation):
                                     'minstep': 1e-8}):
         """
         Approximate a given Havriliak-Negami function
-        Havriliak-Negami function = einf + de / (1 + (1j * 2 * math.pi * f *t0 )**alfa )**bita,
+        Havriliak-Negami function = einf + de / (1 + (1j * 2 * pi * f *t0)**alfa )**bita,
                                     where f is the frequency in Hz
 
         Args:
@@ -449,16 +486,19 @@ class HavriliakNegami(Relaxation):
               .format(self.de, self.einf, self.t0, self.alfa, self.bita))
 
     def calculation(self):
-        """Calculates the Havriliak-Negami function for the given parameters."""
-        return self.einf + self.de / (np.array(1 + np.array(1j * 2 * math.pi *
-               self.freq * self.t0) ** self.alfa) ** self.bita)
+        """Calculates the Havriliak-Negami function for
+        the given parameters."""
+        return self.einf + self.de / (np.array(
+                1 + np.array(1j * 2 * np.pi *
+                             self.freq * self.t0
+                            ) ** self.alfa)**self.bita)
 
 
 class Jonscher(Relaxation):
     def __init__(self, number_of_debye_poles,
                  freq1, freq2, einf, ap, omegap, n_p,
                  sigma, mu, mu_sigma,
-                 material_name, plot=False, 
+                 material_name, plot=False,
                  optimizer=Particle_swarm,
                  optimizer_options={'pflag': True,
                                     'swarmsize': 40,
@@ -469,7 +509,7 @@ class Jonscher(Relaxation):
                                     'minstep': 1e-8}):
         """
         Approximate a given Johnsher function
-        Jonscher function = einf - ap*( -1j * 2 * math.pi * f / omegap ) ** n_p,
+        Jonscher function = einf - ap * ( -1j * 2 * pi * f / omegap)**n_p,
                             where f is the frequency in Hz
 
         Args:
@@ -546,8 +586,10 @@ class Jonscher(Relaxation):
 
     def calculation(self):
         """Calculates the Q function for the given parameters"""
-        return self.einf + (self.ap * np.array(2*math.pi*self.freq / self.omegap
-               )**(self.n_p-1)) * (1 - 1j/math.tan(self.n_p * math.pi/2))
+        return self.einf + (self.ap * np.array(
+                            2 * np.pi * self.freq / self.omegap
+                            )**(self.n_p-1)) * (
+                            1 - 1j / np.tan(self.n_p * np.pi/2))
 
 
 class Crim(Relaxation):
@@ -566,7 +608,7 @@ class Crim(Relaxation):
         """
         Approximate a given CRIM function
         CRIM = (sum([volumetric_fraction[i]*(material[i][0] + material[i][1] /
-               (1 + (1j * 2 * math.pi * f *material[i][2])))**m_param
+               (1 + (1j * 2 * pi * f *material[i][2])))**m_param
                for i in range(0,len(material))]))**1/m_param
 
         Args:
@@ -662,7 +704,7 @@ class Crim(Relaxation):
         for i in range(len(self.f1)):
             q = q + self.f1[i]*np.array(
                 [self.e1[i][0] + self.e1[i][1] /
-                 (np.array(1 + np.array(1j * 2 * math.pi * f * self.e1[i][2])))
+                 (np.array(1 + np.array(1j * 2 * np.pi * f * self.e1[i][2])))
                  for f in self.freq])**self.a
         return q**(1 / self.a)
 
@@ -747,7 +789,7 @@ class Rawdata(Relaxation):
                                 50)
         rl_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 1])
         im_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 2])
-        return rl_interp(self.freq) + 1j * im_interp(self.freq)
+        return rl_interp(self.freq) - 1j * im_interp(self.freq)
 
 
 def cost_function(x, rl_g, im_g, freq_g):
@@ -805,7 +847,7 @@ def linear(rl, im, logt, freq):
 def calc(cal_inputs, freq):
     # Calculates the Havriliak-Negami function for the given cal_inputs
     q = [cal_inputs[2] + cal_inputs[3] / (np.array(1 + np.array(
-         1j * 2 * math.pi * f * cal_inputs[4]) ** cal_inputs[0]
+         1j * 2 * np.pi * f * cal_inputs[4]) ** cal_inputs[0]
          ) ** cal_inputs[1]) for f in freq]
     # Return the real and the imaginary part of the relaxation function
     if len(q) > 1:
@@ -821,16 +863,16 @@ if __name__ == "__main__":
     np.random.seed(111)
     setup = Rawdata(3, "Test.txt", 0.1, 1, 0.1, "M1", plot=True)
     setup.run()
-    setup = HavriliakNegami(6, 1*10**12, 10**-3, 0.5, 1, 10, 5,
-                            10**-6, 0.1, 1, 0, "M2", plot=True)
+    setup = HavriliakNegami(6, 1e12, 1e-3, 0.5, 1, 10, 5,
+                            1e-6, 0.1, 1, 0, "M2", plot=True)
     setup.run()
-    setup = Jonscher(4, 10**6, 10**-5, 50, 1, 10**5, 0.7,
+    setup = Jonscher(4, 1e6, 1e-5, 50, 1, 1e5, 0.7,
                      0.1, 1, 0.1, "M3", plot=True)
     setup.run()
     f = [0.5, 0.5]
-    material1 = [3, 25, 10**6]
-    material2 = [3, 0, 10**3]
+    material1 = [3, 25, 1e6]
+    material2 = [3, 0, 1e3]
     materials = [material1, material2]
-    setup = Crim(2, 1*10**-1, 10**-9, 0.5, f, materials, 0.1,
+    setup = Crim(2, 1*1e-1, 1e-9, 0.5, f, materials, 0.1,
                  1, 0, "M4", plot=True)
     setup.run()
