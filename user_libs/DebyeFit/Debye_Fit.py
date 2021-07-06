@@ -1,7 +1,7 @@
-# Author: Iraklis Giannakis
+# Author: Iraklis Giannakis, Sylwia Majchrowska
 # E-mail: i.giannakis@ed.ac.uk
 #
-# Copyright (c) 2017 Iraklis Giannakis
+# Copyright (c) 2021 gprMax
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms are permitted
@@ -21,190 +21,8 @@ import os
 from matplotlib import pylab as plt
 import sys
 import scipy.interpolate
-from tqdm import tqdm
 
-
-class Optimizer(object):
-
-    def __init__(self, seed=None):
-        """
-        Create particle swarm optimisation object.
-
-        Args:
-            seed (int): Seed for RandomState.
-                        Must be convertible to 32 bit unsigned integers.
-        """
-        self.seed = seed
-
-    def fit(self):
-        """
-        Call the optimization function that tries to find an optimal set
-        of relaxation times that minimise the error
-        between the actual and the approximated electric permittivity.
-        """
-        raise NotImplementedError()
-
-    @staticmethod
-    def plot(x, y):
-        """
-        Dynamically plot the error as the optimisation takes place.
-
-        Args:
-            x (array): The number of current iterations.
-            y (array): The objective value at for all x points.
-        """
-        plt.rcParams["axes.facecolor"] = "black"
-        plt.plot(x, y, "b-", linewidth=3.0)
-        plt.ylim(min(y) - 0.1 * min(y),
-                 max(y) + 0.1 * max(y))
-        plt.xlim(min(x), max(x))
-        plt.grid(b=True, which="major", color="w",
-                 linewidth=0.2, linestyle="--")
-        plt.suptitle("Debye fitting process")
-        plt.xlabel("Iteration")
-        plt.ylabel("Average Error")
-        plt.pause(0.0001)
-
-
-class Particle_swarm(Optimizer):
-    def __init__(self, swarmsize=40, maxiter=50,
-                 omega=0.9, phip=0.9, phig=0.9,
-                 minstep=1e-8, pflag=False, seed=None):
-        """
-        Create particle swarm optimisation object with predefined parameters.
-
-        Args:
-            swarmsize (int): The number of particles in the swarm (Default: 40).
-            maxiter (int): The maximum number of iterations for the swarm
-                        to search (Default: 50).
-            omega (float): Particle velocity scaling factor (Default: 0.9).
-            phip (float): Scaling factor to search away from the particle's
-                        best known position (Default: 0.9).
-            phig (float):  Scaling factor to search away from the swarm's
-                        best known position (Default: 0.9).
-            minstep (float): The minimum stepsize of swarm's best position
-                             before the search terminates (Default: 1e-8).
-            pflag (bool): if True will plot the actual and the approximated
-                          value during optimization process (Default: False).
-        """
-        super(Particle_swarm, self).__init__(seed)
-        self.swarmsize = swarmsize
-        self.maxiter = maxiter
-        self.omega = omega
-        self.phip = phip
-        self.phig = phig
-        self.minstep = minstep
-        self.pflag = pflag
-
-    def fit(self, func, lb, ub, funckwargs={}):
-        """
-        A particle swarm optimisation that tries to find an optimal set
-        of relaxation times that minimise the error
-        between the actual and the approximated electric permittivity.
-        The current class is a modified edition of the pyswarm package
-        which can be found at https://pythonhosted.org/pyswarm/
-
-        Args:
-            func (function): The function to be minimized
-            lb (array): The lower bounds of the design variable(s)
-            ub (array): The upper bounds of the design variable(s)
-            funckwargs (dict): Additional keyword arguments passed to
-                               objective and constraint function
-                               (Default: empty dict)
-
-        Returns:
-            g (array): The swarm's best known position (optimal design).
-            fg (float): The objective value at ``g``.
-        """
-        np.random.seed(self.seed)
-        # check input parameters
-        assert len(lb) == len(ub), 'Lower- and upper-bounds must be the same length'
-        assert hasattr(func, '__call__'), 'Invalid function handle'
-        lb = np.array(lb)
-        ub = np.array(ub)
-        assert np.all(ub > lb), 'All upper-bound values must be greater than lower-bound values'
-
-        vhigh = np.abs(ub - lb)
-        vlow = -vhigh
-
-        # Initialize objective function
-        obj = lambda x: func(x=x, **funckwargs)
-
-        # Initialize the particle swarm
-        d = len(lb)  # the number of dimensions each particle has
-        x = np.random.rand(self.swarmsize, d)  # particle positions
-        v = np.zeros_like(x)  # particle velocities
-        p = np.zeros_like(x)  # best particle positions
-        fp = np.zeros(self.swarmsize)  # best particle function values
-        g = []  # best swarm position
-        fg = np.inf  # artificial best swarm position starting value
-
-        for i in range(self.swarmsize):
-            # Initialize the particle's position
-            x[i, :] = lb + x[i, :] * (ub - lb)
-            # Initialize the particle's best known position
-            p[i, :] = x[i, :]
-            # Calculate the objective's value at the current particle's
-            fp[i] = obj(p[i, :])
-            # At the start, there may not be any feasible starting point,
-            # so just
-            # give it a temporary "best" point since it's likely to change
-            if i == 0:
-                g = p[0, :].copy()
-            # If the current particle's position is better than the swarm's,
-            # update the best swarm position
-            if fp[i] < fg:
-                fg = fp[i]
-                g = p[i, :].copy()
-            # Initialize the particle's velocity
-            v[i, :] = vlow + np.random.rand(d) * (vhigh - vlow)
-
-        # Iterate until termination criterion met
-        for it in tqdm(range(self.maxiter), desc='Debye fitting'):
-            rp = np.random.uniform(size=(self.swarmsize, d))
-            rg = np.random.uniform(size=(self.swarmsize, d))
-            for i in range(self.swarmsize):
-                # Update the particle's velocity
-                v[i, :] = self.omega * v[i, :] + self.phip * rp[i, :] * \
-                          (p[i, :] - x[i, :]) + \
-                          self.phig * rg[i, :] * (g - x[i, :])
-                # Update the particle's position,
-                # correcting lower and upper bound
-                # violations, then update the objective function value
-                x[i, :] = x[i, :] + v[i, :]
-                mark1 = x[i, :] < lb
-                mark2 = x[i, :] > ub
-                x[i, mark1] = lb[mark1]
-                x[i, mark2] = ub[mark2]
-                fx = obj(x[i, :])
-                # Compare particle's best position
-                # (if constraints are satisfied)
-                if fx < fp[i]:
-                    p[i, :] = x[i, :].copy()
-                    fp[i] = fx
-                    # Compare swarm's best position to current
-                    # particle's position
-                    # (Can only get here if constraints are satisfied)
-                    if fx < fg:
-                        tmp = x[i, :].copy()
-                        stepsize = np.sqrt(np.sum((g - tmp) ** 2))
-                        if stepsize <= self.minstep:
-                            print(f'Stopping search: Swarm best position change less than {self.minstep}')
-                            return tmp, fx
-                        else:
-                            g = tmp.copy()
-                            fg = fx
-
-            # Dynamically plot the error as the optimisation takes place
-            if self.pflag:
-                if it == 0:
-                    xpp = [it]
-                    ypp = [fg]
-                else:
-                    xpp.append(it)
-                    ypp.append(fg)
-                Particle_swarm.plot(xpp, ypp)
-        return g, fg
+from optimization import *
 
 
 class Relaxation(object):
@@ -213,14 +31,7 @@ class Relaxation(object):
                  sigma, mu, mu_sigma,
                  material_name, plot=True, save=True,
                  optimizer=Particle_swarm,
-                 optimizer_options={'seed': 111,
-                                    'pflag': True,
-                                    'swarmsize': 40,
-                                    'maxiter': 50,
-                                    'omega': 0.9,
-                                    'phip': 0.9,
-                                    'phig': 0.9,
-                                    'minstep': 1e-8}):
+                 optimizer_options={}):
         """
         Create Relaxation function object for complex material.
 
@@ -239,9 +50,9 @@ class Relaxation(object):
             save (bool): if True will save approximated material parameters
                          The argument is optional and if neglected save=False.
             optimizer (Optimizer class): chosen optimization method:
-                                         Particle Swarm, Genetic or Simmulated Annealing.
+                                         Particle Swarm, Genetic or Dual Annealing.
             optimizer_options (dict): Additional keyword arguments passed to
-                                      optimizer class.
+                                      optimizer class (Default: empty dict).
         """
         self.number_of_debye_poles = number_of_debye_poles
         self.sigma = sigma
@@ -268,8 +79,36 @@ class Relaxation(object):
         # Set the real and the imaginary part of the relaxation function
         self.rl, self.im = q.real, q.imag
         # Calling the main optimisation module
-        self.optimize()
+        # if one of the weights is negative increase the stabiliser
+        # and repeat the optimisation
+        xmp, mx, ee, rp, ip = self.optimize()
+        # Print the results in gprMax format style
+        properties = self.print_output(xmp, mx, ee)
+        if self.save:
+            self.save_result(properties)
+        # Plot the actual and the approximate dielectric properties
+        if self.plot:
+            self.plot_result(rp + ee, ip)
 
+    def set_freq(self, f_min, f_max, n=50):
+        """
+        Interpolate frequency vector using n
+        equally logarithmicaly spaced frequencies.
+
+        Args:
+            f_min (float): First bound of the frequency range
+                           used to approximate the given function (Hz).
+            f_max (float): Second bound of the frequency range
+                           used to approximate the given function (Hz).
+            n (int): Number of frequency points in frequency grid.
+        Note:
+            f_min and f_max must satisfied f_min < f_max
+        """
+        # diff_freq = np.log10(f_max) - np.log10(f_min)
+        self.freq = np.logspace(np.log10(f_min) + 0.00001,
+                                np.log10(f_max) - 0.00001,
+                                int(n))
+                                # int(n * diff_freq))
     def check_inputs(self):
         """
         Check the validity of the inputs.
@@ -301,6 +140,16 @@ class Relaxation(object):
     def optimize(self):
         """
         Calling the main optimisation module.
+
+        Returns:
+            xpm (array): The best known position form optimization module
+                         (optimal design).
+            mx (array): Resulting optimised weights for the given relaxation times
+            ee (float): Average error between the actual and the approximated real part
+            rp (matrix): The real part of the permittivity for the optimised relaxation
+                         times and weights for the frequnecies included in freq
+            ip (matrix): The imaginary part of the permittivity for the optimised
+                         relaxation times and weights for the frequnecies included in freq
         """
         # Define the lower and upper boundaries of search
         lb = np.full(self.number_of_debye_poles,
@@ -315,23 +164,23 @@ class Relaxation(object):
                                                 'freq_g': self.freq}
                                     )
         _, _, mx, ee, rp, ip = linear(self.rl, self.im, xmp, self.freq)
-        # if one of the weights is negative increase the stabiliser
-        # and repeat the optimisation
-        # Print the results in gprMax format style
-        properties = self.print_output(xmp, mx, ee)
-        if self.save:
-            self.save_result(properties)
-        # Plot the actual and the approximate dielectric properties
-        if self.plot:
-            self.plot_result(rp + ee, ip)
+        return xmp, mx, ee, rp, ip
 
     def print_output(self, xmp, mx, ee):
-        """Print out the resulting Debye parameters in a gprMax format"""
+        """
+        Print out the resulting Debye parameters in a gprMax format.
+
+        Args:
+            xpm (array): The best known position form optimization module
+                         (optimal design).
+            mx (): Resulting optimised weights for the given relaxation times.
+            ee (): Average error between the actual and the approximated real part.
+        """
         print("Debye expansion parameters: ")
         print(f"        |{'e_inf':^14s}|{'De':^14s}|{'log(t0)':^25s}|")
         print("_" * 65)
         for i in range(0, len(xmp)):
-            print("Debye {0:}:|{1:^14.5f}|{2:^14.5f}|{3:^25.5f}| "
+            print("Debye {0:}:|{1:^14.5f}|{2:^14.5f}|{3:^25.5f}|"
                   .format(i + 1, ee/len(xmp), mx[i],
                           xmp[i]))
             print("_" * 65)
@@ -353,31 +202,16 @@ class Relaxation(object):
         material_prop.append(dispersion_prop + '\n')
         return material_prop
 
-    @staticmethod
-    def save_result(output, fdir="materials"):
-        """Save the resulting Debye parameters in a gprMax format"""
-        if fdir != "materials" and os.path.isdir(fdir):
-            file_path = os.path.join(fdir, "my_materials.txt")
-        elif os.path.isdir("materials"):
-            file_path = os.path.join("materials",
-                                     "my_materials.txt")
-        elif os.path.isdir("user_libs/materials"):
-            file_path = os.path.join("user_libs", "materials",
-                                     "my_materials.txt")
-        else:
-            sys.exit("Cannot save material properties "
-                     f"in {os.path.join(fdir, 'my_materials.txt')}!")
-        fileH = open(file_path, "a")
-        fileH.write(f"## {output[0].split(' ')[-1]}")
-        fileH.writelines(output)
-        fileH.write("\n")
-        fileH.close()
-        print(f"Material properties save at: {file_path}")
-
     def plot_result(self, rl_exp, im_exp):
         """
         Plot the actual and the approximated electric permittivity
-        using a semilogarithm X axes
+        using a semilogarithm X axes.
+
+        Args:
+            rl_exp (array): Real parts of optimised Debye expansion
+                            for given frequency points (plus average error).
+            im_exp (array): Imaginary parts of optimised Debye expansion
+                            for given frequency points.
         """
         plt.close("all")
         plt.rcParams["axes.facecolor"] = "black"
@@ -401,22 +235,46 @@ class Relaxation(object):
         plt.ylabel("Relative permittivity")
         plt.show()
 
+    @staticmethod
+    def save_result(output, fdir="../materials"):
+        """
+        Save the resulting Debye parameters in a gprMax format
+
+        Args:
+            output (str): Material and resulting Debye parameters
+                          in a gprMax format.
+            fdir (str): Path to saving directory.
+        """
+        if fdir != "../materials" and os.path.isdir(fdir):
+            file_path = os.path.join(fdir, "my_materials.txt")
+        elif os.path.isdir("../materials"):
+            file_path = os.path.join("../materials",
+                                     "my_materials.txt")
+        elif os.path.isdir("materials"):
+            file_path = os.path.join("materials",
+                                     "my_materials.txt")
+        elif os.path.isdir("user_libs/materials"):
+            file_path = os.path.join("user_libs", "materials",
+                                     "my_materials.txt")
+        else:
+            sys.exit("Cannot save material properties "
+                     f"in {os.path.join(fdir, 'my_materials.txt')}!")
+        fileH = open(file_path, "a")
+        fileH.write(f"## {output[0].split(' ')[-1]}")
+        fileH.writelines(output)
+        fileH.write("\n")
+        fileH.close()
+        print(f"Material properties save at: {file_path}")
+
 
 class HavriliakNegami(Relaxation):
 
     def __init__(self, number_of_debye_poles,
-                 freq1, freq2, alfa, bita, einf, de, t0,
+                 f_min, f_max, alfa, bita, einf, de, t0,
                  sigma, mu, mu_sigma,
                  material_name, plot=False, save=True,
                  optimizer=Particle_swarm,
-                 optimizer_options={'seed': 111,
-                                    'pflag': True,
-                                    'swarmsize': 40,
-                                    'maxiter': 50,
-                                    'omega': 0.9,
-                                    'phip': 0.9,
-                                    'phig': 0.9,
-                                    'minstep': 1e-8}):
+                 optimizer_options={}):
         """
         Approximate a given Havriliak-Negami function
         Havriliak-Negami function = einf + de / (1 + (1j * 2 * pi * f *t0)**alfa )**bita,
@@ -426,12 +284,12 @@ class HavriliakNegami(Relaxation):
             number_of_debye_poles (int): Number of Debye functions used to
                                          approximate the given electric
                                          permittivity.
-            freq1 (float): Define the first bound of the frequency range
+            f_min (float): Define the first bound of the frequency range
                            used to approximate the given function (Hz).
-            freq2 (float): Define the second bound of the frequency range
+            f_max (float): Define the second bound of the frequency range
                            used to approximate the given function (Hz).
-                           freq1 and freq2 can be either freq1 > freq2
-                           or freq1 < freq2 but not freq1 = freq2.
+                           Note: f_min and f_max can be either f_min > f_max
+                           or f_min < f_max but not f_min = f_max.
             einf (float): The real relative permittivity at infinity frequency
             alfa (float): Havriliak-Negami parameter. Real positive float number
                           which varies 0 < alfa < 1. For alfa = 1 and bita !=0 & bita !=1
@@ -455,22 +313,22 @@ class HavriliakNegami(Relaxation):
             save (bool): if True will save approximated material parameters
                          The argument is optional and if neglected save=False.
             optimizer (Optimizer class): chosen optimization method:
-                                         Particle Swarm, Genetic or Simmulated Annealing.
+                                         Particle Swarm, Genetic or Dual Annealing.
                                          (Default: Partocle_swarm)
             optimizer_options (dict): Additional keyword arguments passed to
-                                      optimizer class.
+                                      optimizer class (Default: empty dict).
         """
         super(HavriliakNegami, self).__init__(number_of_debye_poles,
                                               sigma, mu, mu_sigma,
                                               material_name, plot, save,
                                               optimizer, optimizer_options)
-        # Place the lower frequency bound at fr1 and the upper frequency bound at fr2
-        if freq1 > freq2:
-            self.freq1, self.freq2 = freq2, freq1
+        # Place the lower frequency bound at f_min and the upper frequency bound at f_max
+        if f_min > f_max:
+            self.f_min, self.f_max = f_max, f_min
         else:
-            self.freq1, self.freq2 = freq1, freq2
-        # Choosing 50 frequencies logarithmicaly equally spaced between the bounds given
-        self.freq = np.logspace(np.log10(freq1), np.log10(freq2), 50)
+            self.f_min, self.f_max = f_min, f_max
+        # Choosing n frequencies logarithmicaly equally spaced between the bounds given
+        self.set_freq(self.f_min, self.f_max)
         self.einf, self.alfa, self.bita, self.de, self.t0 = einf, alfa, bita, de, t0
 
     def check_inputs(self):
@@ -480,7 +338,7 @@ class HavriliakNegami(Relaxation):
         super(HavriliakNegami, self).check_inputs()
         try:
             d = [float(i) for i in
-                 [self.freq1, self.freq2, self.alfa,
+                 [self.f_min, self.f_max, self.alfa,
                   self.bita, self.einf, self.de, self.t0]]
         except ValueError:
             sys.exit("The inputs should be numeric.")
@@ -490,7 +348,7 @@ class HavriliakNegami(Relaxation):
             sys.exit("Alfa value must range between 0-1 (0 <= Alfa <= 1)")
         if self.bita > 1:
             sys.exit("Beta value must range between 0-1 (0 <= Beta <= 1)")
-        if self.freq1 == self.freq2:
+        if self.f_min == self.f_max:
             sys.exit("Null frequency range")
 
     def print_info(self):
@@ -512,18 +370,11 @@ class HavriliakNegami(Relaxation):
 
 class Jonscher(Relaxation):
     def __init__(self, number_of_debye_poles,
-                 freq1, freq2, einf, ap, omegap, n_p,
+                 f_min, f_max, einf, ap, omegap, n_p,
                  sigma, mu, mu_sigma,
                  material_name, plot=False, save=True,
                  optimizer=Particle_swarm,
-                 optimizer_options={'seed': 111,
-                                    'pflag': True,
-                                    'swarmsize': 40,
-                                    'maxiter': 50,
-                                    'omega': 0.9,
-                                    'phip': 0.9,
-                                    'phig': 0.9,
-                                    'minstep': 1e-8}):
+                 optimizer_options={}):
         """
         Approximate a given Johnsher function
         Jonscher function = einf - ap * ( -1j * 2 * pi * f / omegap)**n_p,
@@ -533,12 +384,12 @@ class Jonscher(Relaxation):
             number_of_debye_poles (int): Number of Debye functions used to
                                          approximate the given electric
                                          permittivity.
-            freq1 (float): Define the first bound of the frequency range
+            f_min (float): Define the first bound of the frequency range
                            used to approximate the given function (Hz).
-            freq2 (float): Define the second bound of the frequency range
+            f_max (float): Define the second bound of the frequency range
                            used to approximate the given function (Hz).
-                           freq1 and freq2 can be either freq1 > freq2
-                           or freq1 < freq2 but not freq1 = freq2.
+                           f_min and f_max can be either f_min > f_max
+                           or f_min < f_max but not f_min = f_max.
             einf (float): The real relative permittivity at infinity frequency
             ap (float): Jonscher parameter. Real positive float number.
             omegap (float): Jonscher parameter. Real positive float number.
@@ -555,21 +406,21 @@ class Jonscher(Relaxation):
             save (bool): if True will save approximated material parameters
                          The argument is optional and if neglected save=False.
             optimizer (Optimizer class): chosen optimization method:
-                                         Particle Swarm, Genetic or Simmulated Annealing.
+                                         Particle Swarm, Genetic or Dual Annealing.
             optimizer_options (dict): Additional keyword arguments passed to
-                                      optimizer class.
+                                      optimizer class (Default: empty dict).
         """
         super(Jonscher, self).__init__(number_of_debye_poles,
                                        sigma, mu, mu_sigma,
                                        material_name, plot, save,
                                        optimizer, optimizer_options)
-        # Place the lower frequency bound at fr1 and the upper frequency bound at fr2
-        if freq1 > freq2:
-            self.freq1, self.freq2 = freq2, freq1
+        # Place the lower frequency bound at f_min and the upper frequency bound at f_max
+        if f_min > f_max:
+            self.f_min, self.f_max = f_max, f_min
         else:
-            self.freq1, self.freq2 = freq1, freq2
-        # Choosing 50 frequencies logarithmicaly equally spaced between the bounds given
-        self.freq = np.logspace(np.log10(freq1), np.log10(freq2), 50)
+            self.f_min, self.f_max = f_min, f_max
+        # Choosing n frequencies logarithmicaly equally spaced between the bounds given
+        self.set_freq(self.f_min, self.f_max)
         self.einf, self.ap, self.omegap, self.n_p = einf, ap, omegap, n_p
 
     def check_inputs(self):
@@ -579,7 +430,7 @@ class Jonscher(Relaxation):
         super(Jonscher, self).check_inputs()
         try:
             d = [float(i) for i in
-                 [self.freq1, self.freq2, self.n_p,
+                 [self.f_min, self.f_max, self.n_p,
                   self.einf, self.omegap, self.ap]]
         except ValueError:
             sys.exit("The inputs should be numeric.")
@@ -587,7 +438,7 @@ class Jonscher(Relaxation):
             sys.exit("The inputs should be positive.")
         if self.n_p > 1:
             sys.exit("n_p value must range between 0-1 (0 <= n_p <= 1)")
-        if self.freq1 == self.freq2:
+        if self.f_min == self.f_max:
             sys.exit("Error: Null frequency range")
 
     def print_info(self):
@@ -613,17 +464,10 @@ class Jonscher(Relaxation):
 class Crim(Relaxation):
 
     def __init__(self, number_of_debye_poles,
-                 freq1, freq2, a, f1, e1, sigma,
+                 f_min, f_max, a, f1, e1, sigma,
                  mu, mu_sigma, material_name, plot=False, save=True,
                  optimizer=Particle_swarm,
-                 optimizer_options={'seed': 111,
-                                    'pflag': True,
-                                    'swarmsize': 40,
-                                    'maxiter': 50,
-                                    'omega': 0.9,
-                                    'phip': 0.9,
-                                    'phig': 0.9,
-                                    'minstep': 1e-8}):
+                 optimizer_options={}):
         """
         Approximate a given CRIM function
         CRIM = (sum([volumetric_fraction[i]*(material[i][0] + material[i][1] /
@@ -634,12 +478,12 @@ class Crim(Relaxation):
             number_of_debye_poles (int): Number of Debye functions used to
                                          approximate the given electric
                                          permittivity.
-            freq1 (float): Define the first bound of the frequency range
+            f_min (float): Define the first bound of the frequency range
                            used to approximate the given function (Hz).
-            freq2 (float): Define the second bound of the frequency range
+            f_max (float): Define the second bound of the frequency range
                            used to approximate the given function (Hz).
-                           freq1 and freq2 can be either freq1 > freq2
-                           or freq1 < freq2 but not freq1 = freq2.
+                           f_min and f_max can be either f_min > f_max
+                           or f_min < f_max but not f_min = f_max.
             a (float): shape factor
             f1 (list): volumetric fraction
             e1 (list): materials
@@ -654,21 +498,21 @@ class Crim(Relaxation):
             save (bool): if True will save approximated material parameters
                          The argument is optional and if neglected save=False.
             optimizer (Optimizer class): chosen optimization method:
-                                         Particle Swarm, Genetic or Simmulated Annealing.
+                                         Particle Swarm, Genetic or Dual Annealing.
             optimizer_options (dict): Additional keyword arguments passed to
-                                      optimizer class.
+                                      optimizer class (Default: empty dict).
         """
         super(Crim, self).__init__(number_of_debye_poles,
                                    sigma, mu, mu_sigma,
                                    material_name, plot, save,
                                    optimizer, optimizer_options)
-        # Place the lower frequency bound at fr1 and the upper frequency bound at fr2
-        if freq1 > freq2:
-            self.freq1, self.freq2 = freq2, freq1
+        # Place the lower frequency bound at f_min and the upper frequency bound at f_max
+        if f_min > f_max:
+            self.f_min, self.f_max = f_max, f_min
         else:
-            self.freq1, self.freq2 = freq1, freq2
-        # Choosing 50 frequencies logarithmicaly equally spaced between the bounds given
-        self.freq = np.logspace(np.log10(freq1), np.log10(freq2), 50)
+            self.f_min, self.f_max = f_min, f_max
+        # Choosing n frequencies logarithmicaly equally spaced between the bounds given
+        self.set_freq(self.f_min, self.f_max)
         self.a, self.f1, self.e1 = a, f1, e1
 
     def check_inputs(self):
@@ -678,7 +522,7 @@ class Crim(Relaxation):
         super(Crim, self).check_inputs()
         try:
             d = [float(i) for i in
-                 [self.freq1, self.freq2, self.a]]
+                 [self.f_min, self.f_max, self.a]]
         except ValueError:
             sys.exit("The inputs should be numeric.")
         if (np.array(d) < 0).sum() != 0:
@@ -689,7 +533,7 @@ class Crim(Relaxation):
         if len(self.f1) < 2:
             sys.exit("The materials should be at least 2")
         # Check if the frequency range is null
-        if self.freq1 == self.freq2:
+        if self.f_min == self.f_max:
             sys.exit("Null frequency range")
         # Check if the inputs are positive
         f = [i for i in self.f1 if i < 0]
@@ -736,16 +580,9 @@ class Rawdata(Relaxation):
                  sigma, mu, mu_sigma,
                  material_name, plot=False, save=True,
                  optimizer=Particle_swarm,
-                 optimizer_options={'seed': 111,
-                                    'pflag': True,
-                                    'swarmsize': 40,
-                                    'maxiter': 50,
-                                    'omega': 0.9,
-                                    'phip': 0.9,
-                                    'phig': 0.9,
-                                    'minstep': 1e-8}):
+                 optimizer_options={}):
         """
-        Interpolate data given from a text file
+        Interpolate data given from a text file.
 
         Args:
             number_of_debye_poles (int): Number of Debye functions used to
@@ -764,9 +601,9 @@ class Rawdata(Relaxation):
             save (bool): if True will save approximated material parameters
                          The argument is optional and if neglected save=False.
             optimizer (Optimizer class): chosen optimization method:
-                                         Particle Swarm, Genetic or Simmulated Annealing.
+                                         Particle Swarm, Genetic or Dual Annealing.
             optimizer_options (dict): Additional keyword arguments passed to
-                                      optimizer class.
+                                      optimizer class (Default: empty dict).
         """
         super(Rawdata, self).__init__(number_of_debye_poles,
                                       sigma, mu, mu_sigma,
@@ -791,9 +628,10 @@ class Rawdata(Relaxation):
               f" using {self.number_of_debye_poles} Debye poles")
 
     def calculation(self):
-        """Interpolate real and imaginary part from data.
-         Column framework of the input file three columns comma-separated
-         Frequency(Hz),Real,Imaginary
+        """
+        Interpolate real and imaginary part from data.
+        Column framework of the input file three columns comma-separated
+        Frequency(Hz),Real,Imaginary
         """
         # Read the file
         with open(self.filename) as f:
@@ -804,95 +642,33 @@ class Rawdata(Relaxation):
             except ValueError:
                 sys.exit("Error: The inputs should be numeric")
 
-        # Interpolate using 50 equally logarithmicaly spaced frequencies
-        self.freq = np.logspace(np.log10(min(array[:, 0])) + 0.00001,
-                                np.log10(max(array[:, 0])) - 0.00001,
-                                50)
+        self.set_freq(min(array[:, 0]), max(array[:, 0]))
+
         rl_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 1])
         im_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 2])
         return rl_interp(self.freq) - 1j * im_interp(self.freq)
 
 
-def cost_function(x, rl_g, im_g, freq_g):
-    """
-    The cost function is the average error between
-    the actual and the approximated electric permittivity.
-
-    Returns:
-        cost: The final error
-    """
-    cost, cost2, _, _, _, _ = linear(rl_g, im_g, x, freq_g)
-    cost = cost + cost2
-    return cost
-
-
-def linear(rl, im, logt, freq):
-    """
-    Returns:
-        x: Resulting optimised weights for the given relaxation times
-        cost: The final error
-        ee: Average error between the actual and the approximated real part
-        rp: The real part of the permittivity for the optimised relaxation
-            times and weights for the frequnecies included in freq
-        ip: The imaginary part of the permittivity for the optimised
-            relaxation times and weights for the frequnecies included in freq
-    """
-    # The relaxation time of the Debyes are given at as logarithms
-    # logt=log10(t0) for efficiency during the optimisation
-    # Here they are transformed back t0=10**logt
-    tt = [10**logt[i] for i in range(0, len(logt))]
-    # y = Ax , here the A matrix for the real and the imaginary part is builded
-    d_r = np.array(
-        [[calc([1, 1, 0, 1, tt[i]], [freq[j]])[0]
-         for i in range(0, len(tt))] for j in
-         range(0, len(freq))])
-    d = np.array(
-        [[calc([1, 1, 0, 1, tt[i]], [freq[j]])[1]
-         for i in range(0, len(tt))] for j in
-         range(0, len(freq))])
-
-    # Adding dumping (Marquart least squares)
-    # Solving the overdetermined system y=Ax
-    x = np.abs(np.linalg.lstsq(d, im)[0])
-    mx, my, my2 = np.matrix(x), np.matrix(d), np.matrix(d_r)
-    rp, ip = my2 * np.transpose(mx), my * np.transpose(mx)
-    cost = np.sum([np.abs(ip[i]-im[i]) for i in range(0, len(im))])/len(im)
-    ee = (np.mean(rl - rp))
-    if ee < 1:
-        ee = 1
-    cost2 = np.sum([np.abs(rp[i] - rl[i] + ee)
-                    for i in range(0, len(im))])/len(im)
-    return cost, cost2, x, ee, rp, ip
-
-
-def calc(cal_inputs, freq):
-    # Calculates the Havriliak-Negami function for the given cal_inputs
-    q = [cal_inputs[2] + cal_inputs[3] / (np.array(1 + np.array(
-         1j * 2 * np.pi * f * cal_inputs[4]) ** cal_inputs[0]
-         ) ** cal_inputs[1]) for f in freq]
-    # Return the real and the imaginary part of the relaxation function
-    if len(q) > 1:
-        rl = [q[i].real for i in range(0, len(q))]
-        im = [q[i].imag for i in range(0, len(q))]
-    else:
-        rl = q[0].real
-        im = q[0].imag
-    return rl, im
-
-
 if __name__ == "__main__":
-    setup = Rawdata(3, "Test.txt", 0.1, 1, 0.1, "M1", plot=True)
+    setup = Rawdata(3, "Test.txt", 0.1, 1, 0.1, "M1", plot=True,
+                    optimizer_options={'seed':111,
+                                       'pflag':True})
     setup.run()
     setup = HavriliakNegami(6, 1e12, 1e-3, 0.5, 1, 10, 5,
-                            1e-6, 0.1, 1, 0, "M2", plot=True)
+                            1e-6, 0.1, 1, 0, "M2", plot=True,
+                            optimizer=Dual_annealing,
+                            optimizer_options={'seed':111,
+                                               'maxiter':50})
     setup.run()
     setup = Jonscher(4, 1e6, 1e-5, 50, 1, 1e5, 0.7,
-                     0.1, 1, 0.1, "M3", plot=True)
+                     0.1, 1, 0.1, "M3", plot=True,
+                     optimizer_options={'seed':111})
     setup.run()
     f = [0.5, 0.5]
     material1 = [3, 25, 1e6]
     material2 = [3, 0, 1e3]
     materials = [material1, material2]
     setup = Crim(2, 1*1e-1, 1e-9, 0.5, f, materials, 0.1,
-                 1, 0, "M4", plot=True)
+                 1, 0, "M4", plot=True,
+                 optimizer_options={'seed':111})
     setup.run()
