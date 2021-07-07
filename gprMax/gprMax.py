@@ -38,7 +38,8 @@ args_defaults = {'scenes': None,
                  'geometry_fixed': False,
                  'write_processed': False,
                  'log_level': 20,
-                 'log_file': False}
+                 'log_file': False,
+                 'no_h5': False}
 
 # Argument help messages (used for CLI argparse)
 help_msg = {'scenes': '(list, opt): List of the scenes to run the model. '
@@ -81,7 +82,8 @@ help_msg = {'scenes': '(list, opt): List of the scenes to run the model. '
                                'any Python code (#python blocks) and in the '
                                'original input file has been processed.',
             'log_level': '(int, opt): Level of logging to use.',
-            'log_file': '(bool, opt): Write logging information to file.'}
+            'log_file': '(bool, opt): Write logging information to file.',
+            'no_h5': '(bool, opt): Skip saving output .h5 files'}
 
 
 def run(scenes=args_defaults['scenes'],
@@ -98,7 +100,8 @@ def run(scenes=args_defaults['scenes'],
         geometry_fixed=args_defaults['geometry_fixed'],
         write_processed=args_defaults['write_processed'],
         log_level=args_defaults['log_level'],
-        log_file=args_defaults['log_file']
+        log_file=args_defaults['log_file'],
+        no_h5=args_defaults['no_h5']
         ):
     """This is the main function for gprMax when entering using application
         programming interface (API). Run the simulation for the given list of 
@@ -119,7 +122,8 @@ def run(scenes=args_defaults['scenes'],
                                  'geometry_fixed': geometry_fixed,
                                  'write_processed': write_processed,
                                  'log_level': log_level,
-                                 'log_file': log_file})
+                                 'log_file': log_file,
+                                 'no_h5': no_h5})
 
     run_main(args)
 
@@ -155,6 +159,9 @@ def cli():
     parser.add_argument('--log-file', action='store_true', 
                         default=args_defaults['log_file'],
                         help=help_msg['log_file'])
+    parser.add_argument('--no-h5', action='store_true', 
+                        default=args_defaults['no_h5'],
+                        help=help_msg['no_h5'])
     args = parser.parse_args()
 
     run_main(args)

@@ -78,8 +78,10 @@ class Context:
 
         self.tsimend = timer()
         self.print_time_report()
-        self.display_labels(self.data_labels)
-        self.save_compressed_data()
+
+        if os.path.isfile(config.get_model_config().output_file_path_ext_random):
+            self.display_labels(self.data_labels)
+            self.save_compressed_data()
 
     def print_logo_copyright(self):
         """Print gprMax logo, version, and copyright/licencing information."""
@@ -105,8 +107,7 @@ class Context:
 
     def save_compressed_data(self):
         """Remove all redundant features and save compressed data file containing randomly generated parameters"""
-        if os.path.isfile(config.get_model_config().output_file_path_ext_random):
-            compress_pkl_dat(config.get_model_config().output_file_path_ext_random, str(config.get_model_config().output_file_path_random) + '_{compressed}.pkl')
+        compress_pkl_dat(config.get_model_config().output_file_path_ext_random, str(config.get_model_config().output_file_path_random) + '_{compressed}.pkl')
 
     def display_labels(self, labels):
         """Display labels corresponding to the random parameters in the order they are saved"""
@@ -191,8 +192,10 @@ class MPIContext(Context):
         if executor.is_master():
             self.tsimend = timer()
             self.print_time_report()
-            self.display_labels(self.data_labels)
-            self.save_compressed_data()
+
+            if os.path.isfile(config.get_model_config().output_file_path_ext_random):
+                self.display_labels(self.data_labels)
+                self.save_compressed_data()
 
 
 class SPOTPYContext(Context):
@@ -232,5 +235,7 @@ class SPOTPYContext(Context):
 
         self.tsimend = timer()
         self.print_time_report()
-        self.display_labels(self.data_labels)
-        self.save_compressed_data()
+        
+        if os.path.isfile(config.get_model_config().output_file_path_ext_random):
+            self.display_labels(self.data_labels)
+            self.save_compressed_data()

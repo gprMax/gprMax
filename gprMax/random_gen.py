@@ -152,13 +152,13 @@ def compress_pkl_dat(inputfile, outputfile):
     logger.basic(f' -> Removed redundant features and saved compressed data to: {outputfile} \n')
 
 
-def save_h5_to_pkl(filename, pkl_output):
+def save_Ascan_to_pkl(G, pkl_output):
 
-    """ Extracts A-scans from all receiver points in the given output .h5 file 
-        and saves them to a .pkl file
+    """ Extracts A-scans from all receiver points
+        and directly saves them to a .pkl file
 
     Args:
-        filename (string): Filename (including path) of .h5 output file.
+        G (FDTDGrid): Parameters describing a grid in a model.
         pkl_output (string): The .pkl file to which field outputs are saved.
 
     Note:
@@ -168,58 +168,13 @@ def save_h5_to_pkl(filename, pkl_output):
     """
 
     data = []
-    outputs = Rx.defaultoutputs
 
-    # Open output file and read iterations
-    file = Path(filename)
-    f = h5py.File(file, 'r')
+    for rxindex, rx in enumerate(G.rxs):
+        data.append([])
+        print(f"\n -> Saving all field outputs for Receiver {rxindex+1} to: {pkl_output}")
+        for output in rx.outputs:
+            data[rxindex].append(rx.outputs[output])
 
-    # Paths to grid(s) to traverse for outputs
-    paths = ['/']
-
-    # Check if any subgrids and add path(s)
-    is_subgrids = "/subgrids" in f
-    if is_subgrids:
-        paths = paths + ['/subgrids/' + path + '/' for path in f['/subgrids'].keys()]
-
-    # Get number of receivers in grid(s)
-    nrxs = []
-    for path in paths:
-        if f[path].attrs['nrx'] > 0:
-            nrxs.append(f[path].attrs['nrx'])
-        else:
-            paths.remove(path)
-
-    # Check there are any receivers
-    if not paths:
-        logger.exception(f'No receivers found in {file}')
-        raise ValueError
-
-    # Loop through all grids
-    for path in paths:
-        nrx = f[path].attrs['nrx']
-
-        # Save A-scan for each receiver
-        for rx in range(1, nrx + 1):
-            rxpath = path + 'rxs/rx' + str(rx) + '/'
-            availableoutputs = list(f[rxpath].keys())
-
-            data.append([])
-            print(f"\n -> Saving the following field outputs for Receiver {rx} to: {pkl_output} \n", availableoutputs)
-
-            for output in outputs:
-                # Check for polarity of output
-                if output[-1] == 'm':
-                    polarity = -1
-                    output = output[0:-1]
-                else:
-                    polarity = 1
-
-                outputdata = f[rxpath + output][:] * polarity
-
-                data[rx-1].append(outputdata)
-        
-    f.close()
     data = np.array(data)
 
     with open(pkl_output, "ab+") as f:
