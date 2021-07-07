@@ -1,20 +1,20 @@
-# Author: Iraklis Giannakis, Sylwia Majchrowska
+# Authors: Iraklis Giannakis, and Sylwia Majchrowska
 # E-mail: i.giannakis@ed.ac.uk
 #
-# Copyright (c) 2021 gprMax
-# All rights reserved.
+# This file is part of gprMax.
 #
-# Redistribution and use in source and binary forms are permitted
-# provided that the above copyright notice and this paragraph are
-# duplicated in all such forms and that any documentation,
-# advertising materials, and other materials related to such
-# distribution and use acknowledge that the software was developed
-# as part of gprMax. The name of gprMax may not be used to
-# endorse or promote products derived from this software without
-# specific prior written permission.
-# THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
-# IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+# gprMax is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# gprMax is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
 from matplotlib import pylab as plt
@@ -23,17 +23,17 @@ from tqdm import tqdm
 
 
 class Optimizer(object):
+    """
+    Create particle swarm optimisation object.
 
+    :param maxiter: The maximum number of iterations for the
+                    optimizer (Default: 1000).
+    :type maxiter: int, optional
+    :param seed: Seed for RandomState. Must be convertible to 32 bit
+                 unsigned integers (Default: None).
+    :type seed: int, NoneType, optional
+    """
     def __init__(self, maxiter=1000, seed=None):
-        """
-        Create particle swarm optimisation object.
-
-        Args:
-            maxiter (int): The maximum number of iterations for the swarm
-                        to search (Default: 1000).
-            seed (int): Seed for RandomState.
-                        Must be convertible to 32 bit unsigned integers.
-        """
         self.maxiter = maxiter
         self.seed = seed
 
@@ -54,12 +54,11 @@ class Optimizer(object):
             x (array): The number of current iterations.
             y (array): The objective value at for all x points.
         """
-        plt.rcParams["axes.facecolor"] = "black"
-        plt.plot(x, y, "b-", linewidth=3.0)
+        plt.plot(x, y, "b-", linewidth=1.0)
         plt.ylim(min(y) - 0.1 * min(y),
                  max(y) + 0.1 * max(y))
-        plt.xlim(min(x), max(x))
-        plt.grid(b=True, which="major", color="w",
+        plt.xlim(min(x) - 0.1, max(x) + 0.1)
+        plt.grid(b=True, which="major", color="k",
                  linewidth=0.2, linestyle="--")
         plt.suptitle("Debye fitting process")
         plt.xlabel("Iteration")
@@ -68,29 +67,37 @@ class Optimizer(object):
 
 
 class Particle_swarm(Optimizer):
+    """
+    Create particle swarm optimisation object with predefined parameters.
+
+    :param swarmsize: The number of particles in the swarm (Default: 40).
+    :type swarmsize: int, optional
+    :param maxiter: The maximum number of iterations for the swarm
+                    to search (Default: 50).
+    :type maxiter: int, optional
+    :param omega: Particle velocity scaling factor (Default: 0.9).
+    :type omega: float, optional
+    :param phip: Scaling factor to search away from the particle's
+                 best known position (Default: 0.9).
+    :type phip: float, optional
+    :param phig: Scaling factor to search away from the swarm's
+                 best known position (Default: 0.9).
+    :type phig: float, optional
+    :param minstep: The minimum stepsize of swarm's best position
+                    before the search terminates (Default: 1e-8).
+    :type minstep: float, optional
+    :param minfun: The minimum change of swarm's best objective value
+                   before the search terminates (Default: 1e-8)
+    :type minfun: float, optional
+    :param pflag: if True will plot the actual and the approximated
+                  value during optimization process (Default: False).
+    :type pflag: bool, optional
+    """
     def __init__(self, swarmsize=40, maxiter=50,
                  omega=0.9, phip=0.9, phig=0.9,
                  minstep=1e-8, minfun=1e-8,
                  pflag=False, seed=None):
-        """
-        Create particle swarm optimisation object with predefined parameters.
 
-        Args:
-            swarmsize (int): The number of particles in the swarm (Default: 40).
-            maxiter (int): The maximum number of iterations for the swarm
-                        to search (Default: 50).
-            omega (float): Particle velocity scaling factor (Default: 0.9).
-            phip (float): Scaling factor to search away from the particle's
-                        best known position (Default: 0.9).
-            phig (float):  Scaling factor to search away from the swarm's
-                        best known position (Default: 0.9).
-            minstep (float): The minimum stepsize of swarm's best position
-                             before the search terminates (Default: 1e-8).
-            minfun (float): The minimum change of swarm's best objective value
-                             before the search terminates (Default: 1e-8)
-            pflag (bool): if True will plot the actual and the approximated
-                          value during optimization process (Default: False).
-        """
         super(Particle_swarm, self).__init__(maxiter, seed)
         self.swarmsize = swarmsize
         self.omega = omega
@@ -105,19 +112,19 @@ class Particle_swarm(Optimizer):
         A particle swarm optimisation that tries to find an optimal set
         of relaxation times that minimise the error
         between the actual and the approximated electric permittivity.
-        The current class is a modified edition of the pyswarm package
+        The current code is a modified edition of the pyswarm package
         which can be found at https://pythonhosted.org/pyswarm/
 
         Args:
             func (function): The function to be minimized.
-            lb (array): The lower bounds of the design variable(s).
-            ub (array): The upper bounds of the design variable(s).
+            lb (ndarray): The lower bounds of the design variable(s).
+            ub (ndarray): The upper bounds of the design variable(s).
             funckwargs (dict): Additional keyword arguments passed to
                                objective and constraint function
                                (Default: empty dict).
 
         Returns:
-            g (array): The swarm's best known position (optimal design).
+            g (ndarray): The swarm's best known position (optimal design).
             fg (float): The objective value at ``g``.
         """
         np.random.seed(self.seed)
@@ -215,59 +222,69 @@ class Particle_swarm(Optimizer):
 
 
 class Dual_annealing(Optimizer):
-    def __init__(self, maxiter=100,
+    """
+    Create dual annealing object with predefined parameters.
+
+    :param maxiter: The maximum number of iterations for the swarm
+                    to search (Default: 1000).
+    :type maxiter: int, optional
+    :param local_search_options: Extra keyword arguments to be passed
+                                 to the local minimizer, reffer to
+                                 scipy.optimize.minimize() function
+                                 (Default: empty dict).
+    :type local_search_options: dict, optional
+    :param initial_temp (float): The initial temperature, use higher values to
+                                facilitates a wider search of the energy
+                                landscape, allowing dual_annealing to escape
+                                local minima that it is trapped in.
+                                Range is (0.01, 5.e4] (Default: 5230).
+    :type initial_temp: float, optional
+    :param restart_temp_ratio: During the annealing process,
+                               temperature is decreasing, when it
+                               reaches initial_temp * restart_temp_ratio,
+                               the reannealing process is triggered.
+                               Range is (0, 1) (Default: 2e-5).
+    :type restart_temp_ratio: float, optional
+    :param visit: Parameter for visiting distribution. The value range is (1, 3]
+                  (Default: 2.62).
+    :type visit: float, optional
+    :param accept: Parameter for acceptance distribution. It is used to control
+                   the probability of acceptance. The lower the acceptance parameter,
+                   the smaller the probability of acceptance. The value range (-1e4, -5]
+                   (Default: -5.0).
+    :type accept: float, optional
+    :param no_local_search (bool): If no_local_search is set to True, a traditional
+                                   Generalized Simulated Annealing will be performed
+                                   with no local search strategy applied (Default: False).
+    :type no_local_search: bool, optional
+    :param maxfun: Soft limit for the number of objective function calls.
+                        (Default: 1e7).
+    :type maxfun: int, optional
+    :param callback: A callback function with signature callback(x, f, context),
+                     which will be called for all minima found.
+                     x and f are the coordinates and function value of
+                     the latest minimum found, and context has value in [0, 1, 2],
+                     with the following meaning:
+                     0: minimum detected in the annealing process.
+                     1: detection occurred in the local search process.
+                     2: detection done in the dual annealing process.
+                     If the callback implementation returns True,
+                     the algorithm will stop.
+    :type callback: None, callable, optional
+    :param x0: Coordinates of a single N-D starting point, shape(n,).
+                        (Default: None).
+    :type x0: None, ndarray, optional
+    :param seed: Specify seed for repeatable minimizations.
+                 The random numbers generated with this seed only
+                 affect the visiting distribution function and
+                 new coordinates generation (Default: None).
+    :type seed: None, int, optional
+    """
+    def __init__(self, maxiter=1000,
                  local_search_options={}, initial_temp=5230.0,
-                 restart_temp_ratio=2e-05, visit=2.62, accept=- 5.0,
+                 restart_temp_ratio=2e-05, visit=2.62, accept=-5.0,
                  maxfun=1e7, no_local_search=False,
                  callback=None, x0=None, seed=None):
-        """
-        Create dual annealing object with predefined parameters.
-
-        Args:
-            maxiter (int): The maximum number of iterations for the swarm
-                           to search (Default: 100).
-            local_search_options (dict): Extra keyword arguments to be passed
-                                         to the local minimizer, reffer to
-                                         scipy.optimize.minimize() function
-                                         (Default: empty dict).
-            initial_temp (float): The initial temperature, use higher values to
-                                  facilitates a wider search of the energy
-                                  landscape, allowing dual_annealing to escape
-                                  local minima that it is trapped in.
-                                  Range is (0.01, 5.e4] (Default: 5230).
-            restart_temp_ratio (float): During the annealing process,
-                                        temperature is decreasing, when it
-                                        reaches initial_temp * restart_temp_ratio,
-                                        the reannealing process is triggered.
-                                        Range is (0, 1) (Default: 2e-5).
-            visit (float): Parameter for visiting distribution. The value range is (1, 3]
-                           (Default: 2.62).
-            accept (float): Parameter for acceptance distribution. It is used to control
-                            the probability of acceptance. The lower the acceptance parameter,
-                            the smaller the probability of acceptance. The value range (-1e4, -5]
-                            (Default: -5.0).
-            no_local_search (bool):
-            maxfun (int): Soft limit for the number of objective function calls.
-                          (Default: 1e7).
-            callback (callable): A callback function with signature callback(x, f, context),
-                                 which will be called for all minima found.
-                                 x and f are the coordinates and function value of
-                                 the latest minimum found, and context has value in [0, 1, 2],
-                                 with the following meaning:
-                                 0: minimum detected in the annealing process.
-                                 1: detection occurred in the local search process.
-                                 2: detection done in the dual annealing process.
-                                 If the callback implementation returns True,
-                                 the algorithm will stop.
-            x0 (ndarray): Coordinates of a single N-D starting point, shape(n,).
-                          (Default: None).
-            seed (None, int): Specify seed for repeatable minimizations.
-                              The random numbers generated with this seed only
-                              affect the visiting distribution function and
-                              new coordinates generation (Default: None).
-            pflag (bool): if True will plot the actual and the approximated
-                          value during optimization process (Default: False).
-        """
         super(Dual_annealing, self).__init__(maxiter, seed)
         self.local_search_options = local_search_options
         self.initial_temp = initial_temp
@@ -278,7 +295,6 @@ class Dual_annealing(Optimizer):
         self.no_local_search = no_local_search
         self.callback = callback
         self.x0 = x0
-        #self.pflag = pflag
 
     def fit(self, func, lb, ub, funckwargs={}):
         """
@@ -317,69 +333,67 @@ class Dual_annealing(Optimizer):
         return result.x, result.fun
 
 
+def DLS(rl, im, logt, freq):
+    """
+    Find the weights using a non-linear least squares (LS) method,
+    the Levenberg–Marquardt algorithm (LMA or just LM),
+    also known as the damped least-squares (DLS) method.
+
+    Args:
+        rl (ndarray): Real parts of chosen relaxation function
+                      for given frequency points.
+        im (ndarray): Imaginary parts of chosen relaxation function
+                      for given frequency points.
+        logt (ndarray): The best known position form optimization module (optimal design),
+                        the logarithm with base 10 of relaxation times of the Debyes poles.
+        freq (ndarray): The frequencies vector for defined grid.
+
+    Returns:
+        cost_i (float): Mean absolute error between the actual and
+                        the approximated imaginary part.
+        cost_r (float): Mean absolute error between the actual and
+                        the approximated real part (plus average error).
+        x (ndarray): Resulting optimised weights for the given relaxation times.
+        ee (float): Average error between the actual and the approximated real part.
+        rp (ndarray): The real part of the permittivity for the optimised relaxation
+                      times and weights for the frequnecies included in freq.
+        ip (ndarray): The imaginary part of the permittivity for the optimised
+                      relaxation times and weights for the frequnecies included in freq.
+    """
+    # The relaxation time of the Debyes are given at as logarithms
+    # logt=log10(t0) for efficiency during the optimisation
+    # Here they are transformed back t0=10**logt
+    tt = 10**logt
+    # y = Ax , here the A matrix for the real and the imaginary part is builded
+    d = 1 / (1 + 1j * 2 * np.pi * np.repeat(
+             freq, len(tt)).reshape((-1, len(tt))) * tt)
+    # Adding dumping (Levenberg–Marquardt algorithm)
+    # Solving the overdetermined system y=Ax
+    x = np.abs(np.linalg.lstsq(d.imag, im, rcond=-1)[0])  # absolute damped least-squares solution
+    rp, ip = np.matmul(d.real, x[np.newaxis].T).T[0], np.matmul(d.imag, x[np.newaxis].T).T[0]
+    cost_i = np.sum(np.abs(ip-im))/len(im)
+    ee = np.mean(rl - rp)
+    if ee < 1:
+        ee = 1
+    cost_r = np.sum(np.abs(rp - rl + ee))/len(im)
+    return cost_i, cost_r, x, ee, rp, ip
+
+
 def cost_function(x, rl_g, im_g, freq_g):
     """
     The cost function is the average error between
     the actual and the approximated electric permittivity.
 
+    Args:
+        x (ndarray): The logarithm with base 10 of relaxation times of the Debyes poles.
+        rl_g (ndarray): Real parts of chosen relaxation function
+                        for given frequency points.
+        im_g (ndarray): Imaginary parts of chosen relaxation function
+                        for given frequency points.
+        freq (ndarray): The frequencies vector for defined grid.
+
     Returns:
-        cost: The final error
+        cost (float): Sum of mean absolute errors for real and imaginary part.
     """
-    cost1, cost2, _, _, _, _ = linear(rl_g, im_g, x, freq_g)
-    cost = cost1 + cost2
-    return cost
-
-
-def linear(rl, im, logt, freq):
-    """
-    Returns:
-        cost1: Error (?)
-        cost2: Error (?)
-        x: Resulting optimised weights for the given relaxation times
-        ee: Average error between the actual and the approximated real part
-        rp: The real part of the permittivity for the optimised relaxation
-            times and weights for the frequnecies included in freq
-        ip: The imaginary part of the permittivity for the optimised
-            relaxation times and weights for the frequnecies included in freq
-    """
-    # The relaxation time of the Debyes are given at as logarithms
-    # logt=log10(t0) for efficiency during the optimisation
-    # Here they are transformed back t0=10**logt
-    tt = [10**logt[i] for i in range(0, len(logt))]
-    # y = Ax , here the A matrix for the real and the imaginary part is builded
-    d_r = np.array(
-        [[calc([1, 1, 0, 1, tt[i]], [freq[j]])[0]
-         for i in range(0, len(tt))] for j in
-         range(0, len(freq))])
-    d = np.array(
-        [[calc([1, 1, 0, 1, tt[i]], [freq[j]])[1]
-         for i in range(0, len(tt))] for j in
-         range(0, len(freq))])
-
-    # Adding dumping (Marquart least squares)
-    # Solving the overdetermined system y=Ax
-    x = np.abs(np.linalg.lstsq(d, im)[0])
-    mx, my, my2 = np.matrix(x), np.matrix(d), np.matrix(d_r)
-    rp, ip = my2 * np.transpose(mx), my * np.transpose(mx)
-    cost1 = np.sum([np.abs(ip[i]-im[i]) for i in range(0, len(im))])/len(im)
-    ee = (np.mean(rl - rp))
-    if ee < 1:
-        ee = 1
-    cost2 = np.sum([np.abs(rp[i] - rl[i] + ee)
-                    for i in range(0, len(im))])/len(im)
-    return cost1, cost2, x, ee, rp, ip
-
-
-def calc(cal_inputs, freq):
-    # Calculates the Havriliak-Negami function for the given cal_inputs
-    q = [cal_inputs[2] + cal_inputs[3] / (np.array(1 + np.array(
-         1j * 2 * np.pi * f * cal_inputs[4]) ** cal_inputs[0]
-         ) ** cal_inputs[1]) for f in freq]
-    # Return the real and the imaginary part of the relaxation function
-    if len(q) > 1:
-        rl = [q[i].real for i in range(0, len(q))]
-        im = [q[i].imag for i in range(0, len(q))]
-    else:
-        rl = q[0].real
-        im = q[0].imag
-    return rl, im
+    cost_i, cost_r, _, _, _, _ = DLS(rl_g, im_g, x, freq_g)
+    return cost_i + cost_r
