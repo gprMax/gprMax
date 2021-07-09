@@ -52,9 +52,10 @@ class Relaxation(object):
                         (not neglected as default: True).
     :type save: bool, optional, default:True
     :param optimizer: chosen optimization method:
-                                        Particle Swarm, Genetic or Dual Annealing
-                                        (Default: Particle_swarm).
-    :type optimizer: Optimizer class, optional, default:Particle_swarm
+                                        Hybrid Particle Swarm-Damped Least-Squares,
+                                        Genetic or Dual Annealing (DA)
+                                        (Default: PSO_DLS).
+    :type optimizer: Optimizer class, optional
     :param optimizer_options: Additional keyword arguments passed to
                                      optimizer class (Default: empty dict).
     :type optimizer_options: dict, optional, default: empty dict
@@ -64,7 +65,7 @@ class Relaxation(object):
                  material_name, f_n=50,
                  number_of_debye_poles=-1,
                  plot=True, save=True,
-                 optimizer=Particle_swarm,
+                 optimizer=PSO_DLS,
                  optimizer_options={}):
         self.name = 'Relaxation function'
         self.params = {}
@@ -139,13 +140,13 @@ class Relaxation(object):
         """ Calling the main optimisation module with defined lower and upper boundaries of search.
 
         Returns:
-            xpm (ndarray): The logarithm with base 10 of relaxation times of the Debyes poles.
-            mx (ndarray): Resulting optimised weights for the given relaxation times.
+            tau (ndarray): The optimised relaxation times.
+            weights (ndarray): Resulting optimised weights for the given relaxation times.
             ee (float): Average error between the actual and the approximated real part.
-            rp (ndarray): The real part of the permittivity for the optimised relaxation
-                          times and weights for the frequnecies included in freq.
-            ip (ndarray): The imaginary part of the permittivity for the optimised
-                          relaxation times and weights for the frequnecies included in freq.
+            rl (ndarray): Real parts of chosen relaxation function
+                          for given frequency points.
+            im (ndarray): Imaginary parts of chosen relaxation function
+                          for given frequency points.
         """
         # Define the lower and upper boundaries of search
         lb = np.full(self.number_of_debye_poles,
@@ -153,14 +154,13 @@ class Relaxation(object):
         ub = np.full(self.number_of_debye_poles,
                      -np.log10(np.min(self.freq)) + 3)
         # Call optimizer to minimize the cost function
-        xmp, _ = self.optimizer.fit(func=cost_function,
-                                    lb=lb, ub=ub,
-                                    funckwargs={'rl_g': self.rl,
-                                                'im_g': self.im,
-                                                'freq_g': self.freq}
-                                    )
-        _, _, mx, ee, rp, ip = DLS(self.rl, self.im, xmp, self.freq)
-        return xmp, mx, ee, rp, ip
+        tau, weights, ee, rl, im = self.optimizer.fit(func=self.optimizer.cost_function,
+                                                      lb=lb, ub=ub,
+                                                      funckwargs={'rl': self.rl,
+                                                                  'im': self.im,
+                                                                  'freq': self.freq}
+                                                     )
+        return tau, weights, ee, rl, im
 
     def run(self):
         """ Solve the problem described by the given relaxation function
@@ -182,6 +182,10 @@ class Relaxation(object):
         xmp, mx, ee, rp, ip = self.optimize()
         # Print the results in gprMax format style
         properties = self.print_output(xmp, mx, ee)
+        err_real, err_imag = self.error(rp + ee, ip)
+        print(f'The average fractional error for:\n'
+              f'- real part: {err_real}\n'
+              f'- imaginary part: {err_imag}\n')
         if self.save:
             self.save_result(properties)
         # Plot the actual and the approximate dielectric properties
@@ -265,6 +269,25 @@ class Relaxation(object):
         ax.set_ylabel("Approximation error (%)")
         plt.show()
 
+    def error(self, rl_exp, im_exp):
+        """ Calculate the average fractional error separately for
+        relative permittivity (real part) and conductivity (imaginary part)
+
+        Args:
+            rl_exp (ndarray): Real parts of optimised Debye expansion
+                              for given frequency points (plus average error).
+            im_exp (ndarray): Imaginary parts of optimised Debye expansion
+                              for given frequency points.
+        Returns:
+            avg_err_real (float): average fractional error
+                                  for relative permittivity (real part)
+            avg_err_imag (float): average fractional error
+                                  for conductivity (imaginary part)
+        """
+        avg_err_real = np.sum(np.abs((rl_exp - self.rl)/self.rl) * 100)/len(rl_exp)
+        avg_err_imag = np.sum(np.abs((im_exp - self.im)/self.im) * 100)/len(im_exp)
+        return avg_err_real, avg_err_imag
+
     @staticmethod
     def save_result(output, fdir="../materials"):
         """ Save the resulting Debye parameters in a gprMax format.
@@ -328,7 +351,7 @@ class HavriliakNegami(Relaxation):
                  sigma, mu, mu_sigma, material_name,
                  number_of_debye_poles=-1, f_n=50,
                  plot=False, save=True,
-                 optimizer=Particle_swarm,
+                 optimizer=PSO_DLS,
                  optimizer_options={}):
         super(HavriliakNegami, self).__init__(sigma=sigma, mu=mu, mu_sigma=mu_sigma,
                                               material_name=material_name, f_n=f_n,
@@ -398,7 +421,7 @@ class Jonscher(Relaxation):
                  sigma, mu, mu_sigma,
                  material_name, number_of_debye_poles=-1,
                  f_n=50, plot=False, save=True,
-                 optimizer=Particle_swarm,
+                 optimizer=PSO_DLS,
                  optimizer_options={}):
         super(Jonscher, self).__init__(sigma=sigma, mu=mu, mu_sigma=mu_sigma,
                                        material_name=material_name, f_n=f_n,
@@ -431,7 +454,7 @@ class Jonscher(Relaxation):
         if self.n_p > 1:
             sys.exit("n_p value must range between 0-1 (0 <= n_p <= 1)")
         if self.f_min == self.f_max:
-            sys.exit("Error: Null frequency range")
+            sys.exit("Error: Null frequency range!")
 
     def calculation(self):
         """Calculates the Q function for the given parameters"""
@@ -462,7 +485,7 @@ class Crim(Relaxation):
                  materials, sigma, mu, mu_sigma, material_name, 
                  number_of_debye_poles=-1, f_n=50,
                  plot=False, save=True,
-                 optimizer=Particle_swarm,
+                 optimizer=PSO_DLS,
                  optimizer_options={}):
 
         super(Crim, self).__init__(sigma=sigma, mu=mu, mu_sigma=mu_sigma,
@@ -553,7 +576,7 @@ class Rawdata(Relaxation):
                  material_name, number_of_debye_poles=-1,
                  f_n=50, delimiter =',',
                  plot=False, save=True,
-                 optimizer=Particle_swarm,
+                 optimizer=PSO_DLS,
                  optimizer_options={}):
 
         super(Rawdata, self).__init__(sigma=sigma, mu=mu, mu_sigma=mu_sigma,
@@ -619,10 +642,20 @@ if __name__ == "__main__":
                             material_name="Kelley",
                             number_of_debye_poles=5, f_n=100,
                             plot=True, save=False,
-                            optimizer=Dual_annealing,
+                            optimizer=DA,
                             optimizer_options={'seed': 111})
     setup.run()
-    ### Testing setup
+    setup = HavriliakNegami(f_min=1e7, f_max=1e11,
+                            alpha=1-0.09, beta=0.45,
+                            e_inf=2.7, de=8.6-2.7, tau_0=9.4e-10,
+                            sigma=0, mu=0, mu_sigma=0,
+                            material_name="Kelley",
+                            number_of_debye_poles=5, f_n=100,
+                            plot=True, save=False,
+                            optimizer=DE,
+                            optimizer_options={'seed': 111})
+    setup.run()
+    '''### Testing setup
     setup = Rawdata("Test.txt", 0.1, 1, 0.1, "M1", 3, plot=True,
                     optimizer_options={'seed': 111,
                                        'pflag': True})
@@ -640,4 +673,4 @@ if __name__ == "__main__":
     materials = np.array([material1, material2])
     setup = Crim(1*1e-1, 1e-9, 0.5, f, materials, 0.1,
                  1, 0, "M4", 2, plot=True)
-    setup.run()
+    setup.run()'''

@@ -24,7 +24,7 @@ from tqdm import tqdm
 
 class Optimizer(object):
     """
-    Create particle swarm optimisation object.
+    Create choosen optimisation object.
 
     :param maxiter: The maximum number of iterations for the
                     optimizer (Default: 1000).
@@ -36,14 +36,57 @@ class Optimizer(object):
     def __init__(self, maxiter=1000, seed=None):
         self.maxiter = maxiter
         self.seed = seed
+        self.calc_weights = DLS
 
-    def fit(self):
-        """
-        Call the optimization function that tries to find an optimal set
+    def fit(self, func, lb, ub, funckwargs={}):
+        """Call the optimization function that tries to find an optimal set
         of relaxation times that minimise the error
-        between the actual and the approximated electric permittivity.
+        between the actual and the approximated electric permittivity
+        and calculate optimised weights for the given relaxation times.
+
+        Args:
+            func (function): The function to be minimized.
+            lb (ndarray): The lower bounds of the design variable(s).
+            ub (ndarray): The upper bounds of the design variable(s).
+            funckwargs (dict): Additional keyword arguments passed to
+                               objective and constraint function
+                               (Default: empty dict).
+
+        Returns:
+            tau (ndarray): The the best relaxation times.
+            weights (ndarray): Resulting optimised weights for the given relaxation times.
+            ee (float): Average error between the actual and the approximated real part.
+            rl (ndarray): Real parts of chosen relaxation function
+                          for given frequency points.
+            im (ndarray): Imaginary parts of chosen relaxation function
+                          for given frequency points.
         """
-        raise NotImplementedError()
+        np.random.seed(self.seed)
+        # find the relaxation frequencies using Differential Evolution
+        tau, _ = self.calc_relaxation_times(func, lb, ub, funckwargs)
+        # find the weights using a damped least squares
+        _, _, weights, ee, rl_exp, im_exp = self.calc_weights(tau, **funckwargs)
+        return tau, weights, ee, rl_exp, im_exp
+
+    @staticmethod
+    def cost_function(x, rl, im, freq):
+        """
+        The cost function is the average error between
+        the actual and the approximated electric permittivity.
+
+        Args:
+            x (ndarray): The logarithm with base 10 of relaxation times of the Debyes poles.
+            rl (ndarray): Real parts of chosen relaxation function
+                          for given frequency points.
+            im (ndarray): Imaginary parts of chosen relaxation function
+                          for given frequency points.
+            freq (ndarray): The frequencies vector for defined grid.
+
+        Returns:
+            cost (float): Sum of mean absolute errors for real and imaginary parts.
+        """
+        cost_i, cost_r, _, _, _, _ = DLS(x, rl, im, freq)
+        return cost_i + cost_r
 
     @staticmethod
     def plot(x, y):
@@ -66,9 +109,9 @@ class Optimizer(object):
         plt.pause(0.0001)
 
 
-class Particle_swarm(Optimizer):
-    """
-    Create particle swarm optimisation object with predefined parameters.
+class PSO_DLS(Optimizer):
+    """ Create hybrid Particle Swarm-Damped Least Squares optimisation
+    object with predefined parameters.
 
     :param swarmsize: The number of particles in the swarm (Default: 40).
     :type swarmsize: int, optional
@@ -98,7 +141,7 @@ class Particle_swarm(Optimizer):
                  minstep=1e-8, minfun=1e-8,
                  pflag=False, seed=None):
 
-        super(Particle_swarm, self).__init__(maxiter, seed)
+        super(PSO_DLS, self).__init__(maxiter, seed)
         self.swarmsize = swarmsize
         self.omega = omega
         self.phip = phip
@@ -107,7 +150,7 @@ class Particle_swarm(Optimizer):
         self.minfun = minfun
         self.pflag = pflag
 
-    def fit(self, func, lb, ub, funckwargs={}):
+    def calc_relaxation_times(self, func, lb, ub, funckwargs={}):
         """
         A particle swarm optimisation that tries to find an optimal set
         of relaxation times that minimise the error
@@ -124,7 +167,7 @@ class Particle_swarm(Optimizer):
                                (Default: empty dict).
 
         Returns:
-            g (ndarray): The swarm's best known position (optimal design).
+            g (ndarray): The swarm's best known position (relaxation times).
             fg (float): The objective value at ``g``.
         """
         np.random.seed(self.seed)
@@ -217,75 +260,23 @@ class Particle_swarm(Optimizer):
                 else:
                     xpp.append(it)
                     ypp.append(fg)
-                Particle_swarm.plot(xpp, ypp)
+                PSO_DLS.plot(xpp, ypp)
         return g, fg
 
 
-class Dual_annealing(Optimizer):
-    """
-    Create dual annealing object with predefined parameters.
-
-    :param maxiter: The maximum number of iterations for the swarm
-                    to search (Default: 1000).
-    :type maxiter: int, optional
-    :param local_search_options: Extra keyword arguments to be passed
-                                 to the local minimizer, reffer to
-                                 scipy.optimize.minimize() function
-                                 (Default: empty dict).
-    :type local_search_options: dict, optional
-    :param initial_temp (float): The initial temperature, use higher values to
-                                facilitates a wider search of the energy
-                                landscape, allowing dual_annealing to escape
-                                local minima that it is trapped in.
-                                Range is (0.01, 5.e4] (Default: 5230).
-    :type initial_temp: float, optional
-    :param restart_temp_ratio: During the annealing process,
-                               temperature is decreasing, when it
-                               reaches initial_temp * restart_temp_ratio,
-                               the reannealing process is triggered.
-                               Range is (0, 1) (Default: 2e-5).
-    :type restart_temp_ratio: float, optional
-    :param visit: Parameter for visiting distribution. The value range is (1, 3]
-                  (Default: 2.62).
-    :type visit: float, optional
-    :param accept: Parameter for acceptance distribution. It is used to control
-                   the probability of acceptance. The lower the acceptance parameter,
-                   the smaller the probability of acceptance. The value range (-1e4, -5]
-                   (Default: -5.0).
-    :type accept: float, optional
-    :param no_local_search (bool): If no_local_search is set to True, a traditional
-                                   Generalized Simulated Annealing will be performed
-                                   with no local search strategy applied (Default: False).
-    :type no_local_search: bool, optional
-    :param maxfun: Soft limit for the number of objective function calls.
-                        (Default: 1e7).
-    :type maxfun: int, optional
-    :param callback: A callback function with signature callback(x, f, context),
-                     which will be called for all minima found.
-                     x and f are the coordinates and function value of
-                     the latest minimum found, and context has value in [0, 1, 2],
-                     with the following meaning:
-                     0: minimum detected in the annealing process.
-                     1: detection occurred in the local search process.
-                     2: detection done in the dual annealing process.
-                     If the callback implementation returns True,
-                     the algorithm will stop.
-    :type callback: None, callable, optional
-    :param x0: Coordinates of a single N-D starting point, shape(n,).
-                        (Default: None).
-    :type x0: None, ndarray, optional
-    :param seed: Specify seed for repeatable minimizations.
-                 The random numbers generated with this seed only
-                 affect the visiting distribution function and
-                 new coordinates generation (Default: None).
-    :type seed: None, int, optional
+class DA(Optimizer):
+    """ Create Dual Annealing object with predefined parameters.
+    The current class is a modified edition of the scipy.optimize
+    package which can be found at:
+    https://docs.scipy.org/doc/scipy/reference/generated/
+    scipy.optimize.dual_annealing.html#scipy.optimize.dual_annealing
     """
     def __init__(self, maxiter=1000,
                  local_search_options={}, initial_temp=5230.0,
                  restart_temp_ratio=2e-05, visit=2.62, accept=-5.0,
                  maxfun=1e7, no_local_search=False,
                  callback=None, x0=None, seed=None):
-        super(Dual_annealing, self).__init__(maxiter, seed)
+        super(DA, self).__init__(maxiter, seed)
         self.local_search_options = local_search_options
         self.initial_temp = initial_temp
         self.restart_temp_ratio = restart_temp_ratio
@@ -296,7 +287,7 @@ class Dual_annealing(Optimizer):
         self.callback = callback
         self.x0 = x0
 
-    def fit(self, func, lb, ub, funckwargs={}):
+    def calc_relaxation_times(self, func, lb, ub, funckwargs={}):
         """
         Find the global minimum of a function using Dual Annealing.
         The current class is a modified edition of the scipy.optimize
@@ -306,15 +297,15 @@ class Dual_annealing(Optimizer):
 
         Args:
             func (function): The function to be minimized
-            lb (array): The lower bounds of the design variable(s)
-            ub (array): The upper bounds of the design variable(s)
+            lb (ndarray): The lower bounds of the design variable(s)
+            ub (ndarray): The upper bounds of the design variable(s)
             funckwargs (dict): Additional keyword arguments passed to
                                objective and constraint function
                                (Default: empty dict)
 
         Returns:
-            g (array): The solution array (optimal design).
-            fg (float): The objective value at the solution.
+            x (ndarray): The solution array (relaxation times).
+            fun (float): The objective value at the best solution.
         """
         np.random.seed(self.seed)
         result = scipy.optimize.dual_annealing(func,
@@ -330,22 +321,92 @@ class Dual_annealing(Optimizer):
                                                no_local_search=self.no_local_search,
                                                callback=self.callback,
                                                x0=self.x0)
+        print(result.message)
         return result.x, result.fun
 
 
-def DLS(rl, im, logt, freq):
+class DE(Optimizer):
+    """
+    Create Differential Evolution-Damped Least Squares object with predefined parameters.
+    The current class is a modified edition of the scipy.optimize
+    package which can be found at:
+    https://docs.scipy.org/doc/scipy/reference/generated/
+    scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution
+    """
+    def __init__(self, maxiter=1000,
+                 strategy='best1bin', popsize=15, tol=0.01, mutation=(0.5, 1),
+                 recombination=0.7, callback=None, disp=False, polish=True,
+                 init='latinhypercube', atol=0, updating='immediate', workers=1,
+                 constraints=(), seed=None):
+        super(DE, self).__init__(maxiter, seed)
+        self.strategy = strategy
+        self.popsize = popsize
+        self.tol = tol
+        self.mutation = mutation
+        self.recombination = recombination
+        self.callback = callback
+        self.disp = disp
+        self.polish = polish
+        self.init= init
+        self.atol = atol
+        self.updating = updating
+        self.workers = workers
+        self.constraints = constraints
+
+    def calc_relaxation_times(self, func, lb, ub, funckwargs={}):
+        """
+        Find the global minimum of a function using Differential Evolution.
+        The current class is a modified edition of the scipy.optimize
+        package which can be found at:
+        https://docs.scipy.org/doc/scipy/reference/generated/
+        scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution
+
+        Args:
+            func (function): The function to be minimized
+            lb (ndarray): The lower bounds of the design variable(s)
+            ub (ndarray): The upper bounds of the design variable(s)
+            funckwargs (dict): Additional keyword arguments passed to
+                               objective and constraint function
+                               (Default: empty dict)
+
+        Returns:
+            x (ndarray): The solution array (relaxation times).
+            fun (float): The objective value at the best solution.
+        """
+        np.random.seed(self.seed)
+        result = scipy.optimize.differential_evolution(func,
+                                                       bounds=list(zip(lb, ub)),
+                                                       args=funckwargs.values(),
+                                                       strategy=self.strategy,
+                                                       popsize=self.popsize,
+                                                       tol=self.tol,
+                                                       mutation=self.mutation,
+                                                       recombination=self.recombination,
+                                                       callback=self.callback,
+                                                       disp=self.disp,
+                                                       polish=self.polish,
+                                                       init=self.init,
+                                                       atol=self.atol,
+                                                       updating=self.updating,
+                                                       workers=self.workers,
+                                                       constraints=self.constraints)
+        print(result.message)
+        return result.x, result.fun
+
+
+def DLS(logt, rl, im, freq):
     """
     Find the weights using a non-linear least squares (LS) method,
     the Levenberg–Marquardt algorithm (LMA or just LM),
     also known as the damped least-squares (DLS) method.
 
     Args:
+        logt (ndarray): The best known position form optimization module (optimal design),
+                        the logarithm with base 10 of relaxation times of the Debyes poles.
         rl (ndarray): Real parts of chosen relaxation function
                       for given frequency points.
         im (ndarray): Imaginary parts of chosen relaxation function
                       for given frequency points.
-        logt (ndarray): The best known position form optimization module (optimal design),
-                        the logarithm with base 10 of relaxation times of the Debyes poles.
         freq (ndarray): The frequencies vector for defined grid.
 
     Returns:
@@ -364,36 +425,16 @@ def DLS(rl, im, logt, freq):
     # logt=log10(t0) for efficiency during the optimisation
     # Here they are transformed back t0=10**logt
     tt = 10**logt
-    # y = Ax , here the A matrix for the real and the imaginary part is builded
+    # y = Ax, here the A matrix for the real and the imaginary part is builded
     d = 1 / (1 + 1j * 2 * np.pi * np.repeat(
              freq, len(tt)).reshape((-1, len(tt))) * tt)
     # Adding dumping (Levenberg–Marquardt algorithm)
     # Solving the overdetermined system y=Ax
-    x = np.abs(np.linalg.lstsq(d.imag, im, rcond=-1)[0])  # absolute damped least-squares solution
+    x = np.abs(np.linalg.lstsq(d.imag, im, rcond=None)[0])  # absolute damped least-squares solution
     rp, ip = np.matmul(d.real, x[np.newaxis].T).T[0], np.matmul(d.imag, x[np.newaxis].T).T[0]
     cost_i = np.sum(np.abs(ip-im))/len(im)
     ee = np.mean(rl - rp)
     if ee < 1:
         ee = 1
-    cost_r = np.sum(np.abs(rp - rl + ee))/len(im)
+    cost_r = np.sum(np.abs(rp + ee - rl))/len(im)
     return cost_i, cost_r, x, ee, rp, ip
-
-
-def cost_function(x, rl_g, im_g, freq_g):
-    """
-    The cost function is the average error between
-    the actual and the approximated electric permittivity.
-
-    Args:
-        x (ndarray): The logarithm with base 10 of relaxation times of the Debyes poles.
-        rl_g (ndarray): Real parts of chosen relaxation function
-                        for given frequency points.
-        im_g (ndarray): Imaginary parts of chosen relaxation function
-                        for given frequency points.
-        freq (ndarray): The frequencies vector for defined grid.
-
-    Returns:
-        cost (float): Sum of mean absolute errors for real and imaginary part.
-    """
-    cost_i, cost_r, _, _, _, _ = DLS(rl_g, im_g, x, freq_g)
-    return cost_i + cost_r
