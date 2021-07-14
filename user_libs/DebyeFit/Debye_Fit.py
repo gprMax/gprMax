@@ -52,9 +52,9 @@ class Relaxation(object):
                         (not neglected as default: True).
     :type save: bool, optional, default:True
     :param optimizer: chosen optimization method:
-                                        Hybrid Particle Swarm-Damped Least-Squares,
-                                        Genetic or Dual Annealing (DA)
-                                        (Default: PSO_DLS).
+                      Hybrid Particle Swarm-Damped Least-Squares (PSO_DLS),
+                      Dual Annealing (DA) or Differential Evolution (DE)
+                      (Default: PSO_DLS).
     :type optimizer: Optimizer class, optional
     :param optimizer_options: Additional keyword arguments passed to
                                      optimizer class (Default: empty dict).
@@ -166,6 +166,10 @@ class Relaxation(object):
         """ Solve the problem described by the given relaxation function
         (Havriliak-Negami function, Crim, Jonscher)
         or data given from a text file.
+
+        Returns:
+            avg_err (float): average fractional error
+                             for relative permittivity (sum)
         """
         # Check the validity of the inputs
         self.check_inputs()
@@ -191,6 +195,7 @@ class Relaxation(object):
         # Plot the actual and the approximate dielectric properties
         if self.plot:
             self.plot_result(rp + ee, ip)
+        return err_real + err_imag
 
     def print_output(self, xmp, mx, ee):
         """ Print out the resulting Debye parameters in a gprMax format.
@@ -285,7 +290,7 @@ class Relaxation(object):
                                   for conductivity (imaginary part)
         """
         avg_err_real = np.sum(np.abs((rl_exp - self.rl)/self.rl) * 100)/len(rl_exp)
-        avg_err_imag = np.sum(np.abs((im_exp - self.im)/self.im) * 100)/len(im_exp)
+        avg_err_imag = np.sum(np.abs((-im_exp + self.im)/self.im) * 100)/len(im_exp)
         return avg_err_real, avg_err_imag
 
     @staticmethod
@@ -397,7 +402,7 @@ class HavriliakNegami(Relaxation):
                                      )**self.beta
 
 class Jonscher(Relaxation):
-    """ Approximate a given Johnsher function
+    """ Approximate a given Jonsher function
     Jonscher function = ε_∞ - ap * (-1j * 2πf / omegap)**n_p,
                         where f is the frequency in Hz
 
@@ -619,7 +624,7 @@ class Rawdata(Relaxation):
 if __name__ == "__main__":
     ### Kelley et al. parameters
     setup = HavriliakNegami(f_min=1e7, f_max=1e11,
-                            alpha=1-0.09, beta=0.45,
+                            alpha=0.91, beta=0.45,
                             e_inf=2.7, de=8.6-2.7, tau_0=9.4e-10,
                             sigma=0, mu=0, mu_sigma=0,
                             material_name="Kelley",
@@ -655,7 +660,7 @@ if __name__ == "__main__":
                             optimizer=DE,
                             optimizer_options={'seed': 111})
     setup.run()
-    '''### Testing setup
+    ### Testing setup
     setup = Rawdata("Test.txt", 0.1, 1, 0.1, "M1", 3, plot=True,
                     optimizer_options={'seed': 111,
                                        'pflag': True})
@@ -673,4 +678,4 @@ if __name__ == "__main__":
     materials = np.array([material1, material2])
     setup = Crim(1*1e-1, 1e-9, 0.5, f, materials, 0.1,
                  1, 0, "M4", 2, plot=True)
-    setup.run()'''
+    setup.run()
