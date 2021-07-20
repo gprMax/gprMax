@@ -142,14 +142,13 @@ class SubGridHSG(SubGridBase):
 
         # Allocating memory on gpu for the variables
 
+        main_grid.updatecoeffsH_gpu = gpuarray.to_gpu(main_grid.updatecoeffsH)
+        main_grid.ID_gpu = gpuarray.to_gpu(main_grid.ID)
+        main_grid.Hz_gpu = gpuarray.to_gpu(main_grid.Hz)
+        main_grid.Hx_gpu = gpuarray.to_gpu(main_grid.Hx)
 
-        # main_grid.updatecoeffsH_gpu = gpuarray.to_gpu(main_grid.updatecoeffsH)
-        # main_grid.ID_gpu = gpuarray.to_gpu(main_grid.ID)
-        # main_grid.Hz_gpu = gpuarray.to_gpu(main_grid.Hz)
-        # main_grid.Hx_gpu = gpuarray.to_gpu(main_grid.Hx)
-
-        # self.Ex_gpu = gpuarray.to_gpu(self.Ex)
-        # self.Ez_gpu = gpuarray.to_gpu(self.Ez)
+        self.Ex_gpu = gpuarray.to_gpu(self.Ex)
+        self.Ez_gpu = gpuarray.to_gpu(self.Ez)
 
         kernel_template_os = Template("""
         // Defining Macros
@@ -170,7 +169,7 @@ class SubGridHSG(SubGridBase):
                     unsigned int lookup_id,
                     int l_l, int l_u,
                     int m_l, int m_u,
-                    unsigned int n_l, unsigned int n_u,
+                    int n_l, int n_u,
                     double *__restrict__ updatecoeffsH, 
                     const unsigned int *__restrict__ ID,
                     double *__restrict__ field,
@@ -192,13 +191,14 @@ class SubGridHSG(SubGridBase):
                         os = n_boundary_cells - sub_ratio * surface_sep;
 
                         // Linear Index to 3D subscript for front face 
-                        l = idx / ($NY_FIELDS * $NZ_FIELDS);
-                        m = (idx % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
+                        l = idx / ($NZ_FIELDS * $NY_FIELDS);
+                        // m = idx % $NZ_FIELDS;
+                        m = (idx % ($NZ_FIELDS * $NY_FIELDS)) % $NZ_FIELDS;
 
                         if(face == 3 && mid == 1 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
                             // subgrid coords
-                            l_s = os + (a - l_l) * sub_ratio + floor((double) sub_ratio / 2);
-                            m_s = os + (b - m_l) * sub_ratio;
+                            l_s = os + (l - l_l) * sub_ratio + floor((double) sub_ratio / 2);
+                            m_s = os + (m - m_l) * sub_ratio;
 
                             // Main grid Index
                             i0 = l; j0 = n_l; k0 = m;
@@ -225,12 +225,13 @@ class SubGridHSG(SubGridBase):
 
         mod = SourceModule(kernel_template_os.substitute(
             NY_MATCOEFFS = main_grid.updatecoeffsH.shape[1],
+            NX_FIELDS = main_grid.nx + 1,
             NY_FIELDS = main_grid.ny + 1,
             NZ_FIELDS = main_grid.nz + 1,
             NX_ID = main_grid.ID.shape[1],
             NY_ID = main_grid.ID.shape[2],
             NZ_ID = main_grid.ID.shape[3]
-        ))
+        ), options=['-g', '-G'])
 
         hsg_update_magnetic_os_gpu = mod.get_function("hsg_update_magnetic_os")
 
@@ -247,19 +248,26 @@ class SubGridHSG(SubGridBase):
             np.int32(self.nwy), # nwn
             np.int32(main_grid.IDlookup['Hz']),
             np.int32(i_l), np.int32(i_u + 1),
-            np.int32(k_l), np.int32(k_l + 1),
+            np.int32(k_l), np.int32(k_u + 1),
             np.int32(j_l - 1), np.int32(j_u),
-            cuda.In(main_grid.updatecoeffsH),
-            cuda.In(main_grid.ID),
-            cuda.InOut(main_grid.Hz),
-            cuda.InOut(self.Ex),
-            block = (1,1,1)) 
+            main_grid.updatecoeffsH_gpu.gpudata, # cuda.In(main_grid.updatecoeffsH),
+            main_grid.ID_gpu.gpudata, # cuda.In(main_grid.ID),
+            main_grid.Hz_gpu.gpudata, # cuda.InOut(main_grid.Hz),
+            self.Ex_gpu.gpudata, # cuda.InOut(self.Ex),
+            block = (128,1,1),
+            grid = bpg) 
 
-    
         # Args: sub_grid, normal, l_l, l_u, m_l, m_u, n_l, n_u, nwn, lookup_id, field, inc_field, co, sign_n, sign_f):
 
         # Front and back
-        # cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 3, i_l, i_u, k_l, k_u + 1, j_l - 1, j_u, self.nwy, main_grid.IDlookup['Hz'], main_grid.Hz, self.Ex, 2, 1, -1, 1, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
+        cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 3, i_l, i_u, k_l, k_u + 1, j_l - 1, j_u, self.nwy, main_grid.IDlookup['Hz'], main_grid.Hz, self.Ex, 2, 1, -1, 1, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
+
+        # Conditions to check if the arrays are same
+        a = main_grid.Hz_gpu.get() == main_grid.Hz
+        b = self.Ex_gpu.get() == self.Ex
+
+        print(a.all())
+        
         cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 3, i_l, i_u + 1, k_l, k_u, j_l - 1, j_u, self.nwy, main_grid.IDlookup['Hx'], main_grid.Hx, self.Ez, 2, -1, 1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
 
         # Left and Right
