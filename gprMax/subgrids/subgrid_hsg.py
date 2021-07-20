@@ -16,13 +16,25 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+
 import logging
+import sys
+
+from numpy.core.shape_base import block
+from pytools import partition
 
 import gprMax.config as config
 from ..cython.fields_updates_hsg import (cython_update_electric_os,
                                          cython_update_is,
                                          cython_update_magnetic_os)
 from .base import SubGridBase
+
+from string import Template
+import pycuda.driver as cuda
+import pycuda.autoinit
+from pycuda.compiler import SourceModule
+import pycuda.gpuarray as gpuarray
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -127,10 +139,127 @@ class SubGridHSG(SubGridBase):
         # Hy = c0Hy - c3Ex + c1Ez
         # Hx = c0Hx - c2Ez + c3Ey
 
+
+        # Allocating memory on gpu for the variables
+
+
+        # main_grid.updatecoeffsH_gpu = gpuarray.to_gpu(main_grid.updatecoeffsH)
+        # main_grid.ID_gpu = gpuarray.to_gpu(main_grid.ID)
+        # main_grid.Hz_gpu = gpuarray.to_gpu(main_grid.Hz)
+        # main_grid.Hx_gpu = gpuarray.to_gpu(main_grid.Hx)
+
+        # self.Ex_gpu = gpuarray.to_gpu(self.Ex)
+        # self.Ez_gpu = gpuarray.to_gpu(self.Ez)
+
+        kernel_template_os = Template("""
+        // Defining Macros
+        #define INDEX2D_MAT(m, n) (m)*($NY_MATCOEFFS) + (n)
+        #define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS) + (j)*($NZ_FIELDS) + (k)
+        #define INDEX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID) + (i)*($NY_ID)*($NZ_ID) + (j)*($NZ_ID) + (k)
+
+
+        __global__ void hsg_update_magnetic_os(
+                    int face,
+                    unsigned int co,
+                    int sign_n, int sign_f,
+                    int mid,
+                    int sub_ratio,
+                    int surface_sep,
+                    int n_boundary_cells,
+                    int nwn,
+                    unsigned int lookup_id,
+                    int l_l, int l_u,
+                    int m_l, int m_u,
+                    unsigned int n_l, unsigned int n_u,
+                    double *__restrict__ updatecoeffsH, 
+                    const unsigned int *__restrict__ ID,
+                    double *__restrict__ field,
+                    double *__restrict__ inc_field) {
+                        // Current Thread Index
+                        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+                        int l, m, l_s, m_s, n_s_l, n_s_r, material_e_l, material_e_r, i0, j0, k0, i1, j1, k1, i2, j2, k2, i3, j3, k3;
+                        int os;
+                        double inc_n, inc_f;
+                        
+                        // Index (normal to os) for the subgrid near face e node
+                        n_s_l = n_boundary_cells - sub_ratio * surface_sep;
+
+                        // Normal index for the subgrid far face e node
+                        n_s_r = n_boundary_cells + nwn + sub_ratio * surface_sep;
+
+                        // OS Inner index for the subgrid
+                        os = n_boundary_cells - sub_ratio * surface_sep;
+
+                        // Linear Index to 3D subscript for front face 
+                        l = idx / ($NY_FIELDS * $NZ_FIELDS);
+                        m = (idx % ($NY_FIELDS * $NZ_FIELDS)) % $NZ_FIELDS;
+
+                        if(face == 3 && mid == 1 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
+                            // subgrid coords
+                            l_s = os + (a - l_l) * sub_ratio + floor((double) sub_ratio / 2);
+                            m_s = os + (b - m_l) * sub_ratio;
+
+                            // Main grid Index
+                            i0 = a; j0 = n_l; k0 = b;
+
+                            // Sub-grid Index
+                            i1 = l_s; j1 = n_s_l; k1 = m_s;
+                            i2 = a; j2 = n_u; k2 = b;
+                            i3 = l_s; j3 = n_s_r; k3 = m_s;
+
+                            // Material at main grid Index
+                            material_e_l = ID[INDEX4D_ID(lookup_id, i0, j0, k0)];
+                            // Associated Incident Field
+                            inc_n = inc_field[INDEX3D_FIELDS(i1, j1, k1)] * sign_n;
+
+                            field[INDEX3D_FIELDS(i0, j0, k0)] += updatecoeffsH[INDEX2D_MAT(material_e_l, co)] * inc_n;
+
+                            material_e_r = ID[INDEX4D_ID(lookup_id, i2, j2, k2)];
+                            inc_f = inc_field[INDEX3D_FIELDS(i3, j3, k3)] * sign_f;
+
+                            field[INDEX3D_FIELDS(i2, j2, k2)] += updatecoeffsH[INDEX2D_MAT(material_e_r, co)] * inc_f;
+                        }
+                    }
+        """)
+
+        mod = SourceModule(kernel_template_os.substitute(
+            NY_MATCOEFFS = main_grid.updatecoeffsH.shape[1],
+            NY_FIELDS = main_grid.ny + 1,
+            NZ_FIELDS = main_grid.nz + 1,
+            NX_ID = main_grid.ID.shape[1],
+            NY_ID = main_grid.ID.shape[2],
+            NZ_ID = main_grid.ID.shape[3]
+        ))
+
+        hsg_update_magnetic_os_gpu = mod.get_function("hsg_update_magnetic_os")
+
+        bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / 128)), 1, 1)
+
+        hsg_update_magnetic_os_gpu(
+            np.int32(3), # face
+            np.int32(2), # co
+            np.int32(1), np.int32(-1), # signs
+            np.int32(1), # mid
+            np.int32(self.ratio), # sub-ratio
+            np.int32(self.is_os_sep), # surface-sep
+            np.int32(self.n_boundary_cells),
+            np.int32(self.nwy), # nwn
+            np.int32(main_grid.IDlookup['Hz']),
+            np.int32(i_l), np.int32(i_u + 1),
+            np.int32(k_l), np.int32(k_l + 1),
+            np.int32(j_l - 1), np.int32(j_u),
+            cuda.In(main_grid.updatecoeffsH),
+            cuda.In(main_grid.ID),
+            cuda.InOut(main_grid.Hz),
+            cuda.InOut(self.Ex),
+            block = (1,1,1)) 
+
+    
         # Args: sub_grid, normal, l_l, l_u, m_l, m_u, n_l, n_u, nwn, lookup_id, field, inc_field, co, sign_n, sign_f):
 
         # Front and back
-        cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 3, i_l, i_u, k_l, k_u + 1, j_l - 1, j_u, self.nwy, main_grid.IDlookup['Hz'], main_grid.Hz, self.Ex, 2, 1, -1, 1, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
+        # cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 3, i_l, i_u, k_l, k_u + 1, j_l - 1, j_u, self.nwy, main_grid.IDlookup['Hz'], main_grid.Hz, self.Ex, 2, 1, -1, 1, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
         cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 3, i_l, i_u + 1, k_l, k_u, j_l - 1, j_u, self.nwy, main_grid.IDlookup['Hx'], main_grid.Hx, self.Ez, 2, -1, 1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
 
         # Left and Right
