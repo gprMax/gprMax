@@ -201,11 +201,11 @@ class SubGridHSG(SubGridBase):
                             m_s = os + (b - m_l) * sub_ratio;
 
                             // Main grid Index
-                            i0 = a; j0 = n_l; k0 = b;
+                            i0 = l; j0 = n_l; k0 = m;
 
                             // Sub-grid Index
                             i1 = l_s; j1 = n_s_l; k1 = m_s;
-                            i2 = a; j2 = n_u; k2 = b;
+                            i2 = l; j2 = n_u; k2 = m;
                             i3 = l_s; j3 = n_s_r; k3 = m_s;
 
                             // Material at main grid Index
