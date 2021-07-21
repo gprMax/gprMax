@@ -108,11 +108,9 @@ class Relaxation(object):
                   self.sigma, self.mu, self.mu_sigma]]
         except ValueError:
             sys.exit("The inputs should be numeric.")
-        if self.number_of_debye_poles <= 0:
-            sys.exit("The number of Debye poles must be positive.")
         if not isinstance(self.number_of_debye_poles, int):
             sys.exit("The number of Debye poles must be integer.")
-        if (np.array(d) < 0).sum() != 0:
+        if (np.array(d[1:]) < 0).sum() != 0:
             sys.exit("The inputs should be positive.")
 
     def calculation(self):
@@ -180,13 +178,30 @@ class Relaxation(object):
         q = self.calculation()
         # Set the real and the imaginary part of the relaxation function
         self.rl, self.im = q.real, q.imag
-        # Calling the main optimisation module
-        # if one of the weights is negative increase the stabiliser
-        # and repeat the optimisation
-        xmp, mx, ee, rp, ip = self.optimize()
+        
+        if self.number_of_debye_poles == -1:
+            error = np.infty # artificial best error starting value
+            self.number_of_debye_poles = 1
+            iteration = 1
+            # stop increasing number of Debye poles if error is smaller then 5%
+            # or 20 debye poles is reached
+            while error > 5 and iteration < 21:
+                # Calling the main optimisation module
+                tau, weights, ee, rl, im = self.optimize()
+                err_real, err_imag = self.error(rl + ee, im)
+                error = err_real + err_imag
+                self.number_of_debye_poles += 1
+                iteration += 1
+        else:
+            # Calling the main optimisation module
+            # for choosen number of debye poles
+            # if one of the weights is negative increase the stabiliser
+            # and repeat the optimisation
+            tau, weights, ee, rl, im = self.optimize()
+            err_real, err_imag = self.error(rl + ee, im)
+
         # Print the results in gprMax format style
-        properties = self.print_output(xmp, mx, ee)
-        err_real, err_imag = self.error(rp + ee, ip)
+        properties = self.print_output(tau, weights, ee)
         print(f'The average fractional error for:\n'
               f'- real part: {err_real}\n'
               f'- imaginary part: {err_imag}\n')
@@ -194,16 +209,16 @@ class Relaxation(object):
             self.save_result(properties)
         # Plot the actual and the approximate dielectric properties
         if self.plot:
-            self.plot_result(rp + ee, ip)
+            self.plot_result(rl + ee, im)
         return err_real + err_imag
 
-    def print_output(self, xmp, mx, ee):
+    def print_output(self, tau, weights, ee):
         """ Print out the resulting Debye parameters in a gprMax format.
 
         Args:
-            xpm (ndarray): The best known position form optimization module
+            tau (ndarray): The best known position form optimization module
                            (optimal design).
-            mx (ndarray): Resulting optimised weights for the given relaxation times.
+            weights (ndarray): Resulting optimised weights for the given relaxation times.
             ee (float): Average error between the actual and the approximated real part.
 
         Returns:
@@ -213,10 +228,10 @@ class Relaxation(object):
         print("Debye expansion parameters: ")
         print(f"       |{'e_inf':^14s}|{'De':^14s}|{'log(tau_0)':^25s}|")
         print("_" * 65)
-        for i in range(0, len(xmp)):
+        for i in range(0, len(tau)):
             print("Debye {0:}|{1:^14.5f}|{2:^14.5f}|{3:^25.5f}|"
-                  .format(i + 1, ee/len(xmp), mx[i],
-                          xmp[i]))
+                  .format(i + 1, ee/len(tau), weights[i],
+                          tau[i]))
             print("_" * 65)
 
         # Print the Debye expnasion in a gprMax format
@@ -226,9 +241,9 @@ class Relaxation(object):
                                                                   self.mu_sigma,
                                                                   self.material_name))
         print(material_prop[0], end="")
-        dispersion_prop = "#add_dispersion_debye: {}".format(len(xmp))
-        for i in range(len(xmp)):
-            dispersion_prop += " {} {}".format(mx[i], 10**xmp[i])
+        dispersion_prop = "#add_dispersion_debye: {}".format(len(tau))
+        for i in range(len(tau)):
+            dispersion_prop += " {} {}".format(weights[i], 10**tau[i])
         dispersion_prop += " {}".format(self.material_name)
         print(dispersion_prop)
         material_prop.append(dispersion_prop + '\n')
@@ -627,8 +642,7 @@ if __name__ == "__main__":
                             alpha=0.91, beta=0.45,
                             e_inf=2.7, de=8.6-2.7, tau_0=9.4e-10,
                             sigma=0, mu=0, mu_sigma=0,
-                            material_name="Kelley",
-                            number_of_debye_poles=5, f_n=100,
+                            material_name="Kelley", f_n=100,
                             plot=True, save=False,
                             optimizer_options={'swarmsize':30,
                                                'maxiter':100,
@@ -644,8 +658,7 @@ if __name__ == "__main__":
                             alpha=1-0.09, beta=0.45,
                             e_inf=2.7, de=8.6-2.7, tau_0=9.4e-10,
                             sigma=0, mu=0, mu_sigma=0,
-                            material_name="Kelley",
-                            number_of_debye_poles=5, f_n=100,
+                            material_name="Kelley", f_n=100,
                             plot=True, save=False,
                             optimizer=DA,
                             optimizer_options={'seed': 111})
@@ -654,28 +667,26 @@ if __name__ == "__main__":
                             alpha=1-0.09, beta=0.45,
                             e_inf=2.7, de=8.6-2.7, tau_0=9.4e-10,
                             sigma=0, mu=0, mu_sigma=0,
-                            material_name="Kelley",
-                            number_of_debye_poles=5, f_n=100,
+                            material_name="Kelley", f_n=100,
                             plot=True, save=False,
                             optimizer=DE,
                             optimizer_options={'seed': 111})
     setup.run()
     ### Testing setup
-    setup = Rawdata("Test.txt", 0.1, 1, 0.1, "M1", 3, plot=True,
-                    optimizer_options={'seed': 111,
-                                       'pflag': True})
+    setup = Rawdata("Test.txt", 0.1, 1, 0.1, "M1", plot=True,
+                    optimizer_options={'seed': 111})
     setup.run()
     np.random.seed(111)
     setup = HavriliakNegami(1e12, 1e-3, 0.5, 1, 10, 5,
-                            1e-6, 0.1, 1, 0, "M2", 6, plot=True)
+                            1e-6, 0.1, 1, 0, "M2", plot=True)
     setup.run()
     setup = Jonscher(1e6, 1e-5, 50, 1, 1e5, 0.7,
-                     0.1, 1, 0.1, "M3", 4, plot=True)
+                     0.1, 1, 0.1, "M3", plot=True)
     setup.run()
     f = np.array([0.5, 0.5])
     material1 = [3, 25, 1e6]
     material2 = [3, 0, 1e3]
     materials = np.array([material1, material2])
     setup = Crim(1*1e-1, 1e-9, 0.5, f, materials, 0.1,
-                 1, 0, "M4", 2, plot=True)
+                 1, 0, "M4", plot=True)
     setup.run()
