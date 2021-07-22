@@ -194,7 +194,7 @@ class SubGridHSG(SubGridBase):
                         l = idx / ($NZ_FIELDS * $NY_FIELDS);
                         // m = idx % $NZ_FIELDS;
                         m = (idx % ($NZ_FIELDS * $NY_FIELDS)) % $NZ_FIELDS;
-
+                        
                         if(face == 3 && mid == 1 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
                             // subgrid coords
                             l_s = os + (l - l_l) * sub_ratio + floor((double) sub_ratio / 2);
@@ -213,12 +213,12 @@ class SubGridHSG(SubGridBase):
                             // Associated Incident Field
                             inc_n = inc_field[INDEX3D_FIELDS(i1, j1, k1)] * sign_n;
 
-                            field[INDEX3D_FIELDS(i0, j0, k0)] += updatecoeffsH[INDEX2D_MAT(material_e_l, co)] * inc_n;
+                            field[INDEX3D_FIELDS(i0, j0, k0)] = field[INDEX3D_FIELDS(i0, j0, k0)] + updatecoeffsH[INDEX2D_MAT(material_e_l, co)] * inc_n;
 
                             material_e_r = ID[INDEX4D_ID(lookup_id, i2, j2, k2)];
                             inc_f = inc_field[INDEX3D_FIELDS(i3, j3, k3)] * sign_f;
 
-                            field[INDEX3D_FIELDS(i2, j2, k2)] += updatecoeffsH[INDEX2D_MAT(material_e_r, co)] * inc_f;
+                            field[INDEX3D_FIELDS(i2, j2, k2)] = field[INDEX3D_FIELDS(i2, j2, k2)] + updatecoeffsH[INDEX2D_MAT(material_e_r, co)] * inc_f;
                         }
                     }
         """)
@@ -235,7 +235,7 @@ class SubGridHSG(SubGridBase):
 
         hsg_update_magnetic_os_gpu = mod.get_function("hsg_update_magnetic_os")
 
-        bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / 128)), 1, 1)
+        bpg = (int(np.ceil(((main_grid.nx + 1) * (main_grid.ny + 1) * (main_grid.nz + 1)) / 128)), 1, 1)
 
         hsg_update_magnetic_os_gpu(
             np.int32(3), # face
@@ -257,16 +257,21 @@ class SubGridHSG(SubGridBase):
             block = (128,1,1),
             grid = bpg) 
 
+        # main_grid.Hz = main_grid.Hz_gpu.get()
+        # self.Ex = self.Ex_gpu.get()
+
         # Args: sub_grid, normal, l_l, l_u, m_l, m_u, n_l, n_u, nwn, lookup_id, field, inc_field, co, sign_n, sign_f):
 
+
         # Front and back
-        cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 3, i_l, i_u, k_l, k_u + 1, j_l - 1, j_u, self.nwy, main_grid.IDlookup['Hz'], main_grid.Hz, self.Ex, 2, 1, -1, 1, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
+        # cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 3, i_l, i_u, k_l, k_u + 1, j_l - 1, j_u, self.nwy, main_grid.IDlookup['Hz'], main_grid.Hz, self.Ex, 2, 1, -1, 1, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
 
-        # Conditions to check if the arrays are same
-        a = main_grid.Hz_gpu.get() == main_grid.Hz
-        b = self.Ex_gpu.get() == self.Ex
+        # sys.exit()
+        # # Conditions to check if the arrays are same
+        # a = main_grid.Hz_gpu.get() == main_grid.Hz
+        # b = self.Ex_gpu.get() == self.Ex
 
-        print(a.all())
+        # print(a.all())
         
         cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 3, i_l, i_u + 1, k_l, k_u, j_l - 1, j_u, self.nwy, main_grid.IDlookup['Hx'], main_grid.Hx, self.Ez, 2, -1, 1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
 
