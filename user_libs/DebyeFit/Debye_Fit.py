@@ -180,6 +180,9 @@ class Relaxation(object):
         self.rl, self.im = q.real, q.imag
         
         if self.number_of_debye_poles == -1:
+            print("\n#########",
+                  "Try to automaticaly fit number of Debye poles, up to 20!",
+                  "##########\n", sep="")
             error = np.infty # artificial best error starting value
             self.number_of_debye_poles = 1
             iteration = 1

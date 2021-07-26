@@ -97,6 +97,8 @@ class Optimizer(object):
             x (array): The number of current iterations.
             y (array): The objective value at for all x points.
         """
+        # it clears an axes
+        plt.cla()
         plt.plot(x, y, "b-", linewidth=1.0)
         plt.ylim(min(y) - 0.1 * min(y),
                  max(y) + 0.1 * max(y))
