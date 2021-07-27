@@ -157,6 +157,7 @@ class SubGridHSG(SubGridBase):
         // Defining Macros
         #define INDEX2D_MAT(m, n) (m)*($NY_MATCOEFFS) + (n)
         #define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS) + (j)*($NZ_FIELDS) + (k)
+        #define INDEX3D_SUBFIELDS(i, j, k) (i)*($NY_SUBFIELDS)*($NZ_SUBFIELDS) + (j)*($NZ_SUBFIELDS) + (k)
         #define INDEX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID) + (i)*($NY_ID)*($NZ_ID) + (j)*($NZ_ID) + (k)
 
 
@@ -180,7 +181,7 @@ class SubGridHSG(SubGridBase):
                         // Current Thread Index
                         int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-                        int l, m, l_s, m_s, n_s_l, n_s_r, material_e_l, material_e_r, i0, j0, k0, i1, j1, k1, i2, j2, k2, i3, j3, k3;
+                        int l, m, l_s, m_s, n_s_l, n_s_r, i0, j0, k0, i1, j1, k1, i2, j2, k2, i3, j3, k3;
                         int os;
                         double inc_n, inc_f;
                         
@@ -197,12 +198,14 @@ class SubGridHSG(SubGridBase):
                         l = idx / ($NZ_FIELDS * $NY_FIELDS);
                         m = (idx % ($NZ_FIELDS * $NY_FIELDS)) % $NZ_FIELDS;
 
-                        // printf(" %d\\t", n_s_l);
+                        // printf(" %d\\t", sign_n);
 
-                        if(face == 3 && mid == 1 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
-                            // subgrid coords
-                            l_s = os + (l - l_l) * sub_ratio + floor((double) sub_ratio / 2);
-                            m_s = os + (m - m_l) * sub_ratio;             
+                        if(face == 3 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
+                            if(mid == 1){
+                                // subgrid coords
+                                l_s = os + (l - l_l) * sub_ratio + floor((double) sub_ratio / 2);
+                                m_s = os + (m - m_l) * sub_ratio;             
+                            }
 
                             // Main grid Index
                             i0 = l; j0 = n_l; k0 = m;
@@ -210,19 +213,21 @@ class SubGridHSG(SubGridBase):
                             i1 = l_s; j1 = n_s_l; k1 = m_s;
                             i2 = l; j2 = n_u; k2 = m;
                             i3 = l_s; j3 = n_s_r; k3 = m_s;
-                            // printf("After (%d,%d)\\n", l, m);
 
                             // Material at main grid Index
-                            material_e_l = ID[INDEX4D_ID(lookup_id, i0, j0, k0)];
+                            int material_e_l = ID[INDEX4D_ID(lookup_id, i0, j0, k0)];
                             // Associated Incident Field
-                            inc_n = inc_field[INDEX3D_FIELDS(i1, j1, k1)] * sign_n;
-
-                            // printf("(%d,%lf)\\t", l, ID[INDEX4D_ID(lookup_id, i0, j0, k0)]);
+                            inc_n = inc_field[INDEX3D_SUBFIELDS(i1, j1, k1)] * sign_n;
                             
+                            if(inc_n != 0) {
+                                printf("\\n(%d,%d,%d,%f)\\t", i1, j1, k1, inc_n);
+                            }
+                            
+
                             field[INDEX3D_FIELDS(i0, j0, k0)] = field[INDEX3D_FIELDS(i0, j0, k0)] + updatecoeffsH[INDEX2D_MAT(material_e_l, co)] * inc_n;
                             
-                            material_e_r = ID[INDEX4D_ID(lookup_id, i2, j2, k2)];
-                            inc_f = inc_field[INDEX3D_FIELDS(i3, j3, k3)] * sign_f;
+                            int material_e_r = ID[INDEX4D_ID(lookup_id, i2, j2, k2)];
+                            inc_f = inc_field[INDEX3D_SUBFIELDS(i3, j3, k3)] * sign_f;
 
                             field[INDEX3D_FIELDS(i2, j2, k2)] = field[INDEX3D_FIELDS(i2, j2, k2)] + updatecoeffsH[INDEX2D_MAT(material_e_r, co)] * inc_f;
                         }
@@ -235,6 +240,9 @@ class SubGridHSG(SubGridBase):
             NX_FIELDS = main_grid.nx + 1,
             NY_FIELDS = main_grid.ny + 1,
             NZ_FIELDS = main_grid.nz + 1,
+            NX_SUBFIELDS = self.nx + 1,
+            NY_SUBFIELDS = self.ny + 1,
+            NZ_SUBFIELDS = self.nz + 1,
             NX_ID = main_grid.ID.shape[1],
             NY_ID = main_grid.ID.shape[2],
             NZ_ID = main_grid.ID.shape[3]
@@ -264,8 +272,8 @@ class SubGridHSG(SubGridBase):
             block = (128,1,1),
             grid = bpg)
 
-        main_grid.Hz = main_grid.Hz_gpu.get()
-        self.Ex = self.Ex_gpu.get()
+        # main_grid.Hz = main_grid.Hz_gpu.get()
+        # self.Ex = self.Ex_gpu.get()
 
         # Args: sub_grid, normal, l_l, l_u, m_l, m_u, n_l, n_u, nwn, lookup_id, field, inc_field, co, sign_n, sign_f):
 
