@@ -217,7 +217,7 @@ class SubGridHSG(SubGridBase):
                             // Associated Incident Field
                             inc_n = inc_field[INDEX3D_FIELDS(i1, j1, k1)] * sign_n;
 
-                            // printf("(%d,%d)\\t", l, inc_field[INDEX3D_FIELDS(i1, j1, k1)]);
+                            // printf("(%d,%lf)\\t", l, ID[INDEX4D_ID(lookup_id, i0, j0, k0)]);
                             
                             field[INDEX3D_FIELDS(i0, j0, k0)] = field[INDEX3D_FIELDS(i0, j0, k0)] + updatecoeffsH[INDEX2D_MAT(material_e_l, co)] * inc_n;
                             
@@ -257,10 +257,10 @@ class SubGridHSG(SubGridBase):
             np.int32(i_l), np.int32(i_u),
             np.int32(k_l), np.int32(k_u + 1),
             np.int32(j_l -1), np.int32(j_u),
-            main_grid.updatecoeffsH_gpu,
-            main_grid.ID_gpu,
-            main_grid.Hz_gpu,
-            self.Ex_gpu,
+            main_grid.updatecoeffsH_gpu.gpudata,
+            main_grid.ID_gpu.gpudata,
+            main_grid.Hz_gpu.gpudata,
+            self.Ex_gpu.gpudata,
             block = (128,1,1),
             grid = bpg)
 
