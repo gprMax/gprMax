@@ -194,10 +194,10 @@ class SubGridHSG(SubGridBase):
                         os = n_boundary_cells - sub_ratio * surface_sep;
 
                         // Linear Index to 3D subscript for front face 
-                        l = l_l + idx / ($NZ_FIELDS * $NY_FIELDS);
-                        m = m_l + (idx % ($NZ_FIELDS * $NY_FIELDS)) % $NZ_FIELDS;
+                        l = idx / ($NZ_FIELDS * $NY_FIELDS);
+                        m = (idx % ($NZ_FIELDS * $NY_FIELDS)) % $NZ_FIELDS;
 
-                        // printf(" %d\\t", n_s_r);
+                        // printf(" %d\\t", n_s_l);
 
                         if(face == 3 && mid == 1 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
                             // subgrid coords
@@ -218,7 +218,9 @@ class SubGridHSG(SubGridBase):
                             inc_n = inc_field[INDEX3D_FIELDS(i1, j1, k1)] * sign_n;
 
                             // printf("(%d,%d)\\t", l, inc_field[INDEX3D_FIELDS(i1, j1, k1)]);
+                            
                             field[INDEX3D_FIELDS(i0, j0, k0)] = field[INDEX3D_FIELDS(i0, j0, k0)] + updatecoeffsH[INDEX2D_MAT(material_e_l, co)] * inc_n;
+                            
                             material_e_r = ID[INDEX4D_ID(lookup_id, i2, j2, k2)];
                             inc_f = inc_field[INDEX3D_FIELDS(i3, j3, k3)] * sign_f;
 
@@ -255,10 +257,10 @@ class SubGridHSG(SubGridBase):
             np.int32(i_l), np.int32(i_u),
             np.int32(k_l), np.int32(k_u + 1),
             np.int32(j_l -1), np.int32(j_u),
-            main_grid.updatecoeffsH_gpu.gpudata,
-            main_grid.ID_gpu.gpudata,
-            main_grid.Hz_gpu.gpudata,
-            self.Ex_gpu.gpudata,
+            main_grid.updatecoeffsH_gpu,
+            main_grid.ID_gpu,
+            main_grid.Hz_gpu,
+            self.Ex_gpu,
             block = (128,1,1),
             grid = bpg)
 
