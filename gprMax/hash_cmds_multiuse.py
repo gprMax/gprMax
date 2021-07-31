@@ -217,28 +217,28 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
 
-            if len(tmp) != 9:
+            if len(tmp) != 10:
                 logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at exactly nine parameters')
                 raise ValueError
-            if (tmp[5][0] != '[' and tmp[5][-1] != ']') or (tmp[6][0] != '[' and tmp[6][-1] != ']'):
+            if (tmp[3][0] != '[' and tmp[3][-1] != ']') or (tmp[4][0] != '[' and tmp[4][-1] != ']'):
                 logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires list at 6th and 7th position')
                 raise ValueError
-            vol_frac = [float(i) for i in tmp[5].strip('[]').split(',')]
-            material = [float(i) for i in tmp[6].strip('[]').split(',')]
+            vol_frac = [float(i) for i in tmp[3].strip('[]').split(',')]
+            material = [float(i) for i in tmp[4].strip('[]').split(',')]
             if len(material) % 3 != 0:
                 logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' each material requires three parameters: e_inf, de, tau_0')
                 raise ValueError
             materials = [material[n:n+3] for n in range(0, len(material), 3)]
 
             setup = Crim(f_min=float(tmp[0]), f_max=float(tmp[1]), a=float(tmp[2]),
-                         sigma=float(tmp[3]), mu=float(tmp[4]), mu_sigma=float(tmp[5]),
                          volumetric_fractions=vol_frac, materials=materials,
-                         number_of_debye_poles=int(tmp[8], material_name=tmp[9]))
+                         sigma=float(tmp[5]), mu=float(tmp[6]), mu_sigma=float(tmp[7]),
+                         number_of_debye_poles=int(tmp[8]), material_name=tmp[9])
             _, properties = setup.run()
 
             multicmds['#material'].append(properties[0].split(':')[1].strip(' \t\n'))
             multicmds['#add_dispersion_debye'].append(properties[1].split(':')[1].strip(' \t\n'))
-    
+
     cmdname = '#Rawdata'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:

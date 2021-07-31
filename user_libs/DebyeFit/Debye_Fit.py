@@ -20,6 +20,7 @@ import numpy as np
 import os
 from matplotlib import pylab as plt
 import matplotlib.gridspec as gridspec
+from pathlib import Path
 import sys
 import scipy.interpolate
 import warnings
@@ -60,7 +61,7 @@ class Relaxation(object):
                                      optimizer class (Default: empty dict).
     :type optimizer_options: dict, optional, default: empty dict
     """
-    
+
     def __init__(self, sigma, mu, mu_sigma,
                  material_name, f_n=50,
                  number_of_debye_poles=-1,
@@ -178,7 +179,7 @@ class Relaxation(object):
         q = self.calculation()
         # Set the real and the imaginary part of the relaxation function
         self.rl, self.im = q.real, q.imag
-        
+
         if self.number_of_debye_poles == -1:
             print("\n#########",
                   "Try to automaticaly fit number of Debye poles, up to 20!",
@@ -609,12 +610,13 @@ class Rawdata(Relaxation):
                                       optimizer=optimizer,
                                       optimizer_options=optimizer_options)
         self.delimiter = delimiter
-        self.filename = filename
+        self.filename = Path(filename).absolute()
         self.params = {'filename':self.filename}
 
     def check_inputs(self):
         """ Check the validity of the inputs. """
         super(Rawdata, self).check_inputs()
+
         if not os.path.isfile(self.filename):
             sys.exit("File doesn't exists!")
 
