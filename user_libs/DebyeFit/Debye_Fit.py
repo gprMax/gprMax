@@ -169,6 +169,8 @@ class Relaxation(object):
         Returns:
             avg_err (float): average fractional error
                              for relative permittivity (sum)
+            properties (list(str)): Given material nad Debye expnasion parameters
+                                    in a gprMax format.
         """
         # Check the validity of the inputs
         self.check_inputs()
