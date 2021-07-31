@@ -179,15 +179,19 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
 
-            if len(tmp) != 12:
-                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at exactly twelve parameters')
+            if len(tmp) != 12 and len(tmp) != 13:
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires either twelve or thirteen parameters')
                 raise ValueError
+            seed = None
+            if len(tmp) == 13:
+                seed = int(tmp[12])
 
             setup = HavriliakNegami(f_min=float(tmp[0]), f_max=float(tmp[1]),
                                     alpha=float(tmp[2]), beta=float(tmp[3]),
                                     e_inf=float(tmp[4]), de=float(tmp[5]), tau_0=float(tmp[6]),
                                     sigma=float(tmp[7]), mu=float(tmp[8]), mu_sigma=float(tmp[9]),
-                                    number_of_debye_poles=int(tmp[10]), material_name=tmp[11])
+                                    number_of_debye_poles=int(tmp[10]), material_name=tmp[11],
+                                    optimizer_options={'seed': seed})
             _, properties = setup.run()
 
             multicmds['#material'].append(properties[0].split(':')[1].strip(' \t\n'))
@@ -198,15 +202,19 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
 
-            if len(tmp) != 11:
-                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at exactly eleven parameters')
+            if len(tmp) != 11 and len(tmp) != 12:
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires either eleven or twelve parameters')
                 raise ValueError
+            seed = None
+            if len(tmp) == 12:
+                seed = int(tmp[11])
 
             setup = Jonscher(f_min=float(tmp[0]), f_max=float(tmp[1]),
                              e_inf=float(tmp[2]), a_p=float(tmp[3]),
                              omega_p=float(tmp[4]), n_p=float(tmp[5]),
                              sigma=float(tmp[6]), mu=float(tmp[7]), mu_sigma=float(tmp[8]),
-                             number_of_debye_poles=int(tmp[9]), material_name=tmp[10])
+                             number_of_debye_poles=int(tmp[9]), material_name=tmp[10],
+                             optimizer_options={'seed': seed})
             _, properties = setup.run()
 
             multicmds['#material'].append(properties[0].split(':')[1].strip(' \t\n'))
@@ -217,9 +225,13 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
 
-            if len(tmp) != 10:
-                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at exactly nine parameters')
+            if len(tmp) != 10 and len(tmp) != 11:
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires either ten or eleven parameters')
                 raise ValueError
+            seed = None
+            if len(tmp) == 11:
+                seed = int(tmp[10])
+
             if (tmp[3][0] != '[' and tmp[3][-1] != ']') or (tmp[4][0] != '[' and tmp[4][-1] != ']'):
                 logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires list at 6th and 7th position')
                 raise ValueError
@@ -233,7 +245,8 @@ def process_multicmds(multicmds):
             setup = Crim(f_min=float(tmp[0]), f_max=float(tmp[1]), a=float(tmp[2]),
                          volumetric_fractions=vol_frac, materials=materials,
                          sigma=float(tmp[5]), mu=float(tmp[6]), mu_sigma=float(tmp[7]),
-                         number_of_debye_poles=int(tmp[8]), material_name=tmp[9])
+                         number_of_debye_poles=int(tmp[8]), material_name=tmp[9],
+                         optimizer_options={'seed': seed})
             _, properties = setup.run()
 
             multicmds['#material'].append(properties[0].split(':')[1].strip(' \t\n'))
@@ -244,13 +257,17 @@ def process_multicmds(multicmds):
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
 
-            if len(tmp) != 6:
-                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at exactly six parameters')
+            if len(tmp) != 6 and len(tmp) != 7:
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires either six or seven parameters')
                 raise ValueError
+            seed = None
+            if len(tmp) == 7:
+                seed = int(tmp[6])
 
             setup = Rawdata(filename=tmp[0], sigma=float(tmp[1]),
                             mu=float(tmp[2]), mu_sigma=float(tmp[3]),
-                            number_of_debye_poles=int(tmp[4]), material_name=tmp[5])
+                            number_of_debye_poles=int(tmp[4]), material_name=tmp[5],
+                            optimizer_options={'seed': seed})
             _, properties = setup.run()
 
             multicmds['#material'].append(properties[0].split(':')[1].strip(' \t\n'))
