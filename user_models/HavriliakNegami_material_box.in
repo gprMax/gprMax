@@ -1,0 +1,26 @@
+#domain: 0.7 0.5 0.004
+#dx_dy_dz: 0.004 0.004 0.004
+#time_window: 3000
+
+#python:
+from user_libs.DebyeFit import HavriliakNegami
+setup = HavriliakNegami(f_min=1e4, f_max=1e11,
+                        alpha=0.3, beta=1,
+                        e_inf=3.4, de=2.7, tau_0=.8e-10,
+                        sigma=0.45e-3, mu=1, mu_sigma=0,
+                        material_name="dry_sand",
+                        number_of_debye_poles=5, f_n=100,
+                        plot=False, save=False,
+                        optimizer_options={'swarmsize':30,
+                                           'maxiter':100,
+                                           'omega':0.5,
+                                           'phip':1.4,
+                                           'phig':1.4,
+                                           'minstep':1e-8,
+                                           'minfun':1e-8,
+                                           'seed': 111,
+                                           'pflag': False})
+setup.run()
+#end_python:
+
+#box: 0 0 0 0.07 0.4 0.004 dry_sand
