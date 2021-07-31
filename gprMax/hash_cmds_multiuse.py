@@ -17,6 +17,10 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import os
+
+os.path.join(os.path.dirname(__file__), '..', 'user_libs', 'DebyeFit')
+from user_libs.DebyeFit import (HavriliakNegami, Jonscher, Crim, Rawdata)
 
 from .cmds_multiuse import (PMLCFS, AddDebyeDispersion, AddDrudeDispersion,
                             AddLorentzDispersion, GeometryObjectsWrite,
@@ -169,6 +173,88 @@ def process_multicmds(multicmds):
                 snapshot = Snapshot(p1=p1, p2=p2, dl=dl, time=time, filename=filename)
 
             scene_objects.append(snapshot)
+
+    cmdname = '#HavriliakNegami'
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+
+            if len(tmp) != 12:
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at exactly twelve parameters')
+                raise ValueError
+
+            setup = HavriliakNegami(f_min=float(tmp[0]), f_max=float(tmp[1]),
+                                    alpha=float(tmp[2]), beta=float(tmp[3]),
+                                    e_inf=float(tmp[4]), de=float(tmp[5]), tau_0=float(tmp[6]),
+                                    sigma=float(tmp[7]), mu=float(tmp[8]), mu_sigma=float(tmp[9]),
+                                    number_of_debye_poles=int(tmp[10]), material_name=tmp[11])
+            _, properties = setup.run()
+
+            multicmds['#material'].append(properties[0].split(':')[1].strip(' \t\n'))
+            multicmds['#add_dispersion_debye'].append(properties[1].split(':')[1].strip(' \t\n'))
+
+    cmdname = '#Jonscher'
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+
+            if len(tmp) != 11:
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at exactly eleven parameters')
+                raise ValueError
+
+            setup = Jonscher(f_min=float(tmp[0]), f_max=float(tmp[1]),
+                             e_inf=float(tmp[2]), a_p=float(tmp[3]),
+                             omega_p=float(tmp[4]), n_p=float(tmp[5]),
+                             sigma=float(tmp[6]), mu=float(tmp[7]), mu_sigma=float(tmp[8]),
+                             number_of_debye_poles=int(tmp[9]), material_name=tmp[10])
+            _, properties = setup.run()
+
+            multicmds['#material'].append(properties[0].split(':')[1].strip(' \t\n'))
+            multicmds['#add_dispersion_debye'].append(properties[1].split(':')[1].strip(' \t\n'))
+
+    cmdname = '#Crim'
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+
+            if len(tmp) != 9:
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at exactly nine parameters')
+                raise ValueError
+            if (tmp[5][0] != '[' and tmp[5][-1] != ']') or (tmp[6][0] != '[' and tmp[6][-1] != ']'):
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires list at 6th and 7th position')
+                raise ValueError
+            vol_frac = [float(i) for i in tmp[5].strip('[]').split(',')]
+            material = [float(i) for i in tmp[6].strip('[]').split(',')]
+            if len(material) % 3 != 0:
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' each material requires three parameters: e_inf, de, tau_0')
+                raise ValueError
+            materials = [material[n:n+3] for n in range(0, len(material), 3)]
+
+            setup = Crim(f_min=float(tmp[0]), f_max=float(tmp[1]), a=float(tmp[2]),
+                         sigma=float(tmp[3]), mu=float(tmp[4]), mu_sigma=float(tmp[5]),
+                         volumetric_fractions=vol_frac, materials=materials,
+                         number_of_debye_poles=int(tmp[8], material_name=tmp[9]))
+            _, properties = setup.run()
+
+            multicmds['#material'].append(properties[0].split(':')[1].strip(' \t\n'))
+            multicmds['#add_dispersion_debye'].append(properties[1].split(':')[1].strip(' \t\n'))
+    
+    cmdname = '#Rawdata'
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+
+            if len(tmp) != 6:
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + ' requires at exactly six parameters')
+                raise ValueError
+
+            setup = Rawdata(filename=tmp[0], sigma=float(tmp[1]),
+                            mu=float(tmp[2]), mu_sigma=float(tmp[3]),
+                            number_of_debye_poles=int(tmp[4]), material_name=tmp[5])
+            _, properties = setup.run()
+
+            multicmds['#material'].append(properties[0].split(':')[1].strip(' \t\n'))
+            multicmds['#add_dispersion_debye'].append(properties[1].split(':')[1].strip(' \t\n'))
 
     cmdname = '#material'
     if multicmds[cmdname] is not None:
