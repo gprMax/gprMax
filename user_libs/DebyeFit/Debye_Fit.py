@@ -64,7 +64,7 @@ class Relaxation(object):
     def __init__(self, sigma, mu, mu_sigma,
                  material_name, f_n=50,
                  number_of_debye_poles=-1,
-                 plot=True, save=True,
+                 plot=True, save=False,
                  optimizer=PSO_DLS,
                  optimizer_options={}):
         self.name = 'Relaxation function'
@@ -213,7 +213,7 @@ class Relaxation(object):
         # Plot the actual and the approximate dielectric properties
         if self.plot:
             self.plot_result(rl + ee, im)
-        return err_real + err_imag
+        return err_real + err_imag, properties
 
     def print_output(self, tau, weights, ee):
         """ Print out the resulting Debye parameters in a gprMax format.
@@ -373,7 +373,7 @@ class HavriliakNegami(Relaxation):
                  alpha, beta, e_inf, de, tau_0,
                  sigma, mu, mu_sigma, material_name,
                  number_of_debye_poles=-1, f_n=50,
-                 plot=False, save=True,
+                 plot=False, save=False,
                  optimizer=PSO_DLS,
                  optimizer_options={}):
         super(HavriliakNegami, self).__init__(sigma=sigma, mu=mu, mu_sigma=mu_sigma,
@@ -443,7 +443,7 @@ class Jonscher(Relaxation):
                  e_inf, a_p, omega_p, n_p,
                  sigma, mu, mu_sigma,
                  material_name, number_of_debye_poles=-1,
-                 f_n=50, plot=False, save=True,
+                 f_n=50, plot=False, save=False,
                  optimizer=PSO_DLS,
                  optimizer_options={}):
         super(Jonscher, self).__init__(sigma=sigma, mu=mu, mu_sigma=mu_sigma,
@@ -507,7 +507,7 @@ class Crim(Relaxation):
     def __init__(self, f_min, f_max, a, volumetric_fractions,
                  materials, sigma, mu, mu_sigma, material_name, 
                  number_of_debye_poles=-1, f_n=50,
-                 plot=False, save=True,
+                 plot=False, save=False,
                  optimizer=PSO_DLS,
                  optimizer_options={}):
 
@@ -526,8 +526,8 @@ class Crim(Relaxation):
         # Choosing n frequencies logarithmicaly equally spaced between the bounds given
         self.set_freq(self.f_min, self.f_max, self.f_n)
         self.a = a
-        self.volumetric_fractions = volumetric_fractions
-        self.materials = materials
+        self.volumetric_fractions = np.array(volumetric_fractions)
+        self.materials = np.array(materials)
         self.params = {'f_min':self.f_min, 'f_max':self.f_max,
                        'a':self.a, 'volumetric_fractions':self.volumetric_fractions,
                        'materials':self.materials}
@@ -598,7 +598,7 @@ class Rawdata(Relaxation):
                  sigma, mu, mu_sigma,
                  material_name, number_of_debye_poles=-1,
                  f_n=50, delimiter =',',
-                 plot=False, save=True,
+                 plot=False, save=False,
                  optimizer=PSO_DLS,
                  optimizer_options={}):
 
