@@ -139,21 +139,17 @@ class SubGridHSG(SubGridBase):
         # Hy = c0Hy - c3Ex + c1Ez
         # Hx = c0Hx - c2Ez + c3Ey
 
+        # Allocating GPU Arrays 
 
-        # Allocating memory on gpu for the variables
-
-        main_grid.updatecoeffsH_gpu = gpuarray.to_gpu(main_grid.updatecoeffsH)
         main_grid.ID_gpu = gpuarray.to_gpu(main_grid.ID)
+        main_grid.updatecoeffsH_gpu = gpuarray.to_gpu(main_grid.updatecoeffsH)
         main_grid.Hz_gpu = gpuarray.to_gpu(main_grid.Hz)
         main_grid.Hx_gpu = gpuarray.to_gpu(main_grid.Hx)
-
+        
         self.Ex_gpu = gpuarray.to_gpu(self.Ex)
         self.Ez_gpu = gpuarray.to_gpu(self.Ez)
 
         kernel_template_os = Template("""
-        #include <stdio.h>
-        #include <pycuda-complex.hpp>
-
         // Defining Macros
         #define INDEX2D_MAT(m, n) (m)*($NY_MATCOEFFS) + (n)
         #define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS) + (j)*($NZ_FIELDS) + (k)
@@ -162,80 +158,89 @@ class SubGridHSG(SubGridBase):
 
 
         __global__ void hsg_update_magnetic_os(
-                    int face,
-                    unsigned int co,
-                    int sign_n, int sign_f,
-                    int mid,
-                    int sub_ratio,
-                    int surface_sep,
-                    int n_boundary_cells,
-                    int nwn,
-                    unsigned int lookup_id,
-                    int l_l, int l_u,
-                    int m_l, int m_u,
-                    int n_l, int n_u,
-                    $REAL *updatecoeffsH, 
-                    const unsigned int *__restrict__ ID,
-                    $REAL *field,
-                    $REAL *__restrict__ inc_field) {
-                        // Current Thread Index
-                        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+            const int face,
+            const unsigned int co,
+            const int sign_n, const int sign_f,
+            const int mid,
+            const int sub_ratio,
+            const int surface_sep,
+            const int n_boundary_cells,
+            const int nwn,
+            const unsigned int lookup_id,
+            const int l_l, const int l_u,
+            const int m_l, const int m_u,
+            const int n_l, const int n_u,
+            $REAL *updatecoeffsH,
+            const unsigned int *__restrict__ ID,
+            $REAL *field,
+            $REAL *__restrict__ inc_field) {
+                // Current Thread Index
+                int idx = blockIdx.x * blockDim.x + threadIdx.x;
+                
+                int l, m, l_s, m_s, n_s_l, n_s_r, i0, j0, k0, i1, j1, k1, i2, j2, k2, i3, j3, k3;
+                int os;
+                double inc_n, inc_f;
 
-                        int l, m, l_s, m_s, n_s_l, n_s_r, i0, j0, k0, i1, j1, k1, i2, j2, k2, i3, j3, k3;
-                        int os;
-                        double inc_n, inc_f;
-                        
-                        // Index (normal to os) for the subgrid near face e node
-                        n_s_l = n_boundary_cells - sub_ratio * surface_sep;
+                // Index (normal to os) for the subgrid near face e node
+                n_s_l = n_boundary_cells - sub_ratio * surface_sep;
 
-                        // Normal index for the subgrid far face e node
-                        n_s_r = n_boundary_cells + nwn + sub_ratio * surface_sep;
+                // Normal index for the subgrid far face e node
+                n_s_r = n_boundary_cells + nwn + sub_ratio * surface_sep;
 
-                        // OS Inner index for the subgrid
-                        os = n_boundary_cells - sub_ratio * surface_sep;
+                // OS Inner index for the subgrid
+                os = n_boundary_cells - sub_ratio * surface_sep;
 
-                        // Linear Index to 3D subscript for front face 
-                        l = idx / ($NZ_FIELDS * $NY_FIELDS);
-                        m = (idx % ($NZ_FIELDS * $NY_FIELDS)) % $NZ_FIELDS;
+                // Linear Index to 3D subscript for front face 
+                l = idx / ($NZ_FIELDS * $NY_FIELDS);
+                m = (idx % ($NZ_FIELDS * $NY_FIELDS)) % $NZ_FIELDS;
 
-                        // printf(" %d\\t", sign_n);
-
-                        if(face == 3 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
-                            if(mid == 1){
-                                // subgrid coords
-                                l_s = os + (l - l_l) * sub_ratio + floor((double) sub_ratio / 2);
-                                m_s = os + (m - m_l) * sub_ratio;             
-                            }
-
-                            // Main grid Index
-                            i0 = l; j0 = n_l; k0 = m;
-                            // Sub-grid Index
-                            i1 = l_s; j1 = n_s_l; k1 = m_s;
-                            i2 = l; j2 = n_u; k2 = m;
-                            i3 = l_s; j3 = n_s_r; k3 = m_s;
-
-                            // Material at main grid Index
-                            int material_e_l = ID[INDEX4D_ID(lookup_id, i0, j0, k0)];
-                            // Associated Incident Field
-                            inc_n = inc_field[INDEX3D_SUBFIELDS(i1, j1, k1)] * sign_n;
-                            
-                            if(inc_n != 0) {
-                                printf("\\n(%d,%d,%d,%f)\\t", i1, j1, k1, inc_n);
-                            }
-                            
-
-                            field[INDEX3D_FIELDS(i0, j0, k0)] = field[INDEX3D_FIELDS(i0, j0, k0)] + updatecoeffsH[INDEX2D_MAT(material_e_l, co)] * inc_n;
-                            
-                            int material_e_r = ID[INDEX4D_ID(lookup_id, i2, j2, k2)];
-                            inc_f = inc_field[INDEX3D_SUBFIELDS(i3, j3, k3)] * sign_f;
-
-                            field[INDEX3D_FIELDS(i2, j2, k2)] = field[INDEX3D_FIELDS(i2, j2, k2)] + updatecoeffsH[INDEX2D_MAT(material_e_r, co)] * inc_f;
-                        }
+                if(face == 3 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
+                    if(mid == 1) {
+                        // subgrid coords
+                        l_s = os + (l - l_l) * sub_ratio + floor((double) sub_ratio / 2);
+                        m_s = os + (m - m_l) * sub_ratio;   
                     }
+                    else {
+                        l_s = os + (l - l_l) * sub_ratio;
+                        m_s = os + (m - m_l) * sub_ratio + floor((double) sub_ratio / 2);
+                    }
+
+                    // Main grid Index
+                    i0 = l; j0 = n_l; k0 = m;
+                    
+                    // Sub-grid Index
+                    i1 = l_s; j1 = n_s_l; k1 = m_s;
+                    i2 = l; j2 = n_u; k2 = m;
+                    i3 = l_s; j3 = n_s_r; k3 = m_s;
+                    
+                    // Material at main grid Index
+                    int ID_index1 = INDEX4D_ID(lookup_id, i0, j0, k0);
+                    int material_e_l = ID[ID_index1];
+                    
+                    // Associated Incident Field
+                    int subIndex_1 = INDEX3D_SUBFIELDS(i1, j1, k1);
+                    inc_n = inc_field[subIndex_1] * sign_n;
+
+                    int fieldIndex_1 = INDEX3D_FIELDS(i0, j0, k0);
+                    field[fieldIndex_1] += updatecoeffsH[INDEX2D_MAT(material_e_l, co)] * inc_n;
+                    
+                    int ID_index2 = INDEX4D_ID(lookup_id, i2, j2, k2);
+                    int material_e_r = ID[ID_index2];
+
+                    int subIndex_2 = INDEX3D_SUBFIELDS(i3, j3, k3);
+                    inc_f = inc_field[subIndex_2] * sign_f;
+
+                    int fieldIndex_2 = INDEX3D_FIELDS(i2, j2, k2);
+
+                    //printf("%d\\t", fieldIndex_2);
+
+                    field[fieldIndex_2] += updatecoeffsH[INDEX2D_MAT(material_e_r, co)] * inc_f;               
+                }
+            }
         """)
 
         mod = SourceModule(kernel_template_os.substitute(
-            REAL=config.sim_config.dtypes['C_float_or_double'],
+            REAL = config.sim_config.dtypes['C_float_or_double'],
             NY_MATCOEFFS = main_grid.updatecoeffsH.shape[1],
             NX_FIELDS = main_grid.nx + 1,
             NY_FIELDS = main_grid.ny + 1,
@@ -247,7 +252,7 @@ class SubGridHSG(SubGridBase):
             NY_ID = main_grid.ID.shape[2],
             NZ_ID = main_grid.ID.shape[3]
         ))
-
+        
         hsg_update_magnetic_os_gpu = mod.get_function("hsg_update_magnetic_os")
 
         bpg = (int(np.ceil(((main_grid.nx + 1) * (main_grid.ny + 1) * (main_grid.nz + 1)) / 128)), 1, 1)
@@ -272,8 +277,11 @@ class SubGridHSG(SubGridBase):
             block = (128,1,1),
             grid = bpg)
 
-        # main_grid.Hz = main_grid.Hz_gpu.get()
-        # self.Ex = self.Ex_gpu.get()
+        main_grid.Hz = main_grid.Hz_gpu.get()
+        # main_grid.Hx = main_grid.Hx_gpu.get()
+        self.Ex = self.Ex_gpu.get()
+        # self.Ez = self.Ez_gpu.get()
+
 
         # Args: sub_grid, normal, l_l, l_u, m_l, m_u, n_l, n_u, nwn, lookup_id, field, inc_field, co, sign_n, sign_f):
 
