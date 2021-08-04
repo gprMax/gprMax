@@ -1,5 +1,6 @@
 import pickle
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.decomposition import TruncatedSVD
 
@@ -65,3 +66,23 @@ def nmse(signal1, signal2):
     """ Returns the Normalized Mean Squared Error b/w two signals """
 
     return np.linalg.norm(signal2 - signal1)**2 / np.linalg.norm(signal1)**2
+
+
+def plot_pred_dat(test_y, y_pred_final, batch_err, nmse):
+
+    """ Utility function for plotting ML predictions """
+
+    for i in range(0,test_y.shape[0],5):
+        
+        orig_A_scan = test_y[i,:]
+        pred_A_scan = y_pred_final[i,:]
+        batch_err.append(nmse(orig_A_scan, pred_A_scan))
+
+        fig = plt.subplots(1,1, figsize=(10,5))
+        plt.title("{}:  Error = {}%".format(i, np.around(100 * nmse(orig_A_scan, pred_A_scan), decimals=10)))
+        plt.plot(test_y[i,:], '-b', label='Orignal A-scan')
+        plt.plot(pred_A_scan , '--r', label='Predicted A-scan')
+        plt.legend()
+
+    print("Batch Error =", np.mean(batch_err))
+
