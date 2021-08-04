@@ -2,60 +2,62 @@ import numpy as np
 import logging
 import pickle
 import sys
-import h5py
-from pathlib import Path
-from gprMax.receivers import Rx
 
 logger = logging.getLogger(__name__)
 
 
 def rand_param_create(distr, p1, p2, bounds=None, cmd=None):
 
-    if distr=="u":
-        """ Generate a random number from a Uniform Distribution
-            p1 - Lower bound
-            p2 - Upper bound
-        """
-        result = np.random.uniform(p1, p2)
+    if p1!=p2:
+        
+        if distr=="u":
+            """ Generate a random number from a Uniform Distribution
+                p1 - Lower bound
+                p2 - Upper bound
+            """
+            result = np.random.uniform(p1, p2)
 
-    elif distr=="n":
-        """ Generate a random number from a Normal Distribution
-            p1 - Mean
-            p2 - Standard Deviation
-        """
-        result = np.random.normal(p1, p2)
-    
-    elif distr=="ln":
-        """ Generate a random number from a Log-Normal Distribution
-            p1 - Mean
-            p2 - Standard Deviation
-        """
-        result = np.random.lognormal(p1, p2)
-    
-    elif distr=="lg":
-        """ Generate a random number from a Logistic Distribution
-            p1 - Mean
-            p2 - Standard Deviation
-        """
-        result = np.random.logistic(p1, p2)
+        elif distr=="n":
+            """ Generate a random number from a Normal Distribution
+                p1 - Mean
+                p2 - Standard Deviation
+            """
+            result = np.random.normal(p1, p2)
+        
+        elif distr=="ln":
+            """ Generate a random number from a Log-Normal Distribution
+                p1 - Mean
+                p2 - Standard Deviation
+            """
+            result = np.random.lognormal(p1, p2)
+        
+        elif distr=="lg":
+            """ Generate a random number from a Logistic Distribution
+                p1 - Mean
+                p2 - Standard Deviation
+            """
+            result = np.random.logistic(p1, p2)
 
-    elif distr=="lp":
-        """ Generate a random number from a Laplace (double exponential) Distribution
-            p1 - Mean
-            p2 - Standard Deviation
-        """
-        result = np.random.laplace(p1, p2)
+        elif distr=="lp":
+            """ Generate a random number from a Laplace (double exponential) Distribution
+                p1 - Mean
+                p2 - Standard Deviation
+            """
+            result = np.random.laplace(p1, p2)
+        
+        elif distr=="b":
+            """ Generate a random number from a Beta Distribution
+                p1 - alpha parameter
+                p2 - beta parameter
+            """
+            result = np.random.beta(p1, p2)
+        
+        else:
+            logger.exception('Invalid input for distribution \nAllowed values: "u" - Uniform | "n" - Normal | "ln" - Log-Normal | "lg" - Logistic | "lp" - Laplace | "b" - Beta\n\n')
+            raise ValueError
     
-    elif distr=="b":
-        """ Generate a random number from a Beta Distribution
-            p1 - alpha parameter
-            p2 - beta parameter
-        """
-        result = np.random.beta(p1, p2)
-    
-    else:
-        logger.exception('Invalid input for distribution \nAllowed values: "u" - Uniform | "n" - Normal | "ln" - Log-Normal | "lg" - Logistic | "lp" - Laplace | "b" - Beta\n\n')
-        raise ValueError
+    elif p1==p2:
+        result = p1
     
     if bounds:
         if result < bounds[0]:
