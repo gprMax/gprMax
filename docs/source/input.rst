@@ -67,7 +67,9 @@ String literals are only supposed to be entered once. All other conventions whil
 
 The random generation mode can only be used for geometry and multi-use hash commands. The following single-use hash commands are not compatible with this feature: ``#title``, ``#output_dir``, ``#cpu_threads``, ``#dx_dy_dz``, ``#domain``, ``#time_step_stability_factor``, ``#time_window``, ``#pml_cells``, ``#src_steps``, ``#rx_steps``, ``#excitation_file``
 
-**Note** - This feature only allows the user to enter parameters **in pairs**. In case you want one (or more) of the parameters to be specified manually **in the same hash command**, you would have to enter that parameter twice.
+**Note**
+
+This feature only allows the user to enter parameters **in pairs**. In case you want one (or more) of the parameters to be specified manually **in the same hash command**, you would have to enter that parameter twice.
 
 For example If you would like to randomly vary only the relative permittivity (:math:`\epsilon_r`) inside a ``#material`` command, you would have to enter the following: 
 
@@ -75,7 +77,7 @@ For example If you would like to randomly vary only the relative permittivity (:
 
     #material: u 2 5 0.01 0.01 1 1 0 0 my_sand
 
-This creates a material called ``my_sand`` which has a relative permittivity :math:`\epsilon_r` drawn from a Uniform Distribution (``u``) wihtin the range ``[2,5]``, a conductivity of :math:`\sigma = 0.01` S/m, and is non-magnetic, i.e. :math:`\mu_r = 1` and :math:`\sigma_* = 0`
+This creates a material called ``my_sand`` which has a relative permittivity :math:`\epsilon_r` drawn from a Uniform Distribution (``u``) within the range ``[2,5]``, a conductivity of :math:`\sigma = 0.01` S/m, and is non-magnetic, i.e. :math:`\mu_r = 1` and :math:`\sigma_* = 0`
 
 Additional Features
 -------------------
@@ -97,12 +99,12 @@ This feature can easily be used in conjuction with the ``-n`` & ``--no-h5`` comm
 For every command line execution, the following attributes are saved:
 
 * All the randomly generated parameters are saved to - ``path_to_folder/name_of_input_file_{rand_params}.pkl``
-* All redundant features are removed from the ``path_to_folder/name_of_input_file_{rand_params}.pkl`` file generated above and the compressed file is saved to - ``path_to_folder/name_of_input_file_{rand_params}_{compressed}.pkl``. This might be useful for using the dataset for subsequent purposes (such as Machine Learning).
+* All redundant features are removed from the file generated above and the compressed file is saved to - ``path_to_folder/name_of_input_file_{rand_params}_{compressed}.pkl``. This might be useful for using the dataset for subsequent purposes (such as Machine Learning).
 * All A-scans for each receiver in the model are saved to - ``path_to_folder/name_of_input_file_{field_outputs}.pkl``
 
 After the simulation is complete, the data labels corresponding to the random parameters are displayed on the terminal (in the order they are saved to ``path_to_folder/name_of_input_file_{rand_params}.pkl``)
 
-For more information on reading and extracting data from the pickle files, check - [Link to ML Jupyter notebook]
+For more information on reading and extracting data from the output pickle files, check - [Link to ML Jupyter notebook]
 
 Essential commands
 ==================
