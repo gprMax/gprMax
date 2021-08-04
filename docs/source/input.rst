@@ -43,6 +43,77 @@ The commands have been grouped into six categories:
 * **Source and output** - used to place source and output points in the model
 * **PML** - provide advanced customisation and optimisation of the absorbing boundary conditions
 
+Random Parameter Generation Mode
+================================
+
+This new gprMax feature allows the user to generate random parameters for a specific model. Syntactically, instead of entering single values for each parameter in a given hash command, the user is allowed to enter values in pairs. The following convention is followed to activate the random parameter generation mode:
+
+.. code-block:: none
+
+    #command_name: distribution parameter_1.1 parameter_1.2 parameter_2.1 parameter_2.2 parameter_3.1 parameter_3.2 ...
+
+`distribution` specifies the probability distribution from which random numbers are drawn. Currently, the following distributions are supported and corresponding to each of them, the values entered in pairs specify the distribution parameters:
+
+* `u` - Uniform Distribution [parameter_x.1 = Lower bound, parameter_x.2 = Upper bound]
+* `n` - Normal Distribution [parameter_x.1 = Mean (:math:\mu), parameter_x.2 = Standard deviation (:math:\sigma>0)]
+* `ln` - Log-Normal Distribution [parameter_x.1 = Mean (:math:\mu), parameter_x.2 = Standard deviation (:math:\sigma>0)]
+* `lg` - Logistic Distribution [parameter_x.1 = Mean (:math:\mu), parameter_x.2 = Scale (s>0)]
+* `lp` - Laplace (double exponential) Distribution [parameter_x.1 = Mean (:math:\mu), parameter_x.2 = Exponential decay factor (:math:\lambda)]
+* `b` - Beta Distribution [parameter_x.1 = :math:\alpha (>0), parameter_x.2 = :math:\beta (>0)]
+
+This mode is built on the `numpy.random` module. For more information on probability distributions and the associated parameters, check the `numpy.random documentation <https://numpy.org/doc/1.16/reference/routines.random.html>`_ 
+
+String literals are only supposed to be entered once. All other conventions while entering a hash command remain the same.
+
+This mode can only be used for geometry and multi-use hash commands. The following single-use hash commands do not allow the user to enter values in pairs:
+
+* `#title`
+* `#output_dir`
+* `#cpu_threads`
+* `#dx_dy_dz`
+* `#domain`
+* `#time_step_stability_factor`
+* `#time_window`
+* `#pml_cells`
+* `#src_steps`
+* `#rx_steps`
+* `#excitation_file`
+
+**Note** - This feature only allows the user to enter parameters **in pairs**. In case you want one (or more) of the parameters to be specified manually **in the same hash command**, you would have to enter that parameter twice.
+
+For example If you would like to randomly vary only the relative permittivity (:math:`\epsilon_r`) inside a `#material` command, you would have to enter the following: 
+
+.. code-block:: none
+
+    #material: u 2 5 0.01 0.01 1 1 0 0 my_sand
+
+This creates a material called ``my_sand`` which has a relative permittivity :math:`\epsilon_r` drawn from a Uniform Distribution (u) wihtin the range [2,5], a conductivity of :math:`\sigma = 0.01` S/m, and is non-magnetic, i.e. :math:`\mu_r = 1` and :math:`\sigma_* = 0`
+
+**Additional Features**
+
+* In case the generated random parameter exceeds the model domain bounds, it is automatically constrained to fit inside the domain, which ensures that the execution is not stopped midway
+* In case the upper coordinate for a certain geometry object is smaller than the lower coordinate, it is automatically incremented (by the floating point precision) to just exceed the lower coordinate
+
+**Saving Randomly Generated Parameters**
+
+All the randomly generated parameters are automatically saved to a pickle file in the same directory as the input file.
+
+This feature can easily be used in conjuction with the `-n` & `--no-h5` command line arguments. For every iteration, a new set of random parameters would be generated and appended to the pickle file.
+
+.. code-block:: none
+
+    (gprMax)$ python -m gprMax path_to_folder/name_of_input_file.in -n 5000 --no-h5
+
+For every command line execution, the following attributes are saved:
+
+* All the randomly generated parameters are saved to - `path_to_folder/name_of_input_file_{rand_params}.pkl`
+* All redundant features are removed from the `path_to_folder/name_of_input_file_{rand_params}.pkl` file generated above and the compressed file is saved to - `path_to_folder/name_of_input_file_{rand_params}_{compressed}.pkl`. This might be useful for using the dataset for subsequent purposes (such as Machine Learning).
+* All A-scans for each receiver in the model are saved to - `path_to_folder/name_of_input_file_{field_outputs}.pkl`
+
+After the simulation is complete, the data labels corresponding to the random parameters are displayed on the terminal (in the order they are saved to `path_to_folder/name_of_input_file_{rand_params}.pkl`)
+
+For more information on reading and extracting data from the pickle files, check - [Link to ML Jupyter notebook]
+
 Essential commands
 ==================
 
