@@ -61,7 +61,7 @@ This new gprMax feature allows the user to generate random parameters for a spec
 * ``lp`` - Laplace (double exponential) Distribution [``parameter_x.1`` = Mean (:math:`\mu`), ``parameter_x.2`` = Exponential decay factor (:math:`\lambda`)]
 * ``b`` - Beta Distribution [``parameter_x.1`` = :math:`\alpha` (>0), ``parameter_x.2`` = :math:`\beta` (>0)]
 
-This mode is built on the `numpy.random` module. For more information on probability distributions and the associated parameters, check their `documentation <https://numpy.org/doc/1.16/reference/routines.random.html>`_ 
+This mode is built on the ``numpy.random`` module. For more information on probability distributions and the associated parameters, check their `documentation <https://numpy.org/doc/1.16/reference/routines.random.html>`_ 
 
 String literals are only supposed to be entered once. All other conventions while entering a hash command remain the same.
 
@@ -78,13 +78,13 @@ For example If you would like to randomly vary only the relative permittivity (:
 This creates a material called ``my_sand`` which has a relative permittivity :math:`\epsilon_r` drawn from a Uniform Distribution (``u``) wihtin the range ``[2,5]``, a conductivity of :math:`\sigma = 0.01` S/m, and is non-magnetic, i.e. :math:`\mu_r = 1` and :math:`\sigma_* = 0`
 
 Additional Features
--------------------
+^^^^^^^^^^^^^^^^^^^
 
 * In case the generated random parameter exceeds the model domain bounds, it is automatically constrained to fit inside the domain, which ensures that the execution is not stopped midway
 * In case the upper coordinate for a certain geometry object is smaller than the lower coordinate, it is automatically incremented (by the floating point precision) to just exceed the lower coordinate
 
 Saving Randomly Generated Parameters
-------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 All the randomly generated parameters are automatically saved to a pickle file in the same directory as the input file.
 
