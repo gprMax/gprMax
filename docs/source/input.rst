@@ -61,36 +61,35 @@ This new gprMax feature allows the user to generate random parameters for a spec
 * ``lp`` - Laplace (double exponential) Distribution [``parameter_x.1`` = Mean (:math:`\mu`), ``parameter_x.2`` = Exponential decay factor (:math:`\lambda`)]
 * ``b`` - Beta Distribution [``parameter_x.1`` = :math:`\alpha` (>0), ``parameter_x.2`` = :math:`\beta` (>0)]
 
-This mode is built on the ``numpy.random`` module. For more information on probability distributions and the associated parameters, check their `documentation <https://numpy.org/doc/1.16/reference/routines.random.html>`_ 
-
-String literals are only supposed to be entered once. All other conventions while entering a hash command remain the same.
-
-The random generation mode can only be used for geometry and multi-use hash commands. The following single-use hash commands are not compatible with this feature: ``#title``, ``#output_dir``, ``#cpu_threads``, ``#dx_dy_dz``, ``#domain``, ``#time_step_stability_factor``, ``#time_window``, ``#pml_cells``, ``#src_steps``, ``#rx_steps``, ``#excitation_file``
-
 **Note**
 
-This feature only allows the user to enter parameters **in pairs**. In case you want one (or more) of the parameters to be specified manually **in the same hash command**, you would have to enter that parameter twice.
-
-For example If you would like to randomly vary only the relative permittivity (:math:`\epsilon_r`) inside a ``#material`` command, you would have to enter the following: 
-
-.. code-block:: none
-
-    #material: u 2 5 0.01 0.01 1 1 0 0 my_sand
-
-This creates a material called ``my_sand`` which has a relative permittivity :math:`\epsilon_r` drawn from a Uniform Distribution (``u``) within the range ``[2,5]``, a conductivity of :math:`\sigma = 0.01` S/m, and is non-magnetic, i.e. :math:`\mu_r = 1` and :math:`\sigma_* = 0`
-
-Additional Features
--------------------
+* This mode is built on the ``numpy.random`` module. For more information on probability distributions and the associated parameters, check their `documentation <https://numpy.org/doc/1.16/reference/routines.random.html>`_ 
 
 * In case the generated random parameter exceeds the model domain bounds, it is automatically constrained to fit inside the domain, which ensures that the execution is not stopped midway
+
 * In case the upper coordinate for a certain geometry object is smaller than the lower coordinate, it is automatically incremented (by the floating point precision) to just exceed the lower coordinate
+
+* String literals are only supposed to be entered once. All other conventions while entering a hash command remain the same.
+
+* The random generation mode can only be used for geometry and multi-use hash commands. The following single-use hash commands are not compatible with this feature: ``#title``, ``#output_dir``, ``#cpu_threads``, ``#dx_dy_dz``, ``#domain``, ``#time_step_stability_factor``, ``#time_window``, ``#pml_cells``, ``#src_steps``, ``#rx_steps``, ``#excitation_file``
+
+* This feature only allows the user to enter parameters **in pairs**. In case you want one (or more) of the parameters to be specified manually **in the same hash command**, you would have to enter that parameter twice.
+
+  For example If you would like to randomly vary only the relative permittivity (:math:`\epsilon_r`) inside a ``#material`` command, you would have to enter the following: 
+
+  .. code-block:: none
+
+      #material: u 2 5 0.01 0.01 1 1 0 0 my_sand
+
+  This creates a material called ``my_sand`` which has a relative permittivity :math:`\epsilon_r` drawn from a Uniform Distribution (``u``) within the range ``[2,5]``, a conductivity of :math:`\sigma = 0.01` S/m, and is non-magnetic, i.e. :math:`\mu_r = 1` and :math:`\sigma_* = 0`
+
 
 Saving Randomly Generated Parameters
 ------------------------------------
 
-All the randomly generated parameters are automatically saved to a pickle file in the same directory as the input file.
+All the randomly generated parameters are automatically saved to a pickle file in the same directory as the input file. Each column in this file correspoinds to a specific model parameter.
 
-This feature can easily be used in conjuction with the ``-n`` & ``--no-h5`` command line arguments. For every iteration, a new set of random parameters would be generated and appended to the pickle file.
+This feature can easily be used along with the ``-n`` & ``--no-h5`` command line arguments. For every iteration, a new set of random parameters would be generated and a new row would be appended to the pickle file.
 
 .. code-block:: none
 
@@ -102,7 +101,7 @@ For every command line execution, the following attributes are saved:
 * All redundant features are removed from the file generated above and the compressed file is saved to - ``path_to_folder/name_of_input_file_{rand_params}_{compressed}.pkl``. This might be useful for using the dataset for subsequent purposes (such as Machine Learning).
 * All A-scans for each receiver in the model are saved to - ``path_to_folder/name_of_input_file_{field_outputs}.pkl``
 
-After the simulation is complete, the data labels corresponding to the random parameters are displayed on the terminal (in the order they are saved to ``path_to_folder/name_of_input_file_{rand_params}.pkl``)
+After the simulation is complete, the data labels corresponding to the random parameters are displayed on the terminal (in the same order they are saved in the pickle file)
 
 For more information on reading and extracting data from the output pickle files, check - [Link to ML Jupyter notebook]
 
