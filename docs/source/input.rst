@@ -114,7 +114,7 @@ Saving Randomly Generated Parameters
 
 All the randomly generated parameters are automatically saved to a pickle file in the same directory as the input file. Each column in this file correspoinds to a specific model parameter.
 
-This feature can easily be used along with the ``-n`` & ``--no-h5`` command line arguments. For every iteration, a new set of random parameters would be generated and a new row would be appended to the pickle file.
+This feature can easily be used along with the ``-n`` & ``--no-h5`` command line arguments. For every iteration, a new set of random parameters would be generated and a new row would be appended to the pickle file. ``--no-h5`` instructs gprMax to skip saving the output .h5 files.
 
 .. code-block:: none
 
