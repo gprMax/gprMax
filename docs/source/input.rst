@@ -91,14 +91,7 @@ This new gprMax feature allows the user to generate random parameters for a spec
   
   ``#title``, ``#output_dir``, ``#cpu_threads``, ``#dx_dy_dz``, ``#domain``, ``#time_step_stability_factor``, ``#time_window``, ``#pml_cells``, ``#src_steps``, ``#rx_steps``, ``#excitation_file``
 
-* String literals are supposed to be entered **only once**. Only numerical parameters can be entered in pairs. All other conventions while entering a hash command remain the same. For example, to use a randomly positioned x-polarised Hertzian dipole with a Ricker waveform whose amplitude and frequency are drawn from a uniform distribution, use: 
-  
-  .. code-block:: none
-
-    #waveform: u ricker 1 3 500e6 750e6 my_ricker_pulse
-    #hertzian_dipole: u x 0.05 0.10 0.05 0.10 0.05 0.10 my_ricker_pulse
-
-* This feature only allows the user to enter parameters **in pairs**. In case you want a subset of the parameters to remain constant **inside the same hash command** (and vary only the remaining ones), you would have to enter those parameters twice.
+* In case you want a subset of the parameters to remain constant **inside the same hash command** (and vary only the remaining ones), you would have to enter those parameters twice.
 
   For example: If you would like to randomly vary only the relative permittivity (:math:`\epsilon_r`) inside a ``#material`` command, you would have to enter the following: 
 
@@ -107,6 +100,13 @@ This new gprMax feature allows the user to generate random parameters for a spec
       #material: u 2 5 0.01 0.01 1 1 0 0 my_sand
 
   This creates a material called ``my_sand`` which has a relative permittivity :math:`\epsilon_r` drawn from a Uniform Distribution (``u``) within the range ``[2,5]``, a conductivity of :math:`\sigma = 0.01` S/m, and is non-magnetic, i.e. :math:`\mu_r = 1` and :math:`\sigma_* = 0`
+
+* String literals are supposed to be entered **only once**. Only numerical parameters can be entered in pairs. All other conventions while entering a hash command remain the same. For example, to use a randomly positioned x-polarised Hertzian dipole with a Ricker waveform whose amplitude and frequency are drawn from a uniform distribution, use: 
+  
+  .. code-block:: none
+
+    #waveform: u ricker 1 3 500e6 750e6 my_ricker_pulse
+    #hertzian_dipole: u x 0.05 0.10 0.05 0.10 0.05 0.10 my_ricker_pulse
 
 
 Saving Randomly Generated Parameters
