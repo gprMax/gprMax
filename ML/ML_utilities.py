@@ -72,14 +72,15 @@ def plot_pred_dat(test_y, y_pred_final, batch_err, nmse):
 
     """ Utility function for plotting ML predictions """
 
-    for i in range(0,test_y.shape[0],5):
+    for i in range(0,test_y.shape[0],250):
         
         orig_A_scan = test_y[i,:]
         pred_A_scan = y_pred_final[i,:]
-        batch_err.append(nmse(orig_A_scan, pred_A_scan))
+        err = nmse(orig_A_scan, pred_A_scan)
+        batch_err.append(err)
 
-        fig = plt.subplots(1,1, figsize=(10,5))
-        plt.title("{}:  Error = {}%".format(i, np.around(100 * nmse(orig_A_scan, pred_A_scan), decimals=10)))
+        plt.subplots(1,1, figsize=(10,5))
+        plt.title("{}:  NMSE = {}".format(i, np.around(err, decimals=10)))
         plt.plot(test_y[i,:], '-b', label='Orignal A-scan')
         plt.plot(pred_A_scan , '--r', label='Predicted A-scan')
         plt.legend()
