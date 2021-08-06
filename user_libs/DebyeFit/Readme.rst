@@ -265,5 +265,5 @@ Allows you to model dielectric properties obtained experimentally by fitting mul
 * ``str1`` is an identifier for the material.
 * ``i2`` is an optional parameter which controls the seeding of the random number generator used in stochastic global optimizator. By default (if you don't specify this parameter) the random number generator will be seeded by trying to read data from ``/dev/urandom`` (or the Windows analogue) if available or from the clock otherwise.
 
-For example ``#Rawdata: user_libs/DebyeFit/Test.txt 0.1 1 0.1 3 M4`` creates a material called ``M4`` which ...
+For example ``#Rawdata: user_libs/DebyeFit/examples/Test.txt 0.1 1 0.1 3 M4`` creates a material called ``M4`` which ...
 

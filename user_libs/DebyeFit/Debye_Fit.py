@@ -644,12 +644,28 @@ class Rawdata(Relaxation):
 
 
 if __name__ == "__main__":
+    #  | from Debye_Fit import HavriliakNegami, Jonscher, Rawdata, Crim                                  |
+#  |                                                                                                 |
+#  |                                                                                                 |
+#  | Rawdata(3, "/data.txt",0.1, 1, 0.1, "M1", plot=True)                                            |
+#  |                                                                                                 |
+#  | HavriliakNegami(6, 1*10**12, 10**-3, 0.5, 1, 10, 5, 10**-6, 0.1, 1, 0, "M2", plot=True)         |
+#  |                                                                                                 |
+#  | Jonscher(4, 10**6, 10**-5, 50, 1, 10**5, 0.7, 0.1, 1, 0.1, "M3", plot=True)                     |
+#  |                                                                                                 |
+#  | f = [0.5, 0.5]                                                                                  |
+#  | material1 = [3, 25, 10**6]                                                                      |
+#  | material2 = [3 ,0, 10**3]                                                                       |
+#  | materials = [material1, material2]                                                              |
+#  | Crim(2, 1*10**-1, 10**-9, 0.5, f, materials, 0.1, 1, 0, "M4", plot=True)                        |
+#  | 
     ### Kelley et al. parameters
     setup = HavriliakNegami(f_min=1e7, f_max=1e11,
                             alpha=0.91, beta=0.45,
                             e_inf=2.7, de=8.6-2.7, tau_0=9.4e-10,
                             sigma=0, mu=0, mu_sigma=0,
                             material_name="Kelley", f_n=100,
+                            number_of_debye_poles=6,
                             plot=True, save=False,
                             optimizer_options={'swarmsize':30,
                                                'maxiter':100,
@@ -662,38 +678,46 @@ if __name__ == "__main__":
                                                'pflag': True})
     setup.run()
     setup = HavriliakNegami(f_min=1e7, f_max=1e11,
-                            alpha=1-0.09, beta=0.45,
+                            alpha=0.91, beta=0.45,
                             e_inf=2.7, de=8.6-2.7, tau_0=9.4e-10,
                             sigma=0, mu=0, mu_sigma=0,
                             material_name="Kelley", f_n=100,
+                            number_of_debye_poles=6,
                             plot=True, save=False,
                             optimizer=DA,
                             optimizer_options={'seed': 111})
     setup.run()
     setup = HavriliakNegami(f_min=1e7, f_max=1e11,
-                            alpha=1-0.09, beta=0.45,
+                            alpha=0.91, beta=0.45,
                             e_inf=2.7, de=8.6-2.7, tau_0=9.4e-10,
                             sigma=0, mu=0, mu_sigma=0,
                             material_name="Kelley", f_n=100,
+                            number_of_debye_poles=6,
                             plot=True, save=False,
                             optimizer=DE,
                             optimizer_options={'seed': 111})
     setup.run()
     ### Testing setup
-    setup = Rawdata("Test.txt", 0.1, 1, 0.1, "M1", plot=True,
+    setup = Rawdata("examples/Test.txt", 0.1, 1, 0.1, "M1", 
+                    number_of_debye_poles=3, plot=True,
                     optimizer_options={'seed': 111})
     setup.run()
     np.random.seed(111)
     setup = HavriliakNegami(1e12, 1e-3, 0.5, 1, 10, 5,
-                            1e-6, 0.1, 1, 0, "M2", plot=True)
+                            1e-6, 0.1, 1, 0, "M2", 
+                            number_of_debye_poles=6,
+                            plot=True)
     setup.run()
     setup = Jonscher(1e6, 1e-5, 50, 1, 1e5, 0.7,
-                     0.1, 1, 0.1, "M3", plot=True)
+                     0.1, 1, 0.1, "M3", 
+                    number_of_debye_poles=4,
+                    plot=True)
     setup.run()
     f = np.array([0.5, 0.5])
     material1 = [3, 25, 1e6]
     material2 = [3, 0, 1e3]
     materials = np.array([material1, material2])
     setup = Crim(1*1e-1, 1e-9, 0.5, f, materials, 0.1,
-                 1, 0, "M4", plot=True)
+                 1, 0, "M4", number_of_debye_poles=2,
+                 plot=True)
     setup.run()
