@@ -494,7 +494,7 @@ def process_geometrycmds(geometry, domain_bounds, hash_count_geometrycmds):
                       rand_param_create(distr, float(tmp[12]), float(tmp[13]), (0, domain_bounds[2]), tmp[0]))
                 p2 = check_upper_greater(p1, p2, tmp[0]) 
                 
-                frac_dim = rand_param_create(distr, float(tmp[14]), float(tmp[15]), (0, np.inf), tmp[0])
+                frac_dim = rand_param_create(distr, float(tmp[14]), float(tmp[15]), (0, 3), tmp[0])
                 weighting = np.array([rand_param_create(distr, float(tmp[16]), float(tmp[17]), (0, np.inf), tmp[0]), 
                                       rand_param_create(distr, float(tmp[18]), float(tmp[19]), (0, np.inf), tmp[0]), 
                                       rand_param_create(distr, float(tmp[20]), float(tmp[21]), (0, np.inf), tmp[0])])
@@ -553,7 +553,7 @@ def process_geometrycmds(geometry, domain_bounds, hash_count_geometrycmds):
                               rand_param_create(distr, float(tmp[10]), float(tmp[11]), (0, domain_bounds[1]), tmp[0]), 
                               rand_param_create(distr, float(tmp[12]), float(tmp[13]), (0, domain_bounds[2]), tmp[0])) 
                         p2 = check_upper_greater(p1, p2, tmp[0]) 
-                        frac_dim = rand_param_create(distr, float(tmp[14]), float(tmp[15]), (0, np.inf), tmp[0])
+                        frac_dim = rand_param_create(distr, float(tmp[14]), float(tmp[15]), (0, 3), tmp[0])
                         weighting = np.array([rand_param_create(distr, float(tmp[16]), float(tmp[17]), (0, np.inf), tmp[0]), 
                                               rand_param_create(distr, float(tmp[18]), float(tmp[19]), (0, np.inf), tmp[0])])
                         limits = [rand_param_create(distr, float(tmp[20]), float(tmp[21])), 
@@ -638,7 +638,7 @@ def process_geometrycmds(geometry, domain_bounds, hash_count_geometrycmds):
                               rand_param_create(distr, float(tmp[10]), float(tmp[11]), (0, domain_bounds[1]), tmp[0]), 
                               rand_param_create(distr, float(tmp[12]), float(tmp[13]), (0, domain_bounds[2]), tmp[0]))  
                         p2 = check_upper_greater(p1, p2, tmp[0])
-                        frac_dim = rand_param_create(distr, float(tmp[14]), float(tmp[15]), (0, np.inf), tmp[0])
+                        frac_dim = rand_param_create(distr, float(tmp[14]), float(tmp[15]), (0, 3), tmp[0])
                         limits = [rand_param_create(distr, float(tmp[16]), float(tmp[17]), (0, np.inf), tmp[0]), 
                                   rand_param_create(distr, float(tmp[18]), float(tmp[19]), (0, np.inf), tmp[0])]
                         n_blades = int(tmp[20])
