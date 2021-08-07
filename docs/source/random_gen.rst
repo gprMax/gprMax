@@ -68,7 +68,7 @@ This new gprMax feature allows the user to generate random parameters for a spec
 
 
 Saving Randomly Generated Parameters
-====================================
+------------------------------------
 
 All the randomly generated parameters are **automatically** saved to a pickle file in the same directory as the input file. Each column in this file correspoinds to a specific model parameter.
 
@@ -93,9 +93,6 @@ For more information on reading and extracting data from the output pickle files
 
 Material commands
 =================
-
-Built-in materials
-------------------
 
 gprMax has two builtin materials which can be used by specifying the identifiers ``pec`` and ``free_space``. These simulate a perfect electric conductor and air, i.e. a non-magnetic material with :math:`\epsilon_r = 1`, :math:`\sigma = 0`, respectively. Additionally the identifiers ``grass`` and ``water`` are currently reserved for internal use and should not be used unless you intentionally want to change their properties.
 
