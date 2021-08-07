@@ -185,6 +185,7 @@ Argument name          Type      Description
 ``--geometry-fixed``   flag      run a series of models where the geometry does not change between models, e.g. a B-scan where *only* the position of simple sources and receivers, moved using ``#src_steps`` and ``#rx_steps``, changes between models.
 ``--write-processed``  flag      write another input file after any Python code and include commands in the original input file have been processed. Useful for checking that any Python code is being correctly processed into gprMax commands.
 ``-h`` or ``--help``   flag      used to get help on command line options.
+``--no-h5``            flag      skip saving output  .h5 files.
 ====================== ========= ===========
 
 Updating gprMax
