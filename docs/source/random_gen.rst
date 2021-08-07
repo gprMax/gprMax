@@ -68,7 +68,7 @@ This new gprMax feature allows the user to generate random parameters for a spec
 
 
 Saving Randomly Generated Parameters
-------------------------------------
+====================================
 
 All the randomly generated parameters are **automatically** saved to a pickle file in the same directory as the input file. Each column in this file correspoinds to a specific model parameter.
 
@@ -243,6 +243,7 @@ For example for a soil with sand fraction 0.5, clay fraction 0.5, bulk density :
 .. note::
 
     Further information on the Peplinski soil model and our implementation can be found in 'Giannakis, I. (2016). Realistic numerical modelling of Ground Penetrating Radar for landmine detection. The University of Edinburgh. (http://hdl.handle.net/1842/20449)'
+
 
 Object construction commands
 ============================
