@@ -207,16 +207,17 @@ Notice that Havriliak-Negami is an inclusive function that holds as special case
 .. warning::
 
     * The fitting accuracy depends on the number of the Debye poles as well as the fitted function. It is advised to check if the resulted accuracy is sufficient for your application. 
-	* Increasing the number of Debye poles will make the approximation more accurate but it will increase the overall computational resources of FDTD.
+	
+    * Increasing the number of Debye poles will make the approximation more accurate but it will increase the overall computational resources of FDTD.
 
-#HavriliakNegami:
-#################
+#havriliak_negami:
+##################
 
 Allows you to model dielectric properties by fitting multi-Debye functions to Havriliak-Negami function. The syntax of the command is:
 
 .. code-block:: none
 
-    #HavriliakNegami: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 i1 str1 [i2]
+    #havriliak_negami: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 i1 str1 [i2]
 
 * ``f1`` is the lower frequency bound (in Hz).
 * ``f2`` is the upper frequency bound (in Hz).
@@ -233,17 +234,17 @@ Allows you to model dielectric properties by fitting multi-Debye functions to Ha
 * ``i2`` is an optional parameter which controls the seeding of the random number generator used in stochastic global optimizator. By default (if you don't specify this parameter) the random number generator will be seeded by trying to read data from ``/dev/urandom`` (or the Windows analogue) if available or from the clock otherwise.
 
 
-For example ``#HavriliakNegami: 1e4 1e11 0.3 1 3.4 2.7 0.8e-10 4.5e-4 1 0 5 dry_sand`` creates a material called ``dry_sand``, and approximates using five Debye poles a Cole-Cole function with :math:`\epsilon_{\infty}=3.4`, :math:`\Delta\epsilon=2.7`, :math:`t_{0}=8^{-9}`  and :math:`a=0.3`.
+For example ``#havriliak_negami: 1e4 1e11 0.3 1 3.4 2.7 0.8e-10 4.5e-4 1 0 5 dry_sand`` creates a material called ``dry_sand``, and approximates using five Debye poles a Cole-Cole function with :math:`\epsilon_{\infty}=3.4`, :math:`\Delta\epsilon=2.7`, :math:`t_{0}=8^{-9}`  and :math:`a=0.3`.
 The resulting output is the set of gprMax commands and optional a plot with the actual and the approximated Cole-Cole function.
 
-#Jonscher:
+#jonscher:
 ##########
 
 Allows you to model dielectric properties by fitting multi-Debye functions to Jonscher function. The syntax of the command is:
 
 .. code-block:: none
 
-    #Jonscher: f1 f2 f3 f4 f5 f6 f7 f8 f9 i1 str1 [i2]
+    #jonscher: f1 f2 f3 f4 f5 f6 f7 f8 f9 i1 str1 [i2]
 
 * ``f1`` is the lower frequency bound (in Hz).
 * ``f2`` is the upper frequency bound (in Hz).
@@ -258,17 +259,17 @@ Allows you to model dielectric properties by fitting multi-Debye functions to Jo
 * ``str1`` is an identifier for the material.
 * ``i2`` is an optional parameter which controls the seeding of the random number generator used in stochastic global optimizator. By default (if you don't specify this parameter) the random number generator will be seeded by trying to read data from ``/dev/urandom`` (or the Windows analogue) if available or from the clock otherwise.
 
-For example ``#Jonscher: 1e6 1e-5 4.39 7.49 5e-10 0.4 0.1 1 0.1 4 Material_Jonscher`` creates a material called ``Material_Jonscher``, and approximates using four Debye poles a Johnsher function with :math:`\epsilon_{\infty}=4.39`, :math:`a_{p}=7.49`, :math:`\omega_{p}=0.5\times 10^{9}`  and :math:`n=0.4`.
+For example ``#jonscher: 1e6 1e-5 4.39 7.49 5e-10 0.4 0.1 1 0.1 4 Material_Jonscher`` creates a material called ``Material_Jonscher``, and approximates using four Debye poles a Johnsher function with :math:`\epsilon_{\infty}=4.39`, :math:`a_{p}=7.49`, :math:`\omega_{p}=0.5\times 10^{9}`  and :math:`n=0.4`.
 The resulting output is the set of gprMax commands and optional a plot with the actual and the approximated Johnsher function. 
 
-#Crim:
+#crim:
 ######
 
 Allows you to model dielectric properties by fitting multi-Debye functions to CRIM function. The syntax of the command is:
 
 .. code-block:: none
 
-    #Crim: f1 f2 f3 v1 v2 f4 f5 f6 i1 str1 [i2]
+    #crim: f1 f2 f3 v1 v2 f4 f5 f6 i1 str1 [i2]
 
 * ``f1`` is the lower frequency bound (in Hz).
 * ``f2`` is the upper frequency bound (in Hz).
@@ -282,7 +283,7 @@ Allows you to model dielectric properties by fitting multi-Debye functions to CR
 * ``str1`` is an identifier for the material.
 * ``i2`` is an optional parameter which controls the seeding of the random number generator used in stochastic global optimizator. By default (if you don't specify this parameter) the random number generator will be seeded by trying to read data from ``/dev/urandom`` (or the Windows analogue) if available or from the clock otherwise.
 
-For example ``#Crim: 1e-1 1e-9 0.5 [0.5,0.1,0.4] [3,25,1e-8,3,25,1e-9,1,10,1e-10] 0 1 0 5 CRIM`` creates a material called ``CRIM``, and approximates using five Debye poles the following CRIM function
+For example ``#crim: 1e-1 1e-9 0.5 [0.5,0.1,0.4] [3,25,1e-8,3,25,1e-9,1,10,1e-10] 0 1 0 5 CRIM`` creates a material called ``CRIM``, and approximates using five Debye poles the following CRIM function
 
 .. math::
     \epsilon(\omega)^{0.5} = \sum_{i=1}^{m}f_{i}\epsilon_{m,i}(\omega)^{0.5}
@@ -297,14 +298,14 @@ For example ``#Crim: 1e-1 1e-9 0.5 [0.5,0.1,0.4] [3,25,1e-8,3,25,1e-9,1,10,1e-10
 
 The resulting output is the set of gprMax commands and optional a plot with the actual and the approximated CRIM function.
 
-#Rawdata:
-#########
+#raw_data:
+##########
 
 Allows you to model dielectric properties obtained experimentally by fitting multi-Debye functions to data given from a file. The syntax of the command is:
 
 .. code-block:: none
 
-    #Rawdata: file1 f1 f2 f3 i1 str1 [i2]
+    #raw_data: file1 f1 f2 f3 i1 str1 [i2]
 
 * ``file1`` is an path to text file with experimental data points.
 * ``f1`` is the conductivity (Siemens/metre), :math:`\sigma`
@@ -314,5 +315,5 @@ Allows you to model dielectric properties obtained experimentally by fitting mul
 * ``str1`` is an identifier for the material.
 * ``i2`` is an optional parameter which controls the seeding of the random number generator used in stochastic global optimizator. By default (if you don't specify this parameter) the random number generator will be seeded by trying to read data from ``/dev/urandom`` (or the Windows analogue) if available or from the clock otherwise.
 
-For example ``#Rawdata: user_libs/DebyeFit/examples/Test.txt 0.1 1 0.1 3 Experimental`` creates a material called ``Experimental`` which model dielectric properties obtained experimentally by fitting three Debye poles function to data given from a ``user_libs/DebyeFit/examples/Test.txt`` file.
+For example ``#raw_data: user_libs/DebyeFit/examples/Test.txt 0.1 1 0.1 3 Experimental`` creates a material called ``Experimental`` which model dielectric properties obtained experimentally by fitting three Debye poles function to data given from a ``user_libs/DebyeFit/examples/Test.txt`` file.
 The resulting output is the set of gprMax commands and optional a plot with the actual and the approximated function.

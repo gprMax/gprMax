@@ -174,7 +174,7 @@ def process_multicmds(multicmds):
 
             scene_objects.append(snapshot)
 
-    cmdname = '#HavriliakNegami'
+    cmdname = '#havriliak_negami'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
@@ -197,7 +197,7 @@ def process_multicmds(multicmds):
             multicmds['#material'].append(properties[0].split(':')[1].strip(' \t\n'))
             multicmds['#add_dispersion_debye'].append(properties[1].split(':')[1].strip(' \t\n'))
 
-    cmdname = '#Jonscher'
+    cmdname = '#jonscher'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
@@ -220,7 +220,7 @@ def process_multicmds(multicmds):
             multicmds['#material'].append(properties[0].split(':')[1].strip(' \t\n'))
             multicmds['#add_dispersion_debye'].append(properties[1].split(':')[1].strip(' \t\n'))
 
-    cmdname = '#Crim'
+    cmdname = '#crim'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
@@ -252,7 +252,7 @@ def process_multicmds(multicmds):
             multicmds['#material'].append(properties[0].split(':')[1].strip(' \t\n'))
             multicmds['#add_dispersion_debye'].append(properties[1].split(':')[1].strip(' \t\n'))
 
-    cmdname = '#Rawdata'
+    cmdname = '#raw_data'
     if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
