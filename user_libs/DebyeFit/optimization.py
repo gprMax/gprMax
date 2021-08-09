@@ -62,7 +62,7 @@ class Optimizer(object):
                           for given frequency points.
         """
         np.random.seed(self.seed)
-        # find the relaxation frequencies using Differential Evolution
+        # find the relaxation frequencies using choosen optimization alghoritm
         tau, _ = self.calc_relaxation_times(func, lb, ub, funckwargs)
         # find the weights using a damped least squares
         _, _, weights, ee, rl_exp, im_exp = self.calc_weights(tau, **funckwargs)

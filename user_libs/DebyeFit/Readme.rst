@@ -13,8 +13,22 @@ where :math:`\epsilon(\omega)` is frequency dependent dielectric properties, :ma
 The user can choose between Havriliak-Negami, Jonsher, Complex Refractive Index Mixing models, and arbitrary dielectric data derived experimentally
 or calculated using some other function.
 
+Code structure
+==============
+
+The ``user_libs`` sub-package contains two main scripts:
+
+* ```Debye_fit.py``` with definition of all Relaxation functions classes,
+* ```optimization.py``` with definition of three choosen global optimization methods.
+
+Class Relaxation
+################
+
+This class is designed for modelling different relaxation functions, like Havriliak-Negami (```Class HavriliakNegami```), Jonsher (```Class Jonsher```), Complex Refractive Index Mixing (```Class CRIM```) models, and arbitrary dielectric data derived experimentally
+or calculated using some other function (```Class Rawdata```).
+
 Havriliak-Negami Function
-#########################
+*************************
 
 The Havriliak–Negami relaxation is an empirical modification of the Debye relaxation model in electromagnetism, which in additionto the Debye equation has two exponential parameters
 
@@ -55,7 +69,7 @@ The ``HavriliakNegami`` class has the following structure:
 * ``optimizer_options`` is a dict for options of choosen optimizer.
 
 Jonsher Function
-################
+****************
 
 Jonscher function is mainly used to describe the dielectric properties of concrete and soils. The frequency domain expression of Jonscher
 function is given by
@@ -86,7 +100,7 @@ The ``Jonscher`` class has the following structure:
 * ``n_p`` Jonscher parameter, 0 < n_p < 1.
 
 Complex Refractive Index Mixing (CRIM) Function
-###############################################
+***********************************************
 
 CRIM is the most mainstream approach for estimating the bulk permittivity of heterogeneous materials and has been widely applied for GPR applications. The function takes form of
 
@@ -114,7 +128,7 @@ The ``CRIM`` class has the following structure:
 * ``materials`` are arrays of materials properties, for each material [e_inf, de, tau_0].
 
 Rawdata Class
-#############
+*************
 
 The present package has the ability to model dielectric properties obtained experimentally by fitting multi-Debye functions to data given from a file.
 The format of the file should be three columns. The first column contains the frequencies (Hz) associated with the electric permittivity point.
@@ -137,13 +151,33 @@ The ``Rawdata`` class has the following structure:
 * ``filename`` is a path to text file which contains three columns,
 * ``delimiter`` is a separator for three data columns.
 
-Code structure
-==============
+Class Optimizer
+###############
 
-The ``user_libs`` sub-package contains two main scripts:
+This class supports global optimization algorithms (particle swarm, duall annealing, evolutionary algorithms) for finding an optimal set of relaxation times that minimise the error between the actual and the approximated electric permittivity and calculate optimised weights for the given relaxation times.
+Code written here is mainly based on external libraries, like ```scipy``` and ```pyswarm```.
 
-* ```Debye_fit.py``` with definition of all Relaxation functions classes,
-* ```optimization.py``` with definition of three choosen global optimization methods.
+PSO_DLS Class
+*************
+
+Create hybrid Particle Swarm-Damped Least Squares optimisation object with predefined parameters.
+
+DA Class
+********
+
+Create Dual Annealing-Damped Least Squares optimisation object with predefined parameters. The current class is a modified edition of the scipy.optimize package which can be found at:
+https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html#scipy.optimize.dual_annealing
+
+DE Class
+********
+
+Create Differential Evolution-Damped Least Squares object with predefined parameters. The current class is a modified edition of the scipy.optimize package which can be found at:
+https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution
+
+DLS function
+************
+
+Find the weights using a non-linear least squares (LS) method, the Levenberg–Marquardt algorithm (LMA or just LM), also known as the damped least-squares (DLS) method.
 
 Examples
 ########
@@ -199,7 +233,8 @@ Allows you to model dielectric properties by fitting multi-Debye functions to Ha
 * ``i2`` is an optional parameter which controls the seeding of the random number generator used in stochastic global optimizator. By default (if you don't specify this parameter) the random number generator will be seeded by trying to read data from ``/dev/urandom`` (or the Windows analogue) if available or from the clock otherwise.
 
 
-For example ``#HavriliakNegami: 1e4 1e11 0.3 1 3.4 2.7 0.8e-10 4.5e-4 1 0 5 dry_sand`` creates a material called ``dry_sand`` which 
+For example ``#HavriliakNegami: 1e4 1e11 0.3 1 3.4 2.7 0.8e-10 4.5e-4 1 0 5 dry_sand`` creates a material called ``dry_sand``, and approximates using five Debye poles a Cole-Cole function with :math:`\epsilon_{\infty}=3.4`, :math:`\Delta\epsilon=2.7`, :math:`t_{0}=8^{-9}`  and :math:`a=0.3`.
+The resulting output is the set of gprMax commands and optional a plot with the actual and the approximated Cole-Cole function.
 
 #Jonscher:
 ##########
@@ -223,7 +258,8 @@ Allows you to model dielectric properties by fitting multi-Debye functions to Jo
 * ``str1`` is an identifier for the material.
 * ``i2`` is an optional parameter which controls the seeding of the random number generator used in stochastic global optimizator. By default (if you don't specify this parameter) the random number generator will be seeded by trying to read data from ``/dev/urandom`` (or the Windows analogue) if available or from the clock otherwise.
 
-For example ``#Jonscher: 1e6 1e-5 50 1 1e5 0.7 0.1 1 0.1 4 M2`` creates a material called ``M2`` which 
+For example ``#Jonscher: 1e6 1e-5 4.39 7.49 5e-10 0.4 0.1 1 0.1 4 Material_Jonscher`` creates a material called ``Material_Jonscher``, and approximates using four Debye poles a Johnsher function with :math:`\epsilon_{\infty}=4.39`, :math:`a_{p}=7.49`, :math:`\omega_{p}=0.5\times 10^{9}`  and :math:`n=0.4`.
+The resulting output is the set of gprMax commands and optional a plot with the actual and the approximated Johnsher function. 
 
 #Crim:
 ######
@@ -246,7 +282,20 @@ Allows you to model dielectric properties by fitting multi-Debye functions to CR
 * ``str1`` is an identifier for the material.
 * ``i2`` is an optional parameter which controls the seeding of the random number generator used in stochastic global optimizator. By default (if you don't specify this parameter) the random number generator will be seeded by trying to read data from ``/dev/urandom`` (or the Windows analogue) if available or from the clock otherwise.
 
-For example ``#Crim: 1e-1 1e-9 0.5 [0.5,0.5] [3,25,1e6,3,0,1e3] 0.1 1 0 2 M3`` creates a material called ``M3`` which ...
+For example ``#Crim: 1e-1 1e-9 0.5 [0.5,0.1,0.4] [3,25,1e-8,3,25,1e-9,1,10,1e-10] 0 1 0 5 CRIM`` creates a material called ``CRIM``, and approximates using five Debye poles the following CRIM function
+
+.. math::
+    \epsilon(\omega)^{0.5} = \sum_{i=1}^{m}f_{i}\epsilon_{m,i}(\omega)^{0.5}
+.. math::    
+    f = [0.5, 0.1, 0.4]
+.. math::
+    \epsilon_{m,1} = 3 + \frac{25}{1+j\omega\times 10^{-8}}  
+.. math::
+   \epsilon_{m,2} = 3 + \frac{25}{1+j\omega\times 10^{-9}} 
+.. math::
+   \epsilon_{m,3} = 1 + \frac{10}{1+j\omega\times 10^{-10}} 
+
+The resulting output is the set of gprMax commands and optional a plot with the actual and the approximated CRIM function.
 
 #Rawdata:
 #########
@@ -265,5 +314,5 @@ Allows you to model dielectric properties obtained experimentally by fitting mul
 * ``str1`` is an identifier for the material.
 * ``i2`` is an optional parameter which controls the seeding of the random number generator used in stochastic global optimizator. By default (if you don't specify this parameter) the random number generator will be seeded by trying to read data from ``/dev/urandom`` (or the Windows analogue) if available or from the clock otherwise.
 
-For example ``#Rawdata: user_libs/DebyeFit/examples/Test.txt 0.1 1 0.1 3 M4`` creates a material called ``M4`` which ...
-
+For example ``#Rawdata: user_libs/DebyeFit/examples/Test.txt 0.1 1 0.1 3 Experimental`` creates a material called ``Experimental`` which model dielectric properties obtained experimentally by fitting three Debye poles function to data given from a ``user_libs/DebyeFit/examples/Test.txt`` file.
+The resulting output is the set of gprMax commands and optional a plot with the actual and the approximated function.

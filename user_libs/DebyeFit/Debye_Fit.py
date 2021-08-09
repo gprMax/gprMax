@@ -286,13 +286,13 @@ class Relaxation(object):
 
         ax = fig.add_subplot(gs[1])
         ax.grid(b=True, which="major", linewidth=0.2, linestyle="--")
-        ax.semilogx(self.freq * 1e-6, (rl_exp - self.rl)/self.rl * 100, "b-", linewidth=2.0,
+        ax.semilogx(self.freq * 1e-6, (rl_exp - self.rl)/(self.rl + 1), "b-", linewidth=2.0,
                     label="Real part")
-        ax.semilogx(self.freq * 1e-6, (-im_exp + self.im)/self.rl * 100, "k-", linewidth=2.0,
+        ax.semilogx(self.freq * 1e-6, (-im_exp + self.im)/(self.im + 1), "k-", linewidth=2.0,
                     label="Imaginary part")
         ax.legend()
         ax.set_xlabel("Frequency (MHz)")
-        ax.set_ylabel("Approximation error (%)")
+        ax.set_ylabel("Relative approximation error")
         plt.show()
 
     def error(self, rl_exp, im_exp):
@@ -310,8 +310,8 @@ class Relaxation(object):
             avg_err_imag (float): average fractional error
                                   for conductivity (imaginary part)
         """
-        avg_err_real = np.sum(np.abs((rl_exp - self.rl)/self.rl) * 100)/len(rl_exp)
-        avg_err_imag = np.sum(np.abs((-im_exp + self.im)/self.im) * 100)/len(im_exp)
+        avg_err_real = np.sum(np.abs((rl_exp - self.rl)/(self.rl + 1)) * 100)/len(rl_exp)
+        avg_err_imag = np.sum(np.abs((-im_exp + self.im)/(self.im + 1)) * 100)/len(im_exp)
         return avg_err_real, avg_err_imag
 
     @staticmethod
@@ -644,21 +644,6 @@ class Rawdata(Relaxation):
 
 
 if __name__ == "__main__":
-    #  | from Debye_Fit import HavriliakNegami, Jonscher, Rawdata, Crim                                  |
-#  |                                                                                                 |
-#  |                                                                                                 |
-#  | Rawdata(3, "/data.txt",0.1, 1, 0.1, "M1", plot=True)                                            |
-#  |                                                                                                 |
-#  | HavriliakNegami(6, 1*10**12, 10**-3, 0.5, 1, 10, 5, 10**-6, 0.1, 1, 0, "M2", plot=True)         |
-#  |                                                                                                 |
-#  | Jonscher(4, 10**6, 10**-5, 50, 1, 10**5, 0.7, 0.1, 1, 0.1, "M3", plot=True)                     |
-#  |                                                                                                 |
-#  | f = [0.5, 0.5]                                                                                  |
-#  | material1 = [3, 25, 10**6]                                                                      |
-#  | material2 = [3 ,0, 10**3]                                                                       |
-#  | materials = [material1, material2]                                                              |
-#  | Crim(2, 1*10**-1, 10**-9, 0.5, f, materials, 0.1, 1, 0, "M4", plot=True)                        |
-#  | 
     ### Kelley et al. parameters
     setup = HavriliakNegami(f_min=1e7, f_max=1e11,
                             alpha=0.91, beta=0.45,

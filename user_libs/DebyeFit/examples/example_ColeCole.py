@@ -3,7 +3,7 @@
 # using a general Cole-Cole dispersion function," 
 # 2012 14th International Conference on Ground Penetrating Radar (GPR), 2012, pp. 232-236
 import os, sys
-sys.path.append(os.path.abspath(os.path.join('..')))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from Debye_Fit import HavriliakNegami
 
 if __name__ == "__main__":
