@@ -20,7 +20,6 @@
 import logging
 import sys
 
-from numpy.core.shape_base import block
 from pytools import partition
 
 import gprMax.config as config
@@ -105,6 +104,312 @@ class SubGridHSG(SubGridBase):
         k_l = self.k0 - self.is_os_sep
         k_u = self.k1 + self.is_os_sep
 
+        # Allocating GPU Arrays 
+
+        main_grid.ID_gpu = gpuarray.to_gpu(main_grid.ID)
+        main_grid.updatecoeffsE_gpu = gpuarray.to_gpu(main_grid.updatecoeffsE)
+        
+        main_grid.Ex_gpu = gpuarray.to_gpu(main_grid.Ex)
+        main_grid.Ey_gpu = gpuarray.to_gpu(main_grid.Ey)
+        main_grid.Ez_gpu = gpuarray.to_gpu(main_grid.Ez)
+        
+        self.Hx_gpu = gpuarray.to_gpu(self.Hx)
+        self.Hy_gpu = gpuarray.to_gpu(self.Hy)
+        self.Hz_gpu = gpuarray.to_gpu(self.Hz)
+
+        kernel_template_os = Template("""
+        // Defining Macros
+        #define INDEX2D_MAT(m, n) (m)*($NY_MATCOEFFS) + (n)
+        #define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS) + (j)*($NZ_FIELDS) + (k)
+        #define INDEX3D_SUBFIELDS(i, j, k) (i)*($NY_SUBFIELDS)*($NZ_SUBFIELDS) + (j)*($NZ_SUBFIELDS) + (k)
+        #define INDEX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID) + (i)*($NY_ID)*($NZ_ID) + (j)*($NZ_ID) + (k)
+
+
+        __global__ void hsg_update_electric_os(
+            const int face,
+            const unsigned int co,
+            const int sign_n, const int sign_f,
+            const int mid,
+            const int sub_ratio,
+            const int surface_sep,
+            const int n_boundary_cells,
+            const int nwn,
+            const unsigned int lookup_id,
+            const int l_l, const int l_u,
+            const int m_l, const int m_u,
+            const int n_l, const int n_u,
+            $REAL* updatecoeffsE,
+            const unsigned int* ID,
+            $REAL* field,
+            $REAL* inc_field) {
+                // Current Thread Index
+                int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+                int l, m, l_s, m_s, n_s_l, n_s_r, i0, j0, k0, i1, j1, k1, i2, j2, k2, i3, j3, k3;
+                int os;
+                double inc_n, inc_f;
+                
+                // Surface normal index for the subgrid near face h nodes (left i index)
+                n_s_l = n_boundary_cells - (surface_sep * sub_ratio) - sub_ratio + floor((double) sub_ratio / 2);
+
+                // surface normal index for the subgrid far face h nodes (right i index)
+                n_s_r = n_boundary_cells + nwn + (surface_sep * sub_ratio) + floor((double) sub_ratio / 2);
+
+                // OS at the left face
+                os = n_boundary_cells - (sub_ratio * surface_sep);
+
+                // Linear Index to 3D subscript 
+                l = idx / ($NZ_FIELDS * $NY_FIELDS); 
+                m = idx % ($NZ_FIELDS * $NY_FIELDS);
+
+                if(face == 3 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
+                    if(mid == 1) {
+                        l_s = os + (l - l_l) * sub_ratio + floor((double) sub_ratio / 2);
+                        m_s = os + (m - m_l) * sub_ratio;
+                    }
+                    else {
+                        l_s = os + (l - l_l) * sub_ratio;
+                        m_s = os + (m - m_l) * sub_ratio + floor((double) sub_ratio / 2);
+                    }
+
+                     // Main grid Index
+                    i0 = l; j0 = n_l; k0 = m;
+                  
+                    // Sub-grid Index
+                    i1 = l_s; j1 = n_s_l; k1 = m_s;
+                    i2 = l; j2 = n_u; k2 = m;
+                    i3 = l_s; j3 = n_s_r; k3 = m_s;
+
+                    int material_e_l = ID[INDEX4D_ID(lookup_id, i0, j0, k0)];
+                    inc_n = inc_field[INDEX3D_SUBFIELDS(i1, j1, k1)] * sign_n;
+
+                    field[INDEX3D_FIELDS(i0, j0, k0)] += updatecoeffsE[INDEX2D_MAT(material_e_l, co)] * inc_n;
+
+                    int material_e_r = ID[INDEX4D_ID(lookup_id, i2, j2, k2)];
+                    inc_f = inc_field[INDEX3D_SUBFIELDS(i3, j3, k3)] * sign_f;
+
+                    field[INDEX3D_FIELDS(i2, j2, k2)] += updatecoeffsE[INDEX2D_MAT(material_e_r, co)] * inc_f;
+                }
+
+                if(face == 2 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
+                    if(mid == 1) {
+                        // subgrid coords
+                        l_s = os + (l - l_l) * sub_ratio + floor((double) sub_ratio / 2);
+                        m_s = os + (m - m_l) * sub_ratio;   
+                    }
+                    else {
+                        l_s = os + (l - l_l) * sub_ratio;
+                        m_s = os + (m - m_l) * sub_ratio + floor((double) sub_ratio / 2);
+                    }
+
+                    // Main grid Index
+                    i0 = n_l; j0 = l; k0 = m;
+
+                    // Sub-grid Index
+                    i1 = n_s_l; j1 = l_s; k1 = m_s;
+                    i2 = n_u; j2 = l; k2 = m;
+                    i3 = n_s_r; j3 = l_s; k3 = m_s;
+
+                    // Material at main grid Index
+                    int material_e_l = ID[INDEX4D_ID(lookup_id, i0, j0, k0)];
+                    
+                    // Associated Incident Field
+                    inc_n = inc_field[INDEX3D_SUBFIELDS(i1, j1, k1)] * sign_n;
+                    field[INDEX3D_FIELDS(i0, j0, k0)] += updatecoeffsE[INDEX2D_MAT(material_e_l, co)] * inc_n;
+                    
+                    int material_e_r = ID[INDEX4D_ID(lookup_id, i2, j2, k2)];
+                    inc_f = inc_field[INDEX3D_SUBFIELDS(i3, j3, k3)] * sign_f;
+
+                    field[INDEX3D_FIELDS(i2, j2, k2)] += updatecoeffsE[INDEX2D_MAT(material_e_r, co)] * inc_f;
+                }
+
+                if(face == 1 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
+                    if(mid == 1) {
+                        // subgrid coords
+                        l_s = os + (l - l_l) * sub_ratio + floor((double) sub_ratio / 2);
+                        m_s = os + (m - m_l) * sub_ratio;   
+                    }
+                    else {
+                        l_s = os + (l - l_l) * sub_ratio;
+                        m_s = os + (m - m_l) * sub_ratio + floor((double) sub_ratio / 2);
+                    }
+
+                    // Main grid Index
+                    i0 = l; j0 = m; k0 = n_l;
+
+                    // Sub-grid Index
+                    i1 = l_s; j1 = m_s; k1 = n_s_l;
+                    i2 = l; j2 = m; k2 = n_u;
+                    i3 = l_s; j3 = m_s; k3 = n_s_r;
+
+                    // Material at main grid Index
+                    int material_e_l = ID[INDEX4D_ID(lookup_id, i0, j0, k0)];
+                    
+                    // Associated Incident Field
+                    inc_n = inc_field[INDEX3D_SUBFIELDS(i1, j1, k1)] * sign_n;
+                    field[INDEX3D_FIELDS(i0, j0, k0)] += updatecoeffsE[INDEX2D_MAT(material_e_l, co)] * inc_n;
+                    
+                    int material_e_r = ID[INDEX4D_ID(lookup_id, i2, j2, k2)];
+                    inc_f = inc_field[INDEX3D_SUBFIELDS(i3, j3, k3)] * sign_f;
+
+                    field[INDEX3D_FIELDS(i2, j2, k2)] += updatecoeffsE[INDEX2D_MAT(material_e_r, co)] * inc_f;
+                }
+
+
+            }
+
+        """)
+
+        mod = SourceModule(kernel_template_os.substitute(
+            REAL = config.sim_config.dtypes['C_float_or_double'],
+            NY_MATCOEFFS = main_grid.updatecoeffsH.shape[1],
+            NX_FIELDS = main_grid.nx + 1,
+            NY_FIELDS = main_grid.ny + 1,
+            NZ_FIELDS = main_grid.nz + 1,
+            NX_SUBFIELDS = self.nx + 1,
+            NY_SUBFIELDS = self.ny + 1,
+            NZ_SUBFIELDS = self.nz + 1,
+            NX_ID = main_grid.ID.shape[1],
+            NY_ID = main_grid.ID.shape[2],
+            NZ_ID = main_grid.ID.shape[3]
+        ))
+
+        hsg_update_electric_os_gpu = mod.get_function("hsg_update_electric_os")
+
+        bpg = (int(np.ceil(((main_grid.nx + 1) * (main_grid.ny + 1) * (main_grid.nz + 1)) / 128)), 1, 1)
+
+        # Front and Back
+        hsg_update_electric_os_gpu(
+            np.int32(3), # face
+            np.int32(2), # co
+            np.int32(1), np.int32(-1),
+            np.int32(1), # mid
+            np.int32(self.ratio),
+            np.int32(self.is_os_sep),
+            np.int32(self.n_boundary_cells),
+            np.int32(self.nwy),
+            np.int32(main_grid.IDlookup['Ex']),
+            np.int32(i_l), np.int32(i_u),
+            np.int32(k_l), np.int32(k_u + 1),
+            np.int32(j_l), np.int32(j_u),
+            main_grid.updatecoeffsE_gpu.gpudata,
+            main_grid.ID_gpu.gpudata,
+            main_grid.Ex_gpu.gpudata,
+            self.Hz_gpu.gpudata,
+            block = (128,1,1),
+            grid = bpg)
+
+        hsg_update_electric_os_gpu(
+            np.int32(3), # face
+            np.int32(2), # co
+            np.int32(-1), np.int32(1),
+            np.int32(0), # mid
+            np.int32(self.ratio),
+            np.int32(self.is_os_sep),
+            np.int32(self.n_boundary_cells),
+            np.int32(self.nwy),
+            np.int32(main_grid.IDlookup['Ez']),
+            np.int32(i_l), np.int32(i_u + 1),
+            np.int32(k_l), np.int32(k_u),
+            np.int32(j_l), np.int32(j_u),
+            main_grid.updatecoeffsE_gpu.gpudata,
+            main_grid.ID_gpu.gpudata,
+            main_grid.Ez_gpu.gpudata,
+            self.Hx_gpu.gpudata,
+            block = (128,1,1),
+            grid = bpg)
+
+        # Left and Right
+        hsg_update_electric_os_gpu(
+            np.int32(2), # face
+            np.int32(1), # co
+            np.int32(-1), np.int32(1),
+            np.int32(1), # mid
+            np.int32(self.ratio),
+            np.int32(self.is_os_sep),
+            np.int32(self.n_boundary_cells),
+            np.int32(self.nwx),
+            np.int32(main_grid.IDlookup['Ey']),
+            np.int32(j_l), np.int32(j_u ),
+            np.int32(k_l), np.int32(k_u + 1),
+            np.int32(i_l), np.int32(i_u),
+            main_grid.updatecoeffsE_gpu.gpudata,
+            main_grid.ID_gpu.gpudata,
+            main_grid.Ey_gpu.gpudata,
+            self.Hz_gpu.gpudata,
+            block = (128,1,1),
+            grid = bpg)
+
+        hsg_update_electric_os_gpu(
+            np.int32(2), # face
+            np.int32(1), # co
+            np.int32(1), np.int32(-1),
+            np.int32(0), # mid
+            np.int32(self.ratio),
+            np.int32(self.is_os_sep),
+            np.int32(self.n_boundary_cells),
+            np.int32(self.nwx),
+            np.int32(main_grid.IDlookup['Ez']),
+            np.int32(j_l), np.int32(j_u +1),
+            np.int32(k_l), np.int32(k_u),
+            np.int32(i_l), np.int32(i_u),
+            main_grid.updatecoeffsE_gpu.gpudata,
+            main_grid.ID_gpu.gpudata,
+            main_grid.Ez_gpu.gpudata,
+            self.Hy_gpu.gpudata,
+            block = (128,1,1),
+            grid = bpg)
+
+        # Top and Bottom
+        hsg_update_electric_os_gpu(
+            np.int32(1), # face
+            np.int32(3), # co
+            np.int32(-1), np.int32(1),
+            np.int32(1), # mid
+            np.int32(self.ratio),
+            np.int32(self.is_os_sep),
+            np.int32(self.n_boundary_cells),
+            np.int32(self.nwz),
+            np.int32(main_grid.IDlookup['Ex']),
+            np.int32(i_l), np.int32(i_u),
+            np.int32(j_l), np.int32(j_u + 1),
+            np.int32(k_l), np.int32(k_u),
+            main_grid.updatecoeffsE_gpu.gpudata,
+            main_grid.ID_gpu.gpudata,
+            main_grid.Ex_gpu.gpudata,
+            self.Hy_gpu.gpudata,
+            block = (128,1,1),
+            grid = bpg)
+
+        hsg_update_electric_os_gpu(
+            np.int32(1), # face
+            np.int32(3), # co
+            np.int32(1), np.int32(-1),
+            np.int32(0), # mid
+            np.int32(self.ratio),
+            np.int32(self.is_os_sep),
+            np.int32(self.n_boundary_cells),
+            np.int32(self.nwz),
+            np.int32(main_grid.IDlookup['Ey']),
+            np.int32(i_l), np.int32(i_u + 1),
+            np.int32(j_l), np.int32(j_u),
+            np.int32(k_l), np.int32(k_u),
+            main_grid.updatecoeffsE_gpu.gpudata,
+            main_grid.ID_gpu.gpudata,
+            main_grid.Ey_gpu.gpudata,
+            self.Hx_gpu.gpudata,
+            block = (128,1,1),
+            grid = bpg)
+
+
+        main_grid.Ex = main_grid.Ex_gpu.get()
+        main_grid.Ey = main_grid.Ey_gpu.get()
+        main_grid.Ez = main_grid.Ez_gpu.get()
+        self.Hx = self.Hx_gpu.get()
+        self.Hy = self.Hy_gpu.get()
+        self.Hz = self.Hz_gpu.get()
+        
+
         # Args: sub_grid, normal, l_l, l_u, m_l, m_u, n_l, n_u, nwn, lookup_id, field, inc_field, co, sign_n, sign_f
 
         # Form of FDTD update equations for E
@@ -112,16 +417,16 @@ class SubGridHSG(SubGridBase):
         # Ey = c0(Ey) + c3(dHx) - c1(dHz)
         # Ez = c0(Ez) + c1(dHy) - c2(dHx)
 
-        cython_update_electric_os(main_grid.updatecoeffsE, main_grid.ID, 3, i_l, i_u, k_l, k_u + 1, j_l, j_u, self.nwy, main_grid.IDlookup['Ex'], main_grid.Ex, self.Hz, 2, 1, -1, 1, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
-        cython_update_electric_os(main_grid.updatecoeffsE, main_grid.ID, 3, i_l, i_u + 1, k_l, k_u, j_l, j_u, self.nwy, main_grid.IDlookup['Ez'], main_grid.Ez, self.Hx, 2, -1, 1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
+        # cython_update_electric_os(main_grid.updatecoeffsE, main_grid.ID, 3, i_l, i_u, k_l, k_u + 1, j_l, j_u, self.nwy, main_grid.IDlookup['Ex'], main_grid.Ex, self.Hz, 2, 1, -1, 1, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
+        # cython_update_electric_os(main_grid.updatecoeffsE, main_grid.ID, 3, i_l, i_u + 1, k_l, k_u, j_l, j_u, self.nwy, main_grid.IDlookup['Ez'], main_grid.Ez, self.Hx, 2, -1, 1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
 
         # Left and Right
-        cython_update_electric_os(main_grid.updatecoeffsE, main_grid.ID, 2, j_l, j_u, k_l, k_u + 1, i_l, i_u, self.nwx, main_grid.IDlookup['Ey'], main_grid.Ey, self.Hz, 1, -1, 1, 1, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
-        cython_update_electric_os(main_grid.updatecoeffsE, main_grid.ID, 2, j_l, j_u + 1, k_l, k_u, i_l, i_u, self.nwx, main_grid.IDlookup['Ez'], main_grid.Ez, self.Hy, 1, 1, -1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
+        # cython_update_electric_os(main_grid.updatecoeffsE, main_grid.ID, 2, j_l, j_u, k_l, k_u + 1, i_l, i_u, self.nwx, main_grid.IDlookup['Ey'], main_grid.Ey, self.Hz, 1, -1, 1, 1, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
+        # cython_update_electric_os(main_grid.updatecoeffsE, main_grid.ID, 2, j_l, j_u + 1, k_l, k_u, i_l, i_u, self.nwx, main_grid.IDlookup['Ez'], main_grid.Ez, self.Hy, 1, 1, -1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
 
         # Bottom and Top
-        cython_update_electric_os(main_grid.updatecoeffsE, main_grid.ID, 1, i_l, i_u, j_l, j_u + 1, k_l, k_u, self.nwz, main_grid.IDlookup['Ex'], main_grid.Ex, self.Hy, 3, -1, 1, 1, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
-        cython_update_electric_os(main_grid.updatecoeffsE, main_grid.ID, 1, i_l, i_u + 1, j_l, j_u, k_l, k_u, self.nwz, main_grid.IDlookup['Ey'], main_grid.Ey, self.Hx, 3, 1, -1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
+        # cython_update_electric_os(main_grid.updatecoeffsE, main_grid.ID, 1, i_l, i_u, j_l, j_u + 1, k_l, k_u, self.nwz, main_grid.IDlookup['Ex'], main_grid.Ex, self.Hy, 3, -1, 1, 1, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
+        # cython_update_electric_os(main_grid.updatecoeffsE, main_grid.ID, 1, i_l, i_u + 1, j_l, j_u, k_l, k_u, self.nwz, main_grid.IDlookup['Ey'], main_grid.Ey, self.Hx, 3, 1, -1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
 
     def update_magnetic_os(self, main_grid):
         """
@@ -209,8 +514,6 @@ class SubGridHSG(SubGridBase):
                         m_s = os + (m - m_l) * sub_ratio + floor((double) sub_ratio / 2);
                     }
 
-                    // printf("(%d,%d)\\t", l, m);
-
                     // Main grid Index
                     i0 = l; j0 = n_l; k0 = m;
                     
@@ -234,17 +537,14 @@ class SubGridHSG(SubGridBase):
 
                 if(face == 2 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
                     if(mid == 1) {
-                        // subgrid coords for front face
+                        // subgrid coords
                         l_s = os + (l - l_l) * sub_ratio + floor((double) sub_ratio / 2);
                         m_s = os + (m - m_l) * sub_ratio;   
                     }
                     else {
-                        // subgrid coords for back face
                         l_s = os + (l - l_l) * sub_ratio;
                         m_s = os + (m - m_l) * sub_ratio + floor((double) sub_ratio / 2);
                     }
-
-                    // printf("(%d,%d)\\t", l, m);
 
                     // Main grid Index
                     i0 = n_l; j0 = l; k0 = m;
@@ -269,12 +569,11 @@ class SubGridHSG(SubGridBase):
 
                 if(face == 1 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
                     if(mid == 1) {
-                        // subgrid coords for front face
+                        // subgrid coords
                         l_s = os + (l - l_l) * sub_ratio + floor((double) sub_ratio / 2);
                         m_s = os + (m - m_l) * sub_ratio;   
                     }
                     else {
-                        // subgrid coords for back face
                         l_s = os + (l - l_l) * sub_ratio;
                         m_s = os + (m - m_l) * sub_ratio + floor((double) sub_ratio / 2);
                     }
