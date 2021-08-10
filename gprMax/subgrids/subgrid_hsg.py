@@ -29,7 +29,6 @@ from ..cython.fields_updates_hsg import (cython_update_electric_os,
 from .base import SubGridBase
 
 from string import Template
-import pycuda.driver as cuda
 import pycuda.autoinit
 from pycuda.compiler import SourceModule
 import pycuda.gpuarray as gpuarray
@@ -54,20 +53,249 @@ class SubGridHSG(SubGridBase):
             nwl, nwm, nwn, face, field, inc_field, lookup_id, sign, mod, co
         """
 
+        # Allocating GPU Arrays
+        self.updatecoeffsH_gpu = gpuarray.to_gpu(self.updatecoeffsH)
+        self.ID_gpu = gpuarray.to_gpu(self.ID)
+
+        self.Hx_gpu = gpuarray.to_gpu(self.Hx)
+        self.Hy_gpu = gpuarray.to_gpu(self.Hy)
+        self.Hz_gpu = gpuarray.to_gpu(self.Hz)
+
+        precursors.ex_bottom_gpu = gpuarray.to_gpu(precursors.ex_bottom)
+        precursors.ex_top_gpu = gpuarray.to_gpu(precursors.ex_top)
+        precursors.ex_front_gpu = gpuarray.to_gpu(precursors.ex_front)
+        precursors.ex_back_gpu = gpuarray.to_gpu(precursors.ex_back)
+
+        precursors.ey_bottom_gpu = gpuarray.to_gpu(precursors.ey_bottom)
+        precursors.ey_top_gpu = gpuarray.to_gpu(precursors.ey_top)
+        precursors.ey_left_gpu = gpuarray.to_gpu(precursors.ey_left)
+        precursors.ey_right_gpu = gpuarray.to_gpu(precursors.ey_right)
+
+        precursors.ez_front_gpu = gpuarray.to_gpu(precursors.ez_front)
+        precursors.ez_back_gpu = gpuarray.to_gpu(precursors.ez_back)
+        precursors.ez_left_gpu = gpuarray.to_gpu(precursors.ez_left)
+        precursors.ez_right_gpu = gpuarray.to_gpu(precursors.ez_right)
+        
+        kernel_template_is = Template("""
+        // Defining Macros
+        #define INDEX2D_MAT(m, n) (m)*($NY_MATCOEFFS) + (n)
+        #define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS) + (j)*($NZ_FIELDS) + (k)
+        #define INDEX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID) + (i)*($NY_ID)*($NZ_ID) + (j)*($NZ_ID) + (k)
+
+        __global__ void hsg_update_is(
+            const int nwx, const int nwy, const int nwz,
+            const int n,
+            const int offset,
+            const int nwl, const int nwm,
+            const int face,
+            const int co,
+            const int sign_l, const int sign_u,
+            const unsigned int lookup_id,
+            const int pre_coeff,
+            $REAL* updatecoeffs,
+            const unsigned int* ID,
+            $REAL* field,
+            $REAL* inc_field_l,
+            $REAL* inc_field_u) {
+                // Current Thread Index
+                int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+                int l, m, i1, j1, k1, i2, j2, k2, field_material_l, field_material_u, inc_i, inc_j;
+                double inc_l, inc_u, f_l, f_u;
+                int n_o;
+
+                // For inner Faces H nodes are 1 cell before n_boundary_cell
+                n_o = n + offset;
+     
+                // Linear Index to subscript 
+                l = idx / ($NZ_FIELDS * $NY_FIELDS); 
+                m = idx % ($NZ_FIELDS * $NY_FIELDS);
+
+                if(l >= n && l < (nwl + n) && m >= n && m < (nwm + n)) {
+                    if(face == 1) {
+                        i1 = l; j1 = m; k1 = n_o;
+                        i2 = l; j2 = m; k2 = n + nwz;
+                    }
+                    else if(face == 2) {
+                        i1 = n_o; j1 = l; k1 = m;
+                        i2 = n + nwx; j2 = l; k2 = m;
+                    }
+                    else {
+                        i1 = l; j1 = n_o; k1 = m;
+                        i2 = l; j2 = n + nwy; k2 = m;
+                    }
+                    
+                    inc_i = l - n;
+                    inc_j = m - n;
+
+                    // printf("(%d,%d)\\t", l, m);
+
+                    // Precursor Field index
+                    int pre_index = (inc_i * pre_coeff) + inc_j;
+
+                    field_material_l = ID[INDEX4D_ID(lookup_id, i1, j1, k1)];
+                    inc_l = inc_field_l[pre_index];
+
+                    // Additional Field at i, j, k
+                    f_l = updatecoeffs[INDEX2D_MAT(field_material_l, co)] * inc_l * sign_l;
+                    
+                    // Setting the new value
+                    field[INDEX3D_FIELDS(i1, j1, k1)] += f_l;
+
+                    field_material_u = ID[INDEX4D_ID(lookup_id, i2, j2, k2)];
+                    inc_u = inc_field_u[pre_index];
+
+                    f_u = updatecoeffs[INDEX2D_MAT(field_material_u, co)] * inc_u * sign_u;
+                    field[INDEX3D_FIELDS(i2, j2, k2)] += f_u;
+                }
+            }
+        """)
+
+        mod = SourceModule(kernel_template_is.substitute(
+            REAL = config.sim_config.dtypes['C_float_or_double'],
+            NY_MATCOEFFS = self.updatecoeffsH.shape[1],
+            NX_FIELDS = self.nx + 1,
+            NY_FIELDS = self.ny + 1,
+            NZ_FIELDS = self.nz + 1,
+            NX_ID = self.ID.shape[1],
+            NY_ID = self.ID.shape[2],
+            NZ_ID = self.ID.shape[3]
+        ))
+
+        hsg_update_is_gpu = mod.get_function("hsg_update_is")
+
+        bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / 128)), 1, 1)
+
+        # Bottom and Top
+        hsg_update_is_gpu(
+            np.int32(self.nwx), np.int32(self.nwy), np.int32(self.nwz),
+            np.int32(self.n_boundary_cells),
+            np.int32(-1), # offset
+            np.int32(self.nwx), np.int32(self.nwy + 1),
+            np.int32(1), # face
+            np.int32(3), # co
+            np.int32(1), np.int32(-1),
+            np.int32(self.IDlookup['Hy']),
+            np.int32(precursors.ex_bottom.shape[1]), # precursor node coefficient
+            self.updatecoeffsH_gpu.gpudata,
+            self.ID_gpu.gpudata,
+            self.Hy_gpu.gpudata,
+            precursors.ex_bottom_gpu.gpudata,
+            precursors.ex_top_gpu.gpudata,
+            block = (128,1,1),
+            grid = bpg)
+
+        hsg_update_is_gpu(
+            np.int32(self.nwx), np.int32(self.nwy), np.int32(self.nwz),
+            np.int32(self.n_boundary_cells),
+            np.int32(-1), # offset
+            np.int32(self.nwx + 1), np.int32(self.nwy),
+            np.int32(1), # face
+            np.int32(3), # co
+            np.int32(-1), np.int32(1),
+            np.int32(self.IDlookup['Hx']),
+            np.int32(precursors.ey_bottom.shape[1]), # precursor node coefficient
+            self.updatecoeffsH_gpu.gpudata,
+            self.ID_gpu.gpudata,
+            self.Hx_gpu.gpudata,
+            precursors.ey_bottom_gpu.gpudata,
+            precursors.ey_top_gpu.gpudata,
+            block = (128,1,1),
+            grid = bpg)
+
+        # Left and Right
+        hsg_update_is_gpu(
+            np.int32(self.nwx), np.int32(self.nwy), np.int32(self.nwz),
+            np.int32(self.n_boundary_cells),
+            np.int32(-1), # offset
+            np.int32(self.nwy), np.int32(self.nwz + 1),
+            np.int32(2), # face
+            np.int32(1), # co
+            np.int32(1), np.int32(-1),
+            np.int32(self.IDlookup['Hz']),
+            np.int32(precursors.ey_left.shape[1]), # precursor node coefficient
+            self.updatecoeffsH_gpu.gpudata,
+            self.ID_gpu.gpudata,
+            self.Hz_gpu.gpudata,
+            precursors.ey_left_gpu.gpudata,
+            precursors.ey_right_gpu.gpudata,
+            block = (128,1,1),
+            grid = bpg)
+
+        hsg_update_is_gpu(
+            np.int32(self.nwx), np.int32(self.nwy), np.int32(self.nwz),
+            np.int32(self.n_boundary_cells),
+            np.int32(-1), # offset
+            np.int32(self.nwy + 1), np.int32(self.nwz),
+            np.int32(2), # face
+            np.int32(1), # co
+            np.int32(-1), np.int32(1),
+            np.int32(self.IDlookup['Hy']),
+            np.int32(precursors.ez_left.shape[1]), # precursor node coefficient
+            self.updatecoeffsH_gpu.gpudata,
+            self.ID_gpu.gpudata,
+            self.Hy_gpu.gpudata,
+            precursors.ez_left_gpu.gpudata,
+            precursors.ez_right_gpu.gpudata,
+            block = (128,1,1),
+            grid = bpg)
+
+        # Front and back
+        hsg_update_is_gpu(
+            np.int32(self.nwx), np.int32(self.nwy), np.int32(self.nwz),
+            np.int32(self.n_boundary_cells),
+            np.int32(-1), # offset
+            np.int32(self.nwx), np.int32(self.nwz + 1),
+            np.int32(3), # face
+            np.int32(2), # co
+            np.int32(1), np.int32(-1),
+            np.int32(self.IDlookup['Hz']),
+            np.int32(precursors.ex_front.shape[1]), # precursor node coefficient
+            self.updatecoeffsH_gpu.gpudata,
+            self.ID_gpu.gpudata,
+            self.Hz_gpu.gpudata,
+            precursors.ex_front_gpu.gpudata,
+            precursors.ex_back_gpu.gpudata,
+            block = (128,1,1),
+            grid = bpg)
+
+        hsg_update_is_gpu(
+            np.int32(self.nwx), np.int32(self.nwy), np.int32(self.nwz),
+            np.int32(self.n_boundary_cells),
+            np.int32(-1), # offset
+            np.int32(self.nwx + 1), np.int32(self.nwz),
+            np.int32(3), # face
+            np.int32(2), # co
+            np.int32(-1), np.int32(1),
+            np.int32(self.IDlookup['Hx']),
+            np.int32(precursors.ez_front.shape[1]), # precursor node coefficient
+            self.updatecoeffsH_gpu.gpudata,
+            self.ID_gpu.gpudata,
+            self.Hx_gpu.gpudata,
+            precursors.ez_front_gpu.gpudata,
+            precursors.ez_back_gpu.gpudata,
+            block = (128,1,1),
+            grid = bpg)
+
+
+        self.Hx = self.Hx_gpu.get()
+        self.Hy = self.Hy_gpu.get()
+        self.Hz = self.Hz_gpu.get()
+
         # Hz = c0Hz - c1Ey + c2Ex
         # Hy = c0Hy - c3Ex + c1Ez
         # Hx = c0Hx - c2Ez + c3Ey
         # bottom and top
-        cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwx, self.nwy + 1, self.nwz, 1, self.Hy, precursors.ex_bottom, precursors.ex_top, self.IDlookup['Hy'], 1, -1, 3, config.get_model_config().ompthreads)
-        cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwx + 1, self.nwy, self.nwz, 1, self.Hx, precursors.ey_bottom, precursors.ey_top, self.IDlookup['Hx'], -1, 1, 3, config.get_model_config().ompthreads)
+        # cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwx, self.nwy + 1, self.nwz, 1, self.Hy, precursors.ex_bottom, precursors.ex_top, self.IDlookup['Hy'], 1, -1, 3, config.get_model_config().ompthreads)
+        # cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwx + 1, self.nwy, self.nwz, 1, self.Hx, precursors.ey_bottom, precursors.ey_top, self.IDlookup['Hx'], -1, 1, 3, config.get_model_config().ompthreads)
 
         # left and right
-        cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwy, self.nwz + 1, self.nwx, 2, self.Hz, precursors.ey_left, precursors.ey_right, self.IDlookup['Hz'], 1, -1, 1, config.get_model_config().ompthreads)
-        cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwy + 1, self.nwz, self.nwx, 2, self.Hy, precursors.ez_left, precursors.ez_right, self.IDlookup['Hy'], -1, 1, 1, config.get_model_config().ompthreads)
+        # cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwy, self.nwz + 1, self.nwx, 2, self.Hz, precursors.ey_left, precursors.ey_right, self.IDlookup['Hz'], 1, -1, 1, config.get_model_config().ompthreads)
+        # cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwy + 1, self.nwz, self.nwx, 2, self.Hy, precursors.ez_left, precursors.ez_right, self.IDlookup['Hy'], -1, 1, 1, config.get_model_config().ompthreads)
 
         # front and back
-        cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwx, self.nwz + 1, self.nwy, 3, self.Hz, precursors.ex_front, precursors.ex_back, self.IDlookup['Hz'], -1, 1, 2, config.get_model_config().ompthreads)
-        cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwx + 1, self.nwz, self.nwy, 3, self.Hx, precursors.ez_front, precursors.ez_back, self.IDlookup['Hx'], 1, -1, 2, config.get_model_config().ompthreads)
+        # cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwx, self.nwz + 1, self.nwy, 3, self.Hz, precursors.ex_front, precursors.ex_back, self.IDlookup['Hz'], -1, 1, 2, config.get_model_config().ompthreads)
+        # cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwx + 1, self.nwz, self.nwy, 3, self.Hx, precursors.ez_front, precursors.ez_back, self.IDlookup['Hx'], 1, -1, 2, config.get_model_config().ompthreads)
 
     def update_electric_is(self, precursors):
         """Update the subgrid nodes at the IS with the currents derived
@@ -158,7 +386,7 @@ class SubGridHSG(SubGridBase):
                 // OS at the left face
                 os = n_boundary_cells - (sub_ratio * surface_sep);
 
-                // Linear Index to 3D subscript 
+                // Linear Index to subscript 
                 l = idx / ($NZ_FIELDS * $NY_FIELDS); 
                 m = idx % ($NZ_FIELDS * $NY_FIELDS);
 
@@ -498,7 +726,7 @@ class SubGridHSG(SubGridBase):
                 // OS Inner index for the subgrid
                 os = n_boundary_cells - sub_ratio * surface_sep;
 
-                // Linear Index to 3D subscript 
+                // Linear Index to subscript 
                 l = idx / ($NZ_FIELDS * $NY_FIELDS); 
                 m = idx % ($NZ_FIELDS * $NY_FIELDS);
 
