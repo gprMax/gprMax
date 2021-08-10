@@ -36,7 +36,7 @@ class Optimizer(object):
     def __init__(self, maxiter=1000, seed=None):
         self.maxiter = maxiter
         self.seed = seed
-        self.calc_weights = DLS
+        self.calc_weights = None
 
     def fit(self, func, lb, ub, funckwargs={}):
         """Call the optimization function that tries to find an optimal set
@@ -64,9 +64,18 @@ class Optimizer(object):
         np.random.seed(self.seed)
         # find the relaxation frequencies using choosen optimization alghoritm
         tau, _ = self.calc_relaxation_times(func, lb, ub, funckwargs)
-        # find the weights using a damped least squares
+        # find the weights using a calc_weights method
+        if self.calc_weights is None:
+            raise NotImplementedError()
         _, _, weights, ee, rl_exp, im_exp = self.calc_weights(tau, **funckwargs)
         return tau, weights, ee, rl_exp, im_exp
+
+    def calc_relaxation_times(self):
+        """ Optimisation method that tries to find an optimal set
+        of relaxation times that minimise the error
+        between the actual and the approximated electric permittivity.
+        """
+        raise NotImplementedError()
 
     @staticmethod
     def cost_function(x, rl, im, freq):
@@ -87,28 +96,6 @@ class Optimizer(object):
         """
         cost_i, cost_r, _, _, _, _ = DLS(x, rl, im, freq)
         return cost_i + cost_r
-
-    @staticmethod
-    def plot(x, y):
-        """
-        Dynamically plot the error as the optimisation takes place.
-
-        Args:
-            x (array): The number of current iterations.
-            y (array): The objective value at for all x points.
-        """
-        # it clears an axes
-        plt.cla()
-        plt.plot(x, y, "b-", linewidth=1.0)
-        plt.ylim(min(y) - 0.1 * min(y),
-                 max(y) + 0.1 * max(y))
-        plt.xlim(min(x) - 0.1, max(x) + 0.1)
-        plt.grid(b=True, which="major", color="k",
-                 linewidth=0.2, linestyle="--")
-        plt.suptitle("Debye fitting process")
-        plt.xlabel("Iteration")
-        plt.ylabel("Average Error")
-        plt.pause(0.0001)
 
 
 class PSO_DLS(Optimizer):
@@ -151,6 +138,7 @@ class PSO_DLS(Optimizer):
         self.minstep = minstep
         self.minfun = minfun
         self.pflag = pflag
+        self.calc_weights = DLS
 
     def calc_relaxation_times(self, func, lb, ub, funckwargs={}):
         """
@@ -265,8 +253,30 @@ class PSO_DLS(Optimizer):
                 PSO_DLS.plot(xpp, ypp)
         return g, fg
 
+    @staticmethod
+    def plot(x, y):
+        """
+        Dynamically plot the error as the optimisation takes place.
 
-class DA(Optimizer):
+        Args:
+            x (array): The number of current iterations.
+            y (array): The objective value at for all x points.
+        """
+        # it clears an axes
+        plt.cla()
+        plt.plot(x, y, "b-", linewidth=1.0)
+        plt.ylim(min(y) - 0.1 * min(y),
+                 max(y) + 0.1 * max(y))
+        plt.xlim(min(x) - 0.1, max(x) + 0.1)
+        plt.grid(b=True, which="major", color="k",
+                 linewidth=0.2, linestyle="--")
+        plt.suptitle("Debye fitting process")
+        plt.xlabel("Iteration")
+        plt.ylabel("Average Error")
+        plt.pause(0.0001)
+
+
+class DA_DLS(Optimizer):
     """ Create Dual Annealing object with predefined parameters.
     The current class is a modified edition of the scipy.optimize
     package which can be found at:
@@ -278,7 +288,7 @@ class DA(Optimizer):
                  restart_temp_ratio=2e-05, visit=2.62, accept=-5.0,
                  maxfun=1e7, no_local_search=False,
                  callback=None, x0=None, seed=None):
-        super(DA, self).__init__(maxiter, seed)
+        super(DA_DLS, self).__init__(maxiter, seed)
         self.local_search_options = local_search_options
         self.initial_temp = initial_temp
         self.restart_temp_ratio = restart_temp_ratio
@@ -288,6 +298,7 @@ class DA(Optimizer):
         self.no_local_search = no_local_search
         self.callback = callback
         self.x0 = x0
+        self.calc_weights = DLS
 
     def calc_relaxation_times(self, func, lb, ub, funckwargs={}):
         """
@@ -327,7 +338,7 @@ class DA(Optimizer):
         return result.x, result.fun
 
 
-class DE(Optimizer):
+class DE_DLS(Optimizer):
     """
     Create Differential Evolution-Damped Least Squares object with predefined parameters.
     The current class is a modified edition of the scipy.optimize
@@ -340,7 +351,7 @@ class DE(Optimizer):
                  recombination=0.7, callback=None, disp=False, polish=True,
                  init='latinhypercube', atol=0, updating='immediate', workers=1,
                  constraints=(), seed=None):
-        super(DE, self).__init__(maxiter, seed)
+        super(DE_DLS, self).__init__(maxiter, seed)
         self.strategy = strategy
         self.popsize = popsize
         self.tol = tol
@@ -354,6 +365,7 @@ class DE(Optimizer):
         self.updating = updating
         self.workers = workers
         self.constraints = constraints
+        self.calc_weights = DLS
 
     def calc_relaxation_times(self, func, lb, ub, funckwargs={}):
         """

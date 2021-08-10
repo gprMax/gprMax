@@ -8,10 +8,15 @@ In the ``user_libs`` sub-package is a module called ``DebyeFit`` which can be us
    \epsilon(\omega) = \epsilon_{\infty} + \sum_{i=1}^{N}\frac{\Delta\epsilon_{i}}{1+j\omega t_{0,i}},
 
 where :math:`\epsilon(\omega)` is frequency dependent dielectric properties, :math:`\Delta\epsilon` - difference between the real permittivity at zero and infinity frequency.
-:math:`\tau_{0}` is relaxation time,  :math:`\epsilon_{\infty}` - real part of relative permittivity at infinity frequency, and :math:`N` is number of the Debye poles.
+:math:`\tau_{0}` is relaxation time (s),  :math:`\epsilon_{\infty}` - real part of relative permittivity at infinity frequency, and :math:`N` is number of the Debye poles.
 
 The user can choose between Havriliak-Negami, Jonsher, Complex Refractive Index Mixing models, and arbitrary dielectric data derived experimentally
 or calculated using some other function.
+
+License
+=======
+
+``DebyeFit`` sub-package is currently released under the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
 
 Code structure
 ==============
@@ -21,11 +26,14 @@ The ``user_libs`` sub-package contains two main scripts:
 * ```Debye_fit.py``` with definition of all Relaxation functions classes,
 * ```optimization.py``` with definition of three choosen global optimization methods.
 
+
 Class Relaxation
 ################
 
 This class is designed for modelling different relaxation functions, like Havriliak-Negami (```Class HavriliakNegami```), Jonsher (```Class Jonsher```), Complex Refractive Index Mixing (```Class CRIM```) models, and arbitrary dielectric data derived experimentally
 or calculated using some other function (```Class Rawdata```).
+
+More about ``Class Relaxation`` structure can be found in [relaxation.md](./docs/relaxation.md).
 
 Havriliak-Negami Function
 *************************
@@ -56,10 +64,10 @@ The ``HavriliakNegami`` class has the following structure:
 * ``beta`` is real positive float number which varies 0 < $\beta$ < 1,
 * ``e_inf`` is a real part of relative permittivity at infinity frequency,
 * ``de`` is a difference between the real permittivity at zero and infinity frequency,
-* ``tau_0`` is a relaxation time,
+* ``tau_0`` is a relaxation time (s),
 * ``sigma`` is a conductivity (Siemens/metre),
 * ``mu`` is a relative permeability,
-* ``mu_sigma`` is a magnetic loss,
+* ``mu_sigma`` is a magnetic loss (Ohms/metre),
 * ``material_name`` is definition of material name,
 * ``number_of_debye_poles`` is choosen number of Debye poles,
 * ``f_n`` is choosen number of frequences,
@@ -157,32 +165,35 @@ Class Optimizer
 This class supports global optimization algorithms (particle swarm, duall annealing, evolutionary algorithms) for finding an optimal set of relaxation times that minimise the error between the actual and the approximated electric permittivity and calculate optimised weights for the given relaxation times.
 Code written here is mainly based on external libraries, like ```scipy``` and ```pyswarm```.
 
+More about ``Class Optimizer`` structure can be found in [optimization.md](docs/optimization.md).
+
 PSO_DLS Class
 *************
 
-Create hybrid Particle Swarm-Damped Least Squares optimisation object with predefined parameters.
+Creation of hybrid Particle Swarm-Damped Least Squares optimisation object with predefined parameters.
+The current code is a modified edition of the pyswarm package which can be found at https://pythonhosted.org/pyswarm/.
 
-DA Class
-********
+DA_DLS Class
+************
 
-Create Dual Annealing-Damped Least Squares optimisation object with predefined parameters. The current class is a modified edition of the scipy.optimize package which can be found at:
-https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html#scipy.optimize.dual_annealing
+Creation of Dual Annealing-Damped Least Squares optimisation object with predefined parameters. The current class is a modified edition of the scipy.optimize package which can be found at:
+https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.dual_annealing.html#scipy.optimize.dual_annealing.
 
-DE Class
-********
+DE_DLS Class
+************
 
-Create Differential Evolution-Damped Least Squares object with predefined parameters. The current class is a modified edition of the scipy.optimize package which can be found at:
-https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution
+Creation of Differential Evolution-Damped Least Squares object with predefined parameters. The current class is a modified edition of the scipy.optimize package which can be found at:
+https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution.
 
 DLS function
 ************
 
-Find the weights using a non-linear least squares (LS) method, the Levenberg–Marquardt algorithm (LMA or just LM), also known as the damped least-squares (DLS) method.
+Finding the weights using a non-linear least squares (LS) method, the Levenberg–Marquardt algorithm (LMA or just LM), also known as the damped least-squares (DLS) method.
 
 Examples
 ########
 
-In directory ```examples```, we provided jupyter notebooks, scripts and data to show how use stand alone script ```DebyeFit.py```:
+In directory [examples](./examles), we provided jupyter notebooks, scripts and data to show how use stand alone script ```DebyeFit.py```:
 
 * ```example_DebyeFitting.ipynb```: simple cases of using all available implemented relaxation functions,
 * ```example_BiologicalTissues.ipynb```: simple cases of using Cole-Cole function for biological tissues,
@@ -219,13 +230,13 @@ Allows you to model dielectric properties by fitting multi-Debye functions to Ha
 
     #havriliak_negami: f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 i1 str1 [i2]
 
-* ``f1`` is the lower frequency bound (in Hz).
-* ``f2`` is the upper frequency bound (in Hz).
+* ``f1`` is the lower frequency bound (Hz).
+* ``f2`` is the upper frequency bound (Hz).
 * ``f3`` is the :math:`\alpha` parameter beetwen bonds :math:`\left(0 < \alpha < 1 \right)`.
 * ``f4`` is the :math:`\beta` parameter beetwen bonds :math:`\left(0 < \beta < 1 \right)`.
 * ``f5`` is the real relative permittivity at infinity frequency, :math:`\epsilon_{\infty}`.
 * ``f6`` is the difference between the real permittivity at zero and infinity frequency, :math:`\Delta\epsilon`.
-* ``f7`` is the relaxation time, :math:`t_{0}`.
+* ``f7`` is the relaxation time (s), :math:`t_{0}`.
 * ``f8`` is the conductivity (Siemens/metre), :math:`\sigma`
 * ``f9`` is the relative permeability, :math:`\mu_r`
 * ``f10`` is the magnetic loss (Ohms/metre), :math:`\sigma_*`
