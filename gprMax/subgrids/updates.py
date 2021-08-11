@@ -18,7 +18,7 @@
 
 import logging
 
-from ..updates import CPUUpdates
+from ..updates import CPUUpdates, CUDAUpdates
 from .precursor_nodes import PrecursorNodes, PrecursorNodesFiltered
 from .subgrid_hsg import SubGridHSG
 
@@ -45,7 +45,7 @@ def create_updates(G):
     updates = SubgridUpdates(G, updaters)
     return updates
 
-
+# Wrapper that wraps multiple updaters 
 class SubgridUpdates(CPUUpdates):
     """Provides update functions for the Sub gridding simulation."""
 
@@ -162,3 +162,96 @@ class SubgridUpdater(CPUUpdates):
         sub_grid.update_magnetic_is(precursors)
         self.update_magnetic_sources()
         sub_grid.update_magnetic_os(G)
+
+# CUDA Implementation of the SubgridUpdater class
+class CUDASubgridUpdater(CUDAUpdates):
+    def __init__(self, subgrid, precursors, G):
+
+        super().__init__(subgrid)
+        self.precursors = precursors
+        self.G = G
+        self.source_iteration = 0
+    
+    def _set_subfield_kernels(self):
+        """
+        Method to set the values of the hsg kernel
+        """
+
+    def hsg1_gpu(self):
+        G = self.G
+        sub_grid = self.grid
+        precursors = self.precursors
+
+        # Copying the main_grid electric field to IS
+        precursors.update_electric()
+
+        upper_m = int(sub_grid.ratio / 2 - 0.5)
+
+        for m in range(1, upper_m + 1):
+            
+            self.store_outputs_gpu()
+            
+            self.update_electric_a()
+            self.update_electric_pml()
+            # Performing Interpolation
+            precursors.interpolate_magnetic_in_time(int(m + sub_grid.ratio / 2 - 0.5))
+            # Sending the values to update electric field in IS
+            sub_grid.update_electric_is(precursors)
+            self.update_electric_sources()
+            # Second dispersive Update
+            self.update_electric_b()
+
+            # Similar Process as above but for magnetic field
+            self.update_magnetic_gpu()
+            self.update_magnetic_pml()
+            precursors.interpolate_electric_in_time(m)
+            sub_grid.update_magnetic_is(precursors)
+            self.update_magnetic_sources()
+        
+        self.store_outputs_gpu()
+        self.update_electric_a()
+        self.update_electric_pml()
+        precursors.calc_exact_magnetic_in_time()
+        sub_grid.update_electric_is(precursors)
+        self.update_electric_sources()
+        self.update_electric_b()
+        sub_grid.update_electric_os(G)
+
+    def hsg2_gpu(self):
+        
+        G = self.G
+        sub_grid = self.grid
+        precursors = self.precursors
+
+        precursors.update_magnetic()
+
+        upper_m = int(sub_grid.ratio / 2 - 0.5)
+
+        for m in range(1, upper_m + 1):
+
+            self.update_magnetic_gpu()
+            self.update_magnetic_pml()
+            precursors.interpolate_electric_in_time(int(m + sub_grid.ratio / 2 - 0.5))
+            sub_grid.update_magnetic_is(precursors)
+            self.update_magnetic_sources()
+
+            self.store_outputs_gpu()
+            self.update_electric_a()
+            self.update_electric_pml()
+
+            precursors.interpolate_magnetic_in_time(m)
+            sub_grid.update_electric_is(precursors)
+            self.update_electric_sources()
+            self.update_electric_b()
+        
+        self.update_magnetic_gpu()
+        self.update_magnetic_pml()
+        precursors.calc_exact_electric_in_time()
+        sub_grid.update_magnetic_is(precursors)
+        self.update_magnetic_sources()
+        sub_grid.update_magnetic_os(G)
+
+
+
+# Write a CUDASubgridUpdater class which inherits CUDAUpdates
+# (Identical to the above class)
