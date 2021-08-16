@@ -8,17 +8,19 @@ This folder contains the essential files for using a near-real time Machine Lear
 * `ML_utilities.py <https://github.com/utsav-akhaury/gprMax/blob/devel/ML/ML_utilities.py>`_ contains a few helpful functions required for using the ML feature
 * ``sample_models`` contains the gprMax input file for the specific model that was used for near-real time prediction in the sample ML solver notebook
 
-A summary of the performance of different ML schemes on our sample test dataset -
+A summary of the performance of different ML schemes on our sample test dataset (after PCA compression)-
 
-| Method | NMSE (on 1250 test samples)
-| --- | ---
-| Random Forest | 0.0114
-| Random Forest + Chain Regression | 0.0125
-| XGBoost | 0.0111
-| XGBoost + Chain Regression | 0.0124
-| SVM | 0.1393
-| SVM + Chain Regression | 0.1425
-| SGDRegressor | 0.1063
-| SGDRegressor + Chain Regression | 0.1064
-| Gradient Boosting Regressor | 0.0429
-| Gradient Boosting Regressor + Chain Regression | 0.0321
+============================================== ===========================
+Method                                         NMSE (on 1250 test samples)    
+============================================== ===========================
+Random Forest                                  0.0114
+Random Forest + Chain Regression               0.0125
+XGBoost                                        0.0111
+XGBoost + Chain Regression                     0.0124
+SVM                                            0.1393
+SVM + Chain Regression                         0.1425
+SGDRegressor                                   0.1063
+SGDRegressor  + Chain Regression               0.1064
+Gradient Boosting Regressor                    0.0429
+Gradient Boosting Regressor + Chain Regression 0.0321
+============================================== ===========================
