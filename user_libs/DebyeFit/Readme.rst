@@ -10,7 +10,7 @@ In the ``user_libs`` sub-package is a module called ``DebyeFit`` which can be us
 where :math:`\epsilon(\omega)` is frequency dependent dielectric properties, :math:`\Delta\epsilon` - difference between the real permittivity at zero and infinity frequency.
 :math:`\tau_{0}` is relaxation time (s),  :math:`\epsilon_{\infty}` - real part of relative permittivity at infinity frequency, and :math:`N` is number of the Debye poles.
 
-The user can choose between Havriliak-Negami, Jonsher, Complex Refractive Index Mixing models, and arbitrary dielectric data derived experimentally
+The user can choose between Havriliak-Negami, Jonscher, Complex Refractive Index Mixing models, and arbitrary dielectric data derived experimentally
 or calculated using some other function.
 
 License
@@ -30,7 +30,7 @@ The ``user_libs`` sub-package contains two main scripts:
 Class Relaxation
 ################
 
-This class is designed for modelling different relaxation functions, like Havriliak-Negami (```Class HavriliakNegami```), Jonsher (```Class Jonsher```), Complex Refractive Index Mixing (```Class CRIM```) models, and arbitrary dielectric data derived experimentally
+This class is designed for modelling different relaxation functions, like Havriliak-Negami (```Class HavriliakNegami```), Jonscher (```Class Jonscher```), Complex Refractive Index Mixing (```Class CRIM```) models, and arbitrary dielectric data derived experimentally
 or calculated using some other function (```Class Rawdata```).
 
 More about ``Class Relaxation`` structure can be found in [relaxation.md](./docs/relaxation.md).
@@ -76,7 +76,7 @@ The ``HavriliakNegami`` class has the following structure:
 * ``optimizer`` is a choosen optimizer to fit model to dielectric data,
 * ``optimizer_options`` is a dict for options of choosen optimizer.
 
-Jonsher Function
+Jonscher Function
 ****************
 
 Jonscher function is mainly used to describe the dielectric properties of concrete and soils. The frequency domain expression of Jonscher
@@ -84,7 +84,7 @@ function is given by
 
 .. math::
 
-    \epsilon(\omega) = \epsilon_{\infty} - a_{p}*\left( -j*\frac{\omega}{\omega_{p}} \right)^{n}
+    \epsilon(\omega) = \epsilon_{\infty} + a_{p}*\left( -j*\frac{\omega}{\omega_{p}} \right)^{n}
 
 
 The ``Jonscher`` class has the following structure:

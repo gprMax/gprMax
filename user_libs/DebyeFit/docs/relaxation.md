@@ -1,10 +1,11 @@
 # Relaxation classes for multi-Debye fitting
 
-This class is designed for modelling different relaxation functions, like Havriliak-Negami (```Class HavriliakNegami```), Jonsher (```Class Jonsher```), Complex Refractive Index Mixing (```Class CRIM```) models, and arbitrary dielectric data derived experimentally or calculated using some other function (```Class Rawdata```).
+This class is designed for modelling different relaxation functions, like Havriliak-Negami (```Class HavriliakNegami```), Jonscher (```Class Jonscher```), Complex Refractive Index Mixing (```Class CRIM```) models, and arbitrary dielectric data derived experimentally or calculated using some other function (```Class Rawdata```).
 
 Supported relaxation classes:
+
 - [x] Havriliak-Negami,
-- [x] Jonsher,
+- [x] Jonscher,
 - [x] Complex Refractive Index Mixing,
 - [x] Experimental data,
 
@@ -61,8 +62,8 @@ Supported relaxation classes:
 
 11. __error__ - it is inherited by all childern classes, calculates the average fractional error separately for relative permittivity (real part) and conductivity (imaginary part).
 
-
 Each new class of relaxation object should:
+
 - define constructor with appropriate arguments,
 - define __check_inputs__ method to check relaxation class specific parameters,
 - overload __calculation__ method.
