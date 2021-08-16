@@ -637,9 +637,10 @@ class Rawdata(Relaxation):
                 sys.exit("Error: The inputs should be numeric")
 
         self.set_freq(min(array[:, 0]), max(array[:, 0]), self.f_n)
-
-        rl_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 1])
-        im_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 2])
+        rl_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 1],
+                                               fill_value="extrapolate")
+        im_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 2],
+                                               fill_value="extrapolate")
         return rl_interp(self.freq) - 1j * im_interp(self.freq)
 
 
