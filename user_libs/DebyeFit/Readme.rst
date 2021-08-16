@@ -1,17 +1,43 @@
 Fitting multi-pole Debye model to dielectric data
 =================================================
 
-In the ``user_libs`` sub-package is a module called ``DebyeFit`` which can be used to to fit a multi-Debye expansion to dielectric data, defined as
+All electromagnetic phenomena are governed by the Maxwell's equations, which describing how electric and magnetic fields are distributed due to charges and currents,
+and how they are changing in time. gprMax is open source software that simulates electromagnetic wave propagation by using
+Yee's algorithm to solve (3+1)D Maxwell’s equations with Finite-Difference Time-Domain (FDTD) method.
+The behavior of the electromagnetic wave is closely dependent on the material in which it propagates.
+Some dispersive media have quite complex electromagnetic properties depending on the wavelength.
+This, for example, means that for different frequencies the wave can propagate with a different speed in different materials.
+This significantly affects the solver’s output. The main goal of the GSoC 2021 project was to enhance series of scripts,
+which modelled electromagnetic properties of the variety range of materials.
+
+Multi-pole Debye model
+======================
+
+Electric permittivity is a complex function with both real and imaginary parts.
+In general, as a hard and fast rule, the real part dictates the velocity of the medium while the imaginary part is related to the electromagnetic losses.
+The generic form of dispersive media takes a form of
+
+.. math::
+
+   \epsilon(\omega) = \epsilon^{'}(\omega) - j\epsilon^{''}(\omega),
+
+where :math:`\omega` is the angular frequency, :math:`\epsilon^{'}` and :math:`\epsilon^{''}` are the real and imaginary parts of the permittivity respectively. 
+
+In the ``user_libs`` sub-package is a module called ``DebyeFit`` which can be used to fit a multi-Debye expansion to dielectric data, defined as
 
 .. math::
 
    \epsilon(\omega) = \epsilon_{\infty} + \sum_{i=1}^{N}\frac{\Delta\epsilon_{i}}{1+j\omega t_{0,i}},
 
-where :math:`\epsilon(\omega)` is frequency dependent dielectric properties, :math:`\Delta\epsilon` - difference between the real permittivity at zero and infinity frequency.
+where :math:`\epsilon(\omega)` is frequency dependent dielectric permittivity, :math:`\Delta\epsilon` - difference between the real permittivity at zero and infinity frequency.
 :math:`\tau_{0}` is relaxation time (s),  :math:`\epsilon_{\infty}` - real part of relative permittivity at infinity frequency, and :math:`N` is number of the Debye poles.
 
 The user can choose between Havriliak-Negami, Jonscher, Complex Refractive Index Mixing models, and arbitrary dielectric data derived experimentally
-or calculated using some other function.
+or calculated using some other function to fit the data to a multi-Debye expansion.
+
+<div align="center">
+  <img src="docs/epsilon.png" width="600"/>
+</div>
 
 License
 =======
@@ -21,7 +47,7 @@ License
 Code structure
 ==============
 
-The ``user_libs`` sub-package contains two main scripts:
+The ``DebyeFit`` sub-package contains two main scripts:
 
 * ```Debye_fit.py``` with definition of all Relaxation functions classes,
 * ```optimization.py``` with definition of three choosen global optimization methods.
@@ -33,7 +59,7 @@ Class Relaxation
 This class is designed for modelling different relaxation functions, like Havriliak-Negami (```Class HavriliakNegami```), Jonscher (```Class Jonscher```), Complex Refractive Index Mixing (```Class CRIM```) models, and arbitrary dielectric data derived experimentally
 or calculated using some other function (```Class Rawdata```).
 
-More about ``Class Relaxation`` structure can be found in [relaxation.md](./docs/relaxation.md).
+More about ``Class Relaxation`` structure can be found in [relaxation.md](docs/relaxation.md).
 
 Havriliak-Negami Function
 *************************
