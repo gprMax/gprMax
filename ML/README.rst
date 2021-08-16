@@ -7,3 +7,18 @@ This folder contains the essential files for using a near-real time Machine Lear
 * The sample ML notebook (`ML.ipynb <https://github.com/utsav-akhaury/gprMax/blob/devel/ML/ML.ipynb>`_) serves as a template for using the newly added ``Random Parameter Generation Feature`` in conjuction with the chosen ML scheme. Depending on the scenario being modelled, the user may need to change the hyper-parameters (or use a different ML model) to better fit the data
 * `ML_utilities.py <https://github.com/utsav-akhaury/gprMax/blob/devel/ML/ML_utilities.py>`_ contains a few helpful functions required for using the ML feature
 * ``sample_models`` contains the gprMax input file for the specific model that was used for near-real time prediction in the sample ML solver notebook
+
+A summary of the performance of different ML schemes on our sample test dataset -
+
+| Method | NMSE (on 1250 test samples)
+| --- | ---
+| Random Forest | 0.0114
+| Random Forest + Chain Regression | 0.0125
+| XGBoost | 0.0111
+| XGBoost + Chain Regression | 0.0124
+| SVM | 0.1393
+| SVM + Chain Regression | 0.1425
+| SGDRegressor | 0.1063
+| SGDRegressor + Chain Regression | 0.1064
+| Gradient Boosting Regressor | 0.0429
+| Gradient Boosting Regressor + Chain Regression | 0.0321
