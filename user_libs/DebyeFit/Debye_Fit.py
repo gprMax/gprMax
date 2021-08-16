@@ -25,7 +25,7 @@ import sys
 import scipy.interpolate
 import warnings
 
-from optimization import *
+from optimization import PSO_DLS, DA_DLS, DE_DLS
 
 
 class Relaxation(object):
@@ -158,7 +158,7 @@ class Relaxation(object):
                                                       funckwargs={'rl': self.rl,
                                                                   'im': self.im,
                                                                   'freq': self.freq}
-                                                     )
+                                                      )
         return tau, weights, ee, rl, im
 
     def run(self):
@@ -186,7 +186,7 @@ class Relaxation(object):
             print("\n#########",
                   "Try to automaticaly fit number of Debye poles, up to 20!",
                   "##########\n", sep="")
-            error = np.infty # artificial best error starting value
+            error = np.infty  # artificial best error starting value
             self.number_of_debye_poles = 1
             iteration = 1
             # stop increasing number of Debye poles if error is smaller then 5%
@@ -267,7 +267,7 @@ class Relaxation(object):
                               for given frequency points.
         """
         plt.close("all")
-        fig = plt.figure(figsize=(16,8), tight_layout=True)
+        fig = plt.figure(figsize=(16, 8), tight_layout=True)
         gs = gridspec.GridSpec(2, 1)
         ax = fig.add_subplot(gs[0])
         ax.grid(b=True, which="major", linewidth=0.2, linestyle="--")
@@ -366,7 +366,7 @@ class HavriliakNegami(Relaxation):
                  For beta = 1 and alpha !=0 & alpha !=1 Havriliak-Negami
                  transforms to Cole-Cole function.
     :type beta: float
-    :param de: The difference of relative permittivity at infinite frequency 
+    :param de: The difference of relative permittivity at infinite frequency
                and the relative permittivity at zero frequency.
     :type de: float
     :param tau_0: Real positive float number, tau_0 is the relaxation time.
@@ -394,9 +394,9 @@ class HavriliakNegami(Relaxation):
         # Choosing n frequencies logarithmicaly equally spaced between the bounds given
         self.set_freq(self.f_min, self.f_max, self.f_n)
         self.e_inf, self.alpha, self.beta, self.de, self.tau_0 = e_inf, alpha, beta, de, tau_0
-        self.params = {'f_min':self.f_min, 'f_max':self.f_max,
-                       'eps_inf':self.e_inf, 'Delta_eps':self.de, 'tau_0':self.tau_0,
-                       'alpha':self.alpha, 'beta':self.beta}
+        self.params = {'f_min': self.f_min, 'f_max': self.f_max,
+                       'eps_inf': self.e_inf, 'Delta_eps': self.de, 'tau_0': self.tau_0,
+                       'alpha': self.alpha, 'beta': self.beta}
 
     def check_inputs(self):
         """ Check the validity of the Havriliak Negami model's inputs. """
@@ -421,6 +421,7 @@ class HavriliakNegami(Relaxation):
                      1 + (1j * 2 * np.pi *
                      self.freq * self.tau_0)**self.alpha
                                      )**self.beta
+
 
 class Jonscher(Relaxation):
     """ Approximate a given Jonsher function
@@ -464,9 +465,9 @@ class Jonscher(Relaxation):
         # Choosing n frequencies logarithmicaly equally spaced between the bounds given
         self.set_freq(self.f_min, self.f_max, self.f_n)
         self.e_inf, self.a_p, self.omega_p, self.n_p = e_inf, a_p, omega_p, n_p
-        self.params = {'f_min':self.f_min, 'f_max':self.f_max,
-                       'eps_inf':self.e_inf, 'n_p':self.n_p,
-                       'omega_p':self.omega_p, 'a_p':self.a_p}
+        self.params = {'f_min': self.f_min, 'f_max': self.f_max,
+                       'eps_inf': self.e_inf, 'n_p': self.n_p,
+                       'omega_p': self.omega_p, 'a_p': self.a_p}
 
     def check_inputs(self):
         """ Check the validity of the inputs. """
@@ -484,7 +485,7 @@ class Jonscher(Relaxation):
 
     def calculation(self):
         """Calculates the Q function for the given parameters"""
-        return self.e_inf + (self.a_p * (2 * np.pi * 
+        return self.e_inf + (self.a_p * (2 * np.pi *
                       self.freq / self.omega_p)**(self.n_p-1)) * (
                       1 - 1j / np.tan(self.n_p * np.pi/2))
 
@@ -508,7 +509,7 @@ class Crim(Relaxation):
     """
 
     def __init__(self, f_min, f_max, a, volumetric_fractions,
-                 materials, sigma, mu, mu_sigma, material_name, 
+                 materials, sigma, mu, mu_sigma, material_name,
                  number_of_debye_poles=-1, f_n=50,
                  plot=False, save=False,
                  optimizer=PSO_DLS,
@@ -531,9 +532,9 @@ class Crim(Relaxation):
         self.a = a
         self.volumetric_fractions = np.array(volumetric_fractions)
         self.materials = np.array(materials)
-        self.params = {'f_min':self.f_min, 'f_max':self.f_max,
-                       'a':self.a, 'volumetric_fractions':self.volumetric_fractions,
-                       'materials':self.materials}
+        self.params = {'f_min': self.f_min, 'f_max': self.f_max,
+                       'a': self.a, 'volumetric_fractions': self.volumetric_fractions,
+                       'materials': self.materials}
 
     def check_inputs(self):
         """ Check the validity of the inputs. """
@@ -600,7 +601,7 @@ class Rawdata(Relaxation):
     def __init__(self, filename,
                  sigma, mu, mu_sigma,
                  material_name, number_of_debye_poles=-1,
-                 f_n=50, delimiter =',',
+                 f_n=50, delimiter=',',
                  plot=False, save=False,
                  optimizer=PSO_DLS,
                  optimizer_options={}):
@@ -613,7 +614,7 @@ class Rawdata(Relaxation):
                                       optimizer_options=optimizer_options)
         self.delimiter = delimiter
         self.filename = Path(filename).absolute()
-        self.params = {'filename':self.filename}
+        self.params = {'filename': self.filename}
 
     def check_inputs(self):
         """ Check the validity of the inputs. """
@@ -645,7 +646,7 @@ class Rawdata(Relaxation):
 
 
 if __name__ == "__main__":
-    ### Kelley et al. parameters
+    # Kelley et al. parameters
     setup = HavriliakNegami(f_min=1e7, f_max=1e11,
                             alpha=0.91, beta=0.45,
                             e_inf=2.7, de=8.6-2.7, tau_0=9.4e-10,
@@ -653,13 +654,13 @@ if __name__ == "__main__":
                             material_name="Kelley", f_n=100,
                             number_of_debye_poles=6,
                             plot=True, save=False,
-                            optimizer_options={'swarmsize':30,
-                                               'maxiter':100,
-                                               'omega':0.5,
-                                               'phip':1.4,
-                                               'phig':1.4,
-                                               'minstep':1e-8,
-                                               'minfun':1e-8,
+                            optimizer_options={'swarmsize': 30,
+                                               'maxiter': 100,
+                                               'omega': 0.5,
+                                               'phip': 1.4,
+                                               'phig': 1.4,
+                                               'minstep': 1e-8,
+                                               'minfun': 1e-8,
                                                'seed': 111,
                                                'pflag': True})
     setup.run()
@@ -670,7 +671,7 @@ if __name__ == "__main__":
                             material_name="Kelley", f_n=100,
                             number_of_debye_poles=6,
                             plot=True, save=False,
-                            optimizer=DA,
+                            optimizer=DA_DLS,
                             optimizer_options={'seed': 111})
     setup.run()
     setup = HavriliakNegami(f_min=1e7, f_max=1e11,
@@ -680,24 +681,24 @@ if __name__ == "__main__":
                             material_name="Kelley", f_n=100,
                             number_of_debye_poles=6,
                             plot=True, save=False,
-                            optimizer=DE,
+                            optimizer=DE_DLS,
                             optimizer_options={'seed': 111})
     setup.run()
-    ### Testing setup
-    setup = Rawdata("examples/Test.txt", 0.1, 1, 0.1, "M1", 
+    # Testing setup
+    setup = Rawdata("examples/Test.txt", 0.1, 1, 0.1, "M1",
                     number_of_debye_poles=3, plot=True,
                     optimizer_options={'seed': 111})
     setup.run()
     np.random.seed(111)
     setup = HavriliakNegami(1e12, 1e-3, 0.5, 1, 10, 5,
-                            1e-6, 0.1, 1, 0, "M2", 
+                            1e-6, 0.1, 1, 0, "M2",
                             number_of_debye_poles=6,
                             plot=True)
     setup.run()
     setup = Jonscher(1e6, 1e-5, 50, 1, 1e5, 0.7,
-                     0.1, 1, 0.1, "M3", 
-                    number_of_debye_poles=4,
-                    plot=True)
+                     0.1, 1, 0.1, "M3",
+                     number_of_debye_poles=4,
+                     plot=True)
     setup.run()
     f = np.array([0.5, 0.5])
     material1 = [3, 25, 1e6]

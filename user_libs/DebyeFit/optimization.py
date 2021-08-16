@@ -54,8 +54,10 @@ class Optimizer(object):
 
         Returns:
             tau (ndarray): The the best relaxation times.
-            weights (ndarray): Resulting optimised weights for the given relaxation times.
-            ee (float): Average error between the actual and the approximated real part.
+            weights (ndarray): Resulting optimised weights for the given
+                               relaxation times.
+            ee (float): Average error between the actual and the approximated
+                        real part.
             rl (ndarray): Real parts of chosen relaxation function
                           for given frequency points.
             im (ndarray): Imaginary parts of chosen relaxation function
@@ -67,7 +69,8 @@ class Optimizer(object):
         # find the weights using a calc_weights method
         if self.calc_weights is None:
             raise NotImplementedError()
-        _, _, weights, ee, rl_exp, im_exp = self.calc_weights(tau, **funckwargs)
+        _, _, weights, ee, rl_exp, im_exp = \
+            self.calc_weights(tau, **funckwargs)
         return tau, weights, ee, rl_exp, im_exp
 
     def calc_relaxation_times(self):
@@ -84,7 +87,8 @@ class Optimizer(object):
         the actual and the approximated electric permittivity.
 
         Args:
-            x (ndarray): The logarithm with base 10 of relaxation times of the Debyes poles.
+            x (ndarray): The logarithm with base 10 of relaxation times
+                         of the Debyes poles.
             rl (ndarray): Real parts of chosen relaxation function
                           for given frequency points.
             im (ndarray): Imaginary parts of chosen relaxation function
@@ -92,7 +96,8 @@ class Optimizer(object):
             freq (ndarray): The frequencies vector for defined grid.
 
         Returns:
-            cost (float): Sum of mean absolute errors for real and imaginary parts.
+            cost (float): Sum of mean absolute errors for real and
+                          imaginary parts.
         """
         cost_i, cost_r, _, _, _, _ = DLS(x, rl, im, freq)
         return cost_i + cost_r
@@ -162,11 +167,13 @@ class PSO_DLS(Optimizer):
         """
         np.random.seed(self.seed)
         # check input parameters
-        assert len(lb) == len(ub), 'Lower- and upper-bounds must be the same length'
+        assert len(lb) == len(ub), \
+            'Lower- and upper-bounds must be the same length'
         assert hasattr(func, '__call__'), 'Invalid function handle'
         lb = np.array(lb)
         ub = np.array(ub)
-        assert np.all(ub > lb), 'All upper-bound values must be greater than lower-bound values'
+        assert np.all(ub > lb), \
+            'All upper-bound values must be greater than lower-bound values'
 
         vhigh = np.abs(ub - lb)
         vlow = -vhigh
@@ -321,26 +328,28 @@ class DA_DLS(Optimizer):
             fun (float): The objective value at the best solution.
         """
         np.random.seed(self.seed)
-        result = scipy.optimize.dual_annealing(func,
-                                               bounds=list(zip(lb, ub)),
-                                               args=funckwargs.values(),
-                                               maxiter=self.maxiter,
-                                               local_search_options=self.local_search_options,
-                                               initial_temp=self.initial_temp,
-                                               restart_temp_ratio=self.restart_temp_ratio,
-                                               visit=self.visit,
-                                               accept=self.accept,
-                                               maxfun=self.maxfun,
-                                               no_local_search=self.no_local_search,
-                                               callback=self.callback,
-                                               x0=self.x0)
+        result = scipy.optimize.dual_annealing(
+            func,
+            bounds=list(zip(lb, ub)),
+            args=funckwargs.values(),
+            maxiter=self.maxiter,
+            local_search_options=self.local_search_options,
+            initial_temp=self.initial_temp,
+            restart_temp_ratio=self.restart_temp_ratio,
+            visit=self.visit,
+            accept=self.accept,
+            maxfun=self.maxfun,
+            no_local_search=self.no_local_search,
+            callback=self.callback,
+            x0=self.x0)
         print(result.message)
         return result.x, result.fun
 
 
 class DE_DLS(Optimizer):
     """
-    Create Differential Evolution-Damped Least Squares object with predefined parameters.
+    Create Differential Evolution-Damped Least Squares object
+    with predefined parameters.
     The current class is a modified edition of the scipy.optimize
     package which can be found at:
     https://docs.scipy.org/doc/scipy/reference/generated/
@@ -349,7 +358,8 @@ class DE_DLS(Optimizer):
     def __init__(self, maxiter=1000,
                  strategy='best1bin', popsize=15, tol=0.01, mutation=(0.5, 1),
                  recombination=0.7, callback=None, disp=False, polish=True,
-                 init='latinhypercube', atol=0, updating='immediate', workers=1,
+                 init='latinhypercube', atol=0,
+                 updating='immediate', workers=1,
                  constraints=(), seed=None):
         super(DE_DLS, self).__init__(maxiter, seed)
         self.strategy = strategy
@@ -360,7 +370,7 @@ class DE_DLS(Optimizer):
         self.callback = callback
         self.disp = disp
         self.polish = polish
-        self.init= init
+        self.init = init
         self.atol = atol
         self.updating = updating
         self.workers = workers
@@ -388,22 +398,23 @@ class DE_DLS(Optimizer):
             fun (float): The objective value at the best solution.
         """
         np.random.seed(self.seed)
-        result = scipy.optimize.differential_evolution(func,
-                                                       bounds=list(zip(lb, ub)),
-                                                       args=funckwargs.values(),
-                                                       strategy=self.strategy,
-                                                       popsize=self.popsize,
-                                                       tol=self.tol,
-                                                       mutation=self.mutation,
-                                                       recombination=self.recombination,
-                                                       callback=self.callback,
-                                                       disp=self.disp,
-                                                       polish=self.polish,
-                                                       init=self.init,
-                                                       atol=self.atol,
-                                                       updating=self.updating,
-                                                       workers=self.workers,
-                                                       constraints=self.constraints)
+        result = scipy.optimize.differential_evolution(
+            func,
+            bounds=list(zip(lb, ub)),
+            args=funckwargs.values(),
+            strategy=self.strategy,
+            popsize=self.popsize,
+            tol=self.tol,
+            mutation=self.mutation,
+            recombination=self.recombination,
+            callback=self.callback,
+            disp=self.disp,
+            polish=self.polish,
+            init=self.init,
+            atol=self.atol,
+            updating=self.updating,
+            workers=self.workers,
+            constraints=self.constraints)
         print(result.message)
         return result.x, result.fun
 
@@ -415,8 +426,10 @@ def DLS(logt, rl, im, freq):
     also known as the damped least-squares (DLS) method.
 
     Args:
-        logt (ndarray): The best known position form optimization module (optimal design),
-                        the logarithm with base 10 of relaxation times of the Debyes poles.
+        logt (ndarray): The best known position form optimization module
+                        (optimal design),
+                        the logarithm with base 10 of relaxation times
+                        of the Debyes poles.
         rl (ndarray): Real parts of chosen relaxation function
                       for given frequency points.
         im (ndarray): Imaginary parts of chosen relaxation function
@@ -428,12 +441,16 @@ def DLS(logt, rl, im, freq):
                         the approximated imaginary part.
         cost_r (float): Mean absolute error between the actual and
                         the approximated real part (plus average error).
-        x (ndarray): Resulting optimised weights for the given relaxation times.
-        ee (float): Average error between the actual and the approximated real part.
-        rp (ndarray): The real part of the permittivity for the optimised relaxation
-                      times and weights for the frequnecies included in freq.
+        x (ndarray): Resulting optimised weights for the given
+                     relaxation times.
+        ee (float): Average error between the actual and the approximated
+                    real part.
+        rp (ndarray): The real part of the permittivity for the optimised
+                      relaxation times and weights for the frequnecies included
+                      in freq.
         ip (ndarray): The imaginary part of the permittivity for the optimised
-                      relaxation times and weights for the frequnecies included in freq.
+                      relaxation times and weights for the frequnecies included
+                      in freq.
     """
     # The relaxation time of the Debyes are given at as logarithms
     # logt=log10(t0) for efficiency during the optimisation
@@ -444,8 +461,10 @@ def DLS(logt, rl, im, freq):
              freq, len(tt)).reshape((-1, len(tt))) * tt)
     # Adding dumping (Levenberg–Marquardt algorithm)
     # Solving the overdetermined system y=Ax
-    x = np.abs(np.linalg.lstsq(d.imag, im, rcond=None)[0])  # absolute damped least-squares solution
-    rp, ip = np.matmul(d.real, x[np.newaxis].T).T[0], np.matmul(d.imag, x[np.newaxis].T).T[0]
+    x = np.abs(np.linalg.lstsq(d.imag, im, rcond=None)[0])
+    # x - absolute damped least-squares solution
+    rp, ip = np.matmul(d.real, x[np.newaxis].T).T[0], np.matmul(
+                    d.imag, x[np.newaxis].T).T[0]
     cost_i = np.sum(np.abs(ip-im))/len(im)
     ee = np.mean(rl - rp)
     if ee < 1:
