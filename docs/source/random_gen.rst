@@ -12,7 +12,7 @@ The following convention is followed to activate the random parameter generation
 
     #command_name: distr parameter_1.1 parameter_1.2 parameter_2.1 parameter_2.2 parameter_3.1 parameter_3.2 ...
 
-``distr`` specifies the (PDF) from which random numbers are drawn. Currently, the following distributions are supported and corresponding to each of them, the values entered in pairs specify the PDF parameters:
+``distr`` specifies the PDF from which random numbers are drawn. Currently, the following distributions are supported and corresponding to each of them, the values entered in pairs specify the PDF parameters:
 
 * ``u`` - **Uniform Distribution**
 
