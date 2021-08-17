@@ -25,6 +25,7 @@ from ..cmds_geometry.cmds_geometry import UserObjectGeometry
 from ..cmds_multiuse import Rx, UserObjectMulti
 from .multi import ReferenceRx as ReferenceRxUser
 from .subgrid_hsg import SubGridHSG as SubGridHSGUser
+from .subgrid_hsg import CUDASubGridHSG as CUDASubGridHSGUser
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +167,7 @@ class SubGridHSG(SubGridBase):
                  p2=None,
                  ratio=3,
                  id='',
+                 gpu=False,
                  is_os_sep=3,
                  pml_separation=4,
                  subgrid_pml_thickness=6,
@@ -185,13 +187,19 @@ class SubGridHSG(SubGridBase):
         kwargs['subgrid_pml_thickness'] = subgrid_pml_thickness
         kwargs['interpolation'] = interpolation
         kwargs['filter'] = filter
-
+        
         super().__init__(**kwargs)
         self.order = 18
+        self.gpu = gpu
         self.hash = '#subgrid_hsg'
 
     def create(self, grid, uip):
-        sg = SubGridHSGUser(**self.kwargs)
+        # If GPU flag is true, then use GPU (CUDA) based HSG Algorithm
+        if self.gpu:
+            sg = CUDASubGridHSGUser(**self.kwargs)
+        else:
+            sg = SubGridHSGUser(**self.kwargs)
+
         self.setup(sg, grid, uip)
         return sg
 

@@ -24,7 +24,8 @@ from .updates import CPUUpdates, CUDAUpdates
 
 
 def create_G():
-    """Create grid object according to solver.
+    """
+    Create grid object according to solver.
 
     Returns:
         G (FDTDGrid): Holds essential parameters describing the model.
@@ -50,12 +51,16 @@ def create_solver(G):
 
     if config.sim_config.general['subgrid']:
         updates = create_subgrid_updates(G)
-        solver = Solver(updates, hsg=True)
-        # A large range of different functions exist to advance the time step for
-        # dispersive materials. The correct function is set here based on the
-        # the required numerical precision and dispersive material type.
-        props = updates.adapt_dispersive_config()
-        updates.set_dispersive_updates(props)
+        # If subgrid is to be GPU implemented 
+        if config.sim_config.general['cuda']:
+            solver = Solver(updates, hsg = True)
+        else:
+            solver = Solver(updates, hsg = True) 
+            # A large range of different functions exist to advance the time step for
+            # dispersive materials. The correct function is set here based on the
+            # the required numerical precision and dispersive material type.
+            props = updates.adapt_dispersive_config()
+            updates.set_dispersive_updates(props)
     elif config.sim_config.general['cpu']:
         updates = CPUUpdates(G)
         solver = Solver(updates)

@@ -17,18 +17,16 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import numpy as np
 
-from ..grid import FDTDGrid
+from ..grid import CUDAGrid, FDTDGrid
 
 logger = logging.getLogger(__name__)
 
 
-class SubGridBase(FDTDGrid):
+class SubGridBase:
+    """The base class of Subgrids that defines extra parameters for the grid."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-
+    def initialise(self, **kwargs):
         self.ratio = kwargs['ratio']
 
         if self.ratio % 2 == 0:
@@ -48,6 +46,7 @@ class SubGridBase(FDTDGrid):
         # Distance from OS to pml or the edge of the grid when pml is off
         self.pml_separation = kwargs['pml_separation']
 
+        # These work dude to FDTDgrid being inherited
         self.pmlthickness['x0'] = kwargs['subgrid_pml_thickness']
         self.pmlthickness['y0'] = kwargs['subgrid_pml_thickness']
         self.pmlthickness['z0'] = kwargs['subgrid_pml_thickness']
@@ -72,3 +71,16 @@ class SubGridBase(FDTDGrid):
         j_s = self.n_boundary_cells_y + (j - self.j0) * self.ratio
         k_s = self.n_boundary_cells_z + (k - self.k0) * self.ratio
         return (i_s, j_s, k_s)
+
+# Defining classes based on different Solvers
+class CPUSubGridBase(SubGridBase, FDTDGrid):
+    def __init__(self, **kwargs):
+        super().__init__()
+
+        self.initialise(**kwargs)
+
+class CUDASubGridBase(SubGridBase, CUDAGrid):
+    def __init__(self, **kwargs):
+        super().__init__()
+
+        self.initialise(**kwargs)

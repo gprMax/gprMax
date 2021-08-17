@@ -36,7 +36,7 @@ from .sources import HertzianDipole as HertzianDipoleUser
 from .sources import MagneticDipole as MagneticDipoleUser
 from .sources import TransmissionLine as TransmissionLineUser
 from .sources import VoltageSource as VoltageSourceUser
-from .subgrids.base import SubGridBase
+from .subgrids.base import CPUSubGridBase, CUDASubGridBase
 from .utilities.utilities import round_value
 from .waveforms import Waveform as WaveformUser
 
@@ -80,7 +80,7 @@ class UserObjectMulti:
             string if the grid is the main grid.
         """
 
-        if isinstance(grid, SubGridBase):
+        if isinstance(grid, CPUSubGridBase) or isinstance(grid, CUDASubGridBase):
             return f'[{grid.name}] '  
         else:
             return ''
@@ -811,7 +811,7 @@ class Snapshot(UserObjectMulti):
         self.hash = '#snapshot'
 
     def create(self, grid, uip):
-        if isinstance(grid, SubGridBase):
+        if isinstance(grid, CPUSubGridBase) or isinstance(grid, CUDASubGridBase):
             logger.exception(self.params_str() + ' do not add Snapshots to Subgrids.')
             raise ValueError
         try:
@@ -1238,7 +1238,7 @@ class GeometryView(UserObjectMulti):
         """
 
         if output_type == 'n':
-            if isinstance(grid, SubGridBase):
+            if isinstance(grid, CPUSubGridBase) or isinstance(grid, CUDASubGridBase):
                 from .geometry_outputs import GeometryViewSubgridVoxels as GeometryViewUser            
             else:
                 from .geometry_outputs import GeometryViewVoxels as GeometryViewUser            
