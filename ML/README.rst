@@ -21,6 +21,8 @@ Results
 
 A summary of the performance of different ML schemes on our sample test dataset (after PCA compression):
 
+(``NMSE = Normalized Mean Squared Error`` - Lower NMSE implies better performance)
+
 ============================================== ===========================
 Method                                         NMSE (on 1250 test samples)    
 ============================================== ===========================
