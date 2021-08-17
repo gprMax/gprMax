@@ -4,13 +4,15 @@
 Random Parameter Generation Mode
 *********************************
 
-This new gprMax feature allows the user to generate random parameters for a specific model. Syntactically, instead of entering single values for each **numerical** parameter in a given hash command, the user is allowed to enter values in pairs. The following convention is followed to activate the random parameter generation mode:
+This new gprMax feature allows the user to generate random parameters for a specific model. It allows the user to specify the Probability Distribution Function (PDF) from which these parameters are randomly drawn. Subsequently, for every **numerical** parameter inside a hash command, the user must enter two values (in pairs) that define the specified PDF's parameters.
+
+The following convention is followed to activate the random parameter generation mode:
 
 .. code-block:: none
 
     #command_name: distr parameter_1.1 parameter_1.2 parameter_2.1 parameter_2.2 parameter_3.1 parameter_3.2 ...
 
-``distr`` specifies the Probability Distribution Function (PDF) from which random numbers are drawn. Currently, the following distributions are supported and corresponding to each of them, the values entered in pairs specify the distribution parameters:
+``distr`` specifies the (PDF) from which random numbers are drawn. Currently, the following distributions are supported and corresponding to each of them, the values entered in pairs specify the PDF parameters:
 
 * ``u`` - **Uniform Distribution**
 
@@ -70,7 +72,7 @@ This new gprMax feature allows the user to generate random parameters for a spec
 Saving Randomly Generated Parameters
 ====================================
 
-All the randomly generated parameters are **automatically** saved to a pickle file in the same directory as the input file. Each column in this file correspoinds to a specific model parameter.
+All the randomly generated parameters are **automatically** saved to a pickle file in the same directory as the input file. Each column in this file corresponds to a specific model parameter.
 
 This feature can easily be used along with the ``-n`` command line argument. For every iteration, a new set of random parameters would be generated and a new row would be appended to the pickle file. 
 
