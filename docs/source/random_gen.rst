@@ -4,7 +4,7 @@
 Random Parameter Generation Mode
 *********************************
 
-This new gprMax feature allows the user to generate random parameters for a specific model. It allows the user to specify the Probability Distribution Function (PDF) from which these parameters are randomly drawn. Subsequently, for every **numerical** parameter inside a hash command, the user must enter two values (in pairs) that define the specified PDF's parameters.
+This new feature allows the generation of random parameters for a specific gprMax model. It allows the user to specify the Probability Distribution Function (PDF) from which these parameters are randomly drawn. Subsequently, for every **numerical** parameter inside a hash command, the user must enter two values (in pairs) that define the specified PDF's parameters.
 
 The following convention is followed to activate the random parameter generation mode:
 
