@@ -19,6 +19,7 @@ from .cmds_geometry.cylindrical_sector import CylindricalSector
 from .cmds_geometry.edge import Edge
 from .cmds_geometry.fractal_box import FractalBox
 from .cmds_geometry.geometry_objects_read import GeometryObjectsRead
+from .cmds_geometry.geometry_objects_read import GeometryObjectsReadSTL
 from .cmds_geometry.plate import Plate
 from .cmds_geometry.sphere import Sphere
 from .cmds_geometry.triangle import Triangle
