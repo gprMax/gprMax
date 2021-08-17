@@ -42,6 +42,7 @@ Package overview
         gprMax/
         gsoc/
         LICENSE
+        ML/
         README.rst
         setup.cfg
         setup.py
@@ -57,6 +58,7 @@ Package overview
 * ``gprMax`` is the main package. Within this package the main module is ``gprMax.py``
 * ``gsoc`` contains information for `Google Summer of Code <https://summerofcode.withgoogle.com>`_ program - project ideas and proposal guidance.
 * ``LICENSE`` contains information on the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
+* ``ML`` contains the essential files for using a near-real time Machine Learning-based Forward Solver with models generated using gprMax.
 * ``README.rst`` contains getting started information on installation, usage, and new features/changes.
 * ``setup.cfg`` is used to set preference for code formatting/styling using flake8.
 * ``setup.py`` is used to compile the Cython extension modules.
