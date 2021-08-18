@@ -8,6 +8,11 @@ kernel_template_os = Template("""
 #define INDEX4D_ID(p, i, j, k) (p)*($NX_ID)*($NY_ID)*($NZ_ID) + (i)*($NY_ID)*($NZ_ID) + (j)*($NZ_ID) + (k)
 
 
+/////////////////////////
+// Electric OS updates //
+/////////////////////////
+
+
 __global__ void hsg_update_electric_os(
     const int face,
     const unsigned int co,
@@ -25,6 +30,27 @@ __global__ void hsg_update_electric_os(
     const unsigned int* ID,
     $REAL* field,
     $REAL* inc_field) {
+        
+        //  This function updates the electric fields of OS.
+        // 
+        //  Args: 
+        //      face: Determines which face of the cube to calculate for.
+        //      co: Coefficient used by gprMax update equations which
+        //      is specific to the field component being updated.
+        //      sign_n, sign_f: Sign of the incident field on the near and far face respectively.
+        //      mid: Checks if the H node is midway along the lower edge.
+        //      sub_ratio: The ratio of sub-gridding.
+        //      surface_sep: The separation between IS and OS.
+        //      n_boundary_cells: the number of boundary cells associated with the grid.
+        //      nwn: Value of the field that is not changing for each 2D slice.
+        //      lookup_id: The index value of the component of the main_grid fields.
+        //      l_l, l_u, m_l, m_u, n_l, n_u: The upper and lower limits of the passed fields.
+        //      updatecoeffsH: The update coefficients of Magnetic field.
+        //      ID: The ID of the components.
+        //      field: The main_grid field to be updated.
+        //      inc_field: The sub_grid field involved in updating the main_grid field.
+
+
         // Current Thread Index
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -35,18 +61,22 @@ __global__ void hsg_update_electric_os(
         // Surface normal index for the subgrid near face h nodes (left i index)
         n_s_l = n_boundary_cells - (surface_sep * sub_ratio) - sub_ratio + floor((double) sub_ratio / 2);
 
-        // surface normal index for the subgrid far face h nodes (right i index)
+        // Surface normal index for the subgrid far face h nodes (right i index)
         n_s_r = n_boundary_cells + nwn + (surface_sep * sub_ratio) + floor((double) sub_ratio / 2);
 
         // OS at the left face
         os = n_boundary_cells - (sub_ratio * surface_sep);
 
-        // Linear Index to subscript 
+        // Linear Index to subscript
+        // Since we are only concerned for a 2D slice of the grid with no
+        // circular wrapping, the calculation done below works 
         l = idx / ($NZ_FIELDS * $NY_FIELDS); 
         m = idx % ($NZ_FIELDS * $NY_FIELDS);
 
+        // If block for front and back face calculation
         if(face == 3 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
             if(mid == 1) {
+                // Subgrid coordinates
                 l_s = os + (l - l_l) * sub_ratio + floor((double) sub_ratio / 2);
                 m_s = os + (m - m_l) * sub_ratio;
             }
@@ -55,7 +85,7 @@ __global__ void hsg_update_electric_os(
                 m_s = os + (m - m_l) * sub_ratio + floor((double) sub_ratio / 2);
             }
 
-                // Main grid Index
+            // Main grid Index
             i0 = l; j0 = n_l; k0 = m;
             
             // Sub-grid Index
@@ -63,9 +93,11 @@ __global__ void hsg_update_electric_os(
             i2 = l; j2 = n_u; k2 = m;
             i3 = l_s; j3 = n_s_r; k3 = m_s;
 
+            // Getting the material at the main grid index
             int material_e_l = ID[INDEX4D_ID(lookup_id, i0, j0, k0)];
-            inc_n = inc_field[INDEX3D_SUBFIELDS(i1, j1, k1)] * sign_n;
 
+            // Associated incident field
+            inc_n = inc_field[INDEX3D_SUBFIELDS(i1, j1, k1)] * sign_n;
             field[INDEX3D_FIELDS(i0, j0, k0)] += updatecoeffsE[INDEX2D_MAT(material_e_l, co)] * inc_n;
 
             int material_e_r = ID[INDEX4D_ID(lookup_id, i2, j2, k2)];
@@ -74,6 +106,7 @@ __global__ void hsg_update_electric_os(
             field[INDEX3D_FIELDS(i2, j2, k2)] += updatecoeffsE[INDEX2D_MAT(material_e_r, co)] * inc_f;
         }
 
+        // If block for left and right face calculation
         if(face == 2 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
             if(mid == 1) {
                 // subgrid coords
@@ -106,6 +139,7 @@ __global__ void hsg_update_electric_os(
             field[INDEX3D_FIELDS(i2, j2, k2)] += updatecoeffsE[INDEX2D_MAT(material_e_r, co)] * inc_f;
         }
 
+        // If block for top and bottom face calculation
         if(face == 1 && l >= l_l && l < l_u && m >= m_l && m < m_u) {
             if(mid == 1) {
                 // subgrid coords
@@ -138,6 +172,11 @@ __global__ void hsg_update_electric_os(
             field[INDEX3D_FIELDS(i2, j2, k2)] += updatecoeffsE[INDEX2D_MAT(material_e_r, co)] * inc_f;
         }
     }
+
+
+/////////////////////////
+// Magnetic OS updates //
+/////////////////////////
 
 __global__ void hsg_update_magnetic_os(
     const int face,
@@ -296,6 +335,27 @@ __global__ void hsg_update_is(
     $REAL* field,
     $REAL* inc_field_l,
     $REAL* inc_field_u) {
+        
+        //  This method updates the IS fields.
+        //
+        //  Args:
+        //      nwx, nwy, nwz: Number of cells in respective directions.
+        //      n: Number of boundary cells.
+        //      offset: Helps distinguishing the H nodes from the E nodes.
+        //      nwl, nwm: Number of cells in the 
+        //      face: Determines which face of the cube to calculate for.
+        //      co: Coefficient used by gprMax update equations which
+        //      is specific to the field component being updated.
+        //      sign_l, sign_u: Lower and upper signs for the precursor fields
+        //      lookup_id: The index value of the component of the main_grid fields.
+        //      pre_coeff: The coefficient of the precursor fields.
+        //      updatecoeffs: The update coefficients of the field.
+        //      ID: The ID of the components
+        //      field: the sub_grid fields to be updated
+        //      inc_field_l, inc_field_u: Lower and upper precursor fields.
+
+
+
         // Current Thread Index
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -326,8 +386,6 @@ __global__ void hsg_update_is(
             
             inc_i = l - n;
             inc_j = m - n;
-
-            // printf("(%d,%d)\\t", l, m);
 
             // Precursor Field index
             int pre_index = (inc_i * pre_coeff) + inc_j;
