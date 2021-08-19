@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 class SubGridBase:
     """The base class of Subgrids that defines extra parameters for the grid."""
 
+    # A method that initialises the required parameters after a Grid is inherited in child classes
     def initialise(self, **kwargs):
         self.ratio = kwargs['ratio']
 
