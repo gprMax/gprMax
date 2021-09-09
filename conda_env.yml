@@ -14,7 +14,6 @@ dependencies:
 - pip
 - psutil
 - scipy
-- pickle         # required for random parameter generation
 - scikit-learn   # required for ML
 - xgboost        # required for ML
 
