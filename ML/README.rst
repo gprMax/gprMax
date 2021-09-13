@@ -15,17 +15,17 @@ A summary of the performance of different ML schemes on our sample test dataset 
 
 (``NMSE = Normalized Mean Squared Error`` - Lower NMSE implies better performance)
 
-============================================== ===========================
-Method                                         NMSE (on 1250 test samples)    
-============================================== ===========================
-Random Forest                                  0.0114
-Random Forest + Chain Regression               0.0125
-XGBoost                                        0.0111
-XGBoost + Chain Regression                     0.0124
-SVM                                            0.1393
-SVM + Chain Regression                         0.1425
-SGDRegressor                                   0.1063
-SGDRegressor  + Chain Regression               0.1064
-Gradient Boosting Regressor                    0.0429
-Gradient Boosting Regressor + Chain Regression 0.0321
-============================================== ===========================
+============================================== =========================== ==================
+Method                                         NMSE (on 1250 test samples) Training Time (s)
+============================================== =========================== ==================
+Random Forest                                  0.0182                      2.8
+Random Forest + Chain Regression               0.0809                      179.5
+XGBoost                                        0.0285                      8.8
+XGBoost + Chain Regression                     0.1011                      17.4
+SVM                                            0.2488                      25.7
+SVM + Chain Regression                         0.2487                      22.3
+SGDRegressor                                   0.2394                      0.1
+SGDRegressor  + Chain Regression               0.2402                      0.4
+Gradient Boosting Regressor                    0.1191                      17.4
+Gradient Boosting Regressor + Chain Regression 0.1302                      74.1
+============================================== =========================== ==================
