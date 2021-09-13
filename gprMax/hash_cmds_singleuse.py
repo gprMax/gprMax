@@ -82,6 +82,7 @@ def process_singlecmds(singlecmds):
 
         p1 = (tmp[0], tmp[1], tmp[2])
         domain = Domain(p1=p1)
+        domain_bounds = p1
         scene_objects.append(domain)
 
     cmd = '#time_step_stability_factor'
@@ -164,4 +165,4 @@ def process_singlecmds(singlecmds):
 
         scene_objects.append(ex_file)
 
-    return scene_objects
+    return scene_objects, domain_bounds

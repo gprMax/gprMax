@@ -44,6 +44,9 @@ from .scene import Scene
 from .utilities.host_info import mem_check_all, set_omp_threads
 from .utilities.utilities import get_terminal_width, human_size
 
+from .random_gen import save_Ascan_to_pkl
+import os
+
 logger = logging.getLogger(__name__)
 
 
@@ -54,6 +57,9 @@ class ModelBuildRun:
         self.G = G
         # Monitor memory usage
         self.p = None
+        
+        # Data labels for random parameters
+        self.data_labels = None
 
         # Set number of OpenMP threads to physical threads at this point to be
         # used with threaded model building methods, e.g. fractals. Can be
@@ -197,11 +203,14 @@ class ModelBuildRun:
         if not scene:
             scene = Scene()
             # Parse the input file into user objects and add them to the scene
-            scene = parse_hash_commands(scene, self.G)
+            scene, data_labels = parse_hash_commands(scene, self.G)
 
         # Creates the internal simulation objects
         scene.create_internal_objects(self.G)
 
+        # Update data labels for the user to check the order in which random parameters are saved
+        self.data_labels = data_labels
+        
         return scene
 
     def write_output_data(self):
@@ -275,7 +284,12 @@ class ModelBuildRun:
         tsolve, memsolve = solver.solve(iterator)
 
         # Write output data, i.e. field data for receivers and snapshots to file(s)
-        self.write_output_data()
+        if not config.sim_config.args.no_h5:
+            self.write_output_data()
+
+        # Write all field outputs to a .pkl file (if random parameters generated)
+        if os.path.isfile(config.get_model_config().output_file_path_ext_random):
+            save_Ascan_to_pkl(self.G, str(config.get_model_config().output_file_path_h5)+'_{field_outputs}.pkl')
 
         # Print resource information on runtime and memory usage
         self.print_resource_info(tsolve, memsolve)
