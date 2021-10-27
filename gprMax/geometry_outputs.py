@@ -368,7 +368,7 @@ class GeometryObjects:
 
         # Sizes of arrays to write necessary to update progress bar
         self.solidsize = (self.nx + 1) * (self.ny + 1) * \
-            (self.nz + 1) * n.itemsize
+            (self.nz + 1) * np.dtype(np.uint32).itemsize
         self.rigidsize = 18 * (self.nx + 1) * (self.ny + 1) * \
             (self.nz + 1) * np.dtype(np.int8).itemsize
         self.IDsize = 6 * (self.nx + 1) * (self.ny + 1) * \
