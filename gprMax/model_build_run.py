@@ -117,7 +117,7 @@ class ModelBuildRun:
             logger.info('')
             for i, go in enumerate(G.geometryobjectswrite):
                 pbar = tqdm(total=go.datawritesize, unit='byte', unit_scale=True,
-                            desc=f'Writing geometry object file {i + 1}/{len(G.geometryobjectswrite)}, {go.filename.name}',
+                            desc=f'Writing geometry object file {i + 1}/{len(G.geometryobjectswrite)}, {go.filename_hdf5.name}',
                             ncols=get_terminal_width() - 1, file=sys.stdout,
                             disable=not config.sim_config.general['progressbars'])
                 go.write_hdf5(G, pbar)
