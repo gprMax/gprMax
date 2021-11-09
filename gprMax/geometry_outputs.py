@@ -357,18 +357,19 @@ class GeometryObjects:
         self.nx = self.xf - self.xs
         self.ny = self.yf - self.ys
         self.nz = self.zf - self.zs
+        self.basefilename = basefilename
 
         # Set filenames
         parts = config.sim_config.input_file_path.with_suffix('').parts
-        self.filename_hdf5 = Path(*parts[:-1], basefilename)
+        self.filename_hdf5 = Path(*parts[:-1], self.basefilename)
         self.filename_hdf5 = self.filename_hdf5.with_suffix('.h5')
         self.filename_materials = Path(
-            *parts[:-1], basefilename + '_materials')
+            *parts[:-1], self.basefilename + '_materials')
         self.filename_materials = self.filename_materials.with_suffix('.txt')
 
         # Sizes of arrays to write necessary to update progress bar
         self.solidsize = (self.nx + 1) * (self.ny + 1) * \
-            (self.nz + 1) * n.itemsize
+            (self.nz + 1) * np.dtype(np.uint32).itemsize
         self.rigidsize = 18 * (self.nx + 1) * (self.ny + 1) * \
             (self.nz + 1) * np.dtype(np.int8).itemsize
         self.IDsize = 6 * (self.nx + 1) * (self.ny + 1) * \
@@ -414,7 +415,7 @@ class GeometryObjects:
                 if material.numID == numID:
                     fmaterials.write(
                         f'#material: {material.er:g} {material.se:g} {material.mr:g} {material.sm:g} {material.ID}\n')
-                    if material.poles > 0:
+                    if hasattr(material, 'poles'):
                         if 'debye' in material.type:
                             dispersionstr = f'#add_dispersion_debye: {material.poles:g} '
                             for pole in range(material.poles):

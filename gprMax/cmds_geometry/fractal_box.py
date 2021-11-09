@@ -66,7 +66,7 @@ class FractalBox(UserObjectGeometry):
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
         self.kwargs['p1'] = tuple(rot_pts[0, :])
         self.kwargs['p2'] = tuple(rot_pts[1, :])
-        
+
     def create(self, grid, uip):
         try:
             p1 = self.kwargs['p1']
@@ -140,7 +140,10 @@ class FractalBox(UserObjectGeometry):
         volume.ID = ID
         volume.operatingonID = mixing_model_id
         volume.nbins = nbins
-        volume.seed = int(seed)
+        if seed is not None:
+            volume.seed = int(seed)
+        else:
+            volume.seed = seed
         volume.weighting = weighting
         volume.averaging = averagefractalbox
         volume.mixingmodel = mixingmodel
