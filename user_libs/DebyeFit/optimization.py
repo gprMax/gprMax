@@ -1,24 +1,13 @@
-# Authors: Iraklis Giannakis, and Sylwia Majchrowska
-# E-mail: i.giannakis@ed.ac.uk
+# Copyright (C) 2015-2021, Iraklis Giannakis and Sylwia Majchrowska
 #
-# This file is part of gprMax.
+# This module is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
+# To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
 #
-# gprMax is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# gprMax is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+# Please use the attribution at http://dx.doi.org/10.1109/TAP.2014.2308549
 
 import numpy as np
-from matplotlib import pylab as plt
 import scipy.optimize
+from matplotlib import pylab as plt
 from tqdm import tqdm
 
 
