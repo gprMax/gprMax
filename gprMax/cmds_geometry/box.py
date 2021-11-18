@@ -83,13 +83,8 @@ class Box(UserObjectGeometry):
                 logger.exception(self.__str__() + ' No materials have been specified')
                 raise
 
-        # check averaging
-        try:
-            # go with user specified averaging
-            averagebox = self.kwargs['averaging']
-        except KeyError:
-            # if they havent specfied - go with the grid default
-            averagebox = grid.averagevolumeobjects
+        # Check averaging
+        averagebox = self.check_averaging(grid)
 
         p3, p4 = uip.check_box_points(p1, p2, self.__str__())
         # find nearest point on grid without translation

@@ -74,13 +74,8 @@ class CylindricalSector(UserObjectGeometry):
             logger.exception(self.__str__())
             raise
 
-        # check averaging
-        try:
-            # go with user specified averaging
-            averagecylindricalsector = self.kwargs['averaging']
-        except KeyError:
-            # if they havent specfied - go with the grid default
-            averagecylindricalsector = grid.averagevolumeobjects
+        # Check averaging
+        averagecylindricalsector = self.check_averaging(grid)
 
         # check materials have been specified
         # isotropic case

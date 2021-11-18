@@ -57,13 +57,8 @@ class Cylinder(UserObjectGeometry):
             logger.exception(self.__str__() + ' please specify 2 points and a radius')
             raise
 
-        # check averaging
-        try:
-            # go with user specified averaging
-            averagecylinder = self.kwargs['averaging']
-        except KeyError:
-            # if they havent specified - go with the grid default
-            averagecylinder = grid.averagevolumeobjects
+        # Check averaging
+        averagecylinder = self.check_averaging(grid)
 
         # check materials have been specified
         # isotropic case

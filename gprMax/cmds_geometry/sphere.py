@@ -54,13 +54,8 @@ class Sphere(UserObjectGeometry):
             logger.exception(self.__str__() + ' please specify a point and a radius.')
             raise
 
-        # check averaging
-        try:
-            # go with user specified averaging
-            averagesphere = self.kwargs['averaging']
-        except KeyError:
-            # if they havent specfied - go with the grid default
-            averagesphere = grid.averagevolumeobjects
+        # Check averaging
+        averagesphere = self.check_averaging(grid)
 
         # check materials have been specified
         # isotropic case

@@ -40,7 +40,7 @@ from ._version import __version__
 from .cython.geometry_outputs import write_lines
 from .utilities.utilities import (get_terminal_width,
                                   numeric_list_to_float_list,
-                                  numeric_list_to_int_list, round_value)
+                                  numeric_list_to_int_list)
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +160,7 @@ class GeometryViewLines(GeometryView):
         x, y, z, lines = write_lines(self.nx, self.ny, self.nz,
                                      self.dx, self.dy, self.dz, ID)
 
-        # Get information about pml, sources, receivers
+        # Write information about any PMLs, sources, receivers
         comments = Comments(self.grid, self)
         comments.averaged_materials = True
         comments.materials_only = True
