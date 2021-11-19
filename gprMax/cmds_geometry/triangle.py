@@ -80,7 +80,12 @@ class Triangle(UserObjectGeometry):
             self.__dorotate()
 
         # Check averaging
-        averagetriangularprism = self.check_averaging(grid)
+        try:
+            # Try user-specified averaging
+            averagetriangularprism = self.kwargs['averaging'] 
+        except KeyError:
+            # Otherwise go with the grid default
+            averagetriangularprism = grid.averagevolumeobjects
 
         # check materials have been specified
         # isotropic case

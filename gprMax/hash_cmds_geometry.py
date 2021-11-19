@@ -35,6 +35,27 @@ from .utilities.utilities import round_value
 logger = logging.getLogger(__name__)
 
 
+def check_averaging(averaging):
+    """Check and set material averaging value.
+
+        Args:
+            averaging (string): Input value from hash command - should be 'y'
+                                    or 'n'
+
+        Returns:
+            averaging (bool): geometry object material averaging
+        """
+
+    if averaging == 'y':
+        averaging = True
+    elif averaging == 'n':
+        averaging = False
+    else:
+        logger.exception(self.__str__() + f' requires averaging to be either y or n')
+
+    return averaging
+
+
 def process_geometrycmds(geometry):
     """
     This function checks the validity of command parameters, creates instances
@@ -115,7 +136,8 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 13:
-                triangle = Triangle(p1=p1, p2=p2, p3=p3, thickness=thickness, material_id=tmp[11], averaging=tmp[12].lower())
+                averaging = check_averaging(tmp[12].lower())
+                triangle = Triangle(p1=p1, p2=p2, p3=p3, thickness=thickness, material_id=tmp[11], averaging=averaging)
 
             # Uniaxial anisotropic case
             elif len(tmp) == 14:
@@ -141,7 +163,8 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 9:
-                box = Box(p1=p1, p2=p2, material_id=tmp[7], averaging=tmp[8])
+                averaging = check_averaging(tmp[8].lower())
+                box = Box(p1=p1, p2=p2, material_id=tmp[7], averaging=averaging)
 
             # Uniaxial anisotropic case
             elif len(tmp) == 10:
@@ -168,7 +191,8 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 10:
-                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_id=tmp[8], averaging=tmp[9])
+                averaging = check_averaging(tmp[9].lower())
+                cylinder = Cylinder(p1=p1, p2=p2, r=r, material_id=tmp[8], averaging=averaging)
 
             # Uniaxial anisotropic case
             elif len(tmp) == 11:
@@ -201,8 +225,9 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 11:
+                averaging = check_averaging(tmp[10].lower())
                 cylindrical_sector = CylindricalSector(normal=normal, ctr1=ctr1, ctr2=ctr2, extent1=extent1, extent2=extent2,
-                                  r=r, start=start, end=end, averaging=tmp[10], material_id=tmp[9])
+                                  r=r, start=start, end=end, averaging=averaging, material_id=tmp[9])
 
             # Uniaxial anisotropic case
             elif len(tmp) == 12:
@@ -229,7 +254,8 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 7:
-                sphere = Sphere(p1=p1, r=r, material_id=tmp[5], averaging=tmp[6])
+                averaging = check_averaging(tmp[6].lower())
+                sphere = Sphere(p1=p1, r=r, material_id=tmp[5], averaging=averaging)
 
             # Uniaxial anisotropic case
             elif len(tmp) == 8:

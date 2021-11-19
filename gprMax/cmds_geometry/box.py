@@ -84,7 +84,12 @@ class Box(UserObjectGeometry):
                 raise
 
         # Check averaging
-        averagebox = self.check_averaging(grid)
+        try:
+            # Try user-specified averaging
+            averagebox = self.kwargs['averaging'] 
+        except KeyError:
+            # Otherwise go with the grid default
+            averagebox = grid.averagevolumeobjects
 
         p3, p4 = uip.check_box_points(p1, p2, self.__str__())
         # find nearest point on grid without translation

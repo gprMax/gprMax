@@ -55,7 +55,12 @@ class Sphere(UserObjectGeometry):
             raise
 
         # Check averaging
-        averagesphere = self.check_averaging(grid)
+        try:
+            # Try user-specified averaging
+            averagesphere = self.kwargs['averaging'] 
+        except KeyError:
+            # Otherwise go with the grid default
+            averagesphere = grid.averagevolumeobjects
 
         # check materials have been specified
         # isotropic case

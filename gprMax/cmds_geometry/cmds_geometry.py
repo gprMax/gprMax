@@ -62,34 +62,6 @@ class UserObjectGeometry:
         else:
             return ''
 
-    def check_averaging(self, grid):
-        """Check material averaging value.
-
-        Args:
-            grid (class): Grid class instance - holds essential parameters
-                        describing the model.
-
-        Returns:
-            averaging (bool): geometry object material averaging
-        """
-
-        try:
-            # Try user-specified averaging
-            averaging = self.kwargs['averaging'].lower()
-            if averaging == 'y':
-                averaging = True
-            elif averaging == 'n':
-                averaging = False
-            else:
-                logger.exception(self.__str__() + f' requires averaging to be either y or n')
-                
-        except KeyError:
-            # Otherwise go with the grid default
-            averaging = grid.averagevolumeobjects
-
-        return averaging
-
-
 
 def rotate_point(p, axis, angle, origin=(0, 0, 0)):
     """Rotate a point.
