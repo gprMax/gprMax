@@ -1,7 +1,7 @@
 # This file may be used to create a conda environment using:
 # $ conda env create -f <this file>
 
-name: gprMax
+name: gprMax-devel
 dependencies:
 - python>3.6
 - colorama
@@ -16,9 +16,9 @@ dependencies:
 - scipy
 
 - pip:
-  - mpi4py
-  - pycuda
-  - pyopencl
+#  - mpi4py
+#  - pycuda
+#  - pyopencl
   - terminaltables
   - tqdm
   - git+https://github.com/craig-warren/PyEVTK.git
