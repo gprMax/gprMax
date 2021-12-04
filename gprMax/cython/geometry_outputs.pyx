@@ -20,7 +20,7 @@ import numpy as np
 cimport numpy as np
 
 
-cpdef write_lines(int nx, int ny, int nz, float dx, float dy, float dz,
+cpdef write_lines(int nx, int ny, int nz, int dx, int dy, int dz,
                   np.uint32_t[:, :, :, :] ID):
     """This function generates arrays with to be written as lines (cell edges) 
         to a VTK file.
