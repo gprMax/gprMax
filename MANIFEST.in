@@ -10,5 +10,5 @@ recursive-include tools *
 recursive-include user_libs *
 recursive-include user_models *
 
-# exclude what we don't want to include
+# Exclude what we don't want to include
 global-exclude *.DS_Store
