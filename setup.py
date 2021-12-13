@@ -31,6 +31,7 @@ import glob
 import os
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -191,13 +192,26 @@ else:
     #                               support OpenMP. With gcc -fopenmp option 
     #                               implies -pthread
     elif sys.platform == 'darwin':
-        gccpath = glob.glob('/usr/local/bin/gcc-[4-9]*')
-        gccpath += glob.glob('/usr/local/bin/gcc-[10-11]*')
-        if gccpath:
-            # Use newest gcc found
-            os.environ['CC'] = gccpath[-1].split(os.sep)[-1]
+        # Check for Intel or Apple M series CPU
+        cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+        cpuID = ' '.join(cpuID.split())
+        if 'Apple' in cpuID:
+            gccpath = glob.glob('/opt/homebrew/bin/gcc-[4-9]*')
+            gccpath += glob.glob('/opt/homebrew/bin/gcc-[10-11]*')
+            if gccpath:
+                # Use newest gcc found
+                os.environ['CC'] = gccpath[-1].split(os.sep)[-1]
+                rpath = '/opt/homebrew/opt/gcc/lib/gcc/' + gccpath[-1].split(os.sep)[-1][-1] + '/'
+            else:
+                raise('Cannot find gcc 4-10 in /opt/homebrew/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support is required.')
         else:
-            raise('Cannot find gcc in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support is required.')
+            gccpath = glob.glob('/usr/local/bin/gcc-[4-9]*')
+            gccpath += glob.glob('/usr/local/bin/gcc-[10-11]*')
+            if gccpath:
+                # Use newest gcc found
+                os.environ['CC'] = gccpath[-1].split(os.sep)[-1]
+            else:
+                raise('Cannot find gcc in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support is required.')
         
         # Minimum supported macOS deployment target
         MIN_MACOS_VERSION = '10.13'
