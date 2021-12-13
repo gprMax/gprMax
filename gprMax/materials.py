@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2020: The University of Edinburgh
+# Copyright (C) 2015-2021: The University of Edinburgh
 #                 Authors: Craig Warren and Antonis Giannopoulos
 #
 # This file is part of gprMax.
@@ -158,7 +158,7 @@ class Material(object):
 
         if self.poles > 0:
             w = 2 * np.pi * freq
-            er += self.se / (w * e0)
+            er += self.se / (1j * w * e0)
             if 'debye' in self.type:
                 for pole in range(self.poles):
                     er += self.deltaer[pole] / (1 + 1j * w * self.tau[pole])
