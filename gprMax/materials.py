@@ -194,7 +194,7 @@ class DispersiveMaterial(Material):
         er = self.er
 
         w = 2 * np.pi * freq
-        er += self.se / (w * config.sim_config.em_consts['e0'])
+        er += self.se / (1j * w * config.sim_config.em_consts['e0'])
         if 'debye' in self.type:
             for pole in range(self.poles):
                 er += self.deltaer[pole] / (1 + 1j * w * self.tau[pole])
