@@ -20,14 +20,15 @@ import numpy as np
 cimport numpy as np
 
 
-cpdef write_lines(int nx, int ny, int nz, int dx, int dy, int dz,
-                  np.uint32_t[:, :, :, :] ID):
+cpdef write_lines(float xs, float ys, float zs, int nx, int ny, int nz, 
+                  float dx, float dy, float dz, np.uint32_t[:, :, :, :] ID):
     """This function generates arrays with to be written as lines (cell edges) 
         to a VTK file.
 
     Args:
+        xs, ys, zs (float): Starting coordinates of geometry view in metres
         nx, ny, nz (int): Size of the volume in cells
-        dx, dy, dz (int): Spatial discretisation of geometry view in cells
+        dx, dy, dz (float): Spatial discretisation of geometry view in metres
         ID (nparray): Sampled ID array according to geometry view spatial 
                             discretisation
 
@@ -64,11 +65,11 @@ cpdef write_lines(int nx, int ny, int nz, int dx, int dy, int dz,
                 # Material ID of line
                 lines[lc] = ID[0][i, j, k]
                 # Set the starting point position of the edge
-                x[pc], y[pc], z[pc] = i * dx, j * dy, k * dz
+                x[pc], y[pc], z[pc] = i, j, k
                 # Next point
                 pc += 1
                 # Set the end point position of the edge
-                x[pc], y[pc], z[pc] = (i + 1) * dx, j * dy, k * dz
+                x[pc], y[pc], z[pc] = (i + 1), j, k
                 # Next point
                 pc += 1
                 # Next line
@@ -76,18 +77,26 @@ cpdef write_lines(int nx, int ny, int nz, int dx, int dy, int dz,
 
                 # y-direction cell edge
                 lines[lc] = ID[1, i, j, k]
-                x[pc], y[pc], z[pc] = i * dx, j * dy, k * dz
+                x[pc], y[pc], z[pc] = i, j, k
                 pc += 1
-                x[pc], y[pc], z[pc] = i * dx, (j + 1) * dy, k * dz
+                x[pc], y[pc], z[pc] = i, (j + 1), k
                 pc += 1
                 lc += 1
 
                 # z-direction cell edge
                 lines[lc] = ID[2, i, j, k]
-                x[pc], y[pc], z[pc] = i * dx, j * dy, k * dz
+                x[pc], y[pc], z[pc] = i, j, k
                 pc += 1
-                x[pc], y[pc], z[pc] = i * dx, j * dy, (k + 1) * dz
+                x[pc], y[pc], z[pc] = i, j, (k + 1)
                 pc += 1
                 lc += 1
+
+    x *= dx
+    y *= dy
+    z *= dz
+
+    x += xs
+    y += ys
+    z += zs
 
     return x, y, z, lines 
