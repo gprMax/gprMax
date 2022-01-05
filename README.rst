@@ -43,7 +43,6 @@ Package overview
         gsoc/
         LICENSE
         README.rst
-        setup.cfg
         setup.py
         tests/
         tools/
@@ -52,13 +51,13 @@ Package overview
 
 
 * ``conda_env.yml`` is a configuration file for Anaconda (Miniconda) that sets up a Python environment with all the required Python packages for gprMax.
-* ``CONTRIBUTORS`` contains a list of names of people who have contributed to the gprMax codebase.
+* ``CREDITS`` contains a list of names of people who have contributed to the gprMax codebase.
 * ``docs`` contains source files for the User Guide. The User Guide is written using `reStructuredText <http://docutils.sourceforge.net/rst.html>`_ markup, and is built using `Sphinx <http://sphinx-doc.org>`_ and `Read the Docs <https://readthedocs.org>`_.
 * ``gprMax`` is the main package. Within this package the main module is ``gprMax.py``
+* ``gprMax.toml`` contains the build system requirements
 * ``gsoc`` contains information for `Google Summer of Code <https://summerofcode.withgoogle.com>`_ program - project ideas and proposal guidance.
 * ``LICENSE`` contains information on the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
 * ``README.rst`` contains getting started information on installation, usage, and new features/changes.
-* ``setup.cfg`` is used to set preference for code formatting/styling using flake8.
 * ``setup.py`` is used to compile the Cython extension modules.
 * ``tests`` is a sub-package which contains test modules and input files.
 * ``tools`` is a sub-package which contains scripts to assist with viewing and post-processing output from models.
