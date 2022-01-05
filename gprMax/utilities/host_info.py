@@ -187,7 +187,11 @@ def set_omp_threads(nthreads=None):
     if sys.platform == 'darwin':
         # Should waiting threads consume CPU power (can drastically effect
         # performance)
-        os.environ['OMP_WAIT_POLICY'] = 'ACTIVE'
+        if 'Apple' in config.sim_config.hostinfo['cpuID']:
+            # https://developer.apple.com/documentation/apple-silicon/tuning-your-code-s-performance-for-apple-silicon
+            os.environ['OMP_WAIT_POLICY'] = 'PASSIVE'
+        else:
+            os.environ['OMP_WAIT_POLICY'] = 'ACTIVE'
 
     # Number of threads may be adjusted by the run time environment to best
     # utilize system resources
