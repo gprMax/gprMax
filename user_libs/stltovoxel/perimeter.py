@@ -1,5 +1,6 @@
 from functools import reduce
 
+
 def lines_to_voxels(line_list, pixels):
     current_line_indices = set()
     x = 0
@@ -22,12 +23,14 @@ def slope_intercept(p1, p2):
     x2, y2 = p2[:2]
     slope = (y2 - y1) / (x2 - x1)
     intercept = y1 - slope * x1
+    
     return slope, intercept
 
 
 def generate_y(p1, p2, x):
     slope, intercept = slope_intercept(p1, p2)
     y = slope * x + intercept
+    
     return y
 
 
@@ -56,8 +59,10 @@ def paint_y_axis(lines, pixels, x):
 
 def generate_line_events(line_list):
     events = []
+    
     for i, line in enumerate(line_list):
         first, second = sorted(line, key=lambda pt: pt[0])
         events.append((first[0], 'start', i))
         events.append((second[0], 'end', i))
+    
     return sorted(events, key=lambda tup: tup[0])

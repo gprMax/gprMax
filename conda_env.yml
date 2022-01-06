@@ -17,9 +17,10 @@ dependencies:
 
 - pip:
 #  - mpi4py
+  - numpy-stl
 #  - pycuda
 #  - pyopencl
   - terminaltables
   - tqdm
   - git+https://github.com/craig-warren/PyEVTK.git
-  - numpy-stl
+  

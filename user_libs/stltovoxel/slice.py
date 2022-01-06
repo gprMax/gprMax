@@ -1,7 +1,12 @@
-import numpy as np
 import multiprocessing as mp
+import sys
+
+import numpy as np
+from gprMax.utilities.utilities import get_terminal_width
 from tqdm import tqdm
+
 from . import perimeter
+
 
 def mesh_to_plane(mesh, bounding_box, parallel):
     if parallel:
@@ -12,7 +17,7 @@ def mesh_to_plane(mesh, bounding_box, parallel):
 
     current_mesh_indices = set()
     z = 0
-    with tqdm(total=bounding_box[2], desc="Processing Layers", bar_format="{l_bar}{bar:50}{r_bar}{bar:-50b}") as pbar:
+    with tqdm(total=bounding_box[2], desc="Processing Layers", ncols=get_terminal_width() - 1, file=sys.stdout) as pbar:
         for event_z, status, tri_ind in generate_tri_events(mesh):
             while event_z - z >= 0:
                 mesh_subset = [mesh[ind] for ind in current_mesh_indices]
@@ -102,6 +107,7 @@ def where_line_crosses_z(p1, p2, z):
         distance = 0
     else:
         distance = (z - p1[2]) / (p2[2] - p1[2])
+    
     return linear_interpolation(p1, p2, distance)
 
 
@@ -121,8 +127,8 @@ def calculate_scale_shift(meshes, discretization):
     bx=int(amplitude[0]/vx)
     by=int(amplitude[1]/vy)
     bz=int(amplitude[2]/vz)
-    print(amplitude)
     bounding_box = [bx+1, by+1, bz+1]
+    
     return max(1/vx,1/vy,1/vz), mesh_min, bounding_box
 
 
@@ -138,4 +144,5 @@ def generate_tri_events(mesh):
         bottom, middle, top = sorted(tri, key=lambda pt: pt[2])
         events.append((bottom[2], 'start', i))
         events.append((top[2], 'end', i))
+    
     return sorted(events, key=lambda tup: tup[0])

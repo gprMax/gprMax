@@ -29,58 +29,6 @@ from .cmds_geometry import UserObjectGeometry
 
 logger = logging.getLogger(__name__)
 
-import numpy as np
-import matplotlib.pyplot as plt
-from user_libs import stltovoxel
-
-class GeometryObjectsReadSTL(UserObjectGeometry):
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.hash = '#geometry_objects_stl'
-    
-    def create(self, G, uip):
-
-        try:
-            stl_file = self.kwargs['stl_file']     # STL file of the model to be voxelized
-            mat_index = self.kwargs['mat_index']   #material index corresponding to the order of materials in the txt file
-            discretization = self.kwargs['discretization']  #spacial discretization of the model
-            
-        except KeyError:
-            logger.exception(self.__str__() + 'requires exactly three parameters')
-            raise
-
-        # See if stl file exists at specified path and if not try input
-        # file directory
-        
-        stl_file=Path(stl_file)
-        
-        if not stl_file.exists():
-            stl_file = Path(config.sim_config.input_file_path.parent, stl_file)
-        
-        model_array = stltovoxel.convert_file(stl_file,discretization)
-        print()
-        print("Resolution of the model along (X,Y,Z) axis is",model_array.shape)
-        parts = config.sim_config.input_file_path.with_suffix('').parts
-        filename_hdf5 = Path(*parts)
-        filename_hdf5 = filename_hdf5.with_suffix('.h5')
-
-        with h5py.File(filename_hdf5,'w') as hdf:
-            model_array[model_array==0] = -1
-            model_array[model_array==1] = mat_index
-            hdf.create_dataset('data',data=model_array)
-            hdf.attrs['dx_dy_dz']=(discretization[0],discretization[1],discretization[2])
-
-    def visualize(self,model_array):
-        #visualizer requires the model array to be built of only 0's and 1's
-        #if you want to use this function call it before the .h5 part
-        
-        from mpl_toolkits.mplot3d import Axes3D
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.voxels(model_array)
-        plt.show()
-
 
 class GeometryObjectsRead(UserObjectGeometry):
 
@@ -91,7 +39,7 @@ class GeometryObjectsRead(UserObjectGeometry):
     def rotate(self, axis, angle, origin=None):
         pass
 
-    def create(self, G, uip):
+    def create(self, grid, uip):
         """Create the object and add it to the grid."""
         try:
             p1 = self.kwargs['p1']
@@ -114,7 +62,7 @@ class GeometryObjectsRead(UserObjectGeometry):
             matfile = Path(config.sim_config.input_file_path.parent, matfile)
 
         matstr = matfile.with_suffix('').name
-        numexistmaterials = len(G.materials)
+        numexistmaterials = len(grid.materials)
 
         # Read materials from file
         with open(matfile, 'r') as f:
@@ -130,10 +78,10 @@ class GeometryObjectsRead(UserObjectGeometry):
             scene.add(material_obj)
 
         # Creates the internal simulation objects
-        scene.process_cmds(material_objs, G, sort=False)
+        scene.process_cmds(material_objs, grid, sort=False)
 
         # Update material type
-        for material in G.materials:
+        for material in grid.materials:
             if material.numID >= numexistmaterials:
                 if material.type:
                     material.type += ',\nimported'
@@ -148,7 +96,7 @@ class GeometryObjectsRead(UserObjectGeometry):
         # Open geometry object file and read/check spatial resolution attribute
         f = h5py.File(geofile, 'r')
         dx_dy_dz = f.attrs['dx_dy_dz']
-        if round_value(dx_dy_dz[0] / G.dx) != 1 or round_value(dx_dy_dz[1] / G.dy) != 1 or round_value(dx_dy_dz[2] / G.dz) != 1:
+        if round_value(dx_dy_dz[0] / grid.dx) != 1 or round_value(dx_dy_dz[1] / grid.dy) != 1 or round_value(dx_dy_dz[2] / grid.dz) != 1:
             logger.exception(self.__str__() + ' requires the spatial resolution of the geometry objects file to match the spatial resolution of the model')
             raise ValueError
 
@@ -165,12 +113,12 @@ class GeometryObjectsRead(UserObjectGeometry):
             rigidE = f['/rigidE'][:]
             rigidH = f['/rigidH'][:]
             ID = f['/ID'][:]
-            G.solid[xs:xs + data.shape[0], ys:ys + data.shape[1], zs:zs + data.shape[2]] = data + numexistmaterials
-            G.rigidE[:, xs:xs + rigidE.shape[1], ys:ys + rigidE.shape[2], zs:zs + rigidE.shape[3]] = rigidE
-            G.rigidH[:, xs:xs + rigidH.shape[1], ys:ys + rigidH.shape[2], zs:zs + rigidH.shape[3]] = rigidH
-            G.ID[:, xs:xs + ID.shape[1], ys:ys + ID.shape[2], zs:zs + ID.shape[3]] = ID + numexistmaterials
-            logger.info(self.grid_name(G) + f'Geometry objects from file {geofile} inserted at {xs * G.dx:g}m, {ys * G.dy:g}m, {zs * G.dz:g}m, with corresponding materials file {matfile}.')
+            grid.solid[xs:xs + data.shape[0], ys:ys + data.shape[1], zs:zs + data.shape[2]] = data + numexistmaterials
+            grid.rigidE[:, xs:xs + rigidE.shape[1], ys:ys + rigidE.shape[2], zs:zs + rigidE.shape[3]] = rigidE
+            grid.rigidH[:, xs:xs + rigidH.shape[1], ys:ys + rigidH.shape[2], zs:zs + rigidH.shape[3]] = rigidH
+            grid.ID[:, xs:xs + ID.shape[1], ys:ys + ID.shape[2], zs:zs + ID.shape[3]] = ID + numexistmaterials
+            logger.info(self.grid_name(grid) + f'Geometry objects from file {geofile} inserted at {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, with corresponding materials file {matfile}.')
         except KeyError:
             averaging = False
-            build_voxels_from_array(xs, ys, zs, numexistmaterials, averaging, data, G.solid, G.rigidE, G.rigidH, G.ID)
-            logger.info(self.grid_name(G) + f'Geometry objects from file (voxels only){geofile} inserted at {xs * G.dx:g}m, {ys * G.dy:g}m, {zs * G.dz:g}m, with corresponding materials file {matfile}.')
+            build_voxels_from_array(xs, ys, zs, numexistmaterials, averaging, data, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
+            logger.info(self.grid_name(grid) + f'Geometry objects from file (voxels only){geofile} inserted at {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, with corresponding materials file {matfile}.')

@@ -1,0 +1,4 @@
+#material: 8 0 1 0 pseudo_mat
+#material: 9 0 1 0 mat1
+#material: 8.5 0 1 0 mat2
+#material: 7 0 1 0 mat3
