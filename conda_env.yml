@@ -22,3 +22,4 @@ dependencies:
   - terminaltables
   - tqdm
   - git+https://github.com/craig-warren/PyEVTK.git
+  - numpy-stl
