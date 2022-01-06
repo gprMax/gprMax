@@ -98,8 +98,7 @@ def run(scenes=args_defaults['scenes'],
         geometry_fixed=args_defaults['geometry_fixed'],
         write_processed=args_defaults['write_processed'],
         log_level=args_defaults['log_level'],
-        log_file=args_defaults['log_file']
-        ):
+        log_file=args_defaults['log_file']):
     """This is the main function for gprMax when entering using application
         programming interface (API). Run the simulation for the given list of 
         scenes.     
