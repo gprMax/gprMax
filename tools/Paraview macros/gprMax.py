@@ -25,10 +25,10 @@ from paraview.simple import *
 
 # Read Paraview version number to set threshold filter method
 pvv = GetParaViewVersion()
-if pvv.major == 5 and pvv.minor > 9:
-    new_thres = True
-else:
+if pvv.major == 5 and pvv.minor < 10:
     new_thres = False
+else:
+    new_thres = True
 
 def threshold_filt(input, lt, ut, scalars):
     """Create threshold filter according to Paraview version.
