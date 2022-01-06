@@ -193,7 +193,7 @@ class GeometryViewLines(GeometryView):
 
 
 class GeometryViewVoxels(GeometryView):
-    """Rectilinear grid (.vtr) for a per-cell geometry view."""
+    """Uniform rectilinear grid (.vti) for a per-cell geometry view."""
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -248,7 +248,7 @@ class GeometryViewVoxels(GeometryView):
 
 
 class GeometryViewSubgridVoxels(GeometryViewVoxels):
-    """Rectilinear grid (.vtr) for a per-cell geometry view for sub-grids."""
+    """Uniform rectilinear grid (.vti) for a per-cell geometry view for sub-grids."""
 
     def __init__(self, *args):
         # for sub-grid we are only going to export the entire grid. temporary fix.
@@ -258,7 +258,6 @@ class GeometryViewSubgridVoxels(GeometryViewVoxels):
         dx, dy, dz = 1, 1, 1
         args = xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, grid
         super().__init__(*args)
-        self.output_type = 'normal'
     """
     def get_coordinates(self, solid):
         # (length is number of vertices in each direction) * (size of each block [m]) + (starting offset) + grid offset
