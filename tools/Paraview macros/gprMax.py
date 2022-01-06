@@ -212,7 +212,7 @@ for file in files:
         #######################
         # Determine gprMax version
         # Read XML data
-        mm = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)
+        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
         
         # Look for <gprMax> tag which indicates version <4
         try:
