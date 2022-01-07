@@ -102,8 +102,7 @@ The ``HavriliakNegami`` class has the following structure:
 Jonscher Function
 ^^^^^^^^^^^^^^^^^
 
-Jonscher function is mainly used to describe the dielectric properties of concrete and soils. The frequency domain expression of Jonscher
-function is given by
+Jonscher function is mainly used to describe the dielectric properties of concrete and soils. The frequency domain expression of Jonscher function is given by
 
 .. math::
 
