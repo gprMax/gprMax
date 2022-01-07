@@ -48,7 +48,7 @@ How to use the package
     If you want to create different plots you just need to edit and re-run the ``plot_fields.py`` module on the Numpy file, i.e. you don't have to re-process the output file.
 
 
-.. figure:: images/user_libs/antenna_like_GSSI_1500_patterns_E_Er5.png
+.. figure:: images/antenna_like_GSSI_1500_patterns_E_Er5.png
     :width: 600 px
 
     Example of the E-plane pattern from a simulation containing an antenna model similar to a GSSI 1.5 GHz antenna over a homogeneous, lossless half-space with a relative permittivity of five.
