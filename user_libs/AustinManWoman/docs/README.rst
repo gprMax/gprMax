@@ -76,7 +76,7 @@ To insert a 2x2x2mm :math:`^3` AustinMan with the lower left corner 40mm from th
 
 For further information on the ``#geometry_objects_read`` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
 
-.. figure:: images/user_libs/AustinMan.png
+.. figure:: images/AustinMan.png
     :width: 300 px
 
     FDTD geometry mesh showing the AustinMan body model (2x2x2mm :math:`^3`).

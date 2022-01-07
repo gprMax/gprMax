@@ -39,9 +39,12 @@ gprMax User Guide
     :caption: User libraries
 
     include_user_libs_antennas
-    user_libs_antenna_patterns
-    user_libs_austinman
-    user_libs_materials
+    include_user_libs_antenna_patterns
+    include_user_libs_austinman
+    include_user_libs_DebyeFit
+    include_user_libs_landmines
+    include_user_libs_materials
+    include_user_libs_stltovoxel
 
 .. toctree::
     :maxdepth: 2

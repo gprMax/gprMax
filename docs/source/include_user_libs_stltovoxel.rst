@@ -1,0 +1,1 @@
+.. include:: ../../user_libs/stltovoxel/docs/README.rst
