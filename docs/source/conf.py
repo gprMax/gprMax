@@ -62,7 +62,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'gprMax'
-copyright = '2015-2019, The University of Edinburgh. Authors: Craig Warren, Antonis Giannopoulos, and John Hartley'
+copyright = '2015-2022, The University of Edinburgh. Authors: Craig Warren, Antonis Giannopoulos, and John Hartley'
 author = 'Craig Warren, Antonis Giannopoulos, and John Hartley'
 
 # The version info for the project you're documenting, acts as replacement for
