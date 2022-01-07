@@ -1,1 +1,1 @@
-.. include:: ../../user_libs/AustinMan/README.rst
+.. include:: ../../user_libs/AustinManWoman/README.rst
