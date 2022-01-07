@@ -1,4 +1,4 @@
-#material: 8 0 1 0 pseudo_mat
-#material: 9 0 1 0 mat1
-#material: 8.5 0 1 0 mat2
-#material: 7 0 1 0 mat3
+#material: 3 0 1 0 sand
+#material: 5 0.001 1 0 concrete
+#material: 2.35 0 1 0 hdpe
+#material: 3 0 1 0 pcb
