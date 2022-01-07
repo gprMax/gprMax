@@ -3,7 +3,6 @@ import logging
 from pathlib import Path
 
 import h5py
-import matplotlib.pyplot as plt
 
 from .convert import convert_file
 

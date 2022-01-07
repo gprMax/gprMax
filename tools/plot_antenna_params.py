@@ -54,9 +54,9 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     time = np.linspace(0, (iterations - 1) * dt, num=iterations)
     df = 1 / np.amax(time)
 
-    print(f'Time window: {np.amax(time):g} s ({iterations} iterations)')
-    print(f'Time step: {dt:g} s')
-    print(f'Frequency bin spacing: {df:g} Hz')
+    logger.info(f'Time window: {np.amax(time):g} s ({iterations} iterations)')
+    logger.info(f'Time step: {dt:g} s')
+    logger.info(f'Frequency bin spacing: {df:g} Hz')
 
     # Read/calculate voltages and currents from transmitter antenna
     tltxpath = '/tls/tl' + str(tltxnumber) + '/'
@@ -175,11 +175,11 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Print some useful values from s11, and input impedance
     s11minfreq = np.where(s11[pltrange] == np.amin(s11[pltrange]))[0][0]
-    print(f's11 minimum: {np.amin(s11[pltrange]):g} dB at {freqs[s11minfreq + pltrangemin]:g} Hz')
-    print(f'At {freqs[s11minfreq + pltrangemin]:g} Hz...')
-    print(f'Input impedance: {np.abs(zin[s11minfreq + pltrangemin]):.1f}{zin[s11minfreq + pltrangemin].imag:+.1f}j Ohms')
-    # print(f'Input admittance (mag): {np.abs(yin[s11minfreq + pltrangemin]):g} S')
-    # print(f'Input admittance (phase): {np.angle(yin[s11minfreq + pltrangemin], deg=True):.1f} deg')
+    logger.info(f's11 minimum: {np.amin(s11[pltrange]):g} dB at {freqs[s11minfreq + pltrangemin]:g} Hz')
+    logger.info(f'At {freqs[s11minfreq + pltrangemin]:g} Hz...')
+    logger.info(f'Input impedance: {np.abs(zin[s11minfreq + pltrangemin]):.1f}{zin[s11minfreq + pltrangemin].imag:+.1f}j Ohms')
+    # logger.info(f'Input admittance (mag): {np.abs(yin[s11minfreq + pltrangemin]):g} S')
+    # logger.info(f'Input admittance (phase): {np.angle(yin[s11minfreq + pltrangemin], deg=True):.1f} deg')
 
     # Figure 1
     # Plot incident voltage

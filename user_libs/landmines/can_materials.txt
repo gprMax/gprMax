@@ -1,0 +1,2 @@
+## can landmine material properties
+#material: 1 inf 1 0 pec

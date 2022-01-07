@@ -17,12 +17,15 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
+import logging
 import os
 
 import h5py
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 class Cursor(object):
@@ -50,7 +53,7 @@ class Cursor(object):
                 pixel = np.floor(pixel * 255).astype(np.int16) # Convert pixel values from float (0-1) to integer (0-255)
                 match = pixel_match(materials, pixel)
                 if match is False:
-                    print('x, y: {} {} px; RGB: {}; material ID: {}'.format(int(x), int(y), pixel[:-1], len(self.materials)))
+                    logger.info('x, y: {} {} px; RGB: {}; material ID: {}'.format(int(x), int(y), pixel[:-1], len(self.materials)))
                     materials.append(pixel)
 
 def pixel_match(pixellist, pixeltest):
@@ -87,8 +90,8 @@ if __name__ == "__main__":
     imdata = np.rot90(im, k=3) # Rotate 90CW
     imdata = np.floor(imdata * 255).astype(np.int16) # Convert pixel values from float (0-1) to integer (0-255)
 
-    print('Reading PNG image file: {}'.format(os.path.split(args.imagefile)[1]))
-    print(' 1. Select discrete material colours by clicking on parts of the image.\n 2. When all materials have been selected close the image.')
+    logger.info('Reading PNG image file: {}'.format(os.path.split(args.imagefile)[1]))
+    logger.info(' 1. Select discrete material colours by clicking on parts of the image.\n 2. When all materials have been selected close the image.')
 
     # List to hold selected RGB values from image
     materials = []
@@ -123,4 +126,4 @@ if __name__ == "__main__":
         # Write data to file
         fout.create_dataset('data', data=data)
 
-    print('Written HDF5 file: {}'.format(os.path.split(hdf5file)[1]))
+    logger.info('Written HDF5 file: {}'.format(os.path.split(hdf5file)[1]))

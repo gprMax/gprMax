@@ -25,10 +25,5 @@ docs/.buildinfo
 
 # Craig's files
 .vscode
-user_libs/landmines/*
-user_libs/rocks/*
-user_models/GPU-paper-landmines/
-user_models/IWAGPR2017-challenge/
-user_models/to-update/
 tests/*.out
 tests/*.png

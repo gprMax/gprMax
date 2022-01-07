@@ -1,0 +1,7 @@
+## TS50 landmine material properties
+#material: 1 inf 1 0 pec
+#material: 1 0 1 0 freespace
+#material: 2.5 0 1 0 mat25
+#material: 3 0 1 0 mat3
+#material: 4 0 1 0 mat4
+#material: 5 0 1 0 mat5

@@ -1,0 +1,5 @@
+## PMA landmine material properties
+#material: 1 inf 1 0 pec
+#material: 1 0 1 0 freespace
+#material: 2.5 0 1 0 plastic
+#material: 6 0 1 0 rubber

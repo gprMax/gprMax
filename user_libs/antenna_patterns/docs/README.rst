@@ -13,7 +13,7 @@ Information
 
 **Attribution/cite**: Warren, C., Giannopoulos, A. (2016). Characterisation of a Ground Penetrating Radar Antenna in Lossless Homogeneous and Lossy Heterogeneous Environments. *Signal Processing* (http://dx.doi.org/10.1016/j.sigpro.2016.04.010)
 
-The package features contains modules to help calculate, process, and visualise field patterns from simulations that contain models of antennas.
+The package contains scripts to help calculate, process, and visualise field patterns from simulations that contain models of antennas.
 
 .. warning::
 
@@ -23,8 +23,8 @@ The package features contains modules to help calculate, process, and visualise 
     * Requires knowledge of Python to contruct input files with antenna models and positioning of receivers, as well as to edit/modify the saving and processing modules
     * Can require simulations that demand significant computational resource depending on the distance from the antenna at which the field patterns are observed, e.g. the example models, set with a maximum observation distance of 0.6m, require ~30GB of RAM
 
-Module overview
-===============
+Package contents
+================
 
 * ``initial_save.py`` is a module that calculates and stores (in a Numpy file) the field patterns from the output file of a simulation.
 * ``plot_fields.py`` is a module that plots the field patterns. It should be used after the field pattern data has been processed and stored using the ``initial_save.py`` module.
@@ -35,8 +35,8 @@ The package has been designed to work with input files that follow examples foun
 * ``antenna_like_GSSI_1500_patterns_H.in`` is an input file that includes an antenna model similar to a GSSI 1.5 GHz antenna and receivers to calculate a field pattern in the principal H-plane of the antenna
 
 
-How to use the module
-=====================
+How to use the package
+======================
 
 * Firstly you should familiarise yourself with the example model input file. Edit the input file as desired and run one of the simulations for either E-plane or H-plane patterns.
 * Whilst the simulation is running edit the 'user configurable parameters' sections of the ``initial_save.py`` and ``plot_fields.py`` modules to match the setup of the simulation.

@@ -17,7 +17,7 @@ Information
 
 `AustinMan and AustinWoman <http://bit.ly/AustinMan>`_ are open source electromagnetic voxel models of the human body, which are developed by the `Computational Electromagnetics Group <http://www.ece.utexas.edu/research/areas/electromagnetics-acoustics>`_ at `The University of Texas at Austin <http://www.utexas.edu>`_. The models are based on data from the `National Library of Medicine’s Visible Human Project <https://www.nlm.nih.gov/research/visible/visible_human.html>`_.
 
-.. figure:: images/user_libs/AustinMan_head.png
+.. figure:: images/AustinMan_head.png
     :width: 600 px
 
     FDTD geometry mesh showing the head of the AustinMan model (2x2x2mm :math:`^3`).
@@ -37,7 +37,7 @@ AustinWoman 2x2x2                      342 x 187 x 865
 AustinWoman 1x1x1                      683 x 374 x 1730
 =========== ========================== ==================
 
-Package overview
+Package contents
 ================
 
 .. code-block:: none
@@ -56,8 +56,8 @@ Package overview
 
 * ``head_only_h5.py`` is a script to assist with creating a model of only the head from a full body AustinMan/Woman model.
 
-How to use the models
-=====================
+How to use the package
+======================
 
 The AustinMan and AustinWoman models themselves are not included in the user libraries sub-package.
 

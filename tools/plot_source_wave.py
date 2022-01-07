@@ -81,23 +81,23 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
         waveform[timeiter.index] = w.calculate_value(timeiter[0], dt)
         timeiter.iternext()
 
-    print('Waveform characteristics...')
-    print(f'Type: {w.type}')
-    print(f'Maximum (absolute) amplitude: {np.max(np.abs(waveform)):g}')
+    logger.info('Waveform characteristics...')
+    logger.info(f'Type: {w.type}')
+    logger.info(f'Maximum (absolute) amplitude: {np.max(np.abs(waveform)):g}')
 
     if w.freq and not w.type == 'gaussian':
-        print(f'Centre frequency: {w.freq:g} Hz')
+        logger.info(f'Centre frequency: {w.freq:g} Hz')
 
     if (w.type == 'gaussian' or w.type == 'gaussiandot' or w.type == 'gaussiandotnorm'
         or w.type == 'gaussianprime' or w.type == 'gaussiandoubleprime'):
         delay = 1 / w.freq
-        print(f'Time to centre of pulse: {delay:g} s')
+        logger.info(f'Time to centre of pulse: {delay:g} s')
     elif w.type == 'gaussiandotdot' or w.type == 'gaussiandotdotnorm' or w.type == 'ricker':
         delay = np.sqrt(2) / w.freq
-        print(f'Time to centre of pulse: {delay:g} s')
+        logger.info(f'Time to centre of pulse: {delay:g} s')
 
-    print(f'Time window: {timewindow:g} s ({iterations} iterations)')
-    print(f'Time step: {dt:g} s')
+    logger.info(f'Time window: {timewindow:g} s ({iterations} iterations)')
+    logger.info(f'Time step: {dt:g} s')
 
     if fft:
         # FFT

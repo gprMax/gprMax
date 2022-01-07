@@ -210,8 +210,6 @@ def check_cmd_names(processedlines, checkessential=True):
     # - these will be lists within the dictionary
     multiplecmds = {key: [] for key in ['#geometry_view', 
                                         '#geometry_objects_write', '#material',
-                                        '#havriliak_negami', '#jonscher',
-                                        '#crim', '#raw_data',
                                         '#soil_peplinski', 
                                         '#add_dispersion_debye', 
                                         '#add_dispersion_lorentz', 
