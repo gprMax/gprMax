@@ -211,6 +211,9 @@ DLS function
 
 Finding the weights using a non-linear least squares (LS) method, the Levenberg-Marquardt algorithm (LMA or just LM), also known as the damped least-squares (DLS) method.
 
+How to use the package
+======================
+
 Examples
 --------
 

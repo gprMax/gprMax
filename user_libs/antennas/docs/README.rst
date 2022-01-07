@@ -1,7 +1,7 @@
 User libraries is a sub-package where useful Python modules contributed by users are stored.
 
 ******************
-GPR antenna models
+GPR Antenna Models
 ******************
 
 Information
