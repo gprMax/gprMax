@@ -6,7 +6,7 @@ gprMax User Guide
     :maxdepth: 2
     :caption: Introduction
 
-    include_readme
+    ../../README.rst
     features
     gprmodelling
 
@@ -38,7 +38,13 @@ gprMax User Guide
     :maxdepth: 2
     :caption: User libraries
 
-    ../../user_libs/antennas/docs/README.rst
+    ../../user_libs/GPRAntennaModels/docs/README.rst
+    ../../user_libs/AntennaPatterns/docs/README.rst
+    ../../user_libs/AustinMan/docs/README.rst
+    ../../user_libs/DebyeFit/docs/README.rst
+    ../../user_libs/LandmineModels/docs/README.rst
+    ../../user_libs/Materials/docs/README.rst
+    ../../user_libs/STLtoVoxel/docs/README.rst
 
 .. toctree::
     :maxdepth: 2

@@ -1,1 +1,0 @@
-.. include:: ../../user_libs/antennas/docs/README.rst
