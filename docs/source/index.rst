@@ -38,7 +38,7 @@ gprMax User Guide
     :maxdepth: 2
     :caption: User libraries
 
-    user_libs_antennas
+    ../../user_libs/antennas/README.rst
     user_libs_antenna_patterns
     user_libs_austinman
     user_libs_materials
