@@ -21,18 +21,18 @@ The generic form of dispersive media is
 
 .. math::
 
-   \\epsilon(\\omega) = \\epsilon^{'}(\\omega) - j\\epsilon^{''}(\\omega),
+   \epsilon(\omega) = \epsilon^{'}(\omega) - j\epsilon^{''}(\omega),
 
-where :math:`\\omega` is the angular frequency, :math:`\\epsilon^{'}` and :math:`\\epsilon^{''}` are the real and imaginary parts of the permittivity respectively. 
+where :math:`\omega` is the angular frequency, :math:`\epsilon^{'}` and :math:`\epsilon^{''}` are the real and imaginary parts of the permittivity respectively. 
 
 This package provides scripts and tools which can be used to fit a multi-Debye expansion to dielectric data, defined as
 
 .. math::
 
-   \\epsilon(\\omega) = \\epsilon_{\\infty} + \\sum_{i=1}^{N}\\frac{\\Delta\\epsilon_{i}}{1+j\\omega t_{0,i}},
+   \epsilon(\omega) = \epsilon_{\infty} + \sum_{i=1}^{N}\frac{\Delta\epsilon_{i}}{1+j\omega t_{0,i}},
 
-where :math:`\\epsilon(\\omega)` is frequency dependent dielectric permittivity, :math:`\\Delta\\epsilon` - difference between the real permittivity at zero and infinite frequency.
-:math:`\\tau_{0}` is relaxation time (seconds),  :math:`\\epsilon_{\\infty}` - real part of relative permittivity at infinite frequency, and :math:`N` is number of the Debye poles.
+where :math:`\epsilon(\omega)` is frequency dependent dielectric permittivity, :math:`\Delta\epsilon` - difference between the real permittivity at zero and infinite frequency.
+:math:`\tau_{0}` is relaxation time (seconds),  :math:`\epsilon_{\infty}` - real part of relative permittivity at infinite frequency, and :math:`N` is number of the Debye poles.
 
 To fit the data to a multi-Debye expansion, you can choose between Havriliak-Negami, Jonscher, or Complex Refractive Index Mixing (CRIM) models, as well as arbitrary dielectric data derived experimentally or calculated using a different function.
 
@@ -65,7 +65,7 @@ The Havriliak-Negami relaxation is an empirical modification of the Debye relaxa
 
 .. math::
 
-    \\epsilon(\\omega) = \\epsilon_{\\infty} + \\frac{\\Delta\\epsilon}{\\left(1+\\left(j\\omega t_{0}\\right)^{a}\\right)^{b}}
+    \epsilon(\omega) = \epsilon_{\infty} + \frac{\Delta\epsilon}{\left(1+\left(j\omega t_{0}\right)^{a}\right)^{b}}
 
 
 The ``HavriliakNegami`` class has the following structure:
@@ -83,8 +83,8 @@ The ``HavriliakNegami`` class has the following structure:
 
 * ``f_min`` is first bound of the frequency range used to approximate the given function (Hz),
 * ``f_max`` is second bound of the frequency range used to approximate the given function (Hz),
-* ``alpha`` is real positive float number which varies :math:`0 < \\alpha < 1`,
-* ``beta`` is real positive float number which varies :math:`0 < \\beta < 1`,
+* ``alpha`` is real positive float number which varies :math:`0 < \alpha < 1`,
+* ``beta`` is real positive float number which varies :math:`0 < \beta < 1`,
 * ``e_inf`` is a real part of relative permittivity at infinite frequency,
 * ``de`` is a difference between the real permittivity at zero and infinite frequency,
 * ``tau_0`` is a relaxation time (seconds),
@@ -106,7 +106,7 @@ Jonscher function is mainly used to describe the dielectric properties of concre
 
 .. math::
 
-    \\epsilon(\\omega) = \\epsilon_{\\infty} + a_{p}*\\left( -j*\\frac{\\omega}{\\omega_{p}} \\right)^{n}
+    \epsilon(\omega) = \epsilon_{\infty} + a_{p}*\left( -j*\frac{\omega}{\omega_{p}} \right)^{n}
 
 
 The ``Jonscher`` class has the following structure:
@@ -136,7 +136,7 @@ CRIM is the most mainstream approach for estimating the bulk permittivity of het
 
 .. math::
 
-    \\epsilon(\\omega)^{d} = \\sum_{i=1}^{m}f_{i}\\epsilon_{m,i}(\\omega)^{d}
+    \epsilon(\omega)^{d} = \sum_{i=1}^{m}f_{i}\epsilon_{m,i}(\omega)^{d}
 
 
 The ``CRIM`` class has the following structure:
