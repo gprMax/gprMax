@@ -36,7 +36,7 @@ where :math:`\epsilon(\omega)` is frequency dependent dielectric permittivity, :
 
 To fit the data to a multi-Debye expansion, you can choose between Havriliak-Negami, Jonscher, or Complex Refractive Index Mixing (CRIM) models, as well as arbitrary dielectric data derived experimentally or calculated using a different function.
 
-.. figure:: images/epsilon.png
+.. figure:: ../../images_shared/epsilon.png
     :width: 600 px
 
     Real and imaginary parts of frequency-dependent permittivity

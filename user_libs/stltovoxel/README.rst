@@ -49,22 +49,22 @@ Since the number of voxels are 108 x 88 108 and the spatial discretisation chose
 
 The following is an example of a ``materials.txt`` file that can be used with the generated geometry file (HDF5 format) when importing into gprMax. Since ``-matindex`` is set to 2 the material with name ``hdpe``, i.e. a plastic, will be used.
 
-.. literalinclude:: ../examples/materials.txt
+.. literalinclude:: examples/materials.txt
     :language: none
     :linenos:
 
 The following Python script (using the gprMax API) can be used to import the generated geometry file ``Stanford_Bunny.h5`` and materials file ``materials.txt`` into a gprMax model:
 
-.. literalinclude:: ../examples/bunny.py
+.. literalinclude:: examples/bunny.py
     :language: python
     :linenos:
 
-.. figure:: images/stanford_bunny_stl.png
+.. figure:: ../../images_shared/stanford_bunny_stl.png
     :width: 600 px
 
     Image of the Stanford bunny STL file
 
-.. figure:: images/stanford_bunny.png
+.. figure:: ../../images_shared/stanford_bunny.png
     :width: 600 px
 
     FDTD geometry mesh showing the Stanford bunny

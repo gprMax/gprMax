@@ -14,6 +14,6 @@ OpenMP which enables it to run on multi-core CPUs. gprMax also features a
 Messaging Passing Interface (MPI) task farm, which can operate with CPU nodes or
 multiple GPUs.
 
-.. figure:: images/code_overview.png
+.. figure:: ../../images_shared/code_overview.png
 
     Basic, high-level overview of the flow of control (operation) of the code.

@@ -29,7 +29,7 @@ temporal :math:`\Delta t` steps play a very significant role -- since the smalle
 
 .. _yeecell3D:
 
-.. figure:: images/yeecell3d.png
+.. figure:: ../../images_shared/yeecell3d.png
     :width: 500px
 
     Single FDTD Yee cell showing electric (red) and magnetic (green) field components.
@@ -40,7 +40,7 @@ gprMax is fundamentally based on solving Maxwell's equations in 3D using the FDT
 
 .. _yeecell2DTMz:
 
-.. figure:: images/yeecell2dTMz.png
+.. figure:: ../../images_shared/yeecell2dTMz.png
     :width: 500px
 
     Single FDTD Yee cell showing electric (red), magnetic (green), and zeroed out (grey) field components for 2D transverse magnetic (TM) z-direction mode.
@@ -80,7 +80,7 @@ A right-handed Cartesian coordinate system is used with the origin of space coor
 
 .. _coord3d:
 
-.. figure:: images/coord3d.png
+.. figure:: ../../images_shared/coord3d.png
     :width: 500px
 
     gprMax coordinate system and conventions.
@@ -122,7 +122,7 @@ One of the most challenging issues in modelling *open boundary* problems, such a
 
 .. _abcs:
 
-.. figure:: images/abcs.png
+.. figure:: ../../images_shared/abcs.png
     :width: 600px
 
     GPR forward problem showing computational domain bounded by Absorbing Boundary Conditions (ABCs)

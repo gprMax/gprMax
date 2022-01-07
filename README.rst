@@ -4,7 +4,7 @@
 
 |
 
-.. image:: docs/source/images/gprMax_logo_small.png
+.. image:: ../../images_shared/gprMax_logo_small.png
     :target: http://www.gprmax.com
 
 ***************

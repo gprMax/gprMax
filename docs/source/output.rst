@@ -141,7 +141,7 @@ The ``#geometry_view:`` command produces either ImageData (.vti) for a per-cell 
 
 .. _pv_toolbar:
 
-.. figure:: images/paraview_toolbar.png
+.. figure:: ../../images_shared/paraview_toolbar.png
 
     Paraview toolbar showing ``gprMax_info`` macro button.
 
@@ -152,7 +152,7 @@ The ``#geometry_view:`` command produces either ImageData (.vti) for a per-cell 
 
 .. _pv_pipeline:
 
-.. figure:: images/paraview_pipeline.png
+.. figure:: ../../images_shared/paraview_pipeline.png
     :width: 350 px
 
     Paraview Pipeline Browser showing list of materials in an example model.

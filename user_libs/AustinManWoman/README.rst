@@ -17,7 +17,7 @@ Information
 
 `AustinMan and AustinWoman <http://bit.ly/AustinMan>`_ are open source electromagnetic voxel models of the human body, which are developed by the `Computational Electromagnetics Group <http://www.ece.utexas.edu/research/areas/electromagnetics-acoustics>`_ at `The University of Texas at Austin <http://www.utexas.edu>`_. The models are based on data from the `National Library of Medicine’s Visible Human Project <https://www.nlm.nih.gov/research/visible/visible_human.html>`_.
 
-.. figure:: images/AustinMan_head.png
+.. figure:: ../../images_shared/AustinMan_head.png
     :width: 600 px
 
     FDTD geometry mesh showing the head of the AustinMan model (2x2x2mm :math:`^3`).
@@ -76,7 +76,7 @@ To insert a 2x2x2mm :math:`^3` AustinMan with the lower left corner 40mm from th
 
 For further information on the ``#geometry_objects_read`` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
 
-.. figure:: images/AustinMan.png
+.. figure:: ../../images_shared/AustinMan.png
     :width: 300 px
 
     FDTD geometry mesh showing the AustinMan body model (2x2x2mm :math:`^3`).

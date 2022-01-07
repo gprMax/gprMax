@@ -144,7 +144,7 @@ html_title = 'gprMax User Guide'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-# html_logo = 'images/gprMax_FB_logo.png'
+html_logo = '../../images_shared/gprMax_FB_logo.png'
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -246,7 +246,7 @@ latex_documents = [
 
 # The name of an image file (relative to this directory) to place at the top of
 # the title page.
-latex_logo = 'images/gprMax_logo.png'
+latex_logo = '../../images_shared/gprMax_logo.png'
 
 # For "manual" documents, if this is true, then toplevel headings are parts,
 # not chapters.

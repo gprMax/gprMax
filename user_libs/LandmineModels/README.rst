@@ -76,12 +76,12 @@ The input file for inserting the PMN landmine, with the lower left corner 10mm f
 
 For further information on the ``#geometry_objects_read`` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
 
-.. figure:: images/PMA.png
+.. figure:: ../../images_shared/PMA.png
     :width: 600 px
 
     FDTD geometry mesh showing the PMA-1 landmine model.
 
-.. figure:: images/PMN.png
+.. figure:: ../../images_shared/PMN.png
     :width: 600 px
 
     FDTD geometry mesh showing the PMN landmine model.

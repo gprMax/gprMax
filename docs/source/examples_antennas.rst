@@ -32,21 +32,21 @@ You can view the results (see :ref:`output` and :ref:`tools<plotting>` sections)
 
 .. _antenna_wire_dipole_fs_tl_params:
 
-.. figure:: images/antenna_wire_dipole_fs_tl_params.png
+.. figure:: ../../images_shared/antenna_wire_dipole_fs_tl_params.png
     :width: 600px
 
     Time and frequency domain plots of the incident and total (incident + reflected) voltages and currents in the transmission line (:math:`\Delta f = 17~MHz`).
 
 .. _antenna_wire_dipole_fs_ant_params:
 
-.. figure:: images/antenna_wire_dipole_fs_ant_params.png
+.. figure:: ../../images_shared/antenna_wire_dipole_fs_ant_params.png
     :width: 600px
 
     Input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna (:math:`\Delta f = 17~MHz`).
 
 .. _antenna_wire_dipole_fs_ant_params_detail:
 
-.. figure:: images/antenna_wire_dipole_fs_ant_params_detail.png
+.. figure:: ../../images_shared/antenna_wire_dipole_fs_ant_params_detail.png
     :width: 600px
 
     Detailed view of input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna (:math:`\Delta f = 17~MHz`).
@@ -57,7 +57,7 @@ You can view the results (see :ref:`output` and :ref:`tools<plotting>` sections)
 
 .. _antenna_wire_dipole_fs_ant_params_detail_1p4MHz:
 
-.. figure:: images/antenna_wire_dipole_fs_ant_params_detail_1p4MHz.png
+.. figure:: ../../images_shared/antenna_wire_dipole_fs_ant_params_detail_1p4MHz.png
     :width: 600px
 
     Detailed view of input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna (:math:`\Delta f = 1.4~MHz`)
@@ -76,7 +76,7 @@ This example demonstrates how to use one of the built-in antenna models in a sim
     :language: none
     :linenos:
 
-.. figure:: images/antenna_like_MALA_1200.png
+.. figure:: ../../images_shared/antenna_like_MALA_1200.png
     :width: 600 px
 
     FDTD geometry mesh showing an antenna model similar to a MALA 1.2GHz antenna (skid removed for illustrative purposes).
@@ -96,7 +96,7 @@ When the simulation is run two geometry files for the antenna are produced along
 
 .. _antenna_like_MALA_1200_fs_results:
 
-.. figure:: images/antenna_like_MALA_1200_fs_results.png
+.. figure:: ../../images_shared/antenna_like_MALA_1200_fs_results.png
     :width: 600 px
 
     Ey field output from the receiver bowtie of a model of an antenna similar to a MALA 1.2GHz antenna.
@@ -113,7 +113,7 @@ This example demonstrates how to create a B-scan with an antenna model. The scen
     :language: none
     :linenos:
 
-.. figure:: images/cylinder_Bscan_GSSI_1500.png
+.. figure:: ../../images_shared/cylinder_Bscan_GSSI_1500.png
     :width: 600 px
 
     FDTD geometry mesh showing a metal cylinder buried in a half-space and an antenna model similar to a GSSI 1.5GHz antenna.
@@ -143,7 +143,7 @@ After merging the A-scans into a single file you can now view an image of the B-
 
 .. _cylinder_Bscan_GSSI_1500_results:
 
-.. figure:: images/cylinder_Bscan_GSSI_1500_results.png
+.. figure:: ../../images_shared/cylinder_Bscan_GSSI_1500_results.png
     :width: 600px
 
     B-scan of model of a metal cylinder buried in a dielectric half-space with a model of an antenna similar to a GSSI 1.5GHz antenna.

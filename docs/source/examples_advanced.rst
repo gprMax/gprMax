@@ -15,7 +15,7 @@ This example demonstrates how to build a more realistic soil model using a stoch
     :language: none
     :linenos:
 
-.. figure:: images/heterogeneous_soil.png
+.. figure:: ../../images_shared/heterogeneous_soil.png
     :width: 600 px
 
     FDTD geometry mesh showing a heterogeneous soil model with a rough surface.

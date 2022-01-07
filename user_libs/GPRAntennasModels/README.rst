@@ -54,17 +54,17 @@ To include an antenna model similar to a GSSI 1.5 GHz antenna at a location 0.12
     antenna_like_GSSI_1500(0.125, 0.094, 0.100, resolution=0.002)
     #end_python:
 
-.. figure:: images/antenna_like_GSSI_1500.png
+.. figure:: ../../images_shared/antenna_like_GSSI_1500.png
     :width: 600 px
 
     FDTD geometry mesh showing an antenna model similar to a GSSI 1.5 GHz antenna (skid removed for illustrative purposes).
 
-.. figure:: images/antenna_like_GSSI_400.png
+.. figure:: ../../images_shared/antenna_like_GSSI_400.png
     :width: 600 px
 
     FDTD geometry mesh showing an antenna model similar to a GSSI 400 MHz antenna (skid removed for illustrative purposes).
 
-.. figure:: images/antenna_like_MALA_1200.png
+.. figure:: ../../images_shared/antenna_like_MALA_1200.png
     :width: 600 px
 
     FDTD geometry mesh showing an antenna model similar to a MALA 1.2GHz antenna (skid removed for illustrative purposes).

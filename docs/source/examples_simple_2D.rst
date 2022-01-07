@@ -21,7 +21,7 @@ The geometry of the scenario is straightforward and an image created from the ge
 
 .. _cylinder_half_space_geo:
 
-.. figure:: images/cylinder_half_space_geo.png
+.. figure:: ../../images_shared/cylinder_half_space_geo.png
     :width: 600 px
 
     Geometry of a 2D model of a metal cylinder buried in a dielectric half-space.
@@ -118,7 +118,7 @@ You should have produced an output file ``cylinder_Ascan_2D.h5``. You can view t
 
 .. _cylinder_Ascan_results:
 
-.. figure:: images/cylinder_Ascan_results.png
+.. figure:: ../../images_shared/cylinder_Ascan_results.png
     :width: 600px
 
     Electric and magnetic field component time histories from the receiver in the model of a metal cylinder buried in a dielectric half-space.
@@ -167,7 +167,7 @@ You can now view an image of the B-scan using the command:
 
 .. _cylinder_Bscan_results:
 
-.. figure:: images/cylinder_Bscan_results.png
+.. figure:: ../../images_shared/cylinder_Bscan_results.png
     :width: 600px
 
     B-scan of model of a metal cylinder buried in a dielectric half-space.

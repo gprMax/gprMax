@@ -118,7 +118,7 @@ A Gaussian waveform.
 
 where :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
 
-.. figure:: images/gaussian.png
+.. figure:: ../../images_shared/gaussian.png
 
     Example of the ``gaussian`` waveform - time domain and power spectrum.
 
@@ -132,7 +132,7 @@ First derivative of a Gaussian waveform.
 
 where :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
 
-.. figure:: images/gaussiandot.png
+.. figure:: ../../images_shared/gaussiandot.png
 
     Example of the ``gaussiandot`` waveform - time domain and power spectrum.
 
@@ -146,7 +146,7 @@ Normalised first derivative of a Gaussian waveform.
 
 where :math:`\zeta = 2\pi^2f^2`, :math:`\chi=\frac{1}{f}` and :math:`f` is the frequency.
 
-.. figure:: images/gaussiandotnorm.png
+.. figure:: ../../images_shared/gaussiandotnorm.png
 
     Example of the ``gaussiandotnorm`` waveform - time domain and power spectrum.
 
@@ -160,7 +160,7 @@ Second derivative of a Gaussian waveform.
 
 where :math:`\zeta = \pi^2f^2`, :math:`\chi=\frac{\sqrt{2}}{f}` and :math:`f` is the frequency.
 
-.. figure:: images/gaussiandotdot.png
+.. figure:: ../../images_shared/gaussiandotdot.png
 
     Example of the ``gaussiandotdot`` waveform - time domain and power spectrum.
 
@@ -174,7 +174,7 @@ Normalised second derivative of a Gaussian waveform.
 
 where :math:`\zeta = \pi^2f^2`, :math:`\chi=\frac{\sqrt{2}}{f}` and :math:`f` is the frequency.
 
-.. figure:: images/gaussiandotdotnorm.png
+.. figure:: ../../images_shared/gaussiandotdotnorm.png
 
     Example of the ``gaussiandotdotnorm`` waveform - time domain and power spectrum.
 
@@ -188,7 +188,7 @@ A Ricker (or Mexican Hat) waveform which is the negative, normalised second deri
 
 where :math:`\zeta = \pi^2f^2`, :math:`\chi=\frac{\sqrt{2}}{f}` and :math:`f` is the frequency.
 
-.. figure:: images/ricker.png
+.. figure:: ../../images_shared/ricker.png
 
     Example of the ``ricker`` waveform - time domain and power spectrum.
 
@@ -212,7 +212,7 @@ and
 
 :math:`f` is the frequency
 
-.. figure:: images/sine.png
+.. figure:: ../../images_shared/sine.png
 
     Example of the ``sine`` waveform - time domain and power spectrum.
 
@@ -236,6 +236,6 @@ and
 
 where :math:`R_c` is set to :math:`0.25` and :math:`f` is the frequency.
 
-.. figure:: images/contsine.png
+.. figure:: ../../images_shared/contsine.png
 
     Example of the ``contsine`` waveform - time domain and power spectrum.
