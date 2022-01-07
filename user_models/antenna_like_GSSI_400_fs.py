@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import gprMax
-from user_libs.antennas.GSSI import antenna_like_GSSI_400
+from user_libs.GPRAntennaModels.GSSI import antenna_like_GSSI_400
 
 # File path for output
 fn = Path(__file__)

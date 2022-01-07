@@ -12,7 +12,7 @@ logging.basicConfig(format='%(message)s', level=logging.INFO)
 if __name__ == "__main__":
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Allows the user to convert a STL files to voxelized mesh.', usage='cd gprMax; python -m user_libs.stltovoxel.stltovoxel stlfilename matindex dx_dy_dz')
+    parser = argparse.ArgumentParser(description='Allows the user to convert a STL files to voxelized mesh.', usage='cd gprMax; python -m user_libs.STLtoVoxel.stltovoxel stlfilename matindex dx_dy_dz')
     parser.add_argument('stlfilename', help='name of STL file to convert including path')
     parser.add_argument('-matindex', type=int, required=True,
                         help='index of material to extract from STL file')

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Plot field patterns from a simulation with receivers positioned in circles around an antenna. This module should be used after the field pattern data has been processed and stored using the initial_save.py module.', usage='cd gprMax; python -m user_libs.antenna_patterns.plot_fields numpyfile')
+parser = argparse.ArgumentParser(description='Plot field patterns from a simulation with receivers positioned in circles around an antenna. This module should be used after the field pattern data has been processed and stored using the initial_save.py module.', usage='cd gprMax; python -m user_libs.AntennaPatterns.plot_fields numpyfile')
 parser.add_argument('numpyfile', help='name of numpy file including path')
 # parser.add_argument('hertzian', help='name of numpy file including path')
 args = parser.parse_args()

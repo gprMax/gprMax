@@ -1,7 +1,7 @@
 User libraries is a sub-package where useful Python modules contributed by users are stored.
 
 ****************
-Antenna patterns
+Antenna Patterns
 ****************
 
 Information
@@ -40,8 +40,8 @@ How to use the package
 
 * Firstly you should familiarise yourself with the example model input file. Edit the input file as desired and run one of the simulations for either E-plane or H-plane patterns.
 * Whilst the simulation is running edit the 'user configurable parameters' sections of the ``initial_save.py`` and ``plot_fields.py`` modules to match the setup of the simulation.
-* Once the simulation has completed, run the ``initial_save.py`` module on the output file, e.g. for the E-plane ``python -m user_libs.antenna_patterns.initial_save user_models/antenna_like_GSSI_1500_patterns_E_Er5.h5``. This will produce a Numpy file containing the field pattern data.
-* Plot the field pattern data by running the ``plot_fields.py`` module on the Numpy file, e.g. for the E-plane ``python -m user_libs.antenna_patterns.plot_fields user_models/antenna_like_GSSI_1500_patterns_E_Er5.npy``
+* Once the simulation has completed, run the ``initial_save.py`` module on the output file, e.g. for the E-plane ``python -m user_libs.AntennaPatterns.initial_save user_models/antenna_like_GSSI_1500_patterns_E_Er5.h5``. This will produce a Numpy file containing the field pattern data.
+* Plot the field pattern data by running the ``plot_fields.py`` module on the Numpy file, e.g. for the E-plane ``python -m user_libs.AntennaPatterns.plot_fields user_models/antenna_like_GSSI_1500_patterns_E_Er5.npy``
 
 .. tip::
 

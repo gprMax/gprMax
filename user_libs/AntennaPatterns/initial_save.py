@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Calculate and store (in a Numpy file) field patterns from a simulation with receivers positioned in circles around an antenna.', usage='cd gprMax; python -m user_libs.antenna_patterns.initial_save outputfile')
+parser = argparse.ArgumentParser(description='Calculate and store (in a Numpy file) field patterns from a simulation with receivers positioned in circles around an antenna.', usage='cd gprMax; python -m user_libs.AntennaPatterns.initial_save outputfile')
 parser.add_argument('outputfile', help='name of gprMax output file including path')
 args = parser.parse_args()
 outputfile = args.outputfile

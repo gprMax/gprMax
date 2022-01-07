@@ -303,7 +303,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
 
     elif optstate == 'GiannakisPaper':
         # Optimised custom pulse
-        exc1 = gprMax.ExcitationFile(filepath='user_libs/antennas/GSSI1p5optpulse.txt', 
+        exc1 = gprMax.ExcitationFile(filepath='user_libs/GPRAntennaModels/GSSI1p5optpulse.txt', 
                                      kind='linear', fill_value='extrapolate')
         vs1 = gprMax.VoltageSource(polarisation='y', p1=(tx[0], tx[1], tx[2]), 
                                    resistance=sourceresistance, waveform_id='GSSI1p5optpulse')

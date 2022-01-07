@@ -1,7 +1,7 @@
 User libraries is a sub-package where useful Python modules contributed by users are stored.
 
 **********
-stltovoxel
+STLtoVoxel
 **********
 
 Information
@@ -20,7 +20,7 @@ This package was created as part of the `Google Summer of Code <https://summerof
 Package contents
 ================
 
-* ``stltovoxel.py`` is the main script which should be executed to convert a STL file to a voxelised mesh which is saved as a geometry file in HDF5 format suitable for directly importing into gprMax.
+* ``STLtoVoxel.py`` is the main script which should be executed to convert a STL file to a voxelised mesh which is saved as a geometry file in HDF5 format suitable for directly importing into gprMax.
 * ``examples`` is a folder containing example STL files as well as gprMax input files that can be used to import the resulting HDF5 geometry files.
 * ``convert.py``, ``perimeter.py``, ``slice.py`` are modules adapted from the `stl-to-voxel <https://github.com/cpederkoff/stl-to-voxel>`_ Python library by Christian Pederkoff.
 * ``license.md`` is the license for the `stl-to-voxel <https://github.com/cpederkoff/stl-to-voxel>`_ Python library by Christian Pederkoff.
@@ -43,7 +43,7 @@ To create a voxelised mesh (HDF5 geometry file) from the ubiquitous `Stanford bu
 
 .. code-block:: none
 
-    python -m user_libs.stltovoxel.stltovoxel user_libs/stltovoxel/examples/stl/Stanford_Bunny.stl -matindex 2 -dxdydz 0.001 0.001 0.001
+    python -m user_libs.STLtoVoxel.stltovoxel user_libs/STLtoVoxel/examples/stl/Stanford_Bunny.stl -matindex 2 -dxdydz 0.001 0.001 0.001
 
 Since the number of voxels are 108 x 88 108 and the spatial discretisation chosen is 1mm, the physical dimensions of the Stanford bunny when imported into gprMax will be 0.108 x 0.088 x 0.108mm.
 
