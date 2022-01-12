@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2022: The University of Edinburgh
+# Copyright (C) 2015-2022: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -361,6 +361,9 @@ def dispersion_analysis(G):
 
             elif waveform.type == 'impulse':
                 results['error'] = 'impulse waveform used.'
+
+            elif waveform.type == 'user':
+                results['error'] = 'user waveform detected.'
 
             else:
                 # User-defined waveform
