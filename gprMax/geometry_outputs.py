@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2022: The University of Edinburgh
+# Copyright (C) 2015-2022: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -123,8 +123,8 @@ class GeometryView():
         """Construct filename from user-supplied name and model run number."""
         parts = config.get_model_config().output_file_path.parts
         self.filename = Path(*parts[:-1], 
-                             self.filename + config.get_model_config().appendmodelnumber)
-
+                             parts[-1] + config.get_model_config().appendmodelnumber)
+                             
 
 class GeometryViewLines(GeometryView):
     """Unstructured grid (.vtu) for a per-cell-edge geometry view."""
