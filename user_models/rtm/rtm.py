@@ -1,6 +1,8 @@
 from pathlib import Path
 
 import gprMax
+import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.constants import c
 from scipy.io import loadmat
@@ -80,9 +82,10 @@ gv = gprMax.GeometryView(p1=(0, 0, 0), p2=domain.props.p1, dl=(dl, dl, dl),
                         output_type='n')
 
 # Snapshot of at end of time window will be RTM result
+fileext = '.h5' # Can also be '.vti' for a VTK format
 snap = gprMax.Snapshot(p1=(0, 0, 0), p2=domain.props.p1, dl=(dl, dl, dl),
                         filename=fn.with_suffix('').parts[-1] + '_rtm_result',
-                        time=timewindow)
+                        fileext=fileext, time=timewindow)
 
 scene.add(mat1)
 scene.add(b1)
@@ -90,4 +93,40 @@ scene.add(gv)
 scene.add(snap)
 
 # Run FDTD model
-gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn)
+# gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn)
+
+# Open RTM results file
+filename = Path(str(fn) + '_snaps', fn.with_suffix('').parts[-1] + '_rtm_result' + fileext)
+fieldcomponent = 'Ez'
+f = h5py.File(filename, 'r')
+outputdata = f[fieldcomponent]
+outputdata = np.array(outputdata)
+time = f.attrs['time']
+f.close()
+
+# Manipulation/processing of outputdata
+outputdata = outputdata.squeeze()
+outputdata = outputdata.transpose()
+
+# Plot RTM result
+fig = plt.figure(num=str(filename), figsize=(20, 10), facecolor='w', edgecolor='w')
+plt.imshow(outputdata, extent=[0, outputdata.shape[1], time, 0],
+            interpolation='nearest', aspect='auto', cmap='gray',
+            vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
+plt.xlabel('Trace number')
+plt.ylabel('Time [s]')
+
+# Grid properties
+ax = fig.gca()
+ax.grid(which='both', axis='both', linestyle='-.')
+
+cb = plt.colorbar()
+cb.set_label(fieldcomponent + ' [V/m]')
+
+# Save a PDF/PNG of the figure
+# fig.savefig(file.with_suffix('.pdf'), dpi=None, format='pdf',
+#             bbox_inches='tight', pad_inches=0.1)
+# fig.savefig(file.with_suffix('.png'), dpi=150, format='png',
+#             bbox_inches='tight', pad_inches=0.1)
+
+plt.show()
