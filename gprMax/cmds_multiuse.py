@@ -943,7 +943,7 @@ class Snapshot(UserObjectMulti):
                             must be specified for point in time at which the 
                             snapshot will be taken.
         fileext: optional string to indicate type for snapshot file, either 
-                            'vti' (default) or 'h5'
+                            '.vti' (default) or '.h5'
     """
 
     def __init__(self, **kwargs):
@@ -1673,4 +1673,3 @@ class Subgrid(UserObjectMulti):
         else:
             logger.exception('This object is unknown to gprMax.')
             raise ValueError
-            
