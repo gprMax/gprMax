@@ -46,11 +46,11 @@ logger = logging.getLogger(__name__)
 
 
 def write_vtk_pvd(gvs):
-    """Write a Paraview data file (.pvd) - provides pointers to a collection of 
+    """Writes Paraview data file (.pvd) - provides pointers to a collection of 
         data files, i.e. GeometryViews.
 
     Args:
-        gvs (list): list of all GeometryViews.
+        gvs: list of all GeometryViews.
     """
 
     filename = config.get_model_config().output_file_path
@@ -67,10 +67,10 @@ def write_vtk_pvd(gvs):
 
 
 def save_geometry_views(gvs):
-    """Create and save the geometryviews.
+    """Creates and saves geometryviews.
     
     Args:
-        gvs (list): list of all GeometryViews.
+        gvs: list of all GeometryViews.
     """
     
     logger.info('')
@@ -78,7 +78,8 @@ def save_geometry_views(gvs):
         gv.set_filename()
         vtk_data = gv.prep_vtk()
         pbar = tqdm(total=vtk_data['nbytes'], unit='byte', unit_scale=True,
-                    desc=f'Writing geometry view file {i + 1}/{len(gvs)}, {gv.filename.name}{gv.vtkfiletype.ext}',
+                    desc=f'Writing geometry view file {i + 1}/{len(gvs)}, '
+                    f'{gv.filename.name}{gv.vtkfiletype.ext}',
                     ncols=get_terminal_width() - 1, file=sys.stdout,
                     disable=not config.sim_config.general['progressbars'])
         gv.write_vtk(vtk_data)
@@ -98,10 +99,10 @@ class GeometryView():
     def __init__(self, xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, grid):
         """
         Args:
-            xs, xf, ys, yf, zs, zf (int): Extent of the volume in cells
-            dx, dy, dz (int): Spatial discretisation of geometry view in cells
-            filename (str): Filename to save to
-            grid (FDTDGrid): Parameters describing a grid in a model
+            xs, xf, ys, yf, zs, zf: ints for extent of geometry view in cells.
+            dx, dy, dz: ints for spatial discretisation of geometry view in cells.
+            filename: string for filename.
+            grid: FDTDgrid class for parameters describing a grid in a model.
         """
 
         self.xs = xs
@@ -120,7 +121,7 @@ class GeometryView():
         self.grid = grid
 
     def set_filename(self):
-        """Construct filename from user-supplied name and model run number."""
+        """Constructs filename from user-supplied name and model run number."""
         parts = config.get_model_config().output_file_path.parts
         self.filename = Path(*parts[:-1], 
                              parts[-1] + config.get_model_config().appendmodelnumber)
@@ -134,10 +135,10 @@ class GeometryViewLines(GeometryView):
         self.vtkfiletype = VtkUnstructuredGrid
     
     def prep_vtk(self):
-        """Prepare data for writing to VTK file.
+        """Prepares data for writing to VTK file.
         
         Returns:
-            vtk_data (dict): coordinates, data, and comments for VTK file
+            vtk_data: dict of coordinates, data, and comments for VTK file.
         """
 
         # Sample ID array according to geometry view spatial discretisation                
@@ -176,34 +177,36 @@ class GeometryViewLines(GeometryView):
         nbytes = (x.nbytes + y.nbytes + z.nbytes + lines.nbytes + offsets_size
                   + connect_size + cell_type_size)
         
-        vtk_data = {'x': x, 'y': y, 'z': z, 'data': lines, 'comments': comments, 'nbytes': nbytes}
+        vtk_data = {'x': x, 'y': y, 'z': z, 'data': lines, 'comments': comments, 
+                    'nbytes': nbytes}
 
         return vtk_data
 
     def write_vtk(self, vtk_data):
-        """Write geometry information to a VTK file.
+        """Writes geometry information to a VTK file.
         
         Args:
-            vtk_data (dict): coordinates, data, and comments for VTK file
+            vtk_data: dict of coordinates, data, and comments for VTK file.
         """
 
          # Write the VTK file .vtu
-        linesToVTK(str(self.filename), vtk_data['x'], vtk_data['y'], vtk_data['z'], cellData={"Material": vtk_data['data']}, 
+        linesToVTK(str(self.filename), vtk_data['x'], vtk_data['y'], v
+                   tk_data['z'], cellData={"Material": vtk_data['data']}, 
                    comments=[vtk_data['comments']])
 
 
 class GeometryViewVoxels(GeometryView):
-    """Uniform rectilinear grid (.vti) for a per-cell geometry view."""
+    """Imagedata (.vti) for a per-cell geometry view."""
 
     def __init__(self, *args):
         super().__init__(*args)
         self.vtkfiletype = VtkImageData
     
     def prep_vtk(self):
-        """Prepare data for writing to VTK file.
+        """Prepares data for writing to VTK file.
         
         Returns:
-            vtk_data (dict): data and comments for VTK file
+            vtk_data: dict of data and comments for VTK file.
         """
 
         # Sample solid array according to geometry view spatial discretisation
@@ -232,7 +235,7 @@ class GeometryViewVoxels(GeometryView):
         """Write geometry information to a VTK file.
         
         Args:
-            vtk_data (dict): data and comments for VTK file
+            vtk_data: dict of data and comments for VTK file.
         """
 
         # Write the VTK file .vti
@@ -248,10 +251,10 @@ class GeometryViewVoxels(GeometryView):
 
 
 class GeometryViewSubgridVoxels(GeometryViewVoxels):
-    """Uniform rectilinear grid (.vti) for a per-cell geometry view for sub-grids."""
+    """Imagedata (.vti) for a per-cell geometry view for sub-grids."""
 
     def __init__(self, *args):
-        # for sub-grid we are only going to export the entire grid. temporary fix.
+        # For sub-grid we are only going to export the entire grid. temporary fix.
         xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, grid = args
         xs, ys, zs = 0, 0, 0
         xf, yf, zf = grid.nx, grid.ny, grid.nz
@@ -366,8 +369,8 @@ class GeometryObjects:
     def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None, basefilename=None):
         """
         Args:
-            xs, xf, ys, yf, zs, zf (int): Extent of the volume in cells.
-            filename (str): Filename to save to.
+            xs, xf, ys, yf, zs, zf: ints for extent of the volume in cells.
+            filename: string for filename.
         """
 
         self.xs = xs
@@ -435,20 +438,27 @@ class GeometryObjects:
         for numID in range(minmat, maxmat + 1):
             for material in G.materials:
                 if material.numID == numID:
-                    fmaterials.write(
-                        f'#material: {material.er:g} {material.se:g} {material.mr:g} {material.sm:g} {material.ID}\n')
+                    fmaterials.write(f'#material: {material.er:g} {material.se:g} '
+                                     f'{material.mr:g} {material.sm:g} {material.ID}\n')
                     if hasattr(material, 'poles'):
                         if 'debye' in material.type:
-                            dispersionstr = f'#add_dispersion_debye: {material.poles:g} '
+                            dispersionstr = ('#add_dispersion_debye: '
+                                             f'{material.poles:g} ')
                             for pole in range(material.poles):
-                                dispersionstr += f'{material.deltaer[pole]:g} {material.tau[pole]:g} '
+                                dispersionstr += (f'{material.deltaer[pole]:g} '
+                                                  f'{material.tau[pole]:g} ')
                         elif 'lorenz' in material.type:
-                            dispersionstr = f'#add_dispersion_lorenz: {material.poles:g} '
+                            dispersionstr = (f'#add_dispersion_lorenz: '
+                                             f'{material.poles:g} ')
                             for pole in range(material.poles):
-                                dispersionstr += f'{material.deltaer[pole]:g} {material.tau[pole]:g} {material.alpha[pole]:g} '
+                                dispersionstr += (f'{material.deltaer[pole]:g} '
+                                                  f'{material.tau[pole]:g} '
+                                                  f'{material.alpha[pole]:g} ')
                         elif 'drude' in material.type:
-                            dispersionstr = f'#add_dispersion_drude: {material.poles:g} '
+                            dispersionstr = (f'#add_dispersion_drude: '
+                                             f'{material.poles:g} ')
                             for pole in range(material.poles):
-                                dispersionstr += f'{material.tau[pole]:g} {material.alpha[pole]:g} '
+                                dispersionstr += (f'{material.tau[pole]:g} '
+                                                  f'{material.alpha[pole]:g} ')
                         dispersionstr += material.ID
                         fmaterials.write(dispersionstr + '\n')
