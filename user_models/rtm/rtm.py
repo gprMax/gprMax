@@ -93,7 +93,7 @@ scene.add(gv)
 scene.add(snap)
 
 # Run FDTD model
-# gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn)
+gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn)
 
 # Open RTM results file
 filename = Path(str(fn) + '_snaps', fn.with_suffix('').parts[-1] + '_rtm_result' + fileext)
@@ -124,9 +124,9 @@ cb = plt.colorbar()
 cb.set_label(fieldcomponent + ' [V/m]')
 
 # Save a PDF/PNG of the figure
-# fig.savefig(file.with_suffix('.pdf'), dpi=None, format='pdf',
+# fig.savefig(filename.with_suffix('.pdf'), dpi=None, format='pdf',
 #             bbox_inches='tight', pad_inches=0.1)
-# fig.savefig(file.with_suffix('.png'), dpi=150, format='png',
+# fig.savefig(filename.with_suffix('.png'), dpi=150, format='png',
 #             bbox_inches='tight', pad_inches=0.1)
 
 plt.show()
