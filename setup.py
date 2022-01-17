@@ -210,13 +210,23 @@ else:
     extensions = []
     for file in cythonfiles:
         tmp = os.path.splitext(file)
-        extension = Extension(tmp[0].replace(os.sep, '.'),
+        if tmp[0] == 'gprMax/cython/fields_updates_dispersive' and sys.platform == 'win32':
+            extension = Extension(tmp[0].replace(os.sep, '.'),
                             [tmp[0] + tmp[1]],
                             language='c',
                             include_dirs=[np.get_include()],
                             extra_compile_args=compile_args,
                             extra_link_args=linker_args,
-                            libraries=libraries)
+                            libraries=libraries,
+                            define_macros=[("CYTHON_CCOMPLEX", 0)])
+        else:
+            extension = Extension(tmp[0].replace(os.sep, '.'),
+                                [tmp[0] + tmp[1]],
+                                language='c',
+                                include_dirs=[np.get_include()],
+                                extra_compile_args=compile_args,
+                                extra_link_args=linker_args,
+                                libraries=libraries)
         extensions.append(extension)
 
     # Cythonize - build .c files
