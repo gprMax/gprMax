@@ -190,8 +190,8 @@ class GeometryViewLines(GeometryView):
         """
 
          # Write the VTK file .vtu
-        linesToVTK(str(self.filename), vtk_data['x'], vtk_data['y'], v
-                   tk_data['z'], cellData={"Material": vtk_data['data']}, 
+        linesToVTK(str(self.filename), vtk_data['x'], vtk_data['y'], 
+                   vtk_data['z'], cellData={"Material": vtk_data['data']}, 
                    comments=[vtk_data['comments']])
 
 
