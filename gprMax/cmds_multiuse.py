@@ -235,17 +235,17 @@ class VoltageSource(UserObjectMulti):
             logger.exception(self.params_str() + (' polarisation must be '
                                                   'x, y, or z.'))
             raise ValueError
-        if '2D TMx' in (config.get_model_config().mode and 
+        if ('2D TMx' in config.get_model_config().mode and 
                         (polarisation == 'y' or polarisation == 'z')):
             logger.exception(self.params_str() + (' polarisation must be x in '
                                                   '2D TMx mode.'))
             raise ValueError
-        elif '2D TMy' in (config.get_model_config().mode and 
+        elif ('2D TMy' in config.get_model_config().mode and 
                           (polarisation == 'x' or polarisation == 'z')):
             logger.exception(self.params_str() + (' polarisation must be y in '
                                                   '2D TMy mode.'))
             raise ValueError
-        elif '2D TMz' in (config.get_model_config().mode and 
+        elif ('2D TMz' in config.get_model_config().mode and 
                           (polarisation == 'x' or polarisation == 'y')):
             logger.exception(self.params_str() + (' polarisation must be z in '
                                                   '2D TMz mode.'))
@@ -371,17 +371,17 @@ class HertzianDipole(UserObjectMulti):
             logger.exception(self.params_str() + (' polarisation must be '
                                                   'x, y, or z.'))
             raise ValueError
-        if '2D TMx' in (config.get_model_config().mode and 
+        if ('2D TMx' in config.get_model_config().mode and 
                         (polarisation == 'y' or polarisation == 'z')):
             logger.exception(self.params_str() + (' polarisation must be x in '
                                                   '2D TMx mode.'))
             raise ValueError
-        elif '2D TMy' in (config.get_model_config().mode and 
+        elif ('2D TMy' in config.get_model_config().mode and 
                           (polarisation == 'x' or polarisation == 'z')):
             logger.exception(self.params_str() + (' polarisation must be y in '
                                                   '2D TMy mode.'))
             raise ValueError
-        elif '2D TMz' in (config.get_model_config().mode and 
+        elif ('2D TMz' in config.get_model_config().mode and 
                           (polarisation == 'x' or polarisation == 'y')):
             logger.exception(self.params_str() + (' polarisation must be z in '
                                                   '2D TMz mode.'))
@@ -518,17 +518,17 @@ class MagneticDipole(UserObjectMulti):
             logger.exception(self.params_str() + (' polarisation must be '
                                                   'x, y, or z.'))
             raise ValueError
-        if '2D TMx' in (config.get_model_config().mode and 
+        if ('2D TMx' in config.get_model_config().mode and 
                         (polarisation == 'y' or polarisation == 'z')):
             logger.exception(self.params_str() + (' polarisation must be x in '
                                                   '2D TMx mode.'))
             raise ValueError
-        elif '2D TMy' in (config.get_model_config().mode and 
+        elif ('2D TMy' in config.get_model_config().mode and 
                           (polarisation == 'x' or polarisation == 'z')):
             logger.exception(self.params_str() + (' polarisation must be y in '
                                                   '2D TMy mode.'))
             raise ValueError
-        elif '2D TMz' in (config.get_model_config().mode and 
+        elif ('2D TMz' in config.get_model_config().mode and 
                           (polarisation == 'x' or polarisation == 'y')):
             logger.exception(self.params_str() + (' polarisation must be z in '
                                                   '2D TMz mode.'))
@@ -658,17 +658,17 @@ class TransmissionLine(UserObjectMulti):
             logger.exception(self.params_str() + (' polarisation must be '
                                                   'x, y, or z.'))
             raise ValueError
-        if '2D TMx' in (config.get_model_config().mode and 
+        if ('2D TMx' in config.get_model_config().mode and 
                         (polarisation == 'y' or polarisation == 'z')):
             logger.exception(self.params_str() + (' polarisation must be x in '
                                                   '2D TMx mode.'))
             raise ValueError
-        elif '2D TMy' in (config.get_model_config().mode and 
+        elif ('2D TMy' in config.get_model_config().mode and 
                           (polarisation == 'x' or polarisation == 'z')):
             logger.exception(self.params_str() + (' polarisation must be y in '
                                                   '2D TMy mode.'))
             raise ValueError
-        elif '2D TMz' in (config.get_model_config().mode and 
+        elif ('2D TMz' in config.get_model_config().mode and 
                           (polarisation == 'x' or polarisation == 'y')):
             logger.exception(self.params_str() + (' polarisation must be z in '
                                                   '2D TMz mode.'))
@@ -1196,8 +1196,8 @@ class AddLorentzDispersion(UserObjectMulti):
         try:
             poles = self.kwargs['poles']
             er_delta = self.kwargs['er_delta']
-            tau = self.kwargs['omega']
-            alpha = self.kwargs['delta']
+            tau = self.kwargs['tau']
+            alpha = self.kwargs['alpha']
             material_ids = self.kwargs['material_ids']
         except KeyError:
             logger.exception(self.params_str() + ' requires at least five '
