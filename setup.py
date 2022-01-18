@@ -162,7 +162,7 @@ if 'cleanall' in sys.argv:
     # Remove 'gprMax/cython/fields_updates_dispersive.pyx' if its there
     if os.path.isfile(cython_disp_file):
         os.remove(cython_disp_file)
-        print(f'Removed: {cython_disp_file}')
+        
     # Now do a normal clean
     sys.argv[1] = 'clean'  # this is what distutils understands
 
