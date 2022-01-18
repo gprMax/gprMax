@@ -46,7 +46,9 @@ def build_dispersive_material_templates():
         functions.
     """
 
-    env = Environment(loader = FileSystemLoader('gprMax/templates'), )
+    iswin = True if sys.platform == 'win32' else False
+
+    env = Environment(loader = FileSystemLoader(os.path.join('gprMax', 'templates')), )
 
     template = env.get_template('fields_updates_dispersive_template')
 
@@ -61,7 +63,8 @@ def build_dispersive_material_templates():
                 'name_a_1': 'update_electric_dispersive_1pole_A_double_real',
                 'name_b_1': 'update_electric_dispersive_1pole_B_double_real',
                 'field_type': 'double',
-                'dispersive_type': 'double'
+                'dispersive_type': 'double',
+                'iswin': iswin
             },
             # templates for Float precision and dispersive materials with
             # real susceptibility functions
@@ -71,7 +74,8 @@ def build_dispersive_material_templates():
                 'name_a_1': 'update_electric_dispersive_1pole_A_float_real',
                 'name_b_1': 'update_electric_dispersive_1pole_B_float_real',
                 'field_type': 'float',
-                'dispersive_type': 'float'
+                'dispersive_type': 'float',
+                'iswin': iswin
             },
             # templates for Double precision and dispersive materials with
             # complex susceptibility functions
@@ -83,7 +87,8 @@ def build_dispersive_material_templates():
                 'field_type': 'double',
                 'dispersive_type': 'double complex',
                 # c function to take real part of complex double type
-                'real_part': 'creal'
+                'real_part': 'creal',
+                'iswin': iswin
             },
             # templates for Float precision and dispersive materials with
             # complex susceptibility functions
@@ -95,15 +100,17 @@ def build_dispersive_material_templates():
                 'field_type': 'float',
                 'dispersive_type': 'float complex',
                 # c function to take real part of complex double type
-                'real_part': 'crealf'
+                'real_part': 'crealf',
+                'iswin': iswin
             }]
     )
 
-    with open('gprMax/cython/fields_updates_dispersive.pyx', 'w') as f:
+    with open(os.path.join('gprMax', 'cython', 'fields_updates_dispersive.pyx'), 'w') as f:
         f.write(r)
 
 # Generate Cython file for dispersive materials update functions
-if not os.path.isfile('gprMax/cython/fields_updates_dispersive.pyx'):
+cython_disp_file = os.path.join('gprMax', 'cython', 'fields_updates_dispersive.pyx')
+if not os.path.isfile(cython_disp_file):
     build_dispersive_material_templates()
 
 # Process 'build' command line argument
@@ -143,6 +150,7 @@ if 'cleanall' in sys.argv:
                 print(f'Removed: {os.path.abspath(libfile)}')
             except OSError:
                 print(f'Could not remove: {os.path.abspath(libfile)}')
+    
     # Remove build, dist, egg and __pycache__ directories
     shutil.rmtree(Path.cwd().joinpath('build'), ignore_errors=True)
     shutil.rmtree(Path.cwd().joinpath('dist'), ignore_errors=True)
@@ -150,6 +158,11 @@ if 'cleanall' in sys.argv:
     for p in Path.cwd().rglob('__pycache__'):
         shutil.rmtree(p, ignore_errors=True)
         print(f'Removed: {p}')
+
+    # Remove 'gprMax/cython/fields_updates_dispersive.pyx' if its there
+    if os.path.isfile(cython_disp_file):
+        os.remove(cython_disp_file)
+        print(f'Removed: {cython_disp_file}')
     # Now do a normal clean
     sys.argv[1] = 'clean'  # this is what distutils understands
 
@@ -210,23 +223,13 @@ else:
     extensions = []
     for file in cythonfiles:
         tmp = os.path.splitext(file)
-        if tmp[0] == 'gprMax/cython/fields_updates_dispersive' and sys.platform == 'win32':
-            extension = Extension(tmp[0].replace(os.sep, '.'),
+        extension = Extension(tmp[0].replace(os.sep, '.'),
                             [tmp[0] + tmp[1]],
                             language='c',
                             include_dirs=[np.get_include()],
                             extra_compile_args=compile_args,
                             extra_link_args=linker_args,
-                            libraries=libraries,
-                            define_macros=[("CYTHON_CCOMPLEX", 0)])
-        else:
-            extension = Extension(tmp[0].replace(os.sep, '.'),
-                                [tmp[0] + tmp[1]],
-                                language='c',
-                                include_dirs=[np.get_include()],
-                                extra_compile_args=compile_args,
-                                extra_link_args=linker_args,
-                                libraries=libraries)
+                            libraries=libraries)
         extensions.append(extension)
 
     # Cythonize - build .c files
