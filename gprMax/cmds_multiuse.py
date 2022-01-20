@@ -164,6 +164,12 @@ class Waveform(UserObjectMulti):
             else:
                 waveformtime = np.arange(0, grid.timewindow + grid.dt, grid.dt)
 
+            # Set args for interpolation if given by user
+            if 'kind' in self.kwargs:
+                kwargs['kind'] = self.kwargs['kind']
+            if 'fill_value' in self.kwargs:
+                kwargs['fill_value'] = self.kwargs['fill_value']
+
             if any(x.ID == ID for x in grid.waveforms):
                 logger.exception(self.params_str() + (f' with ID {ID} already '
                                  'exists.'))
@@ -174,7 +180,7 @@ class Waveform(UserObjectMulti):
             w.type = wavetype
             w.userfunc = interpolate.interp1d(waveformtime, uservalues, **kwargs)
 
-            logger.info(self.grid_name(grid) + (f'Waveform {w.ID} that is'
+            logger.info(self.grid_name(grid) + (f'Waveform {w.ID} that is '
                                                 'user-defined created.'))
 
         grid.waveforms.append(w)
