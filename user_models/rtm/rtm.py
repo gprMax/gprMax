@@ -9,12 +9,12 @@ from scipy.io import loadmat
 
 
 # Title and file path for FDTD model output
-modeltitle = 'rtm_model'
+modeltitle = 'bgr_6'
 fn = Path(__file__)
 fn = Path(fn.parent, modeltitle)
 
 # Load B-scan data to be migrated
-matfile = Path(str(Path(__file__).parent.resolve()), 'bgr_6.mat')
+matfile = Path(str(Path(__file__).parent.resolve()), modeltitle + '.mat')
 matcontents = loadmat(str(matfile))
 data = matcontents['data']
 data = np.transpose(data) # Transpose to rows: samples, cols: traces
@@ -32,7 +32,7 @@ v = 0.12e9
 depth = v * maxtime / 2
 
 # FDTD discretisation, 2D domain dims, and time window
-dl = 0.005 # metres
+dl = 0.001 # metres
 pml_cells = 10
 extra_cells = 10 # Allow some extra cells after PML before placing sources
 x_cells = data.shape[1] + 2 * pml_cells + 2 * extra_cells
@@ -42,23 +42,28 @@ y = y_cells * dl
 z_cells = int(np.ceil(depth / dl) + 2 * pml_cells + 2 * extra_cells)
 z = z_cells * dl
 
+# Can build FDTD model from:
+# 1. Matrix of velocity/permittivity, then write to file, and import
+# 2. Directly using geometry primitives, i.e. boxes, etc...
+
+# Option 1:
 # Holds permittivity field to import into FDTD model
-er = np.ones((x_cells, y_cells, z_cells - (pml_cells + extra_cells)))
-er_value = np.around(4 * (c / v)**2, decimals=2) # 4xEr as velocity doubled
-er = er * er_value
-mat_ers = np.unique(er)
+# er = np.ones((x_cells, y_cells, z_cells - (pml_cells + extra_cells)))
+# er_value = np.around(4 * (c / v)**2, decimals=2) # 4xEr as velocity doubled
+# er = er * er_value
+# mat_ers = np.unique(er)
 
 # Write materials text file
-with open(fn.with_suffix('.txt'), 'w') as fmaterials:
-    for i, mat_er in enumerate(mat_ers):
-        er[er==mat_er] = i
-        fmaterials.write(f'#material: {mat_er} 0 1 0 mat{i}\n')
+# with open(fn.with_suffix('.txt'), 'w') as fmaterials:
+#     for i, mat_er in enumerate(mat_ers):
+#         er[er==mat_er] = i
+#         fmaterials.write(f'#material: {mat_er} 0 1 0 mat{i}\n')
 
-# Write permittivity HDF5 file
-with h5py.File(fn.with_suffix('.h5'), 'w') as fdata:
-    fdata.attrs['Title'] = modeltitle
-    fdata.attrs['dx_dy_dz'] = (dl, dl, dl)
-    fdata['/data'] = er.astype('int16')
+# # Write permittivity HDF5 file
+# with h5py.File(fn.with_suffix('.h5'), 'w') as fdata:
+#     fdata.attrs['Title'] = modeltitle
+#     fdata.attrs['dx_dy_dz'] = (dl, dl, dl)
+#     fdata['/data'] = er.astype('int16')
 
 # Build FDTD model
 scene = gprMax.Scene()
@@ -73,8 +78,19 @@ scene.add(domain)
 scene.add(dxdydz)
 scene.add(time_window)
 
-go = gprMax.GeometryObjectsRead(p1=(0, 0, 0), geofile=fn.with_suffix('.h5'), 
-                                matfile=fn.with_suffix('.txt'))
+# Option 1
+# go = gprMax.GeometryObjectsRead(p1=(0, 0, 0), geofile=fn.with_suffix('.h5'), 
+#                                 matfile=fn.with_suffix('.txt'))
+# scene.add(go)
+
+# Option 2
+mat = gprMax.Material(er=np.around(4 * (c / v)**2, decimals=2), se=0, mr=1,
+                      sm=0, id='mat1')
+scene.add(mat)
+b1 = gprMax.Box(p1=(0, 0, 0), p2=(domain.props.p1[0], dl, 
+                domain.props.p1[2] - (pml_cells + extra_cells) * dl), 
+                material_id='mat1')
+scene.add(b1)
 
 # Specify waveforms and sources from reversed B-scan data
 for i in range(data.shape[1]):
@@ -105,12 +121,11 @@ snap = gprMax.Snapshot(p1=((pml_cells + extra_cells) * dl,
                        filename=fn.with_suffix('').parts[-1] + '_rtm_result',
                        fileext=fileext, time=maxtime)
 
-scene.add(go)
 scene.add(gv)
 scene.add(snap)
 
 # Run FDTD model
-#gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn)
+gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn)
 
 # Open RTM results file
 filename = Path(str(fn) + '_snaps', fn.with_suffix('').parts[-1] + '_rtm_result' + fileext)
@@ -125,7 +140,6 @@ outputdata = outputdata.squeeze()
 outputdata = outputdata.transpose()
 
 # Plot RTM result
-min_max_plt = (-1000, 1000)
 fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, num=str(filename), 
                                figsize=(15, 10), facecolor='w', edgecolor='w')
 orig_plt = ax1.imshow(data, extent=[0, data.shape[1] * trac_int, 
