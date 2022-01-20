@@ -410,55 +410,55 @@ class GeometryObjects:
         """
 
         # Write the geometry objects to a HDF5 file
-        fdata = h5py.File(self.filename_hdf5, 'w')
-        fdata.attrs['gprMax'] = __version__
-        fdata.attrs['Title'] = G.title
-        fdata.attrs['dx_dy_dz'] = (G.dx, G.dy, G.dz)
+        with h5py.File(self.filename_hdf5, 'w') as fdata:
+            fdata.attrs['gprMax'] = __version__
+            fdata.attrs['Title'] = G.title
+            fdata.attrs['dx_dy_dz'] = (G.dx, G.dy, G.dz)
 
-        # Get minimum and maximum integers of materials in geometry objects volume
-        minmat = np.amin(G.ID[:, self.xs:self.xf + 1,
-                         self.ys:self.yf + 1, self.zs:self.zf + 1])
-        maxmat = np.amax(G.ID[:, self.xs:self.xf + 1,
-                         self.ys:self.yf + 1, self.zs:self.zf + 1])
-        fdata['/data'] = G.solid[self.xs:self.xf + 1, self.ys:self.yf +
-                                 1, self.zs:self.zf + 1].astype('int16') - minmat
-        pbar.update(self.solidsize)
-        fdata['/rigidE'] = G.rigidE[:, self.xs:self.xf +
-                                    1, self.ys:self.yf + 1, self.zs:self.zf + 1]
-        fdata['/rigidH'] = G.rigidH[:, self.xs:self.xf +
-                                    1, self.ys:self.yf + 1, self.zs:self.zf + 1]
-        pbar.update(self.rigidsize)
-        fdata['/ID'] = G.ID[:, self.xs:self.xf + 1,
-                            self.ys:self.yf + 1, self.zs:self.zf + 1] - minmat
-        pbar.update(self.IDsize)
+            # Get minimum and maximum integers of materials in geometry objects volume
+            minmat = np.amin(G.ID[:, self.xs:self.xf + 1,
+                            self.ys:self.yf + 1, self.zs:self.zf + 1])
+            maxmat = np.amax(G.ID[:, self.xs:self.xf + 1,
+                            self.ys:self.yf + 1, self.zs:self.zf + 1])
+            fdata['/data'] = G.solid[self.xs:self.xf + 1, self.ys:self.yf +
+                                    1, self.zs:self.zf + 1].astype('int16') - minmat
+            pbar.update(self.solidsize)
+            fdata['/rigidE'] = G.rigidE[:, self.xs:self.xf +
+                                        1, self.ys:self.yf + 1, self.zs:self.zf + 1]
+            fdata['/rigidH'] = G.rigidH[:, self.xs:self.xf +
+                                        1, self.ys:self.yf + 1, self.zs:self.zf + 1]
+            pbar.update(self.rigidsize)
+            fdata['/ID'] = G.ID[:, self.xs:self.xf + 1,
+                                self.ys:self.yf + 1, self.zs:self.zf + 1] - minmat
+            pbar.update(self.IDsize)
 
         # Write materials list to a text file
         # This includes all materials in range whether used in volume or not
-        fmaterials = open(self.filename_materials, 'w')
-        for numID in range(minmat, maxmat + 1):
-            for material in G.materials:
-                if material.numID == numID:
-                    fmaterials.write(f'#material: {material.er:g} {material.se:g} '
-                                     f'{material.mr:g} {material.sm:g} {material.ID}\n')
-                    if hasattr(material, 'poles'):
-                        if 'debye' in material.type:
-                            dispersionstr = ('#add_dispersion_debye: '
-                                             f'{material.poles:g} ')
-                            for pole in range(material.poles):
-                                dispersionstr += (f'{material.deltaer[pole]:g} '
-                                                  f'{material.tau[pole]:g} ')
-                        elif 'lorenz' in material.type:
-                            dispersionstr = (f'#add_dispersion_lorenz: '
-                                             f'{material.poles:g} ')
-                            for pole in range(material.poles):
-                                dispersionstr += (f'{material.deltaer[pole]:g} '
-                                                  f'{material.tau[pole]:g} '
-                                                  f'{material.alpha[pole]:g} ')
-                        elif 'drude' in material.type:
-                            dispersionstr = (f'#add_dispersion_drude: '
-                                             f'{material.poles:g} ')
-                            for pole in range(material.poles):
-                                dispersionstr += (f'{material.tau[pole]:g} '
-                                                  f'{material.alpha[pole]:g} ')
-                        dispersionstr += material.ID
-                        fmaterials.write(dispersionstr + '\n')
+        with open(self.filename_materials, 'w') as fmaterials:
+            for numID in range(minmat, maxmat + 1):
+                for material in G.materials:
+                    if material.numID == numID:
+                        fmaterials.write(f'#material: {material.er:g} {material.se:g} '
+                                        f'{material.mr:g} {material.sm:g} {material.ID}\n')
+                        if hasattr(material, 'poles'):
+                            if 'debye' in material.type:
+                                dispersionstr = ('#add_dispersion_debye: '
+                                                f'{material.poles:g} ')
+                                for pole in range(material.poles):
+                                    dispersionstr += (f'{material.deltaer[pole]:g} '
+                                                    f'{material.tau[pole]:g} ')
+                            elif 'lorenz' in material.type:
+                                dispersionstr = (f'#add_dispersion_lorenz: '
+                                                f'{material.poles:g} ')
+                                for pole in range(material.poles):
+                                    dispersionstr += (f'{material.deltaer[pole]:g} '
+                                                    f'{material.tau[pole]:g} '
+                                                    f'{material.alpha[pole]:g} ')
+                            elif 'drude' in material.type:
+                                dispersionstr = (f'#add_dispersion_drude: '
+                                                f'{material.poles:g} ')
+                                for pole in range(material.poles):
+                                    dispersionstr += (f'{material.tau[pole]:g} '
+                                                    f'{material.alpha[pole]:g} ')
+                            dispersionstr += material.ID
+                            fmaterials.write(dispersionstr + '\n')
