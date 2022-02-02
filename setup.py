@@ -48,7 +48,7 @@ def build_dispersive_material_templates():
 
     iswin = True if sys.platform == 'win32' else False
 
-    env = Environment(loader = FileSystemLoader(os.path.join('gprMax', 'templates')), )
+    env = Environment(loader = FileSystemLoader(os.path.join('gprMax', 'cython')), )
 
     template = env.get_template('fields_updates_dispersive_template')
 
@@ -179,7 +179,9 @@ else:
     #                               implies -pthread
     elif sys.platform == 'darwin':
         # Check for Intel or Apple M series CPU
-        cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+        cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", 
+                                        shell=True, 
+                                        stderr=subprocess.STDOUT).decode('utf-8').strip()
         cpuID = ' '.join(cpuID.split())
         if 'Apple' in cpuID:
             gccpath = glob.glob('/opt/homebrew/bin/gcc-[4-9]*')
