@@ -58,7 +58,8 @@ class CustomFormatter(logging.Formatter):
         colored_record = copy(record)
         levelname = colored_record.levelname
         seq = MAPPING.get(levelname, 37) # default white
-        colored_levelname = ('{0}{1}m{2}{3}').format(PREFIX, seq, levelname, SUFFIX)
+        colored_levelname = ('{0}{1}m{2}{3}').format(PREFIX, seq, 
+                                                     levelname, SUFFIX)
         colored_record.levelname = colored_levelname
         return logging.Formatter.format(self, colored_record)
 
@@ -67,10 +68,10 @@ def logging_config(name='gprMax', level=logging.INFO, format_style='std', log_fi
     """Setup and configure logging.
 
     Args:
-        name (str): name of logger to create.
-        level (logging level): set logging level to stdout.
-        format_style (str): set formatting - 'std' or 'full'
-        log_file (bool): additional logging to file.
+        name: string of name of logger to create.
+        level: logging level to set logging level to stdout.
+        format_style: string to set formatting - 'std' or 'full'
+        log_file: bool for additional logging to file.
     """
 
     format_std = "%(message)s"
@@ -97,7 +98,8 @@ def logging_config(name='gprMax', level=logging.INFO, format_style='std', log_fi
 
     # Config for logging to file if required
     if log_file:
-        filename = name + '-log-' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + '.txt'
+        filename = (name + '-log-' + 
+                    datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + '.txt')
         handler = logging.FileHandler(filename, mode='w')
         formatter = logging.Formatter(format_full)
         handler.setLevel(logging.DEBUG)
