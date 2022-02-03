@@ -1,0 +1,27 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: >-
+  gprMax: Open source software to simulate
+  electromagnetic wave propagation for Ground
+  Penetrating Radar
+message: >-
+  If you use gprMax and publish your work we would be
+  grateful if you could cite our work!
+type: software
+authors:
+  - given-names: Craig
+    family-names: Warren
+    email: craig.warren@northumbria.ac.uk
+    affiliation: Northumbria University
+    orcid: 'https://orcid.org/0000-0002-0777-7002'
+  - given-names: Antonios
+    family-names: Giannopoulos
+    email: a.giannopoulos@ed.ac.uk
+    affiliation: The University of Edinburgh
+    orcid: 'https://orcid.org/0000-0001-7108-6997'
+  - given-names: Iraklis
+    family-names: Giannakis
+    email: iraklis.giannakis@abdn.ac.uk
+    affiliation: University of Aberdeen
