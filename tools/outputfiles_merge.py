@@ -72,7 +72,7 @@ def merge_files(basefilename, removefiles=False):
     """
 
     outputfile = basefilename + '_merged.out'
-    files = glob.glob(basefilename + '*.out')
+    files = glob.glob(basefilename + '[0-9]*.out')
     outputfiles = [filename for filename in files if '_merged' not in filename]
     modelruns = len(outputfiles)
 
