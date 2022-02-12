@@ -231,7 +231,13 @@ if __name__ == "__main__":
     parser.add_argument('outputfile', help='name of output file including path')
     parser.add_argument('--outputs', help='outputs to be plotted', default=Rx.defaultoutputs, choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz', 'Ex-', 'Ey-', 'Ez-', 'Hx-', 'Hy-', 'Hz-', 'Ix-', 'Iy-', 'Iz-'], nargs='+')
     parser.add_argument('-fft', action='store_true', help='plot FFT (single output must be specified)', default=False)
+    parser.add_argument('--save', action='store_true', default=False, help='save the image instead of displaying')
     args = parser.parse_args()
 
     plthandle = mpl_plot(args.outputfile, args.outputs, fft=args.fft)
-    plthandle.show()
+    if args.save:
+        filename = str(args.outputfile)[:-4] + '.png'
+        print('Saving image as ' + filename)
+        plthandle.savefig(filename)
+    else:
+        plthandle.show()

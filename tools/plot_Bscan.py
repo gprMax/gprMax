@@ -76,6 +76,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Plots a B-scan image.', usage='cd gprMax; python -m tools.plot_Bscan outputfile output')
     parser.add_argument('outputfile', help='name of output file including path')
     parser.add_argument('rx_component', help='name of output component to be plotted', choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz'])
+    parser.add_argument('--save', action='store_true', default=False, help='save the image instead of displaying')
     args = parser.parse_args()
 
     # Open output file and read number of outputs (receivers)
@@ -91,4 +92,9 @@ if __name__ == "__main__":
         outputdata, dt = get_output_data(args.outputfile, rx, args.rx_component)
         plthandle = mpl_plot(args.outputfile, outputdata, dt, rx, args.rx_component)
 
-    plthandle.show()
+    if args.save:
+        filename = str(args.outputfile)[:-4] + '.png'
+        print('Saving image as ' + filename)
+        plthandle.savefig(filename)
+    else:
+        plthandle.show()
