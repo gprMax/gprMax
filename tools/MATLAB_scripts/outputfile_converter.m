@@ -1,11 +1,16 @@
-% outputfile_converter.m - converts gprMax merged output HDF5 file to RD3,
-% DZT, DT1 and IPRB files.
+% outputfile_converter.m - converts gprMax merged output HDF5 file to 
+%   * RD3  16bit (Mala GeoScience),
+%   * DZT  16bit (Geophysical Survey Systems Inc.),
+%   * DT1  16bit (Sensors & Software Inc.)
+%   * IPRB 16bit (Impulse Radar)
 %
 % Author: Dimitrios Angelis
-% Copyright: 2017-2018
-% Last modified: 18/07/2018
+% Copyright: 2017-2020
+% Last modified: 28/05/2020
+
 
 clear, clc, close all;
+
 
 % Select file =============================================================
 [infile, path] = uigetfile('*.out', 'Select gprMax output file', ...
@@ -25,53 +30,34 @@ HDR.pname = path;
 HDR.fext  = 'out';
 
 
-% Read data from HDF5 file ================================================
-infile = [HDR.pname infile];
-dataex = h5read(infile, '/rxs/rx1/Ex');
-dataey = h5read(infile, '/rxs/rx1/Ey');
-dataez = h5read(infile, '/rxs/rx1/Ez');
-
-
-% Field check =============================================================
-if dataey == 0 & dataez == 0
-    data = dataex';
-elseif dataex == 0 & dataez == 0
-    data = dataey';
-elseif dataex == 0 & dataey == 0
-    data = dataez';
-else
-    maxex = max(max(dataex));
-    maxey = max(max(dataey));
-    maxez = max(max(dataez));
-    if maxex > maxey & maxex > maxez
-        data = dataex';
-    elseif maxey > maxex & maxey > maxez
-        data = dataey';
-    elseif maxez > maxex & maxez > maxey
-        data = dataez';
-    end
-end
-
-
-% Sigle to double precision ===============================================
-data = double(data);
-
-
+% Additional information ==================================================
 % The HDF5 file does not contain information about the centre frequency of
 % the waveform, the Tx-Rx separation distance and the trace step. The user
 % needs to provide this information.
 while 1
-    prompt = {'Waveform Centre Frequency (MHz)', ...
-        'Source-Receiver Distance (m)', 'Trace Step (m)'};
+    prompt = {'Rx-component (Ex or Ey or Ez)', ...
+        'Tx Centre Frequency (MHz)', ...
+        'Tx-Rx Distance (m)', ...
+        'Trace Interval / Step (m)'};
     dlg_title = 'Additional Information';
-    answer = inputdlg(prompt, dlg_title, [1 50]);
-    answer = str2double(answer);
+    answer = inputdlg(prompt, dlg_title, [1 40]);
+    answers = str2double(answer);
     if isempty(answer)
         HDR  = [];
         data = [];
         return
-    elseif isnan(answer(1)) || isnan(answer(2)) || isnan(answer(3))...
-            || answer(1) <= 0 || answer(2) < 0 || answer(3) <=0
+    elseif strcmp(answer(1), 'EX') == 0 & ...
+           strcmp(answer(1), 'Ex') == 0 & ...
+           strcmp(answer(1), 'ex') == 0 & ...
+           strcmp(answer(1), 'EY') == 0 & ...
+           strcmp(answer(1), 'Ey') == 0 & ...
+           strcmp(answer(1), 'ey') == 0 & ...
+           strcmp(answer(1), 'EZ') == 0 & ...
+           strcmp(answer(1), 'Ez') == 0 & ...
+           strcmp(answer(1), 'ez') == 0 || ...
+           isnan(answers(2)) || answers(2) <= 0 || ...
+           isnan(answers(3)) || answers(3) <  0 || ...
+           isnan(answers(4)) || answers(4) <= 0
         continue
     else
         break
@@ -79,42 +65,62 @@ while 1
 end
 
 
-% Create header with basic information ====================================
-HDR.centre_freq = answer(1);                                    % Centre frequency (MHz)
-HDR.ant_sep = answer(2);                                        % Antenna seperation / Tx-Rx distance (m)
-HDR.trac_int = answer(3);                                       % Trace interval / step (m)
-HDR.samp_int = h5readatt(infile, '/', 'dt') * 10^9;             % Sampling interval / step (ns)
+% Read data from HDF5 file ================================================
+infile = [HDR.pname infile];
+% h5disp(infile);
+
+if strcmp(answer(1), 'EX') || strcmp(answer(1), 'Ex') || strcmp(answer(1), 'ex')
+    dataex = h5read(infile, '/rxs/rx1/Ex');
+    data = dataex';
+elseif strcmp(answer(1), 'EY') || strcmp(answer(1), 'Ey') || strcmp(answer(1), 'ey')
+    dataey = h5read(infile, '/rxs/rx1/Ey');
+    data = dataey';
+elseif strcmp(answer(1), 'EZ') || strcmp(answer(1), 'Ez') || strcmp(answer(1), 'ez')
+    dataez = h5read(infile, '/rxs/rx1/Ez');
+    data = dataez';
+end
+
+
+% Sigle to double precision ===============================================
+data = double(data);
+
+
+% Create header ===========================================================
+HDR.centre_freq = answers(2);                                   % Centre frequency (MHz)
+HDR.ant_sep = answers(3);                                       % Antenna seperation / Tx-Rx distance (m)
+HDR.trac_int = answers(4);                                      % Trace interval / step (m)
+HDR.samp_int = h5readatt(infile, '/', 'dt') * 10^9;             % Sampling interval (ns)
 HDR.samp_freq = (1 / HDR.samp_int) * 10^3;                      % Sampling frequency (MHz)
 [HDR.num_samp, HDR.num_trac] = size(data);                      % Number of samples & traces
 HDR.time_window = HDR.num_samp * HDR.samp_int;                  % Time window (ns)
 HDR.antenna = ['gprMax ', num2str(HDR.centre_freq), 'MHz'];     % Antenna name
 
 
-%**************************************************************************
-%******************************** Optional ********************************
+% *************************************************************************
+% ******************************** Optional *******************************
 
 % Resample to 1024 samples ================================================
-% I usually perform this step for either 512 or 1024 samples (line 100)
-% because many GPR processing software cannot load files with more samples.
+% I perform this step for either 512 or 1024 samples because many GPR data
+% visulization/processing software cannot load files with more samples.
 tx1  = 1 : HDR.num_samp;
 fs1  = 1024 / HDR.num_samp;                                     % <------- 1024 samples
-data = resample(data, tx1, fs1, 'spline');
+data = resample(data, tx1, fs1, 'pchip');
 
 [HDR.num_samp, ~] = size(data);                                 % New number of samples after resampling
 HDR.samp_int      = HDR.time_window / HDR.num_samp;             % New sampling interval (ns) after resampling
 HDR.samp_freq     = (1 / HDR.samp_int) * 10^3;                  % New sampling frequency (MHz) after resampling
 
-%**************************************************************************
-%**************************************************************************
+% *************************************************************************
+% *************************************************************************
 
 
-%**************************************************************************
-%******************************** Optional ********************************
+% *************************************************************************
+% ******************************** Optional *******************************
 
-% Data scale ==============================================================
-data = data * 32767.5 ./ max(max(abs(data)));                   %signal * ((1 - 1 / 2^bitrate) * 32768) / max(signal)
-data(data >= 32767) = 32767;
-data(data <= -32768) = -32768;
+% Convert to 16 bit scale =================================================
+data = data * 32767.5 ./ max(max(abs(data)));                   % signal * ((1 - 1 / 2^bitrate) * 32768) / max(signal)
+data(data > 32767) = 32767;
+data(data < -32768) = -32768;
 data = round(data);
 
 %**************************************************************************
@@ -122,20 +128,20 @@ data = round(data);
 
 
 % Plots ===================================================================
-pmin = min(data(:));                                            %Minimun plot scale
-pmax = max(data(:));                                            %Maximum plot scale
+pmin = min(data(:));                                            % Minimun plot scale
+pmax = max(data(:));                                            % Maximum plot scale
 
-x = 0 : HDR.trac_int : (HDR.num_trac - 1) * HDR.trac_int;       %Distance of each trace (m)
-t = HDR.samp_int : HDR.samp_int : HDR.num_samp * HDR.samp_int;  %Time of each sample (ns)
+x = 0 : HDR.trac_int : (HDR.num_trac - 1) * HDR.trac_int;       % Distance of each trace (m)
+t = HDR.samp_int : HDR.samp_int : HDR.num_samp * HDR.samp_int;  % Time of each sample (ns)
 
-% Bscan
+% Bscan plot
 f1 = figure('Name', 'Bscan', ...
     'NumberTitle', 'off', ...
     'Menubar', 'None', ...
     'Toolbar', 'Figure');
 
 clims = [pmin pmax];
-colormap (bone(256));                                           %Black(negative) to white(positive)
+colormap (bone(256));                                           % Black(negative) to white(positive)
 im1 = imagesc(x, t, data, clims);
 set(im1, 'cdatamapping', 'scaled');
 title(HDR.fname);
@@ -148,12 +154,12 @@ box off;
 movegui(f1, 'northeast');
 
 
-% Frequency Spectrum
+% Frequency spectrum plot
 m = 2.^nextpow2(HDR.num_samp);
 
 amp = fft(data, m);
 amp = (abs(amp(1 : m / 2, :)) / m) * 2;
-amp = mean(amp.');
+amp = mean(amp, 2);
 
 freq = HDR.samp_freq .* (0 : (m / 2) - 1) / m;
 
@@ -172,11 +178,11 @@ box off;
 movegui(f2, 'southeast');
 
 
-% Export option: RD3/RAD or DZT or DT1/HD or IPRB/IPRH ====================
+% Export option: RD3 or DZT or DT1 or IPRB ================================
 while 1
-    prompt = {'1 = RD3,  2 = DZT,  3 = DT1,  4 = IPRB'};
+    prompt = {'1 = RD3, 2 = DZT, 3 = DT1, 4 = IPRB'};
     dlg_title = 'Choose GPR Format';
-    answer = inputdlg(prompt, dlg_title, [1 45]);
+    answer = inputdlg(prompt, dlg_title, [1 40]);
     answer = str2double(answer);
     if isempty(answer)
         return
@@ -193,12 +199,17 @@ end
 wb = waitbar(0, 'Exporting...', 'Name', 'Exporting File');
 
 
+% =========================================================================
 % RAD / RD3, Mala GeoScience ==============================================
-% Rad is the header file. In this file is all the important information
-% such as the number of samples, traces, measurement intervals can be
-% found.
-% Rd3 is the data file. This file contains only the data (amplitude values)
-% in a binary form.
+
+% RAD is the header file. 
+% In this file is all the important information such as number of samples, 
+% traces, etc.
+
+% RD3 is the data file.
+% This file contains only the data (amplitude values) in a 16 bit binary 
+% form.
+
 if gpr_format == 1
     % Header structure
     HDR.fname                 = HDR.fname;                      % File name
@@ -287,17 +298,24 @@ if gpr_format == 1
     fid = fopen([HDR.fname '.rd3'], 'w');
     fwrite(fid, data, 'short');
     fclose(fid);
+    
 
-
+% =========================================================================
 % DZT, Geophysical Survey Systems Inc. (GSSI) =============================
-% Dzt is a binary file that consists of the file header with all the
-% important information (number of samples, traces, channels, etc.)
+
+% DZT is a binary file that conists of the file header with all the
+% important inforation such as number of samples, traces, channels, etc.,
 % followed by the data section.
-% All the information is contained in this file except the TxRx distance
-% (antenna separation). There is a possibility that the official GSSI
-% software has stored this information and by using the antenna name
-% presents the correct one. All the other software does not detect the TxRx
+
+% All the information is contained in this file except the Tx-Rx separation
+% distance. It is possible that the official GSSI software has stored this
+% information and uses the antenna name to detect it. All the other GPR
+% data visualization/processing software do not detect the Tx-Rx separation
 % distance.
+
+% DZT file can be either 8/16/32 bit. Since I have rescaled gprMax output 
+% data into a 16bit scale, this file will also be 16bit.
+
 elseif gpr_format == 2
     % Header structure
     HDR.fname                 = HDR.fname;                      % File name
@@ -429,24 +447,29 @@ elseif gpr_format == 2
     fclose(fid);
 
 
+% =========================================================================
 % HD / DT1, Sensors & Software Inc. =======================================
-% Hd is the header file. In this file all the important information such as
-% the number of samples, traces, stacks, etc. can be found.
-% Dt1 is the data file written in binary form. This file contains as many
-% records as there are traces. Each record consists of a header and a data
-% section. This means that also in this file there are stored information
-% such as the number of samples, traces, etc.
+
+% HD is the header file.
+% In this file all the important information such as number of samples,
+% traces, stacks, etc. can be found.
+
+% DT1 is the data file.
+% This file is written in a 16 bit binary form and contains as many records
+% as there are traces. Each record consists of a header and a data section.
+% This means that in this file there are also stored information such as 
+% the number of samples, traces, etc.
 
 elseif gpr_format == 3
     %Header structure of HD
     HDR.fname                 = HDR.fname;                      % File name
     HDR.file_tag              = 1234;                           % File tag = 1234
-    HDR.system                = 'gprMax';                       % The system the data collected with
+    HDR.system                = HDR.antenna;                    % The system the data collected with
 
     date_time                 = clock;
     HDR.date                  = ([num2str(date_time(1)), '-' ...
-                                    num2str(date_time(2)), '-' ...
-                                        num2str(date_time(3))]);% Date
+                                  num2str(date_time(2)), '-' ...
+                                  num2str(date_time(3))]);      % Date
 
     HDR.num_trac              = HDR.num_trac;                   % Number of traces
     HDR.num_samp              = HDR.num_samp;                   % Number of samples
@@ -461,12 +484,12 @@ elseif gpr_format == 3
     HDR.pulser_voltage        = 0;                              % Pulser voltage (V)
     HDR.stacks                = 1;                              % Number of stacks
     HDR.survey_mode           = 'Reflection';                   % Survey mode
-    HDR.odometer              = 0;                              % Odometer Cal (t/m)
-    HDR.stacking_type         = 'F1';                           % Stacking type
-    HDR.dvl_serial            = '0000-0000-0000';               % DVL serial
-    HDR.console_serial        = '000000000000';                 % Console serial
-    HDR.tx_serial             = '0000-0000-0000';               % Transmitter serial
-    HDR.rx_serial             = '0000-0000-0000';               % Receiver Serial
+%     HDR.odometer              = 0;                              % Odometer Cal (t/m)
+%     HDR.stacking_type         = 'F1';                           % Stacking type
+%     HDR.dvl_serial            = '0000-0000-0000';               % DVL serial
+%     HDR.console_serial        = '000000000000';                 % Console serial
+%     HDR.tx_serial             = '0000-0000-0000';               % Transmitter serial
+%     HDR.rx_serial             = '0000-0000-0000';               % Receiver Serial
 
     % Header structure of DT1
     HDR.num_each_trac         = 1 : 1 : HDR.num_trac;           % Number of each trace 1, 2, 3, ... num_trac
@@ -478,7 +501,6 @@ elseif gpr_format == 3
     HDR.bytes                 = zeros(1, HDR.num_trac) + 2;     % Always 2 for Rev 3 firmware
     HDR.time_window_each_trac = zeros(1, HDR.num_trac) + HDR.time_window; % Time window of each trace (ns)
     HDR.stacks_each_trac      = ones(1, HDR.num_trac);          % Number of stacks each trace
-    HDR.not_used2             = zeros(1, HDR.num_trac);         % Not used
     HDR.rsv_gps_x             = zeros(1, HDR.num_trac);         % Reserved for GPS X position (double*8 number)
     HDR.rsv_gps_y             = zeros(1, HDR.num_trac);         % Reserved for GPS Y position (double*8 number)
     HDR.rsv_gps_z             = zeros(1, HDR.num_trac);         % Reserved for GPS Z position (double*8 number)
@@ -490,10 +512,10 @@ elseif gpr_format == 3
     HDR.rsv_tx_z              = zeros(1, HDR.num_trac);         % Reserved for transmitter z position
     HDR.time_zero             = zeros(1, HDR.num_trac);         % Time zero adjustment where: point(x) = point(x + adjustment)
     HDR.zero_flag             = zeros(1, HDR.num_trac);         % 0 = data ok, 1 = zero data
-    HDR.num_channels          = zeros(1, HDR.num_trac);         % Number of channels
+    HDR.not_used2             = zeros(1, HDR.num_trac);         % Not used 2
     HDR.time                  = zeros(1, HDR.num_trac);         % Time of day data collected in seconds past midnight
     HDR.comment_flag          = zeros(1, HDR.num_trac);         % Comment flag
-    HDR.comment               = zeros(1, 24);                   % Comment
+    HDR.comment               = zeros(1, 28);                   % Comment
 
     % HD file
     fid = fopen([HDR.fname '.hd'], 'w');
@@ -513,41 +535,40 @@ elseif gpr_format == 3
     fprintf(fid, 'PULSER VOLTAGE (V) = %0.6f\r\n', HDR.pulser_voltage);
     fprintf(fid, 'NUMBER OF STACKS   = %i\r\n', HDR.stacks);
     fprintf(fid, 'SURVEY MODE        = %s\r\n', HDR.survey_mode);
-    fprintf(fid, 'ODOMETER CAL (t/m) = %0.6f\r\n', HDR.odometer);
-    fprintf(fid, 'STACKING TYPE      = %s\r\n', HDR.stacking_type);
-    fprintf(fid, 'DVL Serial#        = %s\r\n', HDR.dvl_serial);
-    fprintf(fid, 'Console Serial#    = %s\r\n', HDR.console_serial);
-    fprintf(fid, 'Transmitter Serial#= %s\r\n', HDR.tx_serial);
-    fprintf(fid, 'Receiver Serial#   = %s\r\n', HDR.rx_serial);
+%     fprintf(fid, 'ODOMETER CAL (t/m) = %0.6f\r\n', HDR.odometer);
+%     fprintf(fid, 'STACKING TYPE      = %s\r\n', HDR.stacking_type);
+%     fprintf(fid, 'DVL Serial#        = %s\r\n', HDR.dvl_serial);
+%     fprintf(fid, 'Console Serial#    = %s\r\n', HDR.console_serial);
+%     fprintf(fid, 'Transmitter Serial#= %s\r\n', HDR.tx_serial);
+%     fprintf(fid, 'Receiver Serial#   = %s\r\n', HDR.rx_serial);
     fclose(fid);
 
     % DT1 file
     fid = fopen([HDR.fname '.dt1'], 'w');
     for i = 1 : HDR.num_trac
-        fwrite(fid, HDR.num_each_trac(i), 'float');
-        fwrite(fid, HDR.position(i), 'float');
-        fwrite(fid, HDR.num_samp_each_trac(i), 'float');
-        fwrite(fid, HDR.elevation(i), 'float');
-        fwrite(fid, HDR.not_used1(i), 'float');
-        fwrite(fid, HDR.bytes(i), 'float');
-        fwrite(fid, HDR.time_window_each_trac(i), 'float');
-        fwrite(fid, HDR.stacks_each_trac(i), 'float');
-        fwrite(fid, HDR.not_used2(i), 'float');
+        fwrite(fid, HDR.num_each_trac(i), 'real*4');
+        fwrite(fid, HDR.position(i), 'real*4');
+        fwrite(fid, HDR.num_samp_each_trac(i), 'real*4');
+        fwrite(fid, HDR.elevation(i), 'real*4');
+        fwrite(fid, HDR.not_used1(i), 'real*4');
+        fwrite(fid, HDR.bytes(i), 'real*4');
+        fwrite(fid, HDR.time_window_each_trac(i), 'real*4');
+        fwrite(fid, HDR.stacks_each_trac(i), 'real*4');
         fwrite(fid, HDR.rsv_gps_x(i), 'double');
         fwrite(fid, HDR.rsv_gps_y(i), 'double');
         fwrite(fid, HDR.rsv_gps_z(i), 'double');
-        fwrite(fid, HDR.rsv_rx_x(i), 'float');
-        fwrite(fid, HDR.rsv_rx_y(i), 'float');
-        fwrite(fid, HDR.rsv_rx_z(i), 'float');
-        fwrite(fid, HDR.rsv_tx_x(i), 'float');
-        fwrite(fid, HDR.rsv_tx_y(i), 'float');
-        fwrite(fid, HDR.rsv_tx_z(i), 'float');
-        fwrite(fid, HDR.time_zero(i), 'float');
-        fwrite(fid, HDR.zero_flag(i), 'float');
-        fwrite(fid, HDR.num_channels(i), 'float');
-        fwrite(fid, HDR.time(i), 'float');
-        fwrite(fid, HDR.comment_flag(i), 'float');
-        fwrite(fid, HDR.comment, 'char');
+        fwrite(fid, HDR.rsv_rx_x(i), 'real*4');
+        fwrite(fid, HDR.rsv_rx_y(i), 'real*4');
+        fwrite(fid, HDR.rsv_rx_z(i), 'real*4');
+        fwrite(fid, HDR.rsv_tx_x(i), 'real*4');
+        fwrite(fid, HDR.rsv_tx_y(i), 'real*4');  
+        fwrite(fid, HDR.rsv_tx_z(i), 'real*4');
+        fwrite(fid, HDR.time_zero(i), 'real*4');
+        fwrite(fid, HDR.zero_flag(i), 'real*4');
+        fwrite(fid, HDR.not_used2(i), 'real*4');
+        fwrite(fid, HDR.time(i), 'real*4');
+        fwrite(fid, HDR.comment_flag(i), 'real*4');
+        fwrite(fid, HDR.comment, 'char*1');
 
         fwrite(fid, data(:, i), 'short');
         if mod(i, 100) == 0
@@ -558,12 +579,18 @@ elseif gpr_format == 3
     fclose(fid);
 
 
+% =========================================================================
 % IPRH / IPRB, Impulse Radar ==============================================
-% IPRH is the header file. In this file is all the important information
-% such as the number of samples, traces, measurement intervals can be
-% found.
-% IPRB is the data file. This file contains only the data (amplitude values)
-% in a binary form.
+
+% IPRH is the header file. 
+% In this file is all the important information such as the number of 
+% samples, traces, measurement intervals can be found.
+
+% IPRB is the data file.
+% This file contains only the data (amplitude values) in a 16 or 32 bit
+% binary form. Since I have rescaled gprMax output data into a 16bit scale,
+% this file will also be 16bit.
+
 elseif gpr_format == 4
 % Header structure
     HDR.fname                 = HDR.fname;                      % File name
@@ -667,3 +694,6 @@ end
 waitbar(1, wb, 'Done!!!');
 pause(1);
 close(wb);
+
+
+

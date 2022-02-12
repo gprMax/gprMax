@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2019: The University of Edinburgh
+# Copyright (C) 2015-2022: The University of Edinburgh
 #                 Authors: Craig Warren and Antonis Giannopoulos
 #
 # This file is part of gprMax.
@@ -21,9 +21,11 @@
 import argparse
 import datetime
 import os
+import platform
 import sys
 
 from enum import Enum
+from io import StringIO
 
 import h5py
 import numpy as np
@@ -53,6 +55,7 @@ def main():
     parser.add_argument('-task', type=int, help='task identifier (model number) for job array on Open Grid Scheduler/Grid Engine (http://gridscheduler.sourceforge.net/index.html)')
     parser.add_argument('-restart', type=int, help='model number to restart from, e.g. when creating B-scan')
     parser.add_argument('-mpi', type=int, help='number of MPI tasks, i.e. master + workers')
+    parser.add_argument('-mpicomm', default=None, help=argparse.SUPPRESS)
     parser.add_argument('--mpi-no-spawn', action='store_true', default=False, help='flag to use MPI without spawn mechanism')
     parser.add_argument('--mpi-worker', action='store_true', default=False, help=argparse.SUPPRESS)
     parser.add_argument('-gpu', type=int, action='append', nargs='*', help='flag to use Nvidia GPU or option to give list of device ID(s)')
@@ -336,7 +339,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
     from mpi4py import MPI
 
     status = MPI.Status()
-    hostname = MPI.Get_processor_name()
+    hostname = platform.node()
 
     # Set range for number of models to run
     modelstart = args.restart if args.restart else 1
@@ -354,10 +357,11 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         # N.B Spawned worker flag (--mpi-worker) applied to sys.argv when MPI.Spawn is called
 
         # See if the MPI communicator object is being passed as an argument (likely from a MPI.Split)
-        if hasattr(args, 'mpicomm'):
+        if args.mpicomm is not None:
             comm = args.mpicomm
         else:
             comm = MPI.COMM_WORLD
+
         tsimstart = timer()
         mpistartstr = '\n=== MPI task farm (USING MPI Spawn)'
         print('{} {}'.format(mpistartstr, '=' * (get_terminal_width() - 1 - len(mpistartstr))))
@@ -429,8 +433,17 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
         gpuinfo = ''
         if args.gpu is not None:
             # Set device ID based on rank from list of GPUs
-            args.gpu = args.gpu[rank]
-            gpuinfo = ' using {} - {}, {} RAM '.format(args.gpu.deviceID, args.gpu.name, human_size(args.gpu.totalmem, a_kilobyte_is_1024_bytes=True))
+            try:
+                args.gpu = args.gpu[rank]
+            # GPUs on multiple nodes where CUDA_VISIBLE_DEVICES is the same 
+            # on each node
+            except: 
+                args.gpu = args.gpu[rank % len(args.gpu)]
+                
+            gpuinfo = ' using {} - {}, {} RAM '.format(args.gpu.deviceID, 
+                                                       args.gpu.name, 
+                                                       human_size(args.gpu.totalmem, 
+                                                       a_kilobyte_is_1024_bytes=True))
 
         # Ask for work until stop sentinel
         for work in iter(lambda: comm.sendrecv(0, dest=0), StopIteration):
@@ -483,7 +496,7 @@ def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
     size = comm.Get_size()  # total number of processes
     rank = comm.Get_rank()  # rank of this process
     status = MPI.Status()   # get MPI status object
-    hostname = MPI.Get_processor_name()     # get name of processor/host
+    hostname = platform.node()     # get name of processor/host
 
     # Set range for number of models to run
     modelstart = args.restart if args.restart else 1

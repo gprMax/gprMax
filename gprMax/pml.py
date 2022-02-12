@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2019: The University of Edinburgh
+# Copyright (C) 2015-2022: The University of Edinburgh
 #                 Authors: Craig Warren and Antonis Giannopoulos
 #
 # This file is part of gprMax.
@@ -196,7 +196,8 @@ class PML(object):
 
         self.CFS = G.cfs
 
-        self.initialise_field_arrays()
+        if G.gpu is None:
+            self.initialise_field_arrays()
 
     def initialise_field_arrays(self):
         """Initialise arrays to store fields in PML."""
@@ -301,25 +302,37 @@ class PML(object):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        self.bpg = (int(np.ceil(((self.EPhi1.shape[1] + 1) * (self.EPhi1.shape[2] + 1) * (self.EPhi1.shape[3] + 1)) / G.tpb[0])), 1, 1)
+        self.bpg = (int(np.ceil(((self.EPhi1_gpu.shape[1] + 1) * (self.EPhi1_gpu.shape[2] + 1) * (self.EPhi1_gpu.shape[3] + 1)) / G.tpb[0])), 1, 1)
 
     def gpu_initialise_arrays(self):
         """Initialise PML field and coefficient arrays on GPU."""
 
         import pycuda.gpuarray as gpuarray
 
-        self.EPhi1_gpu = gpuarray.to_gpu(self.EPhi1)
-        self.EPhi2_gpu = gpuarray.to_gpu(self.EPhi2)
         self.ERA_gpu = gpuarray.to_gpu(self.ERA)
         self.ERB_gpu = gpuarray.to_gpu(self.ERB)
         self.ERE_gpu = gpuarray.to_gpu(self.ERE)
         self.ERF_gpu = gpuarray.to_gpu(self.ERF)
-        self.HPhi1_gpu = gpuarray.to_gpu(self.HPhi1)
-        self.HPhi2_gpu = gpuarray.to_gpu(self.HPhi2)
         self.HRA_gpu = gpuarray.to_gpu(self.HRA)
         self.HRB_gpu = gpuarray.to_gpu(self.HRB)
         self.HRE_gpu = gpuarray.to_gpu(self.HRE)
         self.HRF_gpu = gpuarray.to_gpu(self.HRF)
+
+        if self.direction[0] == 'x':
+            self.EPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz + 1), dtype=floattype))
+            self.EPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx + 1, self.ny + 1, self.nz), dtype=floattype))
+            self.HPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz), dtype=floattype))
+            self.HPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx, self.ny, self.nz + 1), dtype=floattype))
+        elif self.direction[0] == 'y':
+            self.EPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz + 1), dtype=floattype))
+            self.EPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx + 1, self.ny + 1, self.nz), dtype=floattype))
+            self.HPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz), dtype=floattype))
+            self.HPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx, self.ny, self.nz + 1), dtype=floattype))
+        elif self.direction[0] == 'z':
+            self.EPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz + 1), dtype=floattype))
+            self.EPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz + 1), dtype=floattype))
+            self.HPhi1_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx + 1, self.ny, self.nz), dtype=floattype))
+            self.HPhi2_gpu = gpuarray.to_gpu(np.zeros((len(self.CFS), self.nx, self.ny + 1, self.nz), dtype=floattype))
 
     def gpu_get_update_funcs(self, kernelselectric, kernelsmagnetic):
         """Get update functions from PML kernels.
@@ -328,8 +341,6 @@ class PML(object):
             kernelselectric: PyCuda SourceModule containing PML kernels for electric updates.
             kernelsmagnetic: PyCuda SourceModule containing PML kernels for magnetic updates.
         """
-
-        from pycuda.compiler import SourceModule
 
         self.update_electric_gpu = kernelselectric.get_function('order' + str(len(self.CFS)) + '_' + self.direction)
         self.update_magnetic_gpu = kernelsmagnetic.get_function('order' + str(len(self.CFS)) + '_' + self.direction)
@@ -341,7 +352,7 @@ class PML(object):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        self.update_electric_gpu(np.int32(self.xs), np.int32(self.xf), np.int32(self.ys), np.int32(self.yf), np.int32(self.zs), np.int32(self.zf), np.int32(self.EPhi1.shape[1]), np.int32(self.EPhi1.shape[2]), np.int32(self.EPhi1.shape[3]), np.int32(self.EPhi2.shape[1]), np.int32(self.EPhi2.shape[2]), np.int32(self.EPhi2.shape[3]), np.int32(self.thickness), G.ID_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata, self.EPhi1_gpu.gpudata, self.EPhi2_gpu.gpudata, self.ERA_gpu.gpudata, self.ERB_gpu.gpudata, self.ERE_gpu.gpudata, self.ERF_gpu.gpudata, floattype(self.d), block=G.tpb, grid=self.bpg)
+        self.update_electric_gpu(np.int32(self.xs), np.int32(self.xf), np.int32(self.ys), np.int32(self.yf), np.int32(self.zs), np.int32(self.zf), np.int32(self.EPhi1_gpu.shape[1]), np.int32(self.EPhi1_gpu.shape[2]), np.int32(self.EPhi1_gpu.shape[3]), np.int32(self.EPhi2_gpu.shape[1]), np.int32(self.EPhi2_gpu.shape[2]), np.int32(self.EPhi2_gpu.shape[3]), np.int32(self.thickness), G.ID_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata, self.EPhi1_gpu.gpudata, self.EPhi2_gpu.gpudata, self.ERA_gpu.gpudata, self.ERB_gpu.gpudata, self.ERE_gpu.gpudata, self.ERF_gpu.gpudata, floattype(self.d), block=G.tpb, grid=self.bpg)
 
     def gpu_update_magnetic(self, G):
         """This functions updates magnetic field components with the PML correction on the GPU.
@@ -350,7 +361,7 @@ class PML(object):
             G (class): Grid class instance - holds essential parameters describing the model.
         """
 
-        self.update_magnetic_gpu(np.int32(self.xs), np.int32(self.xf), np.int32(self.ys), np.int32(self.yf), np.int32(self.zs), np.int32(self.zf), np.int32(self.HPhi1.shape[1]), np.int32(self.HPhi1.shape[2]), np.int32(self.HPhi1.shape[3]), np.int32(self.HPhi2.shape[1]), np.int32(self.HPhi2.shape[2]), np.int32(self.HPhi2.shape[3]), np.int32(self.thickness), G.ID_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata, self.HPhi1_gpu.gpudata, self.HPhi2_gpu.gpudata, self.HRA_gpu.gpudata, self.HRB_gpu.gpudata, self.HRE_gpu.gpudata, self.HRF_gpu.gpudata, floattype(self.d), block=G.tpb, grid=self.bpg)
+        self.update_magnetic_gpu(np.int32(self.xs), np.int32(self.xf), np.int32(self.ys), np.int32(self.yf), np.int32(self.zs), np.int32(self.zf), np.int32(self.HPhi1_gpu.shape[1]), np.int32(self.HPhi1_gpu.shape[2]), np.int32(self.HPhi1_gpu.shape[3]), np.int32(self.HPhi2_gpu.shape[1]), np.int32(self.HPhi2_gpu.shape[2]), np.int32(self.HPhi2_gpu.shape[3]), np.int32(self.thickness), G.ID_gpu.gpudata, G.Ex_gpu.gpudata, G.Ey_gpu.gpudata, G.Ez_gpu.gpudata, G.Hx_gpu.gpudata, G.Hy_gpu.gpudata, G.Hz_gpu.gpudata, self.HPhi1_gpu.gpudata, self.HPhi2_gpu.gpudata, self.HRA_gpu.gpudata, self.HRB_gpu.gpudata, self.HRE_gpu.gpudata, self.HRF_gpu.gpudata, floattype(self.d), block=G.tpb, grid=self.bpg)
 
 
 def build_pmls(G, pbar):

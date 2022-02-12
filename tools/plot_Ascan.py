@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2019: The University of Edinburgh
+# Copyright (C) 2015-2022: The University of Edinburgh
 #                 Authors: Craig Warren and Antonis Giannopoulos
 #
 # This file is part of gprMax.
@@ -105,7 +105,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                 ax1.grid(which='both', axis='both', linestyle='-.')
 
                 # Plot frequency spectra
-                markerline, stemlines, baseline = ax2.stem(freqs[pltrange], power[pltrange], '-.')
+                markerline, stemlines, baseline = ax2.stem(freqs[pltrange], power[pltrange], '-.', use_line_collection=True)
                 plt.setp(baseline, 'linewidth', 0)
                 plt.setp(stemlines, 'color', 'r')
                 plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')

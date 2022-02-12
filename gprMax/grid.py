@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2019: The University of Edinburgh
+# Copyright (C) 2015-2022: The University of Edinburgh
 #                 Authors: Craig Warren and Antonis Giannopoulos
 #
 # This file is part of gprMax.
@@ -254,12 +254,12 @@ class FDTDGrid(Grid):
         import pycuda.gpuarray as gpuarray
 
         self.ID_gpu = gpuarray.to_gpu(self.ID)
-        self.Ex_gpu = gpuarray.to_gpu(self.Ex)
-        self.Ey_gpu = gpuarray.to_gpu(self.Ey)
-        self.Ez_gpu = gpuarray.to_gpu(self.Ez)
-        self.Hx_gpu = gpuarray.to_gpu(self.Hx)
-        self.Hy_gpu = gpuarray.to_gpu(self.Hy)
-        self.Hz_gpu = gpuarray.to_gpu(self.Hz)
+        self.Ex_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
+        self.Ey_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
+        self.Ez_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
+        self.Hx_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
+        self.Hy_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
+        self.Hz_gpu = gpuarray.to_gpu(np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=floattype))
 
     def gpu_initialise_dispersive_arrays(self):
         """Initialise dispersive material coefficient arrays on GPU."""
@@ -421,7 +421,6 @@ def Ix(x, y, z, Hx, Hy, Hz, G):
 
     if y == 0 or z == 0:
         Ix = 0
-
     else:
         Ix = G.dy * (Hy[x, y, z - 1] - Hy[x, y, z]) + G.dz * (Hz[x, y, z] - Hz[x, y - 1, z])
 
@@ -439,7 +438,6 @@ def Iy(x, y, z, Hx, Hy, Hz, G):
 
     if x == 0 or z == 0:
         Iy = 0
-
     else:
         Iy = G.dx * (Hx[x, y, z] - Hx[x, y, z - 1]) + G.dz * (Hz[x - 1, y, z] - Hz[x, y, z])
 
@@ -457,7 +455,6 @@ def Iz(x, y, z, Hx, Hy, Hz, G):
 
     if x == 0 or y == 0:
         Iz = 0
-
     else:
         Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (Hy[x, y, z] - Hy[x - 1, y, z])
 

@@ -17,5 +17,5 @@ dependencies:
 - pip:
   - terminaltables
   - tqdm
-# - mpi4py
-# - pycuda
+ # - mpi4py
+ # - pycuda
