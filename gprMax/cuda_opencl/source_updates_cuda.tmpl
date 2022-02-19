@@ -1,0 +1,34 @@
+{% extends "source_updates_base.tmpl" %}
+
+
+{% block constmem %}
+__device__ __constant__ {{REAL}} updatecoeffsE[{{N_updatecoeffsE}}];
+__device__ __constant__ {{REAL}} updatecoeffsH[{{N_updatecoeffsH}}];
+{% endblock constmem %}
+
+
+{% block threadidx %}
+    int src = blockIdx.x * blockDim.x + threadIdx.x;
+{% endblock threadidx %}
+
+
+{% block electric_source_args %}
+const int* __restrict__ srcinfo1, 
+const {{REAL}}* __restrict__ srcinfo2, 
+const {{REAL}}* __restrict__ srcwaveforms, 
+const unsigned int* __restrict__ ID, 
+{{REAL}} *Ex, 
+{{REAL}} *Ey, 
+{{REAL}} *Ez)
+{% endblock electric_source_args %}
+
+
+{% block magnetic_source_args %}
+const int* __restrict__ srcinfo1, 
+const {{REAL}}* __restrict__ srcinfo2, 
+const {{REAL}}* __restrict__ srcwaveforms, 
+const unsigned int* __restrict__ ID, 
+{{REAL}} *Hx, 
+{{REAL}} *Hy, 
+{{REAL}} *Hz)
+{% endblock magnetic_source_args %}

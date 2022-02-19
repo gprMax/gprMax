@@ -1,0 +1,62 @@
+{% extends "pml_updates_electric_HORIPML_base.tmpl" %}
+
+
+{% block constmem %}
+__device__ __constant__ {{REAL}} updatecoeffsE[{{N_updatecoeffsE}}];
+{% endblock constmem %}
+
+
+{% block threadidx %}
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+{% endblock threadidx %}
+
+
+{% block x_args %}
+const unsigned int* __restrict__ ID, 
+const {{REAL}}* __restrict__ Ex, 
+{{REAL}} *Ey, 
+{{REAL}} *Ez, 
+const {{REAL}}* __restrict__ Hx, 
+const {{REAL}}* __restrict__ Hy, 
+const {{REAL}}* __restrict__ Hz, 
+{{REAL}} *PHI1, 
+{{REAL}} *PHI2, 
+const {{REAL}}* __restrict__ RA, 
+const {{REAL}}* __restrict__ RB, 
+const {{REAL}}* __restrict__ RE, 
+const {{REAL}}* __restrict__ RF,
+{% endblock x_args %}
+
+
+{% block y_args %}
+const unsigned int* __restrict__ ID, 
+{{REAL}} *Ex, 
+const {{REAL}}* __restrict__ Ey, 
+{{REAL}} *Ez, 
+const {{REAL}}* __restrict__ Hx, 
+const {{REAL}}* __restrict__ Hy, 
+const {{REAL}}* __restrict__ Hz, 
+{{REAL}} *PHI1, 
+{{REAL}} *PHI2, 
+const {{REAL}}* __restrict__ RA, 
+const {{REAL}}* __restrict__ RB, 
+const {{REAL}}* __restrict__ RE,
+const {{REAL}}* __restrict__ RF,
+{% endblock y_args %}
+
+
+{% block z_args %}
+const unsigned int* __restrict__ ID, 
+{{REAL}} *Ex, 
+{{REAL}} *Ey, 
+const {{REAL}}* __restrict__ Ez, 
+const {{REAL}}* __restrict__ Hx, 
+const {{REAL}}* __restrict__ Hy, 
+const {{REAL}}* __restrict__ Hz, 
+{{REAL}} *PHI1, 
+{{REAL}} *PHI2, 
+const {{REAL}}* __restrict__ RA, 
+const {{REAL}}* __restrict__ RB, 
+const {{REAL}}* __restrict__ RE, 
+const {{REAL}}* __restrict__ RF,
+{% endblock z_args %}

@@ -21,25 +21,31 @@ from importlib import import_module
 import gprMax.config as config
 import numpy as np
 
+from .utilities.utilities import timer
+
 
 class CFSParameter:
     """Individual CFS parameter (e.g. alpha, kappa, or sigma)."""
 
     # Allowable scaling profiles and directions
     scalingprofiles = {'constant': 0, 'linear': 1, 'quadratic': 2, 'cubic': 3,
-                       'quartic': 4, 'quintic': 5, 'sextic': 6, 'septic': 7, 'octic': 8}
+                       'quartic': 4, 'quintic': 5, 'sextic': 6, 'septic': 7, 
+                       'octic': 8}
     scalingdirections = ['forward', 'reverse']
 
     def __init__(self, ID=None, scaling='polynomial', scalingprofile=None,
                  scalingdirection='forward', min=0, max=0):
         """
         Args:
-            ID (str): Identifier for CFS parameter, can be: 'alpha', 'kappa' or 'sigma'.
-            scaling (str): Type of scaling, can be: 'polynomial'.
-            scalingprofile (str): Type of scaling profile from scalingprofiles.
-            scalingdirection (str): Direction of scaling profile from scalingdirections.
-            min (float): Minimum value for parameter.
-            max (float): Maximum value for parameter.
+            ID: string identifier for CFS parameter, can be: 'alpha', 'kappa' or 
+                'sigma'.
+            scaling: string for type of scaling, can be: 'polynomial'.
+            scalingprofile: string for type of scaling profile from 
+                            scalingprofiles.
+            scalingdirection: string for direction of scaling profile from 
+                                scalingdirections.
+            min: float for minimum value for parameter.
+            max: float for maximum value for parameter.
         """
 
         self.ID = ID
@@ -56,9 +62,9 @@ class CFS:
     def __init__(self):
         """
         Args:
-            alpha (CFSParameter): alpha parameter for CFS.
-            kappa (CFSParameter): kappa parameter for CFS.
-            sigma (CFSParameter): sigma parameter for CFS.
+            alpha: CFSParameter alpha parameter for CFS.
+            kappa: CFSParameter kappa parameter for CFS.
+            sigma: CFSParameter sigma parameter for CFS.
         """
 
         self.alpha = CFSParameter(ID='alpha', scalingprofile='constant')
@@ -70,11 +76,11 @@ class CFS:
             material properties.
 
         Args:
-            d (float): dx, dy, or dz in direction of PML.
-            er (float): Average permittivity of underlying material.
-            mr (float): Average permeability of underlying material.
-            G (class): Grid class instance - holds essential parameters
-                        describing the model.
+            d: float for dx, dy, or dz in direction of PML.
+            er: float for average permittivity of underlying material.
+            mr: float for average permeability of underlying material.
+            G: FDTDGrid object that holds essential parameters describing the 
+                model.
         """
 
         # Calculation of the maximum value of sigma from http://dx.doi.org/10.1109/8.546249
@@ -86,17 +92,17 @@ class CFS:
             electric and magnetic PML updates.
 
         Args:
-            order (int): Order of polynomial for scaling profile.
-            Evalues (float): numpy array holding scaling profile values for
-                                electric PML update.
-            Hvalues (float): numpy array holding scaling profile values for
-                                magnetic PML update.
+            order: int of order of polynomial for scaling profile.
+            Evalues: float array holding scaling profile values for
+                        electric PML update.
+            Hvalues: float array holding scaling profile values for
+                        magnetic PML update.
 
         Returns:
-            Evalues (float): numpy array holding scaling profile values for
-                                electric PML update.
-            Hvalues (float): numpy array holding scaling profile values for
-                                magnetic PML update.
+            Evalues: float array holding scaling profile values for
+                        electric PML update.
+            Hvalues: float array holding scaling profile values for
+                        magnetic PML update.
         """
 
         tmp = (np.linspace(0, (len(Evalues) - 1) + 0.5, num=2 * len(Evalues))
@@ -111,17 +117,18 @@ class CFS:
             profile type and minimum and maximum values.
 
         Args:
-            thickness (int): Thickness of PML in cells.
-            parameter (CFSParameter): Instance of CFSParameter
+            thickness: int of thickness of PML in cells.
+            parameter: instance of CFSParameter
 
         Returns:
-            Evalues (float): numpy array holding profile value for electric
-                                PML update.
-            Hvalues (float): numpy array holding profile value for magnetic
-                                PML update.
+            Evalues: float array holding profile value for electric
+                        PML update.
+            Hvalues: float array holding profile value for magnetic
+                        PML update.
         """
 
-        # Extra cell of thickness added to allow correct scaling of electric and magnetic values
+        # Extra cell of thickness added to allow correct scaling of electric and 
+        # magnetic values
         Evalues = np.zeros(thickness + 1, dtype=config.sim_config.dtypes['float_or_double'])
         Hvalues = np.zeros(thickness + 1, dtype=config.sim_config.dtypes['float_or_double'])
 
@@ -146,10 +153,12 @@ class CFS:
         if parameter.scalingdirection == 'reverse':
             Evalues = Evalues[::-1]
             Hvalues = Hvalues[::-1]
-            # Magnetic values must be shifted one element to the left after reversal
+            # Magnetic values must be shifted one element to the left after 
+            # reversal
             Hvalues = np.roll(Hvalues, -1)
 
-        # Extra cell of thickness not required and therefore removed after scaling
+        # Extra cell of thickness not required and therefore removed after 
+        # scaling
         Evalues = Evalues[:-1]
         Hvalues = Hvalues[:-1]
 
@@ -168,17 +177,20 @@ class PML:
     boundaryIDs = ['x0', 'y0', 'z0', 'xmax', 'ymax', 'zmax']
 
     # Indicates direction of increasing absorption
-    # xminus, yminus, zminus - absorption increases in negative direction of x-axis, y-axis, or z-axis
-    # xplus, yplus, zplus - absorption increases in positive direction of x-axis, y-axis, or z-axis
+    # xminus, yminus, zminus - absorption increases in negative direction of 
+    #                           x-axis, y-axis, or z-axis
+    # xplus, yplus, zplus - absorption increases in positive direction of 
+    #                       x-axis, y-axis, or z-axis
     directions = ['xminus', 'yminus', 'zminus', 'xplus', 'yplus', 'zplus']
 
     def __init__(self, G, ID=None, direction=None, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0):
         """
         Args:
-            G (FDTDGrid): Holds essential parameters describing the model.
-            ID (str): Identifier for PML slab.
-            direction (str): Direction of increasing absorption.
-            xs, xf, ys, yf, zs, zf (float): Extent of the PML slab.
+            G: FDTDGrid object that holds essential parameters describing the 
+                model.
+            ID: string identifier for PML slab.
+            direction: string for direction of increasing absorption.
+            xs, xf, ys, yf, zs, zf: floats of extent of the PML slab.
         """
 
         self.G = G
@@ -244,8 +256,8 @@ class PML:
         """Calculates electric and magnetic update coefficients for the PML.
 
         Args:
-            er (float): Average permittivity of underlying material
-            mr (float): Average permeability of underlying material
+            er: float of average permittivity of underlying material
+            mr: float of average permeability of underlying material
         """
 
         self.ERA = np.zeros((len(self.CFS), self.thickness),
@@ -275,19 +287,25 @@ class PML:
             # Define different parameters depending on PML formulation
             if self.G.pmlformulation == 'HORIPML':
                 # HORIPML electric update coefficients
-                tmp = (2 * config.sim_config.em_consts['e0'] * Ekappa) + self.G.dt * (Ealpha * Ekappa + Esigma)
-                self.ERA[x, :] = (2 * config.sim_config.em_consts['e0'] + self.G.dt * Ealpha) / tmp
-                self.ERB[x, :] = (2 * config.sim_config.em_consts['e0'] * Ekappa) / tmp
-                self.ERE[x, :] = ((2 * config.sim_config.em_consts['e0'] * Ekappa) - self.G.dt
-                                  * (Ealpha * Ekappa + Esigma)) / tmp
+                tmp = ((2 * config.sim_config.em_consts['e0'] * Ekappa) + 
+                       self.G.dt * (Ealpha * Ekappa + Esigma))
+                self.ERA[x, :] = ((2 * config.sim_config.em_consts['e0'] + 
+                                  self.G.dt * Ealpha) / tmp)
+                self.ERB[x, :] = ((2 * config.sim_config.em_consts['e0'] * Ekappa) 
+                                  / tmp)
+                self.ERE[x, :] = (((2 * config.sim_config.em_consts['e0'] * Ekappa) -
+                                  self.G.dt * (Ealpha * Ekappa + Esigma)) / tmp)
                 self.ERF[x, :] = (2 * Esigma * self.G.dt) / (Ekappa * tmp)
 
                 # HORIPML magnetic update coefficients
-                tmp = (2 * config.sim_config.em_consts['e0'] * Hkappa) + self.G.dt * (Halpha * Hkappa + Hsigma)
-                self.HRA[x, :] = (2 * config.sim_config.em_consts['e0'] + self.G.dt * Halpha) / tmp
-                self.HRB[x, :] = (2 * config.sim_config.em_consts['e0'] * Hkappa) / tmp
-                self.HRE[x, :] = ((2 * config.sim_config.em_consts['e0'] * Hkappa) - self.G.dt
-                                  * (Halpha * Hkappa + Hsigma)) / tmp
+                tmp = ((2 * config.sim_config.em_consts['e0'] * Hkappa) + 
+                       self.G.dt * (Halpha * Hkappa + Hsigma))
+                self.HRA[x, :] = ((2 * config.sim_config.em_consts['e0'] + 
+                                  self.G.dt * Halpha) / tmp)
+                self.HRB[x, :] = ((2 * config.sim_config.em_consts['e0'] * Hkappa) 
+                                  / tmp)
+                self.HRE[x, :] = (((2 * config.sim_config.em_consts['e0'] * Hkappa) - 
+                                  self.G.dt * (Halpha * Hkappa + Hsigma)) / tmp)
                 self.HRF[x, :] = (2 * Hsigma * self.G.dt) / (Hkappa * tmp)
 
             elif self.G.pmlformulation == 'MRIPML':
@@ -295,31 +313,39 @@ class PML:
                 tmp = 2 * config.sim_config.em_consts['e0'] + self.G.dt * Ealpha
                 self.ERA[x, :] = Ekappa + (self.G.dt * Esigma) / tmp
                 self.ERB[x, :] = (2 * config.sim_config.em_consts['e0']) / tmp
-                self.ERE[x, :] = ((2 * config.sim_config.em_consts['e0']) - self.G.dt * Ealpha) / tmp
+                self.ERE[x, :] = (((2 * config.sim_config.em_consts['e0']) 
+                                  - self.G.dt * Ealpha) / tmp)
                 self.ERF[x, :] = (2 * Esigma * self.G.dt) / tmp
 
                 # MRIPML magnetic update coefficients
                 tmp = 2 * config.sim_config.em_consts['e0'] + self.G.dt * Halpha
                 self.HRA[x, :] = Hkappa + (self.G.dt * Hsigma) / tmp
                 self.HRB[x, :] = (2 * config.sim_config.em_consts['e0']) / tmp
-                self.HRE[x, :] = ((2 * config.sim_config.sim_config.em_consts['e0']) - self.G.dt * Halpha) / tmp
+                self.HRE[x, :] = (((2 * config.sim_config.sim_config.em_consts['e0']) 
+                                  - self.G.dt * Halpha) / tmp)
                 self.HRF[x, :] = (2 * Hsigma * self.G.dt) / tmp
 
     def update_electric(self):
-        """This functions updates electric field components with the PML correction."""
+        """This functions updates electric field components with the PML 
+            correction.
+        """
 
         pmlmodule = 'gprMax.cython.pml_updates_electric_' + self.G.pmlformulation
-        func = getattr(import_module(pmlmodule), 'order' + str(len(self.CFS)) + '_' + self.direction)
+        func = getattr(import_module(pmlmodule), 
+                       'order' + str(len(self.CFS)) + '_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf,
              config.get_model_config().ompthreads, self.G.updatecoeffsE, self.G.ID,
              self.G.Ex, self.G.Ey, self.G.Ez, self.G.Hx, self.G.Hy, self.G.Hz,
              self.EPhi1, self.EPhi2, self.ERA, self.ERB, self.ERE, self.ERF, self.d)
 
     def update_magnetic(self):
-        """This functions updates magnetic field components with the PML correction."""
+        """This functions updates magnetic field components with the PML 
+            correction.
+        """
 
         pmlmodule = 'gprMax.cython.pml_updates_magnetic_' + self.G.pmlformulation
-        func = getattr(import_module(pmlmodule), 'order' + str(len(self.CFS)) + '_' + self.direction)
+        func = getattr(import_module(pmlmodule), 
+                       'order' + str(len(self.CFS)) + '_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf,
              config.get_model_config().ompthreads, self.G.updatecoeffsH, self.G.ID,
              self.G.Ex, self.G.Ey, self.G.Ez, self.G.Hx, self.G.Hy, self.G.Hz,
@@ -330,6 +356,9 @@ class CUDAPML(PML):
     """Perfectly Matched Layer (PML) Absorbing Boundary Conditions (ABC) for
         solving on GPU using CUDA.
     """
+
+    def __init__(self, *args, **kwargs):
+        super(CUDAPML, self).__init__(*args, **kwargs)
 
     def htod_field_arrays(self):
         """Initialise PML field and coefficient arrays on GPU."""
@@ -360,9 +389,9 @@ class CUDAPML(PML):
         """Get update functions from PML kernels.
 
         Args:
-            kernelselectric: PyCuda SourceModule containing PML kernels for
+            kernelselectric: pycuda SourceModule containing PML kernels for
                                 electric updates.
-            kernelsmagnetic: PyCuda SourceModule containing PML kernels for
+            kernelsmagnetic: pycuda SourceModule containing PML kernels for
                                 magnetic updates.
         """
 
@@ -373,9 +402,12 @@ class CUDAPML(PML):
         """This functions updates electric field components with the PML
             correction on the GPU.
         """
-        self.update_electric_gpu(np.int32(self.xs), np.int32(self.xf),
-                                 np.int32(self.ys), np.int32(self.yf),
-                                 np.int32(self.zs), np.int32(self.zf),
+        self.update_electric_gpu(np.int32(self.xs), 
+                                 np.int32(self.xf),
+                                 np.int32(self.ys), 
+                                 np.int32(self.yf),
+                                 np.int32(self.zs), 
+                                 np.int32(self.zf),
                                  np.int32(self.EPhi1_gpu.shape[1]),
                                  np.int32(self.EPhi1_gpu.shape[2]),
                                  np.int32(self.EPhi1_gpu.shape[3]),
@@ -384,11 +416,18 @@ class CUDAPML(PML):
                                  np.int32(self.EPhi2_gpu.shape[3]),
                                  np.int32(self.thickness),
                                  self.G.ID_gpu.gpudata,
-                                 self.G.Ex_gpu.gpudata, self.G.Ey_gpu.gpudata, self.G.Ez_gpu.gpudata,
-                                 self.G.Hx_gpu.gpudata, self.G.Hy_gpu.gpudata, self.G.Hz_gpu.gpudata,
-                                 self.EPhi1_gpu.gpudata, self.EPhi2_gpu.gpudata,
-                                 self.ERA_gpu.gpudata, self.ERB_gpu.gpudata,
-                                 self.ERE_gpu.gpudata, self.ERF_gpu.gpudata,
+                                 self.G.Ex_gpu.gpudata, 
+                                 self.G.Ey_gpu.gpudata, 
+                                 self.G.Ez_gpu.gpudata,
+                                 self.G.Hx_gpu.gpudata, 
+                                 self.G.Hy_gpu.gpudata, 
+                                 self.G.Hz_gpu.gpudata,
+                                 self.EPhi1_gpu.gpudata, 
+                                 self.EPhi2_gpu.gpudata,
+                                 self.ERA_gpu.gpudata, 
+                                 self.ERB_gpu.gpudata,
+                                 self.ERE_gpu.gpudata, 
+                                 self.ERF_gpu.gpudata,
                                  config.sim_config.dtypes['float_or_double'](self.d),
                                  block=self.G.tpb, grid=self.bpg)
 
@@ -396,9 +435,12 @@ class CUDAPML(PML):
         """This functions updates magnetic field components with the PML
             correction on the GPU.
         """
-        self.update_magnetic_gpu(np.int32(self.xs), np.int32(self.xf),
-                                 np.int32(self.ys), np.int32(self.yf),
-                                 np.int32(self.zs), np.int32(self.zf),
+        self.update_magnetic_gpu(np.int32(self.xs), 
+                                 np.int32(self.xf),
+                                 np.int32(self.ys), 
+                                 np.int32(self.yf),
+                                 np.int32(self.zs), 
+                                 np.int32(self.zf),
                                  np.int32(self.HPhi1_gpu.shape[1]),
                                  np.int32(self.HPhi1_gpu.shape[2]),
                                  np.int32(self.HPhi1_gpu.shape[3]),
@@ -407,19 +449,147 @@ class CUDAPML(PML):
                                  np.int32(self.HPhi2_gpu.shape[3]),
                                  np.int32(self.thickness),
                                  self.G.ID_gpu.gpudata,
-                                 self.G.Ex_gpu.gpudata, self.G.Ey_gpu.gpudata, self.G.Ez_gpu.gpudata,
-                                 self.G.Hx_gpu.gpudata, self.G.Hy_gpu.gpudata, self.G.Hz_gpu.gpudata,
-                                 self.HPhi1_gpu.gpudata, self.HPhi2_gpu.gpudata,
-                                 self.HRA_gpu.gpudata, self.HRB_gpu.gpudata,
-                                 self.HRE_gpu.gpudata, self.HRF_gpu.gpudata,
+                                 self.G.Ex_gpu.gpudata, 
+                                 self.G.Ey_gpu.gpudata, 
+                                 self.G.Ez_gpu.gpudata,
+                                 self.G.Hx_gpu.gpudata, 
+                                 self.G.Hy_gpu.gpudata, 
+                                 self.G.Hz_gpu.gpudata,
+                                 self.HPhi1_gpu.gpudata, 
+                                 self.HPhi2_gpu.gpudata,
+                                 self.HRA_gpu.gpudata, 
+                                 self.HRB_gpu.gpudata,
+                                 self.HRE_gpu.gpudata, 
+                                 self.HRF_gpu.gpudata,
                                  config.sim_config.dtypes['float_or_double'](self.d),
                                  block=self.G.tpb, grid=self.bpg)
+
+
+class OpenCLPML(PML):
+    """Perfectly Matched Layer (PML) Absorbing Boundary Conditions (ABC) for
+        solving on compute device using OpenCL.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(OpenCLPML, self).__init__(*args, **kwargs)
+        self.compute_time = 0
+
+    def set_queue(self, queue):
+        """Passes in pyopencl queue.
+        
+        Args:
+            queue: pyopencl queue.
+        """
+        self.queue = queue
+
+    def htod_field_arrays(self):
+        """Initialise PML field and coefficient arrays on compute device."""
+
+        import pyopencl.array as clarray
+
+        self.ERA_dev = clarray.to_device(self.queue, self.ERA)
+        self.ERB_dev = clarray.to_device(self.queue, self.ERB)
+        self.ERE_dev = clarray.to_device(self.queue, self.ERE)
+        self.ERF_dev = clarray.to_device(self.queue, self.ERF)
+        self.HRA_dev = clarray.to_device(self.queue, self.HRA)
+        self.HRB_dev = clarray.to_device(self.queue, self.HRB)
+        self.HRE_dev = clarray.to_device(self.queue, self.HRE)
+        self.HRF_dev = clarray.to_device(self.queue, self.HRF)
+        self.EPhi1_dev = clarray.to_device(self.queue, self.EPhi1)
+        self.EPhi2_dev = clarray.to_device(self.queue, self.EPhi2)
+        self.HPhi1_dev = clarray.to_device(self.queue, self.HPhi1)
+        self.HPhi2_dev = clarray.to_device(self.queue, self.HPhi2)
+
+    def set_blocks_per_grid():
+        pass
+
+    def set_wgs(self):
+        """Set the workgroup size used for updating the PML field arrays
+            on a compute device.
+        """
+        self.wgs = (((int(np.ceil(((self.EPhi1_dev.shape[1] + 1) * 
+                                   (self.EPhi1_dev.shape[2] + 1) * 
+                                   (self.EPhi1_dev.shape[3] + 1)) / self.G.tpb[0]))) * 256), 1, 1)
+
+    def get_update_funcs():
+        pass
+
+    def update_electric(self):
+        """This functions updates electric field components with the PML
+            correction on the compute device.
+        """
+        start_time = timer()
+        event = self.update_electric_dev(np.int32(self.xs), 
+                                         np.int32(self.xf),
+                                         np.int32(self.ys), 
+                                         np.int32(self.yf),
+                                         np.int32(self.zs), 
+                                         np.int32(self.zf),
+                                         np.int32(self.EPhi1_dev.shape[1]),
+                                         np.int32(self.EPhi1_dev.shape[2]),
+                                         np.int32(self.EPhi1_dev.shape[3]),
+                                         np.int32(self.EPhi2_dev.shape[1]),
+                                         np.int32(self.EPhi2_dev.shape[2]),
+                                         np.int32(self.EPhi2_dev.shape[3]),
+                                         np.int32(self.thickness),
+                                         self.G.ID_dev,
+                                         self.G.Ex_dev, 
+                                         self.G.Ey_dev, 
+                                         self.G.Ez_dev,
+                                         self.G.Hx_dev, 
+                                         self.G.Hy_dev, 
+                                         self.G.Hz_dev,
+                                         self.EPhi1_dev, 
+                                         self.EPhi2_dev,
+                                         self.ERA_dev, 
+                                         self.ERB_dev,
+                                         self.ERE_dev, 
+                                         self.ERF_dev,
+                                         config.sim_config.dtypes['float_or_double'](self.d))
+        event.wait()
+        self.compute_time += (timer() - start_time)
+
+    def update_magnetic(self):
+        """This functions updates magnetic field components with the PML
+            correction on the compute device.
+        """
+        start_time = timer()
+        event = self.update_magnetic_dev(np.int32(self.xs), 
+                                         np.int32(self.xf),
+                                         np.int32(self.ys), 
+                                         np.int32(self.yf),
+                                         np.int32(self.zs), 
+                                         np.int32(self.zf),
+                                         np.int32(self.HPhi1_dev.shape[1]),
+                                         np.int32(self.HPhi1_dev.shape[2]),
+                                         np.int32(self.HPhi1_dev.shape[3]),
+                                         np.int32(self.HPhi2_dev.shape[1]),
+                                         np.int32(self.HPhi2_dev.shape[2]),
+                                         np.int32(self.HPhi2_dev.shape[3]),
+                                         np.int32(self.thickness),
+                                         self.G.ID_dev,
+                                         self.G.Ex_dev, 
+                                         self.G.Ey_dev, 
+                                         self.G.Ez_dev,
+                                         self.G.Hx_dev, 
+                                         self.G.Hy_dev, 
+                                         self.G.Hz_dev,
+                                         self.HPhi1_dev, 
+                                         self.HPhi2_dev,
+                                         self.HRA_dev, 
+                                         self.HRB_dev,
+                                         self.HRE_dev, 
+                                         self.HRF_dev,
+                                         config.sim_config.dtypes['float_or_double'](self.d))
+        event.wait()
+        self.compute_time += (timer() - start_time)
+
 
 def print_pml_info(G):
     """Information about PMLs.
 
     Args:
-        G (FDTDGrid): Parameters describing a grid in a model.
+        G: FDTDGrid objects that holds parameters describing a grid in a model.
     """
     # No PML
     if all(value == 0 for value in G.pmlthickness.values()):
@@ -433,7 +603,8 @@ def print_pml_info(G):
             pmlinfo += f'{key}: {value}, '
         pmlinfo = pmlinfo[:-2]
 
-    return f'\nPML boundaries [{G.name}]: {{formulation: {G.pmlformulation}, order: {len(G.cfs)}, thickness (cells): {pmlinfo}}}'
+    return (f'\nPML boundaries [{G.name}]: {{formulation: {G.pmlformulation}, '
+            f'order: {len(G.cfs)}, thickness (cells): {pmlinfo}}}')
 
 
 def build_pml(G, key, value):
@@ -442,21 +613,28 @@ def build_pml(G, key, value):
         (based on underlying material er and mr from solid array).
 
     Args:
-        G (FDTDGrid): Parameters describing a grid in a model.
-        key (str): Identifier of PML slab.
-        value (int): Thickness of PML slab in cells.
+        G: FDTDGrid objects that holds parameters describing a grid in a model.
+        key: string dentifier of PML slab.
+        value: int with thickness of PML slab in cells.
     """
 
-    pml_type = CUDAPML if config.sim_config.general['cuda'] else PML
+    if config.sim_config.general['solver'] == 'cpu':
+        pml_type = PML
+    elif config.sim_config.general['solver'] == 'cuda':
+        pml_type = CUDAPML
+    elif config.sim_config.general['solver'] == 'opencl':
+        pml_type = OpenCLPML
 
     sumer = 0  # Sum of relative permittivities in PML slab
     summr = 0  # Sum of relative permeabilities in PML slab
 
     if key[0] == 'x':
         if key == 'x0':
-            pml = pml_type(G, ID=key, direction='xminus', xf=value, yf=G.ny, zf=G.nz)
+            pml = pml_type(G, ID=key, direction='xminus', 
+                           xf=value, yf=G.ny, zf=G.nz)
         elif key == 'xmax':
-            pml = pml_type(G, ID=key, direction='xplus', xs=G.nx - value, xf=G.nx, yf=G.ny, zf=G.nz)
+            pml = pml_type(G, ID=key, direction='xplus', 
+                           xs=G.nx - value, xf=G.nx, yf=G.ny, zf=G.nz)
         G.pmls.append(pml)
         for j in range(G.ny):
             for k in range(G.nz):
@@ -469,9 +647,11 @@ def build_pml(G, key, value):
 
     elif key[0] == 'y':
         if key == 'y0':
-            pml = pml_type(G, ID=key, direction='yminus', yf=value, xf=G.nx, zf=G.nz)
+            pml = pml_type(G, ID=key, direction='yminus', 
+                           yf=value, xf=G.nx, zf=G.nz)
         elif key == 'ymax':
-            pml = pml_type(G, ID=key, direction='yplus', ys=G.ny - value, xf=G.nx, yf=G.ny, zf=G.nz)
+            pml = pml_type(G, ID=key, direction='yplus', 
+                           ys=G.ny - value, xf=G.nx, yf=G.ny, zf=G.nz)
         G.pmls.append(pml)
         for i in range(G.nx):
             for k in range(G.nz):
@@ -484,9 +664,11 @@ def build_pml(G, key, value):
 
     elif key[0] == 'z':
         if key == 'z0':
-            pml = pml_type(G, ID=key, direction='zminus', zf=value, xf=G.nx, yf=G.ny)
+            pml = pml_type(G, ID=key, direction='zminus', 
+                           zf=value, xf=G.nx, yf=G.ny)
         elif key == 'zmax':
-            pml = pml_type(G, ID=key, direction='zplus', zs=G.nz - value, xf=G.nx, yf=G.ny, zf=G.nz)
+            pml = pml_type(G, ID=key, direction='zplus', 
+                           zs=G.nz - value, xf=G.nx, yf=G.ny, zf=G.nz)
         G.pmls.append(pml)
         for i in range(G.nx):
             for j in range(G.ny):

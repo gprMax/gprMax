@@ -26,8 +26,8 @@ class Rx:
     allowableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
     defaultoutputs = allowableoutputs[:-3]
 
-    allowableoutputs_gpu = allowableoutputs[:-3]
-    maxnumoutputs_gpu = 0
+    allowableoutputs_dev = allowableoutputs[:-3]
+    maxnumoutputs_dev = 0
 
     def __init__(self):
 
@@ -41,57 +41,65 @@ class Rx:
         self.zcoordorigin = None
 
 
-def htod_rx_arrays(G):
-    """Initialise arrays on GPU for receiver coordinates and to store field
+def htod_rx_arrays(G, queue=None):
+    """Initialise arrays on compute device for receiver coordinates and to store field
         components for receivers.
 
     Args:
-        G (FDTDGrid): Holds essential parameters describing the model.
+        G: FDTDGrid object that holds essential parameters describing the model.
+        queue: pyopencl queue.
 
     Returns:
-        rxcoords_gpu (int): numpy array of receiver coordinates from GPU.
-        rxs_gpu (float): numpy array of receiver data from GPU - rows are field
-                            components; columns are iterations; pages are receivers.
+        rxcoords_dev: int array of receiver coordinates on compute device.
+        rxs_dev: float array of receiver data on compute device - rows are field
+                    components; columns are iterations; pages are receivers.
     """
 
-    import pycuda.gpuarray as gpuarray
-
-    # Array to store receiver coordinates on GPU
+    # Array to store receiver coordinates on compute device
     rxcoords = np.zeros((len(G.rxs), 3), dtype=np.int32)
     for i, rx in enumerate(G.rxs):
         rxcoords[i, 0] = rx.xcoord
         rxcoords[i, 1] = rx.ycoord
         rxcoords[i, 2] = rx.zcoord
         # Store maximum number of output components
-        if len(rx.outputs) > Rx.maxnumoutputs_gpu:
-            Rx.maxnumoutputs_gpu = len(rx.outputs)
+        if len(rx.outputs) > Rx.maxnumoutputs_dev:
+            Rx.maxnumoutputs_dev = len(rx.outputs)
 
-    # Array to store field components for receivers on GPU - rows are field components;
-    # columns are iterations; pages are receivers
-    rxs = np.zeros((len(Rx.allowableoutputs_gpu), G.iterations, len(G.rxs)),
+    # Array to store field components for receivers on compute device - 
+    #   rows are field components; columns are iterations; pages are receivers
+    rxs = np.zeros((len(Rx.allowableoutputs_dev), G.iterations, len(G.rxs)),
                    dtype=config.sim_config.dtypes['float_or_double'])
 
-    # Copy arrays to GPU
-    rxcoords_gpu = gpuarray.to_gpu(rxcoords)
-    rxs_gpu = gpuarray.to_gpu(rxs)
+    # Copy arrays to compute device
+    if config.sim_config.general['solver'] == 'cuda':
+        import pycuda.gpuarray as gpuarray
+        rxcoords_dev = gpuarray.to_gpu(rxcoords)
+        rxs_dev = gpuarray.to_gpu(rxs)
 
-    return rxcoords_gpu, rxs_gpu
+    elif config.sim_config.general['solver'] == 'opencl':
+        import pyopencl.array as clarray
+        rxcoords_dev = clarray.to_device(queue, rxcoords)
+        rxs_dev = clarray.to_device(queue, rxs)
+
+    return rxcoords_dev, rxs_dev
 
 
-def dtoh_rx_array(rxs_gpu, rxcoords_gpu, G):
-    """Copy output from receivers array used on GPU back to receiver objects.
+def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
+    """Copy output from receivers array used on compute device back to receiver 
+        objects.
 
     Args:
-        rxs_gpu (float): numpy array of receiver data from GPU - rows are field
-                            components; columns are iterations; pages are receivers.
-        rxcoords_gpu (int): numpy array of receiver coordinates from GPU.
-        G (FDTDGrid): Holds essential parameters describing the model.
+        rxcoords_dev: int array of receiver coordinates on compute device.
+        rxs_dev: float array of receiver data on compute device - rows are field
+                    components; columns are iterations; pages are receivers.
+        G: FDTDGrid object that holds essential parameters describing the model.
+        
     """
 
     for rx in G.rxs:
-        for rxgpu in range(len(G.rxs)):
-            if (rx.xcoord == rxcoords_gpu[rxgpu, 0] and
-                rx.ycoord == rxcoords_gpu[rxgpu, 1] and
-                rx.zcoord == rxcoords_gpu[rxgpu, 2]):
+        for rxd in range(len(G.rxs)):
+            if (rx.xcoord == rxcoords_dev[rxd, 0] and
+                rx.ycoord == rxcoords_dev[rxd, 1] and
+                rx.zcoord == rxcoords_dev[rxd, 2]):
                 for output in rx.outputs.keys():
-                    rx.outputs[output] = rxs_gpu[Rx.allowableoutputs_gpu.index(output), :, rxgpu]
+                    rx.outputs[output] = rxs_dev[Rx.allowableoutputs_dev.index(output), :, rxd]

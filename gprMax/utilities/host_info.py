@@ -26,7 +26,7 @@ import sys
 import gprMax.config as config
 import psutil
 
-from .utilities import human_size
+from .utilities import get_terminal_width, human_size
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +35,9 @@ def get_host_info():
     """Get information about the machine, CPU, RAM, and OS.
 
     Returns:
-        hostinfo (dict): Manufacturer and model of machine; description of CPU
-                            type, speed, cores; RAM; name and
-                            version of operating system.
+        hostinfo: dict containing manufacturer and model of machine; 
+                    description of CPU type, speed, cores; RAM; name and
+                    version of operating system.
     """
 
     # Default to 'unknown' if any of the detection fails
@@ -47,13 +47,17 @@ def get_host_info():
     if sys.platform == 'win32':
         # Manufacturer/model
         try:
-            manufacturer = subprocess.check_output("wmic csproduct get vendor", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            manufacturer = subprocess.check_output("wmic csproduct get vendor", 
+                                                   shell=True, 
+                                                   stderr=subprocess.STDOUT).decode('utf-8').strip()
             manufacturer = manufacturer.split('\n')
             if len(manufacturer) > 1:
                 manufacturer = manufacturer[1]
             else:
                 manufacturer = manufacturer[0]
-            model = subprocess.check_output("wmic computersystem get model", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            model = subprocess.check_output("wmic computersystem get model", 
+                                            shell=True, 
+                                            stderr=subprocess.STDOUT).decode('utf-8').strip()
             model = model.split('\n')
             if len(model) > 1:
                 model = model[1]
@@ -61,16 +65,19 @@ def get_host_info():
                 model = model[0]
         except subprocess.CalledProcessError:
             pass
-        machineID = manufacturer + ' ' + model
+        machineID = ' '.join(manufacturer.split()) + ' ' + ' '.join(model.split())
 
         # CPU information
         try:
-            allcpuinfo = subprocess.check_output("wmic cpu get Name", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            allcpuinfo = subprocess.check_output("wmic cpu get Name", 
+                                                 shell=True, 
+                                                 stderr=subprocess.STDOUT).decode('utf-8').strip()
             allcpuinfo = allcpuinfo.split('\n')
             sockets = 0
             for line in allcpuinfo:
                 if 'CPU' in line:
                     cpuID = line.strip()
+                    cpuID = ' '.join(cpuID.split())
                     sockets += 1
         except subprocess.CalledProcessError:
             pass
@@ -93,16 +100,21 @@ def get_host_info():
         # Manufacturer/model
         manufacturer = 'Apple'
         try:
-            model = subprocess.check_output("sysctl -n hw.model", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            model = subprocess.check_output("sysctl -n hw.model", shell=True, 
+                                            stderr=subprocess.STDOUT).decode('utf-8').strip()
         except subprocess.CalledProcessError:
             pass
-        machineID = manufacturer + ' ' + model
+        machineID = ' '.join(manufacturer.split()) + ' ' + ' '.join(model.split())
 
         # CPU information
         try:
-            sockets = subprocess.check_output("sysctl -n hw.packages", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            sockets = subprocess.check_output("sysctl -n hw.packages", 
+                                              shell=True, 
+                                              stderr=subprocess.STDOUT).decode('utf-8').strip()
             sockets = int(sockets)
-            cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", 
+                                            shell=True, 
+                                            stderr=subprocess.STDOUT).decode('utf-8').strip()
             cpuID = ' '.join(cpuID.split())
         except subprocess.CalledProcessError:
             pass
@@ -123,21 +135,30 @@ def get_host_info():
     elif sys.platform == 'linux':
         # Manufacturer/model
         try:
-            manufacturer = subprocess.check_output("cat /sys/class/dmi/id/sys_vendor", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
-            model = subprocess.check_output("cat /sys/class/dmi/id/product_name", shell=True, stderr=subprocess.STDOUT).decode('utf-8').strip()
+            manufacturer = subprocess.check_output("cat /sys/class/dmi/id/sys_vendor", 
+                                                   shell=True, 
+                                                   stderr=subprocess.STDOUT).decode('utf-8').strip()
+            model = subprocess.check_output("cat /sys/class/dmi/id/product_name", 
+                                            shell=True, 
+                                            stderr=subprocess.STDOUT).decode('utf-8').strip()
         except subprocess.CalledProcessError:
             pass
-        machineID = manufacturer + ' ' + model
+        machineID = ' '.join(manufacturer.split()) + ' ' + ' '.join(model.split())
 
         # CPU information
         try:
             # Locale to ensure English
             myenv = {**os.environ, 'LANG': 'en_US.utf8'}
-            cpuIDinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True, stderr=subprocess.STDOUT, env=myenv).decode('utf-8').strip()
+            cpuIDinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True, 
+                                                stderr=subprocess.STDOUT, 
+                                                env=myenv).decode('utf-8').strip()
             for line in cpuIDinfo.split('\n'):
                 if re.search('model name', line):
                     cpuID = re.sub('.*model name.*:', '', line, 1).strip()
-            allcpuinfo = subprocess.check_output("lscpu", shell=True, stderr=subprocess.STDOUT, env=myenv).decode('utf-8').strip()
+                    cpuID = ' '.join(cpuID.split())
+            allcpuinfo = subprocess.check_output("lscpu", shell=True, 
+                                                 stderr=subprocess.STDOUT, 
+                                                 env=myenv).decode('utf-8').strip()
             for line in allcpuinfo.split('\n'):
                 if 'Socket(s)' in line:
                     sockets = int(line.strip()[-1])
@@ -177,11 +198,31 @@ def get_host_info():
     return hostinfo
 
 
+def print_host_info(hostinfo):
+    """Print information about the machine, CPU, RAM, and OS.
+
+    Args:
+        hostinfo: dict containing manufacturer and model of machine; 
+                    description of CPU type, speed, cores; RAM; name and
+                    version of operating system.
+    """
+
+    hyperthreadingstr = (f", {config.sim_config.hostinfo['logicalcores']} "
+                            f"cores with Hyper-Threading" if config.sim_config.hostinfo['hyperthreading'] else '')
+    logger.basic(f"\n{config.sim_config.hostinfo['hostname']} | "
+                 f"{config.sim_config.hostinfo['machineID']} "
+                 f"{hostinfo['sockets']} x {hostinfo['cpuID']} "
+                 f"({hostinfo['physicalcores']} cores{hyperthreadingstr}) | "
+                 f"{human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} | "
+                 f"{hostinfo['osversion']}")
+    logger.basic(f"|--->OpenMP: {hostinfo['physicalcores']} threads")
+
+
 def set_omp_threads(nthreads=None):
     """Sets the number of OpenMP CPU threads for parallelised parts of code.
 
     Returns:
-        nthreads (int): Number of OpenMP threads.
+        nthreads: int for number of OpenMP threads.
     """
 
     if sys.platform == 'darwin':
@@ -228,29 +269,39 @@ def mem_check_host(mem):
     """Check if the required amount of memory (RAM) is available on host.
 
     Args:
-        mem (int): Memory required (bytes).
+        mem: int for memory required (bytes).
     """
     if mem > config.sim_config.hostinfo['ram']:
-        logger.exception(f"Memory (RAM) required ~{human_size(mem)} exceeds {human_size(config.sim_config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} detected!\n")
+        logger.exception(f"Memory (RAM) required ~{human_size(mem)} exceeds "
+                         f"{human_size(config.sim_config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} "
+                         "detected!\n")
         raise ValueError
 
 
-def mem_check_gpu_snaps(total_mem, snaps_mem):
+def mem_check_device_snaps(total_mem, snaps_mem):
     """Check if the required amount of memory (RAM) for all snapshots can fit
-        on specified GPU.
+        on specified device.
 
     Args:
-        total_mem (int): Total memory required for model (bytes).
-        snaps_mem (int): Memory required for all snapshots (bytes).
+        total_mem: int for total memory required for model (bytes).
+        snaps_mem: int for memory required for all snapshots (bytes).
     """
-    if total_mem - snaps_mem > config.get_model_config().cuda['gpu'].totalmem:
-        logger.exception(f"Memory (RAM) required ~{human_size(total_mem)} exceeds {human_size(config.get_model_config().cuda['gpu'].totalmem, a_kilobyte_is_1024_bytes=True)} detected on specified {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name} GPU!\n")
+
+    if config.sim_config.general['solver'] == 'cuda':
+        device_mem = config.get_model_config().device['dev'].total_memory()
+    elif config.sim_config.general['solver'] == 'opencl':
+        device_mem = config.get_model_config().device['dev'].global_mem_size
+    
+    if total_mem - snaps_mem > device_mem:
+        logger.exception(f"Memory (RAM) required ~{human_size(total_mem)} exceeds "
+                         f"{human_size(device_mem, a_kilobyte_is_1024_bytes=True)} "
+                         f"detected on specified {' '.join(config.get_model_config().device['dev'].name.split())} device!\n")
         raise ValueError
 
     # If the required memory without the snapshots will fit on the GPU then
     # transfer and store snaphots on host
-    if snaps_mem != 0 and total_mem - snaps_mem < config.get_model_config().cuda['gpu'].totalmem:
-        config.get_model_config().cuda['snapsgpu2cpu'] = True
+    if snaps_mem != 0 and total_mem - snaps_mem < device_mem:
+        config.get_model_config().device['snapsgpu2cpu'] = True
 
 
 def mem_check_all(grids):
@@ -259,12 +310,12 @@ def mem_check_all(grids):
         memory.
 
     Args:
-        grids (list): FDTDGrid objects.
+        grids: list of FDTDGrid objects.
 
     Returns:
-        total_mem (int): Total memory required for all grids.
-        mem_strs (list): Strings containing text of memory requirements for
-                            each grid.
+        total_mem: int for total memory required for all grids.
+        mem_str: list of strings containing text of memory requirements for
+                    each grid.
     """
 
     total_snaps_mem = 0
@@ -297,59 +348,56 @@ def mem_check_all(grids):
     mem_check_host(total_mem)
 
     # Check if there is sufficient memory for any snapshots on GPU
-    if total_snaps_mem > 0 and config.sim_config.general['cuda']:
-        mem_check_gpu_snaps(total_mem, total_snaps_mem)
+    if (total_snaps_mem > 0 and config.sim_config.general['solver'] == 'cuda' or 
+        config.sim_config.general['solver'] == 'opencl'):
+        mem_check_device_snaps(total_mem, total_snaps_mem)
 
     return total_mem, mem_strs
 
 
-class GPU:
-    """GPU information."""
+def has_pycuda():
+    """Check if pycuda module is installed."""
+    pycuda = True
+    try:
+        import pycuda
+    except ImportError:
+        pycuda = False
+    return pycuda
 
-    def __init__(self):
 
-        self.deviceID = None
-        self.name = None
-        self.pcibusID = None
-        self.constmem = None
-        self.totalmem = None
-
-    def get_cuda_gpu_info(self, drv, deviceID):
-        """Set information about GPU.
-
-        Args:
-            drv (object): pycuda driver.
-            deviceID (int): Device ID for GPU.
-        """
-
-        self.deviceID = deviceID
-        self.name = drv.Device(self.deviceID).name()
-        self.pcibusID = drv.Device(self.deviceID).pci_bus_id()
-        self.constmem = drv.Device(self.deviceID).total_constant_memory
-        self.totalmem = drv.Device(self.deviceID).total_memory()
+def has_pyopencl():
+    """Check if pyopencl module is installed."""
+    pyopencl = True
+    try:
+        import pyopencl
+    except ImportError:
+        pyopencl = False
+    return pyopencl
 
 
 def detect_cuda_gpus():
-    """Get information about Nvidia GPU(s).
+    """Get information about CUDA-capable GPU(s).
 
     Returns:
-        gpus (list): Detected GPU(s) object(s).
+        gpus: dict of detected pycuda device object(s) where where device ID(s)
+                are keys.
     """
 
-    try:
+    gpus = {}
+
+    cuda_reqs = ('To use gprMax with CUDA you must:'
+                 '\n 1) install pycuda'
+                 '\n 2) install NVIDIA CUDA Toolkit (https://developer.nvidia.com/cuda-toolkit)'
+                 '\n 3) have an NVIDIA CUDA-Enabled GPU (https://developer.nvidia.com/cuda-gpus)')
+
+    if has_pycuda():
         import pycuda.driver as drv
-        has_pycuda = True
-    except ImportError:
-        logger.warning('pycuda not detected - to use gprMax in GPU mode the pycuda package must be installed, and you must have a NVIDIA CUDA-Enabled GPU (https://developer.nvidia.com/cuda-gpus).')
-        has_pycuda = False
-    
-    if has_pycuda:
         drv.init()
 
         # Check and list any CUDA-Enabled GPUs
+        deviceIDsavail = []
         if drv.Device.count() == 0:
-            logger.exception('No NVIDIA CUDA-Enabled GPUs detected (https://developer.nvidia.com/cuda-gpus)')
-            raise ValueError
+            logger.warning('No NVIDIA CUDA-Enabled GPUs detected!\n' + cuda_reqs)
         elif 'CUDA_VISIBLE_DEVICES' in os.environ:
             deviceIDsavail = os.environ.get('CUDA_VISIBLE_DEVICES')
             deviceIDsavail = [int(s) for s in deviceIDsavail.split(',')]
@@ -357,33 +405,88 @@ def detect_cuda_gpus():
             deviceIDsavail = range(drv.Device.count())
 
         # Gather information about detected GPUs
-        gpus = []
         for ID in deviceIDsavail:
-            gpu = GPU()
-            gpu.get_cuda_gpu_info(drv, ID)
-            gpus.append(gpu)
+            gpus[ID] = drv.Device(ID)
 
     else:
-        gpus = None
+        logger.warning('pycuda not detected!\n' + cuda_reqs)
 
     return gpus
+
+
+def print_cuda_info(devs):
+    """"Print info about detected CUDA-capable GPU(s).
+    
+    Args:
+        devs: dict of detected pycuda device object(s) where where device ID(s)
+                are keys.
+    """""
+
+    import pycuda
+
+    logger.basic('|--->CUDA:')
+    logger.debug(f'PyCUDA: {pycuda.VERSION_TEXT}')
+
+    for ID, gpu in devs.items():
+        logger.basic(f"       |--->Device {ID}: {' '.join(gpu.name.split())} | "
+                     f"{human_size(gpu.total_memory(), a_kilobyte_is_1024_bytes=True)}")
 
 
 def detect_opencl():
     """Get information about OpenCL platforms and devices.
 
     Returns:
-        gpus (list): Detected GPU(s) object(s).
+        devs: dict of detected pyopencl device object(s) where where device ID(s)
+                are keys.
     """
 
-    try:
-        import pyopencl as cl
-        has_pyopencl = True
-    except ImportError:
-        logger.warning('pyopencl not detected - to use gprMax with OpenCL, the pyopencl package must be installed, and you must have at least one OpenCL capable platform.')
-        has_pyopencl = False
+    devs = {}
 
-    if has_pyopencl:
-        platforms = cl.get_platforms()
-        platform_names = [p.name for p in platforms]
-        logger.info(platform_names)
+    ocl_reqs = ('To use gprMax with OpenCL you must:'
+                '\n 1) install pyopencl'
+                '\n 2) install appropriate OpenCL device driver(s)'
+                '\n 3) have at least one OpenCL-capable platform.')
+
+    if has_pyopencl():
+        import pyopencl as cl
+        try:
+            i = 0
+            for platform in cl.get_platforms():
+                for device in platform.get_devices():
+                    devs[i] = device
+                    i += 1
+        except:
+            logger.warning('No OpenCL-capable platforms detected!\n' + ocl_reqs)            
+
+    else:
+        logger.warning('pyopencl not detected!\n' + ocl_reqs)
+
+    return devs
+
+
+def print_opencl_info(devs):
+    """"Print info about detected OpenCL-capable device(s).
+    
+    Args:
+        devs: dict of detected pyopencl device object(s) where where device ID(s)
+                are keys.
+    """""
+
+    import pyopencl as cl
+
+    logger.basic('|--->OpenCL:') 
+    logger.debug(f'PyOpenCL: {cl.VERSION_TEXT}')
+
+    for i, (ID, dev) in enumerate(devs.items()):
+        if i == 0:
+            platform = dev.platform.name
+            logger.basic(f'     |--->Platform: {platform}')
+        if not platform == dev.platform.name:
+            logger.basic(f'     |--->Platform: {dev.platform.name}')
+        types = cl.device_type.to_string(dev.type)
+        if 'CPU' in types:
+            type = 'CPU'
+        if 'GPU' in types:
+            type = 'GPU'
+        logger.basic(f"          |--->Device {ID}: {type} | {' '.join(dev.name.split())} | "
+                    f"{human_size(dev.global_mem_size, a_kilobyte_is_1024_bytes=True)}")

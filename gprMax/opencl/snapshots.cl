@@ -1,39 +1,17 @@
-# Copyright (C) 2015-2022: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
-#
-# This file is part of gprMax.
-#
-# gprMax is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# gprMax is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-
-from string import Template
-
-knl_template_store_snapshot = Template("""
-
 // Macros for converting subscripts to linear index:
-#define INDEX3D_FIELDS(i, j, k) (i)*($NY_FIELDS)*($NZ_FIELDS)+(j)*($NZ_FIELDS)+(k)
-#define INDEX4D_SNAPS(p, i, j, k) (p)*($NX_SNAPS)*($NY_SNAPS)*($NZ_SNAPS)+(i)*($NY_SNAPS)*($NZ_SNAPS)+(j)*($NZ_SNAPS)+(k)
+#define INDEX3D_FIELDS(i, j, k) (i)*({{NY_FIELDS}})*({{NZ_FIELDS}})+(j)*({{NZ_FIELDS}})+(k)
+#define INDEX4D_SNAPS(p, i, j, k) (p)*({{NX_SNAPS}})*({{NY_SNAPS}})*({{NZ_SNAPS}})+(i)*({{NY_SNAPS}})*({{NZ_SNAPS}})+(j)*({{NZ_SNAPS}})+(k)
 
 ////////////////////
 // Store snapshot //
 ////////////////////
 
-__global__ void store_snapshot(int p, int xs, int xf, int ys, int yf, int zs, int zf, int dx, int dy, int dz,
-                                const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey,
-                                const $REAL* __restrict__ Ez, const $REAL* __restrict__ Hx,
-                                const $REAL* __restrict__ Hy, const $REAL* __restrict__ Hz,
-                                $REAL *snapEx, $REAL *snapEy, $REAL *snapEz,
-                                $REAL *snapHx, $REAL *snapHy, $REAL *snapHz) {
+__kernel void store_snapshot(int p, int xs, int xf, int ys, int yf, int zs, int zf, int dx, int dy, int dz,
+                                __global const {{REAL}}* __restrict__ Ex, __global const {{REAL}}* __restrict__ Ey,
+                                __global const {{REAL}}* __restrict__ Ez, __global const {{REAL}}* __restrict__ Hx,
+                                __global const {{REAL}}* __restrict__ Hy, __global const {{REAL}}* __restrict__ Hz,
+                                __global {{REAL}} *snapEx, __global {{REAL}} *snapEy, __global {{REAL}} *snapEz,
+                                __global {{REAL}} *snapHx, __global {{REAL}} *snapHy, __global {{REAL}} *snapHz) {
 
     //  This function stores field values for a snapshot.
     //
@@ -45,12 +23,12 @@ __global__ void store_snapshot(int p, int xs, int xf, int ys, int yf, int zs, in
     //      snapEx, snapEy, snapEz, snapHx, snapHy, snapHz: Access to arrays to store snapshots
 
     // Obtain the linear index corresponding to the current thread
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = get_global_id(2) * get_global_size(0) * get_global_size(1) + get_global_id(1) * get_global_size(0) + get_global_id(0);
 
     // Convert the linear index to subscripts for 4D SNAPS array
-    int i = (idx % ($NX_SNAPS * $NY_SNAPS * $NZ_SNAPS)) / ($NY_SNAPS * $NZ_SNAPS);
-    int j = ((idx % ($NX_SNAPS * $NY_SNAPS * $NZ_SNAPS)) % ($NY_SNAPS * $NZ_SNAPS)) / $NZ_SNAPS;
-    int k = ((idx % ($NX_SNAPS * $NY_SNAPS * $NZ_SNAPS)) % ($NY_SNAPS * $NZ_SNAPS)) % $NZ_SNAPS;
+    int i = (idx % ({{NX_SNAPS}} * {{NY_SNAPS}} * {{NZ_SNAPS}})) / ({{NY_SNAPS}} * {{NZ_SNAPS}});
+    int j = ((idx % ({{NX_SNAPS}} * {{NY_SNAPS}} * {{NZ_SNAPS}})) % ({{NY_SNAPS}} * {{NZ_SNAPS}})) / {{NZ_SNAPS}};
+    int k = ((idx % ({{NX_SNAPS}} * {{NY_SNAPS}} * {{NZ_SNAPS}})) % ({{NY_SNAPS}} * {{NZ_SNAPS}})) % {{NZ_SNAPS}};
 
     // Subscripts for field arrays
     int ii, jj, kk;
@@ -75,5 +53,3 @@ __global__ void store_snapshot(int p, int xs, int xf, int ys, int yf, int zs, in
         snapHz[INDEX4D_SNAPS(p,i,j,k)] = (Hz[INDEX3D_FIELDS(ii,jj,kk)] + Hz[INDEX3D_FIELDS(ii,jj,kk+1)]) / 2;
     }
 }
-
-""")

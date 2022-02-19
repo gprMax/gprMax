@@ -28,7 +28,7 @@ from scipy.constants import c
 from scipy.constants import epsilon_0 as e0
 from scipy.constants import mu_0 as m0
 
-from .utilities.host_info import detect_cuda_gpus, get_host_info
+from .utilities.host_info import detect_cuda_gpus, detect_opencl, get_host_info
 from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
@@ -61,15 +61,21 @@ class ModelConfig:
         self.grids = []
         self.ompthreads = None
 
-        # Store information for CUDA solver
-        #   gpu: GPU object
-        #   snapsgpu2cpu: copy snapshot data from GPU to CPU during simulation
-        #     N.B. This will happen if the requested snapshots are too large to fit
-        #     on the memory of the GPU. If True this will slow performance significantly
-        if sim_config.general['cuda']:
-            # If a list of lists of GPU deviceIDs is found, flatten it
-            if any(isinstance(element, list) for element in sim_config.args.gpu):
-                deviceID = [val for sublist in sim_config.args.gpu for val in sublist]
+        # Store information for CUDA or OpenCL solver
+        #   dev: compute device object.
+        #   snapsgpu2cpu: copy snapshot data from GPU to CPU during simulation.
+        #     N.B. This will happen if the requested snapshots are too large to 
+        #           fit on the memory of the GPU. If True this will slow 
+        #           performance significantly.
+        if sim_config.general['solver'] == 'cuda' or sim_config.general['solver'] == 'opencl':
+            if sim_config.general['solver'] == 'cuda':
+                devs = sim_config.args.gpu
+            elif sim_config.general['solver'] == 'opencl':
+                devs = sim_config.args.opencl
+
+            # If a list of lists of deviceIDs is found, flatten it
+            if any(isinstance(element, list) for element in devs):
+                deviceID = [val for sublist in devs for val in sublist]
 
             # If no deviceID is given default to using deviceID 0. Else if either
             # a single deviceID or list of deviceIDs is given use first one.
@@ -78,8 +84,8 @@ class ModelConfig:
             except:
                 deviceID = 0
 
-            self.cuda = {'gpu': sim_config.set_model_gpu(deviceID),
-                         'snapsgpu2cpu': False}
+            self.device = {'dev': sim_config.set_model_device(deviceID),
+                           'snapsgpu2cpu': False}
 
         # Total memory usage for all grids in the model. Starts with 50MB overhead.
         self.mem_overhead = 50e6
@@ -88,29 +94,34 @@ class ModelConfig:
         self.reuse_geometry = False
 
         # String to print at start of each model run
-        s = f'\n--- Model {model_num + 1}/{sim_config.model_end}, input file: {sim_config.input_file_path}'
-        self.inputfilestr = Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
+        s = (f'\n--- Model {model_num + 1}/{sim_config.model_end}, '
+             f'input file: {sim_config.input_file_path}')
+        self.inputfilestr = (Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + 
+                            Style.RESET_ALL)
 
         # Output file path and name for specific model
         self.appendmodelnumber = '' if sim_config.single_model else str(model_num + 1) # Indexed from 1
         self.set_output_file_path()
 
         # Numerical dispersion analysis parameters
-        #   highestfreqthres: threshold (dB) down from maximum power (0dB) of main frequency used
-        #     to calculate highest frequency for numerical dispersion analysis
-        #   maxnumericaldisp: maximum allowable percentage physical phase-velocity phase error
-        #   mingridsampling: minimum grid sampling of smallest wavelength for physical wave propagation
+        #   highestfreqthres: threshold (dB) down from maximum power (0dB) of 
+        #                       main frequency used to calculate highest 
+        #                       frequency for numerical dispersion analysis.
+        #   maxnumericaldisp: maximum allowable percentage physical 
+        #                       phase-velocity phase error.
+        #   mingridsampling: minimum grid sampling of smallest wavelength for 
+        #                       physical wave propagation.
         self.numdispersion = {'highestfreqthres': 40,
                               'maxnumericaldisp': 2,
                               'mingridsampling': 3}
 
         # General information to configure materials
-        #   maxpoles: Maximum number of dispersive material poles in a model
-        #   dispersivedtype: Data type for dispersive materials
-        #   dispersiveCdtype: Data type for dispersive materials in Cython
-        #   drudelorentz: True/False model contains Drude or Lorentz materials
+        #   maxpoles: Maximum number of dispersive material poles in a model.
+        #   dispersivedtype: Data type for dispersive materials.
+        #   dispersiveCdtype: Data type for dispersive materials in Cython.
+        #   drudelorentz: True/False model contains Drude or Lorentz materials.
         #   cudarealfunc: String to substitute into CUDA kernels for fields
-        #                   dependent on dispersive material type
+        #                   dependent on dispersive material type.
         self.materials = {'maxpoles': 0,
                           'dispersivedtype': None,
                           'dispersiveCdtype': None,
@@ -123,32 +134,32 @@ class ModelConfig:
         else: return None
 
     def get_usernamespace(self):
-        return {'c': c, # Speed of light in free space (m/s)
-                'e0': e0, # Permittivity of free space (F/m)
-                'm0': m0, # Permeability of free space (H/m)
-                'z0': np.sqrt(m0 / e0), # Impedance of free space (Ohms)
-                'number_model_runs': sim_config.model_end,
-                'current_model_run': model_num + 1,
-                'inputfile': sim_config.input_file_path.resolve()}
+        tmp = {'number_model_runs': sim_config.model_end,
+               'current_model_run': model_num + 1,
+               'inputfile': sim_config.input_file_path.resolve()}
+        return dict(**sim_config.em_consts, **tmp)
+        
 
     def set_dispersive_material_types(self):
         """Set data type for disperive materials. Complex if Drude or Lorentz
             materials are present. Real if Debye materials.
         """
         if self.materials['drudelorentz']:
-            self.materials['cudarealfunc'] = '.real()'
+            self.materials['crealfunc'] = '.real()'
             self.materials['dispersivedtype'] = sim_config.dtypes['complex']
             self.materials['dispersiveCdtype'] = sim_config.dtypes['C_complex']
         else:
+            self.materials['crealfunc'] = ''
             self.materials['dispersivedtype'] = sim_config.dtypes['float_or_double']
             self.materials['dispersiveCdtype'] = sim_config.dtypes['C_float_or_double']
 
     def set_output_file_path(self, outputdir=None):
-        """Output file path can be provided by the user via the API or an input file
-            command. If they haven't provided one use the input file path instead.
+        """Output file path can be provided by the user via the API or an input 
+            file command. If they haven't provided one use the input file path 
+            instead.
 
         Args:
-            outputdir (str): Output file directory given from input file command.
+            outputdir: string of output file directory given by input file command.
         """
 
         if not outputdir:
@@ -171,7 +182,7 @@ class ModelConfig:
         """Set directory to store any snapshots.
         
         Returns:
-            snapshot_dir (Path): directory to store snapshot files in.
+            snapshot_dir: Path to directory to store snapshot files in.
         """
         parts = self.output_file_path.with_suffix('').parts
         snapshot_dir = Path(*parts[:-1], parts[-1] + '_snaps')
@@ -187,7 +198,7 @@ class SimulationConfig:
     def __init__(self, args):
         """
         Args:
-            args (Namespace): Arguments from either API or CLI.
+            args: Namespace with arguments from either API or CLI.
         """
 
         self.args = args
@@ -196,17 +207,19 @@ class SimulationConfig:
             logger.exception('The geometry fixed option cannot be used with MPI.')
             raise ValueError
 
-        # General settings for the simulation
-        #   inputfilepath: path to inputfile location
-        #   outputfilepath: path to outputfile location
-        #   progressbars: whether to show progress bars on stdoout or not
-        #   cpu, cuda, opencl: solver type
-        #   subgrid: whether the simulation uses sub-grids
-        #   precision: data type for electromagnetic field output (single/double)
+        if args.gpu and args.opencl:
+            logger.exception('You cannot use both CUDA and OpenCl simultaneously.')
+            raise ValueError
 
-        self.general = {'cpu': True,
-                        'cuda': False,
-                        'opencl': False,
+        # General settings for the simulation
+        #   inputfilepath: path to inputfile location.
+        #   outputfilepath: path to outputfile location.
+        #   progressbars: whether to show progress bars on stdoout or not.
+        #   solver: cpu, cuda, opencl.
+        #   subgrid: whether the simulation uses sub-grids.
+        #   precision: data type for electromagnetic field output (single/double).
+
+        self.general = {'solver': 'cpu',
                         'subgrid': False,
                         'precision': 'single'}
 
@@ -222,29 +235,37 @@ class SimulationConfig:
         # Store information about host machine
         self.hostinfo = get_host_info()
 
-        # Information about any Nvidia GPUs
+        # CUDA
         if self.args.gpu is not None:
-            self.general['cuda'] = True
-            self.general['cpu'] = False
-            self.general['opencl'] = False
+            self.general['solver'] = 'cuda'
             # Both single and double precision are possible on GPUs, but single
             # provides best performance.
             self.general['precision'] = 'single'
-            self.cuda = {'gpus': [], # gpus: list of GPU objects
-                         'nvcc_opts': None} # nvcc_opts: nvcc compiler options
+            self.devices = {'devs': [], # devs: list of pycuda device objects
+                            'nvcc_opts': None} # nvcc_opts: nvcc compiler options
             # Suppress nvcc warnings on Microsoft Windows
             if sys.platform == 'win32': self.cuda['nvcc_opts'] = ['-w']
 
-            # List of GPU objects of available GPUs
-            self.cuda['gpus'] = detect_cuda_gpus()
+            # Add pycuda available GPU(s)
+            self.devices['devs'] = detect_cuda_gpus()
+
+        # OpenCL
+        if self.args.opencl is not None:
+            self.general['solver'] = 'opencl'
+            self.general['precision'] = 'single'
+            # List of pyopencl available device(s)
+            self.devices = {'devs': []}
+            self.devices['devs'] = detect_opencl() 
 
         # Subgrid parameter may not exist if user enters via CLI
         try:
             self.general['subgrid'] = self.args.subgrid
             # Double precision should be used with subgrid for best accuracy
             self.general['precision'] = 'double'
-            if self.general['subgrid'] and self.general['cuda']:
-                logger.exception('The CUDA-based solver cannot currently be used with models that contain sub-grids.')
+            if ((self.general['subgrid'] and self.general['cuda']) or 
+                (self.general['subgrid'] and self.general['opencl'])):
+                logger.exception('You cannot currently use CUDA or OpenCL-based '
+                                 'solvers with models that contain sub-grids.')
                 raise ValueError
         except AttributeError:
             self.general['subgrid'] = False
@@ -262,34 +283,35 @@ class SimulationConfig:
         self._set_model_start_end()
         self._set_single_model()
 
-    def set_model_gpu(self, deviceID):
-        """Specify GPU object for model.
+    def set_model_device(self, deviceID):
+        """Specify pycuda/pyopencl object for model.
 
         Args:
-            deviceID (int): Requested deviceID of GPU
+            deviceID: int of requested deviceID of compute device.
 
         Returns:
-            gpu (GPU object): Requested GPU object.
+            dev: requested pycuda/pyopencl device object.
         """
 
         found = False
-        for gpu in self.cuda['gpus']:
-            if gpu.deviceID == deviceID:
+        for ID, dev in self.devices['devs'].items():
+            if ID == deviceID:
                 found = True
-                return gpu
+                return dev
 
         if not found:
-            logger.exception(f'GPU with device ID {deviceID} does not exist')
+            logger.exception(f'Compute device with device ID {deviceID} does '
+                             'not exist.')
             raise ValueError
 
     def _set_precision(self):
         """Data type (precision) for electromagnetic field output.
 
-            Solid and ID arrays use 32-bit integers (0 to 4294967295)
-            Rigid arrays use 8-bit integers (the smallest available type to store true/false)
-            Fractal arrays use complex numbers
-            Dispersive coefficient arrays use either float or complex numbers
-            Main field arrays use floats
+            Solid and ID arrays use 32-bit integers (0 to 4294967295).
+            Rigid arrays use 8-bit integers (the smallest available type to store true/false).
+            Fractal arrays use complex numbers.
+            Dispersive coefficient arrays use either float or complex numbers.
+            Main field arrays use floats.
         """
 
         if self.general['precision'] == 'single':
@@ -298,16 +320,25 @@ class SimulationConfig:
                       'cython_float_or_double': cython.float,
                       'cython_complex': cython.floatcomplex,
                       'C_float_or_double': 'float',
-                      'C_complex': 'pycuda::complex<float>',
+                      'C_complex': None,
                       'vtk_float': 'Float32'}
+            if self.general['solver'] == 'cuda':
+                self.dtypes['C_complex'] = 'pycuda::complex<float>'
+            elif self.general['solver'] == 'opencl':
+                self.dtypes['C_complex'] = 'cfloat'
+
         elif self.general['precision'] == 'double':
             self.dtypes = {'float_or_double': np.float64,
                       'complex': np.complex128,
                       'cython_float_or_double': cython.double,
                       'cython_complex': cython.doublecomplex,
                       'C_float_or_double': 'double',
-                      'C_complex': 'pycuda::complex<double>',
+                      'C_complex': None,
                       'vtk_float': 'Float64'}
+            if self.general['solver'] == 'cuda':
+                self.dtypes['C_complex'] = 'pycuda::complex<double>'
+            elif self.general['solver'] == 'opencl':
+                self.dtypes['C_complex'] = 'cdouble'
 
     def _get_byteorder(self):
         """Check the byte order of system to use for VTK files, i.e. geometry

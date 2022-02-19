@@ -1,0 +1,22 @@
+{% extends "snapshots_base.tmpl" %}
+
+
+{% block threadidx %}
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+{% endblock threadidx %}
+
+
+{% block snap_args %}
+const {{REAL}}* __restrict__ Ex, 
+const {{REAL}}* __restrict__ Ey,
+const {{REAL}}* __restrict__ Ez, 
+const {{REAL}}* __restrict__ Hx,
+const {{REAL}}* __restrict__ Hy, 
+const {{REAL}}* __restrict__ Hz,
+{{REAL}} *snapEx, 
+{{REAL}} *snapEy, 
+{{REAL}} *snapEz,
+{{REAL}} *snapHx, 
+{{REAL}} *snapHy, 
+{{REAL}} *snapHz
+{% endblock snap_args %}

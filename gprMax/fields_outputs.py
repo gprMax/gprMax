@@ -56,7 +56,7 @@ def store_outputs(G):
         tl.Itotal[iteration] = tl.current[tl.antpos]
 
 
-kernel_template_store_outputs = Template("""
+knl_template_store_outputs = Template("""
 
 // Macros for converting subscripts to linear index:
 #define INDEX2D_RXCOORDS(m, n) (m)*($NY_RXCOORDS)+(n)

@@ -25,18 +25,23 @@ import gprMax.config as config
 from ._version import __version__, codename
 from .model_build_run import ModelBuildRun
 from .solvers import create_G, create_solver
-from .utilities.utilities import get_terminal_width, human_size, logo, timer
+from .utilities.host_info import (detect_cuda_gpus, detect_opencl,
+                                  print_cuda_info, print_host_info,
+                                  print_opencl_info)
+from .utilities.utilities import get_terminal_width, logo, timer
 
 logger = logging.getLogger(__name__)
 
 
 class Context:
     """Standard context - models are run one after another and each model
-        can exploit parallelisation using either OpenMP (CPU) or CUDA (GPU).
+        can exploit parallelisation using either OpenMP (CPU), CUDA (GPU), or
+        OpenCL (CPU/GPU).
     """
 
     def __init__(self):
-        self.model_range = range(config.sim_config.model_start, config.sim_config.model_end)
+        self.model_range = range(config.sim_config.model_start, 
+                                 config.sim_config.model_end)
         self.tsimend = None
         self.tsimstart = None        
 
@@ -44,10 +49,12 @@ class Context:
         """Run the simulation in the correct context."""
         self.tsimstart = timer()
         self.print_logo_copyright()
-        self.print_host_info()
-        if config.sim_config.general['cuda']:
-            self.print_gpu_info()
-        
+        print_host_info(config.sim_config.hostinfo)
+        if config.sim_config.general['solver'] == 'cuda':
+            print_cuda_info(config.sim_config.devices['devs'])
+        elif config.sim_config.general['solver'] == 'opencl':
+            print_opencl_info(config.sim_config.devices['devs'])
+
         # Clear list of model configs. It can be retained when gprMax is
         # called in a loop, and want to avoid this.
         config.model_configs = []
@@ -79,33 +86,23 @@ class Context:
         logo_copyright = logo(__version__ + ' (' + codename + ')')
         logger.basic(logo_copyright)
 
-    def print_host_info(self):
-        """Print information about the host machine."""
-        hyperthreadingstr = f", {config.sim_config.hostinfo['logicalcores']} cores with Hyper-Threading" if config.sim_config.hostinfo['hyperthreading'] else ''
-        logger.basic(f"\nHost: {config.sim_config.hostinfo['hostname']} | {config.sim_config.hostinfo['machineID']} | {config.sim_config.hostinfo['sockets']} x {config.sim_config.hostinfo['cpuID']} ({config.sim_config.hostinfo['physicalcores']} cores{hyperthreadingstr}) | {human_size(config.sim_config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} RAM | {config.sim_config.hostinfo['osversion']}")
-
-    def print_gpu_info(self):
-        """Print information about any NVIDIA CUDA GPUs detected."""
-        gpus_info = []
-        for gpu in config.sim_config.cuda['gpus']:
-            gpus_info.append(f'{gpu.deviceID} - {gpu.name}, {human_size(gpu.totalmem, a_kilobyte_is_1024_bytes=True)}')
-        logger.basic(f"GPU resources: {' | '.join(gpus_info)}")
-
     def print_time_report(self):
         """Print the total simulation time based on context."""
-        s = f"\n=== Simulation completed in [HH:MM:SS]: {datetime.timedelta(seconds=self.tsimend - self.tsimstart)}"
+        s = ("\n=== Simulation completed in [HH:MM:SS]: "
+             f"{datetime.timedelta(seconds=self.tsimend - self.tsimstart)}")
         logger.basic(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")
 
 
 class MPIContext(Context):
     """Mixed mode MPI/OpenMP/CUDA context - MPI task farm is used to distribute
-        models, and each model parallelised using either OpenMP (CPU)
-        or CUDA (GPU).
+        models, and each model parallelised using either OpenMP (CPU), 
+        CUDA (GPU), or OpenCL (CPU/GPU).
     """
 
     def __init__(self):
         super().__init__()
         from mpi4py import MPI
+
         from gprMax.mpi import MPIExecutor
 
         self.comm = MPI.COMM_WORLD
@@ -149,7 +146,9 @@ class MPIContext(Context):
         if executor.is_master():
             if config.sim_config.general['cuda']:
                 if executor.size - 1 > len(config.sim_config.cuda['gpus']):
-                    logger.exception('Not enough GPU resources for number of MPI tasks requested. Number of MPI tasks should be equal to number of GPUs + 1.')
+                    logger.exception('Not enough GPU resources for number of '
+                                     'MPI tasks requested. Number of MPI tasks '
+                                     'should be equal to number of GPUs + 1.')
                     raise ValueError
 
         # Create job list
@@ -175,7 +174,8 @@ class SPOTPYContext(Context):
         (https://github.com/thouska/spotpy). SPOTPY coupling can utilise 2 levels
         of MPI parallelism - where the top level is where SPOPTY optmisation 
         algorithms can be parallelised, and the lower level is where gprMax
-        models can be parallelised using either OpenMP (CPU) or CUDA (GPU).
+        models can be parallelised using either OpenMP (CPU), CUDA (GPU), or
+        OpenCL (CPU/GPU).
     """
 
     def __init__(self):

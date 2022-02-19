@@ -18,22 +18,24 @@
 
 import gprMax.config as config
 
-from .grid import CUDAGrid, FDTDGrid
+from .grid import CUDAGrid, FDTDGrid, OpenCLGrid
 from .subgrids.updates import create_updates as create_subgrid_updates
-from .updates import CPUUpdates, CUDAUpdates
+from .updates import CPUUpdates, CUDAUpdates, OpenCLUpdates
 
 
 def create_G():
     """Create grid object according to solver.
 
     Returns:
-        G (FDTDGrid): Holds essential parameters describing the model.
+        G: FDTDGrid that holds essential parameters describing the model.
     """
 
-    if config.sim_config.general['cpu']:
+    if config.sim_config.general['solver'] == 'cpu':
         G = FDTDGrid()
-    elif config.sim_config.general['cuda']:
+    elif config.sim_config.general['solver'] == 'cuda':
         G = CUDAGrid()
+    elif config.sim_config.general['solver'] == 'opencl':
+        G = OpenCLGrid()
 
     return G
 
@@ -42,10 +44,10 @@ def create_solver(G):
     """Create configured solver object.
 
     Args:
-        G (FDTDGrid): Holds essential parameters describing the model.
+        G: FDTDGrid that holds essential parameters describing the model.
 
     Returns:
-        solver (Solver): solver object.
+        solver: Solver object.
     """
 
     if config.sim_config.general['subgrid']:
@@ -56,13 +58,16 @@ def create_solver(G):
         # the required numerical precision and dispersive material type.
         props = updates.adapt_dispersive_config()
         updates.set_dispersive_updates(props)
-    elif config.sim_config.general['cpu']:
+    elif config.sim_config.general['solver'] == 'cpu':
         updates = CPUUpdates(G)
         solver = Solver(updates)
         props = updates.adapt_dispersive_config()
         updates.set_dispersive_updates(props)
-    elif config.sim_config.general['cuda']:
+    elif config.sim_config.general['solver'] == 'cuda':
         updates = CUDAUpdates(G)
+        solver = Solver(updates)
+    elif config.sim_config.general['solver'] == 'opencl':
+        updates = OpenCLUpdates(G)
         solver = Solver(updates)
 
     return solver
@@ -74,8 +79,8 @@ class Solver:
     def __init__(self, updates, hsg=False):
         """
         Args:
-            updates (Updates): Updates contains methods to run FDTD algorithm.
-            hsg (bool): Use sub-gridding.
+            updates: Updates contains methods to run FDTD algorithm.
+            hsg: bool to use sub-gridding.
         """
 
         self.updates = updates
@@ -85,13 +90,14 @@ class Solver:
         """Time step the FDTD model.
 
         Args:
-            iterator (iterator): can be range() or tqdm()
+            iterator: can be range() or tqdm()
 
         Returns:
-            tsolve (float): Time taken to execute solving (seconds).
-            memsolve (float): Memory (RAM) used.
+            tsolve: float for time taken to execute solving (seconds).
+            memsolve: float for memory (RAM) used.
         """
 
+        memsolve = 0
         self.updates.time_start()
 
         for iteration in iterator:
@@ -108,7 +114,8 @@ class Solver:
             if self.hsg:
                 self.updates.hsg_1()
             self.updates.update_electric_b()
-            memsolve = self.updates.calculate_memsolve(iteration) if config.sim_config.general['cuda'] else None
+            if config.sim_config.general['solver'] == 'cuda':
+                memsolve = self.updates.calculate_memsolve(iteration)  
 
         self.updates.finalise()
         tsolve = self.updates.calculate_tsolve()

@@ -149,7 +149,9 @@ class ModelBuildRun:
 
         # Check memory requirements
         total_mem, mem_strs = mem_check_all(grids)
-        logger.info(f'\nMemory required: {" + ".join(mem_strs)} + ~{human_size(config.get_model_config().mem_overhead)} overhead = {human_size(total_mem)}')
+        logger.info(f'\nMemory required: {" + ".join(mem_strs)} + '
+                    f'~{human_size(config.get_model_config().mem_overhead)} '
+                    f'overhead = {human_size(total_mem)}')
 
         # Build grids
         gridbuilders = [GridBuilder(grid) for grid in grids]
@@ -170,21 +172,41 @@ class ModelBuildRun:
             # Check to see if numerical dispersion might be a problem
             results = dispersion_analysis(gb.grid)
             if results['error']:
-                logger.warning(f"\nNumerical dispersion analysis [{gb.grid.name}] not carried out as {results['error']}")
+                logger.warning(f"\nNumerical dispersion analysis [{gb.grid.name}] "
+                               f"not carried out as {results['error']}")
             elif results['N'] < config.get_model_config().numdispersion['mingridsampling']:
-                logger.exception(f"\nNon-physical wave propagation in [{gb.grid.name}] detected. Material '{results['material'].ID}' has wavelength sampled by {results['N']} cells, less than required minimum for physical wave propagation. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
+                logger.exception(f"\nNon-physical wave propagation in [{gb.grid.name}] "
+                                 f"detected. Material '{results['material'].ID}' "
+                                 f"has wavelength sampled by {results['N']} cells, "
+                                 f"less than required minimum for physical wave "
+                                 f"propagation. Maximum significant frequency "
+                                 f"estimated as {results['maxfreq']:g}Hz")
                 raise ValueError
             elif (results['deltavp'] and np.abs(results['deltavp']) >
                   config.get_model_config().numdispersion['maxnumericaldisp']):
-                logger.warning(f"\n[{gb.grid.name}] has potentially significant numerical dispersion. Estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
+                logger.warning(f"\n[{gb.grid.name}] has potentially significant "
+                               f"numerical dispersion. Estimated largest physical "
+                               f"phase-velocity error is {results['deltavp']:.2f}% "
+                               f"in material '{results['material'].ID}' whose "
+                               f"wavelength sampled by {results['N']} cells. "
+                               f"Maximum significant frequency estimated as "
+                               f"{results['maxfreq']:g}Hz")
             elif results['deltavp']:
-                logger.info(f"\nNumerical dispersion analysis [{gb.grid.name}]: estimated largest physical phase-velocity error is {results['deltavp']:.2f}% in material '{results['material'].ID}' whose wavelength sampled by {results['N']} cells. Maximum significant frequency estimated as {results['maxfreq']:g}Hz")
+                logger.info(f"\nNumerical dispersion analysis [{gb.grid.name}]: "
+                            f"estimated largest physical phase-velocity error is "
+                            f"{results['deltavp']:.2f}% in material '{results['material'].ID}' "
+                            f"whose wavelength sampled by {results['N']} cells. "
+                            f"Maximum significant frequency estimated as "
+                            f"{results['maxfreq']:g}Hz")
 
     def reuse_geometry(self):
         # Reset iteration number
         self.G.iteration = 0
-        s = f'\n--- Model {config.get_model_config().appendmodelnumber}/{config.sim_config.model_end}, input file (not re-processed, i.e. geometry fixed): {config.sim_config.input_file_path}'
-        config.get_model_config().inputfilestr = Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
+        s = (f'\n--- Model {config.get_model_config().appendmodelnumber}/{config.sim_config.model_end}, '
+             f'input file (not re-processed, i.e. geometry fixed): '
+             f'{config.sim_config.input_file_path}')
+        config.get_model_config().inputfilestr = (Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + 
+                                                  Style.RESET_ALL)
         logger.basic(config.get_model_config().inputfilestr)
         for grid in [self.G] + self.G.subgrids:
             grid.reset_fields()
@@ -224,7 +246,9 @@ class ModelBuildRun:
                 fn = snapshotdir / Path(snap.filename)
                 snap.filename = fn.with_suffix(snap.fileext)
                 pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte',
-                            unit_scale=True, desc=f'Writing snapshot file {i + 1} of {len(self.G.snapshots)}, {snap.filename.name}', 
+                            unit_scale=True, desc=f'Writing snapshot file {i + 1} '
+                                                  f'of {len(self.G.snapshots)}, '
+                                                  f'{snap.filename.name}', 
                             ncols=get_terminal_width() - 1, file=sys.stdout, 
                             disable=not config.sim_config.general['progressbars'])
                 snap.write_file(pbar, self.G)
@@ -235,12 +259,12 @@ class ModelBuildRun:
         """Print resource information on runtime and memory usage.
 
         Args:
-            tsolve (float): Time taken to execute solving (seconds).
-            memsolve (float): Memory (RAM) used on GPU.
+            tsolve: float of time taken to execute solving (seconds).
+            memsolve: float of memory (RAM) used.
         """
 
         mem_str = ''
-        if config.sim_config.general['cuda']:
+        if config.sim_config.general['solver'] == 'cuda':
             mem_str = f' host + ~{human_size(memsolve)} GPU'
 
         logger.info(f'\nMemory used: ~{human_size(self.p.memory_full_info().uss)}{mem_str}')
@@ -250,24 +274,37 @@ class ModelBuildRun:
         """Solve using FDTD method.
 
         Args:
-            solver (Solver): solver object.
+            solver: solver object.
 
         Returns:
-            tsolve (float): time taken to execute solving (seconds).
+            tsolve: float of time taken to execute solving (seconds).
         """
 
-        # Check number of OpenMP threads
-        if config.sim_config.general['cpu']:
-            logger.basic(f"CPU solver using: {config.get_model_config().ompthreads} OpenMP thread(s) on {config.sim_config.hostinfo['hostname']}\n")
+        # Print information about and check OpenMP threads
+        if config.sim_config.general['solver'] == 'cpu':
+            logger.basic(f"OPENMP solver with {config.get_model_config().ompthreads} "
+                         f"thread(s) on {config.sim_config.hostinfo['hostname']}\n")
             if config.get_model_config().ompthreads > config.sim_config.hostinfo['physicalcores']:
-                logger.warning(f"You have specified more threads ({config.get_model_config().ompthreads}) than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). This may lead to degraded performance.")
-        # Print information about any GPU in use
-        elif config.sim_config.general['cuda']:
-            logger.basic(f"GPU solver using: {config.get_model_config().cuda['gpu'].deviceID} - {config.get_model_config().cuda['gpu'].name} on {config.sim_config.hostinfo['hostname']}\n")
+                logger.warning(f"You have specified more threads ({config.get_model_config().ompthreads}) "
+                               f"than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). "
+                               f"This may lead to degraded performance.")
+        # Print information about any compute device, e.g. GPU, in use
+        elif config.sim_config.general['solver'] == 'cuda' or config.sim_config.general['solver'] == 'opencl':
+            solvername = config.sim_config.general['solver'].upper()
+            hostname = config.sim_config.hostinfo['hostname']
+            if config.sim_config.general['solver'] == 'opencl':
+                platformname = ' on ' + ' '.join(config.get_model_config().device['dev'].platform.name.split()) + ' platform'
+            else:
+                platformname = ''
+            devicename = ' '.join(config.get_model_config().device['dev'].name.split())
+            logger.basic(f"{solvername} solver using {devicename}{platformname} "
+                         f"on {hostname}\n")
 
         # Prepare iterator
         if config.sim_config.general['progressbars']:
-            iterator = tqdm(range(self.G.iterations), desc=f'Running model {config.model_num + 1}/{config.sim_config.model_end}', ncols=get_terminal_width() - 1, file=sys.stdout, disable=not config.sim_config.general['progressbars'])
+            iterator = tqdm(range(self.G.iterations), desc=f'Running model {config.model_num + 1}/{config.sim_config.model_end}', 
+                            ncols=get_terminal_width() - 1, file=sys.stdout, 
+                            disable=not config.sim_config.general['progressbars'])
         else:
             iterator = range(self.G.iterations)
 

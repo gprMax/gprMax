@@ -32,6 +32,7 @@ args_defaults = {'scenes': None,
                  'restart': None,
                  'mpi': False,
                  'gpu': None,
+                 'opencl': None,
                  'subgrid': False,
                  'autotranslate': False,
                  'geometry_only': False,
@@ -67,6 +68,8 @@ help_msg = {'scenes': '(list, opt): List of the scenes to run the model. '
                    'performance section of the User Guide.',
             'gpu': '(list/bool, opt): Flag to use NVIDIA GPU or list of NVIDIA '
                    'GPU device ID(s) for specific GPU card(s).',
+            'opencl': '(list/bool, opt): Flag to use OpenCL or list of OpenCL '
+                   'device ID(s) for specific compute device(s).',
             'subgrid': '(bool, opt): Flag to use sub-gridding.',
             'autotranslate': '(bool, opt): For sub-gridding - auto translate '
                              'objects with main grid coordinates to their '
@@ -92,6 +95,7 @@ def run(scenes=args_defaults['scenes'],
         restart=args_defaults['restart'],
         mpi=args_defaults['mpi'],
         gpu=args_defaults['gpu'],
+        opencl=args_defaults['opencl'],
         subgrid=args_defaults['subgrid'],
         autotranslate=args_defaults['autotranslate'],
         geometry_only=args_defaults['geometry_only'],
@@ -112,6 +116,7 @@ def run(scenes=args_defaults['scenes'],
                                  'restart': restart,
                                  'mpi': mpi,
                                  'gpu': gpu,
+                                 'opencl': opencl,
                                  'subgrid': subgrid,
                                  'autotranslate': autotranslate,
                                  'geometry_only': geometry_only,
@@ -139,6 +144,8 @@ def cli():
                         help=help_msg['mpi'])
     parser.add_argument('-gpu', type=int, action='append', nargs='*',
                         help=help_msg['gpu'])
+    parser.add_argument('-opencl', type=int, action='append', nargs='*',
+                        help=help_msg['opencl'])
     parser.add_argument('--geometry-only', action='store_true', 
                         default=args_defaults['geometry_only'],
                         help=help_msg['geometry_only'])
@@ -176,11 +183,11 @@ def run_main(args):
         if args.spotpy:
             context = SPOTPYContext()
             context.run(args.i)
-    # MPI running with (OpenMP/CUDA)
+    # MPI running with (OpenMP/CUDA/OpenCL)
     elif config.sim_config.args.mpi:
         context = MPIContext()
         context.run()
-    # Standard running (OpenMP/CUDA)
+    # Standard running (OpenMP/CUDA/OpenCL)
     else:
         context = Context()
         context.run()

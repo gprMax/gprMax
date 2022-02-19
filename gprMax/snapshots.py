@@ -223,17 +223,16 @@ class Snapshot:
         f.close()
 
 
-def htod_snapshot_array(G):
-    """Initialise array on GPU for to store field data for snapshots.
+def htod_snapshot_array(G, queue=None):
+    """Initialise array on compute device for to store field data for snapshots.
 
     Args:
-        G (FDTDGrid): Parameters describing a grid in a model.
+        G: FDTDGrid object with parameters describing a grid in a model.
+        queue: pyopencl queue.
 
     Returns:
-        snapE_gpu, snapH_gpu (float): numpy arrays of snapshot data on GPU.
+        snapE_dev, snapH_dev: float arrays of snapshot data on compute device.
     """
-
-    import pycuda.gpuarray as gpuarray
 
     # Get dimensions of largest requested snapshot
     for snap in G.snapshots:
@@ -244,15 +243,21 @@ def htod_snapshot_array(G):
         if snap.nz > Snapshot.nz_max:
             Snapshot.nz_max = snap.nz
 
-    # GPU - blocks per grid - according to largest requested snapshot
-    Snapshot.bpg = (int(np.ceil(((Snapshot.nx_max) *
-                                 (Snapshot.ny_max) *
-                                 (Snapshot.nz_max)) / Snapshot.tpb[0])), 1, 1)
+    if config.sim_config.general['solver'] == 'cuda':
+        # Blocks per grid - according to largest requested snapshot
+        Snapshot.bpg = (int(np.ceil(((Snapshot.nx_max) *
+                                     (Snapshot.ny_max) *
+                                     (Snapshot.nz_max)) / Snapshot.tpb[0])), 1, 1)
+    elif config.sim_config.general['solver'] == 'opencl':
+        # Workgroup size - according to largest requested snapshot
+        Snapshot.wgs = (int(np.ceil(((Snapshot.nx_max) * 
+                                     (Snapshot.ny_max) * 
+                                     (Snapshot.nz_max)))), 1, 1)
 
     # 4D arrays to store snapshots on GPU, e.g. snapEx(time, x, y, z);
     # if snapshots are not being stored on the GPU during the simulation then
     # they are copied back to the host after each iteration, hence numsnaps = 1
-    numsnaps = 1 if config.get_model_config().cuda['snapsgpu2cpu'] else len(G.snapshots)
+    numsnaps = 1 if config.get_model_config().device['snapsgpu2cpu'] else len(G.snapshots)
     snapEx = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
                       dtype=config.sim_config.dtypes['float_or_double'])
     snapEy = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
@@ -266,29 +271,41 @@ def htod_snapshot_array(G):
     snapHz = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
                       dtype=config.sim_config.dtypes['float_or_double'])
 
-    # Copy arrays to GPU
-    snapEx_gpu = gpuarray.to_gpu(snapEx)
-    snapEy_gpu = gpuarray.to_gpu(snapEy)
-    snapEz_gpu = gpuarray.to_gpu(snapEz)
-    snapHx_gpu = gpuarray.to_gpu(snapHx)
-    snapHy_gpu = gpuarray.to_gpu(snapHy)
-    snapHz_gpu = gpuarray.to_gpu(snapHz)
+    # Copy arrays to compute device
+    if config.sim_config.general['solver'] == 'cuda':
+        import pycuda.gpuarray as gpuarray
+        snapEx_dev = gpuarray.to_gpu(snapEx)
+        snapEy_dev = gpuarray.to_gpu(snapEy)
+        snapEz_dev = gpuarray.to_gpu(snapEz)
+        snapHx_dev = gpuarray.to_gpu(snapHx)
+        snapHy_dev = gpuarray.to_gpu(snapHy)
+        snapHz_dev = gpuarray.to_gpu(snapHz)
 
-    return snapEx_gpu, snapEy_gpu, snapEz_gpu, snapHx_gpu, snapHy_gpu, snapHz_gpu
+    elif config.sim_config.general['solver'] == 'opencl':
+        import pyopencl.array as clarray
+        snapEx_dev = clarray.to_device(queue, snapEx)
+        snapEy_dev = clarray.to_device(queue, snapEy)
+        snapEz_dev = clarray.to_device(queue, snapEz)
+        snapHx_dev = clarray.to_device(queue, snapHx)
+        snapHy_dev = clarray.to_device(queue, snapHy)
+        snapHz_dev = clarray.to_device(queue, snapHz)
+
+    return snapEx_dev, snapEy_dev, snapEz_dev, snapHx_dev, snapHy_dev, snapHz_dev
 
 
-def dtoh_snapshot_array(snapEx_gpu, snapEy_gpu, snapEz_gpu, snapHx_gpu, snapHy_gpu, snapHz_gpu, i, snap):
-    """Copy snapshot array used on GPU back to snapshot objects and store in format for Paraview.
+def dtoh_snapshot_array(snapEx_dev, snapEy_dev, snapEz_dev, snapHx_dev, snapHy_dev, snapHz_dev, i, snap):
+    """Copy snapshot array used on compute device back to snapshot objects and 
+        store in format for Paraview.
 
     Args:
-        snapE_gpu, snapH_gpu (float): numpy arrays of snapshot data from GPU.
-        i (int): index for snapshot data on GPU array.
-        snap (class): Snapshot class instance
+        snapE_dev, snapH_dev: float arrays of snapshot data from compute device.
+        i: int for index of snapshot data on compute device array.
+        snap: Snapshot class instance
     """
 
-    snap.Exsnap = snapEx_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
-    snap.Eysnap = snapEy_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
-    snap.Ezsnap = snapEz_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
-    snap.Hxsnap = snapHx_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
-    snap.Hysnap = snapHy_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
-    snap.Hzsnap = snapHz_gpu[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.Exsnap = snapEx_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.Eysnap = snapEy_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.Ezsnap = snapEz_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.Hxsnap = snapHx_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.Hysnap = snapHy_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.Hzsnap = snapHz_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]

@@ -18,7 +18,7 @@
 
 from string import Template
 
-kernel_template_sources = Template("""
+knl_template_sources = Template("""
 
 // Macros for converting subscripts to linear index:
 #define INDEX2D_MAT(m, n) (m)*($NY_MATCOEFFS)+(n)

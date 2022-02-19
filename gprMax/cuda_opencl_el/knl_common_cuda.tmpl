@@ -1,0 +1,11 @@
+{% extends "knl_common_base.tmpl" %}
+
+{% block complex_header %}
+#include <pycuda-complex.hpp>
+{% endblock complex_header %}
+
+
+{% block constmem %}
+__device__ __constant__ {{REAL}} updatecoeffsE[{{N_updatecoeffsE}}];
+__device__ __constant__ {{REAL}} updatecoeffsH[{{N_updatecoeffsH}}];
+{% endblock constmem %}

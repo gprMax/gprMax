@@ -50,7 +50,7 @@ def build_dispersive_material_templates():
 
     env = Environment(loader = FileSystemLoader(os.path.join('gprMax', 'cython')), )
 
-    template = env.get_template('fields_updates_dispersive_template')
+    template = env.get_template('fields_updates_dispersive_template.jinja')
 
     # Render dispersive template for different types
     r = template.render(
@@ -159,7 +159,7 @@ if 'cleanall' in sys.argv:
         shutil.rmtree(p, ignore_errors=True)
         print(f'Removed: {p}')
 
-    # Remove 'gprMax/cython/fields_updates_dispersive.pyx' if its there
+    # Remove 'gprMax/cython/fields_updates_dispersive.jinja' if its there
     if os.path.isfile(cython_disp_file):
         os.remove(cython_disp_file)
         

@@ -306,33 +306,74 @@ class CUDAGrid(FDTDGrid):
         self.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) *
                    (self.nz + 1)) / self.tpb[0])), 1, 1)
 
-    def htod_geometry_arrays(self):
-        """Initialise an array for cell edge IDs (ID) on GPU."""
-        import pycuda.gpuarray as gpuarray
+    def htod_geometry_arrays(self, queue=None):
+        """Initialise an array for cell edge IDs (ID) on compute device.
+        
+        Args:
+            queue: pyopencl queue.
+        """
 
-        self.ID_gpu = gpuarray.to_gpu(self.ID)
+        if config.sim_config.general['solver'] == 'cuda':
+            import pycuda.gpuarray as gpuarray
+            self.ID_dev = gpuarray.to_gpu(self.ID)
 
-    def htod_field_arrays(self):
-        """Initialise geometry and field arrays on GPU."""
+        elif config.sim_config.general['solver'] == 'opencl':
+            import pyopencl.array as clarray
+            self.ID_dev = clarray.to_device(queue, self.ID)        
 
-        import pycuda.gpuarray as gpuarray
+    def htod_field_arrays(self, queue=None):
+        """Initialise field arrays on compute device.
+        
+        Args:
+            queue: pyopencl queue.
+        """
 
-        self.Ex_gpu = gpuarray.to_gpu(self.Ex)
-        self.Ey_gpu = gpuarray.to_gpu(self.Ey)
-        self.Ez_gpu = gpuarray.to_gpu(self.Ez)
-        self.Hx_gpu = gpuarray.to_gpu(self.Hx)
-        self.Hy_gpu = gpuarray.to_gpu(self.Hy)
-        self.Hz_gpu = gpuarray.to_gpu(self.Hz)
+        if config.sim_config.general['solver'] == 'cuda':
+            import pycuda.gpuarray as gpuarray
+            self.Ex_dev = gpuarray.to_gpu(self.Ex)
+            self.Ey_dev = gpuarray.to_gpu(self.Ey)
+            self.Ez_dev = gpuarray.to_gpu(self.Ez)
+            self.Hx_dev = gpuarray.to_gpu(self.Hx)
+            self.Hy_dev = gpuarray.to_gpu(self.Hy)
+            self.Hz_dev = gpuarray.to_gpu(self.Hz)
+        elif config.sim_config.general['solver'] == 'opencl':
+            import pyopencl.array as clarray
+            self.Ex_dev = clarray.to_device(queue, self.Ex)
+            self.Ey_dev = clarray.to_device(queue, self.Ey)
+            self.Ez_dev = clarray.to_device(queue, self.Ez)
+            self.Hx_dev = clarray.to_device(queue, self.Hx)
+            self.Hy_dev = clarray.to_device(queue, self.Hy)
+            self.Hz_dev = clarray.to_device(queue, self.Hz)
 
-    def htod_dispersive_arrays(self):
-        """Initialise dispersive material coefficient arrays on GPU."""
+    def htod_dispersive_arrays(self, queue=None):
+        """Initialise dispersive material coefficient arrays on compute device.
+        
+        Args:
+            queue: pyopencl queue.
+        """
 
-        import pycuda.gpuarray as gpuarray
+        if config.sim_config.general['solver'] == 'cuda':
+            import pycuda.gpuarray as gpuarray
+            self.Tx_dev = gpuarray.to_gpu(self.Tx)
+            self.Ty_dev = gpuarray.to_gpu(self.Ty)
+            self.Tz_dev = gpuarray.to_gpu(self.Tz)
+            self.updatecoeffsdispersive_dev = gpuarray.to_gpu(self.updatecoeffsdispersive)
+        elif config.sim_config.general['solver'] == 'opencl':
+            import pyopencl.array as clarray
+            self.Tx_dev = clarray.to_device(queue, self.Tx)
+            self.Ty_dev = clarray.to_device(queue, self.Ty)
+            self.Tz_dev = clarray.to_device(queue, self.Tz)
+            self.updatecoeffsdispersive_dev = clarray.to_device(queue, self.updatecoeffsdispersive)
 
-        self.Tx_gpu = gpuarray.to_gpu(self.Tx)
-        self.Ty_gpu = gpuarray.to_gpu(self.Ty)
-        self.Tz_gpu = gpuarray.to_gpu(self.Tz)
-        self.updatecoeffsdispersive_gpu = gpuarray.to_gpu(self.updatecoeffsdispersive)
+
+class OpenCLGrid(CUDAGrid):
+    """Additional grid methods for solving on compute device using OpenCL."""
+
+    def __init__(self):
+        super().__init__()
+
+    def set_blocks_per_grid(self):
+        pass
 
 
 def dispersion_analysis(G):

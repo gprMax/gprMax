@@ -1,0 +1,22 @@
+{% extends "knl_common_base.tmpl" %}
+
+{% block complex_header %}
+#include <pyopencl-complex.h>
+{% endblock complex_header %}
+
+
+{% block constmem %}
+__constant {{REAL}} updatecoeffsE[{{N_updatecoeffsE}}] = 
+{
+    {% for i in updatecoeffsE %}
+    {{i}},
+    {% endfor %}
+};
+
+__constant {{REAL}} updatecoeffsH[{{N_updatecoeffsH}}] = 
+{
+    {% for i in updatecoeffsH %}
+    {{i}},
+    {% endfor %}
+};
+{% endblock constmem %}
