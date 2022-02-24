@@ -809,7 +809,8 @@ class OpenCLUpdates:
                                         'NX_ID': self.grid.ID.shape[1],
                                         'NY_ID': self.grid.ID.shape[2],
                                         'NZ_ID': self.grid.ID.shape[3]}), 
-                                    'update_electric', preamble=self.knl_common)
+                                    'update_electric', preamble=self.knl_common,
+                                    options=config.sim_config.devices['compiler_opts'])
 
         self.update_magnetic_dev = self.elwise(self.ctx, 
                                     Template("int NX, "
@@ -829,7 +830,8 @@ class OpenCLUpdates:
                                         'NX_ID': self.grid.ID.shape[1],
                                         'NY_ID': self.grid.ID.shape[2],
                                         'NZ_ID': self.grid.ID.shape[3]}), 
-                                    'update_magnetic', preamble=self.knl_common)
+                                    'update_magnetic', preamble=self.knl_common,
+                                    options=config.sim_config.devices['compiler_opts'])
 
         # Electric and magnetic field updates - dispersive materials - 
         #                                        get kernel functions
@@ -864,7 +866,8 @@ class OpenCLUpdates:
                                                 'NX_T': NX_T,
                                                 'NY_T': NY_T,
                                                 'NZ_T': NZ_T}), 
-                                        'update_electric_dispersive_A', preamble=self.knl_common)
+                                        'update_electric_dispersive_A', preamble=self.knl_common,
+                                        options=config.sim_config.devices['compiler_opts'])
             self.dispersive_update_b = self.elwise(self.ctx, 
                                         Template("int NX, "
                                                  "int NY, "
@@ -893,7 +896,8 @@ class OpenCLUpdates:
                                                 'NX_T': NX_T,
                                                 'NY_T': NY_T,
                                                 'NZ_T': NZ_T}), 
-                                        'update_electric_dispersive_B', preamble=self.knl_common)
+                                        'update_electric_dispersive_B', preamble=self.knl_common,
+                                        options=config.sim_config.devices['compiler_opts'])
                                                                       
         # Electric and magnetic field updates - initialise field arrays on 
         #                                       compute device
@@ -912,7 +916,6 @@ class OpenCLUpdates:
         for pml in self.grid.pmls:
             pml.set_queue(self.queue)
             pml.htod_field_arrays()
-            pml.set_wgs()
             knl_name = 'order' + str(len(pml.CFS)) + '_' + pml.direction
             knl_electric_name = getattr(knl_pml_updates_electric, knl_name)
             knl_magnetic_name = getattr(knl_pml_updates_magnetic, knl_name)   
@@ -928,7 +931,8 @@ class OpenCLUpdates:
                                             'NY_ID': self.grid.ID.shape[2],
                                             'NZ_ID': self.grid.ID.shape[3]}),
                                         'pml_updates_electric_' + knl_name, 
-                                        preamble=self.knl_common)
+                                        preamble=self.knl_common,
+                                        options=config.sim_config.devices['compiler_opts'])
             
             pml.update_magnetic_dev = self.elwise(self.ctx, 
                                         knl_magnetic_name['args'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
@@ -941,7 +945,8 @@ class OpenCLUpdates:
                                             'NY_ID': self.grid.ID.shape[2],
                                             'NZ_ID': self.grid.ID.shape[3]}),
                                         'pml_updates_magnetic_' + knl_name, 
-                                        preamble=self.knl_common)
+                                        preamble=self.knl_common,
+                                        options=config.sim_config.devices['compiler_opts'])
 
     def _set_rx_knl(self):
         """Receivers - initialise arrays on compute device, prepare kernel and 
@@ -960,7 +965,8 @@ class OpenCLUpdates:
                                              "__global const $REAL* restrict Hy, "
                                              "__global const $REAL* restrict Hz").substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
                                              knl_store_outputs.store_outputs.substitute(), 
-                                             'store_outputs', preamble=self.knl_common)
+                                             'store_outputs', preamble=self.knl_common,
+                                             options=config.sim_config.devices['compiler_opts'])
 
     def _set_src_knls(self):
         """Sources - initialise arrays on compute device, prepare kernel and 
@@ -982,7 +988,8 @@ class OpenCLUpdates:
                                                          "__global $REAL *Ey, "
                                                          "__global $REAL *Ez").substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
                                                 knl_source_updates.update_hertzian_dipole.substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
-                                                'update_hertzian_dipole', preamble=self.knl_common)
+                                                'update_hertzian_dipole', preamble=self.knl_common,
+                                                options=config.sim_config.devices['compiler_opts'])
         if self.grid.magneticdipoles:
             self.srcinfo1_magnetic_dev, self.srcinfo2_magnetic_dev, self.srcwaves_magnetic_dev = htod_src_arrays(self.grid.magneticdipoles, self.grid, self.queue)
             self.update_magnetic_dipole_dev = self.elwise(self.ctx, 
@@ -999,7 +1006,8 @@ class OpenCLUpdates:
                                                          "__global $REAL *Hy, "
                                                          "__global $REAL *Hz").substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
                                                 knl_source_updates.update_magnetic_dipole.substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}),
-                                                'update_magnetic_dipole', preamble=self.knl_common)
+                                                'update_magnetic_dipole', preamble=self.knl_common,
+                                                options=config.sim_config.devices['compiler_opts'])
         if self.grid.voltagesources:
             self.srcinfo1_voltage_dev, self.srcinfo2_voltage_dev,self.srcwaves_voltage_dev = htod_src_arrays(self.grid.voltagesources, self.grid, self.queue)
             self.update_voltage_source_dev = self.elwise(self.ctx, 
@@ -1015,7 +1023,8 @@ class OpenCLUpdates:
                                                          "__global $REAL *Ex, "
                                                          "__global $REAL *Ey, "
                                                          "__global $REAL *Ez").substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
-                                                knl_source_updates.update_voltage_source.substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 'update_voltage_source', preamble=self.knl_common)
+                                                knl_source_updates.update_voltage_source.substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 'update_voltage_source', preamble=self.knl_common,
+                                                options=config.sim_config.devices['compiler_opts'])
 
     def _set_snapshot_knl(self):
         """Snapshots - initialise arrays on compute device, prepare kernel and 
@@ -1048,7 +1057,8 @@ class OpenCLUpdates:
                                     knl_snapshots.store_snapshot.substitute({'NX_SNAPS': Snapshot.nx_max,
                                                                              'NY_SNAPS': Snapshot.ny_max,
                                                                              'NZ_SNAPS': Snapshot.nz_max}), 
-                                    'store_snapshot', preamble=self.knl_common)
+                                    'store_snapshot', preamble=self.knl_common,
+                                    options=config.sim_config.devices['compiler_opts'])
 
     def store_outputs(self):
         """Store field component values for every receiver."""
@@ -1276,6 +1286,7 @@ class OpenCLUpdates:
 
     def calculate_tsolve(self):
         """Calculate solving time for model."""
+        print(self.compute_time)
         return self.compute_time
 
     def finalise(self):
