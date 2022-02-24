@@ -259,7 +259,7 @@ class CUDAUpdates:
         self.drv.init()
 
         # Create device handle and context on specific GPU device (and make it current context)
-        self.dev = self.drv.Device(config.get_model_config().cuda['gpu'].deviceID)
+        self.dev = config.get_model_config().device['dev']
         self.ctx = self.dev.make_context()
 
         # Initialise arrays on GPU, prepare kernels, and get kernel functions

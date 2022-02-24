@@ -428,7 +428,7 @@ def print_cuda_info(devs):
     logger.debug(f'PyCUDA: {pycuda.VERSION_TEXT}')
 
     for ID, gpu in devs.items():
-        logger.basic(f"       |--->Device {ID}: {' '.join(gpu.name.split())} | "
+        logger.basic(f"     |--->Device {ID}: {' '.join(gpu.name().split())} | "
                      f"{human_size(gpu.total_memory(), a_kilobyte_is_1024_bytes=True)}")
 
 
