@@ -21,8 +21,6 @@ from importlib import import_module
 import gprMax.config as config
 import numpy as np
 
-from .utilities.utilities import timer
-
 
 class CFSParameter:
     """Individual CFS parameter (e.g. alpha, kappa, or sigma)."""
@@ -503,14 +501,6 @@ class OpenCLPML(PML):
     def set_blocks_per_grid():
         pass
 
-    def set_wgs(self):
-        """Set the workgroup size used for updating the PML field arrays
-            on a compute device.
-        """
-        self.wgs = (((int(np.ceil(((self.EPhi1_dev.shape[1] + 1) * 
-                                   (self.EPhi1_dev.shape[2] + 1) * 
-                                   (self.EPhi1_dev.shape[3] + 1)) / self.G.tpb[0]))) * 256), 1, 1)
-
     def get_update_funcs():
         pass
 
@@ -518,7 +508,6 @@ class OpenCLPML(PML):
         """This functions updates electric field components with the PML
             correction on the compute device.
         """
-        start_time = timer()
         event = self.update_electric_dev(np.int32(self.xs), 
                                          np.int32(self.xf),
                                          np.int32(self.ys), 
@@ -547,13 +536,12 @@ class OpenCLPML(PML):
                                          self.ERF_dev,
                                          config.sim_config.dtypes['float_or_double'](self.d))
         event.wait()
-        self.compute_time += (timer() - start_time)
+        self.compute_time += (event.profile.end - event.profile.start)*1e-9
 
     def update_magnetic(self):
         """This functions updates magnetic field components with the PML
             correction on the compute device.
         """
-        start_time = timer()
         event = self.update_magnetic_dev(np.int32(self.xs), 
                                          np.int32(self.xf),
                                          np.int32(self.ys), 
@@ -582,7 +570,7 @@ class OpenCLPML(PML):
                                          self.HRF_dev,
                                          config.sim_config.dtypes['float_or_double'](self.d))
         event.wait()
-        self.compute_time += (timer() - start_time)
+        self.compute_time += (event.profile.end - event.profile.start)*1e-9
 
 
 def print_pml_info(G):
