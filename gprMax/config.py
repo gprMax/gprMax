@@ -241,10 +241,10 @@ class SimulationConfig:
             # Both single and double precision are possible on GPUs, but single
             # provides best performance.
             self.general['precision'] = 'single'
-            self.devices = {'devs': [], # devs: list of pycuda device objects
-                            'nvcc_opts': None} # nvcc_opts: nvcc compiler options
+            self.devices = {'devs': [], # pycuda device objects
+                            'nvcc_opts': None} # nvcc compiler options
             # Suppress nvcc warnings on Microsoft Windows
-            if sys.platform == 'win32': self.cuda['nvcc_opts'] = ['-w']
+            if sys.platform == 'win32': self.devices['nvcc_opts'] = ['-w']
 
             # Add pycuda available GPU(s)
             self.devices['devs'] = detect_cuda_gpus()
@@ -253,8 +253,13 @@ class SimulationConfig:
         if self.args.opencl is not None:
             self.general['solver'] = 'opencl'
             self.general['precision'] = 'single'
-            # List of pyopencl available device(s)
-            self.devices = {'devs': []}
+            self.devices = {'devs': [], # pyopencl available device(s)
+                            'compiler_opts': None}
+
+            # Suppress unused variable warnings on gcc
+            # if sys.platform != 'win32': self.devices['compiler_opts'] = ['-w']
+
+            # Add pyopencl available device(s)
             self.devices['devs'] = detect_opencl() 
 
         # Subgrid parameter may not exist if user enters via CLI
