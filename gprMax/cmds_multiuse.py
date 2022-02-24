@@ -653,10 +653,11 @@ class TransmissionLine(UserObjectMulti):
             self.__dorotate(grid)
 
         # Warn about using a transmission line on GPU
-        if config.sim_config.general['cuda']:
+        if (config.sim_config.general['solver'] == 'cuda' or 
+            config.sim_config.general['solver'] == 'opencl'):
             logger.exception(self.params_str() + ' cannot currently be used ' +
-                             'with GPU solving. Consider using a ' + 
-                             '#voltage_source instead.')
+                             'with the CUDA or OpenCL-based solver. Consider ' +
+                             'using a #voltage_source instead.')
             raise ValueError
 
         # Check polarity & position parameters
@@ -822,7 +823,11 @@ class Rx(UserObjectMulti):
         else:
             outputs.sort()
             # Get allowable outputs
-            allowableoutputs = RxUser.allowableoutputs_gpu if config.sim_config.general['cuda'] else RxUser.allowableoutputs
+            if (config.sim_config.general['solver'] =='cuda' or 
+                config.sim_config.general['solver'] =='opencl'):
+                allowableoutputs = RxUser.allowableoutputs_dev
+            else:
+                allowableoutputs = RxUser.allowableoutputs
             # Check and add field output names
             for field in outputs:
                 if field in allowableoutputs:
