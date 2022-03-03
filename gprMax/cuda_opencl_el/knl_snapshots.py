@@ -19,7 +19,55 @@
 from string import Template
 
 
-store_snapshot = Template("""
+store_snapshot = {'args_cuda': Template("""
+                                __global__ void store_snapshot(int p, 
+                                                    int xs, 
+                                                    int xf, 
+                                                    int ys, 
+                                                    int yf, 
+                                                    int zs, 
+                                                    int zf, 
+                                                    int dx, 
+                                                    int dy, 
+                                                    int dz,
+                                                    const $REAL* __restrict__ Ex, 
+                                                    const $REAL* __restrict__ Ey,
+                                                    const $REAL* __restrict__ Ez, 
+                                                    const $REAL* __restrict__ Hx,
+                                                    const $REAL* __restrict__ Hy, 
+                                                    const $REAL* __restrict__ Hz,
+                                                    $REAL *snapEx, 
+                                                    $REAL *snapEy, 
+                                                    $REAL *snapEz,
+                                                    $REAL *snapHx, 
+                                                    $REAL *snapHy, 
+                                                    $REAL *snapHz)
+                                """),
+                  'args_opencl': Template("""
+                                    int p,
+                                    int xs,
+                                    int xf,
+                                    int ys,
+                                    int yf,
+                                    int zs,
+                                    int zf,
+                                    int dx,
+                                    int dy,
+                                    int dz, 
+                                    __global const $REAL* restrict Ex,
+                                    __global const $REAL* restrict Ey,
+                                    __global const $REAL* restrict Ez,
+                                    __global const $REAL* restrict Hx,
+                                    __global const $REAL* restrict Hy,
+                                    __global const $REAL* restrict Hz,
+                                    __global $REAL *snapEx,
+                                    __global $REAL *snapEy,
+                                    __global $REAL *snapEz,
+                                    __global $REAL *snapHx,
+                                    __global $REAL *snapHy,
+                                    __global $REAL *snapHz
+                                """),
+                  'func': Template("""
     // Stores field values for a snapshot.
     //
     //  Args:
@@ -29,6 +77,7 @@ store_snapshot = Template("""
     //      E, H: Access to field component arrays.
     //      snapEx, snapEy, snapEz, snapHx, snapHy, snapHz: Access to arrays to store snapshots.
 
+    $CUDA_IDX
 
     // Convert the linear index to subscripts for 4D SNAPS array
     int x = (i % ($NX_SNAPS * $NY_SNAPS * $NZ_SNAPS)) / ($NY_SNAPS * $NZ_SNAPS);
@@ -70,3 +119,4 @@ store_snapshot = Template("""
                                         Hz[IDX3D_FIELDS(xx,yy,zz+1)]) / 2;
     }
 """)
+}

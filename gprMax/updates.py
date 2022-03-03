@@ -791,45 +791,23 @@ class OpenCLUpdates:
                             NY_SNAPS=Snapshot.ny_max,
                             NZ_SNAPS=Snapshot.nz_max)
 
+        subs = {'CUDA_IDX': '',
+                'NX_FIELDS': self.grid.nx + 1,
+                'NY_FIELDS': self.grid.ny + 1,
+                'NZ_FIELDS': self.grid.nz + 1,
+                'NX_ID': self.grid.ID.shape[1],
+                'NY_ID': self.grid.ID.shape[2],
+                'NZ_ID': self.grid.ID.shape[3]}
+
         self.update_electric_dev = self.elwise(self.ctx, 
-                                    Template("int NX, "
-                                             "int NY, "
-                                             "int NZ, "
-                                             "__global const unsigned int* restrict ID, "
-                                             "__global $REAL *Ex, "
-                                             "__global $REAL *Ey, "
-                                             "__global $REAL *Ez, "
-                                             "__global const $REAL * restrict Hx, "
-                                             "__global const $REAL * restrict Hy, "
-                                             "__global const $REAL * restrict Hz").substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
-                                    knl_fields_updates.update_electric.substitute({
-                                        'NX_FIELDS': self.grid.nx + 1,
-                                        'NY_FIELDS': self.grid.ny + 1,
-                                        'NZ_FIELDS': self.grid.nz + 1,
-                                        'NX_ID': self.grid.ID.shape[1],
-                                        'NY_ID': self.grid.ID.shape[2],
-                                        'NZ_ID': self.grid.ID.shape[3]}), 
+                                    knl_fields_updates.update_electric['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
+                                    knl_fields_updates.update_electric['func'].substitute(subs), 
                                     'update_electric', preamble=self.knl_common,
                                     options=config.sim_config.devices['compiler_opts'])
 
         self.update_magnetic_dev = self.elwise(self.ctx, 
-                                    Template("int NX, "
-                                             "int NY, "
-                                             "int NZ, "
-                                             "__global const unsigned int* restrict ID, "
-                                             "__global $REAL *Hx, "
-                                             "__global $REAL *Hy, "
-                                             "__global $REAL *Hz, "
-                                             "__global const $REAL * restrict Ex, "
-                                             "__global const $REAL * restrict Ey, "
-                                             "__global const $REAL * restrict Ez").substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}),
-                                    knl_fields_updates.update_magnetic.substitute({
-                                        'NX_FIELDS': self.grid.nx + 1,
-                                        'NY_FIELDS': self.grid.ny + 1,
-                                        'NZ_FIELDS': self.grid.nz + 1,
-                                        'NX_ID': self.grid.ID.shape[1],
-                                        'NY_ID': self.grid.ID.shape[2],
-                                        'NZ_ID': self.grid.ID.shape[3]}), 
+                                    knl_fields_updates.update_magnetic['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}),
+                                    knl_fields_updates.update_magnetic['func'].substitute(subs), 
                                     'update_magnetic', preamble=self.knl_common,
                                     options=config.sim_config.devices['compiler_opts'])
 
@@ -838,64 +816,26 @@ class OpenCLUpdates:
         # If there are any dispersive materials (updates are split into two
         # parts as they require present and updated electric field values).
         if config.get_model_config().materials['maxpoles'] > 0:
+            subs = {'CUDA_IDX': '',
+                    'REAL': config.sim_config.dtypes['C_float_or_double'],
+                    'REALFUNC': config.get_model_config().materials['crealfunc'],
+                    'NX_FIELDS': self.grid.nx + 1,
+                    'NY_FIELDS': self.grid.ny + 1,
+                    'NZ_FIELDS': self.grid.nz + 1,
+                    'NX_ID': self.grid.ID.shape[1],
+                    'NY_ID': self.grid.ID.shape[2],
+                    'NZ_ID': self.grid.ID.shape[3],
+                    'NX_T': NX_T,
+                    'NY_T': NY_T,
+                    'NZ_T': NZ_T}
             self.dispersive_update_a = self.elwise(self.ctx, 
-                                        Template("int NX, "
-                                                 "int NY, "
-                                                 "int NZ, "
-                                                 "int MAXPOLES, "
-                                                 "__global const $COMPLEX* restrict updatecoeffsdispersive, "
-                                                 "__global $COMPLEX *Tx, "
-                                                 "__global $COMPLEX *Ty, "
-                                                 "__global $COMPLEX *Tz, "
-                                                 "__global const unsigned int* restrict ID, "
-                                                 "__global $REAL *Ex, "
-                                                 "__global $REAL *Ey, "
-                                                 "__global $REAL *Ez, "
-                                                 "__global const $REAL* restrict Hx, "
-                                                 "__global const $REAL* restrict Hy, "
-                                                 "__global const $REAL* restrict Hz").substitute({'REAL': config.sim_config.dtypes['C_float_or_double'], 'COMPLEX': config.get_model_config().materials['dispersiveCdtype']}), 
-                                        knl_fields_updates.update_electric_dispersive_A.substitute({
-                                                'REAL': config.sim_config.dtypes['C_float_or_double'],
-                                                'REALFUNC': config.get_model_config().materials['crealfunc'],
-                                                'NX_FIELDS': self.grid.nx + 1,
-                                                'NY_FIELDS': self.grid.ny + 1,
-                                                'NZ_FIELDS': self.grid.nz + 1,
-                                                'NX_ID': self.grid.ID.shape[1],
-                                                'NY_ID': self.grid.ID.shape[2],
-                                                'NZ_ID': self.grid.ID.shape[3],
-                                                'NX_T': NX_T,
-                                                'NY_T': NY_T,
-                                                'NZ_T': NZ_T}), 
+                                        knl_fields_updates.update_electric_dispersive_A['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double'], 'COMPLEX': config.get_model_config().materials['dispersiveCdtype']}), 
+                                        knl_fields_updates.update_electric_dispersive_A['func'].substitute(subs), 
                                         'update_electric_dispersive_A', preamble=self.knl_common,
                                         options=config.sim_config.devices['compiler_opts'])
             self.dispersive_update_b = self.elwise(self.ctx, 
-                                        Template("int NX, "
-                                                 "int NY, "
-                                                 "int NZ, "
-                                                 "int MAXPOLES, "
-                                                 "__global const $COMPLEX* restrict updatecoeffsdispersive, "
-                                                 "__global $COMPLEX *Tx, "
-                                                 "__global $COMPLEX *Ty, "
-                                                 "__global $COMPLEX *Tz, "
-                                                 "__global const unsigned int* restrict ID, "
-                                                 "__global $REAL *Ex, "
-                                                 "__global $REAL *Ey, "
-                                                 "__global $REAL *Ez, "
-                                                 "__global const $REAL* restrict Hx, "
-                                                 "__global const $REAL* restrict Hy, "
-                                                 "__global const $REAL* restrict Hz").substitute({'REAL': config.sim_config.dtypes['C_float_or_double'] ,'COMPLEX': config.get_model_config().materials['dispersiveCdtype']}), 
-                                        knl_fields_updates.update_electric_dispersive_B.substitute({
-                                                'REAL': config.sim_config.dtypes['C_float_or_double'],
-                                                'REALFUNC': config.get_model_config().materials['crealfunc'],
-                                                'NX_FIELDS': self.grid.nx + 1,
-                                                'NY_FIELDS': self.grid.ny + 1,
-                                                'NZ_FIELDS': self.grid.nz + 1,
-                                                'NX_ID': self.grid.ID.shape[1],
-                                                'NY_ID': self.grid.ID.shape[2],
-                                                'NZ_ID': self.grid.ID.shape[3],
-                                                'NX_T': NX_T,
-                                                'NY_T': NY_T,
-                                                'NZ_T': NZ_T}), 
+                                        knl_fields_updates.update_electric_dispersive_B['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double'] ,'COMPLEX': config.get_model_config().materials['dispersiveCdtype']}), 
+                                        knl_fields_updates.update_electric_dispersive_B['func'].substitute(subs), 
                                         'update_electric_dispersive_B', preamble=self.knl_common,
                                         options=config.sim_config.devices['compiler_opts'])
                                                                       
@@ -911,6 +851,15 @@ class OpenCLUpdates:
         knl_pml_updates_electric = import_module('gprMax.cuda_opencl_el.knl_pml_updates_electric_' + self.grid.pmlformulation)
         knl_pml_updates_magnetic = import_module('gprMax.cuda_opencl_el.knl_pml_updates_magnetic_' + self.grid.pmlformulation)
 
+        subs = {'CUDA_IDX': '',
+                'REAL': config.sim_config.dtypes['C_float_or_double'],
+                'NX_FIELDS': self.grid.nx + 1,
+                'NY_FIELDS': self.grid.ny + 1,
+                'NZ_FIELDS': self.grid.nz + 1,
+                'NX_ID': self.grid.ID.shape[1],
+                'NY_ID': self.grid.ID.shape[2],
+                'NZ_ID': self.grid.ID.shape[3]}
+
         # Set workgroup size, initialise arrays on compute device, and get 
         # kernel functions
         for pml in self.grid.pmls:
@@ -921,29 +870,15 @@ class OpenCLUpdates:
             knl_magnetic_name = getattr(knl_pml_updates_magnetic, knl_name)   
 
             pml.update_electric_dev = self.elwise(self.ctx, 
-                                        knl_electric_name['args'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
-                                        knl_electric_name['func'].substitute({
-                                            'REAL': config.sim_config.dtypes['C_float_or_double'],
-                                            'NX_FIELDS': self.grid.nx + 1,
-                                            'NY_FIELDS': self.grid.ny + 1,
-                                            'NZ_FIELDS': self.grid.nz + 1,
-                                            'NX_ID': self.grid.ID.shape[1],
-                                            'NY_ID': self.grid.ID.shape[2],
-                                            'NZ_ID': self.grid.ID.shape[3]}),
+                                        knl_electric_name['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
+                                        knl_electric_name['func'].substitute(subs),
                                         'pml_updates_electric_' + knl_name, 
                                         preamble=self.knl_common,
                                         options=config.sim_config.devices['compiler_opts'])
             
             pml.update_magnetic_dev = self.elwise(self.ctx, 
-                                        knl_magnetic_name['args'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
-                                        knl_magnetic_name['func'].substitute({
-                                            'REAL': config.sim_config.dtypes['C_float_or_double'],
-                                            'NX_FIELDS': self.grid.nx + 1,
-                                            'NY_FIELDS': self.grid.ny + 1,
-                                            'NZ_FIELDS': self.grid.nz + 1,
-                                            'NX_ID': self.grid.ID.shape[1],
-                                            'NY_ID': self.grid.ID.shape[2],
-                                            'NZ_ID': self.grid.ID.shape[3]}),
+                                        knl_magnetic_name['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
+                                        knl_magnetic_name['func'].substitute(subs),
                                         'pml_updates_magnetic_' + knl_name, 
                                         preamble=self.knl_common,
                                         options=config.sim_config.devices['compiler_opts'])
@@ -954,17 +889,8 @@ class OpenCLUpdates:
         """
         self.rxcoords_dev, self.rxs_dev = htod_rx_arrays(self.grid, self.queue)
         self.store_outputs_dev = self.elwise(self.ctx, 
-                                    Template("int NRX, "
-                                             "int iteration, "
-                                             "__global const int* restrict rxcoords, "
-                                             "__global $REAL *rxs, "
-                                             "__global const $REAL* restrict Ex, "
-                                             "__global const $REAL* restrict Ey, "
-                                             "__global const $REAL* restrict Ez, "
-                                             "__global const $REAL* restrict Hx, "
-                                             "__global const $REAL* restrict Hy, "
-                                             "__global const $REAL* restrict Hz").substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
-                                             knl_store_outputs.store_outputs.substitute(), 
+                                    knl_store_outputs.store_outputs['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
+                                    knl_store_outputs.store_outputs['func'].substitute({'CUDA_IDX': ''}), 
                                              'store_outputs', preamble=self.knl_common,
                                              options=config.sim_config.devices['compiler_opts'])
 
@@ -975,55 +901,22 @@ class OpenCLUpdates:
         if self.grid.hertziandipoles:
             self.srcinfo1_hertzian_dev, self.srcinfo2_hertzian_dev, self.srcwaves_hertzian_dev = htod_src_arrays(self.grid.hertziandipoles, self.grid, self.queue)
             self.update_hertzian_dipole_dev = self.elwise(self.ctx, 
-                                                Template("int NHERTZDIPOLE, "
-                                                         "int iteration, "
-                                                         "$REAL dx, "
-                                                         "$REAL dy, "
-                                                         "$REAL dz, "
-                                                         "__global const int* restrict srcinfo1, "
-                                                         "__global const $REAL* restrict srcinfo2, "
-                                                         "__global const $REAL* restrict srcwaveforms, "
-                                                         "__global const unsigned int* restrict ID, "
-                                                         "__global $REAL *Ex, "
-                                                         "__global $REAL *Ey, "
-                                                         "__global $REAL *Ez").substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
-                                                knl_source_updates.update_hertzian_dipole.substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
+                                                knl_source_updates.update_hertzian_dipole['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
+                                                knl_source_updates.update_hertzian_dipole['func'].substitute({'CUDA_IDX': '', 'REAL': config.sim_config.dtypes['C_float_or_double']}), 
                                                 'update_hertzian_dipole', preamble=self.knl_common,
                                                 options=config.sim_config.devices['compiler_opts'])
         if self.grid.magneticdipoles:
             self.srcinfo1_magnetic_dev, self.srcinfo2_magnetic_dev, self.srcwaves_magnetic_dev = htod_src_arrays(self.grid.magneticdipoles, self.grid, self.queue)
             self.update_magnetic_dipole_dev = self.elwise(self.ctx, 
-                                                Template("int NMAGDIPOLE, "
-                                                         "int iteration, "
-                                                         "$REAL dx, "
-                                                         "$REAL dy, "
-                                                         "$REAL dz, "
-                                                         "__global const int* restrict srcinfo1, "
-                                                         "__global const $REAL* restrict srcinfo2, "
-                                                         "__global const $REAL* restrict srcwaveforms, "
-                                                         "__global const unsigned int* restrict ID, "
-                                                         "__global $REAL *Hx, "
-                                                         "__global $REAL *Hy, "
-                                                         "__global $REAL *Hz").substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
-                                                knl_source_updates.update_magnetic_dipole.substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}),
+                                                knl_source_updates.update_magnetic_dipole['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
+                                                knl_source_updates.update_magnetic_dipole['func'].substitute({'CUDA_IDX': '', 'REAL': config.sim_config.dtypes['C_float_or_double']}),
                                                 'update_magnetic_dipole', preamble=self.knl_common,
                                                 options=config.sim_config.devices['compiler_opts'])
         if self.grid.voltagesources:
             self.srcinfo1_voltage_dev, self.srcinfo2_voltage_dev,self.srcwaves_voltage_dev = htod_src_arrays(self.grid.voltagesources, self.grid, self.queue)
             self.update_voltage_source_dev = self.elwise(self.ctx, 
-                                                Template("int NVOLTSRC, "
-                                                         "int iteration, "
-                                                         "$REAL dx, "
-                                                         "$REAL dy, "
-                                                         "$REAL dz, "
-                                                         "__global const int* restrict srcinfo1, "
-                                                         "__global const $REAL* restrict srcinfo2, "
-                                                         "__global const $REAL* restrict srcwaveforms, "
-                                                         "__global const unsigned int* restrict ID, "
-                                                         "__global $REAL *Ex, "
-                                                         "__global $REAL *Ey, "
-                                                         "__global $REAL *Ez").substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
-                                                knl_source_updates.update_voltage_source.substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 'update_voltage_source', preamble=self.knl_common,
+                                                knl_source_updates.update_voltage_source['args_opencl'].substitute({'CUDA_IDX': '', 'REAL': config.sim_config.dtypes['C_float_or_double']}), 
+                                                knl_source_updates.update_voltage_source['func'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 'update_voltage_source', preamble=self.knl_common,
                                                 options=config.sim_config.devices['compiler_opts'])
 
     def _set_snapshot_knl(self):
@@ -1032,31 +925,11 @@ class OpenCLUpdates:
         """
         self.snapEx_dev, self.snapEy_dev, self.snapEz_dev, self.snapHx_dev, self.snapHy_dev, self.snapHz_dev = htod_snapshot_array(self.grid, self.queue)
         self.store_snapshot_dev = self.elwise(self.ctx, 
-                                    Template("int p, "
-                                             "int xs, "
-                                             "int xf, "
-                                             "int ys, "
-                                             "int yf, "
-                                             "int zs, "
-                                             "int zf, "
-                                             "int dx, "
-                                             "int dy, "
-                                             "int dz, " 
-                                             "__global const $REAL* restrict Ex, "
-                                             "__global const $REAL* restrict Ey, "
-                                             "__global const $REAL* restrict Ez, "
-                                             "__global const $REAL* restrict Hx, "
-                                             "__global const $REAL* restrict Hy, "
-                                             "__global const $REAL* restrict Hz, "
-                                             "__global $REAL *snapEx, "
-                                             "__global $REAL *snapEy, "
-                                             "__global $REAL *snapEz, "
-                                             "__global $REAL *snapHx, "
-                                             "__global $REAL *snapHy, "
-                                             "__global $REAL *snapHz").substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
-                                    knl_snapshots.store_snapshot.substitute({'NX_SNAPS': Snapshot.nx_max,
-                                                                             'NY_SNAPS': Snapshot.ny_max,
-                                                                             'NZ_SNAPS': Snapshot.nz_max}), 
+                                    knl_snapshots.store_snapshot['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
+                                    knl_snapshots.store_snapshot['func'].substitute(        {'CUDA_IDX': '',
+                                              'NX_SNAPS': Snapshot.nx_max,
+                                              'NY_SNAPS': Snapshot.ny_max,
+                                              'NZ_SNAPS': Snapshot.nz_max}), 
                                     'store_snapshot', preamble=self.knl_common,
                                     options=config.sim_config.devices['compiler_opts'])
 
@@ -1260,10 +1133,7 @@ class OpenCLUpdates:
                         self.grid.ID_dev,
                         self.grid.Ex_dev,
                         self.grid.Ey_dev,
-                        self.grid.Ez_dev,
-                        self.grid.Hx_dev,
-                        self.grid.Hy_dev,
-                        self.grid.Hz_dev)
+                        self.grid.Ez_dev)
             event.wait()
             self.compute_time += (event.profile.end - event.profile.start)*1e-9
 

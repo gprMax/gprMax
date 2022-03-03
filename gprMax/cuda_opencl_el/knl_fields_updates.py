@@ -18,7 +18,32 @@
 
 from string import Template
 
-update_electric = Template("""
+update_electric = {
+    'args_cuda': Template("""
+                __global__ void update_electric(int NX,
+                                                int NY,
+                                                int NZ, 
+                                                const unsigned int* __restrict__ ID, 
+                                                $REAL *Ex, 
+                                                $REAL *Ey, 
+                                                $REAL *Ez, 
+                                                const $REAL* __restrict__ Hx, 
+                                                const $REAL* __restrict__ Hy, 
+                                                const $REAL* __restrict__ Hz)
+                    """),
+    'args_opencl': Template("""
+                        int NX,
+                        int NY,
+                        int NZ,
+                        __global const unsigned int* restrict ID,
+                        __global $REAL *Ex,
+                        __global $REAL *Ey,
+                        __global $REAL *Ez,
+                        __global const $REAL * restrict Hx,
+                        __global const $REAL * restrict Hy,
+                        __global const $REAL * restrict Hz
+                    """),
+    'func': Template("""
     // Electric field updates - normal materials.
     //
     //  Args:
@@ -34,6 +59,8 @@ update_electric = Template("""
     int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
     int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
     int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+
+    $CUDA_IDX
 
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
@@ -58,9 +85,34 @@ update_electric = Template("""
                                     updatecoeffsE[IDX2D_MAT(materialEz,1)] * (Hy[IDX3D_FIELDS(x,y,z)] - Hy[IDX3D_FIELDS(x-1,y,z)]) - 
                                     updatecoeffsE[IDX2D_MAT(materialEz,2)] * (Hx[IDX3D_FIELDS(x,y,z)] - Hx[IDX3D_FIELDS(x,y-1,z)]);
     }
-""")
+    """)}
 
-update_magnetic = Template("""
+update_magnetic = {
+    'args_cuda': Template("""
+                __global__ void update_magnetic(int NX,
+                                                int NY,
+                                                int NZ, 
+                                                const unsigned int* __restrict__ ID, 
+                                                $REAL *Hx, 
+                                                $REAL *Hy, 
+                                                $REAL *Hz, 
+                                                const $REAL* __restrict__ Ex, 
+                                                const $REAL* __restrict__ Ey, 
+                                                const $REAL* __restrict__ Ez)
+                    """),
+    'args_opencl': Template("""
+                        int NX,
+                        int NY,
+                        int NZ,
+                        __global const unsigned int* restrict ID,
+                        __global $REAL *Hx,
+                        __global $REAL *Hy,
+                        __global $REAL *Hz,
+                        __global const $REAL * restrict Ex,
+                        __global const $REAL * restrict Ey,
+                        __global const $REAL * restrict Ez
+                    """),
+    'func': Template("""
     // Magnetic field updates - normal materials.
     //
     //  Args:
@@ -76,6 +128,8 @@ update_magnetic = Template("""
     int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
     int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
     int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
+
+    $CUDA_IDX
 
     // Hx component
     if (NX != 1 && x > 0 && x < NX && y >= 0 && y < NY && z >= 0 && z < NZ) {
@@ -100,9 +154,44 @@ update_magnetic = Template("""
                                     updatecoeffsH[IDX2D_MAT(materialHz,1)] * (Ey[IDX3D_FIELDS(x+1,y,z)] - Ey[IDX3D_FIELDS(x,y,z)]) + 
                                     updatecoeffsH[IDX2D_MAT(materialHz,2)] * (Ex[IDX3D_FIELDS(x,y+1,z)] - Ex[IDX3D_FIELDS(x,y,z)]);
     }
-""")
+    """)}
 
-update_electric_dispersive_A = Template("""
+update_electric_dispersive_A = {
+    'args_cuda': Template("""
+                __global__ void update_electric_dispersive_A(int NX,
+                                    int NY,
+                                    int NZ,
+                                    int MAXPOLES, 
+                                    const $COMPLEX* __restrict__ updatecoeffsdispersive, 
+                                    $COMPLEX *Tx, 
+                                    $COMPLEX *Ty, 
+                                    $COMPLEX *Tz, 
+                                    const unsigned int* __restrict__ ID, 
+                                    $REAL *Ex, 
+                                    $REAL *Ey, 
+                                    $REAL *Ez, 
+                                    const $REAL* __restrict__ Hx, 
+                                    const $REAL* __restrict__ Hy, 
+                                    const $REAL* __restrict__ Hz)
+                    """),
+    'args_opencl': Template("""
+                        int NX,
+                        int NY,
+                        int NZ,
+                        int MAXPOLES,
+                        __global const $COMPLEX* restrict updatecoeffsdispersive,
+                        __global $COMPLEX *Tx,
+                        __global $COMPLEX *Ty,
+                        __global $COMPLEX *Tz,
+                        __global const unsigned int* restrict ID,
+                        __global $REAL *Ex,
+                        __global $REAL *Ey,
+                        __global $REAL *Ez,
+                        __global const $REAL* restrict Hx,
+                        __global const $REAL* restrict Hy,
+                        __global const $REAL* restrict Hz
+                    """),
+    'func': Template("""
     // Electric field updates - dispersive materials - part A of updates to electric
     //                              field values when dispersive materials 
     //                              (with multiple poles) are present.
@@ -129,6 +218,8 @@ update_electric_dispersive_A = Template("""
     int x_T = (i % ($NX_T * $NY_T * $NZ_T)) / ($NY_T * $NZ_T);
     int y_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) / $NZ_T;
     int z_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) % $NZ_T;
+
+    $CUDA_IDX
 
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
@@ -174,9 +265,38 @@ update_electric_dispersive_A = Template("""
                                     updatecoeffsE[IDX2D_MAT(materialEz,2)] * (Hx[IDX3D_FIELDS(x,y,z)] - Hx[IDX3D_FIELDS(x,y-1,z)]) - 
                                     updatecoeffsE[IDX2D_MAT(materialEz,4)] * phi;
     }
-""")
+    """)}
 
-update_electric_dispersive_B = Template("""
+update_electric_dispersive_B = {
+    'args_cuda': Template("""
+                __global__ void update_electric_dispersive_B(int NX,
+                                    int NY,
+                                    int NZ,
+                                    int MAXPOLES, 
+                                    const $COMPLEX* __restrict__ updatecoeffsdispersive, 
+                                    $COMPLEX *Tx, 
+                                    $COMPLEX *Ty, 
+                                    $COMPLEX *Tz, 
+                                    const unsigned int* __restrict__ ID, 
+                                    const $REAL* __restrict__ Ex, 
+                                    const $REAL* __restrict__ Ey, 
+                                    const $REAL* __restrict__ Ez)
+                    """),
+    'args_opencl': Template("""
+                        int NX,
+                        int NY,
+                        int NZ,
+                        int MAXPOLES,
+                        __global const $COMPLEX* restrict updatecoeffsdispersive,
+                        __global $COMPLEX *Tx,
+                        __global $COMPLEX *Ty,
+                        __global $COMPLEX *Tz,
+                        __global const unsigned int* restrict ID,
+                        __global const $REAL* restrict Ex,
+                        __global const $REAL* restrict Ey,
+                        __global const $REAL* restrict Ez
+                    """),
+    'func': Template("""
     // Electric field updates - dispersive materials - part B of updates to electric
     //                              field values when dispersive materials 
     //                              (with multiple poles) are present.
@@ -204,6 +324,8 @@ update_electric_dispersive_B = Template("""
     int y_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) / $NZ_T;
     int z_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) % $NZ_T;
 
+    $CUDA_IDX
+    
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
         int materialEx = ID[IDX4D_ID(0,x_ID,y_ID,z_ID)];
@@ -230,4 +352,4 @@ update_electric_dispersive_B = Template("""
                                                 updatecoeffsdispersive[IDX2D_MATDISP(materialEz,2+(pole*3))] * Ez[IDX3D_FIELDS(x,y,z)];
         }
     }
-""")
+    """)}

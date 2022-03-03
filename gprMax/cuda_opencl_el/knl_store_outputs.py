@@ -19,13 +19,39 @@
 from string import Template
 
 
-store_outputs = Template("""
+store_outputs = {'args_cuda': Template("""
+                                __global__ void store_outputs(int NRX, 
+                                                    int iteration, 
+                                                    const int* __restrict__ rxcoords, 
+                                                    $REAL *rxs, 
+                                                    const $REAL* __restrict__ Ex, 
+                                                    const $REAL* __restrict__ Ey, 
+                                                    const $REAL* __restrict__ Ez, 
+                                                    const $REAL* __restrict__ Hx, 
+                                                    const $REAL* __restrict__ Hy, 
+                                                    const $REAL* __restrict__ Hz)
+                                """),
+                 'args_opencl': Template("""
+                                    int NRX,
+                                    int iteration,
+                                    __global const int* restrict rxcoords,
+                                    __global $REAL *rxs,
+                                    __global const $REAL* restrict Ex,
+                                    __global const $REAL* restrict Ey,
+                                    __global const $REAL* restrict Ez,
+                                    __global const $REAL* restrict Hx,
+                                    __global const $REAL* restrict Hy,
+                                    __global const $REAL* restrict Hz
+                                    """),
+                 'func': Template("""
     // Stores field component values for every receiver in the model.
     //
     // Args: 
     //    NRX: total number of receivers in the model.
     //    rxs: array to store field components for receivers - rows 
     //          are field components; columns are iterations; pages are receiver.
+
+    $CUDA_IDX
 
     if (i < NRX) {
         int x, y, z;
@@ -40,3 +66,4 @@ store_outputs = Template("""
         rxs[IDX3D_RXS(5,iteration,i)] = Hz[IDX3D_FIELDS(x,y,z)];
     }
 """)
+}

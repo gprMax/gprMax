@@ -18,91 +18,166 @@
 
 from string import Template
 
-x_args = Template("int xs, "
-                  "int xf, "
-                  "int ys, "
-                  "int yf, "
-                  "int zs, "
-                  "int zf, "
-                  "int NX_PHI1, "
-                  "int NY_PHI1, "
-                  "int NZ_PHI1, "
-                  "int NX_PHI2, "
-                  "int NY_PHI2, "
-                  "int NZ_PHI2, "
-                  "int NY_R, "
-                  "__global const unsigned int* restrict ID, "
-                  "__global const $REAL* restrict Ex, "
-                  "__global $REAL *Ey, "
-                  "__global $REAL *Ez, "
-                  "__global const $REAL* restrict Hx, "
-                  "__global const $REAL* restrict Hy, "
-                  "__global const $REAL* restrict Hz, "
-                  "__global $REAL *PHI1, "
-                  "__global $REAL *PHI2, "
-                  "__global const $REAL* restrict RA, "
-                  "__global const $REAL* restrict RB, "
-                  "__global const $REAL* restrict RE, "
-                  "__global const $REAL* restrict RF, "
-                  "$REAL d")
+x_args = {'cuda': Template("""
+                    __global__ void $FUNC(int xs, 
+                                        int xf, 
+                                        int ys, 
+                                        int yf, 
+                                        int zs, 
+                                        int zf, 
+                                        int NX_PHI1, 
+                                        int NY_PHI1, 
+                                        int NZ_PHI1, 
+                                        int NX_PHI2, 
+                                        int NY_PHI2, 
+                                        int NZ_PHI2, 
+                                        int NY_R, 
+                                        const unsigned int* __restrict__ ID, 
+                                        const $REAL* __restrict__ Ex, $REAL *Ey, 
+                                        $REAL *Ez, 
+                                        const $REAL* __restrict__ Hx, const $REAL* __restrict__ Hy, const $REAL* __restrict__ Hz, $REAL *PHI1, 
+                                        $REAL *PHI2, 
+                                        const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d)
+                    """),
+          'opencl': Template("""
+                        int xs,
+                        int xf,
+                        int ys,
+                        int yf,
+                        int zs,
+                        int zf,
+                        int NX_PHI1,
+                        int NY_PHI1,
+                        int NZ_PHI1,
+                        int NX_PHI2,
+                        int NY_PHI2,
+                        int NZ_PHI2,
+                        int NY_R,
+                        __global const unsigned int* restrict ID,
+                        __global const $REAL* restrict Ex,
+                        __global $REAL *Ey,
+                        __global $REAL *Ez,
+                        __global const $REAL* restrict Hx,
+                        __global const $REAL* restrict Hy,
+                        __global const $REAL* restrict Hz,
+                        __global $REAL *PHI1,
+                        __global $REAL *PHI2,
+                        __global const $REAL* restrict RA,
+                        __global const $REAL* restrict RB,
+                        __global const $REAL* restrict RE,
+                        __global const $REAL* restrict RF,
+                        $REAL d
+                    """)
+             }
 
-y_args = Template("int xs, "
-                  "int xf, "
-                  "int ys, "
-                  "int yf, "
-                  "int zs, "
-                  "int zf, "
-                  "int NX_PHI1, "
-                  "int NY_PHI1, "
-                  "int NZ_PHI1, "
-                  "int NX_PHI2, "
-                  "int NY_PHI2, "
-                  "int NZ_PHI2, "
-                  "int NY_R, "
-                  "__global const unsigned int* restrict ID, "
-                  "__global $REAL *Ex, "
-                  "__global const $REAL* restrict Ey, "
-                  "__global $REAL *Ez, "
-                  "__global const $REAL* restrict Hx, "
-                  "__global const $REAL* restrict Hy, "
-                  "__global const $REAL* restrict Hz, "
-                  "__global $REAL *PHI1, "
-                  "__global $REAL *PHI2, "
-                  "__global const $REAL* restrict RA, "
-                  "__global const $REAL* restrict RB, "
-                  "__global const $REAL* restrict RE, "
-                  "__global const $REAL* restrict RF, "
-                  "$REAL d")
+y_args = {'cuda': Template("""
+                    __global__ void $FUNC(int xs, 
+                                        int xf, 
+                                        int ys, 
+                                        int yf, 
+                                        int zs, 
+                                        int zf, 
+                                        int NX_PHI1, 
+                                        int NY_PHI1, 
+                                        int NZ_PHI1, 
+                                        int NX_PHI2, 
+                                        int NY_PHI2, 
+                                        int NZ_PHI2, 
+                                        int NY_R, 
+                                        const unsigned int* __restrict__ ID,
+                                        $REAL *Ex,
+                                        const $REAL* __restrict__ Ey,  
+                                        $REAL *Ez, 
+                                        const $REAL* __restrict__ Hx, const $REAL* __restrict__ Hy, const $REAL* __restrict__ Hz, $REAL *PHI1, 
+                                        $REAL *PHI2, 
+                                        const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d)
+                    """),
+          'opencl': Template("""
+                        int xs,
+                        int xf,
+                        int ys,
+                        int yf,
+                        int zs,
+                        int zf,
+                        int NX_PHI1,
+                        int NY_PHI1,
+                        int NZ_PHI1,
+                        int NX_PHI2,
+                        int NY_PHI2,
+                        int NZ_PHI2,
+                        int NY_R,
+                        __global const unsigned int* restrict ID,
+                        __global $REAL *Ex,
+                        __global const $REAL* restrict Ey,
+                        __global $REAL *Ez,
+                        __global const $REAL* restrict Hx,
+                        __global const $REAL* restrict Hy,
+                        __global const $REAL* restrict Hz,
+                        __global $REAL *PHI1,
+                        __global $REAL *PHI2,
+                        __global const $REAL* restrict RA,
+                        __global const $REAL* restrict RB,
+                        __global const $REAL* restrict RE,
+                        __global const $REAL* restrict RF,
+                        $REAL d
+                    """)
+         }
 
-z_args = Template("int xs, "
-                  "int xf, "
-                  "int ys, "
-                  "int yf, "
-                  "int zs, "
-                  "int zf, "
-                  "int NX_PHI1, "
-                  "int NY_PHI1, "
-                  "int NZ_PHI1, "
-                  "int NX_PHI2, "
-                  "int NY_PHI2, "
-                  "int NZ_PHI2, "
-                  "int NY_R, "
-                  "__global const unsigned int* restrict ID, "
-                  "__global $REAL *Ex, "
-                  "__global $REAL *Ey, "
-                  "__global const $REAL* restrict Ez, "
-                  "__global const $REAL* restrict Hx, "
-                  "__global const $REAL* restrict Hy, "
-                  "__global const $REAL* restrict Hz, "
-                  "__global $REAL *PHI1, "
-                  "__global $REAL *PHI2, "
-                  "__global const $REAL* restrict RA, "
-                  "__global const $REAL* restrict RB, "
-                  "__global const $REAL* restrict RE, "
-                  "__global const $REAL* restrict RF, "
-                  "$REAL d")
+z_args = {'cuda': Template("""
+                    __global__ void $FUNC(int xs, 
+                                        int xf, 
+                                        int ys, 
+                                        int yf, 
+                                        int zs, 
+                                        int zf, 
+                                        int NX_PHI1, 
+                                        int NY_PHI1, 
+                                        int NZ_PHI1, 
+                                        int NX_PHI2, 
+                                        int NY_PHI2, 
+                                        int NZ_PHI2, 
+                                        int NY_R, 
+                                        const unsigned int* __restrict__ ID,
+                                        $REAL *Ex,
+                                        $REAL *Ey, 
+                                        const $REAL* __restrict__ Ez,  
+                                        const $REAL* __restrict__ Hx, const $REAL* __restrict__ Hy, const $REAL* __restrict__ Hz, $REAL *PHI1, 
+                                        $REAL *PHI2, 
+                                        const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d)
+                    """),
+          'opencl': Template("""
+                        int xs,
+                        int xf,
+                        int ys,
+                        int yf,
+                        int zs,
+                        int zf,
+                        int NX_PHI1,
+                        int NY_PHI1,
+                        int NZ_PHI1,
+                        int NX_PHI2,
+                        int NY_PHI2,
+                        int NZ_PHI2,
+                        int NY_R,
+                        __global const unsigned int* restrict ID,
+                        __global $REAL *Ex,
+                        __global $REAL *Ey,
+                        __global const $REAL* restrict Ez,
+                        __global const $REAL* restrict Hx,
+                        __global const $REAL* restrict Hy,
+                        __global const $REAL* restrict Hz,
+                        __global $REAL *PHI1,
+                        __global $REAL *PHI2,
+                        __global const $REAL* restrict RA,
+                        __global const $REAL* restrict RB,
+                        __global const $REAL* restrict RE,
+                        __global const $REAL* restrict RF,
+                        $REAL d
+                    """)
+             }
 
-order1_xminus = {'args': x_args, 
+order1_xminus = {'args_cuda': x_args['cuda'],
+                 'args_opencl': x_args['opencl'], 
                  'func': Template("""
     //  This function updates the Ey and Ez field components for the xminus slab.
     //
@@ -112,6 +187,8 @@ order1_xminus = {'args': x_args,
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML electric coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
+
+    $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -173,7 +250,8 @@ order1_xminus = {'args': x_args,
     }
 """)}
 
-order2_xminus = {'args': x_args, 
+order2_xminus = {'args_cuda': x_args['cuda'],
+                 'args_opencl': x_args['opencl'], 
                  'func': Template("""
     //  This function updates the Ey and Ez field components for the xminus slab.
     //
@@ -183,6 +261,8 @@ order2_xminus = {'args': x_args,
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML electric coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
+
+    $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -260,7 +340,8 @@ order2_xminus = {'args': x_args,
     }
 """)}
 
-order1_xplus = {'args': x_args, 
+order1_xplus = {'args_cuda': x_args['cuda'],
+                'args_opencl': x_args['opencl'], 
                 'func': Template("""
     //  This function updates the Ey and Ez field components for the xplus slab.
     //
@@ -270,6 +351,8 @@ order1_xplus = {'args': x_args,
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML electric coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
+
+    $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -331,7 +414,8 @@ order1_xplus = {'args': x_args,
     }
 """)}
 
-order2_xplus = {'args': x_args, 
+order2_xplus = {'args_cuda': x_args['cuda'],
+                'args_opencl': x_args['opencl'], 
                 'func': Template("""
     //  This function updates the Ey and Ez field components for the xplus slab.
     //
@@ -341,6 +425,8 @@ order2_xplus = {'args': x_args,
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML electric coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
+
+    $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -417,7 +503,8 @@ order2_xplus = {'args': x_args,
     }
 """)}
 
-order1_yminus = {'args': y_args, 
+order1_yminus = {'args_cuda': y_args['cuda'],
+                 'args_opencl': y_args['opencl'], 
                  'func': Template("""
     //  This function updates the Ex and Ez field components for the yminus slab.
     //
@@ -427,6 +514,8 @@ order1_yminus = {'args': y_args,
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML electric coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
+
+    $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -488,7 +577,8 @@ order1_yminus = {'args': y_args,
     }
 """)}
 
-order2_yminus = {'args': y_args, 
+order2_yminus = {'args_cuda': y_args['cuda'],
+                 'args_opencl': y_args['opencl'], 
                  'func': Template("""
     //  This function updates the Ex and Ez field components for the yminus slab.
     //
@@ -498,6 +588,8 @@ order2_yminus = {'args': y_args,
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML electric coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
+
+    $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -575,7 +667,8 @@ order2_yminus = {'args': y_args,
     }
 """)}
 
-order1_yplus = {'args': y_args, 
+order1_yplus = {'args_cuda': y_args['cuda'],
+                'args_opencl': y_args['opencl'], 
                 'func': Template("""
     //  This function updates the Ex and Ez field components for the yplus slab.
     //
@@ -585,6 +678,8 @@ order1_yplus = {'args': y_args,
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML electric coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
+
+    $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -646,7 +741,8 @@ order1_yplus = {'args': y_args,
     }
 """)}
 
-order2_yplus = {'args': y_args, 
+order2_yplus = {'args_cuda': y_args['cuda'],
+                'args_opencl': y_args['opencl'], 
                 'func': Template("""
     //  This function updates the Ex and Ez field components for the yplus slab.
     //
@@ -656,6 +752,8 @@ order2_yplus = {'args': y_args,
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML electric coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
+
+    $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -733,7 +831,8 @@ order2_yplus = {'args': y_args,
     }
 """)}
 
-order1_zminus = {'args': z_args, 
+order1_zminus = {'args_cuda': z_args['cuda'],
+                 'args_opencl': z_args['opencl'], 
                  'func': Template("""
     //  This function updates the Ex and Ey field components for the zminus slab.
     //
@@ -743,6 +842,8 @@ order1_zminus = {'args': z_args,
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML electric coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
+
+    $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -804,7 +905,8 @@ order1_zminus = {'args': z_args,
     }
 """)}
 
-order2_zminus = {'args': z_args, 
+order2_zminus = {'args_cuda': z_args['cuda'],
+                 'args_opencl': z_args['opencl'], 
                  'func': Template("""
     //  This function updates the Ex and Ey field components for the zminus slab.
     //
@@ -814,6 +916,8 @@ order2_zminus = {'args': z_args,
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML electric coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
+
+    $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -891,7 +995,8 @@ order2_zminus = {'args': z_args,
     }
 """)}
 
-order1_zplus = {'args': z_args, 
+order1_zplus = {'args_cuda': z_args['cuda'],
+                'args_opencl': z_args['opencl'], 
                 'func': Template("""
     //  This function updates the Ex and Ey field components for the zplus slab.
     //
@@ -901,6 +1006,8 @@ order1_zplus = {'args': z_args,
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML electric coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
+
+    $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -962,7 +1069,8 @@ order1_zplus = {'args': z_args,
     }
 """)}
 
-order2_zplus = {'args': z_args, 
+order2_zplus = {'args_cuda': z_args['cuda'],
+                'args_opencl': z_args['opencl'], 
                 'func': Template("""
     //  This function updates the Ex and Ey field components for the zplus slab.
     //
@@ -972,6 +1080,8 @@ order2_zplus = {'args': z_args,
     //      ID, E, H: Access to ID and field component arrays
     //      Phi, RA, RB, RE, RF: Access to PML electric coefficient arrays
     //      d: Spatial discretisation, e.g. dx, dy or dz
+
+    $CUDA_IDX
 
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
@@ -1048,4 +1158,3 @@ order2_zplus = {'args': z_args,
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dHx;
     }
 """)}
-

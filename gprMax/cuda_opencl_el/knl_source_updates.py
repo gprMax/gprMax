@@ -18,7 +18,35 @@
 
 from string import Template
 
-update_hertzian_dipole = Template("""
+update_hertzian_dipole = {'args_cuda': Template("""
+                                        __global__ void update_hertzian_dipole(int NHERTZDIPOLE, 
+                                            int iteration, 
+                                            $REAL dx, 
+                                            $REAL dy, 
+                                            $REAL dz, 
+                                            const int* __restrict__ srcinfo1, 
+                                            const $REAL* __restrict__ srcinfo2, 
+                                            const $REAL* __restrict__ srcwaveforms, 
+                                            const unsigned int* __restrict__ ID, 
+                                            $REAL *Ex, 
+                                            $REAL *Ey, 
+                                            $REAL *Ez)
+                                        """),
+                          'args_opencl': Template("""
+                                            int NHERTZDIPOLE,
+                                            int iteration,
+                                            $REAL dx,
+                                            $REAL dy,
+                                            $REAL dz,
+                                            __global const int* restrict srcinfo1,
+                                            __global const $REAL* restrict srcinfo2,
+                                            __global const $REAL* restrict srcwaveforms,
+                                            __global const unsigned int* restrict ID,
+                                            __global $REAL *Ex,
+                                            __global $REAL *Ey,
+                                            __global $REAL *Ez
+                                        """),
+                          'func': Template("""
     // Updates electric field values for Hertzian dipole sources.
     //
     //  Args:
@@ -30,6 +58,7 @@ update_hertzian_dipole = Template("""
     //      srcwaveforms: Source waveform values.
     //      ID, E: Access to ID and field component arrays.
 
+    $CUDA_IDX
 
     if (i < NHERTZDIPOLE) {
 
@@ -64,8 +93,37 @@ update_hertzian_dipole = Template("""
         }
     }
 """)
+}
 
-update_magnetic_dipole = Template("""
+update_magnetic_dipole = {'args_cuda': Template("""
+                                        __global__ void update_magnetic_dipole(int NMAGDIPOLE, 
+                                            int iteration, 
+                                            $REAL dx, 
+                                            $REAL dy, 
+                                            $REAL dz, 
+                                            const int* __restrict__ srcinfo1, 
+                                            const $REAL* __restrict__ srcinfo2, 
+                                            const $REAL* __restrict__ srcwaveforms, 
+                                            const unsigned int* __restrict__ ID, 
+                                            $REAL *Hx, 
+                                            $REAL *Hy, 
+                                            $REAL *Hz)
+                                        """),
+                          'args_opencl': Template("""
+                                            int NMAGDIPOLE,
+                                            int iteration,
+                                            $REAL dx,
+                                            $REAL dy,
+                                            $REAL dz,
+                                            __global const int* restrict rcinfo1,
+                                            __global const $REAL* restrict rcinfo2,
+                                            __global const $REAL* restrict rcwaveforms,
+                                            __global const unsigned int* estrict ID,
+                                            __global $REAL *Hx,
+                                            __global $REAL *Hy,
+                                            __global $REAL *Hz
+                                        """),
+                          'func': Template("""
     // Updates electric field values for Hertzian dipole sources.
     //
     //  Args:
@@ -77,6 +135,7 @@ update_magnetic_dipole = Template("""
     //      srcwaveforms: Source waveform values.
     //      ID, H: Access to ID and field component arrays.
 
+    $CUDA_IDX
 
     if (i < NMAGDIPOLE) {
 
@@ -109,8 +168,37 @@ update_magnetic_dipole = Template("""
         }
     }
 """)
+}
 
-update_voltage_source = Template("""
+update_voltage_source = {'args_cuda': Template("""
+                                        __global__ void update_voltage_source(int NVOLTSRC, 
+                                            int iteration, 
+                                            $REAL dx, 
+                                            $REAL dy, 
+                                            $REAL dz, 
+                                            const int* __restrict__ srcinfo1, 
+                                            const $REAL* __restrict__ srcinfo2, 
+                                            const $REAL* __restrict__ srcwaveforms, 
+                                            const unsigned int* __restrict__ ID, 
+                                            $REAL *Ex, 
+                                            $REAL *Ey, 
+                                            $REAL *Ez)
+                                        """),
+                          'args_opencl': Template("""
+                                            int NVOLTSRC,
+                                            int iteration,
+                                            $REAL dx,
+                                            $REAL dy,
+                                            $REAL dz,
+                                            __global const int* restrict rcinfo1,
+                                            __global const $REAL* restrict rcinfo2,
+                                            __global const $REAL* restrict rcwaveforms,
+                                            __global const unsigned int* estrict ID,
+                                            __global $REAL *Ex,
+                                            __global $REAL *Ey,
+                                            __global $REAL *Ez
+                                        """),
+                          'func': Template("""
     // Updates electric field values for voltage sources.
     //
     //  Args:
@@ -122,6 +210,7 @@ update_voltage_source = Template("""
     //      srcwaveforms: Source waveform values.
     //      ID, E: Access to ID and field component arrays.
 
+    $CUDA_IDX
 
     if (i < NVOLTSRC) {
 
@@ -171,3 +260,4 @@ update_voltage_source = Template("""
         }
     }
 """)
+}
