@@ -262,7 +262,19 @@ class CUDAUpdates:
         self.dev = config.get_model_config().device['dev']
         self.ctx = self.dev.make_context()
 
+        # Set common substitutions for use in kernels
+        self.subs_name_args = {'REAL': config.sim_config.dtypes['C_float_or_double'], 
+                               'COMPLEX': config.get_model_config().materials['dispersiveCdtype']}
+        self.subs_func = {'CUDA_IDX': 'int i = blockIdx.x * blockDim.x + threadIdx.x;',
+                          'NX_FIELDS': self.grid.nx + 1,
+                          'NY_FIELDS': self.grid.ny + 1,
+                          'NZ_FIELDS': self.grid.nz + 1,
+                          'NX_ID': self.grid.ID.shape[1],
+                          'NY_ID': self.grid.ID.shape[2],
+                          'NZ_ID': self.grid.ID.shape[3]}
+
         # Initialise arrays on GPU, prepare kernels, and get kernel functions
+        self._set_macros()
         self._set_field_knls()
         if self.grid.pmls:
             self._set_pml_knls()
@@ -273,60 +285,108 @@ class CUDAUpdates:
         if self.grid.snapshots:
             self._set_snapshot_knl()
 
+    def _build_knl(self, knl_func, subs_name_args, subs_func):
+        """Builds a CUDA kernel from templates: 1) function name and args;
+            and 2) function (kernel) body. 
+
+        Args:
+            knl_func: dict containing templates for function name and args,
+                        and function body.
+            subs_name_args: dict containing substitutions to be used with    
+                                function name and args.
+            subs_func: dict containing substitutions to be used with function
+                        (kernel) body.
+
+        Returns:
+            knl: string with complete kernel
+        """
+
+        name_plus_args = knl_func['args_cuda'].substitute(subs_name_args)
+        func_body = knl_func['func'].substitute(subs_func)
+        knl = self.knl_common + '\n' + name_plus_args + '{' + func_body + '}'
+
+        return knl
+
+    def _set_macros(self):
+        """Common macros to be used in kernels."""
+
+        if config.get_model_config().materials['maxpoles'] > 0:
+            NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
+            NX_T = self.grid.Tx.shape[1]
+            NY_T = self.grid.Tx.shape[2]
+            NZ_T = self.grid.Tx.shape[3]
+        else: # Set to one any substitutions for dispersive materials.
+            NY_MATDISPCOEFFS = 1
+            NX_T = 1
+            NY_T = 1
+            NZ_T = 1
+
+        self.knl_common = self.env.get_template('knl_common_cuda.tmpl').render(
+                            REAL=config.sim_config.dtypes['C_float_or_double'],
+                            N_updatecoeffsE=self.grid.updatecoeffsE.size,
+                            N_updatecoeffsH=self.grid.updatecoeffsH.size,
+                            NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
+                            NY_MATDISPCOEFFS=NY_MATDISPCOEFFS,
+                            NX_FIELDS=self.grid.nx + 1,
+                            NY_FIELDS=self.grid.ny + 1,
+                            NZ_FIELDS=self.grid.nz + 1,
+                            NX_ID=self.grid.ID.shape[1],
+                            NY_ID=self.grid.ID.shape[2],
+                            NZ_ID=self.grid.ID.shape[3],
+                            NX_T=NX_T,
+                            NY_T=NY_T,
+                            NZ_T=NZ_T,
+                            NY_RXCOORDS=3,
+                            NX_RXS=6,
+                            NY_RXS=self.grid.iterations,
+                            NZ_RXS=len(self.grid.rxs),
+                            NY_SRCINFO=4,
+                            NY_SRCWAVES=self.grid.iterations,
+                            NX_SNAPS=Snapshot.nx_max,
+                            NY_SNAPS=Snapshot.ny_max,
+                            NZ_SNAPS=Snapshot.nz_max)
+
     def _set_field_knls(self):
         """Electric and magnetic field updates - prepare kernels, and
             get kernel functions.
         """
-        if config.get_model_config().materials['maxpoles'] > 0:
-            knls_fields = self.source_module(knl_template_fields.substitute(
-                                                REAL=config.sim_config.dtypes['C_float_or_double'],
-                                                REALFUNC=config.get_model_config().materials['cudarealfunc'],
-                                                COMPLEX=config.get_model_config().materials['dispersiveCdtype'],
-                                                N_updatecoeffsE=self.grid.updatecoeffsE.size,
-                                                N_updatecoeffsH=self.grid.updatecoeffsH.size,
-                                                NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
-                                                NY_MATDISPCOEFFS=self.grid.updatecoeffsdispersive.shape[1],
-                                                NX_FIELDS=self.grid.nx + 1,
-                                                NY_FIELDS=self.grid.ny + 1,
-                                                NZ_FIELDS=self.grid.nz + 1,
-                                                NX_ID=self.grid.ID.shape[1],
-                                                NY_ID=self.grid.ID.shape[2],
-                                                NZ_ID=self.grid.ID.shape[3],
-                                                NX_T=self.grid.Tx.shape[1],
-                                                NY_T=self.grid.Tx.shape[2],
-                                                NZ_T=self.grid.Tx.shape[3]),
-                                                options=config.sim_config.cuda['nvcc_opts'])
-        else: # Set to one any substitutions for dispersive materials.
-              # Value of COMPLEX is not relevant.
-            knls_fields = self.source_module(knl_template_fields.substitute(
-                                                REAL=config.sim_config.dtypes['C_float_or_double'],
-                                                REALFUNC=config.get_model_config().materials['cudarealfunc'],
-                                                COMPLEX=config.sim_config.dtypes['C_float_or_double'],
-                                                N_updatecoeffsE=self.grid.updatecoeffsE.size,
-                                                N_updatecoeffsH=self.grid.updatecoeffsH.size,
-                                                NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
-                                                NY_MATDISPCOEFFS=1,
-                                                NX_FIELDS=self.grid.nx + 1,
-                                                NY_FIELDS=self.grid.ny + 1,
-                                                NZ_FIELDS=self.grid.nz + 1,
-                                                NX_ID=self.grid.ID.shape[1],
-                                                NY_ID=self.grid.ID.shape[2],
-                                                NZ_ID=self.grid.ID.shape[3],
-                                                NX_T=1,
-                                                NY_T=1,
-                                                NZ_T=1),
-                                                options=config.sim_config.cuda['nvcc_opts'])
-        self.update_electric_gpu = knls_fields.get_function("update_electric")
-        self.update_magnetic_gpu = knls_fields.get_function("update_magnetic")
-        self._copy_mat_coeffs(knls_fields, knls_fields)
+        
+        bld = self._build_knl(knl_fields_updates.update_electric['func'], 
+                              self.subs_name_args, self.subs_func)
+        knlE = self.source_module(bld, 
+                                  options=config.sim_config.cuda['nvcc_opts'])
+        self.update_electric_gpu = knlE.get_function("update_electric")
+
+        bld = self._build_knl(knl_fields_updates.update_magnetic['func'], 
+                              self.subs_name_args, self.subs_func)
+        knlH = self.source_module(bld, 
+                                  options=config.sim_config.cuda['nvcc_opts'])
+        self.update_magnetic_gpu = knlH.get_function("update_magnetic")
+
+        self._copy_mat_coeffs(knlE, knlH)
 
         # Electric and magnetic field updates - dispersive materials
         # - get kernel functions and initialise array on GPU
         # If there are any dispersive materials (updates are split into two
         # parts as they require present and updated electric field values).
         if config.get_model_config().materials['maxpoles'] > 0:
-            self.dispersive_update_a = knls_fields.get_function("update_electric_dispersive_A")
-            self.dispersive_update_b = knls_fields.get_function("update_electric_dispersive_B")
+            self.subs_func.update({'REAL': config.sim_config.dtypes['C_float_or_double'],
+                                'REALFUNC': config.get_model_config().materials['cudarealfunc'],
+                                'NX_T': self.grid.Tx.shape[1],
+                                'NY_T': self.grid.Tx.shape[2],
+                                'NZ_T': self.grid.Tx.shape[3]})
+
+            bld = self._build_knl(knl_fields_updates.update_electric_dispersive_A['func'], 
+                                  self.subs_name_args, self.subs_func)
+            knl = self.source_module(bld, 
+                                     options=config.sim_config.cuda['nvcc_opts'])
+            self.dispersive_update_a = knl.get_function("update_electric_dispersive_A")
+
+            bld = self._build_knl(knl_fields_updates.update_electric_dispersive_B['func'], 
+                                  self.subs_name_args, self.subs_func)
+            knl = self.source_module(bld, 
+                                     options=config.sim_config.cuda['nvcc_opts'])
+            self.dispersive_update_b = knl.get_function("update_electric_dispersive_B")
 
         # Electric and magnetic field updates - set blocks per grid and
         # initialise field arrays on GPU
@@ -338,104 +398,93 @@ class CUDAUpdates:
 
     def _set_pml_knls(self):
         """PMLS - prepare kernels and get kernel functions."""
-        pmlmodulelectric = 'gprMax.cuda.pml_updates_electric_' + self.grid.pmlformulation
-        knlelectricfunc = getattr(import_module(pmlmodulelectric),
-                                     'knls_template_pml_electric_' +
-                                     self.grid.pmlformulation)
-        pmlmodulemagnetic = 'gprMax.cuda.pml_updates_magnetic_' + self.grid.pmlformulation
-        knlmagneticfunc = getattr(import_module(pmlmodulemagnetic),
-                                     'knls_template_pml_magnetic_' +
-                                     self.grid.pmlformulation)
-        knls_pml_electric = self.source_module(knlelectricfunc.substitute(
-                                                  REAL=config.sim_config.dtypes['C_float_or_double'],
-                                                  N_updatecoeffsE=self.grid.updatecoeffsE.size,
-                                                  NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
-                                                  NX_FIELDS=self.grid.nx + 1,
-                                                  NY_FIELDS=self.grid.ny + 1,
-                                                  NZ_FIELDS=self.grid.nz + 1,
-                                                  NX_ID=self.grid.ID.shape[1],
-                                                  NY_ID=self.grid.ID.shape[2],
-                                                  NZ_ID=self.grid.ID.shape[3]),
-                                                  options=config.sim_config.cuda['nvcc_opts'])
-        knls_pml_magnetic = self.source_module(knlmagneticfunc.substitute(
-                                                  REAL=config.sim_config.dtypes['C_float_or_double'],
-                                                  N_updatecoeffsH=self.grid.updatecoeffsH.size,
-                                                  NY_MATCOEFFS=self.grid.updatecoeffsH.shape[1],
-                                                  NX_FIELDS=self.grid.nx + 1,
-                                                  NY_FIELDS=self.grid.ny + 1,
-                                                  NZ_FIELDS=self.grid.nz + 1,
-                                                  NX_ID=self.grid.ID.shape[1],
-                                                  NY_ID=self.grid.ID.shape[2],
-                                                  NZ_ID=self.grid.ID.shape[3]),
-                                                  options=config.sim_config.cuda['nvcc_opts'])
-        self._copy_mat_coeffs(knls_pml_electric, knls_pml_magnetic)
+        knl_pml_updates_electric = import_module('gprMax.cuda_opencl_el.knl_pml_updates_electric_' + self.grid.pmlformulation)
+        knl_pml_updates_magnetic = import_module('gprMax.cuda_opencl_el.knl_pml_updates_magnetic_' + self.grid.pmlformulation)
+
         # Set block per grid, initialise arrays on GPU, and get kernel functions
         for pml in self.grid.pmls:
-            pml.htod_field_arrays()
             pml.set_blocks_per_grid()
-            pml.get_update_funcs(knls_pml_electric, knls_pml_magnetic)
+            pml.htod_field_arrays()
+            knl_name = 'order' + str(len(pml.CFS)) + '_' + pml.direction
+            self.subs_name_args['FUNC'] = knl_name
+
+            knl_electric = getattr(knl_pml_updates_electric, knl_name)
+            bld = self._build_knl(knl_electric['func'], 
+                                  self.subs_name_args, self.subs_func)
+            knlE = self.source_module(bld, options=config.sim_config.cuda['nvcc_opts'])
+            pml.update_electric_dev = knlE.get_function(knl_name)
+
+            knl_magnetic = getattr(knl_pml_updates_magnetic, knl_name)
+            bld = self._build_knl(knl_magnetic['func'], 
+                                  self.subs_name_args, self.subs_func)
+            knlH = self.source_module(bld, options=config.sim_config.cuda['nvcc_opts'])
+            pml.update_magnetic_dev = knlH.get_function(knl_name)
+
+        self._copy_mat_coeffs(knlE, knlH)
 
     def _set_rx_knl(self):
         """Receivers - initialise arrays on GPU, prepare kernel and get kernel
                         function.
         """
         self.rxcoords_gpu, self.rxs_gpu = htod_rx_arrays(self.grid)
-        knl_store_outputs = self.source_module(knl_template_store_outputs.substitute(
-                                                  REAL=config.sim_config.dtypes['C_float_or_double'],
-                                                  NY_RXCOORDS=3,
-                                                  NX_RXS=6,
-                                                  NY_RXS=self.grid.iterations,
-                                                  NZ_RXS=len(self.grid.rxs),
-                                                  NX_FIELDS=self.grid.nx + 1,
-                                                  NY_FIELDS=self.grid.ny + 1,
-                                                  NZ_FIELDS=self.grid.nz + 1),
-                                                  options=config.sim_config.cuda['nvcc_opts'])
-        self.store_outputs_gpu = knl_store_outputs.get_function("store_outputs")
+
+        self.subs_func.update({'REAL': config.sim_config.dtypes['C_float_or_double'],
+                               'NY_RXCOORDS': 3,
+                               'NX_RXS': 6,
+                               'NY_RXS': self.grid.iterations,
+                               'NZ_RXS': len(self.grid.rxs)})
+
+        bld = self._build_knl(knl_store_outputs.store_outputs['func'], 
+                              self.subs_name_args, self.subs_func)
+        knl = self.source_module(bld, options=config.sim_config.cuda['nvcc_opts'])
+        self.store_outputs_gpu = knl.get_function("store_outputs")
 
     def _set_src_knls(self):
         """Sources - initialise arrays on GPU, prepare kernel and get kernel
                         function.
         """
-        knls_sources = self.source_module(knl_template_sources.substitute(
-                                             REAL=config.sim_config.dtypes['C_float_or_double'],
-                                             N_updatecoeffsE=self.grid.updatecoeffsE.size,
-                                             N_updatecoeffsH=self.grid.updatecoeffsH.size,
-                                             NY_MATCOEFFS=self.grid.updatecoeffsE.shape[1],
-                                             NY_SRCINFO=4,
-                                             NY_SRCWAVES=self.grid.iterations,
-                                             NX_FIELDS=self.grid.nx + 1,
-                                             NY_FIELDS=self.grid.ny + 1,
-                                             NZ_FIELDS=self.grid.nz + 1,
-                                             NX_ID=self.grid.ID.shape[1],
-                                             NY_ID=self.grid.ID.shape[2],
-                                             NZ_ID=self.grid.ID.shape[3]),
-                                             options=config.sim_config.cuda['nvcc_opts'])
-        self._copy_mat_coeffs(knls_sources, knls_sources)
+        self.subs_func.update({'NY_SRCINFO': 4, 
+                               'NY_SRCWAVES': self.grid.iteration})
+        
         if self.grid.hertziandipoles:
             self.srcinfo1_hertzian_gpu, self.srcinfo2_hertzian_gpu, self.srcwaves_hertzian_gpu = htod_src_arrays(self.grid.hertziandipoles, self.grid)
-            self.update_hertzian_dipole_gpu = knls_sources.get_function("update_hertzian_dipole")
+            bld = self._build_knl(knl_source_updates.update_hertzian_dipole['func'], 
+                                  self.subs_name_args, self.subs_func)
+            knl = self.source_module(bld, options=config.sim_config.cuda['nvcc_opts'])
+            self.update_hertzian_dipole_gpu = knl.get_function("update_hertzian_dipole")
         if self.grid.magneticdipoles:
             self.srcinfo1_magnetic_gpu, self.srcinfo2_magnetic_gpu, self.srcwaves_magnetic_gpu = htod_src_arrays(self.grid.magneticdipoles, self.grid)
-            self.update_magnetic_dipole_gpu = knls_sources.get_function("update_magnetic_dipole")
+            bld = self._build_knl(knl_source_updates.update_magnetic_dipole['func'], 
+                                  self.subs_name_args, self.subs_func)
+            knl = self.source_module(bld, options=config.sim_config.cuda['nvcc_opts'])
+            self.update_magnetic_dipole_gpu = knl.get_function("update_magnetic_dipole")
         if self.grid.voltagesources:
             self.srcinfo1_voltage_gpu, self.srcinfo2_voltage_gpu, self.srcwaves_voltage_gpu = htod_src_arrays(self.grid.voltagesources, self.grid)
-            self.update_voltage_source_gpu = knls_sources.get_function("update_voltage_source")
+            bld = self._build_knl(knl_source_updates.update_voltage_source['func'], 
+                                  self.subs_name_args, self.subs_func)
+            knl = self.source_module(bld, options=config.sim_config.cuda['nvcc_opts'])
+            self.update_voltage_source_gpu = knl.get_function("update_voltage_source")
+
+        if (self.grid.hertziandipoles + 
+            self.grid.magneticdipoles + 
+            self.grid.voltagesources):
+            self._copy_mat_coeffs(knl, knl)
 
     def _set_snapshot_knl(self):
         """Snapshots - initialise arrays on GPU, prepare kernel and get kernel
                         function.
         """
         self.snapEx_gpu, self.snapEy_gpu, self.snapEz_gpu, self.snapHx_gpu, self.snapHy_gpu, self.snapHz_gpu = htod_snapshot_array(self.grid)
-        knl_store_snapshot = self.source_module(knl_template_store_snapshot.substitute(
-                                                   REAL=config.sim_config.dtypes['C_float_or_double'],
-                                                   NX_SNAPS=Snapshot.nx_max,
-                                                   NY_SNAPS=Snapshot.ny_max,
-                                                   NZ_SNAPS=Snapshot.nz_max,
-                                                   NX_FIELDS=self.grid.nx + 1,
-                                                   NY_FIELDS=self.grid.ny + 1,
-                                                   NZ_FIELDS=self.grid.nz + 1),
-                                                   options=config.sim_config.cuda['nvcc_opts'])
-        self.store_snapshot_gpu = knl_store_snapshot.get_function("store_snapshot")
+
+        self.subs_func.update({'REAL': config.sim_config.dtypes['C_float_or_double'],
+                               'NX_SNAPS': Snapshot.nx_max,
+                               'NY_SNAPS': Snapshot.ny_max,
+                               'NZ_SNAPS': Snapshot.nz_max})
+
+        bld = self._build_knl(knl_snapshots.store_snapshot['func'], 
+                              self.subs_name_args, self.subs_func)
+        knl = self.source_module(bld, options=config.sim_config.cuda['nvcc_opts'])
+        self.store_snapshot_gpu = knl.get_function("store_snapshot")
 
     def _copy_mat_coeffs(self, knlE, knlH):
         """Copy material coefficient arrays to constant memory of GPU
@@ -1138,7 +1187,8 @@ class OpenCLUpdates:
             self.compute_time += (event.profile.end - event.profile.start)*1e-9
 
     def time_start(self):
-        pass
+        self.event_marker1 = self.cl.enqueue_marker(self.queue)
+        
 
     def calculate_memsolve(self, iteration):
         """Calculate memory used on last iteration.
@@ -1156,6 +1206,11 @@ class OpenCLUpdates:
 
     def calculate_tsolve(self):
         """Calculate solving time for model."""
+        self.event_marker1.wait()
+        event_marker2 = self.cl.enqueue_marker(self.queue)
+        event_marker2.wait()
+        compute_time = (event_marker2.profile.end - self.event_marker1.profile.end)*1e-9
+        print(compute_time)
         print(self.compute_time)
         return self.compute_time
 
