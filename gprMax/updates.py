@@ -772,7 +772,6 @@ class OpenCLUpdates:
         self.grid = G
         self.dispersive_update_a = None
         self.dispersive_update_b = None
-        self.compute_time = 0
 
         # Import pyopencl module
         self.cl = import_module('pyopencl')
@@ -996,7 +995,6 @@ class OpenCLUpdates:
                                            self.grid.Hy_dev,
                                            self.grid.Hz_dev)
             event.wait()
-            self.compute_time += (event.profile.end - event.profile.start)*1e-9
 
     def store_snapshots(self, iteration):
         """Store any snapshots.
@@ -1040,7 +1038,6 @@ class OpenCLUpdates:
                                         self.snapHz_dev.get(),
                                         0,
                                         snap)
-                self.compute_time += (event.profile.end - event.profile.start)*1e-9
 
     def update_magnetic(self):
         """Update magnetic field components."""
@@ -1055,13 +1052,11 @@ class OpenCLUpdates:
                                          self.grid.Ey_dev,
                                          self.grid.Ez_dev)
         event.wait()
-        self.compute_time += (event.profile.end - event.profile.start)*1e-9
 
     def update_magnetic_pml(self):
         """Update magnetic field components with the PML correction."""
         for pml in self.grid.pmls:
             pml.update_magnetic()
-            self.compute_time += pml.compute_time
 
     def update_magnetic_sources(self):
         """Update magnetic field components from sources."""
@@ -1079,7 +1074,6 @@ class OpenCLUpdates:
                         self.grid.Hy_dev,
                         self.grid.Hz_dev)
             event.wait()
-            self.compute_time += (event.profile.end - event.profile.start)*1e-9
 
     def update_electric_a(self):
         """Update electric field components."""
@@ -1096,7 +1090,6 @@ class OpenCLUpdates:
                                              self.grid.Hy_dev,
                                              self.grid.Hz_dev)
             event.wait()
-            self.compute_time += (event.profile.end - event.profile.start)*1e-9
 
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
@@ -1117,13 +1110,11 @@ class OpenCLUpdates:
                         self.grid.Hy_dev,
                         self.grid.Hz_dev)
             event.wait()
-            self.compute_time += (event.profile.end - event.profile.start)*1e-9
 
     def update_electric_pml(self):
         """Update electric field components with the PML correction."""
         for pml in self.grid.pmls:
             pml.update_electric()
-            self.compute_time += pml.compute_time
 
     def update_electric_sources(self):
         """Update electric field components from sources -
@@ -1143,7 +1134,6 @@ class OpenCLUpdates:
                         self.grid.Ey_dev,
                         self.grid.Ez_dev)
             event.wait()
-            self.compute_time += (event.profile.end - event.profile.start)*1e-9
 
         if self.grid.hertziandipoles:
             event = self.update_hertzian_dipole_dev(np.int32(len(self.grid.hertziandipoles)),
@@ -1159,7 +1149,6 @@ class OpenCLUpdates:
                         self.grid.Ey_dev,
                         self.grid.Ez_dev)
             event.wait()
-            self.compute_time += (event.profile.end - event.profile.start)*1e-9
 
         self.grid.iteration += 1
 
@@ -1184,11 +1173,10 @@ class OpenCLUpdates:
                         self.grid.Ey_dev,
                         self.grid.Ez_dev)
             event.wait()
-            self.compute_time += (event.profile.end - event.profile.start)*1e-9
 
     def time_start(self):
         self.event_marker1 = self.cl.enqueue_marker(self.queue)
-        
+        self.event_marker1.wait()
 
     def calculate_memsolve(self, iteration):
         """Calculate memory used on last iteration.
@@ -1206,13 +1194,11 @@ class OpenCLUpdates:
 
     def calculate_tsolve(self):
         """Calculate solving time for model."""
-        self.event_marker1.wait()
+        
         event_marker2 = self.cl.enqueue_marker(self.queue)
         event_marker2.wait()
-        compute_time = (event_marker2.profile.end - self.event_marker1.profile.end)*1e-9
-        print(compute_time)
-        print(self.compute_time)
-        return self.compute_time
+        compute_time = (event_marker2.profile.end - self.event_marker1.profile.start)*1e-9
+        return compute_time
 
     def finalise(self):
         """Copy data from compute device back to CPU to save to file(s)."""

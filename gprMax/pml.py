@@ -470,7 +470,6 @@ class OpenCLPML(PML):
 
     def __init__(self, *args, **kwargs):
         super(OpenCLPML, self).__init__(*args, **kwargs)
-        self.compute_time = 0
 
     def set_queue(self, queue):
         """Passes in pyopencl queue.
@@ -536,7 +535,6 @@ class OpenCLPML(PML):
                                          self.ERF_dev,
                                          config.sim_config.dtypes['float_or_double'](self.d))
         event.wait()
-        self.compute_time += (event.profile.end - event.profile.start)*1e-9
 
     def update_magnetic(self):
         """This functions updates magnetic field components with the PML
@@ -570,7 +568,6 @@ class OpenCLPML(PML):
                                          self.HRF_dev,
                                          config.sim_config.dtypes['float_or_double'](self.d))
         event.wait()
-        self.compute_time += (event.profile.end - event.profile.start)*1e-9
 
 
 def print_pml_info(G):
