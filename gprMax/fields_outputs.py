@@ -22,6 +22,7 @@ from string import Template
 import h5py
 
 from ._version import __version__
+from .grid import Ix, Iy, Iz
 
 logger = logging.getLogger(__name__)
 
