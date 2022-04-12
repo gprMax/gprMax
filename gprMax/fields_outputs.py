@@ -21,6 +21,7 @@ from string import Template
 import h5py
 
 from gprMax._version import __version__
+from gprMax.grid import Ix, Iy, Iz
 
 
 def store_outputs(iteration, Ex, Ey, Ez, Hx, Hy, Hz, G):
