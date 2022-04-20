@@ -173,7 +173,7 @@ class AddGrass(UserObjectGeometry):
         # Set the fractal range to scale the fractal distribution between zero and one
         surface.fractalrange = (0, 1)
         surface.operatingonID = volume.ID
-        surface.generate_fractal_surface(grid)
+        surface.generate_fractal_surface()
         if n_blades > surface.fractalsurface.shape[0] * surface.fractalsurface.shape[1]:
             logger.exception(self.__str__() + ' the specified surface is not large enough for the number of grass blades/roots specified')
             raise ValueError

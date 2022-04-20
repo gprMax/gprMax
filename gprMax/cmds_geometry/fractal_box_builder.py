@@ -80,7 +80,7 @@ class FractalBoxBuilder(UserObjectGeometry):
                     materialnumID = next(x.numID for x in grid.materials if x.ID == volume.operatingonID)
                     volume.fractalvolume *= materialnumID
                 else:
-                    volume.generate_fractal_volume(grid)
+                    volume.generate_fractal_volume()
                     volume.fractalvolume += volume.mixingmodel.startmaterialnum
 
                 volume.generate_volume_mask()
@@ -306,7 +306,7 @@ class FractalBoxBuilder(UserObjectGeometry):
                     logger.exception(self.__str__() + ' is being used with a single material and no modifications, therefore please use a #box command instead.')
                     raise ValueError
                 else:
-                    volume.generate_fractal_volume(grid)
+                    volume.generate_fractal_volume()
                     volume.fractalvolume += volume.mixingmodel.startmaterialnum
 
                 data = volume.fractalvolume.astype('int16', order='C')

@@ -37,7 +37,7 @@ cpdef void generate_fractal2D(int nx, int ny, int nthreads, int b, np.float64_t[
     """
 
     cdef Py_ssize_t i, j
-    cdef float v2x, v2y, rr
+    cdef double v2x, v2y, rr, B
 
     for i in prange(nx, nogil=True, schedule='static', num_threads=nthreads):
         for j in range(ny):
@@ -47,12 +47,11 @@ cpdef void generate_fractal2D(int nx, int ny, int nthreads, int b, np.float64_t[
 
                 # Calulate norm of v2 - v1
                 rr = ((v2x - v1[0])**2 + (v2y - v1[1])**2)**(1/2)
+                B = rr**b
+                if B == 0:
+                    B = 0.9
 
-                # Catch potential divide by zero
-                if rr == 0:
-                    rr = 0.9
-
-                fractalsurface[i, j] = A[i, j] * 1 / (rr**b)
+                fractalsurface[i, j] = A[i, j] / B
 
 
 cpdef void generate_fractal3D(int nx, int ny, int nz, int nthreads, int b, np.float64_t[:] weighting, np.float64_t[:] v1, np.complex128_t[:, :, ::1] A, float_or_double_complex[:, :, ::1] fractalvolume):
@@ -69,7 +68,7 @@ cpdef void generate_fractal3D(int nx, int ny, int nz, int nthreads, int b, np.fl
     """
 
     cdef Py_ssize_t i, j, k
-    cdef float v2x, v2y, v2z, rr
+    cdef double v2x, v2y, v2z, rr, B
 
     for i in prange(nx, nogil=True, schedule='static', num_threads=nthreads):
         for j in range(ny):
@@ -81,9 +80,8 @@ cpdef void generate_fractal3D(int nx, int ny, int nz, int nthreads, int b, np.fl
 
                 # Calulate norm of v2 - v1
                 rr = ((v2x - v1[0])**2 + (v2y - v1[1])**2 + (v2z - v1[2])**2)**(1/2)
-
-                # Catch potential divide by zero
-                if rr == 0:
-                    rr = 0.9
-
-                fractalvolume[i, j, k] = A[i, j, k] * 1 / (rr**b)
+                B = rr**b
+                if B == 0:
+                    B = 0.9 
+                    
+                fractalvolume[i, j, k] = A[i, j, k] / B

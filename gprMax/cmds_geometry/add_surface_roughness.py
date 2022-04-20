@@ -191,7 +191,7 @@ class AddSurfaceRoughness(UserObjectGeometry):
             logger.exception(self.__str__() + f' has already been used on the {surface.surfaceID} surface')
             raise ValueError
 
-        surface.generate_fractal_surface(grid)
+        surface.generate_fractal_surface()
         volume.fractalsurfaces.append(surface)
 
         logger.info(self.grid_name(grid) + f'Fractal surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with fractal dimension {surface.dimension:g}, fractal weightings {surface.weighting[0]:g}, {surface.weighting[1]:g}, fractal seeding {surface.seed}, and range {limits[0]:g}m to {limits[1]:g}m, added to {surface.operatingonID}.')
