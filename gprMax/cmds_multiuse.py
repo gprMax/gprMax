@@ -977,13 +977,17 @@ class Snapshot(UserObjectMulti):
                              'parameters.')
             raise
 
-        p1, p2 = uip.check_box_points(p1, p2, self.params_str())
+        try:
+            p3 = uip.round_to_grid_static_point(p1)
+            p4 = uip.round_to_grid_static_point(p2)
+            p1, p2 = uip.check_box_points(p1, p2, self.params_str())
+        except ValueError:
+            logger.exception(self.params_str() + ' point is outside the domain.')
+            raise
         xs, ys, zs = p1
         xf, yf, zf = p2
-        dx, dy, dz = uip.discretise_point(dl)
 
-        p3 = uip.round_to_grid_static_point(p1)
-        p4 = uip.round_to_grid_static_point(p2)
+        dx, dy, dz = uip.discretise_static_point(dl)
 
         # If number of iterations given
         try:
