@@ -1,0 +1,23 @@
+name: gprMaxCuda
+channels:
+  - conda-forge
+  - nvidia
+dependencies:
+  - python=3.10
+  - colorama
+  - cuda-libraries-dev
+  - cudatoolkit
+  - cython
+  - h5py
+  - jupyter
+  - libgcc
+  - libstdcxx-ng
+  - matplotlib
+  - mpi4py
+  - numpy
+  - pip
+  - psutil
+  - pycuda
+  - scipy
+  - terminaltables
+  - tqdm
