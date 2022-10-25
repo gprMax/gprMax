@@ -109,11 +109,17 @@ class MPIContext(Context):
         self.rank = self.comm.rank
         self.MPIExecutor = MPIExecutor
 
-    def _run_model(self, i):
-        """Process for running a single model."""
+    def _run_model(self, **work):
+        """Process for running a single model.
+        
+        Args:
+            work (dict): contains any additional information that is passed to 
+                            MPI workers. By default only model number (i) is 
+                            used.
+        """
 
         # Create configuration for model
-        config.model_num = i
+        config.model_num = work['i']
         model_config = config.ModelConfig()
         # Set GPU deviceID according to worker rank
         if config.sim_config.general['cuda']:
