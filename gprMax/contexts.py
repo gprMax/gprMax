@@ -140,9 +140,11 @@ class MPIContext(Context):
         if self.rank == 0:
             self.tsimstart = timer()
             self.print_logo_copyright()
-            self.print_host_info()
-            if config.sim_config.general['cuda']:
-                self.print_gpu_info()
+            print_host_info(config.sim_config.hostinfo)
+            if config.sim_config.general['solver'] == 'cuda':
+                print_cuda_info(config.sim_config.devices['devs'])
+            elif config.sim_config.general['solver'] == 'opencl':
+                print_opencl_info(config.sim_config.devices['devs'])
             sys.stdout.flush()
 
         # Contruct MPIExecutor

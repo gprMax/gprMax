@@ -100,7 +100,7 @@ class ModelConfig:
                             Style.RESET_ALL)
 
         # Output file path and name for specific model
-        self.appendmodelnumber = '' if sim_config.single_model else str(model_num + 1) # Indexed from 1
+        self.appendmodelnumber = '' if sim_config.args.n == 1 else str(model_num + 1) # Indexed from 1
         self.set_output_file_path()
 
         # Numerical dispersion analysis parameters
@@ -286,7 +286,6 @@ class SimulationConfig:
         self._get_byteorder()
         self._set_input_file_path()
         self._set_model_start_end()
-        self._set_single_model()
 
     def set_model_device(self, deviceID):
         """Specify pycuda/pyopencl object for model.
@@ -351,17 +350,11 @@ class SimulationConfig:
         """
         self.vtk_byteorder = 'LittleEndian' if sys.byteorder == 'little' else 'BigEndian'
 
-    def _set_single_model(self):
-        if self.model_end - self.model_start == 1:
-            self.single_model = True
-        else:
-            self.single_model = False
-
     def _set_model_start_end(self):
         """Set range for number of models to run (internally 0 index)."""
-        if self.args.restart:
-            modelstart = self.args.restart - 1
-            modelend = modelstart + self.args.n - 1
+        if self.args.i:
+            modelstart = self.args.i - 1
+            modelend = modelstart + self.args.n
         else:
             modelstart = 0
             modelend = modelstart + self.args.n

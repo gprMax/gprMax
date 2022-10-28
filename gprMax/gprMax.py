@@ -20,7 +20,7 @@ import argparse
 
 import gprMax.config as config
 
-from .contexts import Context, MPIContext, SPOTPYContext
+from .contexts import Context, MPIContext
 from .utilities.logging import logging_config
 
 # Arguments (used for API) and their default values (used for API and CLI)
@@ -28,8 +28,7 @@ args_defaults = {'scenes': None,
                  'inputfile': None,
                  'outputfile': None,
                  'n': 1,
-                 'task': None,
-                 'restart': None,
+                 'i': None,
                  'mpi': False,
                  'gpu': None,
                  'opencl': None,
@@ -38,7 +37,7 @@ args_defaults = {'scenes': None,
                  'geometry_only': False,
                  'geometry_fixed': False,
                  'write_processed': False,
-                 'log_level': 20,
+                 'log_level': 20, # Level DEBUG = 10; INFO = 20; BASIC = 25
                  'log_file': False}
 
 # Argument help messages (used for CLI argparse)
@@ -50,12 +49,7 @@ help_msg = {'scenes': '(list, opt): List of the scenes to run the model. '
                          'by providing an input file.',
             'outputfile': '(str, opt): File path to the output data file.',
             'n': '(int, req): Number of required simulation runs.',
-            'task': '(int, opt): Task identifier (model number) when running '
-                    'simulation as a job array on Open Grid Scheduler/Grid '
-                    'Engine (http://gridscheduler.sourceforge.net/index.html). '
-                    'For further details see the parallel performance '
-                    'section of the User Guide.',
-            'restart': '(int, opt): Model number to start/restart simulation '
+            'i': '(int, opt): Model number to start/restart simulation '
                        'from. It would typically be used to restart a series of '
                        'models from a specific model number, with the n argument, '
                        'e.g. to restart from A-scan 45 when creating a B-scan '
@@ -91,8 +85,7 @@ def run(scenes=args_defaults['scenes'],
         inputfile=args_defaults['inputfile'],
         outputfile=args_defaults['outputfile'],
         n=args_defaults['n'],
-        task=args_defaults['task'],
-        restart=args_defaults['restart'],
+        i=args_defaults['i'],
         mpi=args_defaults['mpi'],
         gpu=args_defaults['gpu'],
         opencl=args_defaults['opencl'],
@@ -112,8 +105,7 @@ def run(scenes=args_defaults['scenes'],
                                  'inputfile': inputfile,
                                  'outputfile': outputfile,
                                  'n': n,
-                                 'task': task,
-                                 'restart': restart,
+                                 'i': i,
                                  'mpi': mpi,
                                  'gpu': gpu,
                                  'opencl': opencl,
@@ -138,8 +130,7 @@ def cli():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('inputfile', help=help_msg['inputfile'])
     parser.add_argument('-n', default=args_defaults['n'], type=int, help=help_msg['n'])
-    parser.add_argument('-task', type=int, help=help_msg['task'])
-    parser.add_argument('-r', '--restart', type=int, help=help_msg['restart'])
+    parser.add_argument('-i', type=int, help=help_msg['i'])
     parser.add_argument('-mpi', action='store_true', default=args_defaults['mpi'],
                         help=help_msg['mpi'])
     parser.add_argument('-gpu', type=int, action='append', nargs='*',
@@ -177,14 +168,8 @@ def run_main(args):
 
     config.sim_config = config.SimulationConfig(args)
     
-    # If integrating with SPOTPY (https://github.com/thouska/spotpy) - extra 
-    # 'spotpy' attribute is added to args when called by SPOTPY
-    if hasattr(args, 'spotpy'):
-        if args.spotpy:
-            context = SPOTPYContext()
-            context.run(args.i)
     # MPI running with (OpenMP/CUDA/OpenCL)
-    elif config.sim_config.args.mpi:
+    if config.sim_config.args.mpi:
         context = MPIContext()
         context.run()
     # Standard running (OpenMP/CUDA/OpenCL)
