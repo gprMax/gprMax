@@ -121,9 +121,9 @@ class MPIContext(Context):
         config.model_num = work['i']
         model_config = config.ModelConfig()
         # Set GPU deviceID according to worker rank
-        if config.sim_config.general['cuda']:
-            model_config.cuda = {'gpu': config.sim_config.cuda['gpus'][self.rank - 1],
-                                 'snapsgpu2cpu': False}
+        if config.sim_config.general['solver'] == 'cuda':
+            model_config.device = {'dev': config.sim_config.devices['devs'][self.rank - 1],
+                                   'snapsgpu2cpu': False}
         config.model_configs = model_config
 
         G = create_G()
