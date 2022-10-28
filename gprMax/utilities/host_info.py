@@ -210,7 +210,7 @@ def print_host_info(hostinfo):
     hyperthreadingstr = (f", {config.sim_config.hostinfo['logicalcores']} "
                             f"cores with Hyper-Threading" if config.sim_config.hostinfo['hyperthreading'] else '')
     logger.basic(f"\n{config.sim_config.hostinfo['hostname']} | "
-                 f"{config.sim_config.hostinfo['machineID']} "
+                 f"{config.sim_config.hostinfo['machineID']} | "
                  f"{hostinfo['sockets']} x {hostinfo['cpuID']} "
                  f"({hostinfo['physicalcores']} cores{hyperthreadingstr}) | "
                  f"{human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} | "
