@@ -25,8 +25,7 @@ import gprMax.config as config
 from ._version import __version__, codename
 from .model_build_run import ModelBuildRun
 from .solvers import create_G, create_solver
-from .utilities.host_info import (detect_cuda_gpus, detect_opencl,
-                                  print_cuda_info, print_host_info,
+from .utilities.host_info import (print_cuda_info, print_host_info,
                                   print_opencl_info)
 from .utilities.utilities import get_terminal_width, logo, timer
 
@@ -175,41 +174,3 @@ class MPIContext(Context):
         if executor.is_master():
             self.tsimend = timer()
             self.print_time_report()
-
-
-class SPOTPYContext(Context):
-    """Specialised context used when gprMax is coupled with SPOTPY 
-        (https://github.com/thouska/spotpy). SPOTPY coupling can utilise 2 levels
-        of MPI parallelism - where the top level is where SPOPTY optmisation 
-        algorithms can be parallelised, and the lower level is where gprMax
-        models can be parallelised using either OpenMP (CPU), CUDA (GPU), or
-        OpenCL (CPU/GPU).
-    """
-
-    def __init__(self):
-        super().__init__()
-
-    def run(self, i):
-        """Process for running a single model."""
-
-        # self.print_logo_copyright()
-        # self.print_host_info()
-        # if config.sim_config.general['cuda']:
-        #     self.print_gpu_info()
-        self.tsimstart = timer()
-
-        # Create configuration for model
-        config.model_num = i
-        model_config = config.ModelConfig()
-        config.model_configs = model_config
-
-        G = create_G()
-        model = ModelBuildRun(G)
-        model.build()
-        
-        if not config.sim_config.args.geometry_only:
-            solver = create_solver(G)
-            model.solve(solver)
-
-        self.tsimend = timer()
-        self.print_time_report()
