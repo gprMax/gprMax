@@ -127,7 +127,7 @@ class ModelBuildRun:
     def build_geometry(self):
         G = self.G
 
-        logger.basic(config.get_model_config().inputfilestr)
+        logger.info(config.get_model_config().inputfilestr)
 
         scene = self.build_scene()
 
@@ -282,27 +282,30 @@ class ModelBuildRun:
 
         # Print information about and check OpenMP threads
         if config.sim_config.general['solver'] == 'cpu':
-            logger.basic(f"OPENMP solver with {config.get_model_config().ompthreads} "
-                         f"thread(s) on {config.sim_config.hostinfo['hostname']}\n")
+            logger.basic(f"\nModel {config.model_num + 1}/{config.sim_config.model_end} "
+                         f"on {config.sim_config.hostinfo['hostname']} "
+                         f"with OpenMP using {config.get_model_config().ompthreads} thread(s)")
             if config.get_model_config().ompthreads > config.sim_config.hostinfo['physicalcores']:
                 logger.warning(f"You have specified more threads ({config.get_model_config().ompthreads}) "
                                f"than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). "
                                f"This may lead to degraded performance.")
         # Print information about any compute device, e.g. GPU, in use
         elif config.sim_config.general['solver'] == 'cuda' or config.sim_config.general['solver'] == 'opencl':
-            solvername = config.sim_config.general['solver'].upper()
+            solvername = config.sim_config.general['solver'].upper()                
             hostname = config.sim_config.hostinfo['hostname']
             if config.sim_config.general['solver'] == 'opencl':
-                platformname = ' on ' + ' '.join(config.get_model_config().device['dev'].platform.name.split()) + ' platform'
+                solvername = 'OpenCL'
+                platformname = ' on ' + ' '.join(config.get_model_config().device['dev'].platform.name.split())
             else:
                 platformname = ''
             devicename = ' '.join(config.get_model_config().device['dev'].name.split())
-            logger.basic(f"{solvername} solver using {devicename}{platformname} "
-                         f"on {hostname}\n")
+            logger.basic(f"\nModel {config.model_num + 1}/{config.sim_config.model_end} "
+                         f"on {config.sim_config.hostinfo['hostname']} "
+                         f"with {solvername} using {devicename}{platformname}")
 
         # Prepare iterator
         if config.sim_config.general['progressbars']:
-            iterator = tqdm(range(self.G.iterations), desc=f'Running model {config.model_num + 1}/{config.sim_config.model_end}', 
+            iterator = tqdm(range(self.G.iterations), desc='|--->', 
                             ncols=get_terminal_width() - 1, file=sys.stdout, 
                             disable=not config.sim_config.general['progressbars'])
         else:
