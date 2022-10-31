@@ -50,6 +50,8 @@ update_electric = {
     //      NX, NY, NZ: Number of cells of the model domain.
     //      ID, E, H: Access to ID and field component arrays.
 
+    $CUDA_IDX
+
     // Convert the linear index to subscripts for 3D field arrays
     int x = i / ($NY_FIELDS * $NZ_FIELDS);
     int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
@@ -59,8 +61,6 @@ update_electric = {
     int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
     int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
     int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
-
-    $CUDA_IDX
 
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
@@ -119,6 +119,8 @@ update_magnetic = {
     //      NX, NY, NZ: Number of cells of the model domain.
     //      ID, E, H: Access to ID and field component arrays.
 
+    $CUDA_IDX
+    
     // Convert the linear index to subscripts for 3D field arrays
     int x = i / ($NY_FIELDS * $NZ_FIELDS);
     int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
@@ -128,8 +130,6 @@ update_magnetic = {
     int x_ID = (i % ($NX_ID * $NY_ID * $NZ_ID)) / ($NY_ID * $NZ_ID);
     int y_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) / $NZ_ID;
     int z_ID = ((i % ($NX_ID * $NY_ID * $NZ_ID)) % ($NY_ID * $NZ_ID)) % $NZ_ID;
-
-    $CUDA_IDX
 
     // Hx component
     if (NX != 1 && x > 0 && x < NX && y >= 0 && y < NY && z >= 0 && z < NZ) {

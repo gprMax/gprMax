@@ -290,15 +290,15 @@ class ModelBuildRun:
                                f"than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). "
                                f"This may lead to degraded performance.")
         # Print information about any compute device, e.g. GPU, in use
-        elif config.sim_config.general['solver'] == 'cuda' or config.sim_config.general['solver'] == 'opencl':
-            solvername = config.sim_config.general['solver'].upper()                
-            hostname = config.sim_config.hostinfo['hostname']
+        elif config.sim_config.general['solver'] == 'cuda' or config.sim_config.general['solver'] == 'opencl':           
             if config.sim_config.general['solver'] == 'opencl':
                 solvername = 'OpenCL'
                 platformname = ' on ' + ' '.join(config.get_model_config().device['dev'].platform.name.split())
+                devicename = ' '.join(config.get_model_config().device['dev'].name.split())
             else:
+                solvername = 'CUDA'
                 platformname = ''
-            devicename = ' '.join(config.get_model_config().device['dev'].name.split())
+                devicename = ' '.join(config.get_model_config().device['dev'].name().split())
             logger.basic(f"\nModel {config.model_num + 1}/{config.sim_config.model_end} "
                          f"on {config.sim_config.hostinfo['hostname']} "
                          f"with {solvername} using {devicename}{platformname}")
