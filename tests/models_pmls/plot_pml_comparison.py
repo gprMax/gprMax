@@ -1,13 +1,32 @@
-import itertools
-from operator import add
-import os
-import sys
+# Copyright (C) 2015-2022: The University of Edinburgh, United Kingdom
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
+#
+# This file is part of gprMax.
+#
+# gprMax is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# gprMax is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from colorama import init, Fore, Style
-init()
+import itertools
+import logging
+import os
+from operator import add
+from pathlib import Path
+
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 # Create/setup plot figure
 #colors = ['#E60D30', '#5CB7C6', '#A21797', '#A3B347'] # Plot colours from http://tools.medialab.sciences-po.fr/iwanthue/index.php
@@ -20,7 +39,7 @@ colors = itertools.cycle(colorIDs)
 lines = itertools.cycle(('--', ':', '-.', '-'))
 markers = ['o', 'd', '^', 's', '*']
 
-basepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pml_3D_pec_plate')
+basepath = Path(__file__).parent
 path = 'rxs/rx1/'
 refmodel = 'pml_3D_pec_plate_ref'
 PMLIDs = ['CFS-PML', 'HORIPML-1', 'HORIPML-2', 'MRIPML-1', 'MRIPML-2']
@@ -30,19 +49,21 @@ testmodels = ['pml_3D_pec_plate_' + s for s in PMLIDs]
 fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Error [dB]'), figsize=(20, 10), facecolor='w', edgecolor='w')
 
 for x, model in enumerate(testmodels):
-    # Get output for model and reference files
-    fileref = h5py.File(os.path.join(basepath, refmodel + '.out'), 'r')
-    filetest = h5py.File(os.path.join(basepath, model + '.out'), 'r')
+    # Open output file and read iterations
+    fileref = h5py.File(basepath.joinpath(refmodel, '.h5'), 'r')
+    filetest = h5py.File(basepath.joinpath(model, '.h5'), 'r')
 
     # Get available field output component names
     outputsref = list(fileref[path].keys())
     outputstest = list(filetest[path].keys())
     if outputsref != outputstest:
-        raise GeneralError('Field output components do not match reference solution')
+        logger.exception('Field output components do not match reference solution')
+        raise ValueError
 
     # Check that type of float used to store fields matches
     if filetest[path + outputstest[0]].dtype != fileref[path + outputsref[0]].dtype:
-        print(Fore.RED + 'WARNING: Type of floating point number in test model ({}) does not match type in reference solution ({})\n'.format(filetest[path + outputstest[0]].dtype, fileref[path + outputsref[0]].dtype) + Style.RESET_ALL)
+        logger.warning(f'Type of floating point number in test model ({filetest[path + outputstest[0]].dtype}) '
+                       f'does not match type in reference solution ({fileref[path + outputsref[0]].dtype})\n')
     floattyperef = fileref[path + outputsref[0]].dtype
     floattypetest = filetest[path + outputstest[0]].dtype
     # print('Data type: {}'.format(floattypetest))
@@ -64,7 +85,8 @@ for x, model in enumerate(testmodels):
         dataref[:, ID] = fileref[path + str(name)][:]
         datatest[:, ID] = filetest[path + str(name)][:]
         if np.any(np.isnan(datatest[:, ID])):
-            raise ValueError('Test data contains NaNs')
+            logger.exception('Test data contains NaNs')
+            raise ValueError
 
     fileref.close()
     filetest.close()
@@ -83,8 +105,8 @@ for x, model in enumerate(testmodels):
 
     # Print maximum error value
     start = 210
-    maxerrors.append(': {:.1f} [dB]'.format(np.amax(datadiffs[start::, 1])))
-    print('{}: Max. error {}'.format(model, maxerrors[x]))
+    maxerrors.append(f': {np.amax(datadiffs[start::, 1]):.1f} [dB]')
+    print(f'{model}: Max. error {maxerrors[x]}')
 
     # Plot diffs (select column to choose field component, 0-Ex, 1-Ey etc..)
     ax.plot(timeref[start::], datadiffs[start::, 1], color=next(colors), lw=2, ls=next(lines), label=model)
@@ -104,5 +126,5 @@ frame.set_alpha(0)
 plt.show()
 
 # Save a PDF/PNG of the figure
-fig.savefig(basepath + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
+#fig.savefig(basepath + '.pdf', dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
 #fig.savefig(savename + '.png', dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
