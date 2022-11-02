@@ -18,21 +18,18 @@
 
 import logging
 from importlib import import_module
-from string import Template
 
 import numpy as np
 from jinja2 import Environment, PackageLoader
 
 import gprMax.config as config
 
-from .cuda.snapshots import knl_template_store_snapshot
-from .cuda_opencl_el import (knl_fields_updates, knl_snapshots,
+from .cuda_opencl import (knl_fields_updates, knl_snapshots,
                              knl_source_updates, knl_store_outputs)
 from .cython.fields_updates_normal import \
     update_electric as update_electric_cpu
 from .cython.fields_updates_normal import \
     update_magnetic as update_magnetic_cpu
-from .fields_outputs import knl_template_store_outputs
 from .fields_outputs import store_outputs as store_outputs_cpu
 from .receivers import dtoh_rx_array, htod_rx_arrays
 from .snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
@@ -48,7 +45,7 @@ class CPUUpdates:
     def __init__(self, G):
         """
         Args:
-            G (FDTDGrid): Holds essential parameters describing the model.
+            G (FDTDGrid): Parameters describing a grid in a model.
         """
         self.grid = G
         self.dispersive_update_a = None
@@ -62,7 +59,7 @@ class CPUUpdates:
         """Store any snapshots.
 
         Args:
-            iteration (int): Iteration number.
+            iteration: int for iteration number.
         """
         for snap in self.grid.snapshots:
             if snap.time == iteration + 1:
@@ -184,20 +181,11 @@ class CPUUpdates:
         Returns:
             props (Props): Dispersive material properties.
         """
-        if config.get_model_config().materials['maxpoles'] > 1:
-            poles = 'multi'
-        else:
-            poles = '1'
+        poles = 'multi' if config.get_model_config().materials['maxpoles'] > 1 else '1'
 
-        if config.sim_config.general['precision'] == 'single':
-            type = 'float'
-        else:
-            type = 'double'
+        type = 'float' if config.sim_config.general['precision'] == 'single' else 'double'
 
-        if config.get_model_config().materials['dispersivedtype'] == config.sim_config.dtypes['complex']:
-            dispersion = 'complex'
-        else:
-            dispersion = 'real'
+        dispersion = 'complex' if config.get_model_config().materials['dispersivedtype'] == config.sim_config.dtypes['complex'] else 'real'
 
         class Props():
             pass
@@ -246,7 +234,7 @@ class CUDAUpdates:
     def __init__(self, G):
         """
         Args:
-            G (FDTDGrid): Parameters describing a grid in a model.
+            G: CUDAGrid of parameters describing a grid in a model.
         """
 
         self.grid = G
@@ -263,8 +251,10 @@ class CUDAUpdates:
         self.ctx = self.dev.make_context()
 
         # Set common substitutions for use in kernels
+        # Substitutions in function arguments
         self.subs_name_args = {'REAL': config.sim_config.dtypes['C_float_or_double'], 
                                'COMPLEX': config.get_model_config().materials['dispersiveCdtype']}
+        # Substitutions in function bodies
         self.subs_func = {'REAL': config.sim_config.dtypes['C_float_or_double'],
                           'CUDA_IDX': 'int i = blockIdx.x * blockDim.x + threadIdx.x;',
                           'NX_FIELDS': self.grid.nx + 1,
@@ -275,7 +265,7 @@ class CUDAUpdates:
                           'NZ_ID': self.grid.ID.shape[3]}
 
         # Enviroment for templating kernels
-        self.env = Environment(loader=PackageLoader('gprMax', 'cuda_opencl_el'))
+        self.env = Environment(loader=PackageLoader('gprMax', 'cuda_opencl'))
 
         # Initialise arrays on GPU, prepare kernels, and get kernel functions
         self._set_macros()
@@ -314,6 +304,7 @@ class CUDAUpdates:
     def _set_macros(self):
         """Common macros to be used in kernels."""
 
+        # Set specific values for any dispersive materials
         if config.get_model_config().materials['maxpoles'] > 0:
             NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
             NX_T = self.grid.Tx.shape[1]
@@ -369,8 +360,6 @@ class CUDAUpdates:
 
         self._copy_mat_coeffs(knlE, knlH)
 
-        # Electric and magnetic field updates - dispersive materials
-        # - get kernel functions and initialise array on GPU
         # If there are any dispersive materials (updates are split into two
         # parts as they require present and updated electric field values).
         if config.get_model_config().materials['maxpoles'] > 0:
@@ -380,20 +369,19 @@ class CUDAUpdates:
                                 'NY_T': self.grid.Tx.shape[2],
                                 'NZ_T': self.grid.Tx.shape[3]})
 
-            bld = self._build_knl(knl_fields_updates.update_electric_dispersive_A['func'], 
+            bld = self._build_knl(knl_fields_updates.update_electric_dispersive_A, 
                                   self.subs_name_args, self.subs_func)
             knl = self.source_module(bld, 
                                      options=config.sim_config.devices['nvcc_opts'])
             self.dispersive_update_a = knl.get_function("update_electric_dispersive_A")
 
-            bld = self._build_knl(knl_fields_updates.update_electric_dispersive_B['func'], 
+            bld = self._build_knl(knl_fields_updates.update_electric_dispersive_B, 
                                   self.subs_name_args, self.subs_func)
             knl = self.source_module(bld, 
                                      options=config.sim_config.devices['nvcc_opts'])
             self.dispersive_update_b = knl.get_function("update_electric_dispersive_B")
 
-        # Electric and magnetic field updates - set blocks per grid and
-        # initialise field arrays on GPU
+        # Set blocks per grid and initialise field arrays on GPU
         self.grid.set_blocks_per_grid()
         self.grid.htod_geometry_arrays()
         self.grid.htod_field_arrays()
@@ -402,10 +390,10 @@ class CUDAUpdates:
 
     def _set_pml_knls(self):
         """PMLS - prepare kernels and get kernel functions."""
-        knl_pml_updates_electric = import_module('gprMax.cuda_opencl_el.knl_pml_updates_electric_' + self.grid.pmlformulation)
-        knl_pml_updates_magnetic = import_module('gprMax.cuda_opencl_el.knl_pml_updates_magnetic_' + self.grid.pmlformulation)
+        knl_pml_updates_electric = import_module('gprMax.cuda_opencl.knl_pml_updates_electric_' + self.grid.pmlformulation)
+        knl_pml_updates_magnetic = import_module('gprMax.cuda_opencl.knl_pml_updates_magnetic_' + self.grid.pmlformulation)
 
-        # Set block per grid, initialise arrays on GPU, and get kernel functions
+        # Initialise arrays on GPU, set block per grid, and get kernel functions
         for pml in self.grid.pmls:
             pml.htod_field_arrays()
             pml.set_blocks_per_grid()
@@ -413,14 +401,12 @@ class CUDAUpdates:
             self.subs_name_args['FUNC'] = knl_name
 
             knl_electric = getattr(knl_pml_updates_electric, knl_name)
-            bld = self._build_knl(knl_electric, 
-                                  self.subs_name_args, self.subs_func)
+            bld = self._build_knl(knl_electric, self.subs_name_args, self.subs_func)
             knlE = self.source_module(bld, options=config.sim_config.devices['nvcc_opts'])
             pml.update_electric_dev = knlE.get_function(knl_name)
 
             knl_magnetic = getattr(knl_pml_updates_magnetic, knl_name)
-            bld = self._build_knl(knl_magnetic, 
-                                  self.subs_name_args, self.subs_func)
+            bld = self._build_knl(knl_magnetic, self.subs_name_args, self.subs_func)
             knlH = self.source_module(bld, options=config.sim_config.devices['nvcc_opts'])
             pml.update_magnetic_dev = knlH.get_function(knl_name)
 
@@ -469,10 +455,7 @@ class CUDAUpdates:
             knl = self.source_module(bld, options=config.sim_config.devices['nvcc_opts'])
             self.update_voltage_source_dev = knl.get_function("update_voltage_source")
 
-        if (self.grid.hertziandipoles + 
-            self.grid.magneticdipoles + 
-            self.grid.voltagesources):
-            self._copy_mat_coeffs(knl, knl)
+        self._copy_mat_coeffs(knl, knl)
 
     def _set_snapshot_knl(self):
         """Snapshots - initialise arrays on GPU, prepare kernel and get kernel
@@ -495,14 +478,15 @@ class CUDAUpdates:
             (must be <64KB).
 
         Args:
-            knlE (kernel): electric field kernel.
-            knlH (kernel): magnetic field kernel.
+            knlE: kernel for electric field.
+            knlH: kernel for magnetic field.
         """
 
         # Check if coefficient arrays will fit on constant memory of GPU
         if (self.grid.updatecoeffsE.nbytes + self.grid.updatecoeffsH.nbytes
             > config.get_model_config().device['dev'].total_constant_memory):
-            logger.exception(f"Too many materials in the model to fit onto constant memory of size {human_size(config.get_model_config().device['dev'].total_constant_memory)} on {config.get_model_config().device['dev'].deviceID} - {config.get_model_config().device['dev'].name} GPU")
+            device = config.get_model_config().device['dev']
+            logger.exception(f"Too many materials in the model to fit onto constant memory of size {human_size(device.total_constant_memory)} on {device.deviceID}: {' '.join(device.name().split())}")
             raise ValueError
 
         updatecoeffsE = knlE.get_global('updatecoeffsE')[0]
@@ -530,12 +514,12 @@ class CUDAUpdates:
         """Store any snapshots.
 
         Args:
-            iteration (int): iteration number.
+            iteration: int for iteration number.
         """
 
         for i, snap in enumerate(self.grid.snapshots):
             if snap.time == iteration + 1:
-                snapno = 0 if config.get_model_config().cuda['snapsgpu2cpu'] else i
+                snapno = 0 if config.get_model_config().device['snapsgpu2cpu'] else i
                 self.store_snapshot_dev(np.int32(snapno),
                                         np.int32(snap.xs),
                                         np.int32(snap.xf),
@@ -560,7 +544,7 @@ class CUDAUpdates:
                                         self.snapHz_dev.gpudata,
                                         block=Snapshot.tpb,
                                         grid=Snapshot.bpg)
-                if config.get_model_config().cuda['snapsgpu2cpu']:
+                if config.get_model_config().device['snapsgpu2cpu']:
                     dtoh_snapshot_array(self.snapEx_dev.get(),
                                         self.snapEy_dev.get(),
                                         self.snapEz_dev.get(),
@@ -722,7 +706,7 @@ class CUDAUpdates:
         """Calculate memory used on last iteration.
 
         Args:
-            iteration (int): Iteration number.
+            iteration: int for iteration number.
 
         Returns:
             Memory (RAM) used on GPU.
@@ -747,7 +731,7 @@ class CUDAUpdates:
                           self.grid)
 
         # Copy data from any snapshots back to correct snapshot objects
-        if self.grid.snapshots and not config.get_model_config().cuda['snapsgpu2cpu']:
+        if self.grid.snapshots and not config.get_model_config().device['snapsgpu2cpu']:
             for i, snap in enumerate(self.grid.snapshots):
                 dtoh_snapshot_array(self.snapEx_dev.get(),
                                    self.snapEy_dev.get(),
@@ -770,7 +754,7 @@ class OpenCLUpdates:
     def __init__(self, G):
         """
         Args:
-            G: FDTDObject of parameters describing a grid in a model.
+            G: OpenCLGrid of parameters describing a grid in a model.
         """
 
         self.grid = G
@@ -788,7 +772,7 @@ class OpenCLUpdates:
                         properties=self.cl.command_queue_properties.PROFILING_ENABLE)
 
         # Enviroment for templating kernels
-        self.env = Environment(loader=PackageLoader('gprMax', 'cuda_opencl_el'))
+        self.env = Environment(loader=PackageLoader('gprMax', 'cuda_opencl'))
 
         # Initialise arrays on device, prepare kernels, and get kernel functions
         self._set_field_knls()
@@ -863,8 +847,6 @@ class OpenCLUpdates:
                                     'update_magnetic', preamble=self.knl_common,
                                     options=config.sim_config.devices['compiler_opts'])
 
-        # Electric and magnetic field updates - dispersive materials - 
-        #                                        get kernel functions
         # If there are any dispersive materials (updates are split into two
         # parts as they require present and updated electric field values).
         if config.get_model_config().materials['maxpoles'] > 0:
@@ -891,8 +873,7 @@ class OpenCLUpdates:
                                         'update_electric_dispersive_B', preamble=self.knl_common,
                                         options=config.sim_config.devices['compiler_opts'])
                                                                       
-        # Electric and magnetic field updates - initialise field arrays on 
-        #                                       compute device
+        # Initialise field arrays on compute device
         self.grid.htod_geometry_arrays(self.queue)
         self.grid.htod_field_arrays(self.queue)
         if config.get_model_config().materials['maxpoles'] > 0:
@@ -900,8 +881,8 @@ class OpenCLUpdates:
 
     def _set_pml_knls(self):
         """PMLS - prepare kernels and get kernel functions."""
-        knl_pml_updates_electric = import_module('gprMax.cuda_opencl_el.knl_pml_updates_electric_' + self.grid.pmlformulation)
-        knl_pml_updates_magnetic = import_module('gprMax.cuda_opencl_el.knl_pml_updates_magnetic_' + self.grid.pmlformulation)
+        knl_pml_updates_electric = import_module('gprMax.cuda_opencl.knl_pml_updates_electric_' + self.grid.pmlformulation)
+        knl_pml_updates_magnetic = import_module('gprMax.cuda_opencl.knl_pml_updates_magnetic_' + self.grid.pmlformulation)
 
         subs = {'CUDA_IDX': '',
                 'REAL': config.sim_config.dtypes['C_float_or_double'],
@@ -1179,6 +1160,7 @@ class OpenCLUpdates:
             event.wait()
 
     def time_start(self):
+        """Start event timers used to calculate solving time for model."""
         self.event_marker1 = self.cl.enqueue_marker(self.queue)
         self.event_marker1.wait()
 
@@ -1186,7 +1168,7 @@ class OpenCLUpdates:
         """Calculate memory used on last iteration.
 
         Args:
-            iteration: int of iteration number.
+            iteration: int for iteration number.
 
         Returns:
             Memory (RAM) used on compute device.
