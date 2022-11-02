@@ -1582,17 +1582,10 @@ class PMLCFS(UserObjectMulti):
         sigmamax: float required for maximum value for the CFS sigma parameter.
     """
 
-    count = 0
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.order = 16
         self.hash = '#pml_cfs'
-        PMLCFS.count += 1
-        if PMLCFS.count == 2:
-            logger.exception(self.params_str() + ' can only be used up to two '
-                             'times, for up to a 2nd order PML.')
-            raise ValueError
 
     def create(self, grid, uip):
         try:
@@ -1630,10 +1623,10 @@ class PMLCFS(UserObjectMulti):
             logger.exception(self.params_str() + ' minimum and maximum scaling '
                              'values must be greater than zero.')
             raise ValueError
-        if float(kappamin) < 1:
-            logger.exception(self.params_str() + ' minimum scaling value for '
-                             'kappa must be greater than or equal to one.')
-            raise ValueError
+        # if float(kappamin) < 1:
+        #     logger.exception(self.params_str() + ' minimum scaling value for '
+        #                      'kappa must be greater than or equal to one.')
+        #     raise ValueError
 
         cfsalpha = CFSParameter()
         cfsalpha.ID = 'alpha'
@@ -1652,9 +1645,7 @@ class PMLCFS(UserObjectMulti):
         cfssigma.scalingprofile = sigmascalingprofile
         cfssigma.scalingdirection = sigmascalingdirection
         cfssigma.min = float(sigmamin)
-        if sigmamax == 'None':
-            cfssigma.max = None
-        else:
+        if sigmamax is not None:
             cfssigma.max = float(sigmamax)
         cfs = CFS()
         cfs.alpha = cfsalpha
@@ -1669,9 +1660,14 @@ class PMLCFS(UserObjectMulti):
                     f'{cfskappa.max:g}), sigma (scaling: {cfssigma.scalingprofile}, '
                     f'scaling direction: {cfssigma.scalingdirection}, min: '
                     f'{cfssigma.min:g}, max: {cfssigma.max:g}) created.')
-
+        
         grid.cfs.append(cfs)
 
+        if len(grid.cfs) > 2:
+            logger.exception(self.params_str() + ' can only be used up to two '
+                             'times, for up to a 2nd order PML.')
+            raise ValueError
+            
 
 class Subgrid(UserObjectMulti):
     """"""

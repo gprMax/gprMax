@@ -201,8 +201,7 @@ def check_cmd_names(processedlines, checkessential=True):
     # Commands that there should only be one instance of in a model
     singlecmds = dict.fromkeys(['#domain', '#dx_dy_dz', '#time_window', 
                                 '#title', '#cpu_threads', 
-                                '#time_step_stability_factor', 
-                                '#pml_formulation', '#pml_cells', 
+                                '#time_step_stability_factor', '#pml_cells', 
                                 '#excitation_file', '#src_steps', '#rx_steps', 
                                 '#output_dir'], None)
 

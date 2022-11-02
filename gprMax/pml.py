@@ -215,7 +215,10 @@ class PML:
             self.d = self.G.dz
             self.thickness = self.nz
 
-        self.CFS = self.G.cfs
+        if not self.G.cfs:
+            self.CFS = [CFS()]
+        else:
+            self.CFS = self.G.cfs
 
         self.initialise_field_arrays()
 
@@ -319,7 +322,7 @@ class PML:
                 tmp = 2 * config.sim_config.em_consts['e0'] + self.G.dt * Halpha
                 self.HRA[x, :] = Hkappa + (self.G.dt * Hsigma) / tmp
                 self.HRB[x, :] = (2 * config.sim_config.em_consts['e0']) / tmp
-                self.HRE[x, :] = (((2 * config.sim_config.sim_config.em_consts['e0']) 
+                self.HRE[x, :] = (((2 * config.sim_config.em_consts['e0']) 
                                   - self.G.dt * Halpha) / tmp)
                 self.HRF[x, :] = (2 * Hsigma * self.G.dt) / tmp
 

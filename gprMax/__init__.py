@@ -28,8 +28,9 @@ from .cmds_multiuse import (PMLCFS, AddDebyeDispersion, AddDrudeDispersion,
                             Material, Rx, RxArray, Snapshot, SoilPeplinski,
                             TransmissionLine, VoltageSource, Waveform)
 from .cmds_singleuse import (Discretisation, Domain, ExcitationFile,
-                             OMPThreads, PMLCells, RxSteps, SrcSteps,
-                             TimeStepStabilityFactor, TimeWindow, Title)
+                             OMPThreads, PMLCells, PMLFormulation, 
+                             RxSteps, SrcSteps, TimeStepStabilityFactor, 
+                             TimeWindow, Title)
 from .gprMax import run as run
 from .hash_cmds_file import user_libs_fn_to_scene_obj
 from .scene import Scene

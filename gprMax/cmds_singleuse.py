@@ -24,6 +24,7 @@ import gprMax.config as config
 import numpy as np
 from scipy import interpolate
 
+from .pml import PML
 from .utilities.host_info import set_omp_threads
 from .waveforms import Waveform
 
@@ -254,6 +255,30 @@ class TimeStepStabilityFactor(UserObjectSingle):
         logger.info(f'Time step (modified): {G.dt:g} secs')
 
 
+class PMLFormulation(UserObjectSingle):
+    """Allows you to specify the formulation (type) of the PML to be used.
+
+    Attributes:
+        pml: string specifying formulation of PML.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.order = 8
+
+    def create(self, G, uip):
+        try:
+            pml = self.kwargs['pml']
+        except KeyError:
+            logger.exception(self.__str__() + ' requires exactly one parameter to specify the formulation of PML to use')
+            raise
+        if pml not in PML.formulations:
+            logger.exception(self.__str__() + f" requires the value to be one of {' '.join(PML.formulations)}")
+            raise ValueError
+
+        G.pmlformulation = pml
+
+
 class PMLCells(UserObjectSingle):
     """Allows you to control the number of cells (thickness) of PML that are used
     on the six sides of the model domain. Specify either single thickness or
@@ -277,7 +302,7 @@ class PMLCells(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 8
+        self.order = 9
 
     def create(self, G, uip):
         try:
@@ -317,7 +342,7 @@ class SrcSteps(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 9
+        self.order = 10
 
     def create(self, G, uip):
         try:
@@ -339,7 +364,7 @@ class RxSteps(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 10
+        self.order = 11
 
     def create(self, G, uip):
         try:
@@ -366,7 +391,7 @@ class ExcitationFile(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 11
+        self.order = 12
 
     def create(self, G, uip):
         try:
@@ -446,7 +471,7 @@ class OutputDir(UserObjectSingle):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 12
+        self.order = 13
 
     def create(self, grid, uip):
         config.get_model_config().set_output_file_path(self.kwargs['dir'])
@@ -461,7 +486,7 @@ class NumberOfModelRuns(UserObjectSingle):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 13
+        self.order = 14
 
     def create(self, grid, uip):
         try:

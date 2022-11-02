@@ -21,8 +21,8 @@ from collections import OrderedDict
 
 import gprMax.config as config
 import numpy as np
-from .pml import CFS, PML
-from .utilities.utilities import fft_power, human_size, round_value
+from .pml import PML
+from .utilities.utilities import fft_power, round_value
 
 np.seterr(invalid='raise')
 
@@ -53,7 +53,8 @@ class FDTDGrid:
         # same from model to model otherwise the numerical precision from adding
         # the PML corrections will be different.
         self.pmlthickness = OrderedDict((key, 10) for key in PML.boundaryIDs)
-        self.cfs = [CFS()]
+        # Default PML CFS parameters will be used if none are provided by user.
+        self.cfs = []
         self.pmls = []
         self.pmlformulation = 'HORIPML'
 
