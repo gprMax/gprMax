@@ -29,20 +29,21 @@ logger = logging.getLogger(__name__)
 
 
 class AddGrass(UserObjectGeometry):
-    """Allows you to add grass with roots to a :class:`gprMax.cmds_geometry.fractal_box.FractalBox` in the model.
+    """Allows you to add grass with roots to a FractalBox class in the model.
 
-    :param p1: The lower left (x,y,z) coordinates of a surface on a :class:`gprMax.cmds_geometry.fractal_box.FractalBox`
-    :type p1: list, non-optional
-    :param p2: The lower left (x,y,z) coordinates of a surface on a :class:`gprMax.cmds_geometry.fractal_box.FractalBox`
-    :type p2: list, non-optional
-    :param frac_dim: is the fractal dimension which, for an orthogonal parallelepiped, should take values between zero and three.
-    :type frac_dim: float, non-optional
-    :param limits: Define lower and upper limits for a range over which the height of the blades of grass can vary.
-    :type limits: list, non-optional
-    :param n_blades: The number of blades of grass that should be applied to the surface area.
-    :type n_blades: int, non-optional
-    :param fractal_box_id:  An identifier for the :class:`gprMax.cmds_geometry.fractal_box.FractalBox` that the grass should be applied to
-    :type fractal_box_id: list, non-optional
+    Attributes:
+        p1: a list of the lower left (x,y,z) coordinates of a surface on a 
+            FractalBox class.
+        p2: a list of the upper right (x,y,z) coordinates of a surface on a 
+            FractalBox class.
+        frac_dim: a float for the fractal dimension which, for an orthogonal 
+                    parallelepiped, should take values between zero and three.
+        limits: a list to define lower and upper limits for a range over which 
+                    the height of the blades of grass can vary.
+        n_blades: an int for the number of blades of grass that should be 
+                    applied to the surface area.
+        fractal_box_id: a string identifier for the FractalBox class that the 
+                        grass should be applied to.
     """
 
     def __init__(self, **kwargs):
@@ -97,10 +98,12 @@ class AddGrass(UserObjectGeometry):
         xf, yf, zf = p2
 
         if frac_dim < 0:
-            logger.exception(self.__str__() + ' requires a positive value for the fractal dimension')
+            logger.exception(self.__str__() + ' requires a positive value for ' +
+                             'the fractal dimension')
             raise ValueError
         if limits[0] < 0 or limits[1] < 0:
-            logger.exception(self.__str__() + ' requires a positive value for the minimum and maximum heights for grass blades')
+            logger.exception(self.__str__() + ' requires a positive value for ' +
+                             'the minimum and maximum heights for grass blades')
             raise ValueError
 
         # Check for valid orientations
@@ -114,12 +117,15 @@ class AddGrass(UserObjectGeometry):
             fractalrange = (round_value(limits[0] / grid.dx), round_value(limits[1] / grid.dx))
             # xminus surface
             if xs == volume.xs:
-                logger.exception(self.__str__() + ' grass can only be specified on surfaces in the positive axis direction')
+                logger.exception(self.__str__() + ' grass can only be specified ' +
+                                 'on surfaces in the positive axis direction')
                 raise ValueError
             # xplus surface
             elif xf == volume.xf:
                 if fractalrange[1] > grid.nx:
-                    logger.exception(self.__str__() + ' cannot apply grass to fractal box as it would exceed the domain size in the x direction')
+                    logger.exception(self.__str__() + ' cannot apply grass to ' +
+                                     'fractal box as it would exceed the domain ' +
+                                     'size in the x direction')
                     raise ValueError
                 requestedsurface = 'xplus'
 
@@ -133,12 +139,15 @@ class AddGrass(UserObjectGeometry):
             fractalrange = (round_value(limits[0] / grid.dy), round_value(limits[1] / grid.dy))
             # yminus surface
             if ys == volume.ys:
-                logger.exception(self.__str__() + ' grass can only be specified on surfaces in the positive axis direction')
+                logger.exception(self.__str__() + ' grass can only be specified ' +
+                                 'on surfaces in the positive axis direction')
                 raise ValueError
             # yplus surface
             elif yf == volume.yf:
                 if fractalrange[1] > grid.ny:
-                    logger.exception(self.__str__() + ' cannot apply grass to fractal box as it would exceed the domain size in the y direction')
+                    logger.exception(self.__str__() + ' cannot apply grass to ' + 
+                                     'fractal box as it would exceed the domain ' +
+                                     'size in the y direction')
                     raise ValueError
                 requestedsurface = 'yplus'
 
@@ -152,12 +161,15 @@ class AddGrass(UserObjectGeometry):
             fractalrange = (round_value(limits[0] / grid.dz), round_value(limits[1] / grid.dz))
             # zminus surface
             if zs == volume.zs:
-                logger.exception(self.__str__() + ' grass can only be specified on surfaces in the positive axis direction')
+                logger.exception(self.__str__() + ' grass can only be specified ' +
+                                 'on surfaces in the positive axis direction')
                 raise ValueError
             # zplus surface
             elif zf == volume.zf:
                 if fractalrange[1] > grid.nz:
-                    logger.exception(self.__str__() + ' cannot apply grass to fractal box as it would exceed the domain size in the z direction')
+                    logger.exception(self.__str__() + ' cannot apply grass to ' +
+                                     'fractal box as it would exceed the domain ' +
+                                     'size in the z direction')
                     raise ValueError
                 requestedsurface = 'zplus'
 
@@ -175,7 +187,8 @@ class AddGrass(UserObjectGeometry):
         surface.operatingonID = volume.ID
         surface.generate_fractal_surface()
         if n_blades > surface.fractalsurface.shape[0] * surface.fractalsurface.shape[1]:
-            logger.exception(self.__str__() + ' the specified surface is not large enough for the number of grass blades/roots specified')
+            logger.exception(self.__str__() + ' the specified surface is not large ' +
+                             'enough for the number of grass blades/roots specified')
             raise ValueError
 
         # Scale the distribution so that the summation is equal to one, i.e. a probability distribution
@@ -213,9 +226,15 @@ class AddGrass(UserObjectGeometry):
         grass = next((x for x in grid.materials if x.ID == 'grass'))
         testgrass = next((x for x in grass.tau if x < grid.dt), None)
         if testgrass:
-            logger.exception(self.__str__() + ' requires the time step for the model to be less than the relaxation time required to model grass.')
+            logger.exception(self.__str__() + ' requires the time step for the ' +
+                             'model to be less than the relaxation time required to model grass.')
             raise ValueError
 
         volume.fractalsurfaces.append(surface)
 
-        logger.info(self.grid_name(grid) + f'{n_blades} blades of grass on surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with fractal dimension {surface.dimension:g}, fractal seeding {surface.seed}, and range {limits[0]:g}m to {limits[1]:g}m, added to {surface.operatingonID}.')
+        logger.info(self.grid_name(grid) + f'{n_blades} blades of grass on surface from ' + 
+                    f'{xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, ' +
+                    f'to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m ' +
+                    f'with fractal dimension {surface.dimension:g}, fractal seeding ' +
+                    f'{surface.seed}, and range {limits[0]:g}m to {limits[1]:g}m, ' + 
+                    f'added to {surface.operatingonID}.')

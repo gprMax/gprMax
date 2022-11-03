@@ -30,14 +30,12 @@ logger = logging.getLogger(__name__)
 class Plate(UserObjectGeometry):
     """Allows you to introduce a plate with specific properties into the model.
 
-    :param p1: The lower left (x,y,z) coordinates of the plate.
-    :type p1: list, non-optional
-    :param p2: The upper right (x,y,z) coordinates of the plate.
-    :type p2: list, non-optional
-    :param material_id: Material identifier that must correspond to material that has already been defined.
-    :type material_id: str, non-optional
-    :param material_ids:  Material identifiers in the x, y, z directions.
-    :type material_ids: list, non-optional
+    Attributes:
+        p1: a list of the lower left (x,y,z) coordinates of the plate.
+        p2: a list of the upper right (x,y,z) coordinates of the plate.
+        material_id: a string for the material identifier that must correspond 
+                        to material that has already been defined.
+        material_ids: a list of material identifiers in the x, y, z directions.
     """
 
     def __init__(self, **kwargs):
@@ -128,7 +126,8 @@ class Plate(UserObjectGeometry):
 
             for j in range(ys, yf):
                 for k in range(zs, zf):
-                    build_face_yz(xs, j, k, numIDy, numIDz, grid.rigidE, grid.rigidH, grid.ID)
+                    build_face_yz(xs, j, k, numIDy, numIDz, grid.rigidE, 
+                                  grid.rigidH, grid.ID)
 
         # xz-plane plate
         elif ys == yf:
@@ -143,7 +142,8 @@ class Plate(UserObjectGeometry):
 
             for i in range(xs, xf):
                 for k in range(zs, zf):
-                    build_face_xz(i, ys, k, numIDx, numIDz, grid.rigidE, grid.rigidH, grid.ID)
+                    build_face_xz(i, ys, k, numIDx, numIDz, grid.rigidE, 
+                                  grid.rigidH, grid.ID)
 
         # xy-plane plate
         elif zs == zf:
@@ -158,6 +158,9 @@ class Plate(UserObjectGeometry):
 
             for i in range(xs, xf):
                 for j in range(ys, yf):
-                    build_face_xy(i, j, zs, numIDx, numIDy, grid.rigidE, grid.rigidH, grid.ID)
+                    build_face_xy(i, j, zs, numIDx, numIDy, grid.rigidE, 
+                                  grid.rigidH, grid.ID)
 
-        logger.info(self.grid_name(grid) + f"Plate from {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of material(s) {', '.join(materialsrequested)} created.")
+        logger.info(self.grid_name(grid) + f"Plate from {p3[0]:g}m, {p3[1]:g}m, " +
+                    f"{p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of " +
+                    f"material(s) {', '.join(materialsrequested)} created.")

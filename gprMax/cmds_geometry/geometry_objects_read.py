@@ -49,7 +49,7 @@ class GeometryObjectsRead(UserObjectGeometry):
             logger.exception(self.__str__() + 'requires exactly five parameters')
             raise
 
-        # discretise the point using uip object. This has different behaviour
+        # Discretise the point using uip object. This has different behaviour
         # depending on the type of uip object. So we can use it for
         # the main grid or the subgrid.
         xs, ys, zs = uip.discretise_point(p1)
@@ -70,7 +70,7 @@ class GeometryObjectsRead(UserObjectGeometry):
             # characters and comments that must begin with double hashes.
             materials = [line.rstrip() + '{' + matstr + '}\n' for line in f if(line.startswith('#') and not line.startswith('##') and line.rstrip('\n'))]
 
-        # build scene
+        # Build scene
         # API for multiple scenes / model runs
         scene = config.get_model_config().get_scene()
         material_objs = get_user_objects(materials, check=False)
@@ -96,8 +96,12 @@ class GeometryObjectsRead(UserObjectGeometry):
         # Open geometry object file and read/check spatial resolution attribute
         f = h5py.File(geofile, 'r')
         dx_dy_dz = f.attrs['dx_dy_dz']
-        if round_value(dx_dy_dz[0] / grid.dx) != 1 or round_value(dx_dy_dz[1] / grid.dy) != 1 or round_value(dx_dy_dz[2] / grid.dz) != 1:
-            logger.exception(self.__str__() + ' requires the spatial resolution of the geometry objects file to match the spatial resolution of the model')
+        if round_value((dx_dy_dz[0] / grid.dx) != 1 or 
+                       round_value(dx_dy_dz[1] / grid.dy) != 1 or 
+                       round_value(dx_dy_dz[2] / grid.dz) != 1):
+            logger.exception(self.__str__() + ' requires the spatial resolution ' +
+                             'of the geometry objects file to match the spatial ' +
+                             'resolution of the model')
             raise ValueError
 
         data = f['/data'][:]
@@ -117,8 +121,16 @@ class GeometryObjectsRead(UserObjectGeometry):
             grid.rigidE[:, xs:xs + rigidE.shape[1], ys:ys + rigidE.shape[2], zs:zs + rigidE.shape[3]] = rigidE
             grid.rigidH[:, xs:xs + rigidH.shape[1], ys:ys + rigidH.shape[2], zs:zs + rigidH.shape[3]] = rigidH
             grid.ID[:, xs:xs + ID.shape[1], ys:ys + ID.shape[2], zs:zs + ID.shape[3]] = ID + numexistmaterials
-            logger.info(self.grid_name(grid) + f'Geometry objects from file {geofile} inserted at {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, with corresponding materials file {matfile}.')
+            logger.info(self.grid_name(grid) + f'Geometry objects from file {geofile} ' +
+                        f'inserted at {xs * grid.dx:g}m, {ys * grid.dy:g}m, ' +
+                        f'{zs * grid.dz:g}m, with corresponding materials file ' +
+                        f'{matfile}.')
         except KeyError:
             averaging = False
-            build_voxels_from_array(xs, ys, zs, numexistmaterials, averaging, data, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
-            logger.info(self.grid_name(grid) + f'Geometry objects from file (voxels only){geofile} inserted at {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, with corresponding materials file {matfile}.')
+            build_voxels_from_array(xs, ys, zs, numexistmaterials, averaging, 
+                                    data, grid.solid, grid.rigidE, grid.rigidH, 
+                                    grid.ID)
+            logger.info(self.grid_name(grid) + f'Geometry objects from file ' +
+                        f'(voxels only){geofile} inserted at {xs * grid.dx:g}m, ' +
+                        f'{ys * grid.dy:g}m, {zs * grid.dz:g}m, with corresponding ' +
+                        f'materials file {matfile}.')

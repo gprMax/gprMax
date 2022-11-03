@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 class FractalBoxBuilder(UserObjectGeometry):
     """Internal class for fractal box modifications. This class should be used
-    internally only when surface modification have been made to a fractal box"""
+        internally only when surface modification have been made to a fractal box."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -303,7 +303,9 @@ class FractalBoxBuilder(UserObjectGeometry):
 
             else:
                 if volume.nbins == 1:
-                    logger.exception(self.__str__() + ' is being used with a single material and no modifications, therefore please use a #box command instead.')
+                    logger.exception(self.__str__() + ' is being used with a ' +
+                                     'single material and no modifications, ' +
+                                     'therefore please use a #box command instead.')
                     raise ValueError
                 else:
                     volume.generate_fractal_volume()

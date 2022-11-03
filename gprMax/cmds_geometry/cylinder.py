@@ -30,18 +30,16 @@ logger = logging.getLogger(__name__)
 class Cylinder(UserObjectGeometry):
     """Allows you to introduce a circular cylinder into the model.
 
-    :param p1: The coordinates (x,y,z) of the centre of the first face of the cylinder.
-    :type p1: list, non-optional
-    :param p2: The coordinates (x,y,z) of the centre of the second face of the cylinder.
-    :type p2: list, non-optional
-    :param r: is the radius of the cylinder.
-    :type r: float, non-optional
-    :param material_id: Material identifier that must correspond to material that has already been defined.
-    :type material_id: str, non-optional
-    :param material_ids:  Material identifiers in the x, y, z directions.
-    :type material_ids: list, non-optional
-    :param averaging:  y or n, used to switch on and off dielectric smoothing.
-    :type averaging: str, non-optional
+    Attributes:
+        p1: a list of the coordinates (x,y,z) of the centre of the first face 
+            of the cylinder.
+        p2: a list of the coordinates (x,y,z) of the centre of the second face 
+            of the cylinder.
+        r: float of the radius of the cylinder.
+        material_id: a string for the material identifier that must correspond 
+                        to material that has already been defined.
+        material_ids: a list of material identifiers in the x, y, z directions.
+        averaging: a string (y or n) used to switch on and off dielectric smoothing.
     """
 
     def __init__(self, **kwargs):
@@ -65,8 +63,8 @@ class Cylinder(UserObjectGeometry):
             # Otherwise go with the grid default
             averagecylinder = grid.averagevolumeobjects
 
-        # check materials have been specified
-        # isotropic case
+        # Check materials have been specified
+        # Isotropic case
         try:
             materialsrequested = [self.kwargs['material_id']]
         except KeyError:
@@ -123,7 +121,12 @@ class Cylinder(UserObjectGeometry):
                 # Append the new material object to the materials list
                 grid.materials.append(m)
 
-        build_cylinder(x1, y1, z1, x2, y2, z2, r, grid.dx, grid.dy, grid.dz, numID, numIDx, numIDy, numIDz, averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
+        build_cylinder(x1, y1, z1, x2, y2, z2, r, grid.dx, grid.dy, grid.dz, 
+                       numID, numIDx, numIDy, numIDz, averaging, grid.solid, 
+                       grid.rigidE, grid.rigidH, grid.ID)
 
         dielectricsmoothing = 'on' if averaging else 'off'
-        logger.info(self.grid_name(grid) + f"Cylinder with face centres {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m and {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, with radius {r:g}m, of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")
+        logger.info(self.grid_name(grid) + f"Cylinder with face centres {p3[0]:g}m, " +
+                    f"{p3[1]:g}m, {p3[2]:g}m and {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, " +
+                    f"with radius {r:g}m, of material(s) {', '.join(materialsrequested)} " +
+                    f"created, dielectric smoothing is {dielectricsmoothing}.")

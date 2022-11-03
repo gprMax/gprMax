@@ -28,16 +28,18 @@ logger = logging.getLogger(__name__)
 
 
 class AddSurfaceWater(UserObjectGeometry):
-    """Allows you to add surface water to a :class:`gprMax.cmds_geometry.fractal_box.FractalBox` in the model.
+    """Allows you to add surface water to a FractalBox class in the model.
 
-    :param p1: The lower left (x,y,z) coordinates of a surface on a :class:`gprMax.cmds_geometry.fractal_box.FractalBox`
-    :type p1: list, non-optional
-    :param p2: The lower left (x,y,z) coordinates of a surface on a :class:`gprMax.cmds_geometry.fractal_box.FractalBox`
-    :type p2: list, non-optional
-    :param depth: Defines the depth of the water, which should be specified relative to the dimensions of the #fractal_box that the surface water is being applied.
-    :type depth: float, non-optional
-    :param fractal_box_id:  An identifier for the :class:`gprMax.cmds_geometry.fractal_box.FractalBox` that the water should be applied to
-    :type fractal_box_id: list, non-optional
+    Attributes:
+        p1: a list of the lower left (x,y,z) coordinates of a surface on a 
+            FractalBox class.
+        p2: a list of the upper right (x,y,z) coordinates of a surface on a 
+            FractalBox class.
+        depth: a float that defines the depth of the water, which should be 
+                specified relative to the dimensions of the #fractal_box that 
+                the surface water is being applied.
+        fractal_box_id: a string identifier for the FractalBox class that the 
+                        surface water should be applied to.
     """
 
     def __init__(self, **kwargs):
@@ -94,7 +96,8 @@ class AddSurfaceWater(UserObjectGeometry):
                 logger.exception(self.__str__() + ' dimensions are not specified correctly')
                 raise ValueError
             if xs != volume.xs and xs != volume.xf:
-                logger.exception(self.__str__() + ' can only be used on the external surfaces of a fractal box')
+                logger.exception(self.__str__() + ' can only be used on the ' +
+                                 'external surfaces of a fractal box')
                 raise ValueError
             # xminus surface
             if xs == volume.xs:
@@ -110,7 +113,8 @@ class AddSurfaceWater(UserObjectGeometry):
                 logger.exception(self.__str__() + ' dimensions are not specified correctly')
                 raise ValueError
             if ys != volume.ys and ys != volume.yf:
-                logger.exception(self.__str__() + ' can only be used on the external surfaces of a fractal box')
+                logger.exception(self.__str__() + ' can only be used on the ' +
+                                 'external surfaces of a fractal box')
                 raise ValueError
             # yminus surface
             if ys == volume.ys:
@@ -126,7 +130,8 @@ class AddSurfaceWater(UserObjectGeometry):
                 logger.exception(self.__str__() + ' dimensions are not specified correctly')
                 raise ValueError
             if zs != volume.zs and zs != volume.zf:
-                logger.exception(self.__str__() + ' can only be used on the external surfaces of a fractal box')
+                logger.exception(self.__str__() + ' can only be used on the ' +
+                                 'external surfaces of a fractal box')
                 raise ValueError
             # zminus surface
             if zs == volume.zs:
@@ -150,7 +155,9 @@ class AddSurfaceWater(UserObjectGeometry):
 
         # Check that requested fill depth falls within range of surface roughness
         if surface.filldepth < surface.fractalrange[0] or surface.filldepth > surface.fractalrange[1]:
-            logger.exception(self.__str__() + ' requires a value for the depth of water that lies with the range of the requested surface roughness')
+            logger.exception(self.__str__() + ' requires a value for the depth ' +
+                             'of water that lies with the range of the requested ' +
+                             'surface roughness')
             raise ValueError
 
         # Check to see if water has been already defined as a material
@@ -161,7 +168,12 @@ class AddSurfaceWater(UserObjectGeometry):
         water = next((x for x in grid.materials if x.ID == 'water'))
         testwater = next((x for x in water.tau if x < grid.dt), None)
         if testwater:
-            logger.exception(self.__str__() + ' requires the time step for the model to be less than the relaxation time required to model water.')
+            logger.exception(self.__str__() + ' requires the time step for the ' +
+                             'model to be less than the relaxation time required ' +
+                             'to model water.')
             raise ValueError
 
-        logger.info(self.grid_name(grid) + f'Water on surface from {xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m with depth {filldepth:g}m, added to {surface.operatingonID}.')
+        logger.info(self.grid_name(grid) + f'Water on surface from {xs * grid.dx:g}m, ' +
+                    f'{ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, ' +
+                    f'{yf * grid.dy:g}m, {zf * grid.dz:g}m with depth {filldepth:g}m, ' +
+                    f'added to {surface.operatingonID}.')

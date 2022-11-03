@@ -28,30 +28,28 @@ logger = logging.getLogger(__name__)
 
 
 class CylindricalSector(UserObjectGeometry):
-    """Allows you to introduce a cylindrical sector (shaped like a slice of pie) into the model.
+    """Allows you to introduce a cylindrical sector (shaped like a slice of pie) 
+        into the model.
 
-    :param normal: Direction of the axis of the cylinder from which the sector is defined and can be x, y, or z..
-    :type normal: str, non-optional
-    :param ctr1: First coordinate of the centre of the cylindrical sector.
-    :type ctr1: float, non-optional
-    :param ctr2:  Second coordinate of the centre of the cylindrical sector.
-    :type ctr2: Float, non-optional
-    :param extent1: First thickness from the centre of the cylindrical sector.
-    :type extent1: float, non-optional
-    :param extent2: Second thickness from the centre of the cylindrical sector.
-    :type extent2: float, non-optional
-    :param r: is the radius of the cylindrical sector.
-    :type r: float, non-optional
-    :param start: The starting angle (in degrees) for the cylindrical sector.
-    :type start: float, non-optional
-    :param end: The angle (in degrees) swept by the cylindrical sector
-    :type end: float, non-optional
-    :param material_id: Material identifier that must correspond to material that has already been defined.
-    :type material_id: str, non-optional
-    :param material_ids:  Material identifiers in the x, y, z directions.
-    :type material_ids: list, non-optional
-    :param averaging:  y or n, used to switch on and off dielectric smoothing.
-    :type averaging: str, non-optional
+    Attributes:
+        normal: a string for the direction of the axis of the cylinder from which 
+                the sector is defined and can be x, y, or z.
+        ctr1: a float for the first coordinate of the centre of the cylindrical 
+                sector.
+        ctr2: a float for the second coordinate of the centre of the cylindrical 
+                sector.
+        extent1: a float for the first thickness from the centre of the 
+                    cylindrical sector.
+        extent2: a float for the second thickness from the centre of the 
+                    cylindrical sector.
+        r: a float for the radius of the cylindrical sector.
+        start: a float for the starting angle (in degrees) for the cylindrical 
+                sector.
+        end: a float for the angle (in degrees) swept by the cylindrical sector.
+        material_id: a string for the material identifier that must correspond 
+                        to material that has already been defined.
+        material_ids: a list of material identifiers in the x, y, z directions.
+        averaging: a string (y or n) used to switch on and off dielectric smoothing.
     """
 
     def __init__(self, **kwargs):
@@ -82,8 +80,8 @@ class CylindricalSector(UserObjectGeometry):
             # Otherwise go with the grid default
             averagecylindricalsector = grid.averagevolumeobjects
 
-        # check materials have been specified
-        # isotropic case
+        # Check materials have been specified
+        # Isotropic case
         try:
             materialsrequested = [self.kwargs['material_id']]
         except KeyError:
@@ -103,10 +101,12 @@ class CylindricalSector(UserObjectGeometry):
         if r <= 0:
             logger.exception(self.__str__() + f' the radius {r:g} should be a positive value.')
         if sectorstartangle < 0 or sectorangle <= 0:
-            logger.exception(self.__str__() + ' the starting angle and sector angle should be a positive values.')
+            logger.exception(self.__str__() + ' the starting angle and sector ' +
+                             'angle should be a positive values.')
             raise ValueError
         if sectorstartangle >= 2 * np.pi or sectorangle >= 2 * np.pi:
-            logger.exception(self.__str__() + ' the starting angle and sector angle must be less than 360 degrees.')
+            logger.exception(self.__str__() + ' the starting angle and sector ' +
+                             'angle must be less than 360 degrees.')
             raise ValueError
 
         # Look up requested materials in existing list of material instances
@@ -171,10 +171,23 @@ class CylindricalSector(UserObjectGeometry):
         elif normal == 'z':
             ctr1, ctr2, level = uip.round_to_grid((ctr1, ctr2, extent1))
 
-        build_cylindrical_sector(ctr1, ctr2, level, sectorstartangle, sectorangle, r, normal, thickness, grid.dx, grid.dy, grid.dz, numID, numIDx, numIDy, numIDz, averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
+        build_cylindrical_sector(ctr1, ctr2, level, sectorstartangle, sectorangle, 
+                                 r, normal, thickness, grid.dx, grid.dy, grid.dz, 
+                                 numID, numIDx, numIDy, numIDz, averaging, 
+                                 grid.solid, grid.rigidE, grid.rigidH, grid.ID)
 
         if thickness > 0:
             dielectricsmoothing = 'on' if averaging else 'off'
-            logger.info(self.grid_name(grid) + f"Cylindrical sector with centre {ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle {(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} degrees, thickness {thickness:g}m, of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")
+            logger.info(self.grid_name(grid) + f"Cylindrical sector with centre " +
+                        f"{ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle " +
+                        f"{(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, " +
+                        f"sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} degrees, " +
+                        f"thickness {thickness:g}m, of material(s) {', '.join(materialsrequested)} " +
+                        f"created, dielectric smoothing is {dielectricsmoothing}.")
         else:
-            logger.info(self.grid_name(grid) + f"Cylindrical sector with centre {ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle {(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} degrees, of material(s) {', '.join(materialsrequested)} created.")
+            logger.info(self.grid_name(grid) + f"Cylindrical sector with centre " +
+                        f"{ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle " +
+                        f"{(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, " +
+                        f"sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} " +
+                        f"degrees, of material(s) {', '.join(materialsrequested)} " +
+                        f"created.")

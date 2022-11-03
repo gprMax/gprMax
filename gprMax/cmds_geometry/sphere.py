@@ -28,18 +28,16 @@ logger = logging.getLogger(__name__)
 
 
 class Sphere(UserObjectGeometry):
-    """Allows you to introduce a spherical object with specific parameters into the model.
+    """Allows you to introduce a spherical object with specific parameters 
+        into the model.
 
-    :param p1: the coordinates (x,y,z) of the centre of the sphere.
-    :type p1: list, non-optional
-    :param r: The coordinates (x,y,z) of the centre of the sphere.
-    :type r: float, non-optional
-    :param material_id: Material identifier that must correspond to material that has already been defined.
-    :type material_id: str, non-optional
-    :param material_ids:  Material identifiers in the x, y, z directions.
-    :type material_ids: list, non-optional
-    :param averaging:  y or n, used to switch on and off dielectric smoothing.
-    :type averaging: str, non-optional
+    Attributes:
+        p1: a list of the coordinates (x,y,z) of the centre of the sphere.
+        r: a float of radius of the sphere.
+        material_id: a string for the material identifier that must correspond 
+                        to material that has already been defined.
+        material_ids: a list of material identifiers in the x, y, z directions.
+        averaging: a string (y or n) used to switch on and off dielectric smoothing.
     """
 
     def __init__(self, **kwargs):
@@ -62,8 +60,8 @@ class Sphere(UserObjectGeometry):
             # Otherwise go with the grid default
             averagesphere = grid.averagevolumeobjects
 
-        # check materials have been specified
-        # isotropic case
+        # Check materials have been specified
+        # Isotropic case
         try:
             materialsrequested = [self.kwargs['material_id']]
         except KeyError:
@@ -117,4 +115,7 @@ class Sphere(UserObjectGeometry):
         build_sphere(xc, yc, zc, r, grid.dx, grid.dy, grid.dz, numID, numIDx, numIDy, numIDz, averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
 
         dielectricsmoothing = 'on' if averaging else 'off'
-        logger.info(self.grid_name(grid) + f"Sphere with centre {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m, radius {r:g}m, of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")
+        logger.info(self.grid_name(grid) + f"Sphere with centre {p2[0]:g}m, " +
+                    f"{p2[1]:g}m, {p2[2]:g}m, radius {r:g}m, of material(s) " +
+                    f"{', '.join(materialsrequested)} created, dielectric " +
+                    f"smoothing is {dielectricsmoothing}.")

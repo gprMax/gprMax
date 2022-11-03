@@ -28,22 +28,19 @@ logger = logging.getLogger(__name__)
 
 
 class Triangle(UserObjectGeometry):
-    """Allows you to introduce a triangular patch or a triangular prism with specific properties into the model.
+    """Allows you to introduce a triangular patch or a triangular prism with 
+        specific properties into the model.
 
-    :param p1: the coordinates (x,y,z) of the first apex of the triangle.
-    :type p1: list, non-optional
-    :param p2: the coordinates (x,y,z) of the second apex of the triangle
-    :type p2: list, non-optional
-    :param p3: the coordinates (x,y,z) of the third apex of the triangle.
-    :type p3: list, non-optional
-    :param thickness: The thickness of the triangular prism. If the thickness is zero then a triangular patch is created.
-    :type thickness: float, non-optional
-    :param material_id: Material identifier that must correspond to material that has already been defined.
-    :type material_id: str, non-optional
-    :param material_ids:  Material identifiers in the x, y, z directions.
-    :type material_ids: list, non-optional
-    :param averaging:  y or n, used to switch on and off dielectric smoothing.
-    :type averaging: str, non-optional
+    Attributes:
+        p1: a list of the coordinates (x,y,z) of the first apex of the triangle.
+        p2: a list of the coordinates (x,y,z) of the second apex of the triangle.
+        p3: a list of the coordinates (x,y,z) of the third apex of the triangle.
+        thickness: a float for the thickness of the triangular prism. If the 
+                    thickness is zero then a triangular patch is created.
+        material_id: a string for the material identifier that must correspond 
+                        to material that has already been defined.
+        material_ids: a list of material identifiers in the x, y, z directions.
+        averaging: a string (y or n) used to switch on and off dielectric smoothing.
     """
 
     def __init__(self, **kwargs):
@@ -87,8 +84,8 @@ class Triangle(UserObjectGeometry):
             # Otherwise go with the grid default
             averagetriangularprism = grid.averagevolumeobjects
 
-        # check materials have been specified
-        # isotropic case
+        # Check materials have been specified
+        # Isotropic case
         try:
             materialsrequested = [self.kwargs['material_id']]
         except KeyError:
@@ -178,10 +175,19 @@ class Triangle(UserObjectGeometry):
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
 
-        build_triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, normal, thickness, grid.dx, grid.dy, grid.dz, numID, numIDx, numIDy, numIDz, averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
+        build_triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, normal, thickness, 
+                       grid.dx, grid.dy, grid.dz, numID, numIDx, numIDy, numIDz, 
+                       averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
 
         if thickness > 0:
             dielectricsmoothing = 'on' if averaging else 'off'
-            logger.info(self.grid_name(grid) + f"Triangle with coordinates {p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m {p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m and thickness {thickness:g}m of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")
+            logger.info(self.grid_name(grid) + f"Triangle with coordinates " +
+                        f"{p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m " +
+                        f"{p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m and thickness " +
+                        f"{thickness:g}m of material(s) {', '.join(materialsrequested)} " +
+                        f"created, dielectric smoothing is {dielectricsmoothing}.")
         else:
-            logger.info(self.grid_name(grid) + f"Triangle with coordinates {p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m {p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m of material(s) {', '.join(materialsrequested)} created.")
+            logger.info(self.grid_name(grid) + f"Triangle with coordinates " +
+                        f"{p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m " +
+                        f"{p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m of material(s) " +
+                        f"{', '.join(materialsrequested)} created.")

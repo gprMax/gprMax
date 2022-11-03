@@ -67,13 +67,13 @@ def rotate_point(p, axis, angle, origin=(0, 0, 0)):
     """Rotate a point.
     
     Args:
-        p (array): coordinates of point (x, y, z)
-        axis (str): axis about which to perform rotation (x, y, or z)
-        angle (int): angle of rotation (degrees)
-        origin (tuple): point about which to perform rotation (x, y, z)
+        p: an array of coordinates of point (x, y, z).
+        axis: a string which defines the axis about which to perform rotation (x, y, or z).
+        angle: an int specifying the angle of rotation (degrees).
+        origin: a tuple defining the point about which to perform rotation (x, y, z).
 
     Returns:
-        p (array): coordinates of rotated point (x, y, z)
+        p: an array of coordinates of rotated point (x, y, z)
     """
 
     origin = np.array(origin)
@@ -97,13 +97,13 @@ def rotate_2point_object(pts, axis, angle, origin=None):
     """Rotate a geometry object that is defined by 2 points.
     
     Args:
-        pts (array): coordinates of points of object to be rotated
-        axis (str): axis about which to perform rotation (x, y, or z)
-        angle (int): angle of rotation (degrees)
-        origin (tuple): point about which to perform rotation (x, y, z)
+        pts: an array ofcoordinates of points of object to be rotated.
+        axis: a string which defines the axis about which to perform rotation (x, y, or z).
+        angle: an int specifying the angle of rotation (degrees).
+        origin: a tuple defining the point about which to perform rotation (x, y, z).
 
     Returns:
-        new_pts (array): coordinates of points of rotated object
+        new_pts: an array of coordinates of points of rotated object.
     """
     
     # Use origin at centre of object if not given
@@ -155,16 +155,15 @@ def rotate_polarisation(p, polarisation, axis, angle, G):
     """Rotate a geometry object that is defined by a point and polarisation.
     
     Args:
-        p (array): coordinates of point (x, y, z)
-        polarisation (str): current polarisation (x, y, or z)
-        axis (str): axis about which to perform rotation (x, y, or z)
-        angle (int): angle of rotation (degrees)
-        G (class): Grid class instance - holds essential parameters
-                        describing the model.
+        p: an array of coordinates of point (x, y, z).
+        polarisation: a string defining the current polarisation (x, y, or z).
+        axis: a string which defines the axis about which to perform rotation (x, y, or z).
+        angle: an int specifying the angle of rotation (degrees).
+        G: FDTDGrid class describing a grid in a model.
 
     Returns:
-        pts (array): coordinates of points of rotated object
-        new_polarisation (str): new polarisation (x, y, or z)
+        pts: an array of coordinates of points of rotated object.
+        new_polarisation: a string defining the new polarisation (x, y, or z).
     """
 
     if polarisation.lower() == 'x':

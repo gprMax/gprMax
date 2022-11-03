@@ -30,12 +30,11 @@ logger = logging.getLogger(__name__)
 class Edge(UserObjectGeometry):
     """Allows you to introduce a wire with specific properties into the model.
 
-    :param p1: Starting point of the edge.
-    :type p1: list, non-optional
-    :param p2: Ending point of the edge.
-    :type p2: list, non-optional
-    :param material_id: Material identifier that must correspond to material that has already been defined.
-    :type material_id: str, non-optional
+    Attributes:
+        p1: a list of the coordinates (x,y,z) of the starting point of the edge.
+        p2: a list of the coordinates (x,y,z) of the ending point of the edge.
+        material_id: a string for the material identifier that must correspond 
+                        to material that has already been defined.
     """
 
     def __init__(self, **kwargs):
@@ -83,7 +82,7 @@ class Edge(UserObjectGeometry):
             raise ValueError
 
         # Check for valid orientations
-        # x-orientated wire
+        # x-orientated edge
         if xs != xf:
             if ys != yf or zs != zf:
                 logger.exception(self.__str__() + ' the edge is not specified correctly')
@@ -92,7 +91,7 @@ class Edge(UserObjectGeometry):
                 for i in range(xs, xf):
                     build_edge_x(i, ys, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID)
 
-        # y-orientated wire
+        # y-orientated edge
         elif ys != yf:
             if xs != xf or zs != zf:
                 logger.exception(self.__str__() + ' the edge is not specified correctly')
@@ -101,7 +100,7 @@ class Edge(UserObjectGeometry):
                 for j in range(ys, yf):
                     build_edge_y(xs, j, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID)
 
-        # z-orientated wire
+        # z-orientated edge
         elif zs != zf:
             if xs != xf or ys != yf:
                 logger.exception(self.__str__() + ' the edge is not specified correctly')
@@ -110,4 +109,6 @@ class Edge(UserObjectGeometry):
                 for k in range(zs, zf):
                     build_edge_z(xs, ys, k, material.numID, grid.rigidE, grid.rigidH, grid.ID)
 
-        logger.info(self.grid_name(grid) + f'Edge from {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of material {material_id} created.')
+        logger.info(self.grid_name(grid) + f'Edge from {p3[0]:g}m, {p3[1]:g}m, ' +
+                    f'{p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of ' +
+                    f'material {material_id} created.')

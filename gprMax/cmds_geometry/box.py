@@ -28,18 +28,16 @@ logger = logging.getLogger(__name__)
 
 
 class Box(UserObjectGeometry):
-    """Allows you to introduce an orthogonal parallelepiped with specific properties into the model.
+    """Allows you to introduce an orthogonal parallelepiped with specific 
+        properties into the model.
 
-    :param p1: The lower left (x,y,z) coordinates of a the box.
-    :type p1: list, non-optional
-    :param p2: The lower left (x,y,z) coordinates of the box.
-    :type p2: list, non-optional
-    :param material_id: Material identifier that must correspond to material that has already been defined.
-    :type material_id: str, non-optional
-    :param material_ids:  Material identifiers in the x, y, z directions.
-    :type material_ids: list, non-optional
-    :param averaging:  y or n, used to switch on and off dielectric smoothing.
-    :type averaging: str, non-optional
+    Attributes:
+        p1: a list of the lower left (x,y,z) coordinates of the parallelepiped.
+        p2: a list of the upper right (x,y,z) coordinates of the parallelepiped.
+        material_id: a string for the material identifier that must correspond 
+                        to material that has already been defined.
+        material_ids: a list of material identifiers in the x, y, z directions.
+        averaging: a string (y or n) used to switch on and off dielectric smoothing.
     """
 
     def __init__(self, **kwargs):
@@ -71,8 +69,8 @@ class Box(UserObjectGeometry):
         if self.dorotate:
             self.__dorotate()
 
-        # check materials have been specified
-        # isotropic case
+        # Check materials have been specified
+        # Isotropic case
         try:
             materialsrequested = [self.kwargs['material_id']]
         except KeyError:
@@ -92,7 +90,7 @@ class Box(UserObjectGeometry):
             averagebox = grid.averagevolumeobjects
 
         p3, p4 = uip.check_box_points(p1, p2, self.__str__())
-        # find nearest point on grid without translation
+        # Find nearest point on grid without translation
         p5 = uip.round_to_grid_static_point(p1)
         p6 = uip.round_to_grid_static_point(p2)
         xs, ys, zs = p3
@@ -138,4 +136,7 @@ class Box(UserObjectGeometry):
 
         dielectricsmoothing = 'on' if averaging else 'off'
 
-        logger.info(self.grid_name(grid) + f"Box from {p5[0]:g}m, {p5[1]:g}m, {p5[2]:g}m, to {p6[0]:g}m, {p6[1]:g}m, {p6[2]:g}m of material(s) {', '.join(materialsrequested)} created, dielectric smoothing is {dielectricsmoothing}.")
+        logger.info(self.grid_name(grid) + f"Box from {p5[0]:g}m, {p5[1]:g}m, " +
+                    f"{p5[2]:g}m, to {p6[0]:g}m, {p6[1]:g}m, {p6[2]:g}m of " +
+                    f"material(s) {', '.join(materialsrequested)} created, " +
+                    f"dielectric smoothing is {dielectricsmoothing}.")
