@@ -18,7 +18,6 @@
 
 import itertools
 import logging
-import os
 from operator import add
 from pathlib import Path
 
@@ -39,9 +38,9 @@ colors = itertools.cycle(colorIDs)
 lines = itertools.cycle(('--', ':', '-.', '-'))
 markers = ['o', 'd', '^', 's', '*']
 
-basepath = Path(__file__).parent
+parts = Path(__file__).parts
 path = 'rxs/rx1/'
-refmodel = 'pml_3D_pec_plate_ref'
+basename = 'pml_3D_pec_plate'
 PMLIDs = ['CFS-PML', 'HORIPML-1', 'HORIPML-2', 'MRIPML-1', 'MRIPML-2']
 maxerrors = []
 testmodels = ['pml_3D_pec_plate_' + s for s in PMLIDs]
@@ -50,8 +49,8 @@ fig, ax = plt.subplots(subplot_kw=dict(xlabel='Iterations', ylabel='Error [dB]')
 
 for x, model in enumerate(testmodels):
     # Open output file and read iterations
-    fileref = h5py.File(basepath.joinpath(refmodel, '.h5'), 'r')
-    filetest = h5py.File(basepath.joinpath(model, '.h5'), 'r')
+    fileref = h5py.File(Path(*parts[:-1], basename, basename + '_ref.h5'), 'r')
+    filetest = h5py.File(Path(*parts[:-1], basename, basename + str(x + 1) + '.h5'), 'r')
 
     # Get available field output component names
     outputsref = list(fileref[path].keys())
@@ -66,7 +65,7 @@ for x, model in enumerate(testmodels):
                        f'does not match type in reference solution ({fileref[path + outputsref[0]].dtype})\n')
     floattyperef = fileref[path + outputsref[0]].dtype
     floattypetest = filetest[path + outputstest[0]].dtype
-    # print('Data type: {}'.format(floattypetest))
+    # logger.info(f'Data type: {floattypetest}')
 
     # Arrays for storing time
     # timeref = np.zeros((fileref.attrs['Iterations']), dtype=floattyperef)
@@ -106,7 +105,7 @@ for x, model in enumerate(testmodels):
     # Print maximum error value
     start = 210
     maxerrors.append(f': {np.amax(datadiffs[start::, 1]):.1f} [dB]')
-    print(f'{model}: Max. error {maxerrors[x]}')
+    logger.info(f'{model}: Max. error {maxerrors[x]}')
 
     # Plot diffs (select column to choose field component, 0-Ex, 1-Ey etc..)
     ax.plot(timeref[start::], datadiffs[start::, 1], color=next(colors), lw=2, ls=next(lines), label=model)
