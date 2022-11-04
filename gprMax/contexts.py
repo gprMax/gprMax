@@ -81,12 +81,12 @@ class Context:
         self.print_time_report()
 
     def print_logo_copyright(self):
-        """Print gprMax logo, version, and copyright/licencing information."""
+        """Prints gprMax logo, version, and copyright/licencing information."""
         logo_copyright = logo(__version__ + ' (' + codename + ')')
         logger.basic(logo_copyright)
 
     def print_time_report(self):
-        """Print the total simulation time based on context."""
+        """Prints the total simulation time based on context."""
         s = ("\n=== Simulation completed in [HH:MM:SS]: "
              f"{datetime.timedelta(seconds=self.tsimend - self.tsimstart)}")
         logger.basic(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")
@@ -112,9 +112,8 @@ class MPIContext(Context):
         """Process for running a single model.
         
         Args:
-            work (dict): contains any additional information that is passed to 
-                            MPI workers. By default only model number (i) is 
-                            used.
+            work: dict of any additional information that is passed to MPI 
+                    workers. By default only model number (i) is used.
         """
 
         # Create configuration for model

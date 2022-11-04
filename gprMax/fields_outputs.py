@@ -31,10 +31,7 @@ def store_outputs(G):
     """Stores field component values for every receiver and transmission line.
 
     Args:
-        iteration (int): Current iteration number.
-        Ex, Ey, Ez, Hx, Hy, Hz (memory view): Current electric and magnetic
-                                                field values.
-        G (FDTDGrid): Parameters describing a grid in a model.
+        G: FDTDGrid class describing a grid in a model.
     """
 
     iteration = G.iteration
@@ -99,11 +96,11 @@ __global__ void store_outputs(int NRX, int iteration, const int* __restrict__ rx
 
 
 def write_hdf5_outputfile(outputfile, G):
-    """Write an output file in HDF5 (.h5) format.
+    """Writes an output file in HDF5 (.h5) format.
 
     Args:
-        outputfile (str): Name of the output file.
-        G (FDTDGrid): Parameters describing a grid in a model.
+        outputfile: string of the name of the output file.
+        G: FDTDGrid class describing a grid in a model.
     """
 
     # Check for any receivers in subgrids
@@ -130,12 +127,12 @@ def write_hdf5_outputfile(outputfile, G):
 
 
 def write_grid(basegrp, G, is_subgrid=False):
-    """Write grid meta data and data to HDF5 group.
+    """Writes grid meta data and data to HDF5 group.
 
     Args:
-        basegrp (dict): HDF5 group.
-        G (FDTDGrid): Parameters describing a grid in a model.
-        is_subgrid (bool): Is grid instance the main grid or a subgrid.
+        basegrp: dict of HDF5 group.
+        G: FDTDGrid class describing a grid in a model.
+        is_subgrid: boolean for grid instance the main grid or a subgrid.
     """
 
     # Write meta data for grid

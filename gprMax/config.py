@@ -141,7 +141,7 @@ class ModelConfig:
         
 
     def set_dispersive_material_types(self):
-        """Set data type for disperive materials. Complex if Drude or Lorentz
+        """Sets data type for disperive materials. Complex if Drude or Lorentz
             materials are present. Real if Debye materials.
         """
         if self.materials['drudelorentz']:
@@ -154,9 +154,9 @@ class ModelConfig:
             self.materials['dispersiveCdtype'] = sim_config.dtypes['C_float_or_double']
 
     def set_output_file_path(self, outputdir=None):
-        """Output file path can be provided by the user via the API or an input 
-            file command. If they haven't provided one use the input file path 
-            instead.
+        """Sets output file path. Can be provided by the user via the API or an 
+            input file command. If they haven't provided one use the input file 
+            path instead.
 
         Args:
             outputdir: string of output file directory given by input file command.
@@ -179,7 +179,7 @@ class ModelConfig:
         self.output_file_path_ext = self.output_file_path.with_suffix('.h5')
 
     def set_snapshots_dir(self):
-        """Set directory to store any snapshots.
+        """Sets directory to store any snapshots.
         
         Returns:
             snapshot_dir: Path to directory to store snapshot files in.
@@ -345,13 +345,13 @@ class SimulationConfig:
                 self.dtypes['C_complex'] = 'cdouble'
 
     def _get_byteorder(self):
-        """Check the byte order of system to use for VTK files, i.e. geometry
+        """Checks the byte order of system to use for VTK files, i.e. geometry
             views and snapshots.
         """
         self.vtk_byteorder = 'LittleEndian' if sys.byteorder == 'little' else 'BigEndian'
 
     def _set_model_start_end(self):
-        """Set range for number of models to run (internally 0 index)."""
+        """Sets range for number of models to run (internally 0 index)."""
         if self.args.i:
             modelstart = self.args.i - 1
             modelend = modelstart + self.args.n
@@ -363,7 +363,7 @@ class SimulationConfig:
         self.model_end = modelend
 
     def _set_input_file_path(self):
-        """Set input file path for CLI or API."""
+        """Sets input file path for CLI or API."""
         # API
         if self.args.inputfile is None:
             self.input_file_path = Path(self.args.outputfile)

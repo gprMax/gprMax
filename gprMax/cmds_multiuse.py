@@ -1188,7 +1188,7 @@ class AddDebyeDispersion(UserObjectMulti):
 
 
 class AddLorentzDispersion(UserObjectMulti):
-    """Add dispersive properties to already defined :class:`Material` based 
+    """Adds dispersive properties to already defined :class:`Material` based 
         on multi-pole Lorentz formulation.
 
     Attributes:

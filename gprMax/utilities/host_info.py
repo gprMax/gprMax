@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_host_info():
-    """Get information about the machine, CPU, RAM, and OS.
+    """Gets information about the machine, CPU, RAM, and OS.
 
     Returns:
         hostinfo: dict containing manufacturer and model of machine; 
@@ -199,7 +199,7 @@ def get_host_info():
 
 
 def print_host_info(hostinfo):
-    """Print information about the machine, CPU, RAM, and OS.
+    """Prints information about the machine, CPU, RAM, and OS.
 
     Args:
         hostinfo: dict containing manufacturer and model of machine; 
@@ -266,7 +266,7 @@ def set_omp_threads(nthreads=None):
 
 
 def mem_check_host(mem):
-    """Check if the required amount of memory (RAM) is available on host.
+    """Checks if the required amount of memory (RAM) is available on host.
 
     Args:
         mem: int for memory required (bytes).
@@ -279,7 +279,7 @@ def mem_check_host(mem):
 
 
 def mem_check_device_snaps(total_mem, snaps_mem):
-    """Check if the required amount of memory (RAM) for all snapshots can fit
+    """Checks if the required amount of memory (RAM) for all snapshots can fit
         on specified device.
 
     Args:
@@ -305,7 +305,7 @@ def mem_check_device_snaps(total_mem, snaps_mem):
 
 
 def mem_check_all(grids):
-    """Check memory for all grids, including for any dispersive materials,
+    """Checks memory for all grids, including for any dispersive materials,
         snapshots, and if solver with GPU, whether snapshots will fit on GPU
         memory.
 
@@ -356,7 +356,7 @@ def mem_check_all(grids):
 
 
 def has_pycuda():
-    """Check if pycuda module is installed."""
+    """Checks if pycuda module is installed."""
     pycuda = True
     try:
         import pycuda
@@ -366,7 +366,7 @@ def has_pycuda():
 
 
 def has_pyopencl():
-    """Check if pyopencl module is installed."""
+    """Checks if pyopencl module is installed."""
     pyopencl = True
     try:
         import pyopencl
@@ -376,7 +376,7 @@ def has_pyopencl():
 
 
 def detect_cuda_gpus():
-    """Get information about CUDA-capable GPU(s).
+    """Gets information about CUDA-capable GPU(s).
 
     Returns:
         gpus: dict of detected pycuda device object(s) where where device ID(s)
@@ -415,7 +415,7 @@ def detect_cuda_gpus():
 
 
 def print_cuda_info(devs):
-    """"Print info about detected CUDA-capable GPU(s).
+    """"Prints info about detected CUDA-capable GPU(s).
     
     Args:
         devs: dict of detected pycuda device object(s) where where device ID(s)
@@ -433,7 +433,7 @@ def print_cuda_info(devs):
 
 
 def detect_opencl():
-    """Get information about OpenCL platforms and devices.
+    """Gets information about OpenCL platforms and devices.
 
     Returns:
         devs: dict of detected pyopencl device object(s) where where device ID(s)
@@ -465,7 +465,7 @@ def detect_opencl():
 
 
 def print_opencl_info(devs):
-    """"Print info about detected OpenCL-capable device(s).
+    """"Prints info about detected OpenCL-capable device(s).
     
     Args:
         devs: dict of detected pyopencl device object(s) where where device ID(s)

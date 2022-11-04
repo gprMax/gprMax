@@ -19,10 +19,8 @@
 import datetime
 import decimal as d
 import logging
-import os
 import re
 import textwrap
-import xml.dom.minidom
 from shutil import get_terminal_size
 
 import numpy as np
@@ -41,10 +39,10 @@ except ImportError:
 
 
 def get_terminal_width():
-    """Get/set width of terminal being used.
+    """Gets/sets width of terminal being used.
 
     Returns:
-        terminalwidth: an int for the terminal width.
+        terminalwidth: int for the terminal width.
     """
 
     terminalwidth = get_terminal_size()[0]
@@ -55,7 +53,7 @@ def get_terminal_width():
 
 
 def logo(version):
-    """Print gprMax logo, version, and licencing/copyright information.
+    """Prints gprMax logo, version, and licencing/copyright information.
 
     Args:
         version: string for version number.
@@ -141,7 +139,7 @@ def round32(value):
 
 
 def fft_power(waveform, dt):
-    """Calculate a FFT of the given waveform of amplitude values;
+    """Calculates FFT of the given waveform of amplitude values;
         converted to decibels and shifted so that maximum power is 0dB
 
     Args:
@@ -171,18 +169,19 @@ def fft_power(waveform, dt):
 
 
 def human_size(size, a_kilobyte_is_1024_bytes=False):
-    """Convert a file size to human-readable form.
+    """Converts a file size to human-readable form.
 
     Args:
         size: int for file size in bytes.
-        a_kilobyte_is_1024_bytes: bool - true for multiples of 1024, 
+        a_kilobyte_is_1024_bytes: boolean - true for multiples of 1024, 
                                     or false for multiples of 1000.
 
     Returns:
         Human-readable string of size.
     """
 
-    suffixes = {1000: ['KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'], 1024: ['KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB']}
+    suffixes = {1000: ['KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'], 
+                1024: ['KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB']}
 
     if size < 0:
         raise ValueError('Number must be non-negative.')
@@ -207,15 +206,15 @@ def natural_keys(text):
 
 
 def timer():
-    """Function to return time in fractional seconds."""
+    """Time in fractional seconds."""
     return timer_fn()
 
 
 def numeric_list_to_int_list(l):
-    """Return a list of int from a numerical list."""
+    """List of int from a numerical list."""
     return list(map(int, l))
 
 
 def numeric_list_to_float_list(l):
-    """Return a list of float from a numerical list."""
+    """List of float from a numerical list."""
     return list(map(float, l))
