@@ -29,20 +29,20 @@ logger = logging.getLogger(__name__)
 
 
 class AddGrass(UserObjectGeometry):
-    """Allows you to add grass with roots to a FractalBox class in the model.
+    """Adds grass with roots to a FractalBox class in the model.
 
     Attributes:
-        p1: a list of the lower left (x,y,z) coordinates of a surface on a 
+        p1: list of the lower left (x,y,z) coordinates of a surface on a 
             FractalBox class.
-        p2: a list of the upper right (x,y,z) coordinates of a surface on a 
+        p2: list of the upper right (x,y,z) coordinates of a surface on a 
             FractalBox class.
-        frac_dim: a float for the fractal dimension which, for an orthogonal 
+        frac_dim:float for the fractal dimension which, for an orthogonal 
                     parallelepiped, should take values between zero and three.
-        limits: a list to define lower and upper limits for a range over which 
+        limits: list to define lower and upper limits for a range over which 
                     the height of the blades of grass can vary.
-        n_blades: an int for the number of blades of grass that should be 
+        n_blades:int for the number of blades of grass that should be 
                     applied to the surface area.
-        fractal_box_id: a string identifier for the FractalBox class that the 
+        fractal_box_id: string identifier for the FractalBox class that the 
                         grass should be applied to.
     """
 
@@ -191,7 +191,8 @@ class AddGrass(UserObjectGeometry):
                              'enough for the number of grass blades/roots specified')
             raise ValueError
 
-        # Scale the distribution so that the summation is equal to one, i.e. a probability distribution
+        # Scale the distribution so that the summation is equal to one, 
+        # i.e. a probability distribution
         surface.fractalsurface = surface.fractalsurface / np.sum(surface.fractalsurface)
 
         # Set location of grass blades using probability distribution
@@ -202,16 +203,23 @@ class AddGrass(UserObjectGeometry):
         R = np.random.RandomState(surface.seed)
         A = R.random_sample(n_blades)
 
-        # Locate the random numbers in the bins created by the 1D vector of probability values, and convert the 1D index back into a x, y index for the original surface.
-        bladesindex = np.unravel_index(np.digitize(A, probability1D), (surface.fractalsurface.shape[0], surface.fractalsurface.shape[1]))
+        # Locate the random numbers in the bins created by the 1D vector of 
+        # probability values, and convert the 1D index back into a x, y index 
+        # for the original surface.
+        bladesindex = np.unravel_index(np.digitize(A, probability1D), 
+                                       (surface.fractalsurface.shape[0], 
+                                        surface.fractalsurface.shape[1]))
 
         # Set the fractal range to minimum and maximum heights of the grass blades
         surface.fractalrange = fractalrange
 
-        # Set the fractal surface using the pre-calculated spatial distribution and a random height
-        surface.fractalsurface = np.zeros((surface.fractalsurface.shape[0], surface.fractalsurface.shape[1]))
+        # Set the fractal surface using the pre-calculated spatial distribution 
+        # and a random height
+        surface.fractalsurface = np.zeros((surface.fractalsurface.shape[0], 
+                                           surface.fractalsurface.shape[1]))
         for i in range(len(bladesindex[0])):
-            surface.fractalsurface[bladesindex[0][i], bladesindex[1][i]] = R.randint(surface.fractalrange[0], surface.fractalrange[1], size=1)
+            surface.fractalsurface[bladesindex[0][i], bladesindex[1][i]] = R.randint(surface.fractalrange[0], 
+                                                                                     surface.fractalrange[1], size=1)
 
         # Create grass geometry parameters
         g = Grass(n_blades)

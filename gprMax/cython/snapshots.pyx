@@ -20,31 +20,29 @@ from gprMax.config cimport float_or_double
 
 
 cpdef void calculate_snapshot_fields(
-                    int nx,
-                    int ny,
-                    int nz,
-                    float_or_double[:, :, ::1] sliceEx,
-                    float_or_double[:, :, ::1] sliceEy,
-                    float_or_double[:, :, ::1] sliceEz,
-                    float_or_double[:, :, ::1] sliceHx,
-                    float_or_double[:, :, ::1] sliceHy,
-                    float_or_double[:, :, ::1] sliceHz,
-                    float_or_double[:, :, ::1] snapEx,
-                    float_or_double[:, :, ::1] snapEy,
-                    float_or_double[:, :, ::1] snapEz,
-                    float_or_double[:, :, ::1] snapHx,
-                    float_or_double[:, :, ::1] snapHy,
-                    float_or_double[:, :, ::1] snapHz
-            ):
-    """This function calculates electric and magnetic values at points from
-        averaging values in cells.
+    int nx,
+    int ny,
+    int nz,
+    float_or_double[:, :, ::1] sliceEx,
+    float_or_double[:, :, ::1] sliceEy,
+    float_or_double[:, :, ::1] sliceEz,
+    float_or_double[:, :, ::1] sliceHx,
+    float_or_double[:, :, ::1] sliceHy,
+    float_or_double[:, :, ::1] sliceHz,
+    float_or_double[:, :, ::1] snapEx,
+    float_or_double[:, :, ::1] snapEy,
+    float_or_double[:, :, ::1] snapEz,
+    float_or_double[:, :, ::1] snapHx,
+    float_or_double[:, :, ::1] snapHy,
+    float_or_double[:, :, ::1] snapHz
+):
+    """Calculates electric and magnetic values at points from averaging values 
+        in cells.
 
     Args:
-        nx, ny, nz (int): Size of snapshot array
-        sliceEx, sliceEy, sliceEz,
-            sliceHx, sliceHy, sliceHz (memoryview): Access to slices of field arrays
-        snapEx, snapEy, snapEz,
-            snapHx, snapHy, snapHz (memoryview): Access to snapshot arrays
+        nx, ny, nz: ints for size of snapshot array.
+        slice: memoryviews to access slices of field arrays.
+        snap: memoryviews to access snapshot arrays.
     """
 
     cdef Py_ssize_t i, j, k

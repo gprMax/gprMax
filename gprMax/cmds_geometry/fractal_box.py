@@ -27,27 +27,27 @@ logger = logging.getLogger(__name__)
 
 
 class FractalBox(UserObjectGeometry):
-    """Allows you to introduce an orthogonal parallelepiped with fractal 
-        distributed properties which are related to a mixing model or 
-        normal material into the model.
+    """Introduces an orthogonal parallelepiped with fractal distributed 
+        properties which are related to a mixing model or normal material into 
+        the model.
 
     Attributes:
-        p1: a list of the lower left (x,y,z) coordinates of the parallelepiped.
-        p2: a list of the upper right (x,y,z) coordinates of the parallelepiped.
-        frac_dim: a float for the fractal dimension which, for an orthogonal 
+        p1: list of the lower left (x,y,z) coordinates of the parallelepiped.
+        p2: list of the upper right (x,y,z) coordinates of the parallelepiped.
+        frac_dim: float for the fractal dimension which, for an orthogonal 
                     parallelepiped, should take values between zero and three.
-        weighting: a list of the weightings in the x, y, z direction of the 
+        weighting: list of the weightings in the x, y, z direction of the 
                     parallelepiped.
-        n_materials: an int of the number of materials to use for the fractal 
+        n_materials: int of the number of materials to use for the fractal 
                         distribution (defined according to the associated 
                         mixing model). This should be set to one if using a 
                         normal material instead of a mixing model.
-        mixing_model_id: a string identifier for the associated mixing model or 
+        mixing_model_id: string identifier for the associated mixing model or 
                             material.
-        id: a string identifier for the fractal box itself.
-        seed: seed: (optional) float parameter which controls the seeding of the random 
-                number generator used to create the fractals.
-        averaging: a string (y or n) used to switch on and off dielectric smoothing.
+        id: string identifier for the fractal box itself.
+        seed: (optional) float parameter which controls the seeding of the 
+                random number generator used to create the fractals.
+        averaging: string (y or n) used to switch on and off dielectric smoothing.
     """
 
     def __init__(self, **kwargs):
@@ -62,7 +62,7 @@ class FractalBox(UserObjectGeometry):
         self.dorotate = True
 
     def __dorotate(self):
-        """Perform rotation."""
+        """Performs rotation."""
         pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
         self.kwargs['p1'] = tuple(rot_pts[0, :])
@@ -94,7 +94,8 @@ class FractalBox(UserObjectGeometry):
             # Go with user specified averaging
             averagefractalbox = self.kwargs['averaging']
         except KeyError:
-            # If they havent specfied - default is no dielectric smoothing for a fractal box
+            # If they havent specified - default is no dielectric smoothing for 
+            # a fractal box.
             averagefractalbox = False
 
         p3 = uip.round_to_grid_static_point(p1)
@@ -124,7 +125,8 @@ class FractalBox(UserObjectGeometry):
                              'number of bins')
             raise ValueError
 
-        # Find materials to use to build fractal volume, either from mixing models or normal materials
+        # Find materials to use to build fractal volume, either from mixing 
+        # models or normal materials.
         mixingmodel = next((x for x in grid.mixingmodels if x.ID == mixing_model_id), None)
         material = next((x for x in grid.materials if x.ID == mixing_model_id), None)
         nbins = n_materials
@@ -134,7 +136,8 @@ class FractalBox(UserObjectGeometry):
                 logger.exception(self.__str__() + ' must be used with more than ' +
                                  'one material from the mixing model.')
                 raise ValueError
-            # Create materials from mixing model as number of bins now known from fractal_box command
+            # Create materials from mixing model as number of bins now known 
+            # from fractal_box command.
             mixingmodel.calculate_debye_properties(nbins, grid)
         elif not material:
             logger.exception(self.__str__() + f' mixing model or material with ' +

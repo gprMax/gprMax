@@ -180,9 +180,8 @@ class PrecursorNodesBase:
             setattr(self, f, val)
 
     def calc_exact_field(self, field_names):
-        """Function to set the fields used in update calculations to the
-            values at the current main time step.
-            i.e. ey_left = copy.ey_left_1
+        """Sets the fields used in update calculations to the values at the 
+        current main time step, i.e. ey_left = copy.ey_left_1
         """
         for f in field_names:
             val = np.copy(getattr(self, f + '_1'))

@@ -28,19 +28,19 @@ logger = logging.getLogger(__name__)
 
 
 class Triangle(UserObjectGeometry):
-    """Allows you to introduce a triangular patch or a triangular prism with 
-        specific properties into the model.
+    """Introduces a triangular patch or a triangular prism with specific 
+        properties into the model.
 
     Attributes:
-        p1: a list of the coordinates (x,y,z) of the first apex of the triangle.
-        p2: a list of the coordinates (x,y,z) of the second apex of the triangle.
-        p3: a list of the coordinates (x,y,z) of the third apex of the triangle.
-        thickness: a float for the thickness of the triangular prism. If the 
+        p1: list of the coordinates (x,y,z) of the first apex of the triangle.
+        p2: list of the coordinates (x,y,z) of the second apex of the triangle.
+        p3: list of the coordinates (x,y,z) of the third apex of the triangle.
+        thickness: float for the thickness of the triangular prism. If the 
                     thickness is zero then a triangular patch is created.
-        material_id: a string for the material identifier that must correspond 
+        material_id: string for the material identifier that must correspond 
                         to material that has already been defined.
-        material_ids: a list of material identifiers in the x, y, z directions.
-        averaging: a string (y or n) used to switch on and off dielectric smoothing.
+        material_ids: list of material identifiers in the x, y, z directions.
+        averaging: string (y or n) used to switch on and off dielectric smoothing.
     """
 
     def __init__(self, **kwargs):
@@ -48,14 +48,14 @@ class Triangle(UserObjectGeometry):
         self.hash = '#triangle'
 
     def rotate(self, axis, angle, origin=None):
-        """Set parameters for rotation."""
+        """Sets parameters for rotation."""
         self.axis = axis
         self.angle = angle
         self.origin = origin
         self.dorotate = True
 
     def __dorotate(self):
-        """Perform rotation."""
+        """Performs rotation."""
         p1 = rotate_point(self.kwargs['p1'], self.axis, self.angle, self.origin)
         p2 = rotate_point(self.kwargs['p2'], self.axis, self.angle, self.origin)
         p3 = rotate_point(self.kwargs['p3'], self.axis, self.angle, self.origin)
@@ -154,10 +154,14 @@ class Triangle(UserObjectGeometry):
                     m = Material(numID, requiredID)
                     m.type = 'dielectric-smoothed'
                     # Create dielectric-smoothed constituents for material
-                    m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
-                    m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
-                    m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                    m.sm = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
+                    m.er = np.mean((materials[0].er, materials[1].er, 
+                                    materials[2].er), axis=0)
+                    m.se = np.mean((materials[0].se, materials[1].se, 
+                                    materials[2].se), axis=0)
+                    m.mr = np.mean((materials[0].mr, materials[1].mr, 
+                                    materials[2].mr), axis=0)
+                    m.sm = np.mean((materials[0].mr, materials[1].mr, 
+                                    materials[2].mr), axis=0)
 
                     # Append the new material object to the materials list
                     grid.materials.append(m)

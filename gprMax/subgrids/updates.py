@@ -47,37 +47,37 @@ def create_updates(G):
 
 
 class SubgridUpdates(CPUUpdates):
-    """Provides update functions for the Sub gridding simulation."""
+    """Update functions for the Sub gridding simulation."""
 
     def __init__(self, G, updaters):
         super().__init__(G)
         self.updaters = updaters
 
     def hsg_1(self):
-        """Method to update the subgrids over the first phase."""
-        # updaters update each subgrid
+        """Updates the subgrids over the first phase."""
         for sg_updater in self.updaters:
             sg_updater.hsg_1()
 
     def hsg_2(self):
-        """Method to update the subgrids over the second phase."""
+        """Updates the subgrids over the second phase."""
         for sg_updater in self.updaters:
             sg_updater.hsg_2()
 
 
 class SubgridUpdater(CPUUpdates):
-    """Class to handle updating the electric and magnetic fields of an HSG
-        subgrid. The IS, OS, subgrid region and the electric/magnetic sources
-        are updated using the precursor regions.
+    """Handles updating the electric and magnetic fields of an HSG subgrid. 
+        The IS, OS, subgrid region and the electric/magnetic sources are updated 
+        using the precursor regions.
     """
 
     def __init__(self, subgrid, precursors, G):
         """
         Args:
-            subgrid (SubGrid3d): Subgrid to be updated.
-            precursors (PrecursorNodes): Precursor nodes associated with
-            the subgrid - contain interpolated fields.
-            G (FDTDGrid): Parameters describing a grid in a model.
+            subgrid: SubGrid3d instance to be updated.
+            precursors (PrecursorNodes): PrecursorNodes instance nodes associated 
+                                            with the subgrid - contain interpolated 
+                                            fields.
+            G: FDTDGrid class describing a grid in a model.
         """
         super().__init__(subgrid)
         self.precursors = precursors
@@ -85,8 +85,8 @@ class SubgridUpdater(CPUUpdates):
         self.source_iteration = 0
 
     def hsg_1(self):
-        """This is the first half of the subgrid update. Takes the time step
-            up to the main grid magnetic update.
+        """First half of the subgrid update. Takes the time step up to the main 
+            grid magnetic update.
         """
 
         G = self.G
@@ -126,8 +126,8 @@ class SubgridUpdater(CPUUpdates):
         sub_grid.update_electric_os(G)
 
     def hsg_2(self):
-        """This is the first half of the subgrid update. Takes the time step
-            up to the main grid electric update.
+        """Second half of the subgrid update. Takes the time step up to the main 
+            grid electric update.
         """
 
         G = self.G

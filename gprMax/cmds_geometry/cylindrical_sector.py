@@ -28,28 +28,27 @@ logger = logging.getLogger(__name__)
 
 
 class CylindricalSector(UserObjectGeometry):
-    """Allows you to introduce a cylindrical sector (shaped like a slice of pie) 
-        into the model.
+    """Introduces a cylindrical sector (shaped like a slice of pie) into the model.
 
     Attributes:
-        normal: a string for the direction of the axis of the cylinder from which 
+        normal: string for the direction of the axis of the cylinder from which 
                 the sector is defined and can be x, y, or z.
-        ctr1: a float for the first coordinate of the centre of the cylindrical 
+        ctr1: float for the first coordinate of the centre of the cylindrical 
                 sector.
-        ctr2: a float for the second coordinate of the centre of the cylindrical 
+        ctr2: float for the second coordinate of the centre of the cylindrical 
                 sector.
-        extent1: a float for the first thickness from the centre of the 
+        extent1: float for the first thickness from the centre of the 
                     cylindrical sector.
-        extent2: a float for the second thickness from the centre of the 
+        extent2: float for the second thickness from the centre of the 
                     cylindrical sector.
-        r: a float for the radius of the cylindrical sector.
-        start: a float for the starting angle (in degrees) for the cylindrical 
+        r: float for the radius of the cylindrical sector.
+        start: float for the starting angle (in degrees) for the cylindrical 
                 sector.
-        end: a float for the angle (in degrees) swept by the cylindrical sector.
-        material_id: a string for the material identifier that must correspond 
+        end: float for the angle (in degrees) swept by the cylindrical sector.
+        material_id: string for the material identifier that must correspond 
                         to material that has already been defined.
-        material_ids: a list of material identifiers in the x, y, z directions.
-        averaging: a string (y or n) used to switch on and off dielectric smoothing.
+        material_ids: list of material identifiers in the x, y, z directions.
+        averaging: string (y or n) used to switch on and off dielectric smoothing.
     """
 
     def __init__(self, **kwargs):
@@ -138,10 +137,14 @@ class CylindricalSector(UserObjectGeometry):
                     m = Material(numID, requiredID)
                     m.type = 'dielectric-smoothed'
                     # Create dielectric-smoothed constituents for material
-                    m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
-                    m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
-                    m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                    m.sm = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
+                    m.er = np.mean((materials[0].er, materials[1].er, 
+                                    materials[2].er), axis=0)
+                    m.se = np.mean((materials[0].se, materials[1].se, 
+                                    materials[2].se), axis=0)
+                    m.mr = np.mean((materials[0].mr, materials[1].mr, 
+                                    materials[2].mr), axis=0)
+                    m.sm = np.mean((materials[0].mr, materials[1].mr, 
+                                    materials[2].mr), axis=0)
 
                     # Append the new material object to the materials list
                     grid.materials.append(m)

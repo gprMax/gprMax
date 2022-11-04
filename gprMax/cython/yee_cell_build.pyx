@@ -28,18 +28,30 @@ from gprMax.cython.yee_cell_setget_rigid cimport get_rigid_Hz
 from gprMax.materials import Material
 
 
-cpdef void create_electric_average(int i, int j, int k, int numID1, int numID2, int numID3, int numID4, int componentID, G):
-    """This function creates a new material by averaging the dielectric properties of the surrounding cells.
+cpdef void create_electric_average(
+    int i, 
+    int j, 
+    int k, 
+    int numID1, 
+    int numID2, 
+    int numID3, 
+    int numID4, 
+    int componentID, 
+    G
+):
+    """Creates a new material by averaging the dielectric properties of the 
+        surrounding cells.
 
     Args:
-        i, j, k (int): Cell coordinates.
-        numID1, numID2, numID3, numID4 (int): Numeric IDs for materials in surrounding cells.
-        componentID (int): Numeric ID for electric field component.
-        G (class): Grid class instance - holds essential parameters describing the model.
+        i, j, k: ints for cell coordinates.
+        numID: ints for numeric IDs for materials in surrounding cells.
+        componentID: int for numeric ID for electric field component.
+        G: FDTDGrid class describing a grid in a model.
     """
 
     # Make an ID composed of the names of the four materials that will be averaged
-    requiredID = G.materials[numID1].ID + '+' + G.materials[numID2].ID + '+' + G.materials[numID3].ID + '+' + G.materials[numID4].ID
+    requiredID = (G.materials[numID1].ID + '+' + G.materials[numID2].ID + '+' + 
+                  G.materials[numID3].ID + '+' + G.materials[numID4].ID)
 
     # Check if this material already exists
     tmp = requiredID.split('+')
@@ -57,10 +69,14 @@ cpdef void create_electric_average(int i, int j, int k, int numID1, int numID2, 
         m = Material(newNumID, requiredID)
         m.type = 'dielectric-smoothed'
         # Create averaged constituents for material
-        m.er = np.mean((G.materials[numID1].er, G.materials[numID2].er, G.materials[numID3].er, G.materials[numID4].er), axis=0)
-        m.se = np.mean((G.materials[numID1].se, G.materials[numID2].se, G.materials[numID3].se, G.materials[numID4].se), axis=0)
-        m.mr = np.mean((G.materials[numID1].mr, G.materials[numID2].mr, G.materials[numID3].mr, G.materials[numID4].mr), axis=0)
-        m.sm = np.mean((G.materials[numID1].sm, G.materials[numID2].sm, G.materials[numID3].sm, G.materials[numID4].sm), axis=0)
+        m.er = np.mean((G.materials[numID1].er, G.materials[numID2].er, 
+                        G.materials[numID3].er, G.materials[numID4].er), axis=0)
+        m.se = np.mean((G.materials[numID1].se, G.materials[numID2].se, 
+                        G.materials[numID3].se, G.materials[numID4].se), axis=0)
+        m.mr = np.mean((G.materials[numID1].mr, G.materials[numID2].mr, 
+                        G.materials[numID3].mr, G.materials[numID4].mr), axis=0)
+        m.sm = np.mean((G.materials[numID1].sm, G.materials[numID2].sm, 
+                        G.materials[numID3].sm, G.materials[numID4].sm), axis=0)
 
         # Append the new material object to the materials list
         G.materials.append(m)
@@ -68,14 +84,23 @@ cpdef void create_electric_average(int i, int j, int k, int numID1, int numID2, 
         G.ID[componentID, i, j, k] = newNumID
 
 
-cpdef void create_magnetic_average(int i, int j, int k, int numID1, int numID2, int componentID, G):
-    """This function creates a new material by averaging the dielectric properties of the surrounding cells.
+cpdef void create_magnetic_average(
+    int i, 
+    int j, 
+    int k, 
+    int numID1, 
+    int numID2, 
+    int componentID, 
+    G
+):
+    """Creates a new material by averaging the dielectric properties of the 
+        surrounding cells.
 
     Args:
-        i, j, k (int): Cell coordinates.
-        numID1, numID2 (int): Numeric IDs for materials in surrounding cells.
-        componentID (int): Numeric ID for electric field component.
-        G (class): Grid class instance - holds essential parameters describing the model.
+        i, j, k: ints for cell coordinates.
+        numID: ints for numeric IDs for materials in surrounding cells.
+        componentID: int for numeric ID for magnetic field component.
+        G: FDTDGrid class describing a grid in a model.
     """
 
     # Make an ID composed of the names of the two materials that will be averaged
@@ -107,12 +132,17 @@ cpdef void create_magnetic_average(int i, int j, int k, int numID1, int numID2, 
         G.ID[componentID, i, j, k] = newNumID
 
 
-cpdef void build_electric_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidE, np.uint32_t[:, :, :, ::1] ID, G):
-    """This function builds the electric field components in the ID array.
+cpdef void build_electric_components(
+    np.uint32_t[:, :, ::1] solid, 
+    np.int8_t[:, :, :, ::1] rigidE, 
+    np.uint32_t[:, :, :, ::1] ID, 
+    G
+):
+    """Builds the electric field components in the ID array.
 
     Args:
-        solid, rigid, ID (memoryviews): Access to solid, rigid and ID arrays
-        G (class): Grid class instance - holds essential parameters describing the model.
+        solid, rigid, ID: memoryviews to access solid, rigid and ID arrays.
+        G: FDTDGrid class describing a grid in a model.
     """
 
     cdef Py_ssize_t i, j, k
@@ -138,7 +168,8 @@ cpdef void build_electric_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, 
                         ID[componentID, i, j, k] = numID1
                     else:
                         # Averaging is required
-                        create_electric_average(i, j, k, numID1, numID2, numID3, numID4, componentID, G)
+                        create_electric_average(i, j, k, numID1, numID2, 
+                                                numID3, numID4, componentID, G)
 
     # Ey component
     componentID = G.IDlookup['Ey']
@@ -160,7 +191,8 @@ cpdef void build_electric_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, 
                         ID[componentID, i, j, k] = numID1
                     else:
                         # Averaging is required
-                        create_electric_average(i, j, k, numID1, numID2, numID3, numID4, componentID, G)
+                        create_electric_average(i, j, k, numID1, numID2, 
+                                                numID3, numID4, componentID, G)
 
     # Ez component
     componentID = G.IDlookup['Ez']
@@ -182,15 +214,21 @@ cpdef void build_electric_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, 
                         ID[componentID, i, j, k] = numID1
                     else:
                         # Averaging is required
-                        create_electric_average(i, j, k, numID1, numID2, numID3, numID4, componentID, G)
+                        create_electric_average(i, j, k, numID1, numID2, 
+                                                numID3, numID4, componentID, G)
 
 
-cpdef void build_magnetic_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, :, :, ::1] rigidH, np.uint32_t[:, :, :, ::1] ID, G):
-    """This function builds the magnetic field components in the ID array.
+cpdef void build_magnetic_components(
+    np.uint32_t[:, :, ::1] solid, 
+    np.int8_t[:, :, :, ::1] rigidH, 
+    np.uint32_t[:, :, :, ::1] ID, 
+    G
+):
+    """Builds the magnetic field components in the ID array.
 
     Args:
-        solid, rigid, ID (memoryviews): Access to solid, rigid and ID arrays
-        G (class): Grid class instance - holds essential parameters describing the model.
+        solid, rigid, ID: memoryviews to access solid, rigid and ID arrays.
+        G: FDTDGrid class describing a grid in a model.
     """
 
     cdef Py_ssize_t i, j, k
@@ -214,7 +252,8 @@ cpdef void build_magnetic_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, 
                         ID[componentID, i, j, k] = numID1
                     else:
                         # Averaging is required
-                        create_magnetic_average(i, j, k, numID1, numID2, componentID, G)
+                        create_magnetic_average(i, j, k, numID1, numID2, 
+                                                componentID, G)
 
     # Hy component
     componentID = G.IDlookup['Hy']
@@ -234,7 +273,8 @@ cpdef void build_magnetic_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, 
                         ID[4, i, j, k] = numID1
                     else:
                         # Averaging is required
-                        create_magnetic_average(i, j, k, numID1, numID2, componentID, G)
+                        create_magnetic_average(i, j, k, numID1, numID2, 
+                                                componentID, G)
 
     # Hz component
     componentID = G.IDlookup['Hz']
@@ -254,4 +294,5 @@ cpdef void build_magnetic_components(np.uint32_t[:, :, ::1] solid, np.int8_t[:, 
                         ID[5, i, j, k] = numID1
                     else:
                         # Averaging is required
-                        create_magnetic_average(i, j, k, numID1, numID2, componentID, G)
+                        create_magnetic_average(i, j, k, numID1, numID2, 
+                                                componentID, G)

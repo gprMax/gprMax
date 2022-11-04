@@ -30,18 +30,17 @@ logger = logging.getLogger(__name__)
 
 
 class SubGridBase(UserObjectMulti):
-    """Class to allow UserObjectMulti and UserObjectGeometry to be nested
-        in SubGrid type user objects.
+    """Allows UserObjectMulti and UserObjectGeometry to be nested in SubGrid 
+        type user objects.
     """
 
     def __init__(self, **kwargs):
-        """Constructor."""
         super().__init__(**kwargs)
         self.children_multiple = []
         self.children_geometry = []
 
     def add(self, node):
-        """Function to add other user objects. Geometry and multi only."""
+        """Adds other user objects. Geometry and multi only."""
         if isinstance(node, UserObjectMulti):
             self.children_multiple.append(node)
         elif isinstance(node, UserObjectGeometry):
@@ -51,14 +50,13 @@ class SubGridBase(UserObjectMulti):
             raise ValueError
 
     def set_discretisation(self, sg, grid):
-        """Set the spatial discretisation."""
         sg.dx = grid.dx / sg.ratio
         sg.dy = grid.dy / sg.ratio
         sg.dz = grid.dz / sg.ratio
         sg.dl = np.array([sg.dx, sg.dy, sg.dz])
 
     def set_main_grid_indices(self, sg, grid, uip, p1, p2):
-        """Set subgrid indices related to main grid placement."""
+        """Sets subgrid indices related to main grid placement."""
         # location of the IS
         sg.i0, sg.j0, sg.k0 = p1
         sg.i1, sg.j1, sg.k1 = p2
@@ -82,7 +80,7 @@ class SubGridBase(UserObjectMulti):
         sg.nz = 2 * sg.n_boundary_cells_z + sg.nwz
 
     def set_iterations(self, sg, main):
-        """Set number of iterations that will take place in the subgrid."""
+        """Sets number of iterations that will take place in the subgrid."""
         sg.iterations = main.iterations * sg.ratio
 
     def setup(self, sg, grid, uip):
@@ -97,7 +95,7 @@ class SubGridBase(UserObjectMulti):
         # Set the temporal discretisation
         sg.calculate_dt()
 
-        # set the indices related to the subgrids main grid placement
+        # Set the indices related to the subgrids main grid placement
         self.set_main_grid_indices(sg, grid, uip, p1, p2)
 
         """
@@ -121,8 +119,8 @@ class SubGridBase(UserObjectMulti):
 
         sg.timewindow = grid.timewindow
 
-        # Copy a subgrid reference to self so that children.create(grid, uip) can access
-        # the correct grid
+        # Copy a subgrid reference to self so that children.create(grid, uip) 
+        # can access the correct grid.
         self.subgrid = sg
 
         # Copy over built in materials
@@ -141,25 +139,25 @@ class SubGridBase(UserObjectMulti):
 class SubGridHSG(SubGridBase):
     """Huygens Surface subgridding (HSG) user object.
 
-    :param p1: Position of the lower left corner of the Inner Surface (x, y, z) in the main grid.
-    :type p1: list, non-optional
-    :param p2: Position of the upper right corner of the Inner Surface (x, y, z) in the main grid.
-    :type p2: list, non-optional
-    :param ratio: Ratio of the main grid spatial step to the sub-grid spatial step. Must be an odd integer.
-    :type ratio: int, non-optional
-    :param id: Identifier for the sub-grid.
-    :type id: str, non-optional
-    :param is_os_sep: Number of main grid cells between the Inner Surface and the Outer Surface. Defaults to 3.
-    :type is_os_sep: str, optional
-    :param pml_separation: Number of sub-grid cells between the Outer Surface and the PML. Defaults to ratio // 2 + 2
-    :type pml_separation: int, optional
-    :param subgrid_pml_thickness: Thickness of the PML on each of the 6 sides of the sub-grid. Defaults to 6.
-    :type subgrid_pml_thickness: int, optional
-    :param interpolation: Degree of the interpolation scheme used for spatial interpolation of the fields at the Inner Surface. Defaults to Linear
-    :type interpolation: str, optional
-    :param filter: Turn on the 3-pole filter. Increases numerical stability. Defaults to True
-    :type filter: bool, optional
-
+    Attributes:
+        p1: list of the position of the lower left corner of the Inner Surface 
+            (x, y, z) in the main grid.
+        p2: list of the position of the upper right corner of the Inner Surface 
+            (x, y, z) in the main grid.
+        ratio: int of the ratio of the main grid spatial step to the sub-grid 
+                spatial step. Must be an odd integer.
+        id: string identifier for the sub-grid.
+        is_os_sep: int for the number of main grid cells between the Inner 
+                    Surface and the Outer Surface. Defaults to 3.
+        pml_separation: int for the number of sub-grid cells between the Outer 
+                        Surface and the PML. Defaults to ratio // 2 + 2
+        subgrid_pml_thickness: int for the thickness of the PML on each of the 
+                                6 sides of the sub-grid. Defaults to 6.
+        interpolation: string for the degree of the interpolation scheme used 
+                        for spatial interpolation of the fields at the Inner 
+                        Surface. Defaults to Linear.
+        filter: boolean to turn on the 3-pole filter. Increases numerical 
+                stability. Defaults to True.
     """
     def __init__(self,
                  p1=None,
@@ -175,7 +173,7 @@ class SubGridHSG(SubGridBase):
 
         pml_separation = ratio // 2 + 2
 
-        # copy over the optional parameters
+        # Copy over the optional parameters
         kwargs['p1'] = p1
         kwargs['p2'] = p2
         kwargs['ratio'] = ratio

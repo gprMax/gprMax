@@ -23,17 +23,29 @@ from cython.parallel import prange
 from gprMax.config cimport float_or_double_complex
 
 
-cpdef void generate_fractal2D(int nx, int ny, int nthreads, int b, np.float64_t[:] weighting, np.float64_t[:] v1, np.complex128_t[:, ::1] A, float_or_double_complex[:, ::1] fractalsurface):
-    """This function generates a fractal surface for a 2D array.
+cpdef void generate_fractal2D(
+    int nx, 
+    int ny, 
+    int nthreads, 
+    int b, 
+    np.float64_t[:] weighting, 
+    np.float64_t[:] v1, 
+    np.complex128_t[:, ::1] A, 
+    float_or_double_complex[:, ::1] fractalsurface
+):
+    """Generates a fractal surface for a 2D array.
 
     Args:
-        nx, ny (int): Fractal surface size in cells
-        nthreads (int): Number of threads to use
-        b (int): Constant related to fractal dimension
-        weighting (memoryview): Access to weighting vector
-        v1 (memoryview): Access to positional vector at centre of array, scaled by weighting
-        A (memoryview): Access to array containing random numbers (to be convolved with fractal function)
-        fractalsurface (memoryview): Access to array containing fractal surface data
+        nx, ny: int for fractal surface size in cells.
+        nthreads: int for number of threads to use
+        b: int for constant related to fractal dimension.
+        weighting: memoryview for access to weighting vector.
+        v1: memoryview for access to positional vector at centre of array, 
+            scaled by weighting.
+        A: memoryview for access to array containing random numbers 
+            (to be convolved with fractal function).
+        fractalsurface: memoryview for access to array containing fractal 
+                        surface data.
     """
 
     cdef Py_ssize_t i, j
@@ -54,17 +66,30 @@ cpdef void generate_fractal2D(int nx, int ny, int nthreads, int b, np.float64_t[
                 fractalsurface[i, j] = A[i, j] / B
 
 
-cpdef void generate_fractal3D(int nx, int ny, int nz, int nthreads, int b, np.float64_t[:] weighting, np.float64_t[:] v1, np.complex128_t[:, :, ::1] A, float_or_double_complex[:, :, ::1] fractalvolume):
-    """This function generates a fractal volume for a 3D array.
+cpdef void generate_fractal3D(
+    int nx, 
+    int ny, 
+    int nz, 
+    int nthreads, 
+    int b, 
+    np.float64_t[:] weighting, 
+    np.float64_t[:] v1, 
+    np.complex128_t[:, :, ::1] A, 
+    float_or_double_complex[:, :, ::1] fractalvolume
+):
+    """Generates a fractal volume for a 3D array.
 
     Args:
-        nx, ny, nz (int): Fractal volume size in cells
-        nthreads (int): Number of threads to use
-        b (int): Constant related to fractal dimension
-        weighting (memoryview): Access to weighting vector
-        v1 (memoryview): Access to positional vector at centre of array, scaled by weighting
-        A (memoryview): Access to array containing random numbers (to be convolved with fractal function)
-        fractalvolume (memoryview): Access to array containing fractal volume data
+        nx, ny, nz: int for fractal volume size in cells.
+        nthreads: int for number of threads to use
+        b: int for constant related to fractal dimension.
+        weighting: memoryview for access to weighting vector.
+        v1: memoryview for access to positional vector at centre of array, 
+            scaled by weighting.
+        A: memoryview for access to array containing random numbers 
+            (to be convolved with fractal function).
+        fractalsurface: memoryview for access to array containing fractal 
+                        volume data.
     """
 
     cdef Py_ssize_t i, j, k

@@ -45,15 +45,15 @@ class UserObjectGeometry:
         return f'{self.hash}: {s[:-1]}'
 
     def create(self, grid, uip):
-        """Create object and add it to the grid."""
+        """Creates object and adds it to the grid."""
         pass
 
     def rotate(self, axis, angle, origin=None):
-        """Rotate object - specialised for each object."""
+        """Rotates object - specialised for each object."""
         pass
 
     def grid_name(self, grid):
-        """Return subgrid name for use with logging info. Return an empty
+        """Returns subgrid name for use with logging info. Returns an empty
             string if the grid is the main grid.
         """
 
@@ -64,16 +64,16 @@ class UserObjectGeometry:
 
 
 def rotate_point(p, axis, angle, origin=(0, 0, 0)):
-    """Rotate a point.
+    """Rotates a point.
     
     Args:
-        p: an array of coordinates of point (x, y, z).
-        axis: a string which defines the axis about which to perform rotation (x, y, or z).
-        angle: an int specifying the angle of rotation (degrees).
-        origin: a tuple defining the point about which to perform rotation (x, y, z).
+        p: array of coordinates of point (x, y, z).
+        axis: string which defines the axis about which to perform rotation (x, y, or z).
+        angle: int specifying the angle of rotation (degrees).
+        origin: tuple defining the point about which to perform rotation (x, y, z).
 
     Returns:
-        p: an array of coordinates of rotated point (x, y, z)
+        p: array of coordinates of rotated point (x, y, z)
     """
 
     origin = np.array(origin)
@@ -97,13 +97,13 @@ def rotate_2point_object(pts, axis, angle, origin=None):
     """Rotate a geometry object that is defined by 2 points.
     
     Args:
-        pts: an array ofcoordinates of points of object to be rotated.
-        axis: a string which defines the axis about which to perform rotation (x, y, or z).
-        angle: an int specifying the angle of rotation (degrees).
-        origin: a tuple defining the point about which to perform rotation (x, y, z).
+        pts: array ofcoordinates of points of object to be rotated.
+        axis: string which defines the axis about which to perform rotation (x, y, or z).
+        angle: int specifying the angle of rotation (degrees).
+        origin: tuple defining the point about which to perform rotation (x, y, z).
 
     Returns:
-        new_pts: an array of coordinates of points of rotated object.
+        new_pts: array of coordinates of points of rotated object.
     """
     
     # Use origin at centre of object if not given
@@ -152,18 +152,18 @@ def rotate_2point_object(pts, axis, angle, origin=None):
 
 
 def rotate_polarisation(p, polarisation, axis, angle, G):
-    """Rotate a geometry object that is defined by a point and polarisation.
+    """Rotates a geometry object that is defined by a point and polarisation.
     
     Args:
-        p: an array of coordinates of point (x, y, z).
-        polarisation: a string defining the current polarisation (x, y, or z).
-        axis: a string which defines the axis about which to perform rotation (x, y, or z).
-        angle: an int specifying the angle of rotation (degrees).
+        p: array of coordinates of point (x, y, z).
+        polarisation: string defining the current polarisation (x, y, or z).
+        axis: string which defines the axis about which to perform rotation (x, y, or z).
+        angle: int specifying the angle of rotation (degrees).
         G: FDTDGrid class describing a grid in a model.
 
     Returns:
-        pts: an array of coordinates of points of rotated object.
-        new_polarisation: a string defining the new polarisation (x, y, or z).
+        pts: array of coordinates of points of rotated object.
+        new_polarisation: string defining the new polarisation (x, y, or z).
     """
 
     if polarisation.lower() == 'x':

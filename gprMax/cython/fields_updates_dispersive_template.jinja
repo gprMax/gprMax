@@ -39,26 +39,26 @@ cdef extern from "complex.h" nogil:
 
 {% for item in functions %}
 cpdef void {{ item.name_a }}(
-                    int nx,
-                    int ny,
-                    int nz,
-                    int nthreads,
-                    int maxpoles,
-                    {{ item.field_type }}[:, ::1] updatecoeffsE,
-                    {{ item.dispersive_type }}[:, ::1] updatecoeffsdispersive,
-                    np.uint32_t[:, :, :, ::1] ID,
-                    {{ item.dispersive_type }}[:, :, :, ::1] Tx,
-                    {{ item.dispersive_type }}[:, :, :, ::1] Ty,
-                    {{ item.dispersive_type }}[:, :, :, ::1] Tz,
-                    {{ item.field_type }}[:, :, ::1] Ex,
-                    {{ item.field_type }}[:, :, ::1] Ey,
-                    {{ item.field_type }}[:, :, ::1] Ez,
-                    {{ item.field_type }}[:, :, ::1] Hx,
-                    {{ item.field_type }}[:, :, ::1] Hy,
-                    {{ item.field_type }}[:, :, ::1] Hz
-            ):
-    """This function updates the electric field components when dispersive 
-        materials (with multiple poles) are present.
+    int nx,
+    int ny,
+    int nz,
+    int nthreads,
+    int maxpoles,
+    {{ item.field_type }}[:, ::1] updatecoeffsE,
+    {{ item.dispersive_type }}[:, ::1] updatecoeffsdispersive,
+    np.uint32_t[:, :, :, ::1] ID,
+    {{ item.dispersive_type }}[:, :, :, ::1] Tx,
+    {{ item.dispersive_type }}[:, :, :, ::1] Ty,
+    {{ item.dispersive_type }}[:, :, :, ::1] Tz,
+    {{ item.field_type }}[:, :, ::1] Ex,
+    {{ item.field_type }}[:, :, ::1] Ey,
+    {{ item.field_type }}[:, :, ::1] Ez,
+    {{ item.field_type }}[:, :, ::1] Hx,
+    {{ item.field_type }}[:, :, ::1] Hy,
+    {{ item.field_type }}[:, :, ::1] Hz
+):
+    """Updates the electric field components when dispersive materials 
+        (with multiple poles) are present.
 
     Args:
         nx, ny, nz: int for grid size in cells.
@@ -158,22 +158,22 @@ cpdef void {{ item.name_a }}(
 
 {% for item in functions %}
 cpdef void {{ item.name_b }}(
-                    int nx,
-                    int ny,
-                    int nz,
-                    int nthreads,
-                    int maxpoles,
-                    {{ item.dispersive_type }}[:, ::1] updatecoeffsdispersive,
-                    np.uint32_t[:, :, :, ::1] ID,
-                    {{ item.dispersive_type }}[:, :, :, ::1] Tx,
-                    {{ item.dispersive_type }}[:, :, :, ::1] Ty,
-                    {{ item.dispersive_type }}[:, :, :, ::1] Tz,
-                    {{ item.field_type }}[:, :, ::1] Ex,
-                    {{ item.field_type }}[:, :, ::1] Ey,
-                    {{ item.field_type }}[:, :, ::1] Ez
-            ):
-    """This function updates a temporary dispersive material array when 
-        disperisive materials (with multiple poles) are present.
+    int nx,
+    int ny,
+    int nz,
+    int nthreads,
+    int maxpoles,
+    {{ item.dispersive_type }}[:, ::1] updatecoeffsdispersive,
+    np.uint32_t[:, :, :, ::1] ID,
+    {{ item.dispersive_type }}[:, :, :, ::1] Tx,
+    {{ item.dispersive_type }}[:, :, :, ::1] Ty,
+    {{ item.dispersive_type }}[:, :, :, ::1] Tz,
+    {{ item.field_type }}[:, :, ::1] Ex,
+    {{ item.field_type }}[:, :, ::1] Ey,
+    {{ item.field_type }}[:, :, ::1] Ez
+):
+    """Updates a temporary dispersive material array when disperisive materials 
+        (with multiple poles) are present.
 
     Args:
         nx, ny, nz: int for grid size in cells.
@@ -228,26 +228,26 @@ cpdef void {{ item.name_b }}(
 
 {% for item in functions %}
 cpdef void {{ item.name_a_1 }}(
-                    int nx,
-                    int ny,
-                    int nz,
-                    int nthreads,
-                    int maxpoles,
-                    {{ item.field_type }}[:, ::1] updatecoeffsE,
-                    {{ item.dispersive_type }}[:, ::1] updatecoeffsdispersive,
-                    np.uint32_t[:, :, :, ::1] ID,
-                    {{ item.dispersive_type }}[:, :, :, ::1] Tx,
-                    {{ item.dispersive_type }}[:, :, :, ::1] Ty,
-                    {{ item.dispersive_type }}[:, :, :, ::1] Tz,
-                    {{ item.field_type }}[:, :, ::1] Ex,
-                    {{ item.field_type }}[:, :, ::1] Ey,
-                    {{ item.field_type }}[:, :, ::1] Ez,
-                    {{ item.field_type }}[:, :, ::1] Hx,
-                    {{ item.field_type }}[:, :, ::1] Hy,
-                    {{ item.field_type }}[:, :, ::1] Hz
-            ):
-    """This function updates the electric field components when dispersive 
-        materials (with 1 pole) are present.
+    int nx,
+    int ny,
+    int nz,
+    int nthreads,
+    int maxpoles,
+    {{ item.field_type }}[:, ::1] updatecoeffsE,
+    {{ item.dispersive_type }}[:, ::1] updatecoeffsdispersive,
+    np.uint32_t[:, :, :, ::1] ID,
+    {{ item.dispersive_type }}[:, :, :, ::1] Tx,
+    {{ item.dispersive_type }}[:, :, :, ::1] Ty,
+    {{ item.dispersive_type }}[:, :, :, ::1] Tz,
+    {{ item.field_type }}[:, :, ::1] Ex,
+    {{ item.field_type }}[:, :, ::1] Ey,
+    {{ item.field_type }}[:, :, ::1] Ez,
+    {{ item.field_type }}[:, :, ::1] Hx,
+    {{ item.field_type }}[:, :, ::1] Hy,
+    {{ item.field_type }}[:, :, ::1] Hz
+):
+    """Updates the electric field components when dispersive materials 
+        (with 1 pole) are present.
 
     Args:
         nx, ny, nz: int for grid size in cells.
@@ -339,22 +339,22 @@ cpdef void {{ item.name_a_1 }}(
 
 {% for item in functions %}
 cpdef void {{ item.name_b_1 }}(
-                    int nx,
-                    int ny,
-                    int nz,
-                    int nthreads,
-                    int maxpoles,
-                    {{ item.dispersive_type }}[:, ::1] updatecoeffsdispersive,
-                    np.uint32_t[:, :, :, ::1] ID,
-                    {{ item.dispersive_type }}[:, :, :, ::1] Tx,
-                    {{ item.dispersive_type }}[:, :, :, ::1] Ty,
-                    {{ item.dispersive_type }}[:, :, :, ::1] Tz,
-                    {{ item.field_type }}[:, :, ::1] Ex,
-                    {{ item.field_type }}[:, :, ::1] Ey,
-                    {{ item.field_type }}[:, :, ::1] Ez
-            ):
-    """This function updates a temporary dispersive material array when 
-        disperisive materials (with 1 pole) are present.
+    int nx,
+    int ny,
+    int nz,
+    int nthreads,
+    int maxpoles,
+    {{ item.dispersive_type }}[:, ::1] updatecoeffsdispersive,
+    np.uint32_t[:, :, :, ::1] ID,
+    {{ item.dispersive_type }}[:, :, :, ::1] Tx,
+    {{ item.dispersive_type }}[:, :, :, ::1] Ty,
+    {{ item.dispersive_type }}[:, :, :, ::1] Tz,
+    {{ item.field_type }}[:, :, ::1] Ex,
+    {{ item.field_type }}[:, :, ::1] Ey,
+    {{ item.field_type }}[:, :, ::1] Ez
+):
+    """Updates a temporary dispersive material array when disperisive materials 
+        (with 1 pole) are present.
 
     Args:
         nx, ny, nz: int for grid size in cells.

@@ -40,7 +40,7 @@ class GeometryObjectsRead(UserObjectGeometry):
         pass
 
     def create(self, grid, uip):
-        """Create the object and add it to the grid."""
+        """Creates the object and adds it to the grid."""
         try:
             p1 = self.kwargs['p1']
             geofile = self.kwargs['geofile']
@@ -88,7 +88,8 @@ class GeometryObjectsRead(UserObjectGeometry):
                 else:
                     material.type = 'imported'
 
-        # See if geometry object file exists at specified path and if not try input file directory
+        # See if geometry object file exists at specified path and if not try 
+        # input file directory.
         geofile = Path(geofile)
         if not geofile.exists():
             geofile = Path(config.sim_config.input_file_path.parent, geofile)

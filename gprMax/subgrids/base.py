@@ -17,7 +17,6 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import numpy as np
 
 from ..grid import FDTDGrid
 
@@ -57,7 +56,7 @@ class SubGridBase(FDTDGrid):
 
         # Number of sub cells to extend the sub grid beyond the IS boundary
         d_to_pml = self.s_is_os_sep + self.pml_separation
-        # index of the is
+        # Index of the is
         self.n_boundary_cells = d_to_pml + self.pmlthickness['x0']
         self.n_boundary_cells_x = d_to_pml + self.pmlthickness['x0']
         self.n_boundary_cells_y = d_to_pml + self.pmlthickness['y0']

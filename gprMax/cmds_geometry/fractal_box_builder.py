@@ -124,7 +124,8 @@ class FractalBoxBuilder(UserObjectGeometry):
                                                 # Add y, z coordinates to existing location
                                                 yy = int(j - volume.ys + y)
                                                 zz = int(k - volume.zs + z)
-                                                # If these coordinates are outwith fractal volume stop building the blade, otherwise set the mask for grass
+                                                # If these coordinates are outwith fractal volume stop building the blade, 
+                                                # otherwise set the mask for grass.
                                                 if yy < 0 or yy >= volume.mask.shape[1] or zz < 0 or zz >= volume.mask.shape[2]:
                                                     break
                                                 else:
@@ -146,7 +147,8 @@ class FractalBoxBuilder(UserObjectGeometry):
                                                 # Add y, z coordinates to existing location
                                                 yy = int(j - volume.ys + y)
                                                 zz = int(k - volume.zs + z)
-                                                # If these coordinates are outwith the fractal volume stop building the root, otherwise set the mask for grass
+                                                # If these coordinates are outwith the fractal volume stop building the root, 
+                                                # otherwise set the mask for grass.
                                                 if yy < 0 or yy >= volume.mask.shape[1] or zz < 0 or zz >= volume.mask.shape[2]:
                                                     break
                                                 else:
@@ -192,7 +194,8 @@ class FractalBoxBuilder(UserObjectGeometry):
                                                 # Add x, z coordinates to existing location
                                                 xx = int(i - volume.xs + x)
                                                 zz = int(k - volume.zs + z)
-                                                # If these coordinates are outwith fractal volume stop building the blade, otherwise set the mask for grass
+                                                # If these coordinates are outwith fractal volume stop building the blade, 
+                                                # otherwise set the mask for grass.
                                                 if xx < 0 or xx >= volume.mask.shape[0] or zz < 0 or zz >= volume.mask.shape[2]:
                                                     break
                                                 else:
@@ -214,7 +217,8 @@ class FractalBoxBuilder(UserObjectGeometry):
                                                 # Add x, z coordinates to existing location
                                                 xx = int(i - volume.xs + x)
                                                 zz = int(k - volume.zs + z)
-                                                # If these coordinates are outwith the fractal volume stop building the root, otherwise set the mask for grass
+                                                # If these coordinates are outwith the fractal volume stop building the root, 
+                                                # otherwise set the mask for grass.
                                                 if xx < 0 or xx >= volume.mask.shape[0] or zz < 0 or zz >= volume.mask.shape[2]:
                                                     break
                                                 else:
@@ -260,7 +264,8 @@ class FractalBoxBuilder(UserObjectGeometry):
                                                 # Add x, y coordinates to existing location
                                                 xx = int(i - volume.xs + x)
                                                 yy = int(j - volume.ys + y)
-                                                # If these coordinates are outwith the fractal volume stop building the blade, otherwise set the mask for grass
+                                                # If these coordinates are outwith the fractal volume stop building the blade, 
+                                                # otherwise set the mask for grass.
                                                 if xx < 0 or xx >= volume.mask.shape[0] or yy < 0 or yy >= volume.mask.shape[1]:
                                                     break
                                                 else:
@@ -282,7 +287,8 @@ class FractalBoxBuilder(UserObjectGeometry):
                                                 # Add x, y coordinates to existing location
                                                 xx = int(i - volume.xs + x)
                                                 yy = int(j - volume.ys + y)
-                                                # If these coordinates are outwith the fractal volume stop building the root, otherwise set the mask for grass
+                                                # If these coordinates are outwith the fractal volume stop building the root, 
+                                                # otherwise set the mask for grass.
                                                 if xx < 0 or xx >= volume.mask.shape[0] or yy < 0 or yy >= volume.mask.shape[1]:
                                                     break
                                                 else:

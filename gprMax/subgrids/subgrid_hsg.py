@@ -36,7 +36,7 @@ class SubGridHSG(SubGridBase):
         self.gridtype = SubGridHSG.gridtype
 
     def update_magnetic_is(self, precursors):
-        """Update the subgrid nodes at the IS with the currents derived
+        """Updates the subgrid nodes at the IS with the currents derived
             from the main grid.
 
         Args:
@@ -59,7 +59,7 @@ class SubGridHSG(SubGridBase):
         cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwx + 1, self.nwz, self.nwy, 3, self.Hx, precursors.ez_front, precursors.ez_back, self.IDlookup['Hx'], 1, -1, 2, config.get_model_config().ompthreads)
 
     def update_electric_is(self, precursors):
-        """Update the subgrid nodes at the IS with the currents derived
+        """Updates the subgrid nodes at the IS with the currents derived
             from the main grid.
 
         Args:
@@ -142,7 +142,7 @@ class SubGridHSG(SubGridBase):
         cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 1, i_l, i_u + 1, j_l, j_u, k_l - 1, k_u, self.nwz, main_grid.IDlookup['Hx'], main_grid.Hx, self.Ey, 3, 1, -1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
 
     def print_info(self):
-        """Print information about the subgrid."""
+        """Prints information about the subgrid."""
         
         logger.info('')
         logger.info(f'[{self.name}] Type: {self.gridtype}')

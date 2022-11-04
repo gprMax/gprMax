@@ -28,16 +28,15 @@ logger = logging.getLogger(__name__)
 
 
 class Sphere(UserObjectGeometry):
-    """Allows you to introduce a spherical object with specific parameters 
-        into the model.
+    """Introduces a spherical object with specific parameters into the model.
 
     Attributes:
-        p1: a list of the coordinates (x,y,z) of the centre of the sphere.
-        r: a float of radius of the sphere.
-        material_id: a string for the material identifier that must correspond 
+        p1: list of the coordinates (x,y,z) of the centre of the sphere.
+        r: float of radius of the sphere.
+        material_id: string for the material identifier that must correspond 
                         to material that has already been defined.
-        material_ids: a list of material identifiers in the x, y, z directions.
-        averaging: a string (y or n) used to switch on and off dielectric smoothing.
+        material_ids: list of material identifiers in the x, y, z directions.
+        averaging: string (y or n) used to switch on and off dielectric smoothing.
     """
 
     def __init__(self, **kwargs):
@@ -104,15 +103,21 @@ class Sphere(UserObjectGeometry):
                 m = Material(numID, requiredID)
                 m.type = 'dielectric-smoothed'
                 # Create dielectric-smoothed constituents for material
-                m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
-                m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
-                m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
-                m.sm = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
+                m.er = np.mean((materials[0].er, materials[1].er, 
+                                materials[2].er), axis=0)
+                m.se = np.mean((materials[0].se, materials[1].se, 
+                                materials[2].se), axis=0)
+                m.mr = np.mean((materials[0].mr, materials[1].mr, 
+                                materials[2].mr), axis=0)
+                m.sm = np.mean((materials[0].mr, materials[1].mr, 
+                                materials[2].mr), axis=0)
 
                 # Append the new material object to the materials list
                 grid.materials.append(m)
 
-        build_sphere(xc, yc, zc, r, grid.dx, grid.dy, grid.dz, numID, numIDx, numIDy, numIDz, averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
+        build_sphere(xc, yc, zc, r, grid.dx, grid.dy, grid.dz, numID, 
+                     numIDx, numIDy, numIDz, averaging, grid.solid, 
+                     grid.rigidE, grid.rigidH, grid.ID)
 
         dielectricsmoothing = 'on' if averaging else 'off'
         logger.info(self.grid_name(grid) + f"Sphere with centre {p2[0]:g}m, " +

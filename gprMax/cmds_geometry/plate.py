@@ -28,14 +28,14 @@ logger = logging.getLogger(__name__)
 
 
 class Plate(UserObjectGeometry):
-    """Allows you to introduce a plate with specific properties into the model.
+    """Introduces a plate with specific properties into the model.
 
     Attributes:
-        p1: a list of the lower left (x,y,z) coordinates of the plate.
-        p2: a list of the upper right (x,y,z) coordinates of the plate.
-        material_id: a string for the material identifier that must correspond 
+        p1: list of the lower left (x,y,z) coordinates of the plate.
+        p2: list of the upper right (x,y,z) coordinates of the plate.
+        material_id: string for the material identifier that must correspond 
                         to material that has already been defined.
-        material_ids: a list of material identifiers in the x, y, z directions.
+        material_ids: list of material identifiers in the x, y, z directions.
     """
 
     def __init__(self, **kwargs):
@@ -50,7 +50,7 @@ class Plate(UserObjectGeometry):
         self.dorotate = True
 
     def __dorotate(self):
-        """Perform rotation."""
+        """Performs rotation."""
         pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
         self.kwargs['p1'] = tuple(rot_pts[0, :])

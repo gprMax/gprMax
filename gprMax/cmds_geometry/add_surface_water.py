@@ -28,17 +28,17 @@ logger = logging.getLogger(__name__)
 
 
 class AddSurfaceWater(UserObjectGeometry):
-    """Allows you to add surface water to a FractalBox class in the model.
+    """Adds surface water to a FractalBox class in the model.
 
     Attributes:
-        p1: a list of the lower left (x,y,z) coordinates of a surface on a 
+        p1: list of the lower left (x,y,z) coordinates of a surface on a 
             FractalBox class.
-        p2: a list of the upper right (x,y,z) coordinates of a surface on a 
+        p2: list of the upper right (x,y,z) coordinates of a surface on a 
             FractalBox class.
-        depth: a float that defines the depth of the water, which should be 
+        depth: float that defines the depth of the water, which should be 
                 specified relative to the dimensions of the #fractal_box that 
                 the surface water is being applied.
-        fractal_box_id: a string identifier for the FractalBox class that the 
+        fractal_box_id: string identifier for the FractalBox class that the 
                         surface water should be applied to.
     """
 
@@ -87,7 +87,8 @@ class AddSurfaceWater(UserObjectGeometry):
         xf, yf, zf = p2
 
         if depth <= 0:
-            logger.exception(self.__str__() + ' requires a positive value for the depth of water')
+            logger.exception(self.__str__() + ' requires a positive value for ' +
+                             'the depth of water')
             raise ValueError
 
         # Check for valid orientations
@@ -148,7 +149,8 @@ class AddSurfaceWater(UserObjectGeometry):
 
         surface = next((x for x in volume.fractalsurfaces if x.surfaceID == requestedsurface), None)
         if not surface:
-            logger.exception(self.__str__() + f' specified surface {requestedsurface} does not have a rough surface applied')
+            logger.exception(self.__str__() + f' specified surface {requestedsurface} ' +
+                             'does not have a rough surface applied')
             raise ValueError
 
         surface.filldepth = filldepthcells

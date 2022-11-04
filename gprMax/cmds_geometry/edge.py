@@ -28,12 +28,12 @@ logger = logging.getLogger(__name__)
 
 
 class Edge(UserObjectGeometry):
-    """Allows you to introduce a wire with specific properties into the model.
+    """Introduces a wire with specific properties into the model.
 
     Attributes:
-        p1: a list of the coordinates (x,y,z) of the starting point of the edge.
-        p2: a list of the coordinates (x,y,z) of the ending point of the edge.
-        material_id: a string for the material identifier that must correspond 
+        p1: list of the coordinates (x,y,z) of the starting point of the edge.
+        p2: list of the coordinates (x,y,z) of the ending point of the edge.
+        material_id: string for the material identifier that must correspond 
                         to material that has already been defined.
     """
 
@@ -49,14 +49,14 @@ class Edge(UserObjectGeometry):
         self.dorotate = True
 
     def __dorotate(self):
-        """Perform rotation."""
+        """Performs rotation."""
         pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
         self.kwargs['p1'] = tuple(rot_pts[0, :])
         self.kwargs['p2'] = tuple(rot_pts[1, :])
         
     def create(self, grid, uip):
-        """Create edge and add it to the grid."""
+        """Creates edge and adds it to the grid."""
         try:
             p1 = self.kwargs['p1']
             p2 = self.kwargs['p2']

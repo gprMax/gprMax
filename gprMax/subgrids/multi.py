@@ -34,14 +34,14 @@ class ReferenceRx(Rx):
     logger.debug('ReferenceRx has no offset member.')
 
     def get_field(self, str_id, field):
-        """Return the field value at the equivalent coarse yee cell.
+        """Field value at the equivalent coarse yee cell.
 
         Args:
-            str_id (str): 'Ex' etc...
-            field (nparray): Numpy array of grid.Ez
+            str_id: string of 'Ex' etc...
+            field: nparray of grid.Ez
 
         Returns:
-            e (float): Field value.
+            e: float of field value.
         """
 
         d = {
@@ -58,13 +58,13 @@ class ReferenceRx(Rx):
         return e
 
     def get_Ex_from_field(self, Ex):
-        """Return the Ex field value from the equivalent coarse yee cell.
+        """Ex field value from the equivalent coarse yee cell.
 
         Args:
-            Ex (nparray): Numpy array of Ex field.
+            Ex: nparray of Ex field.
 
         Returns:
-            e (float): Ex field value.
+            e: float of Ex field value.
         """
 
         # offset = ratio // 2
@@ -72,62 +72,62 @@ class ReferenceRx(Rx):
         return e
 
     def get_Ey_from_field(self, Ey):
-        """Return the Ey field value from the equivalent coarse yee cell.
+        """Ey field value from the equivalent coarse yee cell.
 
         Args:
-            Ey (nparray): Numpy array of Ey field.
+            Ey: nparray of Ey field.
 
         Returns:
-            e (float): Ey field value.
+            e: float of Ey field value.
         """
         e = Ey[self.xcoord, self.ycoord + self.offset, self.zcoord]
         return e
 
     def get_Ez_from_field(self, Ez):
-        """Return the Ez field value from the equivalent coarse yee cell.
+        """Ez field value from the equivalent coarse yee cell.
 
         Args:
-            Ez (nparray): Numpy array of Ez field.
+            Ez: nparray of Ez field.
 
         Returns:
-            e (float): Ez field value.
+            e: float of Ez field value.
         """
 
         e = Ez[self.xcoord, self.ycoord, self.zcoord + self.offset]
         return e
 
     def get_Hx_from_field(self, Hx):
-        """Return the Hx field value from the equivalent coarse yee cell.
+        """Hx field value from the equivalent coarse yee cell.
 
         Args:
-            Hx (nparray): Numpy array of Hx field.
+            Hx: nparray of Hx field.
 
         Returns:
-            e (float): Hx field value.
+            e: float of Hx field value.
         """
         e = Hx[self.xcoord, self.ycoord + self.offset, self.zcoord + self.offset]
         return e
 
     def get_Hy_from_field(self, Hy):
-        """Return the Hy field value from the equivalent coarse yee cell.
+        """Hy field value from the equivalent coarse yee cell.
 
         Args:
-            Hy (nparray): Numpy array of Hy field.
+            Hy: nparray of Hy field.
 
         Returns:
-            e (float): Hy field value.
+            e: float of Hy field value.
         """
         e = Hy[self.xcoord + self.offset, self.ycoord, self.zcoord + self.offset]
         return e
 
     def get_Hz_from_field(self, Hz):
-        """Return the Hz field value from the equivalent coarse yee cell.
+        """Hz field value from the equivalent coarse yee cell.
 
         Args:
-            Hz (nparray): Numpy array of Hz field.
+            Hz: nparray of Hz field.
 
         Returns:
-            e (float): Hz field value.
+            e: float of Hz field value.
         """
         e = Hz[self.xcoord + self.offset, self.ycoord + self.offset, self.zcoord]
         return e
