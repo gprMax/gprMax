@@ -54,10 +54,13 @@ class Waveform:
             waveforms.
         """
 
-        if self.type == 'gaussian' or self.type == 'gaussiandot' or self.type == 'gaussiandotnorm' or self.type == 'gaussianprime' or self.type == 'gaussiandoubleprime':
+        if (self.type == 'gaussian' or self.type == 'gaussiandot' or 
+            self.type == 'gaussiandotnorm' or self.type == 'gaussianprime' or 
+            self.type == 'gaussiandoubleprime'):
             self.chi = 1 / self.freq
             self.zeta = 2 * np.pi**2 * self.freq**2
-        elif self.type == 'gaussiandotdot' or self.type == 'gaussiandotdotnorm' or self.type == 'ricker':
+        elif (self.type == 'gaussiandotdot' or 
+              self.type == 'gaussiandotdotnorm' or self.type == 'ricker':)
             self.chi = np.sqrt(2) / self.freq
             self.zeta = np.pi**2 * self.freq**2
 
@@ -65,11 +68,11 @@ class Waveform:
         """Calculates value of the waveform at a specific time.
 
         Args:
-            time (float): Absolute time.
-            dt (float): Absolute time discretisation.
+            time: float for absolute time.
+            dt: float for absolute time discretisation.
 
         Returns:
-            ampvalue (float): Calculated value for waveform.
+            ampvalue: float for calculated value for waveform.
         """
 
         self.calculate_coefficients()
@@ -130,7 +133,3 @@ class Waveform:
         ampvalue *= self.amp
 
         return ampvalue
-
-    def __str__(self):
-        logger.debug('Do we need this?')
-        return f'Waveform: ID={self.ID}, type={self.type}, amp{self.amp}, freq={self.freq}'

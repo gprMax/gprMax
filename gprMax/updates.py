@@ -45,7 +45,7 @@ class CPUUpdates:
     def __init__(self, G):
         """
         Args:
-            G (FDTDGrid): Parameters describing a grid in a model.
+            G: FDTDGrid class describing a grid in a model.
         """
         self.grid = G
         self.dispersive_update_a = None
@@ -201,7 +201,7 @@ class CPUUpdates:
         """Set dispersive update functions.
 
         Args:
-            props (Props): Dispersive material properties.
+            props: dispersive material properties.
         """
         update_f = 'update_electric_dispersive_{}pole_{}_{}_{}'
         disp_a = update_f.format(props.poles, 'A', props.precision, props.dispersion_type)
@@ -234,7 +234,7 @@ class CUDAUpdates:
     def __init__(self, G):
         """
         Args:
-            G: CUDAGrid of parameters describing a grid in a model.
+            G: CUDAGrid class describing a grid in a model.
         """
 
         self.grid = G
@@ -754,7 +754,7 @@ class OpenCLUpdates:
     def __init__(self, G):
         """
         Args:
-            G: OpenCLGrid of parameters describing a grid in a model.
+            G: OpenCLGrid class describing a grid in a model.
         """
 
         self.grid = G

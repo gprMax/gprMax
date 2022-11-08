@@ -122,18 +122,16 @@ class MPIExecutor(object):
 
     def __init__(self, func, master=0, comm=None):
         """Initializes a new executor instance.
-        Parameters
-        ----------
-        func: callable
-            The worker function. Jobs will be passed as keyword arguments,
-            so `func` must support this. This is usually the case, but
-            can be a problem when builtin functions are used, e.g. `abs()`.
-        master: int
-            The rank of the master. Must be in `comm`. All other
-            ranks in `comm` will be treated as workers.
-        comm: MPI.Intracomm
-            The MPI communicator used for communication between the
-            master and workers.
+        
+        Attributes:
+            func: callable worker function. Jobs will be passed as keyword 
+                    arguments, so `func` must support this. This is usually the 
+                    case, but can be a problem when builtin functions are used, 
+                    e.g. `abs()`.
+            master: int of the rank of the master. Must be in `comm`. All other
+                    ranks in `comm` will be treated as workers.
+            comm: MPI.Intracomm communicator used for communication between the
+                    master and workers.
         """
         if comm is None:
             self.comm = MPI.COMM_WORLD
@@ -170,9 +168,8 @@ class MPIExecutor(object):
             logger.basic(f'\n({self.comm.name}) - Master: {self.master}, Workers: {self.workers}')
 
     def __enter__(self):
-        """Context manager enter.
-        Only the master returns an executor,
-        all other ranks return None.
+        """Context manager enter. Only the master returns an executor, all other 
+            ranks return None.
         """
         self.start()
         if self.is_master():
@@ -180,8 +177,7 @@ class MPIExecutor(object):
         return None
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit.
-        """
+        """Context manager exit."""
         if exc_type is not None:
             logger.exception(exc_val)
             return False
@@ -192,30 +188,26 @@ class MPIExecutor(object):
         return True
 
     def is_idle(self):
-        """Returns a bool indicating whether the executor is idle.
-        The executor is considered to be not idle if *any* worker
-        process is busy with a job. That means, it is idle only
-        if *all* workers are idle.
-        Note: This member must not be called on a worker.
+        """Returns a bool indicating whether the executor is idle. The executor 
+            is considered to be not idle if *any* worker process is busy with a 
+            job. That means, it is idle only if *all* workers are idle.
+            Note: This member must not be called on a worker.
         """
         assert self.is_master()
         return not any(self.busy)
 
     def is_master(self):
-        """Returns a bool indicating whether `self` is the master.
-        """
+        """Returns a bool indicating whether `self` is the master."""
         return self.rank == self.master
 
     def is_worker(self):
-        """Returns a bool indicating whether `self` is a worker.
-        """
+        """Returns a bool indicating whether `self` is a worker."""
         return not self.is_master()
 
     def start(self):
-        """Starts up workers.
-        A check is performed on the master whether the executor
-        has already been terminated, in which case a RuntimeError
-        is raised on the master.
+        """Starts up workers. A check is performed on the master whether the 
+            executor has already been terminated, in which case a RuntimeError
+            is raised on the master.
         """
         if self.is_master():
             if self._up:
@@ -227,8 +219,7 @@ class MPIExecutor(object):
             self.__wait()
 
     def join(self):
-        """Joins the workers.
-        """
+        """Joins the workers."""
         if self.is_master():
 
             logger.debug(f'({self.comm.name}) - Terminating. Sending sentinel to all workers.')
@@ -252,21 +243,18 @@ class MPIExecutor(object):
 
     def submit(self, jobs, sleep=0.0):
         """Submits a list of jobs to the workers and returns the results.
-        Parameters
-        ----------
-        jobs: list
-            A list of keyword argument dicts. Each dict describes
-            a job and will be unpacked and supplied to the work function.
-        sleep: float
-            The number of seconds the master will sleep for when trying
-            to find an idle worker. The default value is 0.0, which means
-            the master will not sleep at all.
-        Returns
-        -------
-        results: list
-            A list of results, i.e. the return values of the work function,
-            received from the workers. The order of results is identical to
-            the order of `jobs`.
+        
+        Args:
+            jobs: list of keyword argument dicts. Each dict describes a job and 
+                    will be unpacked and supplied to the work function.
+            sleep: float of number of seconds the master will sleep for when 
+                    trying to find an idle worker. The default value is 0.0, 
+                    which means the master will not sleep at all.
+        
+        Returns:
+            results: list of results, i.e. the return values of the work 
+                        function, received from the workers. The order of 
+                        results is identical to the order of `jobs`.
         """
         if not self._up:
             raise RuntimeError('Cannot run jobs without a call to start()')
@@ -303,11 +291,10 @@ class MPIExecutor(object):
         return results
 
     def __wait(self):
-        """The worker main loop.
-        The worker will enter the loop after `start()` has been called
-        and stay here until it receives the sentinel, e.g. by calling
-        `join()` on the master. In the mean time, the worker is
-        accepting work.
+        """The worker main loop. The worker will enter the loop after `start()` 
+            has been called and stay here until it receives the sentinel, 
+            e.g. by calling `join()` on the master. In the mean time, the worker 
+            is accepting work.
         """
         assert self.is_worker()
 
@@ -337,16 +324,13 @@ class MPIExecutor(object):
 
     def __guarded_work(self, work):
         """Executes work safely on the workers.
-        Parameters
-        ----------
-        work: dict
-            Keyword arguments that are unpacked and given to the
-            work function.
-        Notes
-        -----
-        All exceptions that occur in the work function `func` are caught
-        and logged. The worker returns `None` to the master in that case
-        instead of the actual result.
+            N.B. All exceptions that occur in the work function `func` are caught
+            and logged. The worker returns `None` to the master in that case
+            instead of the actual result.
+        
+        Args:
+            work: dict ofeyword arguments that are unpacked and given to the
+                    work function.
         """
         assert self.is_worker()
         try:

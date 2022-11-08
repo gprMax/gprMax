@@ -23,16 +23,18 @@ from gprMax.waveforms import Waveform
 
 
 def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
-    """Analytical solution of a z-directed Hertzian dipole in free space with a Gaussian current waveform (http://dx.doi.org/10.1016/0021-9991(83)90103-1).
+    """Analytical solution of a z-directed Hertzian dipole in free space with a 
+        Gaussian current waveform (http://dx.doi.org/10.1016/0021-9991(83)90103-1).
 
     Args:
-        iterations (int): Number of time steps.
-        dt (float): Time step (seconds).
-        dxdydz (float): Tuple of spatial resolution (metres).
-        rx (float): Tuple of coordinates of receiver position relative to transmitter position (metres).
+        iterations: int for number of time steps.
+        dt: float for time step (seconds).
+        dxdydz: tuple of floats for spatial resolution (metres).
+        rx: tuple of floats for coordinates of receiver position relative to 
+            transmitter position (metres).
 
     Returns:
-        fields (float): Array contain electric and magnetic field components.
+        fields: float array containing electric and magnetic field components.
     """
 
     # Waveform
@@ -111,7 +113,8 @@ def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
     # Calculate fields
     for timestep in range(iterations):
 
-        # Calculate values for waveform, I * dl (current multiplied by dipole length) to match gprMax behaviour
+        # Calculate values for waveform, I * dl (current multiplied by dipole 
+        # length) to match gprMax behaviour
         fint_Ex = wint.calculate_value((timestep * dt) - tau_Ex, dt) * dl
         f_Ex = w.calculate_value((timestep * dt) - tau_Ex, dt) * dl
         fdot_Ex = wdot.calculate_value((timestep * dt) - tau_Ex, dt) * dl
@@ -131,17 +134,21 @@ def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
         fdot_Hy = wdot.calculate_value((timestep * dt) - tau_Hy, dt) * dl
 
         # Ex
-        fields[timestep, 0] = ((Ex_x * Ex_z) / (4 * np.pi * config.sim_config.em_consts['e0'] * Er_x**5)) * (3 * (fint_Ex + (tau_Ex * f_Ex)) + (tau_Ex**2 * fdot_Ex))
+        fields[timestep, 0] = (((Ex_x * Ex_z) / (4 * np.pi * config.sim_config.em_consts['e0'] * Er_x**5)) * 
+                               (3 * (fint_Ex + (tau_Ex * f_Ex)) + (tau_Ex**2 * fdot_Ex)))
 
         # Ey
         try:
             tmp = Ey_y / Ey_x
         except ZeroDivisionError:
             tmp = 0
-        fields[timestep, 1] = tmp * ((Ey_x * Ey_z) / (4 * np.pi * config.sim_config.em_consts['e0'] * Er_y**5)) * (3 * (fint_Ey + (tau_Ey * f_Ey)) + (tau_Ey**2 * fdot_Ey))
+        fields[timestep, 1] = (tmp * ((Ey_x * Ey_z) / (4 * np.pi * config.sim_config.em_consts['e0'] * Er_y**5)) * 
+                               (3 * (fint_Ey + (tau_Ey * f_Ey)) + (tau_Ey**2 * fdot_Ey)))
 
         # Ez
-        fields[timestep, 2] = (1 / (4 * np.pi * config.sim_config.em_consts['e0'] * Er_z**5)) * ((2 * Ez_z**2 - (Ez_x**2 + Ez_y**2)) * (fint_Ez + (tau_Ez * f_Ez)) - (Ez_x**2 + Ez_y**2) * tau_Ez**2 * fdot_Ez)
+        fields[timestep, 2] = ((1 / (4 * np.pi * config.sim_config.em_consts['e0'] * Er_z**5)) * 
+                               ((2 * Ez_z**2 - (Ez_x**2 + Ez_y**2)) * (fint_Ez + (tau_Ez * f_Ez)) - 
+                               (Ez_x**2 + Ez_y**2) * tau_Ez**2 * fdot_Ez))
 
         # Hx
         fields[timestep, 3] = - (Hx_y / (4 * np.pi * Hr_x**3)) * (f_Hx + (tau_Hx * fdot_Hx))

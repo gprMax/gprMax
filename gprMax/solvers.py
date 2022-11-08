@@ -27,7 +27,7 @@ def create_G():
     """Create grid object according to solver.
 
     Returns:
-        G: FDTDGrid that holds essential parameters describing the model.
+        G: FDTDGrid class describing a grid in a model.
     """
 
     if config.sim_config.general['solver'] == 'cpu':
@@ -44,7 +44,7 @@ def create_solver(G):
     """Create configured solver object.
 
     Args:
-        G: FDTDGrid that holds essential parameters describing the model.
+        G: FDTDGrid class describing a grid in a model.
 
     Returns:
         solver: Solver object.
@@ -80,7 +80,7 @@ class Solver:
         """
         Args:
             updates: Updates contains methods to run FDTD algorithm.
-            hsg: bool to use sub-gridding.
+            hsg: boolean to use sub-gridding.
         """
 
         self.updates = updates

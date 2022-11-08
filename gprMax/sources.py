@@ -45,8 +45,7 @@ class Source:
         """Calculates all waveform values for source for duration of simulation.
 
         Args:
-            G: FDTDGrid object that olds essential parameters describing the 
-                model.
+            G: FDTDGrid class describing a grid in a model.
         """
         # Waveform values for electric sources - calculated half a timestep later
         self.waveformvaluesJ = np.zeros((G.iterations),
@@ -89,8 +88,7 @@ class VoltageSource(Source):
             ID: memory view of array of numeric IDs corresponding to materials 
                 in the model.
             Ex, Ey, Ez: memory view of array of electric field values.
-            G: FDTDGrid object that olds essential parameters describing the 
-                model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
@@ -128,8 +126,7 @@ class VoltageSource(Source):
             voltage source conductivity to the underlying parameters.
 
         Args:
-            G: FDTDGrid object that olds essential parameters describing the 
-                model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         if self.resistance != 0:
@@ -175,8 +172,7 @@ class HertzianDipole(Source):
             ID: memory view of array of numeric IDs corresponding to materials 
                 in the model.
             Ex, Ey, Ez: memory view of array of electric field values.
-            G: FDTDGrid object that olds essential parameters describing the 
-                model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
@@ -213,8 +209,7 @@ class MagneticDipole(Source):
             ID: memory view of array of numeric IDs corresponding to materials 
                 in the model.
             Hx, Hy, Hz: memory view of array of magnetic field values.
-            G: FDTDGrid object that olds essential parameters describing the 
-                model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
@@ -245,7 +240,7 @@ def htod_src_arrays(sources, G, queue=None):
 
     Args:
         sources: list of sources of one type, e.g. HertzianDipole
-        G: FDTDGrid object that holds essential parameters describing the model.
+        G: FDTDGrid class describing a grid in a model.
         queue: pyopencl queue.
 
     Returns:
@@ -303,8 +298,7 @@ class TransmissionLine(Source):
     def __init__(self, G):
         """
         Args:
-            G: FDTDGrid object that holds essential parameters describing the 
-                model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         super().__init__()
@@ -341,8 +335,7 @@ class TransmissionLine(Source):
             from: http://dx.doi.org/10.1002/mop.10415
 
         Args:
-            G: FDTDGrid object that holds essential parameters describing the 
-                model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         for iteration in range(G.iterations):
@@ -358,8 +351,7 @@ class TransmissionLine(Source):
         """Updates absorbing boundary condition at end of the transmission line.
 
         Args:
-            G: FDTDGrid object that holds essential parameters describing the 
-                model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         h = (config.c * G.dt - self.dl) / (config.c * G.dt + self.dl)
@@ -373,8 +365,7 @@ class TransmissionLine(Source):
 
         Args:
             iteration: int of current iteration (timestep).
-            G: FDTDGrid object that holds essential parameters describing the 
-                model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         # Update all the voltage values along the line
@@ -392,8 +383,7 @@ class TransmissionLine(Source):
 
         Args:
             iteration: int of current iteration (timestep).
-            G: FDTDGrid object that holds essential parameters describing the 
-                model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         # Update all the current values along the line
@@ -416,8 +406,7 @@ class TransmissionLine(Source):
             ID: memory view of array of numeric IDs corresponding to materials 
                 in the model.
             Ex, Ey, Ez: memory view of array of electric field values.
-            G: FDTDGrid object that olds essential parameters describing the 
-                model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:
@@ -447,8 +436,7 @@ class TransmissionLine(Source):
             ID: memory view of array of numeric IDs corresponding to materials 
                 in the model.
             Hx, Hy, Hz: memory view of array of magnetic field values.
-            G: FDTDGrid object that olds essential parameters describing the 
-                model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         if iteration * G.dt >= self.start and iteration * G.dt <= self.stop:

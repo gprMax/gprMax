@@ -49,11 +49,11 @@ class Snapshot:
                  dx=None, dy=None, dz=None, time=None, filename=None, fileext=None):
         """
         Args:
-            xs, xf, ys, yf, zs, zf (int): Extent of the volume in cells.
-            dx, dy, dz (int): Spatial discretisation in cells.
-            time (int): Iteration number to take the snapshot on.
-            filename (str): Filename to save to.
-            fileext (str): File extension.
+            xs, xf, ys, yf, zs, zf: ints for the extent of the volume in cells.
+            dx, dy, dz: ints for the spatial discretisation in cells.
+            time: int for the iteration number to take the snapshot on.
+            filename: string for the filename to save to.
+            fileext: string for the file extension.
         """
 
         self.fileext = fileext
@@ -90,7 +90,7 @@ class Snapshot:
         """Store (in memory) electric and magnetic field values for snapshot.
 
         Args:
-            G (FDTDGrid): Parameters describing a grid in a model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         # Memory views of field arrays to dimensions required for the snapshot
@@ -132,8 +132,8 @@ class Snapshot:
             or HDF5 format (.h5) files
 
         Args:
-            pbar (class): Progress bar class instance.
-            G (FDTDGrid): Parameters describing a grid in a model.
+            pbar: Progress bar class instance.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         if self.fileext == '.vti':
@@ -147,8 +147,8 @@ class Snapshot:
             N.B. No Python 3 support for VTK at time of writing (03/2015)
 
         Args:
-            pbar (class): Progress bar class instance.
-            G (FDTDGrid): Parameters describing a grid in a model.
+            pbar: Progress bar class instance.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         hfield_offset = (3 * np.dtype(config.sim_config.dtypes['float_or_double']).itemsize
@@ -197,8 +197,8 @@ class Snapshot:
         """Write snapshot file in HDF5 (.h5) format.
 
         Args:
-            pbar (class): Progress bar class instance.
-            G (FDTDGrid): Parameters describing a grid in a model.
+            pbar: Progress bar class instance.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         f = h5py.File(self.filename, 'w')
@@ -227,7 +227,7 @@ def htod_snapshot_array(G, queue=None):
     """Initialise array on compute device for to store field data for snapshots.
 
     Args:
-        G: FDTDGrid object with parameters describing a grid in a model.
+        G: FDTDGrid class describing a grid in a model.
         queue: pyopencl queue.
 
     Returns:

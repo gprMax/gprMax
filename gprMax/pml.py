@@ -77,8 +77,7 @@ class CFS:
             d: float for dx, dy, or dz in direction of PML.
             er: float for average permittivity of underlying material.
             mr: float for average permeability of underlying material.
-            G: FDTDGrid object that holds essential parameters describing the 
-                model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         # Calculation of the maximum value of sigma from http://dx.doi.org/10.1109/8.546249
@@ -184,8 +183,7 @@ class PML:
     def __init__(self, G, ID=None, direction=None, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0):
         """
         Args:
-            G: FDTDGrid object that holds essential parameters describing the 
-                model.
+            G: FDTDGrid class describing a grid in a model.
             ID: string identifier for PML slab.
             direction: string for direction of increasing absorption.
             xs, xf, ys, yf, zs, zf: floats of extent of the PML slab.
@@ -577,7 +575,7 @@ def print_pml_info(G):
     """Information about PMLs.
 
     Args:
-        G: FDTDGrid objects that holds parameters describing a grid in a model.
+        G: FDTDGrid class describing a grid in a model.
     """
     # No PML
     if all(value == 0 for value in G.pmlthickness.values()):
@@ -601,7 +599,7 @@ def build_pml(G, key, value):
         (based on underlying material er and mr from solid array).
 
     Args:
-        G: FDTDGrid objects that holds parameters describing a grid in a model.
+        G: FDTDGrid class describing a grid in a model.
         key: string dentifier of PML slab.
         value: int with thickness of PML slab in cells.
     """

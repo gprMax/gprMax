@@ -29,8 +29,8 @@ class Material:
     def __init__(self, numID, ID):
         """
         Args:
-            numID (int): Numeric identifier of the material.
-            ID (str): Name of the material.
+            numID: int for numeric I of the material.
+            ID: string for name of the material.
         """
 
         self.numID = numID
@@ -49,7 +49,7 @@ class Material:
         """Calculates the magnetic update coefficients of the material.
 
         Args:
-            G (FDTDGrid): Parameters describing a grid in a model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         HA = (config.m0 * self.mr / G.dt) + 0.5 * self.sm
@@ -64,7 +64,7 @@ class Material:
         """Calculates the electric update coefficients of the material.
 
         Args:
-            G (FDTDGrid): Parameters describing a grid in a model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         EA = (config.sim_config.em_consts['e0'] * self.er / G.dt) + 0.5 * self.se
@@ -88,11 +88,11 @@ class Material:
             specific frequency.
 
         Args:
-            freq (float): Frequency used to calculate complex relative
-                            permittivity.
+            freq: float for frequency used to calculate complex relative
+                    permittivity.
 
         Returns:
-            er (float): Complex relative permittivity.
+            er: float for complex relative permittivity.
         """
 
         return self.er
@@ -126,7 +126,7 @@ class DispersiveMaterial(Material):
         """Calculates the electric update coefficients of the material.
 
         Args:
-            G (FDTDGrid): Parameters describing a grid in a model.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         # The implementation of the dispersive material modelling comes from the
@@ -183,11 +183,11 @@ class DispersiveMaterial(Material):
             specific frequency.
 
         Args:
-            freq (float): Frequency used to calculate complex relative
-                            permittivity.
+            freq: float for frequency used to calculate complex relative
+                    permittivity.
 
         Returns:
-            er (float): Complex relative permittivity.
+            er: float for complex relative permittivity.
         """
 
         # Permittivity at infinite frequency if the material is dispersive
@@ -212,15 +212,15 @@ class DispersiveMaterial(Material):
 
 
 def process_materials(G):
-    """Process complete list of materials - calculate update coefficients,
-        store in arrays, and build text list of materials/properties
+    """Processes complete list of materials - calculates update coefficients,
+        stores in arrays, and builds text list of materials/properties
 
     Args:
-        G (FDTDGrid): Parameters describing a grid in a model.
+        G: FDTDGrid class describing a grid in a model.
 
     Returns:
-        materialsdata (list): List of material IDs, names, and properties to
-                                print a table.
+        materialsdata: list of material IDs, names, and properties to
+                        print a table.
     """
 
     if config.get_model_config().materials['maxpoles'] == 0:
@@ -290,14 +290,15 @@ class PeplinskiSoil:
     def __init__(self, ID, sandfraction, clayfraction, bulkdensity, sandpartdensity, watervolfraction):
         """
         Args:
-            ID (str): Name of the soil.
-            sandfraction (float): Sand fraction of the soil.
-            clayfraction (float): Clay fraction of the soil.
-            bulkdensity (float): Bulk density of the soil (g/cm3).
-            sandpartdensity (float): Density of the sand particles in the
-                                        soil (g/cm3).
-            watervolfraction (float): Two numbers that specify a range for the
-                                        volumetric water fraction of the soil.
+            ID: string for name of the soil.
+            sandfraction: float of sand fraction of the soil.
+            clayfraction: float of clay fraction of the soil.
+            bulkdensity: float of bulk density of the soil (g/cm3).
+            sandpartdensity: float of density of the sand particles in the
+                                soil (g/cm3).
+            watervolfraction: tuple of floats of two numbers that specify a 
+                                range for the volumetric water fraction of the 
+                                soil.
         """
 
         self.ID = ID
@@ -314,8 +315,8 @@ class PeplinskiSoil:
         model (http://dx.doi.org/10.1109/36.387598).
 
         Args:
-            nbins (int): Number of bins to use to create the different materials.
-            G (FDTDGrid): Parameters describing a grid in a model.
+            nbins: int for number of bins to use to create the different materials.
+            G: FDTDGrid class describing a grid in a model.
         """
 
         # Debye model properties of water at 25C & zero salinity
@@ -384,7 +385,7 @@ def create_built_in_materials(G):
     """Create pre-defined (built-in) materials.
 
     Args:
-        G (FDTDGrid): Parameters describing a grid in a model.
+        G: FDTDGrid class describing a grid in a model.
     """
 
     G.n_built_in_materials = len(G.materials)
@@ -406,23 +407,25 @@ def calculate_water_properties(T=25, S=0):
     """Get extended Debye model properties for water.
 
     Args:
-        T (float): Temperature of water (degrees centigrade)
-        S (float): Salinity of water (part per thousand)
+        T: float for emperature of water (degrees centigrade).
+        S: float for salinity of water (part per thousand).
 
     Returns:
-        eri (float): Relative permittivity at infinite frequency.
-        er (float): Static relative permittivity.
-        tau (float): Relaxation time (s).
-        sig (float): Conductivity (S/m)
+        eri: float for relative permittivity at infinite frequency.
+        er: float for static relative permittivity.
+        tau: float for relaxation time (s).
+        sig: float for conductivity (Siemens/m).
     """
 
     # Properties of water from: https://doi.org/10.1109/JOE.1977.1145319
     eri = 4.9
     er = 88.045 - 0.4147 * T + 6.295e-4 * T**2 + 1.075e-5 * T**3
-    tau = (1 / (2 * np.pi)) * (1.1109e-10 - 3.824e-12 * T + 6.938e-14 * T**2 - 5.096e-16 * T**3)
+    tau = (1 / (2 * np.pi)) * (1.1109e-10 - 3.824e-12 * T + 6.938e-14 * T**2 - 
+                               5.096e-16 * T**3)
 
     delta = 25 - T
-    beta = 2.033e-2 + 1.266e-4 * delta + 2.464e-6 * delta**2 - S * (1.849e-5 - 2.551e-7 * delta + 2.551e-8 * delta**2)
+    beta = (2.033e-2 + 1.266e-4 * delta + 2.464e-6 * delta**2 - S * 
+           (1.849e-5 - 2.551e-7 * delta + 2.551e-8 * delta**2))
     sig_25s = S * (0.182521 - 1.46192e-3 * S + 2.09324e-5 * S**2 - 1.28205e-7 * S**3)
     sig = sig_25s * np.exp(-delta * beta)
 
@@ -434,9 +437,9 @@ def create_water(G, T=25, S=0):
         salinity.
 
     Args:
-        T (float): Temperature of water (degrees centigrade)
-        S (float): Salinity of water (part per thousand)
-        G (FDTDGrid): Parameters describing a grid in a model.
+        T: float for temperature of water (degrees centigrade).
+        S: float for salinity of water (part per thousand).
+        G: FDTDGrid class describing a grid in a model.
     """
 
     eri, er, tau, sig = calculate_water_properties(T, S)
@@ -462,7 +465,7 @@ def create_grass(G):
     """Create single-pole Debye model for grass
 
     Args:
-        G (FDTDGrid): Parameters describing a grid in a model.
+        G: FDTDGrid class describing a grid in a model.
     """
 
     # Properties of grass from: http://dx.doi.org/10.1007/BF00902994

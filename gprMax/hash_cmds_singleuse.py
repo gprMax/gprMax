@@ -27,15 +27,14 @@ logger = logging.getLogger(__name__)
 
 
 def process_singlecmds(singlecmds):
-    """
-    Checks the validity of command parameters and creates instances of
+    """Checks the validity of command parameters and creates instances of
         classes of parameters.
 
     Args:
-        singlecmds (dict): Commands that can only occur once in the model.
+        singlecmds: dict of commands that can only occur once in the model.
 
     Returns:
-        scene_objects (list): Holds objects in scene.
+        scene_objects: list that holds objects in scene.
     """
 
     scene_objects = []
@@ -56,7 +55,8 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
         if len(tmp) != 1:
-            logger.exception(cmd + ' requires exactly one parameter to specify the number of CPU OpenMP threads to use')
+            logger.exception(cmd + ' requires exactly one parameter to specify ' +
+                             'the number of CPU OpenMP threads to use')
             raise ValueError
 
         omp_threads = OMPThreads(n=tmp[0])
@@ -94,7 +94,8 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 1:
-            logger.exception(cmd + ' requires exactly one parameter to specify the time window. Either in seconds or number of iterations.')
+            logger.exception(cmd + ' requires exactly one parameter to specify ' +
+                             'the time window. Either in seconds or number of iterations.')
             raise ValueError
         tmp = tmp[0].lower()
 

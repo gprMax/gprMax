@@ -46,7 +46,7 @@ def htod_rx_arrays(G, queue=None):
         components for receivers.
 
     Args:
-        G: FDTDGrid object that holds essential parameters describing the model.
+        G: FDTDGrid class describing a grid in a model.
         queue: pyopencl queue.
 
     Returns:
@@ -92,7 +92,7 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
         rxcoords_dev: int array of receiver coordinates on compute device.
         rxs_dev: float array of receiver data on compute device - rows are field
                     components; columns are iterations; pages are receivers.
-        G: FDTDGrid object that holds essential parameters describing the model.
+        G: FDTDGrid class describing a grid in a model.
         
     """
 

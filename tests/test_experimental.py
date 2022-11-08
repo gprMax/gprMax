@@ -17,16 +17,23 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
+import logging
 from pathlib import Path
 
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 
-"""Plots a comparison of fields between given simulation output and experimental data files."""
+logger = logging.getLogger(__name__)
+
+"""Plots a comparison of fields between given simulation output and experimental 
+    data files.
+"""
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Plots a comparison of fields between given simulation output and experimental data files.', usage='cd gprMax; python -m tests.test_experimental modelfile realfile output')
+parser = argparse.ArgumentParser(description='Plots a comparison of fields between ' +
+                                    'given simulation output and experimental data files.', 
+                                 usage='cd gprMax; python -m tests.test_experimental modelfile realfile output')
 parser.add_argument('modelfile', help='name of model output file including path')
 parser.add_argument('realfile', help='name of file containing experimental data including path')
 parser.add_argument('output', help='output to be plotted, i.e. Ex Ey Ez', nargs='+')
@@ -48,7 +55,8 @@ else:
     polarity = 1
 
 if args.output[0] not in availablecomponents:
-    logger.exception(f"{args.output[0]} output requested to plot, but the available output for receiver 1 is {', '.join(availablecomponents)}")
+    logger.exception(f"{args.output[0]} output requested to plot, but the " +
+                     f"available output for receiver 1 is {', '.join(availablecomponents)}")
     raise ValueError
 
 floattype = f[path + args.output[0]].dtype
@@ -73,7 +81,8 @@ realmax = np.where(np.abs(real[:, 1]) == 1)[0][0]
 difftime = - (timemodel[modelmax] - real[realmax, 0])
 
 # Plot modelled and real data
-fig, ax = plt.subplots(num=modelfile.stem + '_vs_' + realfile.stem, figsize=(20, 10), facecolor='w', edgecolor='w')
+fig, ax = plt.subplots(num=modelfile.stem + '_vs_' + realfile.stem, 
+                       figsize=(20, 10), facecolor='w', edgecolor='w')
 ax.plot(timemodel + difftime, model, 'r', lw=2, label='Model')
 ax.plot(real[:, 0], real[:, 1], 'r', ls='--', lw=2, label='Experiment')
 ax.set_xlabel('Time [s]')
@@ -86,7 +95,9 @@ ax.grid()
 # Save a PDF/PNG of the figure
 savename =  modelfile.stem + '_vs_' + realfile.stem
 savename = modelfile.parent / savename
-# fig.savefig(savename.with_suffix('.pdf'), dpi=None, format='pdf', bbox_inches='tight', pad_inches=0.1)
-# fig.savefig(savename.with_suffix('.png'), dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)
+# fig.savefig(savename.with_suffix('.pdf'), dpi=None, format='pdf', 
+#             bbox_inches='tight', pad_inches=0.1)
+# fig.savefig(savename.with_suffix('.png'), dpi=150, format='png', 
+#             bbox_inches='tight', pad_inches=0.1)
 
 plt.show()

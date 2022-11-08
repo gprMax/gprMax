@@ -39,12 +39,12 @@ def process_python_include_code(inputfile, usernamespace):
     and insert the contents of the included file at that location.
 
     Args:
-        inputfile (object): File object for input file.
-        usernamespace (dict): Namespace that can be accessed by user
-                in any Python code blocks in input file.
+        inputfile: file object for input file.
+        usernamespace: namespace that can be accessed by user in any Python code 
+                        blocks in input file.
 
     Returns:
-        processedlines (list): Input commands after Python processing.
+        processedlines: list of input commands after Python processing.
     """
 
     # Strip out any newline characters and comments that must begin with double hashes
@@ -61,7 +61,9 @@ def process_python_include_code(inputfile, usernamespace):
 
         # Process any Python code
         if(inputlines[x].startswith('#python:')):
-            logger.warning('#python blocks are deprecated and will be removed in the next release of gprMax. Please convert your model to use our Python API instead.\n')
+            logger.warning('#python blocks are deprecated and will be removed in ' +
+                           'the next release of gprMax. Please convert your ' +
+                           'model to use our Python API instead.\n')
             # String to hold Python code to be executed
             pythoncode = ''
             x += 1
@@ -70,7 +72,8 @@ def process_python_include_code(inputfile, usernamespace):
                 pythoncode += inputlines[x] + '\n'
                 x += 1
                 if x == len(inputlines):
-                    logger.exception('Cannot find the end of the Python code block, i.e. missing #end_python: command.')
+                    logger.exception('Cannot find the end of the Python code ' +
+                                     'block, i.e. missing #end_python: command.')
                     raise SyntaxError
             # Compile code for faster execution
             pythoncompiledcode = compile(pythoncode, '<string>', 'exec')
@@ -110,22 +113,21 @@ def process_python_include_code(inputfile, usernamespace):
         x += 1
 
     # Process any include file commands
-    processedlines = process_include_files(processedlines, inputfile)
+    processedlines = process_include_files(processedlines)
 
     return processedlines
 
 
-def process_include_files(hashcmds, inputfile):
+def process_include_files(hashcmds):
     """Looks for and processes any include file commands and insert
         the contents of the included file at that location.
 
     Args:
-        hashcmds (list): Input commands.
-        inputfile (object): File object for input file.
+        hashcmds: list of input commands.
 
     Returns:
-        processedincludecmds (list): Input commands after processing
-            any include file commands.
+        processedincludecmds: list of input commands after processing any 
+                                include file commands.
     """
 
     processedincludecmds = []
@@ -160,14 +162,13 @@ def process_include_files(hashcmds, inputfile):
     return processedincludecmds
 
 
-def write_processed_file(processedlines, G):
+def write_processed_file(processedlines):
     """Writes an input file after any Python code and include commands
         in the original input file have been processed.
 
     Args:
-        processedlines (list): Input commands after after processing any
-            Python code and include commands.
-        G (FDTDGrid): Parameters describing a grid in a model.
+        processedlines: list of input commands after after processing any
+                        Python code and include commands.
     """
 
     parts = config.get_model_config().output_file_path.parts
@@ -177,7 +178,8 @@ def write_processed_file(processedlines, G):
         for item in processedlines:
             f.write(f'{item}')
 
-    logger.info(f'Written input commands, after processing any Python code and include commands, to file: {processedfile}\n')
+    logger.info(f'Written input commands, after processing any Python code and ' +
+                f'include commands, to file: {processedfile}\n')
 
 
 def check_cmd_names(processedlines, checkessential=True):
@@ -185,13 +187,14 @@ def check_cmd_names(processedlines, checkessential=True):
         and that all essential commands are present.
 
     Args:
-        processedlines (list): Input commands after Python processing.
-        checkessential (boolean): Perform check to see that all essential commands are present.
+        processedlines: list of input commands after Python processing.
+        checkessential: boolean to check for essential commands or not.
 
     Returns:
-        singlecmds (dict): Commands that can only occur once in the model.
-        multiplecmds (dict): Commands that can have multiple instances in the model.
-        geometry (list): Geometry commands in the model.
+        singlecmds: dict of commands that can only occur once in the model.
+        multiplecmds: dict of commands that can have multiple instances in the 
+                        model.
+        geometry: list of geometry commands in the model.
     """
 
     # Dictionaries of available commands
@@ -240,12 +243,17 @@ def check_cmd_names(processedlines, checkessential=True):
         # check first character of parameter string. Ignore case when there
         # are no parameters for a command, e.g. for #taguchi:
         if ' ' not in cmdparams[0] and len(cmdparams.strip('\n')) != 0:
-            logger.exception('There must be a space between the command name and parameters in ' + processedlines[lindex])
+            logger.exception('There must be a space between the command name ' +
+                             'and parameters in ' + processedlines[lindex])
             raise SyntaxError
 
         # Check if command name is valid
-        if cmdname not in essentialcmds and cmdname not in singlecmds and cmdname not in multiplecmds and cmdname not in geometrycmds:
-            logger.exception('Your input file contains an invalid command: ' + cmdname)
+        if (cmdname not in essentialcmds and 
+            cmdname not in singlecmds and 
+            cmdname not in multiplecmds and 
+            cmdname not in geometrycmds):
+            logger.exception('Your input file contains an invalid command: ' + 
+                             cmdname)
             raise SyntaxError
 
         # Count essential commands
@@ -257,7 +265,8 @@ def check_cmd_names(processedlines, checkessential=True):
             if singlecmds[cmdname] is None:
                 singlecmds[cmdname] = cmd[1].strip(' \t\n')
             else:
-                logger.exception('You can only have a single instance of ' + cmdname + ' in your model')
+                logger.exception('You can only have a single instance of ' + 
+                                 cmdname + ' in your model')
                 raise SyntaxError
 
         elif cmdname in multiplecmds:
@@ -270,25 +279,27 @@ def check_cmd_names(processedlines, checkessential=True):
 
     if checkessential:
         if (countessentialcmds < len(essentialcmds)):
-            logger.exception('Your input file is missing essential commands required to run a model. Essential commands are: ' + ', '.join(essentialcmds))
+            logger.exception('Your input file is missing essential commands ' +
+                             'required to run a model. Essential commands are: ' + 
+                             ', '.join(essentialcmds))
             raise SyntaxError
 
     return singlecmds, multiplecmds, geometry
 
 
-def get_user_objects(processedlines, check=True):
+def get_user_objects(processedlines, checkessential=True):
     """Make a list of all user objects.
 
     Args:
-        processedlines (list): Input commands after Python processing.
-        check (bool): Whether to check for essential commands or not.
+        processedlines: list of input commands after Python processing.
+        checkessential: boolean to check for essential commands or not.
 
     Returns:
-        user_objs (list): All user objects.
+        user_objs: list of all user objects.
     """
 
     # Check validity of command names and that essential commands are present
-    parsed_commands = check_cmd_names(processedlines, checkessential=check)
+    parsed_commands = check_cmd_names(processedlines, checkessential=checkessential)
 
     # Process parameters for commands that can only occur once in the model
     single_user_objs = process_singlecmds(parsed_commands[0])
@@ -305,15 +316,14 @@ def get_user_objects(processedlines, check=True):
     return user_objs
 
 
-def parse_hash_commands(scene, G):
+def parse_hash_commands(scene):
     """Parse user hash commands and add them to the scene.
 
     Args:
-        scene (Scene): Scene object.
-        G (FDTDGrid): Parameters describing a grid in a model.
+        scene: Scene object.
 
     Returns:
-        scene (Scene): Scene object.
+        scene: Scene object.
     """
 
     with open(config.sim_config.input_file_path) as inputfile:
@@ -328,14 +338,15 @@ def parse_hash_commands(scene, G):
         for key, value in sorted(usernamespace.items()):
             if key != '__builtins__':
                 uservars += f'{key}: {value}, '
-        logger.info(f'Constants/variables used/available for Python scripting: {{{uservars[:-2]}}}\n')
+        logger.info(f'Constants/variables used/available for Python scripting: ' +
+                    f'{{{uservars[:-2]}}}\n')
 
         # Write a file containing the input commands after Python or include
         # file commands have been processed
         if config.sim_config.args.write_processed:
-            write_processed_file(processedlines, G)
+            write_processed_file(processedlines)
 
-        user_objs = get_user_objects(processedlines, check=True)
+        user_objs = get_user_objects(processedlines, checkessential==True)
         for user_obj in user_objs:
             scene.add(user_obj)
 
@@ -365,6 +376,6 @@ def user_libs_fn_to_scene_obj(f, *args, **kwargs):
     with Capturing() as str_cmds:
         f(*args, **kwargs)
 
-    user_objects = get_user_objects(str_cmds, check=False)
+    user_objects = get_user_objects(str_cmds, checkessential=False)
 
     return user_objects

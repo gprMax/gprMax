@@ -42,8 +42,9 @@ class Scene:
     def add(self, user_object):
         """Add the user object to the scene.
 
-        :param user_object: User object to add to the scene. For example, :class:`gprMax.cmds_single_use.Domain`
-        :type user_object: UserObjectMulti/UserObjectGeometry/UserObjectSingle
+        Args:
+            user_object: user object to add to the scene. For example, 
+                            :class:`gprMax.cmds_single_use.Domain`
         """
         if isinstance(user_object, UserObjectMulti):
             self.multiple_cmds.append(user_object)
@@ -55,7 +56,7 @@ class Scene:
             logger.exception('This object is unknown to gprMax')
             raise ValueError
 
-    def process_subgrid_commands(self, subgrids):
+    def process_subgrid_commands(self):
         # Check for subgrid user objects
         def func(obj):
             if isinstance(obj, SubGridUserBase):
@@ -106,7 +107,9 @@ class Scene:
         for cmd_type in self.essential_cmds:
             d = any([isinstance(cmd, cmd_type) for cmd in cmds_unique])
             if not d:
-                logger.exception('Your input file is missing essential commands required to run a model. Essential commands are: Domain, Discretisation, Time Window')
+                logger.exception('Your input file is missing essential commands ' +
+                                 'required to run a model. Essential commands ' +
+                                 'are: Domain, Discretisation, Time Window')
                 raise ValueError
 
         self.process_cmds(cmds_unique, G)
@@ -139,6 +142,6 @@ class Scene:
         self.process_cmds(self.geometry_cmds, G, sort=False)
 
         # Process all the commands for the subgrid
-        self.process_subgrid_commands(G.subgrids)
+        self.process_subgrid_commands()
 
         return self
