@@ -283,7 +283,7 @@ class ModelBuildRun:
         if config.sim_config.general['solver'] == 'cpu':
             logger.basic(f"\nModel {config.model_num + 1}/{config.sim_config.model_end} "
                          f"on {config.sim_config.hostinfo['hostname']} "
-                         f"with OpenMP using {config.get_model_config().ompthreads} thread(s)")
+                         f"with OpenMP backend using {config.get_model_config().ompthreads} thread(s)")
             if config.get_model_config().ompthreads > config.sim_config.hostinfo['physicalcores']:
                 logger.warning(f"You have specified more threads ({config.get_model_config().ompthreads}) "
                                f"than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). "
@@ -300,7 +300,7 @@ class ModelBuildRun:
                 devicename = ' '.join(config.get_model_config().device['dev'].name().split())
             logger.basic(f"\nModel {config.model_num + 1}/{config.sim_config.model_end} "
                          f"on {config.sim_config.hostinfo['hostname']} "
-                         f"with {solvername} using {devicename}{platformname}")
+                         f"with {solvername} backend using {devicename}{platformname}")
 
         # Prepare iterator
         if config.sim_config.general['progressbars']:
