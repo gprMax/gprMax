@@ -766,7 +766,7 @@ cpdef void build_cylinder(
 
     # z-aligned
     elif (round_value(x1 / dx) == round_value(x2 / dx) and 
-          round_value(y1 / dy) == round_value(y2 / dy):)
+          round_value(y1 / dy) == round_value(y2 / dy)):
         z_align = 1
 
     # Calculate a bounding box for the cylinder

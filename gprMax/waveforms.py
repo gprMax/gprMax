@@ -60,7 +60,7 @@ class Waveform:
             self.chi = 1 / self.freq
             self.zeta = 2 * np.pi**2 * self.freq**2
         elif (self.type == 'gaussiandotdot' or 
-              self.type == 'gaussiandotdotnorm' or self.type == 'ricker':)
+              self.type == 'gaussiandotdotnorm' or self.type == 'ricker'):
             self.chi = np.sqrt(2) / self.freq
             self.zeta = np.pi**2 * self.freq**2
 
