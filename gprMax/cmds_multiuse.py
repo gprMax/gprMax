@@ -1464,7 +1464,9 @@ class GeometryView(UserObjectMulti):
             logger.exception(self.params_str() + ' requires exactly eleven '
                              'parameters.')
             raise
+
         GeometryViewUser = self.geometry_view_constructor(grid, output_type)
+
         try:
             p3 = uip.round_to_grid_static_point(p1)
             p4 = uip.round_to_grid_static_point(p2)

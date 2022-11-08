@@ -105,12 +105,10 @@ class ModelBuildRun:
                 receiver.zcoord = receiver.zcoordorigin + config.model_num * G.rxsteps[2]
 
         # Write files for any geometry views and geometry object outputs
-        if not (G.geometryviews or G.geometryobjectswrite) and config.sim_config.args.geometry_only:
+        gvs = G.geometryviews + [gv for sg in G.subgrids for gv in sg.geometryviews]
+        if not (gvs or G.geometryobjectswrite) and config.sim_config.args.geometry_only:
             logger.exception('\nNo geometry views or geometry objects found.')
             raise ValueError
-        
-        # Save any geometry views
-        gvs = G.geometryviews + [gv for sg in G.subgrids for gv in sg.geometryviews]
         save_geometry_views(gvs)
         
         if G.geometryobjectswrite:
