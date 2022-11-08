@@ -267,8 +267,8 @@ class SimulationConfig:
             self.general['subgrid'] = self.args.subgrid
             # Double precision should be used with subgrid for best accuracy
             self.general['precision'] = 'double'
-            if ((self.general['subgrid'] and self.general['cuda']) or 
-                (self.general['subgrid'] and self.general['opencl'])):
+            if ((self.general['subgrid'] and self.general['solver'] == 'cuda') or 
+                (self.general['subgrid'] and self.general['solver'] == 'opencl')):
                 logger.exception('You cannot currently use CUDA or OpenCL-based '
                                  'solvers with models that contain sub-grids.')
                 raise ValueError
