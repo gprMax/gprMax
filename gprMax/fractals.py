@@ -34,11 +34,11 @@ class FractalSurface:
     def __init__(self, xs, xf, ys, yf, zs, zf, dimension):
         """
         Args:
-            xs, xf, ys, yf, zs, zf (float): Extent of the fractal surface
-                                            (one pair of coordinates must be
-                                            equal to correctly define a surface).
-            dimension (float): Fractal dimension that controls the fractal
-                                distribution.
+            xs, xf, ys, yf, zs, zf: floats for the extent of the fractal surface
+                                        (one pair of coordinates must be equal 
+                                        to correctly define a surface).
+            dimension: float for the fractal dimension that controls the fractal
+                        distribution.
         """
 
         self.ID = None
@@ -114,9 +114,9 @@ class FractalVolume:
     def __init__(self, xs, xf, ys, yf, zs, zf, dimension):
         """
         Args:
-            xs, xf, ys, yf, zs, zf (float): Extent of the fractal volume.
-            dimension (float): Fractal dimension that controls the fractal
-                                distribution.
+            xs, xf, ys, yf, zs, zf: floats for the extent of the fractal volume.
+            dimension: float for the fractal dimension that controls the fractal
+                        distribution.
         """
 
         self.ID = None
@@ -221,7 +221,7 @@ class Grass:
     def __init__(self, numblades):
         """
         Args:
-            numblades (int): Number of blades of grass.
+            numblades: int for the number of blades of grass.
         """
 
         self.numblades = numblades
@@ -247,11 +247,11 @@ class Grass:
         """Calculates the x and y coordinates for a given height of grass blade.
 
         Args:
-            blade (int): Numeric ID of grass blade.
-            height (float): Height of grass blade.
+            blade: int for the numeric ID of grass blade.
+            height: float for the height of grass blade.
 
         Returns:
-            x, y (float): x and y coordinates of grass blade.
+            x, y: floats for the x and y coordinates of grass blade.
         """
 
         x = (self.geometryparams[blade, 2] * (height / self.geometryparams[blade, 0])
@@ -267,11 +267,11 @@ class Grass:
         """Calculates the x and y coordinates for a given depth of grass root.
 
         Args:
-            root (int): Numeric ID of grass root.
-            depth (float): Depth of grass root.
+            root: int for the umeric ID of grass root.
+            depth: float for the depth of grass root.
 
         Returns:
-            x, y (float): x and y coordinates of grass root.
+            x, y: floats for the x and y coordinates of grass root.
         """
 
         self.geometryparams[root, 4] += -1 + 2 * self.R5.random()

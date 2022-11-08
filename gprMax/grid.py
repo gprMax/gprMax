@@ -122,8 +122,8 @@ class FDTDGrid:
 
     def initialise_geometry_arrays(self):
         """Initialise an array for volumetric material IDs (solid);
-            boolean arrays for specifying whether materials can have dielectric smoothing (rigid);
-            and an array for cell edge IDs (ID).
+            boolean arrays for specifying whether materials can have dielectric 
+            smoothing (rigid); and an array for cell edge IDs (ID).
         Solid and ID arrays are initialised to free_space (one);
             rigid arrays to allow dielectric smoothing (zero).
         """
@@ -158,11 +158,14 @@ class FDTDGrid:
     def initialise_dispersive_arrays(self):
         """Initialise field arrays when there are dispersive materials present."""
         self.Tx = np.zeros((config.get_model_config().materials['maxpoles'],
-                            self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.get_model_config().materials['dispersivedtype'])
+                            self.nx + 1, self.ny + 1, self.nz + 1), 
+                            dtype=config.get_model_config().materials['dispersivedtype'])
         self.Ty = np.zeros((config.get_model_config().materials['maxpoles'],
-                            self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.get_model_config().materials['dispersivedtype'])
+                            self.nx + 1, self.ny + 1, self.nz + 1), 
+                            dtype=config.get_model_config().materials['dispersivedtype'])
         self.Tz = np.zeros((config.get_model_config().materials['maxpoles'],
-                            self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.get_model_config().materials['dispersivedtype'])
+                            self.nx + 1, self.ny + 1, self.nz + 1), 
+                            dtype=config.get_model_config().materials['dispersivedtype'])
 
     def initialise_dispersive_update_coeff_array(self):
         """Initialise array for storing update coefficients when there are dispersive
@@ -187,7 +190,7 @@ class FDTDGrid:
         """Estimate the amount of memory (RAM) required for grid arrays.
 
         Returns:
-            mem_use (int): Memory (bytes).
+            mem_use: int of memory (bytes).
         """
 
         solidarray = self.nx * self.ny * self.nz * np.dtype(np.uint32).itemsize
@@ -196,7 +199,8 @@ class FDTDGrid:
         rigidarrays = (12 + 6) * self.nx * self.ny * self.nz * np.dtype(np.int8).itemsize
 
         # 6 x field arrays + 6 x ID arrays
-        fieldarrays = (6 + 6) * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(config.sim_config.dtypes['float_or_double']).itemsize
+        fieldarrays = ((6 + 6) * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * 
+                       np.dtype(config.sim_config.dtypes['float_or_double']).itemsize)
 
         # PML arrays
         pmlarrays = 0
@@ -226,7 +230,7 @@ class FDTDGrid:
         """Estimate the amount of memory (RAM) required for dispersive grid arrays.
 
         Returns:
-            mem_use (int): Memory (bytes).
+            mem_use: int of memory (bytes).
         """
 
         mem_use = int(3 * config.get_model_config().materials['maxpoles'] *
@@ -382,10 +386,10 @@ def dispersion_analysis(G):
         worse case of maximum frequency and minimum wavelength
 
     Args:
-        G (class): Grid class instance - holds essential parameters describing the model.
+        G: FDTDGrid class describing a grid in a model.
 
     Returns:
-        results (dict): Results from dispersion analysis
+        results: dict of results from dispersion analysis.
     """
 
     # deltavp: physical phase velocity error (percentage)
@@ -393,7 +397,11 @@ def dispersion_analysis(G):
     # material: material with maximum permittivity
     # maxfreq: maximum significant frequency
     # error: error message
-    results = {'deltavp': None, 'N': None, 'material': None, 'maxfreq': [], 'error': ''}
+    results = {'deltavp': None, 
+               'N': None, 
+               'material': None, 
+               'maxfreq': [], 
+               'error': ''}
 
     # Find maximum significant frequency
     if G.waveforms:
@@ -437,7 +445,9 @@ def dispersion_analysis(G):
                         freqthres = np.where(power[freqmaxpower:] < -config.get_model_config().numdispersion['highestfreqthres'])[0][0] + freqmaxpower
                         results['maxfreq'].append(freqs[freqthres])
                     except ValueError:
-                        results['error'] = 'unable to calculate maximum power from waveform, most likely due to undersampling.'
+                        results['error'] = ('unable to calculate maximum power ' +
+                                           'from waveform, most likely due to ' +
+                                           'undersampling.')
 
                 # Ignore case where someone is using a waveform with zero amplitude, i.e. on a receiver
                 elif waveform.amp == 0:
@@ -445,7 +455,8 @@ def dispersion_analysis(G):
 
                 # If waveform is truncated don't do any further analysis
                 else:
-                    results['error'] = 'waveform does not fit within specified time window and is therefore being truncated.'
+                    results['error'] = ('waveform does not fit within specified ' +
+                                       'time window and is therefore being truncated.')
     else:
         results['error'] = 'no waveform detected.'
 
@@ -458,8 +469,8 @@ def dispersion_analysis(G):
         for x in G.materials:
             if x.se != float('inf'):
                 er = x.er
-                # If there are dispersive materials calculate the complex relative permittivity
-                # at maximum frequency and take the real part
+                # If there are dispersive materials calculate the complex 
+                # relative permittivity at maximum frequency and take the real part
                 if x.__class__.__name__ == 'DispersiveMaterial':
                     er = x.calculate_er(results['maxfreq'])
                     er = er.real
@@ -509,9 +520,9 @@ def Ix(x, y, z, Hx, Hy, Hz, G):
     """Calculates the x-component of current at a grid position.
 
     Args:
-        x, y, z (float): Coordinates of position in grid.
-        Hx, Hy, Hz (memory view): numpy array of magnetic field values.
-        G (FDTDGrid): Parameters describing a grid in a model.
+        x, y, z: floats for coordinates of position in grid.
+        Hx, Hy, Hz: numpy array of magnetic field values.
+        G: FDTDGrid class describing a grid in a model.
     """
 
     if y == 0 or z == 0:
@@ -526,9 +537,9 @@ def Iy(x, y, z, Hx, Hy, Hz, G):
     """Calculates the y-component of current at a grid position.
 
     Args:
-        x, y, z (float): Coordinates of position in grid.
-        Hx, Hy, Hz (memory view): numpy array of magnetic field values.
-        G (FDTDGrid): Parameters describing a grid in a model.
+        x, y, z: floats for coordinates of position in grid.
+        Hx, Hy, Hz: numpy array of magnetic field values.
+        G: FDTDGrid class describing a grid in a model.
     """
 
     if x == 0 or z == 0:
@@ -543,9 +554,9 @@ def Iz(x, y, z, Hx, Hy, Hz, G):
     """Calculates the z-component of current at a grid position.
 
     Args:
-        x, y, z (float): Coordinates of position in grid.
-        Hx, Hy, Hz (memory view): numpy array of magnetic field values.
-        G (FDTDGrid): Parameters describing a grid in a model.
+        x, y, z: floats for coordinates of position in grid.
+        Hx, Hy, Hz: numpy array of magnetic field values.
+        G: FDTDGrid class describing a grid in a model.
     """
 
     if x == 0 or y == 0:

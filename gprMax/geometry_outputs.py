@@ -405,8 +405,8 @@ class GeometryObjects:
         """Write a geometry objects file in HDF5 format.
 
         Args:
-            G (FDTDGrid): Parameters describing a grid in a model.
-            pbar (class): Progress bar class instance.
+            G: FDTDGrid class describing a grid in a model.
+            pbar: Progress bar class instance.
         """
 
         # Write the geometry objects to a HDF5 file

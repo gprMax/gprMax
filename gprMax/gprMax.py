@@ -161,7 +161,7 @@ def run_main(args):
     """Called by either run (API) or main (CLI).
 
     Args:
-        args (Namespace): arguments from either API or CLI.
+        args: namespace with arguments from either API or CLI.
     """
 
     logging_config(level=args.log_level, log_file=args.log_file)
