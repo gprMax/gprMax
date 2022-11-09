@@ -38,7 +38,7 @@ from .sources import HertzianDipole as HertzianDipoleUser
 from .sources import MagneticDipole as MagneticDipoleUser
 from .sources import TransmissionLine as TransmissionLineUser
 from .sources import VoltageSource as VoltageSourceUser
-from .subgrids.base import SubGridBase
+from .subgrids.grid import SubGridBaseGrid
 from .utilities.utilities import round_value
 from .waveforms import Waveform as WaveformUser
 
@@ -82,7 +82,7 @@ class UserObjectMulti:
             string if the grid is the main grid.
         """
 
-        if isinstance(grid, SubGridBase):
+        if isinstance(grid, SubGridBaseGrid):
             return f'[{grid.name}] '  
         else:
             return ''
@@ -963,7 +963,7 @@ class Snapshot(UserObjectMulti):
         self.hash = '#snapshot'
 
     def create(self, grid, uip):
-        if isinstance(grid, SubGridBase):
+        if isinstance(grid, SubGridBaseGrid):
             logger.exception(self.params_str() + ' do not add snapshots to '
                              'subgrids.')
             raise ValueError
@@ -1444,7 +1444,7 @@ class GeometryView(UserObjectMulti):
         """
 
         if output_type == 'n':
-            if isinstance(grid, SubGridBase):
+            if isinstance(grid, SubGridBaseGrid):
                 from .geometry_outputs import GeometryViewSubgridVoxels as GeometryViewUser            
             else:
                 from .geometry_outputs import GeometryViewVoxels as GeometryViewUser            

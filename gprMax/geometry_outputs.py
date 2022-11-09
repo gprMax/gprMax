@@ -214,7 +214,7 @@ class GeometryViewVoxels(GeometryView):
         # Only create a new array if subsampling is required
         if (self.grid.solid.shape != (self.xf, self.yf, self.zf) or
             (self.dx, self.dy, self.dz) != (1, 1, 1) or
-                (self.xs, self.ys, self.zs) != (0, 0, 0)):
+            (self.xs, self.ys, self.zs) != (0, 0, 0)):
             # Require contiguous for evtk library
             solid = np.ascontiguousarray(self.grid.solid[self.xs:self.xf:self.dx,
                                                          self.ys:self.yf:self.dy, 

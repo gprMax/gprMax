@@ -21,7 +21,7 @@ import logging
 import gprMax.config as config
 import numpy as np
 
-from .subgrids.base import SubGridBase
+from .subgrids.grid import SubGridBaseGrid
 from .utilities.utilities import round_value
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 def create_user_input_points(grid, user_obj):
     """Returns a point checker class based on the grid supplied."""
 
-    if isinstance(grid, SubGridBase):
+    if isinstance(grid, SubGridBaseGrid):
         # Local object configuration trumps. User can turn off autotranslate for
         # specific objects.
         if not user_obj.autotranslate and config.sim_config.args.autotranslate:
