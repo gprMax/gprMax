@@ -34,6 +34,6 @@ from .cmds_singleuse import (Discretisation, Domain, ExcitationFile,
 from .gprMax import run as run
 from .hash_cmds_file import user_libs_fn_to_scene_obj
 from .scene import Scene
-from .subgrids.user_objects import ReferenceRx, SubGridHSG
+from .subgrids.user_objects import SubGridHSG
 
 __name__ = 'gprMax'
