@@ -346,7 +346,7 @@ def parse_hash_commands(scene):
         if config.sim_config.args.write_processed:
             write_processed_file(processedlines)
 
-        user_objs = get_user_objects(processedlines, checkessential==True)
+        user_objs = get_user_objects(processedlines, checkessential=True)
         for user_obj in user_objs:
             scene.add(user_obj)
 
@@ -369,7 +369,7 @@ class Capturing(list):
 
 
 def user_libs_fn_to_scene_obj(f, *args, **kwargs):
-    """Function to convert library functions in the user_libs directory
+    """Function to convert library functions in the toolboxes directory
         into geometry objects which can be added to the scene.
     """
 
