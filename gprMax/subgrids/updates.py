@@ -47,7 +47,7 @@ def create_updates(G):
 
 
 class SubgridUpdates(CPUUpdates):
-    """Update functions for the Sub gridding simulation."""
+    """Updates for subgrids."""
 
     def __init__(self, G, updaters):
         super().__init__(G)
@@ -93,23 +93,19 @@ class SubgridUpdater(CPUUpdates):
         sub_grid = self.grid
         precursors = self.precursors
 
-        # copy the main grid electric fields at the IS position
+        # Copy the main grid electric fields at the IS position
         precursors.update_electric()
 
         upper_m = int(sub_grid.ratio / 2 - 0.5)
 
         for m in range(1, upper_m + 1):
-
             self.store_outputs()
             self.update_electric_a()
             self.update_electric_pml()
             precursors.interpolate_magnetic_in_time(int(m + sub_grid.ratio / 2 - 0.5))
             sub_grid.update_electric_is(precursors)
             self.update_electric_sources()
-            # second dispersive update
             self.update_electric_b()
-
-            # STD update, interpolate inc. field in time, apply correction
             self.update_magnetic()
             self.update_magnetic_pml()
             precursors.interpolate_electric_in_time(m)
@@ -134,23 +130,20 @@ class SubgridUpdater(CPUUpdates):
         sub_grid = self.grid
         precursors = self.precursors
 
+        # Copy the main grid magnetic fields at the IS position
         precursors.update_magnetic()
 
         upper_m = int(sub_grid.ratio / 2 - 0.5)
 
         for m in range(1, upper_m + 1):
-
             self.update_magnetic()
             self.update_magnetic_pml()
-
             precursors.interpolate_electric_in_time(int(m + sub_grid.ratio / 2 - 0.5))
             sub_grid.update_magnetic_is(precursors)
             self.update_magnetic_sources()
-
             self.store_outputs()
             self.update_electric_a()
             self.update_electric_pml()
-
             precursors.interpolate_magnetic_in_time(m)
             sub_grid.update_electric_is(precursors)
             self.update_electric_sources()

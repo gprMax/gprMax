@@ -23,7 +23,7 @@ from ..grid import FDTDGrid
 logger = logging.getLogger(__name__)
 
 
-class SubGridBase(FDTDGrid):
+class SubGridBaseGrid(FDTDGrid):
 
     def __init__(self, *args, **kwargs):
         super().__init__()
@@ -63,11 +63,3 @@ class SubGridBase(FDTDGrid):
         self.n_boundary_cells_z = d_to_pml + self.pmlthickness['z0']
 
         self.interpolation = kwargs['interpolation']
-
-    def main_grid_index_to_subgrid_index(self, i, j, k):
-        """Calculate local subgrid index from global main grid index."""
-        logger.debug('SubGridBase has no i0, j0, k0 members.')
-        i_s = self.n_boundary_cells_x + (i - self.i0) * self.ratio
-        j_s = self.n_boundary_cells_y + (j - self.j0) * self.ratio
-        k_s = self.n_boundary_cells_z + (k - self.k0) * self.ratio
-        return (i_s, j_s, k_s)

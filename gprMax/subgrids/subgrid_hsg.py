@@ -19,15 +19,16 @@
 import logging
 
 import gprMax.config as config
+
 from ..cython.fields_updates_hsg import (cython_update_electric_os,
                                          cython_update_is,
                                          cython_update_magnetic_os)
-from .base import SubGridBase
+from .grid import SubGridBaseGrid
 
 logger = logging.getLogger(__name__)
 
 
-class SubGridHSG(SubGridBase):
+class SubGridHSG(SubGridBaseGrid):
 
     gridtype = '3DSUBGRID'
 
@@ -83,9 +84,7 @@ class SubGridHSG(SubGridBase):
         cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsE, self.ID, self.n_boundary_cells, 0, self.nwx + 1, self.nwz, self.nwy, 3, self.Ez, precursors.hx_front, precursors.hx_back, self.IDlookup['Ez'], 1, -1, 2, config.get_model_config().ompthreads)
 
     def update_electric_os(self, main_grid):
-        """
-
-        """
+        """"""
         i_l = self.i0 - self.is_os_sep
         i_u = self.i1 + self.is_os_sep
         j_l = self.j0 - self.is_os_sep
@@ -112,9 +111,7 @@ class SubGridHSG(SubGridBase):
         cython_update_electric_os(main_grid.updatecoeffsE, main_grid.ID, 1, i_l, i_u + 1, j_l, j_u, k_l, k_u, self.nwz, main_grid.IDlookup['Ey'], main_grid.Ey, self.Hx, 3, 1, -1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
 
     def update_magnetic_os(self, main_grid):
-        """
-
-        """
+        """"""
         i_l = self.i0 - self.is_os_sep
         i_u = self.i1 + self.is_os_sep
         j_l = self.j0 - self.is_os_sep

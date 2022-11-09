@@ -22,8 +22,7 @@ from copy import copy
 import numpy as np
 
 from ..cmds_geometry.cmds_geometry import UserObjectGeometry
-from ..cmds_multiuse import Rx, UserObjectMulti
-from .multi import ReferenceRx as ReferenceRxUser
+from ..cmds_multiuse import UserObjectMulti
 from .subgrid_hsg import SubGridHSG as SubGridHSGUser
 
 logger = logging.getLogger(__name__)
@@ -57,7 +56,7 @@ class SubGridBase(UserObjectMulti):
 
     def set_main_grid_indices(self, sg, grid, uip, p1, p2):
         """Sets subgrid indices related to main grid placement."""
-        # location of the IS
+        # Location of the IS
         sg.i0, sg.j0, sg.k0 = p1
         sg.i1, sg.j1, sg.k1 = p2
 
@@ -192,22 +191,3 @@ class SubGridHSG(SubGridBase):
         sg = SubGridHSGUser(**self.kwargs)
         self.setup(sg, grid, uip)
         return sg
-
-
-class ReferenceRx(Rx):
-    """ReferenceRx User Object."""
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.hash = '#rx_reference'
-        self.constructor = ReferenceRxUser
-
-    def create(self, grid, uip):
-        r = super().create(grid, uip)
-        try:
-            ratio = self.kwargs['ratio']
-            r.ratio = ratio
-            r.offset = ratio // 2
-        except KeyError:
-            logger.exception(self.__str__() + ' has an no ratio parameter')
-            raise

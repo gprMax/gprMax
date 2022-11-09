@@ -40,8 +40,8 @@ def create_user_input_points(grid, user_obj):
     """Returns a point checker class based on the grid supplied."""
 
     if isinstance(grid, SubGridBase):
-        # Local object configuration trumps. User can turn of autotranslate for
-        # specfic objects.
+        # Local object configuration trumps. User can turn off autotranslate for
+        # specific objects.
         if not user_obj.autotranslate and config.sim_config.args.autotranslate:
             return MainGridUserInput(grid)
 
@@ -89,7 +89,7 @@ class UserInput:
         return self.discretise_point(p) * self.grid.dl
     
     def descretised_to_continuous(self, p):
-        """Returns a point given as indices to a continous point in the real space."""
+        """Returns a point given as indices to a continuous point in the real space."""
         return p * self.grid.dl
 
 
@@ -146,7 +146,7 @@ class MainGridUserInput(UserInput):
 
 
 class SubgridUserInput(MainGridUserInput):
-    """Handles (x, y, z) points supplied by the user in the sub grid.
+    """Handles (x, y, z) points supplied by the user in the subgrid.
         This class autotranslates points from main grid to subgrid equivalent
         (within IS). Useful if material traverse is not required.
     """
