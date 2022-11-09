@@ -38,6 +38,7 @@ import gprMax.config as config
 
 from ._version import __version__
 from .cython.geometry_outputs import write_lines
+from .subgrids.grid import SubGridBaseGrid
 from .utilities.utilities import (get_terminal_width,
                                   numeric_list_to_float_list,
                                   numeric_list_to_int_list)
@@ -239,40 +240,24 @@ class GeometryViewVoxels(GeometryView):
             vtk_data: dict of data and comments for VTK file.
         """
 
+        if isinstance(self.grid, SubGridBaseGrid):
+            origin = ((self.grid.i0 * self.grid.dx * self.grid.ratio),
+                      (self.grid.j0 * self.grid.dy * self.grid.ratio),
+                      (self.grid.k0 * self.grid.dz * self.grid.ratio))
+        else:
+            origin = ((self.xs * self.grid.dx),
+                      (self.ys * self.grid.dy),
+                      (self.zs * self.grid.dz))
+
         # Write the VTK file .vti
         imageToVTK(str(self.filename), 
-                   origin=((self.xs * self.grid.dx),
-                           (self.ys * self.grid.dy),
-                           (self.zs * self.grid.dz)), 
+                   origin=origin, 
                    spacing=((self.dx * self.grid.dx),
                             (self.dy * self.grid.dy),
                             (self.dz * self.grid.dz)), 
                    cellData={"Material": vtk_data['data']}, 
                    comments=[vtk_data['comments']])
 
-
-class GeometryViewSubgridVoxels(GeometryViewVoxels):
-    """Imagedata (.vti) for a per-cell geometry view for sub-grids."""
-
-    def __init__(self, *args):
-        # For sub-grid we are only going to export the entire grid. temporary fix.
-        xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, grid = args
-        xs, ys, zs = 0, 0, 0
-        xf, yf, zf = grid.nx, grid.ny, grid.nz
-        dx, dy, dz = 1, 1, 1
-        args = xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, grid
-        super().__init__(*args)
-    """
-    def get_coordinates(self, solid):
-        # (length is number of vertices in each direction) * (size of each block [m]) + (starting offset) + grid offset
-        x = np.arange(
-            0, solid.shape[0] + 1) * (self.grid.dx * self.dx) + ((self.xs - self.grid.n_boundary_cells_x) * self.grid.dx)# + self.grid.x1
-        y = np.arange(
-            0, solid.shape[1] + 1) * (self.grid.dy * self.dy) + ((self.ys - self.grid.n_boundary_cells_y) * self.grid.dy)# + self.grid.y1
-        z = np.arange(
-            0, solid.shape[2] + 1) * (self.grid.dz * self.dz) + ((self.zs - self.grid.n_boundary_cells_z) * self.grid.dz)# + self.grid.z1
-        return x, y, z
-    """
 
 class Comments():
     """Comments can be strings included in the header of XML VTK file, and are

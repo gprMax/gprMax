@@ -1439,15 +1439,12 @@ class GeometryView(UserObjectMulti):
         self.hash = '#geometry_view'
 
     def geometry_view_constructor(self, grid, output_type):
-        """Selects appropriate class for geometry view dependent on grid type 
-            and geometry view type, i.e. normal or fine.
+        """Selects appropriate class for geometry view dependent on geometry 
+            view type, i.e. normal or fine.
         """
 
         if output_type == 'n':
-            if isinstance(grid, SubGridBaseGrid):
-                from .geometry_outputs import GeometryViewSubgridVoxels as GeometryViewUser            
-            else:
-                from .geometry_outputs import GeometryViewVoxels as GeometryViewUser            
+            from .geometry_outputs import GeometryViewVoxels as GeometryViewUser            
         else:
             from .geometry_outputs import GeometryViewLines as GeometryViewUser
 
