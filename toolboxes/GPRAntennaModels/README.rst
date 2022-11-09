@@ -1,4 +1,4 @@
-User libraries is a sub-package where useful Python modules contributed by users are stored.
+Toolboxes is a sub-package where useful Python modules contributed by users are stored.
 
 ******************
 GPR Antenna Models

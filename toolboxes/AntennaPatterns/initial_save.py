@@ -8,7 +8,6 @@
 import argparse
 import logging
 import os
-import sys
 
 import gprMax.config as config
 import h5py
