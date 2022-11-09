@@ -4,35 +4,32 @@
 # To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
 
 from pathlib import Path
-import sys
 import gprMax
-import numpy as np
 
 # file path step
 fn = Path(__file__)
 parts = fn.parts
 
-# subgrid Discretisation is 1 mm in x, y, z directions. This allows us
-# to model the geometry of the antenna
+# Subgrid Discretisation in x, y, z directions.
 dl_s = 1e-3
-# subgridding ratio. This must always be an odd integer multiple. In this case
-# the main grid discrestisation is 9e-3 m.
+
+# Subgridding ratio. This must always be an odd integer multiple. 
 ratio = 5
 dl = dl_s * ratio
 
-# cells
-# default number of pml cells
+# Cells
+# Default number of PML cells
 pml_cells = 10
-# distance between model and pml cells
+# Distance between model and PML cells
 pml_gap = 15
-# number of cells between the Inner Surface and the Outer Surface of the sub-grid
+# Number of cells between the Inner Surface and the Outer Surface of the sub-grid
 is_os_gap = 4
-# size of the sub-gridded region
+# Size of the sub-gridded region
 sub_gridded_region = 3
-# domain size
+# Domain size
 extent = sub_gridded_region + 2 * (pml_cells + pml_gap + is_os_gap)
 
-# domain extent
+# Domain extent
 x = dl * extent
 y = x
 z = x
@@ -65,20 +62,20 @@ sg_p1 = [sg_x1, sg_y1, sg_z1]
 sg = gprMax.SubGridHSG(p1=sg_p0, p2=sg_p1, ratio=ratio, id='mysubgrid')
 scene.add(sg)
 
-# plastic box in sub grid
+# Plastic box in sub grid
 material = gprMax.Material(er=3, mr=1, se=0, sm=0, id='plastic')
 scene.add(material)
 plastic_box = gprMax.Box(p1=(30*dl, 30*dl, 30*dl), p2=(31*dl, 31*dl, 31*dl), material_id='plastic')
 sg.add(plastic_box)
 
-# create a geometry view of the sub grid only. This command currently exports the entire subgrid regardless of p1, p2
+# Create a geometry view of the sub grid only. This command currently exports the entire subgrid regardless of p1, p2
 gv_sg_normal = gprMax.GeometryView(p1=sg_p0,
                          p2=sg_p1,
                          dl=(1e-3, 1e-3, 1e-3),
                          filename=fn.with_suffix('').parts[-1] + '_subgrid_normal',
                          output_type='n')
 
-# add the subgrid geometry view to the sub grid object 
+# Add the subgrid geometry view to the sub grid object 
 sg.add(gv_sg_normal)
 
 gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn, subgrid=True, autotranslate=True)

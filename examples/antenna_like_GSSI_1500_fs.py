@@ -45,4 +45,4 @@ scene.add(gv1)
 scene.add(gv2)
 
 # Run model
-gprMax.run(scenes=[scene], geometry_only=True, outputfile=fn, gpu=[0])
+gprMax.run(scenes=[scene], geometry_only=True, outputfile=fn, gpu=None)
