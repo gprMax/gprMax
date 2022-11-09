@@ -44,7 +44,7 @@ class SubGridBase(FDTDGrid):
         # Number of subgrid grid cells between the IS and OS
         self.s_is_os_sep = self.is_os_sep * self.ratio
 
-        # Distance from OS to pml or the edge of the grid when pml is off
+        # Distance from OS to PML or the edge of the grid when PML is off
         self.pml_separation = kwargs['pml_separation']
 
         self.pmlthickness['x0'] = kwargs['subgrid_pml_thickness']
@@ -56,7 +56,7 @@ class SubGridBase(FDTDGrid):
 
         # Number of sub cells to extend the sub grid beyond the IS boundary
         d_to_pml = self.s_is_os_sep + self.pml_separation
-        # Index of the is
+        # Index of the IS
         self.n_boundary_cells = d_to_pml + self.pmlthickness['x0']
         self.n_boundary_cells_x = d_to_pml + self.pmlthickness['x0']
         self.n_boundary_cells_y = d_to_pml + self.pmlthickness['y0']
