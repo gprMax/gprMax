@@ -19,8 +19,10 @@
 import decimal as d
 from collections import OrderedDict
 
-import gprMax.config as config
 import numpy as np
+
+import gprMax.config as config
+
 from .pml import PML
 from .utilities.utilities import fft_power, round_value
 
