@@ -39,7 +39,7 @@ from .geometry_outputs import save_geometry_views
 from .grid import dispersion_analysis
 from .hash_cmds_file import parse_hash_commands
 from .materials import process_materials
-from .pml import build_pml, print_pml_info
+from .pml import build_pml, print_pml_info, set_pml_defaults
 from .scene import Scene
 from .utilities.host_info import mem_check_all, set_omp_threads
 from .utilities.utilities import get_terminal_width, human_size
@@ -137,10 +137,12 @@ class ModelBuildRun:
         # Combine available grids
         grids = [G] + G.subgrids
 
-        # Check for dispersive materials and specific type
+        # Check for dispersive materials (and specific type) and set PML 
+        # defaults (must be done before memory checks)
         for grid in grids:
             if config.get_model_config().materials['maxpoles'] != 0:
                 config.get_model_config().materials['drudelorentz'] = any([m for m in grid.materials if 'drude' in m.type or 'lorentz' in m.type])
+            set_pml_defaults(grid)
 
         # Set data type if any dispersive materials (must be done before memory checks)
         if config.get_model_config().materials['maxpoles'] != 0:
@@ -156,7 +158,7 @@ class ModelBuildRun:
         gridbuilders = [GridBuilder(grid) for grid in grids]
         for gb in gridbuilders:
             logger.info(print_pml_info(gb.grid))
-            if not all(value == 0 for value in gb.grid.pmlthickness.values()):
+            if not all(value == 0 for value in gb.grid.pmls['thickness'].values()):
                 gb.build_pmls()
             gb.build_components()
             gb.tm_grid_update()
@@ -327,11 +329,11 @@ class GridBuilder:
         self.grid = grid
 
     def build_pmls(self):
-        pbar = tqdm(total=sum(1 for value in self.grid.pmlthickness.values() if value > 0),
+        pbar = tqdm(total=sum(1 for value in self.grid.pmls['thickness'].values() if value > 0),
                     desc=f'Building PML boundaries [{self.grid.name}]',
                     ncols=get_terminal_width() - 1, file=sys.stdout,
                     disable=not config.sim_config.general['progressbars'])
-        for pml_id, thickness in self.grid.pmlthickness.items():
+        for pml_id, thickness in self.grid.pmls['thickness'].items():
             if thickness > 0:
                 build_pml(self.grid, pml_id, thickness)
                 pbar.update()

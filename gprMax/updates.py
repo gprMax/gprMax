@@ -82,7 +82,7 @@ class CPUUpdates:
 
     def update_magnetic_pml(self):
         """Update magnetic field components with the PML correction."""
-        for pml in self.grid.pmls:
+        for pml in self.grid.pmls['slabs']:
             pml.update_magnetic()
 
     def update_magnetic_sources(self):
@@ -136,7 +136,7 @@ class CPUUpdates:
 
     def update_electric_pml(self):
         """Update electric field components with the PML correction."""
-        for pml in self.grid.pmls:
+        for pml in self.grid.pmls['slabs']:
             pml.update_electric()
 
     def update_electric_sources(self):
@@ -270,7 +270,7 @@ class CUDAUpdates:
         # Initialise arrays on GPU, prepare kernels, and get kernel functions
         self._set_macros()
         self._set_field_knls()
-        if self.grid.pmls:
+        if self.grid.pmls['slabs']:
             self._set_pml_knls()
         if self.grid.rxs:
             self._set_rx_knl()
@@ -394,7 +394,7 @@ class CUDAUpdates:
         knl_pml_updates_magnetic = import_module('gprMax.cuda_opencl.knl_pml_updates_magnetic_' + self.grid.pmlformulation)
 
         # Initialise arrays on GPU, set block per grid, and get kernel functions
-        for pml in self.grid.pmls:
+        for pml in self.grid.pmls['slabs']:
             pml.htod_field_arrays()
             pml.set_blocks_per_grid()
             knl_name = 'order' + str(len(pml.CFS)) + '_' + pml.direction
@@ -570,7 +570,7 @@ class CUDAUpdates:
 
     def update_magnetic_pml(self):
         """Update magnetic field components with the PML correction."""
-        for pml in self.grid.pmls:
+        for pml in self.grid.pmls['slabs']:
             pml.update_magnetic()
 
     def update_magnetic_sources(self):
@@ -631,7 +631,7 @@ class CUDAUpdates:
 
     def update_electric_pml(self):
         """Update electric field components with the PML correction."""
-        for pml in self.grid.pmls:
+        for pml in self.grid.pmls['slabs']:
             pml.update_electric()
 
     def update_electric_sources(self):
@@ -776,7 +776,7 @@ class OpenCLUpdates:
 
         # Initialise arrays on device, prepare kernels, and get kernel functions
         self._set_field_knls()
-        if self.grid.pmls:
+        if self.grid.pmls['slabs']:
             self._set_pml_knls()
         if self.grid.rxs:
             self._set_rx_knl()
@@ -895,7 +895,7 @@ class OpenCLUpdates:
 
         # Set workgroup size, initialise arrays on compute device, and get 
         # kernel functions
-        for pml in self.grid.pmls:
+        for pml in self.grid.pmls['slabs']:
             pml.set_queue(self.queue)
             pml.htod_field_arrays()
             knl_name = 'order' + str(len(pml.CFS)) + '_' + pml.direction
@@ -1040,7 +1040,7 @@ class OpenCLUpdates:
 
     def update_magnetic_pml(self):
         """Update magnetic field components with the PML correction."""
-        for pml in self.grid.pmls:
+        for pml in self.grid.pmls['slabs']:
             pml.update_magnetic()
 
     def update_magnetic_sources(self):
@@ -1098,7 +1098,7 @@ class OpenCLUpdates:
 
     def update_electric_pml(self):
         """Update electric field components with the PML correction."""
-        for pml in self.grid.pmls:
+        for pml in self.grid.pmls['slabs']:
             pml.update_electric()
 
     def update_electric_sources(self):

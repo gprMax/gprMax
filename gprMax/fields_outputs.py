@@ -150,7 +150,7 @@ def write_grid(basegrp, G, is_subgrid=False):
         # Write additional meta data about subgrid
         basegrp.attrs['is_os_sep'] = G.is_os_sep
         basegrp.attrs['pml_separation'] = G.pml_separation
-        basegrp.attrs['subgrid_pml_thickness'] = G.pmlthickness['x0']
+        basegrp.attrs['subgrid_pml_thickness'] = G.pml['thickness']['x0']
         basegrp.attrs['filter'] = G.filter
         basegrp.attrs['ratio'] = G.ratio
         basegrp.attrs['interpolation'] = G.interpolation

@@ -50,16 +50,17 @@ class FDTDGrid:
         self.iterations = 0
         self.timewindow = 0
 
+        self.pmls = {}
+        self.pmls['formulation'] = None
+        self.pmls['cfs'] = []
+        self.pmls['slabs'] = []
         # Ordered dictionary required so that PMLs are always updated in the
         # same order. The order itself does not matter, however, if must be the
         # same from model to model otherwise the numerical precision from adding
         # the PML corrections will be different.
-        self.pmlthickness = OrderedDict((key, 10) for key in PML.boundaryIDs)
-        # Default PML CFS parameters will be used if none are provided by user.
-        self.cfs = []
-        self.pmls = []
-        self.pmlformulation = 'HORIPML'
-
+        self.pmls['thickness'] = OrderedDict((key, None) for key in PML.boundaryIDs)
+        
+        
         self.materials = []
         self.mixingmodels = []
         self.averagevolumeobjects = True
@@ -112,12 +113,12 @@ class FDTDGrid:
         return p_r
 
     def within_pml(self, p):
-        if (p[0] < self.pmlthickness['x0'] or
-            p[0] > self.nx - self.pmlthickness['xmax'] or
-            p[1] < self.pmlthickness['y0'] or
-            p[1] > self.ny - self.pmlthickness['ymax'] or
-            p[2] < self.pmlthickness['z0'] or
-            p[2] > self.nz - self.pmlthickness['zmax']):
+        if (p[0] < self.pmls['thickness']['x0'] or
+            p[0] > self.nx - self.pmls['thickness']['xmax'] or
+            p[1] < self.pmls['thickness']['y0'] or
+            p[1] > self.ny - self.pmls['thickness']['ymax'] or
+            p[2] < self.pmls['thickness']['z0'] or
+            p[2] > self.nz - self.pmls['thickness']['zmax']):
             return True
         else:
             return False
@@ -185,7 +186,7 @@ class FDTDGrid:
             self.initialise_dispersive_arrays()
 
         # Clear arrays for fields in PML
-        for pml in self.pmls:
+        for pml in self.pmls['slabs']:
             pml.initialise_field_arrays()
 
     def mem_est_basic(self):
@@ -206,7 +207,7 @@ class FDTDGrid:
 
         # PML arrays
         pmlarrays = 0
-        for (k, v) in self.pmlthickness.items():
+        for (k, v) in self.pmls['thickness'].items():
             if v > 0:
                 if 'x' in k:
                     pmlarrays += ((v + 1) * self.ny * (self.nz + 1))

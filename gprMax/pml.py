@@ -16,10 +16,12 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from collections import OrderedDict
 from importlib import import_module
 
-import gprMax.config as config
 import numpy as np
+
+import gprMax.config as config
 
 
 class CFSParameter:
@@ -213,10 +215,7 @@ class PML:
             self.d = self.G.dz
             self.thickness = self.nz
 
-        if not self.G.cfs:
-            self.CFS = [CFS()]
-        else:
-            self.CFS = self.G.cfs
+        self.CFS = []
 
         self.initialise_field_arrays()
 
@@ -571,26 +570,43 @@ class OpenCLPML(PML):
         event.wait()
 
 
+def set_pml_defaults(G):
+    """Set default parameters for PMLs if not provided by user.
+
+    Args:
+        G: FDTDGrid class describing a grid in a model.
+    """
+
+    if not G.pmls['formulation']:
+        G.pmls['formulation'] = 'HORIPML'
+
+    if not all(G.pmls['thickness'].values()):
+        G.pmls['thickness'] = OrderedDict.fromkeys(G.pmls['thickness'], 10)
+
+    if not G.pmls['cfs']:
+        G.pmls['cfs'] = [CFS()]
+
+    
 def print_pml_info(G):
-    """Information about PMLs.
+    """Prints information about PMLs.
 
     Args:
         G: FDTDGrid class describing a grid in a model.
     """
     # No PML
-    if all(value == 0 for value in G.pmlthickness.values()):
+    if all(value == 0 for value in G.pmls['thickness'].values()):
         return f'\nPML boundaries [{G.name}]: switched off'
 
-    if all(value == G.pmlthickness['x0'] for value in G.pmlthickness.values()):
-        pmlinfo = str(G.pmlthickness['x0'])
+    if all(value == G.pmls['thickness']['x0'] for value in G.pmls['thickness'].values()):
+        pmlinfo = str(G.pmls['thickness']['x0'])
     else:
         pmlinfo = ''
-        for key, value in G.pmlthickness.items():
+        for key, value in G.pmls['thickness'].items():
             pmlinfo += f'{key}: {value}, '
         pmlinfo = pmlinfo[:-2]
 
-    return (f'\nPML boundaries [{G.name}]: {{formulation: {G.pmlformulation}, '
-            f'order: {len(G.cfs)}, thickness (cells): {pmlinfo}}}')
+    return (f"\nPML boundaries [{G.name}]: {{formulation: {G.pmls['formulation']}, "
+            f"order: {len(G.pmls['cfs'])}, thickness (cells): {pmlinfo}}}")
 
 
 def build_pml(G, key, value):
@@ -621,7 +637,7 @@ def build_pml(G, key, value):
         elif key == 'xmax':
             pml = pml_type(G, ID=key, direction='xplus', 
                            xs=G.nx - value, xf=G.nx, yf=G.ny, zf=G.nz)
-        G.pmls.append(pml)
+        G.pmls['slabs'].append(pml)
         for j in range(G.ny):
             for k in range(G.nz):
                 numID = G.solid[pml.xs, j, k]
@@ -638,7 +654,7 @@ def build_pml(G, key, value):
         elif key == 'ymax':
             pml = pml_type(G, ID=key, direction='yplus', 
                            ys=G.ny - value, xf=G.nx, yf=G.ny, zf=G.nz)
-        G.pmls.append(pml)
+        G.pmls['slabs'].append(pml)
         for i in range(G.nx):
             for k in range(G.nz):
                 numID = G.solid[i, pml.ys, k]
@@ -655,7 +671,7 @@ def build_pml(G, key, value):
         elif key == 'zmax':
             pml = pml_type(G, ID=key, direction='zplus', 
                            zs=G.nz - value, xf=G.nx, yf=G.ny, zf=G.nz)
-        G.pmls.append(pml)
+        G.pmls['slabs'].append(pml)
         for i in range(G.nx):
             for j in range(G.ny):
                 numID = G.solid[i, j, pml.zs]

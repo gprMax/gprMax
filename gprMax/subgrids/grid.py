@@ -47,19 +47,19 @@ class SubGridBaseGrid(FDTDGrid):
         # Distance from OS to PML or the edge of the grid when PML is off
         self.pml_separation = kwargs['pml_separation']
 
-        self.pmlthickness['x0'] = kwargs['subgrid_pml_thickness']
-        self.pmlthickness['y0'] = kwargs['subgrid_pml_thickness']
-        self.pmlthickness['z0'] = kwargs['subgrid_pml_thickness']
-        self.pmlthickness['xmax'] = kwargs['subgrid_pml_thickness']
-        self.pmlthickness['ymax'] = kwargs['subgrid_pml_thickness']
-        self.pmlthickness['zmax'] = kwargs['subgrid_pml_thickness']
+        self.pmls['thickness']['x0'] = kwargs['subgrid_pml_thickness']
+        self.pmls['thickness']['y0'] = kwargs['subgrid_pml_thickness']
+        self.pmls['thickness']['z0'] = kwargs['subgrid_pml_thickness']
+        self.pmls['thickness']['xmax'] = kwargs['subgrid_pml_thickness']
+        self.pmls['thickness']['ymax'] = kwargs['subgrid_pml_thickness']
+        self.pmls['thickness']['zmax'] = kwargs['subgrid_pml_thickness']
 
         # Number of sub cells to extend the sub grid beyond the IS boundary
         d_to_pml = self.s_is_os_sep + self.pml_separation
         # Index of the IS
-        self.n_boundary_cells = d_to_pml + self.pmlthickness['x0']
-        self.n_boundary_cells_x = d_to_pml + self.pmlthickness['x0']
-        self.n_boundary_cells_y = d_to_pml + self.pmlthickness['y0']
-        self.n_boundary_cells_z = d_to_pml + self.pmlthickness['z0']
+        self.n_boundary_cells = d_to_pml + self.pmls['thickness']['x0']
+        self.n_boundary_cells_x = d_to_pml + self.pmls['thickness']['x0']
+        self.n_boundary_cells_y = d_to_pml + self.pmls['thickness']['y0']
+        self.n_boundary_cells_z = d_to_pml + self.pmls['thickness']['z0']
 
         self.interpolation = kwargs['interpolation']

@@ -106,16 +106,16 @@ class Domain(UserObjectSingle):
         # Calculate time step at CFL limit; switch off appropriate PMLs for 2D
         if G.nx == 1:
             config.get_model_config().mode = '2D TMx'
-            G.pmlthickness['x0'] = 0
-            G.pmlthickness['xmax'] = 0
+            G.pmls['thickness']['x0'] = 0
+            G.pmls['thickness']['xmax'] = 0
         elif G.ny == 1:
             config.get_model_config().mode = '2D TMy'
-            G.pmlthickness['y0'] = 0
-            G.pmlthickness['ymax'] = 0
+            G.pmls['thickness']['y0'] = 0
+            G.pmls['thickness']['ymax'] = 0
         elif G.nz == 1:
             config.get_model_config().mode = '2D TMz'
-            G.pmlthickness['z0'] = 0
-            G.pmlthickness['zmax'] = 0
+            G.pmls['thickness']['z0'] = 0
+            G.pmls['thickness']['zmax'] = 0
         else:
             config.get_model_config().mode = '3D'
         G.calculate_dt()
@@ -261,11 +261,15 @@ class TimeStepStabilityFactor(UserObjectSingle):
         logger.info(f'Time step (modified): {G.dt:g} secs')
 
 
-class PMLFormulation(UserObjectSingle):
-    """Specifies the formulation (type) of the PML to be used.
+class PMLProps(UserObjectSingle):
+    """Specifies the formulation used, and controls the number of cells 
+        (thickness) of PML that are used on the six sides of the model domain.
 
     Attributes:
-        pml: string specifying formulation of PML.
+        formulation: string specifying formulation to be used for all PMLs.
+        thickness or x0, y0, z0, xmax, ymax, zmax: ints for thickness of PML 
+                                                    on all 6 sides or individual 
+                                                    sides of the model domain.
     """
 
     def __init__(self, **kwargs):
@@ -274,58 +278,40 @@ class PMLFormulation(UserObjectSingle):
 
     def create(self, G, uip):
         try:
-            pml = self.kwargs['pml']
+            formulation = self.kwargs['formulation']
         except KeyError:
-            logger.exception(self.__str__() + ' requires exactly one parameter ' +
-                             'to specify the formulation of PML to use')
+            logger.exception(self.__str__() + ' requires the formulation of PML to use')
             raise
-        if pml not in PML.formulations:
+        if formulation not in PML.formulations:
             logger.exception(self.__str__() + f" requires the value to be one " +
                              f"of {' '.join(PML.formulations)}")
             raise ValueError
 
-        G.pmlformulation = pml
+        G.pmls['formulation'] = formulation
 
-
-class PMLCells(UserObjectSingle):
-    """Controls the number of cells (thickness) of PML that are used on the six 
-        sides of the model domain. Specify either single thickness or thickness 
-        on each side.
-
-    Attributes:
-        thickness: int for thickness of PML on all 6 sides.
-        x0, y0, z0, xmax, ymax, zmax: ints of thickness of PML on individual 
-                                        sides of the model domain.
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 9
-
-    def create(self, G, uip):
         try:
             thickness = self.kwargs['thickness']
-            for key in G.pmlthickness.keys():
-                G.pmlthickness[key] = int(thickness)
+            for key in G.pmls['thickness'].keys():
+                G.pmls['thickness'][key] = int(thickness)
 
         except KeyError:
             try:
-                G.pmlthickness['x0'] = int(self.kwargs['x0'])
-                G.pmlthickness['y0'] = int(self.kwargs['y0'])
-                G.pmlthickness['z0'] = int(self.kwargs['z0'])
-                G.pmlthickness['xmax'] = int(self.kwargs['xmax'])
-                G.pmlthickness['ymax'] = int(self.kwargs['ymax'])
-                G.pmlthickness['zmax'] = int(self.kwargs['zmax'])
+                G.pmls['thickness']['x0'] = int(self.kwargs['x0'])
+                G.pmls['thickness']['y0'] = int(self.kwargs['y0'])
+                G.pmls['thickness']['z0'] = int(self.kwargs['z0'])
+                G.pmls['thickness']['xmax'] = int(self.kwargs['xmax'])
+                G.pmls['thickness']['ymax'] = int(self.kwargs['ymax'])
+                G.pmls['thickness']['zmax'] = int(self.kwargs['zmax'])
             except KeyError:
                 logger.exception(self.__str__() + ' requires either one or six parameter(s)')
                 raise
 
-        if (2 * G.pmlthickness['x0'] >= G.nx or
-            2 * G.pmlthickness['y0'] >= G.ny or
-            2 * G.pmlthickness['z0'] >= G.nz or
-            2 * G.pmlthickness['xmax'] >= G.nx or
-            2 * G.pmlthickness['ymax'] >= G.ny or
-            2 * G.pmlthickness['zmax'] >= G.nz):
+        if (2 * G.pmls['thickness']['x0'] >= G.nx or
+            2 * G.pmls['thickness']['y0'] >= G.ny or
+            2 * G.pmls['thickness']['z0'] >= G.nz or
+            2 * G.pmls['thickness']['xmax'] >= G.nx or
+            2 * G.pmls['thickness']['ymax'] >= G.ny or
+            2 * G.pmls['thickness']['zmax'] >= G.nz):
                 logger.exception(self.__str__() + ' has too many cells for the domain size')
                 raise ValueError
 
@@ -339,7 +325,7 @@ class SrcSteps(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 10
+        self.order = 9
 
     def create(self, G, uip):
         try:
@@ -362,7 +348,7 @@ class RxSteps(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 11
+        self.order = 10
 
     def create(self, G, uip):
         try:
@@ -389,7 +375,7 @@ class ExcitationFile(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 12
+        self.order = 11
 
     def create(self, G, uip):
         try:
@@ -473,7 +459,7 @@ class OutputDir(UserObjectSingle):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 13
+        self.order = 12
 
     def create(self, grid, uip):
         config.get_model_config().set_output_file_path(self.kwargs['dir'])
@@ -488,7 +474,7 @@ class NumberOfModelRuns(UserObjectSingle):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 14
+        self.order = 13
 
     def create(self, grid, uip):
         try:

@@ -16,13 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-
-# TODO
-# subgrids geometry export
-# user specifies subgrid in main grid coordinates
-# if grid.pmlthickness['x0'] - self.geoview.vtk_xscells > 0:
-#   if dx not 1 this above will break - fix
-
 import json
 import logging
 import sys
@@ -288,7 +281,7 @@ class Comments():
         # Write information on PMLs, sources, and receivers
         if not self.materials_only:
             # Information on PML thickness
-            if self.grid.pmls:
+            if self.grid.pmls['slabs']:
                 comments['PMLthickness'] = self.pml_gv_comment()
             srcs = self.grid.get_srcs()
             if srcs:
@@ -303,21 +296,21 @@ class Comments():
         grid = self.grid
 
         # Only render PMLs if they are in the geometry view
-        pmlstorender = dict.fromkeys(grid.pmlthickness, 0)
+        pmlstorender = dict.fromkeys(grid.pmls['thickness'], 0)
 
         # Casting to int required as json does not handle numpy types
-        if grid.pmlthickness['x0'] - self.gv.xs > 0:
-            pmlstorender['x0'] = int(grid.pmlthickness['x0'] - self.gv.xs)
-        if grid.pmlthickness['y0'] - self.gv.ys > 0:
-            pmlstorender['y0'] = int(grid.pmlthickness['y0'] - self.gv.ys)
-        if grid.pmlthickness['z0'] - self.gv.zs > 0:
-            pmlstorender['z0'] = int(grid.pmlthickness['z0'] - self.gv.zs)
-        if self.gv.xf > grid.nx - grid.pmlthickness['xmax']:
-            pmlstorender['xmax'] = int(self.gv.xf - (grid.nx - grid.pmlthickness['xmax']))
-        if self.gv.yf > grid.ny - grid.pmlthickness['ymax']:
-            pmlstorender['ymax'] = int(self.gv.yf - (grid.ny - grid.pmlthickness['ymax']))
-        if self.gv.zf > grid.nz - grid.pmlthickness['zmax']:
-            pmlstorender['zmax'] = int(self.gv.zf - (grid.nz - grid.pmlthickness['zmax']))
+        if grid.pmls['thickness']['x0'] - self.gv.xs > 0:
+            pmlstorender['x0'] = int(grid.pmls['thickness']['x0'] - self.gv.xs)
+        if grid.pmls['thickness']['y0'] - self.gv.ys > 0:
+            pmlstorender['y0'] = int(grid.pmls['thickness']['y0'] - self.gv.ys)
+        if grid.pmls['thickness']['z0'] - self.gv.zs > 0:
+            pmlstorender['z0'] = int(grid.pmls['thickness']['z0'] - self.gv.zs)
+        if self.gv.xf > grid.nx - grid.pmls['thickness']['xmax']:
+            pmlstorender['xmax'] = int(self.gv.xf - (grid.nx - grid.pmls['thickness']['xmax']))
+        if self.gv.yf > grid.ny - grid.pmls['thickness']['ymax']:
+            pmlstorender['ymax'] = int(self.gv.yf - (grid.ny - grid.pmls['thickness']['ymax']))
+        if self.gv.zf > grid.nz - grid.pmls['thickness']['zmax']:
+            pmlstorender['zmax'] = int(self.gv.zf - (grid.nz - grid.pmls['thickness']['zmax']))
 
         return list(pmlstorender.values())
 

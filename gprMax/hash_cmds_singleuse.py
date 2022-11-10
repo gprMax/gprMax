@@ -19,7 +19,7 @@
 import logging
 
 from .cmds_singleuse import (Discretisation, Domain, ExcitationFile,
-                             OMPThreads, OutputDir, PMLCells, RxSteps,
+                             OMPThreads, OutputDir, PMLProps, RxSteps,
                              SrcSteps, TimeStepStabilityFactor, TimeWindow,
                              Title)
 
@@ -117,9 +117,9 @@ def process_singlecmds(singlecmds):
             logger.exception(cmd + ' requires either one or six parameter(s)')
             raise ValueError
         if len(tmp) == 1:
-            pml_cells = PMLCells(thickness=int(tmp[0]))
+            pml_cells = PMLProps(thickness=int(tmp[0]))
         else:
-            pml_cells = PMLCells(x0=int(tmp[0]),
+            pml_cells = PMLProps(x0=int(tmp[0]),
                                  y0=int(tmp[1]),
                                  z0=int(tmp[2]),
                                  xmax=int(tmp[3]),
