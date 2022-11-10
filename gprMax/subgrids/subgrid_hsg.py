@@ -139,21 +139,33 @@ class SubGridHSG(SubGridBaseGrid):
         cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 1, i_l, i_u + 1, j_l, j_u, k_l - 1, k_u, self.nwz, main_grid.IDlookup['Hx'], main_grid.Hx, self.Ey, 3, 1, -1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
 
     def print_info(self):
-        """Prints information about the subgrid."""
+        """Prints information about the subgrid.
+
+            Total region = working region + 
+                            2 * (is_os_sep * pml_separation * pml_thickness)
+            is_os_sep: number of main grid cells between the Inner Surface and 
+                        the Outer Surface. Defaults to 3. Multiply by ratio to 
+                        get subgrid cells.
+            pml_separation: number of subgrid cells between the Outer Surface 
+                            and the PML. Defaults to ratio // 2 + 2.
+            pml_thickness: number of PML cells on each of the 6 sides of the 
+                            subgrid. Defaults to 6.
+        """
         
+        xs, ys, zs = self.round_to_grid((self.i0 * self.dx * self.ratio,
+                                         self.j0 * self.dy * self.ratio,
+                                         self.k0 * self.dz * self.ratio))
+        xf, yf, zf = self.round_to_grid((self.i1 * self.dx * self.ratio,
+                                         self.j1 * self.dy * self.ratio,
+                                         self.k1 * self.dz * self.ratio))
+
         logger.info('')
         logger.info(f'[{self.name}] Type: {self.gridtype}')
         logger.info(f'[{self.name}] Ratio: 1:{self.ratio}')
-        logger.info(f'[{self.name}] Spatial discretisation: {self.dx:g} x {self.dy:g} x {self.dz:g}m')
-        logger.info(f'[{self.name}] Extent: {self.i0 * self.dx * self.ratio}m, {self.j0 * self.dy * self.ratio}m, {self.k0 * self.dz * self.ratio}m to {self.i1 * self.dx * self.ratio}m, {self.j1 * self.dy * self.ratio}m, {self.k1 * self.dz * self.ratio}m')
-        logger.debug(f'[{self.name}] Working region: {self.nwx} x {self.nwy} x {self.nwz} cells')
-        logger.debug(f'[{self.name}] Total region: {self.nx:d} x {self.ny:d} x {self.nz:d} = {(self.nx * self.ny * self.nz):g} cells')
-        # Total region = working region + 2 * (is_os_sep * pml_separation * pml_thickness)
-        # is_os_sep - number of main grid cells between the Inner Surface and 
-        #               the Outer Surface. Defaults to 3. Multiply by ratio to 
-        #               get sub-grid cells.
-        # pml_separation - number of sub-grid cells between the Outer Surface 
-        #                   and the PML. Defaults to ratio // 2 + 2.
-        # pml_thickness - number of PML cells on each of the 6 sides of the 
-        #                   sub-grid. Defaults to 6.
+        logger.info(f'[{self.name}] Spatial discretisation: {self.dx:g} x ' +
+                    f'{self.dy:g} x {self.dz:g}m')
+        logger.info(f'[{self.name}] Extent: {xs}m, {ys}m, {zs}m to {xf}m, {yf}m, {zf}m')
+        logger.info(f'[{self.name}] Working region: {self.nwx} x {self.nwy} x {self.nwz} cells')
+        logger.info(f'[{self.name}] Total region: {self.nx:d} x {self.ny:d} x {self.nz:d} = ' +
+                     f'{(self.nx * self.ny * self.nz):g} cells')
         logger.info(f'[{self.name}] Time step (at CFL limit): {self.dt:g} secs')

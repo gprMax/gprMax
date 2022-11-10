@@ -157,6 +157,12 @@ class GeometryViewLines(GeometryView):
                                      (self.dy * self.grid.dy),
                                      (self.dz * self.grid.dz), ID)
 
+        # Add offset to subgrid geometry to correctly locate within main grid
+        if isinstance(self.grid, SubGridBaseGrid):
+            x += (self.grid.i0 * self.grid.dx * self.grid.ratio)
+            y += (self.grid.j0 * self.grid.dy * self.grid.ratio)
+            z += (self.grid.k0 * self.grid.dz * self.grid.ratio)
+
         # Write information about any PMLs, sources, receivers
         comments = Comments(self.grid, self)
         comments.averaged_materials = True
