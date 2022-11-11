@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+from cython.parallel import prange
+
 from gprMax.config cimport float_or_double
 
 
@@ -23,6 +25,7 @@ cpdef void calculate_snapshot_fields(
     int nx,
     int ny,
     int nz,
+    int nthreads,
     float_or_double[:, :, ::1] sliceEx,
     float_or_double[:, :, ::1] sliceEy,
     float_or_double[:, :, ::1] sliceEz,
@@ -41,13 +44,14 @@ cpdef void calculate_snapshot_fields(
 
     Args:
         nx, ny, nz: ints for size of snapshot array.
+        nthreads: int for number of threads to use.
         slice: memoryviews to access slices of field arrays.
         snap: memoryviews to access snapshot arrays.
     """
 
     cdef Py_ssize_t i, j, k
 
-    for i in range(nx):
+    for i in prange(0, nx, nogil=True, schedule='static', num_threads=nthreads):
         for j in range(ny):
             for k in range(nz):
                 # The electric field component value at a point comes from the
