@@ -334,11 +334,9 @@ def mem_check_all(grids):
         # Additional memory required if there are any snapshots
         if grid.snapshots:
             for snap in grid.snapshots:
-                # 2 x required to account for electric and magnetic fields
-                snap_mem = int(2 * snap.datasizefield)
-                config.get_model_config().mem_use += snap_mem
-                total_snaps_mem += snap_mem
-                grid.mem_use += snap_mem
+                config.get_model_config().mem_use += snap.nbytes
+                total_snaps_mem += snap.nbytes
+                grid.mem_use += snap.nbytes
 
         mem_strs.append(f'~{human_size(grid.mem_use)} [{grid.name}]')
 

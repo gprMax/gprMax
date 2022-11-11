@@ -26,18 +26,24 @@ cpdef void calculate_snapshot_fields(
     int ny,
     int nz,
     int nthreads,
-    float_or_double[:, :, ::1] sliceEx,
-    float_or_double[:, :, ::1] sliceEy,
-    float_or_double[:, :, ::1] sliceEz,
-    float_or_double[:, :, ::1] sliceHx,
-    float_or_double[:, :, ::1] sliceHy,
-    float_or_double[:, :, ::1] sliceHz,
-    float_or_double[:, :, ::1] snapEx,
-    float_or_double[:, :, ::1] snapEy,
-    float_or_double[:, :, ::1] snapEz,
-    float_or_double[:, :, ::1] snapHx,
-    float_or_double[:, :, ::1] snapHy,
-    float_or_double[:, :, ::1] snapHz
+    bint Ex,
+    bint Ey,
+    bint Ez,
+    bint Hx,
+    bint Hy,
+    bint Hz,
+    float_or_double[:, :, ::1] Exslice,
+    float_or_double[:, :, ::1] Eyslice,
+    float_or_double[:, :, ::1] Ezslice,
+    float_or_double[:, :, ::1] Hxslice,
+    float_or_double[:, :, ::1] Hyslice,
+    float_or_double[:, :, ::1] Hzslice,
+    float_or_double[:, :, ::1] Exsnap,
+    float_or_double[:, :, ::1] Eysnap,
+    float_or_double[:, :, ::1] Ezsnap,
+    float_or_double[:, :, ::1] Hxsnap,
+    float_or_double[:, :, ::1] Hysnap,
+    float_or_double[:, :, ::1] Hzsnap
 ):
     """Calculates electric and magnetic values at points from averaging values 
         in cells.
@@ -56,16 +62,31 @@ cpdef void calculate_snapshot_fields(
             for k in range(nz):
                 # The electric field component value at a point comes from the
                 # average of the 4 electric field component values in that cell.
-                snapEx[i, j, k] = (sliceEx[i, j, k] + sliceEx[i, j + 1, k] +
-                                    sliceEx[i, j, k + 1] + sliceEx[i, j + 1, k + 1]) / 4
-                snapEy[i, j, k] = (sliceEy[i, j, k] + sliceEy[i + 1, j, k] +
-                                    sliceEy[i, j, k + 1] + sliceEy[i + 1, j, k + 1]) / 4
-                snapEz[i, j, k] = (sliceEz[i, j, k] + sliceEz[i + 1, j, k] +
-                                    sliceEz[i, j + 1, k] + sliceEz[i + 1, j + 1, k]) / 4
+                if Ex:
+                    Exsnap[i, j, k] = (Exslice[i, j, k] + 
+                                       Exslice[i, j + 1, k] +
+                                       Exslice[i, j, k + 1] + 
+                                       Exslice[i, j + 1, k + 1]) / 4
+                if Ey:
+                    Eysnap[i, j, k] = (Eyslice[i, j, k] + 
+                                       Eyslice[i + 1, j, k] +
+                                       Eyslice[i, j, k + 1] + 
+                                       Eyslice[i + 1, j, k + 1]) / 4
+                if Ez:
+                    Ezsnap[i, j, k] = (Ezslice[i, j, k] + 
+                                       Ezslice[i + 1, j, k] +
+                                       Ezslice[i, j + 1, k] + 
+                                       Ezslice[i + 1, j + 1, k]) / 4
 
                 # The magnetic field component value at a point comes from
                 # average of 2 magnetic field component values in that cell and
                 # the neighbouring cell.
-                snapHx[i, j, k] = (sliceHx[i, j, k] + sliceHx[i + 1, j, k]) / 2
-                snapHy[i, j, k] = (sliceHy[i, j, k] + sliceHy[i, j + 1, k]) / 2
-                snapHz[i, j, k] = (sliceHz[i, j, k] + sliceHz[i, j, k + 1]) / 2
+                if Hx:
+                    Hxsnap[i, j, k] = (Hxslice[i, j, k] + 
+                                       Hxslice[i + 1, j, k]) / 2
+                if Hy:
+                    Hysnap[i, j, k] = (Hyslice[i, j, k] + 
+                                       Hyslice[i, j + 1, k]) / 2
+                if Hz:
+                    Hzsnap[i, j, k] = (Hzslice[i, j, k] + 
+                                       Hzslice[i, j, k + 1]) / 2

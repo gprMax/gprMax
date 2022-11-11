@@ -77,7 +77,7 @@ def save_geometry_views(gvs):
                     ncols=get_terminal_width() - 1, file=sys.stdout,
                     disable=not config.sim_config.general['progressbars'])
         gv.write_vtk(vtk_data)
-        pbar.update(vtk_data['nbytes'])
+        pbar.update(gv.nbytes)
         pbar.close()
 
     # Write a Paraview data file (.pvd) if there is more than one GeometryView
@@ -96,7 +96,7 @@ class GeometryView():
             xs, xf, ys, yf, zs, zf: ints for extent of geometry view in cells.
             dx, dy, dz: ints for spatial discretisation of geometry view in cells.
             filename: string for filename.
-            grid: FDTDgrid class for parameters describing a grid in a model.
+            grid: FDTDGrid class describing a grid in a model.
         """
 
         self.xs = xs
@@ -113,6 +113,7 @@ class GeometryView():
         self.dz = dz
         self.filename = filename
         self.grid = grid
+        self.nbytes = None
 
     def set_filename(self):
         """Constructs filename from user-supplied name and model run number."""
@@ -175,11 +176,10 @@ class GeometryViewLines(GeometryView):
                                  dtype = 'int32').nbytes
         connect_size = len(x) * np.dtype('int32').itemsize
         cell_type_size = len(x) * np.dtype('uint8').itemsize
-        nbytes = (x.nbytes + y.nbytes + z.nbytes + lines.nbytes + offsets_size
+        self.nbytes = (x.nbytes + y.nbytes + z.nbytes + lines.nbytes + offsets_size
                   + connect_size + cell_type_size)
         
-        vtk_data = {'x': x, 'y': y, 'z': z, 'data': lines, 'comments': comments, 
-                    'nbytes': nbytes}
+        vtk_data = {'x': x, 'y': y, 'z': z, 'data': lines, 'comments': comments}
 
         return vtk_data
 
@@ -223,17 +223,19 @@ class GeometryViewVoxels(GeometryView):
             # This array is contiguous by design
             solid = self.grid.solid
 
-        # Get information about pml, sources, receivers
+        # Write information about any PMLs, sources, receivers
         comments = Comments(self.grid, self)
         info = comments.get_gprmax_info()
         comments = json.dumps(info)
 
-        vtk_data = {'data': solid, 'comments': comments, 'nbytes': solid.nbytes}
+        self.nbytes = solid.nbytes
+
+        vtk_data = {'data': solid, 'comments': comments}
 
         return vtk_data
 
     def write_vtk(self, vtk_data):
-        """Write geometry information to a VTK file.
+        """Writes geometry information to a VTK file.
         
         Args:
             vtk_data: dict of data and comments for VTK file.
@@ -378,23 +380,28 @@ class GeometryObjects:
         self.filename_materials = self.filename_materials.with_suffix('.txt')
 
         # Sizes of arrays to write necessary to update progress bar
-        self.solidsize = (self.nx + 1) * (self.ny + 1) * \
-            (self.nz + 1) * np.dtype(np.uint32).itemsize
-        self.rigidsize = 18 * (self.nx + 1) * (self.ny + 1) * \
-            (self.nz + 1) * np.dtype(np.int8).itemsize
-        self.IDsize = 6 * (self.nx + 1) * (self.ny + 1) * \
-            (self.nz + 1) * np.dtype(np.uint32).itemsize
+        self.solidsize = ((self.nx + 1) * 
+                          (self.ny + 1) *
+                          (self.nz + 1) * 
+                          np.dtype(np.uint32).itemsize)
+        self.rigidsize = (18 * (self.nx + 1) * 
+                               (self.ny + 1) *
+                               (self.nz + 1) * 
+                          np.dtype(np.int8).itemsize)
+        self.IDsize = (6 * (self.nx + 1) * 
+                           (self.ny + 1) *
+                           (self.nz + 1) * 
+                       np.dtype(np.uint32).itemsize)
         self.datawritesize = self.solidsize + self.rigidsize + self.IDsize
 
     def write_hdf5(self, G, pbar):
-        """Write a geometry objects file in HDF5 format.
+        """Writes a geometry objects file in HDF5 format.
 
         Args:
             G: FDTDGrid class describing a grid in a model.
             pbar: Progress bar class instance.
         """
 
-        # Write the geometry objects to a HDF5 file
         with h5py.File(self.filename_hdf5, 'w') as fdata:
             fdata.attrs['gprMax'] = __version__
             fdata.attrs['Title'] = G.title

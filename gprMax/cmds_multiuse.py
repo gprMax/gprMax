@@ -1020,20 +1020,21 @@ class Snapshot(UserObjectMulti):
             fileext = SnapshotUser.fileexts[0]
 
         try:
-            outputs = self.kwargs['outputs']
+            tmp = self.kwargs['outputs']
+            outputs = dict.fromkeys(SnapshotUser.allowableoutputs, False)
+            # Check and set output names
+            for output in tmp:
+                if output not in SnapshotUser.allowableoutputs.keys():
+                    logger.exception(self.params_str() + " contains an "
+                                        "output type that is not allowable. "
+                                        "Allowable outputs in current context are "
+                                        f"{', '.join(SnapshotUser.allowableoutputs.keys())}.")
+                    raise ValueError
+                else:
+                    outputs[output] = True
         except KeyError:
             # If outputs are not specified, use default
-            outputs = SnapshotUser.allowableoutputs
-
-        outputs.sort()
-        # Check and add field output names
-        for output in outputs:
-            if output not in SnapshotUser.allowableoutputs:
-                logger.exception(self.params_str() + ' contains an '
-                                    'output type that is not allowable. '
-                                    'Allowable outputs in current context are '
-                                    f'{SnapshotUser.allowableoutputs}.')
-                raise ValueError
+            outputs = dict.fromkeys(SnapshotUser.allowableoutputs, True)
 
         if dx < 0 or dy < 0 or dz < 0:
             logger.exception(self.params_str() + ' the step size should not '
@@ -1054,8 +1055,8 @@ class Snapshot(UserObjectMulti):
                     f"{p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, discretisation "
                     f"{dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, "
                     f"at {s.time * grid.dt:g} secs with field outputs "
-                    f"{', '.join(outputs)} and filename {s.filename}{s.fileext} "
-                    f"will be created.")
+                    f"{', '.join([k for k, v in outputs.items() if v])} and "
+                    f"filename {s.filename}{s.fileext} will be created.")
 
         grid.snapshots.append(s)
 

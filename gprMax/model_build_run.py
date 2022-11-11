@@ -20,7 +20,6 @@ import datetime
 import itertools
 import logging
 import sys
-from pathlib import Path
 
 import numpy as np
 import psutil
@@ -41,6 +40,7 @@ from .hash_cmds_file import parse_hash_commands
 from .materials import process_materials
 from .pml import build_pml, print_pml_info, set_pml_defaults
 from .scene import Scene
+from .snapshots import save_snapshots
 from .utilities.host_info import mem_check_all, set_omp_threads
 from .utilities.utilities import get_terminal_width, human_size
 
@@ -228,36 +228,18 @@ class ModelBuildRun:
         return scene
 
     def write_output_data(self):
-        """Write output data, i.e. field data for receivers and snapshots
+        """Writes output data, i.e. field data for receivers and snapshots
             to file(s).
         """
 
-        # Write an output file in HDF5 format
         write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.G)
 
-        # Write any snapshots to file
         if self.G.snapshots:
-            # Create directory for snapshots
-            snapshotdir = config.get_model_config().set_snapshots_dir()
-            snapshotdir.mkdir(exist_ok=True)
-            logger.info('')
-            logger.info(f'Snapshot directory: {snapshotdir.resolve()}')
-
-            for i, snap in enumerate(self.G.snapshots):
-                fn = snapshotdir / Path(snap.filename)
-                snap.filename = fn.with_suffix(snap.fileext)
-                pbar = tqdm(total=snap.vtkdatawritesize, leave=True, unit='byte',
-                            unit_scale=True, desc=f'Writing snapshot file {i + 1} '
-                                                  f'of {len(self.G.snapshots)}, '
-                                                  f'{snap.filename.name}', 
-                            ncols=get_terminal_width() - 1, file=sys.stdout, 
-                            disable=not config.sim_config.general['progressbars'])
-                snap.write_file(pbar, self.G)
-                pbar.close()
-            logger.info('')
+            save_snapshots(self.G)
+            
 
     def print_resource_info(self, tsolve, memsolve):
-        """Print resource information on runtime and memory usage.
+        """Prints resource information on runtime and memory usage.
 
         Args:
             tsolve: float of time taken to execute solving (seconds).
