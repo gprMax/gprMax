@@ -24,37 +24,38 @@ from gprMax.config cimport float_or_double
 
 
 cpdef void order1_xminus(
-                        int xs,
-                        int xf,
-                        int ys,
-                        int yf,
-                        int zs,
-                        int zf,
-                        int nthreads,
-                        float_or_double[:, ::1] updatecoeffsH,
-                        np.uint32_t[:, :, :, ::1] ID,
-                        float_or_double[:, :, ::1] Ex,
-                        float_or_double[:, :, ::1] Ey,
-                        float_or_double[:, :, ::1] Ez,
-                        float_or_double[:, :, ::1] Hx,
-                        float_or_double[:, :, ::1] Hy,
-                        float_or_double[:, :, ::1] Hz,
-                        float_or_double[:, :, :, ::1] Phi1,
-                        float_or_double[:, :, :, ::1] Phi2,
-                        float_or_double[:, ::1] RA,
-                        float_or_double[:, ::1] RB,
-                        float_or_double[:, ::1] RE,
-                        float_or_double[:, ::1] RF,
-                        float d
-                ):
-    """This function updates the Hy and Hz field components for the xminus slab.
+    int xs,
+    int xf,
+    int ys,
+    int yf,
+    int zs,
+    int zf,
+    int nthreads,
+    float_or_double[:, ::1] updatecoeffsH,
+    np.uint32_t[:, :, :, ::1] ID,
+    float_or_double[:, :, ::1] Ex,
+    float_or_double[:, :, ::1] Ey,
+    float_or_double[:, :, ::1] Ez,
+    float_or_double[:, :, ::1] Hx,
+    float_or_double[:, :, ::1] Hy,
+    float_or_double[:, :, ::1] Hz,
+    float_or_double[:, :, :, ::1] Phi1,
+    float_or_double[:, :, :, ::1] Phi2,
+    float_or_double[:, ::1] RA,
+    float_or_double[:, ::1] RB,
+    float_or_double[:, ::1] RE,
+    float_or_double[:, ::1] RF,
+    float d
+):
+    """Updates the Hy and Hz field components for the xminus slab.
 
     Args:
-        xs, xf, ys, yf, zs, zf (int): Cell coordinates of entire box
-        nthreads (int): Number of threads to use
-        updatecoeffs, ID, E, H (memoryviews): Access to update coefficients, ID and field component arrays
-        Phi, RA, RB, ERE, RF (memoryviews): Access to PML coefficient arrays
-        d (float): Spatial discretisation, e.g. dx, dy or dz
+        xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
+        nthreads: int for number of threads to use.
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+                                ID and field component arrays.
+        Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
+        d: float for spatial discretisation, e.g. dx, dy or dz.
     """
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
@@ -80,51 +81,57 @@ cpdef void order1_xminus(
                 # Hy
                 materialHy = ID[4, ii, jj, kk]
                 dEz = (Ez[ii + 1, jj, kk] - Ez[ii, jj, kk]) / dx
-                Hy[ii, jj, kk] = Hy[ii, jj, kk] + updatecoeffsH[materialHy, 4] * (IRA1 * dEz - IRA * Phi1[0, i, j, k])
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] + RC0 * dEz - RC0 * Phi1[0, i, j, k]
+                Hy[ii, jj, kk] = (Hy[ii, jj, kk] + updatecoeffsH[materialHy, 4] * 
+                                  (IRA1 * dEz - IRA * Phi1[0, i, j, k]))
+                Phi1[0, i, j, k] = (RE0 * Phi1[0, i, j, k] + RC0 * dEz - 
+                                    RC0 * Phi1[0, i, j, k])
                 # Hz
                 materialHz = ID[5, ii, jj, kk]
                 dEy = (Ey[ii + 1, jj, kk] - Ey[ii, jj, kk]) / dx
-                Hz[ii, jj, kk] = Hz[ii, jj, kk] - updatecoeffsH[materialHz, 4] * (IRA1 * dEy - IRA * Phi2[0, i, j, k])
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] + RC0 * dEy - RC0 * Phi2[0, i, j, k]
+                Hz[ii, jj, kk] = (Hz[ii, jj, kk] - updatecoeffsH[materialHz, 4] * 
+                                  (IRA1 * dEy - IRA * Phi2[0, i, j, k]))
+                Phi2[0, i, j, k] = (RE0 * Phi2[0, i, j, k] + RC0 * dEy - 
+                                    RC0 * Phi2[0, i, j, k])
 
 cpdef void order2_xminus(
-                        int xs,
-                        int xf,
-                        int ys,
-                        int yf,
-                        int zs,
-                        int zf,
-                        int nthreads,
-                        float_or_double[:, ::1] updatecoeffsH,
-                        np.uint32_t[:, :, :, ::1] ID,
-                        float_or_double[:, :, ::1] Ex,
-                        float_or_double[:, :, ::1] Ey,
-                        float_or_double[:, :, ::1] Ez,
-                        float_or_double[:, :, ::1] Hx,
-                        float_or_double[:, :, ::1] Hy,
-                        float_or_double[:, :, ::1] Hz,
-                        float_or_double[:, :, :, ::1] Phi1,
-                        float_or_double[:, :, :, ::1] Phi2,
-                        float_or_double[:, ::1] RA,
-                        float_or_double[:, ::1] RB,
-                        float_or_double[:, ::1] RE,
-                        float_or_double[:, ::1] RF,
-                        float d
-                ):
-    """This function updates the Hy and Hz field components for the xminus slab.
+    int xs,
+    int xf,
+    int ys,
+    int yf,
+    int zs,
+    int zf,
+    int nthreads,
+    float_or_double[:, ::1] updatecoeffsH,
+    np.uint32_t[:, :, :, ::1] ID,
+    float_or_double[:, :, ::1] Ex,
+    float_or_double[:, :, ::1] Ey,
+    float_or_double[:, :, ::1] Ez,
+    float_or_double[:, :, ::1] Hx,
+    float_or_double[:, :, ::1] Hy,
+    float_or_double[:, :, ::1] Hz,
+    float_or_double[:, :, :, ::1] Phi1,
+    float_or_double[:, :, :, ::1] Phi2,
+    float_or_double[:, ::1] RA,
+    float_or_double[:, ::1] RB,
+    float_or_double[:, ::1] RE,
+    float_or_double[:, ::1] RF,
+    float d
+):
+    """Updates the Hy and Hz field components for the xminus slab.
 
     Args:
-        xs, xf, ys, yf, zs, zf (int): Cell coordinates of entire box
-        nthreads (int): Number of threads to use
-        updatecoeffs, ID, E, H (memoryviews): Access to update coefficients, ID and field component arrays
-        Phi, RA, RB, ERE, RF (memoryviews): Access to PML coefficient arrays
-        d (float): Spatial discretisation, e.g. dx, dy or dz
+        xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
+        nthreads: int for number of threads to use.
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+                                ID and field component arrays.
+        Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
+        d: float for spatial discretisation, e.g. dx, dy or dz.
     """
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialHy, materialHz
-    cdef float_or_double dx, dEy, dEz, IRA, IRA1, RB0, RC0, RE0, RF0, RB1, RC1, RE1, RF1, Psi1, Psi2
+    cdef float_or_double dx, dEy, dEz, IRA, IRA1, RB0, RC0, RE0, RF0
+    cdef float_or_double RB1, RC1, RE1, RF1, Psi1, Psi2
     dx = d
     nx = xf - xs
     ny = yf - ys
@@ -151,49 +158,52 @@ cpdef void order2_xminus(
                 # Hy
                 materialHy = ID[4, ii, jj, kk]
                 dEz = (Ez[ii + 1, jj, kk] - Ez[ii, jj, kk]) / dx
-                Hy[ii, jj, kk] = Hy[ii, jj, kk] + updatecoeffsH[materialHy, 4] * (IRA1 * dEz - IRA * Psi1)
+                Hy[ii, jj, kk] = (Hy[ii, jj, kk] + updatecoeffsH[materialHy, 4] * 
+                                  (IRA1 * dEz - IRA * Psi1))
                 Phi1[1, i, j, k] = RE1 * Phi1[1, i, j, k] + RC1 * (dEz - Psi1)
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] + RC0 * (dEz - Psi1)
                 # Hz
                 materialHz = ID[5, ii, jj, kk]
                 dEy = (Ey[ii + 1, jj, kk] - Ey[ii, jj, kk]) / dx
-                Hz[ii, jj, kk] = Hz[ii, jj, kk] - updatecoeffsH[materialHz, 4] * (IRA1 * dEy - IRA * Psi2)
+                Hz[ii, jj, kk] = (Hz[ii, jj, kk] - updatecoeffsH[materialHz, 4] * 
+                                  (IRA1 * dEy - IRA * Psi2))
                 Phi2[1, i, j, k] = RE1 * Phi2[1, i, j, k] + RC1 * (dEy - Psi2)
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] + RC0 * (dEy - Psi2)
 
 
 cpdef void order1_xplus(
-                        int xs,
-                        int xf,
-                        int ys,
-                        int yf,
-                        int zs,
-                        int zf,
-                        int nthreads,
-                        float_or_double[:, ::1] updatecoeffsH,
-                        np.uint32_t[:, :, :, ::1] ID,
-                        float_or_double[:, :, ::1] Ex,
-                        float_or_double[:, :, ::1] Ey,
-                        float_or_double[:, :, ::1] Ez,
-                        float_or_double[:, :, ::1] Hx,
-                        float_or_double[:, :, ::1] Hy,
-                        float_or_double[:, :, ::1] Hz,
-                        float_or_double[:, :, :, ::1] Phi1,
-                        float_or_double[:, :, :, ::1] Phi2,
-                        float_or_double[:, ::1] RA,
-                        float_or_double[:, ::1] RB,
-                        float_or_double[:, ::1] RE,
-                        float_or_double[:, ::1] RF,
-                        float d
-                ):
-    """This function updates the Hy and Hz field components for the xplus slab.
+    int xs,
+    int xf,
+    int ys,
+    int yf,
+    int zs,
+    int zf,
+    int nthreads,
+    float_or_double[:, ::1] updatecoeffsH,
+    np.uint32_t[:, :, :, ::1] ID,
+    float_or_double[:, :, ::1] Ex,
+    float_or_double[:, :, ::1] Ey,
+    float_or_double[:, :, ::1] Ez,
+    float_or_double[:, :, ::1] Hx,
+    float_or_double[:, :, ::1] Hy,
+    float_or_double[:, :, ::1] Hz,
+    float_or_double[:, :, :, ::1] Phi1,
+    float_or_double[:, :, :, ::1] Phi2,
+    float_or_double[:, ::1] RA,
+    float_or_double[:, ::1] RB,
+    float_or_double[:, ::1] RE,
+    float_or_double[:, ::1] RF,
+    float d
+):
+    """Updates the Hy and Hz field components for the xplus slab.
 
     Args:
-        xs, xf, ys, yf, zs, zf (int): Cell coordinates of entire box
-        nthreads (int): Number of threads to use
-        updatecoeffs, ID, E, H (memoryviews): Access to update coefficients, ID and field component arrays
-        Phi, RA, RB, RE, RF (memoryviews): Access to PML coefficient arrays
-        d (float): Spatial discretisation, e.g. dx, dy or dz
+        xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
+        nthreads: int for number of threads to use.
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+                                ID and field component arrays.
+        Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
+        d: float for spatial discretisation, e.g. dx, dy or dz.
     """
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
@@ -219,51 +229,57 @@ cpdef void order1_xplus(
                 # Hy
                 materialHy = ID[4, ii, jj, kk]
                 dEz = (Ez[ii + 1, jj, kk] - Ez[ii, jj, kk]) / dx
-                Hy[ii, jj, kk] = Hy[ii, jj, kk] + updatecoeffsH[materialHy, 4] * (IRA1 * dEz - IRA * Phi1[0, i, j, k])
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] + RC0 * dEz - RC0 * Phi1[0, i, j, k]
+                Hy[ii, jj, kk] = (Hy[ii, jj, kk] + updatecoeffsH[materialHy, 4] * 
+                                  (IRA1 * dEz - IRA * Phi1[0, i, j, k]))
+                Phi1[0, i, j, k] = (RE0 * Phi1[0, i, j, k] + RC0 * dEz - 
+                                    RC0 * Phi1[0, i, j, k])
                 # Hz
                 materialHz = ID[5, ii, jj, kk]
                 dEy = (Ey[ii + 1, jj, kk] - Ey[ii, jj, kk]) / dx
-                Hz[ii, jj, kk] = Hz[ii, jj, kk] - updatecoeffsH[materialHz, 4] * (IRA1 * dEy - IRA * Phi2[0, i, j, k])
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] + RC0 * dEy - RC0 * Phi2[0, i, j, k]
+                Hz[ii, jj, kk] = (Hz[ii, jj, kk] - updatecoeffsH[materialHz, 4] * 
+                                  (IRA1 * dEy - IRA * Phi2[0, i, j, k]))
+                Phi2[0, i, j, k] = (RE0 * Phi2[0, i, j, k] + RC0 * dEy - 
+                                    RC0 * Phi2[0, i, j, k])
 
 cpdef void order2_xplus(
-                        int xs,
-                        int xf,
-                        int ys,
-                        int yf,
-                        int zs,
-                        int zf,
-                        int nthreads,
-                        float_or_double[:, ::1] updatecoeffsH,
-                        np.uint32_t[:, :, :, ::1] ID,
-                        float_or_double[:, :, ::1] Ex,
-                        float_or_double[:, :, ::1] Ey,
-                        float_or_double[:, :, ::1] Ez,
-                        float_or_double[:, :, ::1] Hx,
-                        float_or_double[:, :, ::1] Hy,
-                        float_or_double[:, :, ::1] Hz,
-                        float_or_double[:, :, :, ::1] Phi1,
-                        float_or_double[:, :, :, ::1] Phi2,
-                        float_or_double[:, ::1] RA,
-                        float_or_double[:, ::1] RB,
-                        float_or_double[:, ::1] RE,
-                        float_or_double[:, ::1] RF,
-                        float d
-                ):
-    """This function updates the Hy and Hz field components for the xplus slab.
+    int xs,
+    int xf,
+    int ys,
+    int yf,
+    int zs,
+    int zf,
+    int nthreads,
+    float_or_double[:, ::1] updatecoeffsH,
+    np.uint32_t[:, :, :, ::1] ID,
+    float_or_double[:, :, ::1] Ex,
+    float_or_double[:, :, ::1] Ey,
+    float_or_double[:, :, ::1] Ez,
+    float_or_double[:, :, ::1] Hx,
+    float_or_double[:, :, ::1] Hy,
+    float_or_double[:, :, ::1] Hz,
+    float_or_double[:, :, :, ::1] Phi1,
+    float_or_double[:, :, :, ::1] Phi2,
+    float_or_double[:, ::1] RA,
+    float_or_double[:, ::1] RB,
+    float_or_double[:, ::1] RE,
+    float_or_double[:, ::1] RF,
+    float d
+):
+    """Updates the Hy and Hz field components for the xplus slab.
 
     Args:
-        xs, xf, ys, yf, zs, zf (int): Cell coordinates of entire box
-        nthreads (int): Number of threads to use
-        updatecoeffs, ID, E, H (memoryviews): Access to update coefficients, ID and field component arrays
-        Phi, RA, RB, RE, RF (memoryviews): Access to PML coefficient arrays
-        d (float): Spatial discretisation, e.g. dx, dy or dz
+        xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
+        nthreads: int for number of threads to use.
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+                                ID and field component arrays.
+        Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
+        d: float for spatial discretisation, e.g. dx, dy or dz.
     """
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialHy, materialHz
-    cdef float_or_double dx, dEy, dEz, IRA, IRA1, RB0, RC0, RE0, RF0, RB1, RC1, RE1, RF1, Psi1, Psi2
+    cdef float_or_double dx, dEy, dEz, IRA, IRA1, RB0, RC0, RE0, RF0
+    cdef float_or_double RB1, RC1, RE1, RF1, Psi1, Psi2
     dx = d
     nx = xf - xs
     ny = yf - ys
@@ -290,49 +306,52 @@ cpdef void order2_xplus(
                 # Hy
                 materialHy = ID[4, ii, jj, kk]
                 dEz = (Ez[ii + 1, jj, kk] - Ez[ii, jj, kk]) / dx
-                Hy[ii, jj, kk] = Hy[ii, jj, kk] + updatecoeffsH[materialHy, 4] * (IRA1 * dEz - IRA * Psi1)
+                Hy[ii, jj, kk] = (Hy[ii, jj, kk] + updatecoeffsH[materialHy, 4] * 
+                                  (IRA1 * dEz - IRA * Psi1))
                 Phi1[1, i, j, k] = RE1 * Phi1[1, i, j, k] + RC1 * (dEz - Psi1)
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] + RC0 * (dEz - Psi1)
                 # Hz
                 materialHz = ID[5, ii, jj, kk]
                 dEy = (Ey[ii + 1, jj, kk] - Ey[ii, jj, kk]) / dx
-                Hz[ii, jj, kk] = Hz[ii, jj, kk] - updatecoeffsH[materialHz, 4] * (IRA1 * dEy - IRA * Psi2)
+                Hz[ii, jj, kk] = (Hz[ii, jj, kk] - updatecoeffsH[materialHz, 4] * 
+                                  (IRA1 * dEy - IRA * Psi2))
                 Phi2[1, i, j, k] = RE1 * Phi2[1, i, j, k] + RC1 * (dEy - Psi2)
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] + RC0 * (dEy - Psi2)
 
 
 cpdef void order1_yminus(
-                        int xs,
-                        int xf,
-                        int ys,
-                        int yf,
-                        int zs,
-                        int zf,
-                        int nthreads,
-                        float_or_double[:, ::1] updatecoeffsH,
-                        np.uint32_t[:, :, :, ::1] ID,
-                        float_or_double[:, :, ::1] Ex,
-                        float_or_double[:, :, ::1] Ey,
-                        float_or_double[:, :, ::1] Ez,
-                        float_or_double[:, :, ::1] Hx,
-                        float_or_double[:, :, ::1] Hy,
-                        float_or_double[:, :, ::1] Hz,
-                        float_or_double[:, :, :, ::1] Phi1,
-                        float_or_double[:, :, :, ::1] Phi2,
-                        float_or_double[:, ::1] RA,
-                        float_or_double[:, ::1] RB,
-                        float_or_double[:, ::1] RE,
-                        float_or_double[:, ::1] RF,
-                        float d
-                ):
-    """This function updates the Hx and Hz field components for the yminus slab.
+    int xs,
+    int xf,
+    int ys,
+    int yf,
+    int zs,
+    int zf,
+    int nthreads,
+    float_or_double[:, ::1] updatecoeffsH,
+    np.uint32_t[:, :, :, ::1] ID,
+    float_or_double[:, :, ::1] Ex,
+    float_or_double[:, :, ::1] Ey,
+    float_or_double[:, :, ::1] Ez,
+    float_or_double[:, :, ::1] Hx,
+    float_or_double[:, :, ::1] Hy,
+    float_or_double[:, :, ::1] Hz,
+    float_or_double[:, :, :, ::1] Phi1,
+    float_or_double[:, :, :, ::1] Phi2,
+    float_or_double[:, ::1] RA,
+    float_or_double[:, ::1] RB,
+    float_or_double[:, ::1] RE,
+    float_or_double[:, ::1] RF,
+    float d
+):
+    """Updates the Hx and Hz field components for the yminus slab.
 
     Args:
-        xs, xf, ys, yf, zs, zf (int): Cell coordinates of entire box
-        nthreads (int): Number of threads to use
-        updatecoeffs, ID, E, H (memoryviews): Access to update coefficients, ID and field component arrays
-        Phi, RA, RB, RE, RF (memoryviews): Access to PML coefficient arrays
-        d (float): Spatial discretisation, e.g. dx, dy or dz
+        xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
+        nthreads: int for number of threads to use.
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+                                ID and field component arrays.
+        Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
+        d: float for spatial discretisation, e.g. dx, dy or dz.
     """
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
@@ -358,51 +377,57 @@ cpdef void order1_yminus(
                 # Hx
                 materialHx = ID[3, ii, jj, kk]
                 dEz = (Ez[ii, jj + 1, kk] - Ez[ii, jj, kk]) / dy
-                Hx[ii, jj, kk] = Hx[ii, jj, kk] - updatecoeffsH[materialHx, 4] * (IRA1 * dEz - IRA * Phi1[0, i, j, k])
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] + RC0 * dEz - RC0 * Phi1[0, i, j, k]
+                Hx[ii, jj, kk] = (Hx[ii, jj, kk] - updatecoeffsH[materialHx, 4] * 
+                                  (IRA1 * dEz - IRA * Phi1[0, i, j, k]))
+                Phi1[0, i, j, k] = (RE0 * Phi1[0, i, j, k] + RC0 * dEz - 
+                                    RC0 * Phi1[0, i, j, k])
                 # Hz
                 materialHz = ID[5, ii, jj, kk]
                 dEx = (Ex[ii, jj + 1, kk] - Ex[ii, jj, kk]) / dy
-                Hz[ii, jj, kk] = Hz[ii, jj, kk] + updatecoeffsH[materialHz, 4] * (IRA1 * dEx - IRA * Phi2[0, i, j, k])
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] + RC0 * dEx - RC0 * Phi2[0, i, j, k]
+                Hz[ii, jj, kk] = (Hz[ii, jj, kk] + updatecoeffsH[materialHz, 4] * 
+                                  (IRA1 * dEx - IRA * Phi2[0, i, j, k]))
+                Phi2[0, i, j, k] = (RE0 * Phi2[0, i, j, k] + RC0 * dEx - 
+                                    RC0 * Phi2[0, i, j, k])
 
 cpdef void order2_yminus(
-                        int xs,
-                        int xf,
-                        int ys,
-                        int yf,
-                        int zs,
-                        int zf,
-                        int nthreads,
-                        float_or_double[:, ::1] updatecoeffsH,
-                        np.uint32_t[:, :, :, ::1] ID,
-                        float_or_double[:, :, ::1] Ex,
-                        float_or_double[:, :, ::1] Ey,
-                        float_or_double[:, :, ::1] Ez,
-                        float_or_double[:, :, ::1] Hx,
-                        float_or_double[:, :, ::1] Hy,
-                        float_or_double[:, :, ::1] Hz,
-                        float_or_double[:, :, :, ::1] Phi1,
-                        float_or_double[:, :, :, ::1] Phi2,
-                        float_or_double[:, ::1] RA,
-                        float_or_double[:, ::1] RB,
-                        float_or_double[:, ::1] RE,
-                        float_or_double[:, ::1] RF,
-                        float d
-                ):
-    """This function updates the Hx and Hz field components for the yminus slab.
+    int xs,
+    int xf,
+    int ys,
+    int yf,
+    int zs,
+    int zf,
+    int nthreads,
+    float_or_double[:, ::1] updatecoeffsH,
+    np.uint32_t[:, :, :, ::1] ID,
+    float_or_double[:, :, ::1] Ex,
+    float_or_double[:, :, ::1] Ey,
+    float_or_double[:, :, ::1] Ez,
+    float_or_double[:, :, ::1] Hx,
+    float_or_double[:, :, ::1] Hy,
+    float_or_double[:, :, ::1] Hz,
+    float_or_double[:, :, :, ::1] Phi1,
+    float_or_double[:, :, :, ::1] Phi2,
+    float_or_double[:, ::1] RA,
+    float_or_double[:, ::1] RB,
+    float_or_double[:, ::1] RE,
+    float_or_double[:, ::1] RF,
+    float d
+):
+    """Updates the Hx and Hz field components for the yminus slab.
 
     Args:
-        xs, xf, ys, yf, zs, zf (int): Cell coordinates of entire box
-        nthreads (int): Number of threads to use
-        updatecoeffs, ID, E, H (memoryviews): Access to update coefficients, ID and field component arrays
-        Phi, RA, RB, RE, RF (memoryviews): Access to PML coefficient arrays
-        d (float): Spatial discretisation, e.g. dx, dy or dz
+        xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
+        nthreads: int for number of threads to use.
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+                                ID and field component arrays.
+        Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
+        d: float for spatial discretisation, e.g. dx, dy or dz.
     """
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialHx, materialHz
-    cdef float_or_double dy, dEx, dEz, IRA, IRA1, RB0, RC0, RE0, RF0, RB1, RC1, RE1, RF1, Psi1, Psi2
+    cdef float_or_double dy, dEx, dEz, IRA, IRA1, RB0, RC0, RE0, RF0
+    cdef float_or_double RB1, RC1, RE1, RF1, Psi1, Psi2
     dy = d
     nx = xf - xs
     ny = yf - ys
@@ -429,49 +454,52 @@ cpdef void order2_yminus(
                 # Hx
                 materialHx = ID[3, ii, jj, kk]
                 dEz = (Ez[ii, jj + 1, kk] - Ez[ii, jj, kk]) / dy
-                Hx[ii, jj, kk] = Hx[ii, jj, kk] - updatecoeffsH[materialHx, 4] * (IRA1 * dEz - IRA * Psi1)
+                Hx[ii, jj, kk] = (Hx[ii, jj, kk] - updatecoeffsH[materialHx, 4] * 
+                                  (IRA1 * dEz - IRA * Psi1))
                 Phi1[1, i, j, k] = RE1 * Phi1[1, i, j, k] + RC1 * (dEz - Psi1)
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] + RC0 * (dEz - Psi1)
                 # Hz
                 materialHz = ID[5, ii, jj, kk]
                 dEx = (Ex[ii, jj + 1, kk] - Ex[ii, jj, kk]) / dy
-                Hz[ii, jj, kk] = Hz[ii, jj, kk] + updatecoeffsH[materialHz, 4] * (IRA1 * dEx - IRA * Psi2)
+                Hz[ii, jj, kk] = (Hz[ii, jj, kk] + updatecoeffsH[materialHz, 4] * 
+                                  (IRA1 * dEx - IRA * Psi2))
                 Phi2[1, i, j, k] = RE1 * Phi2[1, i, j, k] + RC1 * (dEx - Psi2)
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] + RC0 * (dEx - Psi2)
 
 
 cpdef void order1_yplus(
-                        int xs,
-                        int xf,
-                        int ys,
-                        int yf,
-                        int zs,
-                        int zf,
-                        int nthreads,
-                        float_or_double[:, ::1] updatecoeffsH,
-                        np.uint32_t[:, :, :, ::1] ID,
-                        float_or_double[:, :, ::1] Ex,
-                        float_or_double[:, :, ::1] Ey,
-                        float_or_double[:, :, ::1] Ez,
-                        float_or_double[:, :, ::1] Hx,
-                        float_or_double[:, :, ::1] Hy,
-                        float_or_double[:, :, ::1] Hz,
-                        float_or_double[:, :, :, ::1] Phi1,
-                        float_or_double[:, :, :, ::1] Phi2,
-                        float_or_double[:, ::1] RA,
-                        float_or_double[:, ::1] RB,
-                        float_or_double[:, ::1] RE,
-                        float_or_double[:, ::1] RF,
-                        float d
-                ):
-    """This function updates the Hx and Hz field components for the yplus slab.
+    int xs,
+    int xf,
+    int ys,
+    int yf,
+    int zs,
+    int zf,
+    int nthreads,
+    float_or_double[:, ::1] updatecoeffsH,
+    np.uint32_t[:, :, :, ::1] ID,
+    float_or_double[:, :, ::1] Ex,
+    float_or_double[:, :, ::1] Ey,
+    float_or_double[:, :, ::1] Ez,
+    float_or_double[:, :, ::1] Hx,
+    float_or_double[:, :, ::1] Hy,
+    float_or_double[:, :, ::1] Hz,
+    float_or_double[:, :, :, ::1] Phi1,
+    float_or_double[:, :, :, ::1] Phi2,
+    float_or_double[:, ::1] RA,
+    float_or_double[:, ::1] RB,
+    float_or_double[:, ::1] RE,
+    float_or_double[:, ::1] RF,
+    float d
+):
+    """Updates the Hx and Hz field components for the yplus slab.
 
     Args:
-        xs, xf, ys, yf, zs, zf (int): Cell coordinates of entire box
-        nthreads (int): Number of threads to use
-        updatecoeffs, ID, E, H (memoryviews): Access to update coefficients, ID and field component arrays
-        Phi, RA, RB, RE, RF (memoryviews): Access to PML coefficient arrays
-        d (float): Spatial discretisation, e.g. dx, dy or dz
+        xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
+        nthreads: int for number of threads to use.
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+                                ID and field component arrays.
+        Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
+        d: float for spatial discretisation, e.g. dx, dy or dz.
     """
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
@@ -497,51 +525,57 @@ cpdef void order1_yplus(
                 # Hx
                 materialHx = ID[3, ii, jj, kk]
                 dEz = (Ez[ii, jj + 1, kk] - Ez[ii, jj, kk]) / dy
-                Hx[ii, jj, kk] = Hx[ii, jj, kk] - updatecoeffsH[materialHx, 4] * (IRA1 * dEz - IRA * Phi1[0, i, j, k])
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] + RC0 * dEz - RC0 * Phi1[0, i, j, k]
+                Hx[ii, jj, kk] = (Hx[ii, jj, kk] - updatecoeffsH[materialHx, 4] * 
+                                  (IRA1 * dEz - IRA * Phi1[0, i, j, k]))
+                Phi1[0, i, j, k] = (RE0 * Phi1[0, i, j, k] + RC0 * dEz - 
+                                    RC0 * Phi1[0, i, j, k])
                 # Hz
                 materialHz = ID[5, ii, jj, kk]
                 dEx = (Ex[ii, jj + 1, kk] - Ex[ii, jj, kk]) / dy
-                Hz[ii, jj, kk] = Hz[ii, jj, kk] + updatecoeffsH[materialHz, 4] * (IRA1 * dEx - IRA * Phi2[0, i, j, k])
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] + RC0 * dEx - RC0 * Phi2[0, i, j, k]
+                Hz[ii, jj, kk] = (Hz[ii, jj, kk] + updatecoeffsH[materialHz, 4] * 
+                                  (IRA1 * dEx - IRA * Phi2[0, i, j, k]))
+                Phi2[0, i, j, k] = (RE0 * Phi2[0, i, j, k] + RC0 * dEx - 
+                                    RC0 * Phi2[0, i, j, k])
 
 cpdef void order2_yplus(
-                        int xs,
-                        int xf,
-                        int ys,
-                        int yf,
-                        int zs,
-                        int zf,
-                        int nthreads,
-                        float_or_double[:, ::1] updatecoeffsH,
-                        np.uint32_t[:, :, :, ::1] ID,
-                        float_or_double[:, :, ::1] Ex,
-                        float_or_double[:, :, ::1] Ey,
-                        float_or_double[:, :, ::1] Ez,
-                        float_or_double[:, :, ::1] Hx,
-                        float_or_double[:, :, ::1] Hy,
-                        float_or_double[:, :, ::1] Hz,
-                        float_or_double[:, :, :, ::1] Phi1,
-                        float_or_double[:, :, :, ::1] Phi2,
-                        float_or_double[:, ::1] RA,
-                        float_or_double[:, ::1] RB,
-                        float_or_double[:, ::1] RE,
-                        float_or_double[:, ::1] RF,
-                        float d
-                ):
-    """This function updates the Hx and Hz field components for the yplus slab.
+    int xs,
+    int xf,
+    int ys,
+    int yf,
+    int zs,
+    int zf,
+    int nthreads,
+    float_or_double[:, ::1] updatecoeffsH,
+    np.uint32_t[:, :, :, ::1] ID,
+    float_or_double[:, :, ::1] Ex,
+    float_or_double[:, :, ::1] Ey,
+    float_or_double[:, :, ::1] Ez,
+    float_or_double[:, :, ::1] Hx,
+    float_or_double[:, :, ::1] Hy,
+    float_or_double[:, :, ::1] Hz,
+    float_or_double[:, :, :, ::1] Phi1,
+    float_or_double[:, :, :, ::1] Phi2,
+    float_or_double[:, ::1] RA,
+    float_or_double[:, ::1] RB,
+    float_or_double[:, ::1] RE,
+    float_or_double[:, ::1] RF,
+    float d
+):
+    """Updates the Hx and Hz field components for the yplus slab.
 
     Args:
-        xs, xf, ys, yf, zs, zf (int): Cell coordinates of entire box
-        nthreads (int): Number of threads to use
-        updatecoeffs, ID, E, H (memoryviews): Access to update coefficients, ID and field component arrays
-        Phi, RA, RB, RE, RF (memoryviews): Access to PML coefficient arrays
-        d (float): Spatial discretisation, e.g. dx, dy or dz
+        xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
+        nthreads: int for number of threads to use.
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+                                ID and field component arrays.
+        Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
+        d: float for spatial discretisation, e.g. dx, dy or dz.
     """
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialHx, materialHz
-    cdef float_or_double dy, dEx, dEz, IRA, IRA1, RB0, RC0, RE0, RF0, RB1, RC1, RE1, RF1, Psi1, Psi2
+    cdef float_or_double dy, dEx, dEz, IRA, IRA1, RB0, RC0, RE0, RF0
+    cdef float_or_double RB1, RC1, RE1, RF1, Psi1, Psi2
     dy = d
     nx = xf - xs
     ny = yf - ys
@@ -568,49 +602,52 @@ cpdef void order2_yplus(
                 # Hx
                 materialHx = ID[3, ii, jj, kk]
                 dEz = (Ez[ii, jj + 1, kk] - Ez[ii, jj, kk]) / dy
-                Hx[ii, jj, kk] = Hx[ii, jj, kk] - updatecoeffsH[materialHx, 4] * (IRA1 * dEz - IRA * Psi1)
+                Hx[ii, jj, kk] = (Hx[ii, jj, kk] - updatecoeffsH[materialHx, 4] * 
+                                  (IRA1 * dEz - IRA * Psi1))
                 Phi1[1, i, j, k] = RE1 * Phi1[1, i, j, k] + RC1 * (dEz - Psi1)
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] + RC0 * (dEz - Psi1)
                 # Hz
                 materialHz = ID[5, ii, jj, kk]
                 dEx = (Ex[ii, jj + 1, kk] - Ex[ii, jj, kk]) / dy
-                Hz[ii, jj, kk] = Hz[ii, jj, kk] + updatecoeffsH[materialHz, 4] * (IRA1 * dEx - IRA * Psi2)
+                Hz[ii, jj, kk] = (Hz[ii, jj, kk] + updatecoeffsH[materialHz, 4] * 
+                                  (IRA1 * dEx - IRA * Psi2))
                 Phi2[1, i, j, k] = RE1 * Phi2[1, i, j, k] + RC1 * (dEx - Psi2)
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] + RC0 * (dEx - Psi2)
 
 
 cpdef void order1_zminus(
-                        int xs,
-                        int xf,
-                        int ys,
-                        int yf,
-                        int zs,
-                        int zf,
-                        int nthreads,
-                        float_or_double[:, ::1] updatecoeffsH,
-                        np.uint32_t[:, :, :, ::1] ID,
-                        float_or_double[:, :, ::1] Ex,
-                        float_or_double[:, :, ::1] Ey,
-                        float_or_double[:, :, ::1] Ez,
-                        float_or_double[:, :, ::1] Hx,
-                        float_or_double[:, :, ::1] Hy,
-                        float_or_double[:, :, ::1] Hz,
-                        float_or_double[:, :, :, ::1] Phi1,
-                        float_or_double[:, :, :, ::1] Phi2,
-                        float_or_double[:, ::1] RA,
-                        float_or_double[:, ::1] RB,
-                        float_or_double[:, ::1] RE,
-                        float_or_double[:, ::1] RF,
-                        float d
-                ):
-    """This function updates the Hx and Hy field components for the zminus slab.
+    int xs,
+    int xf,
+    int ys,
+    int yf,
+    int zs,
+    int zf,
+    int nthreads,
+    float_or_double[:, ::1] updatecoeffsH,
+    np.uint32_t[:, :, :, ::1] ID,
+    float_or_double[:, :, ::1] Ex,
+    float_or_double[:, :, ::1] Ey,
+    float_or_double[:, :, ::1] Ez,
+    float_or_double[:, :, ::1] Hx,
+    float_or_double[:, :, ::1] Hy,
+    float_or_double[:, :, ::1] Hz,
+    float_or_double[:, :, :, ::1] Phi1,
+    float_or_double[:, :, :, ::1] Phi2,
+    float_or_double[:, ::1] RA,
+    float_or_double[:, ::1] RB,
+    float_or_double[:, ::1] RE,
+    float_or_double[:, ::1] RF,
+    float d
+):
+    """Updates the Hx and Hy field components for the zminus slab.
 
     Args:
-        xs, xf, ys, yf, zs, zf (int): Cell coordinates of entire box
-        nthreads (int): Number of threads to use
-        updatecoeffs, ID, E, H (memoryviews): Access to update coefficients, ID and field component arrays
-        Phi, RA, RB, RE, RF (memoryviews): Access to PML coefficient arrays
-        d (float): Spatial discretisation, e.g. dx, dy or dz
+        xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
+        nthreads: int for number of threads to use.
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+                                ID and field component arrays.
+        Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
+        d: float for spatial discretisation, e.g. dx, dy or dz.
     """
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
@@ -636,51 +673,57 @@ cpdef void order1_zminus(
                 # Hx
                 materialHx = ID[3, ii, jj, kk]
                 dEy = (Ey[ii, jj, kk + 1] - Ey[ii, jj, kk]) / dz
-                Hx[ii, jj, kk] = Hx[ii, jj, kk] + updatecoeffsH[materialHx, 4] * (IRA1 * dEy - IRA * Phi1[0, i, j, k])
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] + RC0 * dEy - RC0 * Phi1[0, i, j, k]
+                Hx[ii, jj, kk] = (Hx[ii, jj, kk] + updatecoeffsH[materialHx, 4] * 
+                                  (IRA1 * dEy - IRA * Phi1[0, i, j, k]))
+                Phi1[0, i, j, k] = (RE0 * Phi1[0, i, j, k] + RC0 * dEy - 
+                                    RC0 * Phi1[0, i, j, k])
                 # Hy
                 materialHy = ID[4, ii, jj, kk]
                 dEx = (Ex[ii, jj, kk + 1] - Ex[ii, jj, kk]) / dz
-                Hy[ii, jj, kk] = Hy[ii, jj, kk] - updatecoeffsH[materialHy, 4] * (IRA1 * dEx - IRA * Phi2[0, i, j, k])
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] + RC0 * dEx - RC0 * Phi2[0, i, j, k]
+                Hy[ii, jj, kk] = (Hy[ii, jj, kk] - updatecoeffsH[materialHy, 4] * 
+                                  (IRA1 * dEx - IRA * Phi2[0, i, j, k]))
+                Phi2[0, i, j, k] = (RE0 * Phi2[0, i, j, k] + RC0 * dEx - 
+                                    RC0 * Phi2[0, i, j, k])
 
 cpdef void order2_zminus(
-                        int xs,
-                        int xf,
-                        int ys,
-                        int yf,
-                        int zs,
-                        int zf,
-                        int nthreads,
-                        float_or_double[:, ::1] updatecoeffsH,
-                        np.uint32_t[:, :, :, ::1] ID,
-                        float_or_double[:, :, ::1] Ex,
-                        float_or_double[:, :, ::1] Ey,
-                        float_or_double[:, :, ::1] Ez,
-                        float_or_double[:, :, ::1] Hx,
-                        float_or_double[:, :, ::1] Hy,
-                        float_or_double[:, :, ::1] Hz,
-                        float_or_double[:, :, :, ::1] Phi1,
-                        float_or_double[:, :, :, ::1] Phi2,
-                        float_or_double[:, ::1] RA,
-                        float_or_double[:, ::1] RB,
-                        float_or_double[:, ::1] RE,
-                        float_or_double[:, ::1] RF,
-                        float d
-                ):
-    """This function updates the Hx and Hy field components for the zminus slab.
+    int xs,
+    int xf,
+    int ys,
+    int yf,
+    int zs,
+    int zf,
+    int nthreads,
+    float_or_double[:, ::1] updatecoeffsH,
+    np.uint32_t[:, :, :, ::1] ID,
+    float_or_double[:, :, ::1] Ex,
+    float_or_double[:, :, ::1] Ey,
+    float_or_double[:, :, ::1] Ez,
+    float_or_double[:, :, ::1] Hx,
+    float_or_double[:, :, ::1] Hy,
+    float_or_double[:, :, ::1] Hz,
+    float_or_double[:, :, :, ::1] Phi1,
+    float_or_double[:, :, :, ::1] Phi2,
+    float_or_double[:, ::1] RA,
+    float_or_double[:, ::1] RB,
+    float_or_double[:, ::1] RE,
+    float_or_double[:, ::1] RF,
+    float d
+):
+    """Updates the Hx and Hy field components for the zminus slab.
 
     Args:
-        xs, xf, ys, yf, zs, zf (int): Cell coordinates of entire box
-        nthreads (int): Number of threads to use
-        updatecoeffs, ID, E, H (memoryviews): Access to update coefficients, ID and field component arrays
-        Phi, RA, RB, RE, RF (memoryviews): Access to PML coefficient arrays
-        d (float): Spatial discretisation, e.g. dx, dy or dz
+        xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
+        nthreads: int for number of threads to use.
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+                                ID and field component arrays.
+        Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
+        d: float for spatial discretisation, e.g. dx, dy or dz.
     """
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialHx, materialHy
-    cdef float_or_double dz, dEx, dEy, IRA, IRA1, RB0, RC0, RE0, RF0, RB1, RC1, RE1, RF1, Psi1, Psi2
+    cdef float_or_double dz, dEx, dEy, IRA, IRA1, RB0, RC0, RE0, RF0
+    cdef float_or_double RB1, RC1, RE1, RF1, Psi1, Psi2
     dz = d
     nx = xf - xs
     ny = yf - ys
@@ -707,49 +750,52 @@ cpdef void order2_zminus(
                 # Hx
                 materialHx = ID[3, ii, jj, kk]
                 dEy = (Ey[ii, jj, kk + 1] - Ey[ii, jj, kk]) / dz
-                Hx[ii, jj, kk] = Hx[ii, jj, kk] + updatecoeffsH[materialHx, 4] * (IRA1 * dEy - IRA * Psi1)
+                Hx[ii, jj, kk] = (Hx[ii, jj, kk] + updatecoeffsH[materialHx, 4] * 
+                                  (IRA1 * dEy - IRA * Psi1))
                 Phi1[1, i, j, k] = RE1 * Phi1[1, i, j, k] + RC1 * (dEy - Psi1)
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] + RC0 * (dEy - Psi1)
                 # Hy
                 materialHy = ID[4, ii, jj, kk]
                 dEx = (Ex[ii, jj, kk + 1] - Ex[ii, jj, kk]) / dz
-                Hy[ii, jj, kk] = Hy[ii, jj, kk] - updatecoeffsH[materialHy, 4] * (IRA1 * dEx - IRA * Psi2)
+                Hy[ii, jj, kk] = (Hy[ii, jj, kk] - updatecoeffsH[materialHy, 4] * 
+                                  (IRA1 * dEx - IRA * Psi2))
                 Phi2[1, i, j, k] = RE1 * Phi2[1, i, j, k] + RC1 * (dEx - Psi2)
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] + RC0 * (dEx - Psi2)
 
 
 cpdef void order1_zplus(
-                        int xs,
-                        int xf,
-                        int ys,
-                        int yf,
-                        int zs,
-                        int zf,
-                        int nthreads,
-                        float_or_double[:, ::1] updatecoeffsH,
-                        np.uint32_t[:, :, :, ::1] ID,
-                        float_or_double[:, :, ::1] Ex,
-                        float_or_double[:, :, ::1] Ey,
-                        float_or_double[:, :, ::1] Ez,
-                        float_or_double[:, :, ::1] Hx,
-                        float_or_double[:, :, ::1] Hy,
-                        float_or_double[:, :, ::1] Hz,
-                        float_or_double[:, :, :, ::1] Phi1,
-                        float_or_double[:, :, :, ::1] Phi2,
-                        float_or_double[:, ::1] RA,
-                        float_or_double[:, ::1] RB,
-                        float_or_double[:, ::1] RE,
-                        float_or_double[:, ::1] RF,
-                        float d
-                ):
-    """This function updates the Hx and Hy field components for the zplus slab.
+    int xs,
+    int xf,
+    int ys,
+    int yf,
+    int zs,
+    int zf,
+    int nthreads,
+    float_or_double[:, ::1] updatecoeffsH,
+    np.uint32_t[:, :, :, ::1] ID,
+    float_or_double[:, :, ::1] Ex,
+    float_or_double[:, :, ::1] Ey,
+    float_or_double[:, :, ::1] Ez,
+    float_or_double[:, :, ::1] Hx,
+    float_or_double[:, :, ::1] Hy,
+    float_or_double[:, :, ::1] Hz,
+    float_or_double[:, :, :, ::1] Phi1,
+    float_or_double[:, :, :, ::1] Phi2,
+    float_or_double[:, ::1] RA,
+    float_or_double[:, ::1] RB,
+    float_or_double[:, ::1] RE,
+    float_or_double[:, ::1] RF,
+    float d
+):
+    """Updates the Hx and Hy field components for the zplus slab.
 
     Args:
-        xs, xf, ys, yf, zs, zf (int): Cell coordinates of entire box
-        nthreads (int): Number of threads to use
-        updatecoeffs, ID, E, H (memoryviews): Access to update coefficients, ID and field component arrays
-        Phi, RA, RB, RE, RF (memoryviews): Access to PML coefficient arrays
-        d (float): Spatial discretisation, e.g. dx, dy or dz
+        xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
+        nthreads: int for number of threads to use.
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+                                ID and field component arrays.
+        Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
+        d: float for spatial discretisation, e.g. dx, dy or dz.
     """
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
@@ -775,51 +821,57 @@ cpdef void order1_zplus(
                 # Hx
                 materialHx = ID[3, ii, jj, kk]
                 dEy = (Ey[ii, jj, kk + 1] - Ey[ii, jj, kk]) / dz
-                Hx[ii, jj, kk] = Hx[ii, jj, kk] + updatecoeffsH[materialHx, 4] * (IRA1 * dEy - IRA * Phi1[0, i, j, k])
-                Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] + RC0 * dEy - RC0 * Phi1[0, i, j, k]
+                Hx[ii, jj, kk] = (Hx[ii, jj, kk] + updatecoeffsH[materialHx, 4] * 
+                                  (IRA1 * dEy - IRA * Phi1[0, i, j, k]))
+                Phi1[0, i, j, k] = (RE0 * Phi1[0, i, j, k] + RC0 * dEy - 
+                                    RC0 * Phi1[0, i, j, k])
                 # Hy
                 materialHy = ID[4, ii, jj, kk]
                 dEx = (Ex[ii, jj, kk + 1] - Ex[ii, jj, kk]) / dz
-                Hy[ii, jj, kk] = Hy[ii, jj, kk] - updatecoeffsH[materialHy, 4] * (IRA1 * dEx - IRA * Phi2[0, i, j, k])
-                Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] + RC0 * dEx - RC0 * Phi2[0, i, j, k]
+                Hy[ii, jj, kk] = (Hy[ii, jj, kk] - updatecoeffsH[materialHy, 4] * 
+                                  (IRA1 * dEx - IRA * Phi2[0, i, j, k]))
+                Phi2[0, i, j, k] = (RE0 * Phi2[0, i, j, k] + RC0 * dEx - 
+                                    RC0 * Phi2[0, i, j, k])
 
 cpdef void order2_zplus(
-                        int xs,
-                        int xf,
-                        int ys,
-                        int yf,
-                        int zs,
-                        int zf,
-                        int nthreads,
-                        float_or_double[:, ::1] updatecoeffsH,
-                        np.uint32_t[:, :, :, ::1] ID,
-                        float_or_double[:, :, ::1] Ex,
-                        float_or_double[:, :, ::1] Ey,
-                        float_or_double[:, :, ::1] Ez,
-                        float_or_double[:, :, ::1] Hx,
-                        float_or_double[:, :, ::1] Hy,
-                        float_or_double[:, :, ::1] Hz,
-                        float_or_double[:, :, :, ::1] Phi1,
-                        float_or_double[:, :, :, ::1] Phi2,
-                        float_or_double[:, ::1] RA,
-                        float_or_double[:, ::1] RB,
-                        float_or_double[:, ::1] RE,
-                        float_or_double[:, ::1] RF,
-                        float d
-                ):
-    """This function updates the Hx and Hy field components for the zplus slab.
+    int xs,
+    int xf,
+    int ys,
+    int yf,
+    int zs,
+    int zf,
+    int nthreads,
+    float_or_double[:, ::1] updatecoeffsH,
+    np.uint32_t[:, :, :, ::1] ID,
+    float_or_double[:, :, ::1] Ex,
+    float_or_double[:, :, ::1] Ey,
+    float_or_double[:, :, ::1] Ez,
+    float_or_double[:, :, ::1] Hx,
+    float_or_double[:, :, ::1] Hy,
+    float_or_double[:, :, ::1] Hz,
+    float_or_double[:, :, :, ::1] Phi1,
+    float_or_double[:, :, :, ::1] Phi2,
+    float_or_double[:, ::1] RA,
+    float_or_double[:, ::1] RB,
+    float_or_double[:, ::1] RE,
+    float_or_double[:, ::1] RF,
+    float d
+):
+    """Updates the Hx and Hy field components for the zplus slab.
 
     Args:
-        xs, xf, ys, yf, zs, zf (int): Cell coordinates of entire box
-        nthreads (int): Number of threads to use
-        updatecoeffs, ID, E, H (memoryviews): Access to update coefficients, ID and field component arrays
-        Phi, RA, RB, RE, RF (memoryviews): Access to PML coefficient arrays
-        d (float): Spatial discretisation, e.g. dx, dy or dz
+        xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
+        nthreads: int for number of threads to use.
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+                                ID and field component arrays.
+        Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
+        d: float for spatial discretisation, e.g. dx, dy or dz.
     """
 
     cdef Py_ssize_t i, j, k, ii, jj, kk
     cdef int nx, ny, nz, materialHx, materialHy
-    cdef float_or_double dz, dEx, dEy, IRA, IRA1, RB0, RC0, RE0, RF0, RB1, RC1, RE1, RF1, Psi1, Psi2
+    cdef float_or_double dz, dEx, dEy, IRA, IRA1, RB0, RC0, RE0, RF0
+    cdef float_or_double RB1, RC1, RE1, RF1, Psi1, Psi2
     dz = d
     nx = xf - xs
     ny = yf - ys
@@ -846,12 +898,14 @@ cpdef void order2_zplus(
                 # Hx
                 materialHx = ID[3, ii, jj, kk]
                 dEy = (Ey[ii, jj, kk + 1] - Ey[ii, jj, kk]) / dz
-                Hx[ii, jj, kk] = Hx[ii, jj, kk] + updatecoeffsH[materialHx, 4] * (IRA1 * dEy - IRA * Psi1)
+                Hx[ii, jj, kk] = (Hx[ii, jj, kk] + updatecoeffsH[materialHx, 4] * 
+                                  (IRA1 * dEy - IRA * Psi1))
                 Phi1[1, i, j, k] = RE1 * Phi1[1, i, j, k] + RC1 * (dEy - Psi1)
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] + RC0 * (dEy - Psi1)
                 # Hy
                 materialHy = ID[4, ii, jj, kk]
                 dEx = (Ex[ii, jj, kk + 1] - Ex[ii, jj, kk]) / dz
-                Hy[ii, jj, kk] = Hy[ii, jj, kk] - updatecoeffsH[materialHy, 4] * (IRA1 * dEx - IRA * Psi2)
+                Hy[ii, jj, kk] = (Hy[ii, jj, kk] - updatecoeffsH[materialHy, 4] * 
+                                  (IRA1 * dEx - IRA * Psi2))
                 Phi2[1, i, j, k] = RE1 * Phi2[1, i, j, k] + RC1 * (dEx - Psi2)
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] + RC0 * (dEx - Psi2)
