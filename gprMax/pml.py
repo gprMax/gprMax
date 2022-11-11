@@ -283,7 +283,7 @@ class PML:
             Esigma, Hsigma = cfs.calculate_values(self.thickness, cfs.sigma)
 
             # Define different parameters depending on PML formulation
-            if self.G.pmlformulation == 'HORIPML':
+            if self.G.pmls['formulation'] == 'HORIPML':
                 # HORIPML electric update coefficients
                 tmp = ((2 * config.sim_config.em_consts['e0'] * Ekappa) + 
                        self.G.dt * (Ealpha * Ekappa + Esigma))
@@ -306,7 +306,7 @@ class PML:
                                   self.G.dt * (Halpha * Hkappa + Hsigma)) / tmp)
                 self.HRF[x, :] = (2 * Hsigma * self.G.dt) / (Hkappa * tmp)
 
-            elif self.G.pmlformulation == 'MRIPML':
+            elif self.G.pmls['formulation'] == 'MRIPML':
                 # MRIPML electric update coefficients
                 tmp = 2 * config.sim_config.em_consts['e0'] + self.G.dt * Ealpha
                 self.ERA[x, :] = Ekappa + (self.G.dt * Esigma) / tmp
@@ -328,7 +328,7 @@ class PML:
             correction.
         """
 
-        pmlmodule = 'gprMax.cython.pml_updates_electric_' + self.G.pmlformulation
+        pmlmodule = 'gprMax.cython.pml_updates_electric_' + self.G.pmls['formulation']
         func = getattr(import_module(pmlmodule), 
                        'order' + str(len(self.CFS)) + '_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf,
@@ -341,7 +341,7 @@ class PML:
             correction.
         """
 
-        pmlmodule = 'gprMax.cython.pml_updates_magnetic_' + self.G.pmlformulation
+        pmlmodule = 'gprMax.cython.pml_updates_magnetic_' + self.G.pmls['formulation']
         func = getattr(import_module(pmlmodule), 
                        'order' + str(len(self.CFS)) + '_' + self.direction)
         func(self.xs, self.xf, self.ys, self.yf, self.zs, self.zf,
@@ -610,9 +610,9 @@ def print_pml_info(G):
 
 
 def build_pml(G, key, value):
-    """This function builds instances of the PML and calculates the initial
-        parameters and coefficients including setting profile
-        (based on underlying material er and mr from solid array).
+    """Builds instances of the PML and calculates the initial parameters and 
+        coefficients including setting profile (based on underlying material 
+        er and mr from solid array).
 
     Args:
         G: FDTDGrid class describing a grid in a model.
@@ -637,6 +637,7 @@ def build_pml(G, key, value):
         elif key == 'xmax':
             pml = pml_type(G, ID=key, direction='xplus', 
                            xs=G.nx - value, xf=G.nx, yf=G.ny, zf=G.nz)
+        pml.CFS = G.pmls['cfs']
         G.pmls['slabs'].append(pml)
         for j in range(G.ny):
             for k in range(G.nz):
@@ -654,6 +655,7 @@ def build_pml(G, key, value):
         elif key == 'ymax':
             pml = pml_type(G, ID=key, direction='yplus', 
                            ys=G.ny - value, xf=G.nx, yf=G.ny, zf=G.nz)
+        pml.CFS = G.pmls['cfs']
         G.pmls['slabs'].append(pml)
         for i in range(G.nx):
             for k in range(G.nz):
@@ -671,6 +673,7 @@ def build_pml(G, key, value):
         elif key == 'zmax':
             pml = pml_type(G, ID=key, direction='zplus', 
                            zs=G.nz - value, xf=G.nx, yf=G.ny, zf=G.nz)
+        pml.CFS = G.pmls['cfs']
         G.pmls['slabs'].append(pml)
         for i in range(G.nx):
             for j in range(G.ny):
