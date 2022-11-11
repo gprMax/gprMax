@@ -955,6 +955,8 @@ class Snapshot(UserObjectMulti):
                             snapshot will be taken.
         fileext: optional string to indicate type for snapshot file, either 
                             '.vti' (default) or '.h5'
+        outputs: optional list of outputs for receiver. It can be any
+                    selection from Ex, Ey, Ez, Hx, Hy, or Hz.
     """
 
     def __init__(self, **kwargs):
@@ -1017,6 +1019,22 @@ class Snapshot(UserObjectMulti):
         except KeyError:
             fileext = SnapshotUser.fileexts[0]
 
+        try:
+            outputs = self.kwargs['outputs']
+        except KeyError:
+            # If outputs are not specified, use default
+            outputs = SnapshotUser.allowableoutputs
+
+        outputs.sort()
+        # Check and add field output names
+        for output in outputs:
+            if output not in SnapshotUser.allowableoutputs:
+                logger.exception(self.params_str() + ' contains an '
+                                    'output type that is not allowable. '
+                                    'Allowable outputs in current context are '
+                                    f'{SnapshotUser.allowableoutputs}.')
+                raise ValueError
+
         if dx < 0 or dy < 0 or dz < 0:
             logger.exception(self.params_str() + ' the step size should not '
                              'be less than zero.')
@@ -1030,13 +1048,14 @@ class Snapshot(UserObjectMulti):
             raise ValueError
 
         s = SnapshotUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, iterations, 
-                         filename, fileext=fileext)
+                         filename, fileext=fileext, outputs=outputs)
 
-        logger.info(f'Snapshot from {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to '
-                    f'{p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, discretisation '
-                    f'{dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, '
-                    f'at {s.time * grid.dt:g} secs with filename '
-                    f'{s.filename}{s.fileext} will be created.')
+        logger.info(f"Snapshot from {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to "
+                    f"{p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, discretisation "
+                    f"{dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m, "
+                    f"at {s.time * grid.dt:g} secs with field outputs "
+                    f"{', '.join(outputs)} and filename {s.filename}{s.fileext} "
+                    f"will be created.")
 
         grid.snapshots.append(s)
 
@@ -1660,9 +1679,9 @@ class PMLCFS(UserObjectMulti):
                     f'scaling direction: {cfssigma.scalingdirection}, min: '
                     f'{cfssigma.min:g}, max: {cfssigma.max:g}) created.')
         
-        grid.cfs.append(cfs)
+        grid.pmls['cfs'].append(cfs)
 
-        if len(grid.cfs) > 2:
+        if len(grid.pmls['cfs']) > 2:
             logger.exception(self.params_str() + ' can only be used up to two '
                              'times, for up to a 2nd order PML.')
             raise ValueError

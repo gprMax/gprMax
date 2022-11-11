@@ -31,6 +31,8 @@ from .utilities.utilities import round_value
 class Snapshot:
     """Snapshots of the electric and magnetic field values."""
 
+    allowableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz']
+
     # Snapshots can be output as VTK ImageData (.vti) format or 
     # HDF5 format (.h5) files
     fileexts = ['.vti', '.h5']
@@ -46,7 +48,8 @@ class Snapshot:
     bpg = None
 
     def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None,
-                 dx=None, dy=None, dz=None, time=None, filename=None, fileext=None):
+                 dx=None, dy=None, dz=None, time=None, filename=None, 
+                 fileext=None, outputs=None):
         """
         Args:
             xs, xf, ys, yf, zs, zf: ints for the extent of the volume in cells.
@@ -54,6 +57,8 @@ class Snapshot:
             time: int for the iteration number to take the snapshot on.
             filename: string for the filename to save to.
             fileext: string for the file extension.
+            outputs: optional list of outputs for receiver. It can be any
+                        selection from Ex, Ey, Ez, Hx, Hy, or Hz.
         """
 
         self.fileext = fileext
@@ -150,6 +155,7 @@ class Snapshot:
             pbar: Progress bar class instance.
             G: FDTDGrid class describing a grid in a model.
         """
+
 
         hfield_offset = (3 * np.dtype(config.sim_config.dtypes['float_or_double']).itemsize
                          * self.ncells + np.dtype(np.uint32).itemsize)
