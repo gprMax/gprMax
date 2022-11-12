@@ -89,9 +89,8 @@ class Snapshot:
             dx, dy, dz: ints for the spatial discretisation in cells.
             time: int for the iteration number to take the snapshot on.
             filename: string for the filename to save to.
-            fileext: string for the file extension.
-            outputs: optional list of outputs for receiver. It can be any
-                        selection from Ex, Ey, Ez, Hx, Hy, or Hz.
+            fileext: optional string for the file extension.
+            outputs: optional dict of booleans for fields to use for snapshot.
         """
 
         self.fileext = fileext
@@ -113,8 +112,20 @@ class Snapshot:
         self.sx = slice(self.xs, self.xf + self.dx, self.dx)
         self.sy = slice(self.ys, self.yf + self.dy, self.dy)
         self.sz = slice(self.zs, self.zf + self.dz, self.dz)
-        self.nbytes = (6 * self.nx * self.ny * self.nz * 
-                       np.dtype(config.sim_config.dtypes['float_or_double']).itemsize)
+        self.nbytes = 0
+
+        # Create arrays to hold the field data for snapshot
+        self.snapfields = {}
+        for k, v in self.outputs.items():
+            if v:
+                self.snapfields[k] = np.zeros((self.nx, self.ny, self.nz), 
+                                            dtype=config.sim_config.dtypes['float_or_double'])
+                self.nbytes += (self.snapfields[k].nbytes)
+            else:
+                # If output is not required for snapshot just use a mimimal 
+                # size of array - still required to pass to Cython function
+                self.snapfields[k] = np.zeros((1, 1, 1), 
+                                           dtype=config.sim_config.dtypes['float_or_double'])
 
     def store(self, G):
         """Store (in memory) electric and magnetic field values for snapshot.
@@ -130,20 +141,6 @@ class Snapshot:
         Hxslice = np.ascontiguousarray(G.Hx[self.sx, self.sy, self.sz])
         Hyslice = np.ascontiguousarray(G.Hy[self.sx, self.sy, self.sz])
         Hzslice = np.ascontiguousarray(G.Hz[self.sx, self.sy, self.sz])
-
-        # Create arrays to hold the field data for snapshot
-        self.Exsnap = np.zeros((self.nx, self.ny, self.nz), 
-                                dtype=config.sim_config.dtypes['float_or_double'])
-        self.Eysnap = np.zeros((self.nx, self.ny, self.nz), 
-                                dtype=config.sim_config.dtypes['float_or_double'])
-        self.Ezsnap = np.zeros((self.nx, self.ny, self.nz), 
-                                dtype=config.sim_config.dtypes['float_or_double'])
-        self.Hxsnap = np.zeros((self.nx, self.ny, self.nz), 
-                                dtype=config.sim_config.dtypes['float_or_double'])
-        self.Hysnap = np.zeros((self.nx, self.ny, self.nz), 
-                                dtype=config.sim_config.dtypes['float_or_double'])
-        self.Hzsnap = np.zeros((self.nx, self.ny, self.nz), 
-                                dtype=config.sim_config.dtypes['float_or_double'])
 
         # Calculate field values at points (comes from averaging field components in cells)
         calculate_snapshot_fields(
@@ -163,12 +160,12 @@ class Snapshot:
             Hxslice,
             Hyslice,
             Hzslice,
-            self.Exsnap,
-            self.Eysnap,
-            self.Ezsnap,
-            self.Hxsnap,
-            self.Hysnap,
-            self.Hzsnap
+            self.snapfields['Ex'],
+            self.snapfields['Ey'],
+            self.snapfields['Ez'],
+            self.snapfields['Hx'],
+            self.snapfields['Hy'],
+            self.snapfields['Hz']
         )
 
     def write_file(self, pbar, G):
@@ -198,17 +195,17 @@ class Snapshot:
         for k, v in self.outputs.items():
             if v:
                 if k == 'Ex':
-                    celldata[k] = self.Exsnap
+                    celldata[k] = self.snapfields['Ex']
                 if k == 'Ey':
-                    celldata[k] = self.Eysnap
+                    celldata[k] = self.snapfields['Ey']
                 if k == 'Ez':
-                    celldata[k] = self.Ezsnap
+                    celldata[k] = self.snapfields['Ez']
                 if k == 'Hx':
-                    celldata[k] = self.Hxsnap
+                    celldata[k] = self.snapfields['Hx']
                 if k == 'Hy':
-                    celldata[k] = self.Hysnap
+                    celldata[k] = self.snapfields['Hy']
                 if k == 'Hz':
-                    celldata[k] = self.Hzsnap
+                    celldata[k] = self.snapfields['Hz']
 
         imageToVTK(str(self.filename.with_suffix('')), 
                    origin=((self.xs * self.dx * G.dx), 
@@ -239,23 +236,23 @@ class Snapshot:
         f.attrs['time'] = self.time * G.dt
 
         if self.outputs['Ex']:
-            f['Ex'] = self.Exsnap
-            pbar.update(n=self.Exsnap.nbytes)
+            f['Ex'] = self.snapfields['Ex']
+            pbar.update(n=self.snapfields['Ex'].nbytes)
         if self.outputs['Ey']:
-            f['Ey'] = self.Eysnap
-            pbar.update(n=self.Eysnap.nbytes)
+            f['Ey'] = self.snapfields['Ey']
+            pbar.update(n=self.snapfields['Ey'].nbytes)
         if self.outputs['Ez']:
-            f['Ez'] = self.Ezsnap
-            pbar.update(n=self.Ezsnap.nbytes)
+            f['Ez'] = self.snapfields['Ez']
+            pbar.update(n=self.snapfields['Ez'].nbytes)
         if self.outputs['Hx']:
-            f['Hx'] = self.Hxsnap
-            pbar.update(n=self.Hxsnap.nbytes)
+            f['Hx'] = self.snapfields['Hx']
+            pbar.update(n=self.snapfields['Hx'].nbytes)
         if self.outputs['Hy']:
-            f['Hy'] = self.Hysnap
-            pbar.update(n=self.Hysnap.nbytes)
+            f['Hy'] = self.snapfields['Hy']
+            pbar.update(n=self.snapfields['Hy'].nbytes)
         if self.outputs['Hz']:
-            f['Hz'] = self.Hzsnap
-            pbar.update(n=self.Hzsnap.nbytes)
+            f['Hz'] = self.snapfields['Hz']
+            pbar.update(n=self.snapfields['Hz'].nbytes)
 
         f.close()
 
@@ -340,9 +337,9 @@ def dtoh_snapshot_array(snapEx_dev, snapEy_dev, snapEz_dev, snapHx_dev, snapHy_d
         snap: Snapshot class instance
     """
 
-    snap.Exsnap = snapEx_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
-    snap.Eysnap = snapEy_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
-    snap.Ezsnap = snapEz_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
-    snap.Hxsnap = snapHx_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
-    snap.Hysnap = snapHy_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
-    snap.Hzsnap = snapHz_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.snapfields['Ex'] = snapEx_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.snapfields['Ey'] = snapEy_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.snapfields['Ez'] = snapEz_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.snapfields['Hx'] = snapHx_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.snapfields['Hy'] = snapHy_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.snapfields['Hz'] = snapHz_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]

@@ -26,12 +26,12 @@ cpdef void calculate_snapshot_fields(
     int ny,
     int nz,
     int nthreads,
-    bint Ex,
-    bint Ey,
-    bint Ez,
-    bint Hx,
-    bint Hy,
-    bint Hz,
+    bint isEx,
+    bint isEy,
+    bint isEz,
+    bint isHx,
+    bint isHy,
+    bint isHz,
     float_or_double[:, :, ::1] Exslice,
     float_or_double[:, :, ::1] Eyslice,
     float_or_double[:, :, ::1] Ezslice,
@@ -51,6 +51,7 @@ cpdef void calculate_snapshot_fields(
     Args:
         nx, ny, nz: ints for size of snapshot array.
         nthreads: int for number of threads to use.
+        is: boolean to determine whether that field snapshot is required.
         slice: memoryviews to access slices of field arrays.
         snap: memoryviews to access snapshot arrays.
     """
@@ -62,17 +63,17 @@ cpdef void calculate_snapshot_fields(
             for k in range(nz):
                 # The electric field component value at a point comes from the
                 # average of the 4 electric field component values in that cell.
-                if Ex:
+                if isEx:
                     Exsnap[i, j, k] = (Exslice[i, j, k] + 
                                        Exslice[i, j + 1, k] +
                                        Exslice[i, j, k + 1] + 
                                        Exslice[i, j + 1, k + 1]) / 4
-                if Ey:
+                if isEy:
                     Eysnap[i, j, k] = (Eyslice[i, j, k] + 
                                        Eyslice[i + 1, j, k] +
                                        Eyslice[i, j, k + 1] + 
                                        Eyslice[i + 1, j, k + 1]) / 4
-                if Ez:
+                if isEz:
                     Ezsnap[i, j, k] = (Ezslice[i, j, k] + 
                                        Ezslice[i + 1, j, k] +
                                        Ezslice[i, j + 1, k] + 
@@ -81,12 +82,12 @@ cpdef void calculate_snapshot_fields(
                 # The magnetic field component value at a point comes from
                 # average of 2 magnetic field component values in that cell and
                 # the neighbouring cell.
-                if Hx:
+                if isHx:
                     Hxsnap[i, j, k] = (Hxslice[i, j, k] + 
                                        Hxslice[i + 1, j, k]) / 2
-                if Hy:
+                if isHy:
                     Hysnap[i, j, k] = (Hyslice[i, j, k] + 
                                        Hyslice[i, j + 1, k]) / 2
-                if Hz:
+                if isHz:
                     Hzsnap[i, j, k] = (Hzslice[i, j, k] + 
                                        Hzslice[i, j, k + 1]) / 2
