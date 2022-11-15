@@ -52,11 +52,11 @@ class CPUUpdates:
         self.dispersive_update_b = None
 
     def store_outputs(self):
-        """Store field component values for every receiver and transmission line."""
+        """Stores field component values for every receiver and transmission line."""
         store_outputs_cpu(self.grid)
 
     def store_snapshots(self, iteration):
-        """Store any snapshots.
+        """Stores any snapshots.
 
         Args:
             iteration: int for iteration number.
@@ -66,7 +66,7 @@ class CPUUpdates:
                 snap.store(self.grid)
 
     def update_magnetic(self):
-        """Update magnetic field components."""
+        """Updates magnetic field components."""
         update_magnetic_cpu(self.grid.nx,
                         self.grid.ny,
                         self.grid.nz,
@@ -81,12 +81,12 @@ class CPUUpdates:
                         self.grid.Hz)
 
     def update_magnetic_pml(self):
-        """Update magnetic field components with the PML correction."""
+        """Updates magnetic field components with the PML correction."""
         for pml in self.grid.pmls['slabs']:
             pml.update_magnetic()
 
     def update_magnetic_sources(self):
-        """Update magnetic field components from sources."""
+        """Updates magnetic field components from sources."""
         for source in self.grid.transmissionlines + self.grid.magneticdipoles:
             source.update_magnetic(self.grid.iteration,
                                    self.grid.updatecoeffsH,
@@ -97,7 +97,7 @@ class CPUUpdates:
                                    self.grid)
 
     def update_electric_a(self):
-        """Update electric field components."""
+        """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
         if config.get_model_config().materials['maxpoles'] == 0:
             update_electric_cpu(self.grid.nx,
@@ -135,12 +135,12 @@ class CPUUpdates:
                                      self.grid.Hz)
 
     def update_electric_pml(self):
-        """Update electric field components with the PML correction."""
+        """Updates electric field components with the PML correction."""
         for pml in self.grid.pmls['slabs']:
             pml.update_electric()
 
     def update_electric_sources(self):
-        """Update electric field components from sources -
+        """Updates electric field components from sources -
             update any Hertzian dipole sources last.
         """
         for source in self.grid.voltagesources + self.grid.transmissionlines + self.grid.hertziandipoles:
@@ -176,7 +176,7 @@ class CPUUpdates:
                                      self.grid.Ez)
 
     def adapt_dispersive_config(self):
-        """Set properties for disperive materials.
+        """Sets properties for disperive materials.
 
         Returns:
             props: dict of dispersive material properties.
@@ -191,7 +191,7 @@ class CPUUpdates:
         return props
 
     def set_dispersive_updates(self, props):
-        """Set dispersive update functions.
+        """Sets dispersive update functions.
 
         Args:
             props: dict of dispersive material properties.
@@ -199,7 +199,7 @@ class CPUUpdates:
         update_f = 'update_electric_dispersive_{}pole_{}_{}_{}'
         disp_a = update_f.format(props['poles'], 'A', props['precision'], props['dispersion_type'])
         disp_b = update_f.format(props['poles'], 'B', props['precision'], props['dispersion_type'])
-
+        
         disp_a_f = getattr(import_module('gprMax.cython.fields_updates_dispersive'), disp_a)
         disp_b_f = getattr(import_module('gprMax.cython.fields_updates_dispersive'), disp_b)
 
@@ -207,11 +207,11 @@ class CPUUpdates:
         self.dispersive_update_b = disp_b_f
 
     def time_start(self):
-        """Start timer used to calculate solving time for model."""
+        """Starts timer used to calculate solving time for model."""
         self.timestart = timer()
 
     def calculate_tsolve(self):
-        """Calculate solving time for model."""
+        """Calculates solving time for model."""
         return timer() - self.timestart
 
     def finalise(self):
@@ -335,8 +335,8 @@ class CUDAUpdates:
                             NZ_SNAPS=Snapshot.nz_max)
 
     def _set_field_knls(self):
-        """Electric and magnetic field updates - prepare kernels, and
-            get kernel functions.
+        """Electric and magnetic field updates - prepares kernels, and
+            gets kernel functions.
         """
         
         bld = self._build_knl(knl_fields_updates.update_electric, 
@@ -382,9 +382,11 @@ class CUDAUpdates:
             self.grid.htod_dispersive_arrays()
 
     def _set_pml_knls(self):
-        """PMLS - prepare kernels and get kernel functions."""
-        knl_pml_updates_electric = import_module('gprMax.cuda_opencl.knl_pml_updates_electric_' + self.grid.pmlformulation)
-        knl_pml_updates_magnetic = import_module('gprMax.cuda_opencl.knl_pml_updates_magnetic_' + self.grid.pmlformulation)
+        """PMLS - prepares kernels and gets kernel functions."""
+        knl_pml_updates_electric = import_module('gprMax.cuda_opencl.knl_pml_updates_electric_' + 
+                                                 self.grid.pmls['formulation'])
+        knl_pml_updates_magnetic = import_module('gprMax.cuda_opencl.knl_pml_updates_magnetic_' + 
+                                                 self.grid.pmls['formulation'])
 
         # Initialise arrays on GPU, set block per grid, and get kernel functions
         for pml in self.grid.pmls['slabs']:
@@ -402,6 +404,7 @@ class CUDAUpdates:
             bld = self._build_knl(knl_magnetic, self.subs_name_args, self.subs_func)
             knlH = self.source_module(bld, options=config.sim_config.devices['nvcc_opts'])
             pml.update_magnetic_dev = knlH.get_function(knl_name)
+            print(pml.update_magnetic_dev)
 
         self._copy_mat_coeffs(knlE, knlH)
 
@@ -779,8 +782,8 @@ class OpenCLUpdates:
             self._set_snapshot_knl()        
 
     def _set_field_knls(self):
-        """Electric and magnetic field updates - prepare kernels, and
-            get kernel functions.
+        """Electric and magnetic field updates - prepares kernels, and
+            gets kernel functions.
         """
         if config.get_model_config().materials['maxpoles'] > 0:
             NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
@@ -873,9 +876,9 @@ class OpenCLUpdates:
             self.grid.htod_dispersive_arrays(self.queue)
 
     def _set_pml_knls(self):
-        """PMLS - prepare kernels and get kernel functions."""
-        knl_pml_updates_electric = import_module('gprMax.cuda_opencl.knl_pml_updates_electric_' + self.grid.pmlformulation)
-        knl_pml_updates_magnetic = import_module('gprMax.cuda_opencl.knl_pml_updates_magnetic_' + self.grid.pmlformulation)
+        """PMLS - prepares kernels and gets kernel functions."""
+        knl_pml_updates_electric = import_module('gprMax.cuda_opencl.knl_pml_updates_electric_' + self.grid.pmls['formulation'])
+        knl_pml_updates_magnetic = import_module('gprMax.cuda_opencl.knl_pml_updates_magnetic_' + self.grid.pmls['formulation'])
 
         subs = {'CUDA_IDX': '',
                 'REAL': config.sim_config.dtypes['C_float_or_double'],

@@ -47,15 +47,15 @@ class SubGridHSG(SubGridBaseGrid):
         # Hz = c0Hz - c1Ey + c2Ex
         # Hy = c0Hy - c3Ex + c1Ez
         # Hx = c0Hx - c2Ez + c3Ey
-        # bottom and top
+        # Bottom and Top
         cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwx, self.nwy + 1, self.nwz, 1, self.Hy, precursors.ex_bottom, precursors.ex_top, self.IDlookup['Hy'], 1, -1, 3, config.get_model_config().ompthreads)
         cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwx + 1, self.nwy, self.nwz, 1, self.Hx, precursors.ey_bottom, precursors.ey_top, self.IDlookup['Hx'], -1, 1, 3, config.get_model_config().ompthreads)
 
-        # left and right
+        # Left and Right
         cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwy, self.nwz + 1, self.nwx, 2, self.Hz, precursors.ey_left, precursors.ey_right, self.IDlookup['Hz'], 1, -1, 1, config.get_model_config().ompthreads)
         cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwy + 1, self.nwz, self.nwx, 2, self.Hy, precursors.ez_left, precursors.ez_right, self.IDlookup['Hy'], -1, 1, 1, config.get_model_config().ompthreads)
 
-        # front and back
+        # Front and Back
         cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwx, self.nwz + 1, self.nwy, 3, self.Hz, precursors.ex_front, precursors.ex_back, self.IDlookup['Hz'], -1, 1, 2, config.get_model_config().ompthreads)
         cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsH, self.ID, self.n_boundary_cells, -1, self.nwx + 1, self.nwz, self.nwy, 3, self.Hx, precursors.ez_front, precursors.ez_back, self.IDlookup['Hx'], 1, -1, 2, config.get_model_config().ompthreads)
 
@@ -71,15 +71,15 @@ class SubGridHSG(SubGridBaseGrid):
         # Ey = c0(Ey) + c3(dHx) - c1(dHz)
         # Ez = c0(Ez) + c1(dHy) - c2(dHx)
 
-        # bottom and top
+        # Bottom and Top
         cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsE, self.ID, self.n_boundary_cells, 0, self.nwx, self.nwy + 1, self.nwz, 1, self.Ex, precursors.hy_bottom, precursors.hy_top, self.IDlookup['Ex'], 1, -1, 3, config.get_model_config().ompthreads)
         cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsE, self.ID, self.n_boundary_cells, 0, self.nwx + 1, self.nwy, self.nwz, 1, self.Ey, precursors.hx_bottom, precursors.hx_top, self.IDlookup['Ey'], -1, 1, 3, config.get_model_config().ompthreads)
 
-        # left and right
+        # Left and Right
         cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsE, self.ID, self.n_boundary_cells, 0, self.nwy, self.nwz + 1, self.nwx, 2, self.Ey, precursors.hz_left, precursors.hz_right, self.IDlookup['Ey'], 1, -1, 1, config.get_model_config().ompthreads)
         cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsE, self.ID, self.n_boundary_cells, 0, self.nwy + 1, self.nwz, self.nwx, 2, self.Ez, precursors.hy_left, precursors.hy_right, self.IDlookup['Ez'], -1, 1, 1, config.get_model_config().ompthreads)
 
-        # front and back
+        # Front and Back
         cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsE, self.ID, self.n_boundary_cells, 0, self.nwx, self.nwz + 1, self.nwy, 3, self.Ex, precursors.hz_front, precursors.hz_back, self.IDlookup['Ex'], -1, 1, 2, config.get_model_config().ompthreads)
         cython_update_is(self.nwx, self.nwy, self.nwz, self.updatecoeffsE, self.ID, self.n_boundary_cells, 0, self.nwx + 1, self.nwz, self.nwy, 3, self.Ez, precursors.hx_front, precursors.hx_back, self.IDlookup['Ez'], 1, -1, 2, config.get_model_config().ompthreads)
 
@@ -134,7 +134,7 @@ class SubGridHSG(SubGridBaseGrid):
         cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 2, j_l, j_u, k_l, k_u + 1, i_l - 1, i_u, self.nwx, main_grid.IDlookup['Hz'], main_grid.Hz, self.Ey, 1, -1, 1, 1, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
         cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 2, j_l, j_u + 1, k_l, k_u, i_l - 1, i_u, self.nwx, main_grid.IDlookup['Hy'], main_grid.Hy, self.Ez, 1, 1, -1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
 
-        # bottom and top
+        # Bottom and Top
         cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 1, i_l, i_u, j_l, j_u + 1, k_l - 1, k_u, self.nwz, main_grid.IDlookup['Hy'], main_grid.Hy, self.Ex, 3, -1, 1, 1, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
         cython_update_magnetic_os(main_grid.updatecoeffsH, main_grid.ID, 1, i_l, i_u + 1, j_l, j_u, k_l - 1, k_u, self.nwz, main_grid.IDlookup['Hx'], main_grid.Hx, self.Ey, 3, 1, -1, 0, self.ratio, self.is_os_sep, self.n_boundary_cells, config.get_model_config().ompthreads)
 
@@ -151,7 +151,8 @@ class SubGridHSG(SubGridBaseGrid):
             pml_thickness: number of PML cells on each of the 6 sides of the 
                             subgrid. Defaults to 6.
         """
-        
+
+        # Working region
         xs, ys, zs = self.round_to_grid((self.i0 * self.dx * self.ratio,
                                          self.j0 * self.dy * self.ratio,
                                          self.k0 * self.dz * self.ratio))
@@ -160,12 +161,12 @@ class SubGridHSG(SubGridBaseGrid):
                                          self.k1 * self.dz * self.ratio))
 
         logger.info('')
-        logger.info(f'[{self.name}] Type: {self.gridtype}')
+        logger.debug(f'[{self.name}] Type: {self.gridtype}')
         logger.info(f'[{self.name}] Ratio: 1:{self.ratio}')
         logger.info(f'[{self.name}] Spatial discretisation: {self.dx:g} x ' +
                     f'{self.dy:g} x {self.dz:g}m')
-        logger.info(f'[{self.name}] Extent: {xs}m, {ys}m, {zs}m to {xf}m, {yf}m, {zf}m')
-        logger.info(f'[{self.name}] Working region: {self.nwx} x {self.nwy} x {self.nwz} cells')
-        logger.info(f'[{self.name}] Total region: {self.nx:d} x {self.ny:d} x {self.nz:d} = ' +
+        logger.info(f'[{self.name}] Extent (working region): {xs}m, {ys}m, {zs}m to {xf}m, {yf}m, {zf}m ' +
+                    f'(({self.nwx} x {self.nwy} x {self.nwz} = {self.nwx * self.nwy * self.nwz} cells)')
+        logger.debug(f'[{self.name}] Total region: {self.nx:d} x {self.ny:d} x {self.nz:d} = ' +
                      f'{(self.nx * self.ny * self.nz):g} cells')
         logger.info(f'[{self.name}] Time step (at CFL limit): {self.dt:g} secs')
