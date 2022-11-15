@@ -38,7 +38,7 @@ from .geometry_outputs import save_geometry_views
 from .grid import dispersion_analysis
 from .hash_cmds_file import parse_hash_commands
 from .materials import process_materials
-from .pml import build_pml, print_pml_info, set_pml_defaults
+from .pml import build_pml, CFS, print_pml_info
 from .scene import Scene
 from .snapshots import save_snapshots
 from .utilities.host_info import mem_check_all, set_omp_threads
@@ -137,12 +137,10 @@ class ModelBuildRun:
         # Combine available grids
         grids = [G] + G.subgrids
 
-        # Check for dispersive materials (and specific type) and set PML 
-        # defaults (must be done before memory checks)
+        # Check for dispersive materials (and specific type)
         for grid in grids:
             if config.get_model_config().materials['maxpoles'] != 0:
                 config.get_model_config().materials['drudelorentz'] = any([m for m in grid.materials if 'drude' in m.type or 'lorentz' in m.type])
-            set_pml_defaults(grid)
 
         # Set data type if any dispersive materials (must be done before memory checks)
         if config.get_model_config().materials['maxpoles'] != 0:
@@ -157,6 +155,9 @@ class ModelBuildRun:
         # Build grids
         gridbuilders = [GridBuilder(grid) for grid in grids]
         for gb in gridbuilders:
+            # Set default CFS parameter for PMLs if not user provided
+            if not gb.grid.pmls['cfs']:
+                gb.grid.pmls['cfs'] = [CFS()]
             logger.info(print_pml_info(gb.grid))
             if not all(value == 0 for value in gb.grid.pmls['thickness'].values()):
                 gb.build_pmls()
@@ -258,9 +259,6 @@ class ModelBuildRun:
 
         Args:
             solver: solver object.
-
-        Returns:
-            tsolve: float of time taken to execute solving (seconds).
         """
 
         # Print information about and check OpenMP threads
@@ -302,8 +300,6 @@ class ModelBuildRun:
 
         # Print resource information on runtime and memory usage
         self.print_resource_info(tsolve, memsolve)
-
-        return tsolve
 
 
 class GridBuilder:

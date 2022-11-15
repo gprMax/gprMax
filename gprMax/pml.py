@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from collections import OrderedDict
 from importlib import import_module
 
 import numpy as np
@@ -359,7 +358,7 @@ class CUDAPML(PML):
         super(CUDAPML, self).__init__(*args, **kwargs)
 
     def htod_field_arrays(self):
-        """Initialise PML field and coefficient arrays on GPU."""
+        """Initialises PML field and coefficient arrays on GPU."""
 
         import pycuda.gpuarray as gpuarray
 
@@ -377,14 +376,14 @@ class CUDAPML(PML):
         self.HPhi2_dev = gpuarray.to_gpu(self.HPhi2)
 
     def set_blocks_per_grid(self):
-        """Set the blocks per grid size used for updating the PML field arrays
+        """Sets the blocks per grid size used for updating the PML field arrays
             on a GPU."""
         self.bpg = (int(np.ceil(((self.EPhi1_dev.shape[1] + 1) *
                    (self.EPhi1_dev.shape[2] + 1) *
                    (self.EPhi1_dev.shape[3] + 1)) / self.G.tpb[0])), 1, 1)
 
     def get_update_funcs(self, kernelselectric, kernelsmagnetic):
-        """Get update functions from PML kernels.
+        """Gets update functions from PML kernels.
 
         Args:
             kernelselectric: pycuda SourceModule containing PML kernels for
@@ -393,13 +392,15 @@ class CUDAPML(PML):
                                 magnetic updates.
         """
 
-        self.update_electric_dev = kernelselectric.get_function('order' + str(len(self.CFS)) + '_' + self.direction)
-        self.update_magnetic_dev = kernelsmagnetic.get_function('order' + str(len(self.CFS)) + '_' + self.direction)
+        self.update_electric_dev = kernelselectric.get_function('order' + 
+                                                                str(len(self.CFS)) + 
+                                                                '_' + self.direction)
+        self.update_magnetic_dev = kernelsmagnetic.get_function('order' + 
+                                                                str(len(self.CFS)) + 
+                                                                '_' + self.direction)
 
     def update_electric(self):
-        """This functions updates electric field components with the PML
-            correction on the GPU.
-        """
+        """Updates electric field components with the PML correction on the GPU."""
         self.update_electric_dev(np.int32(self.xs), 
                                  np.int32(self.xf),
                                  np.int32(self.ys), 
@@ -430,9 +431,7 @@ class CUDAPML(PML):
                                  block=self.G.tpb, grid=self.bpg)
 
     def update_magnetic(self):
-        """This functions updates magnetic field components with the PML
-            correction on the GPU.
-        """
+        """Updates magnetic field components with the PML correction on the GPU."""
         self.update_magnetic_dev(np.int32(self.xs), 
                                  np.int32(self.xf),
                                  np.int32(self.ys), 
@@ -480,7 +479,7 @@ class OpenCLPML(PML):
         self.queue = queue
 
     def htod_field_arrays(self):
-        """Initialise PML field and coefficient arrays on compute device."""
+        """Initialises PML field and coefficient arrays on compute device."""
 
         import pyopencl.array as clarray
 
@@ -504,8 +503,8 @@ class OpenCLPML(PML):
         pass
 
     def update_electric(self):
-        """This functions updates electric field components with the PML
-            correction on the compute device.
+        """Updates electric field components with the PML correction on the 
+            compute device.
         """
         event = self.update_electric_dev(np.int32(self.xs), 
                                          np.int32(self.xf),
@@ -537,8 +536,8 @@ class OpenCLPML(PML):
         event.wait()
 
     def update_magnetic(self):
-        """This functions updates magnetic field components with the PML
-            correction on the compute device.
+        """Updates magnetic field components with the PML correction on the 
+            compute device.
         """
         event = self.update_magnetic_dev(np.int32(self.xs), 
                                          np.int32(self.xf),
@@ -568,23 +567,6 @@ class OpenCLPML(PML):
                                          self.HRF_dev,
                                          config.sim_config.dtypes['float_or_double'](self.d))
         event.wait()
-
-
-def set_pml_defaults(G):
-    """Set default parameters for PMLs if not provided by user.
-
-    Args:
-        G: FDTDGrid class describing a grid in a model.
-    """
-
-    if not G.pmls['formulation']:
-        G.pmls['formulation'] = 'HORIPML'
-
-    if not all(G.pmls['thickness'].values()):
-        G.pmls['thickness'] = OrderedDict.fromkeys(G.pmls['thickness'], 10)
-
-    if not G.pmls['cfs']:
-        G.pmls['cfs'] = [CFS()]
 
     
 def print_pml_info(G):
