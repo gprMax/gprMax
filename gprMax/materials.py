@@ -382,7 +382,7 @@ class PeplinskiSoil:
 
 
 def create_built_in_materials(G):
-    """Create pre-defined (built-in) materials.
+    """Creates pre-defined (built-in) materials.
 
     Args:
         G: FDTDGrid class describing a grid in a model.
@@ -433,7 +433,7 @@ def calculate_water_properties(T=25, S=0):
 
 
 def create_water(G, T=25, S=0):
-    """Create single-pole Debye model for water with specified temperature and
+    """Creates single-pole Debye model for water with specified temperature and
         salinity.
 
     Args:
@@ -462,7 +462,7 @@ def create_water(G, T=25, S=0):
 
 
 def create_grass(G):
-    """Create single-pole Debye model for grass
+    """Creates single-pole Debye model for grass
 
     Args:
         G: FDTDGrid class describing a grid in a model.
