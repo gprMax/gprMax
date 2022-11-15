@@ -71,7 +71,7 @@ def save_geometry_views(gvs):
     for i, gv in enumerate(gvs):
         gv.set_filename()
         vtk_data = gv.prep_vtk()
-        pbar = tqdm(total=vtk_data['nbytes'], unit='byte', unit_scale=True,
+        pbar = tqdm(total=gv.nbytes, unit='byte', unit_scale=True,
                     desc=f'Writing geometry view file {i + 1}/{len(gvs)}, '
                     f'{gv.filename.name}{gv.vtkfiletype.ext}',
                     ncols=get_terminal_width() - 1, file=sys.stdout,
