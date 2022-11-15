@@ -278,16 +278,12 @@ class PMLProps(UserObjectSingle):
 
     def create(self, G, uip):
         try:
-            formulation = self.kwargs['formulation']
+            G.pmls['formulation'] = self.kwargs['formulation']
+            if G.pmls['formulation'] not in PML.formulations:
+                logger.exception(self.__str__() + f" requires the value to be " +
+                                 f"one of {' '.join(PML.formulations)}")    
         except KeyError:
-            logger.exception(self.__str__() + ' requires the formulation of PML to use')
-            raise
-        if formulation not in PML.formulations:
-            logger.exception(self.__str__() + f" requires the value to be one " +
-                             f"of {' '.join(PML.formulations)}")
-            raise ValueError
-
-        G.pmls['formulation'] = formulation
+            pass
 
         try:
             thickness = self.kwargs['thickness']
