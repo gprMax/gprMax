@@ -1070,6 +1070,7 @@ class Material(UserObjectMulti):
         se: float required for the electric conductivity (Siemens/metre).
         mr: float required for the relative magnetic permeability.
         sm: float required for the magnetic loss.
+        id: string used as identifier for material.
     """
 
     def __init__(self, **kwargs):
@@ -1138,7 +1139,7 @@ class AddDebyeDispersion(UserObjectMulti):
         on multi-pole Debye formulation.
 
     Attributes:
-        n_poles: float required for number of Debye poles.
+        poles: float required for number of Debye poles.
         er_delta: tuple required for difference between zero-frequency relative 
                     permittivity and relative permittivity at infinite frequency 
                     for each pole.
@@ -1212,7 +1213,7 @@ class AddLorentzDispersion(UserObjectMulti):
         on multi-pole Lorentz formulation.
 
     Attributes:
-        n_poles: float required for number of Lorentz poles.
+        poles: float required for number of Lorentz poles.
         er_delta: tuple required for difference between zero-frequency relative 
                     permittivity and relative permittivity at infinite frequency 
                     for each pole.
@@ -1291,7 +1292,7 @@ class AddDrudeDispersion(UserObjectMulti):
         on multi-pole Drude formulation.
 
     Attributes:
-        n_poles: float required for number of Drude poles.
+        poles: float required for number of Drude poles.
         omega: tuple required for frequency (Hz) for each pole. 
         alpha: tuple required for inverse of relaxation time (secs) for each pole.
         material_ids: list required of material ids to apply disperive 
