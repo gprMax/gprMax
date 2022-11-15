@@ -50,16 +50,16 @@ class FDTDGrid:
         self.iterations = 0
         self.timewindow = 0
 
+        # PML parameters - set some defaults to use if not user provided
         self.pmls = {}
-        self.pmls['formulation'] = None
+        self.pmls['formulation'] = 'HORIPML'
         self.pmls['cfs'] = []
         self.pmls['slabs'] = []
         # Ordered dictionary required so that PMLs are always updated in the
         # same order. The order itself does not matter, however, if must be the
         # same from model to model otherwise the numerical precision from adding
         # the PML corrections will be different.
-        self.pmls['thickness'] = OrderedDict((key, None) for key in PML.boundaryIDs)
-        
+        self.pmls['thickness'] = OrderedDict((key, 10) for key in PML.boundaryIDs)
         
         self.materials = []
         self.mixingmodels = []
@@ -77,19 +77,6 @@ class FDTDGrid:
         self.rxsteps = [0, 0, 0]
         self.snapshots = []
         self.subgrids = []
-
-    def n_edges(self):
-        i = self.nx
-        j = self.ny
-        k = self.nz
-        e = (i * j * (k - 1)) + (j * k * (i - 1)) + (i * k * (j - 1))
-        return e
-
-    def n_nodes(self):
-        return self.nx * self.ny * self.nz
-
-    def n_cells(self):
-        return (self.nx - 1) * (self.ny - 1) * (self.nz - 1)
 
     def within_bounds(self, p):
         if p[0] < 0 or p[0] > self.nx:
