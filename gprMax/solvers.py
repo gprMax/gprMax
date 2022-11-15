@@ -43,6 +43,11 @@ def create_G():
 def create_solver(G):
     """Create configured solver object.
 
+    N.B A large range of different functions exist to advance the time step for
+    dispersive materials. The correct function is set by the
+    adapt_dispersive_config() and set_dispersive_updates methods, based on the
+    the required numerical precision and dispersive material type.
+
     Args:
         G: FDTDGrid class describing a grid in a model.
 
@@ -52,12 +57,10 @@ def create_solver(G):
 
     if config.sim_config.general['subgrid']:
         updates = create_subgrid_updates(G)
-        solver = Solver(updates, hsg=True)
-        # A large range of different functions exist to advance the time step for
-        # dispersive materials. The correct function is set here based on the
-        # the required numerical precision and dispersive material type.
         props = updates.adapt_dispersive_config()
         updates.set_dispersive_updates(props)
+        updates.updaters[0].set_dispersive_updates(props)
+        solver = Solver(updates, hsg=True)        
     elif config.sim_config.general['solver'] == 'cpu':
         updates = CPUUpdates(G)
         solver = Solver(updates)
