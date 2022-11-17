@@ -3,7 +3,7 @@
 
 name: gprMax-devel
 dependencies:
-- python>3.7
+- python==3.7.15
 - colorama
 - cython
 - h5py
