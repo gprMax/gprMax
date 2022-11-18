@@ -6,7 +6,7 @@
 from pathlib import Path
 
 import gprMax
-from user_libs.GPRAntennaModels.GSSI import antenna_like_GSSI_400
+from toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_400
 
 import numpy as np
 
@@ -105,24 +105,27 @@ for i in range(1, 51):
     snap = gprMax.Snapshot(p1=(0, y / 2, 0), p2=(x, y / 2 + dl, z), dl=(dl, dl, dl),
                            filename=Path(*parts[:-1], parts[-1] + '_' + str(i)).name,
                            time=i * tw / 50)
-    # scene.add(snap)
+    scene.add(snap)
 
 # create a geometry view of the main grid and the sub grid stitched together
-gv = gprMax.GeometryView(p1=(0, 0, 0),
-                         p2=(1, 1, 1),
-                         dl=dl,
-                         filename=fn.with_suffix('').parts[-1],
-                         output_type='f',
-                         multi_grid=True)
+gv1 = gprMax.GeometryView(p1=(sg_x0, sg_y0, sg_z0), p2=(sg_x1, sg_y1, sg_z1),
+                         dl=(dl_s, dl_s, dl_s),
+                         filename=fn.with_suffix('').parts[-1] + '_sg',
+                         output_type='n')
+#sg.add(gv1)
 
-# create a geometry view of the main grid and the sub grid stitched together
-gv_normal = gprMax.GeometryView(p1=(0, 0, 0),
+gv3 = gprMax.GeometryView(p1=(sg_x0, sg_y0, 1.512), p2=(sg_x1, sg_y1, 1.513),
+                         dl=(dl_s, dl_s, dl_s),
+                         filename=fn.with_suffix('').parts[-1] + '_sg',
+                         output_type='f')
+sg.add(gv3)
+
+gv2 = gprMax.GeometryView(p1=(0, 0, 0),
                          p2=domain.props.p1,
                          dl=dl,
-                         filename=fn.with_suffix('').parts[-1] + '_voxels',
+                         filename=fn.with_suffix('').parts[-1],
                          output_type='n')
-# scene.add(gv)
-scene.add(gv_normal)
+scene.add(gv2)
 
 # half space material
 layer_m = gprMax.Material(er=9, se=0.397e-3, mr=1, sm=0, id='soil_2')
@@ -134,4 +137,4 @@ scene.add(fb)
 sr = gprMax.AddSurfaceRoughness(p1=(0, 0, 1), p2=(3, 1, 1), frac_dim=1.5, weighting=(1, 1), limits=(0.4, 1.2), fractal_box_id='fbox', seed=1)
 scene.add(sr)
 
-gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn, subgrid=True, autotranslate=True)
+gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=fn, subgrid=True, autotranslate=True)
