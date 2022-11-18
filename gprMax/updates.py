@@ -175,30 +175,16 @@ class CPUUpdates:
                                      self.grid.Ey,
                                      self.grid.Ez)
 
-    def adapt_dispersive_config(self):
-        """Sets properties for disperive materials.
-
-        Returns:
-            props: dict of dispersive material properties.
-        """
+    def set_dispersive_updates(self):
+        """Sets dispersive update functions."""
 
         poles = 'multi' if config.get_model_config().materials['maxpoles'] > 1 else '1'
         precision = 'float' if config.sim_config.general['precision'] == 'single' else 'double'
         dispersion = 'complex' if config.get_model_config().materials['dispersivedtype'] == config.sim_config.dtypes['complex'] else 'real'
 
-        props = {'poles': poles, 'precision': precision, 'dispersion_type': dispersion}
-
-        return props
-
-    def set_dispersive_updates(self, props):
-        """Sets dispersive update functions.
-
-        Args:
-            props: dict of dispersive material properties.
-        """
         update_f = 'update_electric_dispersive_{}pole_{}_{}_{}'
-        disp_a = update_f.format(props['poles'], 'A', props['precision'], props['dispersion_type'])
-        disp_b = update_f.format(props['poles'], 'B', props['precision'], props['dispersion_type'])
+        disp_a = update_f.format(poles, 'A', precision, dispersion)
+        disp_b = update_f.format(poles, 'B', precision, dispersion)
         
         disp_a_f = getattr(import_module('gprMax.cython.fields_updates_dispersive'), disp_a)
         disp_b_f = getattr(import_module('gprMax.cython.fields_updates_dispersive'), disp_b)

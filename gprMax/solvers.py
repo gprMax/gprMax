@@ -57,20 +57,22 @@ def create_solver(G):
 
     if config.sim_config.general['subgrid']:
         updates = create_subgrid_updates(G)
-        props = updates.adapt_dispersive_config()
-        updates.set_dispersive_updates(props)
-        updates.updaters[0].set_dispersive_updates(props)
+        # upx = updates.updaters
+        # upx.append(updates)
+        # for up in upx:
+        #     up.set_dispersive_updates()
         solver = Solver(updates, hsg=True)        
     elif config.sim_config.general['solver'] == 'cpu':
         updates = CPUUpdates(G)
+        updates.set_dispersive_updates()
         solver = Solver(updates)
-        props = updates.adapt_dispersive_config()
-        updates.set_dispersive_updates(props)
     elif config.sim_config.general['solver'] == 'cuda':
         updates = CUDAUpdates(G)
+        #TODO: check/add dispersive updates for CUDA
         solver = Solver(updates)
     elif config.sim_config.general['solver'] == 'opencl':
         updates = OpenCLUpdates(G)
+        #TODO: check/add dispersive updates for OpenCL
         solver = Solver(updates)
 
     return solver
