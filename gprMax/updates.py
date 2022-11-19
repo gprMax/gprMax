@@ -395,7 +395,7 @@ class CUDAUpdates:
         self._copy_mat_coeffs(knlE, knlH)
 
     def _set_rx_knl(self):
-        """Receivers - initialise arrays on GPU, prepare kernel and get kernel
+        """Receivers - initialises arrays on GPU, prepares kernel and gets kernel
                         function.
         """
         self.rxcoords_dev, self.rxs_dev = htod_rx_arrays(self.grid)
@@ -412,7 +412,7 @@ class CUDAUpdates:
         self.store_outputs_dev = knl.get_function("store_outputs")
 
     def _set_src_knls(self):
-        """Sources - initialise arrays on GPU, prepare kernel and get kernel
+        """Sources - initialises arrays on GPU, prepares kernel and gets kernel
                         function.
         """
         self.subs_func.update({'NY_SRCINFO': 4, 
@@ -440,7 +440,7 @@ class CUDAUpdates:
         self._copy_mat_coeffs(knl, knl)
 
     def _set_snapshot_knl(self):
-        """Snapshots - initialise arrays on GPU, prepare kernel and get kernel
+        """Snapshots - initialises arrays on GPU, prepares kernel and gets kernel
                         function.
         """
         self.snapEx_dev, self.snapEy_dev, self.snapEz_dev, self.snapHx_dev, self.snapHy_dev, self.snapHz_dev = htod_snapshot_array(self.grid)
@@ -456,7 +456,7 @@ class CUDAUpdates:
         self.store_snapshot_dev = knl.get_function("store_snapshot")
 
     def _copy_mat_coeffs(self, knlE, knlH):
-        """Copy material coefficient arrays to constant memory of GPU
+        """Copies material coefficient arrays to constant memory of GPU
             (must be <64KB).
 
         Args:
@@ -477,7 +477,7 @@ class CUDAUpdates:
         self.drv.memcpy_htod(updatecoeffsH, self.grid.updatecoeffsH)
 
     def store_outputs(self):
-        """Store field component values for every receiver."""
+        """Stores field component values for every receiver."""
         if self.grid.rxs:
             self.store_outputs_dev(np.int32(len(self.grid.rxs)),
                                    np.int32(self.grid.iteration),
@@ -493,7 +493,7 @@ class CUDAUpdates:
                                    grid=(round32(len(self.grid.rxs)), 1, 1))
 
     def store_snapshots(self, iteration):
-        """Store any snapshots.
+        """Stores any snapshots.
 
         Args:
             iteration: int for iteration number.
@@ -536,7 +536,7 @@ class CUDAUpdates:
                                         0, snap)
 
     def update_magnetic(self):
-        """Update magnetic field components."""
+        """Updates magnetic field components."""
         self.update_magnetic_dev(np.int32(self.grid.nx),
                                  np.int32(self.grid.ny),
                                  np.int32(self.grid.nz),
@@ -551,12 +551,12 @@ class CUDAUpdates:
                                  grid=self.grid.bpg)
 
     def update_magnetic_pml(self):
-        """Update magnetic field components with the PML correction."""
+        """Updates magnetic field components with the PML correction."""
         for pml in self.grid.pmls['slabs']:
             pml.update_magnetic()
 
     def update_magnetic_sources(self):
-        """Update magnetic field components from sources."""
+        """Updates magnetic field components from sources."""
         if self.grid.magneticdipoles:
             self.update_magnetic_dipole_dev(np.int32(len(self.grid.magneticdipoles)),
                                             np.int32(self.grid.iteration),
@@ -574,7 +574,7 @@ class CUDAUpdates:
                                             grid=(round32(len(self.grid.magneticdipoles)), 1, 1))
 
     def update_electric_a(self):
-        """Update electric field components."""
+        """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
         if config.get_model_config().materials['maxpoles'] == 0:
             self.update_electric_dev(np.int32(self.grid.nx),
@@ -612,12 +612,12 @@ class CUDAUpdates:
                                      grid=self.grid.bpg)
 
     def update_electric_pml(self):
-        """Update electric field components with the PML correction."""
+        """Updates electric field components with the PML correction."""
         for pml in self.grid.pmls['slabs']:
             pml.update_electric()
 
     def update_electric_sources(self):
-        """Update electric field components from sources -
+        """Updates electric field components from sources -
             update any Hertzian dipole sources last.
         """
         if self.grid.voltagesources:
@@ -678,14 +678,14 @@ class CUDAUpdates:
                                      grid=self.grid.bpg)
 
     def time_start(self):
-        """Start event timers used to calculate solving time for model."""
+        """Starts event timers used to calculate solving time for model."""
         self.iterstart = self.drv.Event()
         self.iterend = self.drv.Event()
         self.iterstart.record()
         self.iterstart.synchronize()
 
     def calculate_memsolve(self, iteration):
-        """Calculate memory used on last iteration.
+        """Calculates memory used on last iteration.
 
         Args:
             iteration: int for iteration number.
@@ -697,7 +697,7 @@ class CUDAUpdates:
             return self.drv.mem_get_info()[1] - self.drv.mem_get_info()[0]
 
     def calculate_tsolve(self):
-        """Calculate solving time for model."""
+        """Calculates solving time for model."""
         self.iterend.record()
         self.iterend.synchronize()
         tsolve = self.iterstart.time_till(self.iterend) * 1e-3
@@ -705,7 +705,7 @@ class CUDAUpdates:
         return tsolve
 
     def finalise(self):
-        """Copy data from GPU back to CPU to save to file(s)."""
+        """Copies data from GPU back to CPU to save to file(s)."""
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
             dtoh_rx_array(self.rxs_dev.get(),
@@ -899,8 +899,8 @@ class OpenCLUpdates:
                                         options=config.sim_config.devices['compiler_opts'])
 
     def _set_rx_knl(self):
-        """Receivers - initialise arrays on compute device, prepare kernel and 
-                        get kernel function.
+        """Receivers - initialises arrays on compute device, prepares kernel and 
+                        gets kernel function.
         """
         self.rxcoords_dev, self.rxs_dev = htod_rx_arrays(self.grid, self.queue)
         self.store_outputs_dev = self.elwise(self.ctx, 
@@ -910,8 +910,8 @@ class OpenCLUpdates:
                                              options=config.sim_config.devices['compiler_opts'])
 
     def _set_src_knls(self):
-        """Sources - initialise arrays on compute device, prepare kernel and 
-                    get kernel function.
+        """Sources - initialises arrays on compute device, prepares kernel and 
+                    gets kernel function.
         """
         if self.grid.hertziandipoles:
             self.srcinfo1_hertzian_dev, self.srcinfo2_hertzian_dev, self.srcwaves_hertzian_dev = htod_src_arrays(self.grid.hertziandipoles, self.grid, self.queue)
@@ -935,8 +935,8 @@ class OpenCLUpdates:
                                                 options=config.sim_config.devices['compiler_opts'])
 
     def _set_snapshot_knl(self):
-        """Snapshots - initialise arrays on compute device, prepare kernel and 
-                        get kernel function.
+        """Snapshots - initialises arrays on compute device, prepares kernel and 
+                        gets kernel function.
         """
         self.snapEx_dev, self.snapEy_dev, self.snapEz_dev, self.snapHx_dev, self.snapHy_dev, self.snapHz_dev = htod_snapshot_array(self.grid, self.queue)
         self.store_snapshot_dev = self.elwise(self.ctx, 
@@ -949,7 +949,7 @@ class OpenCLUpdates:
                                     options=config.sim_config.devices['compiler_opts'])
 
     def store_outputs(self):
-        """Store field component values for every receiver."""
+        """Stores field component values for every receiver."""
         if self.grid.rxs:
             event = self.store_outputs_dev(np.int32(len(self.grid.rxs)),
                                            np.int32(self.grid.iteration),
@@ -964,7 +964,7 @@ class OpenCLUpdates:
             event.wait()
 
     def store_snapshots(self, iteration):
-        """Store any snapshots.
+        """Stores any snapshots.
 
         Args:
             iteration: int for iteration number.
@@ -1007,7 +1007,7 @@ class OpenCLUpdates:
                                         snap)
 
     def update_magnetic(self):
-        """Update magnetic field components."""
+        """Updates magnetic field components."""
         event = self.update_magnetic_dev(np.int32(self.grid.nx),
                                          np.int32(self.grid.ny),
                                          np.int32(self.grid.nz),
@@ -1021,12 +1021,12 @@ class OpenCLUpdates:
         event.wait()
 
     def update_magnetic_pml(self):
-        """Update magnetic field components with the PML correction."""
+        """Updates magnetic field components with the PML correction."""
         for pml in self.grid.pmls['slabs']:
             pml.update_magnetic()
 
     def update_magnetic_sources(self):
-        """Update magnetic field components from sources."""
+        """Updates magnetic field components from sources."""
         if self.grid.magneticdipoles:
             event = self.update_magnetic_dipole_dev(np.int32(len(self.grid.magneticdipoles)),
                         np.int32(self.grid.iteration),
@@ -1043,7 +1043,7 @@ class OpenCLUpdates:
             event.wait()
 
     def update_electric_a(self):
-        """Update electric field components."""
+        """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
         if config.get_model_config().materials['maxpoles'] == 0:
             event = self.update_electric_dev(np.int32(self.grid.nx),
@@ -1079,12 +1079,12 @@ class OpenCLUpdates:
             event.wait()
 
     def update_electric_pml(self):
-        """Update electric field components with the PML correction."""
+        """Updates electric field components with the PML correction."""
         for pml in self.grid.pmls['slabs']:
             pml.update_electric()
 
     def update_electric_sources(self):
-        """Update electric field components from sources -
+        """Updates electric field components from sources -
             update any Hertzian dipole sources last.
         """
         if self.grid.voltagesources:
@@ -1142,12 +1142,12 @@ class OpenCLUpdates:
             event.wait()
 
     def time_start(self):
-        """Start event timers used to calculate solving time for model."""
+        """Starts event timers used to calculate solving time for model."""
         self.event_marker1 = self.cl.enqueue_marker(self.queue)
         self.event_marker1.wait()
 
     def calculate_memsolve(self, iteration):
-        """Calculate memory used on last iteration.
+        """Calculates memory used on last iteration.
 
         Args:
             iteration: int for iteration number.
@@ -1161,7 +1161,7 @@ class OpenCLUpdates:
         pass
 
     def calculate_tsolve(self):
-        """Calculate solving time for model."""
+        """Calculates solving time for model."""
         
         event_marker2 = self.cl.enqueue_marker(self.queue)
         event_marker2.wait()
@@ -1169,7 +1169,7 @@ class OpenCLUpdates:
         return compute_time
 
     def finalise(self):
-        """Copy data from compute device back to CPU to save to file(s)."""
+        """Copies data from compute device back to CPU to save to file(s)."""
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
             dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid)
@@ -1184,10 +1184,3 @@ class OpenCLUpdates:
                                     self.snapHy_dev.get(),
                                     self.snapHz_dev.get(),
                                     i, snap)
-
-    def cleanup(self):
-        """Cleanup compute device context."""
-        logger.debug('Check if pyopencl needs explicit cleanup.')
-        # Remove context from top of stack and delete
-        # self.ctx.pop()
-        # del self.ctx
