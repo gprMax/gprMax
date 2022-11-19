@@ -287,7 +287,8 @@ class PeplinskiSoil:
         by Peplinski (http://dx.doi.org/10.1109/36.387598).
     """
 
-    def __init__(self, ID, sandfraction, clayfraction, bulkdensity, sandpartdensity, watervolfraction):
+    def __init__(self, ID, sandfraction, clayfraction, bulkdensity, 
+                 sandpartdensity, watervolfraction):
         """
         Args:
             ID: string for name of the soil.
@@ -337,9 +338,11 @@ class PeplinskiSoil:
         # For frequencies in the range 1.4GHz to 18GHz
         # sigf = -1.645 + 1.939 * self.rb - 2.25622 * self.S + 1.594 * self.C
 
-        # Generate a set of bins based on the given volumetric water fraction values
+        # Generate a set of bins based on the given volumetric water fraction 
+        # values
         mubins = np.linspace(self.mu[0], self.mu[1], nbins)
-        # Generate a range of volumetric water fraction values the mid-point of each bin to make materials from
+        # Generate a range of volumetric water fraction values the mid-point of 
+        # each bin to make materials from
         mumaterials = mubins + (mubins[1] - mubins[0]) / 2
 
         # Create an iterator
@@ -348,7 +351,8 @@ class PeplinskiSoil:
             # Real part for frequencies in the range 1.4GHz to 18GHz
             er = (1 + (self.rb / self.rs) * ((es**a) - 1) + (muiter[0]**b1 * erealw**a)
                   - muiter[0]) ** (1 / a)
-            # Real part for frequencies in the range 0.3GHz to 1.3GHz (linear correction to 1.4-18GHz value)
+            # Real part for frequencies in the range 0.3GHz to 1.3GHz (linear 
+            # correction to 1.4-18GHz value)
             er = 1.15 * er - 0.68
 
             # Permittivity at infinite frequency
