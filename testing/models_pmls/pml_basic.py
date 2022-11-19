@@ -34,7 +34,7 @@ cases = {'off': {'x0': 0, 'y0': 0, 'z0': 0, 'xmax': 0, 'ymax': 0, 'zmax':0},
          'zmax': {'x0': 0, 'y0': 0, 'z0': 0, 'xmax': 0, 'ymax': 0, 'zmax': thick}}
 
 # PML formulation
-pml_type = gprMax.PMLFormulation(pml='HORIPML')
+pml_type = gprMax.PMLProps(formulation='HORIPML')
 
 ## Built-in 1st order PML
 pml_cfs = gprMax.PMLCFS(alphascalingprofile='constant', 
@@ -102,9 +102,8 @@ for k, v in cases.items():
     scene.add(hertzian_dipole)
     scene.add(rx)
 
-    pml_cells = gprMax.PMLCells(**v)
-    scene.add(pml_cells)
-    scene.add(pml_type)
+    pml = gprMax.PMLProps(formulation='HORIPML', **v)
+    scene.add(pml)
     scene.add(pml_cfs)
 
     scenes.append(scene)

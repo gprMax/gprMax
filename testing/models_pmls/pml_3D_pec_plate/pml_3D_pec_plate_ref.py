@@ -34,8 +34,7 @@ gv1 = gprMax.GeometryView(p1=(0, 0, 0), p2=(x, y, z), dl=(dl, dl, dl),
 gv2 = gprMax.GeometryView(p1=(0, 0, 0), p2=(x, y, z), dl=(dl, dl, dl),
                           filename=Path(*parts[:-1], parts[-1] + '_f'), output_type='f')
 
-pml_type = gprMax.PMLFormulation(pml='HORIPML')
-pml_cells = gprMax.PMLCells(thickness=10)
+pml = gprMax.PMLProps(formulation='HORIPML', thickness=10)
 
 # Parameters from http://dx.doi.org/10.1109/TAP.2018.2823864
 pml_cfs = gprMax.PMLCFS(alphascalingprofile='constant', 
@@ -62,8 +61,7 @@ scene.add(rx)
 # scene.add(gv1)
 # scene.add(gv2)
 
-scene.add(pml_cells)
-scene.add(pml_type)
+scene.add(pml)
 scene.add(pml_cfs)
 
 # Run model
