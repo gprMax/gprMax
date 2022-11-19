@@ -161,7 +161,8 @@ class ModelBuildRun:
             logger.info(print_pml_info(gb.grid))
             if not all(value == 0 for value in gb.grid.pmls['thickness'].values()):
                 gb.build_pmls()
-            gb.build_components()
+            if gb.grid.averagevolumeobjects:
+                gb.build_components()
             gb.tm_grid_update()
             gb.update_voltage_source_materials()
             gb.grid.initialise_field_arrays()
