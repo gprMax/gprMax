@@ -128,11 +128,11 @@ class ModelBuildRun:
 
         logger.info(config.get_model_config().inputfilestr)
 
-        scene = self.build_scene()
+        self.build_scene()
 
         # Print info on any subgrids
-        for grid in G.subgrids:
-            grid.print_info()
+        for sg in G.subgrids:
+            sg.print_info()
 
         # Combine available grids
         grids = [G] + G.subgrids
