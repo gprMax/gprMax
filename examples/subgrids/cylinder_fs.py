@@ -70,8 +70,8 @@ scene.add(subgrid)
 eri, er, tau, sig = calculate_water_properties()
 water = gprMax.Material(er=eri, se=sig, mr=1, sm=0, id='water')
 subgrid.add(water)
-# water = gprMax.AddDebyeDispersion(poles=1, er_delta=[er - eri], tau=[tau], material_ids=['water'])
-# subgrid.add(water)
+water = gprMax.AddDebyeDispersion(poles=1, er_delta=[er - eri], tau=[tau], material_ids=['water'])
+subgrid.add(water)
 
 # Add cylinder to subgrid
 cylinder = gprMax.Cylinder(p1=c1, p2=c2, r=r, material_id='water')
