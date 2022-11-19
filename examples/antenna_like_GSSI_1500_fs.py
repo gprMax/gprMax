@@ -41,8 +41,8 @@ gv2 = gprMax.GeometryView(p1=(ant_pos[0] - 0.170/2, ant_pos[1] - 0.108/2, ant_po
                           p2=(ant_pos[0] + 0.170/2, ant_pos[1] + 0.108/2, ant_pos[2] + 0.010),
                           dl=(dl, dl, dl), filename='antenna_like_GSSI_1500_pcb',
                           output_type='f')
-scene.add(gv1)
-scene.add(gv2)
+#scene.add(gv1)
+#scene.add(gv2)
 
 # Run model
-gprMax.run(scenes=[scene], geometry_only=True, outputfile=fn, gpu=None)
+gprMax.run(scenes=[scene], geometry_only=False, outputfile=fn, gpu=None)
