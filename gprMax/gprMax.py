@@ -96,9 +96,8 @@ def run(scenes=args_defaults['scenes'],
         write_processed=args_defaults['write_processed'],
         log_level=args_defaults['log_level'],
         log_file=args_defaults['log_file']):
-    """This is the main function for gprMax when entering using application
-        programming interface (API). Run the simulation for the given list of 
-        scenes.     
+    """Entry point for application programming interface (API). Runs the 
+        simulation for the given list of scenes.     
     """
 
     args = argparse.Namespace(**{'scenes': scenes,
@@ -121,9 +120,7 @@ def run(scenes=args_defaults['scenes'],
 
 
 def cli():
-    """Main function for gprMax when entering using the command line interface 
-        (CLI).
-    """
+    """Entry point for command line interface (CLI)."""
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(prog='gprMax', 
@@ -154,15 +151,23 @@ def cli():
                         help=help_msg['log_file'])
     args = parser.parse_args()
 
-    run_main(args)
+    results = run_main(args)
+
+    return results
 
 
 def run_main(args):
-    """Called by either run (API) or main (CLI).
+    """Runs simulation contexts. Called by either API or CLI.
 
     Args:
         args: namespace with arguments from either API or CLI.
+
+    Returns:
+        results: dict that can contain useful results/data from simulation. 
+                    Enables these to be propagated to calling script.
     """
+
+    results = {}
 
     logging_config(level=args.log_level, log_file=args.log_file)
 
@@ -171,8 +176,10 @@ def run_main(args):
     # MPI running with (OpenMP/CUDA/OpenCL)
     if config.sim_config.args.mpi:
         context = MPIContext()
-        context.run()
+        results = context.run()
     # Standard running (OpenMP/CUDA/OpenCL)
     else:
         context = Context()
-        context.run()
+        results = context.run()
+
+    return results

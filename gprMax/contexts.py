@@ -45,7 +45,13 @@ class Context:
         self.tsimstart = None        
 
     def run(self):
-        """Run the simulation in the correct context."""
+        """Run the simulation in the correct context.
+        
+        Returns:
+            results: dict that can contain useful results/data from simulation.
+        """
+
+        results = {}
         self.tsimstart = timer()
         self.print_logo_copyright()
         print_host_info(config.sim_config.hostinfo)
@@ -79,6 +85,8 @@ class Context:
 
         self.tsimend = timer()
         self.print_time_report()
+
+        return results
 
     def print_logo_copyright(self):
         """Prints gprMax logo, version, and copyright/licencing information."""
@@ -134,7 +142,12 @@ class MPIContext(Context):
             model.solve(solver)
 
     def run(self):
-        """Specialise how the models are run."""
+        """Specialise how the models are run.
+        
+        Returns:
+            results: dict that can contain useful results/data from simulation.
+        """
+
         if self.rank == 0:
             self.tsimstart = timer()
             self.print_logo_copyright()
@@ -173,3 +186,4 @@ class MPIContext(Context):
         if executor.is_master():
             self.tsimend = timer()
             self.print_time_report()
+            return results
