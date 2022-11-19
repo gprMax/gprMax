@@ -43,10 +43,10 @@ def create_G():
 def create_solver(G):
     """Create configured solver object.
 
-    N.B A large range of different functions exist to advance the time step for
-    dispersive materials. The correct function is set by the
-    adapt_dispersive_config() and set_dispersive_updates methods, based on the
-    the required numerical precision and dispersive material type.
+    N.B. A large range of different functions exist to advance the time step for
+            dispersive materials. The correct function is set by the
+            set_dispersive_updates method, based on the required numerical 
+            precision and dispersive material type.
 
     Args:
         G: FDTDGrid class describing a grid in a model.
@@ -57,14 +57,16 @@ def create_solver(G):
 
     if config.sim_config.general['subgrid']:
         updates = create_subgrid_updates(G)
-        # upx = updates.updaters
-        # upx.append(updates)
-        # for up in upx:
-        #     up.set_dispersive_updates()
+        if config.get_model_config().materials['maxpoles'] != 0:
+            # Set dispersive update functions for both SubgridUpdates and 
+            # SubgridUpdaters subclasses
+            updates.set_dispersive_updates()
+            for u in updates.updaters: u.set_dispersive_updates()
         solver = Solver(updates, hsg=True)        
     elif config.sim_config.general['solver'] == 'cpu':
         updates = CPUUpdates(G)
-        updates.set_dispersive_updates()
+        if config.get_model_config().materials['maxpoles'] != 0:
+            updates.set_dispersive_updates()
         solver = Solver(updates)
     elif config.sim_config.general['solver'] == 'cuda':
         updates = CUDAUpdates(G)
