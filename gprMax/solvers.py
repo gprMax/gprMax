@@ -46,7 +46,10 @@ def create_solver(G):
     N.B. A large range of different functions exist to advance the time step for
             dispersive materials. The correct function is set by the
             set_dispersive_updates method, based on the required numerical 
-            precision and dispersive material type.
+            precision and dispersive material type. 
+            This is done for solvers running on CPU, i.e. where Cython is used. 
+            CUDA and OpenCL dispersive material functions are handled through 
+            templating and substitution at runtime.
 
     Args:
         G: FDTDGrid class describing a grid in a model.
@@ -70,11 +73,9 @@ def create_solver(G):
         solver = Solver(updates)
     elif config.sim_config.general['solver'] == 'cuda':
         updates = CUDAUpdates(G)
-        #TODO: check/add dispersive updates for CUDA
         solver = Solver(updates)
     elif config.sim_config.general['solver'] == 'opencl':
         updates = OpenCLUpdates(G)
-        #TODO: check/add dispersive updates for OpenCL
         solver = Solver(updates)
 
     return solver
