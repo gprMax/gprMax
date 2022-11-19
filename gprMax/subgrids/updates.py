@@ -90,36 +90,36 @@ class SubgridUpdater(CPUUpdates):
         """
 
         G = self.G
-        sub_grid = self.grid
+        subgrid = self.grid
         precursors = self.precursors
 
         # Copy the main grid electric fields at the IS position
         precursors.update_electric()
 
-        upper_m = int(sub_grid.ratio / 2 - 0.5)
+        upper_m = int(subgrid.ratio / 2 - 0.5)
 
         for m in range(1, upper_m + 1):
             self.store_outputs()
             self.update_electric_a()
             self.update_electric_pml()
-            precursors.interpolate_magnetic_in_time(int(m + sub_grid.ratio / 2 - 0.5))
-            sub_grid.update_electric_is(precursors)
+            precursors.interpolate_magnetic_in_time(int(m + subgrid.ratio / 2 - 0.5))
+            subgrid.update_electric_is(precursors)
             self.update_electric_sources()
             self.update_electric_b()
             self.update_magnetic()
             self.update_magnetic_pml()
             precursors.interpolate_electric_in_time(m)
-            sub_grid.update_magnetic_is(precursors)
+            subgrid.update_magnetic_is(precursors)
             self.update_magnetic_sources()
 
         self.store_outputs()
         self.update_electric_a()
         self.update_electric_pml()
         precursors.calc_exact_magnetic_in_time()
-        sub_grid.update_electric_is(precursors)
+        subgrid.update_electric_is(precursors)
         self.update_electric_sources()
         self.update_electric_b()
-        sub_grid.update_electric_os(G)
+        subgrid.update_electric_os(G)
 
     def hsg_2(self):
         """Second half of the subgrid update. Takes the time step up to the main 
@@ -127,31 +127,31 @@ class SubgridUpdater(CPUUpdates):
         """
 
         G = self.G
-        sub_grid = self.grid
+        subgrid = self.grid
         precursors = self.precursors
 
         # Copy the main grid magnetic fields at the IS position
         precursors.update_magnetic()
 
-        upper_m = int(sub_grid.ratio / 2 - 0.5)
+        upper_m = int(subgrid.ratio / 2 - 0.5)
 
         for m in range(1, upper_m + 1):
             self.update_magnetic()
             self.update_magnetic_pml()
-            precursors.interpolate_electric_in_time(int(m + sub_grid.ratio / 2 - 0.5))
-            sub_grid.update_magnetic_is(precursors)
+            precursors.interpolate_electric_in_time(int(m + subgrid.ratio / 2 - 0.5))
+            subgrid.update_magnetic_is(precursors)
             self.update_magnetic_sources()
             self.store_outputs()
             self.update_electric_a()
             self.update_electric_pml()
             precursors.interpolate_magnetic_in_time(m)
-            sub_grid.update_electric_is(precursors)
+            subgrid.update_electric_is(precursors)
             self.update_electric_sources()
             self.update_electric_b()
 
         self.update_magnetic()
         self.update_magnetic_pml()
         precursors.calc_exact_electric_in_time()
-        sub_grid.update_magnetic_is(precursors)
+        subgrid.update_magnetic_is(precursors)
         self.update_magnetic_sources()
-        sub_grid.update_magnetic_os(G)
+        subgrid.update_magnetic_os(G)
