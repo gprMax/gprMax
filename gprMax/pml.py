@@ -214,7 +214,7 @@ class PML:
             self.d = self.G.dz
             self.thickness = self.nz
 
-        self.CFS = []
+        self.CFS = self.G.pmls['cfs']
 
         self.initialise_field_arrays()
 
