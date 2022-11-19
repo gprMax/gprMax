@@ -71,19 +71,19 @@ def write_hdf5_outputfile(outputfile, G):
 
     # Write meta data and data for main grid
     if G.rxs:
-        write_grid(f, G)
+        write_hd5_data(f, G)
 
     # Write meta data and data for any subgrids
     if sg_rxs:
         for sg in G.subgrids:
             grp = f.create_group('/subgrids/' + sg.name)
-            write_grid(grp, sg, is_subgrid=True)
+            write_hd5_data(grp, sg, is_subgrid=True)
 
     if G.rxs or sg_rxs:
         logger.basic(f'Written output file: {outputfile.name}')
 
 
-def write_grid(basegrp, G, is_subgrid=False):
+def write_hd5_data(basegrp, G, is_subgrid=False):
     """Writes grid meta data and data to HDF5 group.
 
     Args:
@@ -142,3 +142,54 @@ def write_grid(basegrp, G, is_subgrid=False):
 
         for output in rx.outputs:
             basegrp['rxs/rx' + str(rxindex + 1) + '/' + output] = rx.outputs[output]
+
+
+def Ix(x, y, z, Hx, Hy, Hz, G):
+    """Calculates the x-component of current at a grid position.
+
+    Args:
+        x, y, z: floats for coordinates of position in grid.
+        Hx, Hy, Hz: numpy array of magnetic field values.
+        G: FDTDGrid class describing a grid in a model.
+    """
+
+    if y == 0 or z == 0:
+        Ix = 0
+    else:
+        Ix = G.dy * (Hy[x, y, z - 1] - Hy[x, y, z]) + G.dz * (Hz[x, y, z] - Hz[x, y - 1, z])
+
+    return Ix
+
+
+def Iy(x, y, z, Hx, Hy, Hz, G):
+    """Calculates the y-component of current at a grid position.
+
+    Args:
+        x, y, z: floats for coordinates of position in grid.
+        Hx, Hy, Hz: numpy array of magnetic field values.
+        G: FDTDGrid class describing a grid in a model.
+    """
+
+    if x == 0 or z == 0:
+        Iy = 0
+    else:
+        Iy = G.dx * (Hx[x, y, z] - Hx[x, y, z - 1]) + G.dz * (Hz[x - 1, y, z] - Hz[x, y, z])
+
+    return Iy
+
+
+def Iz(x, y, z, Hx, Hy, Hz, G):
+    """Calculates the z-component of current at a grid position.
+
+    Args:
+        x, y, z: floats for coordinates of position in grid.
+        Hx, Hy, Hz: numpy array of magnetic field values.
+        G: FDTDGrid class describing a grid in a model.
+    """
+
+    if x == 0 or y == 0:
+        Iz = 0
+    else:
+        Iz = G.dx * (Hx[x, y - 1, z] - Hx[x, y, z]) + G.dy * (Hy[x, y, z] - Hy[x - 1, y, z])
+
+    return Iz
