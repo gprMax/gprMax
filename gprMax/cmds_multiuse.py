@@ -1135,8 +1135,8 @@ class Material(UserObjectMulti):
 
 
 class AddDebyeDispersion(UserObjectMulti):
-    """Adds dispersive properties to already defined :class:`Material` based 
-        on multi-pole Debye formulation.
+    """Adds dispersive properties to already defined Material based on a
+        multi-pole Debye formulation.
 
     Attributes:
         poles: float required for number of Debye poles.
@@ -1209,8 +1209,8 @@ class AddDebyeDispersion(UserObjectMulti):
 
 
 class AddLorentzDispersion(UserObjectMulti):
-    """Adds dispersive properties to already defined :class:`Material` based 
-        on multi-pole Lorentz formulation.
+    """Adds dispersive properties to already defined Material based on a
+        multi-pole Lorentz formulation.
 
     Attributes:
         poles: float required for number of Lorentz poles.
@@ -1232,8 +1232,8 @@ class AddLorentzDispersion(UserObjectMulti):
         try:
             poles = self.kwargs['poles']
             er_delta = self.kwargs['er_delta']
-            tau = self.kwargs['tau']
-            alpha = self.kwargs['alpha']
+            omega = self.kwargs['omega']
+            delta = self.kwargs['delta']
             material_ids = self.kwargs['material_ids']
         except KeyError:
             logger.exception(self.params_str() + ' requires at least five '
@@ -1264,10 +1264,10 @@ class AddLorentzDispersion(UserObjectMulti):
             disp_material.poles = poles
             disp_material.averagable = False
             for i in range(0, poles):
-                if er_delta[i] > 0 and tau[i] > grid.dt and alpha[i] > grid.dt:
+                if er_delta[i] > 0 and omega[i] > grid.dt and delta[i] > grid.dt:
                     disp_material.deltaer.append(er_delta[i])
-                    disp_material.tau.append(tau[i])
-                    disp_material.alpha.append(alpha[i])
+                    disp_material.tau.append(omega[i])
+                    disp_material.alpha.append(delta[i])
                 else:
                     logger.exception(self.params_str() + ' requires positive '
                                      'values for the permittivity difference '
@@ -1283,13 +1283,13 @@ class AddLorentzDispersion(UserObjectMulti):
 
             logger.info(self.grid_name(grid) + f"Lorentz disperion added to {disp_material.ID} "
                         f"with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, "
-                        f"omega={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs, "
-                        f"and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} created.")
+                        f"omega={', '.join('%4.3e' % omega for omega in disp_material.tau)} secs, "
+                        f"and gamma={', '.join('%4.3e' % delta for delta in disp_material.alpha)} created.")
 
 
 class AddDrudeDispersion(UserObjectMulti):
-    """Adds dispersive properties to already defined :class:`Material` based 
-        on multi-pole Drude formulation.
+    """Adds dispersive properties to already defined Material based on a 
+        multi-pole Drude formulation.
 
     Attributes:
         poles: float required for number of Drude poles.
@@ -1307,7 +1307,7 @@ class AddDrudeDispersion(UserObjectMulti):
     def create(self, grid, uip):
         try:
             poles = self.kwargs['poles']
-            tau = self.kwargs['tau']
+            omega = self.kwargs['omega']
             alpha = self.kwargs['alpha']
             material_ids = self.kwargs['material_ids']
         except KeyError:
@@ -1339,8 +1339,8 @@ class AddDrudeDispersion(UserObjectMulti):
             disp_material.poles = poles
             disp_material.averagable = False
             for i in range(0, poles):
-                if tau[i] > 0 and alpha[i] > grid.dt:
-                    disp_material.tau.append(tau[i])
+                if omega[i] > 0 and alpha[i] > grid.dt:
+                    disp_material.tau.append(omega[i])
                     disp_material.alpha.append(alpha[i])
                 else:
                     logger.exception(self.params_str() + ' requires positive '
@@ -1355,7 +1355,7 @@ class AddDrudeDispersion(UserObjectMulti):
             grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
 
             logger.info(self.grid_name(grid) + f"Drude disperion added to {disp_material.ID} "
-                        f"with omega={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs, "
+                        f"with omega={', '.join('%4.3e' % omega for omega in disp_material.tau)} secs, "
                         f"and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} secs created.")
 
 
@@ -1643,6 +1643,7 @@ class PMLCFS(UserObjectMulti):
             logger.exception(self.params_str() + ' minimum and maximum scaling '
                              'values must be greater than zero.')
             raise ValueError
+        # TODO: Fix handling of kappa for 2nd order PMLs
         # if float(kappamin) < 1:
         #     logger.exception(self.params_str() + ' minimum scaling value for '
         #                      'kappa must be greater than or equal to one.')
