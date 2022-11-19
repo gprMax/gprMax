@@ -21,7 +21,7 @@ from copy import deepcopy
 import gprMax.config as config
 import numpy as np
 
-from .grid import Ix, Iy, Iz
+from .fields_outputs import Ix, Iy, Iz
 from .utilities.utilities import round_value
 
 
