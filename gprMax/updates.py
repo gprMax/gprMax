@@ -390,7 +390,6 @@ class CUDAUpdates:
             bld = self._build_knl(knl_magnetic, self.subs_name_args, self.subs_func)
             knlH = self.source_module(bld, options=config.sim_config.devices['nvcc_opts'])
             pml.update_magnetic_dev = knlH.get_function(knl_name)
-            print(pml.update_magnetic_dev)
 
         self._copy_mat_coeffs(knlE, knlH)
 
