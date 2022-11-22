@@ -73,7 +73,7 @@ class GeometryObjectsRead(UserObjectGeometry):
         # Build scene
         # API for multiple scenes / model runs
         scene = config.get_model_config().get_scene()
-        material_objs = get_user_objects(materials, check=False)
+        material_objs = get_user_objects(materials, checkessential=False)
         for material_obj in material_objs:
             scene.add(material_obj)
 
