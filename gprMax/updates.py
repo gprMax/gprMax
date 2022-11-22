@@ -1183,3 +1183,6 @@ class OpenCLUpdates:
                                     self.snapHy_dev.get(),
                                     self.snapHz_dev.get(),
                                     i, snap)
+
+    def cleanup(self):
+        pass
