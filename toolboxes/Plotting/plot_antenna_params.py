@@ -33,14 +33,14 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
         and currents; s11, (s21) and input impedance.
 
     Args:
-        filename (string): Filename (including path) of output file.
-        tltxnumber (int): Transmitter antenna - transmission line number
-        tlrxnumber (int): Receiver antenna - transmission line number
-        rxnumber (int): Receiver antenna - output number
-        rxcomponent (str): Receiver antenna - output electric field component
+        filename: string of filename (including path) of output file.
+        tltxnumber: int for transmitter antenna - transmission line number
+        tlrxnumber: int for receiver antenna - transmission line number
+        rxnumber: int for receiver antenna - output number
+        rxcomponent: in for receiver antenna - output electric field component
 
     Returns:
-        antennaparams (dict): Antenna parameters.
+        antennaparams: dict of antenna parameters.
     """
 
     # Open output file and read some attributes
@@ -73,7 +73,8 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     Vref = Vtotal - Vinc
     Iref = Itotal - Iinc
 
-    # If a receiver antenna is used (with a transmission line or receiver), get received voltage for s21
+    # If a receiver antenna is used (with a transmission line or receiver), 
+    # get received voltage for s21
     if tlrxnumber:
         tlrxpath = '/tls/tl' + str(tlrxnumber) + '/'
         Vrec = f[tlrxpath + 'Vtotal'][:]
@@ -83,7 +84,9 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
         availableoutputs = list(f[rxpath].keys())
 
         if rxcomponent not in availableoutputs:
-            logger.exception(f"{rxcomponent} output requested, but the available output for receiver {rxnumber} is {', '.join(availableoutputs)}")
+            logger.exception(f"{rxcomponent} output requested, but the available " +
+                             f"output for receiver {rxnumber} is " +
+                             f"{', '.join(availableoutputs)}")
             raise ValueError
 
         rxpath += rxcomponent
@@ -100,7 +103,8 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     # Frequency bins
     freqs = np.fft.fftfreq(Vinc.size, d=dt)
 
-    # Delay correction - current lags voltage, so delay voltage to match current timestep
+    # Delay correction - current lags voltage, so delay voltage to match 
+    # current timestep
     delaycorrection = np.exp(1j * 2 * np.pi * freqs * (dt / 2))
 
     # Calculate s11 and (optionally) s21
@@ -134,9 +138,10 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     s11[np.invert(np.isfinite(s11))] = 0
 
     # Create dictionary of antenna parameters
-    antennaparams = {'time': time, 'freqs': freqs, 'Vinc': Vinc, 'Vincp': Vincp, 'Iinc': Iinc, 'Iincp': Iincp,
-                     'Vref': Vref, 'Vrefp': Vrefp, 'Iref': Iref, 'Irefp': Irefp,
-                     'Vtotal': Vtotal, 'Vtotalp': Vtotalp, 'Itotal': Itotal, 'Itotalp': Itotalp,
+    antennaparams = {'time': time, 'freqs': freqs, 'Vinc': Vinc, 'Vincp': Vincp, 
+                     'Iinc': Iinc, 'Iincp': Iincp, 'Vref': Vref, 'Vrefp': Vrefp, 
+                     'Iref': Iref, 'Irefp': Irefp, 'Vtotal': Vtotal, 
+                     'Vtotalp': Vtotalp, 'Itotal': Itotal, 'Itotalp': Itotalp,
                      's11': s11, 'zin': zin, 'yin': yin}
     if tlrxnumber or rxnumber:
         with np.errstate(divide='ignore'): # Ignore warning from taking a log of any zero values
@@ -147,22 +152,31 @@ def calculate_antenna_params(filename, tltxnumber=1, tlrxnumber=None, rxnumber=N
     return antennaparams
 
 
-def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref, Irefp, Vtotal, Vtotalp, Itotal, Itotalp, s11, zin, yin, s21=None):
-    """Plots antenna parameters - incident, reflected and total volatges and
+def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, 
+             Iref, Irefp, Vtotal, Vtotalp, Itotal, Itotalp, s11, zin, yin, 
+             s21=None, save=False):
+    """Plots antenna parameters - incident, reflected and total voltages and
         currents; s11, (s21) and input impedance.
 
     Args:
-        filename (string): Filename (including path) of output file.
-        time (array): Simulation time.
-        freq (array): Frequencies for FFTs.
-        Vinc, Vincp, Iinc, Iincp (array): Time and frequency domain representations of incident voltage and current.
-        Vref, Vrefp, Iref, Irefp (array): Time and frequency domain representations of reflected voltage and current.
-        Vtotal, Vtotalp, Itotal, Itotalp (array): Time and frequency domain representations of total voltage and current.
-        s11, s21 (array): s11 and, optionally, s21 parameters.
-        zin, yin (array): Input impedance and input admittance parameters.
+        filename: string of filename (including path) of output file.
+        time: array of simulation time.
+        freq: array of frequencies for FFTs.
+        Vinc, Vincp, Iinc, Iincp: arrays of time and frequency domain 
+                                    representations of incident voltage and 
+                                    current.
+        Vref, Vrefp, Iref, Irefp: arrays of time and frequency domain 
+                                    representations of reflected voltage and 
+                                    current.
+        Vtotal, Vtotalp, Itotal, Itotalp: arrays of time and frequency domain 
+                                            representations of total voltage and 
+                                            current.
+        s11, s21: array(s) of s11 and, optionally, s21 parameters.
+        zin, yin: arrays of input impedance and input admittance parameters.
+        save: boolean flag to save plot to file.
 
     Returns:
-        plt (object): matplotlib plot object.
+        plt: matplotlib plot object.
     """
 
     # Set plotting range
@@ -175,9 +189,11 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 
     # Print some useful values from s11, and input impedance
     s11minfreq = np.where(s11[pltrange] == np.amin(s11[pltrange]))[0][0]
-    logger.info(f's11 minimum: {np.amin(s11[pltrange]):g} dB at {freqs[s11minfreq + pltrangemin]:g} Hz')
+    logger.info(f's11 minimum: {np.amin(s11[pltrange]):g} dB at ' +
+                f'{freqs[s11minfreq + pltrangemin]:g} Hz')
     logger.info(f'At {freqs[s11minfreq + pltrangemin]:g} Hz...')
-    logger.info(f'Input impedance: {np.abs(zin[s11minfreq + pltrangemin]):.1f}{zin[s11minfreq + pltrangemin].imag:+.1f}j Ohms')
+    logger.info(f'Input impedance: {np.abs(zin[s11minfreq + pltrangemin]):.1f}' +
+                f'{zin[s11minfreq + pltrangemin].imag:+.1f}j Ohms')
     # logger.info(f'Input admittance (mag): {np.abs(yin[s11minfreq + pltrangemin]):g} S')
     # logger.info(f'Input admittance (phase): {np.angle(yin[s11minfreq + pltrangemin], deg=True):.1f} deg')
 
@@ -413,19 +429,21 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
     # ax.set_ylim([-40, 100])
     # ax.grid(which='both', axis='both', linestyle='-.')
 
-    # Save a PDF/PNG of the figure
-    savename1 = filename.stem + '_tl_params'
-    savename1 = filename.parent / savename1
-    savename2 = filename.stem + '_ant_params'
-    savename2 = filename.parent / savename2
-    # fig1.savefig(savename1.with_suffix('.png'), dpi=150, format='png',
-    #              bbox_inches='tight', pad_inches=0.1)
-    # fig2.savefig(savename2.with_suffix('.png'), dpi=150, format='png',
-    #              bbox_inches='tight', pad_inches=0.1)
-    # fig1.savefig(savename1.with_suffix('.pdf'), dpi=None, format='pdf',
-    #              bbox_inches='tight', pad_inches=0.1)
-    # fig2.savefig(savename2.with_suffix('.pdf'), dpi=None, format='pdf',
-    #              bbox_inches='tight', pad_inches=0.1)
+    if save:
+        savename1 = filename.stem + '_tl_params'
+        savename1 = filename.parent / savename1
+        savename2 = filename.stem + '_ant_params'
+        savename2 = filename.parent / savename2
+        # Save a PDF of the figure
+        fig1.savefig(savename1.with_suffix('.pdf'), dpi=None, format='pdf', 
+                    bbox_inches='tight', pad_inches=0.1)
+        fig2.savefig(savename2.with_suffix('.pdf'), dpi=None, format='pdf', 
+                    bbox_inches='tight', pad_inches=0.1)
+        # Save a PNG of the figure
+        # fig1.savefig(savename1.with_suffix('.png'), dpi=150, format='png', 
+        #             bbox_inches='tight', pad_inches=0.1)
+        # fig2.savefig(savename2.with_suffix('.png'), dpi=150, format='png', 
+        #             bbox_inches='tight', pad_inches=0.1)
 
     return plt
 
@@ -433,14 +451,28 @@ def mpl_plot(filename, time, freqs, Vinc, Vincp, Iinc, Iincp, Vref, Vrefp, Iref,
 if __name__ == "__main__":
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Plots antenna parameters (s11, s21 parameters and input impedance) from an output file containing a transmission line source.', usage='cd gprMax; python -m tools.plot_antenna_params outputfile')
+    parser = argparse.ArgumentParser(description='Plots antenna parameters - ' +
+                                                 'incident, reflected and total voltages ' +
+                                                 'and currents; s11, (s21) and input impedance ' +
+                                                 'from an output file containing a transmission ' +
+                                                 'line source.', 
+                                     usage='cd gprMax; python -m toolboxes.Plotting.plot_antenna_params outputfile')
     parser.add_argument('outputfile', help='name of output file including path')
-    parser.add_argument('--tltx-num', default=1, type=int, help='transmitter antenna - transmission line number')
-    parser.add_argument('--tlrx-num', type=int, help='receiver antenna - transmission line number')
-    parser.add_argument('--rx-num', type=int, help='receiver antenna - output number')
-    parser.add_argument('--rx-component', type=str, help='receiver antenna - output electric field component', choices=['Ex', 'Ey', 'Ez'])
+    parser.add_argument('--tltx-num', default=1, type=int, 
+                        help='transmitter antenna - transmission line number')
+    parser.add_argument('--tlrx-num', type=int, 
+                        help='receiver antenna - transmission line number')
+    parser.add_argument('--rx-num', type=int, 
+                        help='receiver antenna - output number')
+    parser.add_argument('--rx-component', type=str, 
+                        help='receiver antenna - output electric field component', 
+                        choices=['Ex', 'Ey', 'Ez'])
+    parser.add_argument('-save', action='store_true', default=False,
+                        help='save plot directly to file, i.e. do not display')
     args = parser.parse_args()
 
-    antennaparams = calculate_antenna_params(args.outputfile, args.tltx_num, args.tlrx_num, args.rx_num, args.rx_component)
-    plthandle = mpl_plot(args.outputfile, **antennaparams)
+    antennaparams = calculate_antenna_params(args.outputfile, args.tltx_num, 
+                                             args.tlrx_num, args.rx_num, 
+                                             args.rx_component)
+    plthandle = mpl_plot(args.outputfile, **antennaparams, save=args.save)
     plthandle.show()

@@ -32,12 +32,12 @@ def check_timewindow(timewindow, dt):
     """Checks and sets time window and number of iterations.
 
     Args:
-        timewindow (float): Time window.
-        dt (float): Time discretisation.
+        timewindow: float of time window.
+        dt: flost of time discretisation.
 
     Returns:
-        timewindow (float): Time window.
-        iterations (int): Number of interations.
+        timewindow: float of time window.
+        iterations: int of number of interations.
     """
 
     # Time window could be a string, float or int, so convert to string then check
@@ -59,18 +59,19 @@ def check_timewindow(timewindow, dt):
     return timewindow, iterations
 
 
-def mpl_plot(w, timewindow, dt, iterations, fft=False):
+def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
     """Plots waveform and prints useful information about its properties.
 
     Args:
-        w (class): Waveform class instance.
-        timewindow (float): Time window.
-        dt (float): Time discretisation.
-        iterations (int): Number of iterations.
-        fft (boolean): Plot FFT switch.
+        w: Waveform class instance.
+        timewindow: float of time window.
+        dt: float of time discretisation.
+        iterations: int of number of iterations.
+        fft: boolean flag to plot FFT.
+        save: boolean flag to save plot to file.
 
     Returns:
-        plt (object): matplotlib plot object.
+        plt: matplotlib plot object.
     """
 
     time = np.linspace(0, (iterations - 1) * dt, num=iterations)
@@ -143,12 +144,14 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
     # Turn on grid
     [ax.grid(which='both', axis='both', linestyle='-.') for ax in fig.axes]
 
-    # Save a PDF/PNG of the figure
-    savefile = Path(__file__).parent / w.type
-    # fig.savefig(savefile.with_suffix('.pdf'), dpi=None, format='pdf',
-    #             bbox_inches='tight', pad_inches=0.1)
-    # fig.savefig(savefile.with_suffix('.png'), dpi=150, format='png',
-    #             bbox_inches='tight', pad_inches=0.1)
+    if save:
+        savefile = Path(__file__).parent / w.type
+        # Save a PDF of the figure
+        fig.savefig(savefile.with_suffix('.pdf'), dpi=None, format='pdf', 
+                    bbox_inches='tight', pad_inches=0.1)
+        # Save a PNG of the figure
+        # fig.savefig(savefile.with_suffix('.png'), dpi=150, format='png', 
+        #             bbox_inches='tight', pad_inches=0.1)
 
     return plt
 
@@ -156,21 +159,27 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False):
 if __name__ == "__main__":
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Plot built-in waveforms that can be used for sources.', usage='cd gprMax; python -m tools.plot_source_wave type amp freq timewindow dt')
+    parser = argparse.ArgumentParser(description='Plot built-in waveforms that can be used for sources.', 
+                                     usage='cd gprMax; python -m toolboxes.Plotting.plot_source_wave type amp freq timewindow dt')
     parser.add_argument('type', help='type of waveform', choices=Waveform.types)
     parser.add_argument('amp', type=float, help='amplitude of waveform')
     parser.add_argument('freq', type=float, help='centre frequency of waveform')
     parser.add_argument('timewindow', help='time window to view waveform')
     parser.add_argument('dt', type=float, help='time step to view waveform')
-    parser.add_argument('-fft', action='store_true', help='plot FFT of waveform', default=False)
+    parser.add_argument('-fft', action='store_true', default=False,
+                        help='plot FFT of waveform')
+    parser.add_argument('-save', action='store_true', default=False,
+                        help='save plot directly to file, i.e. do not display')
     args = parser.parse_args()
 
     # Check waveform parameters
     if args.type.lower() not in Waveform.types:
-        logger.exception(f"The waveform must have one of the following types {', '.join(Waveform.types)}")
+        logger.exception(f"The waveform must have one of the following types " +
+                         f"{', '.join(Waveform.types)}")
         raise ValueError
     if args.freq <= 0:
-        logger.exception('The waveform requires an excitation frequency value of greater than zero')
+        logger.exception('The waveform requires an excitation frequency value of ' +
+                         'greater than zero')
         raise ValueError
 
     # Create waveform instance
@@ -180,5 +189,6 @@ if __name__ == "__main__":
     w.freq = args.freq
 
     timewindow, iterations = check_timewindow(args.timewindow, args.dt)
-    plthandle = mpl_plot(w, timewindow, args.dt, iterations, args.fft)
+    plthandle = mpl_plot(w, timewindow, args.dt, iterations, fft=args.fft, 
+                         save=args.save)
     plthandle.show()

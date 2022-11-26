@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, save=False):
-    """Creates a plot (with matplotlib) of the B-scan.
+    """Creates a plot of the B-scan.
 
     Args:
         filename: string of filename (including path) of output file.
@@ -101,28 +101,19 @@ if __name__ == "__main__":
         logger.exception(f'No receivers found in {args.outputfile}')
         raise ValueError
 
-    rxsgather = []
     for rx in range(1, nrx + 1):
         outputdata, dt = get_output_data(args.outputfile, rx, args.rx_component)
-        print(outputdata.shape)
         if args.gather:
-            rxsgather.append(outputdata)
+            if rx == 1:
+                rxsgather = outputdata
+            rxsgather = np.column_stack((rxsgather, outputdata))
         else:
             plthandle = mpl_plot(args.outputfile, outputdata, dt, rx, 
                                  args.rx_component, save=args.save)
 
     # Plot all receivers from single output file together if required
     if args.gather:
-        rxsgather = np.array(rxsgather).transpose()
         plthandle = mpl_plot(args.outputfile, rxsgather, dt, rx, 
                              args.rx_component, save=args.save)
 
-    if args.save:
-        # Save a PDF of the figure
-        plthandle.savefig(args.outputfile[:-3] + '.pdf', dpi=None, 
-                          format='pdf', bbox_inches='tight', pad_inches=0.1)
-        # # Save a PNG of the figure
-        # plthandle.savefig(args.outputfile[:-3] + '.png', dpi=150, 
-        #                   format='png', bbox_inches='tight', pad_inches=0.1)
-    else:
-        plthandle.show()
+    plthandle.show()
