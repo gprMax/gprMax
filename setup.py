@@ -140,9 +140,10 @@ if 'cleanall' in sys.argv:
             except OSError:
                 print(f'Could not remove: {filebase + ".c"}')
         # Remove compiled Cython modules
-        libfile = glob.glob(os.path.join(os.getcwd(), 
-                            os.path.splitext(file)[0]) + '*.pyd') + glob.glob(os.path.join(os.getcwd(), 
-                            os.path.splitext(file)[0]) + '*.so')
+        libfile = (glob.glob(os.path.join(os.getcwd(), 
+                             os.path.splitext(file)[0]) + '*.pyd') + 
+                             glob.glob(os.path.join(os.getcwd(), 
+                             os.path.splitext(file)[0]) + '*.so'))
         if libfile:
             libfile = libfile[0]
             try:
@@ -169,7 +170,9 @@ if 'cleanall' in sys.argv:
 else:
     # Compiler options - Windows
     if sys.platform == 'win32':
-        compile_args = ['/O2', '/openmp', '/w']  # No static linking as no static version of OpenMP library; /w disables warnings
+        # No static linking as no static version of OpenMP library; 
+        # /w disables warnings
+        compile_args = ['/O2', '/openmp', '/w']  
         linker_args = []
         libraries = []
 
@@ -191,7 +194,10 @@ else:
                 os.environ['CC'] = gccpath[-1].split(os.sep)[-1]
                 rpath = '/opt/homebrew/opt/gcc/lib/gcc/' + gccpath[-1].split(os.sep)[-1][-1] + '/'
             else:
-                raise('Cannot find gcc in /opt/homebrew/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support is required.')
+                raise('Cannot find gcc in /opt/homebrew/bin. gprMax requires gcc ' +
+                      'to be installed - easily done through the Homebrew package ' +
+                      'manager (http://brew.sh). Note: gcc with OpenMP support ' +
+                      'is required.')
         else:
             gccpath = glob.glob('/usr/local/bin/gcc-[4-9]*')
             gccpath += glob.glob('/usr/local/bin/gcc-[10-11]*')
@@ -199,7 +205,10 @@ else:
                 # Use newest gcc found
                 os.environ['CC'] = gccpath[-1].split(os.sep)[-1]
             else:
-                raise('Cannot find gcc in /usr/local/bin. gprMax requires gcc to be installed - easily done through the Homebrew package manager (http://brew.sh). Note: gcc with OpenMP support is required.')
+                raise('Cannot find gcc in /usr/local/bin. gprMax requires gcc ' +
+                      'to be installed - easily done through the Homebrew package ' +
+                      'manager (http://brew.sh). Note: gcc with OpenMP support ' +
+                      'is required.')
         
         # Minimum supported macOS deployment target
         MIN_MACOS_VERSION = '10.13'
@@ -252,7 +261,8 @@ else:
           version=version,
           author='Craig Warren, Antonis Giannopoulos, and John Hartley',
           url='http://www.gprmax.com',
-          description='Electromagnetic Modelling Software based on the Finite-Difference Time-Domain (FDTD) method',
+          description='Electromagnetic Modelling Software based on the ' +
+                      'Finite-Difference Time-Domain (FDTD) method',
           long_description=long_description,
           long_description_content_type="text/x-rst",
           license='GPLv3+',
