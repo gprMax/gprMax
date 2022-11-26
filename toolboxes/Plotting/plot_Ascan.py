@@ -30,18 +30,19 @@ from gprMax.utilities.utilities import fft_power
 logger = logging.getLogger(__name__)
 
 
-def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
+def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
     """Plots electric and magnetic fields and currents from all receiver points
         in the given output file. Each receiver point is plotted in a new figure
         window.
 
     Args:
-        filename (string): Filename (including path) of output file.
-        outputs (list): List of field/current components to plot.
-        fft (boolean): Plot FFT switch.
+        filename: string of filename (including path) of output file.
+        outputs: list of field/current components to plot.
+        fft: boolean flag to plot FFT.
+        save: boolean flag to save plot to file.
 
     Returns:
-        plt (object): matplotlib plot object.
+        plt: matplotlib plot object.
     """
 
     file = Path(filename)
@@ -80,7 +81,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
         # Check for single output component when doing a FFT
         if fft:
             if not len(outputs) == 1:
-                logger.exception('A single output must be specified when using the -fft option')
+                logger.exception('A single output must be specified when using ' +
+                                 'the -fft option')
                 raise ValueError
 
         # New plot for each receiver
@@ -102,7 +104,9 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                     output = outputs[0]
 
                 if output not in availableoutputs:
-                    logger.exception(f"{output} output requested to plot, but the available output for receiver 1 is {', '.join(availableoutputs)}")
+                    logger.exception(f"{output} output requested to plot, but " +
+                                     f"the available output for receiver 1 is " +
+                                     f"{', '.join(availableoutputs)}")
                     raise ValueError
 
                 outputdata = f[rxpath + output][:] * polarity
@@ -145,19 +149,22 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                     ax2.set_ylabel('Power [dB]')
                     ax2.grid(which='both', axis='both', linestyle='-.')
 
-                    # Change colours and labels for magnetic field components or currents
+                    # Change colours and labels for magnetic field components 
+                    # or currents
                     if 'H' in outputs[0]:
                         plt.setp(line1, color='g')
                         plt.setp(line2, color='g')
                         plt.setp(ax1, ylabel=outputtext + ' field strength [A/m]')
                         plt.setp(stemlines, 'color', 'g')
-                        plt.setp(markerline, 'markerfacecolor', 'g', 'markeredgecolor', 'g')
+                        plt.setp(markerline, 'markerfacecolor', 'g', 
+                                 'markeredgecolor', 'g')
                     elif 'I' in outputs[0]:
                         plt.setp(line1, color='b')
                         plt.setp(line2, color='b')
                         plt.setp(ax1, ylabel=outputtext + ' current [A]')
                         plt.setp(stemlines, 'color', 'b')
-                        plt.setp(markerline, 'markerfacecolor', 'b', 'markeredgecolor', 'b')
+                        plt.setp(markerline, 'markerfacecolor', 'b', 
+                                 'markeredgecolor', 'b')
 
                     plt.show()
 
@@ -179,7 +186,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                         plt.setp(line, color='b')
                         plt.setp(ax, ylabel=outputtext + ', current [A]')
 
-            # If multiple outputs required, create all nine subplots and populate only the specified ones
+            # If multiple outputs required, create all nine subplots and 
+            # populate only the specified ones
             else:
                 fig, ax = plt.subplots(subplot_kw=dict(xlabel='Time [s]'),
                                        num=rxpath + ' - ' + f[rxpath].attrs['Name'],
@@ -190,7 +198,8 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                     gs = gridspec.GridSpec(3, 2, hspace=0.3, wspace=0.3)
 
                 for output in outputs:
-                    # Check for polarity of output and if requested output is in file
+                    # Check for polarity of output and if requested output 
+                    # is in file
                     if output[-1] == 'm':
                         polarity = -1
                         outputtext = '-' + output[0:-1]
@@ -201,7 +210,10 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
 
                     # Check if requested output is in file
                     if output not in availableoutputs:
-                        logger.exception(f"Output(s) requested to plot: {', '.join(outputs)}, but available output(s) for receiver {rx} in the file: {', '.join(availableoutputs)}")
+                        logger.exception(f"Output(s) requested to plot: " +
+                                         f"{', '.join(outputs)}, but available output(s) " +
+                                         f"for receiver {rx} in the file: " +
+                                         f"{', '.join(availableoutputs)}")
                         raise ValueError
 
                     outputdata = f[rxpath + output][:] * polarity
@@ -252,15 +264,15 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
                     ax.set_xlim([0, np.amax(time)])
                     ax.grid(which='both', axis='both', linestyle='-.')
 
-            # Save a PDF/PNG of the figure
-            savename = file.stem + '_rx' + str(rx)
-            savename = file.parent / savename
-            # fig.savefig(savename.with_suffix('.pdf'), dpi=None, format='pdf',
-            #             bbox_inches='tight', pad_inches=0.1)
-            # fig.savefig(savename.with_suffix('.png'), dpi=150, format='png',
-            #             bbox_inches='tight', pad_inches=0.1)
-
     f.close()
+
+    if save:
+        # Save a PDF of the figure
+        fig.savefig(filename[:-3] + '.pdf', dpi=None, format='pdf', 
+                    bbox_inches='tight', pad_inches=0.1)
+        # Save a PNG of the figure
+        # fig.savefig(filename[:-3] + '.png', dpi=150, format='png', 
+        #             bbox_inches='tight', pad_inches=0.1)
 
     return plt
 
@@ -268,15 +280,23 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False):
 if __name__ == "__main__":
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Plots electric and magnetic fields and currents from all receiver points in the given output file. Each receiver point is plotted in a new figure window.', usage='cd gprMax; python -m tools.plot_Ascan outputfile')
+    parser = argparse.ArgumentParser(description='Plots electric and magnetic fields and ' +
+                                                 'currents from all receiver points in the given output file. ' +
+                                                 'Each receiver point is plotted in a new figure window.', 
+                                     usage='cd gprMax; python -m toolboxes.Plotting.plot_Ascan outputfile')
     parser.add_argument('outputfile', help='name of output file including path')
     parser.add_argument('--outputs', help='outputs to be plotted',
                         default=Rx.defaultoutputs,
-                        choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz', 'Ex-', 'Ey-', 'Ez-', 'Hx-', 'Hy-', 'Hz-', 'Ix-', 'Iy-', 'Iz-'],
+                        choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 
+                                 'Ix', 'Iy', 'Iz', 'Ex-', 'Ey-', 'Ez-', 
+                                 'Hx-', 'Hy-', 'Hz-', 'Ix-', 'Iy-', 'Iz-'],
                         nargs='+')
-    parser.add_argument('-fft', action='store_true', help='plot FFT (single output must be specified)',
-                        default=False)
+    parser.add_argument('-fft', action='store_true', default=False,
+                        help='plot FFT (single output must be specified)')
+    parser.add_argument('-save', action='store_true', default=False,
+                        help='save plot directly to file, i.e. do not display')
     args = parser.parse_args()
 
-    plthandle = mpl_plot(args.outputfile, args.outputs, fft=args.fft)
+    plthandle = mpl_plot(args.outputfile, args.outputs, fft=args.fft, save=args.save)
+    
     plthandle.show()

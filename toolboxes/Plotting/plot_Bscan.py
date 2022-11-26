@@ -24,23 +24,24 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .outputfiles_merge import get_output_data
+from ..Utilities.outputfiles_merge import get_output_data
 
 logger = logging.getLogger(__name__)
 
 
-def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
+def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, save=False):
     """Creates a plot (with matplotlib) of the B-scan.
 
     Args:
-        filename (string): Filename (including path) of output file.
-        outputdata (array): Array of A-scans, i.e. B-scan data.
-        dt (float): Temporal resolution of the model.
-        rxnumber (int): Receiver output number.
-        rxcomponent (str): Receiver output field/current component.
+        filename: string of filename (including path) of output file.
+        outputdata: array of A-scans, i.e. B-scan data.
+        dt: float of temporal resolution of the model.
+        rxnumber: int of receiver output number.
+        rxcomponent: string of receiver output field/current component.
+        save: boolean flag to save plot to file.
 
     Returns:
-        plt (object): matplotlib plot object.
+        plt: matplotlib plot object.
     """
 
     file = Path(filename)
@@ -65,11 +66,13 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent):
     elif 'I' in rxcomponent:
         cb.set_label('Current [A]')
 
-    # Save a PDF/PNG of the figure
-    # fig.savefig(file.with_suffix('.pdf'), dpi=None, format='pdf',
-    #             bbox_inches='tight', pad_inches=0.1)
-    # fig.savefig(file.with_suffix('.png'), dpi=150, format='png',
-    #             bbox_inches='tight', pad_inches=0.1)
+    if save:
+        # Save a PDF of the figure
+        fig.savefig(filename[:-3] + '.pdf', dpi=None, format='pdf', 
+                    bbox_inches='tight', pad_inches=0.1)
+        # Save a PNG of the figure
+        # fig.savefig(filename[:-3] + '.png', dpi=150, format='png', 
+        #             bbox_inches='tight', pad_inches=0.1)
 
     return plt
 
@@ -78,10 +81,14 @@ if __name__ == "__main__":
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Plots a B-scan image.',
-                                     usage='cd gprMax; python -m tools.plot_Bscan outputfile output')
+                                     usage='cd gprMax; python -m toolboxes.Plotting.plot_Bscan outputfile output')
     parser.add_argument('outputfile', help='name of output file including path')
     parser.add_argument('rx_component', help='name of output component to be plotted',
                         choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz'])
+    parser.add_argument('-gather', action='store_true', default=False,
+                        help='gather together all receiver outputs in file')
+    parser.add_argument('-save', action='store_true', default=False,
+                        help='save plot directly to file, i.e. do not display')
     args = parser.parse_args()
 
     # Open output file and read number of outputs (receivers)
@@ -94,8 +101,28 @@ if __name__ == "__main__":
         logger.exception(f'No receivers found in {args.outputfile}')
         raise ValueError
 
+    rxsgather = []
     for rx in range(1, nrx + 1):
         outputdata, dt = get_output_data(args.outputfile, rx, args.rx_component)
-        plthandle = mpl_plot(args.outputfile, outputdata, dt, rx, args.rx_component)
+        print(outputdata.shape)
+        if args.gather:
+            rxsgather.append(outputdata)
+        else:
+            plthandle = mpl_plot(args.outputfile, outputdata, dt, rx, 
+                                 args.rx_component, save=args.save)
 
-    plthandle.show()
+    # Plot all receivers from single output file together if required
+    if args.gather:
+        rxsgather = np.array(rxsgather).transpose()
+        plthandle = mpl_plot(args.outputfile, rxsgather, dt, rx, 
+                             args.rx_component, save=args.save)
+
+    if args.save:
+        # Save a PDF of the figure
+        plthandle.savefig(args.outputfile[:-3] + '.pdf', dpi=None, 
+                          format='pdf', bbox_inches='tight', pad_inches=0.1)
+        # # Save a PNG of the figure
+        # plthandle.savefig(args.outputfile[:-3] + '.png', dpi=150, 
+        #                   format='png', bbox_inches='tight', pad_inches=0.1)
+    else:
+        plthandle.show()
