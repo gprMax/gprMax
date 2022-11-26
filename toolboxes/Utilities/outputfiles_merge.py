@@ -34,13 +34,13 @@ def get_output_data(filename, rxnumber, rxcomponent):
     """Gets B-scan output data from a model.
 
     Args:
-        filename (string): Filename (including path) of output file.
-        rxnumber (int): Receiver output number.
-        rxcomponent (str): Receiver output field/current component.
+        filename: string of tilename (including path) of output file.
+        rxnumber: int of receiver output number.
+        rxcomponent: string of receiver output field/current component.
 
     Returns:
-        outputdata (array): Array of A-scans, i.e. B-scan data.
-        dt (float): Temporal resolution of the model.
+        outputdata: array of A-scans, i.e. B-scan data.
+        dt: float of temporal resolution of the model.
     """
 
     # Open output file and read some attributes
@@ -58,7 +58,9 @@ def get_output_data(filename, rxnumber, rxcomponent):
 
         # Check if requested output is in file
         if rxcomponent not in availableoutputs:
-            logger.exception(f"{rxcomponent} output requested to plot, but the available output for receiver 1 is {', '.join(availableoutputs)}")
+            logger.exception(f"{rxcomponent} output requested to plot, but the " +
+                             f"available output for receiver 1 is " +
+                             f"{', '.join(availableoutputs)}")
             raise ValueError
 
         outputdata = f[path + '/' + rxcomponent]
@@ -72,8 +74,8 @@ def merge_files(outputfiles, removefiles=False):
         then optionally removes the series of output files.
 
     Args:
-        outputfiles (list): List of output files to be merged.
-        removefiles (boolean): Flag to remove individual output files after merge.
+        outputfiles: list of output files to be merged.
+        removefiles: boolean flag to remove individual output files after merge.
     """
 
     merged_outputfile = os.path.commonprefix(outputfiles) + '_merged.h5'
@@ -124,9 +126,13 @@ def merge_files(outputfiles, removefiles=False):
 if __name__ == "__main__":
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Merges traces (A-scans) from multiple output files into one new file, then optionally removes the series of output files.', usage='cd gprMax; python -m tools.outputfiles_merge basefilename')
+    parser = argparse.ArgumentParser(description='Merges traces (A-scans) from multiple ' +
+                                                 'output files into one new file, then ' +
+                                                 'optionally removes the series of output files.', 
+                                     usage='cd gprMax; python -m tools.outputfiles_merge basefilename')
     parser.add_argument('basefilename', help='base name of output file series including path')
-    parser.add_argument('--remove-files', action='store_true', default=False, help='flag to remove individual output files after merge')
+    parser.add_argument('--remove-files', action='store_true', default=False, 
+                        help='flag to remove individual output files after merge')
     args = parser.parse_args()
 
     files = glob.glob(args.basefilename + '*.h5')
