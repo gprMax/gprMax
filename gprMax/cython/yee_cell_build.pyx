@@ -212,70 +212,67 @@ cpdef void build_electric_components(
                                                 numID3, numID4, IDEz, G)
 
     # Extra loops for Ex component
-    for i in range(0, 2):
-        for j in range(1, G.ny):
-            for k in range(1, G.nz):
+    i = 0
+    for j in range(1, G.ny):
+        for k in range(1, G.nz):
+            # If rigid is True do not average
+            if get_rigid_Ex(i, j, k, rigidE):
+                pass
+            else:
+                numID1 = solid[i, j, k]
+                numID2 = solid[i, j - 1, k]
+                numID3 = solid[i, j - 1, k - 1]
+                numID4 = solid[i, j, k - 1]
 
-                # If rigid is True do not average
-                if get_rigid_Ex(i, j, k, rigidE):
-                    pass
+                # If all values are the same no need to average
+                if numID1 == numID2 and numID1 == numID3 and numID1 == numID4:
+                    ID[IDEx, i, j, k] = numID1
                 else:
-                    numID1 = solid[i, j, k]
-                    numID2 = solid[i, j - 1, k]
-                    numID3 = solid[i, j - 1, k - 1]
-                    numID4 = solid[i, j, k - 1]
-
-                    # If all values are the same no need to average
-                    if numID1 == numID2 and numID1 == numID3 and numID1 == numID4:
-                        ID[IDEx, i, j, k] = numID1
-                    else:
-                        # Averaging is required
-                        create_electric_average(i, j, k, numID1, numID2, 
-                                                numID3, numID4, IDEx, G)
+                    # Averaging is required
+                    create_electric_average(i, j, k, numID1, numID2, 
+                                            numID3, numID4, IDEx, G)
 
     # Extra loops for Ey component
     for i in range(1, G.nx):
-        for j in range(0, 2):
-            for k in range(1, G.nz):
+        j = 0
+        for k in range(1, G.nz):
+            # If rigid is True do not average
+            if get_rigid_Ey(i, j, k, rigidE):
+                pass
+            else:
+                numID1 = solid[i, j, k]
+                numID2 = solid[i - 1, j, k]
+                numID3 = solid[i - 1, j, k - 1]
+                numID4 = solid[i, j, k - 1]
 
-                # If rigid is True do not average
-                if get_rigid_Ey(i, j, k, rigidE):
-                    pass
+                # If all values are the same no need to average
+                if numID1 == numID2 and numID1 == numID3 and numID1 == numID4:
+                    ID[IDEy, i, j, k] = numID1
                 else:
-                    numID1 = solid[i, j, k]
-                    numID2 = solid[i - 1, j, k]
-                    numID3 = solid[i - 1, j, k - 1]
-                    numID4 = solid[i, j, k - 1]
-
-                    # If all values are the same no need to average
-                    if numID1 == numID2 and numID1 == numID3 and numID1 == numID4:
-                        ID[IDEy, i, j, k] = numID1
-                    else:
-                        # Averaging is required
-                        create_electric_average(i, j, k, numID1, numID2, 
-                                                numID3, numID4, IDEy, G)
+                    # Averaging is required
+                    create_electric_average(i, j, k, numID1, numID2, 
+                                            numID3, numID4, IDEy, G)
 
    # Extra loops for Ez component
     for i in range(1, G.nx):
         for j in range(1, G.ny):
-            for k in range(0, 2):
+            k = 0
+            # If rigid is True do not average
+            if get_rigid_Ez(i, j, k, rigidE):
+                pass
+            else:
+                numID1 = solid[i, j, k]
+                numID2 = solid[i - 1, j, k]
+                numID3 = solid[i - 1, j - 1, k]
+                numID4 = solid[i, j - 1, k]
 
-                # If rigid is True do not average
-                if get_rigid_Ez(i, j, k, rigidE):
-                    pass
+                # If all values are the same no need to average
+                if numID1 == numID2 and numID1 == numID3 and numID1 == numID4:
+                    ID[IDEz, i, j, k] = numID1
                 else:
-                    numID1 = solid[i, j, k]
-                    numID2 = solid[i - 1, j, k]
-                    numID3 = solid[i - 1, j - 1, k]
-                    numID4 = solid[i, j - 1, k]
-
-                    # If all values are the same no need to average
-                    if numID1 == numID2 and numID1 == numID3 and numID1 == numID4:
-                        ID[IDEz, i, j, k] = numID1
-                    else:
-                        # Averaging is required
-                        create_electric_average(i, j, k, numID1, numID2, 
-                                                numID3, numID4, IDEz, G)
+                    # Averaging is required
+                    create_electric_average(i, j, k, numID1, numID2, 
+                                            numID3, numID4, IDEz, G)
 
 
 cpdef void build_magnetic_components(
@@ -350,57 +347,54 @@ cpdef void build_magnetic_components(
 
     # Extra loops for Hx component
     for i in range(1, G.nx):
-        for j in range(0, 2):
-            for k in range(0, 2):
+        j = 0
+        k = 0
+        # If rigid is True do not average
+        if get_rigid_Hx(i, j, k, rigidH):
+            pass
+        else:
+            numID1 = solid[i, j, k]
+            numID2 = solid[i - 1, j, k]
 
-                # If rigid is True do not average
-                if get_rigid_Hx(i, j, k, rigidH):
-                    pass
-                else:
-                    numID1 = solid[i, j, k]
-                    numID2 = solid[i - 1, j, k]
-
-                    # If all values are the same no need to average
-                    if numID1 == numID2:
-                        ID[IDHx, i, j, k] = numID1
-                    else:
-                        # Averaging is required
-                        create_magnetic_average(i, j, k, numID1, numID2, IDHx, G)
+            # If all values are the same no need to average
+            if numID1 == numID2:
+                ID[IDHx, i, j, k] = numID1
+            else:
+                # Averaging is required
+                create_magnetic_average(i, j, k, numID1, numID2, IDHx, G)
 
     # Extra loops for Hy component
-    for i in range(0, 2):
-        for j in range(1, G.ny):
-            for k in range(0, 2):
+    i = 0
+    k = 0
+    for j in range(1, G.ny):
+            # If rigid is True do not average
+            if get_rigid_Hy(i, j, k, rigidH):
+                pass
+            else:
+                numID1 = solid[i, j, k]
+                numID2 = solid[i, j - 1, k]
 
-                # If rigid is True do not average
-                if get_rigid_Hy(i, j, k, rigidH):
-                    pass
+                # If all values are the same no need to average
+                if numID1 == numID2:
+                    ID[IDHy, i, j, k] = numID1
                 else:
-                    numID1 = solid[i, j, k]
-                    numID2 = solid[i, j - 1, k]
-
-                    # If all values are the same no need to average
-                    if numID1 == numID2:
-                        ID[IDHy, i, j, k] = numID1
-                    else:
-                        # Averaging is required
-                        create_magnetic_average(i, j, k, numID1, numID2, IDHy, G)
+                    # Averaging is required
+                    create_magnetic_average(i, j, k, numID1, numID2, IDHy, G)
 
     # Extra loops for Hz component
-    for i in range(0, 2):
-        for j in range(0, 2):
-            for k in range(1, G.nz):
+    i = 0
+    j = 0
+    for k in range(1, G.nz):
+        # If rigid is True do not average
+        if get_rigid_Hz(i, j, k, rigidH):
+            pass
+        else:
+            numID1 = solid[i, j, k]
+            numID2 = solid[i, j, k - 1]
 
-                # If rigid is True do not average
-                if get_rigid_Hz(i, j, k, rigidH):
-                    pass
-                else:
-                    numID1 = solid[i, j, k]
-                    numID2 = solid[i, j, k - 1]
-
-                    # If all values are the same no need to average
-                    if numID1 == numID2:
-                        ID[IDHz, i, j, k] = numID1
-                    else:
-                        # Averaging is required
-                        create_magnetic_average(i, j, k, numID1, numID2, IDHz, G)
+            # If all values are the same no need to average
+            if numID1 == numID2:
+                ID[IDHz, i, j, k] = numID1
+            else:
+                # Averaging is required
+                create_magnetic_average(i, j, k, numID1, numID2, IDHz, G)
