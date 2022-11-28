@@ -59,9 +59,9 @@ class FractalBox(UserObjectGeometry):
         self.axis = axis
         self.angle = angle
         self.origin = origin
-        self.dorotate = True
+        self.do_rotate = True
 
-    def __dorotate(self):
+    def _do_rotate(self):
         """Performs rotation."""
         pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
@@ -86,8 +86,8 @@ class FractalBox(UserObjectGeometry):
         except KeyError:
             seed = None
 
-        if self.dorotate:
-            self.__dorotate()
+        if self.do_rotate:
+            self._do_rotate()
 
         # Check averaging
         try:

@@ -53,7 +53,7 @@ class UserObjectMulti:
         self.order = None
         self.hash = '#example'
         self.autotranslate = True
-        self.dorotate = False
+        self.do_rotate = False
 
     def __str__(self):
         """Readable user string as per hash commands."""
@@ -209,9 +209,9 @@ class VoltageSource(UserObjectMulti):
         self.axis = axis
         self.angle = angle
         self.origin = origin
-        self.dorotate = True
+        self.do_rotate = True
 
-    def __dorotate(self, grid):
+    def _do_rotate(self, grid):
         """Performs rotation."""
         rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], 
                                                                        self.kwargs['polarisation'], 
@@ -233,8 +233,8 @@ class VoltageSource(UserObjectMulti):
                                                   'parameters.'))
             raise
 
-        if self.dorotate:
-            self.__dorotate(grid)
+        if self.do_rotate:
+            self._do_rotate(grid)
 
         # Check polarity & position parameters
         if polarisation not in ('x', 'y', 'z'):
@@ -347,9 +347,9 @@ class HertzianDipole(UserObjectMulti):
         self.axis = axis
         self.angle = angle
         self.origin = origin
-        self.dorotate = True
+        self.do_rotate = True
 
-    def __dorotate(self, grid):
+    def _do_rotate(self, grid):
         """Performs rotation."""
         rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], 
                                                                        self.kwargs['polarisation'], 
@@ -369,8 +369,8 @@ class HertzianDipole(UserObjectMulti):
                              'parameters.')
             raise
 
-        if self.dorotate:
-            self.__dorotate(grid)
+        if self.do_rotate:
+            self._do_rotate(grid)
 
         # Check polarity & position parameters
         if polarisation not in ('x', 'y', 'z'):
@@ -494,9 +494,9 @@ class MagneticDipole(UserObjectMulti):
         self.axis = axis
         self.angle = angle
         self.origin = origin
-        self.dorotate = True
+        self.do_rotate = True
 
-    def __dorotate(self, grid):
+    def _do_rotate(self, grid):
         """Performs rotation."""
         rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], 
                                                                        self.kwargs['polarisation'], 
@@ -516,8 +516,8 @@ class MagneticDipole(UserObjectMulti):
                              'parameters.')
             raise
 
-        if self.dorotate:
-            self.__dorotate(grid)
+        if self.do_rotate:
+            self._do_rotate(grid)
 
         # Check polarity & position parameters
         if polarisation not in ('x', 'y', 'z'):
@@ -626,9 +626,9 @@ class TransmissionLine(UserObjectMulti):
         self.axis = axis
         self.angle = angle
         self.origin = origin
-        self.dorotate = True
+        self.do_rotate = True
 
-    def __dorotate(self, grid):
+    def _do_rotate(self, grid):
         """Performs rotation."""
         rot_pol_pts, self.kwargs['polarisation'] = rotate_polarisation(self.kwargs['p1'], 
                                                                        self.kwargs['polarisation'], 
@@ -649,8 +649,8 @@ class TransmissionLine(UserObjectMulti):
                              'parameters.')
             raise
 
-        if self.dorotate:
-            self.__dorotate(grid)
+        if self.do_rotate:
+            self._do_rotate(grid)
 
         # Warn about using a transmission line on GPU
         if (config.sim_config.general['solver'] == 'cuda' or 
@@ -773,9 +773,9 @@ class Rx(UserObjectMulti):
         self.axis = axis
         self.angle = angle
         self.origin = origin
-        self.dorotate = True
+        self.do_rotate = True
 
-    def __dorotate(self, G):
+    def _do_rotate(self, G):
         """Performs rotation."""
         new_pt = (self.kwargs['p1'][0] + G.dx, self.kwargs['p1'][1] + G.dy, 
                   self.kwargs['p1'][2] + G.dz)
@@ -800,8 +800,8 @@ class Rx(UserObjectMulti):
             logger.exception(self.params_str())
             raise
 
-        if self.dorotate:
-            self.__dorotate(grid)
+        if self.do_rotate:
+            self._do_rotate(grid)
 
         p = uip.check_src_rx_point(p1, self.params_str())
         p2 = uip.round_to_grid_static_point(p1)

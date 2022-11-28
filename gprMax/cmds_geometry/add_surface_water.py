@@ -51,9 +51,9 @@ class AddSurfaceWater(UserObjectGeometry):
         self.axis = axis
         self.angle = angle
         self.origin = origin
-        self.dorotate = True
+        self.do_rotate = True
 
-    def __dorotate(self):
+    def _do_rotate(self):
         """Perform rotation."""
         pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
@@ -71,8 +71,8 @@ class AddSurfaceWater(UserObjectGeometry):
             logger.exception(self.__str__() + ' requires exactly eight parameters')
             raise
 
-        if self.dorotate:
-            self.__dorotate()
+        if self.do_rotate:
+            self._do_rotate()
 
         # Get the correct fractal volume
         volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]

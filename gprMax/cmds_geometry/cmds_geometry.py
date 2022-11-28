@@ -32,7 +32,7 @@ class UserObjectGeometry:
         self.kwargs = kwargs
         self.hash = '#example'
         self.autotranslate = True
-        self.dorotate = False
+        self.do_rotate = False
 
     def __str__(self):
         """Readable string of parameters given to object."""
