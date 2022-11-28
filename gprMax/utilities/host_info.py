@@ -23,10 +23,10 @@ import re
 import subprocess
 import sys
 
-import gprMax.config as config
+import humanize
 import psutil
 
-from .utilities import get_terminal_width, human_size
+import gprMax.config as config
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +213,7 @@ def print_host_info(hostinfo):
                  f"{config.sim_config.hostinfo['machineID']} | "
                  f"{hostinfo['sockets']} x {hostinfo['cpuID']} "
                  f"({hostinfo['physicalcores']} cores{hyperthreadingstr}) | "
-                 f"{human_size(hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} | "
+                 f"{humanize.naturalsize(hostinfo['ram'], True)} | "
                  f"{hostinfo['osversion']}")
     logger.basic(f"|--->OpenMP: {hostinfo['physicalcores']} threads")
 
@@ -272,8 +272,8 @@ def mem_check_host(mem):
         mem: int for memory required (bytes).
     """
     if mem > config.sim_config.hostinfo['ram']:
-        logger.exception(f"Memory (RAM) required ~{human_size(mem)} exceeds "
-                         f"{human_size(config.sim_config.hostinfo['ram'], a_kilobyte_is_1024_bytes=True)} "
+        logger.exception(f"Memory (RAM) required ~{humanize.naturalsize(mem)} exceeds "
+                         f"{humanize.naturalsize(config.sim_config.hostinfo['ram'], True)} "
                          "detected!\n")
         raise ValueError
 
@@ -293,8 +293,8 @@ def mem_check_device_snaps(total_mem, snaps_mem):
         device_mem = config.get_model_config().device['dev'].global_mem_size
     
     if total_mem - snaps_mem > device_mem:
-        logger.exception(f"Memory (RAM) required ~{human_size(total_mem)} exceeds "
-                         f"{human_size(device_mem, a_kilobyte_is_1024_bytes=True)} "
+        logger.exception(f"Memory (RAM) required ~{humanize.naturalsize(total_mem)} exceeds "
+                         f"{humanize.naturalsize(device_mem, True)} "
                          f"detected on specified {' '.join(config.get_model_config().device['dev'].name.split())} device!\n")
         raise ValueError
 
@@ -304,10 +304,10 @@ def mem_check_device_snaps(total_mem, snaps_mem):
         config.get_model_config().device['snapsgpu2cpu'] = True
 
 
-def mem_check_all(grids):
-    """Checks memory for all grids, including for any dispersive materials,
-        snapshots, and if solver with GPU, whether snapshots will fit on GPU
-        memory.
+def mem_check_run_all(grids):
+    """Checks memory required to run model for all grids, including for any 
+        dispersive materials, snapshots, and if solver with GPU, whether 
+        snapshots will fit on GPU memory.
 
     Args:
         grids: list of FDTDGrid objects.
@@ -318,10 +318,14 @@ def mem_check_all(grids):
                     each grid.
     """
 
-    total_snaps_mem = 0
+    total_mem_snaps = 0
     mem_strs = []
 
     for grid in grids:
+        # Keep track of total memory for each model in
+        # config.get_model_config().mem_use, which can contain multiple grids, 
+        # and also total memory per grid in grid.mem_use
+
         # Memory required for main grid arrays
         config.get_model_config().mem_use += grid.mem_est_basic()
         grid.mem_use += grid.mem_est_basic()
@@ -335,23 +339,58 @@ def mem_check_all(grids):
         if grid.snapshots:
             for snap in grid.snapshots:
                 config.get_model_config().mem_use += snap.nbytes
-                total_snaps_mem += snap.nbytes
                 grid.mem_use += snap.nbytes
+                total_mem_snaps += snap.nbytes
 
-        mem_strs.append(f'~{human_size(grid.mem_use)} [{grid.name}]')
+        mem_strs.append(f'~{humanize.naturalsize(grid.mem_use)} [{grid.name}]')
 
-    total_mem = config.get_model_config().mem_use
+    total_mem_model = config.get_model_config().mem_use
 
     # Check if there is sufficient memory on host
-    mem_check_host(total_mem)
+    mem_check_host(total_mem_model)
 
     # Check if there is sufficient memory for any snapshots on GPU
-    if (total_snaps_mem > 0 and config.sim_config.general['solver'] == 'cuda' or 
+    if (total_mem_snaps > 0 and config.sim_config.general['solver'] == 'cuda' or 
         config.sim_config.general['solver'] == 'opencl'):
-        mem_check_device_snaps(total_mem, total_snaps_mem)
+        mem_check_device_snaps(total_mem_model, total_mem_snaps)
 
-    return total_mem, mem_strs
+    return total_mem_model, mem_strs
 
+
+def mem_check_build_all(grids):
+    """Checks memory required to build all grids - primarily memory required to
+        initialise grid arrays and to build any FractalVolume or FractalSurface
+        objects which can require significant amounts of memory. 
+
+    Args:
+        grids: list of FDTDGrid objects.
+
+    Returns:
+        total_mem: int for total memory required for all grids.
+        mem_str: list of strings containing text of memory requirements for
+                    each grid.
+    """
+
+    total_mem_model = config.get_model_config().mem_use
+    mem_strs = []
+
+    for grid in grids:
+        grid_mem = 0
+
+        # Memory required for main grid arrays
+        grid_mem += grid.mem_est_basic()
+
+        # Memory required for any FractalVolumes/FractalSurfaces
+        if grid.fractalvolumes:
+            grid_mem += grid.mem_est_fractals()
+
+        mem_strs.append(f'~{humanize.naturalsize(grid_mem)} [{grid.name}]')
+        total_mem_model += grid_mem
+
+    # Check if there is sufficient memory on host
+    mem_check_host(total_mem_model)
+
+    return total_mem_model, mem_strs
 
 def has_pycuda():
     """Checks if pycuda module is installed."""
@@ -427,7 +466,7 @@ def print_cuda_info(devs):
 
     for ID, gpu in devs.items():
         logger.basic(f"     |--->Device {ID}: {' '.join(gpu.name().split())} | "
-                     f"{human_size(gpu.total_memory(), a_kilobyte_is_1024_bytes=True)}")
+                     f"{humanize.naturalsize(gpu.total_memory(), True)}")
 
 
 def detect_opencl():
@@ -487,4 +526,4 @@ def print_opencl_info(devs):
         if 'GPU' in types:
             type = 'GPU'
         logger.basic(f"          |--->Device {ID}: {type} | {' '.join(dev.name.split())} | "
-                    f"{human_size(dev.global_mem_size, a_kilobyte_is_1024_bytes=True)}")
+                    f"{humanize.naturalsize(dev.global_mem_size, True)}")
