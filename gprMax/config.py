@@ -88,7 +88,7 @@ class ModelConfig:
                            'snapsgpu2cpu': False}
 
         # Total memory usage for all grids in the model. Starts with 50MB overhead.
-        self.mem_overhead = 50e6
+        self.mem_overhead = 65e6
         self.mem_use = self.mem_overhead
 
         self.reuse_geometry = False

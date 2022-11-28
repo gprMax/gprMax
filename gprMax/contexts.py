@@ -20,6 +20,8 @@ import datetime
 import logging
 import sys
 
+import humanize
+
 import gprMax.config as config
 
 from ._version import __version__, codename
@@ -84,7 +86,7 @@ class Context:
                 model.solve(solver)
 
         self.tsimend = timer()
-        self.print_time_report()
+        self.print_sim_time_taken()
 
         return results
 
@@ -93,10 +95,10 @@ class Context:
         logo_copyright = logo(__version__ + ' (' + codename + ')')
         logger.basic(logo_copyright)
 
-    def print_time_report(self):
+    def print_sim_time_taken(self):
         """Prints the total simulation time based on context."""
-        s = ("\n=== Simulation completed in [HH:MM:SS]: "
-             f"{datetime.timedelta(seconds=self.tsimend - self.tsimstart)}")
+        s = (f"\n=== Simulation completed in " +
+             f"{humanize.precisedelta(datetime.timedelta(seconds=self.tsimend - self.tsimstart), format='%0.4f')}")
         logger.basic(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")
 
 
@@ -185,5 +187,5 @@ class MPIContext(Context):
 
         if executor.is_master():
             self.tsimend = timer()
-            self.print_time_report()
+            self.print_sim_time_taken()
             return results
