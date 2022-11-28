@@ -52,6 +52,7 @@ class FractalSurface:
         self.nx = xf - xs
         self.ny = yf - ys
         self.nz = zf - zs
+        self.dtype = np.dtype(np.complex128)
         self.seed = None
         self.dimension = dimension
         # Constant related to fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
@@ -61,8 +62,8 @@ class FractalSurface:
         self.filldepth = 0
         self.grass = []
 
-    def generate_fractal_surface(self):
-        """Generate a 2D array with a fractal distribution."""
+    def get_surface_dims(self):
+        """Gets the dimensions of the fractal surface based on surface plane."""
 
         if self.xs == self.xf:
             surfacedims = (self.ny, self.nz)
@@ -71,7 +72,14 @@ class FractalSurface:
         elif self.zs == self.zf:
             surfacedims = (self.nx, self.ny)
 
-        self.fractalsurface = np.zeros(surfacedims, dtype=np.complex128)
+        return surfacedims
+
+    def generate_fractal_surface(self):
+        """Generate a 2D array with a fractal distribution."""
+
+        surfacedims = self.get_surface_dims()
+
+        self.fractalsurface = np.zeros(surfacedims, dtype=self.dtype)
 
         # Positional vector at centre of array, scaled by weighting
         v1 = np.array([self.weighting[0] * (surfacedims[0]) / 2, self.weighting[1]
@@ -137,6 +145,7 @@ class FractalVolume:
         self.originalzs = zs
         self.originalzf = zf
         self.averaging = False
+        self.dtype = np.dtype(np.complex128)
         self.seed = None
         self.dimension = dimension
         # Constant related to fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
@@ -164,7 +173,7 @@ class FractalVolume:
         # Adjust weighting to account for filter scaling
         self.weighting = np.multiply(self.weighting, filterscaling)
 
-        self.fractalvolume = np.zeros((self.nx, self.ny, self.nz), dtype=np.complex128)
+        self.fractalvolume = np.zeros((self.nx, self.ny, self.nz), dtype=self.dtype)
 
         # Positional vector at centre of array, scaled by weighting
         v1 = np.array([self.weighting[0] * self.nx / 2, self.weighting[1]
