@@ -126,7 +126,7 @@ def round_value(value, decimalplaces=0):
 
     # Rounds down to nearest float represented by number of decimal places
     else:
-        precision = '1.{places}'.format(places='0' * decimalplaces)
+        precision = f"1.{'0' * decimalplaces}"
         rounded = float(d.Decimal(value).quantize(d.Decimal(precision), 
                         rounding=d.ROUND_FLOOR))
 
@@ -166,43 +166,6 @@ def fft_power(waveform, dt):
     power -= np.amax(power)
 
     return freqs, power
-
-
-def human_size(size, a_kilobyte_is_1024_bytes=False):
-    """Converts a file size to human-readable form.
-
-    Args:
-        size: int for file size in bytes.
-        a_kilobyte_is_1024_bytes: boolean - true for multiples of 1024, 
-                                    or false for multiples of 1000.
-
-    Returns:
-        Human-readable string of size.
-    """
-
-    suffixes = {1000: ['KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'], 
-                1024: ['KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB']}
-
-    if size < 0:
-        raise ValueError('Number must be non-negative.')
-
-    multiple = 1024 if a_kilobyte_is_1024_bytes else 1000
-    for suffix in suffixes[multiple]:
-        size /= multiple
-        if size < multiple:
-            return '{:.3g}{}'.format(size, suffix)
-
-    raise ValueError('Number is too large.')
-
-
-def atoi(text):
-    """Converts a string into an integer."""
-    return int(text) if text.isdigit() else text
-
-
-def natural_keys(text):
-    """Human sorting of a string."""
-    return [atoi(c) for c in re.split(r'(\d+)', text)]
 
 
 def timer():
