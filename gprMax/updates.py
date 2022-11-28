@@ -34,7 +34,7 @@ from .fields_outputs import store_outputs as store_outputs_cpu
 from .receivers import dtoh_rx_array, htod_rx_arrays
 from .snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
 from .sources import htod_src_arrays
-from .utilities.utilities import human_size, round32, timer
+from .utilities.utilities import round32, timer
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +196,7 @@ class CPUUpdates:
         """Starts timer used to calculate solving time for model."""
         self.timestart = timer()
 
-    def calculate_tsolve(self):
+    def calculate_solve_time(self):
         """Calculates solving time for model."""
         return timer() - self.timestart
 
@@ -467,7 +467,9 @@ class CUDAUpdates:
         if (self.grid.updatecoeffsE.nbytes + self.grid.updatecoeffsH.nbytes
             > config.get_model_config().device['dev'].total_constant_memory):
             device = config.get_model_config().device['dev']
-            logger.exception(f"Too many materials in the model to fit onto constant memory of size {human_size(device.total_constant_memory)} on {device.deviceID}: {' '.join(device.name().split())}")
+            logger.exception(f"Too many materials in the model to fit onto " +
+                             f"constant memory of size {humanize.naturalsize(device.total_constant_memory)} " +
+                             f"on {device.deviceID}: {' '.join(device.name().split())}")
             raise ValueError
 
         updatecoeffsE = knlE.get_global('updatecoeffsE')[0]
@@ -683,7 +685,7 @@ class CUDAUpdates:
         self.iterstart.record()
         self.iterstart.synchronize()
 
-    def calculate_memsolve(self, iteration):
+    def calculate_memory_used(self, iteration):
         """Calculates memory used on last iteration.
 
         Args:
@@ -693,15 +695,14 @@ class CUDAUpdates:
             Memory (RAM) used on GPU.
         """
         if iteration == self.grid.iterations - 1:
+            # Total minus free memory in current context
             return self.drv.mem_get_info()[1] - self.drv.mem_get_info()[0]
 
-    def calculate_tsolve(self):
+    def calculate_solve_time(self):
         """Calculates solving time for model."""
         self.iterend.record()
         self.iterend.synchronize()
-        tsolve = self.iterstart.time_till(self.iterend) * 1e-3
-
-        return tsolve
+        return self.iterstart.time_till(self.iterend) * 1e-3
 
     def finalise(self):
         """Copies data from GPU back to CPU to save to file(s)."""
@@ -1145,7 +1146,7 @@ class OpenCLUpdates:
         self.event_marker1 = self.cl.enqueue_marker(self.queue)
         self.event_marker1.wait()
 
-    def calculate_memsolve(self, iteration):
+    def calculate_memory_used(self, iteration):
         """Calculates memory used on last iteration.
 
         Args:
@@ -1159,13 +1160,11 @@ class OpenCLUpdates:
         logger.debug('Look at memory estimate for pyopencl')
         pass
 
-    def calculate_tsolve(self):
+    def calculate_solve_time(self):
         """Calculates solving time for model."""
-        
         event_marker2 = self.cl.enqueue_marker(self.queue)
         event_marker2.wait()
-        compute_time = (event_marker2.profile.end - self.event_marker1.profile.start)*1e-9
-        return compute_time
+        return (event_marker2.profile.end - self.event_marker1.profile.start)*1e-9
 
     def finalise(self):
         """Copies data from compute device back to CPU to save to file(s)."""
