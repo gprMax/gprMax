@@ -177,7 +177,7 @@ class FDTDGrid:
             pml.initialise_field_arrays()
 
     def mem_est_basic(self):
-        """Estimate the amount of memory (RAM) required for grid arrays.
+        """Estimates the amount of memory (RAM) required for grid arrays.
 
         Returns:
             mem_use: int of memory (bytes).
@@ -217,7 +217,7 @@ class FDTDGrid:
         return mem_use
 
     def mem_est_dispersive(self):
-        """Estimate the amount of memory (RAM) required for dispersive grid arrays.
+        """Estimates the amount of memory (RAM) required for dispersive grid arrays.
 
         Returns:
             mem_use: int of memory (bytes).
@@ -226,6 +226,26 @@ class FDTDGrid:
         mem_use = int(3 * config.get_model_config().materials['maxpoles'] *
                        (self.nx + 1) * (self.ny + 1) * (self.nz + 1) *
                        np.dtype(config.get_model_config().materials['dispersivedtype']).itemsize)
+        return mem_use
+
+    def mem_est_fractals(self):
+        """Estimates the amount of memory (RAM) required to build any objects
+            which use the FractalVolume/FractalSurface classes.
+
+        Returns:
+            mem_use: int of memory (bytes).
+        """
+        
+        mem_use = 0
+
+        for vol in self.fractalvolumes:
+            mem_use += (vol.nx * vol.ny * vol.nz * vol.dtype.itemsize)
+            for surface in vol.fractalsurfaces:
+                surfacedims = surface.get_surface_dims()
+                mem_use += (surfacedims[0] * 
+                            surfacedims[1] * 
+                            surface.dtype.itemsize)
+
         return mem_use
 
     def tmx(self):
