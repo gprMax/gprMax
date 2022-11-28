@@ -115,9 +115,9 @@ class Scene:
         self.process_cmds(cmds_unique, G)
 
     def create_internal_objects(self, G):
-        """API presents the user with UserObjects in order to build the internal
-            Rx(), Cylinder() etc... objects. This function essentially calls the
-            UserObject.create() function in the correct way.
+        """Calls the UserObject.create() function in the correct way - API 
+            presents the user with UserObjects in order to build the internal
+            Rx(), Cylinder() etc... objects. 
         """
 
         # Fractal box commands have an additional nonuser object which
@@ -141,7 +141,5 @@ class Scene:
         # Process the main grid geometry commands
         self.process_cmds(self.geometry_cmds, G, sort=False)
 
-        # Process all the commands for the subgrid
+        # Process all the commands for subgrids
         self.process_subgrid_commands()
-
-        return self
