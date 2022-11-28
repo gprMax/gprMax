@@ -21,15 +21,17 @@ import itertools
 import logging
 import sys
 
+import humanize
 import numpy as np
 import psutil
 from colorama import Fore, Style, init
-init()
 
-import gprMax.config as config
+init()
 
 from terminaltables import SingleTable
 from tqdm import tqdm
+
+import gprMax.config as config
 
 from .cython.yee_cell_build import (build_electric_components,
                                     build_magnetic_components)
@@ -38,11 +40,12 @@ from .geometry_outputs import save_geometry_views
 from .grid import dispersion_analysis
 from .hash_cmds_file import parse_hash_commands
 from .materials import process_materials
-from .pml import build_pml, CFS, print_pml_info
+from .pml import CFS, build_pml, print_pml_info
 from .scene import Scene
 from .snapshots import save_snapshots
-from .utilities.host_info import mem_check_all, set_omp_threads
-from .utilities.utilities import get_terminal_width, human_size
+from .utilities.host_info import (mem_check_build_all, mem_check_run_all,
+                                  set_omp_threads)
+from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
 
@@ -125,17 +128,17 @@ class ModelBuildRun:
 
     def build_geometry(self):
         G = self.G
+        # Combine available grids
+        grids = [G] + G.subgrids
 
         logger.info(config.get_model_config().inputfilestr)
 
+        # Build objects in the scene and check memory for building
         self.build_scene()
 
         # Print info on any subgrids
         for sg in G.subgrids:
             sg.print_info()
-
-        # Combine available grids
-        grids = [G] + G.subgrids
 
         # Check for dispersive materials (and specific type)
         for grid in grids:
@@ -146,11 +149,22 @@ class ModelBuildRun:
         if config.get_model_config().materials['maxpoles'] != 0:
             config.get_model_config().set_dispersive_material_types()
 
-        # Check memory requirements
-        total_mem, mem_strs = mem_check_all(grids)
-        logger.info(f'\nMemory required: {" + ".join(mem_strs)} + '
-                    f'~{human_size(config.get_model_config().mem_overhead)} '
-                    f'overhead = {human_size(total_mem)}')
+        # Check memory requirements to build model/scene (different to memory 
+        # requirements to run model when FractalVolumes/FractalSurfaces are 
+        # used as these can require significant additional memory)
+        total_mem_build, mem_strs_build = mem_check_build_all(grids)
+
+        # Check memory requirements to run model
+        total_mem_run, mem_strs_run = mem_check_run_all(grids)
+
+        if total_mem_build > total_mem_run:
+            logger.info(f'\nMemory required (estimated): {" + ".join(mem_strs_build)} + '
+                        f'~{humanize.naturalsize(config.get_model_config().mem_overhead)} '
+                        f'overhead = {humanize.naturalsize(total_mem_build)}')
+        else:
+            logger.info(f'Memory required (estimated): {" + ".join(mem_strs_run)} + '
+                        f'~{humanize.naturalsize(config.get_model_config().mem_overhead)} '
+                        f'overhead = {humanize.naturalsize(total_mem_run)}')
 
         # Build grids
         gridbuilders = [GridBuilder(grid) for grid in grids]
@@ -230,30 +244,14 @@ class ModelBuildRun:
         return scene
 
     def write_output_data(self):
-        """Writes output data, i.e. field data for receivers and snapshots
-            to file(s).
+        """Writes output data, i.e. field data for receivers and snapshots to 
+            file(s).
         """
 
         write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.G)
 
         if self.G.snapshots:
             save_snapshots(self.G)
-            
-
-    def print_resource_info(self, tsolve, memsolve):
-        """Prints resource information on runtime and memory usage.
-
-        Args:
-            tsolve: float of time taken to execute solving (seconds).
-            memsolve: float of memory (RAM) used.
-        """
-
-        mem_str = ''
-        if config.sim_config.general['solver'] == 'cuda':
-            mem_str = f' host + ~{human_size(memsolve)} GPU'
-
-        logger.info(f'\nMemory used: ~{human_size(self.p.memory_full_info().uss)}{mem_str}')
-        logger.info(f'Solving time [HH:MM:SS]: {datetime.timedelta(seconds=tsolve)}')
 
     def solve(self, solver):
         """Solve using FDTD method.
@@ -294,13 +292,19 @@ class ModelBuildRun:
             iterator = range(self.G.iterations)
 
         # Run solver
-        tsolve, memsolve = solver.solve(iterator)
+        solver.solve(iterator)
 
         # Write output data, i.e. field data for receivers and snapshots to file(s)
         self.write_output_data()
 
-        # Print resource information on runtime and memory usage
-        self.print_resource_info(tsolve, memsolve)
+        # Print information about memory usage and solving time for a model
+        # Add a string on GPU memory usage if applicable
+        mem_str = f' host + ~{humanize.naturalsize(solver.memused)} GPU' if config.sim_config.general['solver'] == 'cuda' else ''
+
+        logger.info(f'\nMemory used (estimated): ' +
+                    f'~{humanize.naturalsize(self.p.memory_full_info().uss)}{mem_str}')
+        logger.info(f"Time taken: " +
+                    f"{humanize.precisedelta(datetime.timedelta(seconds=solver.solvetime), format='%0.4f')}")
 
 
 class GridBuilder:
