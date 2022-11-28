@@ -93,19 +93,16 @@ class Solver:
 
         self.updates = updates
         self.hsg = hsg
+        self.solvetime = 0
+        self.memused = 0
 
     def solve(self, iterator):
         """Time step the FDTD model.
 
         Args:
             iterator: can be range() or tqdm()
-
-        Returns:
-            tsolve: float for time taken to execute solving (seconds).
-            memsolve: float for memory (RAM) used.
         """
 
-        memsolve = 0
         self.updates.time_start()
 
         for iteration in iterator:
@@ -123,10 +120,8 @@ class Solver:
                 self.updates.hsg_1()
             self.updates.update_electric_b()
             if config.sim_config.general['solver'] == 'cuda':
-                memsolve = self.updates.calculate_memsolve(iteration)  
+                self.memused = self.updates.calculate_memory_used(iteration)  
 
         self.updates.finalise()
-        tsolve = self.updates.calculate_tsolve()
+        self.solvetime = self.updates.calculate_solve_time()
         self.updates.cleanup()
-
-        return tsolve, memsolve
