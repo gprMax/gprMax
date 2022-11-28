@@ -16,6 +16,7 @@ dependencies:
 - scipy
 
 - pip:
+  - humanize
 #  - mpi4py
   - numpy-stl
 #  - pycuda
