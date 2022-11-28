@@ -128,9 +128,9 @@ class GeometryObjectsRead(UserObjectGeometry):
                         f'{matfile}.')
         except KeyError:
             averaging = False
-            build_voxels_from_array(xs, ys, zs, numexistmaterials, averaging, 
-                                    data, grid.solid, grid.rigidE, grid.rigidH, 
-                                    grid.ID)
+            build_voxels_from_array(xs, ys, zs, config.get_model_config().ompthreads,
+                                    numexistmaterials, averaging, data, 
+                                    grid.solid, grid.rigidE, grid.rigidH, grid.ID)
             logger.info(self.grid_name(grid) + f'Geometry objects from file ' +
                         f'(voxels only){geofile} inserted at {xs * grid.dx:g}m, ' +
                         f'{ys * grid.dy:g}m, {zs * grid.dz:g}m, with corresponding ' +

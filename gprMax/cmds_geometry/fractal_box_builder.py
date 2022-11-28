@@ -46,7 +46,8 @@ class FractalBoxBuilder(UserObjectGeometry):
                 volume.originalzs = volume.zs
                 volume.originalzf = volume.zf
 
-                # Extend the volume to accomodate any rough surfaces, grass, or roots
+                # Extend the volume to accomodate any rough surfaces, grass, 
+                # or roots
                 for surface in volume.fractalsurfaces:
                     if surface.surfaceID == 'xminus':
                         if surface.fractalrange[0] < volume.xs:
@@ -73,7 +74,8 @@ class FractalBoxBuilder(UserObjectGeometry):
                             volume.nz += surface.fractalrange[1] - volume.zf
                             volume.zf = surface.fractalrange[1]
 
-                # If there is only 1 bin then a normal material is being used, otherwise a mixing model
+                # If there is only 1 bin then a normal material is being used, 
+                # otherwise a mixing model
                 if volume.nbins == 1:
                     volume.fractalvolume = np.ones((volume.nx, volume.ny, volume.nz),
                                                     dtype=config.sim_config.dtypes['float_or_double'])
@@ -85,7 +87,8 @@ class FractalBoxBuilder(UserObjectGeometry):
 
                 volume.generate_volume_mask()
 
-                # Apply any rough surfaces and add any surface water to the 3D mask array
+                # Apply any rough surfaces and add any surface water to the 
+                # 3D mask array
                 for surface in volume.fractalsurfaces:
                     if surface.surfaceID == 'xminus':
                         for i in range(surface.fractalrange[0], surface.fractalrange[1]):
@@ -303,6 +306,7 @@ class FractalBoxBuilder(UserObjectGeometry):
                 data = volume.fractalvolume.astype('int16', order='C')
                 mask = volume.mask.copy(order='C')
                 build_voxels_from_array_mask(volume.xs, volume.ys, volume.zs,
+                                             config.get_model_config().ompthreads,
                                              waternumID, grassnumID, volume.averaging,
                                              mask, data, grid.solid, grid.rigidE,
                                              grid.rigidH, grid.ID)
@@ -318,6 +322,7 @@ class FractalBoxBuilder(UserObjectGeometry):
                     volume.fractalvolume += volume.mixingmodel.startmaterialnum
 
                 data = volume.fractalvolume.astype('int16', order='C')
-                build_voxels_from_array(volume.xs, volume.ys, volume.zs, 0,
+                build_voxels_from_array(volume.xs, volume.ys, volume.zs, 
+                                        config.get_model_config().ompthreads, 0,
                                         volume.averaging, data, grid.solid,
                                         grid.rigidE, grid.rigidH, grid.ID)

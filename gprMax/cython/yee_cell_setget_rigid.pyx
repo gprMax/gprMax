@@ -28,7 +28,7 @@ cdef bint get_rigid_Ex(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidE
-):
+) nogil:
 
     cdef bint result
     result = False
@@ -51,7 +51,7 @@ cdef bint get_rigid_Ey(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidE
-):
+) nogil:
     cdef bint result
     result = False
     if rigidE[4, i, j, k]:
@@ -73,7 +73,7 @@ cdef bint get_rigid_Ez(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidE
-):
+) nogil:
     cdef bint result
     result = False
     if rigidE[8, i, j, k]:
@@ -95,7 +95,7 @@ cdef void set_rigid_Ex(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidE
-):
+) nogil:
     rigidE[0, i, j, k] = True
     if j != 0:
         rigidE[1, i, j - 1, k] = True
@@ -110,7 +110,7 @@ cdef void set_rigid_Ey(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidE
-):
+) nogil:
     rigidE[4, i, j, k] = True
     if i != 0:
         rigidE[7, i - 1, j, k] = True
@@ -125,7 +125,7 @@ cdef void set_rigid_Ez(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidE
-):
+) nogil:
     rigidE[8, i, j, k] = True
     if i != 0:
         rigidE[9, i - 1, j, k] = True
@@ -140,7 +140,7 @@ cdef void set_rigid_E(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidE
-):
+) nogil:
     rigidE[:, i, j, k] = True
 
 
@@ -149,7 +149,7 @@ cdef void unset_rigid_E(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidE
-):
+) nogil:
     rigidE[:, i, j, k] = False
 
 # Get and set functions for the rigid magnetic component array. The rigid array
@@ -160,7 +160,7 @@ cdef bint get_rigid_Hx(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidH
-):
+) nogil:
     cdef bint result
     result = False
     if rigidH[0, i, j, k]:
@@ -176,7 +176,7 @@ cdef bint get_rigid_Hy(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidH
-):
+) nogil:
     cdef bint result
     result = False
     if rigidH[2, i, j, k]:
@@ -192,7 +192,7 @@ cdef bint get_rigid_Hz(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidH
-):
+) nogil:
     cdef bint result
     result = False
     if rigidH[4, i, j, k]:
@@ -208,7 +208,7 @@ cdef void set_rigid_Hx(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidH
-):
+) nogil:
     rigidH[0, i, j, k] = True
     if i != 0:
         rigidH[1, i - 1, j, k] = True
@@ -219,7 +219,7 @@ cdef void set_rigid_Hy(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidH
-):
+) nogil:
     rigidH[2, i, j, k] = True
     if j != 0:
         rigidH[3, i, j - 1, k] = True
@@ -230,7 +230,7 @@ cdef void set_rigid_Hz(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidH
-):
+) nogil:
     rigidH[4, i, j, k] = True
     if k != 0:
         rigidH[5, i, j, k - 1] = True
@@ -241,7 +241,7 @@ cdef void set_rigid_H(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidH
-):
+) nogil:
     rigidH[:, i, j, k] = True
 
 
@@ -250,5 +250,5 @@ cdef void unset_rigid_H(
     int j, 
     int k, 
     np.int8_t[:, :, :, ::1] rigidH
-):
+) nogil:
     rigidH[:, i, j, k] = False

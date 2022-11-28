@@ -20,6 +20,8 @@ import logging
 
 import numpy as np
 
+import gprMax.config as config
+
 from ..cython.geometry_primitives import build_box
 from ..materials import Material
 from .cmds_geometry import UserObjectGeometry, rotate_2point_object
@@ -49,9 +51,9 @@ class Box(UserObjectGeometry):
         self.axis = axis
         self.angle = angle
         self.origin = origin
-        self.dorotate = True
+        self.do_rotate = True
 
-    def __dorotate(self):
+    def _do_rotate(self):
         """Perform rotation."""
         pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
@@ -66,8 +68,8 @@ class Box(UserObjectGeometry):
             logger.exception(self.__str__() + ' Please specify two points.')
             raise
 
-        if self.dorotate:
-            self.__dorotate()
+        if self.do_rotate:
+            self._do_rotate()
 
         # Check materials have been specified
         # Isotropic case
@@ -136,8 +138,9 @@ class Box(UserObjectGeometry):
                 # Append the new material object to the materials list
                 grid.materials.append(m)
 
-        build_box(xs, xf, ys, yf, zs, zf, numID, numIDx, numIDy, numIDz, 
-                  averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
+        build_box(xs, xf, ys, yf, zs, zf, config.get_model_config().ompthreads, 
+                  numID, numIDx, numIDy, numIDz, averaging, grid.solid, 
+                  grid.rigidE, grid.rigidH, grid.ID)
 
         dielectricsmoothing = 'on' if averaging else 'off'
 

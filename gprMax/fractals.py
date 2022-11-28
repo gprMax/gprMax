@@ -16,9 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import gprMax.config as config
 import numpy as np
 from scipy import fftpack
+
+import gprMax.config as config
 
 from .cython.fractals_generate import generate_fractal2D, generate_fractal3D
 from .utilities.utilities import round_value
