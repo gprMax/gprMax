@@ -45,6 +45,14 @@ class AddSurfaceRoughness(UserObjectGeometry):
                         that the surface roughness should be applied to.
         seed: (optional) float parameter which controls the seeding of the random 
                 number generator used to create the fractals.
+        p3: (optional) list of the lower left 2D coordinates of a surface within 
+                FractalSurface class. Used to specify section of fractal surface 
+                    to print to stdio. Useful for extracting a profile for a 
+                    source/antenna to follow in another model run.
+        p4: (optional) list of the upper left 2D coordinates of a surface within 
+                FractalSurface class. Used to specify section of fractal surface 
+                    to print to stdio. Useful for extracting a profile for a 
+                    source/antenna to follow in another model run.
     """
 
     def __init__(self, **kwargs):
@@ -56,9 +64,9 @@ class AddSurfaceRoughness(UserObjectGeometry):
         self.axis = axis
         self.angle = angle
         self.origin = origin
-        self.dorotate = True
+        self.do_rotate = True
 
-    def __dorotate(self):
+    def _do_rotate(self):
         """Perform rotation."""
         pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
@@ -82,8 +90,15 @@ class AddSurfaceRoughness(UserObjectGeometry):
         except KeyError:
             seed = None
 
-        if self.dorotate:
-            self.__dorotate()
+        try:
+            p3 = self.kwargs['p3']
+            p4 = self.kwargs['p4']
+            profile = True
+        except KeyError:
+            profile = False
+
+        if self.do_rotate:
+            self._do_rotate()
 
         # Get the correct fractal volume
         volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
@@ -229,3 +244,9 @@ class AddSurfaceRoughness(UserObjectGeometry):
                     f'{surface.weighting[1]:g}, fractal seeding {surface.seed}, ' +
                     f'and range {limits[0]:g}m to {limits[1]:g}m, added to ' +
                     f'{surface.operatingonID}.')
+
+        profile = True
+        if profile:
+            logger.info(surface.fractalsurface.shape)
+            logger.info(self.grid_name(grid) + f'Fractal surface profile from XX ' +
+                    f'to YY = {surface.fractalsurface[74:75, :]}')
