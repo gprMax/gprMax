@@ -89,6 +89,7 @@ class FractalBoxBuilder(UserObjectGeometry):
 
                 # Apply any rough surfaces and add any surface water to the 
                 # 3D mask array
+                # TODO: Allow extract of rough surface profile (to print/file?)
                 for surface in volume.fractalsurfaces:
                     if surface.surfaceID == 'xminus':
                         for i in range(surface.fractalrange[0], surface.fractalrange[1]):
