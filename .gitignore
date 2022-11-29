@@ -25,5 +25,5 @@ docs/.buildinfo
 
 # Craig's files
 .vscode
-tests/*.out
-tests/*.png
+testing/*.out
+testing/*.png
