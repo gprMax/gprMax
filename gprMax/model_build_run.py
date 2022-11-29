@@ -128,8 +128,6 @@ class ModelBuildRun:
 
     def build_geometry(self):
         G = self.G
-        # Combine available grids
-        grids = [G] + G.subgrids
 
         logger.info(config.get_model_config().inputfilestr)
 
@@ -139,6 +137,9 @@ class ModelBuildRun:
         # Print info on any subgrids
         for sg in G.subgrids:
             sg.print_info()
+
+        # Combine available grids
+        grids = [G] + G.subgrids
 
         # Check for dispersive materials (and specific type)
         for grid in grids:
