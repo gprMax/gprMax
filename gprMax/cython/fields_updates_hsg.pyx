@@ -21,7 +21,7 @@ cimport numpy as np
 from cython.parallel import prange
 
 
-cpdef void cython_update_electric_os(
+cpdef void update_electric_os(
     np.float64_t[:, :] updatecoeffsE,
     np.uint32_t[:, :, :, :] ID,
     int face,
@@ -48,6 +48,7 @@ cpdef void cython_update_electric_os(
     Args:
         subgrid: Subgrid class instance.
         n: string for the normal to the face to update.
+
         nwn: int for the number of working cell in the normal direction
                 to the face.
         lookup_id: int id of the H component to update at each node.
@@ -62,9 +63,9 @@ cpdef void cython_update_electric_os(
         s: int for separation of inner and outer surfaces.
         nb: int for number of boundary cells.
     """
-    # Comments here as as per left and right face
 
-    cdef Py_ssize_t l, m, l_s, m_s, n_s_l, n_s_r, material_e_l, material_e_r, i0, j0, k0, i1, j1, k1, i2, j2, k2, i3, j3, k3
+    cdef Py_ssize_t l, m, l_s, m_s, n_s_l, n_s_r, material_e_l, material_e_r
+    cdef Py_ssize_t i0, j0, k0, i1, j1, k1, i2, j2, k2, i3, j3, k3
     cdef int os
     cdef double inc_n, inc_f
 
@@ -94,21 +95,21 @@ cpdef void cython_update_electric_os(
             else:
                 m_s = os + (m - m_l) * r + r // 2
 
-            # left and right
+            # Left and right
             if face == 2:
-                # main grid index
+                # Main grid index
                 i0, j0, k0 = n_l, l, m
-                # equivalent subgrid index
+                # Equivalent subgrid index
                 i1, j1, k1 = n_s_l, l_s, m_s
                 i2, j2, k2 = n_u, l, m
                 i3, j3, k3 = n_s_r, l_s, m_s
-            # front and back
+            # Front and back
             if face == 3:
                 i0, j0, k0 = l, n_l, m
                 i1, j1, k1 = l_s, n_s_l, m_s
                 i2, j2, k2 = l, n_u, m
                 i3, j3, k3 = l_s, n_s_r, m_s
-            # top bottom
+            # Top and bottom
             if face == 1:
                 i0, j0, k0 = l, m, n_l
                 i1, j1, k1 = l_s, m_s, n_s_l
@@ -129,7 +130,7 @@ cpdef void cython_update_electric_os(
             field[i2, j2, k2] += updatecoeffsE[material_e_r, co] * inc_f
 
 
-cpdef void cython_update_magnetic_os(
+cpdef void update_magnetic_os(
     np.float64_t[:, :] updatecoeffsH,
     np.uint32_t[:, :, :, :] ID,
     int face,
@@ -154,12 +155,10 @@ cpdef void cython_update_magnetic_os(
 ):
     """
     Args:
-        r: int for subgrid ratio.
-        s: int for separation of inner and outer surfaces.
-        nb: int for number of boundary cells.
     """
 
-    cdef Py_ssize_t l, m, l_s, m_s, n_s_l, n_s_r, material_e_l, material_e_r, i0, j0, k0, i1, j1, k1, i2, j2, k2, i3, j3, k3
+    cdef Py_ssize_t l, m, l_s, m_s, n_s_l, n_s_r, material_e_l, material_e_r
+    cdef Py_ssize_t i0, j0, k0, i1, j1, k1, i2, j2, k2, i3, j3, k3
     cdef int os
     cdef double inc_n, inc_f
 
@@ -168,43 +167,43 @@ cpdef void cython_update_magnetic_os(
     # Normal index for the subgrid far face e node
     n_s_r = nb + nwn + s * r
 
-    # os inner index for the sub grid
+    # OS inner index for the sub grid
     os = nb - r * s
 
     for l in prange(l_l, l_u, nogil=True, schedule='static', num_threads=nthreads):
 
-        # y coord of the Ex field component
+        # y-coord of the Ex field component
         if mid == 1:
             l_s = os + (l - l_l) * r + r // 2
-        # y coord of the Ez field component
+        # y-coord of the Ez field component
         else:
             l_s = os + (l - l_l) * r
 
         for m in range(m_l, m_u):
 
-            # z coordinate of the Ex node in the subgrid
+            # z-coord of the Ex node in the subgrid
             if mid == 1:
                 m_s = os + (m - m_l) * r
             else:
                 m_s = os + (m - m_l) * r + r // 2
 
-            # associate the given indices with their i, j, k values
+            # Associate the given indices with their i, j, k values
 
-            # left and right
+            # Left and right
             if face == 2:
-                # main grid index
+                # Main grid index
                 i0, j0, k0 = n_l, l, m
-                # equivalent subgrid index
+                # Equivalent subgrid index
                 i1, j1, k1 = n_s_l, l_s, m_s
                 i2, j2, k2 = n_u, l, m
                 i3, j3, k3 = n_s_r, l_s, m_s
-            # front and back
+            # Front and back
             if face == 3:
                 i0, j0, k0 = l, n_l, m
                 i1, j1, k1 = l_s, n_s_l, m_s
                 i2, j2, k2 = l, n_u, m
                 i3, j3, k3 = l_s, n_s_r, m_s
-            # top bottom
+            # Top and bottom
             if face == 1:
                 i0, j0, k0 = l, m, n_l
                 i1, j1, k1 = l_s, m_s, n_s_l
@@ -214,7 +213,7 @@ cpdef void cython_update_magnetic_os(
             material_e_l = ID[lookup_id, i0, j0, k0]
             inc_n = inc_field[i1, j1, k1] * sign_n
 
-            # make sure these are the correct grid
+            # Make sure these are the correct grid
             field[i0, j0, k0] += updatecoeffsH[material_e_l, co] * inc_n
 
             # Far face
@@ -223,7 +222,7 @@ cpdef void cython_update_magnetic_os(
             field[i2, j2, k2] += updatecoeffsH[material_e_r, co] * inc_f
 
 
-cpdef void cython_update_is(
+cpdef void update_is(
     int nwx,
     int nwy,
     int nwz,
@@ -249,7 +248,8 @@ cpdef void cython_update_is(
     Args:
     """
 
-    cdef Py_ssize_t l, m, i1, j1, k1, i2, j2, k2, field_material_l, field_material_u, inc_i, inc_j
+    cdef Py_ssize_t l, m, i1, j1, k1, i2, j2, k2
+    cdef Py_ssize_t field_material_l, field_material_u, inc_i, inc_j
     cdef double inc_l, inc_u, f_l, f_u
     # For inner faces H nodes are 1 cell before n boundary cells
     cdef int n_o = n + offset
@@ -257,15 +257,15 @@ cpdef void cython_update_is(
     for l in prange(n, nwl + n, nogil=True, schedule='static', num_threads=nthreads):
         for m in range(n, nwm + n):
 
-            # bottom and top
+            # Bottom and top
             if face == 1:
                 i1, j1, k1 = l, m, n_o
                 i2, j2, k2 = l, m, n + nwz
-            # left and right
+            # Left and right
             if face == 2:
                 i1, j1, k1 = n_o, l, m
                 i2, j2, k2 = n + nwx, l, m
-            # front and back
+            # Front and back
             if face == 3:
                 i1, j1, k1 = l, n_o, m
                 i2, j2, k2 = l, n + nwy, m

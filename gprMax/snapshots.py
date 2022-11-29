@@ -119,13 +119,13 @@ class Snapshot:
         for k, v in self.outputs.items():
             if v:
                 self.snapfields[k] = np.zeros((self.nx, self.ny, self.nz), 
-                                            dtype=config.sim_config.dtypes['float_or_double'])
+                                        dtype=config.sim_config.dtypes['float_or_double'])
                 self.nbytes += (self.snapfields[k].nbytes)
             else:
                 # If output is not required for snapshot just use a mimimal 
                 # size of array - still required to pass to Cython function
                 self.snapfields[k] = np.zeros((1, 1, 1), 
-                                           dtype=config.sim_config.dtypes['float_or_double'])
+                                        dtype=config.sim_config.dtypes['float_or_double'])
 
     def store(self, G):
         """Store (in memory) electric and magnetic field values for snapshot.
