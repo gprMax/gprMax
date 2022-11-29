@@ -142,7 +142,8 @@ class Snapshot:
         Hyslice = np.ascontiguousarray(G.Hy[self.sx, self.sy, self.sz])
         Hzslice = np.ascontiguousarray(G.Hz[self.sx, self.sy, self.sz])
 
-        # Calculate field values at points (comes from averaging field components in cells)
+        # Calculate field values at points (comes from averaging field 
+        # components in cells)
         calculate_snapshot_fields(
             self.nx,
             self.ny,
@@ -327,7 +328,8 @@ def htod_snapshot_array(G, queue=None):
     return snapEx_dev, snapEy_dev, snapEz_dev, snapHx_dev, snapHy_dev, snapHz_dev
 
 
-def dtoh_snapshot_array(snapEx_dev, snapEy_dev, snapEz_dev, snapHx_dev, snapHy_dev, snapHz_dev, i, snap):
+def dtoh_snapshot_array(snapEx_dev, snapEy_dev, snapEz_dev, 
+                        snapHx_dev, snapHy_dev, snapHz_dev, i, snap):
     """Copies snapshot array used on compute device back to snapshot objects and 
         store in format for Paraview.
 
