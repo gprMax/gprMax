@@ -18,11 +18,16 @@
 
 import logging
 import sys
+import warnings
 from pathlib import Path
+
+# Used to suppress CompilerWarning (sub-class of UserWarning) from pyopencl
+warnings.filterwarnings("ignore", category=UserWarning)
 
 import cython
 import numpy as np
 from colorama import Fore, Style, init
+
 init()
 from scipy.constants import c
 from scipy.constants import epsilon_0 as e0
