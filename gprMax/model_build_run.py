@@ -162,7 +162,7 @@ class ModelBuildRun:
                         f'~{humanize.naturalsize(config.get_model_config().mem_overhead)} '
                         f'overhead = {humanize.naturalsize(total_mem_build)}')
         else:
-            logger.info(f'Memory required (estimated): {" + ".join(mem_strs_run)} + '
+            logger.info(f'\nMemory required (estimated): {" + ".join(mem_strs_run)} + '
                         f'~{humanize.naturalsize(config.get_model_config().mem_overhead)} '
                         f'overhead = {humanize.naturalsize(total_mem_run)}')
 
