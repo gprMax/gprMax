@@ -930,8 +930,8 @@ class OpenCLUpdates:
         if self.grid.voltagesources:
             self.srcinfo1_voltage_dev, self.srcinfo2_voltage_dev,self.srcwaves_voltage_dev = htod_src_arrays(self.grid.voltagesources, self.grid, self.queue)
             self.update_voltage_source_dev = self.elwise(self.ctx, 
-                                                knl_source_updates.update_voltage_source['args_opencl'].substitute({'CUDA_IDX': '', 'REAL': config.sim_config.dtypes['C_float_or_double']}), 
-                                                knl_source_updates.update_voltage_source['func'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 'update_voltage_source', preamble=self.knl_common,
+                                                knl_source_updates.update_voltage_source['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
+                                                knl_source_updates.update_voltage_source['func'].substitute({'CUDA_IDX': '', 'REAL': config.sim_config.dtypes['C_float_or_double']}), 'update_voltage_source', preamble=self.knl_common,
                                                 options=config.sim_config.devices['compiler_opts'])
 
     def _set_snapshot_knl(self):
