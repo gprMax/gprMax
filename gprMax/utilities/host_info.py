@@ -47,16 +47,16 @@ def get_host_info():
     if sys.platform == 'win32':
         # Manufacturer/model
         try:
-            manufacturer = subprocess.check_output("wmic csproduct get vendor", 
-                                                   shell=True, 
+            manufacturer = subprocess.check_output(["wmic", "csproduct", "get", "vendor"], 
+                                                   shell=False, 
                                                    stderr=subprocess.STDOUT).decode('utf-8').strip()
             manufacturer = manufacturer.split('\n')
             if len(manufacturer) > 1:
                 manufacturer = manufacturer[1]
             else:
                 manufacturer = manufacturer[0]
-            model = subprocess.check_output("wmic computersystem get model", 
-                                            shell=True, 
+            model = subprocess.check_output(["wmic", "computersystem", "get", "model"], 
+                                            shell=False, 
                                             stderr=subprocess.STDOUT).decode('utf-8').strip()
             model = model.split('\n')
             if len(model) > 1:
@@ -69,8 +69,8 @@ def get_host_info():
 
         # CPU information
         try:
-            allcpuinfo = subprocess.check_output("wmic cpu get Name", 
-                                                 shell=True, 
+            allcpuinfo = subprocess.check_output(["wmic", "cpu", "get", "Name"], 
+                                                 shell=False, 
                                                  stderr=subprocess.STDOUT).decode('utf-8').strip()
             allcpuinfo = allcpuinfo.split('\n')
             sockets = 0
@@ -100,7 +100,7 @@ def get_host_info():
         # Manufacturer/model
         manufacturer = 'Apple'
         try:
-            model = subprocess.check_output("sysctl -n hw.model", shell=True, 
+            model = subprocess.check_output(["sysctl", "-n", "hw.model"], shell=False, 
                                             stderr=subprocess.STDOUT).decode('utf-8').strip()
         except subprocess.CalledProcessError:
             pass
@@ -108,12 +108,12 @@ def get_host_info():
 
         # CPU information
         try:
-            sockets = subprocess.check_output("sysctl -n hw.packages", 
-                                              shell=True, 
+            sockets = subprocess.check_output(["sysctl", "-n", "hw.packages"], 
+                                              shell=False, 
                                               stderr=subprocess.STDOUT).decode('utf-8').strip()
             sockets = int(sockets)
-            cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", 
-                                            shell=True, 
+            cpuID = subprocess.check_output(["sysctl", "-n", "machdep.cpu.brand_string"], 
+                                            shell=False, 
                                             stderr=subprocess.STDOUT).decode('utf-8').strip()
             cpuID = ' '.join(cpuID.split())
         except subprocess.CalledProcessError:
@@ -135,11 +135,11 @@ def get_host_info():
     elif sys.platform == 'linux':
         # Manufacturer/model
         try:
-            manufacturer = subprocess.check_output("cat /sys/class/dmi/id/sys_vendor", 
-                                                   shell=True, 
+            manufacturer = subprocess.check_output(["cat", "/sys/class/dmi/id/sys_vendor"], 
+                                                   shell=False, 
                                                    stderr=subprocess.STDOUT).decode('utf-8').strip()
-            model = subprocess.check_output("cat /sys/class/dmi/id/product_name", 
-                                            shell=True, 
+            model = subprocess.check_output(["cat", "/sys/class/dmi/id/product_name"], 
+                                            shell=False, 
                                             stderr=subprocess.STDOUT).decode('utf-8').strip()
         except subprocess.CalledProcessError:
             pass
@@ -149,14 +149,14 @@ def get_host_info():
         try:
             # Locale to ensure English
             myenv = {**os.environ, 'LANG': 'en_US.utf8'}
-            cpuIDinfo = subprocess.check_output("cat /proc/cpuinfo", shell=True, 
+            cpuIDinfo = subprocess.check_output(["cat", "/proc/cpuinfo"], shell=False, 
                                                 stderr=subprocess.STDOUT, 
                                                 env=myenv).decode('utf-8').strip()
             for line in cpuIDinfo.split('\n'):
                 if re.search('model name', line):
                     cpuID = re.sub('.*model name.*:', '', line, 1).strip()
                     cpuID = ' '.join(cpuID.split())
-            allcpuinfo = subprocess.check_output("lscpu", shell=True, 
+            allcpuinfo = subprocess.check_output(["lscpu"], shell=False, 
                                                  stderr=subprocess.STDOUT, 
                                                  env=myenv).decode('utf-8').strip()
             for line in allcpuinfo.split('\n'):
