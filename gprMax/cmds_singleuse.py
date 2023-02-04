@@ -77,6 +77,41 @@ class Title(UserObjectSingle):
             pass
 
 
+class Discretisation(UserObjectSingle):
+    """Specifies the discretization of space in the x, y, and z directions.
+
+    Attributes:
+        p1: tuple of floats to specify spatial discretisation in x, y, z direction.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.order = 2
+
+    def create(self, G, uip):
+        try:
+            G.dl = np.array(self.kwargs['p1'])
+            G.dx, G.dy, G.dz = self.kwargs['p1']
+        except KeyError:
+            logger.exception(self.__str__() + ' discretisation requires a point')
+            raise
+
+        if G.dl[0] <= 0:
+            logger.exception(self.__str__() + ' discretisation requires the ' +
+                             'x-direction spatial step to be greater than zero')
+            raise ValueError
+        if G.dl[1] <= 0:
+            logger.exception(self.__str__() + ' discretisation requires the ' +
+                             'y-direction spatial step to be greater than zero')
+            raise ValueError
+        if G.dl[2] <= 0:
+            logger.exception(self.__str__() + ' discretisation requires the ' +
+                             'z-direction spatial step to be greater than zero')
+            raise ValueError
+
+        logger.info(f'Spatial discretisation: {G.dl[0]:g} x {G.dl[1]:g} x {G.dl[2]:g}m')
+
+
 class Domain(UserObjectSingle):
     """Specifies the size of the model.
 
@@ -131,39 +166,31 @@ class Domain(UserObjectSingle):
         logger.info(f'Time step (at CFL limit): {G.dt:g} secs')
 
 
-class Discretisation(UserObjectSingle):
-    """Specifies the discretization of space in the x, y, and z directions.
+class TimeStepStabilityFactor(UserObjectSingle):
+    """Factor by which to reduce the time step from the CFL limit.
 
     Attributes:
-        p1: tuple of floats to specify spatial discretisation in x, y, z direction.
+        f: float for factor to multiple time step.
     """
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 2
+        self.order = 4
 
     def create(self, G, uip):
         try:
-            G.dl = np.array(self.kwargs['p1'])
-            G.dx, G.dy, G.dz = self.kwargs['p1']
+            f = self.kwargs['f']
         except KeyError:
-            logger.exception(self.__str__() + ' discretisation requires a point')
+            logger.exception(self.__str__() + ' requires exactly one parameter')
             raise
 
-        if G.dl[0] <= 0:
-            logger.exception(self.__str__() + ' discretisation requires the ' +
-                             'x-direction spatial step to be greater than zero')
+        if f <= 0 or f > 1:
+            logger.exception(self.__str__() + ' requires the value of the time ' +
+                             'step stability factor to be between zero and one')
             raise ValueError
-        if G.dl[1] <= 0:
-            logger.exception(self.__str__() + ' discretisation requires the ' +
-                             'y-direction spatial step to be greater than zero')
-            raise ValueError
-        if G.dl[2] <= 0:
-            logger.exception(self.__str__() + ' discretisation requires the ' +
-                             'z-direction spatial step to be greater than zero')
-            raise ValueError
+        G.dt = G.dt * f
 
-        logger.info(f'Spatial discretisation: {G.dl[0]:g} x {G.dl[1]:g} x {G.dl[2]:g}m')
+        logger.info(f'Time step (modified): {G.dt:g} secs')
 
 
 class TimeWindow(UserObjectSingle):
@@ -176,7 +203,7 @@ class TimeWindow(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 4
+        self.order = 5
 
     def create(self, G, uip):
         # If number of iterations given
@@ -234,33 +261,6 @@ class OMPThreads(UserObjectSingle):
         config.get_model_config().ompthreads = set_omp_threads(n)
 
 
-class TimeStepStabilityFactor(UserObjectSingle):
-    """Factor by which to reduce the time step from the CFL limit.
-
-    Attributes:
-        f: float for factor to multiple time step.
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 7
-
-    def create(self, G, uip):
-        try:
-            f = self.kwargs['f']
-        except KeyError:
-            logger.exception(self.__str__() + ' requires exactly one parameter')
-            raise
-
-        if f <= 0 or f > 1:
-            logger.exception(self.__str__() + ' requires the value of the time ' +
-                             'step stability factor to be between zero and one')
-            raise ValueError
-        G.dt = G.dt * f
-
-        logger.info(f'Time step (modified): {G.dt:g} secs')
-
-
 class PMLProps(UserObjectSingle):
     """Specifies the formulation used, and controls the number of cells 
         (thickness) of PML that are used on the six sides of the model domain.
@@ -274,7 +274,7 @@ class PMLProps(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 8
+        self.order = 7
 
     def create(self, G, uip):
         try:
@@ -321,7 +321,7 @@ class SrcSteps(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 9
+        self.order = 8
 
     def create(self, G, uip):
         try:
@@ -344,7 +344,7 @@ class RxSteps(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 10
+        self.order = 9
 
     def create(self, G, uip):
         try:
@@ -371,7 +371,7 @@ class ExcitationFile(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 11
+        self.order = 10
 
     def create(self, G, uip):
         try:
@@ -455,26 +455,7 @@ class OutputDir(UserObjectSingle):
     """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 12
+        self.order = 11
 
     def create(self, grid, uip):
         config.get_model_config().set_output_file_path(self.kwargs['dir'])
-
-
-class NumberOfModelRuns(UserObjectSingle):
-    """Number of times to run the simulation. This required when using multiple
-        class:Scene instances.
-
-    Attributes:
-        n: int of number of model runs.
-    """
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 13
-
-    def create(self, grid, uip):
-        try:
-            grid.numberofmodelruns = self.kwargs['n']
-        except KeyError:
-            logger.exception(self.__str__() + ' requires exactly one parameter')
-            raise
