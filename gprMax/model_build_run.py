@@ -251,8 +251,9 @@ class ModelBuildRun:
 
         write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.G)
 
-        if self.G.snapshots:
-            save_snapshots(self.G)
+        for grid in [self.G] + self.G.subgrids:
+            if grid.snapshots:
+                save_snapshots(grid)
 
     def solve(self, solver):
         """Solve using FDTD method.
