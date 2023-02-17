@@ -95,4 +95,11 @@ scene.add(gv1)
 #                         filename=fn.with_suffix('').parts[-1] + '_' + str(i + 1))
 #     scene.add(s)
 
+for i in range(5):
+    s = gprMax.Snapshot(p1=sg1, p2=sg2, dl=(dl_sg, dl_sg, dl_sg),
+                        time=(i + 0.5) * 1e-9,
+                        filename=fn.with_suffix('').parts[-1] + '_' + str(i + 1),
+                        outputs=['Ez'])
+    subgrid.add(s)
+
 gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn, subgrid=True, autotranslate=True)
