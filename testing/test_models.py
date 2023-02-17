@@ -25,7 +25,7 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 
-from tests.analytical_solutions import hertzian_dipole_fs
+from testing.analytical_solutions import hertzian_dipole_fs
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ for i, model in enumerate(testmodels):
 
     # Run model
     file = basepath / model / model
-    gprMax.run(inputfile=file.with_suffix('.in'), gpu=[0])
+    gprMax.run(inputfile=file.with_suffix('.in'), gpu=None)
 
     # Special case for analytical comparison
     if model == 'hertzian_dipole_fs_analytical':
