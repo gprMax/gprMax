@@ -1,1 +1,1 @@
-.. include:: ../../user_libs/STLtoVoxel/README.rst
+.. include:: ../../toolboxes/STLtoVoxel/README.rst

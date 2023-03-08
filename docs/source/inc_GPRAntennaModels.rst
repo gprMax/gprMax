@@ -1,1 +1,1 @@
-.. include:: ../../user_libs/GPRAntennaModels/README.rst
+.. include:: ../../toolboxes/GPRAntennaModels/README.rst

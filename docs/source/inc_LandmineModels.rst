@@ -1,1 +1,1 @@
-.. include:: ../../user_libs/LandmineModels/README.rst
+.. include:: ../../toolboxes/LandmineModels/README.rst

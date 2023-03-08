@@ -16,7 +16,7 @@ gprMax User Guide
     :maxdepth: 2
     :caption: Using gprMax
 
-    input
+    input_hash_cmds
     output
 
 .. toctree::
@@ -46,6 +46,8 @@ gprMax User Guide
     inc_LandmineModels
     inc_Materials
     inc_STLtoVoxel
+    inc_Plotting
+    inc_Utilities
 
 .. toctree::
     :maxdepth: 2

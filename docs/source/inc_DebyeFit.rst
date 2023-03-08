@@ -1,1 +1,1 @@
-.. include:: ../../user_libs/DebyeFit/README.rst
+.. include:: ../../toolboxes/DebyeFit/README.rst

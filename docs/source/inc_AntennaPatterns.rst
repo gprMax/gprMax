@@ -1,1 +1,1 @@
-.. include:: ../../user_libs/AntennaPatterns/README.rst
+.. include:: ../../toolboxes/AntennaPatterns/README.rst
