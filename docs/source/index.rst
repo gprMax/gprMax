@@ -9,6 +9,7 @@ gprMax User Guide
     inc_README
     features
     gprmodelling
+    faqs
 
 
 .. toctree::
@@ -36,7 +37,7 @@ gprMax User Guide
 
 .. toctree::
     :maxdepth: 2
-    :caption: User libraries
+    :caption: Toolboxes
 
     inc_GPRAntennaModels
     inc_AntennaPatterns
@@ -53,14 +54,6 @@ gprMax User Guide
     examples_simple_2D
     examples_antennas
     examples_advanced
-
-.. toctree::
-    :maxdepth: 2
-    :caption: Help and support
-
-    faqs
-    screencasts
-    coding
 
 .. toctree::
     :maxdepth: 2

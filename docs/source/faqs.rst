@@ -2,7 +2,7 @@
 FAQs
 ****
 
-This section provides answers to frequently asked questions about gprMax and its uses.
+This section provides answers to frequently asked questions about gprMax and its uses. You should also check out our `YouTube channel <https://www.youtube.com/@Gprmax>`_ which contains screencasts and videos that explain how to install gprMax, demonstrate some of its key features, and give example models showing applications.
 
 **What applications can gprMax simulate?**
 gprMax is electromagnetic wave simulation software that is based on the Finite-Difference Time-Domain (FDTD) method. Many of its features have been designed to benefit simulating Ground Penetrating Radar (GPR), however it can be used to simulate many other applications in areas such as engineering, geophysics, archaeology, and medicine.
@@ -17,16 +17,13 @@ gprMax is released under the `GNU General Public License v3 or higher <http://ww
 The name gprMax comes from the joining of the acroymn for Ground Penetrating Radar - **gpr** - and the name of the Scottish scientist who formulated the classical theory of electromagnetic radiation, `James Clerk Maxwell <https://en.wikipedia.org/wiki/James_Clerk_Maxwell>`_ - **Max**.
 
 **Do I need to learn Python to use gprMax?**
-No, but it can be beneficial to know a little Python. We have made it easier to create more complex simulations in gprMax through scripting in the input file. This is achieved by allowing blocks of Python code to be written in the input file which are executed when the file is read by gprMax.
+No, you can use gprMax purely through commands in your input. However, gprMax also has a Python API which can be used to create more complex simulations and scripting.
 
 **Can I still do all my pre/post-processing for gprMax in MATLAB?**
 Yes, `MATLAB has built-in functions to read HDF5 files <http://uk.mathworks.com/help/matlab/high-level-functions.html>`_.
 
 **Can I convert my output file to a text file, e.g. to import into Microsoft Excel**
 Yes, we recommend you download `HDFView <https://support.hdfgroup.org/products/java/hdfview/>`_ which is free viewer for HDF files. You can then export any of datasets in the output file to a text (ASCII) file that can be imported into Microsoft Excel. To do so right-click on the dataset in HDFView and choose Export Dataset -> Export Data to Text File.
-
-**But converting my input file from the old version of gprMax will be really painful**
-Hopefully not! We have provided a Python module to help you convert input files from the old version of gprMax to use syntax introduced in version 3.
 
 **How do I choose a spatial resolution for my simulation?**
 Spatial resolution should be chosen to mitigate numerical dispersion and to adequately resolve geometry in your simulation. :ref:`A 2D example of modelling a metal cylinder in a dielectric <example-2D-Ascan>` provides guidance on how to determine spatial resolution.
