@@ -9,11 +9,11 @@ This section provides some example models of antennas. Each example comes with a
 Wire dipole antenna model
 =========================
 
-:download:`antenna_wire_dipole_fs.in <../../examples/antenna_wire_dipole_fs.in>`
+:download:`antenna_wire_dipole_fs.in <../../examples/antenna_wire_dipole_fs.py>`
 
 This example demonstrates a model of a half-wavelength wire dipole antenna in free space. It is a balanced antenna and it's characteristics are well known from theory [BAL2005]_. The length of the dipole is 150mm with a 1mm gap between the arms.
 
-.. literalinclude:: ../../examples/antenna_wire_dipole_fs.in
+.. literalinclude:: ../../examples/antenna_wire_dipole_fs.py
     :language: none
     :linenos:
 
@@ -28,7 +28,7 @@ You can view the results (see :ref:`output` and :ref:`tools<plotting>` sections)
 
 .. code-block:: none
 
-    python -m tools.plot_antenna_params examples/antenna_wire_dipole_fs.out
+    python -m tools.plot_antenna_params examples/antenna_wire_dipole_fs.h5
 
 .. _antenna_wire_dipole_fs_tl_params:
 
@@ -90,7 +90,7 @@ When the simulation is run two geometry files for the antenna are produced along
 
 .. code-block:: none
 
-    python -m tools.plot_Ascan examples/antenna_like_MALA_1200_fs.out --outputs Ey
+    python -m tools.plot_Ascan examples/antenna_like_MALA_1200_fs.h5 --outputs Ey
 
 :numref:`antenna_like_MALA_1200_fs_results` shows the time history of the y-component of the electric field from the receiver bowtie of the antenna model (the antenna bowties are aligned with the y axis).
 
@@ -137,7 +137,7 @@ After merging the A-scans into a single file you can now view an image of the B-
 
 .. code-block:: none
 
-    python -m tools.plot_Bscan examples/cylinder_Bscan_GSSI_1500_merged.out Ey
+    python -m tools.plot_Bscan examples/cylinder_Bscan_GSSI_1500_merged.h5 Ey
 
 :numref:`cylinder_Bscan_GSSI_1500_results` shows the B-scan (of the Ey field component). The initial part of the signal (~1-2 ns) represents the direct wave from transmitter to receiver. Then comes a hyperbolic response from the metal cylinder.
 
