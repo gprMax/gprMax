@@ -8,6 +8,11 @@ version: 2
 conda:
   environment: conda_env.yml
 
+build:
+  jobs:
+    post_create_environment:
+      - python setup.py build
+
 sphinx:
    configuration: docs/source/conf.py
 
