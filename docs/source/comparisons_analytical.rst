@@ -7,15 +7,15 @@ This section presents comparisons between analytical solutions and modelled solu
 Hertzian dipole in free space
 =============================
 
-:download:`hertzian_dipole_fs.in <../../tests/models_basic/hertzian_dipole_fs/hertzian_dipole_fs.in>`
+:download:`hertzian_dipole_fs.in <../../testing/models_basic/hertzian_dipole_fs/hertzian_dipole_fs.in>`
 
 This example is of a Hertzian dipole, i.e. an additive source (electric current density), in free space.
 
-.. literalinclude:: ../../tests/models_basic/hertzian_dipole_fs/hertzian_dipole_fs.in
+.. literalinclude:: ../../testing/models_basic/hertzian_dipole_fs/hertzian_dipole_fs.in
     :language: none
     :linenos:
 
-The function ``hertzian_dipole_fs``, which can be found in the ``analytical_solutions`` module in the ``tests`` sub-package, computes the analytical solution.
+The function ``hertzian_dipole_fs``, which can be found in the ``analytical_solutions`` module in the ``testing`` sub-package, computes the analytical solution.
 
 Results
 -------
@@ -24,14 +24,14 @@ Results
 
 .. _hertzian_dipole_fs_results:
 
-.. figure:: ../../tests/models_basic/hertzian_dipole_fs_analytical/hertzian_dipole_fs_analytical.png
+.. figure:: ../../testing/models_basic/hertzian_dipole_fs_analytical/hertzian_dipole_fs_analytical.png
     :width: 600 px
 
     Time history of the electric and magnetic field components of the modelled and analytical solutions ('Ref', in this case, indicates solution calculated from theory).
 
 .. _hertzian_dipole_fs_results_diffs:
 
-.. figure:: ../../tests/models_basic/hertzian_dipole_fs_analytical/hertzian_dipole_fs_analytical_diffs.png
+.. figure:: ../../testing/models_basic/hertzian_dipole_fs_analytical/hertzian_dipole_fs_analytical_diffs.png
     :width: 600 px
 
     Percentage differences between the modelled and analytical solutions.
