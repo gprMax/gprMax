@@ -47,14 +47,14 @@ Package contents
 
 There are two main scripts:
 
-* ```Debye_fit.py``` contains definitions of all Relaxation functions classes
-* ```optimization.py``` contains definitions of three choosen global optimization methods
+* ``Debye_fit.py`` contains definitions of all Relaxation functions classes
+* ``optimization.py`` contains definitions of three choosen global optimization methods
 
 
 Relaxation Class
 ----------------
 
-This class is designed for modelling different relaxation functions, like Havriliak-Negami (```HavriliakNegami```), Jonscher (```Jonscher```), Complex Refractive Index Mixing (```CRIM```) models, and arbitrary dielectric data derived experimentally or calculated using some other function (```Rawdata```).
+This class is designed for modelling different relaxation functions, like Havriliak-Negami (``HavriliakNegami``), Jonscher (``Jonscher``), Complex Refractive Index Mixing (`CRIM`) models, and arbitrary dielectric data derived experimentally or calculated using some other function (``Rawdata``).
 
 More about the ``Relaxation`` class structure can be found in the :doc:`Relaxation doc <relaxation.rst>`.
 

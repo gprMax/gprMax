@@ -15,7 +15,7 @@ Information
 
 **Attribution/cite**: Please follow the instructions at http://web.corral.tacc.utexas.edu/AustinManEMVoxels/AustinMan/citing_the_model/index.html
 
-`AustinMan and AustinWoman <http://bit.ly/AustinMan>`_ are open source electromagnetic voxel models of the human body, which are developed by the `Computational Electromagnetics Group <http://www.ece.utexas.edu/research/areas/electromagnetics-acoustics>`_ at `The University of Texas at Austin <http://www.utexas.edu>`_. The models are based on data from the `National Library of Medicine’s Visible Human Project <https://www.nlm.nih.gov/research/visible/visible_human.html>`_.
+`AustinMan and AustinWoman <https://web.corral.tacc.utexas.edu/AustinManEMVoxels/AustinMan/index.html>`_ are open source electromagnetic voxel models of the human body, which are developed by the `Computational Electromagnetics Group <http://www.ece.utexas.edu/research/areas/ea>`_ at `The University of Texas at Austin <http://www.utexas.edu>`_. The models are based on data from the `National Library of Medicine’s Visible Human Project <https://www.nlm.nih.gov/research/visible/visible_human.html>`_.
 
 .. figure:: ../../images_shared/AustinMan_head.png
     :width: 600 px
@@ -46,22 +46,22 @@ Package contents
     AustinManWoman_materials_dispersive.txt
     head_only_h5.py
 
-* ``AustinManWoman_materials.txt`` is a text file containing `non-dispersive material properties at 900 MHz <http://niremf.ifac.cnr.it/tissprop/>`_.
-* ``AustinManWoman_materials_dispersive.txt`` is a text file containing `dispersive material properties using a 3-pole Debye model <http://dx.doi.org/10.1109/LMWC.2011.2180371>`_.
+* `AustinManWoman_materials.txt` is a text file containing `non-dispersive material properties at 900 MHz <http://niremf.ifac.cnr.it/tissprop/>`_.
+* `AustinManWoman_materials_dispersive.txt` is a text file containing `dispersive material properties using a 3-pole Debye model <http://dx.doi.org/10.1109/LMWC.2011.2180371>`_.
 
 .. note::
 
     * The main body tissues are described using a 3-pole Debye model, but not all materials have a dispersive description.
     * The dispersive material properties can only be used with the 1x1x1mm or 2x2x2mm AustinMan/Woman models. This is because the time step of the model must always be less than any of the relaxation times of the poles of the Debye models used for the dispersive material properties.
 
-* ``head_only_h5.py`` is a script to assist with creating a model of only the head from a full body AustinMan/Woman model.
+* `head_only_h5.py` is a script to assist with creating a model of only the head from a full body AustinMan/Woman model.
 
 How to use the package
 ======================
 
 The AustinMan and AustinWoman models themselves are not included in the user libraries sub-package.
 
-* `Download a HDF5 file (.h5) of AustinMan or AustinWoman <http://bit.ly/AustinMan>`_ at the resolution you wish to use
+* `Download a HDF5 file (.h5) of AustinMan or AustinWoman <https://web.corral.tacc.utexas.edu/AustinManEMVoxels/AustinMan/download/index.html>`_ at the resolution you wish to use
 
 To insert either AustinMan or AustinWoman models into a simulation use the ``#geometry_objects_read``.
 
@@ -72,9 +72,9 @@ To insert a 2x2x2mm :math:`^3` AustinMan with the lower left corner 40mm from th
 
 .. code-block:: none
 
-    #geometry_objects_read: 0.04 0.04 0.04 ../user_libs/AustinManWoman/AustinMan_v2.3_2x2x2.h5 ../user_libs/AustinManWoman/AustinManWoman_materials_dispersive.txt
+    #geometry_objects_read: 0.04 0.04 0.04 ../toolboxes/AustinManWoman/AustinMan_v2.3_2x2x2.h5 ../toolboxes/AustinManWoman/AustinManWoman_materials_dispersive.txt
 
-For further information on the ``#geometry_objects_read`` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
+For further information on the `#geometry_objects_read` see the section on object contruction commands in the :ref:`Input commands section <commands>`.
 
 .. figure:: ../../images_shared/AustinMan.png
     :width: 300 px
