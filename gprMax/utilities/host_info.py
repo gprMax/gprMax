@@ -126,10 +126,7 @@ def get_host_info():
             hyperthreading = False
 
         # OS version
-        if float(platform.mac_ver()[0]) < 12:
-            osversion = 'Mac OS X (' + platform.mac_ver()[0] + ')'
-        else:
-            osversion = 'macOS (' + platform.mac_ver()[0] + ')'
+        osversion = 'macOS (' + platform.mac_ver()[0] + ')'
 
     # Linux
     elif sys.platform == 'linux':
