@@ -7,11 +7,11 @@ This section provides example models of some of the more advanced features of gp
 Building a heterogeneous soil
 =============================
 
-:download:`heterogeneous_soil.in <../../user_models/heterogeneous_soil.in>`
+:download:`heterogeneous_soil.in <../../examples/heterogeneous_soil.in>`
 
 This example demonstrates how to build a more realistic soil model using a stochastic distribution of dielectric properties. A mixing model for soils proposed by Peplinski (http://dx.doi.org/10.1109/36.387598) is used to define a series of dispersive material properties for the soil.
 
-.. literalinclude:: ../../user_models/heterogeneous_soil.in
+.. literalinclude:: ../../examples/heterogeneous_soil.in
     :language: none
     :linenos:
 

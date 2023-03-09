@@ -9,11 +9,11 @@ This section provides some example models of antennas. Each example comes with a
 Wire dipole antenna model
 =========================
 
-:download:`antenna_wire_dipole_fs.in <../../user_models/antenna_wire_dipole_fs.in>`
+:download:`antenna_wire_dipole_fs.in <../../examples/antenna_wire_dipole_fs.in>`
 
 This example demonstrates a model of a half-wavelength wire dipole antenna in free space. It is a balanced antenna and it's characteristics are well known from theory [BAL2005]_. The length of the dipole is 150mm with a 1mm gap between the arms.
 
-.. literalinclude:: ../../user_models/antenna_wire_dipole_fs.in
+.. literalinclude:: ../../examples/antenna_wire_dipole_fs.in
     :language: none
     :linenos:
 
@@ -28,7 +28,7 @@ You can view the results (see :ref:`output` and :ref:`tools<plotting>` sections)
 
 .. code-block:: none
 
-    python -m tools.plot_antenna_params user_models/antenna_wire_dipole_fs.out
+    python -m tools.plot_antenna_params examples/antenna_wire_dipole_fs.out
 
 .. _antenna_wire_dipole_fs_tl_params:
 
@@ -68,11 +68,11 @@ You can view the results (see :ref:`output` and :ref:`tools<plotting>` sections)
 Bowtie antenna model
 ====================
 
-:download:`antenna_like_MALA_1200_fs.in <../../user_models/antenna_like_MALA_1200_fs.in>`
+:download:`antenna_like_MALA_1200_fs.in <../../examples/antenna_like_MALA_1200_fs.in>`
 
 This example demonstrates how to use one of the built-in antenna models in a simulation. Using a model of an antenna rather than a simple source, such as a Hertzian dipole, can improve the accuracy of the results of a simulation for many situations. It is especially important when the target is in the near-field of the antenna and there are complex interactions between the antenna and the environment. The simulation uses the model of an antenna similar to a MALA 1.2GHz antenna.
 
-.. literalinclude:: ../../user_models/antenna_like_MALA_1200_fs.in
+.. literalinclude:: ../../examples/antenna_like_MALA_1200_fs.in
     :language: none
     :linenos:
 
@@ -90,7 +90,7 @@ When the simulation is run two geometry files for the antenna are produced along
 
 .. code-block:: none
 
-    python -m tools.plot_Ascan user_models/antenna_like_MALA_1200_fs.out --outputs Ey
+    python -m tools.plot_Ascan examples/antenna_like_MALA_1200_fs.out --outputs Ey
 
 :numref:`antenna_like_MALA_1200_fs_results` shows the time history of the y-component of the electric field from the receiver bowtie of the antenna model (the antenna bowties are aligned with the y axis).
 
@@ -105,11 +105,11 @@ When the simulation is run two geometry files for the antenna are produced along
 B-scan with a bowtie antenna model
 ==================================
 
-:download:`cylinder_Bscan_GSSI_1500.in <../../user_models/cylinder_Bscan_GSSI_1500.in>`
+:download:`cylinder_Bscan_GSSI_1500.in <../../examples/cylinder_Bscan_GSSI_1500.in>`
 
 This example demonstrates how to create a B-scan with an antenna model. The scenario is purposely simple to illustrate the method. A metal cylinder of diameter 20mm is buried in a dielectric half-space which has a relative permittivity of six. The simulation uses the model of an antenna similar to a GSSI 1.5GHz antenna.
 
-.. literalinclude:: ../../user_models/cylinder_Bscan_GSSI_1500.in
+.. literalinclude:: ../../examples/cylinder_Bscan_GSSI_1500.in
     :language: none
     :linenos:
 
@@ -137,7 +137,7 @@ After merging the A-scans into a single file you can now view an image of the B-
 
 .. code-block:: none
 
-    python -m tools.plot_Bscan user_models/cylinder_Bscan_GSSI_1500_merged.out Ey
+    python -m tools.plot_Bscan examples/cylinder_Bscan_GSSI_1500_merged.out Ey
 
 :numref:`cylinder_Bscan_GSSI_1500_results` shows the B-scan (of the Ey field component). The initial part of the signal (~1-2 ns) represents the direct wave from transmitter to receiver. Then comes a hyperbolic response from the metal cylinder.
 

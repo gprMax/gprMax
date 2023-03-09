@@ -9,11 +9,11 @@ This section provides some introductory example models in 2D that demonstrate ba
 A-scan from a metal cylinder
 ============================
 
-:download:`cylinder_Ascan_2D.in <../../user_models/cylinder_Ascan_2D.in>`
+:download:`cylinder_Ascan_2D.in <../../examples/cylinder_Ascan_2D.in>`
 
 This example is the GPR modelling equivalent of 'Hello World'! It demonstrates how to simulate a single trace (A-scan) from a metal cylinder buried in a dielectric half-space.
 
-.. literalinclude:: ../../user_models/cylinder_Ascan_2D.in
+.. literalinclude:: ../../examples/cylinder_Ascan_2D.in
     :language: none
     :linenos:
 
@@ -100,7 +100,7 @@ You can now run the model:
 
 .. code-block:: none
 
-    python -m gprMax user_models/cylinder_Ascan_2D.in
+    python -m gprMax examples/cylinder_Ascan_2D.in
 
 .. tip::
     * You can use the ``--geometry-only`` command line argument to build a model and produce any geometry views but not run the simulation. This option is useful for checking the geometry of the model is correct.
@@ -112,7 +112,7 @@ You should have produced an output file ``cylinder_Ascan_2D.h5``. You can view t
 
 .. code-block:: none
 
-    python -m tools.plot_Ascan user_models/cylinder_Ascan_2D.h5
+    python -m tools.plot_Ascan examples/cylinder_Ascan_2D.h5
 
 :numref:`cylinder_Ascan_results` shows the time history of the electric and magnetic field components and currents at the receiver location. The :math:`E_z` field component can be converted to voltage which represents the A-scan (trace). The initial part of the signal (~0.5-1.5 ns) represents the direct wave from transmitter to receiver. Then comes the reflected wavelet (~1.8-2.6 ns), which has opposite polarity, from the metal cylinder.
 
@@ -129,11 +129,11 @@ Check out a `video of the field propagation in this example <https://youtu.be/Bp
 B-scan from a metal cylinder
 ============================
 
-:download:`cylinder_Bscan_2D.in <../../user_models/cylinder_Bscan_2D.in>`
+:download:`cylinder_Bscan_2D.in <../../examples/cylinder_Bscan_2D.in>`
 
 This example uses the same geometry as the previous example but this time a B-scan is created. A B-scan is composed of multiple traces (A-scans) recorded as the source and receiver are moved over the target, in this case the metal cylinder.
 
-.. literalinclude:: ../../user_models/cylinder_Bscan_2D.in
+.. literalinclude:: ../../examples/cylinder_Bscan_2D.in
     :language: none
     :linenos:
 
@@ -143,7 +143,7 @@ To run the model to create a B-scan you must pass an optional argument to specif
 
 .. code-block:: none
 
-    python -m gprMax user_models/cylinder_Bscan_2D.in -n 60
+    python -m gprMax examples/cylinder_Bscan_2D.in -n 60
 
 
 Results
@@ -153,7 +153,7 @@ You should have produced 60 output files, one for each A-scan, with names ``cyli
 
 .. code-block:: none
 
-    python -m tools.outputfiles_merge user_models/cylinder_Bscan_2D
+    python -m tools.outputfiles_merge examples/cylinder_Bscan_2D
 
 You should see a combined output file ``cylinder_Bscan_2D_merged.h5``. You can add the optional argument ``--remove-files`` if you want to automatically delete the original single A-scan output files.
 
@@ -161,7 +161,7 @@ You can now view an image of the B-scan using the command:
 
 .. code-block:: none
 
-    python -m tools.plot_Bscan user_models/cylinder_Bscan_2D_merged.h5 Ez
+    python -m tools.plot_Bscan examples/cylinder_Bscan_2D_merged.h5 Ez
 
 :numref:`cylinder_Bscan_results` shows the B-scan (of the :math:`E_z` field component). Again, the initial part of the signal (~0.5-1.5 ns) represents the direct wave from transmitter to receiver. Then comes the refelected wave (~2-3 ns) from the metal cylinder which creates the hyperbolic shape.
 
