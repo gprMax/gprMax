@@ -9,7 +9,7 @@ conda:
   environment: conda_env.yml
 
 sphinx:
-   configuration: docs/conf.py
+   configuration: docs/source/conf.py
 
 formats:
   - pdf
