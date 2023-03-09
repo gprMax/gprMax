@@ -127,17 +127,13 @@ Time Window
 General
 =======
 
-Messages
---------
-.. autoclass:: gprMax.cmds_singleuse.Messages
-
 Title
 -----
 .. autoclass:: gprMax.cmds_singleuse.Title
 
 Number of Threads
 -----------------
-.. autoclass:: gprMax.cmds_singleuse.NumThreads
+.. autoclass:: gprMax.cmds_singleuse.OMPThreads
 
 Time Step Stability Factor
 --------------------------
