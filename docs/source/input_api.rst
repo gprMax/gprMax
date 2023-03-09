@@ -140,7 +140,7 @@ Time Step Stability Factor
 .. autoclass:: gprMax.cmds_singleuse.TimeStepStabilityFactor
 
 Output Directory
---------------------------
+----------------
 .. autoclass:: gprMax.cmds_singleuse.OutputDir
 
 Number of Model Runs
@@ -199,15 +199,15 @@ Plate
 .. autoclass:: gprMax.cmds_geometry.plate.Plate
 
 Triangle
------
+--------
 .. autoclass:: gprMax.cmds_geometry.triangle.Triangle
 
 Sphere
------
+------
 .. autoclass:: gprMax.cmds_geometry.sphere.Sphere
 
 Fractal Box
------
+-----------
 .. autoclass:: gprMax.cmds_geometry.fractal_box.FractalBox
 
 Add Grass
@@ -281,19 +281,14 @@ Subgrid
 .. autoclass:: gprMax.subgrids.user_objects.SubGridHSG
 
 
-
 PML
 ===
 
 The default behaviour for the absorbing boundary conditions (ABC) is first order Complex Frequency Shifted (CFS) Perfectly Matched Layers (PML), with thicknesses of 10 cells on each of the six sides of the model domain. This can be altered by using the following command
 
-PML Cells
---------------------------
-.. autoclass:: gprMax.cmds_singleuse.PMLCells
-
-PML CFS
---------------------------
-.. autoclass:: gprMax.cmds_multiuse.PMLCFS
+PML Props
+---------
+.. autoclass:: gprMax.cmds_singleuse.PMLProps
 
 
 Additional API objects
