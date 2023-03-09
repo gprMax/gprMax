@@ -43,7 +43,7 @@ To create a voxelised mesh (HDF5 geometry file) from the ubiquitous `Stanford bu
 
 .. code-block:: none
 
-    python -m user_libs.STLtoVoxel.stltovoxel user_libs/STLtoVoxel/examples/stl/Stanford_Bunny.stl -matindex 2 -dxdydz 0.001 0.001 0.001
+    python -m toolboxes.STLtoVoxel.stltovoxel toolboxes/STLtoVoxel/examples/stl/Stanford_Bunny.stl -matindex 2 -dxdydz 0.001 0.001 0.001
 
 Since the number of voxels are 108 x 88 108 and the spatial discretisation chosen is 1mm, the physical dimensions of the Stanford bunny when imported into gprMax will be 0.108 x 0.088 x 0.108mm.
 

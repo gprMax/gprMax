@@ -21,7 +21,7 @@ The simplest way to access any of the material libraries is to use the ``#includ
 
 .. code-block:: none
 
-    #include_file: user_libs/Materials/eccosorb.txt
+    #include_file: toolboxes/Materials/eccosorb.txt
     #box: 0 0 0 0.5 0.5 0.5 eccosorb_ls22
 
 Eccosorb

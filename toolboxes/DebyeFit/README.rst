@@ -125,7 +125,7 @@ The ``Jonscher`` class has the following structure:
 * ``f_min`` is first bound of the frequency range used to approximate the given function (Hz),
 * ``f_max`` is second bound of the frequency range used to approximate the given function (Hz),
 * ``e_inf`` is a real part of relative permittivity at infinite frequency,
-* ``a_p``` is a Jonscher parameter. Real positive float number,
+* ``a_p`` is a Jonscher parameter. Real positive float number,
 * ``omega_p`` is a Jonscher parameter. Real positive float number,
 * ``n_p`` Jonscher parameter, 0 < n_p < 1.
 
@@ -183,7 +183,7 @@ Class Optimizer
 ---------------
 
 This class supports global optimization algorithms (particle swarm, dual annealing, evolutionary algorithms) for finding an optimal set of relaxation times that minimise the error between the actual and the approximated electric permittivity, and calculates optimised weights for the given relaxation times.
-Code written here is mainly based on external libraries, like ```scipy``` and ```pyswarm```.
+Code written here is mainly based on external libraries, like ``scipy`` and ``pyswarm``.
 
 More about the ``Optimizer`` class structure can be found in the :doc:`Optimisation doc <optimisation.rst>`.
 
@@ -216,12 +216,12 @@ How to use the package
 Examples
 --------
 
-In the examples directory you will find Jupyter notebooks, scripts, and data that demonstrate different cases of how to use the main script ```DebyeFit.py```:
+In the examples directory you will find Jupyter notebooks, scripts, and data that demonstrate different cases of how to use the main script ``DebyeFit.py``:
 
-* ```example_DebyeFitting.ipynb```: simple cases of using all available implemented relaxation functions,
-* ```example_BiologicalTissues.ipynb```: simple cases of using Cole-Cole function for biological tissues,
-* ```example_ColeCole.py```: simple cases of using Cole-Cole function in case of 3, 5 and automatically chosen number of Debye poles,
-* ```Test.txt```: raw data for testing ```Rawdata``` class, file contains 3 columns: the first column contains the frequencies (Hz) associated with the value of the permittivity; the second column contains the real part of the relative permittivity; and the third column contains the imaginary part of the relative permittivity.
+* ``example_DebyeFitting.ipynb``: simple cases of using all available implemented relaxation functions,
+* ``example_BiologicalTissues.ipynb``: simple cases of using Cole-Cole function for biological tissues,
+* ``example_ColeCole.py``: simple cases of using Cole-Cole function in case of 3, 5 and automatically chosen number of Debye poles,
+* ``Test.txt``: raw data for testing ``Rawdata`` class, file contains 3 columns: the first column contains the frequencies (Hz) associated with the value of the permittivity; the second column contains the real part of the relative permittivity; and the third column contains the imaginary part of the relative permittivity.
 
 The following code shows a basic example of how to use the Havriliak-Negami function:
 

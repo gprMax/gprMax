@@ -50,7 +50,7 @@ To include an antenna model similar to a GSSI 1.5 GHz antenna at a location 0.12
 .. code-block:: none
 
     #python:
-    from user_libs.GPRAntennaModels.GSSI import antenna_like_GSSI_1500
+    from toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_1500
     antenna_like_GSSI_1500(0.125, 0.094, 0.100, resolution=0.002)
     #end_python:
 

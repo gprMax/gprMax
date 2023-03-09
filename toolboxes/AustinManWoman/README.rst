@@ -22,7 +22,7 @@ Information
 
     FDTD geometry mesh showing the head of the AustinMan model (2x2x2mm :math:`^3`).
 
-The following whole body models are available.
+The following whole body models are available:
 
 =========== ========================== ==================
 Model       Resolution (mm :math:`^3`) Dimensions (cells)
@@ -54,12 +54,12 @@ Package contents
     * The main body tissues are described using a 3-pole Debye model, but not all materials have a dispersive description.
     * The dispersive material properties can only be used with the 1x1x1mm or 2x2x2mm AustinMan/Woman models. This is because the time step of the model must always be less than any of the relaxation times of the poles of the Debye models used for the dispersive material properties.
 
-* `head_only_h5.py` is a script to assist with creating a model of only the head from a full body AustinMan/Woman model.
+* ``head_only_h5.py`` is a script to assist with creating a model of only the head from a full body AustinMan/Woman model.
 
 How to use the package
 ======================
 
-The AustinMan and AustinWoman models themselves are not included in the user libraries sub-package.
+The AustinMan and AustinWoman models themselves are not included in this sub-package.
 
 * `Download a HDF5 file (.h5) of AustinMan or AustinWoman <https://web.corral.tacc.utexas.edu/AustinManEMVoxels/AustinMan/download/index.html>`_ at the resolution you wish to use
 
