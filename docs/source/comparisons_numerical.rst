@@ -25,7 +25,7 @@ FDTD model
 
 A Gaussian waveform with a centre frequency of 1.5GHz was used to excite the antenna, which was fed by a transmission line with a characteristic impedance of 50 Ohms.
 
-The module ``plot_antenna_params`` from the ``tools`` subpackage was used to calculate and plot the input impedance from the FDTD model.
+The module ``plot_antenna_params`` from the ``toolboxes/plotting`` subpackage was used to calculate and plot the input impedance from the FDTD model.
 
 MoM model
 ^^^^^^^^^

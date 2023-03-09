@@ -31,7 +31,9 @@ sys.path.insert(0, os.path.abspath('../..'))
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.mathjax', 'sphinx.ext.autodoc', 'sphinx.ext.napoleon']
+extensions = ['sphinx.ext.mathjax', 
+              'sphinx.ext.autodoc', 
+              'sphinx.ext.napoleon']
 
 # autodoc mock imports
 # autodoc_mock_imports = ['h5py', 'matplotlib', 'pyfiglet', 'cython', 'psutil']

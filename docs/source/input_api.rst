@@ -114,42 +114,42 @@ The essential commands are:
 
 Domain
 ------
-.. autoclass:: gprMax.cmds_single_use.Domain
+.. autoclass:: gprMax.cmds_singleuse.Domain
 
 Discretisation
 --------------
-.. autoclass:: gprMax.cmds_single_use.Discretisation
+.. autoclass:: gprMax.cmds_singleuse.Discretisation
 
 Time Window
 -----------
-.. autoclass:: gprMax.cmds_single_use.TimeWindow
+.. autoclass:: gprMax.cmds_singleuse.TimeWindow
 
 General
 =======
 
 Messages
 --------
-.. autoclass:: gprMax.cmds_single_use.Messages
+.. autoclass:: gprMax.cmds_singleuse.Messages
 
 Title
 -----
-.. autoclass:: gprMax.cmds_single_use.Title
+.. autoclass:: gprMax.cmds_singleuse.Title
 
 Number of Threads
 -----------------
-.. autoclass:: gprMax.cmds_single_use.NumThreads
+.. autoclass:: gprMax.cmds_singleuse.NumThreads
 
 Time Step Stability Factor
 --------------------------
-.. autoclass:: gprMax.cmds_single_use.TimeStepStabilityFactor
+.. autoclass:: gprMax.cmds_singleuse.TimeStepStabilityFactor
 
 Output Directory
 --------------------------
-.. autoclass:: gprMax.cmds_single_use.OutputDir
+.. autoclass:: gprMax.cmds_singleuse.OutputDir
 
 Number of Model Runs
 --------------------
-.. autoclass:: gprMax.cmds_single_use.NumberOfModelRuns
+.. autoclass:: gprMax.cmds_singleuse.NumberOfModelRuns
 
 
 
@@ -162,19 +162,19 @@ Material
 
 Debye Dispersion
 ----------------
-.. autoclass:: gprMax.cmds_multiple.AddDebyeDispersion
+.. autoclass:: gprMax.cmds_multiuse.AddDebyeDispersion
 
 Lorentz Dispersion
 ------------------
-.. autoclass:: gprMax.cmds_multiple.AddLorentzDispersion
+.. autoclass:: gprMax.cmds_multiuse.AddLorentzDispersion
 
 Drude Dispersion
 ----------------
-.. autoclass:: gprMax.cmds_multiple.AddDrudeDispersion
+.. autoclass:: gprMax.cmds_multiuse.AddDrudeDispersion
 
 Soil Peplinski
 --------------
-.. autoclass:: gprMax.cmds_multiple.SoilPeplinski
+.. autoclass:: gprMax.cmds_multiuse.SoilPeplinski
 
 
 Object Construction
@@ -228,57 +228,57 @@ Add Surface Water
 
 Geometry View
 -------------
-.. autoclass:: gprMax.cmds_multiple.GeometryView
+.. autoclass:: gprMax.cmds_multiuse.GeometryView
 
 Geometry Objects Write
 ----------------------
-.. autoclass:: gprMax.cmds_multiple.GeometryObjectsWrite
+.. autoclass:: gprMax.cmds_multiuse.GeometryObjectsWrite
 
 Source and Output
 =================
 Waveform
 --------
-.. autoclass:: gprMax.cmds_multiple.Waveform
+.. autoclass:: gprMax.cmds_multiuse.Waveform
 
 Voltage Source
 --------------
-.. autoclass:: gprMax.cmds_multiple.VoltageSource
+.. autoclass:: gprMax.cmds_multiuse.VoltageSource
 
 Hertzian Dipole Source
 ----------------------
-.. autoclass:: gprMax.cmds_multiple.HertzianDipole
+.. autoclass:: gprMax.cmds_multiuse.HertzianDipole
 
 Magnetic Dipole Source
 ----------------------
-.. autoclass:: gprMax.cmds_multiple.MagneticDipole
+.. autoclass:: gprMax.cmds_multiuse.MagneticDipole
 
 Transmission Line
 -----------------
-.. autoclass:: gprMax.cmds_multiple.TransmissionLine
+.. autoclass:: gprMax.cmds_multiuse.TransmissionLine
 
 Excitation File
 ---------------
-.. autoclass:: gprMax.cmds_single_use.ExcitationFile
+.. autoclass:: gprMax.cmds_singleuse.ExcitationFile
 
 Rx
 --
-.. autoclass:: gprMax.cmds_multiple.Rx
+.. autoclass:: gprMax.cmds_multiuse.Rx
 
 Rx Array
 --------
-.. autoclass:: gprMax.cmds_multiple.RxArray
+.. autoclass:: gprMax.cmds_multiuse.RxArray
 
 Source Steps
 ------------
-.. autoclass:: gprMax.cmds_single_use.SrcSteps
+.. autoclass:: gprMax.cmds_singleuse.SrcSteps
 
 Rx Steps
 ------------
-.. autoclass:: gprMax.cmds_single_use.RxSteps
+.. autoclass:: gprMax.cmds_singleuse.RxSteps
 
 Snapshot
 --------
-.. autoclass:: gprMax.cmds_multiple.Snapshot
+.. autoclass:: gprMax.cmds_multiuse.Snapshot
 
 Subgrid
 -------
@@ -293,11 +293,11 @@ The default behaviour for the absorbing boundary conditions (ABC) is first order
 
 PML Cells
 --------------------------
-.. autoclass:: gprMax.cmds_single_use.PMLCells
+.. autoclass:: gprMax.cmds_singleuse.PMLCells
 
 PML CFS
 --------------------------
-.. autoclass:: gprMax.cmds_multiple.PMLCFS
+.. autoclass:: gprMax.cmds_multiuse.PMLCFS
 
 
 Additional API objects
