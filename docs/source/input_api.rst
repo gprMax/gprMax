@@ -1,11 +1,11 @@
 .. _api:
 
-*******************
-API
-*******************
+****************
+Input file - API
+****************
 
 Introduction
-==================
+============
 In additional to input file command interface gprMax can also be run using its API. The usage of the API differs from the use of the Python blocks syntax as follows. In the API gprMax functionality is called directly from any Python file via the gprMax module. Using the Python blocks syntax the Python code is executed within an embedded interpreter. The API has the advantage that it can be included within any Python file and can be included within any Python script.
 
 There are several advantages to using API. Firstly, users can take advantage of the Python language. For instance, the structural elements of Python can be utilised more easily. gprMax objects can be used directly within functions, classes, modules and packages. In this way collections of components can be defined, reused and modified. For example, multiple SMA type connectors can be imported as a module and combined with an antenna from another module.

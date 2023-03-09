@@ -17,6 +17,7 @@ gprMax User Guide
     :caption: Using gprMax
 
     input_hash_cmds
+    input_api
     output
 
 .. toctree::
@@ -30,7 +31,6 @@ gprMax User Guide
     :maxdepth: 2
     :caption: Advanced topics
 
-    input_api
     python_scripting
     openmp_mpi
     gpu
