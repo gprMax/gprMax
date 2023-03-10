@@ -19,6 +19,8 @@ conda:
 python:
   install:
     - requirements: docs/requirements.txt
+    - method: pip
+      path: gprMax
 
 sphinx:
    configuration: docs/source/conf.py
