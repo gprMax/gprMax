@@ -37,7 +37,7 @@ if sys.platform == 'linux':
 
     Usage:
         cd gprMax
-        python -m tests.test_models
+        python -m testing.test_models
 """
 
 # Specify directoty with set of models to test

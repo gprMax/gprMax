@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 # Parse command line arguments
 parser = argparse.ArgumentParser(description='Plots a comparison of fields between ' +
                                     'given simulation output and experimental data files.', 
-                                 usage='cd gprMax; python -m tests.test_experimental modelfile realfile output')
+                                 usage='cd gprMax; python -m testing.test_experimental modelfile realfile output')
 parser.add_argument('modelfile', help='name of model output file including path')
 parser.add_argument('realfile', help='name of file containing experimental data including path')
 parser.add_argument('output', help='output to be plotted, i.e. Ex Ey Ez', nargs='+')
