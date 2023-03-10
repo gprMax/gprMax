@@ -15,10 +15,10 @@ The API also allows gprMax to interface with other Python libraries. For example
 The syntax of the API is generally more verbose than the input file command syntax. However, for input file commands where there are an undefined number of parameters, such as adding dispersive properties, the user may find the API more manageable.
 
 Example
-==================
+=======
 
 The following example is used to give an introduction to the gprMax API. the example file is found in
-``user_models/antenna_wire_dipole_fs.py``.
+``examples/antenna_wire_dipole_fs.py``.
 
 First, import the gprMax module.
 
@@ -114,7 +114,7 @@ The essential commands are:
 
 Domain
 ------
-.. autoclass:: gprMax.cmds_singleuse.Domain
+.. autoclass:: cmds_singleuse.Domain
 
 Discretisation
 --------------
