@@ -170,7 +170,7 @@ class TimeStepStabilityFactor(UserObjectSingle):
     """Factor by which to reduce the time step from the CFL limit.
 
     Attributes:
-        f: float for factor to multiple time step.
+        f: float for factor to multiply time step.
     """
 
     def __init__(self, **kwargs):

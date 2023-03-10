@@ -143,12 +143,6 @@ Output Directory
 ----------------
 .. autoclass:: gprMax.cmds_singleuse.OutputDir
 
-Number of Model Runs
---------------------
-.. autoclass:: gprMax.cmds_singleuse.NumberOfModelRuns
-
-
-
 Material
 ========
 
@@ -232,6 +226,7 @@ Geometry Objects Write
 
 Source and Output
 =================
+
 Waveform
 --------
 .. autoclass:: gprMax.cmds_multiuse.Waveform
@@ -256,20 +251,20 @@ Excitation File
 ---------------
 .. autoclass:: gprMax.cmds_singleuse.ExcitationFile
 
-Rx
---
+Receiver
+--------
 .. autoclass:: gprMax.cmds_multiuse.Rx
 
-Rx Array
---------
+Receiver Array
+--------------
 .. autoclass:: gprMax.cmds_multiuse.RxArray
 
 Source Steps
 ------------
 .. autoclass:: gprMax.cmds_singleuse.SrcSteps
 
-Rx Steps
-------------
+Receiver Steps
+--------------
 .. autoclass:: gprMax.cmds_singleuse.RxSteps
 
 Snapshot
