@@ -16,6 +16,10 @@ conda:
 #     post_create_environment:
 #       - python setup.py build
 
+python:
+  install:
+    - requirements: requirements.txt
+
 sphinx:
    configuration: docs/source/conf.py
 
