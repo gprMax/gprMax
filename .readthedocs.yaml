@@ -20,7 +20,7 @@ python:
   install:
     - requirements: docs/requirements.txt
     - method: pip
-      path: gprMax
+      path: .
 
 sphinx:
    configuration: docs/source/conf.py
