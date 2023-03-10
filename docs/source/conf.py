@@ -11,7 +11,7 @@ import re
 import sys
 import time
 
-sys.path.insert(0, os.path.abspath('../..'))
+# sys.path.insert(0, os.path.abspath('../..'))
 
 project = 'gprMax'
 copyright = f'2015-{time.strftime("%Y")}, The University of Edinburgh, United Kingdom. Authors: Craig Warren, Antonis Giannopoulos, and John Hartley'
@@ -23,11 +23,9 @@ with open('../../gprMax/_version.py', 'r') as fd:
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-# extensions = ['sphinx.ext.mathjax', 
-#               'sphinx.ext.autodoc', 
-#               'sphinx.ext.napoleon']
-
-extensions = ['sphinx.ext.autodoc']
+extensions = ['sphinx.ext.mathjax', 
+              'sphinx.ext.autodoc', 
+              'sphinx.ext.napoleon']
 
 templates_path = ['_templates']
 exclude_patterns = []
