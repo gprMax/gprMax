@@ -5,8 +5,8 @@
 # Required
 version: 2
 
-conda:
-  environment: conda_env.yml
+# conda:
+#   environment: conda_env.yml
 
 build:
   os: "ubuntu-22.04"
