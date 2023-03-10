@@ -8,10 +8,10 @@ version: 2
 conda:
   environment: conda_env.yml
 
-# build:
-#   os: "ubuntu-22.04"
-#   tools:
-#     python: "3.10"
+build:
+  os: "ubuntu-22.04"
+  tools:
+    python: "3.10"
 #   jobs:
 #     post_create_environment:
 #       - python setup.py build
