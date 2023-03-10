@@ -114,7 +114,7 @@ The essential commands are:
 
 Domain
 ------
-.. autoclass:: gprMax.cmds_singleuse.Domain
+.. autoclass:: cmds_singleuse.Domain
 
 Discretisation
 --------------
