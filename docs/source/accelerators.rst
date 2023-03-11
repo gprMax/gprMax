@@ -4,15 +4,20 @@
 Accelerators - OpenMP/CUDA/OpenCL
 *********************************
 
-The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelised using:
+The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelised using different CPU and GPU accelerators to offer performance and flexibility.
 
 1. `OpenMP <http://openmp.org>`_ which supports multi-platform shared memory multiprocessing.
 2. `NVIDIA CUDA <https://developer.nvidia.com/cuda-toolkit>`_ for NVIDIA GPUs.
 3. `OpenCL <https://www.khronos.org/api/opencl>`_ for a wider range of CPU and GPU hardware. 
 
-Additionally the Message Passing Interface (MPI) has been utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This can be useful in many GPR simulations where a B-scan (composed of multiple A-scans) is required. Each A-scan can be task-farmed as a independent model. Within each independent model OpenMP or CUDA accelerators described above can be used for parallelism. Overall this creates what is known as a mixed mode OpenMP/MPI or CUDA/MPI job.
+Additionally the Message Passing Interface (MPI) can be utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This can be useful in many GPR simulations where a B-scan (composed of multiple A-scans) is required. Each A-scan can be task-farmed as a independent model, and within each model OpenMP or CUDA can still be used for parallelism. This creates mixed mode OpenMP/MPI or CUDA/MPI environments.
 
 Some of these accelerators and frameworks require additional software to be installed. The guidance below explains how to do that and gives examples of usage.
+
+.. note::
+
+    You can use the ``get_host_spec.py`` module (in ``toolboxes/Utilities``) to help you understand what hardware (CPU/GPU) you have and how gprMax can use it with the aforementioned accelerators.
+    
 
 OpenMP
 ======

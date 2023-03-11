@@ -6,12 +6,6 @@ Software Features
 
 This section highlights some of the key features of gprMax that are useful for GPR modelling as well as more general electromagnetic simulations.
 
-Python API
-==========
-
-TODO
-The input file has now been made scriptable by permitting blocks of Python code to be specified between ``#python`` and ``#end_python`` commands. The code is executed when the input file is read by gprMax. You don't need any external tools, such as MATLAB, to generate larger, more complex input files for building intricate models. Python scripting means that gprMax now includes :ref:`libraries of more complex objects, such as antennas <antennas>`, that can be easily inserted into a model. You can also access a number of built-in constants from your Python code. For further details see the :ref:`Python section <python-scripting>`.
-
 Dispersive materials
 ====================
 
@@ -52,6 +46,14 @@ Perfectly Matched Layer (PML) absorbing boundary conditions
 ===========================================================
 
 With increased research into quantitative information from GPR, it has become necessary for models to be able to have more efficient and better-performing Perfectly Matched Layer (PML) absorbing boundary conditions. Since 2005 gprMax has featured PML absorbing boundary conditions based on the uniaxial PML (UPML) [GED1998]_ formulation. A PML based on a recursive integration approach to the complex frequency shifted (CFS) PML [GIA2012]_ has been adopted in the new version of gprMax. A general formulation of this RIPML, which can be used to develop any order of PML, has been used to implement first and second order CFS stretching functions. One of the attractions of the RIPML is that it is easily applied as a correction to the field quantities after the complete FDTD grid has been updated using the standard FDTD update equations. gprMax now offers the ability (for advanced users) to customise the parameters of the PML which allows its performance to be better optimised for specific applications. Additionally, since the RIPML is media agnostic it can be used without change to problems involving dispersive and anisotropic materials. For further details see the :ref:`PML commands section <pml-commands>`.
+
+Python API
+==========
+
+TODO: UPDATE
+************
+
+The input file has now been made scriptable by permitting blocks of Python code to be specified between ``#python`` and ``#end_python`` commands. The code is executed when the input file is read by gprMax. You don't need any external tools, such as MATLAB, to generate larger, more complex input files for building intricate models. Python scripting means that gprMax now includes :ref:`libraries of more complex objects, such as antennas <antennas>`, that can be easily inserted into a model. You can also access a number of built-in constants from your Python code. For further details see the :ref:`Python section <python-scripting>`.
 
 Open source, robust, file formats
 =================================
