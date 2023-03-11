@@ -1,8 +1,8 @@
 .. _api:
 
-****************
-Input file - API
-****************
+******************************
+Model building with Python API
+******************************
 
 Introduction
 ============
@@ -279,7 +279,7 @@ Subgrid
 PML
 ===
 
-The default behaviour for the absorbing boundary conditions (ABC) is first order Complex Frequency Shifted (CFS) Perfectly Matched Layers (PML), with thicknesses of 10 cells on each of the six sides of the model domain. This can be altered by using the following command
+The default behaviour for the absorbing boundary conditions (ABC) is first order Complex Frequency Shifted (CFS) Perfectly Matched Layers (PML), with thicknesses of 10 cells on each of the six sides of the model domain. This can be altered by using the following command.
 
 PML Props
 ---------

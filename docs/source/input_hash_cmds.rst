@@ -1,8 +1,8 @@
 .. _commands:
 
-*********************
-Input file - commands
-*********************
+*********************************
+Model building with hash commands
+*********************************
 
 An input file has to be supplied to gprMax which should contain all the necessary information to run a GPR model. The input file is an ASCII text file which can be prepared with any text editor or word-processing program. In the input file the hash character (``#``) is reserved and is used to denote the beginning of a command which will be passed to gprMax. The general syntax of commands is:
 

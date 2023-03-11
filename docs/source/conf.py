@@ -23,6 +23,9 @@ extensions = ['sphinx.ext.mathjax',
               'sphinx.ext.autodoc', 
               'sphinx.ext.napoleon']
 
+# Figure numbering
+numfig = True
+
 templates_path = ['_templates']
 exclude_patterns = []
 
