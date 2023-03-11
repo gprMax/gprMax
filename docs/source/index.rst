@@ -22,18 +22,11 @@ gprMax User Guide
 
 .. toctree::
     :maxdepth: 2
-    :caption: Python tools
+    :caption: Examples
 
-    plotting
-    utils
-
-.. toctree::
-    :maxdepth: 2
-    :caption: Advanced topics
-
-    python_scripting
-    openmp_mpi
-    gpu
+    examples_simple_2D
+    examples_antennas
+    examples_advanced
 
 .. toctree::
     :maxdepth: 2
@@ -51,12 +44,12 @@ gprMax User Guide
 
 .. toctree::
     :maxdepth: 2
-    :caption: Examples
+    :caption: Advanced topics
 
-    examples_simple_2D
-    examples_antennas
-    examples_advanced
-
+    python_scripting
+    openmp_mpi
+    gpu
+    
 .. toctree::
     :maxdepth: 2
     :caption: Accuracy and performance
