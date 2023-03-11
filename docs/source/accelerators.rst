@@ -1,8 +1,8 @@
 .. _accelerators:
 
-************
-Accelerators
-************
+*********************************
+Accelerators - OpenMP/CUDA/OpenCL
+*********************************
 
 The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelised using:
 

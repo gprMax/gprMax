@@ -1,15 +1,15 @@
 .. _benchmarking:
 
-************************
-Performance benchmarking
-************************
+************
+Benchmarking
+************
 
 This section provides information and results from performance benchmarking of gprMax.
 
 How to benchmark?
 =================
 
-The following simple models (found in the ``tests/benchmarking`` sub-package) can be used to benchmark gprMax on your own system. The models feature different domain sizes (from 100^3 to 800^3 cells) and contain a simple Hertzian dipole source in free space. The following shows an example of the 100^3 cell model:
+The following simple models (found in the ``testing/benchmarking`` sub-package) can be used to benchmark gprMax on your own system. The models feature different domain sizes (from 100^3 to 800^3 cells) and contain a simple Hertzian dipole source in free space. The following shows an example of the 100^3 cell model:
 
 .. literalinclude:: ../../testing/benchmarking/bench_100x100x100.in
     :language: none
