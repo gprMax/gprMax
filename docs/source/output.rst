@@ -1,29 +1,29 @@
 .. _output:
 
-***********
-Output data
-***********
+*************
+Model outputs
+*************
 
 Field(s) output
 ===============
 
-gprMax produces an output file that has the same name as the input file but with ``.h5`` appended. The output file uses the widely-supported `HDF5 <https://www.hdfgroup.org/HDF5/>`_ format which was designed to store and organize large amounts of numerical data. There are a number of free tools available to read HDF5 files. Also MATLAB has high- and low-level functions for reading and writing HDF5 files, i.e. ``h5info`` and ``h5disp`` are useful for returning information and displaying the contents of HDF5 files respectively. gprMax includes some Python modules (in the ``tools`` package) to help you view output data. These are documented in the :ref:`tools section <plotting>`.
+gprMax produces an output file that primarily contains time history data for electromagnetic field outputs (receivers) in the model. The output file has the same name as the input file but with ``.h5`` appended, and therefore uses the widely-supported `HDF5 <https://www.hdfgroup.org/HDF5/>`_ format which was designed to store and organize large amounts of numerical data. There are a number of free tools available to read HDF5 files. Also MATLAB has high- and low-level functions for reading and writing HDF5 files, i.e. ``h5info`` and ``h5disp`` are useful for returning information and displaying the contents of HDF5 files respectively. gprMax includes some Python modules (in the ``toolboxes/plotting`` package) to help you view output data. These are documented in :ref:`plotting toolbox section <plotting>`.
 
 File structure
 --------------
 
 The output file has the following HDF5 attributes at the root (``/``):
 
-* ``gprMax`` is the version number of gprMax used to create the output
-* ``Title`` is the title of the model
-* ``Iterations`` is the number of iterations for the time window of the model
-* ``nx_ny_nz`` is a tuple containing the number of cells in each direction of the model
-* ``dx_dy_dz`` is a tuple containing the spatial discretisation, i.e. :math:`\Delta x`, :math:`\Delta y`, :math:`\Delta z`
-* ``dt`` is the time step of the model, i.e. :math:`\Delta t`
-* ``srcsteps`` is the spatial increment used to move all sources between model runs.
-* ``rxsteps`` is the spatial increment used to move all receivers between model runs.
-* ``nsrc`` is the total number of sources in the model.
-* ``nrx`` is the total number of receievers in the model.
+- ``gprMax`` is the version number of gprMax used to create the output
+- ``Title`` is the title of the model
+- ``Iterations`` is the number of iterations for the time window of the model
+- ``nx_ny_nz`` is a tuple containing the number of cells in each direction of the model
+- ``dx_dy_dz`` is a tuple containing the spatial discretisation, i.e. :math:`\Delta x`, :math:`\Delta y`, :math:`\Delta z`
+- ``dt`` is the time step of the model, i.e. :math:`\Delta t`
+- ``srcsteps`` is the spatial increment used to move all sources between model runs.
+- ``rxsteps`` is the spatial increment used to move all receivers between model runs.
+- ``nsrc`` is the total number of sources in the model.
+- ``nrx`` is the total number of receievers in the model.
 
 The output file contains HDF5 groups for sources (``srcs``), transmission lines (``tls``), and receivers (``rxs``). Within each group are further groups that correspond to individual sources/transmission lines/receivers, e.g. ``src1``, ``src2`` etc...
 
@@ -103,7 +103,10 @@ Within each individual ``tl`` group are the following datasets:
 Snapshots
 ---------
 
-Snapshot files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, macOS, and Windows. The ``#snapshot:`` command produces an ImageData (.vti) snapshot file containing electric and magnetic field data and current data for each time instance requested.
+Snapshot files contain a snapshot of the electromagnetic field values of a specified volume of the model domain at a specified point in time during the simulation. By default snapshot files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, macOS, and Windows. You can optionally output snapshot files using the HDF5 format if desired.
+
+TODO: UPDATE Example
+********************
 
 .. tip::
     You can take advantage of Python scripting to easily create a series of snapshots. For example, to create 30 snapshots starting at time 0.1ns until 3ns in intervals of 0.1ns, use the following code snippet in your input file. Replace ``xs, ys, zs, xf, yf, zf, dx, dy, dz`` accordingly.
@@ -136,6 +139,9 @@ Geometry output
 ===============
 
 Geometry files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, Mac OS X, and Windows.
+
+TODO: UPDATE file formats
+*************************
 
 The ``#geometry_view:`` command produces either ImageData (.vti) for a per-cell geometry view, or PolygonalData (.vtp) for a per-cell-edge geometry view. The per-cell geometry views also show the location of the PML regions and any sources and receivers in the model. The following are steps to get started with viewing geometry files in Paraview:
 

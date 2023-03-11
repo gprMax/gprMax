@@ -46,8 +46,8 @@ gprMax User Guide
     :maxdepth: 2
     :caption: Performance
 
-    openmp_mpi
-    gpu
+    accelerators
+    hpc
     benchmarking
 
 .. toctree::

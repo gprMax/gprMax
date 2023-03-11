@@ -1,50 +1,14 @@
-.. _openmp-mpi:
+.. _hpc:
 
-********************
-OpenMP, MPI, and HPC
-********************
-
-OpenMP
-======
-
-The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelised using `OpenMP <http://openmp.org>`_ which supports multi-platform shared memory multiprocessing.
-
-By default gprMax will try to determine and use the maximum number of OpenMP threads (usually the number of physical CPU cores) available on your machine. You can override this behaviour in two ways: firstly, gprMax will check to see if the ``#cpu_threads`` command is present in your input file; if not, gprMax will check to see if the environment variable ``OMP_NUM_THREADS`` is set. This can be useful if you are running gprMax in a High-Performance Computing (HPC) environment where you might not want to use all of the available CPU cores.
-
-MPI
-===
-
-The Message Passing Interface (MPI) has been utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This can be useful in many GPR simulations where a B-scan (composed of multiple A-scans) is required. Each A-scan can be task-farmed as a independent model. Within each independent model OpenMP threading will continue to be used (as described above). Overall this creates what is know as a mixed mode OpenMP/MPI job.
-
-By default the MPI task farm functionality is turned off. It can be used with the ``-mpi`` command line option, which specifies the total number of MPI tasks, i.e. master + workers, for the MPI task farm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using a MPI task farm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 -mpi 61``.
-
-Extra installation steps for MPI task farm usage
-------------------------------------------------
-
-The following steps provide guidance on how to install the extra components to allow the MPI task farm functionality with gprMax:
-
-1. Install MPI on your system.
-
-Linux/macOS
-^^^^^^^^^^^
-It is recommended to use `OpenMPI <http://www.open-mpi.org>`_.
-
-Microsoft Windows
-^^^^^^^^^^^^^^^^^
-It is recommended to use `Microsoft MPI <https://docs.microsoft.com/en-us/message-passing-interface/microsoft-mpi>`_. Download and install both the .exe and .msi files.
-
-2. Install the ``mpi4py`` Python module. Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`. Run :code:`pip install mpi4py`
-
-.. _hpc_script_examples:
-
-HPC job script examples
-=======================
+********************************
+High-performance computing (HPC)
+********************************
 
 HPC environments usually require jobs to be submitted to a queue using a job script. The following are examples of job scripts for a HPC environment that uses `Open Grid Scheduler/Grid Engine <http://gridscheduler.sourceforge.net/index.html>`_, and are intended as general guidance to help you get started. Using gprMax in an HPC environment is heavily dependent on the configuration of your specific HPC/cluster, e.g. the names of parallel environments (``-pe``) and compiler modules will depend on how they were defined by your system administrator.
 
 
 OpenMP example
---------------
+==============
 
 :download:`gprmax_omp.sh <../../toolboxes/Utilities/HPC/gprmax_omp.sh>`
 
@@ -58,7 +22,7 @@ In this example 10 models will be run one after another on a single node of the 
 
 
 OpenMP/MPI example
-------------------
+==================
 
 :download:`gprmax_omp_mpi.sh <../../toolboxes/Utilities/HPC/gprmax_omp_mpi.sh>`
 
@@ -76,7 +40,7 @@ The ``NSLOTS`` variable which is required to set the total number of slots/cores
 
 
 Job array example
------------------
+=================
 
 :download:`gprmax_omp_jobarray.sh <../../toolboxes/Utilities/HPC/gprmax_omp_jobarray.sh>`
 
