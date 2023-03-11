@@ -18,7 +18,7 @@ What is gprMax?
 
 gprMax is currently released under the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
 
-gprMax is principally written in `Python <https://www.python.org>`_ 3 with performance-critical parts written in `Cython <http://cython.org>`_. It includes a CPU-based solver parallelised using `OpenMP <http://www.openmp.org>`_, and a GPU-based solver written using the `NVIDIA CUDA <https://developer.nvidia.com/cuda-zone>`_ programming model.
+gprMax is principally written in `Python <https://www.python.org>`_ 3 with performance-critical parts written in `Cython <http://cython.org>`_. It includes accelerators for CPU using `OpenMP <http://www.openmp.org>`_, CPU/GPU using `OpenCL <https://www.khronos.org/api/opencl>`_, and GPU using `NVIDIA CUDA <https://developer.nvidia.com/cuda-zone>`_.
 
 Using gprMax? Cite us
 ---------------------
@@ -46,7 +46,7 @@ Package overview
         README.rst
         setup.py
         testing/
-        tools/
+        toolboxes/
 
 * ``conda_env.yml`` is a configuration file for Anaconda (Miniconda) that sets up a Python environment with all the required Python packages for gprMax.
 * ``CREDITS`` contains a list of names of people who have contributed to the gprMax codebase.
@@ -167,16 +167,16 @@ Optional command line arguments
 ====================== ========= ===========
 Argument name          Type      Description
 ====================== ========= ===========
-``-n``                 integer   number of times to run the input file. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60``
-``-gpu``               flag/list flag to use NVIDIA GPU or list of NVIDIA GPU device ID(s) for specific GPU card(s), e.g. ``-gpu 0 1``
-``-restart``           integer   model number to start/restart simulation from. It would typically be used to restart a series of models from a specific model number, with the ``-n`` argument, e.g. to restart from A-scan 45 when creating a B-scan with 60 traces: ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 15 -restart 45``
-``-task``              integer   task identifier (model number) when running simulation as a job array on `Open Grid Scheduler/Grid Engine <http://gridscheduler.sourceforge.net/index.html>`_. For further details see the `parallel performance section of the User Guide <http://docs.gprmax.com/en/latest/openmp_mpi.html>`_
+``-n``                 integer   Number of required simulation runs. This option can be used to run a series of models, e.g. to create a B-scan with 60 traces: ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60``
+``-i``                 integer   Model number to start/restart simulation from. It would typically be used to restart a series of models from a specific model number, with the n argument, e.g. to restart from A-scan 45 when creating a B-scan with 60 traces.
 ``-mpi``               integer   number of Message Passing Interface (MPI) tasks, i.e. master + workers, for MPI task farm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using a MPI task farm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 -mpi 61``. For further details see the `parallel performance section of the User Guide <http://docs.gprmax.com/en/latest/openmp_mpi.html>`_
-``--mpi-no-spawn``     flag      use MPI task farm without spawn mechanism. For further details see the `parallel performance section of the User Guide <http://docs.gprmax.com/en/latest/openmp_mpi.html>`_
-``-benchmark``         flag      switch on benchmarking mode. This can be used to benchmark the threading (parallel) performance of gprMax on different hardware. For further details see the `benchmarking section of the User Guide <http://docs.gprmax.com/en/latest/benchmarking.html>`_
-``--geometry-only``    flag      build a model and produce any geometry views but do not run the simulation, e.g. to check the geometry of a model is correct: ``(gprMax)$ python -m gprMax examples/heterogeneous_soil.in --geometry-only``
-``--geometry-fixed``   flag      run a series of models where the geometry does not change between models, e.g. a B-scan where *only* the position of simple sources and receivers, moved using ``#src_steps`` and ``#rx_steps``, changes between models.
-``--write-processed``  flag      write another input file after any Python code and include commands in the original input file have been processed. Useful for checking that any Python code is being correctly processed into gprMax commands.
+``-gpu``               list/bool Flag to use NVIDIA GPU or list of NVIDIA GPU device ID(s) for specific GPU card(s), e.g. ``-gpu 0 1``
+``-opencl``            list/bool Flag to use OpenCL or list of OpenCL device ID(s) for specific compute device(s).
+``--geometry-only``    flag      Build a model and produce any geometry views but do not run the simulation, e.g. to check the geometry of a model is correct: ``(gprMax)$ python -m gprMax examples/heterogeneous_soil.in --geometry-only``
+``--geometry-fixed``   flag      Run a series of models where the geometry does not change between models, e.g. a B-scan where *only* the position of simple sources and receivers, moved using ``#src_steps`` and ``#rx_steps``, changes between models.
+``--write-processed``  flag      Write another input file after any Python blocks and include commands in the original input file have been processed. Useful for checking that any Python blocks are being correctly processed into gprMax commands.
+``--log-level``        integer   Level of logging to use, see the ` Python logging module <https://docs.python.org/3/library/logging.html>`_.
+``--log-file``         bool      Write logging information to file.
 ``-h`` or ``--help``   flag      used to get help on command line options.
 ====================== ========= ===========
 

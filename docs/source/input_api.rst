@@ -1,8 +1,8 @@
 .. _api:
 
-******************************
-Model building with Python API
-******************************
+*******************************
+Model building using Python API
+*******************************
 
 Introduction
 ============

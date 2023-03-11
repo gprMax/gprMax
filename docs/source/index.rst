@@ -14,7 +14,7 @@ gprMax User Guide
 
 .. toctree::
     :maxdepth: 2
-    :caption: Using gprMax
+    :caption: Usage
 
     input_hash_cmds
     input_api
@@ -44,19 +44,18 @@ gprMax User Guide
 
 .. toctree::
     :maxdepth: 2
-    :caption: Advanced topics
+    :caption: Performance
 
-    python_scripting
     openmp_mpi
     gpu
-    
+    benchmarking
+
 .. toctree::
     :maxdepth: 2
-    :caption: Accuracy and performance
+    :caption: Accuracy
 
     comparisons_analytical
     comparisons_numerical
-    benchmarking
 
 .. toctree::
     :maxdepth: 2

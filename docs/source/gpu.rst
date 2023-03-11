@@ -1,19 +1,29 @@
 .. _gpu:
 
-*****
-GPGPU
-*****
+************
+Accelerators
+************
 
-The most computationally intensive parts of gprMax, which are the FDTD solver loops, can optionally be executed using General-purpose computing on graphics processing units (GPGPU). This has been achieved through use of the NVIDIA CUDA programming environment, therefore a `NVIDIA CUDA-Enabled GPU <https://developer.nvidia.com/cuda-gpus>`_ is required to take advantage of the GPU-based solver.
+The most computationally intensive parts of gprMax, which are the FDTD solver loops, can be accelarated using General-purpose computing on graphics processing units (GPGPU). There are two different frameworks that can be used depending on the hardware you have available:
 
-Extra installation steps for GPU usage
-======================================
+1. For `NVIDIA CUDA-Enabled GPUs <https://developer.nvidia.com/cuda-gpus>`_, the NVIDIA CUDA programming environment can be utilised.
+2. For a wider range of CPU and GPU hardware, `OpenCL <https://www.khronos.org/api/opencl>`_ can be utilised.
+
+Both frameworks require some additional software components to be installed.
+
+CUDA
+====
 
 The following steps provide guidance on how to install the extra components to allow gprMax to run on your NVIDIA GPU:
 
 1. Install the `NVIDIA CUDA Toolkit <https://developer.nvidia.com/cuda-toolkit>`_. You can follow the Installation Guides in the `NVIDIA CUDA Toolkit Documentation <http://docs.nvidia.com/cuda/index.html#installation-guides>`_ You must ensure the version of CUDA you install is compatible with the compiler you are using. This information can usually be found in a table in the CUDA Installation Guide under System Requirements.
 2. You may need to add the location of the CUDA compiler (:code:`nvcc`) to your user path environment variable, e.g. for Windows :code:`C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0\bin` or Linux/macOS :code:`/Developer/NVIDIA/CUDA-10.0/bin`.
 3. Install the pycuda Python module. Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`. Run :code:`pip install pycuda`
+
+OpenCL
+======
+
+TODO
 
 Running gprMax using GPU(s)
 ===========================
@@ -24,21 +34,21 @@ Run one of the test models:
 
 .. code-block:: none
 
-    (gprMax)$ python -m gprMax user_models/cylinder_Ascan_2D.in -gpu
+    (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in -gpu
 
 .. note::
 
     If you want to select a specific GPU card on your system, you can specify an integer after the :code:`-gpu` flag. The integer should be the NVIDIA CUDA device ID for a specific GPU card. If it is not specified it defaults to device ID 0.
 
 
-Combining MPI and GPU usage
----------------------------
+Combining MPI and CUDA usage
+----------------------------
 
 Message Passing Interface (MPI) has been utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This is described in more detail in the :ref:`OpenMP, MPI, HPC section <openmp-mpi>`. MPI can be combined with the GPU functionality to allow a series models to be distributed to multiple GPUs on the same machine (node). For example, to run a B-scan that contains 60 A-scans (traces) on a system with 4 GPUs:
 
 .. code-block:: none
 
-    (gprMax)$ python -m gprMax user_models/cylinder_Bscan_2D.in -n 60 -mpi 5 -gpu 0 1 2 3
+    (gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 -mpi 5 -gpu 0 1 2 3
 
 .. note::
 
