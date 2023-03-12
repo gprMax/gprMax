@@ -1372,6 +1372,7 @@ class SoilPeplinski(UserObjectMulti):
                                 water fraction of the soil.
         water_fraction_upper: float required for upper boundary of volumetric 
                                 water fraction of the soil.
+        id: string used as identifier for soil.
     """
 
     def __init__(self, **kwargs):

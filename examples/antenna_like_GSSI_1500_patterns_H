@@ -1,0 +1,48 @@
+#title: GSSI 1.5GHz antenna field patterns
+#dx_dy_dz: 0.001 0.001 0.001
+#pml_cells: 14
+
+#python:
+import os
+import numpy as np
+
+from gprMax.input_cmd_funcs import *
+from user_libs.antennas.GSSI import antenna_like_GSSI_1500
+
+filename = os.path.splitext(os.path.split(inputfile)[1])[0]
+
+timewindows = np.array([4.5e-9]) # For 0.3m max
+radii = np.linspace(0.1, 0.3, 20)
+theta = np.linspace(3, 357, 60)
+materials = ['5 0 1 0 er5'] # Can add more to list and use selector integer to choose
+selector = 0
+
+fs = np.array([0.040, 0.040, 0.040])
+domain = np.array([2 * fs[0] + 2 * radii[-1], 2 * fs[1] + 0.107, 2 * fs[2] + 2 * radii[-1]])
+antennaposition = np.array([fs[0] + radii[-1], domain[1] / 2, fs[2] + radii[-1]])
+antenna_like_GSSI_1500(antennaposition[0], antennaposition[1], antennaposition[2])
+
+print('#domain: {:.3f} {:.3f} {:.3f}'.format(domain[0], domain[1], domain[2]))
+print('#time_window: {:.3e}'.format(timewindows[selector]))
+
+## Can introduce soil model
+#print('#soil_peplinski: 0.5 0.5 2.0 2.66 0.001 0.25 mySoil')
+#print('#fractal_box: 0 0 0 {} {} {} 1.5 1 1 1 50 mySoil mySoilBox 1'.format(domain[0], domain[1], fs[2] + radii[-1]))
+
+print('#material: {}'.format(materials[selector]))
+print('#box: 0 0 0 {} {} {} {} n'.format(domain[0], domain[1], fs[2] + radii[-1], materials[selector].split()[-1]))
+
+## Save the position of the antenna to file for use when processing results
+np.savetxt(os.path.join(os.path.dirname(inputfile), filename + '_rxsorigin.txt'), antennaposition, fmt="%f")
+
+## Generate receiver points for pattern
+for radius in range(len(radii)):
+    ## H-plane circle (xz plane, y=0, phi=0,pi)
+    x = radii[radius] * np.sin(theta * np.pi /180) * np.cos(180 * np.pi / 180)
+    y = radii[radius] * np.sin(theta * np.pi /180) * np.sin(180 * np.pi / 180)
+    z = radii[radius] * np.cos(theta * np.pi /180)
+    for rxpt in range(len(theta)):
+        print('#rx: {:.3f} {:.3f} {:.3f}'.format(x[rxpt] + antennaposition[0], y[rxpt] + antennaposition[1], z[rxpt] + antennaposition[2]))
+
+geometry_view(0, 0, 0, domain[0], domain[1], domain[2], 0.001, 0.001, 0.001, filename, 'n')
+#end_python:
