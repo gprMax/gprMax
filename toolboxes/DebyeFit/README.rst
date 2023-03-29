@@ -218,10 +218,10 @@ Examples
 
 In the examples directory you will find Jupyter notebooks, scripts, and data that demonstrate different cases of how to use the main script ``DebyeFit.py``:
 
-* ``example_DebyeFitting.ipynb``: simple cases of using all available implemented relaxation functions,
-* ``example_BiologicalTissues.ipynb``: simple cases of using Cole-Cole function for biological tissues,
-* ``example_ColeCole.py``: simple cases of using Cole-Cole function in case of 3, 5 and automatically chosen number of Debye poles,
-* ``Test.txt``: raw data for testing ``Rawdata`` class, file contains 3 columns: the first column contains the frequencies (Hz) associated with the value of the permittivity; the second column contains the real part of the relative permittivity; and the third column contains the imaginary part of the relative permittivity.
+* ``example_DebyeFitting.ipynb`` presents simple cases of using all available implemented relaxation functions.
+* ``example_BiologicalTissues.ipynb`` presents simple cases of using Cole-Cole function for biological tissues.
+* ``example_ColeCole.py`` presents simple cases of using Cole-Cole function in case of 3, 5 and automatically chosen number of Debye poles.
+* ``Test.txt`` contains raw data for testing ``Rawdata`` class, file contains 3 columns: the first column contains the frequencies (Hz) associated with the value of the permittivity; the second column contains the real part of the relative permittivity; and the third column contains the imaginary part of the relative permittivity.
 
 The following code shows a basic example of how to use the Havriliak-Negami function:
 

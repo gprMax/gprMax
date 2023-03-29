@@ -29,19 +29,18 @@ Package contents
 * ``initial_save.py`` is a module that calculates and stores (in a Numpy file) the field patterns from the output file of a simulation.
 * ``plot_fields.py`` is a module that plots the field patterns. It should be used after the field pattern data has been processed and stored using the ``initial_save.py`` module.
 
-The package has been designed to work with input files found in the ``examples`` directory:
+The package has been designed to work with the input file found in the ``examples`` directory:
 
-* ``antenna_like_GSSI_1500_patterns_E.in`` is an input file that includes an antenna model similar to a GSSI 1.5 GHz antenna and receivers to calculate a field pattern in the principal E-plane of the antenna
-* ``antenna_like_GSSI_1500_patterns_H.in`` is an input file that includes an antenna model similar to a GSSI 1.5 GHz antenna and receivers to calculate a field pattern in the principal H-plane of the antenna
+* ``antenna_like_GSSI_1500_patterns.py`` is an input file that includes an antenna model similar to a GSSI 1.5 GHz antenna and receivers to calculate field patterns in the principal E- and H-planes of the antenna
 
 
 How to use the package
 ======================
 
-* Firstly you should familiarise yourself with the example model input file. Edit the input file as desired and run one of the simulations for either E-plane or H-plane patterns.
+* Firstly you should familiarise yourself with the example model input file. Edit the input file as desired and run a simulation for either E-plane or H-plane patterns.
 * Whilst the simulation is running edit the 'user configurable parameters' sections of the ``initial_save.py`` and ``plot_fields.py`` modules to match the setup of the simulation.
-* Once the simulation has completed, run the ``initial_save.py`` module on the output file, e.g. for the E-plane ``python -m toolboxes.AntennaPatterns.initial_save examples/antenna_like_GSSI_1500_patterns_E_Er5.h5``. This will produce a Numpy file containing the field pattern data.
-* Plot the field pattern data by running the ``plot_fields.py`` module on the Numpy file, e.g. for the E-plane ``python -m toolboxes.AntennaPatterns.plot_fields examples/antenna_like_GSSI_1500_patterns_E_Er5.npy``
+* Once the simulation has completed, run the ``initial_save.py`` module on the output file, e.g. ``python -m toolboxes.AntennaPatterns.initial_save examples/antenna_like_GSSI_1500_patterns.h5``. This will produce a Numpy file containing the field pattern data.
+* Plot the field pattern data by running the ``plot_fields.py`` module on the Numpy file, e.g. for the E-plane ``python -m toolboxes.AntennaPatterns.plot_fields examples/antenna_like_GSSI_1500_patterns.npy``
 
 .. tip::
 

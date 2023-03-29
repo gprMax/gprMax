@@ -38,6 +38,10 @@ which defines one of the surfaces of the ``#fractal_box``, a fractal dimension, 
 More information, including adding surface water and vegetation, can be found in the :ref:`section on using the fractal box command <fractals>`.
 
 
+Using subgrid(s)
+================
+
+
 
 
 

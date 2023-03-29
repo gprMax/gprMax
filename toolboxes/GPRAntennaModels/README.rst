@@ -36,7 +36,7 @@ Descriptions of how the models were created can be found in the aforementioned a
 How to use the package
 ======================
 
-The antenna models can be accessed from within a block of Python code in an input file. The models are inserted at location x,y,z. The coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction. The models must be used with cubic spatial resolutions of either 0.5mm (GSSI 400MHz antenna only), 1mm (default), or 2mm by setting the keyword argument, e.g. ``resolution=0.002``. The antenna models can be rotated 90 degrees counter-clockwise (CCW) in the x-y plane by setting the keyword argument ``rotate90=True``.
+The antenna models can be accessed from within a block of Python code in an input file. The models are inserted at location x,y,z. The coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction. The models must be used with cubic spatial resolutions of either 0.5mm (GSSI 400MHz antenna only), 1mm (default), or 2mm by setting the keyword argument, e.g. ``resolution=0.002``.
 
 .. note::
 
@@ -49,10 +49,20 @@ To include an antenna model similar to a GSSI 1.5 GHz antenna at a location 0.12
 
 .. code-block:: none
 
-    #python:
+    import gprMax
     from toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_1500
-    antenna_like_GSSI_1500(0.125, 0.094, 0.100, resolution=0.002)
-    #end_python:
+
+    scene = gprMax.Scene()
+    
+    # Import antenna model and add to model
+    dl = 0.002
+    ant_pos = (0.125, 0.094, 0.100)
+    gssi_objects = antenna_like_GSSI_1500(ant_pos[0], ant_pos[1], ant_pos[2], 
+                                          resolution=dl)
+    for obj in gssi_objects:
+        # Rotate antenna model if desired
+        # obj.rotate('z', 90, origin=(ant_pos[0], ant_pos[1], ant_pos[2]))
+        scene.add(obj)
 
 .. figure:: ../../images_shared/antenna_like_GSSI_1500.png
     :width: 600 px

@@ -19,7 +19,7 @@ This module uses matplotlib to plot the time history for the electric and magnet
 
 .. code-block:: none
 
-    python -m toolboxes.plotting.plot_Ascan outputfile
+    python -m toolboxes.Plotting.plot_Ascan outputfile
 
 where ``outputfile`` is the name of output file including the path.
 
@@ -32,13 +32,13 @@ For example to plot the ``Ez`` output component with it's FFT:
 
 .. code-block:: none
 
-    python -m toolboxes.plotting.plot_Ascan my_outputfile.h5 --outputs Ez -fft
+    python -m toolboxes.Plotting.plot_Ascan my_outputfile.h5 --outputs Ez -fft
 
 
 plot_Bscan.py
 -------------
 
-gprMax produces a separate output file for each trace (A-scan) in the B-scan. These must be combined into a single file using the ``outputfiles_merge.py`` module (described in the :ref:`other utilities section <utils>`). This module uses matplotlib to plot an image of the B-scan. Usage (from the top-level gprMax directory) is:
+gprMax produces a separate output file for each trace (A-scan) in the B-scan. These must be combined into a single file using the ``outputfiles_merge.py`` module (found in the ``toolboxes\Utilities``). This module uses matplotlib to plot an image of the B-scan. Usage (from the top-level gprMax directory) is:
 
 .. code-block:: none
 

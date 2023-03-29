@@ -45,7 +45,7 @@ To create a voxelised mesh (HDF5 geometry file) from the ubiquitous `Stanford bu
 
     python -m toolboxes.STLtoVoxel.stltovoxel toolboxes/STLtoVoxel/examples/stl/Stanford_Bunny.stl -matindex 2 -dxdydz 0.001 0.001 0.001
 
-Since the number of voxels are 108 x 88 108 and the spatial discretisation chosen is 1mm, the physical dimensions of the Stanford bunny when imported into gprMax will be 0.108 x 0.088 x 0.108mm.
+Since the number of voxels are 108 x 88 x 108 and the spatial discretisation chosen is 1mm, the physical dimensions of the Stanford bunny when imported into gprMax will be 0.108 x 0.088 x 0.108mm.
 
 The following is an example of a ``materials.txt`` file that can be used with the generated geometry file (HDF5 format) when importing into gprMax. Since ``-matindex`` is set to 2 the material with name ``hdpe``, i.e. a plastic, will be used.
 
@@ -53,7 +53,7 @@ The following is an example of a ``materials.txt`` file that can be used with th
     :language: none
     :linenos:
 
-The following Python script (using the gprMax API) can be used to import the generated geometry file ``Stanford_Bunny.h5`` and materials file ``materials.txt`` into a gprMax model:
+The following Python script (using our Python API) can be used to import the generated geometry file ``Stanford_Bunny.h5`` and materials file ``materials.txt`` into a gprMax model:
 
 .. literalinclude:: ../../toolboxes/STLtoVoxel/examples/bunny.py
     :language: python
