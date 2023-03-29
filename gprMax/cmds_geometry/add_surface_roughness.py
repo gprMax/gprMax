@@ -80,6 +80,9 @@ class AddSurfaceRoughness(UserObjectGeometry):
         try:
             seed = self.kwargs['seed']
         except KeyError:
+            logger.warning(self.__str__() + ' no value for seed detected. This ' +
+                           'means you will get a different fractal distribution ' +
+                           'every time the model runs.')
             seed = None
 
         if self.do_rotate:
