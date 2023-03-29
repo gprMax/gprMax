@@ -1,8 +1,8 @@
 .. _output:
 
-*************
-Model outputs
-*************
+*****************
+Simulation Output
+*****************
 
 Field(s) output
 ===============
