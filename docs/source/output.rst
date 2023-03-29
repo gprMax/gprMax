@@ -140,21 +140,18 @@ Geometry output
 
 Geometry files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, Mac OS X, and Windows.
 
-TODO: UPDATE file formats
-*************************
-
-The ``#geometry_view:`` command produces either ImageData (.vti) for a per-cell geometry view, or PolygonalData (.vtp) for a per-cell-edge geometry view. The per-cell geometry views also show the location of the PML regions and any sources and receivers in the model. The following are steps to get started with viewing geometry files in Paraview:
+The ``#geometry_view:`` command produces either ImageData (.vti) for a per-cell geometry view, or UnstructuredGrid (.vtu) for a per-cell-edge geometry view. The following are steps to get started with viewing geometry files in Paraview:
 
 .. _pv_toolbar:
 
 .. figure:: ../../images_shared/paraview_toolbar.png
 
-    Paraview toolbar showing ``gprMax_info`` macro button.
+    Paraview toolbar showing ``gprMax`` macro button.
 
 #. **Open the file** either from the File menu or toolbar.
 #. Click the **Apply** button in the Properties panel. You should see an outline of the volume of the geometry view.
-#. Install the ``gprMax_info.py`` Python script, that comes with the gprMax source code (in the ``tools/Paraview macros`` directory), as a macro in Paraview. This script makes it quick and easy to view the different materials in a geometry file. To add the script as a macro in Paraview choose the file from the Macros->Add new macro menu. It will then appear as a shortcut button in the toolbar as shown in :numref:`pv_toolbar`. You only need to do this once, the macro will be kept in Paraview for future use.
-#. Click the ``gprMax_info`` shortcut button. All the materials in the model should appear in the Pipeline Browser as Threshold items as shown in :numref:`pv_pipeline`.
+#. Install the ``gprMax.py`` Python script, that comes with the gprMax source code (in the ``toolboxes/Utilities/Paraview`` directory), as a macro in Paraview. This script makes it quick and easy to view the different materials in a geometry file. To add the script as a macro in Paraview choose the file from the Macros->Add new macro menu. It will then appear as a shortcut button in the toolbar as shown in :numref:`pv_toolbar`. You only need to do this once, the macro will be kept in Paraview for future use.
+#. Click the ``gprMax`` shortcut button. All the materials in the model should appear in the Pipeline Browser as Threshold items as shown in :numref:`pv_pipeline`.
 
 .. _pv_pipeline:
 
