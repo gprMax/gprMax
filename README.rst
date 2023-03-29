@@ -36,6 +36,7 @@ Package overview
 .. code-block:: bash
 
     gprMax/
+        CITATION.cff
         conda_env.yml
         CREDITS
         docs/
@@ -49,6 +50,7 @@ Package overview
         testing/
         toolboxes/
 
+- ``CITATION.cff`` is a plain text file with human- and machine-readable citation information for gprMax.
 - ``conda_env.yml`` is a configuration file for Anaconda (Miniconda) that sets up a Python environment with all the required Python packages for gprMax.
 - ``CREDITS`` contains a list of names of people who have contributed to the gprMax codebase.
 - ``docs`` contains source files for the User Guide. The User Guide is written using `reStructuredText <http://docutils.sourceforge.net/rst.html>`_ markup, and is built using `Sphinx <http://sphinx-doc.org>`_ and `Read the Docs <https://readthedocs.org>`_.
