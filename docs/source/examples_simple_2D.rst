@@ -123,7 +123,7 @@ You should have produced an output file ``cylinder_Ascan_2D.h5``. You can view t
 
     Electric and magnetic field component time histories from the receiver in the model of a metal cylinder buried in a dielectric half-space.
 
-Check out a `video of the field propagation in this example <https://youtu.be/BpBo0-SFda4>`_. More videos are screencasts can be found in the :ref:`screencasts section <screencasts>`.
+Check out a `video of the field propagation in this example <https://youtu.be/BpBo0-SFda4>`_. More videos can be found `on our YouTube channel <https://www.youtube.com/@Gprmax>`_.
 
 
 B-scan from a metal cylinder
@@ -137,7 +137,7 @@ This example uses the same geometry as the previous example but this time a B-sc
     :language: none
     :linenos:
 
-The differences between this input file and the one from the A-scan are the x coordinates of the source and receiver (lines 11 and 12), and the commands needed to move the source and receiver (lines 13 and 14). As before, the source and receiver are offset by 40mm from each other as before but they are now shifted to a starting position for the scan. The ``#src_steps`` command is used to move every source in the model by specified steps each time the model is run. Similarly, the ``#rx_steps`` command is used to move every receiver in the model by specified steps each time the model is run. Note, the same functionality can be achieved by using a block of Python code in the input file to move the source and receiver individually (for further details see the :ref:`Python section <python>`).
+The differences between this input file and the one from the A-scan are the x coordinates of the source and receiver (lines 11 and 12), and the commands needed to move the source and receiver (lines 13 and 14). As before, the source and receiver are offset by 40mm from each other as before but they are now shifted to a starting position for the scan. The ``#src_steps`` command is used to move every source in the model by specified steps each time the model is run. Similarly, the ``#rx_steps`` command is used to move every receiver in the model by specified steps each time the model is run. Note, the same functionality can be achieved by using our Python API to move the source and receiver individually (see the :ref:`<input_api>` section).
 
 To run the model to create a B-scan you must pass an optional argument to specify the number of times the model should be run. In this case this is the number of A-scans (traces) that will comprise the B-scan. For a B-scan over a distance of 120mm with a step of 2mm that is 60 A-scans.
 
