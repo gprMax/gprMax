@@ -36,7 +36,7 @@ class AddGrass(UserObjectGeometry):
             FractalBox class.
         p2: list of the upper right (x,y,z) coordinates of a surface on a 
             FractalBox class.
-        frac_dim:float for the fractal dimension which, for an orthogonal 
+        frac_dim: float for the fractal dimension which, for an orthogonal 
                     parallelepiped, should take values between zero and three.
         limits: list to define lower and upper limits for a range over which 
                     the height of the blades of grass can vary.
