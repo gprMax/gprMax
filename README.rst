@@ -43,22 +43,24 @@ Package overview
         gprMax/
         gprMax.toml
         LICENSE
+        MANIFEST.in
         README.rst
         setup.py
         testing/
         toolboxes/
 
-* ``conda_env.yml`` is a configuration file for Anaconda (Miniconda) that sets up a Python environment with all the required Python packages for gprMax.
-* ``CREDITS`` contains a list of names of people who have contributed to the gprMax codebase.
-* ``docs`` contains source files for the User Guide. The User Guide is written using `reStructuredText <http://docutils.sourceforge.net/rst.html>`_ markup, and is built using `Sphinx <http://sphinx-doc.org>`_ and `Read the Docs <https://readthedocs.org>`_.
-* ``examples`` is a sub-package where example input files and models are stored.
-* ``gprMax`` is the main package. Within this package the main module is ``gprMax.py``
-* ``gprMax.toml`` contains the build system requirements
-* ``LICENSE`` contains information on the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
-* ``README.rst`` contains getting started information on installation, usage, and new features/changes.
-* ``setup.py`` is used to compile the Cython extension modules.
-* ``testing`` is a sub-package which contains test modules and input files.
-* ``toolboxes`` is a sub-package where useful modules contributed by users are stored.
+- ``conda_env.yml`` is a configuration file for Anaconda (Miniconda) that sets up a Python environment with all the required Python packages for gprMax.
+- ``CREDITS`` contains a list of names of people who have contributed to the gprMax codebase.
+- ``docs`` contains source files for the User Guide. The User Guide is written using `reStructuredText <http://docutils.sourceforge.net/rst.html>`_ markup, and is built using `Sphinx <http://sphinx-doc.org>`_ and `Read the Docs <https://readthedocs.org>`_.
+- ``examples`` is a sub-package where example input files and models are stored.
+- ``gprMax`` is the main package. Within this package the main module is ``gprMax.py``
+- ``gprMax.toml`` contains build system requirements.
+- ``LICENSE`` contains information on the `GNU General Public License v3 or higher <http://www.gnu.org/copyleft/gpl.html>`_.
+- ``MANIFEST.in`` consists of commands, one per line, instructing setuptools to add or remove files from the source distribution.
+- ``README.rst`` contains getting started information on installation, usage, and new features/changes.
+- ``setup.py`` is the centre of all activity in building, distributing, and installing gprMax, including building and compiling the Cython extension modules.
+- ``testing`` is a sub-package which contains test modules and input files.
+- ``toolboxes`` is a sub-package where useful modules contributed by users are stored.
 
 Installation
 ============
