@@ -20,17 +20,16 @@ scene.add(title)
 scene.add(dxdydz)
 scene.add(pml)
 
-timewindows = np.array([4.5e-9]) # For 0.3m max
+timewindow = 4.5e-9 # For 0.3m max
 radii = np.linspace(0.1, 0.3, 20)
 theta = np.linspace(3, 357, 60)
-selector = 0
 
 fs = np.array([0.040, 0.040, 0.040])
 domain_size = np.array([2 * fs[0] + 0.170, 
                         2 * fs[1] + 2 * radii[-1], 
                         2 * fs[2] + 2 * radii[-1]])
 domain = gprMax.Domain(p1=(domain_size[0], domain_size[1], domain_size[2]))
-time_window = gprMax.TimeWindow(time=timewindows[selector])
+time_window = gprMax.TimeWindow(time=timewindow)
 scene.add(domain)
 scene.add(time_window)
 
