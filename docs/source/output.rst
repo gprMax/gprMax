@@ -105,25 +105,24 @@ Snapshots
 
 Snapshot files contain a snapshot of the electromagnetic field values of a specified volume of the model domain at a specified point in time during the simulation. By default snapshot files use the open source `Visualization ToolKit (VTK) <http://www.vtk.org>`_ format which can be viewed in many free readers, such as `Paraview <http://www.paraview.org>`_. Paraview is an open-source, multi-platform data analysis and visualization application. It is available for Linux, macOS, and Windows. You can optionally output snapshot files using the HDF5 format if desired.
 
-TODO: UPDATE Example
-********************
-
 .. tip::
-    You can take advantage of Python scripting to easily create a series of snapshots. For example, to create 30 snapshots starting at time 0.1ns until 3ns in intervals of 0.1ns, use the following code snippet in your input file. Replace ``xs, ys, zs, xf, yf, zf, dx, dy, dz`` accordingly.
+    You can take advantage of our Python API to easily create a series of snapshots. For example, to create 30 snapshots starting at time 0.1ns until 3ns in intervals of 0.1ns, use the following code snippet in your input file. Replace ``x, y, z, dl, fn`` accordingly.
 
     .. code-block:: none
 
-        #python:
-        from gprMax.input_cmd_funcs import *
+        import gprMax
+
         for i in range(1, 31):
-            snapshot(xs, ys, zs, xf, yf, zf, dx, dy, dz, (i/10)*1e-9, 'snapshot' + str(i))
-        #end_python:
+            s = gprMax.Snapshot(p1=(0, 0, 0), p2=(x, y, z), dl=(dl, dl, dl), 
+                                time=(i/10) * 1e-9, 
+                                filename=fn.with_suffix('').parts[-1] + '_' + str(i))
+            scene.add(s)
 
 The following are steps to get started with viewing snapshot files in Paraview:
 
 #. **Open the file** either from the File menu or toolbar. Paraview should recognise the time series based on the file name and load in all the files.
 #. Click the **Apply** button in the Properties panel. You should see an outline of the snapshot volume.
-#. Use the **Coloring** drop down menu to select either **E-field** or **H-field**, and the further drop down menu to select either **Magnitude**, **x**, **y** or **z** component.
+#. Use the **Coloring** drop down menu to select the field component you want to visual, e.g. **Ex**, **Ey**, **Ez**, **Hx**, **Hy**, **Hz**.
 #. From the **Representation** drop down menu select **Surface**.
 #. You can step through or play as an animation the time steps using the **time controls** in the toolbar.
 
@@ -131,8 +130,6 @@ The following are steps to get started with viewing snapshot files in Paraview:
     * Turn on the Animation View (View->Animation View menu) to control the speed and start/stop points of the animation.
 
     * Use the Color Map Editor to adjust the Color Scaling.
-
-    * Adjust the default lighting: In the Properties panel click on the gear icon to turn on the advanced properties. Go to the Lights section and click edit. Uncheck the Light Kit check box and click Close.
 
 
 Geometry output
