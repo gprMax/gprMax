@@ -155,16 +155,16 @@ Allows you to control the directory where output file(s) will be stored.  The sy
 where ``str1`` can be either the absolute path to the directory for the output file(s) or a path relative to the directory of the input files. The default value is the same as the directory of the input files.
 
 
-#cpu_threads:
+#omp_threads:
 -------------
 
 Allows you to control how many OpenMP threads (usually the number of physical CPU cores available) are used when running the model. The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelised using `OpenMP <http://openmp.org>`_ which supports multi-platform shared memory multiprocessing. The syntax of the command is:
 
 .. code-block:: none
 
-    #cpu_threads: i1
+    #omp_threads: i1
 
-where ``i1`` is the number of OpenMP threads to use. If ``#cpu_threads`` is not specified gprMax will firstly look to see if the environment variable ``OMP_NUM_THREADS`` exists, and if not will detect and use all available physical CPU cores on the machine.
+where ``i1`` is the number of OpenMP threads to use. If ``#omp_threads`` is not specified gprMax will firstly look to see if the environment variable ``OMP_NUM_THREADS`` exists, and if not will detect and use all available physical CPU cores on the machine.
 
 
 .. _materials:

@@ -262,11 +262,14 @@ class OMPThreads(UserObjectSingle):
 
 
 class PMLProps(UserObjectSingle):
-    """Specifies the formulation used, and controls the number of cells 
-        (thickness) of PML that are used on the six sides of the model domain.
+    """Specifies the formulation used and thickness (number of cells) of PML 
+        that are used on the six sides of the model domain. Current options are 
+        to use the Higher Order RIPML (HORIPML) - https://doi.org/10.1109/TAP.2011.2180344, 
+        or Multipole RIPML (MRIPML) - https://doi.org/10.1109/TAP.2018.2823864.
 
     Attributes:
-        formulation: string specifying formulation to be used for all PMLs.
+        formulation: string specifying formulation to be used for all PMLs 
+                        either 'HORIPML' or 'MRIPML'.
         thickness or x0, y0, z0, xmax, ymax, zmax: ints for thickness of PML 
                                                     on all 6 sides or individual 
                                                     sides of the model domain.

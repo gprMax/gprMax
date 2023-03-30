@@ -51,7 +51,7 @@ class UserObjectMulti:
     def __init__(self, **kwargs):
         self.kwargs = kwargs
         self.order = None
-        self.hash = '#example'
+        self.hash = None
         self.autotranslate = True
         self.do_rotate = False
 
@@ -1580,7 +1580,8 @@ class GeometryObjectsWrite(UserObjectMulti):
 
 
 class PMLCFS(UserObjectMulti):
-    """Controls parameters that are used to build each order of PML. 
+    """Controls parameters that are used to build each order of PML. Default
+        values are set in pml.py
 
     Attributes:
         alphascalingprofile: string required for type of scaling to use for 
@@ -1606,7 +1607,6 @@ class PMLCFS(UserObjectMulti):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.order = 16
-        self.hash = '#pml_cfs'
 
     def create(self, grid, uip):
         try:

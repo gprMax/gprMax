@@ -51,7 +51,7 @@ def process_singlecmds(singlecmds):
         scene_objects.append(output_dir)
 
     # Number of threads for CPU-based (OpenMP) parallelised parts of code
-    cmd = '#cpu_threads'
+    cmd = '#omp_threads'
     if singlecmds[cmd] is not None:
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
         if len(tmp) != 1:
