@@ -1,18 +1,26 @@
 .. _api:
 
 **************************************
-Model Building - advanced (Python API)
+Model Building (Advanced - Python API)
 **************************************
 
 Introduction
 ============
-In additional to input file command interface gprMax can also be run using its API. The usage of the API differs from the use of the Python blocks syntax as follows. In the API gprMax functionality is called directly from any Python file via the gprMax module. Using the Python blocks syntax the Python code is executed within an embedded interpreter. The API has the advantage that it can be included within any Python file and can be included within any Python script.
 
-There are several advantages to using API. Firstly, users can take advantage of the Python language. For instance, the structural elements of Python can be utilised more easily. gprMax objects can be used directly within functions, classes, modules and packages. In this way collections of components can be defined, reused and modified. For example, multiple SMA type connectors can be imported as a module and combined with an antenna from another module.
+gprMax has a choice of two methods for building a model to simulate:
 
-The API also allows gprMax to interface with other Python libraries. For example, the API could be used to create a parametric antenna and the external library Scipy could then be used to optimise its parameters. Although, this is possible using Python blocks syntax, the script file can also be debugged.
+1. A **text-based (ASCII) input file**, which can be created with any text editor, and uses a series of gprMax commands which begin with the hash character (``#``). 
+2. A **Python API**, which includes all the functionality of method 1 as well as several more advanced features.
 
-The syntax of the API is generally more verbose than the input file command syntax. However, for input file commands where there are an undefined number of parameters, such as adding dispersive properties, the user may find the API more manageable.
+Beginners and those not familiar with Python are encouraged to use method 1 (text-based input file) which is described in the :ref:`<input_hash_cmds>` section.
+
+The Python API in gprMax allows users to access to gprMax functions directly from Python through importing the gprMax module. There are several advantages to using the API: 
+
+1. Users can take advantage of the Python language - for instance, the structural elements of Python can be utilised more easily.
+2. gprMax objects can be used directly within functions, classes, modules and packages. In this way collections of components can be defined, reused and modified. For example, complex targets can be imported from a separate module and combined with an antenna from another module.
+3. The API can interface with other Python libraries. For example, the API could be used to create a parametric antenna and the external library Scipy could then be used to optimise its parameters.
+
+The syntax of the API is generally more verbose than the input file (hash) command syntax. However, for input file commands where there are an undefined number of parameters, such as adding dispersive properties, the user may find the API more manageable.
 
 Example
 =======

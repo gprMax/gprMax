@@ -1,10 +1,20 @@
 .. _commands:
 
-***************************************
-Model Building - simple (hash commands)
-***************************************
+**************
+Model Building
+**************
 
-An input file has to be supplied to gprMax which should contain all the necessary information to run a GPR model. The input file is an ASCII text file which can be prepared with any text editor or word-processing program. In the input file the hash character (``#``) is reserved and is used to denote the beginning of a command which will be passed to gprMax. The general syntax of commands is:
+Introduction
+============
+
+gprMax has a choice of two methods for building a model to simulate:
+
+1. A **text-based (ASCII) input file**, which can be created with any text editor, and uses a series of gprMax commands which begin with the hash character (``#``). 
+2. A **Python API**, which includes all the functionality of method 1 as well as several more advanced features.
+
+Beginners and those not familiar with Python are encouraged to use method 1 (text-based input file) which is described in this section of the documentation. For those who prefer to use Python or want to access some of the advanced features you will find those documented in the :ref:`<input_api>` section.
+
+The general syntax of the hash commands is:
 
 .. code-block:: none
 
@@ -100,13 +110,6 @@ where :math:`t_w` is the time window in seconds, :math:`\Delta t` the time step,
 
 General commands
 ================
-
-.. _python:
-
-#python: and #end_python:
--------------------------
-
-Allows you to write blocks of Python code between ``#python`` and ``#end_python`` in the input file. The code is executed when the input file is read by gprMax. For further details see the :ref:`Python section <python-scripting>`.
 
 #include_file:
 --------------
