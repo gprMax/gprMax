@@ -259,22 +259,21 @@ Allows you control of the specific parameters that are used to build each order 
 
 .. autoclass:: gprMax.cmds_multiuse.PMLCFS
 
-* The CFS values (which are internally specified) used for the default standard first order PML are: 
-    
-        * ``alphascalingprofile = 'constant'``
-        * ``alphascalingdirection = 'forward'``
-        * ``alphamin = 0``
-        * ``alphamax = 0``
-        * ``kappascalingprofile = 'constant'``
-        * ``kappascalingdirection = 'forward'``
-        * ``kappamin = 1``
-        * ``kappamax = 1``
-        * ``sigmascalingprofile = 'quartic'``
-        * ``sigmascalingdirection = 'forward``
-        * ``sigmamin = 0``
-        * ``sigmamax = None``
+The CFS values (which are internally specified) used for the default standard first order PML are:     
+* ``alphascalingprofile = 'constant'``
+* ``alphascalingdirection = 'forward'``
+* ``alphamin = 0``
+* ``alphamax = 0``
+* ``kappascalingprofile = 'constant'``
+* ``kappascalingdirection = 'forward'``
+* ``kappamin = 1``
+* ``kappamax = 1``
+* ``sigmascalingprofile = 'quartic'``
+* ``sigmascalingdirection = 'forward``
+* ``sigmamin = 0``
+* ``sigmamax = None``
 
-.. notes::
+.. note::
     
     * The parameters will be applied to all slabs of the PML that are switched on.
     * Using ``None`` for the maximum value of :math:`\sigma` forces gprMax to calculate it internally based on the relative permittivity and permeability of the underlying materials in the model. 
