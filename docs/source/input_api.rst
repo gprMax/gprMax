@@ -23,85 +23,39 @@ The syntax of the API is generally more verbose than the input file (hash) comma
 Example
 =======
 
-The following example is used to give an introduction to the gprMax API. the example file is found in
-``examples/antenna_wire_dipole_fs.py``.
+:download:`antenna_wire_dipole_fs.py <../../examples/antenna_wire_dipole_fs.py>`
 
-First, import the gprMax module.
+This example is used to give an introduction to the gprMax Python API. 
 
-.. code-block:: python
+.. literalinclude:: ../../examples/antenna_wire_dipole_fs.py
+    :language: none
+    :linenos:
 
-  import gprMax
+1. Import the gprMax module.
+2. Objects for the model are created from the gprMax module by passing object parameters as key=value arguments. The example shows the creation of objects and also their equivalent input file (hash) command for clarity.
+3. Create a :class:`gprMax.scene.Scene` object. The scene is a container for all the objects required in a simulation. Simulations with multiple models, e.g. A-scans, should have a separate scene for each model (A-scan). Each scene must contain the essential commands and objects required for that particular model.
+4. Add objects are to the scene.
+5. Run the simulation.
 
-Next, simulation objects for the simulation are created from the gprMax module. Each input file command is available as an object. Simulation objects are created by passing the object parameters as key=value option arguments. The following example shows the creation of simulation objects and also their equivalent input file command for clarity.
+Unless otherwise specified, the SI system of units is used throughout gprMax:
 
-.. code-block:: python
+* All parameters associated with simulated space (i.e. size of model, spatial increments, etc...) should be specified in **metres**.
+* All parameters associated with time (i.e. total simulation time, time instants, etc...) should be specified in **seconds**.
+* All parameters denoting frequency should be specified in **Hertz**.
+* All parameters associated with spatial coordinates in the model should  be specified in **metres**. The origin of the coordinate system **(0,0)** is at the lower left corner of the model.
 
-  #title: Wire antenna - half-wavelength dipole in free-space
-  title = gprMax.Title(name="Wire antenna - half-wavelength dipole in free-space")
-  #domain: 0.050 0.050 0.200
-  domain = gprMax.Domain(p1=(0.050, 0.050, 0.200))
-  #dx_dy_dz: 0.001 0.001 0.001
-  dxdydz = gprMax.Discretisation(p1=(0.001, 0.001, 0.001))
-  #time_window: 60e-9
-  time_window = gprMax.TimeWindow(time=10e-9)
-  #waveform: gaussian 1 1e9 mypulse
-  waveform = gprMax.Waveform(wave_type='gaussian', amp=1, freq=1e9, id='mypulse')
-  #transmission_line: z 0.025 0.025 0.100 73 mypulse
-  transmission_line = gprMax.TransmissionLine(polarisation='z',
-                                              p1=(0.025, 0.025, 0.100),
-                                              resistance=73,
-                                              waveform_id='mypulse')
-  ## 150mm length
-  #edge: 0.025 0.025 0.025 0.025 0.025 0.175 pec
-  e1 = gprMax.Edge(p1=(0.025, 0.025, 0.025),
-                   p2=(0.025, 0.025, 0.175),
-                   material_id='pec')
+It is important to note that gprMax converts spatial and temporal parameters given in **metres** and **seconds** to integer values corresponding to **FDTD cell coordinates** and **iteration number** respectively. Therefore, rounding to the nearest integer number of the user defined values is performed.
 
-  ## 1mm gap at centre of dipole
-  #edge: 0.025 0.025 0.100 0.025 0.025 0.101 free_space
-  e2 = gprMax.Edge(p1=(0.025, 0.025, 0.100),
-                   p2=(0.025, 0.025, 0.100),
-                   material_id='free_space')
+The fundamental spatial and temporal discretization steps are denoted as :math:`\Delta x` , :math:`\Delta y`, :math:`\Delta z` and :math:`\Delta t` respectively.
 
-  #geometry_view: 0.020 0.020 0.020 0.030 0.030 0.180 0.001 0.001 0.001 antenna_wire_dipole_fs f
-  gv = gprMax.GeometryView(p1=(0.020, 0.020, 0.020),
-                           p2=(0.030, 0.030, 0.180),
-                           dl=(0.001, 0.001, 0.001),
-                           filename='antenna_wire_dipole_fs',
-                           output_type='n')
+The commands have been grouped into six categories:
 
-
-Next a :class:`gprMax.scene.Scene` object is created. The scene is a container for all the objects required in a simulation. The objects are added to the scene as follows:
-
-.. code-block:: python
-
-  # Create a scene
-  scene = gprMax.Scene()
-  # Add the simulation objects to the scene
-  scene.add(title)
-  scene.add(domain)
-  scene.add(dxdydz)
-  scene.add(time_window)
-  scene.add(waveform)
-  scene.add(transmission_line)
-  scene.add(e1)
-  scene.add(e2)
-  scene.add(gv)
-
-
-Once the simulation objects have been added to the scene the simulation is run as follows:
-
-.. code-block:: python
-
-  # run the simulation
-  gprMax.run(scenes=[scene], n=1, outputfile='mysimulation')
-
-The run function arguments are similar to the flags in the CLI. The most notable difference is that a file path for the data output must be provided.
-
-Multiple simulation can be specified by providing multiple scene objects to the run function. Each scene must contain the essential commands and each user object required for that particular model.
-
-Reference
-=========
+* **Essential** - required to run any model, such as the domain size and spatial discretization
+* **General** - provide further control over the model
+* **Material** - used to introduce different materials into the model
+* **Object construction** - used to build geometric shapes with different constitutive parameters
+* **Source and output** - used to place source and output points in the model
+* **PML** - provide advanced customisation and optimisation of the absorbing boundary conditions
 
 The commands have been grouped into six categories:
 
@@ -113,7 +67,7 @@ The commands have been grouped into six categories:
 * **PML** - provide advanced customisation and optimisation of the absorbing boundary conditions
 
 Essential
-==================
+=========
 Most of the commands are optional but there are some essential commands which are necessary in order to construct any model. For example, none of the media and object commands are necessary to run a model. However, without specifying any objects in the model gprMax will simulate free space (air), which on its own, is not particularly useful for GPR modelling. If you have not specified a command which is essential in order to run a model, for example the size of the model, gprMax will terminate execution and issue an appropriate error message.
 
 The essential commands are:
@@ -290,6 +244,50 @@ The default behaviour for the absorbing boundary conditions (ABC) is first order
 PML Props
 ---------
 .. autoclass:: gprMax.cmds_singleuse.PMLProps
+
+
+#pml_formulation:
+-----------------
+
+Allows you to alter the formulation used for the PML. The current options are to use the Higher Order RIPML (HORIPML) - https://doi.org/10.1109/TAP.2011.2180344, or Multipole RIPML (MRIPML) - https://doi.org/10.1109/TAP.2018.2823864. The syntax of the command is:
+
+.. code-block:: none
+
+    #pml_formulation: str
+
+* ``str`` can be either 'HORIPML' or 'MRIPML'
+
+For example to use the Multipole RIPML:
+
+.. code-block:: none
+
+    #pml_formulation: MRIPML
+
+#pml_cfs:
+---------
+
+Allows you (advanced) control of the parameters that are used to build each order of the PML. Up to a second order PML can currently be specified, i.e. by using two ``#pml_cfs`` commands. The syntax of the command is:
+
+.. code-block:: none
+
+    #pml_cfs: str1 str2 f1 f2 str3 str4 f3 f4 str5 str6 f5 f6
+
+* ``str1`` is the type of scaling to use for the CFS :math:`\alpha` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, ``quartic``, ``quintic`` and ``sextic``.
+* ``str2`` is the direction of the scaling to use for the CFS :math:`\alpha` parameter. It can be ``forward`` or ``reverse``.
+* ``f1 f2`` are the minimum and maximum values for the CFS :math:`\alpha` parameter.
+* ``str3`` is the type of scaling to use for the CFS :math:`\kappa` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, ``quartic``, ``quintic`` and ``sextic``.
+* ``str4`` is the direction of the scaling to use for the CFS :math:`\kappa` parameter. It can be ``forward`` or ``reverse``.
+* ``f3 f4`` are the minimum and maximum values for the CFS :math:`\kappa` parameter. The minimum value for the CFS :math:`\kappa` parameter is one.
+* ``str5`` is the type of scaling to use for the CFS :math:`\sigma` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, ``quartic``, ``quintic`` and ``sextic``.
+* ``str6`` is the direction of the scaling to use for the CFS :math:`\sigma` parameter. It can be ``forward`` or ``reverse``.
+* ``f5 f6`` are the minimum and maximum values for the CFS :math:`\sigma` parameter.
+
+The CFS values (which are internally specified) used for the default standard first order PML are: ``#pml_cfs: constant forward 0 0 constant forward 1 1 quartic forward 0 None``. Specifying 'None' for the maximum value of :math:`\sigma` forces gprMax to calculate it internally based on the relative permittivity and permeability of the underlying materials in the model.
+
+The parameters will be applied to all slabs of the PML that are switched on.
+
+.. tip::
+    ``forward`` direction implies minimum parameter value at the inner boundary of the PML and maximum parameter value at the edge of computational domain, ``reverse`` is the opposite.
 
 
 Additional API objects

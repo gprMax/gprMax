@@ -1,5 +1,3 @@
-.. _output:
-
 *****************
 Simulation Output
 *****************
@@ -99,6 +97,8 @@ Within each individual ``tl`` group are the following datasets:
 * ``Vtotal`` is an array containing the time history (for the model time window) of the values of the total (field) voltage in the transmission line.
 * ``Itotal`` is an array containing the time history (for the model time window) of the values of the total (field) current in the transmission line.
 
+
+.. _outputs-snaps:
 
 Snapshots
 ---------
