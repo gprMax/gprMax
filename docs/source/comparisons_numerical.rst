@@ -17,9 +17,9 @@ This example considers the input impedance of a planar bowtie antenna in free sp
 FDTD model
 ^^^^^^^^^^
 
-:download:`antenna_bowtie_fs.in <../../testing/other_codes/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs.in>`
+:download:`antenna_bowtie_fs.in <../../testing/other_codes/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs.py>`
 
-.. literalinclude:: ../../testing/other_codes/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs.in
+.. literalinclude:: ../../testing/other_codes/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs.py
     :language: none
     :linenos:
 
