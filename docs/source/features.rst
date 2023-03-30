@@ -25,7 +25,7 @@ Fractal correlated noise [TUR1997]_ is used to describe the stochastic distribut
 Library of antenna models
 =========================
 
-gprMax now includes Python modules with pre-defined models of antennas that behave similarly to commercial antennas [WAR2011]_ [STA2017]_. Currently models of antennas similar to `Geophysical Survey Systems, Inc. (GSSI) <http://www.geophysical.com>`_ 1.5 GHz (Model 5100) antenna, and 400 MHz antenna, as well as `MALA Geoscience <http://www.malags.com/>`_ 1.2 GHz antenna are included. By taking advantage of Python scripting in input files, using such complex structures in a model is straightforward without having to be built step-by-step by the user. For further details see the :ref:`Python section <python>`.
+gprMax now includes Python modules with pre-defined models of antennas that behave similarly to commercial antennas [WAR2011]_ [STA2017]_. Currently models of antennas similar to `Geophysical Survey Systems, Inc. (GSSI) <http://www.geophysical.com>`_ 1.5 GHz (Model 5100) antenna, and 400 MHz antenna, as well as `MALA Geoscience <http://www.malags.com/>`_ 1.2 GHz antenna are included. By taking advantage of our Python API, using such complex structures in a model is straightforward without having to be built step-by-step by the user. For further details see the :ref:`Python API <input_api>` section.
 
 Anisotropic materials
 =====================
@@ -50,14 +50,15 @@ With increased research into quantitative information from GPR, it has become ne
 Python API
 ==========
 
-TODO: UPDATE
-************
+There is now a **Python API**, which includes all the functionality of the input file (hash) commands as well as several more advanced features. It allows users to access to gprMax functions directly from Python through importing the gprMax module. This method is recommended for those who prefer to use Python or need access to specific API-only advanced features, and is described in the :ref:`Python API <input_api>` section. There are several advantages to using the Python API: 
 
-The input file has now been made scriptable by permitting blocks of Python code to be specified between ``#python`` and ``#end_python`` commands. The code is executed when the input file is read by gprMax. You don't need any external tools, such as MATLAB, to generate larger, more complex input files for building intricate models. Python scripting means that gprMax now includes :ref:`libraries of more complex objects, such as antennas <antennas>`, that can be easily inserted into a model. You can also access a number of built-in constants from your Python code. For further details see the :ref:`Python section <python-scripting>`.
+1. Users can take advantage of the Python language - for instance, the structural elements of Python can be utilised more easily.
+2. gprMax objects can be used directly within functions, classes, modules and packages. In this way collections of components can be defined, reused and modified. For example, complex targets can be imported from a separate module and combined with an antenna from another module.
+3. The API can interface with other Python libraries. For example, the API could be used to create a parametric antenna and the external library Scipy could then be used to optimise its parameters.
 
 Open source, robust, file formats
 =================================
 
-Alongside improvements to the input file there is a new output file format – `HDF5 <http://www.hdfgroup.org/HDF5/>`_ – to manage the larger and more complex data sets that are being generated. HDF5 is a robust, portable and extensible format with a number of free readers available. For further details see the :ref:`output file section <output>`.
+Alongside improvements to the input file there is a new output file format – `HDF5 <http://www.hdfgroup.org/HDF5/>`_ – to manage the larger and more complex data sets that are being generated. HDF5 is a robust, portable and extensible format with a number of free readers available. For further details see the :ref:`Simulation Output <output>` section.
 
 In addition, the `Visualization Toolkit (VTK) <http://www.vtk.org>`_ is being used for improved handling and viewing of the detailed 3D FDTD geometry meshes. The VTK is an open-source system for 3D computer graphics, image processing and visualisation. It also has a number of free readers available including `Paraview <http://www.paraview.org>`_. For further details see the :ref:`geometry view command <geometryview>`.
