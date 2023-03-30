@@ -41,13 +41,13 @@ args_defaults = {'scenes': None,
                  'log_file': False}
 
 # Argument help messages (used for CLI argparse)
-help_msg = {'scenes': '(list, opt): List of the scenes to run the model. '
+help_msg = {'scenes': '(list, req): Scenes to run the model. '
                       'Multiple scene objects can given in order to run multiple '
                       'simulation runs. Each scene must contain the essential '
                       'simulation objects',
             'inputfile': '(str, opt): Input file path. Can also run simulation '
                          'by providing an input file.',
-            'outputfile': '(str, opt): File path to the output data file.',
+            'outputfile': '(str, req): File path to the output data file.',
             'n': '(int, req): Number of required simulation runs.',
             'i': '(int, opt): Model number to start/restart simulation '
                        'from. It would typically be used to restart a series of '
@@ -97,7 +97,45 @@ def run(scenes=args_defaults['scenes'],
         log_level=args_defaults['log_level'],
         log_file=args_defaults['log_file']):
     """Entry point for application programming interface (API). Runs the 
-        simulation for the given list of scenes.     
+        simulation for the given list of scenes.
+
+    Args:
+        scenes: list of the scenes to run the model. Multiple scene objects can 
+                be given in order to run multiple simulation runs. Each scene 
+                must contain the essential simulation objects.
+        inputfile: optional string for input file path. Can also run simulation 
+                    by providing an input file.
+        outputfile: string for file path to the output data file
+        n: optional int for number of required simulation runs.
+        i: optional int for model number to start/restart simulation from. 
+            It would typically be used to restart a series of models from a 
+            specific model number, with the n argument, e.g. to restart from 
+            A-scan 45 when creating a B-scan with 60 traces.
+        mpi: optional boolean flag to use Message Passing Interface (MPI) task 
+                farm. This option is most usefully combined with n to allow 
+                individual models to be farmed out using a MPI task farm, 
+                e.g. to create a B-scan with 60 traces and use MPI to farm out 
+                each trace. For further details see the performance section of 
+                the User Guide
+        gpu: optional list/boolean to use NVIDIA GPU or list of NVIDIA GPU device 
+                ID(s) for specific GPU card(s).
+        opencl: optional list/boolean to use OpenCL or list of OpenCL device ID(s) 
+                for specific compute device(s).
+        subgrid: optional boolean to use sub-gridding.
+        autotranslate: optional boolean for sub-gridding to auto translate 
+                        objects with main grid coordinates to their equivalent 
+                        local grid coordinate within the subgrid. If this option 
+                        is off users must specify sub-grid object point within 
+                        the global subgrid space.
+        geometry_only: optional boolean to build a model and produce any 
+                        geometry views but do not run the simulation.
+        geometry_fixed: optional boolean to run a series of models where the 
+                        geometry does not change between models.
+        write_processed: optional boolean to write another input file after any 
+                            #python blocks (which are deprecated) in the 
+                            original input file has been processed.
+        log_level: optional int for level of logging to use.
+        log_file: optional boolean to write logging information to file.
     """
 
     args = argparse.Namespace(**{'scenes': scenes,
