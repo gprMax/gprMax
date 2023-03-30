@@ -68,11 +68,11 @@ You can view the results (see :ref:`output` section and README.rst for the ``too
 Bowtie antenna model
 ====================
 
-:download:`antenna_like_MALA_1200_fs.in <../../examples/antenna_like_MALA_1200_fs.in>`
+:download:`antenna_like_MALA_1200_fs.in <../../examples/antenna_like_MALA_1200_fs.py>`
 
 This example demonstrates how to use one of the built-in antenna models in a simulation. Using a model of an antenna rather than a simple source, such as a Hertzian dipole, can improve the accuracy of the results of a simulation for many situations. It is especially important when the target is in the near-field of the antenna and there are complex interactions between the antenna and the environment. The simulation uses the model of an antenna similar to a MALA 1.2GHz antenna.
 
-.. literalinclude:: ../../examples/antenna_like_MALA_1200_fs.in
+.. literalinclude:: ../../examples/antenna_like_MALA_1200_fs.py
     :language: none
     :linenos:
 
@@ -81,12 +81,12 @@ This example demonstrates how to use one of the built-in antenna models in a sim
 
     FDTD geometry mesh showing an antenna model similar to a MALA 1.2GHz antenna (skid removed for illustrative purposes).
 
-The antenna model is loaded from a Python module and inserted into the input file just like another geometry command. The arguments for the ``antenna_like_MALA_1200`` function specify its (x, y, z) location as 0.132m, 0.095m, 0.100m using a 1mm spatial resolution. In this example the antenna is the only object in the model, i.e. the antenna is in free space. More information on using the built-in antenna models can be found in the ``toolboxes\GPRAntennaModels`` package.
+The antenna model is loaded from a Python module and the objects from the antenna model are added to the scene. The arguments for the ``antenna_like_MALA_1200`` function specify its (x, y, z) location as 0.132m, 0.095m, 0.100m using a 1mm spatial resolution. In this example the antenna is the only object in the model, i.e. the antenna is in free space. More information on using the built-in antenna models can be found in the ``toolboxes/GPRAntennaModels`` package.
 
 Results
 -------
 
-When the simulation is run two geometry files for the antenna are produced along with an output file which contains a single receiver (the antenna output). You can view the results (see :ref:`output` section and README.rst for the ``toolboxes\Plotting`` package) using the command:
+When the simulation is run two geometry files for the antenna are produced along with an output file which contains a single receiver (the antenna output). You can view the results (see :ref:`output` section and README.rst for the ``toolboxes/Plotting`` package) using the command:
 
 .. code-block:: none
 
@@ -105,11 +105,11 @@ When the simulation is run two geometry files for the antenna are produced along
 B-scan with a bowtie antenna model
 ==================================
 
-:download:`cylinder_Bscan_GSSI_1500.in <../../examples/cylinder_Bscan_GSSI_1500.in>`
+:download:`cylinder_Bscan_GSSI_1500.py <../../examples/cylinder_Bscan_GSSI_1500.py>`
 
 This example demonstrates how to create a B-scan with an antenna model. The scenario is purposely simple to illustrate the method. A metal cylinder of diameter 20mm is buried in a dielectric half-space which has a relative permittivity of six. The simulation uses the model of an antenna similar to a GSSI 1.5GHz antenna.
 
-.. literalinclude:: ../../examples/cylinder_Bscan_GSSI_1500.in
+.. literalinclude:: ../../examples/cylinder_Bscan_GSSI_1500.py
     :language: none
     :linenos:
 
@@ -118,13 +118,11 @@ This example demonstrates how to create a B-scan with an antenna model. The scen
 
     FDTD geometry mesh showing a metal cylinder buried in a half-space and an antenna model similar to a GSSI 1.5GHz antenna.
 
-The antenna must be moved to a new position for every single A-scan (trace) in the B-scan. In this example the B-scan distance will be 270mm with a trace every 5mm, so 54 model runs will be required.
+The antenna must be moved to a new position for every single A-scan (trace) in the B-scan. This is done using a for loop and creating a new scene (with new antenna position) for each A-scan. In this example the B-scan distance will be 270mm with a trace every 5mm, so 54 model runs will be required.
 
 .. code-block:: none
 
-    python -m gprMax cylinder_Bscan_GSSI_1500.in -n 54
-
-The total number of runs for a model as well as the number of the current run of the model are stored and can be accessed in Python as ``number_model_runs`` and ``current_model_run``. The ``current_model_run`` can be used to move the position of the antenna for every run of the model as shown in Line 13. The antenna will be moved 5mm in the x direction for every new run of the model.
+    gprMax.run(scenes=scenes, n=54, geometry_only=False, outputfile=fn, gpu=None)
 
 .. note::
 

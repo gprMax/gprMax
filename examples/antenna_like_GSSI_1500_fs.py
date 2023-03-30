@@ -31,7 +31,7 @@ ant_pos = (0.125, 0.094, 0.100)
 gssi_objects = antenna_like_GSSI_1500(ant_pos[0], ant_pos[1], ant_pos[2], 
                                       resolution=dl)
 for obj in gssi_objects:
-    obj.rotate('z', 90, origin=(ant_pos[0], ant_pos[1], ant_pos[2]))
+    #obj.rotate('z', 90, origin=(ant_pos[0], ant_pos[1], ant_pos[2]))
     scene.add(obj)
 
 gv1 = gprMax.GeometryView(p1=(0, 0, 0), p2=(x, y, z),

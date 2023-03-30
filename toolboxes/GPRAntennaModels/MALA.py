@@ -476,6 +476,6 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     gv2 = gprMax.GeometryView(p1=(x, y, z), p2=(x + casesize[0], y + casesize[1], z + 0.010),
                               dl=(dx, dy, dz), filename='antenna_like_MALA_1200_pcb',
                               output_type='f')
-    scene_objects.extend((gv1, gv2))
+    # scene_objects.extend((gv1, gv2))
 
     return scene_objects
