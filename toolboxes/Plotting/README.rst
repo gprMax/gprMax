@@ -230,3 +230,17 @@ where :math:`R_c` is set to :math:`0.25` and :math:`f` is the frequency.
 .. figure:: ../../images_shared/contsine.png
 
     Example of the ``contsine`` waveform - time domain and power spectrum.
+
+
+impulse
+^^^^^^^
+
+A unit impulse or dirac delta waveform.
+
+.. math:: 
+    
+    W(t) = 1, dt <= 0
+    W(t) = 0, dt > 0
+
+.. note::
+    The impulse waveform should be used with care! The impulse response of a model, i.e. when the source in the model is excited using the impulse waveform, is not likely to be useful when viewed in isolation. However, the impulse response of a model can be convolved with different inputs (waveforms) to provide valid outputs without having to run a separate model for each different input (waveform). N.B. The impulse response of the model can only be legitimately convolved with inputs (waveforms) that respect the limits of numerical dispersion in the original model, i.e. if a waveform contains frequencies that will not propagate correctly (due to numerical dispersion) in the original model, then the convolution of the waveform with the impulse response will not be valid.
