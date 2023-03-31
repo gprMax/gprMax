@@ -1,15 +1,15 @@
-.. _api:
+.. _input-api:
 
-**************************************
-Model Building (Advanced - Python API)
-**************************************
+************************************
+Model Building (Advanced/Python API)
+************************************
 
 Introduction
 ============
 
 gprMax has a choice of two methods for building a model to simulate:
 
-1. A **text-based (ASCII) input file**, which can be created with any text editor, and uses a series of gprMax commands which begin with the hash character (``#``). This method is recommended for beginners and those not familiar with Python, and is described in the :ref:`input_hash_cmds` section.
+1. A **text-based (ASCII) input file**, which can be created with any text editor, and uses a series of gprMax commands which begin with the hash character (``#``). This method is recommended for beginners and those not familiar with Python, and is described in the :ref:`input-hash-cmds` section.
 2. A **Python API**, which includes all the functionality of method 1 as well as several more advanced features. This method is recommended for those who prefer to use Python or need access to specific API-only advanced features, and is described in this section of the documentation.
 
 The Python API in gprMax allows users to access to gprMax functions directly from Python through importing the gprMax module. There are several advantages to using the API: 
@@ -116,7 +116,7 @@ Material
 
 Material
 --------
-.. autoclass:: gprMax.cmds_multiple.Material
+.. autoclass:: gprMax.cmds_multiuse.Material
 
 Debye Dispersion
 ----------------

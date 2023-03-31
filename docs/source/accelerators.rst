@@ -74,7 +74,8 @@ Run one of the test models:
 
 .. note::
 
-    If you want to select a specific GPU card on your system, you can specify an integer after the ``-gpu`` flag. The integer should be the NVIDIA CUDA device ID for a specific GPU card. If it is not specified it defaults to device ID 0.
+    * If you want to select a specific GPU card on your system, you can specify an integer after the ``-gpu`` flag. The integer should be the NVIDIA CUDA device ID for a specific GPU card. If it is not specified it defaults to device ID 0. 
+    * You can use the ``get_host_spec.py`` module (in ``toolboxes/Utilities``) to help you understand what hardware (CPU/GPU) you have and how gprMax can use it.
 
 
 OpenCL
@@ -85,20 +86,29 @@ Software required
 
 The following steps provide guidance on how to install the extra components to allow gprMax to use OpenCL:
 
-TODO: Add OpenCL instructions
-*****************************
+1. Install the pyopencl Python module. Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment ``conda activate gprMax``. Run ``pip install pyopencl``
 
 Example
 -------
 
+Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the top-level gprMax directory, and if it is not already active, activate the gprMax conda environment ``conda activate gprMax``
 
+Run one of the test models:
 
+.. code-block:: none
+
+    (gprMax)$ python -m gprMax examples/cylinder_Ascan_2D.in -opencl
+
+.. note::
+
+    * If you want to select a specific computer device on your system, you can specify an integer after the ``-opencl`` flag. The integer should be the device ID for a specific compute device. If it is not specified it defaults to device ID 0.
+    * You can use the ``get_host_spec.py`` module (in ``toolboxes/Utilities``) to help you understand what hardware (CPU/GPU) you have and how gprMax can use it.
 
 
 CUDA/MPI
 ========
 
-Message Passing Interface (MPI) has been utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This is described in more detail in the :ref:`HPC section <hpc>`. MPI can be combined with the GPU functionality to allow a series models to be distributed to multiple GPUs on the same machine (node). 
+Message Passing Interface (MPI) has been utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This is described in more detail in the :ref:`HPC <hpc>` section. MPI can be combined with the GPU functionality to allow a series models to be distributed to multiple GPUs on the same machine (node). 
 
 Example
 -------

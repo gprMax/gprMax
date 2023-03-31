@@ -25,7 +25,7 @@ Fractal correlated noise [TUR1997]_ is used to describe the stochastic distribut
 Library of antenna models
 =========================
 
-gprMax now includes Python modules with pre-defined models of antennas that behave similarly to commercial antennas [WAR2011]_ [STA2017]_. Currently models of antennas similar to `Geophysical Survey Systems, Inc. (GSSI) <http://www.geophysical.com>`_ 1.5 GHz (Model 5100) antenna, and 400 MHz antenna, as well as `MALA Geoscience <http://www.malags.com/>`_ 1.2 GHz antenna are included. By taking advantage of our Python API, using such complex structures in a model is straightforward without having to be built step-by-step by the user. For further details see the :ref:`Python API <input_api>` section.
+gprMax now includes Python modules with pre-defined models of antennas that behave similarly to commercial antennas [WAR2011]_ [STA2017]_. Currently models of antennas similar to `Geophysical Survey Systems, Inc. (GSSI) <http://www.geophysical.com>`_ 1.5 GHz (Model 5100) antenna, and 400 MHz antenna, as well as `MALA Geoscience <http://www.malags.com/>`_ 1.2 GHz antenna are included. By taking advantage of our Python API, using such complex structures in a model is straightforward without having to be built step-by-step by the user. For further details see the :ref:`Python API <input-api>` section.
 
 Anisotropic materials
 =====================
@@ -50,7 +50,7 @@ With increased research into quantitative information from GPR, it has become ne
 Python API
 ==========
 
-There is now a **Python API**, which includes all the functionality of the input file (hash) commands as well as several more advanced features. It allows users to access to gprMax functions directly from Python through importing the gprMax module. This method is recommended for those who prefer to use Python or need access to specific API-only advanced features, and is described in the :ref:`Python API <input_api>` section. There are several advantages to using the Python API: 
+There is now a **Python API**, which includes all the functionality of the input file (hash) commands as well as several more advanced features. It allows users to access to gprMax functions directly from Python through importing the gprMax module. This method is recommended for those who prefer to use Python or need access to specific API-only advanced features, and is described in the :ref:`Python API <input-api>` section. There are several advantages to using the Python API: 
 
 1. Users can take advantage of the Python language - for instance, the structural elements of Python can be utilised more easily.
 2. gprMax objects can be used directly within functions, classes, modules and packages. In this way collections of components can be defined, reused and modified. For example, complex targets can be imported from a separate module and combined with an antenna from another module.

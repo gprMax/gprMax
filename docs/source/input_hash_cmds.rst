@@ -1,4 +1,4 @@
-.. _commands:
+.. _input-hash-cmds:
 
 **************
 Model Building
@@ -10,7 +10,7 @@ Introduction
 gprMax has a choice of two methods for building a model to simulate:
 
 1. A **text-based (ASCII) input file**, which can be created with any text editor, and uses a series of gprMax commands which begin with the hash character (``#``). This method is recommended for beginners and those not familiar with Python, and is described in this section of the documentation.
-2. A **Python API**, which includes all the functionality of method 1 as well as several more advanced features. This method is recommended for those who prefer to use Python or need access to specific API-only advanced features, and is documented in the :ref:`Python API <input_api>` section.
+2. A **Python API**, which includes all the functionality of method 1 as well as several more advanced features. This method is recommended for those who prefer to use Python or need access to specific API-only advanced features, and is documented in the :ref:`Python API <input-api>` section.
 
 The general syntax of the hash commands is:
 
@@ -878,7 +878,7 @@ or
 For example to save a snapshot of the electromagnetic fields in the model at a simulated time of 3 nanoseconds use: ``#snapshot: 0 0 0 1 1 1 0.1 0.1 0.1 3e-9 snap1``
 
 .. tip::
-    A series of snapshots can be more easily defined using a loop and our :ref:`Python API <input_api>`, see :ref:`outputs-snaps`.
+    A series of snapshots can be more easily defined using a loop and our :ref:`Python API <input-api>`, see :ref:`outputs-snaps`.
 
 
 PML commands

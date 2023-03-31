@@ -32,4 +32,4 @@ Spatial resolution should be chosen to mitigate numerical dispersion and to adeq
 gprMax builds objects in a model in the order the objects were specified in the input file, using a layered canvas approach. This means, for example, a cylinder object which comes after a box object in the input file will overwrite the properties of the box object at any locations where they overlap. This approach allows complex geometries to be created using basic object building blocks.
 
 **Can I run gprMax on my HPC/cluster?**
-Yes. gprMax has been parallelised using OpenMP and features a task farm based on MPI. For more information read the :ref:`parallel performance section of the User Guide <openmp-mpi>`
+Yes. gprMax has been parallelised using OpenMP and features a task farm based on MPI. For more information read the :ref:`HPC <hpc>` section.
