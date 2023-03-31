@@ -243,9 +243,12 @@ A unit impulse or dirac delta waveform.
     \begin{cases}
     1 &\text{if $dt\leq 0$}, \\
     0 &\text{if $dt>1$}.
-    \end{cases} 
+    \end{cases}
+
+where :math:`dt` is the temporal resolution (timestep) of the model.
 
 .. figure:: ../../images_shared/impulse.png
+    :width: 350 px
 
     Example of the ``impulse`` waveform - time domain.
 
