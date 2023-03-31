@@ -25,7 +25,7 @@ import numpy as np
 from gprMax.utilities.utilities import fft_power, round_value
 from gprMax.waveforms import Waveform
 
-logger = logging.getLogger(__name__)
+logging.basicConfig(format='%(message)s', level=logging.INFO)
 
 
 def check_timewindow(timewindow, dt):
@@ -53,7 +53,7 @@ def check_timewindow(timewindow, dt):
         if timewindow > 0:
             iterations = round_value((timewindow / dt)) + 1
         else:
-            logger.exception('Time window must have a value greater than zero')
+            logging.exception('Time window must have a value greater than zero')
             raise ValueError
 
     return timewindow, iterations
@@ -82,23 +82,23 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
         waveform[timeiter.index] = w.calculate_value(timeiter[0], dt)
         timeiter.iternext()
 
-    logger.info('Waveform characteristics...')
-    logger.info(f'Type: {w.type}')
-    logger.info(f'Maximum (absolute) amplitude: {np.max(np.abs(waveform)):g}')
+    logging.info('Waveform characteristics...')
+    logging.info(f'Type: {w.type}')
+    logging.info(f'Maximum (absolute) amplitude: {np.max(np.abs(waveform)):g}')
 
-    if w.freq and not w.type == 'gaussian':
-        logger.info(f'Centre frequency: {w.freq:g} Hz')
+    if w.freq and not w.type == 'gaussian' and not w.type == 'impulse':
+        logging.info(f'Centre frequency: {w.freq:g} Hz')
 
     if (w.type == 'gaussian' or w.type == 'gaussiandot' or w.type == 'gaussiandotnorm'
         or w.type == 'gaussianprime' or w.type == 'gaussiandoubleprime'):
         delay = 1 / w.freq
-        logger.info(f'Time to centre of pulse: {delay:g} s')
+        logging.info(f'Time to centre of pulse: {delay:g} s')
     elif w.type == 'gaussiandotdot' or w.type == 'gaussiandotdotnorm' or w.type == 'ricker':
         delay = np.sqrt(2) / w.freq
-        logger.info(f'Time to centre of pulse: {delay:g} s')
+        logging.info(f'Time to centre of pulse: {delay:g} s')
 
-    logger.info(f'Time window: {timewindow:g} s ({iterations} iterations)')
-    logger.info(f'Time step: {dt:g} s')
+    logging.info(f'Time window: {timewindow:g} s ({iterations} iterations)')
+    logging.info(f'Time step: {dt:g} s')
 
     if fft:
         # FFT
@@ -133,7 +133,7 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
         ax2.set_ylabel('Power [dB]')
 
     else:
-        fig, ax1 = plt.subplots(num=w.type, figsize=(20, 10), facecolor='w',
+        fig, ax1 = plt.subplots(num=w.type, figsize=(10, 10), facecolor='w',
                                 edgecolor='w')
 
         # Plot waveform
@@ -150,8 +150,8 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
         fig.savefig(savefile.with_suffix('.pdf'), dpi=None, format='pdf', 
                     bbox_inches='tight', pad_inches=0.1)
         # Save a PNG of the figure
-        # fig.savefig(savefile.with_suffix('.png'), dpi=150, format='png', 
-        #             bbox_inches='tight', pad_inches=0.1)
+        fig.savefig(savefile.with_suffix('.png'), dpi=150, format='png', 
+                    bbox_inches='tight', pad_inches=0.1)
 
     return plt
 
@@ -174,11 +174,11 @@ if __name__ == "__main__":
 
     # Check waveform parameters
     if args.type.lower() not in Waveform.types:
-        logger.exception(f"The waveform must have one of the following types " +
+        logging.exception(f"The waveform must have one of the following types " +
                          f"{', '.join(Waveform.types)}")
         raise ValueError
     if args.freq <= 0:
-        logger.exception('The waveform requires an excitation frequency value of ' +
+        logging.exception('The waveform requires an excitation frequency value of ' +
                          'greater than zero')
         raise ValueError
 
