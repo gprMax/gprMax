@@ -139,6 +139,7 @@ class ModelConfig:
         else: return None
 
     def get_usernamespace(self):
+        """Namespace only used with #python blocks which are deprecated."""
         tmp = {'number_model_runs': sim_config.model_end,
                'current_model_run': model_num + 1,
                'inputfile': sim_config.input_file_path.resolve()}

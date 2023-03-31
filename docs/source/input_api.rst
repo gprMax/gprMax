@@ -33,7 +33,7 @@ This example is used to give an introduction to the gprMax Python API.
 
 1. Import the gprMax module.
 2. Objects for the model are created from the gprMax module by passing object parameters as key=value arguments. The example shows the creation of objects and also their equivalent input file (hash) command for clarity.
-3. Create a :class:`gprMax.scene.Scene` object. The scene is a container for all the objects required in a simulation. Simulations with multiple models, e.g. A-scans, should have a separate scene for each model (A-scan). Each scene must contain the essential commands and objects required for that particular model.
+3. Create a :class:`gprMax.scene.Scene` object. The scene is a container for all the objects required in a simulation. Simulations with multiple models, e.g. A-scans, should have a separate scene for each model (A-scan). Each scene must contain the essential functions and objects required for that particular model.
 4. Add objects are to the scene.
 5. Run the simulation.
 
@@ -48,7 +48,7 @@ It is important to note that gprMax converts spatial and temporal parameters giv
 
 The fundamental spatial and temporal discretization steps are denoted as :math:`\Delta x` , :math:`\Delta y`, :math:`\Delta z` and :math:`\Delta t` respectively.
 
-The commands have been grouped into six categories:
+The functions have been grouped into six categories:
 
 * **Essential** - required to run any model, such as the domain size and spatial discretization
 * **General** - provide further control over the model
@@ -57,20 +57,11 @@ The commands have been grouped into six categories:
 * **Source and output** - used to place source and output points in the model
 * **PML** - provide advanced customisation and optimisation of the absorbing boundary conditions
 
-The commands have been grouped into six categories:
+Essential functions
+===================
+Most of the functions are optional but there are some essential functions which are necessary in order to construct any model. For example, none of the media and object functions are necessary to run a model. However, without specifying any objects in the model gprMax will simulate free space (air), which on its own, is not particularly useful for GPR modelling. If you have not specified a functions which is essential in order to run a model, for example the size of the model, gprMax will terminate execution and issue an appropriate error message.
 
-* **Essential** - required to run any model, such as the domain size and spatial discretization
-* **General** - provide further control over the model
-* **Material** - used to introduce different materials into the model
-* **Object construction** - used to build geometric shapes with different constitutive parameters
-* **Source and output** - used to place source and output points in the model
-* **PML** - provide advanced customisation and optimisation of the absorbing boundary conditions
-
-Essential
-=========
-Most of the commands are optional but there are some essential commands which are necessary in order to construct any model. For example, none of the media and object commands are necessary to run a model. However, without specifying any objects in the model gprMax will simulate free space (air), which on its own, is not particularly useful for GPR modelling. If you have not specified a command which is essential in order to run a model, for example the size of the model, gprMax will terminate execution and issue an appropriate error message.
-
-The essential commands are:
+The essential functions are:
 
 Running model(s)
 ----------------
@@ -92,8 +83,8 @@ Time Window
 -----------
 .. autoclass:: gprMax.cmds_singleuse.TimeWindow
 
-General
-=======
+General functions
+=================
 
 Title
 -----
@@ -111,8 +102,8 @@ Output Directory
 ----------------
 .. autoclass:: gprMax.cmds_singleuse.OutputDir
 
-Material
-========
+Material functions
+==================
 
 Material
 --------
@@ -135,8 +126,8 @@ Soil Peplinski
 .. autoclass:: gprMax.cmds_multiuse.SoilPeplinski
 
 
-Object Construction
-===================
+Object construction functions
+=============================
 
 Object construction commands are processed in the order they appear in the scene. Therefore space in the model allocated to a specific material using for example the :class:`gprMax.cmds_geometry.box.Box` command can be reallocated to another material using the same or any other object construction command. Space in the model can be regarded as a canvas in which objects are introduced and one can be overlaid on top of the other overwriting its properties in order to produce the desired geometry. The object construction commands can therefore be used to create complex shapes and configurations.
 
@@ -192,8 +183,8 @@ Geometry Objects Write
 ----------------------
 .. autoclass:: gprMax.cmds_multiuse.GeometryObjectsWrite
 
-Source and Output
-=================
+Source and output functions
+===========================
 
 Waveform
 --------
@@ -244,8 +235,8 @@ Subgrid
 .. autoclass:: gprMax.subgrids.user_objects.SubGridHSG
 
 
-PML
-===
+PML functions
+=============
 
 The default behaviour for the absorbing boundary conditions (ABC) is first order Complex Frequency Shifted (CFS) Perfectly Matched Layers (PML), with thicknesses of 10 cells on each of the six sides of the model domain. The PML can be customised using the following commands:
 

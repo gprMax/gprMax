@@ -6,6 +6,20 @@ Software Features
 
 This section highlights some of the key features of gprMax that are useful for GPR modelling as well as more general electromagnetic simulations.
 
+Python API
+==========
+
+There is now a **Python API**, which includes all the functionality of the input file (hash) commands as well as several more advanced features. It allows users to access to gprMax functions directly from Python through importing the gprMax module. This method is recommended for those who prefer to use Python or need access to specific API-only advanced features, and is described in the :ref:`Python API <input-api>` section. There are several advantages to using the Python API: 
+
+1. Users can take advantage of the Python language - for instance, the structural elements of Python can be utilised more easily.
+2. gprMax objects can be used directly within functions, classes, modules and packages. In this way collections of components can be defined, reused and modified. For example, complex targets can be imported from a separate module and combined with an antenna from another module.
+3. The API can interface with other Python libraries. For example, the API could be used to create a parametric antenna and the external library Scipy could then be used to optimise its parameters.
+
+Subgridding
+===========
+
+Including finely detailed objects or regions of high dielectric strength in FDTD modeling can dramatically increase the computational burden of the method. This is because the conditionally stable nature of the algorithm requires a minimum time step for a given spatial discretization. Thus, when the spatial discretization is lowered, either to reduce numerical dispersion or include small-sized features, the time step must be reduced. Also, the number of spatial cells is increased. One approach to reducing the overall computational cost is to introduce local finely discretized regions into a coarser finite-difference grid. This approach is known as subgridding. The computing time is reduced since there are fewer cells to solve. Also, there are fewer iterations since the coarse time step is maintained in the coarse region. gprMax uses a new Huygens subgridding (HSG) algorithm with a novel artificial loss mechanism called the switched Huygens subgridding (SHSG). For a detailed description of subgridding and the SHSG method please read [HAR2021]_. Examples of how to use the subgridding functionality can be found in the :ref:`Advanced features <examples-subgrid>` section.
+
 Dispersive materials
 ====================
 
@@ -46,15 +60,6 @@ Perfectly Matched Layer (PML) absorbing boundary conditions
 ===========================================================
 
 With increased research into quantitative information from GPR, it has become necessary for models to be able to have more efficient and better-performing Perfectly Matched Layer (PML) absorbing boundary conditions. Since 2005 gprMax has featured PML absorbing boundary conditions based on the uniaxial PML (UPML) [GED1998]_ formulation. A PML based on a recursive integration approach to the complex frequency shifted (CFS) PML [GIA2012]_ has been adopted in the new version of gprMax. A general formulation of this RIPML, which can be used to develop any order of PML, has been used to implement first and second order CFS stretching functions. One of the attractions of the RIPML is that it is easily applied as a correction to the field quantities after the complete FDTD grid has been updated using the standard FDTD update equations. gprMax now offers the ability (for advanced users) to customise the parameters of the PML which allows its performance to be better optimised for specific applications. Additionally, since the RIPML is media agnostic it can be used without change to problems involving dispersive and anisotropic materials.
-
-Python API
-==========
-
-There is now a **Python API**, which includes all the functionality of the input file (hash) commands as well as several more advanced features. It allows users to access to gprMax functions directly from Python through importing the gprMax module. This method is recommended for those who prefer to use Python or need access to specific API-only advanced features, and is described in the :ref:`Python API <input-api>` section. There are several advantages to using the Python API: 
-
-1. Users can take advantage of the Python language - for instance, the structural elements of Python can be utilised more easily.
-2. gprMax objects can be used directly within functions, classes, modules and packages. In this way collections of components can be defined, reused and modified. For example, complex targets can be imported from a separate module and combined with an antenna from another module.
-3. The API can interface with other Python libraries. For example, the API could be used to create a parametric antenna and the external library Scipy could then be used to optimise its parameters.
 
 Open source, robust, file formats
 =================================

@@ -41,6 +41,34 @@ More information, including adding surface water and vegetation, can be found in
 Using subgrid(s)
 ================
 
+Including finely detailed objects or regions of high dielectric strength in FDTD modeling can dramatically increase the computational burden of the method. This is because the conditionally stable nature of the algorithm requires a minimum time step for a given spatial discretization. Thus, when the spatial discretization is lowered, either to reduce numerical dispersion or include small-sized features, the time step must be reduced. Also, the number of spatial cells is increased. One approach to reducing the overall computational cost is to introduce local finely discretized regions into a coarser finite-difference grid. This approach is known as subgridding. The computing time is reduced since there are fewer cells to solve. Also, there are fewer iterations since the coarse time step is maintained in the coarse region. gprMax uses a new Huygens subgridding (HSG) algorithm with a novel artificial loss mechanism called the switched Huygens subgridding (SHSG). For a detailed description of subgridding and the SHSG method please read [HAR2021]_.
+
+Subgridding functionality requires using our :ref:`Python API <input-api>`.
+
+.. _examples-subgrid:
+
+High dielectric example
+-----------------------
+
+:download:`cylinder_fs.py <../../examples/subgrids/cylinder_fs.py>`
+
+This example is a basic demonstration of how to use subgrids. The geometry is 3D (required for any use of subgrids) and is of a water-filled (high dielectric constant) cylindrical object in freespace. The subgrid encloses the cylinderical object using a fine spatial discretisation (1mm), and a courser spatial discretisation (5mm) is used in the rest of the model (main grid). A simple Hertzian dipole source is used with a waveform shaped as the first derivative of a gaussian.
+
+.. literalinclude:: ../../examples/subgrids/cylinder_fs.py
+    :language: none
+    :linenos:
+
+
+Antenna modelling example
+-------------------------
+
+:download:`gssi_400_over_fractal_subsurface.py <../../examples/subgrids/gssi_400_over_fractal_subsurface.py>`
+
+This example....
+
+.. literalinclude:: ../../examples/subgrids/gssi_400_over_fractal_subsurface.py
+    :language: none
+    :linenos:
 
 
 
