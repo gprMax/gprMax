@@ -330,8 +330,7 @@ class SimulationConfig:
                       'cython_float_or_double': cython.float,
                       'cython_complex': cython.floatcomplex,
                       'C_float_or_double': 'float',
-                      'C_complex': None,
-                      'vtk_float': 'Float32'}
+                      'C_complex': None}
             if self.general['solver'] == 'cuda':
                 self.dtypes['C_complex'] = 'pycuda::complex<float>'
             elif self.general['solver'] == 'opencl':
@@ -343,8 +342,7 @@ class SimulationConfig:
                       'cython_float_or_double': cython.double,
                       'cython_complex': cython.doublecomplex,
                       'C_float_or_double': 'double',
-                      'C_complex': None,
-                      'vtk_float': 'Float64'}
+                      'C_complex': None}
             if self.general['solver'] == 'cuda':
                 self.dtypes['C_complex'] = 'pycuda::complex<double>'
             elif self.general['solver'] == 'opencl':
