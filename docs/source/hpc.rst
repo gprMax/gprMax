@@ -4,7 +4,7 @@
 HPC
 ***
 
-High-performance computing (HPC) environments usually require jobs to be submitted to a queue using a job script. The following are examples of job scripts for a HPC environment that uses `Open Grid Scheduler/Grid Engine <http://gridscheduler.sourceforge.net/index.html>`_, and are intended as general guidance to help you get started. Using gprMax in an HPC environment is heavily dependent on the configuration of your specific HPC/cluster, e.g. the names of parallel environments (``-pe``) and compiler modules will depend on how they were defined by your system administrator.
+High-performance computing (HPC) environments usually require jobs to be submitted to a queue using a job script. The following are examples of job scripts for an HPC environment that uses `Open Grid Scheduler/Grid Engine <http://gridscheduler.sourceforge.net/index.html>`_, and are intended as general guidance to help you get started. Using gprMax in an HPC environment is heavily dependent on the configuration of your specific HPC/cluster, e.g. the names of parallel environments (``-pe``) and compiler modules will depend on how they were defined by your system administrator.
 
 
 OpenMP example
@@ -26,17 +26,17 @@ OpenMP/MPI example
 
 :download:`gprmax_omp_mpi.sh <../../toolboxes/Utilities/HPC/gprmax_omp_mpi.sh>`
 
-Here is an example of a job script for running models, e.g. A-scans to make a B-scan, distributed as independent tasks in a HPC environment using MPI. The behaviour of most of the variables is explained in the comments in the script.
+Here is an example of a job script for running models, e.g. A-scans to make a B-scan, distributed as independent tasks in an HPC environment using MPI. The behaviour of most of the variables is explained in the comments in the script.
 
 .. literalinclude:: ../../toolboxes/Utilities/HPC/gprmax_omp_mpi.sh
     :language: bash
     :linenos:
 
-In this example 10 models will be distributed as independent tasks in a HPC environment using MPI.
+In this example, 10 models will be distributed as independent tasks in an HPC environment using MPI.
 
 The ``-mpi`` argument is passed to gprMax which takes the number of MPI tasks to run. This should be the number of models (worker tasks) plus one extra for the master task.
 
-The ``NSLOTS`` variable which is required to set the total number of slots/cores for the parallel environment ``-pe mpi`` is usually the number of MPI tasks multiplied by the number of OpenMP threads per task. In this example the number of MPI tasks is 11 and number of OpenMP threads per task is 16, so 176 slots are required.
+The ``NSLOTS`` variable which is required to set the total number of slots/cores for the parallel environment ``-pe mpi`` is usually the number of MPI tasks multiplied by the number of OpenMP threads per task. In this example the number of MPI tasks is 11 and the number of OpenMP threads per task is 16, so 176 slots are required.
 
 
 Job array example

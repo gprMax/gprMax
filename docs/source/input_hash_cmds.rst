@@ -33,7 +33,7 @@ To describe the commands that can be used in the input file and their parameters
 
 Unless otherwise specified, the SI system of units is used throughout gprMax:
 
-* All parameters associated with simulated space (i.e. size of model, spatial increments, etc...) should be specified in **metres**.
+* All parameters associated with simulated space (i.e. size of the model, spatial increments, etc...) should be specified in **metres**.
 * All parameters associated with time (i.e. total simulation time, time instants, etc...) should be specified in **seconds**.
 * All parameters denoting frequency should be specified in **Hertz**.
 * All parameters associated with spatial coordinates in the model should  be specified in **metres**. The origin of the coordinate system **(0,0)** is at the lower left corner of the model.
@@ -164,7 +164,7 @@ Allows you to control how many OpenMP threads (usually the number of physical CP
 
     #omp_threads: i1
 
-where ``i1`` is the number of OpenMP threads to use. If ``#omp_threads`` is not specified gprMax will firstly look to see if the environment variable ``OMP_NUM_THREADS`` exists, and if not will detect and use all available physical CPU cores on the machine.
+where ``i1`` is the number of OpenMP threads to use. If ``#omp_threads`` is not specified gprMax will first look to see if the environment variable ``OMP_NUM_THREADS`` exists, and if not will detect and use all available physical CPU cores on the machine.
 
 
 .. _materials:
@@ -198,7 +198,7 @@ For example ``#material: 3 0.01 1 0 my_sand`` creates a material called ``my_san
 #add_dispersion_debye:
 ----------------------
 
-Allows you to add dispersive properties to an already defined ``#material`` based on a multiple pole Debye formulation (see :ref:`capabilities` section). For example, the susceptability function for a single-pole Debye material is given by:
+Allows you to add dispersive properties to an already defined ``#material`` based on a multiple pole Debye formulation (see :ref:`capabilities` section). For example, the susceptibility function for a single-pole Debye material is given by:
 
 .. math::
 

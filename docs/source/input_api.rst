@@ -268,4 +268,4 @@ The CFS values (which are internally specified) used for the default standard fi
     
     * The parameters will be applied to all slabs of the PML that are switched on.
     * Using ``None`` for the maximum value of :math:`\sigma` forces gprMax to calculate it internally based on the relative permittivity and permeability of the underlying materials in the model. 
-    * ``forward`` direction implies minimum parameter value at the inner boundary of the PML and maximum parameter value at the edge of computational domain, ``reverse`` is the opposite.
+    * ``forward`` direction implies a minimum parameter value at the inner boundary of the PML and maximum parameter value at the edge of the computational domain, ``reverse`` is the opposite.
