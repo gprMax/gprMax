@@ -2,7 +2,7 @@
 Introductory (2D) models
 ************************
 
-This section provides some introductory example models in 2D that demonstrate basic features of gprMax. Each example comes with an input file which you can download and run.
+This section provides some introductory example models in 2D that demonstrate the basic features of gprMax. Each example comes with an input file which you can download and run.
 
 .. _example-2D-Ascan:
 
@@ -24,9 +24,9 @@ The geometry of the scenario is straightforward and an image created from the ge
 .. figure:: ../../images_shared/cylinder_half_space_geo.png
     :width: 600 px
 
-    Geometry of a 2D model of a metal cylinder buried in a dielectric half-space.
+    The Geometry of a 2D model of a metal cylinder buried in a dielectric half-space.
 
-For this initial example a detailed description of what each command in the input file does and why each command was used is given. The following steps explain the process of building the input file:
+For this initial example, a detailed description of what each command in the input file does and why each command was used is given. The following steps explain the process of building the input file:
 
 Determine the constitutive parameters for the materials
 -------------------------------------------------------
@@ -47,7 +47,7 @@ These should generally be known, often based on the GPR system or scenario being
     #waveform: ricker 1 1.5e9 my_ricker
     #hertzian_dipole: z 0.100 0.170 0 my_ricker
 
-The Ricker waveform is created with the ``#waveform`` command, specifying an amplitude of one, centre frequency of 1.5 GHz and picking an arbitrary identifier of ``my_ricker``. The Hertzian dipole source is created using the ``#hertzian_dipole`` command, specifying a z direction polarisation (perpendicular to the survey direction if a B-scan were being created), location on the surface of the slab, and using the Ricker waveform already created.
+The Ricker waveform is created with the ``#waveform`` command, specifying an amplitude of one, centre frequency of 1.5 GHz, and picking an arbitrary identifier of ``my_ricker``. The Hertzian dipole source is created using the ``#hertzian_dipole`` command, specifying a z direction polarisation (perpendicular to the survey direction if a B-scan were being created), location on the surface of the slab, and using the Ricker waveform already created.
 
 Calculate a spatial resolution and domain size
 ----------------------------------------------
@@ -86,7 +86,7 @@ The time step required for the model is automatically calculated using the :ref:
 Create the objects
 ------------------
 
-Now physical objects can be created for the half-space and the cylinder. First the ``#box`` command will be used to create the half-space and then the ``#cylinder`` command will be given which will overwrite the properties of the half-space with those of the cylinder at the location of the cylinder.
+Now physical objects can be created for the half-space and the cylinder. First, the ``#box`` command will be used to create the half-space and then the ``#cylinder`` command will be given which will overwrite the properties of the half-space with those of the cylinder at the location of the cylinder.
 
 .. code-block:: none
 
@@ -114,7 +114,7 @@ You should have produced an output file ``cylinder_Ascan_2D.h5``. You can view t
 
     python -m tools.plot_Ascan examples/cylinder_Ascan_2D.h5
 
-:numref:`cylinder_Ascan_results` shows the time history of the electric and magnetic field components and currents at the receiver location. The :math:`E_z` field component can be converted to voltage which represents the A-scan (trace). The initial part of the signal (~0.5-1.5 ns) represents the direct wave from transmitter to receiver. Then comes the reflected wavelet (~1.8-2.6 ns), which has opposite polarity, from the metal cylinder.
+:numref:`cylinder_Ascan_results` shows the time history of the electric and magnetic field components and currents at the receiver location. The :math:`E_z` field component can be converted to a voltage that represents the A-scan (trace). The initial part of the signal (~0.5-1.5 ns) represents the direct wave from transmitter to receiver. Then comes the reflected wavelet (~1.8-2.6 ns), which has opposite polarity, from the metal cylinder.
 
 .. _cylinder_Ascan_results:
 
@@ -139,7 +139,7 @@ This example uses the same geometry as the previous example but this time a B-sc
 
 The differences between this input file and the one from the A-scan are the x coordinates of the source and receiver (lines 11 and 12), and the commands needed to move the source and receiver (lines 13 and 14). As before, the source and receiver are offset by 40mm from each other as before but they are now shifted to a starting position for the scan. The ``#src_steps`` command is used to move every source in the model by specified steps each time the model is run. Similarly, the ``#rx_steps`` command is used to move every receiver in the model by specified steps each time the model is run. Note, the same functionality can be achieved by using our Python API to move the source and receiver individually (see the :ref:`Python API <input-api>` section).
 
-To run the model to create a B-scan you must pass an optional argument to specify the number of times the model should be run. In this case this is the number of A-scans (traces) that will comprise the B-scan. For a B-scan over a distance of 120mm with a step of 2mm that is 60 A-scans.
+To run the model to create a B-scan you must pass an optional argument to specify the number of times the model should be run. In this case, this is the number of A-scans (traces) that will comprise the B-scan. For a B-scan over a distance of 120mm with a step of 2mm that is 60 A-scans.
 
 .. code-block:: none
 
@@ -163,11 +163,11 @@ You can now view an image of the B-scan using the command:
 
     python -m tools.plot_Bscan examples/cylinder_Bscan_2D_merged.h5 Ez
 
-:numref:`cylinder_Bscan_results` shows the B-scan (of the :math:`E_z` field component). Again, the initial part of the signal (~0.5-1.5 ns) represents the direct wave from transmitter to receiver. Then comes the refelected wave (~2-3 ns) from the metal cylinder which creates the hyperbolic shape.
+:numref:`cylinder_Bscan_results` shows the B-scan (of the :math:`E_z` field component). Again, the initial part of the signal (~0.5-1.5 ns) represents the direct wave from transmitter to receiver. Then comes the reflected wave (~2-3 ns) from the metal cylinder which creates the hyperbolic shape.
 
 .. _cylinder_Bscan_results:
 
 .. figure:: ../../images_shared/cylinder_Bscan_results.png
     :width: 600px
 
-    B-scan of model of a metal cylinder buried in a dielectric half-space.
+    B-scan of the model of a metal cylinder buried in a dielectric half-space.

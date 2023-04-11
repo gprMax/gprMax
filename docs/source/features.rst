@@ -9,10 +9,10 @@ This section highlights some of the key features of gprMax that are useful for G
 Python API
 ==========
 
-There is now a **Python API**, which includes all the functionality of the input file (hash) commands as well as several more advanced features. It allows users to access to gprMax functions directly from Python through importing the gprMax module. This method is recommended for those who prefer to use Python or need access to specific API-only advanced features, and is described in the :ref:`Python API <input-api>` section. There are several advantages to using the Python API: 
+There is now a **Python API**, which includes all the functionality of the input file (hash) commands as well as several more advanced features. It allows users to access to gprMax functions directly from Python by importing the gprMax module. This method is recommended for those who prefer to use Python or need access to specific API-only advanced features, and is described in the :ref:`Python API <input-api>` section. There are several advantages to using the Python API: 
 
 1. Users can take advantage of the Python language - for instance, the structural elements of Python can be utilised more easily.
-2. gprMax objects can be used directly within functions, classes, modules and packages. In this way collections of components can be defined, reused and modified. For example, complex targets can be imported from a separate module and combined with an antenna from another module.
+2. gprMax objects can be used directly within functions, classes, modules and packages. In this way, collections of components can be defined, reused, and modified. For example, complex targets can be imported from a separate module and combined with an antenna from another module.
 3. The API can interface with other Python libraries. For example, the API could be used to create a parametric antenna and the external library Scipy could then be used to optimise its parameters.
 
 Subgridding
