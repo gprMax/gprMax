@@ -17,7 +17,7 @@ This example demonstrates a model of a half-wavelength wire dipole antenna in fr
     :language: none
     :linenos:
 
-The wire is modelled using an edge which specifies properties of the edge of the Yee cell. The antenna is fed using a transmission line The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input resistance :math:`Z_{in} = 73~\Omega` specified in the transmissions, and uses a Gaussian waveform with a centre frequency of 1GHz. A time window of 60ns is used: firstly, to give enough time for the response to decay down to zero; and secondly, to allow a reasonable resolution (17MHz) for calculating antenna parameters that involve taking a FFT (:math:`\Delta f=1/T` where :math:`\Delta f` is the frequency bin spacing and :math:`T` is the time window).
+The wire is modelled using an edge which specifies the properties of the edge of the Yee cell. The antenna is fed using a transmission line The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input resistance :math:`Z_{in} = 73~\Omega` specified in the transmissions, and uses a Gaussian waveform with a centre frequency of 1GHz. A time window of 60ns is used: firstly, to give enough time for the response to decay down to zero; and secondly, to allow a reasonable resolution (17MHz) for calculating antenna parameters that involve taking an FFT (:math:`\Delta f=1/T` where :math:`\Delta f` is the frequency bin spacing and :math:`T` is the time window).
 
 Time histories of voltage and current values in the transmission line are saved to the output file. These are documented in the :ref:`output` section. These parameters are useful for calculating characteristics of the antenna such as the input impedance or S-parameters. gprMax includes a Python module (in the ``toolboxes\Plotting`` package) to help you view the input impedance and admittance and s11 parameter from an antenna model fed using a transmission line. Details of how to use this module are given in the README.rst for that package.
 
@@ -51,7 +51,7 @@ You can view the results (see :ref:`output` section and README.rst for the ``too
 
     Detailed view of input admittance and impedance (resistance and reactance) and s11 parameter values of the antenna (:math:`\Delta f = 17~MHz`).
 
-:numref:`antenna_wire_dipole_fs_tl_params` shows time histories and frequency spectra of the incident and total (incident + reflected) voltages and currents in the transmission line. :numref:`antenna_wire_dipole_fs_ant_params` shows the input admittance and impedance (resistance and reactance), and s11 parameter of the half-wavelength wire dipole. :numref:`antenna_wire_dipole_fs_ant_params_detail` shows a more detailed view of these parameters. The s11 parameter shows that the first resonance of the antenna is at 950MHz. Depending on the radius of the wire, the length of the dipole for first resonance is about :math:`l=0.47\lambda` to :math:`0.48\lambda`. The thinner the wire the closer the resonance is to :math:`0.48\lambda` [BAL2005]_. In this case, with a first resonance of 950MHz and a length of 150mm, :math:`l/\lambda=0.475`. The input impedance is :math:`Z_{in} = 72.8 + j1~\Omega`. If :math:`l/\lambda=0.5` then the theoretical input impedance would be :math:`Z_{in} = 73 + j42.5~\Omega`. The reactive (imaginery) part associated with the input impedance of a dipole is a function of its length.
+:numref:`antenna_wire_dipole_fs_tl_params` shows time histories and frequency spectra of the incident and total (incident + reflected) voltages and currents in the transmission line. :numref:`antenna_wire_dipole_fs_ant_params` shows the input admittance and impedance (resistance and reactance), and s11 parameter of the half-wavelength wire dipole. :numref:`antenna_wire_dipole_fs_ant_params_detail` shows a more detailed view of these parameters. The s11 parameter shows that the first resonance of the antenna is at 950MHz. Depending on the radius of the wire, the length of the dipole for first resonance is about :math:`l=0.47\lambda` to :math:`0.48\lambda`. The thinner the wire the closer the resonance is to :math:`0.48\lambda` [BAL2005]_. In this case, with a first resonance of 950MHz and a length of 150mm, :math:`l/\lambda=0.475`. The input impedance is :math:`Z_{in} = 72.8 + j1~\Omega`. If :math:`l/\lambda=0.5` then the theoretical input impedance would be :math:`Z_{in} = 73 + j42.5~\Omega`. The reactive (imaginary) part associated with the input impedance of a dipole is a function of its length.
 
 :numref:`antenna_wire_dipole_fs_ant_params_detail_1p4MHz` demonstrates the increased frequency resolution (:math:`\Delta f = 1.4~MHz`) when an even longer time window (700ns) is used.
 
@@ -92,7 +92,7 @@ When the simulation is run two geometry files for the antenna are produced along
 
     python -m tools.plot_Ascan examples/antenna_like_MALA_1200_fs.h5 --outputs Ey
 
-:numref:`antenna_like_MALA_1200_fs_results` shows the time history of the y-component of the electric field from the receiver bowtie of the antenna model (the antenna bowties are aligned with the y axis).
+:numref:`antenna_like_MALA_1200_fs_results` shows the time history of the y-component of the electric field from the receiver bowtie of the antenna model (the antenna bowties are aligned with the y-axis).
 
 .. _antenna_like_MALA_1200_fs_results:
 
@@ -118,7 +118,7 @@ This example demonstrates how to create a B-scan with an antenna model. The scen
 
     FDTD geometry mesh showing a metal cylinder buried in a half-space and an antenna model similar to a GSSI 1.5GHz antenna.
 
-The antenna must be moved to a new position for every single A-scan (trace) in the B-scan. This is done using a for loop and creating a new scene (with new antenna position) for each A-scan. In this example the B-scan distance will be 270mm with a trace every 5mm, so 54 model runs will be required.
+The antenna must be moved to a new position for every single A-scan (trace) in the B-scan. This is done using a for loop and creating a new scene (with a new antenna position) for each A-scan. In this example the B-scan distance will be 270mm with a trace every 5mm, so 54 model runs will be required.
 
 .. code-block:: none
 
@@ -144,4 +144,4 @@ After merging the A-scans into a single file you can now view an image of the B-
 .. figure:: ../../images_shared/cylinder_Bscan_GSSI_1500_results.png
     :width: 600px
 
-    B-scan of model of a metal cylinder buried in a dielectric half-space with a model of an antenna similar to a GSSI 1.5GHz antenna.
+    B-scan of the model of a metal cylinder buried in a dielectric half-space with a model of an antenna similar to a GSSI 1.5GHz antenna.
