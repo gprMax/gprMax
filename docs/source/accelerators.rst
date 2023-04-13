@@ -4,13 +4,13 @@
 OpenMP/CUDA/OpenCL
 ******************
 
-The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelised using different CPU and GPU accelerators to offer performance and flexibility.
+The most computationally intensive parts of gprMax, which are the FDTD solver loops, have been parallelized using different CPU and GPU accelerators to offer performance and flexibility.
 
 1. `OpenMP <http://openmp.org>`_ which supports multi-platform shared memory multiprocessing.
 2. `NVIDIA CUDA <https://developer.nvidia.com/cuda-toolkit>`_ for NVIDIA GPUs.
 3. `OpenCL <https://www.khronos.org/api/opencl>`_ for a wider range of CPU and GPU hardware. 
 
-Additionally the Message Passing Interface (MPI) can be utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This can be useful in many GPR simulations where a B-scan (composed of multiple A-scans) is required. Each A-scan can be task-farmed as a independent model, and within each model OpenMP or CUDA can still be used for parallelism. This creates mixed mode OpenMP/MPI or CUDA/MPI environments.
+Additionally, the Message Passing Interface (MPI) can be utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This can be useful in many GPR simulations where a B-scan (composed of multiple A-scans) is required. Each A-scan can be task-farmed as an independent model, and within each model, OpenMP or CUDA can still be used for parallelism. This creates mixed mode OpenMP/MPI or CUDA/MPI environments.
 
 Some of these accelerators and frameworks require additional software to be installed. The guidance below explains how to do that and gives examples of usage.
 
@@ -24,12 +24,12 @@ OpenMP
 
 No additional software is required to use OpenMP as it is part of the standard installation of gprMax.
 
-By default gprMax will try to determine and use the maximum number of OpenMP threads (usually the number of physical CPU cores) available on your machine. You can override this behaviour in two ways: firstly, gprMax will check to see if the ``#cpu_threads`` command is present in your input file; if not, gprMax will check to see if the environment variable ``OMP_NUM_THREADS`` is set. This can be useful if you are running gprMax in a High-Performance Computing (HPC) environment where you might not want to use all of the available CPU cores.
+By default, gprMax will try to determine and use the maximum number of OpenMP threads (usually the number of physical CPU cores) available on your machine. You can override this behaviour in two ways: firstly, gprMax will check to see if the ``#cpu_threads`` command is present in your input file; if not, gprMax will check to see if the environment variable ``OMP_NUM_THREADS`` is set. This can be useful if you are running gprMax in a High-Performance Computing (HPC) environment where you might not want to use all of the available CPU cores.
 
 MPI
 ===
 
-By default the MPI task farm functionality is turned off. It can be used with the ``-mpi`` command line option, which specifies the total number of MPI tasks, i.e. master + workers, for the MPI task farm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using a MPI task farm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 -mpi 61``.
+By default, the MPI task farm functionality is turned off. It can be used with the ``-mpi`` command line option, which specifies the total number of MPI tasks, i.e. master + workers, for the MPI task farm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using an MPI task farm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 -mpi 61``.
 
 Software required
 -----------------
@@ -108,7 +108,7 @@ Run one of the test models:
 CUDA/MPI
 ========
 
-Message Passing Interface (MPI) has been utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This is described in more detail in the :ref:`HPC <hpc>` section. MPI can be combined with the GPU functionality to allow a series models to be distributed to multiple GPUs on the same machine (node). 
+Message Passing Interface (MPI) has been utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This is described in more detail in the :ref:`HPC <hpc>` section. MPI can be combined with the GPU functionality to allow a series of models to be distributed to multiple GPUs on the same machine (node). 
 
 Example
 -------
@@ -121,4 +121,4 @@ For example, to run a B-scan that contains 60 A-scans (traces) on a system with 
 
 .. note::
 
-    The argument given with ``-mpi`` is number of MPI tasks, i.e. master + workers, for MPI task farm. So in this case, 1 master (CPU) and 4 workers (GPU cards). The integers given with the ``-gpu`` argument are the NVIDIA CUDA device IDs for the specific GPU cards to be used.
+    The argument given with ``-mpi`` is the number of MPI tasks, i.e. master + workers, for the MPI task farm. So in this case, 1 master (CPU) and 4 workers (GPU cards). The integers given with the ``-gpu`` argument are the NVIDIA CUDA device IDs for the specific GPU cards to be used.

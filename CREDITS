@@ -1,9 +1,10 @@
 # Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
-#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
-#
-# This is the official list of entities and people who have contributed to gprMax.
-#
-# Please keep the lists of sorted alphabetically (by surname for individuals).
+
+# Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
+
+# This is the official list of entities and people who have contributed to gprMax
+
+# Please keep the lists sorted alphabetically (by surname for individuals).
 
 gprMax has been supported through research projects funded by:
 
@@ -11,7 +12,6 @@ The Defence Science and Technology Laboratory (Dstl)
 Google
 
 gprMax is a contribution to COST Action TU1208 'Civil Engineering Applications of Ground Penetrating Radar'
-
 
 As well as the aforementioned authors, the following individuals have contributed to gprMax:
 

@@ -4,7 +4,7 @@
 Guidance on GPR modelling
 *************************
 
-**In order to make the most of gprMax for modelling GPR you should be familiar with the Finite-Difference Time-Domain (FDTD) method method on which the software is based.**
+**In order to make the most of gprMax for modelling GPR you should be familiar with the Finite-Difference Time-Domain (FDTD) method on which the software is based.**
 
 This section discusses some basic concepts of the FDTD method and GPR modelling. There is a large amount of further information available in the relevant literature. Good starting points are [KUN1993]_ and [TAF2005]_, and the specific application of FDTD to the GPR forward problem is described in [GIA1997]_.
 
@@ -36,7 +36,7 @@ temporal :math:`\Delta t` steps play a very significant role -- since the smalle
 
 By assigning appropriate constitutive parameters to the locations of the electromagnetic field components complex shaped targets can be included easily in the models. However, objects with curved boundaries are represented using a staircase approximation.
 
-gprMax is fundamentally based on solving Maxwell's equations in 3D using the FDTD method - transverse electromagnetic (TEM) mode. However, it can also be used to carry out simulations in 2D using the transverse magnetic (TM) mode. This is achieved through specifying a single cell slice of the domain, i.e. one dimension of the domain must be equal to the spatial discretization in that direction. When this occurs the electric and magnetic field components on the two faces of single cell slice in the invariant direction are set to zero. This is illustrated for the 2D TMz case in :numref:`yeecell2DTMz`.
+gprMax is fundamentally based on solving Maxwell's equations in 3D using the FDTD method - transverse electromagnetic (TEM) mode. However, it can also be used to carry out simulations in 2D using the transverse magnetic (TM) mode. This is achieved through specifying a single cell slice of the domain, i.e. one dimension of the domain must be equal to the spatial discretization in that direction. When this occurs the electric and magnetic field components on the two faces of a single cell slice in the invariant direction are set to zero. This is illustrated for the 2D TMz case in :numref:`yeecell2DTMz`.
 
 .. _yeecell2DTMz:
 
@@ -64,7 +64,7 @@ Using this approach means that Maxwell's equations in 3D, shown in :eq:`maxwell3
     &\frac{\partial H_x}{\partial t} = \frac{1}{\mu} \left( - \frac{\partial E_z}{\partial y} - M_{Sx} - \sigma^* H_x \right) \\
     &\frac{\partial H_y}{\partial t} = \frac{1}{\mu} \left( \frac{\partial E_z}{\partial x} - M_{Sy} - \sigma^* H_y \right)
 
-These equations are discretized in both space and time and applied in each FDTD cell. The numerical solution is obtained directly in the time domain in an iterative fashion. In each iteration the electromagnetic fields advance (propagate) in the FDTD grid and each iteration corresponds to an elapsed simulated time of one :math:`\Delta t`. Hence by specifying the number of iterations you can instruct the FDTD solver to simulate the fields for a given time window.
+These equations are discretized in both space and time and applied in each FDTD cell. The numerical solution is obtained directly in the time domain in an iterative fashion. In each iteration, the electromagnetic fields advance (propagate) in the FDTD grid and each iteration corresponds to an elapsed simulated time of one :math:`\Delta t`. Hence by specifying the number of iterations you can instruct the FDTD solver to simulate the fields for a given time window.
 
 The price you have to pay for obtaining a solution directly in the time domain using the FDTD method is that the values of :math:`\Delta x`, :math:`\Delta y`, :math:`\Delta z` and :math:`\Delta t` can not be assigned independently. FDTD is a conditionally stable numerical process. The stability condition is known as the CFL condition after the initials of Courant, Freidrichs and Lewy and is given by,
 
