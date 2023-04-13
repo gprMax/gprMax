@@ -4,4 +4,4 @@ numpy>=1.9
 # Note: beware of https://github.com/readthedocs/sphinx_rtd_theme/issues/1115
 docutils==0.17.1
 sphinx>=4.3.0
-sphinx-rtd-theme>=1.0.0
+sphinx-rtd-theme>=0.5.1
