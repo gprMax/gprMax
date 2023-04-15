@@ -53,6 +53,8 @@ class Waveform:
         """Calculates coefficients (used to calculate values) for specific
             waveforms.
         """
+        if self.freq is None:
+            raise ValueError("Frequency is not specified")
 
         if self.type in [
             'gaussian',
@@ -120,11 +122,16 @@ class Waveform:
             rampamp = 0.25
             ramp = rampamp * time * self.freq
             ramp = min(ramp, 1)
+
             ampvalue = ramp * np.sin(2 * np.pi * self.freq * time)
 
         elif self.type == 'impulse':
             # time < dt condition required to do impulsive magnetic dipole
-            ampvalue = 1 if time == 0 or time < dt else 0
+            if time == 0 or time < dt:
+                ampvalue = 1
+            elif time >= dt:
+                ampvalue = 0
+                
         elif self.type == 'user':
             ampvalue = self.userfunc(time)
 
