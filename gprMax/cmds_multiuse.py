@@ -31,6 +31,8 @@ from .geometry_outputs import GeometryObjects as GeometryObjectsUser
 from .materials import DispersiveMaterial as DispersiveMaterialUser
 from .materials import Material as MaterialUser
 from .materials import PeplinskiSoil as PeplinskiSoilUser
+from .materials import RangeMaterial as RangeMaterialUser
+from .materials import ListMaterial as ListMaterialUser
 from .pml import CFS, CFSParameter
 from .receivers import Rx as RxUser
 from .snapshots import Snapshot as SnapshotUser
@@ -1436,6 +1438,137 @@ class SoilPeplinski(UserObjectMulti):
                     f'{s.mu[0]:g} to {s.mu[1]:g} created.')
 
         grid.mixingmodels.append(s)
+
+
+class MaterialRange(UserObjectMulti):
+    """Simple model for varying material properties to create stochastic models
+    
+
+    Attributes:
+        er_lower_range: float required for lower relative permittivity value.
+        er_upper_range: float required for upper relative permittivity value. 
+        sigma_lower_range: float required for lower conductivity value.
+        sigma_upper_range: float required for upper conductivity value. 
+        mr_lower_range: float required for lower relative magnetic permeability value.
+        mr_upper_range: float required for upper relative magnetic permeability value. 
+        ro_lower_range: float required for lower magnetic loss value.
+        ro_upper_range: float required for upper magnetic loss value. 
+      
+        id: string used as identifier for this variable material.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.order = 17
+        self.hash = '#material_range'
+
+    def create(self, grid, uip):
+        try:
+            er_lower = self.kwargs['er_lower']
+            er_upper = self.kwargs['er_upper']
+            sigma_lower = self.kwargs['sigma_lower']
+            sigma_upper = self.kwargs['sigma_upper']
+            mr_lower = self.kwargs['mr_lower']
+            mr_upper = self.kwargs['mr_upper']
+            ro_lower = self.kwargs['ro_lower']
+            ro_upper = self.kwargs['ro_upper']
+            ID = self.kwargs['id']
+        except KeyError:
+            logger.exception(self.params_str() + ' requires at exactly nine '
+                             'parameters.')
+            raise
+
+        if er_lower < 1:
+            logger.exception(self.params_str() + ' requires a value greater or equal to 1 '
+                             'for the lower range of relative permittivity.')
+            raise ValueError
+        if mr_lower < 1:
+            logger.exception(self.params_str() + ' requires a value greater or equal to 1 '
+                             'for the lower range of relative magnetic permeability.')
+            raise ValueError
+        if sigma_lower < 0:
+            logger.exception(self.params_str() + ' requires a positive value '
+                             'for the lower limit of conductivity.')
+            raise ValueError
+        if ro_lower < 0:
+            logger.exception(self.params_str() + ' requires a positive value '
+                             'for the lower range magnetic loss.')
+            raise ValueError
+        if er_upper < 1:
+            logger.exception(self.params_str() + ' requires a value greater or equal to 1'
+                            'for the upper range of relative permittivity.')
+            raise ValueError
+        
+        if mr_upper < 1:
+            logger.exception(self.params_str() + ' requires a value greater or equal to 1'
+                             'for the upper range of relative magnetic permeability')
+            raise ValueError
+        
+        if sigma_upper < 0:
+            logger.exception(self.params_str() + ' requires a positive value '
+                             'for the upper range of conductivity.')
+            raise ValueError
+        if ro_upper < 0:
+            logger.exception(self.params_str() + ' requires a positive value '
+                             'for the upper range of magnetic loss.')
+
+        
+        if any(x.ID == ID for x in grid.mixingmodels):
+            logger.exception(self.params_str() + f' with ID {ID} already exists')
+            raise ValueError
+
+        # Create a new instance of the Material class material 
+        # (start index after pec & free_space)
+        s = RangeMaterialUser(ID, (er_lower, er_upper), (sigma_lower, sigma_upper), (mr_lower, mr_upper), (ro_lower, ro_upper))
+
+        logger.info(self.grid_name(grid) + 'Material properties used to '
+                    f'create {s.ID} with range(s) {s.er[0]:g} to {s.er[1]:g}, relative permittivity '
+                    f'{s.sig[0]:g} to {s.sig[1]:g}, S/m conductivity, {s.mu[0]:g} to {s.mu[1]:g} relative magnetic permeability '
+                    f'{s.ro[0]:g} to {s.ro[1]:g} Ohm/m magnetic loss, created')
+        
+
+        grid.mixingmodels.append(s)
+
+
+class MaterialList(UserObjectMulti):
+    """Simple model for varying material properties to create stochastic models
+    
+
+    Attributes:
+        list_of_materials: list of material IDs
+           
+        id: string used as identifier for this variable material.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.order = 18
+        self.hash = '#material_list'
+
+    def create(self, grid, uip):
+        try:
+            list_of_materials = self.kwargs['list_of_materials']
+            ID = self.kwargs['id']
+        except KeyError:
+            logger.exception(self.params_str() + ' requires at at least 2 '
+                             'parameters.')
+            raise
+
+               
+        if any(x.ID == ID for x in grid.mixingmodels):
+            logger.exception(self.params_str() + f' with ID {ID} already exists')
+            raise ValueError
+
+        # Create a new instance of the Material class material 
+        # (start index after pec & free_space)
+        s = ListMaterialUser(ID, list_of_materials)
+
+        logger.info(self.grid_name(grid) + 'A list of materials used to '
+                    f'create {s.ID} that includes {s.mat}, created')
+        
+
+        grid.mixingmodels.append(s)
+
 
 
 class GeometryView(UserObjectMulti):

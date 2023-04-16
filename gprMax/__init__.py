@@ -26,7 +26,7 @@ from .cmds_multiuse import (PMLCFS, AddDebyeDispersion, AddDrudeDispersion,
                             AddLorentzDispersion, GeometryObjectsWrite,
                             GeometryView, HertzianDipole, MagneticDipole,
                             Material, Rx, RxArray, Snapshot, SoilPeplinski,
-                            TransmissionLine, VoltageSource, Waveform)
+                            TransmissionLine, VoltageSource, Waveform, MaterialRange, MaterialList)
 from .cmds_singleuse import (Discretisation, Domain, ExcitationFile,
                              OMPThreads, PMLProps, RxSteps, SrcSteps,
                              TimeStepStabilityFactor, TimeWindow, Title)

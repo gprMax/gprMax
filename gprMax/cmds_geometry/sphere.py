@@ -72,8 +72,13 @@ class Sphere(UserObjectGeometry):
                 raise
 
         # Centre of sphere
+        
         p2 = uip.round_to_grid_static_point(p1)
-        xc, yc, zc = uip.round_to_grid(p1)
+        #xc, yc, zc = uip.round_to_grid(p1)
+        xc, yc, zc = uip.discretise_point(p1)
+                
+
+        
 
         # Look up requested materials in existing list of material instances
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
@@ -109,8 +114,8 @@ class Sphere(UserObjectGeometry):
                                 materials[2].se), axis=0)
                 m.mr = np.mean((materials[0].mr, materials[1].mr, 
                                 materials[2].mr), axis=0)
-                m.sm = np.mean((materials[0].mr, materials[1].mr, 
-                                materials[2].mr), axis=0)
+                m.sm = np.mean((materials[0].sm, materials[1].sm, 
+                                materials[2].sm), axis=0)
 
                 # Append the new material object to the materials list
                 grid.materials.append(m)
