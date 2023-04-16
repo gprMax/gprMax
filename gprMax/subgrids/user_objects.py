@@ -45,7 +45,7 @@ class SubGridBase(UserObjectMulti):
         elif isinstance(node, UserObjectGeometry):
             self.children_geometry.append(node)
         else:
-            logger.exception(str(node) + ' this Object can not be added to a sub grid')
+            logger.exception(f'{str(node)} this Object can not be added to a sub grid')
             raise ValueError
 
     def set_discretisation(self, sg, grid):
@@ -123,12 +123,16 @@ class SubGridBase(UserObjectMulti):
         self.subgrid = sg
 
         # Copy over built in materials
-        sg.materials = [copy(m) for m in grid.materials if m.numID in range(0, grid.n_built_in_materials + 1)]
+        sg.materials = [
+            copy(m)
+            for m in grid.materials
+            if m.numID in range(grid.n_built_in_materials + 1)
+        ]
 
         # Don't mix and match different subgrid types
         for sg_made in grid.subgrids:
             if type(sg) != type(sg_made):
-                logger.exception(self.__str__() + ' please only use one type of subgrid')
+                logger.exception(f'{self.__str__()} please only use one type of subgrid')
                 raise ValueError
 
         # Reference the subgrid under the main grid to which it belongs

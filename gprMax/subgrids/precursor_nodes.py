@@ -218,9 +218,9 @@ class PrecursorNodesBase:
 
     def update_previous_timestep_fields(self, field_names):
         for fn in field_names:
-            val = getattr(self, fn + '_1')
+            val = getattr(self, f'{fn}_1')
             val_c = np.copy(val)
-            setattr(self, fn + '_0', val_c)
+            setattr(self, f'{fn}_0', val_c)
 
     def interpolate_to_sub_grid(self, field, coords):
         x, z, x_sg, z_sg = coords
