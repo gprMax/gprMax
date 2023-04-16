@@ -112,11 +112,9 @@ for i, model in enumerate(testmodels):
                                      filetest.attrs['dt'], 
                                      filetest.attrs['dx_dy_dz'], rxposrelative)
 
-        filetest.close()
-
     else:
         # Get output for model and reference files
-        fileref = file.stem + '_ref'
+        fileref = f'{file.stem}_ref'
         fileref = file.parent / Path(fileref)
         fileref = h5py.File(fileref.with_suffix('.h5'), 'r')
         filetest = h5py.File(file.with_suffix('.h5'), 'r')
@@ -132,9 +130,12 @@ for i, model in enumerate(testmodels):
 
         # Check that type of float used to store fields matches
         if filetest[path + outputstest[0]].dtype != fileref[path + outputsref[0]].dtype:
-            logger.warning(f'Type of floating point number in test model ' +
-                           f'({filetest[path + outputstest[0]].dtype}) does not ' +
-                           f'match type in reference solution ({fileref[path + outputsref[0]].dtype})\n')
+            logger.warning(
+                (
+                    f'Type of floating point number in test model ({filetest[path + outputstest[0]].dtype}) does not '
+                    + f'match type in reference solution ({fileref[path + outputsref[0]].dtype})\n'
+                )
+            )
         float_or_doubleref = fileref[path + outputsref[0]].dtype
         float_or_doubletest = filetest[path + outputstest[0]].dtype
 
@@ -159,15 +160,15 @@ for i, model in enumerate(testmodels):
                 raise ValueError
 
         fileref.close()
-        filetest.close()
+    filetest.close()
 
     # Diffs
     datadiffs = np.zeros(datatest.shape, dtype=np.float64)
     for i in range(len(outputstest)):
-        max = np.amax(np.abs(dataref[:, i]))
-        datadiffs[:, i] = np.divide(np.abs(dataref[:, i] - datatest[:, i]), max, 
+        maxi = np.amax(np.abs(dataref[:, i]))
+        datadiffs[:, i] = np.divide(np.abs(dataref[:, i] - datatest[:, i]), maxi, 
                                     out=np.zeros_like(dataref[:, i]), 
-                                    where=max != 0)  # Replace any division by zero with zero
+                                    where=maxi != 0)  # Replace any division by zero with zero
 
         # Calculate power (ignore warning from taking a log of any zero values)
         with np.errstate(divide='ignore'):
@@ -175,30 +176,34 @@ for i, model in enumerate(testmodels):
         # Replace any NaNs or Infs from zero division
         datadiffs[:, i][np.invert(np.isfinite(datadiffs[:, i]))] = 0
 
-    # Store max difference
+    # Store maxi difference
     maxdiff = np.amax(np.amax(datadiffs))
     testresults[model]['Max diff'] = maxdiff
 
     # Plot datasets
-    fig1, ((ex1, hx1), (ey1, hy1), (ez1, hz1)) = plt.subplots(nrows=3, ncols=2, 
-                                                              sharex=False, sharey='col', 
-                                                              subplot_kw=dict(xlabel='Time [ns]'), 
-                                                              num=model + '.in', 
-                                                              figsize=(20, 10), 
-                                                              facecolor='w', 
-                                                              edgecolor='w')
+    fig1, ((ex1, hx1), (ey1, hy1), (ez1, hz1)) = plt.subplots(
+        nrows=3,
+        ncols=2,
+        sharex=False,
+        sharey='col',
+        subplot_kw=dict(xlabel='Time [ns]'),
+        num=f'{model}.in',
+        figsize=(20, 10),
+        facecolor='w',
+        edgecolor='w',
+    )
     ex1.plot(timetest, datatest[:, 0], 'r', lw=2, label=model)
-    ex1.plot(timeref, dataref[:, 0], 'g', lw=2, ls='--', label=model + '(Ref)')
+    ex1.plot(timeref, dataref[:, 0], 'g', lw=2, ls='--', label=f'{model}(Ref)')
     ey1.plot(timetest, datatest[:, 1], 'r', lw=2, label=model)
-    ey1.plot(timeref, dataref[:, 1], 'g', lw=2, ls='--', label=model + '(Ref)')
+    ey1.plot(timeref, dataref[:, 1], 'g', lw=2, ls='--', label=f'{model}(Ref)')
     ez1.plot(timetest, datatest[:, 2], 'r', lw=2, label=model)
-    ez1.plot(timeref, dataref[:, 2], 'g', lw=2, ls='--', label=model + '(Ref)')
+    ez1.plot(timeref, dataref[:, 2], 'g', lw=2, ls='--', label=f'{model}(Ref)')
     hx1.plot(timetest, datatest[:, 3], 'r', lw=2, label=model)
-    hx1.plot(timeref, dataref[:, 3], 'g', lw=2, ls='--', label=model + '(Ref)')
+    hx1.plot(timeref, dataref[:, 3], 'g', lw=2, ls='--', label=f'{model}(Ref)')
     hy1.plot(timetest, datatest[:, 4], 'r', lw=2, label=model)
-    hy1.plot(timeref, dataref[:, 4], 'g', lw=2, ls='--', label=model + '(Ref)')
+    hy1.plot(timeref, dataref[:, 4], 'g', lw=2, ls='--', label=f'{model}(Ref)')
     hz1.plot(timetest, datatest[:, 5], 'r', lw=2, label=model)
-    hz1.plot(timeref, dataref[:, 5], 'g', lw=2, ls='--', label=model + '(Ref)')
+    hz1.plot(timeref, dataref[:, 5], 'g', lw=2, ls='--', label=f'{model}(Ref)')
     ylabels = ['$E_x$, field strength [V/m]', '$H_x$, field strength [A/m]', 
                '$E_y$, field strength [V/m]', '$H_y$, field strength [A/m]', 
                '$E_z$, field strength [V/m]', '$H_z$, field strength [A/m]']
@@ -209,13 +214,17 @@ for i, model in enumerate(testmodels):
         ax.legend()
 
     # Plot diffs
-    fig2, ((ex2, hx2), (ey2, hy2), (ez2, hz2)) = plt.subplots(nrows=3, ncols=2, 
-                                                              sharex=False, sharey='col', 
-                                                              subplot_kw=dict(xlabel='Time [ns]'), 
-                                                              num='Diffs: ' + model + '.in', 
-                                                              figsize=(20, 10), 
-                                                              facecolor='w', 
-                                                              edgecolor='w')
+    fig2, ((ex2, hx2), (ey2, hy2), (ez2, hz2)) = plt.subplots(
+        nrows=3,
+        ncols=2,
+        sharex=False,
+        sharey='col',
+        subplot_kw=dict(xlabel='Time [ns]'),
+        num=f'Diffs: {model}.in',
+        figsize=(20, 10),
+        facecolor='w',
+        edgecolor='w',
+    )
     ex2.plot(timeref, datadiffs[:, 0], 'r', lw=2, label='Ex')
     ey2.plot(timeref, datadiffs[:, 1], 'r', lw=2, label='Ey')
     ez2.plot(timeref, datadiffs[:, 2], 'r', lw=2, label='Ez')
@@ -232,7 +241,7 @@ for i, model in enumerate(testmodels):
         ax.grid()
 
     # Save a PDF/PNG of the figure
-    filediffs = file.stem + '_diffs'
+    filediffs = f'{file.stem}_diffs'
     filediffs = file.parent / Path(filediffs)
     # fig1.savefig(file.with_suffix('.pdf'), dpi=None, format='pdf', 
     #              bbox_inches='tight', pad_inches=0.1)
