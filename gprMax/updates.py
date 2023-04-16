@@ -378,7 +378,7 @@ class CUDAUpdates:
         for pml in self.grid.pmls['slabs']:
             pml.htod_field_arrays()
             pml.set_blocks_per_grid()
-            knl_name = 'order' + str(len(pml.CFS)) + '_' + pml.direction
+            knl_name = f'order{len(pml.CFS)}_{pml.direction}'
             self.subs_name_args['FUNC'] = knl_name
 
             knl_electric = getattr(knl_pml_updates_electric, knl_name)
@@ -880,23 +880,31 @@ class OpenCLUpdates:
         for pml in self.grid.pmls['slabs']:
             pml.set_queue(self.queue)
             pml.htod_field_arrays()
-            knl_name = 'order' + str(len(pml.CFS)) + '_' + pml.direction
+            knl_name = f'order{len(pml.CFS)}_{pml.direction}'
             knl_electric_name = getattr(knl_pml_updates_electric, knl_name)
             knl_magnetic_name = getattr(knl_pml_updates_magnetic, knl_name)   
 
-            pml.update_electric_dev = self.elwise(self.ctx, 
-                                        knl_electric_name['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
-                                        knl_electric_name['func'].substitute(subs),
-                                        'pml_updates_electric_' + knl_name, 
-                                        preamble=self.knl_common,
-                                        options=config.sim_config.devices['compiler_opts'])
-            
-            pml.update_magnetic_dev = self.elwise(self.ctx, 
-                                        knl_magnetic_name['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
-                                        knl_magnetic_name['func'].substitute(subs),
-                                        'pml_updates_magnetic_' + knl_name, 
-                                        preamble=self.knl_common,
-                                        options=config.sim_config.devices['compiler_opts'])
+            pml.update_electric_dev = self.elwise(
+                self.ctx,
+                knl_electric_name['args_opencl'].substitute(
+                    {'REAL': config.sim_config.dtypes['C_float_or_double']}
+                ),
+                knl_electric_name['func'].substitute(subs),
+                f'pml_updates_electric_{knl_name}',
+                preamble=self.knl_common,
+                options=config.sim_config.devices['compiler_opts'],
+            )
+
+            pml.update_magnetic_dev = self.elwise(
+                self.ctx,
+                knl_magnetic_name['args_opencl'].substitute(
+                    {'REAL': config.sim_config.dtypes['C_float_or_double']}
+                ),
+                knl_magnetic_name['func'].substitute(subs),
+                f'pml_updates_magnetic_{knl_name}',
+                preamble=self.knl_common,
+                options=config.sim_config.devices['compiler_opts'],
+            )
 
     def _set_rx_knl(self):
         """Receivers - initialises arrays on compute device, prepares kernel and 
