@@ -65,7 +65,7 @@ class UserInput:
         except ValueError as err:
             v = ['x', 'y', 'z']
             # Discretisation
-            dl = getattr(self.grid, 'd' + err.args[0])
+            dl = getattr(self.grid, f'd{err.args[0]}')
             # Incorrect index
             i = p[v.index(err.args[0])]
             if name:
