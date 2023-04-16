@@ -141,7 +141,7 @@ class FractalBox(UserObjectGeometry):
                 raise ValueError
             # Create materials from mixing model as number of bins now known 
             # from fractal_box command.
-            mixingmodel.calculate_debye_properties(nbins, grid)
+            mixingmodel.calculate_properties(nbins, grid)
         elif not material:
             logger.exception(self.__str__() + f' mixing model or material with ' +
                              'ID {mixing_model_id} does not exist')

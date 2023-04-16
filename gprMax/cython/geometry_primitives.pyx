@@ -917,6 +917,222 @@ cpdef void build_cylinder(
                                     averaging, solid, rigidE, rigidH, ID)
 
 
+
+cpdef void build_cone(
+    float x1,
+    float y1,
+    float z1,
+    float x2,
+    float y2,
+    float z2,
+    float r1,
+    float r2,
+    float dx,
+    float dy,
+    float dz,
+    int numID,
+    int numIDx,
+    int numIDy,
+    int numIDz,
+    bint averaging,
+    np.uint32_t[:, :, ::1] solid,
+    np.int8_t[:, :, :, ::1] rigidE,
+    np.int8_t[:, :, :, ::1] rigidH,
+    np.uint32_t[:, :, :, ::1] ID
+):
+    """Builds cones which sets values in the solid, rigid and ID arrays for 
+        a Yee voxel.
+
+    Args:
+        x1, y1, z1, x2, y2, z2: floats for coordinates of the centres of the cone
+                                faces.
+        r1: float for radius of the first face of the cone.
+        r2: float for radius of the second face of the cone.
+        dx, dy, dz: floats for spatial discretisation.
+        numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
+        averaging: bint for whether material property averaging will occur for 
+                    the object.
+        solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
+    """
+
+    cdef Py_ssize_t i, j, k
+    cdef int xs, xf, ys, yf, zs, zf, xc, yc, zc
+    cdef float f1f2mag, f2f1mag, f1ptmag, f2ptmag, dot1, dot2, factor1, factor2 
+    cdef float theta1, theta2, distance1, distance2, R1, R2
+    cdef float height, distance_axis_1, distance_axis_2
+    cdef bint build, x_align, y_align, z_align
+    cdef np.ndarray f1f2, f2f1, f1pt, f2pt
+    cdef float Rmax
+
+    Rmax = np.amax([r1, r2])
+
+    # Check if cylinder is aligned with an axis
+    x_align = y_align = z_align = 0
+    # x-aligned
+    if (round_value(y1 / dy) == round_value(y2 / dy) and 
+        round_value(z1 / dz) == round_value(z2 / dz)):
+        x_align = 1
+
+    # y-aligned
+    elif (round_value(x1 / dx) == round_value(x2 / dx) and 
+          round_value(z1 / dz) == round_value(z2 / dz)):
+        y_align = 1
+
+    # z-aligned
+    elif (round_value(x1 / dx) == round_value(x2 / dx) and 
+          round_value(y1 / dy) == round_value(y2 / dy)):
+        z_align = 1
+
+    # Calculate a bounding box for the cylinder
+    if x1 < x2:
+        if x_align:
+            xs = round_value(x1 / dx)
+            xf = round_value(x2 / dx)
+        else:
+            xs = round_value((x1 - Rmax) / dx) - 1
+            xf = round_value((x2 + Rmax) / dx) + 1
+    else:
+        if x_align:
+            xs = round_value(x2 / dx)
+            xf = round_value(x1 / dx)
+        else:
+            xs = round_value((x2 - Rmax) / dx) - 1
+            xf = round_value((x1 + Rmax) / dx) + 1
+    if y1 < y2:
+        if y_align:
+            ys = round_value(y1 / dy)
+            yf = round_value(y2 / dy)
+        else:
+            ys = round_value((y1 - Rmax) / dy) - 1
+            yf = round_value((y2 + Rmax) / dy) + 1
+    else:
+        if y_align:
+            ys = round_value(y2 / dy)
+            yf = round_value(y1 / dy)
+        else:
+            ys = round_value((y2 - Rmax) / dy) - 1
+            yf = round_value((y1 + Rmax) / dy) + 1
+    if z1 < z2:
+        if z_align:
+            zs = round_value(z1 / dz)
+            zf = round_value(z2 / dz)
+        else:
+            zs = round_value((z1 - Rmax) / dz) - 1
+            zf = round_value((z2 + Rmax) / dz) + 1
+    else:
+        if z_align:
+            zs = round_value(z2 / dz)
+            zf = round_value(z1 / dz)
+        else:
+            zs = round_value((z2 - Rmax) / dz) - 1
+            zf = round_value((z1 + Rmax) / dz) + 1
+
+    # Set bounds to domain if they outside
+    if xs < 0:
+        xs = 0
+    if xf > solid.shape[0]:
+        xf = solid.shape[0]
+    if ys < 0:
+        ys = 0
+    if yf > solid.shape[1]:
+        yf = solid.shape[1]
+    if zs < 0:
+        zs = 0
+    if zf > solid.shape[2]:
+        zf = solid.shape[2]
+
+    # x-aligned cylinder
+    if x_align:
+        for j in range(ys, yf):
+            for k in range(zs, zf):
+                for i in range(xs, xf):
+                    if np.sqrt((j * dy + 0.5 * dy - y1)**2 + (k * dz + 0.5 * dz - z1)**2) <= ((i-xs)/(xf-xs))*(r2-r1) + r1:
+                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, 
+                                    averaging, solid, rigidE, rigidH, ID)
+    # y-aligned cylinder
+    elif y_align:
+        for i in range(xs, xf):
+            for k in range(zs, zf):
+                for j in range(ys, yf):
+                    if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (k * dz + 0.5 * dz - z1)**2) <= ((j-ys)/(yf-ys))*(r2-r1) + r1:
+                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, 
+                                    averaging, solid, rigidE, rigidH, ID)
+    # z-aligned cylinder
+    elif z_align:
+        for i in range(xs, xf):
+            for j in range(ys, yf):
+                for k in range(zs, zf):
+                    if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (j * dy + 0.5 * dy - y1)**2) <= ((k-zs)/(zf-zs))*(r2-r1) + r1:
+                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, 
+                                    averaging, solid, rigidE, rigidH, ID)
+
+    # Not aligned with any axis
+    else:
+        # Vectors between centres of cylinder faces
+        f1f2 = np.array([x2 - x1, y2 - y1, z2 - z1], dtype=np.float32)
+        f2f1 = np.array([x1 - x2, y1 - y2, z1 - z2], dtype=np.float32)
+
+        # Magnitudes
+        f1f2mag = np.sqrt((f1f2*f1f2).sum(axis=0))
+        f2f1mag = np.sqrt((f2f1*f2f1).sum(axis=0))
+
+        height = f1f2mag
+
+
+        for i in range(xs, xf):
+            for j in range(ys, yf):
+                for k in range(zs, zf):
+                    # Build flag - default false, set to True if point is in cylinder
+                    build = 0
+                    # Vector from centre of first cylinder face to test point
+                    f1pt = np.array([i * dx + 0.5 * dx - x1, 
+                                     j * dy + 0.5 * dy - y1, 
+                                     k * dz + 0.5 * dz - z1], dtype=np.float32)
+                    # Vector from centre of second cylinder face to test point
+                    f2pt = np.array([i * dx + 0.5 * dx - x2, 
+                                     j * dy + 0.5 * dy - y2, 
+                                     k * dz + 0.5 * dz - z2], dtype=np.float32)
+                    # Magnitudes
+                    f1ptmag = np.sqrt((f1pt*f1pt).sum(axis=0))
+                    f2ptmag = np.sqrt((f2pt*f2pt).sum(axis=0))
+                    # Dot products
+                    dot1 = np.dot(f1f2, f1pt)
+                    dot2 = np.dot(f2f1, f2pt)
+
+                    if f1ptmag == 0 or f2ptmag == 0:
+                        build = 1
+                    else:
+                        factor1 = dot1 / (f1f2mag * f1ptmag)
+                        factor2 = dot2 / (f2f1mag * f2ptmag)
+                        # Catch cases where either factor1 or factor2 are 1
+                        try:
+                            theta1 = np.arccos(factor1)
+                        except FloatingPointError:
+                            theta1 = 0
+                        try:
+                            theta2 = np.arccos(factor2)
+                        except FloatingPointError:
+                            theta2 = 0
+                        distance1 = f1ptmag * np.sin(theta1)
+                        distance2 = f2ptmag * np.sin(theta2)
+                        distance_axis_1 = f1ptmag * np.cos(theta1)
+                        distance_axis_2 = f2ptmag * np.cos(theta2)
+                        R1 = r1
+                        R2 = r2
+
+                        if ((distance1 <= (distance_axis_1/height)*(R2 - R1) + R1 or distance2 <= (distance_axis_2/height)*(R1 - R2) + R2) and 
+                            theta1 <= np.pi/2 and theta2 <= np.pi/2):
+                            build = 1
+
+                    if build:
+                        build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, 
+                                    averaging, solid, rigidE, rigidH, ID)
+
+
+
+
+
+
 cpdef void build_sphere(
     int xc,
     int yc,
@@ -981,6 +1197,77 @@ cpdef void build_sphere(
                             (k + 0.5 - zc)**2 * dz**2) <= r):
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, 
                                 averaging, solid, rigidE, rigidH, ID)
+
+
+cpdef void build_ellipsoid(
+    int xc,
+    int yc,
+    int zc,
+    float xr,
+    float yr,
+    float zr,
+    float dx,
+    float dy,
+    float dz,
+    int numID,
+    int numIDx,
+    int numIDy,
+    int numIDz,
+    bint averaging,
+    np.uint32_t[:, :, ::1] solid,
+    np.int8_t[:, :, :, ::1] rigidE,
+    np.int8_t[:, :, :, ::1] rigidH,
+    np.uint32_t[:, :, :, ::1] ID
+):
+    """Builds ellipsoids which sets values in the solid, rigid and ID arrays for 
+        a Yee voxel.
+
+    Args:
+        xc, yc, zc: ints for cell coordinates of the centre of the ellipsoid.
+        xr: float for x-semiaxis of the elliposid.
+        yr: float for y-semiaxis of the elliposid.
+        zr: float for z-semiaxis of the elliposid.
+        dx, dy, dz: floats for spatial discretisation.
+        numID, numIDx, numIDy, numIDz: ints for numeric ID of material.
+        averaging: bint for whether material property averaging will occur for 
+                    the object.
+        solid, rigidE, rigidH, ID: memoryviews to access solid, rigid and ID arrays.
+    """
+
+    cdef Py_ssize_t i, j, k
+    cdef int xs, xf, ys, yf, zs, zf
+
+    # Calculate a bounding box for sphere
+    xs = round_value(((xc * dx) - xr) / dx) - 1
+    xf = round_value(((xc * dx) + xr) / dx) + 1
+    ys = round_value(((yc * dy) - yr) / dy) - 1
+    yf = round_value(((yc * dy) + yr) / dy) + 1
+    zs = round_value(((zc * dz) - zr) / dz) - 1
+    zf = round_value(((zc * dz) + zr) / dz) + 1
+
+    # Set bounds to domain if they outside
+    if xs < 0:
+        xs = 0
+    if xf > solid.shape[0]:
+        xf = solid.shape[0]
+    if ys < 0:
+        ys = 0
+    if yf > solid.shape[1]:
+        yf = solid.shape[1]
+    if zs < 0:
+        zs = 0
+    if zf > solid.shape[2]:
+        zf = solid.shape[2]
+
+    for i in range(xs, xf):
+        for j in range(ys, yf):
+            for k in range(zs, zf):
+                if (((i + 0.5 - xc)**2 * dx**2)/xr**2 + 
+                            ((j + 0.5 - yc)**2 * dy**2)/yr**2 + 
+                            ((k + 0.5 - zc)**2 * dz**2)/zr**2 <= 1):
+                    build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, 
+                                averaging, solid, rigidE, rigidH, ID)
+
 
 
 cpdef void build_voxels_from_array(

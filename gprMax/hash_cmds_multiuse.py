@@ -22,7 +22,7 @@ from .cmds_multiuse import (AddDebyeDispersion, AddDrudeDispersion,
                             AddLorentzDispersion, GeometryObjectsWrite,
                             GeometryView, HertzianDipole, MagneticDipole,
                             Material, Rx, RxArray, Snapshot, SoilPeplinski,
-                            TransmissionLine, VoltageSource, Waveform)
+                            TransmissionLine, VoltageSource, Waveform, MaterialRange, MaterialList)
 
 logger = logging.getLogger(__name__)
 
@@ -341,5 +341,48 @@ def process_multicmds(multicmds):
             p2 = float(tmp[3]), float(tmp[4]), float(tmp[5])
             gow = GeometryObjectsWrite(p1=p1, p2=p2, filename=tmp[6])
             scene_objects.append(gow)
+
+    cmdname = '#material_range'
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+
+            if len(tmp) != 9:
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + 
+                                 ' requires at exactly nine parameters')
+                raise ValueError
+            material_range = MaterialRange(er_lower=float(tmp[0]),
+                                 er_upper=float(tmp[1]),
+                                 sigma_lower=float(tmp[2]),
+                                 sigma_upper=float(tmp[3]),
+                                 mr_lower=float(tmp[4]),
+                                 mr_upper=float(tmp[5]),
+                                 ro_lower=float(tmp[6]),
+                                 ro_upper=float(tmp[7]),
+                                 id=tmp[8])
+            scene_objects.append(material_range)
+
+
+    cmdname = '#material_list'
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+
+            if len(tmp) < 2:
+                logger.exception("'" + cmdname + ': ' + ' '.join(tmp) + "'" + 
+                                 ' requires at least 2 parameters')
+                raise ValueError
+            
+            tokens = len(tmp)
+            lmats = []
+            for iter in range(0,tokens-1):
+                lmats.append(tmp[iter])
+
+
+
+            material_list = MaterialList(list_of_materials=lmats,
+                               id=tmp[tokens-1])
+            scene_objects.append(material_list)
+
 
     return scene_objects

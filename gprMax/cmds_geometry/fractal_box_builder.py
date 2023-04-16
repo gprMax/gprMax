@@ -83,7 +83,12 @@ class FractalBoxBuilder(UserObjectGeometry):
                     volume.fractalvolume *= materialnumID
                 else:
                     volume.generate_fractal_volume()
-                    volume.fractalvolume += volume.mixingmodel.startmaterialnum
+                    #volume.fractalvolume += volume.mixingmodel.startmaterialnum
+                    for i in range(0, volume.nx):
+                        for j in range(0, volume.ny):
+                            for k in range(0, volume.nz):
+                                numberinbin = volume.fractalvolume[i,j,k]
+                                volume.fractalvolume[i,j,k] = volume.mixingmodel.matID[int(numberinbin)]
 
                 volume.generate_volume_mask()
 
@@ -320,7 +325,13 @@ class FractalBoxBuilder(UserObjectGeometry):
                     raise ValueError
                 else:
                     volume.generate_fractal_volume()
-                    volume.fractalvolume += volume.mixingmodel.startmaterialnum
+                    #volume.fractalvolume += volume.mixingmodel.startmaterialnum
+                    for i in range(0, volume.nx):
+                        for j in range(0, volume.ny):
+                            for k in range(0, volume.nz):
+                                numberinbin = volume.fractalvolume[i,j,k]
+                                volume.fractalvolume[i,j,k] = volume.mixingmodel.matID[int(numberinbin)]
+                
 
                 data = volume.fractalvolume.astype('int16', order='C')
                 build_voxels_from_array(volume.xs, volume.ys, volume.zs, 
