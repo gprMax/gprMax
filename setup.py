@@ -37,8 +37,9 @@ if sys.version_info[:2] < MIN_PYTHON_VERSION:
 
 # Importing gprMax _version__.py before building can cause issues.
 with open('gprMax/_version.py', 'r') as fd:
-    version = re.search(r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
-                        fd.read(), re.MULTILINE).group(1)
+    version = re.search(
+        r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]', fd.read(), re.MULTILINE
+    )[1]
 
 def build_dispersive_material_templates():
     """Function to generate Cython .pyx file for dispersive media update.
@@ -46,7 +47,7 @@ def build_dispersive_material_templates():
         functions.
     """
 
-    iswin = True if sys.platform == 'win32' else False
+    iswin = (sys.platform == 'win32')
 
     env = Environment(loader = FileSystemLoader(os.path.join('gprMax', 'cython')), )
 
@@ -151,7 +152,7 @@ if 'cleanall' in sys.argv:
                 print(f'Removed: {os.path.abspath(libfile)}')
             except OSError:
                 print(f'Could not remove: {os.path.abspath(libfile)}')
-    
+
     # Remove build, dist, egg and __pycache__ directories
     shutil.rmtree(Path.cwd().joinpath('build'), ignore_errors=True)
     shutil.rmtree(Path.cwd().joinpath('dist'), ignore_errors=True)
@@ -163,7 +164,7 @@ if 'cleanall' in sys.argv:
     # Remove 'gprMax/cython/fields_updates_dispersive.jinja' if its there
     if os.path.isfile(cython_disp_file):
         os.remove(cython_disp_file)
-        
+
     # Now do a normal clean
     sys.argv[1] = 'clean'  # this is what distutils understands
 
@@ -176,10 +177,6 @@ else:
         linker_args = []
         libraries = []
 
-    # Compiler options - macOS - needs gcc (usually via HomeBrew) because the 
-    #                               default compiler LLVM (clang) does not 
-    #                               support OpenMP. With gcc -fopenmp option 
-    #                               implies -pthread
     elif sys.platform == 'darwin':
         # Check for Intel or Apple M series CPU
         cpuID = subprocess.check_output("sysctl -n machdep.cpu.brand_string", 
@@ -209,7 +206,7 @@ else:
                       'to be installed - easily done through the Homebrew package ' +
                       'manager (http://brew.sh). Note: gcc with OpenMP support ' +
                       'is required.')
-        
+
         # Minimum supported macOS deployment target
         MIN_MACOS_VERSION = '10.13'
         try:
@@ -219,12 +216,14 @@ else:
             pass
         os.environ['MIN_SUPPORTED_MACOSX_DEPLOYMENT_TARGET'] = MIN_MACOS_VERSION
         # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
-        compile_args = ['-O3', '-w', '-fopenmp', '-march=native', 
-                        '-mmacosx-version-min=' + MIN_MACOS_VERSION]
-        linker_args = ['-fopenmp', '-mmacosx-version-min=' + MIN_MACOS_VERSION]
+        compile_args = ['-O3',
+                        '-w',
+                        '-fopenmp',
+                        '-march=native',
+                        f'-mmacosx-version-min={MIN_MACOS_VERSION}']
+        linker_args = ['-fopenmp', f'-mmacosx-version-min={MIN_MACOS_VERSION}']
         libraries=['gomp']
 
-    # Compiler options - Linux
     elif sys.platform == 'linux':
         compile_args = ['-O3', '-w', '-fopenmp', '-march=native']
         linker_args = ['-fopenmp']
@@ -256,17 +255,17 @@ else:
     # Parse long_description from README.rst file.
     with open('README.rst','r') as fd:
         long_description = fd.read()
-        
+
     setup(name='gprMax',
           version=version,
           author='Craig Warren, Antonis Giannopoulos, and John Hartley',
           url='http://www.gprmax.com',
-          description='Electromagnetic Modelling Software based on the ' +
-                      'Finite-Difference Time-Domain (FDTD) method',
+          description='Electromagnetic Modelling Software based on the '
+          + 'Finite-Difference Time-Domain (FDTD) method',
           long_description=long_description,
           long_description_content_type="text/x-rst",
           license='GPLv3+',
-          python_requires='>' + str(MIN_PYTHON_VERSION[0]) + '.' + str(MIN_PYTHON_VERSION[1]),
+          python_requires=f'>{str(MIN_PYTHON_VERSION[0])}.{str(MIN_PYTHON_VERSION[1])}',
           install_requires=['colorama',
                             'cython',
                             'h5py',
@@ -289,4 +288,5 @@ else:
                      'Operating System :: POSIX :: Linux',
                      'Programming Language :: Cython',
                      'Programming Language :: Python :: 3',
-                     'Topic :: Scientific/Engineering'])
+                     'Topic :: Scientific/Engineering'],
+    )

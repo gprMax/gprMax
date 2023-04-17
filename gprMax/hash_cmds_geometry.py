@@ -17,21 +17,22 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+
 import numpy as np
 
 from .cmds_geometry.add_grass import AddGrass
 from .cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from .cmds_geometry.add_surface_water import AddSurfaceWater
 from .cmds_geometry.box import Box
-from .cmds_geometry.cylinder import Cylinder
 from .cmds_geometry.cone import Cone
+from .cmds_geometry.cylinder import Cylinder
 from .cmds_geometry.cylindrical_sector import CylindricalSector
 from .cmds_geometry.edge import Edge
+from .cmds_geometry.ellipsoid import Ellipsoid
 from .cmds_geometry.fractal_box import FractalBox
 from .cmds_geometry.plate import Plate
 from .cmds_geometry.sphere import Sphere
 from .cmds_geometry.triangle import Triangle
-from .cmds_geometry.ellipsoid import Ellipsoid
 from .utilities.utilities import round_value
 
 logger = logging.getLogger(__name__)
@@ -76,7 +77,8 @@ def process_geometrycmds(geometry):
         tmp = object.split()
 
         if tmp[0] == '#geometry_objects_read:':
-            from .cmds_geometry.geometry_objects_read import GeometryObjectsRead
+            from .cmds_geometry.geometry_objects_read import \
+                GeometryObjectsRead
             
             if len(tmp) != 6:
                 logger.exception("'" + ' '.join(tmp) + "'" + 
@@ -219,7 +221,6 @@ def process_geometrycmds(geometry):
 
             scene_objects.append(cylinder)
 
-
         elif tmp[0] == '#cone:':
             if len(tmp) < 10:
                 logger.exception("'" + ' '.join(tmp) + "'" + 
@@ -239,7 +240,7 @@ def process_geometrycmds(geometry):
             elif len(tmp) == 11:
                 averaging = check_averaging(tmp[10].lower())
                 cone = Cone(p1=p1, p2=p2, r1=r1, r2=r2, material_id=tmp[9], 
-                                    averaging=averaging)
+                            averaging=averaging)
 
             # Uniaxial anisotropic case
             elif len(tmp) == 12:
@@ -251,7 +252,6 @@ def process_geometrycmds(geometry):
                 raise ValueError
 
             scene_objects.append(cone)
-
 
         elif tmp[0] == '#cylindrical_sector:':
             if len(tmp) < 10:
@@ -331,7 +331,6 @@ def process_geometrycmds(geometry):
 
             scene_objects.append(sphere)
 
-
         elif tmp[0] == '#ellipsoid:':
             if len(tmp) < 8:
                 logger.exception("'" + ' '.join(tmp) + "'" + 
@@ -345,17 +344,19 @@ def process_geometrycmds(geometry):
 
             # Isotropic case with no user specified averaging
             if len(tmp) == 8:
-                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, material_id=tmp[7])
+                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, 
+                                      material_id=tmp[7])
 
             # Isotropic case with user specified averaging
             elif len(tmp) == 9:
                 averaging = check_averaging(tmp[8].lower())
-                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, material_id=tmp[7], 
-                                averaging=averaging)
+                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, 
+                                      material_id=tmp[7], averaging=averaging)
 
             # Uniaxial anisotropic case
             elif len(tmp) == 8:
-                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, material_id=tmp[7:])
+                ellipsoid = Ellipsoid(p1=p1, xr=xr, yr=yr, zr=zr, 
+                                      material_id=tmp[7:])
 
             else:
                 logger.exception("'" + ' '.join(tmp) + "'" + 
@@ -363,8 +364,6 @@ def process_geometrycmds(geometry):
                 raise ValueError
 
             scene_objects.append(ellipsoid)
-
-    
 
         elif tmp[0] == '#fractal_box:':
             # Default is no dielectric smoothing for a fractal box

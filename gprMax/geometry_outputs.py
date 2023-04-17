@@ -277,14 +277,10 @@ class Comments():
         """
 
         # Comments for Paraview macro
-        comments = {}
-
-        comments['gprMax_version'] = __version__
-        comments['dx_dy_dz'] = self.dx_dy_dz_comment()
-        comments['nx_ny_nz'] = self.nx_ny_nz_comment()
-
-        # Write the name and numeric ID for each material
-        comments['Materials'] = self.materials_comment()
+        comments = {'gprMax_version': __version__, 
+                    'dx_dy_dz': self.dx_dy_dz_comment(),
+                    'nx_ny_nz': self.nx_ny_nz_comment(),
+                    'Materials': self.materials_comment()} # Write the name and numeric ID for each material
 
         # Write information on PMLs, sources, and receivers
         if not self.materials_only:

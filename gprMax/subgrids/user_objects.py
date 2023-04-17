@@ -123,11 +123,7 @@ class SubGridBase(UserObjectMulti):
         self.subgrid = sg
 
         # Copy over built in materials
-        sg.materials = [
-            copy(m)
-            for m in grid.materials
-            if m.numID in range(grid.n_built_in_materials + 1)
-        ]
+        sg.materials = [copy(m) for m in grid.materials if m.type == 'builtin']
 
         # Don't mix and match different subgrid types
         for sg_made in grid.subgrids:
