@@ -212,6 +212,7 @@ def check_cmd_names(processedlines, checkessential=True):
     # - these will be lists within the dictionary
     multiplecmds = {key: [] for key in ['#geometry_view', 
                                         '#geometry_objects_write', '#material',
+                                        '#material_range', '#material_list',
                                         '#soil_peplinski', 
                                         '#add_dispersion_debye', 
                                         '#add_dispersion_lorentz', 
@@ -219,14 +220,14 @@ def check_cmd_names(processedlines, checkessential=True):
                                         '#waveform', '#voltage_source', 
                                         '#hertzian_dipole', '#magnetic_dipole', 
                                         '#transmission_line', '#rx', '#rx_array', 
-                                        '#snapshot', '#include_file', '#material_range', '#material_list']}
+                                        '#snapshot', '#include_file']}
 
     # Geometry object building commands that there can be multiple instances
     # of in a model - these will be lists within the dictionary
     geometrycmds = ['#geometry_objects_read', '#edge', '#plate', '#triangle', 
-                    '#box', '#sphere', '#ellipsoid', '#cone', '#cylinder', '#cylindrical_sector', 
-                    '#fractal_box', '#add_surface_roughness', 
-                    '#add_surface_water', '#add_grass']
+                    '#box', '#sphere', '#ellipsoid', '#cone', '#cylinder', 
+                    '#cylindrical_sector', '#fractal_box', 
+                    '#add_surface_roughness', '#add_surface_water', '#add_grass']
     # List to store all geometry object commands in order from input file
     geometry = []
 

@@ -21,8 +21,9 @@ import logging
 from .cmds_multiuse import (AddDebyeDispersion, AddDrudeDispersion,
                             AddLorentzDispersion, GeometryObjectsWrite,
                             GeometryView, HertzianDipole, MagneticDipole,
-                            Material, Rx, RxArray, Snapshot, SoilPeplinski,
-                            TransmissionLine, VoltageSource, Waveform, MaterialRange, MaterialList)
+                            Material, MaterialList, MaterialRange, Rx, RxArray,
+                            Snapshot, SoilPeplinski, TransmissionLine,
+                            VoltageSource, Waveform)
 
 logger = logging.getLogger(__name__)
 
@@ -352,16 +353,15 @@ def process_multicmds(multicmds):
                                  ' requires at exactly nine parameters')
                 raise ValueError
             material_range = MaterialRange(er_lower=float(tmp[0]),
-                                 er_upper=float(tmp[1]),
-                                 sigma_lower=float(tmp[2]),
-                                 sigma_upper=float(tmp[3]),
-                                 mr_lower=float(tmp[4]),
-                                 mr_upper=float(tmp[5]),
-                                 ro_lower=float(tmp[6]),
-                                 ro_upper=float(tmp[7]),
-                                 id=tmp[8])
+                                           er_upper=float(tmp[1]),
+                                           sigma_lower=float(tmp[2]),
+                                           sigma_upper=float(tmp[3]),
+                                           mr_lower=float(tmp[4]),
+                                           mr_upper=float(tmp[5]),
+                                           ro_lower=float(tmp[6]),
+                                           ro_upper=float(tmp[7]),
+                                           id=tmp[8])
             scene_objects.append(material_range)
-
 
     cmdname = '#material_list'
     if multicmds[cmdname] is not None:
@@ -375,14 +375,11 @@ def process_multicmds(multicmds):
             
             tokens = len(tmp)
             lmats = []
-            for iter in range(0,tokens-1):
+            for iter in range(tokens-1):
                 lmats.append(tmp[iter])
 
-
-
-            material_list = MaterialList(list_of_materials=lmats,
-                               id=tmp[tokens-1])
+            material_list = MaterialList(list_of_materials=lmats, 
+                                         id=tmp[tokens-1])
             scene_objects.append(material_list)
-
 
     return scene_objects
