@@ -620,13 +620,11 @@ def process_materials(G):
                 z += 3
 
         # Construct information on material properties for printing table
-        materialtext = [
-            str(material.numID),
-            material.ID[:50] if len(material.ID) > 50 else material.ID,
-            material.type,
-            f'{material.er:g}',
-            f'{material.se:g}',
-        ]
+        materialtext = [str(material.numID),
+                        material.ID[:50] if len(material.ID) > 50 else material.ID,
+                        material.type,
+                        f'{material.er:g}',
+                        f'{material.se:g}']
         if config.get_model_config().materials['maxpoles'] > 0:
             if 'debye' in material.type:
                 materialtext.append('\n'.join('{:g}'.format(deltaer) for deltaer in material.deltaer))
@@ -646,9 +644,7 @@ def process_materials(G):
             else:
                 materialtext.extend(['', '', '', '', ''])
 
-        materialtext.extend(
-            (f'{material.mr:g}', f'{material.sm:g}', material.averagable)
-        )
+        materialtext.extend((f'{material.mr:g}', f'{material.sm:g}', material.averagable))
         materialsdata.append(materialtext)
 
     return materialsdata

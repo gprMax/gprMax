@@ -56,13 +56,11 @@ class Waveform:
         if self.freq is None:
             raise ValueError("Frequency is not specified")
 
-        if self.type in [
-            'gaussian',
-            'gaussiandot',
-            'gaussiandotnorm',
-            'gaussianprime',
-            'gaussiandoubleprime',
-        ]:
+        if self.type in ['gaussian',
+                         'gaussiandot',
+                         'gaussiandotnorm',
+                         'gaussianprime',
+                         'gaussiandoubleprime']:
             self.chi = 1 / self.freq
             self.zeta = 2 * np.pi**2 * self.freq**2
         elif self.type in ['gaussiandotdot', 'gaussiandotdotnorm', 'ricker']:

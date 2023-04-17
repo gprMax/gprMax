@@ -216,13 +216,11 @@ else:
             pass
         os.environ['MIN_SUPPORTED_MACOSX_DEPLOYMENT_TARGET'] = MIN_MACOS_VERSION
         # Sometimes worth testing with '-fstrict-aliasing', '-fno-common'
-        compile_args = [
-            '-O3',
-            '-w',
-            '-fopenmp',
-            '-march=native',
-            f'-mmacosx-version-min={MIN_MACOS_VERSION}',
-        ]
+        compile_args = ['-O3',
+                        '-w',
+                        '-fopenmp',
+                        '-march=native',
+                        f'-mmacosx-version-min={MIN_MACOS_VERSION}']
         linker_args = ['-fopenmp', f'-mmacosx-version-min={MIN_MACOS_VERSION}']
         libraries=['gomp']
 
@@ -258,42 +256,37 @@ else:
     with open('README.rst','r') as fd:
         long_description = fd.read()
 
-    setup(
-        name='gprMax',
-        version=version,
-        author='Craig Warren, Antonis Giannopoulos, and John Hartley',
-        url='http://www.gprmax.com',
-        description='Electromagnetic Modelling Software based on the '
-        + 'Finite-Difference Time-Domain (FDTD) method',
-        long_description=long_description,
-        long_description_content_type="text/x-rst",
-        license='GPLv3+',
-        python_requires=f'>{str(MIN_PYTHON_VERSION[0])}.{str(MIN_PYTHON_VERSION[1])}',
-        install_requires=[
-            'colorama',
-            'cython',
-            'h5py',
-            'jinja2',
-            'matplotlib',
-            'numpy',
-            'psutil',
-            'scipy',
-            'terminaltables',
-            'tqdm',
-        ],
+    setup(name='gprMax',
+          version=version,
+          author='Craig Warren, Antonis Giannopoulos, and John Hartley',
+          url='http://www.gprmax.com',
+          description='Electromagnetic Modelling Software based on the '
+          + 'Finite-Difference Time-Domain (FDTD) method',
+          long_description=long_description,
+          long_description_content_type="text/x-rst",
+          license='GPLv3+',
+          python_requires=f'>{str(MIN_PYTHON_VERSION[0])}.{str(MIN_PYTHON_VERSION[1])}',
+          install_requires=['colorama',
+                            'cython',
+                            'h5py',
+                            'jinja2',
+                            'matplotlib',
+                            'numpy',
+                            'psutil',
+                            'scipy',
+                            'terminaltables',
+                            'tqdm'],
         ext_modules=extensions,
         packages=find_packages(),
         include_package_data=True,
         include_dirs=[np.get_include()],
         zip_safe=False,
-        classifiers=[
-            'Environment :: Console',
-            'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
-            'Operating System :: MacOS',
-            'Operating System :: Microsoft :: Windows',
-            'Operating System :: POSIX :: Linux',
-            'Programming Language :: Cython',
-            'Programming Language :: Python :: 3',
-            'Topic :: Scientific/Engineering',
-        ],
+        classifiers=['Environment :: Console',
+                     'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
+                     'Operating System :: MacOS',
+                     'Operating System :: Microsoft :: Windows',
+                     'Operating System :: POSIX :: Linux',
+                     'Programming Language :: Cython',
+                     'Programming Language :: Python :: 3',
+                     'Topic :: Scientific/Engineering'],
     )

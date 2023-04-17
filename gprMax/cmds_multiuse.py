@@ -114,14 +114,12 @@ class Waveform(UserObjectMulti):
         try:
             wavetype = self.kwargs['wave_type'].lower()
         except KeyError:
-            logger.exception(
-                f"{self.params_str()} must have one of the following types {','.join(WaveformUser.types)}."
-            )
+            logger.exception(f"{self.params_str()} must have one of the " + 
+                             f"following types {','.join(WaveformUser.types)}.")
             raise
         if wavetype not in WaveformUser.types:
-            logger.exception(
-                f"{self.params_str()} must have one of the following types {','.join(WaveformUser.types)}."
-            )
+            logger.exception(f"{self.params_str()} must have one of the " +
+                             f"following types {','.join(WaveformUser.types)}.")
             raise ValueError
 
         if wavetype != 'user':
@@ -836,14 +834,15 @@ class Rx(UserObjectMulti):
                     r.outputs[field] = np.zeros(grid.iterations, 
                                                 dtype=config.sim_config.dtypes['float_or_double'])
                 else:
-                    logger.exception(
-                        f'{self.params_str()} contains an output type that is not allowable. Allowable outputs in current context are {allowableoutputs}.'
-                    )
+                    logger.exception(f'{self.params_str()} contains an output '
+                                     f'type that is not allowable. Allowable '
+                                     f'outputs in current context are '
+                                     f'{allowableoutputs}.')
                     raise ValueError
 
-        logger.info(
-            f"{self.grid_name(grid)}Receiver at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m with output component(s) {', '.join(r.outputs)} created."
-        )
+        logger.info(f"{self.grid_name(grid)}Receiver at {p2[0]:g}m, {p2[1]:g}m, "
+                    f"{p2[2]:g}m with output component(s) "
+                    f"{', '.join(r.outputs)} created.")
 
         grid.rxs.append(r)
 
@@ -910,9 +909,10 @@ class RxArray(UserObjectMulti):
                                  'not be less than the spatial discretisation.')
                 raise ValueError
 
-        logger.info(
-            f'{self.grid_name(grid)}Receiver array {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m with steps {dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m'
-        )
+        logger.info(f'{self.grid_name(grid)}Receiver array '
+                    f'{p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to '
+                    f'{p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m with steps '
+                    f'{dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m')
 
         for x in range(xs, xf + 1, dx):
             for y in range(ys, yf + 1, dy):
@@ -1024,9 +1024,10 @@ class Snapshot(UserObjectMulti):
             # Check and set output names
             for output in tmp:
                 if output not in SnapshotUser.allowableoutputs.keys():
-                    logger.exception(
-                        f"{self.params_str()} contains an output type that is not allowable. Allowable outputs in current context are {', '.join(SnapshotUser.allowableoutputs.keys())}."
-                    )
+                    logger.exception(f"{self.params_str()} contains an output "
+                                     f"type that is not allowable. Allowable "
+                                     f"outputs in current context are "
+                                     f"{', '.join(SnapshotUser.allowableoutputs.keys())}.")
                     raise ValueError
                 else:
                     outputs[output] = True
@@ -1084,35 +1085,33 @@ class Material(UserObjectMulti):
             sm = self.kwargs['sm']
             material_id = self.kwargs['id']
         except KeyError:
-            logger.exception(f'{self.params_str()} requires exactly five parameters.')
+            logger.exception(f'{self.params_str()} requires exactly five '
+                             f'parameters.')
             raise
 
         if er < 1:
-            logger.exception(
-                f'{self.params_str()} requires a positive value of one or greater for static (DC) permittivity.'
-            )
+            logger.exception(f'{self.params_str()} requires a positive value of '
+                             f'one or greater for static (DC) permittivity.')
             raise ValueError
         if se != 'inf':
             se = float(se)
             if se < 0:
-                logger.exception(
-                    f'{self.params_str()} requires a positive value for electric conductivity.'
-                )
+                logger.exception(f'{self.params_str()} requires a positive '
+                                 f'value for electric conductivity.')
                 raise ValueError
         else:
             se = float('inf')
         if mr < 1:
-            logger.exception(
-                f'{self.params_str()} requires a positive value of one or greater for magnetic permeability.'
-            )
+            logger.exception(f'{self.params_str()} requires a positive value of '
+                             f'one or greater for magnetic permeability.')
             raise ValueError
         if sm < 0:
-            logger.exception(
-                f'{self.params_str()} requires a positive value for magnetic loss.'
-            )
+            logger.exception(f'{self.params_str()} requires a positive value '
+                             f'for magnetic loss.')
             raise ValueError
         if any(x.ID == material_id for x in grid.materials):
-            logger.exception(f'{self.params_str()} with ID {material_id} already exists')
+            logger.exception(f'{self.params_str()} with ID {material_id} '
+                             f'already exists')
             raise ValueError
 
         # Create a new instance of the Material class material 
@@ -1127,9 +1126,9 @@ class Material(UserObjectMulti):
             m.averagable = False
 
         m.er = er
-        logger.info(
-            f'{self.grid_name(grid)}Material {m.ID} with eps_r={m.er:g}, sigma={m.se:g} S/m; mu_r={m.mr:g}, sigma*={m.sm:g} Ohm/m created.'
-        )
+        logger.info(f'{self.grid_name(grid)}Material {m.ID} with eps_r={m.er:g}, '
+                    f'sigma={m.se:g} S/m; mu_r={m.mr:g}, sigma*={m.sm:g} Ohm/m '
+                    f'created.')
 
         grid.materials.append(m)
 
@@ -1202,9 +1201,9 @@ class AddDebyeDispersion(UserObjectMulti):
             # Replace original material with newly created DispersiveMaterial
             grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
 
-            logger.info(
-                f"{self.grid_name(grid)}Debye disperion added to {disp_material.ID} with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, and tau={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs created."
-            )
+            logger.info(f"{self.grid_name(grid)}Debye disperion added to {disp_material.ID} "
+                        f"with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, "
+                        f"and tau={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs created.")
 
 
 class AddLorentzDispersion(UserObjectMulti):
@@ -1280,8 +1279,10 @@ class AddLorentzDispersion(UserObjectMulti):
             grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
 
             logger.info(
-                f"{self.grid_name(grid)}Lorentz disperion added to {disp_material.ID} with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, omega={', '.join('%4.3e' % omega for omega in disp_material.tau)} secs, and gamma={', '.join('%4.3e' % delta for delta in disp_material.alpha)} created."
-            )
+                f"{self.grid_name(grid)}Lorentz disperion added to {disp_material.ID} "
+                f"with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, "
+                f"omega={', '.join('%4.3e' % omega for omega in disp_material.tau)} secs, "
+                f"and gamma={', '.join('%4.3e' % delta for delta in disp_material.alpha)} created.")
 
 
 class AddDrudeDispersion(UserObjectMulti):
@@ -1351,8 +1352,9 @@ class AddDrudeDispersion(UserObjectMulti):
             grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
 
             logger.info(
-                f"{self.grid_name(grid)}Drude disperion added to {disp_material.ID} with omega={', '.join('%4.3e' % omega for omega in disp_material.tau)} secs, and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} secs created."
-            )
+                f"{self.grid_name(grid)}Drude disperion added to {disp_material.ID} "
+                f"with omega={', '.join('%4.3e' % omega for omega in disp_material.tau)} secs, "
+                f"and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} secs created.")
 
 
 class SoilPeplinski(UserObjectMulti):
@@ -1513,7 +1515,8 @@ class MaterialRange(UserObjectMulti):
 
         # Create a new instance of the Material class material 
         # (start index after pec & free_space)
-        s = RangeMaterialUser(ID, (er_lower, er_upper), (sigma_lower, sigma_upper), (mr_lower, mr_upper), (ro_lower, ro_upper))
+        s = RangeMaterialUser(ID, (er_lower, er_upper), (sigma_lower, sigma_upper), 
+                              (mr_lower, mr_upper), (ro_lower, ro_upper))
 
         logger.info(self.grid_name(grid) + 'Material properties used to '
                     f'create {s.ID} with range(s) {s.er[0]:g} to {s.er[1]:g}, relative permittivity '
@@ -1547,8 +1550,7 @@ class MaterialList(UserObjectMulti):
             logger.exception(self.params_str() + ' requires at at least 2 '
                              'parameters.')
             raise
-
-               
+   
         if any(x.ID == ID for x in grid.mixingmodels):
             logger.exception(self.params_str() + f' with ID {ID} already exists')
             raise ValueError
@@ -1562,7 +1564,6 @@ class MaterialList(UserObjectMulti):
         
 
         grid.mixingmodels.append(s)
-
 
 
 class GeometryView(UserObjectMulti):
@@ -1624,7 +1625,6 @@ class GeometryView(UserObjectMulti):
         xf, yf, zf = p2
 
         dx, dy, dz = uip.discretise_static_point(dl)
-
 
         if dx < 0 or dy < 0 or dz < 0:
             logger.exception(self.params_str() + ' the step size should not be '

@@ -97,19 +97,16 @@ class Discretisation(UserObjectSingle):
             raise
 
         if G.dl[0] <= 0:
-            logger.exception(
-                f'{self.__str__()} discretisation requires the x-direction spatial step to be greater than zero'
-            )
+            logger.exception(f'{self.__str__()} discretisation requires the '
+                             f'x-direction spatial step to be greater than zero')
             raise ValueError
         if G.dl[1] <= 0:
-            logger.exception(
-                f'{self.__str__()} discretisation requires the y-direction spatial step to be greater than zero'
-            )
+            logger.exception(f'{self.__str__()} discretisation requires the '
+                             f'y-direction spatial step to be greater than zero')
             raise ValueError
         if G.dl[2] <= 0:
-            logger.exception(
-                f'{self.__str__()} discretisation requires the z-direction spatial step to be greater than zero'
-            )
+            logger.exception(f'{self.__str__()} discretisation requires the '
+                             f'z-direction spatial step to be greater than zero')
             raise ValueError
 
         logger.info(f'Spatial discretisation: {G.dl[0]:g} x {G.dl[1]:g} x {G.dl[2]:g}m')
@@ -134,9 +131,8 @@ class Domain(UserObjectSingle):
             raise
 
         if G.nx == 0 or G.ny == 0 or G.nz == 0:
-            logger.exception(
-                f'{self.__str__()} requires at least one cell in every dimension'
-            )
+            logger.exception(f'{self.__str__()} requires at least one cell in '
+                             f'every dimension')
             raise ValueError
 
         logger.info(f"Domain size: {self.kwargs['p1'][0]:g} x {self.kwargs['p1'][1]:g} x " +
@@ -190,9 +186,8 @@ class TimeStepStabilityFactor(UserObjectSingle):
             raise
 
         if f <= 0 or f > 1:
-            logger.exception(
-                f'{self.__str__()} requires the value of the time step stability factor to be between zero and one'
-            )
+            logger.exception(f'{self.__str__()} requires the value of the time '
+                             f'step stability factor to be between zero and one')
             raise ValueError
         G.dt = G.dt * f
 
@@ -256,14 +251,12 @@ class OMPThreads(UserObjectSingle):
         try:
             n = self.kwargs['n']
         except KeyError:
-            logger.exception(
-                f'{self.__str__()} requires exactly one parameter to specify the number of CPU OpenMP threads to use'
-            )
+            logger.exception(f'{self.__str__()} requires exactly one parameter '
+                             f'to specify the number of CPU OpenMP threads to use')
             raise
         if n < 1:
-            logger.exception(
-                f'{self.__str__()} requires the value to be an integer not less than one'
-            )
+            logger.exception(f'{self.__str__()} requires the value to be an '
+                             f'integer not less than one')
             raise ValueError
 
         config.get_model_config().ompthreads = set_omp_threads(n)
@@ -341,13 +334,9 @@ class SrcSteps(UserObjectSingle):
             logger.exception(f'{self.__str__()} requires exactly three parameters')
             raise
 
-        logger.info(
-            (
-                f'Simple sources will step {G.srcsteps[0] * G.dx:g}m, '
-                + f'{G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m '
-                + 'for each model run.'
-            )
-        )
+        logger.info(f'Simple sources will step {G.srcsteps[0] * G.dx:g}m, ' + 
+                    f'{G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m ' + 
+                    'for each model run.')
 
 
 class RxSteps(UserObjectSingle):
@@ -368,13 +357,9 @@ class RxSteps(UserObjectSingle):
             logger.exception(f'{self.__str__()} requires exactly three parameters')
             raise
 
-        logger.info(
-            (
-                f'All receivers will step {G.rxsteps[0] * G.dx:g}m, '
-                + f'{G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m '
-                + 'for each model run.'
-            )
-        )
+        logger.info(f'All receivers will step {G.rxsteps[0] * G.dx:g}m, ' + 
+                    f'{G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m ' + 
+                    'for each model run.')
 
 
 class ExcitationFile(UserObjectSingle):
