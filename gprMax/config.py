@@ -225,13 +225,14 @@ class SimulationConfig:
         #   subgrid: whether the simulation uses sub-grids.
         #   precision: data type for electromagnetic field output (single/double).
 
-        self.general = {'solver': 'cpu',
-                        'subgrid': False,
-                        'precision': 'single'}
-
+        self.general = {
+            'solver': 'cpu',
+            'subgrid': False,
+            'precision': 'single',
+            'progressbars': args.log_level <= 20,
+        }
         # Progress bars on stdoout or not - switch off progressbars when
         # logging level is greater than info (20)
-        self.general['progressbars'] = False if args.log_level > 20 else True
 
         self.em_consts = {'c': c, # Speed of light in free space (m/s)
                           'e0': e0, # Permittivity of free space (F/m)

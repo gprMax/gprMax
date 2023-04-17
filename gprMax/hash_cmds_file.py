@@ -178,14 +178,15 @@ def write_processed_file(processedlines):
         for item in processedlines:
             f.write(f'{item}')
 
-    logger.info(f'Written input commands, after processing any Python code and ' +
-                f'include commands, to file: {processedfile}\n')
+    logger.info(
+        f'Written input commands, after processing any Python code and include commands, to file: {processedfile}\n'
+    )
 
 
 def check_cmd_names(processedlines, checkessential=True):
     """Checks the validity of commands, i.e. are they gprMax commands,
         and that all essential commands are present.
-
+        
     Args:
         processedlines: list of input commands after Python processing.
         checkessential: boolean to check for essential commands or not.
