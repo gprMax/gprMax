@@ -130,12 +130,9 @@ for i, model in enumerate(testmodels):
 
         # Check that type of float used to store fields matches
         if filetest[path + outputstest[0]].dtype != fileref[path + outputsref[0]].dtype:
-            logger.warning(
-                (
-                    f'Type of floating point number in test model ({filetest[path + outputstest[0]].dtype}) does not '
-                    + f'match type in reference solution ({fileref[path + outputsref[0]].dtype})\n'
-                )
-            )
+            logger.warning(f'Type of floating point number in test model ' +
+                           f'({filetest[path + outputstest[0]].dtype}) does not ' +
+                           f'match type in reference solution ({fileref[path + outputsref[0]].dtype})\n')
         float_or_doubleref = fileref[path + outputsref[0]].dtype
         float_or_doubletest = filetest[path + outputstest[0]].dtype
 
@@ -176,22 +173,18 @@ for i, model in enumerate(testmodels):
         # Replace any NaNs or Infs from zero division
         datadiffs[:, i][np.invert(np.isfinite(datadiffs[:, i]))] = 0
 
-    # Store maxi difference
+    # Store max difference
     maxdiff = np.amax(np.amax(datadiffs))
     testresults[model]['Max diff'] = maxdiff
 
     # Plot datasets
-    fig1, ((ex1, hx1), (ey1, hy1), (ez1, hz1)) = plt.subplots(
-        nrows=3,
-        ncols=2,
-        sharex=False,
-        sharey='col',
-        subplot_kw=dict(xlabel='Time [ns]'),
-        num=f'{model}.in',
-        figsize=(20, 10),
-        facecolor='w',
-        edgecolor='w',
-    )
+    fig1, ((ex1, hx1), (ey1, hy1), (ez1, hz1)) = plt.subplots(nrows=3, ncols=2, 
+                                                              sharex=False, sharey='col', 
+                                                              subplot_kw=dict(xlabel='Time [ns]'), 
+                                                              num=model + '.in', 
+                                                              figsize=(20, 10), 
+                                                              facecolor='w', 
+                                                              edgecolor='w')
     ex1.plot(timetest, datatest[:, 0], 'r', lw=2, label=model)
     ex1.plot(timeref, dataref[:, 0], 'g', lw=2, ls='--', label=f'{model}(Ref)')
     ey1.plot(timetest, datatest[:, 1], 'r', lw=2, label=model)
@@ -214,17 +207,13 @@ for i, model in enumerate(testmodels):
         ax.legend()
 
     # Plot diffs
-    fig2, ((ex2, hx2), (ey2, hy2), (ez2, hz2)) = plt.subplots(
-        nrows=3,
-        ncols=2,
-        sharex=False,
-        sharey='col',
-        subplot_kw=dict(xlabel='Time [ns]'),
-        num=f'Diffs: {model}.in',
-        figsize=(20, 10),
-        facecolor='w',
-        edgecolor='w',
-    )
+    fig2, ((ex2, hx2), (ey2, hy2), (ez2, hz2)) = plt.subplots(nrows=3, ncols=2, 
+                                                              sharex=False, sharey='col', 
+                                                              subplot_kw=dict(xlabel='Time [ns]'), 
+                                                              num='Diffs: ' + model + '.in', 
+                                                              figsize=(20, 10), 
+                                                              facecolor='w', 
+                                                              edgecolor='w')
     ex2.plot(timeref, datadiffs[:, 0], 'r', lw=2, label='Ex')
     ey2.plot(timeref, datadiffs[:, 1], 'r', lw=2, label='Ey')
     ez2.plot(timeref, datadiffs[:, 2], 'r', lw=2, label='Ez')

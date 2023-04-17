@@ -81,12 +81,10 @@ realmax = np.where(np.abs(real[:, 1]) == 1)[0][0]
 difftime = - (timemodel[modelmax] - real[realmax, 0])
 
 # Plot modelled and real data
-fig, ax = plt.subplots(
-    num=f'{modelfile.stem}_vs_{realfile.stem}',
-    figsize=(20, 10),
-    facecolor='w',
-    edgecolor='w',
-)
+fig, ax = plt.subplots(num=f'{modelfile.stem}_vs_{realfile.stem}',
+                       figsize=(20, 10),
+                       facecolor='w',
+                       edgecolor='w',)
 ax.plot(timemodel + difftime, model, 'r', lw=2, label='Model')
 ax.plot(real[:, 0], real[:, 1], 'r', ls='--', lw=2, label='Experiment')
 ax.set_xlabel('Time [s]')
