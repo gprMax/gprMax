@@ -134,12 +134,12 @@ if 'cleanall' in sys.argv:
     for file in cythonfiles:
         filebase = os.path.splitext(file)[0]
         # Remove Cython C files
-        if os.path.isfile(filebase + '.c'):
+        if os.path.isfile(f'{filebase}.c'):
             try:
-                os.remove(filebase + '.c')
-                print(f'Removed: {filebase + ".c"}')
+                os.remove(f'{filebase}.c')
+                print(f'Removed: {filebase}.c')
             except OSError:
-                print(f'Could not remove: {filebase + ".c"}')
+                print(f'Could not remove: {filebase}.c')
         # Remove compiled Cython modules
         libfile = (glob.glob(os.path.join(os.getcwd(), 
                              os.path.splitext(file)[0]) + '*.pyd') + 
