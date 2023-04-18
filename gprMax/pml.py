@@ -22,6 +22,8 @@ import numpy as np
 
 import gprMax.config as config
 
+from .cython.pml_build import pml_average_er_mr
+
 
 class CFSParameter:
     """Individual CFS parameter (e.g. alpha, kappa, or sigma)."""
@@ -609,9 +611,6 @@ def build_pml(G, key, value):
     elif config.sim_config.general['solver'] == 'opencl':
         pml_type = OpenCLPML
 
-    sumer = 0  # Sum of relative permittivities in PML slab
-    summr = 0  # Sum of relative permeabilities in PML slab
-
     if key[0] == 'x':
         if key == 'x0':
             pml = pml_type(G, ID=key, direction='xminus', 
@@ -621,14 +620,7 @@ def build_pml(G, key, value):
                            xs=G.nx - value, xf=G.nx, yf=G.ny, zf=G.nz)
         pml.CFS = G.pmls['cfs']
         G.pmls['slabs'].append(pml)
-        for j in range(G.ny):
-            for k in range(G.nz):
-                numID = G.solid[pml.xs, j, k]
-                material = next(x for x in G.materials if x.numID == numID)
-                sumer += material.er
-                summr += material.mr
-        averageer = sumer / (G.ny * G.nz)
-        averagemr = summr / (G.ny * G.nz)
+        averageer, averagemr = pml_average_er_mr('x', pml.xs, G)
 
     elif key[0] == 'y':
         if key == 'y0':
@@ -639,14 +631,7 @@ def build_pml(G, key, value):
                            ys=G.ny - value, xf=G.nx, yf=G.ny, zf=G.nz)
         pml.CFS = G.pmls['cfs']
         G.pmls['slabs'].append(pml)
-        for i in range(G.nx):
-            for k in range(G.nz):
-                numID = G.solid[i, pml.ys, k]
-                material = next(x for x in G.materials if x.numID == numID)
-                sumer += material.er
-                summr += material.mr
-        averageer = sumer / (G.nx * G.nz)
-        averagemr = summr / (G.nx * G.nz)
+        averageer, averagemr = pml_average_er_mr('y', pml.ys, G)
 
     elif key[0] == 'z':
         if key == 'z0':
@@ -657,13 +642,6 @@ def build_pml(G, key, value):
                            zs=G.nz - value, xf=G.nx, yf=G.ny, zf=G.nz)
         pml.CFS = G.pmls['cfs']
         G.pmls['slabs'].append(pml)
-        for i in range(G.nx):
-            for j in range(G.ny):
-                numID = G.solid[i, j, pml.zs]
-                material = next(x for x in G.materials if x.numID == numID)
-                sumer += material.er
-                summr += material.mr
-        averageer = sumer / (G.nx * G.ny)
-        averagemr = summr / (G.nx * G.ny)
+        averageer, averagemr = pml_average_er_mr('z', pml.zs, G)
 
     pml.calculate_update_coeffs(averageer, averagemr)
