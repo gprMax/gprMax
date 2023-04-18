@@ -68,18 +68,16 @@ class AddSurfaceWater(UserObjectGeometry):
             fractal_box_id = self.kwargs['fractal_box_id']
             depth = self.kwargs['depth']
         except KeyError:
-            logger.exception(self.__str__() + ' requires exactly eight parameters')
+            logger.exception(f'{self.__str__()} requires exactly eight parameters')
             raise
 
         if self.do_rotate:
             self._do_rotate()
 
-        # Get the correct fractal volume
-        volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
-        if volumes:
+        if volumes := [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]:
             volume = volumes[0]
         else:
-            logger.exception(self.__str__() + f' cannot find FractalBox {fractal_box_id}')
+            logger.exception(f'{self.__str__()} cannot find FractalBox {fractal_box_id}')
             raise ValueError
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
@@ -87,18 +85,18 @@ class AddSurfaceWater(UserObjectGeometry):
         xf, yf, zf = p2
 
         if depth <= 0:
-            logger.exception(self.__str__() + ' requires a positive value for ' +
-                             'the depth of water')
+            logger.exception(f'{self.__str__()} requires a positive value for the ' + 
+                             f'depth of water')
             raise ValueError
 
         # Check for valid orientations
         if xs == xf:
             if ys == yf or zs == zf:
-                logger.exception(self.__str__() + ' dimensions are not specified correctly')
+                logger.exception(f'{self.__str__()} dimensions are not specified correctly')
                 raise ValueError
-            if xs != volume.xs and xs != volume.xf:
-                logger.exception(self.__str__() + ' can only be used on the ' +
-                                 'external surfaces of a fractal box')
+            if xs not in [volume.xs, volume.xf]:
+                logger.exception(f'{self.__str__()} can only be used on the external surfaces '
+                                 f'of a fractal box')
                 raise ValueError
             # xminus surface
             if xs == volume.xs:
@@ -110,12 +108,12 @@ class AddSurfaceWater(UserObjectGeometry):
             filldepth = filldepthcells * grid.dx
 
         elif ys == yf:
-            if xs == xf or zs == zf:
-                logger.exception(self.__str__() + ' dimensions are not specified correctly')
+            if zs == zf:
+                logger.exception(f'{self.__str__()} dimensions are not specified correctly')
                 raise ValueError
-            if ys != volume.ys and ys != volume.yf:
-                logger.exception(self.__str__() + ' can only be used on the ' +
-                                 'external surfaces of a fractal box')
+            if ys not in [volume.ys, volume.yf]:
+                logger.exception(f'{self.__str__()} can only be used on the external surfaces ' +
+                                 f'of a fractal box')
                 raise ValueError
             # yminus surface
             if ys == volume.ys:
@@ -127,12 +125,9 @@ class AddSurfaceWater(UserObjectGeometry):
             filldepth = filldepthcells * grid.dy
 
         elif zs == zf:
-            if xs == xf or ys == yf:
-                logger.exception(self.__str__() + ' dimensions are not specified correctly')
-                raise ValueError
-            if zs != volume.zs and zs != volume.zf:
-                logger.exception(self.__str__() + ' can only be used on the ' +
-                                 'external surfaces of a fractal box')
+            if zs not in [volume.zs, volume.zf]:
+                logger.exception(f'{self.__str__()} can only be used on the external surfaces '
+                                f'of a fractal box')
                 raise ValueError
             # zminus surface
             if zs == volume.zs:
@@ -144,38 +139,35 @@ class AddSurfaceWater(UserObjectGeometry):
             filldepth = filldepthcells * grid.dz
 
         else:
-            logger.exception(self.__str__() + ' dimensions are not specified correctly')
+            logger.exception(f'{self.__str__()} dimensions are not specified correctly')
             raise ValueError
 
         surface = next((x for x in volume.fractalsurfaces if x.surfaceID == requestedsurface), None)
         if not surface:
-            logger.exception(self.__str__() + f' specified surface {requestedsurface} ' +
-                             'does not have a rough surface applied')
+            logger.exception(f'{self.__str__()} specified surface {requestedsurface} ' +
+                             f'does not have a rough surface applied')
             raise ValueError
 
         surface.filldepth = filldepthcells
 
         # Check that requested fill depth falls within range of surface roughness
         if surface.filldepth < surface.fractalrange[0] or surface.filldepth > surface.fractalrange[1]:
-            logger.exception(self.__str__() + ' requires a value for the depth ' +
-                             'of water that lies with the range of the requested ' +
-                             'surface roughness')
+            logger.exception(f'{self.__str__()} requires a value for the depth of water that lies with the ' +
+                             f'range of the requested surface roughness')
             raise ValueError
 
         # Check to see if water has been already defined as a material
-        if not any(x.ID == 'water' for x in grid.materials):
+        if all(x.ID != 'water' for x in grid.materials):
             create_water(grid)
 
         # Check if time step for model is suitable for using water
         water = next((x for x in grid.materials if x.ID == 'water'))
-        testwater = next((x for x in water.tau if x < grid.dt), None)
-        if testwater:
-            logger.exception(self.__str__() + ' requires the time step for the ' +
-                             'model to be less than the relaxation time required ' +
-                             'to model water.')
+        if testwater := next((x for x in water.tau if x < grid.dt), None):
+            logger.exception(f'{self.__str__()} requires the time step for the model '
+                             f'to be less than the relaxation time required to model water.')
             raise ValueError
 
-        logger.info(self.grid_name(grid) + f'Water on surface from {xs * grid.dx:g}m, ' +
+        logger.info(f'{self.grid_name(grid)}Water on surface from {xs * grid.dx:g}m, ' +
                     f'{ys * grid.dy:g}m, {zs * grid.dz:g}m, to {xf * grid.dx:g}m, ' +
                     f'{yf * grid.dy:g}m, {zf * grid.dz:g}m with depth {filldepth:g}m, ' +
                     f'added to {surface.operatingonID}.')

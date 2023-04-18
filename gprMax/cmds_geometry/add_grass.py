@@ -74,7 +74,7 @@ class AddGrass(UserObjectGeometry):
             limits = self.kwargs['limits']
             n_blades = self.kwargs['n_blades']
         except KeyError:
-            logger.exception(self.__str__() + ' requires at least eleven parameters')
+            logger.exception(f'{self.__str__()} requires at least eleven parameters')
             raise
 
         try:
