@@ -181,14 +181,14 @@ class CylindricalSector(UserObjectGeometry):
 
         if thickness > 0:
             dielectricsmoothing = 'on' if averaging else 'off'
-            logger.info(self.grid_name(grid) + f"Cylindrical sector with centre " +
+            logger.info(f"{self.grid_name(grid)}Cylindrical sector with centre " +
                         f"{ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle " +
                         f"{(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, " +
                         f"sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} degrees, " +
                         f"thickness {thickness:g}m, of material(s) {', '.join(materialsrequested)} " +
                         f"created, dielectric smoothing is {dielectricsmoothing}.")
         else:
-            logger.info(self.grid_name(grid) + f"Cylindrical sector with centre " +
+            logger.info(f"{self.grid_name(grid)}Cylindrical sector with centre " +
                         f"{ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle " +
                         f"{(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, " +
                         f"sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} " +

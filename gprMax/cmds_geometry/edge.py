@@ -83,11 +83,9 @@ class Edge(UserObjectGeometry):
 
         # Check for valid orientations
         # x-orientated edge
-        if (xs != xf
-            and (ys != yf or zs != zf)
-            or xs == xf
-            and ys != yf
-            and zs != zf):
+        if ((xs != xf and (ys != yf or zs != zf))
+            or (ys != yf and (xs != xf or zs != zf))
+            or (zs != zf and (xs != xf or ys != yf))):
             logger.exception(f'{self.__str__()} the edge is not specified correctly')
             raise ValueError
         elif xs != xf:
@@ -102,6 +100,6 @@ class Edge(UserObjectGeometry):
             for k in range(zs, zf):
                 build_edge_z(xs, ys, k, material.numID, grid.rigidE, grid.rigidH, grid.ID)
 
-        logger.info(self.grid_name(grid) + f'Edge from {p3[0]:g}m, {p3[1]:g}m, ' +
+        logger.info(f'{self.grid_name(grid)}Edge from {p3[0]:g}m, {p3[1]:g}m, ' +
                     f'{p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of ' +
                     f'material {material_id} created.')

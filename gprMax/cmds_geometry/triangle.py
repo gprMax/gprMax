@@ -185,13 +185,13 @@ class Triangle(UserObjectGeometry):
 
         if thickness > 0:
             dielectricsmoothing = 'on' if averaging else 'off'
-            logger.info(self.grid_name(grid) + f"Triangle with coordinates " +
+            logger.info(f"{self.grid_name(grid)}Triangle with coordinates " +
                         f"{p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m " +
                         f"{p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m and thickness " +
                         f"{thickness:g}m of material(s) {', '.join(materialsrequested)} " +
                         f"created, dielectric smoothing is {dielectricsmoothing}.")
         else:
-            logger.info(self.grid_name(grid) + f"Triangle with coordinates " +
+            logger.info(f"{self.grid_name(grid)}Triangle with coordinates " +
                         f"{p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m " +
                         f"{p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m of material(s) " +
                         f"{', '.join(materialsrequested)} created.")

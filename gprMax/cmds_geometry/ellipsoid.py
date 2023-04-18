@@ -126,7 +126,7 @@ class Ellipsoid(UserObjectGeometry):
                      grid.rigidE, grid.rigidH, grid.ID)
 
         dielectricsmoothing = 'on' if averaging else 'off'
-        logger.info(self.grid_name(grid) + f"Ellipsoid with centre {p2[0]:g}m, " +
+        logger.info(f"{self.grid_name(grid)}Ellipsoid with centre {p2[0]:g}m, " +
                     f"{p2[1]:g}m, {p2[2]:g}m, x-semiaxis {xr:g}m, y-semiaxis {yr:g}m and z-semiaxis {zr:g}m of material(s) " +
                     f"{', '.join(materialsrequested)} created, dielectric " +
                     f"smoothing is {dielectricsmoothing}.")

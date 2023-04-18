@@ -122,7 +122,7 @@ class GeometryObjectsRead(UserObjectGeometry):
             grid.rigidE[:, xs:xs + rigidE.shape[1], ys:ys + rigidE.shape[2], zs:zs + rigidE.shape[3]] = rigidE
             grid.rigidH[:, xs:xs + rigidH.shape[1], ys:ys + rigidH.shape[2], zs:zs + rigidH.shape[3]] = rigidH
             grid.ID[:, xs:xs + ID.shape[1], ys:ys + ID.shape[2], zs:zs + ID.shape[3]] = ID + numexistmaterials
-            logger.info(self.grid_name(grid) + f'Geometry objects from file {geofile} ' +
+            logger.info(f'{self.grid_name(grid)}Geometry objects from file {geofile} ' +
                         f'inserted at {xs * grid.dx:g}m, {ys * grid.dy:g}m, ' +
                         f'{zs * grid.dz:g}m, with corresponding materials file ' +
                         f'{matfile}.')
@@ -131,7 +131,7 @@ class GeometryObjectsRead(UserObjectGeometry):
             build_voxels_from_array(xs, ys, zs, config.get_model_config().ompthreads,
                                     numexistmaterials, averaging, data, 
                                     grid.solid, grid.rigidE, grid.rigidH, grid.ID)
-            logger.info(self.grid_name(grid) + f'Geometry objects from file ' +
+            logger.info(f'{self.grid_name(grid)}Geometry objects from file ' +
                         f'(voxels only){geofile} inserted at {xs * grid.dx:g}m, ' +
                         f'{ys * grid.dy:g}m, {zs * grid.dz:g}m, with corresponding ' +
                         f'materials file {matfile}.')
