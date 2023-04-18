@@ -38,9 +38,9 @@ class UserObjectGeometry:
         """Readable string of parameters given to object."""
         s = ''
         for _, v in self.kwargs.items():
-            if isinstance(v, tuple) or isinstance(v, list):
+            if isinstance(v, (tuple, list)):
                 v = ' '.join([str(el) for el in v])
-            s += str(v) + ' '
+            s += f'{str(v)} '
 
         return f'{self.hash}: {s[:-1]}'
 
@@ -109,7 +109,7 @@ def rotate_2point_object(pts, axis, angle, origin=None):
     # Use origin at centre of object if not given
     if not origin:
         origin = pts[0,:] + (pts[1,:] - pts[0,:]) / 2
-    
+
     # Check angle value is suitable
     angle = int(angle)
     if angle < 0 or angle > 360:
@@ -120,7 +120,7 @@ def rotate_2point_object(pts, axis, angle, origin=None):
         raise ValueError
 
     # Check axis is valid
-    if axis != 'x' and axis != 'y' and axis != 'z':
+    if axis not in ['x', 'y', 'z']:
         logger.exception('Axis of rotation must be x, y, or z')
         raise ValueError
 

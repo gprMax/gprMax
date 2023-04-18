@@ -144,7 +144,7 @@ class Box(UserObjectGeometry):
 
         dielectricsmoothing = 'on' if averaging else 'off'
 
-        logger.info(self.grid_name(grid) + f"Box from {p5[0]:g}m, {p5[1]:g}m, " +
+        logger.info(f"{self.grid_name(grid)}Box from {p5[0]:g}m, {p5[1]:g}m, " +
                     f"{p5[2]:g}m, to {p6[0]:g}m, {p6[1]:g}m, {p6[2]:g}m of " +
                     f"material(s) {', '.join(materialsrequested)} created, " +
                     f"dielectric smoothing is {dielectricsmoothing}.")

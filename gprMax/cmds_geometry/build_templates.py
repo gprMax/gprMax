@@ -66,6 +66,5 @@ r = template.render(
         }]
 )
 
-f = open('cython/dispersive_updates_test.pyx', 'w')
-f.write(r)
-f.close()
+with open('cython/dispersive_updates_test.pyx', 'w') as f:
+    f.write(r)

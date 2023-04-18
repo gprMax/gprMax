@@ -90,7 +90,7 @@ class AddGrass(UserObjectGeometry):
         try:
             volume = volumes[0]
         except NameError:
-            logger.exception(self.__str__() + f' cannot find FractalBox {fractal_box_id}')
+            logger.exception(f'{self.__str__()} cannot find FractalBox {fractal_box_id}')
             raise
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
@@ -98,32 +98,32 @@ class AddGrass(UserObjectGeometry):
         xf, yf, zf = p2
 
         if frac_dim < 0:
-            logger.exception(self.__str__() + ' requires a positive value for ' +
+            logger.exception(f'{self.__str__()} requires a positive value for ' +
                              'the fractal dimension')
             raise ValueError
         if limits[0] < 0 or limits[1] < 0:
-            logger.exception(self.__str__() + ' requires a positive value for ' +
+            logger.exception(f'{self.__str__()} requires a positive value for ' +
                              'the minimum and maximum heights for grass blades')
             raise ValueError
 
         # Check for valid orientations
         if xs == xf:
             if ys == yf or zs == zf:
-                logger.exception(self.__str__() + ' dimensions are not specified correctly')
+                logger.exception(f'{self.__str__()} dimensions are not specified correctly')
                 raise ValueError
             if xs != volume.xs and xs != volume.xf:
-                logger.exception(self.__str__() + ' must specify external surfaces on a fractal box')
+                logger.exception(f'{self.__str__()} must specify external surfaces on a fractal box')
                 raise ValueError
             fractalrange = (round_value(limits[0] / grid.dx), round_value(limits[1] / grid.dx))
             # xminus surface
             if xs == volume.xs:
-                logger.exception(self.__str__() + ' grass can only be specified ' +
+                logger.exception(f'{self.__str__()} grass can only be specified ' +
                                  'on surfaces in the positive axis direction')
                 raise ValueError
             # xplus surface
             elif xf == volume.xf:
                 if fractalrange[1] > grid.nx:
-                    logger.exception(self.__str__() + ' cannot apply grass to ' +
+                    logger.exception(f'{self.__str__()} cannot apply grass to ' +
                                      'fractal box as it would exceed the domain ' +
                                      'size in the x direction')
                     raise ValueError
@@ -131,21 +131,21 @@ class AddGrass(UserObjectGeometry):
 
         elif ys == yf:
             if xs == xf or zs == zf:
-                logger.exception(self.__str__() + ' dimensions are not specified correctly')
+                logger.exception(f'{self.__str__()} dimensions are not specified correctly')
                 raise ValueError
             if ys != volume.ys and ys != volume.yf:
-                logger.exception(self.__str__() + ' must specify external surfaces on a fractal box')
+                logger.exception(f'{self.__str__()} must specify external surfaces on a fractal box')
                 raise ValueError
             fractalrange = (round_value(limits[0] / grid.dy), round_value(limits[1] / grid.dy))
             # yminus surface
             if ys == volume.ys:
-                logger.exception(self.__str__() + ' grass can only be specified ' +
+                logger.exception(f'{self.__str__()} grass can only be specified ' +
                                  'on surfaces in the positive axis direction')
                 raise ValueError
             # yplus surface
             elif yf == volume.yf:
                 if fractalrange[1] > grid.ny:
-                    logger.exception(self.__str__() + ' cannot apply grass to ' + 
+                    logger.exception(f'{self.__str__()} cannot apply grass to ' + 
                                      'fractal box as it would exceed the domain ' +
                                      'size in the y direction')
                     raise ValueError
@@ -153,28 +153,28 @@ class AddGrass(UserObjectGeometry):
 
         elif zs == zf:
             if xs == xf or ys == yf:
-                logger.exception(self.__str__() + ' dimensions are not specified correctly')
+                logger.exception(f'{self.__str__()} dimensions are not specified correctly')
                 raise ValueError
             if zs != volume.zs and zs != volume.zf:
-                logger.exception(self.__str__() + ' must specify external surfaces on a fractal box')
+                logger.exception(f'{self.__str__()} must specify external surfaces on a fractal box')
                 raise ValueError
             fractalrange = (round_value(limits[0] / grid.dz), round_value(limits[1] / grid.dz))
             # zminus surface
             if zs == volume.zs:
-                logger.exception(self.__str__() + ' grass can only be specified ' +
+                logger.exception(f'{self.__str__()} grass can only be specified ' +
                                  'on surfaces in the positive axis direction')
                 raise ValueError
             # zplus surface
             elif zf == volume.zf:
                 if fractalrange[1] > grid.nz:
-                    logger.exception(self.__str__() + ' cannot apply grass to ' +
+                    logger.exception(f'{self.__str__()} cannot apply grass to ' +
                                      'fractal box as it would exceed the domain ' +
                                      'size in the z direction')
                     raise ValueError
                 requestedsurface = 'zplus'
 
         else:
-            logger.exception(self.__str__() + ' dimensions are not specified correctly')
+            logger.exception(f'{self.__str__()} dimensions are not specified correctly')
             raise ValueError
 
         surface = FractalSurface(xs, xf, ys, yf, zs, zf, frac_dim)
@@ -187,7 +187,7 @@ class AddGrass(UserObjectGeometry):
         surface.operatingonID = volume.ID
         surface.generate_fractal_surface()
         if n_blades > surface.fractalsurface.shape[0] * surface.fractalsurface.shape[1]:
-            logger.exception(self.__str__() + ' the specified surface is not large ' +
+            logger.exception(f'{self.__str__()} the specified surface is not large ' +
                              'enough for the number of grass blades/roots specified')
             raise ValueError
 
@@ -234,13 +234,13 @@ class AddGrass(UserObjectGeometry):
         grass = next((x for x in grid.materials if x.ID == 'grass'))
         testgrass = next((x for x in grass.tau if x < grid.dt), None)
         if testgrass:
-            logger.exception(self.__str__() + ' requires the time step for the ' +
+            logger.exception(f'{self.__str__()} requires the time step for the ' +
                              'model to be less than the relaxation time required to model grass.')
             raise ValueError
 
         volume.fractalsurfaces.append(surface)
 
-        logger.info(self.grid_name(grid) + f'{n_blades} blades of grass on surface from ' + 
+        logger.info(f'{self.grid_name(grid)}{n_blades} blades of grass on surface from ' + 
                     f'{xs * grid.dx:g}m, {ys * grid.dy:g}m, {zs * grid.dz:g}m, ' +
                     f'to {xf * grid.dx:g}m, {yf * grid.dy:g}m, {zf * grid.dz:g}m ' +
                     f'with fractal dimension {surface.dimension:g}, fractal seeding ' +
