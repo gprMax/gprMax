@@ -62,15 +62,15 @@ class Edge(UserObjectGeometry):
             p2 = self.kwargs['p2']
             material_id = self.kwargs['material_id']
         except KeyError:
-            logger.exception(self.__str__() + ' requires exactly 3 parameters')
+            logger.exception(f'{self.__str__()} requires exactly 3 parameters')
             raise
 
         if self.do_rotate:
             self._do_rotate()
-        
+
         p3 = uip.round_to_grid_static_point(p1)
         p4 = uip.round_to_grid_static_point(p2)
-        
+
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
         xf, yf, zf = p2
@@ -83,31 +83,24 @@ class Edge(UserObjectGeometry):
 
         # Check for valid orientations
         # x-orientated edge
-        if xs != xf:
-            if ys != yf or zs != zf:
-                logger.exception(self.__str__() + ' the edge is not specified correctly')
-                raise ValueError
-            else:
-                for i in range(xs, xf):
-                    build_edge_x(i, ys, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID)
+        if (xs != xf
+            and (ys != yf or zs != zf)
+            or xs == xf
+            and ys != yf
+            and zs != zf):
+            logger.exception(f'{self.__str__()} the edge is not specified correctly')
+            raise ValueError
+        elif xs != xf:
+            for i in range(xs, xf):
+                build_edge_x(i, ys, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID)
 
-        # y-orientated edge
         elif ys != yf:
-            if xs != xf or zs != zf:
-                logger.exception(self.__str__() + ' the edge is not specified correctly')
-                raise ValueError
-            else:
-                for j in range(ys, yf):
-                    build_edge_y(xs, j, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID)
+            for j in range(ys, yf):
+                build_edge_y(xs, j, zs, material.numID, grid.rigidE, grid.rigidH, grid.ID)
 
-        # z-orientated edge
         elif zs != zf:
-            if xs != xf or ys != yf:
-                logger.exception(self.__str__() + ' the edge is not specified correctly')
-                raise ValueError
-            else:
-                for k in range(zs, zf):
-                    build_edge_z(xs, ys, k, material.numID, grid.rigidE, grid.rigidH, grid.ID)
+            for k in range(zs, zf):
+                build_edge_z(xs, ys, k, material.numID, grid.rigidE, grid.rigidH, grid.ID)
 
         logger.info(self.grid_name(grid) + f'Edge from {p3[0]:g}m, {p3[1]:g}m, ' +
                     f'{p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of ' +

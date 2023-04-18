@@ -53,7 +53,7 @@ class Ellipsoid(UserObjectGeometry):
             zr = self.kwargs['zr']
 
         except KeyError:
-            logger.exception(self.__str__() + ' please specify a point and the three semiaxes.')
+            logger.exception(f'{self.__str__()} please specify a point and the three semiaxes.')
             raise
 
         # Check averaging
@@ -73,7 +73,7 @@ class Ellipsoid(UserObjectGeometry):
             try:
                 materialsrequested = self.kwargs['material_ids']
             except KeyError:
-                logger.exception(self.__str__() + ' no materials have been specified')
+                logger.exception(f'{self.__str__()} no materials have been specified')
                 raise
 
         # Centre of sphere
@@ -86,7 +86,7 @@ class Ellipsoid(UserObjectGeometry):
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            logger.exception(self.__str__() + f' material(s) {notfound} do not exist')
+            logger.exception(f'{self.__str__()} material(s) {notfound} do not exist')
             raise ValueError
 
         # Isotropic case
