@@ -46,7 +46,7 @@ class GeometryObjectsRead(UserObjectGeometry):
             geofile = self.kwargs['geofile']
             matfile = self.kwargs['matfile']
         except KeyError:
-            logger.exception(self.__str__() + 'requires exactly five parameters')
+            logger.exception(f'{self.__str__()} requires exactly five parameters')
             raise
 
         # Discretise the point using uip object. This has different behaviour
@@ -100,7 +100,7 @@ class GeometryObjectsRead(UserObjectGeometry):
         if round_value((dx_dy_dz[0] / grid.dx) != 1 or 
                        round_value(dx_dy_dz[1] / grid.dy) != 1 or 
                        round_value(dx_dy_dz[2] / grid.dz) != 1):
-            logger.exception(self.__str__() + ' requires the spatial resolution ' +
+            logger.exception(f'{self.__str__()} requires the spatial resolution ' +
                              'of the geometry objects file to match the spatial ' +
                              'resolution of the model')
             raise ValueError

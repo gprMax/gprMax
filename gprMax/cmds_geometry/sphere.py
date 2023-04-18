@@ -48,7 +48,7 @@ class Sphere(UserObjectGeometry):
             p1 = self.kwargs['p1']
             r = self.kwargs['r']
         except KeyError:
-            logger.exception(self.__str__() + ' please specify a point and a radius.')
+            logger.exception(f'{self.__str__()} please specify a point and a radius.')
             raise
 
         # Check averaging
@@ -68,7 +68,7 @@ class Sphere(UserObjectGeometry):
             try:
                 materialsrequested = self.kwargs['material_ids']
             except KeyError:
-                logger.exception(self.__str__() + ' no materials have been specified')
+                logger.exception(f'{self.__str__()} no materials have been specified')
                 raise
 
         # Centre of sphere
@@ -85,7 +85,7 @@ class Sphere(UserObjectGeometry):
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            logger.exception(self.__str__() + f' material(s) {notfound} do not exist')
+            logger.exception(f'{self.__str__()} material(s) {notfound} do not exist')
             raise ValueError
 
         # Isotropic case

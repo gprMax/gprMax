@@ -61,7 +61,7 @@ class Plate(UserObjectGeometry):
             p1 = self.kwargs['p1']
             p2 = self.kwargs['p2']
         except KeyError:
-            logger.exception(self.__str__() + ' 2 points must be specified')
+            logger.exception(f'{self.__str__()} 2 points must be specified')
             raise
 
         # isotropic
@@ -72,7 +72,7 @@ class Plate(UserObjectGeometry):
             try:
                 materialsrequested = self.kwargs['material_ids']
             except KeyError:
-                logger.exception(self.__str__() + ' No materials have been specified')
+                logger.exception(f'{self.__str__()} No materials have been specified')
                 raise
 
         if self.do_rotate:
@@ -86,23 +86,15 @@ class Plate(UserObjectGeometry):
         xf, yf, zf = p2
 
         # Check for valid orientations
-        if xs == xf:
-            if ys == yf or zs == zf:
-                logger.exception(self.__str__() + ' the plate is not specified correctly')
-                raise ValueError
-
-        elif ys == yf:
-            if xs == xf or zs == zf:
-                logger.exception(self.__str__() + ' the plate is not specified correctly')
-                raise ValueError
-
-        elif zs == zf:
-            if xs == xf or ys == yf:
-                logger.exception(self.__str__() + ' the plate is not specified correctly')
-                raise ValueError
-
-        else:
-            logger.exception(self.__str__() + ' the plate is not specified correctly')
+        if (xs == xf
+            and (ys == yf or zs == zf)
+            or (xs != xf
+            and ys == yf
+            and zs == zf)
+            or (xs != xf
+            and ys != yf
+            and zs != zf)):
+            logger.exception(f'{self.__str__()} the plate is not specified correctly')
             raise ValueError
 
         # Look up requested materials in existing list of material instances
@@ -110,7 +102,7 @@ class Plate(UserObjectGeometry):
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            logger.exception(self.__str__() + f' material(s) {notfound} do not exist')
+            logger.exception(f'{self.__str__()} material(s) {notfound} do not exist')
             raise ValueError
 
         # yz-plane plate
