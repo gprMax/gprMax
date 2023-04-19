@@ -172,11 +172,7 @@ class MPIContext(Context):
                              'should be equal to number of GPUs + 1.')
             raise ValueError
 
-        # Create job list
-        jobs = []
-        for i in self.model_range:
-            jobs.append({'i': i})
-            
+        jobs = [{'i': i} for i in self.model_range]
         # Send the workers to their work loop
         executor.start()
         if executor.is_master():
