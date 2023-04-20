@@ -160,7 +160,7 @@ class FractalBox(UserObjectGeometry):
         volume.mixingmodel = mixingmodel
 
         dielectricsmoothing = 'on' if volume.averaging else 'off'
-        logger.info(self.grid_name(grid) + f'Fractal box {volume.ID} from ' +
+        logger.info(f'{self.grid_name(grid)}Fractal box {volume.ID} from ' +
                     f'{p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, ' +
                     f'{p4[1]:g}m, {p4[2]:g}m with {volume.operatingonID}, ' +
                     f'fractal dimension {volume.dimension:g}, fractal weightings ' +

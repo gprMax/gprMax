@@ -884,17 +884,17 @@ class OpenCLUpdates:
             knl_electric_name = getattr(knl_pml_updates_electric, knl_name)
             knl_magnetic_name = getattr(knl_pml_updates_magnetic, knl_name)   
 
-            pml.update_electric_dev = self.elwise(self.ctx, 
-                                        knl_electric_name['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
+            pml.update_electric_dev = self.elwise(self.ctx,
+                                        knl_electric_name['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}),
                                         knl_electric_name['func'].substitute(subs),
-                                        'pml_updates_electric_' + knl_name, 
+                                        f'pml_updates_electric_{knl_name}',
                                         preamble=self.knl_common,
-                                        options=config.sim_config.devices['compiler_opts'])
+                                        options=config.sim_config.devices['compiler_opts'],)
 
             pml.update_magnetic_dev = self.elwise(self.ctx, 
                                         knl_magnetic_name['args_opencl'].substitute({'REAL': config.sim_config.dtypes['C_float_or_double']}), 
                                         knl_magnetic_name['func'].substitute(subs),
-                                        'pml_updates_magnetic_' + knl_name, 
+                                        f'pml_updates_magnetic_{knl_name}', 
                                         preamble=self.knl_common,
                                         options=config.sim_config.devices['compiler_opts'])
 
