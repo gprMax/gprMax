@@ -289,7 +289,6 @@ class SimulationConfig:
 
         # Set more complex parameters
         self._set_precision()
-        self._get_byteorder()
         self._set_input_file_path()
         self._set_model_start_end()
 
@@ -347,12 +346,6 @@ class SimulationConfig:
                 self.dtypes['C_complex'] = 'pycuda::complex<double>'
             elif self.general['solver'] == 'opencl':
                 self.dtypes['C_complex'] = 'cdouble'
-
-    def _get_byteorder(self):
-        """Checks the byte order of system to use for VTK files, i.e. geometry
-            views and snapshots.
-        """
-        self.vtk_byteorder = 'LittleEndian' if sys.byteorder == 'little' else 'BigEndian'
 
     def _set_model_start_end(self):
         """Sets range for number of models to run (internally 0 index)."""
