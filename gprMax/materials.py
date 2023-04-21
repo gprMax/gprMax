@@ -401,25 +401,25 @@ class PeplinskiSoil:
 
 
 class RangeMaterial:
-    """Material defined with a given range of parameters to be used for 
-       factal spatial disttibutions 
+    """Material objects defined by a given range of their parameters to be used for 
+       factal spatial disttibutions. 
     """
 
-    def __init__(self, ID, er_range, sigma_range, mu_range, ro_range):
+    def __init__(self, ID, er_range, se_range, mr_range, sm_range):
         """
         Args:
-            ID: string for name of the material.
-            er_range: tuple of floats for relative permittivity range of the material.
-            sigma_range: tuple of floats for electric conductivity range of the material.
-            mu_range: tuple of floats for magnetic permeability of material. 
-            ro_range: tuple of floats for magnetic loss range of material. 
+            ID: string for name of the material range.
+            er_range: tuple of floats for relative permittivity range of the materials.
+            se_range: tuple of floats for electric conductivity range of the materials.
+            mr_range: tuple of floats for magnetic permeability of materials. 
+            sm_range: tuple of floats for magnetic loss range of materials. 
         """
 
         self.ID = ID
         self.er = er_range
-        self.sig = sigma_range
-        self.mu = mu_range 
-        self.ro = ro_range
+        self.sig = se_range
+        self.mu = mr_range 
+        self.ro = sm_range
         self.startmaterialnum = 0 #This is not really needed anymore and code that uses it can be removed.
          # store all of the material IDs in a list instead of storing only the first number of the material 
         # and assume that all must be sequentially numbered. This allows for more general mixing models
@@ -427,7 +427,7 @@ class RangeMaterial:
        
 
     def calculate_properties(self, nbins, G):
-        """Calculates the properties of the materials. 
+        """Calculates the specific properties of each of the materials. 
 
         Args:
             nbins: int for number of bins to use to create the different materials.
@@ -501,15 +501,15 @@ class RangeMaterial:
 
 
 class ListMaterial:
-    """A list of predefined materials to be used for 
-       factal spatial disttibutions. This command does not create new materials but collects them to be used in a 
-       stochastic distribution by a fractal box.
+    """A list of predefined materials that are to be used for 
+       factal spatial disttibutions. No new materials are created but the ones specified are
+       grouped together to be used in fractal spatial distributions.
     """
 
     def __init__(self, ID, listofmaterials):
         """
         Args:
-            ID: string for name of the material.
+            ID: string for name of the material list.
             listofmaterials: A list of material IDs.
             
         """
