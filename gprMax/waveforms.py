@@ -53,8 +53,6 @@ class Waveform:
         """Calculates coefficients (used to calculate values) for specific
             waveforms.
         """
-        if self.freq is None:
-            raise ValueError("Frequency is not specified")
 
         if self.type in ['gaussian',
                          'gaussiandot',
