@@ -96,7 +96,7 @@ class VoltageSource(Source):
             i = self.xcoord
             j = self.ycoord
             k = self.zcoord
-            componentID = 'E' + self.polarisation
+            componentID = f'E{self.polarisation}'
 
             if self.polarisation == 'x':
                 if self.resistance != 0:
@@ -130,30 +130,31 @@ class VoltageSource(Source):
             G: FDTDGrid class describing a grid in a model.
         """
 
-        if self.resistance != 0:
-            i = self.xcoord
-            j = self.ycoord
-            k = self.zcoord
+        if self.resistance == 0:
+            return
+        i = self.xcoord
+        j = self.ycoord
+        k = self.zcoord
 
-            componentID = 'E' + self.polarisation
-            requirednumID = G.ID[G.IDlookup[componentID], i, j, k]
-            material = next(x for x in G.materials if x.numID == requirednumID)
-            newmaterial = deepcopy(material)
-            newmaterial.ID = material.ID + '+' + self.ID
-            newmaterial.numID = len(G.materials)
-            newmaterial.averagable = False
-            newmaterial.type += ',\nvoltage-source' if newmaterial.type else 'voltage-source'
+        componentID = f'E{self.polarisation}'
+        requirednumID = G.ID[G.IDlookup[componentID], i, j, k]
+        material = next(x for x in G.materials if x.numID == requirednumID)
+        newmaterial = deepcopy(material)
+        newmaterial.ID = f'{material.ID}+{self.ID}'
+        newmaterial.numID = len(G.materials)
+        newmaterial.averagable = False
+        newmaterial.type += ',\nvoltage-source' if newmaterial.type else 'voltage-source'
 
-            # Add conductivity of voltage source to underlying conductivity
-            if self.polarisation == 'x':
-                newmaterial.se += G.dx / (self.resistance * G.dy * G.dz)
-            elif self.polarisation == 'y':
-                newmaterial.se += G.dy / (self.resistance * G.dx * G.dz)
-            elif self.polarisation == 'z':
-                newmaterial.se += G.dz / (self.resistance * G.dx * G.dy)
+        # Add conductivity of voltage source to underlying conductivity
+        if self.polarisation == 'x':
+            newmaterial.se += G.dx / (self.resistance * G.dy * G.dz)
+        elif self.polarisation == 'y':
+            newmaterial.se += G.dy / (self.resistance * G.dx * G.dz)
+        elif self.polarisation == 'z':
+            newmaterial.se += G.dz / (self.resistance * G.dx * G.dy)
 
-            G.ID[G.IDlookup[componentID], i, j, k] = newmaterial.numID
-            G.materials.append(newmaterial)
+        G.ID[G.IDlookup[componentID], i, j, k] = newmaterial.numID
+        G.materials.append(newmaterial)
 
 
 class HertzianDipole(Source):
@@ -180,7 +181,7 @@ class HertzianDipole(Source):
             i = self.xcoord
             j = self.ycoord
             k = self.zcoord
-            componentID = 'E' + self.polarisation
+            componentID = f'E{self.polarisation}'
             if self.polarisation == 'x':
                 Ex[i, j, k] -= (updatecoeffsE[ID[G.IDlookup[componentID], i, j, k], 4] *
                                 self.waveformvalues_halfdt[iteration] * self.dl *
@@ -217,7 +218,7 @@ class MagneticDipole(Source):
             i = self.xcoord
             j = self.ycoord
             k = self.zcoord
-            componentID = 'H' + self.polarisation
+            componentID = f'H{self.polarisation}'
 
             if self.polarisation == 'x':
                 Hx[i, j, k] -= (updatecoeffsH[ID[G.IDlookup[componentID], i, j, k], 4] *

@@ -33,10 +33,10 @@ def create_updates(G):
         sg_type = type(sg)
         if sg_type == SubGridHSG and sg.filter:
             precursors = PrecursorNodesFiltered(G, sg)
-        elif sg_type == SubGridHSG and not sg.filter:
+        elif sg_type == SubGridHSG:
             precursors = PrecursorNodes(G, sg)
         else:
-            logger.exception(str(sg) + ' is not a subgrid type')
+            logger.exception(f'{str(sg)} is not a subgrid type')
             raise ValueError
 
         sgu = SubgridUpdater(sg, precursors, G)

@@ -508,14 +508,14 @@ def print_opencl_info(devs):
 
     import pyopencl as cl
 
-    logger.basic('|--->OpenCL:') 
+    logger.basic('|--->OpenCL:')
     logger.debug(f'PyOpenCL: {cl.VERSION_TEXT}')
 
     for i, (ID, dev) in enumerate(devs.items()):
         if i == 0:
             platform = dev.platform.name
             logger.basic(f'     |--->Platform: {platform}')
-        if not platform == dev.platform.name:
+        if platform != dev.platform.name:
             logger.basic(f'     |--->Platform: {dev.platform.name}')
         types = cl.device_type.to_string(dev.type)
         if 'CPU' in types:

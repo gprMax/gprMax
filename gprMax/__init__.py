@@ -25,8 +25,9 @@ from .cmds_geometry.triangle import Triangle
 from .cmds_multiuse import (PMLCFS, AddDebyeDispersion, AddDrudeDispersion,
                             AddLorentzDispersion, GeometryObjectsWrite,
                             GeometryView, HertzianDipole, MagneticDipole,
-                            Material, Rx, RxArray, Snapshot, SoilPeplinski,
-                            TransmissionLine, VoltageSource, Waveform, MaterialRange, MaterialList)
+                            Material, MaterialList, MaterialRange, Rx, RxArray, 
+                            Snapshot, SoilPeplinski, TransmissionLine, 
+                            VoltageSource, Waveform)
 from .cmds_singleuse import (Discretisation, Domain, ExcitationFile,
                              OMPThreads, PMLProps, RxSteps, SrcSteps,
                              TimeStepStabilityFactor, TimeWindow, Title)

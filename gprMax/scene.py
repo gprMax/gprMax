@@ -105,7 +105,7 @@ class Scene:
 
         # Check essential commands and warn user if missing
         for cmd_type in self.essential_cmds:
-            d = any([isinstance(cmd, cmd_type) for cmd in cmds_unique])
+            d = any(isinstance(cmd, cmd_type) for cmd in cmds_unique)
             if not d:
                 logger.exception('Your input file is missing essential commands ' +
                                  'required to run a model. Essential commands ' +

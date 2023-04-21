@@ -277,14 +277,10 @@ class Comments():
         """
 
         # Comments for Paraview macro
-        comments = {}
-
-        comments['gprMax_version'] = __version__
-        comments['dx_dy_dz'] = self.dx_dy_dz_comment()
-        comments['nx_ny_nz'] = self.nx_ny_nz_comment()
-
-        # Write the name and numeric ID for each material
-        comments['Materials'] = self.materials_comment()
+        comments = {'gprMax_version': __version__, 
+                    'dx_dy_dz': self.dx_dy_dz_comment(),
+                    'nx_ny_nz': self.nx_ny_nz_comment(),
+                    'Materials': self.materials_comment()} # Write the name and numeric ID for each material
 
         # Write information on PMLs, sources, and receivers
         if not self.materials_only:
@@ -345,7 +341,7 @@ class Comments():
 
     def materials_comment(self):
         if not self.averaged_materials:
-            return [m.ID for m in self.grid.materials if '+' not in m.ID]
+            return [m.ID for m in self.grid.materials if m.type is not 'dielectric-smoothed']
         else:
             return [m.ID for m in self.grid.materials]
 
@@ -375,8 +371,7 @@ class GeometryObjects:
         parts = config.sim_config.input_file_path.with_suffix('').parts
         self.filename_hdf5 = Path(*parts[:-1], self.basefilename)
         self.filename_hdf5 = self.filename_hdf5.with_suffix('.h5')
-        self.filename_materials = Path(
-            *parts[:-1], self.basefilename + '_materials')
+        self.filename_materials = Path(*parts[:-1], f'{self.basefilename}_materials')
         self.filename_materials = self.filename_materials.with_suffix('.txt')
 
         # Sizes of arrays to write necessary to update progress bar

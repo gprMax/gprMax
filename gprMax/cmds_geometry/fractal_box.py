@@ -78,13 +78,13 @@ class FractalBox(UserObjectGeometry):
             mixing_model_id = self.kwargs['mixing_model_id']
             ID = self.kwargs['id']
         except KeyError:
-            logger.exception(self.__str__() + ' Incorrect parameters')
+            logger.exception(f'{self.__str__()} Incorrect parameters')
             raise
 
         try:
             seed = self.kwargs['seed']
         except KeyError:
-            logger.warning(self.__str__() + ' no value for seed detected. This ' +
+            logger.warning(f'{self.__str__()} no value for seed detected. This ' +
                            'means you will get a different fractal distribution ' +
                            'every time the model runs.')
             seed = None
@@ -107,24 +107,24 @@ class FractalBox(UserObjectGeometry):
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
         xs, ys, zs = p1
         xf, yf, zf = p2
-        
+
         if frac_dim < 0:
-            logger.exception(self.__str__() + ' requires a positive value for the ' +
+            logger.exception(f'{self.__str__()} requires a positive value for the ' +
                              'fractal dimension')
             raise ValueError
         if weighting[0] < 0:
-            logger.exception(self.__str__() + ' requires a positive value for the ' +
+            logger.exception(f'{self.__str__()} requires a positive value for the ' +
                              'fractal weighting in the x direction')
             raise ValueError
         if weighting[1] < 0:
-            logger.exception(self.__str__() + ' requires a positive value for the ' +
+            logger.exception(f'{self.__str__()} requires a positive value for the ' +
                              'fractal weighting in the y direction')
             raise ValueError
         if weighting[2] < 0:
-            logger.exception(self.__str__() + ' requires a positive value for the ' +
+            logger.exception(f'{self.__str__()} requires a positive value for the ' +
                              'fractal weighting in the z direction')
         if n_materials < 0:
-            logger.exception(self.__str__() + ' requires a positive value for the ' +
+            logger.exception(f'{self.__str__()} requires a positive value for the ' +
                              'number of bins')
             raise ValueError
 
@@ -136,14 +136,14 @@ class FractalBox(UserObjectGeometry):
 
         if mixingmodel:
             if nbins == 1:
-                logger.exception(self.__str__() + ' must be used with more than ' +
+                logger.exception(f'{self.__str__()} must be used with more than ' +
                                  'one material from the mixing model.')
                 raise ValueError
             # Create materials from mixing model as number of bins now known 
             # from fractal_box command.
             mixingmodel.calculate_properties(nbins, grid)
         elif not material:
-            logger.exception(self.__str__() + f' mixing model or material with ' +
+            logger.exception(f'{self.__str__()} mixing model or material with ' +
                              'ID {mixing_model_id} does not exist')
             raise ValueError
 
@@ -160,7 +160,7 @@ class FractalBox(UserObjectGeometry):
         volume.mixingmodel = mixingmodel
 
         dielectricsmoothing = 'on' if volume.averaging else 'off'
-        logger.info(self.grid_name(grid) + f'Fractal box {volume.ID} from ' +
+        logger.info(f'{self.grid_name(grid)}Fractal box {volume.ID} from ' +
                     f'{p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, ' +
                     f'{p4[1]:g}m, {p4[2]:g}m with {volume.operatingonID}, ' +
                     f'fractal dimension {volume.dimension:g}, fractal weightings ' +

@@ -61,9 +61,9 @@ class UserObjectMulti:
         """Readable user string as per hash commands."""
         s = ''
         for _, v in self.kwargs.items():
-            if isinstance(v, tuple) or isinstance(v, list):
+            if isinstance(v, (tuple, list)):
                 v = ' '.join([str(el) for el in v])
-            s += str(v) + ' '
+            s += f'{str(v)} '
 
         return f'{self.hash}: {s[:-1]}'
 
@@ -77,7 +77,7 @@ class UserObjectMulti:
 
     def params_str(self):
         """Readable string of parameters given to object."""
-        return self.hash + ': ' + str(self.kwargs)
+        return f'{self.hash}: {str(self.kwargs)}'
 
     def grid_name(self, grid):
         """Returns subgrid name for use with logging info. Returns an empty
@@ -114,12 +114,12 @@ class Waveform(UserObjectMulti):
         try:
             wavetype = self.kwargs['wave_type'].lower()
         except KeyError:
-            logger.exception(self.params_str() + (f" must have one of the " 
-                             f"following types {','.join(WaveformUser.types)}."))
+            logger.exception(f"{self.params_str()} must have one of the " + 
+                             f"following types {','.join(WaveformUser.types)}.")
             raise
         if wavetype not in WaveformUser.types:
-            logger.exception(self.params_str() + (f" must have one of the "
-                             f"following types {','.join(WaveformUser.types)}."))
+            logger.exception(f"{self.params_str()} must have one of the " +
+                             f"following types {','.join(WaveformUser.types)}.")
             raise ValueError
 
         if wavetype != 'user':
@@ -243,18 +243,15 @@ class VoltageSource(UserObjectMulti):
             logger.exception(self.params_str() + (' polarisation must be '
                                                   'x, y, or z.'))
             raise ValueError
-        if ('2D TMx' in config.get_model_config().mode and 
-                        (polarisation == 'y' or polarisation == 'z')):
+        if '2D TMx' in config.get_model_config().mode and polarisation in ['y','z',]:
             logger.exception(self.params_str() + (' polarisation must be x in '
                                                   '2D TMx mode.'))
             raise ValueError
-        elif ('2D TMy' in config.get_model_config().mode and 
-                          (polarisation == 'x' or polarisation == 'z')):
+        elif '2D TMy' in config.get_model_config().mode and polarisation in ['x','z',]:
             logger.exception(self.params_str() + (' polarisation must be y in '
                                                   '2D TMy mode.'))
             raise ValueError
-        elif ('2D TMz' in config.get_model_config().mode and 
-                          (polarisation == 'x' or polarisation == 'y')):
+        elif '2D TMz' in config.get_model_config().mode and polarisation in ['x','y',]:
             logger.exception(self.params_str() + (' polarisation must be z in '
                                                   '2D TMz mode.'))
             raise ValueError
@@ -305,10 +302,7 @@ class VoltageSource(UserObjectMulti):
                                                       'less.'))
                 raise ValueError
             v.start = start
-            if stop > grid.timewindow:
-                v.stop = grid.timewindow
-            else:
-                v.stop = stop
+            v.stop = min(stop, grid.timewindow)
             startstop = (f' start time {v.start:g} secs, finish time '
                          f'{v.stop:g} secs ')
         except KeyError:
@@ -318,7 +312,7 @@ class VoltageSource(UserObjectMulti):
 
         v.calculate_waveform_values(grid)
 
-        logger.info(self.grid_name(grid) + f'Voltage source with polarity '
+        logger.info(f'{self.grid_name(grid)}Voltage source with polarity '
                     f'{v.polarisation} at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m, '
                     f'resistance {v.resistance:.1f} Ohms,' + startstop + 
                     f'using waveform {v.waveformID} created.')
@@ -367,8 +361,7 @@ class HertzianDipole(UserObjectMulti):
             p1 = self.kwargs['p1']
             waveform_id = self.kwargs['waveform_id']
         except KeyError:
-            logger.exception(self.params_str() + ' requires at least 3 ' + 
-                             'parameters.')
+            logger.exception(f'{self.params_str()} requires at least 3 parameters.')
             raise
 
         if self.do_rotate:
@@ -379,18 +372,15 @@ class HertzianDipole(UserObjectMulti):
             logger.exception(self.params_str() + (' polarisation must be '
                                                   'x, y, or z.'))
             raise ValueError
-        if ('2D TMx' in config.get_model_config().mode and 
-                        (polarisation == 'y' or polarisation == 'z')):
+        if '2D TMx' in config.get_model_config().mode and polarisation in ['y','z',]:
             logger.exception(self.params_str() + (' polarisation must be x in '
                                                   '2D TMx mode.'))
             raise ValueError
-        elif ('2D TMy' in config.get_model_config().mode and 
-                          (polarisation == 'x' or polarisation == 'z')):
+        elif '2D TMy' in config.get_model_config().mode and polarisation in ['x','z',]:
             logger.exception(self.params_str() + (' polarisation must be y in '
                                                   '2D TMy mode.'))
             raise ValueError
-        elif ('2D TMz' in config.get_model_config().mode and 
-                          (polarisation == 'x' or polarisation == 'y')):
+        elif '2D TMz' in config.get_model_config().mode and polarisation in ['x','y',]:
             logger.exception(self.params_str() + (' polarisation must be z in '
                                                   '2D TMz mode.'))
             raise ValueError
@@ -401,7 +391,7 @@ class HertzianDipole(UserObjectMulti):
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            logger.exception(self.params_str() + ' there is no waveform ' + 
+            logger.exception(f'{self.params_str()} there is no waveform ' + 
                              f'with the identifier {waveform_id}.')
             raise ValueError
 
@@ -422,8 +412,7 @@ class HertzianDipole(UserObjectMulti):
         h.xcoordorigin = xcoord
         h.ycoordorigin = ycoord
         h.zcoordorigin = zcoord
-        h.ID = (h.__class__.__name__ + '(' + str(h.xcoord) + ',' + 
-                str(h.ycoord) + ',' + str(h.zcoord) + ')')
+        h.ID = f'{h.__class__.__name__}({str(h.xcoord)},{str(h.ycoord)},{str(h.zcoord)})'
         h.waveformID = waveform_id
 
         try:
@@ -431,25 +420,19 @@ class HertzianDipole(UserObjectMulti):
             start = self.kwargs['start']
             stop = self.kwargs['stop']
             if start < 0:
-                logger.exception(self.params_str() + (' delay of the initiation '
-                                                      'of the source should not '
-                                                      'be less than zero.'))
+                logger.exception(f'{self.params_str()} delay of the initiation of the ' +
+                                 f'source should not be less than zero.')
                 raise ValueError
             if stop < 0:
-                logger.exception(self.params_str() + (' time to remove the '
-                                                      'source should not be '
-                                                      'less than zero.'))
+                logger.exception(f'{self.params_str()} time to remove the source ' +
+                                 f'should not be less than zero.')
                 raise ValueError
             if stop - start <= 0:
-                logger.exception(self.params_str() + (' duration of the source '
-                                                      'should not be zero or '
-                                                      'less.'))
+                logger.exception(
+                    f'{self.params_str()} duration of the source should not be zero or less.')
                 raise ValueError
             h.start = start
-            if stop > grid.timewindow:
-                h.stop = grid.timewindow
-            else:
-                h.stop = stop
+            h.stop = min(stop, grid.timewindow)
             startstop = (f' start time {h.start:g} secs, finish time '
                          f'{h.stop:g} secs ')
         except KeyError:
@@ -460,12 +443,12 @@ class HertzianDipole(UserObjectMulti):
         h.calculate_waveform_values(grid)
 
         if config.get_model_config().mode == '2D':
-            logger.info(self.grid_name(grid) + f'Hertzian dipole is a line ' +
+            logger.info(f'{self.grid_name(grid)}Hertzian dipole is a line ' +
                         f'source in 2D with polarity {h.polarisation} at ' + 
                         f'{p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,' + startstop + 
                         f'using waveform {h.waveformID} created.')
         else:
-            logger.info(self.grid_name(grid) + f'Hertzian dipole with ' + 
+            logger.info(f'{self.grid_name(grid)}Hertzian dipole with ' + 
                         f'polarity {h.polarisation} at {p2[0]:g}m, ' + 
                         f'{p2[1]:g}m, {p2[2]:g}m,' + startstop + 
                         f'using waveform {h.waveformID} created.')
@@ -514,8 +497,7 @@ class MagneticDipole(UserObjectMulti):
             p1 = self.kwargs['p1']
             waveform_id = self.kwargs['waveform_id']
         except KeyError:
-            logger.exception(self.params_str() + ' requires at least five ' 
-                             'parameters.')
+            logger.exception(f'{self.params_str()} requires at least five parameters.')
             raise
 
         if self.do_rotate:
@@ -526,18 +508,15 @@ class MagneticDipole(UserObjectMulti):
             logger.exception(self.params_str() + (' polarisation must be '
                                                   'x, y, or z.'))
             raise ValueError
-        if ('2D TMx' in config.get_model_config().mode and 
-                        (polarisation == 'y' or polarisation == 'z')):
+        if '2D TMx' in config.get_model_config().mode and polarisation in ['y','z',]:
             logger.exception(self.params_str() + (' polarisation must be x in '
                                                   '2D TMx mode.'))
             raise ValueError
-        elif ('2D TMy' in config.get_model_config().mode and 
-                          (polarisation == 'x' or polarisation == 'z')):
+        elif '2D TMy' in config.get_model_config().mode and polarisation in ['x','z',]:
             logger.exception(self.params_str() + (' polarisation must be y in '
                                                   '2D TMy mode.'))
             raise ValueError
-        elif ('2D TMz' in config.get_model_config().mode and 
-                          (polarisation == 'x' or polarisation == 'y')):
+        elif '2D TMz' in config.get_model_config().mode and polarisation in ['x','y',]:
             logger.exception(self.params_str() + (' polarisation must be z in '
                                                   '2D TMz mode.'))
             raise ValueError
@@ -548,7 +527,7 @@ class MagneticDipole(UserObjectMulti):
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            logger.exception(self.params_str() + ' there is no waveform ' + 
+            logger.exception(f'{self.params_str()} there is no waveform ' + 
                              f'with the identifier {waveform_id}.')
             raise ValueError
 
@@ -584,10 +563,7 @@ class MagneticDipole(UserObjectMulti):
                                                       'less.'))
                 raise ValueError
             m.start = start
-            if stop > grid.timewindow:
-                m.stop = grid.timewindow
-            else:
-                m.stop = stop
+            m.stop = min(stop, grid.timewindow)
             startstop = (f' start time {m.start:g} secs, '
                          f'finish time {m.stop:g} secs ')
         except KeyError:
@@ -597,7 +573,7 @@ class MagneticDipole(UserObjectMulti):
 
         m.calculate_waveform_values(grid)
 
-        logger.info(self.grid_name(grid) + f'Magnetic dipole with polarity ' +
+        logger.info(f'{self.grid_name(grid)}Magnetic dipole with polarity ' +
                     f'{m.polarisation} at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,' + 
                     startstop + f'using waveform {m.waveformID} created.')
 
@@ -647,17 +623,15 @@ class TransmissionLine(UserObjectMulti):
             waveform_id = self.kwargs['waveform_id']
             resistance = self.kwargs['resistance']
         except KeyError:
-            logger.exception(self.params_str() + ' requires at least six '
-                             'parameters.')
+            logger.exception(f'{self.params_str()} requires at least six parameters.')
             raise
 
         if self.do_rotate:
             self._do_rotate(grid)
 
         # Warn about using a transmission line on GPU
-        if (config.sim_config.general['solver'] == 'cuda' or 
-            config.sim_config.general['solver'] == 'opencl'):
-            logger.exception(self.params_str() + ' cannot currently be used ' +
+        if (config.sim_config.general['solver'] in ['cuda', 'opencl']):
+            logger.exception(f'{self.params_str()} cannot currently be used ' +
                              'with the CUDA or OpenCL-based solver. Consider ' +
                              'using a #voltage_source instead.')
             raise ValueError
@@ -667,18 +641,15 @@ class TransmissionLine(UserObjectMulti):
             logger.exception(self.params_str() + (' polarisation must be '
                                                   'x, y, or z.'))
             raise ValueError
-        if ('2D TMx' in config.get_model_config().mode and 
-                        (polarisation == 'y' or polarisation == 'z')):
+        if '2D TMx' in config.get_model_config().mode and polarisation in ['y','z',]:
             logger.exception(self.params_str() + (' polarisation must be x in '
                                                   '2D TMx mode.'))
             raise ValueError
-        elif ('2D TMy' in config.get_model_config().mode and 
-                          (polarisation == 'x' or polarisation == 'z')):
+        elif '2D TMy' in config.get_model_config().mode and polarisation in ['x','z',]:
             logger.exception(self.params_str() + (' polarisation must be y in '
                                                   '2D TMy mode.'))
             raise ValueError
-        elif ('2D TMz' in config.get_model_config().mode and 
-                          (polarisation == 'x' or polarisation == 'y')):
+        elif '2D TMz' in config.get_model_config().mode and polarisation in ['x','y',]:
             logger.exception(self.params_str() + (' polarisation must be z in '
                                                   '2D TMz mode.'))
             raise ValueError
@@ -688,14 +659,14 @@ class TransmissionLine(UserObjectMulti):
 
 
         if resistance <= 0 or resistance >= config.sim_config.em_consts['z0']:
-            logger.exception(self.params_str() + ' requires a resistance ' + 
+            logger.exception(f'{self.params_str()} requires a resistance ' + 
                              'greater than zero and less than the impedance ' +
                              'of free space, i.e. 376.73 Ohms.')
             raise ValueError
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            logger.exception(self.params_str() + ' there is no waveform ' + 
+            logger.exception(f'{self.params_str()} there is no waveform ' + 
                              f'with the identifier {waveform_id}.')
             raise ValueError
 
@@ -729,11 +700,8 @@ class TransmissionLine(UserObjectMulti):
                                                       'less.'))
                 raise ValueError
             t.start = start
-            if stop > grid.timewindow:
-                t.stop = grid.timewindow
-            else:
-                t.stop = stop
-            startstop = (f' start time {t.start:g} secs, finish time '
+            t.stop = min(stop, grid.timewindow)
+            startstop = (f' start time {t.start:g} secs, finish time ' +
                          f'{t.stop:g} secs ')
         except KeyError:
             t.start = 0
@@ -743,7 +711,7 @@ class TransmissionLine(UserObjectMulti):
         t.calculate_waveform_values(grid)
         t.calculate_incident_V_I(grid)
 
-        logger.info(self.grid_name(grid) + f'Transmission line with polarity ' +
+        logger.info(f'{self.grid_name(grid)}Transmission line with polarity ' +
                     f'{t.polarisation} at {p2[0]:g}m, {p2[1]:g}m, ' + 
                     f'{p2[2]:g}m, resistance {t.resistance:.1f} Ohms,' + 
                     startstop + f'using waveform {t.waveformID} created.')
@@ -817,16 +785,14 @@ class Rx(UserObjectMulti):
             outputs = [self.kwargs['outputs']]
         except KeyError:
             # If no ID or outputs are specified, use default
-            r.ID = (r.__class__.__name__ + '(' + str(r.xcoord) + ',' + 
-                    str(r.ycoord) + ',' + str(r.zcoord) + ')')
+            r.ID = f'{r.__class__.__name__}({str(r.xcoord)},{str(r.ycoord)},{str(r.zcoord)})'
             for key in RxUser.defaultoutputs:
                 r.outputs[key] = np.zeros(grid.iterations, 
                                           dtype=config.sim_config.dtypes['float_or_double'])
         else:
             outputs.sort()
             # Get allowable outputs
-            if (config.sim_config.general['solver'] =='cuda' or 
-                config.sim_config.general['solver'] =='opencl'):
+            if config.sim_config.general['solver'] in ['cuda', 'opencl']:
                 allowableoutputs = RxUser.allowableoutputs_dev
             else:
                 allowableoutputs = RxUser.allowableoutputs
@@ -836,14 +802,14 @@ class Rx(UserObjectMulti):
                     r.outputs[field] = np.zeros(grid.iterations, 
                                                 dtype=config.sim_config.dtypes['float_or_double'])
                 else:
-                    logger.exception(self.params_str() + ' contains an '
-                                     'output type that is not allowable. '
-                                     'Allowable outputs in current context are '
+                    logger.exception(f'{self.params_str()} contains an output '
+                                     f'type that is not allowable. Allowable '
+                                     f'outputs in current context are '
                                      f'{allowableoutputs}.')
                     raise ValueError
 
-        logger.info(self.grid_name(grid) + f"Receiver at {p2[0]:g}m, " 
-                    f"{p2[1]:g}m, {p2[2]:g}m with output component(s) "
+        logger.info(f"{self.grid_name(grid)}Receiver at {p2[0]:g}m, {p2[1]:g}m, "
+                    f"{p2[2]:g}m with output component(s) "
                     f"{', '.join(r.outputs)} created.")
 
         grid.rxs.append(r)
@@ -871,8 +837,7 @@ class RxArray(UserObjectMulti):
             p2 = self.kwargs['p2']
             dl = self.kwargs['dl']
         except KeyError:
-            logger.exception(self.params_str() + ' requires exactly 9 '
-                             'parameters')
+            logger.exception(f'{self.params_str()} requires exactly 9 parameters')
             raise
 
         xs, ys, zs = uip.check_src_rx_point(p1, self.params_str(), 'lower')
@@ -882,39 +847,39 @@ class RxArray(UserObjectMulti):
         dx, dy, dz = uip.discretise_point(dl)
 
         if xs > xf or ys > yf or zs > zf:
-            logger.exception(self.params_str() + ' the lower coordinates ' 
+            logger.exception(f'{self.params_str()} the lower coordinates ' + 
                              'should be less than the upper coordinates.')
             raise ValueError
         if dx < 0 or dy < 0 or dz < 0:
-            logger.exception(self.params_str() + ' the step size should not ' 
+            logger.exception(f'{self.params_str()} the step size should not ' + 
                              'be less than zero.')
             raise ValueError
         if dx < 1:
             if dx == 0:
                 dx = 1
             else:
-                logger.exception(self.params_str() + ' the step size should ' 
+                logger.exception(f'{self.params_str()} the step size should ' +
                                  'not be less than the spatial discretisation.')
                 raise ValueError
         if dy < 1:
             if dy == 0:
                 dy = 1
             else:
-                logger.exception(self.params_str() + ' the step size should ' 
+                logger.exception(f'{self.params_str()} the step size should ' +
                                  'not be less than the spatial discretisation.')
                 raise ValueError
         if dz < 1:
             if dz == 0:
                 dz = 1
             else:
-                logger.exception(self.params_str() + ' the step size should '
+                logger.exception(f'{self.params_str()} the step size should ' +
                                  'not be less than the spatial discretisation.')
                 raise ValueError
 
-        logger.info(self.grid_name(grid) + f'Receiver array {p3[0]:g}m, ' 
-                    f'{p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, '
-                    f'{p4[2]:g}m with steps {dx * grid.dx:g}m, '
-                    f'{dy * grid.dy:g}m, {dz * grid.dz:g}m')
+        logger.info(f'{self.grid_name(grid)}Receiver array '
+                    f'{p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to '
+                    f'{p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m with steps '
+                    f'{dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m')
 
         for x in range(xs, xf + 1, dx):
             for y in range(ys, yf + 1, dy):
@@ -930,8 +895,7 @@ class RxArray(UserObjectMulti):
                     p5 = np.array([x, y, z])
                     p5 = uip.descretised_to_continuous(p5)
                     p5 = uip.round_to_grid_static_point(p5)
-                    r.ID = (r.__class__.__name__ + '(' + str(x) + ',' + 
-                            str(y) + ',' + str(z) + ')')
+                    r.ID = f'{r.__class__.__name__}({str(x)},{str(y)},{str(z)})'
                     for key in RxUser.defaultoutputs:
                         r.outputs[key] = np.zeros(grid.iterations, dtype=config.sim_config.dtypes['float_or_double'])
                     logger.info(f"  Receiver at {p5[0]:g}m, {p5[1]:g}m, "
@@ -968,8 +932,7 @@ class Snapshot(UserObjectMulti):
 
     def create(self, grid, uip):
         if isinstance(grid, SubGridBaseGrid):
-            logger.exception(self.params_str() + ' do not add snapshots to '
-                             'subgrids.')
+            logger.exception(f'{self.params_str()} do not add snapshots to subgrids.')
             raise ValueError
         try:
             p1 = self.kwargs['p1']
@@ -977,8 +940,7 @@ class Snapshot(UserObjectMulti):
             dl = self.kwargs['dl']
             filename = self.kwargs['filename']
         except KeyError:
-            logger.exception(self.params_str() + ' requires exactly 11 '
-                             'parameters.')
+            logger.exception(f'{self.params_str()} requires exactly 11 parameters.')
             raise
 
         try:
@@ -986,7 +948,7 @@ class Snapshot(UserObjectMulti):
             p4 = uip.round_to_grid_static_point(p2)
             p1, p2 = uip.check_box_points(p1, p2, self.params_str())
         except ValueError:
-            logger.exception(self.params_str() + ' point is outside the domain.')
+            logger.exception(f'{self.params_str()} point is outside the domain.')
             raise
         xs, ys, zs = p1
         xf, yf, zf = p2
@@ -1001,13 +963,12 @@ class Snapshot(UserObjectMulti):
             try:
                 time = self.kwargs['time']
             except KeyError:
-                logger.exception(self.params_str() + ' requires exactly 5 '
-                                 'parameters.')
+                logger.exception(f'{self.params_str()} requires exactly 5 parameters.')
                 raise
             if time > 0:
                 iterations = round_value((time / grid.dt)) + 1
             else:
-                logger.exception(self.params_str() + ' time value must be '
+                logger.exception(f'{self.params_str()} time value must be ' + 
                                  'greater than zero.')
                 raise ValueError
 
@@ -1027,10 +988,10 @@ class Snapshot(UserObjectMulti):
             # Check and set output names
             for output in tmp:
                 if output not in SnapshotUser.allowableoutputs.keys():
-                    logger.exception(self.params_str() + " contains an "
-                                        "output type that is not allowable. "
-                                        "Allowable outputs in current context are "
-                                        f"{', '.join(SnapshotUser.allowableoutputs.keys())}.")
+                    logger.exception(f"{self.params_str()} contains an output "
+                                     f"type that is not allowable. Allowable "
+                                     f"outputs in current context are "
+                                     f"{', '.join(SnapshotUser.allowableoutputs.keys())}.")
                     raise ValueError
                 else:
                     outputs[output] = True
@@ -1039,15 +1000,15 @@ class Snapshot(UserObjectMulti):
             outputs = dict.fromkeys(SnapshotUser.allowableoutputs, True)
 
         if dx < 0 or dy < 0 or dz < 0:
-            logger.exception(self.params_str() + ' the step size should not '
+            logger.exception(f'{self.params_str()} the step size should not ' +
                              'be less than zero.')
             raise ValueError
         if dx < 1 or dy < 1 or dz < 1:
-            logger.exception(self.params_str() + ' the step size should not '
+            logger.exception(f'{self.params_str()} the step size should not ' +
                              'be less than the spatial discretisation.')
             raise ValueError
         if iterations <= 0 or iterations > grid.iterations:
-            logger.exception(self.params_str() + ' time value is not valid.')
+            logger.exception(f'{self.params_str()} time value is not valid.')
             raise ValueError
 
         s = SnapshotUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, iterations, 
@@ -1088,39 +1049,37 @@ class Material(UserObjectMulti):
             sm = self.kwargs['sm']
             material_id = self.kwargs['id']
         except KeyError:
-            logger.exception(self.params_str() + ' requires exactly five '
-                             'parameters.')
+            logger.exception(f'{self.params_str()} requires exactly five parameters.')
             raise
 
         if er < 1:
-            logger.exception(self.params_str() + ' requires a positive value '
-                             'of one or greater for static (DC) permittivity.')
+            logger.exception(f'{self.params_str()} requires a positive value of ' +
+                             f'one or greater for static (DC) permittivity.')
             raise ValueError
         if se != 'inf':
             se = float(se)
             if se < 0:
-                logger.exception(self.params_str() + ' requires a positive '
-                                 'value for electric conductivity.')
+                logger.exception(f'{self.params_str()} requires a positive ' +
+                                 f'value for electric conductivity.')
                 raise ValueError
         else:
             se = float('inf')
         if mr < 1:
-            logger.exception(self.params_str() + ' requires a positive value '
-                             'of one or greater for magnetic permeability.')
+            logger.exception(f'{self.params_str()} requires a positive value of ' +
+                             f'one or greater for magnetic permeability.')
             raise ValueError
         if sm < 0:
-            logger.exception(self.params_str() + ' requires a positive value '
-                             'for magnetic loss.')
+            logger.exception(f'{self.params_str()} requires a positive value ' +
+                             f'for magnetic loss.')
             raise ValueError
         if any(x.ID == material_id for x in grid.materials):
-            logger.exception(self.params_str() + f' with ID {material_id} '
-                             'already exists')
+            logger.exception(f'{self.params_str()} with ID {material_id} ' +
+                             f'already exists')
             raise ValueError
 
         # Create a new instance of the Material class material 
         # (start index after pec & free_space)
         m = MaterialUser(len(grid.materials), material_id)
-        m.er = er
         m.se = se
         m.mr = mr
         m.sm = sm
@@ -1129,9 +1088,10 @@ class Material(UserObjectMulti):
         if m.se == float('inf'):
             m.averagable = False
 
-        logger.info(self.grid_name(grid) + f'Material {m.ID} with '
-                    f'eps_r={m.er:g}, sigma={m.se:g} S/m; mu_r={m.mr:g}, '
-                    f'sigma*={m.sm:g} Ohm/m created.')
+        m.er = er
+        logger.info(f'{self.grid_name(grid)}Material {m.ID} with eps_r={m.er:g}, '
+                    f'sigma={m.se:g} S/m; mu_r={m.mr:g}, sigma*={m.sm:g} Ohm/m '
+                    f'created.')
 
         grid.materials.append(m)
 
@@ -1162,12 +1122,11 @@ class AddDebyeDispersion(UserObjectMulti):
             tau = self.kwargs['tau']
             material_ids = self.kwargs['material_ids']
         except KeyError:
-            logger.exception(self.params_str() + ' requires at least four '
-                             'parameters.')
+            logger.exception(f'{self.params_str()} requires at least four parameters.')
             raise
 
         if poles < 0:
-            logger.exception(self.params_str() + ' requires a positive value '
+            logger.exception(f'{self.params_str()} requires a positive value ' +
                              'for number of poles.')
             raise ValueError
 
@@ -1176,8 +1135,7 @@ class AddDebyeDispersion(UserObjectMulti):
 
         if len(materials) != len(material_ids):
             notfound = [x for x in material_ids if x not in materials]
-            logger.exception(self.params_str() + f' material(s) {notfound} do '
-                             'not exist')
+            logger.exception(f'{self.params_str()} material(s) {notfound} do not exist')
             raise ValueError
 
         for material in materials:
@@ -1189,14 +1147,14 @@ class AddDebyeDispersion(UserObjectMulti):
             disp_material.type = 'debye'
             disp_material.poles = poles
             disp_material.averagable = False
-            for i in range(0, poles):
+            for i in range(poles):
                 if tau[i] > 0:
                     logger.debug('Not checking if relaxation times are '
                                  'greater than time-step.')
                     disp_material.deltaer.append(er_delta[i])
                     disp_material.tau.append(tau[i])
                 else:
-                    logger.exception(self.params_str() + ' requires positive '
+                    logger.exception(f'{self.params_str()} requires positive ' +
                                      'values for the permittivity difference.')
                     raise ValueError
             if disp_material.poles > config.get_model_config().materials['maxpoles']:
@@ -1205,8 +1163,8 @@ class AddDebyeDispersion(UserObjectMulti):
             # Replace original material with newly created DispersiveMaterial
             grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
 
-            logger.info(self.grid_name(grid) + f"Debye disperion added to {disp_material.ID} "
-                        f"with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, " 
+            logger.info(f"{self.grid_name(grid)}Debye disperion added to {disp_material.ID} "
+                        f"with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, "
                         f"and tau={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs created.")
 
 
@@ -1238,12 +1196,11 @@ class AddLorentzDispersion(UserObjectMulti):
             delta = self.kwargs['delta']
             material_ids = self.kwargs['material_ids']
         except KeyError:
-            logger.exception(self.params_str() + ' requires at least five '
-                             'parameters.')
+            logger.exception(f'{self.params_str()} requires at least five parameters.')
             raise
 
         if poles < 0:
-            logger.exception(self.params_str() + ' requires a positive value '
+            logger.exception(f'{self.params_str()} requires a positive value ' +
                              'for number of poles.')
             raise ValueError
 
@@ -1252,8 +1209,7 @@ class AddLorentzDispersion(UserObjectMulti):
 
         if len(materials) != len(material_ids):
             notfound = [x for x in material_ids if x not in materials]
-            logger.exception(self.params_str() + f' material(s) {notfound} do '
-                             'not exist')
+            logger.exception(f'{self.params_str()} material(s) {notfound} do not exist')
             raise ValueError
 
         for material in materials:
@@ -1265,13 +1221,13 @@ class AddLorentzDispersion(UserObjectMulti):
             disp_material.type = 'lorentz'
             disp_material.poles = poles
             disp_material.averagable = False
-            for i in range(0, poles):
+            for i in range(poles):
                 if er_delta[i] > 0 and omega[i] > grid.dt and delta[i] > grid.dt:
                     disp_material.deltaer.append(er_delta[i])
                     disp_material.tau.append(omega[i])
                     disp_material.alpha.append(delta[i])
                 else:
-                    logger.exception(self.params_str() + ' requires positive '
+                    logger.exception(f'{self.params_str()} requires positive '
                                      'values for the permittivity difference '
                                      'and frequencies, and associated times '
                                      'that are greater than the time step for '
@@ -1283,10 +1239,11 @@ class AddLorentzDispersion(UserObjectMulti):
             # Replace original material with newly created DispersiveMaterial
             grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
 
-            logger.info(self.grid_name(grid) + f"Lorentz disperion added to {disp_material.ID} "
-                        f"with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, "
-                        f"omega={', '.join('%4.3e' % omega for omega in disp_material.tau)} secs, "
-                        f"and gamma={', '.join('%4.3e' % delta for delta in disp_material.alpha)} created.")
+            logger.info(
+                f"{self.grid_name(grid)}Lorentz disperion added to {disp_material.ID} " +
+                f"with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, " +
+                f"omega={', '.join('%4.3e' % omega for omega in disp_material.tau)} secs, " +
+                f"and gamma={', '.join('%4.3e' % delta for delta in disp_material.alpha)} created.")
 
 
 class AddDrudeDispersion(UserObjectMulti):
@@ -1313,12 +1270,12 @@ class AddDrudeDispersion(UserObjectMulti):
             alpha = self.kwargs['alpha']
             material_ids = self.kwargs['material_ids']
         except KeyError:
-            logger.exception(self.params_str() + ' requires at least four '
+            logger.exception(f'{self.params_str()} requires at least four ' +
                              'parameters.')
             raise
 
         if poles < 0:
-            logger.exception(self.params_str() + ' requires a positive value '
+            logger.exception(f'{self.params_str()} requires a positive value ' +
                              'for number of poles.')
             raise ValueError
 
@@ -1327,8 +1284,7 @@ class AddDrudeDispersion(UserObjectMulti):
 
         if len(materials) != len(material_ids):
             notfound = [x for x in material_ids if x not in materials]
-            logger.exception(self.params_str() + f' material(s) {notfound} do '
-                             'not exist.')
+            logger.exception(f'{self.params_str()} material(s) {notfound} do not exist.')
             raise ValueError
 
         for material in materials:
@@ -1340,14 +1296,14 @@ class AddDrudeDispersion(UserObjectMulti):
             disp_material.type = 'drude'
             disp_material.poles = poles
             disp_material.averagable = False
-            for i in range(0, poles):
+            for i in range(poles):
                 if omega[i] > 0 and alpha[i] > grid.dt:
                     disp_material.tau.append(omega[i])
                     disp_material.alpha.append(alpha[i])
                 else:
-                    logger.exception(self.params_str() + ' requires positive '
-                                     'values for the frequencies, and '
-                                     'associated times that are greater than '
+                    logger.exception(f'{self.params_str()} requires positive ' +
+                                     'values for the frequencies, and ' +
+                                     'associated times that are greater than ' +
                                      'the time step for the model.')
                     raise ValueError
             if disp_material.poles > config.get_model_config().materials['maxpoles']:
@@ -1356,9 +1312,10 @@ class AddDrudeDispersion(UserObjectMulti):
             # Replace original material with newly created DispersiveMaterial
             grid.materials = [disp_material if mat.numID==material.numID else mat for mat in grid.materials]
 
-            logger.info(self.grid_name(grid) + f"Drude disperion added to {disp_material.ID} "
-                        f"with omega={', '.join('%4.3e' % omega for omega in disp_material.tau)} secs, "
-                        f"and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} secs created.")
+            logger.info(
+                f"{self.grid_name(grid)}Drude disperion added to {disp_material.ID} "
+                f"with omega={', '.join('%4.3e' % omega for omega in disp_material.tau)} secs, "
+                f"and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} secs created.")
 
 
 class SoilPeplinski(UserObjectMulti):
@@ -1392,38 +1349,38 @@ class SoilPeplinski(UserObjectMulti):
             water_fraction_upper = self.kwargs['water_fraction_upper']
             ID = self.kwargs['id']
         except KeyError:
-            logger.exception(self.params_str() + ' requires at exactly seven '
+            logger.exception(f'{self.params_str()} requires at exactly seven ' +
                              'parameters.')
             raise
 
         if sand_fraction < 0:
-            logger.exception(self.params_str() + ' requires a positive value '
+            logger.exception(f'{self.params_str()} requires a positive value ' +
                              'for the sand fraction.')
             raise ValueError
         if clay_fraction < 0:
-            logger.exception(self.params_str() + ' requires a positive value '
+            logger.exception(f'{self.params_str()} requires a positive value ' +
                              'for the clay fraction.')
             raise ValueError
         if bulk_density < 0:
-            logger.exception(self.params_str() + ' requires a positive value '
+            logger.exception(f'{self.params_str()} requires a positive value ' +
                              'for the bulk density.')
             raise ValueError
         if sand_density < 0:
-            logger.exception(self.params_str() + ' requires a positive value '
+            logger.exception(f'{self.params_str()} requires a positive value ' +
                              'for the sand particle density.')
             raise ValueError
         if water_fraction_lower < 0:
-            logger.exception(self.params_str() + ' requires a positive value '
+            logger.exception(f'{self.params_str()} requires a positive value ' +
                              'for the lower limit of the water volumetric '
                              'fraction.')
             raise ValueError
         if water_fraction_upper < 0:
-            logger.exception(self.params_str() + ' requires a positive value '
+            logger.exception(f'{self.params_str()} requires a positive value ' +
                              'for the upper limit of the water volumetric '
                              'fraction.')
             raise ValueError
         if any(x.ID == ID for x in grid.mixingmodels):
-            logger.exception(self.params_str() + f' with ID {ID} already exists')
+            logger.exception(f'{self.params_str()} with ID {ID} already exists')
             raise ValueError
 
         # Create a new instance of the Material class material 
@@ -1431,10 +1388,10 @@ class SoilPeplinski(UserObjectMulti):
         s = PeplinskiSoilUser(ID, sand_fraction, clay_fraction, bulk_density, 
                               sand_density, (water_fraction_lower, water_fraction_upper))
 
-        logger.info(self.grid_name(grid) + 'Mixing model (Peplinski) used to '
-                    f'create {s.ID} with sand fraction {s.S:g}, clay fraction '
-                    f'{s.C:g}, bulk density {s.rb:g}g/cm3, sand particle '
-                    f'density {s.rs:g}g/cm3, and water volumetric fraction '
+        logger.info(f'{self.grid_name(grid)}Mixing model (Peplinski) used to ' +
+                    f'create {s.ID} with sand fraction {s.S:g}, clay fraction ' +
+                    f'{s.C:g}, bulk density {s.rb:g}g/cm3, sand particle ' +
+                    f'density {s.rs:g}g/cm3, and water volumetric fraction ' +
                     f'{s.mu[0]:g} to {s.mu[1]:g} created.')
 
         grid.mixingmodels.append(s)
@@ -1474,58 +1431,59 @@ class MaterialRange(UserObjectMulti):
             ro_upper = self.kwargs['ro_upper']
             ID = self.kwargs['id']
         except KeyError:
-            logger.exception(self.params_str() + ' requires at exactly nine '
+            logger.exception(f'{self.params_str()} requires at exactly nine ' +
                              'parameters.')
             raise
 
         if er_lower < 1:
-            logger.exception(self.params_str() + ' requires a value greater or equal to 1 '
+            logger.exception(f'{self.params_str()} requires a value greater or equal to 1 ' +
                              'for the lower range of relative permittivity.')
             raise ValueError
         if mr_lower < 1:
-            logger.exception(self.params_str() + ' requires a value greater or equal to 1 '
+            logger.exception(f'{self.params_str()} requires a value greater or equal to 1 ' +
                              'for the lower range of relative magnetic permeability.')
             raise ValueError
         if sigma_lower < 0:
-            logger.exception(self.params_str() + ' requires a positive value '
+            logger.exception(f'{self.params_str()} requires a positive value ' +
                              'for the lower limit of conductivity.')
             raise ValueError
         if ro_lower < 0:
-            logger.exception(self.params_str() + ' requires a positive value '
+            logger.exception(f'{self.params_str()} requires a positive value ' +
                              'for the lower range magnetic loss.')
             raise ValueError
         if er_upper < 1:
-            logger.exception(self.params_str() + ' requires a value greater or equal to 1'
+            logger.exception(f'{self.params_str()} requires a value greater or equal to 1' +
                             'for the upper range of relative permittivity.')
             raise ValueError
-        
+
         if mr_upper < 1:
-            logger.exception(self.params_str() + ' requires a value greater or equal to 1'
+            logger.exception(f'{self.params_str()} requires a value greater or equal to 1' +
                              'for the upper range of relative magnetic permeability')
             raise ValueError
-        
+
         if sigma_upper < 0:
-            logger.exception(self.params_str() + ' requires a positive value '
+            logger.exception(f'{self.params_str()} requires a positive value ' +
                              'for the upper range of conductivity.')
             raise ValueError
         if ro_upper < 0:
-            logger.exception(self.params_str() + ' requires a positive value '
+            logger.exception(f'{self.params_str()} requires a positive value ' +
                              'for the upper range of magnetic loss.')
 
-        
+
         if any(x.ID == ID for x in grid.mixingmodels):
-            logger.exception(self.params_str() + f' with ID {ID} already exists')
+            logger.exception(f'{self.params_str()} with ID {ID} already exists')
             raise ValueError
 
         # Create a new instance of the Material class material 
         # (start index after pec & free_space)
-        s = RangeMaterialUser(ID, (er_lower, er_upper), (sigma_lower, sigma_upper), (mr_lower, mr_upper), (ro_lower, ro_upper))
+        s = RangeMaterialUser(ID, (er_lower, er_upper), (sigma_lower, sigma_upper), 
+                              (mr_lower, mr_upper), (ro_lower, ro_upper))
 
-        logger.info(self.grid_name(grid) + 'Material properties used to '
-                    f'create {s.ID} with range(s) {s.er[0]:g} to {s.er[1]:g}, relative permittivity '
-                    f'{s.sig[0]:g} to {s.sig[1]:g}, S/m conductivity, {s.mu[0]:g} to {s.mu[1]:g} relative magnetic permeability '
+        logger.info(f'{self.grid_name(grid)}Material properties used to ' +
+                    f'create {s.ID} with range(s) {s.er[0]:g} to {s.er[1]:g}, relative permittivity ' +
+                    f'{s.sig[0]:g} to {s.sig[1]:g}, S/m conductivity, {s.mu[0]:g} to {s.mu[1]:g} relative magnetic permeability ' +
                     f'{s.ro[0]:g} to {s.ro[1]:g} Ohm/m magnetic loss, created')
-        
+
 
         grid.mixingmodels.append(s)
 
@@ -1550,25 +1508,23 @@ class MaterialList(UserObjectMulti):
             list_of_materials = self.kwargs['list_of_materials']
             ID = self.kwargs['id']
         except KeyError:
-            logger.exception(self.params_str() + ' requires at at least 2 '
+            logger.exception(f'{self.params_str()} requires at at least 2 ' +
                              'parameters.')
             raise
 
-               
         if any(x.ID == ID for x in grid.mixingmodels):
-            logger.exception(self.params_str() + f' with ID {ID} already exists')
+            logger.exception(f'{self.params_str()} with ID {ID} already exists')
             raise ValueError
 
         # Create a new instance of the Material class material 
         # (start index after pec & free_space)
         s = ListMaterialUser(ID, list_of_materials)
 
-        logger.info(self.grid_name(grid) + 'A list of materials used to '
+        logger.info(f'{self.grid_name(grid)}A list of materials used to ' +
                     f'create {s.ID} that includes {s.mat}, created')
-        
+
 
         grid.mixingmodels.append(s)
-
 
 
 class GeometryView(UserObjectMulti):
@@ -1613,7 +1569,7 @@ class GeometryView(UserObjectMulti):
             output_type = self.kwargs['output_type'].lower()
             filename = self.kwargs['filename']
         except KeyError:
-            logger.exception(self.params_str() + ' requires exactly eleven '
+            logger.exception(f'{self.params_str()} requires exactly eleven ' +
                              'parameters.')
             raise
 
@@ -1624,45 +1580,44 @@ class GeometryView(UserObjectMulti):
             p4 = uip.round_to_grid_static_point(p2)
             p1, p2 = uip.check_box_points(p1, p2, self.params_str())
         except ValueError:
-            logger.exception(self.params_str() + ' point is outside the domain.')
+            logger.exception(f'{self.params_str()} point is outside the domain.')
             raise
         xs, ys, zs = p1
         xf, yf, zf = p2
 
         dx, dy, dz = uip.discretise_static_point(dl)
 
-
         if dx < 0 or dy < 0 or dz < 0:
-            logger.exception(self.params_str() + ' the step size should not be '
+            logger.exception(f'{self.params_str()} the step size should not be ' +
                              'less than zero.')
             raise ValueError
         if dx > grid.nx or dy > grid.ny or dz > grid.nz:
-            logger.exception(self.params_str() + ' the step size should be '
+            logger.exception(f'{self.params_str()} the step size should be ' +
                              'less than the domain size.')
             raise ValueError
         if dx < 1 or dy < 1 or dz < 1:
-            logger.exception(self.params_str() + ' the step size should not '
+            logger.exception(f'{self.params_str()} the step size should not ' +
                              'be less than the spatial discretisation.')
             raise ValueError
-        if output_type != 'n' and output_type != 'f':
-            logger.exception(self.params_str() + ' requires type to be either '
+        if output_type not in ['n', 'f']:
+            logger.exception(f'{self.params_str()} requires type to be either ' +
                              'n (normal) or f (fine).')
             raise ValueError
         if output_type == 'f' and (dx * grid.dx != grid.dx or 
                                    dy * grid.dy != grid.dy or 
                                    dz * grid.dz != grid.dz):
-            logger.exception(self.params_str() + ' requires the spatial '
-                             'discretisation for the geometry view to be the '
-                             'same as the model for geometry view of '
+            logger.exception(f'{self.params_str()} requires the spatial ' +
+                             'discretisation for the geometry view to be the ' +
+                             'same as the model for geometry view of ' +
                              'type f (fine)')
             raise ValueError
 
         g = GeometryViewUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, grid)
 
-        logger.info(self.grid_name(grid) + f'Geometry view from {p3[0]:g}m, '
-                    f'{p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, '
-                    f'{p4[2]:g}m, discretisation {dx * grid.dx:g}m, '
-                    f'{dy * grid.dy:g}m, {dz * grid.dz:g}m, with filename '
+        logger.info(f'{self.grid_name(grid)}Geometry view from {p3[0]:g}m, ' +
+                    f'{p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, ' +
+                    f'{p4[2]:g}m, discretisation {dx * grid.dx:g}m, ' +
+                    f'{dy * grid.dy:g}m, {dz * grid.dz:g}m, with filename ' +
                     f'base {g.filename} created.')
 
         grid.geometryviews.append(g)
@@ -1692,7 +1647,7 @@ class GeometryObjectsWrite(UserObjectMulti):
             p2 = self.kwargs['p2']
             basefilename = self.kwargs['filename']
         except KeyError:
-            logger.exception(self.params_str() + ' requires exactly seven '
+            logger.exception(f'{self.params_str()} requires exactly seven ' +
                              'parameters.')
             raise
 
@@ -1756,30 +1711,30 @@ class PMLCFS(UserObjectMulti):
             sigmamin = self.kwargs['sigmamin']
             sigmamax = self.kwargs['sigmamax']
         except KeyError:
-            logger.exception(self.params_str() + ' requires exactly twelve '
+            logger.exception(f'{self.params_str()} requires exactly twelve ' +
                              'parameters.')
             raise
 
         if (alphascalingprofile not in CFSParameter.scalingprofiles.keys() or 
             kappascalingprofile not in CFSParameter.scalingprofiles.keys() or 
             sigmascalingprofile not in CFSParameter.scalingprofiles.keys()):
-            logger.exception(self.params_str() + ' must have scaling type '
+            logger.exception(f'{self.params_str()} must have scaling type ' +
                              f"{','.join(CFSParameter.scalingprofiles.keys())}")
             raise ValueError
         if (alphascalingdirection not in CFSParameter.scalingdirections or 
             kappascalingdirection not in CFSParameter.scalingdirections or 
             sigmascalingdirection not in CFSParameter.scalingdirections):
-            logger.exception(self.params_str() + ' must have scaling type '
+            logger.exception(f'{self.params_str()} must have scaling type ' +
                              f"{','.join(CFSParameter.scalingdirections)}")
             raise ValueError
         if (float(alphamin) < 0 or float(alphamax) < 0 or 
             float(kappamin) < 0 or float(kappamax) < 0 or float(sigmamin) < 0):
-            logger.exception(self.params_str() + ' minimum and maximum scaling '
+            logger.exception(f'{self.params_str()} minimum and maximum scaling ' +
                              'values must be greater than zero.')
             raise ValueError
         # TODO: Fix handling of kappa for 2nd order PMLs
         # if float(kappamin) < 1:
-        #     logger.exception(self.params_str() + ' minimum scaling value for '
+        #     logger.exception(f'{self.params_str()} minimum scaling value for '
         #                      'kappa must be greater than or equal to one.')
         #     raise ValueError
 
@@ -1819,7 +1774,7 @@ class PMLCFS(UserObjectMulti):
         grid.pmls['cfs'].append(cfs)
 
         if len(grid.pmls['cfs']) > 2:
-            logger.exception(self.params_str() + ' can only be used up to two '
+            logger.exception(f'{self.params_str()} can only be used up to two ' +
                              'times, for up to a 2nd order PML.')
             raise ValueError
             

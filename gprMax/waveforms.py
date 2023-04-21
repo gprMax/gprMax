@@ -54,18 +54,19 @@ class Waveform:
             waveforms.
         """
 
-        if (self.type == 'gaussian' or self.type == 'gaussiandot' or 
-            self.type == 'gaussiandotnorm' or self.type == 'gaussianprime' or 
-            self.type == 'gaussiandoubleprime'):
+        if self.type in ['gaussian',
+                         'gaussiandot',
+                         'gaussiandotnorm',
+                         'gaussianprime',
+                         'gaussiandoubleprime']:
             self.chi = 1 / self.freq
             self.zeta = 2 * np.pi**2 * self.freq**2
-        elif (self.type == 'gaussiandotdot' or 
-              self.type == 'gaussiandotdotnorm' or self.type == 'ricker'):
+        elif self.type in ['gaussiandotdot', 'gaussiandotdotnorm', 'ricker']:
             self.chi = np.sqrt(2) / self.freq
             self.zeta = np.pi**2 * self.freq**2
 
     def calculate_value(self, time, dt):
-        """Calculates value of the waveform at a specific time.
+        """Calculates the value of the waveform at a specific time.
 
         Args:
             time: float for absolute time.
@@ -82,7 +83,7 @@ class Waveform:
             delay = time - self.chi
             ampvalue = np.exp(-self.zeta * delay**2)
 
-        elif self.type == 'gaussiandot' or self.type == 'gaussianprime':
+        elif self.type in ['gaussiandot', 'gaussianprime']:
             delay = time - self.chi
             ampvalue = -2 * self.zeta * delay * np.exp(-self.zeta * delay**2)
 
@@ -91,7 +92,7 @@ class Waveform:
             normalise = np.sqrt(np.exp(1) / (2 * self.zeta))
             ampvalue = -2 * self.zeta * delay * np.exp(-self.zeta * delay**2) * normalise
 
-        elif self.type == 'gaussiandotdot' or self.type == 'gaussiandoubleprime':
+        elif self.type in ['gaussiandotdot', 'gaussiandoubleprime']:
             delay = time - self.chi
             ampvalue = (2 * self.zeta * (2 * self.zeta * delay**2 - 1) *
                         np.exp(-self.zeta * delay**2))
@@ -116,8 +117,8 @@ class Waveform:
         elif self.type == 'contsine':
             rampamp = 0.25
             ramp = rampamp * time * self.freq
-            if ramp > 1:
-                ramp = 1
+            ramp = min(ramp, 1)
+
             ampvalue = ramp * np.sin(2 * np.pi * self.freq * time)
 
         elif self.type == 'impulse':
@@ -126,7 +127,7 @@ class Waveform:
                 ampvalue = 1
             elif time >= dt:
                 ampvalue = 0
-
+                
         elif self.type == 'user':
             ampvalue = self.userfunc(time)
 

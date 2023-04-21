@@ -55,8 +55,8 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
         if len(tmp) != 1:
-            logger.exception(cmd + ' requires exactly one parameter to specify ' +
-                             'the number of CPU OpenMP threads to use')
+            logger.exception(f'{cmd} requires exactly one parameter to specify ' +
+                             f'the number of CPU OpenMP threads to use')
             raise ValueError
 
         omp_threads = OMPThreads(n=tmp[0])
@@ -66,7 +66,7 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = [float(x) for x in singlecmds[cmd].split()]
         if len(tmp) != 3:
-            logger.exception(cmd + ' requires exactly three parameters')
+            logger.exception(f'{cmd} requires exactly three parameters')
             raise ValueError
 
         dl = (tmp[0], tmp[1], tmp[2])
@@ -77,7 +77,7 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = [float(x) for x in singlecmds[cmd].split()]
         if len(tmp) != 3:
-            logger.exception(cmd + ' requires exactly three parameters')
+            logger.exception(f'{cmd} requires exactly three parameters')
             raise ValueError
 
         p1 = (tmp[0], tmp[1], tmp[2])
@@ -94,8 +94,8 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 1:
-            logger.exception(cmd + ' requires exactly one parameter to specify ' +
-                             'the time window. Either in seconds or number of iterations.')
+            logger.exception(f'{cmd} requires exactly one parameter to specify the ' +
+                             f'time window. Either in seconds or number of iterations.')
             raise ValueError
         tmp = tmp[0].lower()
 
@@ -113,8 +113,8 @@ def process_singlecmds(singlecmds):
     cmd = '#pml_cells'
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
-        if len(tmp) != 1 and len(tmp) != 6:
-            logger.exception(cmd + ' requires either one or six parameter(s)')
+        if len(tmp) not in [1, 6]:
+            logger.exception(f'{cmd} requires either one or six parameter(s)')
             raise ValueError
         if len(tmp) == 1:
             pml_cells = PMLProps(thickness=int(tmp[0]))
@@ -132,7 +132,7 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
-            logger.exception(cmd + ' requires exactly three parameters')
+            logger.exception(f'{cmd} requires exactly three parameters')
             raise ValueError
 
         p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
@@ -143,7 +143,7 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
-            logger.exception(cmd + ' requires exactly three parameters')
+            logger.exception(f'{cmd} requires exactly three parameters')
             raise ValueError
 
         p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
@@ -154,8 +154,8 @@ def process_singlecmds(singlecmds):
     cmd = '#excitation_file'
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
-        if len(tmp) != 1 and len(tmp) != 3:
-            logger.exception(cmd + ' requires either one or three parameter(s)')
+        if len(tmp) not in [1, 3]:
+            logger.exception(f'{cmd} requires either one or three parameter(s)')
             raise ValueError
 
         if len(tmp) > 1:

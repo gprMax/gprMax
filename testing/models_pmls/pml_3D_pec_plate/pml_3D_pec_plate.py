@@ -29,10 +29,16 @@ rx = gprMax.Rx(p1=(0.038, 0.114, 0.013))
 plate = gprMax.Plate(p1=(0.013, 0.013, 0.013), 
                      p2=(0.038, 0.113, 0.013), material_id='pec')
 
-gv1 = gprMax.GeometryView(p1=(0, 0, 0), p2=(x, y, z), dl=(dl, dl, dl),
-                          filename=Path(*parts[:-1], parts[-1] + '_n'), output_type='n')
-gv2 = gprMax.GeometryView(p1=(0, 0, 0), p2=(x, y, z), dl=(dl, dl, dl),
-                          filename=Path(*parts[:-1], parts[-1] + '_f'), output_type='f')
+gv1 = gprMax.GeometryView(p1=(0, 0, 0),
+                          p2=(x, y, z),
+                         dl=(dl, dl, dl),
+                         filename=Path(*parts[:-1], f'{parts[-1]}_n'),
+                         output_type='n',)
+gv2 = gprMax.GeometryView(p1=(0, 0, 0),
+                          p2=(x, y, z),
+                          dl=(dl, dl, dl),
+                          filename=Path(*parts[:-1], f'{parts[-1]}_f'),
+                          output_type='f',)
 
 pmls = {'CFS-PML': {'pml': gprMax.PMLProps(formulation='HORIPML', thickness=10),
                     # Parameters from http://dx.doi.org/10.1109/TAP.2018.2823864

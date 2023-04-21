@@ -224,14 +224,14 @@ class SimulationConfig:
         #   solver: cpu, cuda, opencl.
         #   subgrid: whether the simulation uses sub-grids.
         #   precision: data type for electromagnetic field output (single/double).
+        #   progressbars: progress bars on stdoout or not - switch off 
+        #                   progressbars when logging level is greater than 
+        #                   info (20) 
 
         self.general = {'solver': 'cpu',
                         'subgrid': False,
-                        'precision': 'single'}
-
-        # Progress bars on stdoout or not - switch off progressbars when
-        # logging level is greater than info (20)
-        self.general['progressbars'] = False if args.log_level > 20 else True
+                        'precision': 'single',
+                        'progressbars': args.log_level <= 20}
 
         self.em_consts = {'c': c, # Speed of light in free space (m/s)
                           'e0': e0, # Permittivity of free space (F/m)
@@ -289,7 +289,6 @@ class SimulationConfig:
 
         # Set more complex parameters
         self._set_precision()
-        self._get_byteorder()
         self._set_input_file_path()
         self._set_model_start_end()
 
@@ -347,12 +346,6 @@ class SimulationConfig:
                 self.dtypes['C_complex'] = 'pycuda::complex<double>'
             elif self.general['solver'] == 'opencl':
                 self.dtypes['C_complex'] = 'cdouble'
-
-    def _get_byteorder(self):
-        """Checks the byte order of system to use for VTK files, i.e. geometry
-            views and snapshots.
-        """
-        self.vtk_byteorder = 'LittleEndian' if sys.byteorder == 'little' else 'BigEndian'
 
     def _set_model_start_end(self):
         """Sets range for number of models to run (internally 0 index)."""

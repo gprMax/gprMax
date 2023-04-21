@@ -73,7 +73,7 @@ class ModelBuildRun:
         self.p = psutil.Process()
 
         # Normal model reading/building process; bypassed if geometry information to be reused
-        self.build_geometry() if not config.get_model_config().reuse_geometry else self.reuse_geometry()
+        self.reuse_geometry() if config.get_model_config().reuse_geometry else self.build_geometry()
 
         logger.info(f'\nOutput directory: {config.get_model_config().output_file_path.parent.resolve()}')
 
@@ -109,11 +109,11 @@ class ModelBuildRun:
 
         # Write files for any geometry views and geometry object outputs
         gvs = G.geometryviews + [gv for sg in G.subgrids for gv in sg.geometryviews]
-        if not (gvs or G.geometryobjectswrite) and config.sim_config.args.geometry_only:
+        if (not gvs and not G.geometryobjectswrite and config.sim_config.args.geometry_only):
             logger.exception('\nNo geometry views or geometry objects found.')
             raise ValueError
         save_geometry_views(gvs)
-        
+
         if G.geometryobjectswrite:
             logger.info('')
             for i, go in enumerate(G.geometryobjectswrite):
@@ -271,8 +271,7 @@ class ModelBuildRun:
                 logger.warning(f"You have specified more threads ({config.get_model_config().ompthreads}) "
                                f"than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). "
                                f"This may lead to degraded performance.")
-        # Print information about any compute device, e.g. GPU, in use
-        elif config.sim_config.general['solver'] == 'cuda' or config.sim_config.general['solver'] == 'opencl':           
+        elif config.sim_config.general['solver'] in ['cuda', 'opencl']:           
             if config.sim_config.general['solver'] == 'opencl':
                 solvername = 'OpenCL'
                 platformname = ' on ' + ' '.join(config.get_model_config().device['dev'].platform.name.split())
@@ -338,11 +337,11 @@ class GridBuilder:
         pbar.close()
 
     def tm_grid_update(self):
-        if '2D TMx' == config.get_model_config().mode:
+        if config.get_model_config().mode == '2D TMx':
             self.grid.tmx()
-        elif '2D TMy' == config.get_model_config().mode:
+        elif config.get_model_config().mode == '2D TMy':
             self.grid.tmy()
-        elif '2D TMz' == config.get_model_config().mode:
+        elif config.get_model_config().mode == '2D TMz':
             self.grid.tmz()
 
     def update_voltage_source_materials(self):

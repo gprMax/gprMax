@@ -55,7 +55,7 @@ class Cone(UserObjectGeometry):
             r1 = self.kwargs['r1']
             r2 = self.kwargs['r2']
         except KeyError:
-            logger.exception(self.__str__() + ' please specify 2 points and two radii')
+            logger.exception(f'{self.__str__()} please specify 2 points and two radii')
             raise
 
         # Check averaging
@@ -75,7 +75,7 @@ class Cone(UserObjectGeometry):
             try:
                 materialsrequested = self.kwargs['material_ids']
             except KeyError:
-                logger.exception(self.__str__() + ' no materials have been specified')
+                logger.exception(f'{self.__str__()} no materials have been specified')
                 raise
 
         p3 = uip.round_to_grid_static_point(p1)
@@ -85,15 +85,15 @@ class Cone(UserObjectGeometry):
         x2, y2, z2 = uip.round_to_grid(p2)
 
         if r1 < 0:
-            logger.exception(self.__str__() + f' the radius of the first face {r1:g} should be a positive value.')
+            logger.exception(f'{self.__str__()} the radius of the first face {r1:g} should be a positive value.')
             raise ValueError
         
         if r2 < 0:
-            logger.exception(self.__str__() + f' the radius of the second face {r2:g} should be a positive value.')
+            logger.exception(f'{self.__str__()} the radius of the second face {r2:g} should be a positive value.')
             raise ValueError
         
         if r1 == 0 and r2 == 0:
-            logger.exception(self.__str__() + f' not both radii can be zero.')
+            logger.exception(f'{self.__str__()} not both radii can be zero.')
             raise ValueError
 
         # Look up requested materials in existing list of material instances
@@ -101,7 +101,7 @@ class Cone(UserObjectGeometry):
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            logger.exception(self.__str__() + f' material(s) {notfound} do not exist')
+            logger.exception(f'{self.__str__()} material(s) {notfound} do not exist')
             raise ValueError
 
         # Isotropic case
@@ -141,7 +141,7 @@ class Cone(UserObjectGeometry):
                        grid.rigidE, grid.rigidH, grid.ID)
 
         dielectricsmoothing = 'on' if averaging else 'off'
-        logger.info(self.grid_name(grid) + f"Cone with face centres {p3[0]:g}m, " +
+        logger.info(f"{self.grid_name(grid)}Cone with face centres {p3[0]:g}m, " +
                     f"{p3[1]:g}m, {p3[2]:g}m and {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, " +
                     f"with radii {r1:g}m and {r2:g}, of material(s) {', '.join(materialsrequested)} " +
                     f"created, dielectric smoothing is {dielectricsmoothing}.")

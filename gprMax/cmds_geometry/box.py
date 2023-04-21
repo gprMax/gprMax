@@ -65,7 +65,7 @@ class Box(UserObjectGeometry):
             p1 = self.kwargs['p1']
             p2 = self.kwargs['p2']
         except KeyError:
-            logger.exception(self.__str__() + ' Please specify two points.')
+            logger.exception(f'{self.__str__()} Please specify two points.')
             raise
 
         if self.do_rotate:
@@ -80,7 +80,7 @@ class Box(UserObjectGeometry):
             try:
                 materialsrequested = self.kwargs['material_ids']
             except KeyError:
-                logger.exception(self.__str__() + ' No materials have been specified')
+                logger.exception(f'{self.__str__()} No materials have been specified')
                 raise
 
         # Check averaging
@@ -103,7 +103,7 @@ class Box(UserObjectGeometry):
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            logger.exception(self.__str__() + f' material(s) {notfound} do not exist')
+            logger.exception(f'{self.__str__()} material(s) {notfound} do not exist')
             raise ValueError
 
         # Isotropic case
@@ -144,7 +144,7 @@ class Box(UserObjectGeometry):
 
         dielectricsmoothing = 'on' if averaging else 'off'
 
-        logger.info(self.grid_name(grid) + f"Box from {p5[0]:g}m, {p5[1]:g}m, " +
+        logger.info(f"{self.grid_name(grid)}Box from {p5[0]:g}m, {p5[1]:g}m, " +
                     f"{p5[2]:g}m, to {p6[0]:g}m, {p6[1]:g}m, {p6[2]:g}m of " +
                     f"material(s) {', '.join(materialsrequested)} created, " +
                     f"dielectric smoothing is {dielectricsmoothing}.")

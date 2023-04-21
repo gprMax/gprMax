@@ -213,78 +213,7 @@ class DispersiveMaterial(Material):
                 er -= ersum
 
         return er
-
-
-def process_materials(G):
-    """Processes complete list of materials - calculates update coefficients,
-        stores in arrays, and builds text list of materials/properties
-
-    Args:
-        G: FDTDGrid class describing a grid in a model.
-
-    Returns:
-        materialsdata: list of material IDs, names, and properties to
-                        print a table.
-    """
-
-    if config.get_model_config().materials['maxpoles'] == 0:
-        materialsdata = [['\nID', '\nName', '\nType', '\neps_r', 'sigma\n[S/m]',
-                          '\nmu_r', 'sigma*\n[Ohm/m]', 'Dielectric\nsmoothable']]
-    else:
-        materialsdata = [['\nID', '\nName', '\nType', '\neps_r', 'sigma\n[S/m]',
-                          'Delta\neps_r', 'tau\n[s]', 'omega\n[Hz]', 'delta\n[Hz]',
-                          'gamma\n[Hz]', '\nmu_r', 'sigma*\n[Ohm/m]', 'Dielectric\nsmoothable']]
-
-    for material in G.materials:
-        # Calculate update coefficients for specific material
-        material.calculate_update_coeffsE(G)
-        material.calculate_update_coeffsH(G)
-
-        # Add update coefficients to overall storage for all materials
-        G.updatecoeffsE[material.numID, :] = material.CA, material.CBx, material.CBy, material.CBz, material.srce
-        G.updatecoeffsH[material.numID, :] = material.DA, material.DBx, material.DBy, material.DBz, material.srcm
-
-        # Add update coefficients to overall storage for dispersive materials
-        if hasattr(material, 'poles'):
-            z = 0
-            for pole in range(config.get_model_config().materials['maxpoles']):
-                G.updatecoeffsdispersive[material.numID, z:z + 3] = (config.sim_config.em_consts['e0'] *
-                                                                     material.eqt2[pole], material.eqt[pole], material.zt[pole])
-                z += 3
-
-        # Construct information on material properties for printing table
-        materialtext = []
-        materialtext.append(str(material.numID))
-        materialtext.append(material.ID[:50] if len(material.ID) > 50 else material.ID)
-        materialtext.append(material.type)
-        materialtext.append(f'{material.er:g}')
-        materialtext.append(f'{material.se:g}')
-        if config.get_model_config().materials['maxpoles'] > 0:
-            if 'debye' in material.type:
-                materialtext.append('\n'.join('{:g}'.format(deltaer) for deltaer in material.deltaer))
-                materialtext.append('\n'.join('{:g}'.format(tau) for tau in material.tau))
-                materialtext.extend(['', '', ''])
-            elif 'lorentz' in material.type:
-                materialtext.append(', '.join('{:g}'.format(deltaer) for deltaer in material.deltaer))
-                materialtext.append('')
-                materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
-                materialtext.append(', '.join('{:g}'.format(alpha) for alpha in material.alpha))
-                materialtext.append('')
-            elif 'drude' in material.type:
-                materialtext.extend(['', ''])
-                materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
-                materialtext.append('')
-                materialtext.append(', '.join('{:g}'.format(alpha) for alpha in material.alpha))
-            else:
-                materialtext.extend(['', '', '', '', ''])
-
-        materialtext.append(f'{material.mr:g}')
-        materialtext.append(f'{material.sm:g}')
-        materialtext.append(material.averagable)
-        materialsdata.append(materialtext)
-
-    return materialsdata
-
+    
 
 class PeplinskiSoil:
     """Soil objects that are characterised according to a mixing model
@@ -350,12 +279,11 @@ class PeplinskiSoil:
         # The limiting values of the ranges are not included in this.
 
         #mubins = np.linspace(self.mu[0], self.mu[1], nbins)
-        mubins = np.linspace(self.mu[0], self.mu[1], nbins+1)
+        mubins = np.linspace(self.mu[0], self.mu[1], nbins + 1)
         # Generate a range of volumetric water fraction values the mid-point of 
         # each bin to make materials from
         #mumaterials = mubins + (mubins[1] - mubins[0]) / 2
-        mumaterials = 0.5*(mubins[1:nbins+1] + mubins[0:nbins])
-
+        mumaterials = 0.5 * (mubins[1:nbins+1] + mubins[0:nbins])
 
         # Create an iterator
         muiter = np.nditer(mumaterials, flags=['c_index'])
@@ -399,7 +327,6 @@ class PeplinskiSoil:
             muiter.iternext()
       
 
-
 class RangeMaterial:
     """Material objects defined by a given range of their parameters to be used for 
        factal spatial disttibutions. 
@@ -425,7 +352,6 @@ class RangeMaterial:
         # and assume that all must be sequentially numbered. This allows for more general mixing models
         self.matID = [] 
        
-
     def calculate_properties(self, nbins, G):
         """Calculates the specific properties of each of the materials. 
 
@@ -436,50 +362,50 @@ class RangeMaterial:
 
         # Generate a set of relative permittivity bins based on the given range
         erbins = np.linspace(self.er[0], self.er[1], nbins+1)
+
         # Generate a range of relative permittivity values the mid-point of 
         # each bin to make materials from
         #ermaterials = erbins + np.abs((erbins[1] - erbins[0])) / 2
-        ermaterials = 0.5*(erbins[1:nbins+1] + erbins[0:nbins])
+        ermaterials = 0.5 * (erbins[1:nbins+1] + erbins[0:nbins])
 
         # Generate a set of conductivity bins based on the given range
-        sigmabins = np.linspace(self.sig[0], self.sig[1], nbins+1)
+        sigmabins = np.linspace(self.sig[0], self.sig[1], nbins + 1)
+
         # Generate a range of conductivity values the mid-point of 
         # each bin to make materials from
         #sigmamaterials = sigmabins + (sigmabins[1] - sigmabins[0]) / 2
-        sigmamaterials = 0.5*(sigmabins[1:nbins+1] + sigmabins[0:nbins])
+        sigmamaterials = 0.5 * (sigmabins[1:nbins+1] + sigmabins[0:nbins])
 
         # Generate a set of magnetic permeability bins based on the given range
-        mubins = np.linspace(self.mu[0], self.mu[1], nbins+1)
+        mubins = np.linspace(self.mu[0], self.mu[1], nbins + 1)
+
         # Generate a range of magnetic permeability values the mid-point of 
         # each bin to make materials from
         #mumaterials = mubins + np.abs((mubins[1] - mubins[0])) / 2
-        mumaterials = 0.5*(mubins[1:nbins+1] + mubins[0:nbins])
+        mumaterials = 0.5 * (mubins[1:nbins+1] + mubins[0:nbins])
         
         # Generate a set of magnetic loss bins based on the given range
-        robins = np.linspace(self.ro[0], self.ro[1], nbins+1)
-        # Generate a range of magnetic loss values the mid-point of 
-        # each bin to make materials from
+        robins = np.linspace(self.ro[0], self.ro[1], nbins + 1)
+
+        # Generate a range of magnetic loss values the mid-point of each bin to 
+        # make materials from
         #romaterials = robins + np.abs((robins[1] - robins[0])) / 2
-        romaterials = 0.5*(robins[1:nbins+1] + robins[0:nbins])
+        romaterials = 0.5 * (robins[1:nbins+1] + robins[0:nbins])
 
 
         # Iterate over the bins
-        for iter in np.arange(0,nbins):
-        
+        for iter in np.arange(nbins):
             # Relative permittivity 
             er = ermaterials[iter]
-
             # Effective conductivity
             se = sigmamaterials[iter] 
-
-            # magnetic permeability
+            # Magnetic permeability
             mr = mumaterials[iter]
-
-            # magnetic loss
+            # Magnetic loss
             sm = romaterials[iter]
 
             # Check to see if the material already exists before creating a new one
-            requiredID = '|{:.4f}+{:.4f}+{:.4f}+{:.4f}|'.format(float(er),float(se),float(mr),float(sm))
+            requiredID = f'|{float(er):.4f}+{float(se):.4f}+{float(mr):.4f}+{float(sm):.4f}|'
             material = next((x for x in G.materials if x.ID == requiredID), None)
             if iter == 0:
                 if material:
@@ -499,11 +425,10 @@ class RangeMaterial:
                 self.matID.append(m.numID)
 
 
-
 class ListMaterial:
-    """A list of predefined materials that are to be used for 
-       factal spatial disttibutions. No new materials are created but the ones specified are
-       grouped together to be used in fractal spatial distributions.
+    """A list of predefined materials to be used for 
+       factal spatial disttibutions. This command does not create new materials but collects them to be used in a 
+       stochastic distribution by a fractal box.
     """
 
     def __init__(self, ID, listofmaterials):
@@ -524,21 +449,18 @@ class ListMaterial:
         
 
     def calculate_properties(self, nbins, G):
-        """Calculates the properties of the materials. No Debye is used but name kept the same as used in other 
-           class that needs Debye
+        """Calculates the properties of the materials.
 
         Args:
             nbins: int for number of bins to use to create the different materials.
             G: FDTDGrid class describing a grid in a model.
         """
 
-       
         # Iterate over the bins
-        for iter in np.arange(0,nbins):
-        
-            # Check to see if the material already exists before creating a new one
+        for iter in np.arange(nbins):
             #requiredID = '|{:}_in_{:}|'.format((self.mat[iter]),(self.ID))
             requiredID = self.mat[iter]
+            # Check if the material already exists before creating a new one
             material = next((x for x in G.materials if x.ID == requiredID), None)
             self.matID.append(material.numID)
  
@@ -555,23 +477,17 @@ class ListMaterial:
             #    m.numID = len(G.materials)
             #    G.materials.append(m)
        
-            
             if not material:
                 logger.exception(self.__str__() + f' material(s) {material} do not exist')
                 raise ValueError
             
             
-
-
-
 def create_built_in_materials(G):
     """Creates pre-defined (built-in) materials.
 
     Args:
         G: FDTDGrid class describing a grid in a model.
     """
-
-    G.n_built_in_materials = len(G.materials)
 
     m = Material(0, 'pec')
     m.se = float('inf')
@@ -582,8 +498,6 @@ def create_built_in_materials(G):
     m = Material(1, 'free_space')
     m.type = 'builtin'
     G.materials.append(m)
-
-    G.n_built_in_materials = len(G.materials)
 
 
 def calculate_water_properties(T=25, S=0):
@@ -627,8 +541,6 @@ def create_water(G, T=25, S=0):
 
     eri, er, tau, sig = calculate_water_properties(T, S)
     
-    G.n_built_in_materials = len(G.materials)
-
     m = DispersiveMaterial(len(G.materials), 'water')
     m.averagable = False
     m.type = 'builtin, debye'
@@ -640,8 +552,6 @@ def create_water(G, T=25, S=0):
     G.materials.append(m)
     if config.get_model_config().materials['maxpoles'] == 0:
         config.get_model_config().materials['maxpoles'] = 1
-
-    G.n_built_in_materials = len(G.materials)
 
 
 def create_grass(G):
@@ -657,8 +567,6 @@ def create_grass(G):
     tau = 1.0793e-11
     sig = 0
 
-    G.n_built_in_materials = len(G.materials)
-
     m = DispersiveMaterial(len(G.materials), 'grass')
     m.averagable = False
     m.type = 'builtin, debye'
@@ -671,4 +579,70 @@ def create_grass(G):
     if config.get_model_config().materials['maxpoles'] == 0:
         config.get_model_config().materials['maxpoles'] = 1
 
-    G.n_built_in_materials = len(G.materials)
+
+def process_materials(G):
+    """Processes complete list of materials - calculates update coefficients,
+        stores in arrays, and builds text list of materials/properties
+
+    Args:
+        G: FDTDGrid class describing a grid in a model.
+
+    Returns:
+        materialsdata: list of material IDs, names, and properties to
+                        print a table.
+    """
+
+    if config.get_model_config().materials['maxpoles'] == 0:
+        materialsdata = [['\nID', '\nName', '\nType', '\neps_r', 'sigma\n[S/m]',
+                          '\nmu_r', 'sigma*\n[Ohm/m]', 'Dielectric\nsmoothable']]
+    else:
+        materialsdata = [['\nID', '\nName', '\nType', '\neps_r', 'sigma\n[S/m]',
+                          'Delta\neps_r', 'tau\n[s]', 'omega\n[Hz]', 'delta\n[Hz]',
+                          'gamma\n[Hz]', '\nmu_r', 'sigma*\n[Ohm/m]', 'Dielectric\nsmoothable']]
+
+    for material in G.materials:
+        # Calculate update coefficients for specific material
+        material.calculate_update_coeffsE(G)
+        material.calculate_update_coeffsH(G)
+
+        # Add update coefficients to overall storage for all materials
+        G.updatecoeffsE[material.numID, :] = material.CA, material.CBx, material.CBy, material.CBz, material.srce
+        G.updatecoeffsH[material.numID, :] = material.DA, material.DBx, material.DBy, material.DBz, material.srcm
+
+        # Add update coefficients to overall storage for dispersive materials
+        if hasattr(material, 'poles'):
+            z = 0
+            for pole in range(config.get_model_config().materials['maxpoles']):
+                G.updatecoeffsdispersive[material.numID, z:z + 3] = (config.sim_config.em_consts['e0'] *
+                                                                     material.eqt2[pole], material.eqt[pole], material.zt[pole])
+                z += 3
+
+        # Construct information on material properties for printing table
+        materialtext = [str(material.numID),
+                        material.ID[:50] if len(material.ID) > 50 else material.ID,
+                        material.type,
+                        f'{material.er:g}',
+                        f'{material.se:g}']
+        if config.get_model_config().materials['maxpoles'] > 0:
+            if 'debye' in material.type:
+                materialtext.append('\n'.join('{:g}'.format(deltaer) for deltaer in material.deltaer))
+                materialtext.append('\n'.join('{:g}'.format(tau) for tau in material.tau))
+                materialtext.extend(['', '', ''])
+            elif 'lorentz' in material.type:
+                materialtext.append(', '.join('{:g}'.format(deltaer) for deltaer in material.deltaer))
+                materialtext.append('')
+                materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
+                materialtext.append(', '.join('{:g}'.format(alpha) for alpha in material.alpha))
+                materialtext.append('')
+            elif 'drude' in material.type:
+                materialtext.extend(['', ''])
+                materialtext.append(', '.join('{:g}'.format(tau) for tau in material.tau))
+                materialtext.append('')
+                materialtext.append(', '.join('{:g}'.format(alpha) for alpha in material.alpha))
+            else:
+                materialtext.extend(['', '', '', '', ''])
+
+        materialtext.extend((f'{material.mr:g}', f'{material.sm:g}', material.averagable))
+        materialsdata.append(materialtext)
+
+    return materialsdata

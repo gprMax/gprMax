@@ -93,20 +93,20 @@ class Discretisation(UserObjectSingle):
             G.dl = np.array(self.kwargs['p1'])
             G.dx, G.dy, G.dz = self.kwargs['p1']
         except KeyError:
-            logger.exception(self.__str__() + ' discretisation requires a point')
+            logger.exception(f'{self.__str__()} discretisation requires a point')
             raise
 
         if G.dl[0] <= 0:
-            logger.exception(self.__str__() + ' discretisation requires the ' +
-                             'x-direction spatial step to be greater than zero')
+            logger.exception(f'{self.__str__()} discretisation requires the '
+                             f'x-direction spatial step to be greater than zero')
             raise ValueError
         if G.dl[1] <= 0:
-            logger.exception(self.__str__() + ' discretisation requires the ' +
-                             'y-direction spatial step to be greater than zero')
+            logger.exception(f'{self.__str__()} discretisation requires the '
+                             f'y-direction spatial step to be greater than zero')
             raise ValueError
         if G.dl[2] <= 0:
-            logger.exception(self.__str__() + ' discretisation requires the ' +
-                             'z-direction spatial step to be greater than zero')
+            logger.exception(f'{self.__str__()} discretisation requires the '
+                             f'z-direction spatial step to be greater than zero')
             raise ValueError
 
         logger.info(f'Spatial discretisation: {G.dl[0]:g} x {G.dl[1]:g} x {G.dl[2]:g}m')
@@ -127,11 +127,12 @@ class Domain(UserObjectSingle):
         try:
             G.nx, G.ny, G.nz = uip.discretise_point(self.kwargs['p1'])
         except KeyError:
-            logger.exception(self.__str__() + ' please specify a point')
+            logger.exception(f'{self.__str__()} please specify a point')
             raise
 
         if G.nx == 0 or G.ny == 0 or G.nz == 0:
-            logger.exception(self.__str__() + ' requires at least one cell in every dimension')
+            logger.exception(f'{self.__str__()} requires at least one cell in '
+                             f'every dimension')
             raise ValueError
 
         logger.info(f"Domain size: {self.kwargs['p1'][0]:g} x {self.kwargs['p1'][1]:g} x " +
@@ -181,12 +182,12 @@ class TimeStepStabilityFactor(UserObjectSingle):
         try:
             f = self.kwargs['f']
         except KeyError:
-            logger.exception(self.__str__() + ' requires exactly one parameter')
+            logger.exception(f'{self.__str__()} requires exactly one parameter')
             raise
 
         if f <= 0 or f > 1:
-            logger.exception(self.__str__() + ' requires the value of the time ' +
-                             'step stability factor to be between zero and one')
+            logger.exception(f'{self.__str__()} requires the value of the time '
+                             f'step stability factor to be between zero and one')
             raise ValueError
         G.dt = G.dt * f
 
@@ -250,12 +251,12 @@ class OMPThreads(UserObjectSingle):
         try:
             n = self.kwargs['n']
         except KeyError:
-            logger.exception(self.__str__() + ' requires exactly one parameter ' +
-                             'to specify the number of CPU OpenMP threads to use')
+            logger.exception(f'{self.__str__()} requires exactly one parameter '
+                             f'to specify the number of CPU OpenMP threads to use')
             raise
         if n < 1:
-            logger.exception(self.__str__() + ' requires the value to be an ' +
-                             'integer not less than one')
+            logger.exception(f'{self.__str__()} requires the value to be an '
+                             f'integer not less than one')
             raise ValueError
 
         config.get_model_config().ompthreads = set_omp_threads(n)
@@ -302,7 +303,7 @@ class PMLProps(UserObjectSingle):
                 G.pmls['thickness']['ymax'] = int(self.kwargs['ymax'])
                 G.pmls['thickness']['zmax'] = int(self.kwargs['zmax'])
             except KeyError:
-                logger.exception(self.__str__() + ' requires either one or six parameter(s)')
+                logger.exception(f'{self.__str__()} requires either one or six parameter(s)')
                 raise
 
         if (2 * G.pmls['thickness']['x0'] >= G.nx or
@@ -311,8 +312,8 @@ class PMLProps(UserObjectSingle):
             2 * G.pmls['thickness']['xmax'] >= G.nx or
             2 * G.pmls['thickness']['ymax'] >= G.ny or
             2 * G.pmls['thickness']['zmax'] >= G.nz):
-                logger.exception(self.__str__() + ' has too many cells for the domain size')
-                raise ValueError
+            logger.exception(f'{self.__str__()} has too many cells for the domain size')
+            raise ValueError
 
 
 class SrcSteps(UserObjectSingle):
@@ -330,12 +331,12 @@ class SrcSteps(UserObjectSingle):
         try:
             G.srcsteps = uip.discretise_point(self.kwargs['p1'])
         except KeyError:
-            logger.exception(self.__str__() + ' requires exactly three parameters')
+            logger.exception(f'{self.__str__()} requires exactly three parameters')
             raise
 
-        logger.info(f'Simple sources will step {G.srcsteps[0] * G.dx:g}m, ' +
-                    f'{G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m ' +
-                    f'for each model run.')
+        logger.info(f'Simple sources will step {G.srcsteps[0] * G.dx:g}m, ' + 
+                    f'{G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m ' + 
+                    'for each model run.')
 
 
 class RxSteps(UserObjectSingle):
@@ -353,12 +354,12 @@ class RxSteps(UserObjectSingle):
         try:
             G.rxsteps = uip.discretise_point(self.kwargs['p1'])
         except KeyError:
-            logger.exception(self.__str__() + ' requires exactly three parameters')
+            logger.exception(f'{self.__str__()} requires exactly three parameters')
             raise
 
-        logger.info(f'All receivers will step {G.rxsteps[0] * G.dx:g}m, ' +
-                    f'{G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m ' +
-                    f'for each model run.')
+        logger.info(f'All receivers will step {G.rxsteps[0] * G.dx:g}m, ' + 
+                    f'{G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m ' + 
+                    'for each model run.')
 
 
 class ExcitationFile(UserObjectSingle):
@@ -378,7 +379,7 @@ class ExcitationFile(UserObjectSingle):
 
     def create(self, G, uip):
         try:
-            kwargs = dict()
+            kwargs = {}
             excitationfile = self.kwargs['filepath']
             kwargs['kind'] = self.kwargs['kind']
             kwargs['fill_value'] = self.kwargs['fill_value']
@@ -389,7 +390,7 @@ class ExcitationFile(UserObjectSingle):
                 args, varargs, keywords, defaults = inspect.getargspec(interpolate.interp1d)
                 kwargs = dict(zip(reversed(args), reversed(defaults)))
             except KeyError:
-                logger.exception(self.__str__() + ' requires either one or three parameter(s)')
+                logger.exception(f'{self.__str__()} requires either one or three parameter(s)')
                 raise
 
         # See if file exists at specified path and if not try input file directory

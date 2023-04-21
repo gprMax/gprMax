@@ -81,8 +81,10 @@ realmax = np.where(np.abs(real[:, 1]) == 1)[0][0]
 difftime = - (timemodel[modelmax] - real[realmax, 0])
 
 # Plot modelled and real data
-fig, ax = plt.subplots(num=modelfile.stem + '_vs_' + realfile.stem, 
-                       figsize=(20, 10), facecolor='w', edgecolor='w')
+fig, ax = plt.subplots(num=f'{modelfile.stem}_vs_{realfile.stem}',
+                       figsize=(20, 10),
+                       facecolor='w',
+                       edgecolor='w',)
 ax.plot(timemodel + difftime, model, 'r', lw=2, label='Model')
 ax.plot(real[:, 0], real[:, 1], 'r', ls='--', lw=2, label='Experiment')
 ax.set_xlabel('Time [s]')
@@ -93,7 +95,7 @@ ax.legend()
 ax.grid()
 
 # Save a PDF/PNG of the figure
-savename =  modelfile.stem + '_vs_' + realfile.stem
+savename = f'{modelfile.stem}_vs_{realfile.stem}'
 savename = modelfile.parent / savename
 # fig.savefig(savename.with_suffix('.pdf'), dpi=None, format='pdf', 
 #             bbox_inches='tight', pad_inches=0.1)

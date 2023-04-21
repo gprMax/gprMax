@@ -91,7 +91,7 @@ def logo(version):
                      v""" + version + '\n\n'
 
     str = f"{description} {'=' * (get_terminal_width() - len(description) - 1)}\n\n"
-    str += Fore.CYAN + f'{logo}'
+    str += f'{Fore.CYAN}{logo}'
     str += Style.RESET_ALL + textwrap.fill(copyright, 
                                            width=get_terminal_width() - 1, 
                                            initial_indent=' ') + '\n'
