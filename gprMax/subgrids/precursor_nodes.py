@@ -174,7 +174,7 @@ class PrecursorNodesBase:
 
         for f in field_names:
             try:
-                val = c1 * getattr(self, f + '_0') + c2 * getattr(self, f + '_1')
+                val = c1 * getattr(self, f'{f}_0') + c2 * getattr(self, f'{f}_1')
             except ValueError:
                 raise
             setattr(self, f, val)
@@ -184,7 +184,7 @@ class PrecursorNodesBase:
         current main time step, i.e. ey_left = copy.ey_left_1
         """
         for f in field_names:
-            val = np.copy(getattr(self, f + '_1'))
+            val = np.copy(getattr(self, f'{f}_1'))
             setattr(self, f, val)
 
     def calc_exact_magnetic_in_time(self):
@@ -218,9 +218,9 @@ class PrecursorNodesBase:
 
     def update_previous_timestep_fields(self, field_names):
         for fn in field_names:
-            val = getattr(self, fn + '_1')
+            val = getattr(self, f'{fn}_1')
             val_c = np.copy(val)
-            setattr(self, fn + '_0', val_c)
+            setattr(self, f'{fn}_0', val_c)
 
     def interpolate_to_sub_grid(self, field, coords):
         x, z, x_sg, z_sg = coords

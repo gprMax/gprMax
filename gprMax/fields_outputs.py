@@ -76,7 +76,7 @@ def write_hdf5_outputfile(outputfile, G):
     # Write meta data and data for any subgrids
     if sg_rxs:
         for sg in G.subgrids:
-            grp = f.create_group('/subgrids/' + sg.name)
+            grp = f.create_group(f'/subgrids/{sg.name}')
             write_hd5_data(grp, sg, is_subgrid=True)
 
     if G.rxs or sg_rxs:
@@ -115,7 +115,7 @@ def write_hd5_data(basegrp, G, is_subgrid=False):
     # Create group for sources (except transmission lines); add type and positional data attributes
     srclist = G.voltagesources + G.hertziandipoles + G.magneticdipoles
     for srcindex, src in enumerate(srclist):
-        grp = basegrp.create_group('srcs/src' + str(srcindex + 1))
+        grp = basegrp.create_group(f'srcs/src{str(srcindex + 1)}')
         grp.attrs['Type'] = type(src).__name__
         grp.attrs['Position'] = (src.xcoord * G.dx, src.ycoord * G.dy, src.zcoord * G.dz)
 

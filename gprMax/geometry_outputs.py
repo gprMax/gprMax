@@ -371,8 +371,7 @@ class GeometryObjects:
         parts = config.sim_config.input_file_path.with_suffix('').parts
         self.filename_hdf5 = Path(*parts[:-1], self.basefilename)
         self.filename_hdf5 = self.filename_hdf5.with_suffix('.h5')
-        self.filename_materials = Path(
-            *parts[:-1], self.basefilename + '_materials')
+        self.filename_materials = Path(*parts[:-1], f'{self.basefilename}_materials')
         self.filename_materials = self.filename_materials.with_suffix('.txt')
 
         # Sizes of arrays to write necessary to update progress bar

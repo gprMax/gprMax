@@ -220,26 +220,26 @@ class MPIExecutor(object):
 
     def join(self):
         """Joins the workers."""
-        if self.is_master():
+        if not self.is_master():
+            return
+        logger.debug(f'({self.comm.name}) - Terminating. Sending sentinel to all workers.')
+        # Send sentinel to all workers
+        for worker in self.workers:
+            self.comm.send(None, dest=worker, tag=Tags.EXIT)
 
-            logger.debug(f'({self.comm.name}) - Terminating. Sending sentinel to all workers.')
-            # Send sentinel to all workers
-            for worker in self.workers:
-                self.comm.send(None, dest=worker, tag=Tags.EXIT)
+        logger.debug(f'({self.comm.name}) - Waiting for all workers to terminate.')
 
-            logger.debug(f'({self.comm.name}) - Waiting for all workers to terminate.')
+        down = [False] * len(self.workers)
+        while True:
+            for i, worker in enumerate(self.workers):
+                if self.comm.Iprobe(source=worker, tag=Tags.EXIT):
+                    self.comm.recv(source=worker, tag=Tags.EXIT)
+                    down[i] = True
+            if all(down):
+                break
 
-            down = [False] * len(self.workers)
-            while True:
-                for i, worker in enumerate(self.workers):
-                    if self.comm.Iprobe(source=worker, tag=Tags.EXIT):
-                        self.comm.recv(source=worker, tag=Tags.EXIT)
-                        down[i] = True
-                if all(down):
-                    break
-
-            self._up = False
-            logger.debug(f'({self.comm.name}) - All workers terminated.')
+        self._up = False
+        logger.debug(f'({self.comm.name}) - All workers terminated.')
 
     def submit(self, jobs, sleep=0.0):
         """Submits a list of jobs to the workers and returns the results.

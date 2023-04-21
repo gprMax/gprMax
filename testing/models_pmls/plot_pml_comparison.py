@@ -93,8 +93,8 @@ for x, model in enumerate(testmodels):
     # Diffs
     datadiffs = np.zeros(datatest.shape, dtype=np.float64)
     for i in range(len(outputstest)):
-        max = np.amax(np.abs(dataref[:, i]))
-        datadiffs[:, i] = np.divide(np.abs(datatest[:, i] - dataref[:, i]), max, out=np.zeros_like(dataref[:, i]), where=max != 0)  # Replace any division by zero with zero
+        maxi = np.amax(np.abs(dataref[:, i]))
+        datadiffs[:, i] = np.divide(np.abs(datatest[:, i] - dataref[:, i]), maxi, out=np.zeros_like(dataref[:, i]), where=maxi != 0)  # Replace any division by zero with zero
 
         # Calculate power (ignore warning from taking a log of any zero values)
         with np.errstate(divide='ignore'):

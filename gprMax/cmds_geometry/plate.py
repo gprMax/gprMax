@@ -61,7 +61,7 @@ class Plate(UserObjectGeometry):
             p1 = self.kwargs['p1']
             p2 = self.kwargs['p2']
         except KeyError:
-            logger.exception(self.__str__() + ' 2 points must be specified')
+            logger.exception(f'{self.__str__()} 2 points must be specified')
             raise
 
         # isotropic
@@ -72,7 +72,7 @@ class Plate(UserObjectGeometry):
             try:
                 materialsrequested = self.kwargs['material_ids']
             except KeyError:
-                logger.exception(self.__str__() + ' No materials have been specified')
+                logger.exception(f'{self.__str__()} No materials have been specified')
                 raise
 
         if self.do_rotate:
@@ -86,23 +86,10 @@ class Plate(UserObjectGeometry):
         xf, yf, zf = p2
 
         # Check for valid orientations
-        if xs == xf:
-            if ys == yf or zs == zf:
-                logger.exception(self.__str__() + ' the plate is not specified correctly')
-                raise ValueError
-
-        elif ys == yf:
-            if xs == xf or zs == zf:
-                logger.exception(self.__str__() + ' the plate is not specified correctly')
-                raise ValueError
-
-        elif zs == zf:
-            if xs == xf or ys == yf:
-                logger.exception(self.__str__() + ' the plate is not specified correctly')
-                raise ValueError
-
-        else:
-            logger.exception(self.__str__() + ' the plate is not specified correctly')
+        if ((xs == xf and (ys == yf or zs == zf))
+            or (ys == yf and (xs == xf or zs == zf))
+            or (zs == zf and (ys != yf and xs != xf))):
+            logger.exception(f'{self.__str__()} the plate is not specified correctly')
             raise ValueError
 
         # Look up requested materials in existing list of material instances
@@ -110,7 +97,7 @@ class Plate(UserObjectGeometry):
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            logger.exception(self.__str__() + f' material(s) {notfound} do not exist')
+            logger.exception(f'{self.__str__()} material(s) {notfound} do not exist')
             raise ValueError
 
         # yz-plane plate
@@ -161,6 +148,6 @@ class Plate(UserObjectGeometry):
                     build_face_xy(i, j, zs, numIDx, numIDy, grid.rigidE, 
                                   grid.rigidH, grid.ID)
 
-        logger.info(self.grid_name(grid) + f"Plate from {p3[0]:g}m, {p3[1]:g}m, " +
+        logger.info(f"{self.grid_name(grid)}Plate from {p3[0]:g}m, {p3[1]:g}m, " +
                     f"{p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of " +
                     f"material(s) {', '.join(materialsrequested)} created.")

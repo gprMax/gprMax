@@ -102,9 +102,11 @@ halfspace = gprMax.Box(p1=(0, 0, 0), p2=(x, y, antenna_p[2]), material_id='soil'
 scene.add(halfspace)
 
 for i in range(1, 51):
-    snap = gprMax.Snapshot(p1=(0, y / 2, 0), p2=(x, y / 2 + dl, z), dl=(dl, dl, dl),
-                           filename=Path(*parts[:-1], parts[-1] + '_' + str(i)).name,
-                           time=i * tw / 50)
+    snap = gprMax.Snapshot(p1=(0, y / 2, 0),
+                           p2=(x, y / 2 + dl, z),
+                           dl=(dl, dl, dl),
+                           filename=Path(*parts[:-1], f'{parts[-1]}_{str(i)}').name,
+                           time=i * tw / 50,)
     scene.add(snap)
 
 # create a geometry view of the main grid and the sub grid stitched together

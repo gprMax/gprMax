@@ -92,7 +92,7 @@ class Context:
 
     def print_logo_copyright(self):
         """Prints gprMax logo, version, and copyright/licencing information."""
-        logo_copyright = logo(__version__ + ' (' + codename + ')')
+        logo_copyright = logo(f'{__version__} ({codename})')
         logger.basic(logo_copyright)
 
     def print_sim_time_taken(self):
@@ -164,19 +164,15 @@ class MPIContext(Context):
         executor = self.MPIExecutor(self._run_model, comm=self.comm)
 
         # Check GPU resources versus number of MPI tasks
-        if executor.is_master():
-            if config.sim_config.general['solver'] == 'cuda':
-                if executor.size - 1 > len(config.sim_config.devices['devs']):
-                    logger.exception('Not enough GPU resources for number of '
-                                     'MPI tasks requested. Number of MPI tasks '
-                                     'should be equal to number of GPUs + 1.')
-                    raise ValueError
+        if (executor.is_master() and
+            config.sim_config.general['solver'] == 'cuda' and
+            executor.size - 1 > len(config.sim_config.devices['devs'])):
+            logger.exception('Not enough GPU resources for number of '
+                             'MPI tasks requested. Number of MPI tasks '
+                             'should be equal to number of GPUs + 1.')
+            raise ValueError
 
-        # Create job list
-        jobs = []
-        for i in self.model_range:
-            jobs.append({'i': i})
-
+        jobs = [{'i': i} for i in self.model_range]
         # Send the workers to their work loop
         executor.start()
         if executor.is_master():

@@ -178,8 +178,8 @@ def write_processed_file(processedlines):
         for item in processedlines:
             f.write(f'{item}')
 
-    logger.info(f'Written input commands, after processing any Python code and '
-                f'include commands, to file: {processedfile}\n')
+    logger.info(f'Written input commands, after processing any Python ' +
+                f'code and include commands, to file: {processedfile}\n')
 
 
 def check_cmd_names(processedlines, checkessential=True):

@@ -88,24 +88,25 @@ class CylindricalSector(UserObjectGeometry):
             try:
                 materialsrequested = self.kwargs['material_ids']
             except KeyError:
-                logger.exception(self.__str__() + ' No materials have been specified')
+                logger.exception(f'{self.__str__()} No materials have been specified')
                 raise
 
         sectorstartangle = 2 * np.pi * (start / 360)
         sectorangle = 2 * np.pi * (end / 360)
 
-        if normal != 'x' and normal != 'y' and normal != 'z':
-            logger.exception(self.__str__() + ' the normal direction must be either x, y or z.')
+        if normal not in ['x', 'y', 'z']:
+            logger.exception(f'{self.__str__()} the normal direction must be either ' +
+                             f'x, y or z.')
             raise ValueError
         if r <= 0:
-            logger.exception(self.__str__() + f' the radius {r:g} should be a positive value.')
+            logger.exception(f'{self.__str__()} the radius {r:g} should be a positive value.')
         if sectorstartangle < 0 or sectorangle <= 0:
-            logger.exception(self.__str__() + ' the starting angle and sector ' +
-                             'angle should be a positive values.')
+            logger.exception(f'{self.__str__()} the starting angle and sector angle should be ' +
+                             f'a positive values.')
             raise ValueError
         if sectorstartangle >= 2 * np.pi or sectorangle >= 2 * np.pi:
-            logger.exception(self.__str__() + ' the starting angle and sector ' +
-                             'angle must be less than 360 degrees.')
+            logger.exception(f'{self.__str__()} the starting angle and sector angle must be ' +
+                             f'less than 360 degrees.')
             raise ValueError
 
         # Look up requested materials in existing list of material instances
@@ -113,7 +114,7 @@ class CylindricalSector(UserObjectGeometry):
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            logger.exception(self.__str__() + f' material(s) {notfound} do not exist')
+            logger.exception(f'{self.__str__()} material(s) {notfound} do not exist')
             raise ValueError
 
         if thickness > 0:
@@ -122,13 +123,12 @@ class CylindricalSector(UserObjectGeometry):
                 averaging = materials[0].averagable and averagecylindricalsector
                 numID = numIDx = numIDy = numIDz = materials[0].numID
 
-            # Uniaxial anisotropic case
             elif len(materials) == 3:
                 averaging = False
                 numIDx = materials[0].numID
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
-                requiredID = materials[0].ID + '+' + materials[1].ID + '+' + materials[2].ID
+                requiredID = f'{materials[0].ID}+{materials[1].ID}+{materials[2].ID}'
                 averagedmaterial = [x for x in grid.materials if x.ID == requiredID]
                 if averagedmaterial:
                     numID = averagedmaterial.numID
@@ -181,14 +181,14 @@ class CylindricalSector(UserObjectGeometry):
 
         if thickness > 0:
             dielectricsmoothing = 'on' if averaging else 'off'
-            logger.info(self.grid_name(grid) + f"Cylindrical sector with centre " +
+            logger.info(f"{self.grid_name(grid)}Cylindrical sector with centre " +
                         f"{ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle " +
                         f"{(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, " +
                         f"sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} degrees, " +
                         f"thickness {thickness:g}m, of material(s) {', '.join(materialsrequested)} " +
                         f"created, dielectric smoothing is {dielectricsmoothing}.")
         else:
-            logger.info(self.grid_name(grid) + f"Cylindrical sector with centre " +
+            logger.info(f"{self.grid_name(grid)}Cylindrical sector with centre " +
                         f"{ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle " +
                         f"{(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, " +
                         f"sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} " +

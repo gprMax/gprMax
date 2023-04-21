@@ -52,7 +52,7 @@ class Cylinder(UserObjectGeometry):
             p2 = self.kwargs['p2']
             r = self.kwargs['r']
         except KeyError:
-            logger.exception(self.__str__() + ' please specify 2 points and a radius')
+            logger.exception(f'{self.__str__()} please specify 2 points and a radius')
             raise
 
         # Check averaging
@@ -72,7 +72,7 @@ class Cylinder(UserObjectGeometry):
             try:
                 materialsrequested = self.kwargs['material_ids']
             except KeyError:
-                logger.exception(self.__str__() + ' no materials have been specified')
+                logger.exception(f'{self.__str__()} no materials have been specified')
                 raise
 
         p3 = uip.round_to_grid_static_point(p1)
@@ -82,7 +82,7 @@ class Cylinder(UserObjectGeometry):
         x2, y2, z2 = uip.round_to_grid(p2)
 
         if r <= 0:
-            logger.exception(self.__str__() + f' the radius {r:g} should be a positive value.')
+            logger.exception(f'{self.__str__()} the radius {r:g} should be a positive value.')
             raise ValueError
 
         # Look up requested materials in existing list of material instances
@@ -90,7 +90,7 @@ class Cylinder(UserObjectGeometry):
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            logger.exception(self.__str__() + f' material(s) {notfound} do not exist')
+            logger.exception(f'{self.__str__()} material(s) {notfound} do not exist')
             raise ValueError
 
         # Isotropic case
@@ -130,7 +130,7 @@ class Cylinder(UserObjectGeometry):
                        grid.rigidE, grid.rigidH, grid.ID)
 
         dielectricsmoothing = 'on' if averaging else 'off'
-        logger.info(self.grid_name(grid) + f"Cylinder with face centres {p3[0]:g}m, " +
+        logger.info(f"{self.grid_name(grid)}Cylinder with face centres {p3[0]:g}m, " +
                     f"{p3[1]:g}m, {p3[2]:g}m and {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, " +
                     f"with radius {r:g}m, of material(s) {', '.join(materialsrequested)} " +
                     f"created, dielectric smoothing is {dielectricsmoothing}.")

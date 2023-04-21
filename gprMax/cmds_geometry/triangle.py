@@ -70,7 +70,7 @@ class Triangle(UserObjectGeometry):
             up3 = self.kwargs['p3']
             thickness = self.kwargs['thickness']
         except KeyError:
-            logger.exception(self.__str__() + ' specify 3 points and a thickness')
+            logger.exception(f'{self.__str__()} specify 3 points and a thickness')
             raise
         
         if self.do_rotate:
@@ -93,7 +93,7 @@ class Triangle(UserObjectGeometry):
             try:
                 materialsrequested = self.kwargs['material_ids']
             except KeyError:
-                logger.exception(self.__str__() + ' no materials have been specified')
+                logger.exception(f'{self.__str__()} no materials have been specified')
                 raise
 
         p4 = uip.round_to_grid_static_point(up1)
@@ -108,21 +108,21 @@ class Triangle(UserObjectGeometry):
         x3, y3, z3 = uip.round_to_grid(up3)
         
         if thickness < 0:
-            logger.exception(self.__str__() + ' requires a positive value for thickness')
+            logger.exception(f'{self.__str__()} requires a positive value for thickness')
             raise ValueError
 
         # Check for valid orientations
         # yz-plane triangle
-        if x1 == x2 and x2 == x3:
+        if x1 == x2 == x3:
             normal = 'x'
         # xz-plane triangle
-        elif y1 == y2 and y2 == y3:
+        elif y1 == y2 == y3:
             normal = 'y'
         # xy-plane triangle
-        elif z1 == z2 and z2 == z3:
+        elif z1 == z2 == z3:
             normal = 'z'
         else:
-            logger.exception(self.__str__() + ' the triangle is not specified correctly')
+            logger.exception(f'{self.__str__()} the triangle is not specified correctly')
             raise ValueError
 
         # Look up requested materials in existing list of material instances
@@ -130,7 +130,7 @@ class Triangle(UserObjectGeometry):
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            logger.exception(self.__str__() + f' material(s) {notfound} do not exist')
+            logger.exception(f'{self.__str__()} material(s) {notfound} do not exist')
             raise ValueError
 
         if thickness > 0:
@@ -185,13 +185,13 @@ class Triangle(UserObjectGeometry):
 
         if thickness > 0:
             dielectricsmoothing = 'on' if averaging else 'off'
-            logger.info(self.grid_name(grid) + f"Triangle with coordinates " +
+            logger.info(f"{self.grid_name(grid)}Triangle with coordinates " +
                         f"{p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m " +
                         f"{p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m and thickness " +
                         f"{thickness:g}m of material(s) {', '.join(materialsrequested)} " +
                         f"created, dielectric smoothing is {dielectricsmoothing}.")
         else:
-            logger.info(self.grid_name(grid) + f"Triangle with coordinates " +
+            logger.info(f"{self.grid_name(grid)}Triangle with coordinates " +
                         f"{p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m " +
                         f"{p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m of material(s) " +
                         f"{', '.join(materialsrequested)} created.")
