@@ -341,7 +341,7 @@ class Comments():
 
     def materials_comment(self):
         if not self.averaged_materials:
-            return [m.ID for m in self.grid.materials if m.type is not 'dielectric-smoothed']
+            return [m.ID for m in self.grid.materials if m.type != 'dielectric-smoothed']
         else:
             return [m.ID for m in self.grid.materials]
 
