@@ -20,10 +20,10 @@ import argparse
 import glob
 import logging
 import os
-from pathlib import Path
 
 import h5py
 import numpy as np
+
 from gprMax._version import __version__
 from gprMax.utilities.utilities import natural_keys
 
