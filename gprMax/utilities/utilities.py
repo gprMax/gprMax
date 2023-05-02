@@ -25,6 +25,7 @@ from shutil import get_terminal_size
 
 import numpy as np
 from colorama import Fore, Style, init
+
 init()
 
 logger = logging.getLogger(__name__)
@@ -171,6 +172,16 @@ def fft_power(waveform, dt):
 def timer():
     """Time in fractional seconds."""
     return timer_fn()
+
+
+def atoi(text):
+    """Converts a string into an integer."""
+    return int(text) if text.isdigit() else text
+
+
+def natural_keys(text):
+    """Human sorting of a string."""
+    return [atoi(c) for c in re.split(r'(\d+)', text)]
 
 
 def numeric_list_to_int_list(l):
