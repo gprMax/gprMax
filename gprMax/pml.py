@@ -593,16 +593,25 @@ def print_pml_info(G):
             f"order: {len(G.pmls['cfs'])}, thickness (cells): {pmlinfo}}}")
 
 
-def build_pml(G, key, value):
+def build_pml(G, pml_ID, thickness):
     """Builds instances of the PML and calculates the initial parameters and 
         coefficients including setting profile (based on underlying material 
         er and mr from solid array).
 
     Args:
         G: FDTDGrid class describing a grid in a model.
-        key: string dentifier of PML slab.
-        value: int with thickness of PML slab in cells.
+        pml_ID: string identifier of PML slab.
+        thickness: int with thickness of PML slab in cells.
     """
+
+    # Arrays to hold values of permittivity and permeability (avoids accessing
+    # Material class in Cython.)
+    ers = np.zeros(len(G.materials))
+    mrs = np.zeros(len(G.materials))
+
+    for i, m in enumerate(G.materials):
+        ers[i] = m.er
+        mrs[i] = m.mr
 
     if config.sim_config.general['solver'] == 'cpu':
         pml_type = PML
@@ -611,37 +620,50 @@ def build_pml(G, key, value):
     elif config.sim_config.general['solver'] == 'opencl':
         pml_type = OpenCLPML
 
-    if key[0] == 'x':
-        if key == 'x0':
-            pml = pml_type(G, ID=key, direction='xminus', 
-                           xf=value, yf=G.ny, zf=G.nz)
-        elif key == 'xmax':
-            pml = pml_type(G, ID=key, direction='xplus', 
-                           xs=G.nx - value, xf=G.nx, yf=G.ny, zf=G.nz)
-        pml.CFS = G.pmls['cfs']
-        G.pmls['slabs'].append(pml)
-        averageer, averagemr = pml_average_er_mr('x', pml.xs, G)
+    if pml_ID == 'x0':
+        pml = pml_type(G, ID=pml_ID, direction='xminus', 
+                       xs=0, xf=thickness, 
+                       ys=0, yf=G.ny, 
+                       zs=0, zf=G.nz)
+    elif pml_ID == 'xmax':
+        pml = pml_type(G, ID=pml_ID, direction='xplus', 
+                       xs=G.nx-thickness, xf=G.nx, 
+                       ys=0, yf=G.ny, 
+                       zs=0, zf=G.nz)
+    elif pml_ID == 'y0':
+        pml = pml_type(G, ID=pml_ID, direction='yminus', 
+                       xs=0, xf=G.nx, 
+                       ys=0, yf=thickness, 
+                       zs=0, zf=G.nz)
+    elif pml_ID == 'ymax':
+        pml = pml_type(G, ID=pml_ID, direction='yplus', 
+                       xs=0, xf=G.nx,
+                       ys=G.ny-thickness, yf=G.ny, 
+                       zs=0, zf=G.nz)
+    elif pml_ID == 'z0':
+        pml = pml_type(G, ID=pml_ID, direction='zminus', 
+                       xs=0, xf=G.nx,
+                       ys=0, yf=G.ny,
+                       zs=0, zf=thickness)
+    elif pml_ID == 'zmax':
+        pml = pml_type(G, ID=pml_ID, direction='zplus', 
+                       xs=0, xf=G.nx,
+                       ys=0, yf=G.ny,
+                       zs=G.nz-thickness, zf=G.nz)
 
-    elif key[0] == 'y':
-        if key == 'y0':
-            pml = pml_type(G, ID=key, direction='yminus', 
-                           yf=value, xf=G.nx, zf=G.nz)
-        elif key == 'ymax':
-            pml = pml_type(G, ID=key, direction='yplus', 
-                           ys=G.ny - value, xf=G.nx, yf=G.ny, zf=G.nz)
-        pml.CFS = G.pmls['cfs']
-        G.pmls['slabs'].append(pml)
-        averageer, averagemr = pml_average_er_mr('y', pml.ys, G)
-
-    elif key[0] == 'z':
-        if key == 'z0':
-            pml = pml_type(G, ID=key, direction='zminus', 
-                           zf=value, xf=G.nx, yf=G.ny)
-        elif key == 'zmax':
-            pml = pml_type(G, ID=key, direction='zplus', 
-                           zs=G.nz - value, xf=G.nx, yf=G.ny, zf=G.nz)
-        pml.CFS = G.pmls['cfs']
-        G.pmls['slabs'].append(pml)
-        averageer, averagemr = pml_average_er_mr('z', pml.zs, G)
-
+    if pml_ID[0] == 'x':
+        averageer, averagemr = pml_average_er_mr(G.ny, G.nz, 
+                                                 config.get_model_config().ompthreads, 
+                                                 G.solid[pml.xs, :, :], ers, mrs)
+    elif pml_ID[0] == 'y':
+        averageer, averagemr = pml_average_er_mr(G.nx, G.nz, 
+                                                 config.get_model_config().ompthreads,
+                                                 G.solid[:, pml.ys, :], ers, mrs)
+    elif pml_ID[0] == 'z':
+        averageer, averagemr = pml_average_er_mr(G.nx, G.ny,
+                                                 config.get_model_config().ompthreads,
+                                                 G.solid[:, :, pml.zs], ers, mrs)
+        
+    pml.CFS = G.pmls['cfs']
     pml.calculate_update_coeffs(averageer, averagemr)
+    G.pmls['slabs'].append(pml)

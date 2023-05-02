@@ -16,55 +16,47 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import numpy as np
+cimport numpy as np
+from cython.parallel import prange
+
+from gprMax.config cimport float_or_double
+
 
 cpdef pml_average_er_mr(
-    str dir,
-    int s,
-    G
+    int n1,
+    int n2,
+    int nthreads,
+    np.uint32_t[:, :] solid,
+    float_or_double[::1] ers,
+    float_or_double[::1] mrs
 ):
-    """Calculates average permittivity and permeability for building PML 
-        (based on underlying material er and mr from solid array).
+    """Calculates average permittivity and permeability in PML slab (based on 
+        underlying material er and mr from solid array). Used to build PML.
 
     Args:
-        dir: string identifier for direction of PML.
-        s: int for starting cell of PML.
-        G: FDTDGrid class describing a grid in a model.
+        n1, n2: ints for PML size in cells perpendicular to thickness direction.
+        nthreads: int for number of threads to use.
+        solid: memoryviews to access solid array.
+        ers, mrs: memoryviews to access arrays containing permittivity and 
+                    permeability.
+
+    Returns:
+        averageer, averagemr: floats for average permittivity and permeability
+                                in PML slab.
     """
 
-    sumer = 0  # Sum of relative permittivities in PML slab
-    summr = 0  # Sum of relative permeabilities in PML slab
+    cdef Py_ssize_t m, n
+    cdef int numID
+    # Sum and average of relative permittivities and permeabilities in PML slab
+    cdef float sumer, summr, averageer, averagemr 
 
-    if dir == 'x':
-        for j in range(G.ny):
-            for k in range(G.nz):
-                numID = G.solid[s, j, k]
-                material = [x for x in G.materials if x.numID == numID]
-                material = material[0]
-                sumer += material.er
-                summr += material.mr
-        averageer = sumer / (G.ny * G.nz)
-        averagemr = summr / (G.ny * G.nz)
-
-    elif dir == 'y':
-        for i in range(G.nx):
-            for k in range(G.nz):
-                numID = G.solid[i, s, k]
-                material = [x for x in G.materials if x.numID == numID]
-                material = material[0]
-                sumer += material.er
-                summr += material.mr
-        averageer = sumer / (G.nx * G.nz)
-        averagemr = summr / (G.nx * G.nz)
-
-    elif dir == 'z':
-        for i in range(G.nx):
-            for j in range(G.ny):
-                numID = G.solid[i, j, s]
-                material = [x for x in G.materials if x.numID == numID]
-                material = material[0]
-                sumer += material.er
-                summr += material.mr
-        averageer = sumer / (G.nx * G.ny)
-        averagemr = summr / (G.nx * G.ny)
+    for m in prange(n1, nogil=True, schedule='static', num_threads=nthreads):
+        for n in range(n2):
+            numID = solid[m ,n]
+            sumer += ers[numID]
+            summr += mrs[numID]
+    averageer = sumer / (n1 * n2)
+    averagemr = summr / (n1 * n2)
 
     return averageer, averagemr
