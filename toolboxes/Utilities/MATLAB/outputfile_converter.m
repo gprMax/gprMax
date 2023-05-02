@@ -8,7 +8,7 @@
 clear, clc, close all;
 
 % Select file =============================================================
-[infile, path] = uigetfile('*.out', 'Select gprMax output file', ...
+[infile, path] = uigetfile('*.h5', 'Select gprMax output file', ...
     'Multiselect', 'Off');
 if isequal(infile, 0)
     infile = [];
@@ -20,9 +20,9 @@ end
 
 
 % File name, path name and file extension =================================
-HDR.fname = strrep(lower(infile), '.out', '');
+HDR.fname = strrep(lower(infile), '.h5', '');
 HDR.pname = path;
-HDR.fext  = 'out';
+HDR.fext  = 'h5';
 
 
 % Read data from HDF5 file ================================================
