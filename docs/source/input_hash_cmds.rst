@@ -533,7 +533,7 @@ Allows you to introduce a cone into the model. The orientation of the cylinder a
 * ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
 * ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing.
 
-For example, to specify a cone...
+For example, to specify a cone with centres at (0.02, 0.075, 0.075) and (0.08, 0.075, 0.075), radii of 30 mm and 0 mm, and with constitutive parameters of ``my_sand``, use: ``cone: 0.02 0.075 0.075 0.08 0.075 0.075 0.03 0 my_sand``.
 
 .. note::
 
@@ -553,7 +553,7 @@ Allows you to introduce an ellipsoid into the model. The syntax of the command i
 * ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
 * ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing.
 
-For example, to specify a ellipsoid....
+For example, to specify an ellipsoid with centre at (0.045, 0.045, 0.045), and semi-axes (0.03, 0.02, 0.03), and with constitutive parameters of ``my_sand``, use: ``#ellipsoid: 0.045 0.045 0.045 0.03 0.02 0.03 my_sand``.
 
 .. note::
 
