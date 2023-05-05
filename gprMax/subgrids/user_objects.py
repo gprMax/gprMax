@@ -91,11 +91,8 @@ class SubGridBase(UserObjectMulti):
 
         self.set_discretisation(sg, grid)
 
-        # Set temporal discretisation including inheriting any time step 
-        # stability factor from the main grid
+        # Set temporal discretisation
         sg.calculate_dt()
-        if sg.dt_mod:
-            sg.dt = sg.dt * sg.dt_mod
 
         # Set the indices related to the subgrids main grid placement
         self.set_main_grid_indices(sg, uip, p1, p2)

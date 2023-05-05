@@ -46,7 +46,7 @@ class FDTDGrid:
         self.dy = 0
         self.dz = 0
         self.dt = 0
-        self.dt_mod = None # Time step stability factor
+        self.dt_mod = 1 # Time step stability factor
         self.iteration = 0 # Current iteration number
         self.iterations = 0 # Total number of iterations
         self.timewindow = 0
@@ -298,6 +298,9 @@ class FDTDGrid:
         # hardware maximum. Avoids inadvertently exceeding the CFL due to
         # binary representation of floating point number.
         self.dt = round_value(self.dt, decimalplaces=d.getcontext().prec - 1)
+
+        # Apply any time step stability factor
+        self.dt = self.dt * self.dt_mod
 
 
 class CUDAGrid(FDTDGrid):
