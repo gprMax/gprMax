@@ -55,8 +55,10 @@ High dielectric example
 This example is a basic demonstration of how to use subgrids. The geometry is 3D (required for any use of subgrids) and is of a water-filled (high dielectric constant) cylindrical object in freespace. The subgrid encloses the cylindrical object using a fine spatial discretisation (1mm), and a courser spatial discretisation (5mm) is used in the rest of the model (main grid). A simple Hertzian dipole source is used with a waveform shaped as the first derivative of a gaussian.
 
 .. literalinclude:: ../../examples/subgrids/cylinder_fs.py
-    :language: none
+    :language: python
     :linenos:
+
+Much of the functionality demonstrated in this example is standard use of our :ref:`Python API <input-api>`, so mainly the parts that relate to the subgrid will be described here. Lines 20-25 specify the spatial discretisation of the course main grid (5mm) and fine subgrid (1mm). 
 
 
 Antenna modelling example
@@ -67,8 +69,27 @@ Antenna modelling example
 This example....
 
 .. literalinclude:: ../../examples/subgrids/gssi_400_over_fractal_subsurface.py
-    :language: none
+    :language: python
     :linenos:
+
+
+Customising the PMLs
+====================
+
+Through our :ref:`Python API <input-api>` there is the ability to :ref:`customise and adjust the formulation and properties used for the Perfectly Matched Layer (PML) absorbing boundaries <pml-tuning>`.
+
+.. note::
+
+    * If you just want to adjust the thickness of the PMLs and not use our Python API, that can be achieved using the ``#pml_cells`` command.
+
+This example...
+
+.. literalinclude:: ../../testinig/models_pmls/pml_3D_pec_plate/pml_3D_pec_plate.py
+    :language: python
+    :linenos:
+
+
+
 
 
 

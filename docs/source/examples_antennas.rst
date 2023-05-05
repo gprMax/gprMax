@@ -14,7 +14,7 @@ Wire dipole antenna model
 This example demonstrates a model of a half-wavelength wire dipole antenna in free space. It is a balanced antenna and it's characteristics are well known from theory [BAL2005]_. The length of the dipole is 150mm with a 1mm gap between the arms.
 
 .. literalinclude:: ../../examples/antenna_wire_dipole_fs.py
-    :language: none
+    :language: python
     :linenos:
 
 The wire is modelled using an edge which specifies the properties of the edge of the Yee cell. The antenna is fed using a transmission line The one-dimensional transmission line model virtually attaches to the dipole at the gap between the arms. The antenna has an input resistance :math:`Z_{in} = 73~\Omega` specified in the transmissions, and uses a Gaussian waveform with a centre frequency of 1GHz. A time window of 60ns is used: firstly, to give enough time for the response to decay down to zero; and secondly, to allow a reasonable resolution (17MHz) for calculating antenna parameters that involve taking an FFT (:math:`\Delta f=1/T` where :math:`\Delta f` is the frequency bin spacing and :math:`T` is the time window).
@@ -73,7 +73,7 @@ Bowtie antenna model
 This example demonstrates how to use one of the built-in antenna models in a simulation. Using a model of an antenna rather than a simple source, such as a Hertzian dipole, can improve the accuracy of the results of a simulation for many situations. It is especially important when the target is in the near-field of the antenna and there are complex interactions between the antenna and the environment. The simulation uses the model of an antenna similar to a MALA 1.2GHz antenna.
 
 .. literalinclude:: ../../examples/antenna_like_MALA_1200_fs.py
-    :language: none
+    :language: python
     :linenos:
 
 .. figure:: ../../images_shared/antenna_like_MALA_1200.png
@@ -110,7 +110,7 @@ B-scan with a bowtie antenna model
 This example demonstrates how to create a B-scan with an antenna model. The scenario is purposely simple to illustrate the method. A metal cylinder of diameter 20mm is buried in a dielectric half-space which has a relative permittivity of six. The simulation uses the model of an antenna similar to a GSSI 1.5GHz antenna.
 
 .. literalinclude:: ../../examples/cylinder_Bscan_GSSI_1500.py
-    :language: none
+    :language: python
     :linenos:
 
 .. figure:: ../../images_shared/cylinder_Bscan_GSSI_1500.png

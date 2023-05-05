@@ -20,7 +20,7 @@ FDTD model
 :download:`antenna_bowtie_fs.py <../../testing/other_codes/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs.py>`
 
 .. literalinclude:: ../../testing/other_codes/vs_MoM_MATLAB/antenna_bowtie_fs/antenna_bowtie_fs.py
-    :language: none
+    :language: python
     :linenos:
 
 A Gaussian waveform with a centre frequency of 1.5GHz was used to excite the antenna, which was fed by a transmission line with a characteristic impedance of 50 Ohms.

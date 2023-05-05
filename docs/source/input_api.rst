@@ -28,7 +28,7 @@ Example
 This example is used to give an introduction to the gprMax Python API. 
 
 .. literalinclude:: ../../examples/antenna_wire_dipole_fs.py
-    :language: none
+    :language: python
     :linenos:
 
 1. Import the gprMax module.
@@ -242,6 +242,8 @@ Subgrid
 -------
 .. autoclass:: gprMax.subgrids.user_objects.SubGridHSG
 
+
+.. _pml-tuning:
 
 PML functions
 =============
