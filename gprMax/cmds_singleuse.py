@@ -191,7 +191,7 @@ class TimeStepStabilityFactor(UserObjectSingle):
             raise ValueError
         
         G.dt_mod = f
-        G.calculate_dt()
+        G.dt = G.dt * G.dt_mod
 
         logger.info(f'Time step (modified): {G.dt:g} secs')
 

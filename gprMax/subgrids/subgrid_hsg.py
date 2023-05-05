@@ -294,4 +294,4 @@ class SubGridHSG(SubGridBaseGrid):
                     f'(({self.nwx} x {self.nwy} x {self.nwz} = {self.nwx * self.nwy * self.nwz} cells)')
         logger.debug(f'[{self.name}] Total region: {self.nx:d} x {self.ny:d} x {self.nz:d} = ' +
                      f'{(self.nx * self.ny * self.nz):g} cells')
-        logger.info(f'[{self.name}] Time step (at CFL limit): {self.dt:g} secs')
+        logger.info(f'[{self.name}] Time step: {self.dt:g} secs')
