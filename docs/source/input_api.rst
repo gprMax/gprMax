@@ -135,6 +135,10 @@ Box
 ---
 .. autoclass:: gprMax.cmds_geometry.box.Box
 
+Cone
+----
+.. autoclass:: gprMax.cmds_geometry.cone.Cone
+
 Cylinder
 --------
 .. autoclass:: gprMax.cmds_geometry.cylinder.Cylinder
@@ -147,17 +151,21 @@ Edge
 ----
 .. autoclass:: gprMax.cmds_geometry.edge.Edge
 
+Ellipsoid
+---------
+.. autoclass:: gprMax.cmds_geometry.ellipsoid.Ellipsoid
+
 Plate
 -----
 .. autoclass:: gprMax.cmds_geometry.plate.Plate
 
-Triangle
---------
-.. autoclass:: gprMax.cmds_geometry.triangle.Triangle
-
 Sphere
 ------
 .. autoclass:: gprMax.cmds_geometry.sphere.Sphere
+
+Triangle
+--------
+.. autoclass:: gprMax.cmds_geometry.triangle.Triangle
 
 Fractal Box
 -----------

@@ -46,7 +46,7 @@ class Cone(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = '#cylinder'
+        self.hash = '#cone'
 
     def create(self, grid, uip):
         try:
@@ -55,7 +55,7 @@ class Cone(UserObjectGeometry):
             r1 = self.kwargs['r1']
             r2 = self.kwargs['r2']
         except KeyError:
-            logger.exception(f'{self.__str__()} please specify 2 points and two radii')
+            logger.exception(f'{self.__str__()} please specify two points and two radii')
             raise
 
         # Check averaging
@@ -85,15 +85,17 @@ class Cone(UserObjectGeometry):
         x2, y2, z2 = uip.round_to_grid(p2)
 
         if r1 < 0:
-            logger.exception(f'{self.__str__()} the radius of the first face {r1:g} should be a positive value.')
+            logger.exception(f'{self.__str__()} the radius of the first face ' +
+                             f'{r1:g} should be a positive value.')
             raise ValueError
         
         if r2 < 0:
-            logger.exception(f'{self.__str__()} the radius of the second face {r2:g} should be a positive value.')
+            logger.exception(f'{self.__str__()} the radius of the second face ' +
+                             f'{r2:g} should be a positive value.')
             raise ValueError
         
         if r1 == 0 and r2 == 0:
-            logger.exception(f'{self.__str__()} not both radii can be zero.')
+            logger.exception(f'{self.__str__()} both radii cannot be zero.')
             raise ValueError
 
         # Look up requested materials in existing list of material instances
@@ -137,8 +139,8 @@ class Cone(UserObjectGeometry):
                 grid.materials.append(m)
 
         build_cone(x1, y1, z1, x2, y2, z2, r1, r2, grid.dx, grid.dy, grid.dz, 
-                       numID, numIDx, numIDy, numIDz, averaging, grid.solid, 
-                       grid.rigidE, grid.rigidH, grid.ID)
+                   numID, numIDx, numIDy, numIDz, averaging, grid.solid, 
+                   grid.rigidE, grid.rigidH, grid.ID)
 
         dielectricsmoothing = 'on' if averaging else 'off'
         logger.info(f"{self.grid_name(grid)}Cone with face centres {p3[0]:g}m, " +

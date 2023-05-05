@@ -917,7 +917,6 @@ cpdef void build_cylinder(
                                     averaging, solid, rigidE, rigidH, ID)
 
 
-
 cpdef void build_cone(
     float x1,
     float y1,
@@ -966,7 +965,7 @@ cpdef void build_cone(
 
     Rmax = np.amax([r1, r2])
 
-    # Check if cylinder is aligned with an axis
+    # Check if cone is aligned with an axis
     x_align = y_align = z_align = 0
     # x-aligned
     if (round_value(y1 / dy) == round_value(y2 / dy) and 
@@ -983,7 +982,7 @@ cpdef void build_cone(
           round_value(y1 / dy) == round_value(y2 / dy)):
         z_align = 1
 
-    # Calculate a bounding box for the cylinder
+    # Calculate a bounding box for the cone
     if x1 < x2:
         if x_align:
             xs = round_value(x1 / dx)
@@ -1041,7 +1040,7 @@ cpdef void build_cone(
     if zf > solid.shape[2]:
         zf = solid.shape[2]
 
-    # x-aligned cylinder
+    # x-aligned cone
     if x_align:
         for j in range(ys, yf):
             for k in range(zs, zf):
@@ -1049,7 +1048,7 @@ cpdef void build_cone(
                     if np.sqrt((j * dy + 0.5 * dy - y1)**2 + (k * dz + 0.5 * dz - z1)**2) <= ((i-xs)/(xf-xs))*(r2-r1) + r1:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, 
                                     averaging, solid, rigidE, rigidH, ID)
-    # y-aligned cylinder
+    # y-aligned cone
     elif y_align:
         for i in range(xs, xf):
             for k in range(zs, zf):
@@ -1057,7 +1056,7 @@ cpdef void build_cone(
                     if np.sqrt((i * dx + 0.5 * dx - x1)**2 + (k * dz + 0.5 * dz - z1)**2) <= ((j-ys)/(yf-ys))*(r2-r1) + r1:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, 
                                     averaging, solid, rigidE, rigidH, ID)
-    # z-aligned cylinder
+    # z-aligned cone
     elif z_align:
         for i in range(xs, xf):
             for j in range(ys, yf):
@@ -1068,7 +1067,7 @@ cpdef void build_cone(
 
     # Not aligned with any axis
     else:
-        # Vectors between centres of cylinder faces
+        # Vectors between centres of cone faces
         f1f2 = np.array([x2 - x1, y2 - y1, z2 - z1], dtype=np.float32)
         f2f1 = np.array([x1 - x2, y1 - y2, z1 - z2], dtype=np.float32)
 
@@ -1078,17 +1077,16 @@ cpdef void build_cone(
 
         height = f1f2mag
 
-
         for i in range(xs, xf):
             for j in range(ys, yf):
                 for k in range(zs, zf):
-                    # Build flag - default false, set to True if point is in cylinder
+                    # Build flag - default false, set to True if point is in cone
                     build = 0
-                    # Vector from centre of first cylinder face to test point
+                    # Vector from centre of first cone face to test point
                     f1pt = np.array([i * dx + 0.5 * dx - x1, 
                                      j * dy + 0.5 * dy - y1, 
                                      k * dz + 0.5 * dz - z1], dtype=np.float32)
-                    # Vector from centre of second cylinder face to test point
+                    # Vector from centre of second cone face to test point
                     f2pt = np.array([i * dx + 0.5 * dx - x2, 
                                      j * dy + 0.5 * dy - y2, 
                                      k * dz + 0.5 * dz - z2], dtype=np.float32)
@@ -1127,10 +1125,6 @@ cpdef void build_cone(
                     if build:
                         build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, 
                                     averaging, solid, rigidE, rigidH, ID)
-
-
-
-
 
 
 cpdef void build_sphere(
@@ -1267,7 +1261,6 @@ cpdef void build_ellipsoid(
                             ((k + 0.5 - zc)**2 * dz**2)/zr**2 <= 1):
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, 
                                 averaging, solid, rigidE, rigidH, ID)
-
 
 
 cpdef void build_voxels_from_array(

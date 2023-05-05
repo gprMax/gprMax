@@ -407,7 +407,7 @@ Allows you to introduce a wire with specific properties into the model. A wire i
     #edge: f1 f2 f3 f4 f5 f6 str1
 
 * ``f1 f2 f3`` are the starting (x,y,z) coordinates of the edge, and ``f4 f5 f6`` are the ending (x,y,z) coordinates of the edge. The coordinates should define a single line.
-* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials ``pec`` or ``free_space``.
+* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
 
 For example to specify a x-directed wire that is a perfect electric conductor, use: ``#edge: 0.5 0.5 0.5 0.7 0.5 0.5 pec``. Note that the y and z coordinates are identical.
 
@@ -421,7 +421,7 @@ Allows you to introduce a plate with specific properties into the model. A plate
     #plate: f1 f2 f3 f4 f5 f6 str1
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the plate, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the plate. The coordinates should define a surface and not a 3D object like the ``#box`` command.
-* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials ``pec`` or ``free_space``.
+* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
 
 For example to specify a xy oriented plate that is a perfect electric conductor, use: ``#plate: 0.5 0.5 0.5 0.7 0.8 0.5 pec``. Note that the z coordinates are identical.
 
@@ -436,7 +436,7 @@ Allows you to introduce a triangular patch or a triangular prism with specific p
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the first apex of the triangle, ``f4 f5 f6`` the coordinates (x,y,z) of the second apex, and ``f7 f8 f9`` the coordinates (x,y,z) of the third apex.
 * ``f10`` is the thickness of the triangular prism. If the thickness is zero then a triangular patch is created.
-* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials ``pec`` or ``free_space``.
+* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
 * ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing. For use only when creating a triangular prism, not a triangular patch.
 
 For example, to specify a xy orientated triangular patch that is a perfect electric conductor, use: ``#triangle: 0.5 0.5 0.5 0.6 0.4 0.5 0.7 0.9 0.5 0.0 pec``. Note that the z coordinates are identical and the thickness is zero.
@@ -451,7 +451,7 @@ Allows you to introduce an orthogonal parallelepiped with specific properties in
     #box: f1 f2 f3 f4 f5 f6 str1 [c1]
 
 * ``f1 f2 f3`` are the lower left (x,y,z) coordinates of the parallelepiped, and ``f4 f5 f6`` are the upper right (x,y,z) coordinates of the parallelepiped.
-* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials ``pec`` or ``free_space``.
+* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
 * ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing.
 
 #sphere:
@@ -465,7 +465,7 @@ Allows you to introduce a spherical object with specific parameters into the mod
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of the sphere.
 * ``f4`` is its radius.
-* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials ``pec`` or ``free_space``.
+* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
 * ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing.
 
 For example, to specify a sphere with centre at (0.5, 0.5, 0.5), radius 100 mm, and with constitutive parameters of ``my_sand``, use: ``#sphere: 0.5 0.5 0.5 0.1 my_sand``.
@@ -485,7 +485,7 @@ Allows you to introduce a circular cylinder into the model. The orientation of t
 
 * ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of one face of the cylinder, and ``f4 f5 f6`` are the coordinates (x,y,z) of the centre of the other face.
 * ``f7`` is the radius of the cylinder.
-* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials ``pec`` or ``free_space``.
+* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
 * ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing.
 
 For example, to specify a cylinder with its axis in the y direction, a length of 0.7 m, a radius of 100 mm, and that is a perfect electric conductor, use: ``#cylinder: 0.5 0.1 0.5 0.5 0.8 0.5 0.1 pec``.
@@ -510,7 +510,7 @@ Allows you to introduce a cylindrical sector (shaped like a slice of pie) into t
 * ``f5`` is the radius of the cylindrical sector.
 * ``f6`` is the starting angle (in degrees) for the cylindrical sector (with zero degrees defined on the positive first axis of the plane of the cylindrical sector).
 * ``f7`` is the angle (in degrees) swept by the cylindrical sector (the finishing angle of the sector is always anti-clockwise from the starting angle).
-* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials ``pec`` or ``free_space``.
+* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
 * ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing.
 
 For example, to specify a cylindrical sector with its axis in the z direction, radius of 0.25 m, thickness of 2 mm, a starting angle of 330 :math:`^\circ`, a sector angle of 60 :math:`^\circ`, and that is a perfect electric conductor, use: ``#cylindrical_sector: z 0.34 0.24 0.500 0.502 0.25 330 60 pec``.
@@ -518,6 +518,46 @@ For example, to specify a cylindrical sector with its axis in the z direction, r
 .. note::
 
     * Cylindrical sector objects are permitted to extend outwith the model domain if desired, however, only parts of object inside the domain will be created.
+
+#cone:
+------
+
+Allows you to introduce a cone into the model. The orientation of the cylinder axis can be arbitrary, i.e. it does not have align with one of the Cartesian axes of the model. The syntax of the command is:
+
+.. code-block:: none
+
+    #cone: f1 f2 f3 f4 f5 f6 f7 f8 str1 [c1]
+
+* ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of the first face of the cone, and ``f4 f5 f6`` are the coordinates (x,y,z) of the centre of the other face.
+* ``f7`` is the radius of the first face of the cone, and ``f8`` is the radius of the other face of the cone.
+* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
+* ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing.
+
+For example, to specify a cone...
+
+.. note::
+
+    * Cone objects are permitted to extend outwith the model domain if desired, however, only parts of object inside the domain will be created.
+
+#ellipsoid:
+-----------
+
+Allows you to introduce an ellipsoid into the model. The syntax of the command is:
+
+.. code-block:: none
+
+    #ellipsoid: f1 f2 f3 f4 f5 f6 str1 [c1]
+
+* ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of the ellipsoid. 
+* ``f4 f5 f6`` are the coordinates (x,y,z) of the semi-axes of the ellipsoid.
+* ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
+* ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing.
+
+For example, to specify a ellipsoid....
+
+.. note::
+
+    * Ellipsoidal objects are permitted to extend outwith the model domain if desired, however, only parts of object inside the domain will be created.
 
 .. _fractals:
 

@@ -70,16 +70,11 @@ class Sphere(UserObjectGeometry):
             except KeyError:
                 logger.exception(f'{self.__str__()} no materials have been specified')
                 raise
-
+    
         # Centre of sphere
-        
         p2 = uip.round_to_grid_static_point(p1)
-        #xc, yc, zc = uip.round_to_grid(p1)
         xc, yc, zc = uip.discretise_point(p1)
                 
-
-        
-
         # Look up requested materials in existing list of material instances
         materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
 

@@ -32,9 +32,9 @@ class Ellipsoid(UserObjectGeometry):
 
     Attributes:
         p1: list of the coordinates (x,y,z) of the centre of the ellipsoid.
-        xr: float of x semiaxis of the ellipsoid.
-        xy: float of y semiaxis of the ellipsoid.
-        xz: float of z semiaxis of the ellipsoid.
+        xr: float for x-semiaxis of the elliposid.
+        xy: float for y-semiaxis of the ellipsoid.
+        xz: float for z-semiaxis of the ellipsoid.
         material_id: string for the material identifier that must correspond 
                         to material that has already been defined.
         material_ids: list of material identifiers in the x, y, z directions.
@@ -53,7 +53,8 @@ class Ellipsoid(UserObjectGeometry):
             zr = self.kwargs['zr']
 
         except KeyError:
-            logger.exception(f'{self.__str__()} please specify a point and the three semiaxes.')
+            logger.exception(f'{self.__str__()} please specify a point and ' +
+                             f'the three semiaxes.')
             raise
 
         # Check averaging
@@ -76,9 +77,8 @@ class Ellipsoid(UserObjectGeometry):
                 logger.exception(f'{self.__str__()} no materials have been specified')
                 raise
 
-        # Centre of sphere
+        # Centre of ellipsoid
         p2 = uip.round_to_grid_static_point(p1)
-        #xc, yc, zc = uip.round_to_grid(p1)
         xc, yc, zc = uip.discretise_point(p1)
 
         # Look up requested materials in existing list of material instances
@@ -122,11 +122,12 @@ class Ellipsoid(UserObjectGeometry):
                 grid.materials.append(m)
 
         build_ellipsoid(xc, yc, zc, xr, yr, zr, grid.dx, grid.dy, grid.dz, numID, 
-                     numIDx, numIDy, numIDz, averaging, grid.solid, 
-                     grid.rigidE, grid.rigidH, grid.ID)
+                        numIDx, numIDy, numIDz, averaging, grid.solid, 
+                        grid.rigidE, grid.rigidH, grid.ID)
 
         dielectricsmoothing = 'on' if averaging else 'off'
         logger.info(f"{self.grid_name(grid)}Ellipsoid with centre {p2[0]:g}m, " +
-                    f"{p2[1]:g}m, {p2[2]:g}m, x-semiaxis {xr:g}m, y-semiaxis {yr:g}m and z-semiaxis {zr:g}m of material(s) " +
+                    f"{p2[1]:g}m, {p2[2]:g}m, x-semiaxis {xr:g}m, " + 
+                    f"y-semiaxis {yr:g}m and z-semiaxis {zr:g}m of material(s) " +
                     f"{', '.join(materialsrequested)} created, dielectric " +
                     f"smoothing is {dielectricsmoothing}.")
