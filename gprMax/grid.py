@@ -46,8 +46,9 @@ class FDTDGrid:
         self.dy = 0
         self.dz = 0
         self.dt = 0
-        self.iteration = 0
-        self.iterations = 0
+        self.dt_mod = None # Time step stability factor
+        self.iteration = 0 # Current iteration number
+        self.iterations = 0 # Total number of iterations
         self.timewindow = 0
 
         # PML parameters - set some defaults to use if not user provided
@@ -297,9 +298,6 @@ class FDTDGrid:
         # hardware maximum. Avoids inadvertently exceeding the CFL due to
         # binary representation of floating point number.
         self.dt = round_value(self.dt, decimalplaces=d.getcontext().prec - 1)
-    
-    def get_srcs(self):
-        return self.hertziandipoles + self.magneticdipoles + self.voltagesources + self.transmissionlines
 
 
 class CUDAGrid(FDTDGrid):

@@ -287,7 +287,8 @@ class Comments():
             # Information on PML thickness
             if self.grid.pmls['slabs']:
                 comments['PMLthickness'] = self.pml_gv_comment()
-            srcs = self.grid.get_srcs()
+            srcs = (self.grid.hertziandipoles + self.grid.magneticdipoles + 
+                   self.grid.voltagesources + self.grid.transmissionlines)
             if srcs:
                 comments['Sources'] = self.srcs_rx_gv_comment(srcs)
             if self.grid.rxs:

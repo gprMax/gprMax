@@ -189,7 +189,9 @@ class TimeStepStabilityFactor(UserObjectSingle):
             logger.exception(f'{self.__str__()} requires the value of the time '
                              f'step stability factor to be between zero and one')
             raise ValueError
-        G.dt = G.dt * f
+        
+        G.dt_mod = f
+        G.dt = G.dt * G.dt_mod
 
         logger.info(f'Time step (modified): {G.dt:g} secs')
 

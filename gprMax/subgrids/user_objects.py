@@ -54,7 +54,7 @@ class SubGridBase(UserObjectMulti):
         sg.dz = grid.dz / sg.ratio
         sg.dl = np.array([sg.dx, sg.dy, sg.dz])
 
-    def set_main_grid_indices(self, sg, grid, uip, p1, p2):
+    def set_main_grid_indices(self, sg, uip, p1, p2):
         """Sets subgrid indices related to main grid placement."""
         # Location of the IS
         sg.i0, sg.j0, sg.k0 = p1
@@ -91,11 +91,14 @@ class SubGridBase(UserObjectMulti):
 
         self.set_discretisation(sg, grid)
 
-        # Set the temporal discretisation
+        # Set temporal discretisation including inheriting any time step 
+        # stability factor from the main grid
         sg.calculate_dt()
+        if sg.dt_mod:
+            sg.dt = sg.dt * sg.dt_mod
 
         # Set the indices related to the subgrids main grid placement
-        self.set_main_grid_indices(sg, grid, uip, p1, p2)
+        self.set_main_grid_indices(sg, uip, p1, p2)
 
         """
         try:
