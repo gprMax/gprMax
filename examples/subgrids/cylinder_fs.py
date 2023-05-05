@@ -44,8 +44,6 @@ hd = gprMax.HertzianDipole(polarisation='z', p1=(0.205, 0.400, 0.250),
                            waveform_id='mypulse')
 rx = gprMax.Rx(p1=(0.245, 0.400, 0.250))
 
-pml = gprMax.PMLProps(formulation='HORIPML', thickness=10)
-
 scene.add(title)
 scene.add(dxdydz)
 scene.add(domain)
@@ -53,7 +51,6 @@ scene.add(time_window)
 scene.add(wf)
 scene.add(hd)
 scene.add(rx)
-scene.add(pml)
 
 # Cylinder parameters
 c1 = (0.225, 0.250, 0.100)

@@ -58,7 +58,17 @@ This example is a basic demonstration of how to use subgrids. The geometry is 3D
     :language: python
     :linenos:
 
-Much of the functionality demonstrated in this example is standard use of our :ref:`Python API <input-api>`, so mainly the parts that relate to the subgrid will be described here. Lines 20-25 specify the spatial discretisation of the course main grid (5mm) and fine subgrid (1mm). 
+Much of the functionality demonstrated in this example is standard use of our :ref:`Python API <input-api>`, so mainly the parts that relate to the subgrid will be described here. Lines 20-25 specify the spatial discretisation of the course main grid (5mm) and fine subgrid (1mm). Lines 56-60 specify the centres and radius of the cylinder and coordinates of a bounding box which will be used to set the domain of the subgrid. 
+
+The subgrid object is created on line 63 (providing its extent, the ratio of the spatial resolution, and a string identifier) and then added to the main scene on line 64. Any objects that are to be placed within the subgrid can be added to the subgrid scene (through the variable ``subgrid``) in the same way as the main grid/scene. 
+
+In lines 67-71 the material used to represent water is created and added to the subgrid. The function ``calculate_water_properties()`` is used to help define the properties of water which is represented as a dispersive material using a single pole Debye model.
+
+Lines 74-75 define a cylinder object with the material ``water`` that we just created, and then add it to the subgrid.
+
+On lines 78-81 a view of the subgrid geometry is added to the subgrid object.
+
+Finally, on line 95 when the model is run the keyword arguments ``subgrid`` and ``autotranslate`` are given and set to ``True``. The ``subgrid`` argument tells gprMax that subgrids are being used, and the ``autotranslate`` argument allows the user to specify subgrid objects using main grid coordinates which will then be internally translated to local subgrid coordinates. Without using this option the user would have to specify subgrid objects in local subgrid coordinates.
 
 
 Antenna modelling example
@@ -82,11 +92,17 @@ Through our :ref:`Python API <input-api>` there is the ability to :ref:`customis
 
     * If you just want to adjust the thickness of the PMLs and not use our Python API, that can be achieved using the ``#pml_cells`` command.
 
-This example...
+This example demonstrates how different formulations of PML and PML parameters can be adjusted and used.
 
-.. literalinclude:: ../../testinig/models_pmls/pml_3D_pec_plate/pml_3D_pec_plate.py
+The model is of an elongated-thin PEC plate (25 x 100 mm). The y-directed electric field  (Ey) is monitored one cell away from the plate, and a z-directed Hertzian dipole source is placed diagonally opposite the field monitoring point and at 1 mm above one of the PEC sheet corner. Only three cells of free space separate the plate target from the inner surface of the PMLs.
+
+The performance of each PML can be compared with a reference solution using the same model with a substantially larger domain.
+
+.. literalinclude:: ../../testing/models_pmls/pml_3D_pec_plate/pml_3D_pec_plate.py
     :language: python
     :linenos:
+
+In lines 43-122 a dictionary with different PML formulations and parameters is created. 
 
 
 
