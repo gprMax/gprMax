@@ -1,3 +1,13 @@
+"""An half-wavelength wire dipole antenna in freespace
+
+This example model demonstrates how to a the transmission line source, which
+allows s-parameters and input impedances to be calculated after the simulation
+has run. 
+
+Both API and hash commands are given next to each other as a comparison of the
+two different methods that can be used to build a model.
+"""
+
 from pathlib import Path
 
 import gprMax

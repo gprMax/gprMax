@@ -1,3 +1,19 @@
+"""B-scan using a antenna model. 
+
+This example model demonstrates how to create a B-scan using an antenna model.
+
+The key part of this example is the concept of moving the antenna model in steps
+within the model domain to create multiple A-scans that build up the B-scan. 
+Each A-scan requires its own scene and a list of scenes it built up using a for
+loop. A different scene is required for each A-scan because the model geometry is
+changing, as the antenna geometry must be moved to a new position. This is in 
+contrast to simpler models that may use a Hertzian dipole source which has no
+associated 'geometry' and can be moved within a model without having to change
+the scene. When the all the scenes are created, the list of scenes is then passed
+to gprMax to run, noting the number of times 'n' gprMax is run corresponds to the 
+number of scenes, i.e. A-scans.
+"""
+
 from pathlib import Path
 
 import gprMax
@@ -51,4 +67,4 @@ for i in range(1, 55):
     scenes.append(scene)
 
 # Run model
-gprMax.run(scenes=scenes, n=54, geometry_only=False, outputfile=fn, gpu=None)
+gprMax.run(scenes=scenes, n=len(scenes), geometry_only=False, outputfile=fn, gpu=None)

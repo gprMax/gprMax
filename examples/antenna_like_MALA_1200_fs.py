@@ -1,3 +1,12 @@
+"""An antenna model similar to a MALA 1.2GHz antenna in free space
+
+This example model demonstrates how to use one of the built-in antenna models. 
+
+The geometry is 3D and the domain filled with freespace (the default). The 
+antenna model method is imported from its toolbox and the objects that build the
+antenna are iteratively added to the scene.
+"""
+
 from pathlib import Path
 
 import gprMax

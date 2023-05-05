@@ -1,6 +1,6 @@
 """Cylinder in freespace
 
-This example model is a basic demonstration of how to use subgrids. 
+This example model demonstrates how to use subgrids at a basic level.
 
 The geometry is 3D (required for any use of subgrids) and is of a water-filled 
 cylindrical object in freespace. The subgrid encloses the cylinderical object
