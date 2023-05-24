@@ -199,7 +199,7 @@ def check_cmd_names(processedlines, checkessential=True):
 
     # Geometry object building commands that there can be multiple instances
     # of in a model - these will be lists within the dictionary
-    geometrycmds = ['#geometry_objects_read', '#edge', '#plate', '#triangle', '#box', '#sphere', '#cylinder', '#cylindrical_sector', '#fractal_box', '#add_surface_roughness', '#add_surface_water', '#add_grass']
+    geometrycmds = ['#geometry_objects_read', '#edge', '#plate', '#triangle', '#box', '#sphere', '#ellipsoid', '#cylinder', '#cylindrical_sector', '#fractal_box', '#add_surface_roughness', '#add_surface_water', '#add_grass']
     # List to store all geometry object commands in order from input file
     geometry = []
 

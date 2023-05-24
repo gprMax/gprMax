@@ -387,6 +387,25 @@ def sphere(x, y, z, radius, material, averaging=''):
     return c
 
 
+def ellipsoid(x, y, z, rx, ry, rz, material, averaging=''):
+    """Prints the gprMax #ellipsoid command.
+
+    Args:
+        x, y, z (float): Coordinates of the centre of the sphere.
+        rx, ry, rz (float): Radius.
+        material (str): Material identifier(s).
+        averaging (str): Turn averaging on or off.
+
+    Returns:
+        c (tuple): namedtuple Coordinate for the center of the sphere
+    """
+
+    c = Coordinate(x, y, z)
+    command('ellipsoid', c, rx, ry, rz, material, averaging)
+
+    return c
+
+
 def cylinder(x1, y1, z1, x2, y2, z2, radius, material, averaging='', rotate90origin=()):
     """Prints the gprMax #cylinder command.
 

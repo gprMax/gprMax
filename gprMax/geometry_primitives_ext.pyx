@@ -931,6 +931,69 @@ cpdef void build_sphere(
                     build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
 
 
+cpdef void build_ellipsoid(
+                    int xc,
+                    int yc,
+                    int zc,
+                    float rx,
+                    float ry,
+                    float rz,
+                    float dx,
+                    float dy,
+                    float dz,
+                    int numID,
+                    int numIDx,
+                    int numIDy,
+                    int numIDz,
+                    bint averaging,
+                    np.uint32_t[:, :, ::1] solid,
+                    np.int8_t[:, :, :, ::1] rigidE,
+                    np.int8_t[:, :, :, ::1] rigidH,
+                    np.uint32_t[:, :, :, ::1] ID
+            ):
+    """Builds #ellipsoid commands which sets values in the solid, rigid and ID arrays for a Yee voxel.
+
+    Args:
+        xc, yc, zc (int): Cell coordinates of the centre of the ellipsoid.
+        rx, ry, rz (float): Semi-axes of the ellipsoid.
+        dx, dy, dz (float): Spatial discretisation.
+        numID, numIDx, numIDy, numIDz (int): Numeric ID of material.
+        averaging (bint): Whether material property averaging will occur for the object.
+        solid, rigidE, rigidH, ID (memoryviews): Access to solid, rigid and ID arrays.
+    """
+
+    cdef Py_ssize_t i, j, k
+    cdef int xs, xf, ys, yf, zs, zf
+
+    # Calculate a bounding box for sphere
+    xs = round_value(((xc * dx) - rx) / dx) - 1
+    xf = round_value(((xc * dx) + rx) / dx) + 1
+    ys = round_value(((yc * dy) - ry) / dy) - 1
+    yf = round_value(((yc * dy) + ry) / dy) + 1
+    zs = round_value(((zc * dz) - rz) / dz) - 1
+    zf = round_value(((zc * dz) + rz) / dz) + 1
+
+    # Set bounds to domain if they outside
+    if xs < 0:
+        xs = 0
+    if xf > solid.shape[0]:
+        xf = solid.shape[0]
+    if ys < 0:
+        ys = 0
+    if yf > solid.shape[1]:
+        yf = solid.shape[1]
+    if zs < 0:
+        zs = 0
+    if zf > solid.shape[2]:
+        zf = solid.shape[2]
+
+    for i in range(xs, xf):
+        for j in range(ys, yf):
+            for k in range(zs, zf):
+                if np.sqrt(((i + 0.5 - xc) / rx)**2 * dx**2 + ((j + 0.5 - yc) / ry)**2 * dy**2 + ((k + 0.5 - zc) / rz)**2 * dz**2) <= 1:
+                    build_voxel(i, j, k, numID, numIDx, numIDy, numIDz, averaging, solid, rigidE, rigidH, ID)
+
+
 cpdef void build_voxels_from_array(
                     int xs,
                     int ys,
