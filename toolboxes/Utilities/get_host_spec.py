@@ -48,11 +48,15 @@ logging.info("\n\n=== CUDA capabilities\n")
 gpus = detect_cuda_gpus()
 if gpus:
     print_cuda_info(gpus)
+else:
+    logging.info("Nothing detected.")
 
 # OpenCL
 logging.info("\n\n=== OpenCL capabilities\n")
 devs = detect_opencl()
 if devs:
     print_opencl_info(devs)
+else:
+    logging.info("Nothing detected.")
 
 logging.info(f"\n{'=' * (get_terminal_width() - 1)}\n")
