@@ -4,12 +4,12 @@
 #define IDX2D_MAT(m, n) (m)*({{NY_MATCOEFFS}})+(n)
 #define IDX2D_MATDISP(m, n) (m)*({{NY_MATDISPCOEFFS}})+(n)
 #define IDX2D_R(m, n) (m)*(NY_R)+(n)
-#define IDX2D_RXCOORDS(m,n) (m)*({{NY_RXCOORDS}}) + (n)
+#define IDX2D_RXCOORDS(m, n) (m)*({{NY_RXCOORDS}})+(n)
 #define IDX2D_SRCINFO(m, n) (m)*{{NY_SRCINFO}}+(n)
 #define IDX2D_SRCWAVES(m, n) (m)*({{NY_SRCWAVES}})+(n)
 
 #define IDX3D_FIELDS(i, j, k) (i)*({{NY_FIELDS}})*({{NZ_FIELDS}})+(j)*({{NZ_FIELDS}})+(k)
-#define IDX3D_RXS(i,j,k) (i)*({{NY_RXS}})*({{NZ_RXS}}) + (j)*({{NZ_RXS}}) + (k)
+#define IDX3D_RXS(i,j,k) (i)*({{NY_RXS}})*({{NZ_RXS}})+(j)*({{NZ_RXS}})+(k)
 
 #define IDX4D_ID(p, i, j, k) (p)*({{NX_ID}})*({{NY_ID}})*({{NZ_ID}})+(i)*({{NY_ID}})*({{NZ_ID}})+(j)*({{NZ_ID}})+(k)
 #define IDX4D_SNAPS(p, i, j, k) (p)*({{NX_SNAPS}})*({{NY_SNAPS}})*({{NZ_SNAPS}})+(i)*({{NY_SNAPS}})*({{NZ_SNAPS}})+(j)*({{NZ_SNAPS}})+(k)
