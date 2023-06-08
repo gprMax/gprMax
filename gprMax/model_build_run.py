@@ -218,8 +218,6 @@ class ModelBuildRun:
                             f"{results['maxfreq']:g}Hz")
 
     def reuse_geometry(self):
-        # Reset iteration number
-        self.G.iteration = 0
         s = (f'\n--- Model {config.get_model_config().appendmodelnumber}/{config.sim_config.model_end}, '
              f'input file (not re-processed, i.e. geometry fixed): '
              f'{config.sim_config.input_file_path}')
@@ -227,6 +225,7 @@ class ModelBuildRun:
                                                   Style.RESET_ALL)
         logger.basic(config.get_model_config().inputfilestr)
         for grid in [self.G] + self.G.subgrids:
+            grid.iteration = 0 # Reset current iteration number
             grid.reset_fields()
 
     def build_scene(self):
