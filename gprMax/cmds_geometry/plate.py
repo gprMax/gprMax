@@ -88,7 +88,7 @@ class Plate(UserObjectGeometry):
         # Check for valid orientations
         if ((xs == xf and (ys == yf or zs == zf))
             or (ys == yf and (xs == xf or zs == zf))
-            or (zs == zf and (ys != yf and xs != xf))):
+            or (zs == zf and (xs == xf or ys == yf))):
             logger.exception(f'{self.__str__()} the plate is not specified correctly')
             raise ValueError
 
