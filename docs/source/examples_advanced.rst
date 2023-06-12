@@ -98,6 +98,10 @@ higher permittivity (both have some simple conductive loss). There is a rough in
     :language: python
     :linenos:
 
+Much of the functionality demonstrated in this example is standard use of our :ref:`Python API <input-api>`, or covered in the introductory subgrid example earlier in this section.
+
+Lines 86-108 are important because they position an object (a box of sandy soil in this case) within the subgrid. This object has to be positioned manually (using local subgrid coordinates) as it crosses the interface between the subgrid and the main grid. The ``autotranslate`` property of the box object is set to ``False`` to allow this to happen.
+
 
 Customising the PMLs
 ====================
