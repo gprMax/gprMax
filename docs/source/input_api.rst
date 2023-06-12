@@ -1,7 +1,7 @@
 .. _input-api:
 
 ************************************
-Model Building (Advanced/Python API)
+Advanced Model Building (Python API)
 ************************************
 
 Introduction

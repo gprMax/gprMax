@@ -81,7 +81,8 @@ Antenna modelling example
 
 :download:`gssi_400_over_fractal_subsurface.py <../../examples/subgrids/gssi_400_over_fractal_subsurface.py>`
 
-This example....
+This example demonstrates how to use subgrids at a more advanced level combining use of an imported GPR antenna model (like a GSSI 400MHz antenna) and rough subsurface interface. The geometry is 3D (required for any use of subgrids) and is of a 2 layered subsurface. The top layer in a sandy soil and the bottom layer a soil with
+higher permittivity (both have some simple conductive loss). There is a rough interface between the soil layers. A GPR antenna model (like a GSSI 400MHz antenna) is imported and placed on the surface of the layered media. The antenna is meshed using a subgrid with a fine spatial discretisation (1mm), and a courser spatial discretisation (9mm) is used in the rest of the model (main grid).
 
 .. figure:: ../../images_shared/antenna_like_GSSI_400_subgrids.png
     :width: 600px
