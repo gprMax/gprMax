@@ -1,7 +1,18 @@
-# Copyright (C) 2015-2021, John Hartley
-#
-# This module is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
-# To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
+"""GPR antenna model (like a GSSI 400MHz antenna) over layered media with a 
+    rough subsurface interface.
+
+This example model demonstrates how to use subgrids at a more advanced level - 
+    combining use of an imported antenna model and rough subsurface interface.
+
+The geometry is 3D (required for any use of subgrids) and is of a 2 layered
+subsurface. The top layer in a sandy soil and the bottom layer a soil with
+higher permittivity (both have some simple conductive loss). There is a rough
+interface between the soil layers. A GPR antenna model (like a GSSI 400MHz
+antenna) is imported and placed on the surface of the layered media. The antenna 
+is meshed using a subgrid with a fine spatial discretisation (1mm), and a 
+courser spatial discretisation (9mm) is used in the rest of the model (main 
+grid).
+"""
 
 from pathlib import Path
 
