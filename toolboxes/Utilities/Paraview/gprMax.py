@@ -21,14 +21,11 @@ import mmap
 import os
 from xml.etree import ElementTree as ET
 
-from paraview.simple import *
+from paraview.simple import (AppendDatasets, Box, ColorBy, GetActiveSource,
+                             GetActiveView, GetParaViewVersion, Hide,
+                             OpenDataFile, RenameSource, RenderAllViews,
+                             SetActiveSource, Show, Threshold)
 
-# Read Paraview version number to set threshold filter method
-pvv = GetParaViewVersion()
-if pvv.major == 5 and pvv.minor < 10:
-    new_thres = False
-else:
-    new_thres = True
 
 def threshold_filt(input, lt, ut, scalars):
     """Create threshold filter according to Paraview version.
@@ -42,36 +39,19 @@ def threshold_filt(input, lt, ut, scalars):
         threshold (object): threshold filter
     """
 
+    # Read Paraview version number to set threshold filter method
+    pvv = GetParaViewVersion()
+
     threshold = Threshold(Input=input)
     threshold.Scalars = scalars
-
-    if new_thres:
+  
+    if pvv.major == 5 and pvv.minor < 10:
+        threshold.ThresholdRange = [lt, ut]
+    else:
         threshold.LowerThreshold = lt
         threshold.UpperThreshold = ut
-    else:
-        threshold.ThresholdRange = [lt, ut]
 
     return threshold
-
-
-def display_src_rx(srcs_rxs, dl):
-    """Display sources and receivers as Paraview box sources.
-        Only suitable for gprMax >= v4
-
-    Args:
-        srcs_rxs (list): source/receiver names and positions
-        dl (tuple): spatial discretisation
-    """
-
-    for item in srcs_rxs:
-        pos = item['position']
-        name = item['name']
-        src_rx = Box(Center=[pos[0] + dl[0]/2,
-                             pos[1] + dl[1]/2,
-                             pos[2] + dl[2]/2],
-                     XLength=dl[0], YLength=dl[1], ZLength=dl[2])
-        RenameSource(name, src_rx)
-        Show(src_rx)
 
 
 def display_pmls(pmlthick, dx_dy_dz, nx_ny_nz):
@@ -86,6 +66,7 @@ def display_pmls(pmlthick, dx_dy_dz, nx_ny_nz):
 
     pml_names = ['x0', 'y0', 'z0', 'xmax', 'ymax', 'zmax']
     pmls = dict.fromkeys(pml_names, None)
+    SetActiveSource(pv_src)
 
     if pmlthick[0] != 0:
         x0 = Box(Center=[pmlthick[0] * dx_dy_dz[0] / 2,
@@ -146,7 +127,7 @@ def display_pmls(pmlthick, dx_dy_dz, nx_ny_nz):
     for pml in pmls:
         if pmls[pml]:
             RenameSource('PML - ' + pml, pmls[pml])
-            Hide(pmls[pml], renderview)
+            Hide(pmls[pml], pv_view)
             tmp.append(pmls[pml])
 
     # Create a group of PMLs to switch on/off easily
@@ -157,17 +138,11 @@ def display_pmls(pmlthick, dx_dy_dz, nx_ny_nz):
         pml_view.Opacity = 0.5
 
 
-# Get whatever source is loaded (should be model)
-model = GetActiveSource()
-
-# Get active view
-renderview = GetActiveView()
-
-# Show Data Axes Grid
-renderview.AxesGrid.Visibility = 1
+# Get whatever source is loaded - should be loaded file (.vt*) or files (.pvd)
+data = GetActiveSource()
 
 # Hide display of root data
-Hide(model)
+Hide(data)
 
 
 #####################################
@@ -175,172 +150,111 @@ Hide(model)
 #####################################
 
 # Single .vti or .vtu file
-if len(model.FileName) == 1:
-    files = model.FileName
+if len(data.FileName) == 1:
+    files = data.FileName
     dirname = os.path.dirname(files[0])
 
 # Multiple .vti or .vtu files referenced in a .pvd file 
 else:
     files = []
-    dirname = os.path.dirname(model.FileName)
-    tree = ET.parse(model.FileName)
+    dirname = os.path.dirname(data.FileName)
+    tree = ET.parse(data.FileName)
     root = tree.getroot()
     for elem in root:
         for subelem in elem.findall('DataSet'):
             tmp = os.path.join(dirname, subelem.get('file'))
             files.append(tmp)
 
-# Dictionaries to hold data - mainly for <v4 behaviour
-materials = {}
-srcs = {}
-rxs = {}
-pmls = {}
-
-# To hold the maximum numerical ID for materials across multiple files
-material_ID_max = 0
 
 #################################################################
 # Read and display data from file(s), i.e. materials, sources,  #
 #                                           receivers, and PMLs #
-# Method depends on gprMax version                              #
 #################################################################
 
 for file in files:
     with open(file, 'rb') as f:
-        #######################
-        # Read data from file #
-        #######################
-        # Determine gprMax version
-        # Read XML data
-        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-        
-        # Look for <gprMax> tag which indicates version <4
-        try:
-            xml_pos = mm.find(b'<gprMax')
-            mm.seek(xml_pos)
-            xml = mm.read(mm.size() - xml_pos)
-            root = ET.fromstring(xml)
-            # ET.dump(root)
-            v4 = False
-            print('\ngprMax version: < v.4.0.0')
-            print(file)            
-            # Read material names and numeric IDs into a dict
-            for elem in root.findall('Material'):
-                materials[elem.get('name')] = int(elem.text)
-                if int(elem.text) > material_ID_max:
-                    material_ID_max = int(elem.text)
-
-            # Read sources
-            for elem in root.findall('Sources'):
-                srcs[elem.get('name')] = int(elem.text)
-
-            # Read receivers
-            for elem in root.findall('Receivers'):
-                rxs[elem.get('name')] = int(elem.text)
-
-            # Read PMLs
-            for elem in root.findall('PML'):
-                pmls[elem.get('name')] = int(elem.text)
-
-        except:
-            v4 = True
-            # Comments () embedded in line 3 of file
-            f.readline()
-            f.readline()
-            c = f.readline().decode()
-            # Strip comment tags
-            c = c[5:-5]
-            # Model information
-            c = json.loads(c)
-            print('\ngprMax version: ' + c['gprMax_version'])
-            print(file)            
+        # Comments () embedded in line 3 of file
+        f.readline()
+        f.readline()
+        c = f.readline().decode()
+        # Strip comment tags
+        c = c[5:-5]
+        # Model information
+        c = json.loads(c)
+        print('\ngprMax version: ' + c['gprMax_version'])
+        print(file)            
 
     ################
     # Display data #
     ################
+    pv_view = GetActiveView()
+    pv_view.AxesGrid.Visibility = 1 # Show Data Axes Grid
+    pv_data = OpenDataFile(file)
+    pv_disp = Show(pv_data, pv_view)
+    pv_src = GetActiveSource()
+    Hide(pv_src)
+    src_name = os.path.split(file)
+    RenameSource(src_name[1])
 
-    if v4:
-        # Discretisation
-        dl = c['dx_dy_dz']
-        # Number of voxels
-        nl = c['nx_ny_nz']
+    # Discretisation
+    dl = c['dx_dy_dz']
+    # Number of voxels
+    nl = c['nx_ny_nz']
 
-        # Store materials
-        try:
-            mats = c['Materials']
-            for i, material in enumerate(mats):
-                materials[material] = i
-                if i > material_ID_max:
-                    material_ID_max = i
-        except KeyError:
-            print('No materials to load')
+    # Materials
+    try:
+        for i, mat in enumerate(c['Materials']):
+            threshold = threshold_filt(pv_src, i, i, ['CELLS', 'Material'])
+            RenameSource(mat, threshold)
 
-        # Display any sources
-        try:
-            srcs = c['Sources']
-            display_src_rx(srcs, dl)
-        except KeyError:
-            print('No sources to load')
+            # Show data in view, except for free_space
+            if i != 1:
+                thresholddisplay = Show(threshold, pv_view)
+                thresholddisplay.ColorArrayName = ['CELLS', 'Material']
+            threshold.UpdatePipeline()
+    except KeyError:
+        print('No materials to load')
 
-        # Display any receivers
-        try:
-            rxs = c['Receivers']
-            display_src_rx(rxs, dl)
-        except KeyError:
-            print('No receivers to load')
+    # Display any sources
+    try:
+        for item in c['Sources']:
+            pos = item['position']
+            name = item['name']
+            src = Box(Center=[pos[0] + dl[0]/2,
+                                pos[1] + dl[1]/2,
+                                pos[2] + dl[2]/2],
+                        XLength=dl[0], YLength=dl[1], ZLength=dl[2])
+            RenameSource(name, src)
+            Show(src)
+    except KeyError:
+        print('No sources to load')
 
-        # Display any PMLs
-        try:
-            pt = c['PMLthickness']
-            display_pmls(pt, dl, nl)
-        except KeyError:
-            print('No PMLs to load')
+    # Display any receivers
+    try:
+        for item in c['Receivers']:
+            pos = item['position']
+            name = item['name']
+            rx = Box(Center=[pos[0] + dl[0]/2,
+                                pos[1] + dl[1]/2,
+                                pos[2] + dl[2]/2],
+                        XLength=dl[0], YLength=dl[1], ZLength=dl[2])
+            RenameSource(name, rx)
+            Show(rx)
+    except KeyError:
+        print('No receivers to load')
 
-    else:
-        # Display any sources and PMLs
-        srcs_pmls = dict(srcs)
-        srcs_pmls.update(pmls)
-        if srcs_pmls:
-            for k, v in srcs_pmls.items():
-                threshold = threshold_filt(model, v, v, 'Sources_PML')
-                RenameSource(k, threshold)
+    # Display any PMLs
+    try:
+        pt = c['PMLthickness']
+        display_pmls(pt, dl, nl)
+    except KeyError:
+        print('No PMLs to load')
 
-                # Show data in view
-                thresholddisplay = Show(threshold, renderview)
-                thresholddisplay.ColorArrayName = 'Sources_PML'
-                if v == 1:
-                    thresholddisplay.Opacity = 0.5
-                threshold.UpdatePipeline()
-
-        # Display any receivers
-        if rxs:
-            for k, v in rxs.items():
-                threshold = threshold_filt(model, v, v, 'Receivers')
-                RenameSource(k, threshold)
-
-                # Show data in view
-                thresholddisplay = Show(threshold, renderview)
-                thresholddisplay.ColorArrayName = 'Receivers'
-                threshold.UpdatePipeline()
-
-# Display materials
-material_range = range(0, material_ID_max + 1)
-for k, v in sorted(materials.items(), key=lambda x: x[1]):
-    if v in material_range:
-        threshold = threshold_filt(model, v, v, ['CELLS', 'Material'])
-        RenameSource(k, threshold)
-
-        # Show data in view, except for free_space
-        if v != 1:
-            thresholddisplay = Show(threshold, renderview)
-            thresholddisplay.ColorArrayName = ['CELLS', 'Material']
-        threshold.UpdatePipeline()
-
-
+        
 RenderAllViews()
 
 # Reset view to fit data
-renderview.ResetCamera()
+pv_view.ResetCamera()
 
 # Show color bar/color legend
 # thresholdDisplay.SetScalarBarVisibility(renderview, False)
