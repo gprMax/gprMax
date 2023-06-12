@@ -54,6 +54,11 @@ High dielectric example
 
 This example is a basic demonstration of how to use subgrids. The geometry is 3D (required for any use of subgrids) and is of a water-filled (high dielectric constant) cylindrical object in freespace. The subgrid encloses the cylindrical object using a fine spatial discretisation (1mm), and a courser spatial discretisation (5mm) is used in the rest of the model (main grid). A simple Hertzian dipole source is used with a waveform shaped as the first derivative of a gaussian.
 
+.. figure:: ../../images_shared/cylinder_subgrid.png
+    :width: 600px
+
+    The geometry of a 3D model of a water cylinder (meshed using a subgrid) in free space.
+
 .. literalinclude:: ../../examples/subgrids/cylinder_fs.py
     :language: python
     :linenos:
@@ -77,6 +82,16 @@ Antenna modelling example
 :download:`gssi_400_over_fractal_subsurface.py <../../examples/subgrids/gssi_400_over_fractal_subsurface.py>`
 
 This example....
+
+.. figure:: ../../images_shared/antenna_like_GSSI_400_subgrids.png
+    :width: 600px
+
+    The geometry of a 3D model of a GPR antenna (like a GSSI 400MHz) - meshed using a subgrid - over a 2 layered media with a rough interface.
+
+.. figure:: ../../images_shared/antenna_like_GSSI_400_subgrids_detail.png
+    :width: 600px
+
+    Zoomed in geometry showing a subgrid ratio of 1mm (subgrid) - antenna model - to 9mm (main grid).
 
 .. literalinclude:: ../../examples/subgrids/gssi_400_over_fractal_subsurface.py
     :language: python

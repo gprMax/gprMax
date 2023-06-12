@@ -24,7 +24,7 @@ The geometry of the scenario is straightforward and an image created from the ge
 .. figure:: ../../images_shared/cylinder_half_space_geo.png
     :width: 600 px
 
-    The Geometry of a 2D model of a metal cylinder buried in a dielectric half-space.
+    The geometry of a 2D model of a metal cylinder buried in a dielectric half-space.
 
 For this initial example, a detailed description of what each command in the input file does and why each command was used is given. The following steps explain the process of building the input file:
 
