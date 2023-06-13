@@ -50,6 +50,6 @@ Here is an example of a job script for running models, e.g. A-scans to make a B-
     :language: bash
     :linenos:
 
-The ``-t`` tells Grid Engine that we are using a job array followed by a range of integers which will be the IDs for each individual task (model). Task IDs must start from 1, and the total number of tasks in the range should correspond to the number of models you want to run, i.e. the integer with the ``-n`` flag passed to gprMax. The ``-task`` flag is passed to gprMax to tell it we are using a job array, along with the specific number of the task (model) with the environment variable ``$SGE_TASK_ID``.
+The ``-t`` tells Grid Engine that we are using a job array followed by a range of integers which will be the IDs for each individual task (model). Task IDs must start from 1, and the total number of tasks in the range should correspond to the number of models you want to run, i.e. the integer with the ``-n`` flag passed to gprMax. The ``-i`` flag is passed to gprMax along with the specific number of the task (model) with the environment variable ``$SGE_TASK_ID``.
 
 A job array means that exactly the same submit script is going to be run multiple times, the only difference between each run is the environment variable ``$SGE_TASK_ID``.
