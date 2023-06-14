@@ -17,11 +17,9 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import json
-import mmap
 import os
-from xml.etree import ElementTree as ET
 
-from paraview.simple import (AppendDatasets, Box, ColorBy, GetActiveSource,
+from paraview.simple import (AppendDatasets, Box, GetActiveSource,
                              GetActiveView, GetParaViewVersion, Hide,
                              OpenDataFile, RenameSource, RenderAllViews,
                              SetActiveSource, Show, Threshold)
@@ -145,116 +143,91 @@ data = GetActiveSource()
 Hide(data)
 
 
-#####################################
-# Get filename or list of filenames #
-#####################################
-
 # Single .vti or .vtu file
-if len(data.FileName) == 1:
-    files = data.FileName
-    dirname = os.path.dirname(files[0])
+file = data.FileName
+dirname = os.path.dirname(file[0])
 
-# Multiple .vti or .vtu files referenced in a .pvd file 
-else:
-    files = []
-    dirname = os.path.dirname(data.FileName)
-    tree = ET.parse(data.FileName)
-    root = tree.getroot()
-    for elem in root:
-        for subelem in elem.findall('DataSet'):
-            tmp = os.path.join(dirname, subelem.get('file'))
-            files.append(tmp)
+# Read and display data from file, i.e. materials, sources,  receivers, and PMLs
+with open(file, 'rb') as f:
+    # Comments () embedded in line 3 of file
+    f.readline()
+    f.readline()
+    c = f.readline().decode()
+    # Strip comment tags
+    c = c[5:-5]
+    # Model information
+    c = json.loads(c)
+    print('\ngprMax version: ' + c['gprMax_version'])
+    print(file)            
 
+################
+# Display data #
+################
+pv_view = GetActiveView()
+pv_view.AxesGrid.Visibility = 1 # Show Data Axes Grid
+pv_data = OpenDataFile(file)
+pv_disp = Show(pv_data, pv_view)
+pv_src = GetActiveSource()
+Hide(pv_src)
+src_name = os.path.split(file)
+RenameSource(src_name[1])
 
-#################################################################
-# Read and display data from file(s), i.e. materials, sources,  #
-#                                           receivers, and PMLs #
-#################################################################
+# Discretisation
+dl = c['dx_dy_dz']
+# Number of voxels
+nl = c['nx_ny_nz']
 
-for file in files:
-    with open(file, 'rb') as f:
-        # Comments () embedded in line 3 of file
-        f.readline()
-        f.readline()
-        c = f.readline().decode()
-        # Strip comment tags
-        c = c[5:-5]
-        # Model information
-        c = json.loads(c)
-        print('\ngprMax version: ' + c['gprMax_version'])
-        print(file)            
+# Materials
+try:
+    for i, mat in enumerate(c['Materials']):
+        threshold = threshold_filt(pv_src, i, i, ['CELLS', 'Material'])
+        RenameSource(mat, threshold)
 
-    ################
-    # Display data #
-    ################
-    pv_view = GetActiveView()
-    pv_view.AxesGrid.Visibility = 1 # Show Data Axes Grid
-    pv_data = OpenDataFile(file)
-    pv_disp = Show(pv_data, pv_view)
-    pv_src = GetActiveSource()
-    Hide(pv_src)
-    src_name = os.path.split(file)
-    RenameSource(src_name[1])
+        # Show data in view, except for free_space
+        if i != 1:
+            thresholddisplay = Show(threshold, pv_view)
+            thresholddisplay.ColorArrayName = ['CELLS', 'Material']
+        threshold.UpdatePipeline()
+except KeyError:
+    print('No materials to load')
 
-    # Discretisation
-    dl = c['dx_dy_dz']
-    # Number of voxels
-    nl = c['nx_ny_nz']
+# Display any sources
+try:
+    for item in c['Sources']:
+        pos = item['position']
+        name = item['name']
+        src = Box(Center=[pos[0] + dl[0]/2,
+                            pos[1] + dl[1]/2,
+                            pos[2] + dl[2]/2],
+                    XLength=dl[0], YLength=dl[1], ZLength=dl[2])
+        RenameSource(name, src)
+        Show(src)
+except KeyError:
+    print('No sources to load')
 
-    # Materials
-    try:
-        for i, mat in enumerate(c['Materials']):
-            threshold = threshold_filt(pv_src, i, i, ['CELLS', 'Material'])
-            RenameSource(mat, threshold)
+# Display any receivers
+try:
+    for item in c['Receivers']:
+        pos = item['position']
+        name = item['name']
+        rx = Box(Center=[pos[0] + dl[0]/2,
+                            pos[1] + dl[1]/2,
+                            pos[2] + dl[2]/2],
+                    XLength=dl[0], YLength=dl[1], ZLength=dl[2])
+        RenameSource(name, rx)
+        Show(rx)
+except KeyError:
+    print('No receivers to load')
 
-            # Show data in view, except for free_space
-            if i != 1:
-                thresholddisplay = Show(threshold, pv_view)
-                thresholddisplay.ColorArrayName = ['CELLS', 'Material']
-            threshold.UpdatePipeline()
-    except KeyError:
-        print('No materials to load')
-
-    # Display any sources
-    try:
-        for item in c['Sources']:
-            pos = item['position']
-            name = item['name']
-            src = Box(Center=[pos[0] + dl[0]/2,
-                                pos[1] + dl[1]/2,
-                                pos[2] + dl[2]/2],
-                        XLength=dl[0], YLength=dl[1], ZLength=dl[2])
-            RenameSource(name, src)
-            Show(src)
-    except KeyError:
-        print('No sources to load')
-
-    # Display any receivers
-    try:
-        for item in c['Receivers']:
-            pos = item['position']
-            name = item['name']
-            rx = Box(Center=[pos[0] + dl[0]/2,
-                                pos[1] + dl[1]/2,
-                                pos[2] + dl[2]/2],
-                        XLength=dl[0], YLength=dl[1], ZLength=dl[2])
-            RenameSource(name, rx)
-            Show(rx)
-    except KeyError:
-        print('No receivers to load')
-
-    # Display any PMLs
-    try:
-        pt = c['PMLthickness']
-        display_pmls(pt, dl, nl)
-    except KeyError:
-        print('No PMLs to load')
+# Display any PMLs
+try:
+    pt = c['PMLthickness']
+    display_pmls(pt, dl, nl)
+except KeyError:
+    print('No PMLs to load')
 
         
 RenderAllViews()
 
 # Reset view to fit data
 pv_view.ResetCamera()
-
-# Show color bar/color legend
-# thresholdDisplay.SetScalarBarVisibility(renderview, False)

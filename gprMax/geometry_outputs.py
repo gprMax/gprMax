@@ -39,27 +39,6 @@ from .utilities.utilities import (get_terminal_width,
 logger = logging.getLogger(__name__)
 
 
-def write_vtk_pvd(gvs):
-    """Writes Paraview data file (.pvd) - provides pointers to a collection of 
-        data files, i.e. GeometryViews.
-
-    Args:
-        gvs: list of all GeometryViews.
-    """
-
-    filename = config.get_model_config().output_file_path
-    pvd = VtkGroup(str(filename))
-
-    # Add filenames of all GeometryViews to group
-    for gv in gvs:
-        sim_time = 0
-        pvd.addFile(str(gv.filename) + gv.vtkfiletype.ext, sim_time, 
-                    group = "", part = "0")
-    pvd.save()
-    
-    logger.info(f'Written wrapper for geometry files: {filename.name}.pvd')
-
-
 def save_geometry_views(gvs):
     """Creates and saves geometryviews.
     
@@ -79,10 +58,6 @@ def save_geometry_views(gvs):
         gv.write_vtk(vtk_data)
         pbar.update(gv.nbytes)
         pbar.close()
-
-    # Write a Paraview data file (.pvd) if there is more than one GeometryView
-    if len(gvs) > 1:
-        write_vtk_pvd(gvs)
     
     logger.info('')
         
