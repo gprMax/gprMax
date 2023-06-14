@@ -83,7 +83,6 @@ class FractalBoxBuilder(UserObjectGeometry):
                     volume.fractalvolume *= materialnumID
                 else:
                     volume.generate_fractal_volume()
-                    #volume.fractalvolume += volume.mixingmodel.startmaterialnum
                     for i in range(0, volume.nx):
                         for j in range(0, volume.ny):
                             for k in range(0, volume.nz):
@@ -325,7 +324,6 @@ class FractalBoxBuilder(UserObjectGeometry):
                     raise ValueError
                 else:
                     volume.generate_fractal_volume()
-                    #volume.fractalvolume += volume.mixingmodel.startmaterialnum
                     for i in range(0, volume.nx):
                         for j in range(0, volume.ny):
                             for k in range(0, volume.nz):
