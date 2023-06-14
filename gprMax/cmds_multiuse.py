@@ -29,10 +29,10 @@ from .cmds_geometry.cmds_geometry import (UserObjectGeometry,
                                           rotate_polarisation)
 from .geometry_outputs import GeometryObjects as GeometryObjectsUser
 from .materials import DispersiveMaterial as DispersiveMaterialUser
+from .materials import ListMaterial as ListMaterialUser
 from .materials import Material as MaterialUser
 from .materials import PeplinskiSoil as PeplinskiSoilUser
 from .materials import RangeMaterial as RangeMaterialUser
-from .materials import ListMaterial as ListMaterialUser
 from .pml import CFS, CFSParameter
 from .receivers import Rx as RxUser
 from .snapshots import Snapshot as SnapshotUser
@@ -1398,19 +1398,17 @@ class SoilPeplinski(UserObjectMulti):
 
 
 class MaterialRange(UserObjectMulti):
-    """Simple model for varying material properties to create stochastic models
+    """Creates varying material properties for stochastic models.
     
-
     Attributes:
-        er_lower_range: float required for lower relative permittivity value.
-        er_upper_range: float required for upper relative permittivity value. 
-        sigma_lower_range: float required for lower conductivity value.
-        sigma_upper_range: float required for upper conductivity value. 
-        mr_lower_range: float required for lower relative magnetic permeability value.
-        mr_upper_range: float required for upper relative magnetic permeability value. 
-        ro_lower_range: float required for lower magnetic loss value.
-        ro_upper_range: float required for upper magnetic loss value. 
-      
+        er_lower: float required for lower relative permittivity value.
+        er_upper: float required for upper relative permittivity value. 
+        sigma_lower: float required for lower conductivity value.
+        sigma_upper: float required for upper conductivity value. 
+        mr_lower: float required for lower relative magnetic permeability value.
+        mr_upper: float required for upper relative magnetic permeability value. 
+        ro_lower: float required for lower magnetic loss value.
+        ro_upper: float required for upper magnetic loss value. 
         id: string used as identifier for this variable material.
     """
 
@@ -1455,12 +1453,10 @@ class MaterialRange(UserObjectMulti):
             logger.exception(f'{self.params_str()} requires a value greater or equal to 1' +
                             'for the upper range of relative permittivity.')
             raise ValueError
-
         if mr_upper < 1:
             logger.exception(f'{self.params_str()} requires a value greater or equal to 1' +
                              'for the upper range of relative magnetic permeability')
             raise ValueError
-
         if sigma_upper < 0:
             logger.exception(f'{self.params_str()} requires a positive value ' +
                              'for the upper range of conductivity.')
@@ -1489,12 +1485,10 @@ class MaterialRange(UserObjectMulti):
 
 
 class MaterialList(UserObjectMulti):
-    """Simple model for varying material properties to create stochastic models
+    """Creates varying material properties for stochastic models.
     
-
     Attributes:
         list_of_materials: list of material IDs
-           
         id: string used as identifier for this variable material.
     """
 
@@ -1555,7 +1549,8 @@ class GeometryView(UserObjectMulti):
         """
 
         if output_type == 'n':
-            from .geometry_outputs import GeometryViewVoxels as GeometryViewUser            
+            from .geometry_outputs import \
+                GeometryViewVoxels as GeometryViewUser            
         else:
             from .geometry_outputs import GeometryViewLines as GeometryViewUser
 
