@@ -300,6 +300,43 @@ The syntax of the command is:
     * Temporal values associated with pole frequencies and relaxation times should always be greater than the time step :math:`\Delta t` used in the model.
 
 
+#material_range:
+----------------
+
+Allows you to create a series of materials with properties specified by ranges of relative permittivity, conductivity, relative permeability, and magnetic loss. The command is designed to be used in conjunction with the ``#fractal_box`` command for spatial distributions of dielectric properties. The syntax of the command is:
+
+.. code-block:: none
+
+    #material_range: f1 f2 f3 f4 f5 f6 f7 f8 str1
+
+* ``f1`` is the lower end of the range of relative permittivity values.
+* ``f2`` is the upper end of the range of relative permittivity values.
+* ``f3`` is the lower end of the range of conductivity values.
+* ``f4`` is the upper end of the range of conductivity values.
+* ``f5`` is the lower end of the range of relative permeability values.
+* ``f6`` is the upper end of the range of relative permeability values.
+* ``f7`` is the lower end of the range of magnetic loss values.
+* ``f8`` is the upper end of the range of magnetic loss values.
+* ``str1`` is an identifier for the material range.
+
+For example to create a series of 10 materials with relative permittivity ranging between 2 and 6, :math:`\sigma=0`, :math:`\mu_r=1`, and :math:`\sigma_*=0`, distributed using a fractal approach, use: ``#material_range: 2 6 0 0 1 1 0 0 er2_6`` and ``#fractal_box: 0 0 0 0.15 0.15 0.15 1.5 1 1 1 10 er2_6 my_frac_box``.
+
+
+#material_list:
+----------------
+
+Allows you to create a list of pre-defined materials that can be used in conjunction with the ``#fractal_box`` command for spatial distributions of dielectric properties. The syntax of the command is:
+
+.. code-block:: none
+
+    #material_list: str1 str2 ... str3
+
+* ``str1`` and ``str2`` are identifiers for materials. You can have identifiers for as many pre-defined materials as required.
+* ``str3`` is an identifier for the material list.
+
+For example to create a fractal distribution of two different sand materials and water use: ``#material: 3 0 1 0 sand1``, ``#material: 4 0.1 1 0 sand2``, ``#material: 4.9 0.001 1 0 my_water``, ``#add_dispersion_debye: 1 75.2 9.231e-12 my_water``, ``#material_list: sand1 sand2 my_water my_list``, ``#fractal_box: 0 0 0 0.15 0.15 0.15 1.5 1 1 1 3 my_list my_frac_box``.
+
+
 #soil_peplinski:
 ----------------
 
