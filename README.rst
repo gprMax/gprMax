@@ -1,5 +1,5 @@
-.. image:: https://readthedocs.org/projects/gprmax/badge/?version=latest
-    :target: http://docs.gprmax.com/en/latest/?badge=latest
+.. image:: https://readthedocs.org/projects/gprmax/badge/?version=devel
+    :target: http://docs.gprmax.com/en/latest/?badge=devel
     :alt: Documentation Status
 
 |
