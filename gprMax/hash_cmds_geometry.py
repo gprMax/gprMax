@@ -383,17 +383,18 @@ def process_geometrycmds(geometry):
 
             if len(tmp) == 14:
                 fb = FractalBox(p1=p1, p2=p2, frac_dim=frac_dim, 
-                                weighting=weighting, mixing_model_id=mixing_model_id, 
-                                id=ID, n_materials=n_materials)
+                                weighting=weighting, n_materials=n_materials,
+                                mixing_model_id=mixing_model_id, id=ID)
             elif len(tmp) == 15:
                 fb = FractalBox(p1=p1, p2=p2, frac_dim=frac_dim, 
-                                weighting=weighting, mixing_model_id=mixing_model_id, 
-                                id=ID, n_materials=n_materials, seed=tmp[14])
+                                weighting=weighting, n_materials=n_materials, 
+                                mixing_model_id=mixing_model_id, id=ID, 
+                                seed=tmp[14])
             elif len(tmp) == 16:
                 fb = FractalBox(p1=p1, p2=p2, frac_dim=frac_dim, 
-                                weighting=weighting, mixing_model_id=mixing_model_id, 
-                                id=ID, n_materials=n_materials, seed=tmp[14], 
-                                averaging=tmp[15].lower())
+                                weighting=weighting, n_materials=n_materials,
+                                mixing_model_id=mixing_model_id, id=ID, 
+                                seed=tmp[14], averaging=tmp[15].lower())
             else:
                 logger.exception("'" + ' '.join(tmp) + "'" + 
                                  ' too many parameters have been given')
