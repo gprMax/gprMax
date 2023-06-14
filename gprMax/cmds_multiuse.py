@@ -1465,13 +1465,10 @@ class MaterialRange(UserObjectMulti):
             logger.exception(f'{self.params_str()} requires a positive value ' +
                              'for the upper range of magnetic loss.')
 
-
         if any(x.ID == ID for x in grid.mixingmodels):
             logger.exception(f'{self.params_str()} with ID {ID} already exists')
             raise ValueError
 
-        # Create a new instance of the Material class material 
-        # (start index after pec & free_space)
         s = RangeMaterialUser(ID, (er_lower, er_upper), (sigma_lower, sigma_upper), 
                               (mr_lower, mr_upper), (ro_lower, ro_upper))
 
@@ -1510,8 +1507,6 @@ class MaterialList(UserObjectMulti):
             logger.exception(f'{self.params_str()} with ID {ID} already exists')
             raise ValueError
 
-        # Create a new instance of the Material class material 
-        # (start index after pec & free_space)
         s = ListMaterialUser(ID, list_of_materials)
 
         logger.info(f'{self.grid_name(grid)}A list of materials used to ' +
