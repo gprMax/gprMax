@@ -241,9 +241,7 @@ class PeplinskiSoil:
         self.rb = bulkdensity
         self.rs = sandpartdensity
         self.mu = watervolfraction
-        self.startmaterialnum = 0 #This is not used anymore and code that uses it can be removed
-        # store all of the material IDs in a list instead of storing only the first number of the material 
-        # and assume that all must be sequentially numbered. This allows for more general mixing models
+        # Store all of the material IDs which allows for more general mixing models.
         self.matID = []  
 
     def calculate_properties(self, nbins, G):
@@ -278,11 +276,9 @@ class PeplinskiSoil:
         # values. Changed to make sure mid points are contained completely within the ranges. 
         # The limiting values of the ranges are not included in this.
 
-        #mubins = np.linspace(self.mu[0], self.mu[1], nbins)
         mubins = np.linspace(self.mu[0], self.mu[1], nbins + 1)
         # Generate a range of volumetric water fraction values the mid-point of 
         # each bin to make materials from
-        #mumaterials = mubins + (mubins[1] - mubins[0]) / 2
         mumaterials = 0.5 * (mubins[1:nbins+1] + mubins[0:nbins])
 
         # Create an iterator
@@ -306,10 +302,7 @@ class PeplinskiSoil:
             material = next((x for x in G.materials if x.ID == requiredID), None)
             if muiter.index == 0:
                 if material:
-                    self.startmaterialnum = material.numID
-                    self.matID.append(material.numID)                    
-                else:
-                    self.startmaterialnum = len(G.materials)                
+                    self.matID.append(material.numID)                                    
             if not material:
                 m = DispersiveMaterial(len(G.materials), requiredID)
                 m.type = 'debye'
@@ -328,16 +321,18 @@ class PeplinskiSoil:
       
 
 class RangeMaterial:
-    """Material objects defined by a given range of their parameters to be used for 
-       factal spatial disttibutions. 
+    """Material objects defined by a given range of their parameters to be used 
+        for fractal spatial distributions. 
     """
 
     def __init__(self, ID, er_range, se_range, mr_range, sm_range):
         """
         Args:
             ID: string for name of the material range.
-            er_range: tuple of floats for relative permittivity range of the materials.
-            se_range: tuple of floats for electric conductivity range of the materials.
+            er_range: tuple of floats for relative permittivity range of the 
+                        materials.
+            se_range: tuple of floats for electric conductivity range of the 
+                        materials.
             mr_range: tuple of floats for magnetic permeability of materials. 
             sm_range: tuple of floats for magnetic loss range of materials. 
         """
@@ -347,9 +342,7 @@ class RangeMaterial:
         self.sig = se_range
         self.mu = mr_range 
         self.ro = sm_range
-        self.startmaterialnum = 0 #This is not really needed anymore and code that uses it can be removed.
-         # store all of the material IDs in a list instead of storing only the first number of the material 
-        # and assume that all must be sequentially numbered. This allows for more general mixing models
+        # Store all of the material IDs which allows for more general mixing models.
         self.matID = [] 
        
     def calculate_properties(self, nbins, G):
@@ -365,7 +358,6 @@ class RangeMaterial:
 
         # Generate a range of relative permittivity values the mid-point of 
         # each bin to make materials from
-        #ermaterials = erbins + np.abs((erbins[1] - erbins[0])) / 2
         ermaterials = 0.5 * (erbins[1:nbins+1] + erbins[0:nbins])
 
         # Generate a set of conductivity bins based on the given range
@@ -373,7 +365,6 @@ class RangeMaterial:
 
         # Generate a range of conductivity values the mid-point of 
         # each bin to make materials from
-        #sigmamaterials = sigmabins + (sigmabins[1] - sigmabins[0]) / 2
         sigmamaterials = 0.5 * (sigmabins[1:nbins+1] + sigmabins[0:nbins])
 
         # Generate a set of magnetic permeability bins based on the given range
@@ -381,7 +372,6 @@ class RangeMaterial:
 
         # Generate a range of magnetic permeability values the mid-point of 
         # each bin to make materials from
-        #mumaterials = mubins + np.abs((mubins[1] - mubins[0])) / 2
         mumaterials = 0.5 * (mubins[1:nbins+1] + mubins[0:nbins])
         
         # Generate a set of magnetic loss bins based on the given range
@@ -389,9 +379,7 @@ class RangeMaterial:
 
         # Generate a range of magnetic loss values the mid-point of each bin to 
         # make materials from
-        #romaterials = robins + np.abs((robins[1] - robins[0])) / 2
         romaterials = 0.5 * (robins[1:nbins+1] + robins[0:nbins])
-
 
         # Iterate over the bins
         for iter in np.arange(nbins):
@@ -409,10 +397,7 @@ class RangeMaterial:
             material = next((x for x in G.materials if x.ID == requiredID), None)
             if iter == 0:
                 if material:
-                    self.startmaterialnum = material.numID
                     self.matID.append(material.numID)
-                else:
-                    self.startmaterialnum = len(G.materials)
             if not material:
                 m = Material(len(G.materials), requiredID)
                 m.type = ''
@@ -426,28 +411,23 @@ class RangeMaterial:
 
 
 class ListMaterial:
-    """A list of predefined materials to be used for 
-       factal spatial disttibutions. This command does not create new materials but collects them to be used in a 
-       stochastic distribution by a fractal box.
+    """A list of predefined materials to be used for fractal spatial distributions. 
+        This class does not create new materials but collects them to be used 
+        in a stochastic distribution by a fractal box.
     """
 
     def __init__(self, ID, listofmaterials):
         """
         Args:
             ID: string for name of the material list.
-            listofmaterials: A list of material IDs.
-            
+            listofmaterials: list of material IDs.      
         """
 
         self.ID = ID
         self.mat = listofmaterials
-        self.startmaterialnum = 0 #This is not really needed anymore
-        # store all of the material IDs in a list instead of storing only the first number of the material 
-        # and assume that all must be sequentially numbered. This allows for more general mixing models
-        # this is important here as this model assumes predefined materials.
+        # Store all of the material IDs which allows for more general mixing models.
         self.matID = [] 
         
-
     def calculate_properties(self, nbins, G):
         """Calculates the properties of the materials.
 
@@ -458,24 +438,10 @@ class ListMaterial:
 
         # Iterate over the bins
         for iter in np.arange(nbins):
-            #requiredID = '|{:}_in_{:}|'.format((self.mat[iter]),(self.ID))
             requiredID = self.mat[iter]
             # Check if the material already exists before creating a new one
             material = next((x for x in G.materials if x.ID == requiredID), None)
             self.matID.append(material.numID)
- 
-            #if iter == 0:
-            #    if material:
-            #        self.startmaterialnum = material.numID
-            #    else:
-            #        self.startmaterialnum = len(G.materials)
-
-            #if not material:
-            #    temp = next((x for x in G.materials if x.ID == self.mat[iter]), None) 
-            #    m = copy.deepcopy(temp) #This needs to import copy in order to work
-            #    m.ID = requiredID
-            #    m.numID = len(G.materials)
-            #    G.materials.append(m)
        
             if not material:
                 logger.exception(self.__str__() + f' material(s) {material} do not exist')
