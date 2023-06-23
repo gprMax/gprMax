@@ -278,12 +278,11 @@ def check_cmd_names(processedlines, checkessential=True):
 
         lindex += 1
 
-    if checkessential:
-        if (countessentialcmds < len(essentialcmds)):
-            logger.exception('Your input file is missing essential commands ' +
-                             'required to run a model. Essential commands are: ' + 
-                             ', '.join(essentialcmds))
-            raise SyntaxError
+    if checkessential and countessentialcmds < len(essentialcmds):
+        logger.exception('Your input file is missing essential commands ' +
+                         'required to run a model. Essential commands are: ' + 
+                         ', '.join(essentialcmds))
+        raise SyntaxError
 
     return singlecmds, multiplecmds, geometry
 
