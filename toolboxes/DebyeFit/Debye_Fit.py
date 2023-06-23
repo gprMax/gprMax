@@ -229,9 +229,11 @@ class Relaxation(object):
             print("_" * 65)
 
         # Print the Debye expnasion in a gprMax format
-        material_prop = [
-            f"#material: {ee} {self.sigma} {self.mu} {self.mu_sigma} {self.material_name}\n"
-        ]
+        material_prop = []
+        material_prop.append("#material: {} {} {} {} {}\n".format(ee, self.sigma,
+                                                                  self.mu,
+                                                                  self.mu_sigma,
+                                                                  self.material_name))
         print(material_prop[0], end="")
         dispersion_prop = f"#add_dispersion_debye: {len(tau)}"
         for i in range(len(tau)):
