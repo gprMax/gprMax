@@ -274,8 +274,9 @@ def process_singlecmds(singlecmds, G):
             kwargs['kind'] = tmp[1]
             kwargs['fill_value'] = tmp[2]
         else:
-            args, varargs, keywords, defaults = inspect.getargspec(interpolate.interp1d)
-            kwargs = dict(zip(reversed(args), reversed(defaults)))
+            fullargspec = inspect.getfullargspec(interpolate.interp1d)
+            kwargs = dict(zip(reversed(fullargspec.args), 
+                              reversed(fullargspec.defaults)))
 
         # See if file exists at specified path and if not try input file directory
         if not os.path.isfile(excitationfile):
