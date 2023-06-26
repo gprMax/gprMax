@@ -389,8 +389,9 @@ class ExcitationFile(UserObjectSingle):
         except KeyError:
             try:
                 excitationfile = self.kwargs['filepath']
-                args, varargs, keywords, defaults = inspect.getargspec(interpolate.interp1d)
-                kwargs = dict(zip(reversed(args), reversed(defaults)))
+                fullargspec = inspect.getfullargspec(interpolate.interp1d)
+                kwargs = dict(zip(reversed(fullargspec.args), 
+                                  reversed(fullargspec.defaults)))
             except KeyError:
                 logger.exception(f'{self.__str__()} requires either one or three parameter(s)')
                 raise
