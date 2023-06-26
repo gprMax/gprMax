@@ -40,7 +40,7 @@ def process_python_include_code(inputfile, usernamespace):
 
     Args:
         inputfile: file object for input file.
-        usernamespace: namespace that can be accessed by user in any Python code 
+        usernamespace: namespace that can be accessed by user in any Python code
                         blocks in input file.
 
     Returns:
@@ -48,7 +48,7 @@ def process_python_include_code(inputfile, usernamespace):
     """
 
     # Strip out any newline characters and comments that must begin with double hashes
-    inputlines = [line.rstrip() for line in inputfile if(not line.startswith('##') and line.rstrip('\n'))]
+    inputlines = [line.rstrip() for line in inputfile if (not line.startswith("##") and line.rstrip("\n"))]
 
     # Rewind input file in preparation for any subsequent reading function
     inputfile.seek(0)
@@ -57,32 +57,34 @@ def process_python_include_code(inputfile, usernamespace):
     processedlines = []
 
     x = 0
-    while(x < len(inputlines)):
-
+    while x < len(inputlines):
         # Process any Python code
-        if(inputlines[x].startswith('#python:')):
-            logger.warning('#python blocks are deprecated and will be removed in ' +
-                           'the next release of gprMax. Please convert your ' +
-                           'model to use our Python API instead.\n')
+        if inputlines[x].startswith("#python:"):
+            logger.warning(
+                "#python blocks are deprecated and will be removed in "
+                + "the next release of gprMax. Please convert your "
+                + "model to use our Python API instead.\n"
+            )
             # String to hold Python code to be executed
-            pythoncode = ''
+            pythoncode = ""
             x += 1
-            while not inputlines[x].startswith('#end_python:'):
+            while not inputlines[x].startswith("#end_python:"):
                 # Add all code in current code block to string
-                pythoncode += inputlines[x] + '\n'
+                pythoncode += inputlines[x] + "\n"
                 x += 1
                 if x == len(inputlines):
-                    logger.exception('Cannot find the end of the Python code ' +
-                                     'block, i.e. missing #end_python: command.')
+                    logger.exception(
+                        "Cannot find the end of the Python code " + "block, i.e. missing #end_python: command."
+                    )
                     raise SyntaxError
             # Compile code for faster execution
-            pythoncompiledcode = compile(pythoncode, '<string>', 'exec')
+            pythoncompiledcode = compile(pythoncode, "<string>", "exec")
             # Redirect stdout to a text stream
             sys.stdout = result = StringIO()
             # Execute code block & make available only usernamespace
             exec(pythoncompiledcode, usernamespace)
             # String containing buffer of executed code
-            codeout = result.getvalue().split('\n')
+            codeout = result.getvalue().split("\n")
             result.close()
 
             # Reset stdio
@@ -92,8 +94,8 @@ def process_python_include_code(inputfile, usernamespace):
             hashcmds = []
             pythonout = []
             for line in codeout:
-                if line.startswith('#'):
-                    hashcmds.append(line + '\n')
+                if line.startswith("#"):
+                    hashcmds.append(line + "\n")
                 elif line:
                     pythonout.append(line)
 
@@ -102,12 +104,12 @@ def process_python_include_code(inputfile, usernamespace):
 
             # Print any generated output that is not commands
             if pythonout:
-                logger.info(f'Python messages (from stdout/stderr): {pythonout}\n')
+                logger.info(f"Python messages (from stdout/stderr): {pythonout}\n")
 
         # Add any other commands to list
-        elif(inputlines[x].startswith('#')):
+        elif inputlines[x].startswith("#"):
             # Add gprMax command to list
-            inputlines[x] += ('\n')
+            inputlines[x] += "\n"
             processedlines.append(inputlines[x])
 
         x += 1
@@ -126,18 +128,18 @@ def process_include_files(hashcmds):
         hashcmds: list of input commands.
 
     Returns:
-        processedincludecmds: list of input commands after processing any 
+        processedincludecmds: list of input commands after processing any
                                 include file commands.
     """
 
     processedincludecmds = []
     x = 0
     while x < len(hashcmds):
-        if hashcmds[x].startswith('#include_file:'):
+        if hashcmds[x].startswith("#include_file:"):
             includefile = hashcmds[x].split()
 
             if len(includefile) != 2:
-                logger.exception('#include_file requires exactly one parameter')
+                logger.exception("#include_file requires exactly one parameter")
                 raise ValueError
 
             includefile = includefile[1]
@@ -147,9 +149,13 @@ def process_include_files(hashcmds):
             if not includefile.exists():
                 includefile = Path(config.sim_config.input_file_path.parent, includefile)
 
-            with open(includefile, 'r') as f:
+            with open(includefile, "r") as f:
                 # Strip out any newline characters and comments that must begin with double hashes
-                includelines = [includeline.rstrip() + '\n' for includeline in f if(not includeline.startswith('##') and includeline.rstrip('\n'))]
+                includelines = [
+                    includeline.rstrip() + "\n"
+                    for includeline in f
+                    if (not includeline.startswith("##") and includeline.rstrip("\n"))
+                ]
 
             # Add lines from include file
             processedincludecmds.extend(includelines)
@@ -172,62 +178,99 @@ def write_processed_file(processedlines):
     """
 
     parts = config.get_model_config().output_file_path.parts
-    processedfile = (Path(*parts[:-1], parts[-1] + '_processed.in'))
+    processedfile = Path(*parts[:-1], parts[-1] + "_processed.in")
 
-    with open(processedfile, 'w') as f:
+    with open(processedfile, "w") as f:
         for item in processedlines:
-            f.write(f'{item}')
+            f.write(f"{item}")
 
-    logger.info(f'Written input commands, after processing any Python ' +
-                f'code and include commands, to file: {processedfile}\n')
+    logger.info(
+        f"Written input commands, after processing any Python "
+        + f"code and include commands, to file: {processedfile}\n"
+    )
 
 
 def check_cmd_names(processedlines, checkessential=True):
     """Checks the validity of commands, i.e. are they gprMax commands,
         and that all essential commands are present.
-        
+
     Args:
         processedlines: list of input commands after Python processing.
         checkessential: boolean to check for essential commands or not.
 
     Returns:
         singlecmds: dict of commands that can only occur once in the model.
-        multiplecmds: dict of commands that can have multiple instances in the 
+        multiplecmds: dict of commands that can have multiple instances in the
                         model.
         geometry: list of geometry commands in the model.
     """
 
     # Dictionaries of available commands
     # Essential commands neccessary to run a gprMax model
-    essentialcmds = ['#domain', '#dx_dy_dz', '#time_window']
+    essentialcmds = ["#domain", "#dx_dy_dz", "#time_window"]
 
     # Commands that there should only be one instance of in a model
-    singlecmds = dict.fromkeys(['#domain', '#dx_dy_dz', '#time_window', 
-                                '#title', '#omp_threads', 
-                                '#time_step_stability_factor', '#pml_cells', 
-                                '#excitation_file', '#src_steps', '#rx_steps', 
-                                '#output_dir'], None)
+    singlecmds = dict.fromkeys(
+        [
+            "#domain",
+            "#dx_dy_dz",
+            "#time_window",
+            "#title",
+            "#omp_threads",
+            "#time_step_stability_factor",
+            "#pml_cells",
+            "#excitation_file",
+            "#src_steps",
+            "#rx_steps",
+            "#output_dir",
+        ],
+        None,
+    )
 
     # Commands that there can be multiple instances of in a model
     # - these will be lists within the dictionary
-    multiplecmds = {key: [] for key in ['#geometry_view', 
-                                        '#geometry_objects_write', '#material',
-                                        '#material_range', '#material_list',
-                                        '#soil_peplinski', 
-                                        '#add_dispersion_debye', 
-                                        '#add_dispersion_lorentz', 
-                                        '#add_dispersion_drude', 
-                                        '#waveform', '#voltage_source', 
-                                        '#hertzian_dipole', '#magnetic_dipole', 
-                                        '#transmission_line', '#rx', '#rx_array', 
-                                        '#snapshot', '#include_file']}
+    multiplecmds = {
+        key: []
+        for key in [
+            "#geometry_view",
+            "#geometry_objects_write",
+            "#material",
+            "#material_range",
+            "#material_list",
+            "#soil_peplinski",
+            "#add_dispersion_debye",
+            "#add_dispersion_lorentz",
+            "#add_dispersion_drude",
+            "#waveform",
+            "#voltage_source",
+            "#hertzian_dipole",
+            "#magnetic_dipole",
+            "#transmission_line",
+            "#rx",
+            "#rx_array",
+            "#snapshot",
+            "#include_file",
+        ]
+    }
 
     # Geometry object building commands that there can be multiple instances
     # of in a model - these will be lists within the dictionary
-    geometrycmds = ['#geometry_objects_read', '#edge', '#plate', '#triangle', 
-                    '#box', '#sphere', '#ellipsoid', '#cone', '#cylinder', 
-                    '#cylindrical_sector', '#fractal_box', 
-                    '#add_surface_roughness', '#add_surface_water', '#add_grass']
+    geometrycmds = [
+        "#geometry_objects_read",
+        "#edge",
+        "#plate",
+        "#triangle",
+        "#box",
+        "#sphere",
+        "#ellipsoid",
+        "#cone",
+        "#cylinder",
+        "#cylindrical_sector",
+        "#fractal_box",
+        "#add_surface_roughness",
+        "#add_surface_water",
+        "#add_grass",
+    ]
     # List to store all geometry object commands in order from input file
     geometry = []
 
@@ -235,26 +278,28 @@ def check_cmd_names(processedlines, checkessential=True):
     # add command parameters to appropriate dictionary values or lists
     countessentialcmds = 0
     lindex = 0
-    while(lindex < len(processedlines)):
-        cmd = processedlines[lindex].split(':')
+    while lindex < len(processedlines):
+        cmd = processedlines[lindex].split(":")
         cmdname = cmd[0]
         cmdparams = cmd[1]
 
         # Check if there is space between command name and parameters, i.e.
         # check first character of parameter string. Ignore case when there
         # are no parameters for a command, e.g. for #taguchi:
-        if ' ' not in cmdparams[0] and len(cmdparams.strip('\n')) != 0:
-            logger.exception('There must be a space between the command name ' +
-                             'and parameters in ' + processedlines[lindex])
+        if " " not in cmdparams[0] and len(cmdparams.strip("\n")) != 0:
+            logger.exception(
+                "There must be a space between the command name " + "and parameters in " + processedlines[lindex]
+            )
             raise SyntaxError
 
         # Check if command name is valid
-        if (cmdname not in essentialcmds and 
-            cmdname not in singlecmds and 
-            cmdname not in multiplecmds and 
-            cmdname not in geometrycmds):
-            logger.exception('Your input file contains an invalid command: ' + 
-                             cmdname)
+        if (
+            cmdname not in essentialcmds
+            and cmdname not in singlecmds
+            and cmdname not in multiplecmds
+            and cmdname not in geometrycmds
+        ):
+            logger.exception("Your input file contains an invalid command: " + cmdname)
             raise SyntaxError
 
         # Count essential commands
@@ -264,25 +309,26 @@ def check_cmd_names(processedlines, checkessential=True):
         # Assign command parameters as values to dictionary keys
         if cmdname in singlecmds:
             if singlecmds[cmdname] is None:
-                singlecmds[cmdname] = cmd[1].strip(' \t\n')
+                singlecmds[cmdname] = cmd[1].strip(" \t\n")
             else:
-                logger.exception('You can only have a single instance of ' + 
-                                 cmdname + ' in your model')
+                logger.exception("You can only have a single instance of " + cmdname + " in your model")
                 raise SyntaxError
 
         elif cmdname in multiplecmds:
-            multiplecmds[cmdname].append(cmd[1].strip(' \t\n'))
+            multiplecmds[cmdname].append(cmd[1].strip(" \t\n"))
 
         elif cmdname in geometrycmds:
-            geometry.append(processedlines[lindex].strip(' \t\n'))
+            geometry.append(processedlines[lindex].strip(" \t\n"))
 
         lindex += 1
 
     if checkessential:
-        if (countessentialcmds < len(essentialcmds)):
-            logger.exception('Your input file is missing essential commands ' +
-                             'required to run a model. Essential commands are: ' + 
-                             ', '.join(essentialcmds))
+        if countessentialcmds < len(essentialcmds):
+            logger.exception(
+                "Your input file is missing essential commands "
+                + "required to run a model. Essential commands are: "
+                + ", ".join(essentialcmds)
+            )
             raise SyntaxError
 
     return singlecmds, multiplecmds, geometry
@@ -328,19 +374,17 @@ def parse_hash_commands(scene):
     """
 
     with open(config.sim_config.input_file_path) as inputfile:
-
         usernamespace = config.get_model_config().get_usernamespace()
 
         # Read input file and process any Python and include file commands
         processedlines = process_python_include_code(inputfile, usernamespace)
 
         # Print constants/variables in user-accessable namespace
-        uservars = ''
+        uservars = ""
         for key, value in sorted(usernamespace.items()):
-            if key != '__builtins__':
-                uservars += f'{key}: {value}, '
-        logger.info(f'Constants/variables used/available for Python scripting: ' +
-                    f'{{{uservars[:-2]}}}\n')
+            if key != "__builtins__":
+                uservars += f"{key}: {value}, "
+        logger.info(f"Constants/variables used/available for Python scripting: " + f"{{{uservars[:-2]}}}\n")
 
         # Write a file containing the input commands after Python or include
         # file commands have been processed
@@ -356,6 +400,7 @@ def parse_hash_commands(scene):
 
 class Capturing(list):
     """Context manager to capture standard output stream."""
+
     # https://stackoverflow.com/questions/16571150/how-to-capture-stdout-output-from-a-python-function-call
 
     def __enter__(self):
@@ -365,13 +410,13 @@ class Capturing(list):
 
     def __exit__(self, *args):
         self.extend(self._stringio.getvalue().splitlines())
-        del self._stringio    # free up some memory
+        del self._stringio  # free up some memory
         sys.stdout = self._stdout
 
 
 def user_libs_fn_to_scene_obj(f, *args, **kwargs):
     """Function to convert library functions in the toolboxes directory
-        into geometry objects which can be added to the scene.
+    into geometry objects which can be added to the scene.
     """
 
     with Capturing() as str_cmds:

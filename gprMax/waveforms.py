@@ -25,9 +25,20 @@ logger = logging.getLogger(__name__)
 class Waveform:
     """Definitions of waveform shapes that can be used with sources."""
 
-    types = ['gaussian', 'gaussiandot', 'gaussiandotnorm', 'gaussiandotdot',
-             'gaussiandotdotnorm', 'gaussianprime', 'gaussiandoubleprime',
-             'ricker', 'sine', 'contsine', 'impulse', 'user']
+    types = [
+        "gaussian",
+        "gaussiandot",
+        "gaussiandotnorm",
+        "gaussiandotdot",
+        "gaussiandotdotnorm",
+        "gaussianprime",
+        "gaussiandoubleprime",
+        "ricker",
+        "sine",
+        "contsine",
+        "impulse",
+        "user",
+    ]
 
     # Information about specific waveforms:
     #
@@ -51,17 +62,13 @@ class Waveform:
 
     def calculate_coefficients(self):
         """Calculates coefficients (used to calculate values) for specific
-            waveforms.
+        waveforms.
         """
 
-        if self.type in ['gaussian',
-                         'gaussiandot',
-                         'gaussiandotnorm',
-                         'gaussianprime',
-                         'gaussiandoubleprime']:
+        if self.type in ["gaussian", "gaussiandot", "gaussiandotnorm", "gaussianprime", "gaussiandoubleprime"]:
             self.chi = 1 / self.freq
             self.zeta = 2 * np.pi**2 * self.freq**2
-        elif self.type in ['gaussiandotdot', 'gaussiandotdotnorm', 'ricker']:
+        elif self.type in ["gaussiandotdot", "gaussiandotdotnorm", "ricker"]:
             self.chi = np.sqrt(2) / self.freq
             self.zeta = np.pi**2 * self.freq**2
 
@@ -79,56 +86,55 @@ class Waveform:
         self.calculate_coefficients()
 
         # Waveforms
-        if self.type == 'gaussian':
+        if self.type == "gaussian":
             delay = time - self.chi
             ampvalue = np.exp(-self.zeta * delay**2)
 
-        elif self.type in ['gaussiandot', 'gaussianprime']:
+        elif self.type in ["gaussiandot", "gaussianprime"]:
             delay = time - self.chi
             ampvalue = -2 * self.zeta * delay * np.exp(-self.zeta * delay**2)
 
-        elif self.type == 'gaussiandotnorm':
+        elif self.type == "gaussiandotnorm":
             delay = time - self.chi
             normalise = np.sqrt(np.exp(1) / (2 * self.zeta))
             ampvalue = -2 * self.zeta * delay * np.exp(-self.zeta * delay**2) * normalise
 
-        elif self.type in ['gaussiandotdot', 'gaussiandoubleprime']:
+        elif self.type in ["gaussiandotdot", "gaussiandoubleprime"]:
             delay = time - self.chi
-            ampvalue = (2 * self.zeta * (2 * self.zeta * delay**2 - 1) *
-                        np.exp(-self.zeta * delay**2))
+            ampvalue = 2 * self.zeta * (2 * self.zeta * delay**2 - 1) * np.exp(-self.zeta * delay**2)
 
-        elif self.type == 'gaussiandotdotnorm':
-            delay = time - self.chi
-            normalise = 1 / (2 * self.zeta)
-            ampvalue = (2 * self.zeta * (2 * self.zeta * delay**2 - 1) *
-                        np.exp(-self.zeta * delay**2) * normalise)
-
-        elif self.type == 'ricker':
+        elif self.type == "gaussiandotdotnorm":
             delay = time - self.chi
             normalise = 1 / (2 * self.zeta)
-            ampvalue = - ((2 * self.zeta * (2 * self.zeta * delay**2 - 1) *
-                           np.exp(-self.zeta * delay**2)) * normalise)
+            ampvalue = 2 * self.zeta * (2 * self.zeta * delay**2 - 1) * np.exp(-self.zeta * delay**2) * normalise
 
-        elif self.type == 'sine':
+        elif self.type == "ricker":
+            delay = time - self.chi
+            normalise = 1 / (2 * self.zeta)
+            ampvalue = -(
+                (2 * self.zeta * (2 * self.zeta * delay**2 - 1) * np.exp(-self.zeta * delay**2)) * normalise
+            )
+
+        elif self.type == "sine":
             ampvalue = np.sin(2 * np.pi * self.freq * time)
             if time * self.freq > 1:
                 ampvalue = 0
 
-        elif self.type == 'contsine':
+        elif self.type == "contsine":
             rampamp = 0.25
             ramp = rampamp * time * self.freq
             ramp = min(ramp, 1)
 
             ampvalue = ramp * np.sin(2 * np.pi * self.freq * time)
 
-        elif self.type == 'impulse':
+        elif self.type == "impulse":
             # time < dt condition required to do impulsive magnetic dipole
             if time == 0 or time < dt:
                 ampvalue = 1
             elif time >= dt:
                 ampvalue = 0
-                
-        elif self.type == 'user':
+
+        elif self.type == "user":
             ampvalue = self.userfunc(time)
 
         ampvalue *= self.amp

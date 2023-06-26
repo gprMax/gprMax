@@ -19,15 +19,25 @@
 import json
 import os
 
-from paraview.simple import (AppendDatasets, Box, GetActiveSource,
-                             GetActiveView, GetParaViewVersion, Hide,
-                             OpenDataFile, RenameSource, RenderAllViews,
-                             SetActiveSource, Show, Threshold)
+from paraview.simple import (
+    AppendDatasets,
+    Box,
+    GetActiveSource,
+    GetActiveView,
+    GetParaViewVersion,
+    Hide,
+    OpenDataFile,
+    RenameSource,
+    RenderAllViews,
+    SetActiveSource,
+    Show,
+    Threshold,
+)
 
 
 def threshold_filt(input, lt, ut, scalars):
     """Create threshold filter according to Paraview version.
-    
+
     Args:
         input (array): input data to threshold filter
         lt, ut (int): lower and upper bounds of thresholding operation
@@ -42,7 +52,7 @@ def threshold_filt(input, lt, ut, scalars):
 
     threshold = Threshold(Input=input)
     threshold.Scalars = scalars
-  
+
     if pvv.major == 5 and pvv.minor < 10:
         threshold.ThresholdRange = [lt, ut]
     else:
@@ -62,76 +72,88 @@ def display_pmls(pmlthick, dx_dy_dz, nx_ny_nz):
         nx_ny_dz (tuple): Domain size (cells)
     """
 
-    pml_names = ['x0', 'y0', 'z0', 'xmax', 'ymax', 'zmax']
+    pml_names = ["x0", "y0", "z0", "xmax", "ymax", "zmax"]
     pmls = dict.fromkeys(pml_names, None)
     SetActiveSource(pv_src)
 
     if pmlthick[0] != 0:
-        x0 = Box(Center=[pmlthick[0] * dx_dy_dz[0] / 2,
-                         nx_ny_nz[1] * dx_dy_dz[1] / 2,
-                         nx_ny_nz[2] * dx_dy_dz[2] / 2],
-                 XLength=pmlthick[0] * dx_dy_dz[0],
-                 YLength=nx_ny_nz[1] * dx_dy_dz[1],
-                 ZLength=nx_ny_nz[2] * dx_dy_dz[2])
-        pmls['x0'] = x0
+        x0 = Box(
+            Center=[pmlthick[0] * dx_dy_dz[0] / 2, nx_ny_nz[1] * dx_dy_dz[1] / 2, nx_ny_nz[2] * dx_dy_dz[2] / 2],
+            XLength=pmlthick[0] * dx_dy_dz[0],
+            YLength=nx_ny_nz[1] * dx_dy_dz[1],
+            ZLength=nx_ny_nz[2] * dx_dy_dz[2],
+        )
+        pmls["x0"] = x0
 
     if pmlthick[3] != 0:
-        xmax = Box(Center=[dx_dy_dz[0] * (nx_ny_nz[0] - pmlthick[3] / 2),
-                           nx_ny_nz[1] * dx_dy_dz[1] / 2,
-                           nx_ny_nz[2] * dx_dy_dz[2] / 2],
-                   XLength=pmlthick[3] * dx_dy_dz[0],
-                   YLength=nx_ny_nz[1] * dx_dy_dz[1],
-                   ZLength=nx_ny_nz[2] * dx_dy_dz[2])
-        pmls['xmax'] = xmax
+        xmax = Box(
+            Center=[
+                dx_dy_dz[0] * (nx_ny_nz[0] - pmlthick[3] / 2),
+                nx_ny_nz[1] * dx_dy_dz[1] / 2,
+                nx_ny_nz[2] * dx_dy_dz[2] / 2,
+            ],
+            XLength=pmlthick[3] * dx_dy_dz[0],
+            YLength=nx_ny_nz[1] * dx_dy_dz[1],
+            ZLength=nx_ny_nz[2] * dx_dy_dz[2],
+        )
+        pmls["xmax"] = xmax
 
     if pmlthick[1] != 0:
-        y0 = Box(Center=[nx_ny_nz[0] * dx_dy_dz[0] / 2,
-                         pmlthick[1] * dx_dy_dz[1] / 2,
-                         nx_ny_nz[2] * dx_dy_dz[2] / 2],
-                 XLength=nx_ny_nz[0] * dx_dy_dz[0],
-                 YLength=pmlthick[1] * dx_dy_dz[1],
-                 ZLength=nx_ny_nz[2] * dx_dy_dz[2])
-        pmls['y0'] = y0
+        y0 = Box(
+            Center=[nx_ny_nz[0] * dx_dy_dz[0] / 2, pmlthick[1] * dx_dy_dz[1] / 2, nx_ny_nz[2] * dx_dy_dz[2] / 2],
+            XLength=nx_ny_nz[0] * dx_dy_dz[0],
+            YLength=pmlthick[1] * dx_dy_dz[1],
+            ZLength=nx_ny_nz[2] * dx_dy_dz[2],
+        )
+        pmls["y0"] = y0
 
     if pmlthick[4] != 0:
-        ymax = Box(Center=[nx_ny_nz[0] * dx_dy_dz[0] / 2,
-                           dx_dy_dz[1] * (nx_ny_nz[1] - pmlthick[4] / 2),
-                           nx_ny_nz[2] * dx_dy_dz[2] / 2],
-                   XLength=nx_ny_nz[0] * dx_dy_dz[0],
-                   YLength=pmlthick[4] * dx_dy_dz[1],
-                   ZLength=nx_ny_nz[2] * dx_dy_dz[2])
-        pmls['ymax'] = ymax
+        ymax = Box(
+            Center=[
+                nx_ny_nz[0] * dx_dy_dz[0] / 2,
+                dx_dy_dz[1] * (nx_ny_nz[1] - pmlthick[4] / 2),
+                nx_ny_nz[2] * dx_dy_dz[2] / 2,
+            ],
+            XLength=nx_ny_nz[0] * dx_dy_dz[0],
+            YLength=pmlthick[4] * dx_dy_dz[1],
+            ZLength=nx_ny_nz[2] * dx_dy_dz[2],
+        )
+        pmls["ymax"] = ymax
 
     if pmlthick[2] != 0:
-        z0 = Box(Center=[nx_ny_nz[0] * dx_dy_dz[0] / 2,
-                         nx_ny_nz[1] * dx_dy_dz[1] / 2,
-                         pmlthick[2] * dx_dy_dz[2] / 2],
-                 XLength=nx_ny_nz[0] * dx_dy_dz[0],
-                 YLength=nx_ny_nz[1] * dx_dy_dz[1],
-                 ZLength=pmlthick[2] * dx_dy_dz[2])
-        pmls['z0'] = z0
+        z0 = Box(
+            Center=[nx_ny_nz[0] * dx_dy_dz[0] / 2, nx_ny_nz[1] * dx_dy_dz[1] / 2, pmlthick[2] * dx_dy_dz[2] / 2],
+            XLength=nx_ny_nz[0] * dx_dy_dz[0],
+            YLength=nx_ny_nz[1] * dx_dy_dz[1],
+            ZLength=pmlthick[2] * dx_dy_dz[2],
+        )
+        pmls["z0"] = z0
 
     if pmlthick[5] != 0:
-        zmax = Box(Center=[nx_ny_nz[0] * dx_dy_dz[0] / 2,
-                           nx_ny_nz[1] * dx_dy_dz[1] / 2,
-                           dx_dy_dz[2] * (nx_ny_nz[2] - pmlthick[5] / 2)],
-                   XLength=nx_ny_nz[0] * dx_dy_dz[0],
-                   YLength=nx_ny_nz[1] * dx_dy_dz[1],
-                   ZLength=pmlthick[5] * dx_dy_dz[2])
-        pmls['zmax'] = zmax
+        zmax = Box(
+            Center=[
+                nx_ny_nz[0] * dx_dy_dz[0] / 2,
+                nx_ny_nz[1] * dx_dy_dz[1] / 2,
+                dx_dy_dz[2] * (nx_ny_nz[2] - pmlthick[5] / 2),
+            ],
+            XLength=nx_ny_nz[0] * dx_dy_dz[0],
+            YLength=nx_ny_nz[1] * dx_dy_dz[1],
+            ZLength=pmlthick[5] * dx_dy_dz[2],
+        )
+        pmls["zmax"] = zmax
 
     # Name PML sources and set opacity
     tmp = []
     for pml in pmls:
         if pmls[pml]:
-            RenameSource('PML - ' + pml, pmls[pml])
+            RenameSource("PML - " + pml, pmls[pml])
             Hide(pmls[pml], pv_view)
             tmp.append(pmls[pml])
 
     # Create a group of PMLs to switch on/off easily
     if tmp:
         pml_gp = AppendDatasets(Input=tmp)
-        RenameSource('PML - All', pml_gp)
+        RenameSource("PML - All", pml_gp)
         pml_view = Show(pml_gp)
         pml_view.Opacity = 0.5
 
@@ -148,7 +170,7 @@ file = data.FileName
 dirname = os.path.dirname(file[0])
 
 # Read and display data from file, i.e. materials, sources,  receivers, and PMLs
-with open(file, 'rb') as f:
+with open(file, "rb") as f:
     # Comments () embedded in line 3 of file
     f.readline()
     f.readline()
@@ -157,14 +179,14 @@ with open(file, 'rb') as f:
     c = c[5:-5]
     # Model information
     c = json.loads(c)
-    print('\ngprMax version: ' + c['gprMax_version'])
-    print(file)            
+    print("\ngprMax version: " + c["gprMax_version"])
+    print(file)
 
 ################
 # Display data #
 ################
 pv_view = GetActiveView()
-pv_view.AxesGrid.Visibility = 1 # Show Data Axes Grid
+pv_view.AxesGrid.Visibility = 1  # Show Data Axes Grid
 pv_data = OpenDataFile(file)
 pv_disp = Show(pv_data, pv_view)
 pv_src = GetActiveSource()
@@ -173,60 +195,64 @@ src_name = os.path.split(file)
 RenameSource(src_name[1])
 
 # Discretisation
-dl = c['dx_dy_dz']
+dl = c["dx_dy_dz"]
 # Number of voxels
-nl = c['nx_ny_nz']
+nl = c["nx_ny_nz"]
 
 # Materials
 try:
-    for i, mat in enumerate(c['Materials']):
-        threshold = threshold_filt(pv_src, i, i, ['CELLS', 'Material'])
+    for i, mat in enumerate(c["Materials"]):
+        threshold = threshold_filt(pv_src, i, i, ["CELLS", "Material"])
         RenameSource(mat, threshold)
 
         # Show data in view, except for free_space
         if i != 1:
             thresholddisplay = Show(threshold, pv_view)
-            thresholddisplay.ColorArrayName = ['CELLS', 'Material']
+            thresholddisplay.ColorArrayName = ["CELLS", "Material"]
         threshold.UpdatePipeline()
 except KeyError:
-    print('No materials to load')
+    print("No materials to load")
 
 # Display any sources
 try:
-    for item in c['Sources']:
-        pos = item['position']
-        name = item['name']
-        src = Box(Center=[pos[0] + dl[0]/2,
-                            pos[1] + dl[1]/2,
-                            pos[2] + dl[2]/2],
-                    XLength=dl[0], YLength=dl[1], ZLength=dl[2])
+    for item in c["Sources"]:
+        pos = item["position"]
+        name = item["name"]
+        src = Box(
+            Center=[pos[0] + dl[0] / 2, pos[1] + dl[1] / 2, pos[2] + dl[2] / 2],
+            XLength=dl[0],
+            YLength=dl[1],
+            ZLength=dl[2],
+        )
         RenameSource(name, src)
         Show(src)
 except KeyError:
-    print('No sources to load')
+    print("No sources to load")
 
 # Display any receivers
 try:
-    for item in c['Receivers']:
-        pos = item['position']
-        name = item['name']
-        rx = Box(Center=[pos[0] + dl[0]/2,
-                            pos[1] + dl[1]/2,
-                            pos[2] + dl[2]/2],
-                    XLength=dl[0], YLength=dl[1], ZLength=dl[2])
+    for item in c["Receivers"]:
+        pos = item["position"]
+        name = item["name"]
+        rx = Box(
+            Center=[pos[0] + dl[0] / 2, pos[1] + dl[1] / 2, pos[2] + dl[2] / 2],
+            XLength=dl[0],
+            YLength=dl[1],
+            ZLength=dl[2],
+        )
         RenameSource(name, rx)
         Show(rx)
 except KeyError:
-    print('No receivers to load')
+    print("No receivers to load")
 
 # Display any PMLs
 try:
-    pt = c['PMLthickness']
+    pt = c["PMLthickness"]
     display_pmls(pt, dl, nl)
 except KeyError:
-    print('No PMLs to load')
+    print("No PMLs to load")
 
-        
+
 RenderAllViews()
 
 # Reset view to fit data

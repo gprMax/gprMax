@@ -30,11 +30,11 @@ def create_G():
         G: FDTDGrid class describing a grid in a model.
     """
 
-    if config.sim_config.general['solver'] == 'cpu':
+    if config.sim_config.general["solver"] == "cpu":
         G = FDTDGrid()
-    elif config.sim_config.general['solver'] == 'cuda':
+    elif config.sim_config.general["solver"] == "cuda":
         G = CUDAGrid()
-    elif config.sim_config.general['solver'] == 'opencl':
+    elif config.sim_config.general["solver"] == "opencl":
         G = OpenCLGrid()
 
     return G
@@ -45,10 +45,10 @@ def create_solver(G):
 
     N.B. A large range of different functions exist to advance the time step for
             dispersive materials. The correct function is set by the
-            set_dispersive_updates method, based on the required numerical 
-            precision and dispersive material type. 
-            This is done for solvers running on CPU, i.e. where Cython is used. 
-            CUDA and OpenCL dispersive material functions are handled through 
+            set_dispersive_updates method, based on the required numerical
+            precision and dispersive material type.
+            This is done for solvers running on CPU, i.e. where Cython is used.
+            CUDA and OpenCL dispersive material functions are handled through
             templating and substitution at runtime.
 
     Args:
@@ -58,23 +58,24 @@ def create_solver(G):
         solver: Solver object.
     """
 
-    if config.sim_config.general['subgrid']:
+    if config.sim_config.general["subgrid"]:
         updates = create_subgrid_updates(G)
-        if config.get_model_config().materials['maxpoles'] != 0:
-            # Set dispersive update functions for both SubgridUpdates and 
+        if config.get_model_config().materials["maxpoles"] != 0:
+            # Set dispersive update functions for both SubgridUpdates and
             # SubgridUpdaters subclasses
             updates.set_dispersive_updates()
-            for u in updates.updaters: u.set_dispersive_updates()
-        solver = Solver(updates, hsg=True)        
-    elif config.sim_config.general['solver'] == 'cpu':
+            for u in updates.updaters:
+                u.set_dispersive_updates()
+        solver = Solver(updates, hsg=True)
+    elif config.sim_config.general["solver"] == "cpu":
         updates = CPUUpdates(G)
-        if config.get_model_config().materials['maxpoles'] != 0:
+        if config.get_model_config().materials["maxpoles"] != 0:
             updates.set_dispersive_updates()
         solver = Solver(updates)
-    elif config.sim_config.general['solver'] == 'cuda':
+    elif config.sim_config.general["solver"] == "cuda":
         updates = CUDAUpdates(G)
         solver = Solver(updates)
-    elif config.sim_config.general['solver'] == 'opencl':
+    elif config.sim_config.general["solver"] == "opencl":
         updates = OpenCLUpdates(G)
         solver = Solver(updates)
 
@@ -119,8 +120,8 @@ class Solver:
             if self.hsg:
                 self.updates.hsg_1()
             self.updates.update_electric_b()
-            if config.sim_config.general['solver'] == 'cuda':
-                self.memused = self.updates.calculate_memory_used(iteration)  
+            if config.sim_config.general["solver"] == "cuda":
+                self.memused = self.updates.calculate_memory_used(iteration)
 
         self.updates.finalise()
         self.solvetime = self.updates.calculate_solve_time()

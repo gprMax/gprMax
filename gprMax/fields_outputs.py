@@ -38,14 +38,13 @@ def store_outputs(G):
     for rx in G.rxs:
         for output in rx.outputs:
             # Store electric or magnetic field components
-            if 'I' not in output:
+            if "I" not in output:
                 field = locals()[output]
                 rx.outputs[output][iteration] = field[rx.xcoord, rx.ycoord, rx.zcoord]
             # Store current component
             else:
                 func = globals()[output]
-                rx.outputs[output][iteration] = func(rx.xcoord, rx.ycoord, rx.zcoord,
-                                                     Hx, Hy, Hz, G)
+                rx.outputs[output][iteration] = func(rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hy, Hz, G)
 
     for tl in G.transmissionlines:
         tl.Vtotal[iteration] = tl.voltage[tl.antpos]
@@ -65,9 +64,9 @@ def write_hdf5_outputfile(outputfile, G):
 
     # Create output file and write top-level meta data
     if G.rxs or sg_rxs:
-        f = h5py.File(outputfile, 'w')
-        f.attrs['gprMax'] = __version__
-        f.attrs['Title'] = G.title
+        f = h5py.File(outputfile, "w")
+        f.attrs["gprMax"] = __version__
+        f.attrs["Title"] = G.title
 
     # Write meta data and data for main grid
     if G.rxs:
@@ -76,11 +75,11 @@ def write_hdf5_outputfile(outputfile, G):
     # Write meta data and data for any subgrids
     if sg_rxs:
         for sg in G.subgrids:
-            grp = f.create_group(f'/subgrids/{sg.name}')
+            grp = f.create_group(f"/subgrids/{sg.name}")
             write_hd5_data(grp, sg, is_subgrid=True)
 
     if G.rxs or sg_rxs:
-        logger.basic(f'Written output file: {outputfile.name}')
+        logger.basic(f"Written output file: {outputfile.name}")
 
 
 def write_hd5_data(basegrp, G, is_subgrid=False):
@@ -93,55 +92,55 @@ def write_hd5_data(basegrp, G, is_subgrid=False):
     """
 
     # Write meta data for grid
-    basegrp.attrs['Iterations'] = G.iterations
-    basegrp.attrs['nx_ny_nz'] = (G.nx, G.ny, G.nz)
-    basegrp.attrs['dx_dy_dz'] = (G.dx, G.dy, G.dz)
-    basegrp.attrs['dt'] = G.dt
+    basegrp.attrs["Iterations"] = G.iterations
+    basegrp.attrs["nx_ny_nz"] = (G.nx, G.ny, G.nz)
+    basegrp.attrs["dx_dy_dz"] = (G.dx, G.dy, G.dz)
+    basegrp.attrs["dt"] = G.dt
     nsrc = len(G.voltagesources + G.hertziandipoles + G.magneticdipoles + G.transmissionlines)
-    basegrp.attrs['nsrc'] = nsrc
-    basegrp.attrs['nrx'] = len(G.rxs)
-    basegrp.attrs['srcsteps'] = G.srcsteps
-    basegrp.attrs['rxsteps'] = G.rxsteps
+    basegrp.attrs["nsrc"] = nsrc
+    basegrp.attrs["nrx"] = len(G.rxs)
+    basegrp.attrs["srcsteps"] = G.srcsteps
+    basegrp.attrs["rxsteps"] = G.rxsteps
 
     if is_subgrid:
         # Write additional meta data about subgrid
-        basegrp.attrs['is_os_sep'] = G.is_os_sep
-        basegrp.attrs['pml_separation'] = G.pml_separation
-        basegrp.attrs['subgrid_pml_thickness'] = G.pml['thickness']['x0']
-        basegrp.attrs['filter'] = G.filter
-        basegrp.attrs['ratio'] = G.ratio
-        basegrp.attrs['interpolation'] = G.interpolation
+        basegrp.attrs["is_os_sep"] = G.is_os_sep
+        basegrp.attrs["pml_separation"] = G.pml_separation
+        basegrp.attrs["subgrid_pml_thickness"] = G.pml["thickness"]["x0"]
+        basegrp.attrs["filter"] = G.filter
+        basegrp.attrs["ratio"] = G.ratio
+        basegrp.attrs["interpolation"] = G.interpolation
 
     # Create group for sources (except transmission lines); add type and positional data attributes
     srclist = G.voltagesources + G.hertziandipoles + G.magneticdipoles
     for srcindex, src in enumerate(srclist):
-        grp = basegrp.create_group(f'srcs/src{str(srcindex + 1)}')
-        grp.attrs['Type'] = type(src).__name__
-        grp.attrs['Position'] = (src.xcoord * G.dx, src.ycoord * G.dy, src.zcoord * G.dz)
+        grp = basegrp.create_group(f"srcs/src{str(srcindex + 1)}")
+        grp.attrs["Type"] = type(src).__name__
+        grp.attrs["Position"] = (src.xcoord * G.dx, src.ycoord * G.dy, src.zcoord * G.dz)
 
     # Create group for transmission lines; add positional data, line resistance and
     # line discretisation attributes; write arrays for line voltages and currents
     for tlindex, tl in enumerate(G.transmissionlines):
-        grp = basegrp.create_group('tls/tl' + str(tlindex + 1))
-        grp.attrs['Position'] = (tl.xcoord * G.dx, tl.ycoord * G.dy, tl.zcoord * G.dz)
-        grp.attrs['Resistance'] = tl.resistance
-        grp.attrs['dl'] = tl.dl
+        grp = basegrp.create_group("tls/tl" + str(tlindex + 1))
+        grp.attrs["Position"] = (tl.xcoord * G.dx, tl.ycoord * G.dy, tl.zcoord * G.dz)
+        grp.attrs["Resistance"] = tl.resistance
+        grp.attrs["dl"] = tl.dl
         # Save incident voltage and current
-        grp['Vinc'] = tl.Vinc
-        grp['Iinc'] = tl.Iinc
+        grp["Vinc"] = tl.Vinc
+        grp["Iinc"] = tl.Iinc
         # Save total voltage and current
-        basegrp['tls/tl' + str(tlindex + 1) + '/Vtotal'] = tl.Vtotal
-        basegrp['tls/tl' + str(tlindex + 1) + '/Itotal'] = tl.Itotal
+        basegrp["tls/tl" + str(tlindex + 1) + "/Vtotal"] = tl.Vtotal
+        basegrp["tls/tl" + str(tlindex + 1) + "/Itotal"] = tl.Itotal
 
     # Create group, add positional data and write field component arrays for receivers
     for rxindex, rx in enumerate(G.rxs):
-        grp = basegrp.create_group('rxs/rx' + str(rxindex + 1))
+        grp = basegrp.create_group("rxs/rx" + str(rxindex + 1))
         if rx.ID:
-            grp.attrs['Name'] = rx.ID
-        grp.attrs['Position'] = (rx.xcoord * G.dx, rx.ycoord * G.dy, rx.zcoord * G.dz)
+            grp.attrs["Name"] = rx.ID
+        grp.attrs["Position"] = (rx.xcoord * G.dx, rx.ycoord * G.dy, rx.zcoord * G.dz)
 
         for output in rx.outputs:
-            basegrp['rxs/rx' + str(rxindex + 1) + '/' + output] = rx.outputs[output]
+            basegrp["rxs/rx" + str(rxindex + 1) + "/" + output] = rx.outputs[output]
 
 
 def Ix(x, y, z, Hx, Hy, Hz, G):

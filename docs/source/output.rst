@@ -115,8 +115,8 @@ Snapshot files contain a snapshot of the electromagnetic field values of a speci
         import gprMax
 
         for i in range(1, 31):
-            s = gprMax.Snapshot(p1=(0, 0, 0), p2=(x, y, z), dl=(dl, dl, dl), 
-                                time=(i/10) * 1e-9, 
+            s = gprMax.Snapshot(p1=(0, 0, 0), p2=(x, y, z), dl=(dl, dl, dl),
+                                time=(i/10) * 1e-9,
                                 filename=fn.with_suffix('').parts[-1] + '_' + str(i))
             scene.add(s)
 

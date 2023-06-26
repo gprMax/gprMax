@@ -25,7 +25,7 @@ import numpy as np
 from gprMax.utilities.utilities import fft_power, round_value
 from gprMax.waveforms import Waveform
 
-logging.basicConfig(format='%(message)s', level=logging.INFO)
+logging.basicConfig(format="%(message)s", level=logging.INFO)
 
 
 def check_timewindow(timewindow, dt):
@@ -53,7 +53,7 @@ def check_timewindow(timewindow, dt):
         if timewindow > 0:
             iterations = round_value((timewindow / dt)) + 1
         else:
-            logging.exception('Time window must have a value greater than zero')
+            logging.exception("Time window must have a value greater than zero")
             raise ValueError
 
     return timewindow, iterations
@@ -76,36 +76,41 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
 
     time = np.linspace(0, (iterations - 1) * dt, num=iterations)
     waveform = np.zeros(len(time))
-    timeiter = np.nditer(time, flags=['c_index'])
+    timeiter = np.nditer(time, flags=["c_index"])
 
     while not timeiter.finished:
         waveform[timeiter.index] = w.calculate_value(timeiter[0], dt)
         timeiter.iternext()
 
-    logging.info('Waveform characteristics...')
-    logging.info(f'Type: {w.type}')
-    logging.info(f'Maximum (absolute) amplitude: {np.max(np.abs(waveform)):g}')
+    logging.info("Waveform characteristics...")
+    logging.info(f"Type: {w.type}")
+    logging.info(f"Maximum (absolute) amplitude: {np.max(np.abs(waveform)):g}")
 
-    if w.freq and not w.type == 'gaussian' and not w.type == 'impulse':
-        logging.info(f'Centre frequency: {w.freq:g} Hz')
+    if w.freq and not w.type == "gaussian" and not w.type == "impulse":
+        logging.info(f"Centre frequency: {w.freq:g} Hz")
 
-    if (w.type == 'gaussian' or w.type == 'gaussiandot' or w.type == 'gaussiandotnorm'
-        or w.type == 'gaussianprime' or w.type == 'gaussiandoubleprime'):
+    if (
+        w.type == "gaussian"
+        or w.type == "gaussiandot"
+        or w.type == "gaussiandotnorm"
+        or w.type == "gaussianprime"
+        or w.type == "gaussiandoubleprime"
+    ):
         delay = 1 / w.freq
-        logging.info(f'Time to centre of pulse: {delay:g} s')
-    elif w.type == 'gaussiandotdot' or w.type == 'gaussiandotdotnorm' or w.type == 'ricker':
+        logging.info(f"Time to centre of pulse: {delay:g} s")
+    elif w.type == "gaussiandotdot" or w.type == "gaussiandotdotnorm" or w.type == "ricker":
         delay = np.sqrt(2) / w.freq
-        logging.info(f'Time to centre of pulse: {delay:g} s')
+        logging.info(f"Time to centre of pulse: {delay:g} s")
 
-    logging.info(f'Time window: {timewindow:g} s ({iterations} iterations)')
-    logging.info(f'Time step: {dt:g} s')
+    logging.info(f"Time window: {timewindow:g} s ({iterations} iterations)")
+    logging.info(f"Time step: {dt:g} s")
 
     if fft:
         # FFT
         freqs, power = fft_power(waveform, dt)
 
         # Set plotting range to 4 times frequency at max power of waveform or
-        # 4 times the centre frequency
+        # 4 times the centre frequency
         freqmaxpower = np.where(np.isclose(power, 0))[0][0]
         if freqs[freqmaxpower] > w.freq:
             pltrange = np.where(freqs > 4 * freqs[freqmaxpower])[0][0]
@@ -113,73 +118,66 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
             pltrange = np.where(freqs > 4 * w.freq)[0][0]
         pltrange = np.s_[0:pltrange]
 
-        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num=w.type,
-                                       figsize=(20, 10), facecolor='w',
-                                       edgecolor='w')
+        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, num=w.type, figsize=(20, 10), facecolor="w", edgecolor="w")
 
         # Plot waveform
-        ax1.plot(time, waveform, 'r', lw=2)
-        ax1.set_xlabel('Time [s]')
-        ax1.set_ylabel('Amplitude')
+        ax1.plot(time, waveform, "r", lw=2)
+        ax1.set_xlabel("Time [s]")
+        ax1.set_ylabel("Amplitude")
 
         # Plot frequency spectra
-        markerline, stemlines, baseline = ax2.stem(freqs[pltrange], power[pltrange],
-                                                   '-.', use_line_collection=True)
-        plt.setp(baseline, 'linewidth', 0)
-        plt.setp(stemlines, 'color', 'r')
-        plt.setp(markerline, 'markerfacecolor', 'r', 'markeredgecolor', 'r')
-        ax2.plot(freqs[pltrange], power[pltrange], 'r', lw=2)
-        ax2.set_xlabel('Frequency [Hz]')
-        ax2.set_ylabel('Power [dB]')
+        markerline, stemlines, baseline = ax2.stem(freqs[pltrange], power[pltrange], "-.", use_line_collection=True)
+        plt.setp(baseline, "linewidth", 0)
+        plt.setp(stemlines, "color", "r")
+        plt.setp(markerline, "markerfacecolor", "r", "markeredgecolor", "r")
+        ax2.plot(freqs[pltrange], power[pltrange], "r", lw=2)
+        ax2.set_xlabel("Frequency [Hz]")
+        ax2.set_ylabel("Power [dB]")
 
     else:
-        fig, ax1 = plt.subplots(num=w.type, figsize=(10, 10), facecolor='w',
-                                edgecolor='w')
+        fig, ax1 = plt.subplots(num=w.type, figsize=(10, 10), facecolor="w", edgecolor="w")
 
         # Plot waveform
-        ax1.plot(time, waveform, 'r', lw=2)
-        ax1.set_xlabel('Time [s]')
-        ax1.set_ylabel('Amplitude')
+        ax1.plot(time, waveform, "r", lw=2)
+        ax1.set_xlabel("Time [s]")
+        ax1.set_ylabel("Amplitude")
 
     # Turn on grid
-    [ax.grid(which='both', axis='both', linestyle='-.') for ax in fig.axes]
+    [ax.grid(which="both", axis="both", linestyle="-.") for ax in fig.axes]
 
     if save:
         savefile = Path(__file__).parent / w.type
         # Save a PDF of the figure
-        fig.savefig(savefile.with_suffix('.pdf'), dpi=None, format='pdf', 
-                    bbox_inches='tight', pad_inches=0.1)
+        fig.savefig(savefile.with_suffix(".pdf"), dpi=None, format="pdf", bbox_inches="tight", pad_inches=0.1)
         # Save a PNG of the figure
-        fig.savefig(savefile.with_suffix('.png'), dpi=150, format='png', 
-                    bbox_inches='tight', pad_inches=0.1)
+        fig.savefig(savefile.with_suffix(".png"), dpi=150, format="png", bbox_inches="tight", pad_inches=0.1)
 
     return plt
 
 
 if __name__ == "__main__":
-
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Plot built-in waveforms that can be used for sources.', 
-                                     usage='cd gprMax; python -m toolboxes.Plotting.plot_source_wave type amp freq timewindow dt')
-    parser.add_argument('type', help='type of waveform', choices=Waveform.types)
-    parser.add_argument('amp', type=float, help='amplitude of waveform')
-    parser.add_argument('freq', type=float, help='centre frequency of waveform')
-    parser.add_argument('timewindow', help='time window to view waveform')
-    parser.add_argument('dt', type=float, help='time step to view waveform')
-    parser.add_argument('-fft', action='store_true', default=False,
-                        help='plot FFT of waveform')
-    parser.add_argument('-save', action='store_true', default=False,
-                        help='save plot directly to file, i.e. do not display')
+    parser = argparse.ArgumentParser(
+        description="Plot built-in waveforms that can be used for sources.",
+        usage="cd gprMax; python -m toolboxes.Plotting.plot_source_wave type amp freq timewindow dt",
+    )
+    parser.add_argument("type", help="type of waveform", choices=Waveform.types)
+    parser.add_argument("amp", type=float, help="amplitude of waveform")
+    parser.add_argument("freq", type=float, help="centre frequency of waveform")
+    parser.add_argument("timewindow", help="time window to view waveform")
+    parser.add_argument("dt", type=float, help="time step to view waveform")
+    parser.add_argument("-fft", action="store_true", default=False, help="plot FFT of waveform")
+    parser.add_argument(
+        "-save", action="store_true", default=False, help="save plot directly to file, i.e. do not display"
+    )
     args = parser.parse_args()
 
     # Check waveform parameters
     if args.type.lower() not in Waveform.types:
-        logging.exception(f"The waveform must have one of the following types " +
-                         f"{', '.join(Waveform.types)}")
+        logging.exception(f"The waveform must have one of the following types " + f"{', '.join(Waveform.types)}")
         raise ValueError
     if args.freq <= 0:
-        logging.exception('The waveform requires an excitation frequency value of ' +
-                         'greater than zero')
+        logging.exception("The waveform requires an excitation frequency value of " + "greater than zero")
         raise ValueError
 
     # Create waveform instance
@@ -189,6 +187,5 @@ if __name__ == "__main__":
     w.freq = args.freq
 
     timewindow, iterations = check_timewindow(args.timewindow, args.dt)
-    plthandle = mpl_plot(w, timewindow, args.dt, iterations, fft=args.fft, 
-                         save=args.save)
+    plthandle = mpl_plot(w, timewindow, args.dt, iterations, fft=args.fft, save=args.save)
     plthandle.show()

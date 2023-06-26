@@ -253,7 +253,7 @@ where :math:`dt` is the temporal resolution (timestep) of the model.
     Example of the ``impulse`` waveform - time domain.
 
 .. note::
-    * The impulse waveform should be used with care! 
-    * The impulse response of a model, i.e. when the source in the model is excited using the impulse waveform, is not likely to be useful when viewed in isolation. 
+    * The impulse waveform should be used with care!
+    * The impulse response of a model, i.e. when the source in the model is excited using the impulse waveform, is not likely to be useful when viewed in isolation.
     * However, the impulse response of a model can be convolved with different inputs (waveforms) to provide valid outputs without having to run a separate model for each different input (waveform).
     * The impulse response of the model can only be legitimately convolved with inputs (waveforms) that respect the limits of numerical dispersion in the original model, i.e. if a waveform contains frequencies that will not propagate correctly (due to numerical dispersion) in the original model, then the convolution of the waveform with the impulse response will not be valid.

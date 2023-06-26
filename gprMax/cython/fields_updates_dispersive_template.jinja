@@ -57,14 +57,14 @@ cpdef void {{ item.name_a }}(
     {{ item.field_type }}[:, :, ::1] Hy,
     {{ item.field_type }}[:, :, ::1] Hz
 ):
-    """Updates the electric field components when dispersive materials 
+    """Updates the electric field components when dispersive materials
         (with multiple poles) are present.
 
     Args:
         nx, ny, nz: int for grid size in cells.
         nthreads: int for number of threads to use.
         maxpoles: int for maximum number of poles.
-        updatecoeffs, T, ID, E, H: memoryviews to access to update coeffients, 
+        updatecoeffs, T, ID, E, H: memoryviews to access to update coeffients,
                                     temporary, ID and field component arrays.
     """
 
@@ -82,20 +82,20 @@ cpdef void {{ item.name_a }}(
                     for pole in range(maxpoles):
                         {% if 'complex' in item.dispersive_type %}
                         {% if item.iswin %}
-                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real 
+                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
                                * Tx[pole, i, j, k].real)
                         {% else %}
-                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3]) 
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
                                * {{ item.real_part }}(Tx[pole, i, j, k]))
                         {% endif %}
                         {% else %}
                         phi = phi + updatecoeffsdispersive[material, pole * 3] * Tx[pole, i, j, k]
                         {% endif %}
-                        Tx[pole, i, j, k] = (updatecoeffsdispersive[material, 1 + (pole * 3)] 
-                                             * Tx[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)] 
+                        Tx[pole, i, j, k] = (updatecoeffsdispersive[material, 1 + (pole * 3)]
+                                             * Tx[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)]
                                              * Ex[i, j, k])
-                    Ex[i, j, k] = (updatecoeffsE[material, 0] * Ex[i, j, k] + updatecoeffsE[material, 2] 
-                                   * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3] 
+                    Ex[i, j, k] = (updatecoeffsE[material, 0] * Ex[i, j, k] + updatecoeffsE[material, 2]
+                                   * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3]
                                    * (Hy[i, j, k] - Hy[i, j, k - 1]) - updatecoeffsE[material, 4] * phi)
 
     # Ey component
@@ -108,20 +108,20 @@ cpdef void {{ item.name_a }}(
                     for pole in range(maxpoles):
                         {% if 'complex' in item.dispersive_type %}
                         {% if item.iswin %}
-                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real 
+                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
                                * Ty[pole, i, j, k].real)
                         {% else %}
-                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3]) 
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
                                * {{ item.real_part }}(Ty[pole, i, j, k]))
                         {% endif %}
                         {% else %}
                         phi = phi + updatecoeffsdispersive[material, pole * 3] * Ty[pole, i, j, k]
                         {% endif %}
-                        Ty[pole, i, j, k] = (updatecoeffsdispersive[material, 1 + (pole * 3)] 
-                                             * Ty[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)] 
+                        Ty[pole, i, j, k] = (updatecoeffsdispersive[material, 1 + (pole * 3)]
+                                             * Ty[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)]
                                              * Ey[i, j, k])
-                    Ey[i, j, k] = (updatecoeffsE[material, 0] * Ey[i, j, k] + updatecoeffsE[material, 3] 
-                                   * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1] 
+                    Ey[i, j, k] = (updatecoeffsE[material, 0] * Ey[i, j, k] + updatecoeffsE[material, 3]
+                                   * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1]
                                    * (Hz[i, j, k] - Hz[i - 1, j, k]) - updatecoeffsE[material, 4] * phi)
 
     # Ez component
@@ -134,20 +134,20 @@ cpdef void {{ item.name_a }}(
                     for pole in range(maxpoles):
                         {% if 'complex' in item.dispersive_type %}
                         {% if item.iswin %}
-                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real 
+                        phi = (phi + updatecoeffsdispersive[material, pole * 3].real
                                * Tz[pole, i, j, k].real)
                         {% else %}
-                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3]) 
+                        phi = (phi + {{ item.real_part }}(updatecoeffsdispersive[material, pole * 3])
                                * {{ item.real_part }}(Tz[pole, i, j, k]))
                         {% endif %}
                         {% else %}
                         phi = phi + updatecoeffsdispersive[material, pole * 3] * Tz[pole, i, j, k]
                         {% endif %}
-                        Tz[pole, i, j, k] = (updatecoeffsdispersive[material, 1 + (pole * 3)] 
-                                             * Tz[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)] 
+                        Tz[pole, i, j, k] = (updatecoeffsdispersive[material, 1 + (pole * 3)]
+                                             * Tz[pole, i, j, k] + updatecoeffsdispersive[material, 2 + (pole * 3)]
                                              * Ez[i, j, k])
-                    Ez[i, j, k] = (updatecoeffsE[material, 0] * Ez[i, j, k] + updatecoeffsE[material, 1] 
-                                   * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[material, 2] 
+                    Ez[i, j, k] = (updatecoeffsE[material, 0] * Ez[i, j, k] + updatecoeffsE[material, 1]
+                                   * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[material, 2]
                                    * (Hx[i, j, k] - Hx[i, j - 1, k]) - updatecoeffsE[material, 4] * phi)
 {% endfor %}
 
@@ -172,14 +172,14 @@ cpdef void {{ item.name_b }}(
     {{ item.field_type }}[:, :, ::1] Ey,
     {{ item.field_type }}[:, :, ::1] Ez
 ):
-    """Updates a temporary dispersive material array when disperisive materials 
+    """Updates a temporary dispersive material array when disperisive materials
         (with multiple poles) are present.
 
     Args:
         nx, ny, nz: int for grid size in cells.
         nthreads: int for number of threads to use.
         maxpoles: int for maximum number of poles.
-        updatecoeffs, T, ID, E, H: memoryviews to access to update coeffients, 
+        updatecoeffs, T, ID, E, H: memoryviews to access to update coeffients,
                                     temporary, ID and field component arrays.
     """
 
@@ -193,8 +193,8 @@ cpdef void {{ item.name_b }}(
                 for k in range(1, nz):
                     material = ID[0, i, j, k]
                     for pole in range(maxpoles):
-                        Tx[pole, i, j, k] = (Tx[pole, i, j, k] 
-                                             - updatecoeffsdispersive[material, 2 + (pole * 3)] 
+                        Tx[pole, i, j, k] = (Tx[pole, i, j, k]
+                                             - updatecoeffsdispersive[material, 2 + (pole * 3)]
                                              * Ex[i, j, k])
 
     # Ey component
@@ -204,8 +204,8 @@ cpdef void {{ item.name_b }}(
                 for k in range(1, nz):
                     material = ID[1, i, j, k]
                     for pole in range(maxpoles):
-                        Ty[pole, i, j, k] = (Ty[pole, i, j, k] 
-                                             - updatecoeffsdispersive[material, 2 + (pole * 3)] 
+                        Ty[pole, i, j, k] = (Ty[pole, i, j, k]
+                                             - updatecoeffsdispersive[material, 2 + (pole * 3)]
                                              * Ey[i, j, k])
 
     # Ez component
@@ -215,8 +215,8 @@ cpdef void {{ item.name_b }}(
                 for k in range(0, nz):
                     material = ID[2, i, j, k]
                     for pole in range(maxpoles):
-                        Tz[pole, i, j, k] = (Tz[pole, i, j, k] 
-                                             - updatecoeffsdispersive[material, 2 + (pole * 3)] 
+                        Tz[pole, i, j, k] = (Tz[pole, i, j, k]
+                                             - updatecoeffsdispersive[material, 2 + (pole * 3)]
                                              * Ez[i, j, k])
 
 {% endfor %}
@@ -246,14 +246,14 @@ cpdef void {{ item.name_a_1 }}(
     {{ item.field_type }}[:, :, ::1] Hy,
     {{ item.field_type }}[:, :, ::1] Hz
 ):
-    """Updates the electric field components when dispersive materials 
+    """Updates the electric field components when dispersive materials
         (with 1 pole) are present.
 
     Args:
         nx, ny, nz: int for grid size in cells.
         nthreads: int for number of threads to use.
         maxpoles: int for maximum number of poles.
-        updatecoeffs, T, ID, E, H: memoryviews to access to update coeffients, 
+        updatecoeffs, T, ID, E, H: memoryviews to access to update coeffients,
                                     temporary, ID and field component arrays.
     """
 
@@ -269,19 +269,19 @@ cpdef void {{ item.name_a_1 }}(
                     material = ID[0, i, j, k]
                     {% if 'complex' in item.dispersive_type %}
                     {% if item.iswin %}
-                    phi = (updatecoeffsdispersive[material, 0].real 
+                    phi = (updatecoeffsdispersive[material, 0].real
                            * Tx[0, i, j, k].real)
                     {% else %}
-                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0]) 
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
                            * {{ item.real_part }}(Tx[0, i, j, k]))
                     {% endif %}
                     {% else %}
                     phi = updatecoeffsdispersive[material, 0] * Tx[0, i, j, k]
                     {% endif %}
-                    Tx[0, i, j, k] = (updatecoeffsdispersive[material, 1] * Tx[0, i, j, k] 
+                    Tx[0, i, j, k] = (updatecoeffsdispersive[material, 1] * Tx[0, i, j, k]
                                       + updatecoeffsdispersive[material, 2] * Ex[i, j, k])
-                    Ex[i, j, k] = (updatecoeffsE[material, 0] * Ex[i, j, k] + updatecoeffsE[material, 2] 
-                                   * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3] 
+                    Ex[i, j, k] = (updatecoeffsE[material, 0] * Ex[i, j, k] + updatecoeffsE[material, 2]
+                                   * (Hz[i, j, k] - Hz[i, j - 1, k]) - updatecoeffsE[material, 3]
                                    * (Hy[i, j, k] - Hy[i, j, k - 1]) - updatecoeffsE[material, 4] * phi)
 
     # Ey component
@@ -292,19 +292,19 @@ cpdef void {{ item.name_a_1 }}(
                     material = ID[1, i, j, k]
                     {% if 'complex' in item.dispersive_type %}
                     {% if item.iswin %}
-                    phi = (updatecoeffsdispersive[material, 0].real 
+                    phi = (updatecoeffsdispersive[material, 0].real
                            * Ty[0, i, j, k].real)
                     {% else %}
-                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0]) 
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
                            * {{ item.real_part }}(Ty[0, i, j, k]))
                     {% endif %}
                     {% else %}
                     phi = updatecoeffsdispersive[material, 0] * Ty[0, i, j, k]
                     {% endif %}
-                    Ty[0, i, j, k] = (updatecoeffsdispersive[material, 1] * Ty[0, i, j, k] 
+                    Ty[0, i, j, k] = (updatecoeffsdispersive[material, 1] * Ty[0, i, j, k]
                                       + updatecoeffsdispersive[material, 2] * Ey[i, j, k])
-                    Ey[i, j, k] = (updatecoeffsE[material, 0] * Ey[i, j, k] + updatecoeffsE[material, 3] 
-                                   * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1] 
+                    Ey[i, j, k] = (updatecoeffsE[material, 0] * Ey[i, j, k] + updatecoeffsE[material, 3]
+                                   * (Hx[i, j, k] - Hx[i, j, k - 1]) - updatecoeffsE[material, 1]
                                    * (Hz[i, j, k] - Hz[i - 1, j, k]) - updatecoeffsE[material, 4] * phi)
 
     # Ez component
@@ -315,19 +315,19 @@ cpdef void {{ item.name_a_1 }}(
                     material = ID[2, i, j, k]
                     {% if 'complex' in item.dispersive_type %}
                     {% if item.iswin %}
-                    phi = (updatecoeffsdispersive[material, 0].real 
+                    phi = (updatecoeffsdispersive[material, 0].real
                            * Tz[0, i, j, k].real)
                     {% else %}
-                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0]) 
+                    phi = ({{ item.real_part }}(updatecoeffsdispersive[material, 0])
                            * {{ item.real_part }}(Tz[0, i, j, k]))
                     {% endif %}
                     {% else %}
                     phi = updatecoeffsdispersive[material, 0] * Tz[0, i, j, k]
                     {% endif %}
-                    Tz[0, i, j, k] = (updatecoeffsdispersive[material, 1] * Tz[0, i, j, k] 
+                    Tz[0, i, j, k] = (updatecoeffsdispersive[material, 1] * Tz[0, i, j, k]
                                       + updatecoeffsdispersive[material, 2] * Ez[i, j, k])
-                    Ez[i, j, k] = (updatecoeffsE[material, 0] * Ez[i, j, k] + updatecoeffsE[material, 1] 
-                                   * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[material, 2] 
+                    Ez[i, j, k] = (updatecoeffsE[material, 0] * Ez[i, j, k] + updatecoeffsE[material, 1]
+                                   * (Hy[i, j, k] - Hy[i - 1, j, k]) - updatecoeffsE[material, 2]
                                    * (Hx[i, j, k] - Hx[i, j - 1, k]) - updatecoeffsE[material, 4] * phi)
 
 {% endfor %}
@@ -353,14 +353,14 @@ cpdef void {{ item.name_b_1 }}(
     {{ item.field_type }}[:, :, ::1] Ey,
     {{ item.field_type }}[:, :, ::1] Ez
 ):
-    """Updates a temporary dispersive material array when disperisive materials 
+    """Updates a temporary dispersive material array when disperisive materials
         (with 1 pole) are present.
 
     Args:
         nx, ny, nz: int for grid size in cells.
         nthreads: int for number of threads to use.
         maxpoles: int for maximum number of poles.
-        updatecoeffs, T, ID, E, H: memoryviews to access to update coeffients, 
+        updatecoeffs, T, ID, E, H: memoryviews to access to update coeffients,
                                     temporary, ID and field component arrays.
     """
 

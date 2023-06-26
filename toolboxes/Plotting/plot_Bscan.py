@@ -46,59 +46,69 @@ def mpl_plot(filename, outputdata, dt, rxnumber, rxcomponent, save=False):
 
     file = Path(filename)
 
-    fig = plt.figure(num=file.stem + ' - rx' + str(rxnumber), figsize=(20, 10),
-                     facecolor='w', edgecolor='w')
-    plt.imshow(outputdata, extent=[0, outputdata.shape[1], outputdata.shape[0] * dt, 0],
-               interpolation='nearest', aspect='auto', cmap='seismic',
-               vmin=-np.amax(np.abs(outputdata)), vmax=np.amax(np.abs(outputdata)))
-    plt.xlabel('Trace number')
-    plt.ylabel('Time [s]')
+    fig = plt.figure(num=file.stem + " - rx" + str(rxnumber), figsize=(20, 10), facecolor="w", edgecolor="w")
+    plt.imshow(
+        outputdata,
+        extent=[0, outputdata.shape[1], outputdata.shape[0] * dt, 0],
+        interpolation="nearest",
+        aspect="auto",
+        cmap="seismic",
+        vmin=-np.amax(np.abs(outputdata)),
+        vmax=np.amax(np.abs(outputdata)),
+    )
+    plt.xlabel("Trace number")
+    plt.ylabel("Time [s]")
 
     # Grid properties
     ax = fig.gca()
-    ax.grid(which='both', axis='both', linestyle='-.')
+    ax.grid(which="both", axis="both", linestyle="-.")
 
     cb = plt.colorbar()
-    if 'E' in rxcomponent:
-        cb.set_label('Field strength [V/m]')
-    elif 'H' in rxcomponent:
-        cb.set_label('Field strength [A/m]')
-    elif 'I' in rxcomponent:
-        cb.set_label('Current [A]')
+    if "E" in rxcomponent:
+        cb.set_label("Field strength [V/m]")
+    elif "H" in rxcomponent:
+        cb.set_label("Field strength [A/m]")
+    elif "I" in rxcomponent:
+        cb.set_label("Current [A]")
 
     if save:
         # Save a PDF of the figure
-        fig.savefig(filename[:-3] + '.pdf', dpi=None, format='pdf', 
-                    bbox_inches='tight', pad_inches=0.1)
+        fig.savefig(filename[:-3] + ".pdf", dpi=None, format="pdf", bbox_inches="tight", pad_inches=0.1)
         # Save a PNG of the figure
-        # fig.savefig(filename[:-3] + '.png', dpi=150, format='png', 
+        # fig.savefig(filename[:-3] + '.png', dpi=150, format='png',
         #             bbox_inches='tight', pad_inches=0.1)
 
     return plt
 
 
 if __name__ == "__main__":
-
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='Plots a B-scan image.',
-                                     usage='cd gprMax; python -m toolboxes.Plotting.plot_Bscan outputfile output')
-    parser.add_argument('outputfile', help='name of output file including path')
-    parser.add_argument('rx_component', help='name of output component to be plotted',
-                        choices=['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz'])
-    parser.add_argument('-gather', action='store_true', default=False,
-                        help='gather together all receiver outputs in file')
-    parser.add_argument('-save', action='store_true', default=False,
-                        help='save plot directly to file, i.e. do not display')
+    parser = argparse.ArgumentParser(
+        description="Plots a B-scan image.",
+        usage="cd gprMax; python -m toolboxes.Plotting.plot_Bscan outputfile output",
+    )
+    parser.add_argument("outputfile", help="name of output file including path")
+    parser.add_argument(
+        "rx_component",
+        help="name of output component to be plotted",
+        choices=["Ex", "Ey", "Ez", "Hx", "Hy", "Hz", "Ix", "Iy", "Iz"],
+    )
+    parser.add_argument(
+        "-gather", action="store_true", default=False, help="gather together all receiver outputs in file"
+    )
+    parser.add_argument(
+        "-save", action="store_true", default=False, help="save plot directly to file, i.e. do not display"
+    )
     args = parser.parse_args()
 
     # Open output file and read number of outputs (receivers)
-    f = h5py.File(args.outputfile, 'r')
-    nrx = f.attrs['nrx']
+    f = h5py.File(args.outputfile, "r")
+    nrx = f.attrs["nrx"]
     f.close()
 
     # Check there are any receivers
     if nrx == 0:
-        logger.exception(f'No receivers found in {args.outputfile}')
+        logger.exception(f"No receivers found in {args.outputfile}")
         raise ValueError
 
     for rx in range(1, nrx + 1):
@@ -108,12 +118,10 @@ if __name__ == "__main__":
                 rxsgather = outputdata
             rxsgather = np.column_stack((rxsgather, outputdata))
         else:
-            plthandle = mpl_plot(args.outputfile, outputdata, dt, rx, 
-                                 args.rx_component, save=args.save)
+            plthandle = mpl_plot(args.outputfile, outputdata, dt, rx, args.rx_component, save=args.save)
 
     # Plot all receivers from single output file together if required
     if args.gather:
-        plthandle = mpl_plot(args.outputfile, rxsgather, dt, rx, 
-                             args.rx_component, save=args.save)
+        plthandle = mpl_plot(args.outputfile, rxsgather, dt, rx, args.rx_component, save=args.save)
 
     plthandle.show()

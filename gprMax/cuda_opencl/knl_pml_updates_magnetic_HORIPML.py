@@ -18,28 +18,32 @@
 
 from string import Template
 
-x_args = {'cuda': Template("""
-                    __global__ void $FUNC(int xs, 
-                                          int xf, 
-                                          int ys, 
-                                          int yf, 
-                                          int zs, 
-                                          int zf, 
-                                          int NX_PHI1, 
-                                          int NY_PHI1, 
-                                          int NZ_PHI1, 
-                                          int NX_PHI2, 
-                                          int NY_PHI2, 
-                                          int NZ_PHI2, 
-                                          int NY_R, 
-                                          const unsigned int* __restrict__ ID, 
-                                          const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, const $REAL* __restrict__ Hx, $REAL *Hy, 
-                                          $REAL *Hz, 
-                                          $REAL *PHI1, 
-                                          $REAL *PHI2, 
+x_args = {
+    "cuda": Template(
+        """
+                    __global__ void $FUNC(int xs,
+                                          int xf,
+                                          int ys,
+                                          int yf,
+                                          int zs,
+                                          int zf,
+                                          int NX_PHI1,
+                                          int NY_PHI1,
+                                          int NZ_PHI1,
+                                          int NX_PHI2,
+                                          int NY_PHI2,
+                                          int NZ_PHI2,
+                                          int NY_R,
+                                          const unsigned int* __restrict__ ID,
+                                          const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, const $REAL* __restrict__ Hx, $REAL *Hy,
+                                          $REAL *Hz,
+                                          $REAL *PHI1,
+                                          $REAL *PHI2,
                                           const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d)
-                    """),
-          'opencl': Template("""
+                    """
+    ),
+    "opencl": Template(
+        """
                         int xs,
                         int xf,
                         int ys,
@@ -67,33 +71,38 @@ x_args = {'cuda': Template("""
                         __global const $REAL* restrict RE,
                         __global const $REAL* restrict RF,
                         $REAL d
-                    """)
-         }
+                    """
+    ),
+}
 
-y_args = {'cuda': Template("""
-                    __global__ void $FUNC(int xs, 
-                                          int xf, 
-                                          int ys, 
-                                          int yf, 
-                                          int zs, 
-                                          int zf, 
-                                          int NX_PHI1, 
-                                          int NY_PHI1, 
-                                          int NZ_PHI1, 
-                                          int NX_PHI2, 
-                                          int NY_PHI2, 
-                                          int NZ_PHI2, 
-                                          int NY_R, 
-                                          const unsigned int* __restrict__ ID, 
-                                          const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, 
+y_args = {
+    "cuda": Template(
+        """
+                    __global__ void $FUNC(int xs,
+                                          int xf,
+                                          int ys,
+                                          int yf,
+                                          int zs,
+                                          int zf,
+                                          int NX_PHI1,
+                                          int NY_PHI1,
+                                          int NZ_PHI1,
+                                          int NX_PHI2,
+                                          int NY_PHI2,
+                                          int NZ_PHI2,
+                                          int NY_R,
+                                          const unsigned int* __restrict__ ID,
+                                          const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez,
                                           $REAL *Hx,
-                                          const $REAL* __restrict__ Hy,  
-                                          $REAL *Hz, 
-                                          $REAL *PHI1, 
-                                          $REAL *PHI2, 
+                                          const $REAL* __restrict__ Hy,
+                                          $REAL *Hz,
+                                          $REAL *PHI1,
+                                          $REAL *PHI2,
                                           const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d)
-                    """),
-          'opencl': Template("""
+                    """
+    ),
+    "opencl": Template(
+        """
                         int xs,
                         int xf,
                         int ys,
@@ -121,33 +130,38 @@ y_args = {'cuda': Template("""
                         __global const $REAL* restrict RE,
                         __global const $REAL* restrict RF,
                         $REAL d
-                    """)
-         }
+                    """
+    ),
+}
 
-z_args = {'cuda': Template("""
-                    __global__ void $FUNC(int xs, 
-                                          int xf, 
-                                          int ys, 
-                                          int yf, 
-                                          int zs, 
-                                          int zf, 
-                                          int NX_PHI1, 
-                                          int NY_PHI1, 
-                                          int NZ_PHI1, 
-                                          int NX_PHI2, 
-                                          int NY_PHI2, 
-                                          int NZ_PHI2, 
-                                          int NY_R, 
-                                          const unsigned int* __restrict__ ID, 
-                                          const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez, 
+z_args = {
+    "cuda": Template(
+        """
+                    __global__ void $FUNC(int xs,
+                                          int xf,
+                                          int ys,
+                                          int yf,
+                                          int zs,
+                                          int zf,
+                                          int NX_PHI1,
+                                          int NY_PHI1,
+                                          int NZ_PHI1,
+                                          int NX_PHI2,
+                                          int NY_PHI2,
+                                          int NZ_PHI2,
+                                          int NY_R,
+                                          const unsigned int* __restrict__ ID,
+                                          const $REAL* __restrict__ Ex, const $REAL* __restrict__ Ey, const $REAL* __restrict__ Ez,
                                           $REAL *Hx,
                                           $REAL *Hy,
-                                          const $REAL* __restrict__ Hz,  
-                                          $REAL *PHI1, 
-                                          $REAL *PHI2, 
+                                          const $REAL* __restrict__ Hz,
+                                          $REAL *PHI1,
+                                          $REAL *PHI2,
                                           const $REAL* __restrict__ RA, const $REAL* __restrict__ RB, const $REAL* __restrict__ RE, const $REAL* __restrict__ RF, $REAL d)
-                    """),
-          'opencl': Template("""
+                    """
+    ),
+    "opencl": Template(
+        """
                         int xs,
                         int xf,
                         int ys,
@@ -175,12 +189,15 @@ z_args = {'cuda': Template("""
                         __global const $REAL* restrict RE,
                         __global const $REAL* restrict RF,
                         $REAL d
-                    """)
-         }
+                    """
+    ),
+}
 
-order1_xminus = {'args_cuda': x_args['cuda'],
-                 'args_opencl': x_args['opencl'],
-                 'func': Template("""
+order1_xminus = {
+    "args_cuda": x_args["cuda"],
+    "args_opencl": x_args["opencl"],
+    "func": Template(
+        """
     //  This function updates the Hy and Hz field components for the xminus slab.
     //
     //  Args:
@@ -191,7 +208,7 @@ order1_xminus = {'args_cuda': x_args['cuda'],
     //      d: Spatial discretisation, e.g. dx, dy or dz
 
     $CUDA_IDX
-    
+
     // Convert the linear index to subscripts for PML PHI1 (4D) arrays
     int p1 = i / (NX_PHI1 * NY_PHI1 * NZ_PHI1);
     int i1 = (i % (NX_PHI1 * NY_PHI1 * NZ_PHI1)) / (NY_PHI1 * NZ_PHI1);
@@ -226,7 +243,7 @@ order1_xminus = {'args_cuda': x_args['cuda'],
         // Hy
         materialHy = ID[IDX4D_ID(4,ii,jj,kk)];
         dEz = (Ez[IDX3D_FIELDS(ii+1,jj,kk)] - Ez[IDX3D_FIELDS(ii,jj,kk)]) / dx;
-        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHy,4)] * 
+        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHy,4)] *
                                      (RA01 * dEz + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
@@ -246,15 +263,19 @@ order1_xminus = {'args_cuda': x_args['cuda'],
         // Hz
         materialHz = ID[IDX4D_ID(5,ii,jj,kk)];
         dEy = (Ey[IDX3D_FIELDS(ii+1,jj,kk)] - Ey[IDX3D_FIELDS(ii,jj,kk)]) / dx;
-        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHz,4)] * 
+        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHz,4)] *
                                      (RA01 * dEy + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dEy;
     }
-""")}
+"""
+    ),
+}
 
-order2_xminus = {'args_cuda': x_args['cuda'],
-                 'args_opencl': x_args['opencl'],
-                 'func': Template("""
+order2_xminus = {
+    "args_cuda": x_args["cuda"],
+    "args_opencl": x_args["opencl"],
+    "func": Template(
+        """
     //  This function updates the Hy and Hz field components for the xminus slab.
     //
     //  Args:
@@ -305,10 +326,10 @@ order2_xminus = {'args_cuda': x_args['cuda'],
         // Hy
         materialHy = ID[IDX4D_ID(4,ii,jj,kk)];
         dEz = (Ez[IDX3D_FIELDS(ii+1,jj,kk)] - Ez[IDX3D_FIELDS(ii,jj,kk)]) / dx;
-        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHy,4)] * 
-                                     (RA01 * dEz + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] + 
+        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHy,4)] *
+                                     (RA01 * dEz + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] +
                                       RB1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)]);
-        PHI1[IDX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)] - RF1 * 
+        PHI1[IDX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)] - RF1 *
                                        (RA0 * dEz + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
@@ -333,18 +354,22 @@ order2_xminus = {'args_cuda': x_args['cuda'],
         // Hz
         materialHz = ID[IDX4D_ID(5,ii,jj,kk)];
         dEy = (Ey[IDX3D_FIELDS(ii+1,jj,kk)] - Ey[IDX3D_FIELDS(ii,jj,kk)]) / dx;
-        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHz,4)] * 
-                                     (RA01 * dEy + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + 
+        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHz,4)] *
+                                     (RA01 * dEy + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] +
                                       RB1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)]);
-        PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] - RF1 * 
+        PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] - RF1 *
                                        (RA0 * dEy + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dEy;
     }
-""")}
+"""
+    ),
+}
 
-order1_xplus = {'args_cuda': x_args['cuda'],
-                'args_opencl': x_args['opencl'],
-                'func': Template("""
+order1_xplus = {
+    "args_cuda": x_args["cuda"],
+    "args_opencl": x_args["opencl"],
+    "func": Template(
+        """
     //  This function updates the Hy and Hz field components for the xplus slab.
     //
     //  Args:
@@ -390,7 +415,7 @@ order1_xplus = {'args_cuda': x_args['cuda'],
         // Hy
         materialHy = ID[IDX4D_ID(4,ii,jj,kk)];
         dEz = (Ez[IDX3D_FIELDS(ii+1,jj,kk)] - Ez[IDX3D_FIELDS(ii,jj,kk)]) / dx;
-        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHy,4)] * 
+        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHy,4)] *
                                      (RA01 * dEz + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
@@ -410,15 +435,19 @@ order1_xplus = {'args_cuda': x_args['cuda'],
         // Hz
         materialHz = ID[IDX4D_ID(5,ii,jj,kk)];
         dEy = (Ey[IDX3D_FIELDS(ii+1,jj,kk)] - Ey[IDX3D_FIELDS(ii,jj,kk)]) / dx;
-        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHz,4)] * 
+        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHz,4)] *
                                      (RA01 * dEy + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dEy;
     }
-""")}
+"""
+    ),
+}
 
-order2_xplus = {'args_cuda': x_args['cuda'],
-                'args_opencl': x_args['opencl'],
-                'func': Template("""
+order2_xplus = {
+    "args_cuda": x_args["cuda"],
+    "args_opencl": x_args["opencl"],
+    "func": Template(
+        """
     //  This function updates the Hy and Hz field components for the xplus slab.
     //
     //  Args:
@@ -469,10 +498,10 @@ order2_xplus = {'args_cuda': x_args['cuda'],
         // Hy
         materialHy = ID[IDX4D_ID(4,ii,jj,kk)];
         dEz = (Ez[IDX3D_FIELDS(ii+1,jj,kk)] - Ez[IDX3D_FIELDS(ii,jj,kk)]) / dx;
-        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHy,4)] * 
-                                     (RA01 * dEz + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] + 
+        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHy,4)] *
+                                     (RA01 * dEz + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] +
                                       RB1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)]);
-        PHI1[IDX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)] - RF1 * 
+        PHI1[IDX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)] - RF1 *
                                        (RA0 * dEz + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
@@ -497,18 +526,22 @@ order2_xplus = {'args_cuda': x_args['cuda'],
         // Hz
         materialHz = ID[IDX4D_ID(5,ii,jj,kk)];
         dEy = (Ey[IDX3D_FIELDS(ii+1,jj,kk)] - Ey[IDX3D_FIELDS(ii,jj,kk)]) / dx;
-        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHz,4)] * 
-                                     (RA01 * dEy + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + 
+        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHz,4)] *
+                                     (RA01 * dEy + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] +
                                       RB1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)]);
-        PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] - RF1 * 
+        PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] - RF1 *
                                        (RA0 * dEy + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dEy;
     }
-""")}
+"""
+    ),
+}
 
-order1_yminus = {'args_cuda': y_args['cuda'],
-                 'args_opencl': y_args['opencl'],
-                 'func': Template("""
+order1_yminus = {
+    "args_cuda": y_args["cuda"],
+    "args_opencl": y_args["opencl"],
+    "func": Template(
+        """
     //  This function updates the Hx and Hz field components for the yminus slab.
     //
     //  Args:
@@ -554,7 +587,7 @@ order1_yminus = {'args_cuda': y_args['cuda'],
         // Hx
         materialHx = ID[IDX4D_ID(3,ii,jj,kk)];
         dEz = (Ez[IDX3D_FIELDS(ii,jj+1,kk)] - Ez[IDX3D_FIELDS(ii,jj,kk)]) / dy;
-        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHx,4)] * 
+        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHx,4)] *
                                      (RA01 * dEz + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
@@ -574,15 +607,19 @@ order1_yminus = {'args_cuda': y_args['cuda'],
         // Hz
         materialHz = ID[IDX4D_ID(5,ii,jj,kk)];
         dEx = (Ex[IDX3D_FIELDS(ii,jj+1,kk)] - Ex[IDX3D_FIELDS(ii,jj,kk)]) / dy;
-        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHz,4)] * 
+        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHz,4)] *
                                      (RA01 * dEx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dEx;
     }
-""")}
+"""
+    ),
+}
 
-order2_yminus = {'args_cuda': y_args['cuda'],
-                 'args_opencl': y_args['opencl'],
-                 'func': Template("""
+order2_yminus = {
+    "args_cuda": y_args["cuda"],
+    "args_opencl": y_args["opencl"],
+    "func": Template(
+        """
     //  This function updates the Hx and Hz field components for the yminus slab.
     //
     //  Args:
@@ -633,10 +670,10 @@ order2_yminus = {'args_cuda': y_args['cuda'],
         // Hx
         materialHx = ID[IDX4D_ID(3,ii,jj,kk)];
         dEz = (Ez[IDX3D_FIELDS(ii,jj+1,kk)] - Ez[IDX3D_FIELDS(ii,jj,kk)]) / dy;
-        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHx,4)] * 
-                                     (RA01 * dEz + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] + 
+        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHx,4)] *
+                                     (RA01 * dEz + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] +
                                       RB1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)]);
-        PHI1[IDX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)] - RF1 * 
+        PHI1[IDX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)] - RF1 *
                                        (RA0 * dEz + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
@@ -661,17 +698,21 @@ order2_yminus = {'args_cuda': y_args['cuda'],
         // Hz
         materialHz = ID[IDX4D_ID(5,ii,jj,kk)];
         dEx = (Ex[IDX3D_FIELDS(ii,jj+1,kk)] - Ex[IDX3D_FIELDS(ii,jj,kk)]) / dy;
-        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHz,4)] * 
+        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHz,4)] *
                                      (RA01 * dEx + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + RB1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)]);
-        PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] - RF1 * 
+        PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] - RF1 *
                                        (RA0 * dEx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dEx;
     }
-""")}
+"""
+    ),
+}
 
-order1_yplus = {'args_cuda': y_args['cuda'],
-                'args_opencl': y_args['opencl'], 
-                'func': Template("""
+order1_yplus = {
+    "args_cuda": y_args["cuda"],
+    "args_opencl": y_args["opencl"],
+    "func": Template(
+        """
     //  This function updates the Hx and Hz field components for the yplus slab.
     //
     //  Args:
@@ -717,7 +758,7 @@ order1_yplus = {'args_cuda': y_args['cuda'],
         // Hx
         materialHx = ID[IDX4D_ID(3,ii,jj,kk)];
         dEz = (Ez[IDX3D_FIELDS(ii,jj+1,kk)] - Ez[IDX3D_FIELDS(ii,jj,kk)]) / dy;
-        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHx,4)] * 
+        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHx,4)] *
                                      (RA01 * dEz + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
@@ -737,15 +778,19 @@ order1_yplus = {'args_cuda': y_args['cuda'],
         // Hz
         materialHz = ID[IDX4D_ID(5,ii,jj,kk)];
         dEx = (Ex[IDX3D_FIELDS(ii,jj+1,kk)] - Ex[IDX3D_FIELDS(ii,jj,kk)]) / dy;
-        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHz,4)] * 
+        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHz,4)] *
                                      (RA01 * dEx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dEx;
     }
-""")}
+"""
+    ),
+}
 
-order2_yplus = {'args_cuda': y_args['cuda'],
-                'args_opencl': y_args['opencl'],
-                'func': Template("""
+order2_yplus = {
+    "args_cuda": y_args["cuda"],
+    "args_opencl": y_args["opencl"],
+    "func": Template(
+        """
     //  This function updates the Hx and Hz field components for the yplus slab.
     //
     //  Args:
@@ -796,9 +841,9 @@ order2_yplus = {'args_cuda': y_args['cuda'],
         // Hx
         materialHx = ID[IDX4D_ID(3,ii,jj,kk)];
         dEz = (Ez[IDX3D_FIELDS(ii,jj+1,kk)] - Ez[IDX3D_FIELDS(ii,jj,kk)]) / dy;
-        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHx,4)] * 
+        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHx,4)] *
                                      (RA01 * dEz + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] + RB1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)]);
-        PHI1[IDX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)] - RF1 * 
+        PHI1[IDX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)] - RF1 *
                                        (RA0 * dEz + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEz;
     }
@@ -823,17 +868,21 @@ order2_yplus = {'args_cuda': y_args['cuda'],
         // Hz
         materialHz = ID[IDX4D_ID(5,ii,jj,kk)];
         dEx = (Ex[IDX3D_FIELDS(ii,jj+1,kk)] - Ex[IDX3D_FIELDS(ii,jj,kk)]) / dy;
-        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHz,4)] * 
+        Hz[IDX3D_FIELDS(ii,jj,kk)] = Hz[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHz,4)] *
                                      (RA01 * dEx + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + RB1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)]);
-        PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] - RF1 * 
+        PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] - RF1 *
                                        (RA0 * dEx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dEx;
     }
-""")}
+"""
+    ),
+}
 
-order1_zminus = {'args_cuda': z_args['cuda'],
-                 'args_opencl': z_args['opencl'],
-                 'func': Template("""
+order1_zminus = {
+    "args_cuda": z_args["cuda"],
+    "args_opencl": z_args["opencl"],
+    "func": Template(
+        """
     //  This function updates the Hx and Hy field components for the zminus slab.
     //
     //  Args:
@@ -879,7 +928,7 @@ order1_zminus = {'args_cuda': z_args['cuda'],
         // Hx
         materialHx = ID[IDX4D_ID(3,ii,jj,kk)];
         dEy = (Ey[IDX3D_FIELDS(ii,jj,kk+1)] - Ey[IDX3D_FIELDS(ii,jj,kk)]) / dz;
-        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHx,4)] * 
+        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHx,4)] *
                                      (RA01 * dEy + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEy;
     }
@@ -899,15 +948,19 @@ order1_zminus = {'args_cuda': z_args['cuda'],
         // Hy
         materialHy = ID[IDX4D_ID(4,ii,jj,kk)];
         dEx = (Ex[IDX3D_FIELDS(ii,jj,kk+1)] - Ex[IDX3D_FIELDS(ii,jj,kk)]) / dz;
-        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHy,4)] * 
+        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHy,4)] *
                                      (RA01 * dEx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dEx;
     }
-""")}
+"""
+    ),
+}
 
-order2_zminus = {'args_cuda': z_args['cuda'],
-                 'args_opencl': z_args['opencl'],
-                 'func': Template("""
+order2_zminus = {
+    "args_cuda": z_args["cuda"],
+    "args_opencl": z_args["opencl"],
+    "func": Template(
+        """
     //  This function updates the Hx and Hy field components for the zminus slab.
     //
     //  Args:
@@ -958,10 +1011,10 @@ order2_zminus = {'args_cuda': z_args['cuda'],
         // Hx
         materialHx = ID[IDX4D_ID(3,ii,jj,kk)];
         dEy = (Ey[IDX3D_FIELDS(ii,jj,kk+1)] - Ey[IDX3D_FIELDS(ii,jj,kk)]) / dz;
-        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHx,4)] * 
-                                     (RA01 * dEy + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] + 
+        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHx,4)] *
+                                     (RA01 * dEy + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] +
                                       RB1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)]);
-        PHI1[IDX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)] - RF1 * 
+        PHI1[IDX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)] - RF1 *
                                        (RA0 * dEy + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEy;
     }
@@ -986,18 +1039,22 @@ order2_zminus = {'args_cuda': z_args['cuda'],
         // Hy
         materialHy = ID[IDX4D_ID(4,ii,jj,kk)];
         dEx = (Ex[IDX3D_FIELDS(ii,jj,kk+1)] - Ex[IDX3D_FIELDS(ii,jj,kk)]) / dz;
-        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHy,4)] * 
-                                     (RA01 * dEx + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + 
+        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHy,4)] *
+                                     (RA01 * dEx + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] +
                                       RB1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)]);
-        PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] - RF1 * 
+        PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] - RF1 *
                                        (RA0 * dEx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dEx;
     }
-""")}
+"""
+    ),
+}
 
-order1_zplus = {'args_cuda': z_args['cuda'],
-                'args_opencl': z_args['opencl'],
-                'func': Template("""
+order1_zplus = {
+    "args_cuda": z_args["cuda"],
+    "args_opencl": z_args["opencl"],
+    "func": Template(
+        """
     //  This function updates the Hx and Hy field components for the zplus slab.
     //
     //  Args:
@@ -1043,7 +1100,7 @@ order1_zplus = {'args_cuda': z_args['cuda'],
         // Hx
         materialHx = ID[IDX4D_ID(3,ii,jj,kk)];
         dEy = (Ey[IDX3D_FIELDS(ii,jj,kk+1)] - Ey[IDX3D_FIELDS(ii,jj,kk)]) / dz;
-        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHx,4)] * 
+        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHx,4)] *
                                      (RA01 * dEy + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEy;
     }
@@ -1063,15 +1120,19 @@ order1_zplus = {'args_cuda': z_args['cuda'],
         // Hy
         materialHy = ID[IDX4D_ID(4,ii,jj,kk)];
         dEx = (Ex[IDX3D_FIELDS(ii,jj,kk+1)] - Ex[IDX3D_FIELDS(ii,jj,kk)]) / dz;
-        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHy,4)] * 
+        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHy,4)] *
                                      (RA01 * dEx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dEx;
     }
-""")}
+"""
+    ),
+}
 
-order2_zplus = {'args_cuda': z_args['cuda'],
-                'args_opencl': z_args['opencl'],
-                'func': Template("""
+order2_zplus = {
+    "args_cuda": z_args["cuda"],
+    "args_opencl": z_args["opencl"],
+    "func": Template(
+        """
     //  This function updates the Hx and Hy field components for the zplus slab.
     //
     //  Args:
@@ -1122,10 +1183,10 @@ order2_zplus = {'args_cuda': z_args['cuda'],
         // Hx
         materialHx = ID[IDX4D_ID(3,ii,jj,kk)];
         dEy = (Ey[IDX3D_FIELDS(ii,jj,kk+1)] - Ey[IDX3D_FIELDS(ii,jj,kk)]) / dz;
-        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHx,4)] * 
-                                     (RA01 * dEy + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] + 
+        Hx[IDX3D_FIELDS(ii,jj,kk)] = Hx[IDX3D_FIELDS(ii,jj,kk)] + updatecoeffsH[IDX2D_MAT(materialHx,4)] *
+                                     (RA01 * dEy + RA1 * RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] +
                                       RB1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)]);
-        PHI1[IDX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)] - RF1 * 
+        PHI1[IDX4D_PHI1(1,i1,j1,k1)] = RE1 * PHI1[IDX4D_PHI1(1,i1,j1,k1)] - RF1 *
                                        (RA0 * dEy + RB0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)]);
         PHI1[IDX4D_PHI1(0,i1,j1,k1)] = RE0 * PHI1[IDX4D_PHI1(0,i1,j1,k1)] - RF0 * dEy;
     }
@@ -1150,12 +1211,13 @@ order2_zplus = {'args_cuda': z_args['cuda'],
         // Hy
         materialHy = ID[IDX4D_ID(4,ii,jj,kk)];
         dEx = (Ex[IDX3D_FIELDS(ii,jj,kk+1)] - Ex[IDX3D_FIELDS(ii,jj,kk)]) / dz;
-        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHy,4)] * 
-                                     (RA01 * dEx + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] + 
+        Hy[IDX3D_FIELDS(ii,jj,kk)] = Hy[IDX3D_FIELDS(ii,jj,kk)] - updatecoeffsH[IDX2D_MAT(materialHy,4)] *
+                                     (RA01 * dEx + RA1 * RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] +
                                       RB1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)]);
-        PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] - RF1 * 
+        PHI2[IDX4D_PHI2(1,i2,j2,k2)] = RE1 * PHI2[IDX4D_PHI2(1,i2,j2,k2)] - RF1 *
                                        (RA0 * dEx + RB0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)]);
         PHI2[IDX4D_PHI2(0,i2,j2,k2)] = RE0 * PHI2[IDX4D_PHI2(0,i2,j2,k2)] - RF0 * dEx;
     }
-""")}
-
+"""
+    ),
+}

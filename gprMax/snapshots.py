@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 def save_snapshots(grid):
     """Saves snapshots to file(s).
-    
+
     Args:
         grid: FDTDGrid class describing a grid in a model.
     """
@@ -44,31 +44,35 @@ def save_snapshots(grid):
     # Create directory for snapshots
     snapshotdir = config.get_model_config().set_snapshots_dir()
     snapshotdir.mkdir(exist_ok=True)
-    logger.info('')
-    logger.info(f'Snapshot directory: {snapshotdir.resolve()}')
+    logger.info("")
+    logger.info(f"Snapshot directory: {snapshotdir.resolve()}")
 
     for i, snap in enumerate(grid.snapshots):
         fn = snapshotdir / Path(snap.filename)
         snap.filename = fn.with_suffix(snap.fileext)
-        pbar = tqdm(total=snap.nbytes, leave=True, unit='byte',
-                    unit_scale=True, desc=f'Writing snapshot file {i + 1} '
-                                            f'of {len(grid.snapshots)}, '
-                                            f'{snap.filename.name}', 
-                    ncols=get_terminal_width() - 1, file=sys.stdout, 
-                    disable=not config.sim_config.general['progressbars'])
+        pbar = tqdm(
+            total=snap.nbytes,
+            leave=True,
+            unit="byte",
+            unit_scale=True,
+            desc=f"Writing snapshot file {i + 1} " f"of {len(grid.snapshots)}, " f"{snap.filename.name}",
+            ncols=get_terminal_width() - 1,
+            file=sys.stdout,
+            disable=not config.sim_config.general["progressbars"],
+        )
         snap.write_file(pbar, grid)
         pbar.close()
-    logger.info('')
+    logger.info("")
+
 
 class Snapshot:
     """Snapshots of the electric and magnetic field values."""
 
-    allowableoutputs = {'Ex': None, 'Ey': None, 'Ez': None, 
-                        'Hx': None, 'Hy': None, 'Hz': None}
+    allowableoutputs = {"Ex": None, "Ey": None, "Ez": None, "Hx": None, "Hy": None, "Hz": None}
 
-    # Snapshots can be output as VTK ImageData (.vti) format or 
+    # Snapshots can be output as VTK ImageData (.vti) format or
     # HDF5 format (.h5) files
-    fileexts = ['.vti', '.h5']
+    fileexts = [".vti", ".h5"]
 
     # Dimensions of largest requested snapshot
     nx_max = 0
@@ -80,9 +84,22 @@ class Snapshot:
     # GPU - blocks per grid - set according to largest requested snapshot
     bpg = None
 
-    def __init__(self, xs=None, ys=None, zs=None, xf=None, yf=None, zf=None,
-                 dx=None, dy=None, dz=None, time=None, filename=None, 
-                 fileext=None, outputs=None):
+    def __init__(
+        self,
+        xs=None,
+        ys=None,
+        zs=None,
+        xf=None,
+        yf=None,
+        zf=None,
+        dx=None,
+        dy=None,
+        dz=None,
+        time=None,
+        filename=None,
+        fileext=None,
+        outputs=None,
+    ):
         """
         Args:
             xs, xf, ys, yf, zs, zf: ints for the extent of the volume in cells.
@@ -118,14 +135,14 @@ class Snapshot:
         self.snapfields = {}
         for k, v in self.outputs.items():
             if v:
-                self.snapfields[k] = np.zeros((self.nx, self.ny, self.nz), 
-                                        dtype=config.sim_config.dtypes['float_or_double'])
-                self.nbytes += (self.snapfields[k].nbytes)
+                self.snapfields[k] = np.zeros(
+                    (self.nx, self.ny, self.nz), dtype=config.sim_config.dtypes["float_or_double"]
+                )
+                self.nbytes += self.snapfields[k].nbytes
             else:
-                # If output is not required for snapshot just use a mimimal 
+                # If output is not required for snapshot just use a mimimal
                 # size of array - still required to pass to Cython function
-                self.snapfields[k] = np.zeros((1, 1, 1), 
-                                        dtype=config.sim_config.dtypes['float_or_double'])
+                self.snapfields[k] = np.zeros((1, 1, 1), dtype=config.sim_config.dtypes["float_or_double"])
 
     def store(self, G):
         """Store (in memory) electric and magnetic field values for snapshot.
@@ -142,35 +159,35 @@ class Snapshot:
         Hyslice = np.ascontiguousarray(G.Hy[self.sx, self.sy, self.sz])
         Hzslice = np.ascontiguousarray(G.Hz[self.sx, self.sy, self.sz])
 
-        # Calculate field values at points (comes from averaging field 
+        # Calculate field values at points (comes from averaging field
         # components in cells)
         calculate_snapshot_fields(
             self.nx,
             self.ny,
             self.nz,
             config.get_model_config().ompthreads,
-            self.outputs['Ex'],
-            self.outputs['Ey'],
-            self.outputs['Ez'],
-            self.outputs['Hx'],
-            self.outputs['Hy'],
-            self.outputs['Hz'],
+            self.outputs["Ex"],
+            self.outputs["Ey"],
+            self.outputs["Ez"],
+            self.outputs["Hx"],
+            self.outputs["Hy"],
+            self.outputs["Hz"],
             Exslice,
             Eyslice,
             Ezslice,
             Hxslice,
             Hyslice,
             Hzslice,
-            self.snapfields['Ex'],
-            self.snapfields['Ey'],
-            self.snapfields['Ez'],
-            self.snapfields['Hx'],
-            self.snapfields['Hy'],
-            self.snapfields['Hz']
+            self.snapfields["Ex"],
+            self.snapfields["Ey"],
+            self.snapfields["Ez"],
+            self.snapfields["Hx"],
+            self.snapfields["Hy"],
+            self.snapfields["Hz"],
         )
 
     def write_file(self, pbar, G):
-        """Writes snapshot file either as VTK ImageData (.vti) format 
+        """Writes snapshot file either as VTK ImageData (.vti) format
             or HDF5 format (.h5) files
 
         Args:
@@ -178,9 +195,9 @@ class Snapshot:
             G: FDTDGrid class describing a grid in a model.
         """
 
-        if self.fileext == '.vti':
+        if self.fileext == ".vti":
             self.write_vtk(pbar, G)
-        elif self.fileext == '.h5':
+        elif self.fileext == ".h5":
             self.write_hdf5(pbar, G)
 
     def write_vtk(self, pbar, G):
@@ -195,31 +212,33 @@ class Snapshot:
 
         for k, v in self.outputs.items():
             if v:
-                if k == 'Ex':
-                    celldata[k] = self.snapfields['Ex']
-                if k == 'Ey':
-                    celldata[k] = self.snapfields['Ey']
-                if k == 'Ez':
-                    celldata[k] = self.snapfields['Ez']
-                if k == 'Hx':
-                    celldata[k] = self.snapfields['Hx']
-                if k == 'Hy':
-                    celldata[k] = self.snapfields['Hy']
-                if k == 'Hz':
-                    celldata[k] = self.snapfields['Hz']
+                if k == "Ex":
+                    celldata[k] = self.snapfields["Ex"]
+                if k == "Ey":
+                    celldata[k] = self.snapfields["Ey"]
+                if k == "Ez":
+                    celldata[k] = self.snapfields["Ez"]
+                if k == "Hx":
+                    celldata[k] = self.snapfields["Hx"]
+                if k == "Hy":
+                    celldata[k] = self.snapfields["Hy"]
+                if k == "Hz":
+                    celldata[k] = self.snapfields["Hz"]
 
-        imageToVTK(str(self.filename.with_suffix('')), 
-                   origin=((self.xs * self.dx * G.dx), 
-                           (self.ys * self.dy * G.dy), 
-                           (self.zs * self.dz * G.dz)), 
-                   spacing=((self.dx * G.dx),
-                            (self.dy * G.dy),
-                            (self.dz * G.dz)), 
-                   cellData=celldata)
-        
-        pbar.update(n=len(celldata) * self.nx * self.ny * self.nz * 
-                    np.dtype(config.sim_config.dtypes['float_or_double']).itemsize)
+        imageToVTK(
+            str(self.filename.with_suffix("")),
+            origin=((self.xs * self.dx * G.dx), (self.ys * self.dy * G.dy), (self.zs * self.dz * G.dz)),
+            spacing=((self.dx * G.dx), (self.dy * G.dy), (self.dz * G.dz)),
+            cellData=celldata,
+        )
 
+        pbar.update(
+            n=len(celldata)
+            * self.nx
+            * self.ny
+            * self.nz
+            * np.dtype(config.sim_config.dtypes["float_or_double"]).itemsize
+        )
 
     def write_hdf5(self, pbar, G):
         """Writes snapshot file in HDF5 (.h5) format.
@@ -229,31 +248,31 @@ class Snapshot:
             G: FDTDGrid class describing a grid in a model.
         """
 
-        f = h5py.File(self.filename, 'w')
-        f.attrs['gprMax'] = __version__
-        f.attrs['Title'] = G.title
-        f.attrs['nx_ny_nz'] = (self.nx, self.ny, self.nz)
-        f.attrs['dx_dy_dz'] = (self.dx * G.dx, self.dy * G.dy, self.dz * G.dz)
-        f.attrs['time'] = self.time * G.dt
+        f = h5py.File(self.filename, "w")
+        f.attrs["gprMax"] = __version__
+        f.attrs["Title"] = G.title
+        f.attrs["nx_ny_nz"] = (self.nx, self.ny, self.nz)
+        f.attrs["dx_dy_dz"] = (self.dx * G.dx, self.dy * G.dy, self.dz * G.dz)
+        f.attrs["time"] = self.time * G.dt
 
-        if self.outputs['Ex']:
-            f['Ex'] = self.snapfields['Ex']
-            pbar.update(n=self.snapfields['Ex'].nbytes)
-        if self.outputs['Ey']:
-            f['Ey'] = self.snapfields['Ey']
-            pbar.update(n=self.snapfields['Ey'].nbytes)
-        if self.outputs['Ez']:
-            f['Ez'] = self.snapfields['Ez']
-            pbar.update(n=self.snapfields['Ez'].nbytes)
-        if self.outputs['Hx']:
-            f['Hx'] = self.snapfields['Hx']
-            pbar.update(n=self.snapfields['Hx'].nbytes)
-        if self.outputs['Hy']:
-            f['Hy'] = self.snapfields['Hy']
-            pbar.update(n=self.snapfields['Hy'].nbytes)
-        if self.outputs['Hz']:
-            f['Hz'] = self.snapfields['Hz']
-            pbar.update(n=self.snapfields['Hz'].nbytes)
+        if self.outputs["Ex"]:
+            f["Ex"] = self.snapfields["Ex"]
+            pbar.update(n=self.snapfields["Ex"].nbytes)
+        if self.outputs["Ey"]:
+            f["Ey"] = self.snapfields["Ey"]
+            pbar.update(n=self.snapfields["Ey"].nbytes)
+        if self.outputs["Ez"]:
+            f["Ez"] = self.snapfields["Ez"]
+            pbar.update(n=self.snapfields["Ez"].nbytes)
+        if self.outputs["Hx"]:
+            f["Hx"] = self.snapfields["Hx"]
+            pbar.update(n=self.snapfields["Hx"].nbytes)
+        if self.outputs["Hy"]:
+            f["Hy"] = self.snapfields["Hy"]
+            pbar.update(n=self.snapfields["Hy"].nbytes)
+        if self.outputs["Hz"]:
+            f["Hz"] = self.snapfields["Hz"]
+            pbar.update(n=self.snapfields["Hz"].nbytes)
 
         f.close()
 
@@ -278,37 +297,44 @@ def htod_snapshot_array(G, queue=None):
         if snap.nz > Snapshot.nz_max:
             Snapshot.nz_max = snap.nz
 
-    if config.sim_config.general['solver'] == 'cuda':
+    if config.sim_config.general["solver"] == "cuda":
         # Blocks per grid - according to largest requested snapshot
-        Snapshot.bpg = (int(np.ceil(((Snapshot.nx_max) *
-                                     (Snapshot.ny_max) *
-                                     (Snapshot.nz_max)) / Snapshot.tpb[0])), 1, 1)
-    elif config.sim_config.general['solver'] == 'opencl':
+        Snapshot.bpg = (
+            int(np.ceil(((Snapshot.nx_max) * (Snapshot.ny_max) * (Snapshot.nz_max)) / Snapshot.tpb[0])),
+            1,
+            1,
+        )
+    elif config.sim_config.general["solver"] == "opencl":
         # Workgroup size - according to largest requested snapshot
-        Snapshot.wgs = (int(np.ceil(((Snapshot.nx_max) * 
-                                     (Snapshot.ny_max) * 
-                                     (Snapshot.nz_max)))), 1, 1)
+        Snapshot.wgs = (int(np.ceil(((Snapshot.nx_max) * (Snapshot.ny_max) * (Snapshot.nz_max)))), 1, 1)
 
     # 4D arrays to store snapshots on GPU, e.g. snapEx(time, x, y, z);
     # if snapshots are not being stored on the GPU during the simulation then
     # they are copied back to the host after each iteration, hence numsnaps = 1
-    numsnaps = 1 if config.get_model_config().device['snapsgpu2cpu'] else len(G.snapshots)
-    snapEx = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
-                      dtype=config.sim_config.dtypes['float_or_double'])
-    snapEy = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
-                      dtype=config.sim_config.dtypes['float_or_double'])
-    snapEz = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
-                      dtype=config.sim_config.dtypes['float_or_double'])
-    snapHx = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
-                      dtype=config.sim_config.dtypes['float_or_double'])
-    snapHy = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
-                      dtype=config.sim_config.dtypes['float_or_double'])
-    snapHz = np.zeros((numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
-                      dtype=config.sim_config.dtypes['float_or_double'])
+    numsnaps = 1 if config.get_model_config().device["snapsgpu2cpu"] else len(G.snapshots)
+    snapEx = np.zeros(
+        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=config.sim_config.dtypes["float_or_double"]
+    )
+    snapEy = np.zeros(
+        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=config.sim_config.dtypes["float_or_double"]
+    )
+    snapEz = np.zeros(
+        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=config.sim_config.dtypes["float_or_double"]
+    )
+    snapHx = np.zeros(
+        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=config.sim_config.dtypes["float_or_double"]
+    )
+    snapHy = np.zeros(
+        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=config.sim_config.dtypes["float_or_double"]
+    )
+    snapHz = np.zeros(
+        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=config.sim_config.dtypes["float_or_double"]
+    )
 
     # Copy arrays to compute device
-    if config.sim_config.general['solver'] == 'cuda':
+    if config.sim_config.general["solver"] == "cuda":
         import pycuda.gpuarray as gpuarray
+
         snapEx_dev = gpuarray.to_gpu(snapEx)
         snapEy_dev = gpuarray.to_gpu(snapEy)
         snapEz_dev = gpuarray.to_gpu(snapEz)
@@ -316,8 +342,9 @@ def htod_snapshot_array(G, queue=None):
         snapHy_dev = gpuarray.to_gpu(snapHy)
         snapHz_dev = gpuarray.to_gpu(snapHz)
 
-    elif config.sim_config.general['solver'] == 'opencl':
+    elif config.sim_config.general["solver"] == "opencl":
         import pyopencl.array as clarray
+
         snapEx_dev = clarray.to_device(queue, snapEx)
         snapEy_dev = clarray.to_device(queue, snapEy)
         snapEz_dev = clarray.to_device(queue, snapEz)
@@ -328,9 +355,8 @@ def htod_snapshot_array(G, queue=None):
     return snapEx_dev, snapEy_dev, snapEz_dev, snapHx_dev, snapHy_dev, snapHz_dev
 
 
-def dtoh_snapshot_array(snapEx_dev, snapEy_dev, snapEz_dev, 
-                        snapHx_dev, snapHy_dev, snapHz_dev, i, snap):
-    """Copies snapshot array used on compute device back to snapshot objects and 
+def dtoh_snapshot_array(snapEx_dev, snapEy_dev, snapEz_dev, snapHx_dev, snapHy_dev, snapHz_dev, i, snap):
+    """Copies snapshot array used on compute device back to snapshot objects and
         store in format for Paraview.
 
     Args:
@@ -339,9 +365,9 @@ def dtoh_snapshot_array(snapEx_dev, snapEy_dev, snapEz_dev,
         snap: Snapshot class instance
     """
 
-    snap.snapfields['Ex'] = snapEx_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
-    snap.snapfields['Ey'] = snapEy_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
-    snap.snapfields['Ez'] = snapEz_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
-    snap.snapfields['Hx'] = snapHx_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
-    snap.snapfields['Hy'] = snapHy_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
-    snap.snapfields['Hz'] = snapHz_dev[i, snap.xs:snap.xf, snap.ys:snap.yf, snap.zs:snap.zf]
+    snap.snapfields["Ex"] = snapEx_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+    snap.snapfields["Ey"] = snapEy_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+    snap.snapfields["Ez"] = snapEz_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+    snap.snapfields["Hx"] = snapHx_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+    snap.snapfields["Hy"] = snapHy_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]
+    snap.snapfields["Hz"] = snapHz_dev[i, snap.xs : snap.xf, snap.ys : snap.yf, snap.zs : snap.zf]

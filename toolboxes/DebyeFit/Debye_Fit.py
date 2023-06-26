@@ -19,7 +19,7 @@ from optimization import DA_DLS, DE_DLS, PSO_DLS
 
 
 class Relaxation(object):
-    """ Create Relaxation function object for complex material.
+    """Create Relaxation function object for complex material.
 
     :param sigma: The conductivity (Siemens/metre).
     :type sigma: float, non-optional
@@ -52,13 +52,20 @@ class Relaxation(object):
     :type optimizer_options: dict, optional, default: empty dict
     """
 
-    def __init__(self, sigma, mu, mu_sigma,
-                 material_name, f_n=50,
-                 number_of_debye_poles=-1,
-                 plot=True, save=False,
-                 optimizer=PSO_DLS,
-                 optimizer_options={}):
-        self.name = 'Relaxation function'
+    def __init__(
+        self,
+        sigma,
+        mu,
+        mu_sigma,
+        material_name,
+        f_n=50,
+        number_of_debye_poles=-1,
+        plot=True,
+        save=False,
+        optimizer=PSO_DLS,
+        optimizer_options={},
+    ):
+        self.name = "Relaxation function"
         self.params = {}
         self.number_of_debye_poles = number_of_debye_poles
         self.f_n = f_n
@@ -71,7 +78,7 @@ class Relaxation(object):
         self.optimizer = optimizer(**optimizer_options)
 
     def set_freq(self, f_min, f_max, f_n=50):
-        """ Interpolate frequency vector using n equally logarithmicaly spaced frequencies.
+        """Interpolate frequency vector using n equally logarithmicaly spaced frequencies.
 
         Args:
             f_min (float): First bound of the frequency range
@@ -84,19 +91,17 @@ class Relaxation(object):
             f_min and f_max must satisfied f_min < f_max
         """
         if abs(f_min - f_max) > 1e12:
-            warnings.warn(f'The chosen range is realy big. '
-                          f'Consider setting greater number of points '
-                          f'on the frequency grid!')
-        self.freq = np.logspace(np.log10(f_min),
-                                np.log10(f_max),
-                                int(f_n))
+            warnings.warn(
+                f"The chosen range is realy big. "
+                f"Consider setting greater number of points "
+                f"on the frequency grid!"
+            )
+        self.freq = np.logspace(np.log10(f_min), np.log10(f_max), int(f_n))
 
     def check_inputs(self):
-        """ Check the validity of the inputs. """
+        """Check the validity of the inputs."""
         try:
-            d = [float(i) for i in
-                 [self.number_of_debye_poles,
-                  self.sigma, self.mu, self.mu_sigma]]
+            d = [float(i) for i in [self.number_of_debye_poles, self.sigma, self.mu, self.mu_sigma]]
         except ValueError:
             sys.exit("The inputs should be numeric.")
         if not isinstance(self.number_of_debye_poles, int):
@@ -105,7 +110,7 @@ class Relaxation(object):
             sys.exit("The inputs should be positive.")
 
     def calculation(self):
-        """ Approximate the given relaxation function
+        """Approximate the given relaxation function
         (Havriliak-Negami function, Crim, Jonscher) or based on raw data.
         """
         raise NotImplementedError()
@@ -116,17 +121,16 @@ class Relaxation(object):
         Returns:
             s (str): Info about chosen function and its parameters.
         """
-        print(f"Approximating {self.name}"
-              f" using {self.number_of_debye_poles} Debye poles")
+        print(f"Approximating {self.name}" f" using {self.number_of_debye_poles} Debye poles")
         print(f"{self.name} parameters: ")
-        s = ''
+        s = ""
         for k, v in self.params.items():
             s += f"{k:10s} = {v}\n"
         print(s)
-        return f'{self.name}:\n{s}'
+        return f"{self.name}:\n{s}"
 
     def optimize(self):
-        """ Calling the main optimisation module with defined lower and upper boundaries of search.
+        """Calling the main optimisation module with defined lower and upper boundaries of search.
 
         Returns:
             tau (ndarray): The optimised relaxation times.
@@ -138,21 +142,19 @@ class Relaxation(object):
                           for given frequency points.
         """
         # Define the lower and upper boundaries of search
-        lb = np.full(self.number_of_debye_poles,
-                     -np.log10(np.max(self.freq)) - 3)
-        ub = np.full(self.number_of_debye_poles,
-                     -np.log10(np.min(self.freq)) + 3)
+        lb = np.full(self.number_of_debye_poles, -np.log10(np.max(self.freq)) - 3)
+        ub = np.full(self.number_of_debye_poles, -np.log10(np.min(self.freq)) + 3)
         # Call optimizer to minimize the cost function
-        tau, weights, ee, rl, im = self.optimizer.fit(func=self.optimizer.cost_function,
-                                                      lb=lb, ub=ub,
-                                                      funckwargs={'rl': self.rl,
-                                                                  'im': self.im,
-                                                                  'freq': self.freq}
-                                                      )
+        tau, weights, ee, rl, im = self.optimizer.fit(
+            func=self.optimizer.cost_function,
+            lb=lb,
+            ub=ub,
+            funckwargs={"rl": self.rl, "im": self.im, "freq": self.freq},
+        )
         return tau, weights, ee, rl, im
 
     def run(self):
-        """ Solve the problem described by the given relaxation function
+        """Solve the problem described by the given relaxation function
         (Havriliak-Negami function, Crim, Jonscher)
         or data given from a text file.
 
@@ -173,9 +175,7 @@ class Relaxation(object):
         self.rl, self.im = q.real, q.imag
 
         if self.number_of_debye_poles == -1:
-            print("\n#########",
-                  "Try to automaticaly fit number of Debye poles, up to 20!",
-                  "##########\n", sep="")
+            print("\n#########", "Try to automaticaly fit number of Debye poles, up to 20!", "##########\n", sep="")
             error = np.infty  # artificial best error starting value
             self.number_of_debye_poles = 1
             iteration = 1
@@ -198,9 +198,7 @@ class Relaxation(object):
 
         # Print the results in gprMax format style
         properties = self.print_output(tau, weights, ee)
-        print(f'The average fractional error for:\n'
-              f'- real part: {err_real}\n'
-              f'- imaginary part: {err_imag}\n')
+        print(f"The average fractional error for:\n" f"- real part: {err_real}\n" f"- imaginary part: {err_imag}\n")
         if self.save:
             self.save_result(properties)
         # Plot the actual and the approximate dielectric properties
@@ -209,7 +207,7 @@ class Relaxation(object):
         return err_real + err_imag, properties
 
     def print_output(self, tau, weights, ee):
-        """ Print out the resulting Debye parameters in a gprMax format.
+        """Print out the resulting Debye parameters in a gprMax format.
 
         Args:
             tau (ndarray): The best known position form optimization module
@@ -225,28 +223,25 @@ class Relaxation(object):
         print(f"       |{'e_inf':^14s}|{'De':^14s}|{'log(tau_0)':^25s}|")
         print("_" * 65)
         for i in range(0, len(tau)):
-            print("Debye {0:}|{1:^14.5f}|{2:^14.5f}|{3:^25.5f}|"
-                  .format(i + 1, ee/len(tau), weights[i],
-                          tau[i]))
+            print("Debye {0:}|{1:^14.5f}|{2:^14.5f}|{3:^25.5f}|".format(i + 1, ee / len(tau), weights[i], tau[i]))
             print("_" * 65)
 
         # Print the Debye expnasion in a gprMax format
         material_prop = []
-        material_prop.append("#material: {} {} {} {} {}\n".format(ee, self.sigma,
-                                                                  self.mu,
-                                                                  self.mu_sigma,
-                                                                  self.material_name))
+        material_prop.append(
+            "#material: {} {} {} {} {}\n".format(ee, self.sigma, self.mu, self.mu_sigma, self.material_name)
+        )
         print(material_prop[0], end="")
         dispersion_prop = "#add_dispersion_debye: {}".format(len(tau))
         for i in range(len(tau)):
-            dispersion_prop += " {} {}".format(weights[i], 10**tau[i])
+            dispersion_prop += " {} {}".format(weights[i], 10 ** tau[i])
         dispersion_prop += " {}".format(self.material_name)
         print(dispersion_prop)
-        material_prop.append(dispersion_prop + '\n')
+        material_prop.append(dispersion_prop + "\n")
         return material_prop
 
     def plot_result(self, rl_exp, im_exp):
-        """ Plot the actual and the approximated electric permittivity,
+        """Plot the actual and the approximated electric permittivity,
         along with relative error for real and imaginary parts
         using a semilogarithm X axes.
 
@@ -261,14 +256,10 @@ class Relaxation(object):
         gs = gridspec.GridSpec(2, 1)
         ax = fig.add_subplot(gs[0])
         ax.grid(b=True, which="major", linewidth=0.2, linestyle="--")
-        ax.semilogx(self.freq * 1e-6, rl_exp, "b-", linewidth=2.0,
-                    label="Debye Expansion: Real part")
-        ax.semilogx(self.freq * 1e-6, -im_exp, "k-", linewidth=2.0,
-                    label="Debye Expansion: Imaginary part")
-        ax.semilogx(self.freq * 1e-6, self.rl, "r.",
-                    linewidth=2.0, label=f"{self.name}: Real part")
-        ax.semilogx(self.freq * 1e-6, -self.im, "g.", linewidth=2.0,
-                    label=f"{self.name}: Imaginary part")
+        ax.semilogx(self.freq * 1e-6, rl_exp, "b-", linewidth=2.0, label="Debye Expansion: Real part")
+        ax.semilogx(self.freq * 1e-6, -im_exp, "k-", linewidth=2.0, label="Debye Expansion: Imaginary part")
+        ax.semilogx(self.freq * 1e-6, self.rl, "r.", linewidth=2.0, label=f"{self.name}: Real part")
+        ax.semilogx(self.freq * 1e-6, -self.im, "g.", linewidth=2.0, label=f"{self.name}: Imaginary part")
         ax.set_ylim([-1, np.max(np.concatenate([self.rl, -self.im])) + 1])
         ax.legend()
         ax.set_xlabel("Frequency (MHz)")
@@ -276,17 +267,15 @@ class Relaxation(object):
 
         ax = fig.add_subplot(gs[1])
         ax.grid(b=True, which="major", linewidth=0.2, linestyle="--")
-        ax.semilogx(self.freq * 1e-6, (rl_exp - self.rl)/(self.rl + 1), "b-", linewidth=2.0,
-                    label="Real part")
-        ax.semilogx(self.freq * 1e-6, (-im_exp + self.im)/(self.im + 1), "k-", linewidth=2.0,
-                    label="Imaginary part")
+        ax.semilogx(self.freq * 1e-6, (rl_exp - self.rl) / (self.rl + 1), "b-", linewidth=2.0, label="Real part")
+        ax.semilogx(self.freq * 1e-6, (-im_exp + self.im) / (self.im + 1), "k-", linewidth=2.0, label="Imaginary part")
         ax.legend()
         ax.set_xlabel("Frequency (MHz)")
         ax.set_ylabel("Relative approximation error")
         plt.show()
 
     def error(self, rl_exp, im_exp):
-        """ Calculate the average fractional error separately for
+        """Calculate the average fractional error separately for
         relative permittivity (real part) and conductivity (imaginary part)
 
         Args:
@@ -300,13 +289,13 @@ class Relaxation(object):
             avg_err_imag (float): average fractional error
                                   for conductivity (imaginary part)
         """
-        avg_err_real = np.sum(np.abs((rl_exp - self.rl)/(self.rl + 1)) * 100)/len(rl_exp)
-        avg_err_imag = np.sum(np.abs((-im_exp + self.im)/(self.im + 1)) * 100)/len(im_exp)
+        avg_err_real = np.sum(np.abs((rl_exp - self.rl) / (self.rl + 1)) * 100) / len(rl_exp)
+        avg_err_imag = np.sum(np.abs((-im_exp + self.im) / (self.im + 1)) * 100) / len(im_exp)
         return avg_err_real, avg_err_imag
 
     @staticmethod
     def save_result(output, fdir="../materials"):
-        """ Save the resulting Debye parameters in a gprMax format.
+        """Save the resulting Debye parameters in a gprMax format.
 
         Args:
             output (list(str)): Material and resulting Debye parameters
@@ -316,17 +305,13 @@ class Relaxation(object):
         if fdir != "../materials" and os.path.isdir(fdir):
             file_path = os.path.join(fdir, "my_materials.txt")
         elif os.path.isdir("../materials"):
-            file_path = os.path.join("../materials",
-                                     "my_materials.txt")
+            file_path = os.path.join("../materials", "my_materials.txt")
         elif os.path.isdir("materials"):
-            file_path = os.path.join("materials",
-                                     "my_materials.txt")
+            file_path = os.path.join("materials", "my_materials.txt")
         elif os.path.isdir("user_libs/materials"):
-            file_path = os.path.join("user_libs", "materials",
-                                     "my_materials.txt")
+            file_path = os.path.join("user_libs", "materials", "my_materials.txt")
         else:
-            sys.exit("Cannot save material properties "
-                     f"in {os.path.join(fdir, 'my_materials.txt')}!")
+            sys.exit("Cannot save material properties " f"in {os.path.join(fdir, 'my_materials.txt')}!")
         fileH = open(file_path, "a")
         fileH.write(f"## {output[0].split(' ')[-1]}")
         fileH.writelines(output)
@@ -336,7 +321,7 @@ class Relaxation(object):
 
 
 class HavriliakNegami(Relaxation):
-    """ Approximate a given Havriliak-Negami function
+    """Approximate a given Havriliak-Negami function
     Havriliak-Negami function = ε_∞ + Δ‎ε / (1 + (2πfjτ)**α)**β,
                                 where f is the frequency in Hz.
 
@@ -362,20 +347,40 @@ class HavriliakNegami(Relaxation):
     :param tau_0: Real positive float number, tau_0 is the relaxation time.
     :type tau_0: float
     """
-    def __init__(self, f_min, f_max,
-                 alpha, beta, e_inf, de, tau_0,
-                 sigma, mu, mu_sigma, material_name,
-                 number_of_debye_poles=-1, f_n=50,
-                 plot=False, save=False,
-                 optimizer=PSO_DLS,
-                 optimizer_options={}):
-        super(HavriliakNegami, self).__init__(sigma=sigma, mu=mu, mu_sigma=mu_sigma,
-                                              material_name=material_name, f_n=f_n,
-                                              number_of_debye_poles=number_of_debye_poles,
-                                              plot=plot, save=save,
-                                              optimizer=optimizer,
-                                              optimizer_options=optimizer_options)
-        self.name = 'Havriliak-Negami function'
+
+    def __init__(
+        self,
+        f_min,
+        f_max,
+        alpha,
+        beta,
+        e_inf,
+        de,
+        tau_0,
+        sigma,
+        mu,
+        mu_sigma,
+        material_name,
+        number_of_debye_poles=-1,
+        f_n=50,
+        plot=False,
+        save=False,
+        optimizer=PSO_DLS,
+        optimizer_options={},
+    ):
+        super(HavriliakNegami, self).__init__(
+            sigma=sigma,
+            mu=mu,
+            mu_sigma=mu_sigma,
+            material_name=material_name,
+            f_n=f_n,
+            number_of_debye_poles=number_of_debye_poles,
+            plot=plot,
+            save=save,
+            optimizer=optimizer,
+            optimizer_options=optimizer_options,
+        )
+        self.name = "Havriliak-Negami function"
         # Place the lower frequency bound at f_min and the upper frequency bound at f_max
         if f_min > f_max:
             self.f_min, self.f_max = f_max, f_min
@@ -384,12 +389,18 @@ class HavriliakNegami(Relaxation):
         # Choosing n frequencies logarithmicaly equally spaced between the bounds given
         self.set_freq(self.f_min, self.f_max, self.f_n)
         self.e_inf, self.alpha, self.beta, self.de, self.tau_0 = e_inf, alpha, beta, de, tau_0
-        self.params = {'f_min': self.f_min, 'f_max': self.f_max,
-                       'eps_inf': self.e_inf, 'Delta_eps': self.de, 'tau_0': self.tau_0,
-                       'alpha': self.alpha, 'beta': self.beta}
+        self.params = {
+            "f_min": self.f_min,
+            "f_max": self.f_max,
+            "eps_inf": self.e_inf,
+            "Delta_eps": self.de,
+            "tau_0": self.tau_0,
+            "alpha": self.alpha,
+            "beta": self.beta,
+        }
 
     def check_inputs(self):
-        """ Check the validity of the Havriliak Negami model's inputs. """
+        """Check the validity of the Havriliak Negami model's inputs."""
         super(HavriliakNegami, self).check_inputs()
         try:
             d = [float(i) for i in self.params.values()]
@@ -406,15 +417,12 @@ class HavriliakNegami(Relaxation):
 
     def calculation(self):
         """Calculates the Havriliak-Negami function for
-           the given parameters."""
-        return self.e_inf + self.de / (
-                     1 + (1j * 2 * np.pi *
-                     self.freq * self.tau_0)**self.alpha
-                                     )**self.beta
+        the given parameters."""
+        return self.e_inf + self.de / (1 + (1j * 2 * np.pi * self.freq * self.tau_0) ** self.alpha) ** self.beta
 
 
 class Jonscher(Relaxation):
-    """ Approximate a given Jonsher function
+    """Approximate a given Jonsher function
     Jonscher function = ε_∞ - ap * (-1j * 2πf / omegap)**n_p,
                         where f is the frequency in Hz
 
@@ -433,20 +441,39 @@ class Jonscher(Relaxation):
     :params n_p: Jonscher parameter, 0 < n_p < 1.
     :type n_p: float, non-optional
     """
-    def __init__(self, f_min, f_max,
-                 e_inf, a_p, omega_p, n_p,
-                 sigma, mu, mu_sigma,
-                 material_name, number_of_debye_poles=-1,
-                 f_n=50, plot=False, save=False,
-                 optimizer=PSO_DLS,
-                 optimizer_options={}):
-        super(Jonscher, self).__init__(sigma=sigma, mu=mu, mu_sigma=mu_sigma,
-                                       material_name=material_name, f_n=f_n,
-                                       number_of_debye_poles=number_of_debye_poles,
-                                       plot=plot, save=save,
-                                       optimizer=optimizer,
-                                       optimizer_options=optimizer_options)
-        self.name = 'Jonsher function'
+
+    def __init__(
+        self,
+        f_min,
+        f_max,
+        e_inf,
+        a_p,
+        omega_p,
+        n_p,
+        sigma,
+        mu,
+        mu_sigma,
+        material_name,
+        number_of_debye_poles=-1,
+        f_n=50,
+        plot=False,
+        save=False,
+        optimizer=PSO_DLS,
+        optimizer_options={},
+    ):
+        super(Jonscher, self).__init__(
+            sigma=sigma,
+            mu=mu,
+            mu_sigma=mu_sigma,
+            material_name=material_name,
+            f_n=f_n,
+            number_of_debye_poles=number_of_debye_poles,
+            plot=plot,
+            save=save,
+            optimizer=optimizer,
+            optimizer_options=optimizer_options,
+        )
+        self.name = "Jonsher function"
         # Place the lower frequency bound at f_min and the upper frequency bound at f_max
         if f_min > f_max:
             self.f_min, self.f_max = f_max, f_min
@@ -455,12 +482,17 @@ class Jonscher(Relaxation):
         # Choosing n frequencies logarithmicaly equally spaced between the bounds given
         self.set_freq(self.f_min, self.f_max, self.f_n)
         self.e_inf, self.a_p, self.omega_p, self.n_p = e_inf, a_p, omega_p, n_p
-        self.params = {'f_min': self.f_min, 'f_max': self.f_max,
-                       'eps_inf': self.e_inf, 'n_p': self.n_p,
-                       'omega_p': self.omega_p, 'a_p': self.a_p}
+        self.params = {
+            "f_min": self.f_min,
+            "f_max": self.f_max,
+            "eps_inf": self.e_inf,
+            "n_p": self.n_p,
+            "omega_p": self.omega_p,
+            "a_p": self.a_p,
+        }
 
     def check_inputs(self):
-        """ Check the validity of the inputs. """
+        """Check the validity of the inputs."""
         super(Jonscher, self).check_inputs()
         try:
             d = [float(i) for i in self.params.values()]
@@ -475,13 +507,13 @@ class Jonscher(Relaxation):
 
     def calculation(self):
         """Calculates the Q function for the given parameters"""
-        return self.e_inf + (self.a_p * (2 * np.pi *
-                      self.freq / self.omega_p)**(self.n_p-1)) * (
-                      1 - 1j / np.tan(self.n_p * np.pi/2))
+        return self.e_inf + (self.a_p * (2 * np.pi * self.freq / self.omega_p) ** (self.n_p - 1)) * (
+            1 - 1j / np.tan(self.n_p * np.pi / 2)
+        )
 
 
 class Crim(Relaxation):
-    """ Approximate a given CRIM function
+    """Approximate a given CRIM function
     CRIM = (Σ frac_i * (‎ε_∞_i + Δ‎ε_i/(1 + 2πfj*τ_i))^a)^(1/a)
 
     :param f_min: First bound of the frequency range
@@ -498,20 +530,37 @@ class Crim(Relaxation):
     :type materials: ndarray, non-optional
     """
 
-    def __init__(self, f_min, f_max, a, volumetric_fractions,
-                 materials, sigma, mu, mu_sigma, material_name,
-                 number_of_debye_poles=-1, f_n=50,
-                 plot=False, save=False,
-                 optimizer=PSO_DLS,
-                 optimizer_options={}):
-
-        super(Crim, self).__init__(sigma=sigma, mu=mu, mu_sigma=mu_sigma,
-                                   material_name=material_name, f_n=f_n,
-                                   number_of_debye_poles=number_of_debye_poles,
-                                   plot=plot, save=save,
-                                   optimizer=optimizer,
-                                   optimizer_options=optimizer_options)
-        self.name = 'CRIM function'
+    def __init__(
+        self,
+        f_min,
+        f_max,
+        a,
+        volumetric_fractions,
+        materials,
+        sigma,
+        mu,
+        mu_sigma,
+        material_name,
+        number_of_debye_poles=-1,
+        f_n=50,
+        plot=False,
+        save=False,
+        optimizer=PSO_DLS,
+        optimizer_options={},
+    ):
+        super(Crim, self).__init__(
+            sigma=sigma,
+            mu=mu,
+            mu_sigma=mu_sigma,
+            material_name=material_name,
+            f_n=f_n,
+            number_of_debye_poles=number_of_debye_poles,
+            plot=plot,
+            save=save,
+            optimizer=optimizer,
+            optimizer_options=optimizer_options,
+        )
+        self.name = "CRIM function"
         # Place the lower frequency bound at f_min and the upper frequency bound at f_max
         if f_min > f_max:
             self.f_min, self.f_max = f_max, f_min
@@ -522,16 +571,19 @@ class Crim(Relaxation):
         self.a = a
         self.volumetric_fractions = np.array(volumetric_fractions)
         self.materials = np.array(materials)
-        self.params = {'f_min': self.f_min, 'f_max': self.f_max,
-                       'a': self.a, 'volumetric_fractions': self.volumetric_fractions,
-                       'materials': self.materials}
+        self.params = {
+            "f_min": self.f_min,
+            "f_max": self.f_max,
+            "a": self.a,
+            "volumetric_fractions": self.volumetric_fractions,
+            "materials": self.materials,
+        }
 
     def check_inputs(self):
-        """ Check the validity of the inputs. """
+        """Check the validity of the inputs."""
         super(Crim, self).check_inputs()
         try:
-            d = [float(i) for i in
-                 [self.f_min, self.f_max, self.a]]
+            d = [float(i) for i in [self.f_min, self.f_max, self.a]]
         except ValueError:
             sys.exit("The inputs should be numeric.")
         if (np.array(d) < 0).sum() != 0:
@@ -557,12 +609,11 @@ class Crim(Relaxation):
             sys.exit("Error: The summation of volumetric volumes should be equal to 1")
 
     def print_info(self):
-        """ Print information about chosen approximation settings """
-        print(f"Approximating Complex Refractive Index Model (CRIM)"
-              f" using {self.number_of_debye_poles} Debye poles")
+        """Print information about chosen approximation settings"""
+        print(f"Approximating Complex Refractive Index Model (CRIM)" f" using {self.number_of_debye_poles} Debye poles")
         print("CRIM parameters: ")
         for i in range(len(self.volumetric_fractions)):
-            print("Material {}.:".format(i+1))
+            print("Material {}.:".format(i + 1))
             print("---------------------------------")
             print(f"{'Vol. fraction':>27s} = {self.volumetric_fractions[i]}")
             print(f"{'e_inf':>27s} = {self.materials[i][0]}")
@@ -571,16 +622,27 @@ class Crim(Relaxation):
 
     def calculation(self):
         """Calculates the Crim function for the given parameters"""
-        return np.sum(np.repeat(self.volumetric_fractions, len(self.freq)
-                        ).reshape((-1, len(self.materials)))*(
-               self.materials[:, 0] + self.materials[:, 1] / (
-                   1 + 1j * 2 * np.pi * np.repeat(self.freq, len(self.materials)
-                   ).reshape((-1, len(self.materials))) * self.materials[:, 2]))**self.a,
-               axis=1)**(1 / self.a)
+        return np.sum(
+            np.repeat(self.volumetric_fractions, len(self.freq)).reshape((-1, len(self.materials)))
+            * (
+                self.materials[:, 0]
+                + self.materials[:, 1]
+                / (
+                    1
+                    + 1j
+                    * 2
+                    * np.pi
+                    * np.repeat(self.freq, len(self.materials)).reshape((-1, len(self.materials)))
+                    * self.materials[:, 2]
+                )
+            )
+            ** self.a,
+            axis=1,
+        ) ** (1 / self.a)
 
 
 class Rawdata(Relaxation):
-    """ Interpolate data given from a text file.
+    """Interpolate data given from a text file.
 
     :param filename: text file which contains three columns:
                      frequency (Hz),Real,Imaginary (separated by comma).
@@ -588,113 +650,147 @@ class Rawdata(Relaxation):
     :param delimiter: separator for three data columns
     :type delimiter: str, optional (Deafult: ',')
     """
-    def __init__(self, filename,
-                 sigma, mu, mu_sigma,
-                 material_name, number_of_debye_poles=-1,
-                 f_n=50, delimiter=',',
-                 plot=False, save=False,
-                 optimizer=PSO_DLS,
-                 optimizer_options={}):
 
-        super(Rawdata, self).__init__(sigma=sigma, mu=mu, mu_sigma=mu_sigma,
-                                      material_name=material_name, f_n=f_n,
-                                      number_of_debye_poles=number_of_debye_poles,
-                                      plot=plot, save=save,
-                                      optimizer=optimizer,
-                                      optimizer_options=optimizer_options)
+    def __init__(
+        self,
+        filename,
+        sigma,
+        mu,
+        mu_sigma,
+        material_name,
+        number_of_debye_poles=-1,
+        f_n=50,
+        delimiter=",",
+        plot=False,
+        save=False,
+        optimizer=PSO_DLS,
+        optimizer_options={},
+    ):
+        super(Rawdata, self).__init__(
+            sigma=sigma,
+            mu=mu,
+            mu_sigma=mu_sigma,
+            material_name=material_name,
+            f_n=f_n,
+            number_of_debye_poles=number_of_debye_poles,
+            plot=plot,
+            save=save,
+            optimizer=optimizer,
+            optimizer_options=optimizer_options,
+        )
         self.delimiter = delimiter
         self.filename = Path(filename).absolute()
-        self.params = {'filename': self.filename}
+        self.params = {"filename": self.filename}
 
     def check_inputs(self):
-        """ Check the validity of the inputs. """
+        """Check the validity of the inputs."""
         super(Rawdata, self).check_inputs()
 
         if not os.path.isfile(self.filename):
             sys.exit("File doesn't exists!")
 
     def calculation(self):
-        """ Interpolate real and imaginary part from data.
+        """Interpolate real and imaginary part from data.
         Column framework of the input file three columns comma-separated
         Frequency(Hz),Real,Imaginary
         """
         # Read the file
         with open(self.filename) as f:
             try:
-                array = np.array(
-                    [[float(x) for x in line.split(self.delimiter)] for line in f]
-                    )
+                array = np.array([[float(x) for x in line.split(self.delimiter)] for line in f])
             except ValueError:
                 sys.exit("Error: The inputs should be numeric")
 
         self.set_freq(min(array[:, 0]), max(array[:, 0]), self.f_n)
-        rl_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 1],
-                                               fill_value="extrapolate")
-        im_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 2],
-                                               fill_value="extrapolate")
+        rl_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 1], fill_value="extrapolate")
+        im_interp = scipy.interpolate.interp1d(array[:, 0], array[:, 2], fill_value="extrapolate")
         return rl_interp(self.freq) - 1j * im_interp(self.freq)
 
 
 if __name__ == "__main__":
     # Kelley et al. parameters
-    setup = HavriliakNegami(f_min=1e7, f_max=1e11,
-                            alpha=0.91, beta=0.45,
-                            e_inf=2.7, de=8.6-2.7, tau_0=9.4e-10,
-                            sigma=0, mu=0, mu_sigma=0,
-                            material_name="Kelley", f_n=100,
-                            number_of_debye_poles=6,
-                            plot=True, save=False,
-                            optimizer_options={'swarmsize': 30,
-                                               'maxiter': 100,
-                                               'omega': 0.5,
-                                               'phip': 1.4,
-                                               'phig': 1.4,
-                                               'minstep': 1e-8,
-                                               'minfun': 1e-8,
-                                               'seed': 111,
-                                               'pflag': True})
+    setup = HavriliakNegami(
+        f_min=1e7,
+        f_max=1e11,
+        alpha=0.91,
+        beta=0.45,
+        e_inf=2.7,
+        de=8.6 - 2.7,
+        tau_0=9.4e-10,
+        sigma=0,
+        mu=0,
+        mu_sigma=0,
+        material_name="Kelley",
+        f_n=100,
+        number_of_debye_poles=6,
+        plot=True,
+        save=False,
+        optimizer_options={
+            "swarmsize": 30,
+            "maxiter": 100,
+            "omega": 0.5,
+            "phip": 1.4,
+            "phig": 1.4,
+            "minstep": 1e-8,
+            "minfun": 1e-8,
+            "seed": 111,
+            "pflag": True,
+        },
+    )
     setup.run()
-    setup = HavriliakNegami(f_min=1e7, f_max=1e11,
-                            alpha=0.91, beta=0.45,
-                            e_inf=2.7, de=8.6-2.7, tau_0=9.4e-10,
-                            sigma=0, mu=0, mu_sigma=0,
-                            material_name="Kelley", f_n=100,
-                            number_of_debye_poles=6,
-                            plot=True, save=False,
-                            optimizer=DA_DLS,
-                            optimizer_options={'seed': 111})
+    setup = HavriliakNegami(
+        f_min=1e7,
+        f_max=1e11,
+        alpha=0.91,
+        beta=0.45,
+        e_inf=2.7,
+        de=8.6 - 2.7,
+        tau_0=9.4e-10,
+        sigma=0,
+        mu=0,
+        mu_sigma=0,
+        material_name="Kelley",
+        f_n=100,
+        number_of_debye_poles=6,
+        plot=True,
+        save=False,
+        optimizer=DA_DLS,
+        optimizer_options={"seed": 111},
+    )
     setup.run()
-    setup = HavriliakNegami(f_min=1e7, f_max=1e11,
-                            alpha=0.91, beta=0.45,
-                            e_inf=2.7, de=8.6-2.7, tau_0=9.4e-10,
-                            sigma=0, mu=0, mu_sigma=0,
-                            material_name="Kelley", f_n=100,
-                            number_of_debye_poles=6,
-                            plot=True, save=False,
-                            optimizer=DE_DLS,
-                            optimizer_options={'seed': 111})
+    setup = HavriliakNegami(
+        f_min=1e7,
+        f_max=1e11,
+        alpha=0.91,
+        beta=0.45,
+        e_inf=2.7,
+        de=8.6 - 2.7,
+        tau_0=9.4e-10,
+        sigma=0,
+        mu=0,
+        mu_sigma=0,
+        material_name="Kelley",
+        f_n=100,
+        number_of_debye_poles=6,
+        plot=True,
+        save=False,
+        optimizer=DE_DLS,
+        optimizer_options={"seed": 111},
+    )
     setup.run()
     # Testing setup
-    setup = Rawdata("examples/Test.txt", 0.1, 1, 0.1, "M1",
-                    number_of_debye_poles=3, plot=True,
-                    optimizer_options={'seed': 111})
+    setup = Rawdata(
+        "examples/Test.txt", 0.1, 1, 0.1, "M1", number_of_debye_poles=3, plot=True, optimizer_options={"seed": 111}
+    )
     setup.run()
     np.random.seed(111)
-    setup = HavriliakNegami(1e12, 1e-3, 0.5, 1, 10, 5,
-                            1e-6, 0.1, 1, 0, "M2",
-                            number_of_debye_poles=6,
-                            plot=True)
+    setup = HavriliakNegami(1e12, 1e-3, 0.5, 1, 10, 5, 1e-6, 0.1, 1, 0, "M2", number_of_debye_poles=6, plot=True)
     setup.run()
-    setup = Jonscher(1e6, 1e-5, 50, 1, 1e5, 0.7,
-                     0.1, 1, 0.1, "M3",
-                     number_of_debye_poles=4,
-                     plot=True)
+    setup = Jonscher(1e6, 1e-5, 50, 1, 1e5, 0.7, 0.1, 1, 0.1, "M3", number_of_debye_poles=4, plot=True)
     setup.run()
     f = np.array([0.5, 0.5])
     material1 = [3, 25, 1e6]
     material2 = [3, 0, 1e3]
     materials = np.array([material1, material2])
-    setup = Crim(1*1e-1, 1e-9, 0.5, f, materials, 0.1,
-                 1, 0, "M4", number_of_debye_poles=2,
-                 plot=True)
+    setup = Crim(1 * 1e-1, 1e-9, 0.5, f, materials, 0.1, 1, 0, "M4", number_of_debye_poles=2, plot=True)
     setup.run()

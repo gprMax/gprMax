@@ -24,13 +24,13 @@ from gprMax.config cimport float_or_double_complex
 
 
 cpdef void generate_fractal2D(
-    int nx, 
-    int ny, 
-    int nthreads, 
-    int b, 
-    np.float64_t[:] weighting, 
-    np.float64_t[:] v1, 
-    np.complex128_t[:, ::1] A, 
+    int nx,
+    int ny,
+    int nthreads,
+    int b,
+    np.float64_t[:] weighting,
+    np.float64_t[:] v1,
+    np.complex128_t[:, ::1] A,
     float_or_double_complex[:, ::1] fractalsurface
 ):
     """Generates a fractal surface for a 2D array.
@@ -40,11 +40,11 @@ cpdef void generate_fractal2D(
         nthreads: int for number of threads to use
         b: int for constant related to fractal dimension.
         weighting: memoryview for access to weighting vector.
-        v1: memoryview for access to positional vector at centre of array, 
+        v1: memoryview for access to positional vector at centre of array,
             scaled by weighting.
-        A: memoryview for access to array containing random numbers 
+        A: memoryview for access to array containing random numbers
             (to be convolved with fractal function).
-        fractalsurface: memoryview for access to array containing fractal 
+        fractalsurface: memoryview for access to array containing fractal
                         surface data.
     """
 
@@ -67,14 +67,14 @@ cpdef void generate_fractal2D(
 
 
 cpdef void generate_fractal3D(
-    int nx, 
-    int ny, 
-    int nz, 
-    int nthreads, 
-    int b, 
-    np.float64_t[:] weighting, 
-    np.float64_t[:] v1, 
-    np.complex128_t[:, :, ::1] A, 
+    int nx,
+    int ny,
+    int nz,
+    int nthreads,
+    int b,
+    np.float64_t[:] weighting,
+    np.float64_t[:] v1,
+    np.complex128_t[:, :, ::1] A,
     float_or_double_complex[:, :, ::1] fractalvolume
 ):
     """Generates a fractal volume for a 3D array.
@@ -84,11 +84,11 @@ cpdef void generate_fractal3D(
         nthreads: int for number of threads to use
         b: int for constant related to fractal dimension.
         weighting: memoryview for access to weighting vector.
-        v1: memoryview for access to positional vector at centre of array, 
+        v1: memoryview for access to positional vector at centre of array,
             scaled by weighting.
-        A: memoryview for access to array containing random numbers 
+        A: memoryview for access to array containing random numbers
             (to be convolved with fractal function).
-        fractalsurface: memoryview for access to array containing fractal 
+        fractalsurface: memoryview for access to array containing fractal
                         volume data.
     """
 
@@ -107,6 +107,6 @@ cpdef void generate_fractal3D(
                 rr = ((v2x - v1[0])**2 + (v2y - v1[1])**2 + (v2z - v1[2])**2)**(1/2)
                 B = rr**b
                 if B == 0:
-                    B = 0.9 
-                    
+                    B = 0.9
+
                 fractalvolume[i, j, k] = A[i, j, k] / B

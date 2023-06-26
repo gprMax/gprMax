@@ -8,7 +8,7 @@ The most computationally intensive parts of gprMax, which are the FDTD solver lo
 
 1. `OpenMP <http://openmp.org>`_ which supports multi-platform shared memory multiprocessing.
 2. `NVIDIA CUDA <https://developer.nvidia.com/cuda-toolkit>`_ for NVIDIA GPUs.
-3. `OpenCL <https://www.khronos.org/api/opencl>`_ for a wider range of CPU and GPU hardware. 
+3. `OpenCL <https://www.khronos.org/api/opencl>`_ for a wider range of CPU and GPU hardware.
 
 Additionally, the Message Passing Interface (MPI) can be utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This can be useful in many GPR simulations where a B-scan (composed of multiple A-scans) is required. Each A-scan can be task-farmed as an independent model, and within each model, OpenMP or CUDA can still be used for parallelism. This creates mixed mode OpenMP/MPI or CUDA/MPI environments.
 
@@ -74,7 +74,7 @@ Run one of the test models:
 
 .. note::
 
-    * If you want to select a specific GPU card on your system, you can specify an integer after the ``-gpu`` flag. The integer should be the NVIDIA CUDA device ID for a specific GPU card. If it is not specified it defaults to device ID 0. 
+    * If you want to select a specific GPU card on your system, you can specify an integer after the ``-gpu`` flag. The integer should be the NVIDIA CUDA device ID for a specific GPU card. If it is not specified it defaults to device ID 0.
     * You can use the ``get_host_spec.py`` module (in ``toolboxes/Utilities``) to help you understand what hardware (CPU/GPU) you have and how gprMax can use it.
 
 
@@ -108,7 +108,7 @@ Run one of the test models:
 CUDA/MPI
 ========
 
-Message Passing Interface (MPI) has been utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This is described in more detail in the :ref:`HPC <hpc>` section. MPI can be combined with the GPU functionality to allow a series of models to be distributed to multiple GPUs on the same machine (node). 
+Message Passing Interface (MPI) has been utilised to implement a simple task farm that can be used to distribute a series of models as independent tasks. This is described in more detail in the :ref:`HPC <hpc>` section. MPI can be combined with the GPU functionality to allow a series of models to be distributed to multiple GPUs on the same machine (node).
 
 Example
 -------

@@ -23,14 +23,13 @@ import numpy as np
 class Rx:
     """Receiver output points."""
 
-    allowableoutputs = ['Ex', 'Ey', 'Ez', 'Hx', 'Hy', 'Hz', 'Ix', 'Iy', 'Iz']
+    allowableoutputs = ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz", "Ix", "Iy", "Iz"]
     defaultoutputs = allowableoutputs[:-3]
 
     allowableoutputs_dev = allowableoutputs[:-3]
     maxnumoutputs_dev = 0
 
     def __init__(self):
-
         self.ID = None
         self.outputs = {}
         self.xcoord = None
@@ -65,19 +64,22 @@ def htod_rx_arrays(G, queue=None):
         if len(rx.outputs) > Rx.maxnumoutputs_dev:
             Rx.maxnumoutputs_dev = len(rx.outputs)
 
-    # Array to store field components for receivers on compute device - 
+    # Array to store field components for receivers on compute device -
     #   rows are field components; columns are iterations; pages are receivers
-    rxs = np.zeros((len(Rx.allowableoutputs_dev), G.iterations, len(G.rxs)),
-                   dtype=config.sim_config.dtypes['float_or_double'])
+    rxs = np.zeros(
+        (len(Rx.allowableoutputs_dev), G.iterations, len(G.rxs)), dtype=config.sim_config.dtypes["float_or_double"]
+    )
 
     # Copy arrays to compute device
-    if config.sim_config.general['solver'] == 'cuda':
+    if config.sim_config.general["solver"] == "cuda":
         import pycuda.gpuarray as gpuarray
+
         rxcoords_dev = gpuarray.to_gpu(rxcoords)
         rxs_dev = gpuarray.to_gpu(rxs)
 
-    elif config.sim_config.general['solver'] == 'opencl':
+    elif config.sim_config.general["solver"] == "opencl":
         import pyopencl.array as clarray
+
         rxcoords_dev = clarray.to_device(queue, rxcoords)
         rxs_dev = clarray.to_device(queue, rxs)
 
@@ -85,7 +87,7 @@ def htod_rx_arrays(G, queue=None):
 
 
 def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
-    """Copy output from receivers array used on compute device back to receiver 
+    """Copy output from receivers array used on compute device back to receiver
         objects.
 
     Args:
@@ -93,13 +95,15 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
         rxs_dev: float array of receiver data on compute device - rows are field
                     components; columns are iterations; pages are receivers.
         G: FDTDGrid class describing a grid in a model.
-        
+
     """
 
     for rx in G.rxs:
         for rxd in range(len(G.rxs)):
-            if (rx.xcoord == rxcoords_dev[rxd, 0] and
-                rx.ycoord == rxcoords_dev[rxd, 1] and
-                rx.zcoord == rxcoords_dev[rxd, 2]):
+            if (
+                rx.xcoord == rxcoords_dev[rxd, 0]
+                and rx.ycoord == rxcoords_dev[rxd, 1]
+                and rx.zcoord == rxcoords_dev[rxd, 2]
+            ):
                 for output in rx.outputs.keys():
                     rx.outputs[output] = rxs_dev[Rx.allowableoutputs_dev.index(output), :, rxd]

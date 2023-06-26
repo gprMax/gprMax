@@ -53,11 +53,11 @@ To include an antenna model similar to a GSSI 1.5 GHz antenna at a location 0.12
     from toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_1500
 
     scene = gprMax.Scene()
-    
+
     # Import antenna model and add to model
     dl = 0.002
     ant_pos = (0.125, 0.094, 0.100)
-    gssi_objects = antenna_like_GSSI_1500(ant_pos[0], ant_pos[1], ant_pos[2], 
+    gssi_objects = antenna_like_GSSI_1500(ant_pos[0], ant_pos[1], ant_pos[2],
                                           resolution=dl)
     for obj in gssi_objects:
         # Rotate antenna model if desired

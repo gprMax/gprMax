@@ -35,7 +35,7 @@ class Ellipsoid(UserObjectGeometry):
         xr: float for x-semiaxis of the elliposid.
         xy: float for y-semiaxis of the ellipsoid.
         xz: float for z-semiaxis of the ellipsoid.
-        material_id: string for the material identifier that must correspond 
+        material_id: string for the material identifier that must correspond
                         to material that has already been defined.
         material_ids: list of material identifiers in the x, y, z directions.
         averaging: string (y or n) used to switch on and off dielectric smoothing.
@@ -43,24 +43,23 @@ class Ellipsoid(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = '#ellipsoid'
+        self.hash = "#ellipsoid"
 
     def create(self, grid, uip):
         try:
-            p1 = self.kwargs['p1']
-            xr = self.kwargs['xr']
-            yr = self.kwargs['yr']
-            zr = self.kwargs['zr']
+            p1 = self.kwargs["p1"]
+            xr = self.kwargs["xr"]
+            yr = self.kwargs["yr"]
+            zr = self.kwargs["zr"]
 
         except KeyError:
-            logger.exception(f'{self.__str__()} please specify a point and ' +
-                             f'the three semiaxes.')
+            logger.exception(f"{self.__str__()} please specify a point and " + f"the three semiaxes.")
             raise
 
         # Check averaging
         try:
             # Try user-specified averaging
-            averageellipsoid = self.kwargs['averaging'] 
+            averageellipsoid = self.kwargs["averaging"]
         except KeyError:
             # Otherwise go with the grid default
             averageellipsoid = grid.averagevolumeobjects
@@ -68,13 +67,13 @@ class Ellipsoid(UserObjectGeometry):
         # Check materials have been specified
         # Isotropic case
         try:
-            materialsrequested = [self.kwargs['material_id']]
+            materialsrequested = [self.kwargs["material_id"]]
         except KeyError:
             # Anisotropic case
             try:
-                materialsrequested = self.kwargs['material_ids']
+                materialsrequested = self.kwargs["material_ids"]
             except KeyError:
-                logger.exception(f'{self.__str__()} no materials have been specified')
+                logger.exception(f"{self.__str__()} no materials have been specified")
                 raise
 
         # Centre of ellipsoid
@@ -86,7 +85,7 @@ class Ellipsoid(UserObjectGeometry):
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            logger.exception(f'{self.__str__()} material(s) {notfound} do not exist')
+            logger.exception(f"{self.__str__()} material(s) {notfound} do not exist")
             raise ValueError
 
         # Isotropic case
@@ -100,34 +99,49 @@ class Ellipsoid(UserObjectGeometry):
             numIDx = materials[0].numID
             numIDy = materials[1].numID
             numIDz = materials[2].numID
-            requiredID = materials[0].ID + '+' + materials[1].ID + '+' + materials[2].ID
+            requiredID = materials[0].ID + "+" + materials[1].ID + "+" + materials[2].ID
             averagedmaterial = [x for x in grid.materials if x.ID == requiredID]
             if averagedmaterial:
                 numID = averagedmaterial.numID
             else:
                 numID = len(grid.materials)
                 m = Material(numID, requiredID)
-                m.type = 'dielectric-smoothed'
+                m.type = "dielectric-smoothed"
                 # Create dielectric-smoothed constituents for material
-                m.er = np.mean((materials[0].er, materials[1].er, 
-                                materials[2].er), axis=0)
-                m.se = np.mean((materials[0].se, materials[1].se, 
-                                materials[2].se), axis=0)
-                m.mr = np.mean((materials[0].mr, materials[1].mr, 
-                                materials[2].mr), axis=0)
-                m.sm = np.mean((materials[0].sm, materials[1].sm, 
-                                materials[2].sm), axis=0)
+                m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
+                m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
+                m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
+                m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
 
                 # Append the new material object to the materials list
                 grid.materials.append(m)
 
-        build_ellipsoid(xc, yc, zc, xr, yr, zr, grid.dx, grid.dy, grid.dz, numID, 
-                        numIDx, numIDy, numIDz, averaging, grid.solid, 
-                        grid.rigidE, grid.rigidH, grid.ID)
+        build_ellipsoid(
+            xc,
+            yc,
+            zc,
+            xr,
+            yr,
+            zr,
+            grid.dx,
+            grid.dy,
+            grid.dz,
+            numID,
+            numIDx,
+            numIDy,
+            numIDz,
+            averaging,
+            grid.solid,
+            grid.rigidE,
+            grid.rigidH,
+            grid.ID,
+        )
 
-        dielectricsmoothing = 'on' if averaging else 'off'
-        logger.info(f"{self.grid_name(grid)}Ellipsoid with centre {p2[0]:g}m, " +
-                    f"{p2[1]:g}m, {p2[2]:g}m, x-semiaxis {xr:g}m, " + 
-                    f"y-semiaxis {yr:g}m and z-semiaxis {zr:g}m of material(s) " +
-                    f"{', '.join(materialsrequested)} created, dielectric " +
-                    f"smoothing is {dielectricsmoothing}.")
+        dielectricsmoothing = "on" if averaging else "off"
+        logger.info(
+            f"{self.grid_name(grid)}Ellipsoid with centre {p2[0]:g}m, "
+            + f"{p2[1]:g}m, {p2[2]:g}m, x-semiaxis {xr:g}m, "
+            + f"y-semiaxis {yr:g}m and z-semiaxis {zr:g}m of material(s) "
+            + f"{', '.join(materialsrequested)} created, dielectric "
+            + f"smoothing is {dielectricsmoothing}."
+        )

@@ -45,7 +45,7 @@ cpdef void calculate_snapshot_fields(
     float_or_double[:, :, ::1] Hysnap,
     float_or_double[:, :, ::1] Hzsnap
 ):
-    """Calculates electric and magnetic values at points from averaging values 
+    """Calculates electric and magnetic values at points from averaging values
         in cells.
 
     Args:
@@ -64,30 +64,30 @@ cpdef void calculate_snapshot_fields(
                 # The electric field component value at a point comes from the
                 # average of the 4 electric field component values in that cell.
                 if isEx:
-                    Exsnap[i, j, k] = (Exslice[i, j, k] + 
+                    Exsnap[i, j, k] = (Exslice[i, j, k] +
                                        Exslice[i, j + 1, k] +
-                                       Exslice[i, j, k + 1] + 
+                                       Exslice[i, j, k + 1] +
                                        Exslice[i, j + 1, k + 1]) / 4
                 if isEy:
-                    Eysnap[i, j, k] = (Eyslice[i, j, k] + 
+                    Eysnap[i, j, k] = (Eyslice[i, j, k] +
                                        Eyslice[i + 1, j, k] +
-                                       Eyslice[i, j, k + 1] + 
+                                       Eyslice[i, j, k + 1] +
                                        Eyslice[i + 1, j, k + 1]) / 4
                 if isEz:
-                    Ezsnap[i, j, k] = (Ezslice[i, j, k] + 
+                    Ezsnap[i, j, k] = (Ezslice[i, j, k] +
                                        Ezslice[i + 1, j, k] +
-                                       Ezslice[i, j + 1, k] + 
+                                       Ezslice[i, j + 1, k] +
                                        Ezslice[i + 1, j + 1, k]) / 4
 
                 # The magnetic field component value at a point comes from
                 # average of 2 magnetic field component values in that cell and
                 # the neighbouring cell.
                 if isHx:
-                    Hxsnap[i, j, k] = (Hxslice[i, j, k] + 
+                    Hxsnap[i, j, k] = (Hxslice[i, j, k] +
                                        Hxslice[i + 1, j, k]) / 2
                 if isHy:
-                    Hysnap[i, j, k] = (Hyslice[i, j, k] + 
+                    Hysnap[i, j, k] = (Hyslice[i, j, k] +
                                        Hyslice[i, j + 1, k]) / 2
                 if isHz:
-                    Hzsnap[i, j, k] = (Hzslice[i, j, k] + 
+                    Hzsnap[i, j, k] = (Hzslice[i, j, k] +
                                        Hzslice[i, j, k + 1]) / 2
