@@ -154,8 +154,9 @@ class Waveform(UserObjectMulti):
             try:
                 uservalues = self.kwargs['user_values']
                 ID = self.kwargs['id']
-                args, varargs, keywords, defaults = inspect.getargspec(interpolate.interp1d)
-                kwargs = dict(zip(reversed(args), reversed(defaults)))
+                fullargspec = inspect.getfullargspec(interpolate.interp1d)
+                kwargs = dict(zip(reversed(fullargspec.args), 
+                                  reversed(fullargspec.defaults)))
             except KeyError:
                 logger.exception(self.params_str() + (' a user-defined '
                                 'waveform requires at least two parameters.'))
