@@ -1209,7 +1209,6 @@ class OpenCLUpdates:
                 self.grid.Hy_dev,
                 self.grid.Hz_dev,
             )
-            event.wait()
 
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
@@ -1231,7 +1230,8 @@ class OpenCLUpdates:
                 self.grid.Hy_dev,
                 self.grid.Hz_dev,
             )
-            event.wait()
+
+        event.wait()
 
     def update_electric_pml(self):
         """Updates electric field components with the PML correction."""
@@ -1319,7 +1319,6 @@ class OpenCLUpdates:
         # if iteration == self.grid.iterations - 1:
         #     return self.drv.mem_get_info()[1] - self.drv.mem_get_info()[0]
         logger.debug("Look at memory estimate for pyopencl")
-        pass
 
     def calculate_solve_time(self):
         """Calculates solving time for model."""

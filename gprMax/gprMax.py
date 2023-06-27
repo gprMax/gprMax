@@ -217,10 +217,9 @@ def run_main(args):
     # MPI running with (OpenMP/CUDA/OpenCL)
     if config.sim_config.args.mpi:
         context = MPIContext()
-        results = context.run()
     # Standard running (OpenMP/CUDA/OpenCL)
     else:
         context = Context()
-        results = context.run()
 
+    results = context.run()
     return results

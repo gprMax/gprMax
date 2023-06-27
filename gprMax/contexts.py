@@ -51,7 +51,6 @@ class Context:
             results: dict that can contain useful results/data from simulation.
         """
 
-        results = {}
         self.tsimstart = timer()
         self.print_logo_copyright()
         print_host_info(config.sim_config.hostinfo)
@@ -86,7 +85,7 @@ class Context:
         self.tsimend = timer()
         self.print_sim_time_taken()
 
-        return results
+        return {}
 
     def print_logo_copyright(self):
         """Prints gprMax logo, version, and copyright/licencing information."""

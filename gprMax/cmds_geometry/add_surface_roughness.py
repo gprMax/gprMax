@@ -123,7 +123,7 @@ class AddSurfaceRoughness(UserObjectGeometry):
             if ys == yf or zs == zf:
                 logger.exception(f"{self.__str__()} dimensions are not specified correctly")
                 raise ValueError
-            if xs != volume.xs and xs != volume.xf:
+            if xs not in [volume.xs, volume.xf]:
                 logger.exception(f"{self.__str__()} can only be used on the external " + "surfaces of a fractal box")
                 raise ValueError
             fractalrange = (round_value(limits[0] / grid.dx), round_value(limits[1] / grid.dx))
@@ -151,10 +151,10 @@ class AddSurfaceRoughness(UserObjectGeometry):
                 requestedsurface = "xplus"
 
         elif ys == yf:
-            if xs == xf or zs == zf:
+            if zs == zf:
                 logger.exception(f"{self.__str__()} dimensions are not specified correctly")
                 raise ValueError
-            if ys != volume.ys and ys != volume.yf:
+            if ys not in [volume.ys and volume.yf]:
                 logger.exception(f"{self.__str__()} can only be used on the external " + "surfaces of a fractal box")
                 raise ValueError
             fractalrange = (round_value(limits[0] / grid.dy), round_value(limits[1] / grid.dy))
@@ -182,10 +182,7 @@ class AddSurfaceRoughness(UserObjectGeometry):
                 requestedsurface = "yplus"
 
         elif zs == zf:
-            if xs == xf or ys == yf:
-                logger.exception(f"{self.__str__()} dimensions are not specified correctly")
-                raise ValueError
-            if zs != volume.zs and zs != volume.zf:
+            if zs not in [volume.zs and volume.zf]:
                 logger.exception(f"{self.__str__()} can only be used on the external " + "surfaces of a fractal box")
                 raise ValueError
             fractalrange = (round_value(limits[0] / grid.dz), round_value(limits[1] / grid.dz))

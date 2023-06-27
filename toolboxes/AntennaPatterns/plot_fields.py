@@ -61,9 +61,9 @@ if epsr:
     wavelength = v1 / f
 
 # Print some useful information
-logger.info("Centre frequency: {} GHz".format(f / 1e9))
+logger.info(f"Centre frequency: {f / 1000000000.0} GHz")
 if epsr:
-    logger.info("Critical angle for Er {} is {} degrees".format(epsr, thetac))
+    logger.info(f"Critical angle for Er {epsr} is {thetac} degrees")
     logger.info("Wavelength: {:.3f} m".format(wavelength))
     logger.info(
         "Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)".format(
@@ -139,7 +139,7 @@ leg = ax.legend(
 [legobj.set_linewidth(2) for legobj in leg.legendHandles]
 
 # Save a pdf of the plot
-savename = os.path.splitext(args.numpyfile)[0] + ".pdf"
+savename = f"{os.path.splitext(args.numpyfile)[0]}.pdf"
 fig.savefig(savename, dpi=None, format="pdf", bbox_inches="tight", pad_inches=0.1)
 # savename = os.path.splitext(args.numpyfile)[0] + '.png'
 # fig.savefig(savename, dpi=150, format='png', bbox_inches='tight', pad_inches=0.1)

@@ -111,7 +111,7 @@ class AddGrass(UserObjectGeometry):
             if ys == yf or zs == zf:
                 logger.exception(f"{self.__str__()} dimensions are not specified correctly")
                 raise ValueError
-            if xs != volume.xs and xs != volume.xf:
+            if xs not in [volume.xs and volume.xf]:
                 logger.exception(f"{self.__str__()} must specify external surfaces on a fractal box")
                 raise ValueError
             fractalrange = (round_value(limits[0] / grid.dx), round_value(limits[1] / grid.dx))
@@ -133,10 +133,10 @@ class AddGrass(UserObjectGeometry):
                 requestedsurface = "xplus"
 
         elif ys == yf:
-            if xs == xf or zs == zf:
+            if zs == zf:
                 logger.exception(f"{self.__str__()} dimensions are not specified correctly")
                 raise ValueError
-            if ys != volume.ys and ys != volume.yf:
+            if ys not in [volume.ys and volume.yf]:
                 logger.exception(f"{self.__str__()} must specify external surfaces on a fractal box")
                 raise ValueError
             fractalrange = (round_value(limits[0] / grid.dy), round_value(limits[1] / grid.dy))
@@ -158,10 +158,7 @@ class AddGrass(UserObjectGeometry):
                 requestedsurface = "yplus"
 
         elif zs == zf:
-            if xs == xf or ys == yf:
-                logger.exception(f"{self.__str__()} dimensions are not specified correctly")
-                raise ValueError
-            if zs != volume.zs and zs != volume.zf:
+            if zs not in [volume.zs and volume.zf]:
                 logger.exception(f"{self.__str__()} must specify external surfaces on a fractal box")
                 raise ValueError
             fractalrange = (round_value(limits[0] / grid.dz), round_value(limits[1] / grid.dz))
@@ -238,7 +235,7 @@ class AddGrass(UserObjectGeometry):
         surface.grass.append(g)
 
         # Check to see if grass has been already defined as a material
-        if not any(x.ID == "grass" for x in grid.materials):
+        if all(x.ID == "grass" for x in grid.materials):
             create_grass(grid)
 
         # Check if time step for model is suitable for using grass

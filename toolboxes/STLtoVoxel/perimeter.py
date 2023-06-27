@@ -36,12 +36,9 @@ def generate_y(p1, p2, x):
 
 def paint_y_axis(lines, pixels, x):
     is_black = False
-    target_ys = list(map(lambda line: int(generate_y(line[0], line[1], x)), lines))
-    target_ys.sort()
+    target_ys = sorted(map(lambda line: int(generate_y(line[0], line[1], x)), lines))
     if len(target_ys) % 2:
-        distances = []
-        for i in range(len(target_ys) - 1):
-            distances.append(target_ys[i + 1] - target_ys[i])
+        distances = [target_ys[i + 1] - target_ys[i] for i in range(len(target_ys) - 1)]
         # https://stackoverflow.com/a/17952763
         min_idx = -min((x, -i) for i, x in enumerate(distances))[1]
         del target_ys[min_idx]
@@ -54,7 +51,7 @@ def paint_y_axis(lines, pixels, x):
         pixels[target_y][x] = True
         is_black = not is_black
         yi = target_y
-    assert is_black is False, "an error has occured at x%s" % x
+    assert is_black is False, f"an error has occured at x{x}"
 
 
 def generate_line_events(line_list):

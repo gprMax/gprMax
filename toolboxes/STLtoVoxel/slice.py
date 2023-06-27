@@ -1,3 +1,4 @@
+import itertools
 import multiprocessing as mp
 import sys
 
@@ -90,10 +91,7 @@ def triangle_to_intersecting_lines(triangle, height, pixels, lines):
             y = int(same[0][1])
             pixels[y][x] = True
     else:
-        cross_lines = []
-        for a in above:
-            for b in below:
-                cross_lines.append((b, a))
+        cross_lines = [(b, a) for a, b in itertools.product(above, below)]
         side1 = where_line_crosses_z(cross_lines[0][0], cross_lines[0][1], height)
         side2 = where_line_crosses_z(cross_lines[1][0], cross_lines[1][1], height)
         lines.append((side1, side2))

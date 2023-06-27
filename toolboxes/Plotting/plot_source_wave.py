@@ -86,19 +86,13 @@ def mpl_plot(w, timewindow, dt, iterations, fft=False, save=False):
     logging.info(f"Type: {w.type}")
     logging.info(f"Maximum (absolute) amplitude: {np.max(np.abs(waveform)):g}")
 
-    if w.freq and not w.type == "gaussian" and not w.type == "impulse":
+    if w.freq and w.type != "gaussian" and w.type != "impulse":
         logging.info(f"Centre frequency: {w.freq:g} Hz")
 
-    if (
-        w.type == "gaussian"
-        or w.type == "gaussiandot"
-        or w.type == "gaussiandotnorm"
-        or w.type == "gaussianprime"
-        or w.type == "gaussiandoubleprime"
-    ):
+    if w.type in ["gaussian", "gaussiandot", "gaussiandotnorm", "gaussianprime", "gaussiandoubleprime"]:
         delay = 1 / w.freq
         logging.info(f"Time to centre of pulse: {delay:g} s")
-    elif w.type == "gaussiandotdot" or w.type == "gaussiandotdotnorm" or w.type == "ricker":
+    elif w.type in ["gaussiandotdot", "gaussiandotdotnorm", "ricker"]:
         delay = np.sqrt(2) / w.freq
         logging.info(f"Time to centre of pulse: {delay:g} s")
 
