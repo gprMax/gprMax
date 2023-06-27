@@ -20,8 +20,7 @@ import logging
 
 import numpy as np
 
-from ..cython.geometry_primitives import (build_edge_x, build_edge_y,
-                                          build_edge_z)
+from ..cython.geometry_primitives import build_edge_x, build_edge_y, build_edge_z
 from .cmds_geometry import UserObjectGeometry, rotate_2point_object
 
 logger = logging.getLogger(__name__)
@@ -33,13 +32,13 @@ class Edge(UserObjectGeometry):
     Attributes:
         p1: list of the coordinates (x,y,z) of the starting point of the edge.
         p2: list of the coordinates (x,y,z) of the ending point of the edge.
-        material_id: string for the material identifier that must correspond 
+        material_id: string for the material identifier that must correspond
                         to material that has already been defined.
     """
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = '#edge'
+        self.hash = "#edge"
 
     def rotate(self, axis, angle, origin=None):
         """Set parameters for rotation."""
@@ -50,19 +49,19 @@ class Edge(UserObjectGeometry):
 
     def _do_rotate(self):
         """Performs rotation."""
-        pts = np.array([self.kwargs['p1'], self.kwargs['p2']])
+        pts = np.array([self.kwargs["p1"], self.kwargs["p2"]])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
-        self.kwargs['p1'] = tuple(rot_pts[0, :])
-        self.kwargs['p2'] = tuple(rot_pts[1, :])
-        
+        self.kwargs["p1"] = tuple(rot_pts[0, :])
+        self.kwargs["p2"] = tuple(rot_pts[1, :])
+
     def create(self, grid, uip):
         """Creates edge and adds it to the grid."""
         try:
-            p1 = self.kwargs['p1']
-            p2 = self.kwargs['p2']
-            material_id = self.kwargs['material_id']
+            p1 = self.kwargs["p1"]
+            p2 = self.kwargs["p2"]
+            material_id = self.kwargs["material_id"]
         except KeyError:
-            logger.exception(f'{self.__str__()} requires exactly 3 parameters')
+            logger.exception(f"{self.__str__()} requires exactly 3 parameters")
             raise
 
         if self.do_rotate:
@@ -78,15 +77,17 @@ class Edge(UserObjectGeometry):
         material = next((x for x in grid.materials if x.ID == material_id), None)
 
         if not material:
-            logger.exception(f'Material with ID {material_id} does not exist')
+            logger.exception(f"Material with ID {material_id} does not exist")
             raise ValueError
 
         # Check for valid orientations
         # x-orientated edge
-        if ((xs != xf and (ys != yf or zs != zf))
+        if (
+            (xs != xf and (ys != yf or zs != zf))
             or (ys != yf and (xs != xf or zs != zf))
-            or (zs != zf and (xs != xf or ys != yf))):
-            logger.exception(f'{self.__str__()} the edge is not specified correctly')
+            or (zs != zf and (xs != xf or ys != yf))
+        ):
+            logger.exception(f"{self.__str__()} the edge is not specified correctly")
             raise ValueError
         elif xs != xf:
             for i in range(xs, xf):
@@ -100,6 +101,8 @@ class Edge(UserObjectGeometry):
             for k in range(zs, zf):
                 build_edge_z(xs, ys, k, material.numID, grid.rigidE, grid.rigidH, grid.ID)
 
-        logger.info(f'{self.grid_name(grid)}Edge from {p3[0]:g}m, {p3[1]:g}m, ' +
-                    f'{p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of ' +
-                    f'material {material_id} created.')
+        logger.info(
+            f"{self.grid_name(grid)}Edge from {p3[0]:g}m, {p3[1]:g}m, "
+            + f"{p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of "
+            + f"material {material_id} created."
+        )

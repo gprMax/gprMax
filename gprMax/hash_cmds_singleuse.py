@@ -18,10 +18,19 @@
 
 import logging
 
-from .cmds_singleuse import (Discretisation, Domain, ExcitationFile,
-                             OMPThreads, OutputDir, PMLProps, RxSteps,
-                             SrcSteps, TimeStepStabilityFactor, TimeWindow,
-                             Title)
+from .cmds_singleuse import (
+    Discretisation,
+    Domain,
+    ExcitationFile,
+    OMPThreads,
+    OutputDir,
+    PMLProps,
+    RxSteps,
+    SrcSteps,
+    TimeStepStabilityFactor,
+    TimeWindow,
+    Title,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,62 +49,65 @@ def process_singlecmds(singlecmds):
     scene_objects = []
 
     # Check validity of command parameters in order needed
-    cmd = '#title'
+    cmd = "#title"
     if singlecmds[cmd] is not None:
         title = Title(name=str(singlecmds[cmd]))
         scene_objects.append(title)
 
-    cmd = '#output_dir'
+    cmd = "#output_dir"
     if singlecmds[cmd] is not None:
         output_dir = OutputDir(dir=singlecmds[cmd])
         scene_objects.append(output_dir)
 
     # Number of threads for CPU-based (OpenMP) parallelised parts of code
-    cmd = '#omp_threads'
+    cmd = "#omp_threads"
     if singlecmds[cmd] is not None:
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
         if len(tmp) != 1:
-            logger.exception(f'{cmd} requires exactly one parameter to specify ' +
-                             f'the number of CPU OpenMP threads to use')
+            logger.exception(
+                f"{cmd} requires exactly one parameter to specify " + f"the number of CPU OpenMP threads to use"
+            )
             raise ValueError
 
         omp_threads = OMPThreads(n=tmp[0])
         scene_objects.append(omp_threads)
 
-    cmd = '#dx_dy_dz'
+    cmd = "#dx_dy_dz"
     if singlecmds[cmd] is not None:
         tmp = [float(x) for x in singlecmds[cmd].split()]
         if len(tmp) != 3:
-            logger.exception(f'{cmd} requires exactly three parameters')
+            logger.exception(f"{cmd} requires exactly three parameters")
             raise ValueError
 
         dl = (tmp[0], tmp[1], tmp[2])
         discretisation = Discretisation(p1=dl)
         scene_objects.append(discretisation)
 
-    cmd = '#domain'
+    cmd = "#domain"
     if singlecmds[cmd] is not None:
         tmp = [float(x) for x in singlecmds[cmd].split()]
         if len(tmp) != 3:
-            logger.exception(f'{cmd} requires exactly three parameters')
+            logger.exception(f"{cmd} requires exactly three parameters")
             raise ValueError
 
         p1 = (tmp[0], tmp[1], tmp[2])
         domain = Domain(p1=p1)
         scene_objects.append(domain)
 
-    cmd = '#time_step_stability_factor'
+    cmd = "#time_step_stability_factor"
     if singlecmds[cmd] is not None:
         tmp = tuple(float(x) for x in singlecmds[cmd].split())
         tsf = TimeStepStabilityFactor(f=tmp[0])
         scene_objects.append(tsf)
 
-    cmd = '#time_window'
+    cmd = "#time_window"
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 1:
-            logger.exception(f'{cmd} requires exactly one parameter to specify the ' +
-                             f'time window. Either in seconds or number of iterations.')
+            logger.exception(
+                f"{cmd} requires exactly one parameter to specify the "
+                + f"time window. Either in seconds or number of iterations."
+            )
             raise ValueError
         tmp = tmp[0].lower()
 
@@ -110,40 +122,37 @@ def process_singlecmds(singlecmds):
 
         scene_objects.append(tw)
 
-    cmd = '#pml_cells'
+    cmd = "#pml_cells"
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) not in [1, 6]:
-            logger.exception(f'{cmd} requires either one or six parameter(s)')
+            logger.exception(f"{cmd} requires either one or six parameter(s)")
             raise ValueError
         if len(tmp) == 1:
             pml_cells = PMLProps(thickness=int(tmp[0]))
         else:
-            pml_cells = PMLProps(x0=int(tmp[0]),
-                                 y0=int(tmp[1]),
-                                 z0=int(tmp[2]),
-                                 xmax=int(tmp[3]),
-                                 ymax=int(tmp[4]),
-                                 zmax=int(tmp[5]))
+            pml_cells = PMLProps(
+                x0=int(tmp[0]), y0=int(tmp[1]), z0=int(tmp[2]), xmax=int(tmp[3]), ymax=int(tmp[4]), zmax=int(tmp[5])
+            )
 
         scene_objects.append(pml_cells)
 
-    cmd = '#src_steps'
+    cmd = "#src_steps"
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
-            logger.exception(f'{cmd} requires exactly three parameters')
+            logger.exception(f"{cmd} requires exactly three parameters")
             raise ValueError
 
         p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
         src_steps = SrcSteps(p1=p1)
         scene_objects.append(src_steps)
 
-    cmd = '#rx_steps'
+    cmd = "#rx_steps"
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 3:
-            logger.exception(f'{cmd} requires exactly three parameters')
+            logger.exception(f"{cmd} requires exactly three parameters")
             raise ValueError
 
         p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
@@ -151,11 +160,11 @@ def process_singlecmds(singlecmds):
         scene_objects.append(rx_steps)
 
     # Excitation file for user-defined source waveforms
-    cmd = '#excitation_file'
+    cmd = "#excitation_file"
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) not in [1, 3]:
-            logger.exception(f'{cmd} requires either one or three parameter(s)')
+            logger.exception(f"{cmd} requires either one or three parameter(s)")
             raise ValueError
 
         if len(tmp) > 1:

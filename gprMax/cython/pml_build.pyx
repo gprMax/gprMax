@@ -31,14 +31,14 @@ cpdef pml_average_er_mr(
     float_or_double[::1] ers,
     float_or_double[::1] mrs
 ):
-    """Calculates average permittivity and permeability in PML slab (based on 
+    """Calculates average permittivity and permeability in PML slab (based on
         underlying material er and mr from solid array). Used to build PML.
 
     Args:
         n1, n2: ints for PML size in cells perpendicular to thickness direction.
         nthreads: int for number of threads to use.
         solid: memoryviews to access solid array.
-        ers, mrs: memoryviews to access arrays containing permittivity and 
+        ers, mrs: memoryviews to access arrays containing permittivity and
                     permeability.
 
     Returns:
@@ -49,7 +49,7 @@ cpdef pml_average_er_mr(
     cdef Py_ssize_t m, n
     cdef int numID
     # Sum and average of relative permittivities and permeabilities in PML slab
-    cdef float sumer, summr, averageer, averagemr 
+    cdef float sumer, summr, averageer, averagemr
 
     for m in prange(n1, nogil=True, schedule='static', num_threads=nthreads):
         for n in range(n2):

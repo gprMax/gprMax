@@ -12,7 +12,7 @@ gprMax has a choice of two methods for building a model to simulate:
 1. A **text-based (ASCII) input file**, which can be created with any text editor, and uses a series of gprMax commands which begin with the hash character (``#``). This method is recommended for beginners and those not familiar with Python, and is described in the :ref:`input-hash-cmds` section.
 2. A **Python API**, which includes all the functionality of method 1 as well as several more advanced features. This method is recommended for those who prefer to use Python or need access to specific API-only advanced features, and is described in this section of the documentation.
 
-The Python API in gprMax allows users to access to gprMax functions directly from Python through importing the gprMax module. There are several advantages to using the API: 
+The Python API in gprMax allows users to access to gprMax functions directly from Python through importing the gprMax module. There are several advantages to using the API:
 
 * Users can take advantage of the Python language - for instance, the structural elements of Python can be utilised more easily.
 * gprMax objects can be used directly within functions, classes, modules and packages. In this way collections of components can be defined, reused and modified. For example, complex targets can be imported from a separate module and combined with an antenna from another module.
@@ -25,7 +25,7 @@ Example
 
 :download:`antenna_wire_dipole_fs.py <../../examples/antenna_wire_dipole_fs.py>`
 
-This example is used to give an introduction to the gprMax Python API. 
+This example is used to give an introduction to the gprMax Python API.
 
 .. literalinclude:: ../../examples/antenna_wire_dipole_fs.py
     :language: python
@@ -260,7 +260,7 @@ Allows you control of the specific parameters that are used to build each order 
 
 .. autoclass:: gprMax.cmds_multiuse.PMLCFS
 
-The CFS values (which are internally specified) used for the default standard first order PML are:     
+The CFS values (which are internally specified) used for the default standard first order PML are:
 * ``alphascalingprofile = 'constant'``
 * ``alphascalingdirection = 'forward'``
 * ``alphamin = 0``
@@ -275,7 +275,7 @@ The CFS values (which are internally specified) used for the default standard fi
 * ``sigmamax = None``
 
 .. note::
-    
+
     * The parameters will be applied to all slabs of the PML that are switched on.
-    * Using ``None`` for the maximum value of :math:`\sigma` forces gprMax to calculate it internally based on the relative permittivity and permeability of the underlying materials in the model. 
+    * Using ``None`` for the maximum value of :math:`\sigma` forces gprMax to calculate it internally based on the relative permittivity and permeability of the underlying materials in the model.
     * ``forward`` direction implies a minimum parameter value at the inner boundary of the PML and maximum parameter value at the edge of the computational domain, ``reverse`` is the opposite.

@@ -52,7 +52,7 @@ cpdef void order1_xminus(
     Args:
         xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
         nthreads: int for number of threads to use.
-        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients,
                                 ID and field component arrays.
         Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
         d: float for spatial discretisation, e.g. dx, dy or dz.
@@ -79,13 +79,13 @@ cpdef void order1_xminus(
                 # Ey
                 materialEy = ID[1, ii, jj, kk]
                 dHz = (Hz[ii, jj, kk] - Hz[ii - 1, jj, kk]) / dx
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] * 
+                Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] *
                                   (RA01 * dHz + RB0 * Phi1[0, i, j, k]))
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
                 # Ez
                 materialEz = ID[2, ii, jj, kk]
                 dHy = (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) / dx
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] * 
+                Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] *
                                   (RA01 * dHy + RB0 * Phi2[0, i, j, k]))
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHy
 
@@ -118,7 +118,7 @@ cpdef void order2_xminus(
     Args:
         xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
         nthreads: int for number of threads to use.
-        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients,
                                 ID and field component arrays.
         Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
         d: float for spatial discretisation, e.g. dx, dy or dz.
@@ -150,19 +150,19 @@ cpdef void order2_xminus(
                 # Ey
                 materialEy = ID[1, ii, jj, kk]
                 dHz = (Hz[ii, jj, kk] - Hz[ii - 1, jj, kk]) / dx
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] * 
-                                  (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] + 
+                Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] *
+                                  (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] +
                                   RB1 * Phi1[1, i, j, k]))
-                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 * 
+                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
                                     (RA0 * dHz + RB0 * Phi1[0, i, j, k]))
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
                 # Ez
                 materialEz = ID[2, ii, jj, kk]
                 dHy = (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) / dx
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] * 
-                                  (RA01 * dHy + RA1 * RB0 * Phi2[0, i, j, k] + 
+                Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] *
+                                  (RA01 * dHy + RA1 * RB0 * Phi2[0, i, j, k] +
                                   RB1 * Phi2[1, i, j, k]))
-                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 * 
+                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
                                     (RA0 * dHy + RB0 * Phi2[0, i, j, k]))
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHy
 
@@ -196,7 +196,7 @@ cpdef void order1_xplus(
     Args:
         xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
         nthreads: int for number of threads to use.
-        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients,
                                 ID and field component arrays.
         Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
         d: float for spatial discretisation, e.g. dx, dy or dz.
@@ -223,13 +223,13 @@ cpdef void order1_xplus(
                 # Ey
                 materialEy = ID[1, ii, jj, kk]
                 dHz = (Hz[ii, jj, kk] - Hz[ii - 1, jj, kk]) / dx
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] * 
+                Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] *
                                   (RA01 * dHz + RB0 * Phi1[0, i, j, k]))
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
                 # Ez
                 materialEz = ID[2, ii, jj, kk]
                 dHy = (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) / dx
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] * 
+                Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] *
                                   (RA01 * dHy + RB0 * Phi2[0, i, j, k]))
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHy
 
@@ -262,7 +262,7 @@ cpdef void order2_xplus(
     Args:
         xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
         nthreads: int for number of threads to use.
-        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients,
                                 ID and field component arrays.
         Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
         d: float for spatial discretisation, e.g. dx, dy or dz.
@@ -294,19 +294,19 @@ cpdef void order2_xplus(
                 # Ey
                 materialEy = ID[1, ii, jj, kk]
                 dHz = (Hz[ii, jj, kk] - Hz[ii - 1, jj, kk]) / dx
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] * 
-                                  (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] + 
+                Ey[ii, jj, kk] = (Ey[ii, jj, kk] - updatecoeffsE[materialEy, 4] *
+                                  (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] +
                                   RB1 * Phi1[1, i, j, k]))
-                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 * 
+                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
                                     (RA0 * dHz + RB0 * Phi1[0, i, j, k]))
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
                 # Ez
                 materialEz = ID[2, ii, jj, kk]
                 dHy = (Hy[ii, jj, kk] - Hy[ii - 1, jj, kk]) / dx
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] * 
-                                  (RA01 * dHy + RA1 * RB0 * Phi2[0, i, j, k] + 
+                Ez[ii, jj, kk] = (Ez[ii, jj, kk] + updatecoeffsE[materialEz, 4] *
+                                  (RA01 * dHy + RA1 * RB0 * Phi2[0, i, j, k] +
                                   RB1 * Phi2[1, i, j, k]))
-                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 * 
+                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
                                     (RA0 * dHy + RB0 * Phi2[0, i, j, k]))
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHy
 
@@ -340,7 +340,7 @@ cpdef void order1_yminus(
     Args:
         xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
         nthreads: int for number of threads to use.
-        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients,
                                 ID and field component arrays.
         Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
         d: float for spatial discretisation, e.g. dx, dy or dz.
@@ -367,13 +367,13 @@ cpdef void order1_yminus(
                 # Ex
                 materialEx = ID[0, ii, jj, kk]
                 dHz = (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) / dy
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] * 
+                Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] *
                                   (RA01 * dHz + RB0 * Phi1[0, i, j, k]))
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
                 # Ez
                 materialEz = ID[2, ii, jj, kk]
                 dHx = (Hx[ii, jj, kk] - Hx[ii, jj - 1, kk]) / dy
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] * 
+                Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] *
                                   (RA01 * dHx + RB0 * Phi2[0, i, j, k]))
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
 
@@ -406,7 +406,7 @@ cpdef void order2_yminus(
     Args:
         xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
         nthreads: int for number of threads to use.
-        updatecoeffs, ID, E, H: memoryviews to access update coefficients, ID 
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients, ID
                                 and field component arrays.
         Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
         d: float for spatial discretisation, e.g. dx, dy or dz.
@@ -438,19 +438,19 @@ cpdef void order2_yminus(
                 # Ex
                 materialEx = ID[0, ii, jj, kk]
                 dHz = (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) / dy
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] * 
-                                  (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] + 
+                Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] *
+                                  (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] +
                                   RB1 * Phi1[1, i, j, k]))
-                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 * 
+                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
                                     (RA0 * dHz + RB0 * Phi1[0, i, j, k]))
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
                 # Ez
                 materialEz = ID[2, ii, jj, kk]
                 dHx = (Hx[ii, jj, kk] - Hx[ii, jj - 1, kk]) / dy
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] * 
-                                  (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] + 
+                Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] *
+                                  (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] +
                                   RB1 * Phi2[1, i, j, k]))
-                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 * 
+                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
                                     (RA0 * dHx + RB0 * Phi2[0, i, j, k]))
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
 
@@ -484,7 +484,7 @@ cpdef void order1_yplus(
     Args:
         xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
         nthreads: int for number of threads to use.
-        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients,
                                 ID and field component arrays.
         Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
         d: float for spatial discretisation, e.g. dx, dy or dz.
@@ -511,13 +511,13 @@ cpdef void order1_yplus(
                 # Ex
                 materialEx = ID[0, ii, jj, kk]
                 dHz = (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) / dy
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] * 
+                Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] *
                                   (RA01 * dHz + RB0 * Phi1[0, i, j, k]))
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
                 # Ez
                 materialEz = ID[2, ii, jj, kk]
                 dHx = (Hx[ii, jj, kk] - Hx[ii, jj - 1, kk]) / dy
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] * 
+                Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] *
                                   (RA01 * dHx + RB0 * Phi2[0, i, j, k]))
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
 
@@ -550,7 +550,7 @@ cpdef void order2_yplus(
     Args:
         xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
         nthreads: int for number of threads to use.
-        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients,
                                 ID and field component arrays.
         Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
         d: float for spatial discretisation, e.g. dx, dy or dz.
@@ -582,19 +582,19 @@ cpdef void order2_yplus(
                 # Ex
                 materialEx = ID[0, ii, jj, kk]
                 dHz = (Hz[ii, jj, kk] - Hz[ii, jj - 1, kk]) / dy
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] * 
-                                  (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] + 
+                Ex[ii, jj, kk] = (Ex[ii, jj, kk] + updatecoeffsE[materialEx, 4] *
+                                  (RA01 * dHz + RA1 * RB0 * Phi1[0, i, j, k] +
                                   RB1 * Phi1[1, i, j, k]))
-                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 * 
+                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
                                     (RA0 * dHz + RB0 * Phi1[0, i, j, k]))
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHz
                 # Ez
                 materialEz = ID[2, ii, jj, kk]
                 dHx = (Hx[ii, jj, kk] - Hx[ii, jj - 1, kk]) / dy
-                Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] * 
-                                  (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] + 
+                Ez[ii, jj, kk] = (Ez[ii, jj, kk] - updatecoeffsE[materialEz, 4] *
+                                  (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] +
                                   RB1 * Phi2[1, i, j, k]))
-                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 * 
+                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
                                     (RA0 * dHx + RB0 * Phi2[0, i, j, k]))
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
 
@@ -628,7 +628,7 @@ cpdef void order1_zminus(
     Args:
         xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
         nthreads: int for number of threads to use.
-        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients,
                                 ID and field component arrays.
         Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
         d: float for spatial discretisation, e.g. dx, dy or dz.
@@ -655,13 +655,13 @@ cpdef void order1_zminus(
                 # Ex
                 materialEx = ID[0, ii, jj, kk]
                 dHy = (Hy[ii, jj, kk] - Hy[ii, jj, kk - 1]) / dz
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] * 
+                Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] *
                                   (RA01 * dHy + RB0 * Phi1[0, i, j, k]))
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHy
                 # Ey
                 materialEy = ID[1, ii, jj, kk]
                 dHx = (Hx[ii, jj, kk] - Hx[ii, jj, kk - 1]) / dz
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] * 
+                Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] *
                                   (RA01 * dHx + RB0 * Phi2[0, i, j, k]))
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
 
@@ -694,7 +694,7 @@ cpdef void order2_zminus(
     Args:
         xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
         nthreads: int for number of threads to use.
-        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients,
                                 ID and field component arrays.
         Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
         d: float for spatial discretisation, e.g. dx, dy or dz.
@@ -726,19 +726,19 @@ cpdef void order2_zminus(
                 # Ex
                 materialEx = ID[0, ii, jj, kk]
                 dHy = (Hy[ii, jj, kk] - Hy[ii, jj, kk - 1]) / dz
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] * 
-                                  (RA01 * dHy + RA1 * RB0 * Phi1[0, i, j, k] + 
+                Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] *
+                                  (RA01 * dHy + RA1 * RB0 * Phi1[0, i, j, k] +
                                   RB1 * Phi1[1, i, j, k]))
-                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 * 
+                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
                                     (RA0 * dHy + RB0 * Phi1[0, i, j, k]))
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHy
                 # Ey
                 materialEy = ID[1, ii, jj, kk]
                 dHx = (Hx[ii, jj, kk] - Hx[ii, jj, kk - 1]) / dz
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] * 
-                                  (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] + 
+                Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] *
+                                  (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] +
                                   RB1 * Phi2[1, i, j, k]))
-                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 * 
+                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
                                     (RA0 * dHx + RB0 * Phi2[0, i, j, k]))
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
 
@@ -772,7 +772,7 @@ cpdef void order1_zplus(
     Args:
         xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
         nthreads: int for number of threads to use.
-        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients,
                                 ID and field component arrays.
         Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
         d: float for spatial discretisation, e.g. dx, dy or dz.
@@ -799,13 +799,13 @@ cpdef void order1_zplus(
                 # Ex
                 materialEx = ID[0, ii, jj, kk]
                 dHy = (Hy[ii, jj, kk] - Hy[ii, jj, kk - 1]) / dz
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] * 
+                Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] *
                                   (RA01 * dHy + RB0 * Phi1[0, i, j, k]))
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHy
                 # Ey
                 materialEy = ID[1, ii, jj, kk]
                 dHx = (Hx[ii, jj, kk] - Hx[ii, jj, kk - 1]) / dz
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] * 
+                Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] *
                                   (RA01 * dHx + RB0 * Phi2[0, i, j, k]))
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx
 
@@ -838,7 +838,7 @@ cpdef void order2_zplus(
     Args:
         xs, xf, ys, yf, zs, zf: ints for cell coordinates of PML slab.
         nthreads: int for number of threads to use.
-        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients,
                                 ID and field component arrays.
         Phi, RA, RB, RE, RF: memoryviews to access PML coefficient arrays.
         d: float for spatial discretisation, e.g. dx, dy or dz.
@@ -870,18 +870,18 @@ cpdef void order2_zplus(
                 # Ex
                 materialEx = ID[0, ii, jj, kk]
                 dHy = (Hy[ii, jj, kk] - Hy[ii, jj, kk - 1]) / dz
-                Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] * 
-                                  (RA01 * dHy + RA1 * RB0 * Phi1[0, i, j, k] + 
+                Ex[ii, jj, kk] = (Ex[ii, jj, kk] - updatecoeffsE[materialEx, 4] *
+                                  (RA01 * dHy + RA1 * RB0 * Phi1[0, i, j, k] +
                                   RB1 * Phi1[1, i, j, k]))
-                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 * 
+                Phi1[1, i, j, k] = (RE1 * Phi1[1, i, j, k] - RF1 *
                                     (RA0 * dHy + RB0 * Phi1[0, i, j, k]))
                 Phi1[0, i, j, k] = RE0 * Phi1[0, i, j, k] - RF0 * dHy
                 # Ey
                 materialEy = ID[1, ii, jj, kk]
                 dHx = (Hx[ii, jj, kk] - Hx[ii, jj, kk - 1]) / dz
-                Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] * 
-                                  (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] + 
+                Ey[ii, jj, kk] = (Ey[ii, jj, kk] + updatecoeffsE[materialEy, 4] *
+                                  (RA01 * dHx + RA1 * RB0 * Phi2[0, i, j, k] +
                                   RB1 * Phi2[1, i, j, k]))
-                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 * 
+                Phi2[1, i, j, k] = (RE1 * Phi2[1, i, j, k] - RF1 *
                                     (RA0 * dHx + RB0 * Phi2[0, i, j, k]))
                 Phi2[0, i, j, k] = RE0 * Phi2[0, i, j, k] - RF0 * dHx

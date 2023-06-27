@@ -12,7 +12,7 @@ Supported methods:
 Methods
 ^^^^^^^
 
-1. __constructor__ - is called in all child classes. 
+1. __constructor__ - is called in all child classes.
 
     It takes the following arguments:
     - `maxiter`: maximum number of iterations for the optimizer,

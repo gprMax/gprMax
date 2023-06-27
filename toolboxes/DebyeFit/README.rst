@@ -23,7 +23,7 @@ The generic form of dispersive media is
 
    \epsilon(\omega) = \epsilon^{'}(\omega) - j\epsilon^{''}(\omega),
 
-where :math:`\omega` is the angular frequency, :math:`\epsilon^{'}` and :math:`\epsilon^{''}` are the real and imaginary parts of the permittivity respectively. 
+where :math:`\omega` is the angular frequency, :math:`\epsilon^{'}` and :math:`\epsilon^{''}` are the real and imaginary parts of the permittivity respectively.
 
 This package provides scripts and tools which can be used to fit a multi-Debye expansion to dielectric data, defined as
 
@@ -144,7 +144,7 @@ The ``CRIM`` class has the following structure:
 .. code-block:: none
 
     CRIM(f_min, f_max, a, volumetric_fractions,
-        materials, sigma, mu, mu_sigma, material_name, 
+        materials, sigma, mu, mu_sigma, material_name,
         number_of_debye_poles=-1, f_n=50,
         plot=False, save=True,
         optimizer=PSO_DLS,

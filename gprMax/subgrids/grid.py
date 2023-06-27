@@ -24,42 +24,41 @@ logger = logging.getLogger(__name__)
 
 
 class SubGridBaseGrid(FDTDGrid):
-
     def __init__(self, *args, **kwargs):
         super().__init__()
 
-        self.ratio = kwargs['ratio']
+        self.ratio = kwargs["ratio"]
 
         if self.ratio % 2 == 0:
-            logger.exception('Subgrid Error: Only odd ratios are supported')
+            logger.exception("Subgrid Error: Only odd ratios are supported")
             raise ValueError
 
         # Name of the grid
-        self.name = kwargs['id']
+        self.name = kwargs["id"]
 
-        self.filter = kwargs['filter']
+        self.filter = kwargs["filter"]
 
         # Number of main grid cells between the IS and OS
-        self.is_os_sep = kwargs['is_os_sep']
+        self.is_os_sep = kwargs["is_os_sep"]
         # Number of subgrid grid cells between the IS and OS
         self.s_is_os_sep = self.is_os_sep * self.ratio
 
         # Distance from OS to PML or the edge of the grid when PML is off
-        self.pml_separation = kwargs['pml_separation']
+        self.pml_separation = kwargs["pml_separation"]
 
-        self.pmls['thickness']['x0'] = kwargs['subgrid_pml_thickness']
-        self.pmls['thickness']['y0'] = kwargs['subgrid_pml_thickness']
-        self.pmls['thickness']['z0'] = kwargs['subgrid_pml_thickness']
-        self.pmls['thickness']['xmax'] = kwargs['subgrid_pml_thickness']
-        self.pmls['thickness']['ymax'] = kwargs['subgrid_pml_thickness']
-        self.pmls['thickness']['zmax'] = kwargs['subgrid_pml_thickness']
+        self.pmls["thickness"]["x0"] = kwargs["subgrid_pml_thickness"]
+        self.pmls["thickness"]["y0"] = kwargs["subgrid_pml_thickness"]
+        self.pmls["thickness"]["z0"] = kwargs["subgrid_pml_thickness"]
+        self.pmls["thickness"]["xmax"] = kwargs["subgrid_pml_thickness"]
+        self.pmls["thickness"]["ymax"] = kwargs["subgrid_pml_thickness"]
+        self.pmls["thickness"]["zmax"] = kwargs["subgrid_pml_thickness"]
 
         # Number of sub cells to extend the sub grid beyond the IS boundary
         d_to_pml = self.s_is_os_sep + self.pml_separation
         # Index of the IS
-        self.n_boundary_cells = d_to_pml + self.pmls['thickness']['x0']
-        self.n_boundary_cells_x = d_to_pml + self.pmls['thickness']['x0']
-        self.n_boundary_cells_y = d_to_pml + self.pmls['thickness']['y0']
-        self.n_boundary_cells_z = d_to_pml + self.pmls['thickness']['z0']
+        self.n_boundary_cells = d_to_pml + self.pmls["thickness"]["x0"]
+        self.n_boundary_cells_x = d_to_pml + self.pmls["thickness"]["x0"]
+        self.n_boundary_cells_y = d_to_pml + self.pmls["thickness"]["y0"]
+        self.n_boundary_cells_z = d_to_pml + self.pmls["thickness"]["z0"]
 
-        self.interpolation = kwargs['interpolation']
+        self.interpolation = kwargs["interpolation"]

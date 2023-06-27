@@ -37,7 +37,7 @@ EXIT
     Send by master to worker to initiate worker shutdown and then
     send back to master to signal shutdown has completed.
 """
-Tags = IntEnum('Tags', 'READY START DONE EXIT')
+Tags = IntEnum("Tags", "READY START DONE EXIT")
 
 
 class MPIExecutor(object):
@@ -122,11 +122,11 @@ class MPIExecutor(object):
 
     def __init__(self, func, master=0, comm=None):
         """Initializes a new executor instance.
-        
+
         Attributes:
-            func: callable worker function. Jobs will be passed as keyword 
-                    arguments, so `func` must support this. This is usually the 
-                    case, but can be a problem when builtin functions are used, 
+            func: callable worker function. Jobs will be passed as keyword
+                    arguments, so `func` must support this. This is usually the
+                    case, but can be a problem when builtin functions are used,
                     e.g. `abs()`.
             master: int of the rank of the master. Must be in `comm`. All other
                     ranks in `comm` will be treated as workers.
@@ -136,22 +136,22 @@ class MPIExecutor(object):
         if comm is None:
             self.comm = MPI.COMM_WORLD
         elif not comm.Is_intra():
-            raise TypeError('MPI.Intracomm expected')
+            raise TypeError("MPI.Intracomm expected")
         else:
             self.comm = comm
 
         self.rank = self.comm.rank
         self.size = self.comm.size
         if self.size < 2:
-            raise RuntimeError('MPIExecutor must run with at least 2 processes')
+            raise RuntimeError("MPIExecutor must run with at least 2 processes")
 
         self._up = False
 
         master = int(master)
         if master < 0:
-            raise ValueError('Master rank must be non-negative')
+            raise ValueError("Master rank must be non-negative")
         elif master >= self.size:
-            raise ValueError('Master not in comm')
+            raise ValueError("Master not in comm")
         else:
             self.master = master
 
@@ -159,17 +159,17 @@ class MPIExecutor(object):
         self.workers = tuple(set(range(self.size)) - {self.master})
         # the worker function
         if not callable(func):
-            raise TypeError('Func must be a callable')
+            raise TypeError("Func must be a callable")
         self.func = func
         # holds the state of workers on the master
         self.busy = [False] * len(self.workers)
 
         if self.is_master():
-            logger.basic(f'\n({self.comm.name}) - Master: {self.master}, Workers: {self.workers}')
+            logger.basic(f"\n({self.comm.name}) - Master: {self.master}, Workers: {self.workers}")
 
     def __enter__(self):
-        """Context manager enter. Only the master returns an executor, all other 
-            ranks return None.
+        """Context manager enter. Only the master returns an executor, all other
+        ranks return None.
         """
         self.start()
         if self.is_master():
@@ -188,10 +188,10 @@ class MPIExecutor(object):
         return True
 
     def is_idle(self):
-        """Returns a bool indicating whether the executor is idle. The executor 
-            is considered to be not idle if *any* worker process is busy with a 
-            job. That means, it is idle only if *all* workers are idle.
-            Note: This member must not be called on a worker.
+        """Returns a bool indicating whether the executor is idle. The executor
+        is considered to be not idle if *any* worker process is busy with a
+        job. That means, it is idle only if *all* workers are idle.
+        Note: This member must not be called on a worker.
         """
         assert self.is_master()
         return not any(self.busy)
@@ -205,16 +205,16 @@ class MPIExecutor(object):
         return not self.is_master()
 
     def start(self):
-        """Starts up workers. A check is performed on the master whether the 
-            executor has already been terminated, in which case a RuntimeError
-            is raised on the master.
+        """Starts up workers. A check is performed on the master whether the
+        executor has already been terminated, in which case a RuntimeError
+        is raised on the master.
         """
         if self.is_master():
             if self._up:
-                raise RuntimeError('Start has already been called')
+                raise RuntimeError("Start has already been called")
             self._up = True
 
-        logger.debug(f'({self.comm.name}) - Starting up MPIExecutor master/workers...')
+        logger.debug(f"({self.comm.name}) - Starting up MPIExecutor master/workers...")
         if self.is_worker():
             self.__wait()
 
@@ -222,12 +222,12 @@ class MPIExecutor(object):
         """Joins the workers."""
         if not self.is_master():
             return
-        logger.debug(f'({self.comm.name}) - Terminating. Sending sentinel to all workers.')
+        logger.debug(f"({self.comm.name}) - Terminating. Sending sentinel to all workers.")
         # Send sentinel to all workers
         for worker in self.workers:
             self.comm.send(None, dest=worker, tag=Tags.EXIT)
 
-        logger.debug(f'({self.comm.name}) - Waiting for all workers to terminate.')
+        logger.debug(f"({self.comm.name}) - Waiting for all workers to terminate.")
 
         down = [False] * len(self.workers)
         while True:
@@ -239,28 +239,28 @@ class MPIExecutor(object):
                 break
 
         self._up = False
-        logger.debug(f'({self.comm.name}) - All workers terminated.')
+        logger.debug(f"({self.comm.name}) - All workers terminated.")
 
     def submit(self, jobs, sleep=0.0):
         """Submits a list of jobs to the workers and returns the results.
-        
+
         Args:
-            jobs: list of keyword argument dicts. Each dict describes a job and 
+            jobs: list of keyword argument dicts. Each dict describes a job and
                     will be unpacked and supplied to the work function.
-            sleep: float of number of seconds the master will sleep for when 
-                    trying to find an idle worker. The default value is 0.0, 
+            sleep: float of number of seconds the master will sleep for when
+                    trying to find an idle worker. The default value is 0.0,
                     which means the master will not sleep at all.
-        
+
         Returns:
-            results: list of results, i.e. the return values of the work 
-                        function, received from the workers. The order of 
+            results: list of results, i.e. the return values of the work
+                        function, received from the workers. The order of
                         results is identical to the order of `jobs`.
         """
         if not self._up:
-            raise RuntimeError('Cannot run jobs without a call to start()')
+            raise RuntimeError("Cannot run jobs without a call to start()")
 
-        logger.basic(f'Running {len(jobs):d} jobs.')
-        assert self.is_master(), 'run() must not be called on a worker process'
+        logger.basic(f"Running {len(jobs):d} jobs.")
+        assert self.is_master(), "run() must not be called on a worker process"
 
         my_jobs = jobs.copy()
         num_jobs = len(my_jobs)
@@ -269,7 +269,7 @@ class MPIExecutor(object):
             for i, worker in enumerate(self.workers):
                 if self.comm.Iprobe(source=worker, tag=Tags.DONE):
                     job_idx, result = self.comm.recv(source=worker, tag=Tags.DONE)
-                    logger.debug(f'({self.comm.name}) - Received finished job {job_idx} from worker {worker:d}.')
+                    logger.debug(f"({self.comm.name}) - Received finished job {job_idx} from worker {worker:d}.")
                     results[job_idx] = result
                     self.busy[i] = False
                 elif self.comm.Iprobe(source=worker, tag=Tags.READY):
@@ -277,49 +277,49 @@ class MPIExecutor(object):
                         self.comm.recv(source=worker, tag=Tags.READY)
                         self.busy[i] = True
                         job_idx = num_jobs - len(my_jobs)
-                        logger.debug(f'({self.comm.name}) - Sending job {job_idx} to worker {worker:d}.')
+                        logger.debug(f"({self.comm.name}) - Sending job {job_idx} to worker {worker:d}.")
                         self.comm.send((job_idx, my_jobs.pop(0)), dest=worker, tag=Tags.START)
                 elif self.comm.Iprobe(source=worker, tag=Tags.EXIT):
-                    logger.debug(f'({self.comm.name}) - Worker on rank {worker:d} has terminated.')
+                    logger.debug(f"({self.comm.name}) - Worker on rank {worker:d} has terminated.")
                     self.comm.recv(source=worker, tag=Tags.EXIT)
                     self.busy[i] = False
 
             time.sleep(sleep)
 
-        logger.debug(f'({self.comm.name}) - Finished all jobs.')
+        logger.debug(f"({self.comm.name}) - Finished all jobs.")
 
         return results
 
     def __wait(self):
-        """The worker main loop. The worker will enter the loop after `start()` 
-            has been called and stay here until it receives the sentinel, 
-            e.g. by calling `join()` on the master. In the mean time, the worker 
-            is accepting work.
+        """The worker main loop. The worker will enter the loop after `start()`
+        has been called and stay here until it receives the sentinel,
+        e.g. by calling `join()` on the master. In the mean time, the worker
+        is accepting work.
         """
         assert self.is_worker()
 
         status = MPI.Status()
 
-        logger.debug(f'({self.comm.name}) - Starting up worker.')
+        logger.debug(f"({self.comm.name}) - Starting up worker.")
 
         while True:
             self.comm.send(None, dest=self.master, tag=Tags.READY)
-            logger.debug(f'({self.comm.name}) - Worker on rank {self.rank} waiting for job.')
+            logger.debug(f"({self.comm.name}) - Worker on rank {self.rank} waiting for job.")
 
             data = self.comm.recv(source=self.master, tag=MPI.ANY_TAG, status=status)
             tag = status.tag
 
             if tag == Tags.START:
                 job_idx, work = data
-                logger.debug(f'({self.comm.name}) - Received job {job_idx} (work={work}).')
+                logger.debug(f"({self.comm.name}) - Received job {job_idx} (work={work}).")
                 result = self.__guarded_work(work)
-                logger.debug(f'({self.comm.name}) - Finished job. Sending results to master.')
+                logger.debug(f"({self.comm.name}) - Finished job. Sending results to master.")
                 self.comm.send((job_idx, result), dest=self.master, tag=Tags.DONE)
             elif tag == Tags.EXIT:
-                logger.debug(f'({self.comm.name}) - Received sentinel from master.')
+                logger.debug(f"({self.comm.name}) - Received sentinel from master.")
                 break
 
-        logger.debug(f'({self.comm.name}) - Terminating worker.')
+        logger.debug(f"({self.comm.name}) - Terminating worker.")
         self.comm.send(None, dest=self.master, tag=Tags.EXIT)
 
     def __guarded_work(self, work):
@@ -327,7 +327,7 @@ class MPIExecutor(object):
             N.B. All exceptions that occur in the work function `func` are caught
             and logged. The worker returns `None` to the master in that case
             instead of the actual result.
-        
+
         Args:
             work: dict ofeyword arguments that are unpacked and given to the
                     work function.

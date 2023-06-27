@@ -7,4 +7,3 @@
 from user_libs.GPRAntennaModels import antenna_like_GSSI_1500
 antenna_like_GSSI_1500(0.125, 0.094, 0.100)
 #end_python:
-

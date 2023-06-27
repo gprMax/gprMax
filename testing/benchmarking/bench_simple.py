@@ -1,5 +1,5 @@
 """A series of models with different domain sizes used for benchmarking.
-    The domain is free space with a simple source (Hertzian Dipole) and 
+    The domain is free space with a simple source (Hertzian Dipole) and
     receiver at the centre.
 """
 
@@ -8,6 +8,7 @@ from pathlib import Path
 import gprMax
 
 import itertools
+
 # File path for output
 fn = Path(__file__)
 
@@ -30,14 +31,12 @@ for d, threads in itertools.product(domains, ompthreads):
 
     scene = gprMax.Scene()
 
-    title = gprMax.Title(name=fn.with_suffix('').name)
+    title = gprMax.Title(name=fn.with_suffix("").name)
     domain = gprMax.Domain(p1=(x, y, z))
     dxdydz = gprMax.Discretisation(p1=(dl, dl, dl))
     time_window = gprMax.TimeWindow(time=3e-9)
-    wv = gprMax.Waveform(wave_type='gaussiandotnorm', amp=1, freq=900e6, 
-                         id='MySource')
-    src = gprMax.HertzianDipole(p1=(x/2, y/2, z/2), polarisation='x',
-                                waveform_id='MySource')
+    wv = gprMax.Waveform(wave_type="gaussiandotnorm", amp=1, freq=900e6, id="MySource")
+    src = gprMax.HertzianDipole(p1=(x / 2, y / 2, z / 2), polarisation="x", waveform_id="MySource")
 
     omp = gprMax.OMPThreads(n=threads)
 

@@ -42,7 +42,7 @@ cpdef void update_electric(
     Args:
         nx, ny, nz: ints for grid size in cells.
         nthreads: int for number of threads to use.
-        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients,
                                 ID and field component arrays
     """
 
@@ -55,8 +55,8 @@ cpdef void update_electric(
             for j in range(1, ny):
                 for k in range(1, nz):
                     materialEx = ID[0, i, j, k]
-                    Ex[i, j, k] = (updatecoeffsE[materialEx, 0] * Ex[i, j, k] + 
-                                   updatecoeffsE[materialEx, 2] * (Hz[i, j, k] - Hz[i, j - 1, k]) - 
+                    Ex[i, j, k] = (updatecoeffsE[materialEx, 0] * Ex[i, j, k] +
+                                   updatecoeffsE[materialEx, 2] * (Hz[i, j, k] - Hz[i, j - 1, k]) -
                                    updatecoeffsE[materialEx, 3] * (Hy[i, j, k] - Hy[i, j, k - 1]))
 
     # 2D - Ey component
@@ -65,8 +65,8 @@ cpdef void update_electric(
             for j in range(0, ny):
                 for k in range(1, nz):
                     materialEy = ID[1, i, j, k]
-                    Ey[i, j, k] = (updatecoeffsE[materialEy, 0] * Ey[i, j, k] + 
-                                   updatecoeffsE[materialEy, 3] * (Hx[i, j, k] - Hx[i, j, k - 1]) - 
+                    Ey[i, j, k] = (updatecoeffsE[materialEy, 0] * Ey[i, j, k] +
+                                   updatecoeffsE[materialEy, 3] * (Hx[i, j, k] - Hx[i, j, k - 1]) -
                                    updatecoeffsE[materialEy, 1] * (Hz[i, j, k] - Hz[i - 1, j, k]))
 
     # 2D - Ez component
@@ -75,8 +75,8 @@ cpdef void update_electric(
             for j in range(1, ny):
                 for k in range(0, nz):
                     materialEz = ID[2, i, j, k]
-                    Ez[i, j, k] = (updatecoeffsE[materialEz, 0] * Ez[i, j, k] + 
-                                   updatecoeffsE[materialEz, 1] * (Hy[i, j, k] - Hy[i - 1, j, k]) - 
+                    Ez[i, j, k] = (updatecoeffsE[materialEz, 0] * Ez[i, j, k] +
+                                   updatecoeffsE[materialEz, 1] * (Hy[i, j, k] - Hy[i - 1, j, k]) -
                                    updatecoeffsE[materialEz, 2] * (Hx[i, j, k] - Hx[i, j - 1, k]))
 
     # 3D
@@ -87,38 +87,38 @@ cpdef void update_electric(
                     materialEx = ID[0, i, j, k]
                     materialEy = ID[1, i, j, k]
                     materialEz = ID[2, i, j, k]
-                    Ex[i, j, k] = (updatecoeffsE[materialEx, 0] * Ex[i, j, k] + 
-                                   updatecoeffsE[materialEx, 2] * (Hz[i, j, k] - Hz[i, j - 1, k]) - 
+                    Ex[i, j, k] = (updatecoeffsE[materialEx, 0] * Ex[i, j, k] +
+                                   updatecoeffsE[materialEx, 2] * (Hz[i, j, k] - Hz[i, j - 1, k]) -
                                    updatecoeffsE[materialEx, 3] * (Hy[i, j, k] - Hy[i, j, k - 1]))
-                    Ey[i, j, k] = (updatecoeffsE[materialEy, 0] * Ey[i, j, k] + 
-                                   updatecoeffsE[materialEy, 3] * (Hx[i, j, k] - Hx[i, j, k - 1]) - 
+                    Ey[i, j, k] = (updatecoeffsE[materialEy, 0] * Ey[i, j, k] +
+                                   updatecoeffsE[materialEy, 3] * (Hx[i, j, k] - Hx[i, j, k - 1]) -
                                    updatecoeffsE[materialEy, 1] * (Hz[i, j, k] - Hz[i - 1, j, k]))
-                    Ez[i, j, k] = (updatecoeffsE[materialEz, 0] * Ez[i, j, k] + 
-                                   updatecoeffsE[materialEz, 1] * (Hy[i, j, k] - Hy[i - 1, j, k]) - 
+                    Ez[i, j, k] = (updatecoeffsE[materialEz, 0] * Ez[i, j, k] +
+                                   updatecoeffsE[materialEz, 1] * (Hy[i, j, k] - Hy[i - 1, j, k]) -
                                    updatecoeffsE[materialEz, 2] * (Hx[i, j, k] - Hx[i, j - 1, k]))
 
         # Ex components at i = 0
         for j in prange(1, ny, nogil=True, schedule='static', num_threads=nthreads):
             for k in range(1, nz):
                 materialEx = ID[0, 0, j, k]
-                Ex[0, j, k] = (updatecoeffsE[materialEx, 0] * Ex[0, j, k] + 
-                               updatecoeffsE[materialEx, 2] * (Hz[0, j, k] - Hz[0, j - 1, k]) - 
+                Ex[0, j, k] = (updatecoeffsE[materialEx, 0] * Ex[0, j, k] +
+                               updatecoeffsE[materialEx, 2] * (Hz[0, j, k] - Hz[0, j - 1, k]) -
                                updatecoeffsE[materialEx, 3] * (Hy[0, j, k] - Hy[0, j, k - 1]))
 
         # Ey components at j = 0
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for k in range(1, nz):
                 materialEy = ID[1, i, 0, k]
-                Ey[i, 0, k] = (updatecoeffsE[materialEy, 0] * Ey[i, 0, k] + 
-                               updatecoeffsE[materialEy, 3] * (Hx[i, 0, k] - Hx[i, 0, k - 1]) - 
+                Ey[i, 0, k] = (updatecoeffsE[materialEy, 0] * Ey[i, 0, k] +
+                               updatecoeffsE[materialEy, 3] * (Hx[i, 0, k] - Hx[i, 0, k - 1]) -
                                updatecoeffsE[materialEy, 1] * (Hz[i, 0, k] - Hz[i - 1, 0, k]))
 
         # Ez components at k = 0
         for i in prange(1, nx, nogil=True, schedule='static', num_threads=nthreads):
             for j in range(1, ny):
                 materialEz = ID[2, i, j, 0]
-                Ez[i, j, 0] = (updatecoeffsE[materialEz, 0] * Ez[i, j, 0] + 
-                               updatecoeffsE[materialEz, 1] * (Hy[i, j, 0] - Hy[i - 1, j, 0]) - 
+                Ez[i, j, 0] = (updatecoeffsE[materialEz, 0] * Ez[i, j, 0] +
+                               updatecoeffsE[materialEz, 1] * (Hy[i, j, 0] - Hy[i - 1, j, 0]) -
                                updatecoeffsE[materialEz, 2] * (Hx[i, j, 0] - Hx[i, j - 1, 0]))
 
 
@@ -141,7 +141,7 @@ cpdef void update_magnetic(
     Args:
         nx, ny, nz: ints for grid size in cells.
         nthreads: int for number of threads to use.
-        updatecoeffs, ID, E, H: memoryviews to access update coefficients, 
+        updatecoeffs, ID, E, H: memoryviews to access update coefficients,
                                 ID and field component arrays
     """
 
@@ -156,8 +156,8 @@ cpdef void update_magnetic(
                 for j in range(0, ny):
                     for k in range(0, nz):
                         materialHx = ID[3, i, j, k]
-                        Hx[i, j, k] = (updatecoeffsH[materialHx, 0] * Hx[i, j, k] - 
-                                       updatecoeffsH[materialHx, 2] * (Ez[i, j + 1, k] - Ez[i, j, k]) + 
+                        Hx[i, j, k] = (updatecoeffsH[materialHx, 0] * Hx[i, j, k] -
+                                       updatecoeffsH[materialHx, 2] * (Ez[i, j + 1, k] - Ez[i, j, k]) +
                                        updatecoeffsH[materialHx, 3] * (Ey[i, j, k + 1] - Ey[i, j, k]))
 
         # Hy component
@@ -166,8 +166,8 @@ cpdef void update_magnetic(
                 for j in range(1, ny):
                     for k in range(0, nz):
                         materialHy = ID[4, i, j, k]
-                        Hy[i, j, k] = (updatecoeffsH[materialHy, 0] * Hy[i, j, k] - 
-                                       updatecoeffsH[materialHy, 3] * (Ex[i, j, k + 1] - Ex[i, j, k]) + 
+                        Hy[i, j, k] = (updatecoeffsH[materialHy, 0] * Hy[i, j, k] -
+                                       updatecoeffsH[materialHy, 3] * (Ex[i, j, k + 1] - Ex[i, j, k]) +
                                        updatecoeffsH[materialHy, 1] * (Ez[i + 1, j, k] - Ez[i, j, k]))
 
         # Hz component
@@ -176,8 +176,8 @@ cpdef void update_magnetic(
                 for j in range(0, ny):
                     for k in range(1, nz):
                         materialHz = ID[5, i, j, k]
-                        Hz[i, j, k] = (updatecoeffsH[materialHz, 0] * Hz[i, j, k] - 
-                                       updatecoeffsH[materialHz, 1] * (Ey[i + 1, j, k] - Ey[i, j, k]) + 
+                        Hz[i, j, k] = (updatecoeffsH[materialHz, 0] * Hz[i, j, k] -
+                                       updatecoeffsH[materialHz, 1] * (Ey[i + 1, j, k] - Ey[i, j, k]) +
                                        updatecoeffsH[materialHz, 2] * (Ex[i, j + 1, k] - Ex[i, j, k]))
     # 3D
     else:
@@ -187,12 +187,12 @@ cpdef void update_magnetic(
                     materialHx = ID[3, i + 1, j, k]
                     materialHy = ID[4, i, j + 1, k]
                     materialHz = ID[5, i, j, k + 1]
-                    Hx[i + 1, j, k] = (updatecoeffsH[materialHx, 0] * Hx[i + 1, j, k] - 
-                                       updatecoeffsH[materialHx, 2] * (Ez[i + 1, j + 1, k] - Ez[i + 1, j, k]) + 
+                    Hx[i + 1, j, k] = (updatecoeffsH[materialHx, 0] * Hx[i + 1, j, k] -
+                                       updatecoeffsH[materialHx, 2] * (Ez[i + 1, j + 1, k] - Ez[i + 1, j, k]) +
                                        updatecoeffsH[materialHx, 3] * (Ey[i + 1, j, k + 1] - Ey[i + 1, j, k]))
-                    Hy[i, j + 1, k] = (updatecoeffsH[materialHy, 0] * Hy[i, j + 1, k] - 
-                                       updatecoeffsH[materialHy, 3] * (Ex[i, j + 1, k + 1] - Ex[i, j + 1, k]) + 
+                    Hy[i, j + 1, k] = (updatecoeffsH[materialHy, 0] * Hy[i, j + 1, k] -
+                                       updatecoeffsH[materialHy, 3] * (Ex[i, j + 1, k + 1] - Ex[i, j + 1, k]) +
                                        updatecoeffsH[materialHy, 1] * (Ez[i + 1, j + 1, k] - Ez[i, j + 1, k]))
-                    Hz[i, j, k + 1] = (updatecoeffsH[materialHz, 0] * Hz[i, j, k + 1] - 
-                                       updatecoeffsH[materialHz, 1] * (Ey[i + 1, j, k + 1] - Ey[i, j, k + 1]) + 
+                    Hz[i, j, k + 1] = (updatecoeffsH[materialHz, 0] * Hz[i, j, k + 1] -
+                                       updatecoeffsH[materialHz, 1] * (Ey[i + 1, j, k + 1] - Ey[i, j, k + 1]) +
                                        updatecoeffsH[materialHz, 2] * (Ex[i, j + 1, k + 1] - Ex[i, j, k + 1]))

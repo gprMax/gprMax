@@ -18,8 +18,11 @@ logger = logging.getLogger(__name__)
 
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Calculate and store (in a Numpy file) field patterns from a simulation with receivers positioned in circles around an antenna.', usage='cd gprMax; python -m user_libs.AntennaPatterns.initial_save outputfile')
-parser.add_argument('outputfile', help='name of gprMax output file including path')
+parser = argparse.ArgumentParser(
+    description="Calculate and store (in a Numpy file) field patterns from a simulation with receivers positioned in circles around an antenna.",
+    usage="cd gprMax; python -m user_libs.AntennaPatterns.initial_save outputfile",
+)
+parser.add_argument("outputfile", help="name of gprMax output file including path")
 args = parser.parse_args()
 outputfile = args.outputfile
 
@@ -27,7 +30,7 @@ outputfile = args.outputfile
 # User configurable parameters
 
 # Pattern type (E or H)
-type = 'H'
+type = "H"
 
 # Antenna (true if using full antenna model; false for a theoretical Hertzian dipole
 antenna = True
@@ -55,35 +58,47 @@ traceno = np.s_[:]  # All traces
 # Critical angle and velocity
 if epsr:
     mr = 1
-    z1 = np.sqrt(mr / epsr) * config.sim_config.em_consts['z0']
-    v1 = config.sim_config.em_consts['c'] / np.sqrt(epsr)
-    thetac = np.round(np.arcsin(v1 / config.sim_config.em_consts['c']) * (180 / np.pi))
+    z1 = np.sqrt(mr / epsr) * config.sim_config.em_consts["z0"]
+    v1 = config.sim_config.em_consts["c"] / np.sqrt(epsr)
+    thetac = np.round(np.arcsin(v1 / config.sim_config.em_consts["c"]) * (180 / np.pi))
     wavelength = v1 / f
 
 # Print some useful information
-logger.info('Centre frequency: {} GHz'.format(f / 1e9))
+logger.info("Centre frequency: {} GHz".format(f / 1e9))
 if epsr:
-    logger.info('Critical angle for Er {} is {} degrees'.format(epsr, thetac))
-    logger.info('Wavelength: {:.3f} m'.format(wavelength))
-    logger.info('Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)'.format(radii[0], radii[0] / wavelength, radii[-1], radii[-1] / wavelength))
-    logger.info('Theoretical boundary between reactive & radiating near-field (0.62*sqrt((D^3/wavelength): {:.3f} m'.format(0.62 * np.sqrt((D**3) / wavelength)))
-    logger.info('Theoretical boundary between radiating near-field & far-field (2*D^2/wavelength): {:.3f} m'.format((2 * D**2) / wavelength))
+    logger.info("Critical angle for Er {} is {} degrees".format(epsr, thetac))
+    logger.info("Wavelength: {:.3f} m".format(wavelength))
+    logger.info(
+        "Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)".format(
+            radii[0], radii[0] / wavelength, radii[-1], radii[-1] / wavelength
+        )
+    )
+    logger.info(
+        "Theoretical boundary between reactive & radiating near-field (0.62*sqrt((D^3/wavelength): {:.3f} m".format(
+            0.62 * np.sqrt((D**3) / wavelength)
+        )
+    )
+    logger.info(
+        "Theoretical boundary between radiating near-field & far-field (2*D^2/wavelength): {:.3f} m".format(
+            (2 * D**2) / wavelength
+        )
+    )
 
 # Load text file with coordinates of pattern origin
-origin = np.loadtxt(os.path.splitext(outputfile)[0] + '_rxsorigin.txt')
+origin = np.loadtxt(os.path.splitext(outputfile)[0] + "_rxsorigin.txt")
 
 # Load output file and read some header information
-f = h5py.File(outputfile, 'r')
-iterations = f.attrs['Iterations']
-dt = f.attrs['dt']
-nrx = f.attrs['nrx']
+f = h5py.File(outputfile, "r")
+iterations = f.attrs["Iterations"]
+dt = f.attrs["dt"]
+nrx = f.attrs["nrx"]
 if antenna:
     nrx = nrx - 1  # Ignore first receiver point with full antenna model
     start = 2
 else:
     start = 1
 time = np.arange(0, dt * iterations, dt)
-time = time / 1E-9
+time = time / 1e-9
 fs = 1 / dt  # Sampling frequency
 
 # Initialise arrays to store fields
@@ -105,15 +120,15 @@ Hthetasum = np.zeros(len(theta), dtype=np.float32)
 patternsave = np.zeros((len(radii), len(theta)), dtype=np.float32)
 
 for rx in range(0, nrx):
-    path = '/rxs/rx' + str(rx + start) + '/'
-    position = f[path].attrs['Position'][:]
+    path = "/rxs/rx" + str(rx + start) + "/"
+    position = f[path].attrs["Position"][:]
     coords[rx, :] = position - origin
-    Ex[:, rx] = f[path + 'Ex'][:]
-    Ey[:, rx] = f[path + 'Ey'][:]
-    Ez[:, rx] = f[path + 'Ez'][:]
-    Hx[:, rx] = f[path + 'Hx'][:]
-    Hy[:, rx] = f[path + 'Hy'][:]
-    Hz[:, rx] = f[path + 'Hz'][:]
+    Ex[:, rx] = f[path + "Ex"][:]
+    Ey[:, rx] = f[path + "Ey"][:]
+    Ez[:, rx] = f[path + "Ez"][:]
+    Hx[:, rx] = f[path + "Hx"][:]
+    Hy[:, rx] = f[path + "Hy"][:]
+    Hz[:, rx] = f[path + "Hz"][:]
 f.close()
 
 # Plot traces for sanity checking
@@ -141,14 +156,23 @@ for radius in range(0, len(radii)):
     # Observation points
     for pt in range(rxstart, rxstart + len(theta)):
         # Cartesian to spherical coordinate transform coefficients from (Kraus,1991,Electromagnetics,p.34)
-        r1 = coords[pt, 0] / np.sqrt(coords[pt, 0]**2 + coords[pt, 1]**2 + coords[pt, 2]**2)
-        r2 = coords[pt, 1] / np.sqrt(coords[pt, 0]**2 + coords[pt, 1]**2 + coords[pt, 2]**2)
-        r3 = coords[pt, 2] / np.sqrt(coords[pt, 0]**2 + coords[pt, 1]**2 + coords[pt, 2]**2)
-        theta1 = (coords[pt, 0] * coords[pt, 2]) / (np.sqrt(coords[pt, 0]**2 + coords[pt, 1]**2) * np.sqrt(coords[pt, 0]**2 + coords[pt, 1]**2 + coords[pt, 2]**2))
-        theta2 = (coords[pt, 1] * coords[pt, 2]) / (np.sqrt(coords[pt, 0]**2 + coords[pt, 1]**2) * np.sqrt(coords[pt, 0]**2 + coords[pt, 1]**2 + coords[pt, 2]**2))
-        theta3 = -(np.sqrt(coords[pt, 0]**2 + coords[pt, 1]**2) / np.sqrt(coords[pt, 0]**2 + coords[pt, 1]**2 + coords[pt, 2]**2))
-        phi1 = -(coords[pt, 1] / np.sqrt(coords[pt, 0]**2 + coords[pt, 1]**2))
-        phi2 = coords[pt, 0] / np.sqrt(coords[pt, 0]**2 + coords[pt, 1]**2)
+        r1 = coords[pt, 0] / np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2 + coords[pt, 2] ** 2)
+        r2 = coords[pt, 1] / np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2 + coords[pt, 2] ** 2)
+        r3 = coords[pt, 2] / np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2 + coords[pt, 2] ** 2)
+        theta1 = (coords[pt, 0] * coords[pt, 2]) / (
+            np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2)
+            * np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2 + coords[pt, 2] ** 2)
+        )
+        theta2 = (coords[pt, 1] * coords[pt, 2]) / (
+            np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2)
+            * np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2 + coords[pt, 2] ** 2)
+        )
+        theta3 = -(
+            np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2)
+            / np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2 + coords[pt, 2] ** 2)
+        )
+        phi1 = -(coords[pt, 1] / np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2))
+        phi2 = coords[pt, 0] / np.sqrt(coords[pt, 0] ** 2 + coords[pt, 1] ** 2)
         phi3 = 0
 
         # Fields in spherical coordinates
@@ -161,22 +185,22 @@ for radius in range(0, len(radii)):
 
         # Calculate metric for time-domain field pattern values
         if impscaling and coords[pt, 2] < 0:
-            Ethetasum[index] = np.sum(Etheta[:, index]**2) / z1
-            Hthetasum[index] = np.sum(Htheta[:, index]**2) / z1
+            Ethetasum[index] = np.sum(Etheta[:, index] ** 2) / z1
+            Hthetasum[index] = np.sum(Htheta[:, index] ** 2) / z1
         else:
-            Ethetasum[index] = np.sum(Etheta[:, index]**2) / config.sim_config.em_consts['z0']
-            Hthetasum[index] = np.sum(Htheta[:, index]**2) / config.sim_config.em_consts['z0']
+            Ethetasum[index] = np.sum(Etheta[:, index] ** 2) / config.sim_config.em_consts["z0"]
+            Hthetasum[index] = np.sum(Htheta[:, index] ** 2) / config.sim_config.em_consts["z0"]
 
         index += 1
 
-    if type == 'H':
+    if type == "H":
         # Flip H-plane patterns as rx points are written CCW but always plotted CW
         patternsave[radius, :] = Hthetasum[::-1]
-    elif type == 'E':
+    elif type == "E":
         patternsave[radius, :] = Ethetasum
 
     rxstart += len(theta)
 
 # Save pattern to numpy file
 np.save(os.path.splitext(outputfile)[0], patternsave)
-logger.info('Written Numpy file: {}.npy'.format(os.path.splitext(outputfile)[0]))
+logger.info("Written Numpy file: {}.npy".format(os.path.splitext(outputfile)[0]))

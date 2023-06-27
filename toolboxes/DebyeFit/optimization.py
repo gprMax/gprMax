@@ -22,6 +22,7 @@ class Optimizer(object):
                  unsigned integers (Default: None).
     :type seed: int, NoneType, optional
     """
+
     def __init__(self, maxiter=1000, seed=None):
         self.maxiter = maxiter
         self.seed = seed
@@ -58,12 +59,11 @@ class Optimizer(object):
         # find the weights using a calc_weights method
         if self.calc_weights is None:
             raise NotImplementedError()
-        _, _, weights, ee, rl_exp, im_exp = \
-            self.calc_weights(tau, **funckwargs)
+        _, _, weights, ee, rl_exp, im_exp = self.calc_weights(tau, **funckwargs)
         return tau, weights, ee, rl_exp, im_exp
 
     def calc_relaxation_times(self):
-        """ Optimisation method that tries to find an optimal set
+        """Optimisation method that tries to find an optimal set
         of relaxation times that minimise the error
         between the actual and the approximated electric permittivity.
         """
@@ -93,7 +93,7 @@ class Optimizer(object):
 
 
 class PSO_DLS(Optimizer):
-    """ Create hybrid Particle Swarm-Damped Least Squares optimisation
+    """Create hybrid Particle Swarm-Damped Least Squares optimisation
     object with predefined parameters.
 
     :param swarmsize: The number of particles in the swarm (Default: 40).
@@ -119,11 +119,10 @@ class PSO_DLS(Optimizer):
                   value during optimization process (Default: False).
     :type pflag: bool, optional
     """
-    def __init__(self, swarmsize=40, maxiter=50,
-                 omega=0.9, phip=0.9, phig=0.9,
-                 minstep=1e-8, minfun=1e-8,
-                 pflag=False, seed=None):
 
+    def __init__(
+        self, swarmsize=40, maxiter=50, omega=0.9, phip=0.9, phig=0.9, minstep=1e-8, minfun=1e-8, pflag=False, seed=None
+    ):
         super(PSO_DLS, self).__init__(maxiter, seed)
         self.swarmsize = swarmsize
         self.omega = omega
@@ -156,13 +155,11 @@ class PSO_DLS(Optimizer):
         """
         np.random.seed(self.seed)
         # check input parameters
-        assert len(lb) == len(ub), \
-            'Lower- and upper-bounds must be the same length'
-        assert hasattr(func, '__call__'), 'Invalid function handle'
+        assert len(lb) == len(ub), "Lower- and upper-bounds must be the same length"
+        assert hasattr(func, "__call__"), "Invalid function handle"
         lb = np.array(lb)
         ub = np.array(ub)
-        assert np.all(ub > lb), \
-            'All upper-bound values must be greater than lower-bound values'
+        assert np.all(ub > lb), "All upper-bound values must be greater than lower-bound values"
 
         vhigh = np.abs(ub - lb)
         vlow = -vhigh
@@ -200,14 +197,16 @@ class PSO_DLS(Optimizer):
             v[i, :] = vlow + np.random.rand(d) * (vhigh - vlow)
 
         # Iterate until termination criterion met
-        for it in tqdm(range(self.maxiter), desc='Debye fitting'):
+        for it in tqdm(range(self.maxiter), desc="Debye fitting"):
             rp = np.random.uniform(size=(self.swarmsize, d))
             rg = np.random.uniform(size=(self.swarmsize, d))
             for i in range(self.swarmsize):
                 # Update the particle's velocity
-                v[i, :] = self.omega * v[i, :] + self.phip * rp[i, :] * \
-                          (p[i, :] - x[i, :]) + \
-                          self.phig * rg[i, :] * (g - x[i, :])
+                v[i, :] = (
+                    self.omega * v[i, :]
+                    + self.phip * rp[i, :] * (p[i, :] - x[i, :])
+                    + self.phig * rg[i, :] * (g - x[i, :])
+                )
                 # Update the particle's position,
                 # correcting lower and upper bound
                 # violations, then update the objective function value
@@ -227,12 +226,10 @@ class PSO_DLS(Optimizer):
                         tmp = x[i, :].copy()
                         stepsize = np.sqrt(np.sum((g - tmp) ** 2))
                         if np.abs(fg - fx) <= self.minfun:
-                            print(f'Stopping search: Swarm best objective '
-                                  f'change less than {self.minfun}')
+                            print(f"Stopping search: Swarm best objective " f"change less than {self.minfun}")
                             return tmp, fx
                         elif stepsize <= self.minstep:
-                            print(f'Stopping search: Swarm best position '
-                                  f'change less than {self.minstep}')
+                            print(f"Stopping search: Swarm best position " f"change less than {self.minstep}")
                             return tmp, fx
                         else:
                             g = tmp.copy()
@@ -261,11 +258,9 @@ class PSO_DLS(Optimizer):
         # it clears an axes
         plt.cla()
         plt.plot(x, y, "b-", linewidth=1.0)
-        plt.ylim(min(y) - 0.1 * min(y),
-                 max(y) + 0.1 * max(y))
+        plt.ylim(min(y) - 0.1 * min(y), max(y) + 0.1 * max(y))
         plt.xlim(min(x) - 0.1, max(x) + 0.1)
-        plt.grid(b=True, which="major", color="k",
-                 linewidth=0.2, linestyle="--")
+        plt.grid(b=True, which="major", color="k", linewidth=0.2, linestyle="--")
         plt.suptitle("Debye fitting process")
         plt.xlabel("Iteration")
         plt.ylabel("Average Error")
@@ -273,17 +268,27 @@ class PSO_DLS(Optimizer):
 
 
 class DA_DLS(Optimizer):
-    """ Create Dual Annealing object with predefined parameters.
+    """Create Dual Annealing object with predefined parameters.
     The current class is a modified edition of the scipy.optimize
     package which can be found at:
     https://docs.scipy.org/doc/scipy/reference/generated/
     scipy.optimize.dual_annealing.html#scipy.optimize.dual_annealing
     """
-    def __init__(self, maxiter=1000,
-                 local_search_options={}, initial_temp=5230.0,
-                 restart_temp_ratio=2e-05, visit=2.62, accept=-5.0,
-                 maxfun=1e7, no_local_search=False,
-                 callback=None, x0=None, seed=None):
+
+    def __init__(
+        self,
+        maxiter=1000,
+        local_search_options={},
+        initial_temp=5230.0,
+        restart_temp_ratio=2e-05,
+        visit=2.62,
+        accept=-5.0,
+        maxfun=1e7,
+        no_local_search=False,
+        callback=None,
+        x0=None,
+        seed=None,
+    ):
         super(DA_DLS, self).__init__(maxiter, seed)
         self.local_search_options = local_search_options
         self.initial_temp = initial_temp
@@ -330,7 +335,8 @@ class DA_DLS(Optimizer):
             maxfun=self.maxfun,
             no_local_search=self.no_local_search,
             callback=self.callback,
-            x0=self.x0)
+            x0=self.x0,
+        )
         print(result.message)
         return result.x, result.fun
 
@@ -344,12 +350,25 @@ class DE_DLS(Optimizer):
     https://docs.scipy.org/doc/scipy/reference/generated/
     scipy.optimize.differential_evolution.html#scipy.optimize.differential_evolution
     """
-    def __init__(self, maxiter=1000,
-                 strategy='best1bin', popsize=15, tol=0.01, mutation=(0.5, 1),
-                 recombination=0.7, callback=None, disp=False, polish=True,
-                 init='latinhypercube', atol=0,
-                 updating='immediate', workers=1,
-                 constraints=(), seed=None):
+
+    def __init__(
+        self,
+        maxiter=1000,
+        strategy="best1bin",
+        popsize=15,
+        tol=0.01,
+        mutation=(0.5, 1),
+        recombination=0.7,
+        callback=None,
+        disp=False,
+        polish=True,
+        init="latinhypercube",
+        atol=0,
+        updating="immediate",
+        workers=1,
+        constraints=(),
+        seed=None,
+    ):
         super(DE_DLS, self).__init__(maxiter, seed)
         self.strategy = strategy
         self.popsize = popsize
@@ -403,7 +422,8 @@ class DE_DLS(Optimizer):
             atol=self.atol,
             updating=self.updating,
             workers=self.workers,
-            constraints=self.constraints)
+            constraints=self.constraints,
+        )
         print(result.message)
         return result.x, result.fun
 
@@ -446,16 +466,14 @@ def DLS(logt, rl, im, freq):
     # Here they are transformed back t0=10**logt
     tt = 10**logt
     # y = Ax, here the A matrix for the real and the imaginary part is builded
-    d = 1 / (1 + 1j * 2 * np.pi * np.repeat(
-             freq, len(tt)).reshape((-1, len(tt))) * tt)
+    d = 1 / (1 + 1j * 2 * np.pi * np.repeat(freq, len(tt)).reshape((-1, len(tt))) * tt)
     # Adding dumping (Levenberg–Marquardt algorithm)
     # Solving the overdetermined system y=Ax
     x = np.abs(np.linalg.lstsq(d.imag, im, rcond=None)[0])
     # x - absolute damped least-squares solution
-    rp, ip = np.matmul(d.real, x[np.newaxis].T).T[0], np.matmul(
-                    d.imag, x[np.newaxis].T).T[0]
-    cost_i = np.sum(np.abs(ip-im))/len(im)
+    rp, ip = np.matmul(d.real, x[np.newaxis].T).T[0], np.matmul(d.imag, x[np.newaxis].T).T[0]
+    cost_i = np.sum(np.abs(ip - im)) / len(im)
     ee = np.mean(rl - rp)
     ee = max(ee, 1)
-    cost_r = np.sum(np.abs(rp + ee - rl))/len(im)
+    cost_r = np.sum(np.abs(rp + ee - rl)) / len(im)
     return cost_i, cost_r, x, ee, rp, ip

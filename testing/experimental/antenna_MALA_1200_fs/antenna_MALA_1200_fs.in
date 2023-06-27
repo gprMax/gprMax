@@ -7,4 +7,3 @@
 from user_libs.GPRAntennaModels import antenna_like_MALA_1200
 antenna_like_MALA_1200(0.132, 0.095, 0.100)
 #end_python:
-

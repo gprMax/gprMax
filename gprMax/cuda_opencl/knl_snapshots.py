@@ -19,31 +19,35 @@
 from string import Template
 
 
-store_snapshot = {'args_cuda': Template("""
-                                __global__ void store_snapshot(int p, 
-                                                    int xs, 
-                                                    int xf, 
-                                                    int ys, 
-                                                    int yf, 
-                                                    int zs, 
-                                                    int zf, 
-                                                    int dx, 
-                                                    int dy, 
+store_snapshot = {
+    "args_cuda": Template(
+        """
+                                __global__ void store_snapshot(int p,
+                                                    int xs,
+                                                    int xf,
+                                                    int ys,
+                                                    int yf,
+                                                    int zs,
+                                                    int zf,
+                                                    int dx,
+                                                    int dy,
                                                     int dz,
-                                                    const $REAL* __restrict__ Ex, 
+                                                    const $REAL* __restrict__ Ex,
                                                     const $REAL* __restrict__ Ey,
-                                                    const $REAL* __restrict__ Ez, 
+                                                    const $REAL* __restrict__ Ez,
                                                     const $REAL* __restrict__ Hx,
-                                                    const $REAL* __restrict__ Hy, 
+                                                    const $REAL* __restrict__ Hy,
                                                     const $REAL* __restrict__ Hz,
-                                                    $REAL *snapEx, 
-                                                    $REAL *snapEy, 
+                                                    $REAL *snapEx,
+                                                    $REAL *snapEy,
                                                     $REAL *snapEz,
-                                                    $REAL *snapHx, 
-                                                    $REAL *snapHy, 
+                                                    $REAL *snapHx,
+                                                    $REAL *snapHy,
                                                     $REAL *snapHz)
-                                """),
-                  'args_opencl': Template("""
+                                """
+    ),
+    "args_opencl": Template(
+        """
                                     int p,
                                     int xs,
                                     int xf,
@@ -53,7 +57,7 @@ store_snapshot = {'args_cuda': Template("""
                                     int zf,
                                     int dx,
                                     int dy,
-                                    int dz, 
+                                    int dz,
                                     __global const $REAL* restrict Ex,
                                     __global const $REAL* restrict Ey,
                                     __global const $REAL* restrict Ez,
@@ -66,8 +70,10 @@ store_snapshot = {'args_cuda': Template("""
                                     __global $REAL *snapHx,
                                     __global $REAL *snapHy,
                                     __global $REAL *snapHz
-                                """),
-                  'func': Template("""
+                                """
+    ),
+    "func": Template(
+        """
     // Stores field values for a snapshot.
     //
     //  Args:
@@ -96,27 +102,28 @@ store_snapshot = {'args_cuda': Template("""
 
         // The electric field component value at a point comes from an average of
         // the 4 electric field component values in that cell
-        snapEx[IDX4D_SNAPS(p,x,y,z)] = (Ex[IDX3D_FIELDS(xx,yy,zz)] + 
-                                        Ex[IDX3D_FIELDS(xx,yy+1,zz)] + 
-                                        Ex[IDX3D_FIELDS(xx,yy,zz+1)] + 
+        snapEx[IDX4D_SNAPS(p,x,y,z)] = (Ex[IDX3D_FIELDS(xx,yy,zz)] +
+                                        Ex[IDX3D_FIELDS(xx,yy+1,zz)] +
+                                        Ex[IDX3D_FIELDS(xx,yy,zz+1)] +
                                         Ex[IDX3D_FIELDS(xx,yy+1,zz+1)]) / 4;
-        snapEy[IDX4D_SNAPS(p,x,y,z)] = (Ey[IDX3D_FIELDS(xx,yy,zz)] + 
-                                        Ey[IDX3D_FIELDS(xx+1,yy,zz)] + 
-                                        Ey[IDX3D_FIELDS(xx,yy,zz+1)] + 
+        snapEy[IDX4D_SNAPS(p,x,y,z)] = (Ey[IDX3D_FIELDS(xx,yy,zz)] +
+                                        Ey[IDX3D_FIELDS(xx+1,yy,zz)] +
+                                        Ey[IDX3D_FIELDS(xx,yy,zz+1)] +
                                         Ey[IDX3D_FIELDS(xx+1,yy,zz+1)]) / 4;
-        snapEz[IDX4D_SNAPS(p,x,y,z)] = (Ez[IDX3D_FIELDS(xx,yy,zz)] + 
-                                        Ez[IDX3D_FIELDS(xx+1,yy,zz)] + 
-                                        Ez[IDX3D_FIELDS(xx,yy+1,zz)] + 
+        snapEz[IDX4D_SNAPS(p,x,y,z)] = (Ez[IDX3D_FIELDS(xx,yy,zz)] +
+                                        Ez[IDX3D_FIELDS(xx+1,yy,zz)] +
+                                        Ez[IDX3D_FIELDS(xx,yy+1,zz)] +
                                         Ez[IDX3D_FIELDS(xx+1,yy+1,zz)]) / 4;
 
         // The magnetic field component value at a point comes from average of
         // 2 magnetic field component values in that cell and the following cell
-        snapHx[IDX4D_SNAPS(p,x,y,z)] = (Hx[IDX3D_FIELDS(xx,yy,zz)] + 
+        snapHx[IDX4D_SNAPS(p,x,y,z)] = (Hx[IDX3D_FIELDS(xx,yy,zz)] +
                                         Hx[IDX3D_FIELDS(xx+1,yy,zz)]) / 2;
-        snapHy[IDX4D_SNAPS(p,x,y,z)] = (Hy[IDX3D_FIELDS(xx,yy,zz)] + 
+        snapHy[IDX4D_SNAPS(p,x,y,z)] = (Hy[IDX3D_FIELDS(xx,yy,zz)] +
                                         Hy[IDX3D_FIELDS(xx,yy+1,zz)]) / 2;
-        snapHz[IDX4D_SNAPS(p,x,y,z)] = (Hz[IDX3D_FIELDS(xx,yy,zz)] + 
+        snapHz[IDX4D_SNAPS(p,x,y,z)] = (Hz[IDX3D_FIELDS(xx,yy,zz)] +
                                         Hz[IDX3D_FIELDS(xx,yy,zz+1)]) / 2;
     }
-""")
+"""
+    ),
 }

@@ -36,7 +36,7 @@ def create_updates(G):
         elif sg_type == SubGridHSG:
             precursors = PrecursorNodes(G, sg)
         else:
-            logger.exception(f'{str(sg)} is not a subgrid type')
+            logger.exception(f"{str(sg)} is not a subgrid type")
             raise ValueError
 
         sgu = SubgridUpdater(sg, precursors, G)
@@ -65,17 +65,17 @@ class SubgridUpdates(CPUUpdates):
 
 
 class SubgridUpdater(CPUUpdates):
-    """Handles updating the electric and magnetic fields of an HSG subgrid. 
-        The IS, OS, subgrid region and the electric/magnetic sources are updated 
-        using the precursor regions.
+    """Handles updating the electric and magnetic fields of an HSG subgrid.
+    The IS, OS, subgrid region and the electric/magnetic sources are updated
+    using the precursor regions.
     """
 
     def __init__(self, subgrid, precursors, G):
         """
         Args:
             subgrid: SubGrid3d instance to be updated.
-            precursors (PrecursorNodes): PrecursorNodes instance nodes associated 
-                                            with the subgrid - contain interpolated 
+            precursors (PrecursorNodes): PrecursorNodes instance nodes associated
+                                            with the subgrid - contain interpolated
                                             fields.
             G: FDTDGrid class describing a grid in a model.
         """
@@ -85,8 +85,8 @@ class SubgridUpdater(CPUUpdates):
         self.source_iteration = 0
 
     def hsg_1(self):
-        """First half of the subgrid update. Takes the time step up to the main 
-            grid magnetic update.
+        """First half of the subgrid update. Takes the time step up to the main
+        grid magnetic update.
         """
 
         G = self.G
@@ -122,8 +122,8 @@ class SubgridUpdater(CPUUpdates):
         subgrid.update_electric_os(G)
 
     def hsg_2(self):
-        """Second half of the subgrid update. Takes the time step up to the main 
-            grid electric update.
+        """Second half of the subgrid update. Takes the time step up to the main
+        grid electric update.
         """
 
         G = self.G

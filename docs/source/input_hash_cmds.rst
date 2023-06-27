@@ -585,7 +585,7 @@ Allows you to introduce an ellipsoid into the model. The syntax of the command i
 
     #ellipsoid: f1 f2 f3 f4 f5 f6 str1 [c1]
 
-* ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of the ellipsoid. 
+* ``f1 f2 f3`` are the coordinates (x,y,z) of the centre of the ellipsoid.
 * ``f4 f5 f6`` are the coordinates (x,y,z) of the semi-axes of the ellipsoid.
 * ``str1`` is a material identifier that must correspond to material that has already been defined in the input file, or is one of the builtin materials.
 * ``c1`` is an optional parameter which can be ``y`` or ``n``, used to switch on and off dielectric smoothing.

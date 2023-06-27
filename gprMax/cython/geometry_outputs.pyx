@@ -21,15 +21,15 @@ cimport numpy as np
 
 
 cpdef write_lines(
-    float xs, 
-    float ys, 
-    float zs, 
-    int nx, 
-    int ny, 
-    int nz, 
-    float dx, 
-    float dy, 
-    float dz, 
+    float xs,
+    float ys,
+    float zs,
+    int nx,
+    int ny,
+    int nz,
+    float dx,
+    float dy,
+    float dz,
     np.uint32_t[:, :, :, :] ID
 ):
     """Generates arrays with to be written as lines (cell edges) to a VTK file.
@@ -38,7 +38,7 @@ cpdef write_lines(
         xs, ys, zs: float for starting coordinates of geometry view in metres.
         nx, ny, nz: int for size of the volume in cells.
         dx, dy, dz: float for spatial discretisation of geometry view in metres.
-        ID: memoryview of sampled ID array according to geometry view spatial 
+        ID: memoryview of sampled ID array according to geometry view spatial
             discretisation.
 
     Returns:

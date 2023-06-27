@@ -28,28 +28,32 @@ logger = logging.getLogger(__name__)
 BASIC_NUM = 25
 logging.addLevelName(BASIC_NUM, "BASIC")
 logging.BASIC = BASIC_NUM
+
+
 def basic(self, message, *args, **kws):
     if self.isEnabledFor(BASIC_NUM):
         self._log(BASIC_NUM, message, args, **kws)
+
+
 logging.Logger.basic = basic
 
 
 # Colour mapping for different log levels
 MAPPING = {
-    'DEBUG'   : 37, # white
-    'BASIC'   : 37, # white
-    'INFO'    : 37, # white
-    'WARNING' : 33, # yellow
-    'ERROR'   : 31, # red
-    'CRITICAL': 41, # white on red bg
+    "DEBUG": 37,  # white
+    "BASIC": 37,  # white
+    "INFO": 37,  # white
+    "WARNING": 33,  # yellow
+    "ERROR": 31,  # red
+    "CRITICAL": 41,  # white on red bg
 }
-PREFIX = '\033['
-SUFFIX = '\033[0m'
-    
+PREFIX = "\033["
+SUFFIX = "\033[0m"
+
 
 class CustomFormatter(logging.Formatter):
-    """Logging Formatter to add colors and count warning / errors 
-        (https://stackoverflow.com/a/46482050)."""
+    """Logging Formatter to add colors and count warning / errors
+    (https://stackoverflow.com/a/46482050)."""
 
     def __init__(self, pattern):
         logging.Formatter.__init__(self, pattern)
@@ -57,14 +61,14 @@ class CustomFormatter(logging.Formatter):
     def format(self, record):
         colored_record = copy(record)
         levelname = colored_record.levelname
-        seq = MAPPING.get(levelname, 37) # default white
-        colored_levelname = f'{PREFIX}{seq}m{levelname}{SUFFIX}'
+        seq = MAPPING.get(levelname, 37)  # default white
+        colored_levelname = f"{PREFIX}{seq}m{levelname}{SUFFIX}"
         colored_record.levelname = colored_levelname
-        colored_record.msg = f'{PREFIX}{seq}m{colored_record.getMessage()}{SUFFIX}'
+        colored_record.msg = f"{PREFIX}{seq}m{colored_record.getMessage()}{SUFFIX}"
         return logging.Formatter.format(self, colored_record)
 
 
-def logging_config(name='gprMax', level=logging.INFO, format_style='std', log_file=False):
+def logging_config(name="gprMax", level=logging.INFO, format_style="std", log_file=False):
     """Setup and configure logging.
 
     Args:
@@ -78,9 +82,9 @@ def logging_config(name='gprMax', level=logging.INFO, format_style='std', log_fi
     format_full = "%(asctime)s:%(levelname)s:%(name)s:%(lineno)d: %(message)s"
 
     # Set format style
-    if format_style == 'full' or level == logging.DEBUG:
+    if format_style == "full" or level == logging.DEBUG:
         format = format_full
-    elif format_style == 'std':
+    elif format_style == "std":
         format = format_std
 
     # Create main top-level logger
@@ -92,15 +96,14 @@ def logging_config(name='gprMax', level=logging.INFO, format_style='std', log_fi
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(level)
     handler.setFormatter(CustomFormatter(format))
-    if (logger.hasHandlers()):
+    if logger.hasHandlers():
         logger.handlers.clear()
     logger.addHandler(handler)
 
     # Config for logging to file if required
     if log_file:
-        filename = (name + '-log-' + 
-                    datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + '.txt')
-        handler = logging.FileHandler(filename, mode='w')
+        filename = name + "-log-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".txt"
+        handler = logging.FileHandler(filename, mode="w")
         formatter = logging.Formatter(format_full)
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(formatter)

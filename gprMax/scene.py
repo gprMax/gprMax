@@ -21,8 +21,7 @@ import logging
 from .cmds_geometry.cmds_geometry import UserObjectGeometry
 from .cmds_geometry.fractal_box_builder import FractalBoxBuilder
 from .cmds_multiuse import UserObjectMulti
-from .cmds_singleuse import (Discretisation, Domain, TimeWindow,
-                             UserObjectSingle)
+from .cmds_singleuse import Discretisation, Domain, TimeWindow, UserObjectSingle
 from .materials import create_built_in_materials
 from .subgrids.user_objects import SubGridBase as SubGridUserBase
 from .user_inputs import create_user_input_points
@@ -43,7 +42,7 @@ class Scene:
         """Add the user object to the scene.
 
         Args:
-            user_object: user object to add to the scene. For example, 
+            user_object: user object to add to the scene. For example,
                             :class:`gprMax.cmds_single_use.Domain`
         """
         if isinstance(user_object, UserObjectMulti):
@@ -53,7 +52,7 @@ class Scene:
         elif isinstance(user_object, UserObjectSingle):
             self.single_cmds.append(user_object)
         else:
-            logger.exception('This object is unknown to gprMax')
+            logger.exception("This object is unknown to gprMax")
             raise ValueError
 
     def process_subgrid_commands(self):
@@ -91,7 +90,7 @@ class Scene:
             try:
                 obj.create(grid, uip)
             except ValueError:
-                logger.exception('Error creating user input object')
+                logger.exception("Error creating user input object")
                 raise
 
         return self
@@ -100,24 +99,26 @@ class Scene:
         # Check for duplicate commands and warn user if they exist
         cmds_unique = list(set(self.single_cmds))
         if len(cmds_unique) != len(self.single_cmds):
-            logger.exception('Duplicate single-use commands exist in the input.')
+            logger.exception("Duplicate single-use commands exist in the input.")
             raise ValueError
 
         # Check essential commands and warn user if missing
         for cmd_type in self.essential_cmds:
             d = any(isinstance(cmd, cmd_type) for cmd in cmds_unique)
             if not d:
-                logger.exception('Your input file is missing essential commands ' +
-                                 'required to run a model. Essential commands ' +
-                                 'are: Domain, Discretisation, Time Window')
+                logger.exception(
+                    "Your input file is missing essential commands "
+                    + "required to run a model. Essential commands "
+                    + "are: Domain, Discretisation, Time Window"
+                )
                 raise ValueError
 
         self.process_cmds(cmds_unique, G)
 
     def create_internal_objects(self, G):
-        """Calls the UserObject.create() function in the correct way - API 
-            presents the user with UserObjects in order to build the internal
-            Rx(), Cylinder() etc... objects. 
+        """Calls the UserObject.create() function in the correct way - API
+        presents the user with UserObjects in order to build the internal
+        Rx(), Cylinder() etc... objects.
         """
 
         # Fractal box commands have an additional nonuser object which

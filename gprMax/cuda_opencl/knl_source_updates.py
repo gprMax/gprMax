@@ -18,21 +18,25 @@
 
 from string import Template
 
-update_hertzian_dipole = {'args_cuda': Template("""
-                                        __global__ void update_hertzian_dipole(int NHERTZDIPOLE, 
-                                            int iteration, 
-                                            $REAL dx, 
-                                            $REAL dy, 
-                                            $REAL dz, 
-                                            const int* __restrict__ srcinfo1, 
-                                            const $REAL* __restrict__ srcinfo2, 
-                                            const $REAL* __restrict__ srcwaveforms, 
-                                            const unsigned int* __restrict__ ID, 
-                                            $REAL *Ex, 
-                                            $REAL *Ey, 
+update_hertzian_dipole = {
+    "args_cuda": Template(
+        """
+                                        __global__ void update_hertzian_dipole(int NHERTZDIPOLE,
+                                            int iteration,
+                                            $REAL dx,
+                                            $REAL dy,
+                                            $REAL dz,
+                                            const int* __restrict__ srcinfo1,
+                                            const $REAL* __restrict__ srcinfo2,
+                                            const $REAL* __restrict__ srcwaveforms,
+                                            const unsigned int* __restrict__ ID,
+                                            $REAL *Ex,
+                                            $REAL *Ey,
                                             $REAL *Ez)
-                                        """),
-                          'args_opencl': Template("""
+                                        """
+    ),
+    "args_opencl": Template(
+        """
                                             int NHERTZDIPOLE,
                                             int iteration,
                                             $REAL dx,
@@ -45,8 +49,10 @@ update_hertzian_dipole = {'args_cuda': Template("""
                                             __global $REAL *Ex,
                                             __global $REAL *Ey,
                                             __global $REAL *Ez
-                                        """),
-                          'func': Template("""
+                                        """
+    ),
+    "func": Template(
+        """
     // Updates electric field values for Hertzian dipole sources.
     //
     //  Args:
@@ -74,42 +80,47 @@ update_hertzian_dipole = {'args_cuda': Template("""
         // 'x' polarised source
         if (polarisation == 0) {
             int materialEx = ID[IDX4D_ID(0,x,y,z)];
-            Ex[IDX3D_FIELDS(x,y,z)] = Ex[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEx,4)] * 
+            Ex[IDX3D_FIELDS(x,y,z)] = Ex[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEx,4)] *
                                         srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * (1 / (dx * dy * dz));
         }
 
         // 'y' polarised source
         else if (polarisation == 1) {
             int materialEy = ID[IDX4D_ID(1,x,y,z)];
-            Ey[IDX3D_FIELDS(x,y,z)] = Ey[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEy,4)] * 
+            Ey[IDX3D_FIELDS(x,y,z)] = Ey[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEy,4)] *
                                         srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * (1 / (dx * dy * dz));
         }
 
         // 'z' polarised source
         else if (polarisation == 2) {
             int materialEz = ID[IDX4D_ID(2,x,y,z)];
-            Ez[IDX3D_FIELDS(x,y,z)] = Ez[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEz,4)] * 
+            Ez[IDX3D_FIELDS(x,y,z)] = Ez[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEz,4)] *
                                         srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * dl * (1 / (dx * dy * dz));
         }
     }
-""")
+"""
+    ),
 }
 
-update_magnetic_dipole = {'args_cuda': Template("""
-                                        __global__ void update_magnetic_dipole(int NMAGDIPOLE, 
-                                            int iteration, 
-                                            $REAL dx, 
-                                            $REAL dy, 
-                                            $REAL dz, 
-                                            const int* __restrict__ srcinfo1, 
-                                            const $REAL* __restrict__ srcinfo2, 
-                                            const $REAL* __restrict__ srcwaveforms, 
-                                            const unsigned int* __restrict__ ID, 
-                                            $REAL *Hx, 
-                                            $REAL *Hy, 
+update_magnetic_dipole = {
+    "args_cuda": Template(
+        """
+                                        __global__ void update_magnetic_dipole(int NMAGDIPOLE,
+                                            int iteration,
+                                            $REAL dx,
+                                            $REAL dy,
+                                            $REAL dz,
+                                            const int* __restrict__ srcinfo1,
+                                            const $REAL* __restrict__ srcinfo2,
+                                            const $REAL* __restrict__ srcwaveforms,
+                                            const unsigned int* __restrict__ ID,
+                                            $REAL *Hx,
+                                            $REAL *Hy,
                                             $REAL *Hz)
-                                        """),
-                          'args_opencl': Template("""
+                                        """
+    ),
+    "args_opencl": Template(
+        """
                                             int NMAGDIPOLE,
                                             int iteration,
                                             $REAL dx,
@@ -122,8 +133,10 @@ update_magnetic_dipole = {'args_cuda': Template("""
                                             __global $REAL *Hx,
                                             __global $REAL *Hy,
                                             __global $REAL *Hz
-                                        """),
-                          'func': Template("""
+                                        """
+    ),
+    "func": Template(
+        """
     // Updates electric field values for Hertzian dipole sources.
     //
     //  Args:
@@ -149,42 +162,47 @@ update_magnetic_dipole = {'args_cuda': Template("""
         // 'x' polarised source
         if (polarisation == 0) {
             int materialHx = ID[IDX4D_ID(3,x,y,z)];
-            Hx[IDX3D_FIELDS(x,y,z)] = Hx[IDX3D_FIELDS(x,y,z)] - updatecoeffsH[IDX2D_MAT(materialHx,4)] * 
+            Hx[IDX3D_FIELDS(x,y,z)] = Hx[IDX3D_FIELDS(x,y,z)] - updatecoeffsH[IDX2D_MAT(materialHx,4)] *
                                         srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (dx * dy * dz));
         }
 
         // 'y' polarised source
         else if (polarisation == 1) {
             int materialHy = ID[IDX4D_ID(4,x,y,z)];
-            Hy[IDX3D_FIELDS(x,y,z)] = Hy[IDX3D_FIELDS(x,y,z)] - updatecoeffsH[IDX2D_MAT(materialHy,4)] * 
+            Hy[IDX3D_FIELDS(x,y,z)] = Hy[IDX3D_FIELDS(x,y,z)] - updatecoeffsH[IDX2D_MAT(materialHy,4)] *
                                         srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (dx * dy * dz));
         }
 
         // 'z' polarised source
         else if (polarisation == 2) {
             int materialHz = ID[IDX4D_ID(5,x,y,z)];
-            Hz[IDX3D_FIELDS(x,y,z)] = Hz[IDX3D_FIELDS(x,y,z)] - updatecoeffsH[IDX2D_MAT(materialHz,4)] * 
+            Hz[IDX3D_FIELDS(x,y,z)] = Hz[IDX3D_FIELDS(x,y,z)] - updatecoeffsH[IDX2D_MAT(materialHz,4)] *
                                         srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (dx * dy * dz));
         }
     }
-""")
+"""
+    ),
 }
 
-update_voltage_source = {'args_cuda': Template("""
-                                        __global__ void update_voltage_source(int NVOLTSRC, 
-                                            int iteration, 
-                                            $REAL dx, 
-                                            $REAL dy, 
-                                            $REAL dz, 
-                                            const int* __restrict__ srcinfo1, 
-                                            const $REAL* __restrict__ srcinfo2, 
-                                            const $REAL* __restrict__ srcwaveforms, 
-                                            const unsigned int* __restrict__ ID, 
-                                            $REAL *Ex, 
-                                            $REAL *Ey, 
+update_voltage_source = {
+    "args_cuda": Template(
+        """
+                                        __global__ void update_voltage_source(int NVOLTSRC,
+                                            int iteration,
+                                            $REAL dx,
+                                            $REAL dy,
+                                            $REAL dz,
+                                            const int* __restrict__ srcinfo1,
+                                            const $REAL* __restrict__ srcinfo2,
+                                            const $REAL* __restrict__ srcwaveforms,
+                                            const unsigned int* __restrict__ ID,
+                                            $REAL *Ex,
+                                            $REAL *Ey,
                                             $REAL *Ez)
-                                        """),
-                          'args_opencl': Template("""
+                                        """
+    ),
+    "args_opencl": Template(
+        """
                                             int NVOLTSRC,
                                             int iteration,
                                             $REAL dx,
@@ -197,8 +215,10 @@ update_voltage_source = {'args_cuda': Template("""
                                             __global $REAL *Ex,
                                             __global $REAL *Ey,
                                             __global $REAL *Ez
-                                        """),
-                          'func': Template("""
+                                        """
+    ),
+    "func": Template(
+        """
     // Updates electric field values for voltage sources.
     //
     //  Args:
@@ -227,7 +247,7 @@ update_voltage_source = {'args_cuda': Template("""
         if (polarisation == 0) {
             if (resistance != 0) {
                 int materialEx = ID[IDX4D_ID(0,x,y,z)];
-                Ex[IDX3D_FIELDS(x,y,z)] = Ex[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEx,4)] * 
+                Ex[IDX3D_FIELDS(x,y,z)] = Ex[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEx,4)] *
                                             srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (resistance * dy * dz));
             }
             else {
@@ -239,7 +259,7 @@ update_voltage_source = {'args_cuda': Template("""
         else if (polarisation == 1) {
             if (resistance != 0) {
                 int materialEy = ID[IDX4D_ID(1,x,y,z)];
-                Ey[IDX3D_FIELDS(x,y,z)] = Ey[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEy,4)] * 
+                Ey[IDX3D_FIELDS(x,y,z)] = Ey[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEy,4)] *
                                             srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (resistance * dx * dz));
             }
             else {
@@ -251,7 +271,7 @@ update_voltage_source = {'args_cuda': Template("""
         else if (polarisation == 2) {
             if (resistance != 0) {
                 int materialEz = ID[IDX4D_ID(2,x,y,z)];
-                Ez[IDX3D_FIELDS(x,y,z)] = Ez[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEz,4)] * 
+                Ez[IDX3D_FIELDS(x,y,z)] = Ez[IDX3D_FIELDS(x,y,z)] - updatecoeffsE[IDX2D_MAT(materialEz,4)] *
                                             srcwaveforms[IDX2D_SRCWAVES(i,iteration)] * (1 / (resistance * dx * dy));
             }
             else {
@@ -259,5 +279,6 @@ update_voltage_source = {'args_cuda': Template("""
             }
         }
     }
-""")
+"""
+    ),
 }

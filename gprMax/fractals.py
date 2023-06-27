@@ -24,19 +24,19 @@ import gprMax.config as config
 from .cython.fractals_generate import generate_fractal2D, generate_fractal3D
 from .utilities.utilities import round_value
 
-np.seterr(divide='raise')
+np.seterr(divide="raise")
 
 
 class FractalSurface:
     """Fractal surfaces."""
 
-    surfaceIDs = ['xminus', 'xplus', 'yminus', 'yplus', 'zminus', 'zplus']
+    surfaceIDs = ["xminus", "xplus", "yminus", "yplus", "zminus", "zplus"]
 
     def __init__(self, xs, xf, ys, yf, zs, zf, dimension):
         """
         Args:
             xs, xf, ys, yf, zs, zf: floats for the extent of the fractal surface
-                                        (one pair of coordinates must be equal 
+                                        (one pair of coordinates must be equal
                                         to correctly define a surface).
             dimension: float for the fractal dimension that controls the fractal
                         distribution.
@@ -83,8 +83,7 @@ class FractalSurface:
         self.fractalsurface = np.zeros(surfacedims, dtype=self.dtype)
 
         # Positional vector at centre of array, scaled by weighting
-        v1 = np.array([self.weighting[0] * (surfacedims[0]) / 2, self.weighting[1]
-                       * (surfacedims[1]) / 2])
+        v1 = np.array([self.weighting[0] * (surfacedims[0]) / 2, self.weighting[1] * (surfacedims[1]) / 2])
 
         # 2D array of random numbers to be convolved with the fractal function
         rng = np.random.default_rng(seed=self.seed)
@@ -96,8 +95,16 @@ class FractalSurface:
         A = fftpack.fftshift(A)
 
         # Generate fractal
-        generate_fractal2D(surfacedims[0], surfacedims[1], config.get_model_config().ompthreads,
-                           self.b, self.weighting, v1, A, self.fractalsurface)
+        generate_fractal2D(
+            surfacedims[0],
+            surfacedims[1],
+            config.get_model_config().ompthreads,
+            self.b,
+            self.weighting,
+            v1,
+            A,
+            self.fractalsurface,
+        )
         # Shift the zero frequency component to start of the array
         self.fractalsurface = fftpack.ifftshift(self.fractalsurface)
         # Set DC component of FFT to zero
@@ -105,16 +112,18 @@ class FractalSurface:
         # Take the real part (numerical errors can give rise to an imaginary part)
         #  of the IFFT, and convert type to floattype. N.B calculation of fractals
         # must always be carried out at double precision, i.e. float64, complex128
-        self.fractalsurface = np.real(fftpack.ifftn(self.fractalsurface)).astype(config.sim_config.dtypes['float_or_double'], 
-                                                                                 copy=False)
+        self.fractalsurface = np.real(fftpack.ifftn(self.fractalsurface)).astype(
+            config.sim_config.dtypes["float_or_double"], copy=False
+        )
         # Scale the fractal volume according to requested range
         fractalmin = np.amin(self.fractalsurface)
         fractalmax = np.amax(self.fractalsurface)
         fractalrange = fractalmax - fractalmin
-        self.fractalsurface = (self.fractalsurface * ((self.fractalrange[1]
-                                                       - self.fractalrange[0]) / fractalrange)
-                               + self.fractalrange[0] - ((self.fractalrange[1]
-                                                          - self.fractalrange[0]) / fractalrange) * fractalmin)
+        self.fractalsurface = (
+            self.fractalsurface * ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange)
+            + self.fractalrange[0]
+            - ((self.fractalrange[1] - self.fractalrange[0]) / fractalrange) * fractalmin
+        )
 
 
 class FractalVolume:
@@ -177,8 +186,9 @@ class FractalVolume:
         self.fractalvolume = np.zeros((self.nx, self.ny, self.nz), dtype=self.dtype)
 
         # Positional vector at centre of array, scaled by weighting
-        v1 = np.array([self.weighting[0] * self.nx / 2, self.weighting[1]
-                       * self.ny / 2, self.weighting[2] * self.nz / 2])
+        v1 = np.array(
+            [self.weighting[0] * self.nx / 2, self.weighting[1] * self.ny / 2, self.weighting[2] * self.nz / 2]
+        )
 
         # 3D array of random numbers to be convolved with the fractal function
         rng = np.random.default_rng(seed=self.seed)
@@ -190,18 +200,28 @@ class FractalVolume:
         A = fftpack.fftshift(A)
 
         # Generate fractal
-        generate_fractal3D(self.nx, self.ny, self.nz, config.get_model_config().ompthreads,
-                           self.b, self.weighting, v1, A, self.fractalvolume)
+        generate_fractal3D(
+            self.nx,
+            self.ny,
+            self.nz,
+            config.get_model_config().ompthreads,
+            self.b,
+            self.weighting,
+            v1,
+            A,
+            self.fractalvolume,
+        )
 
         # Shift the zero frequency component to the start of the array
         self.fractalvolume = fftpack.ifftshift(self.fractalvolume)
         # Set DC component of FFT to zero
         self.fractalvolume[0, 0, 0] = 0
-        # Take the real part (numerical errors can give rise to an imaginary part) 
+        # Take the real part (numerical errors can give rise to an imaginary part)
         # of the IFFT, and convert type to floattype. N.B calculation of fractals
         # must always be carried out at double precision, i.e. float64, complex128
-        self.fractalvolume = np.real(fftpack.ifftn(self.fractalvolume)).astype(config.sim_config.dtypes['float_or_double'], 
-                                                                               copy=False)
+        self.fractalvolume = np.real(fftpack.ifftn(self.fractalvolume)).astype(
+            config.sim_config.dtypes["float_or_double"], copy=False
+        )
 
         # Bin fractal values
         bins = np.linspace(np.amin(self.fractalvolume), np.amax(self.fractalvolume), self.nbins)
@@ -211,8 +231,8 @@ class FractalVolume:
 
     def generate_volume_mask(self):
         """Generate a 3D volume to use as a mask for adding rough surfaces,
-            water and grass/roots. Zero signifies the mask is not set, one
-            signifies the mask is set.
+        water and grass/roots. Zero signifies the mask is not set, one
+        signifies the mask is set.
         """
 
         self.mask = np.zeros((self.nx, self.ny, self.nz), dtype=np.int8)
@@ -235,8 +255,7 @@ class Grass:
         """
 
         self.numblades = numblades
-        self.geometryparams = np.zeros((self.numblades, 6),
-                                       dtype=config.sim_config.dtypes['float_or_double'])
+        self.geometryparams = np.zeros((self.numblades, 6), dtype=config.sim_config.dtypes["float_or_double"])
         self.seed = None
 
         # Randomly defined parameters that will be used to calculate geometry
@@ -264,10 +283,16 @@ class Grass:
             x, y: floats for the x and y coordinates of grass blade.
         """
 
-        x = (self.geometryparams[blade, 2] * (height / self.geometryparams[blade, 0])
-             * (height / self.geometryparams[blade, 0]))
-        y = (self.geometryparams[blade, 3] * (height / self.geometryparams[blade, 1])
-             * (height / self.geometryparams[blade, 1]))
+        x = (
+            self.geometryparams[blade, 2]
+            * (height / self.geometryparams[blade, 0])
+            * (height / self.geometryparams[blade, 0])
+        )
+        y = (
+            self.geometryparams[blade, 3]
+            * (height / self.geometryparams[blade, 1])
+            * (height / self.geometryparams[blade, 1])
+        )
         x = round_value(x)
         y = round_value(y)
 

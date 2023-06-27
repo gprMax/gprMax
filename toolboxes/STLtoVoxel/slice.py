@@ -28,13 +28,13 @@ def mesh_to_plane(mesh, bounding_box, parallel):
                 else:
                     pbar.update(1)
                     _, pixels = paint_z_plane(mesh_subset, z, bounding_box[1::-1])
-                    vol[z]=pixels
+                    vol[z] = pixels
                 z += 1
 
-            if status == 'start':
+            if status == "start":
                 assert tri_ind not in current_mesh_indices
                 current_mesh_indices.add(tri_ind)
-            elif status == 'end':
+            elif status == "end":
                 assert tri_ind in current_mesh_indices
                 current_mesh_indices.remove(tri_ind)
 
@@ -62,17 +62,17 @@ def paint_z_plane(mesh, height, plane_shape):
 
 
 def linear_interpolation(p1, p2, distance):
-    '''
+    """
     :param p1: Point 1
     :param p2: Point 2
     :param distance: Between 0 and 1, Lower numbers return points closer to p1.
     :return: A point on the line between p1 and p2
-    '''
-    return p1 * (1-distance) + p2 * distance
+    """
+    return p1 * (1 - distance) + p2 * distance
 
 
 def triangle_to_intersecting_lines(triangle, height, pixels, lines):
-    assert (len(triangle) == 3)
+    assert len(triangle) == 3
     above = list(filter(lambda pt: pt[2] > height, triangle))
     below = list(filter(lambda pt: pt[2] < height, triangle))
     same = list(filter(lambda pt: pt[2] == height, triangle))
@@ -98,36 +98,36 @@ def triangle_to_intersecting_lines(triangle, height, pixels, lines):
 
 
 def where_line_crosses_z(p1, p2, z):
-    if (p1[2] > p2[2]):
+    if p1[2] > p2[2]:
         p1, p2 = p2, p1
     # now p1 is below p2 in z
     if p2[2] == p1[2]:
         distance = 0
     else:
         distance = (z - p1[2]) / (p2[2] - p1[2])
-    
+
     return linear_interpolation(p1, p2, distance)
 
 
 def calculate_scale_shift(meshes, discretization):
     mesh_min = meshes[0].min(axis=(0, 1))
     mesh_max = meshes[0].max(axis=(0, 1))
-   
+
     for mesh in meshes[1:]:
         mesh_min = np.minimum(mesh_min, mesh.min(axis=(0, 1)))
         mesh_max = np.maximum(mesh_max, mesh.max(axis=(0, 1)))
-    amplitude = mesh_max - mesh_min 
-    #Standard Unit of STL is mm
-    vx=discretization[0]*1000 
-    vy=discretization[1]*1000
-    vz=discretization[2]*1000
-    
-    bx=int(amplitude[0]/vx)
-    by=int(amplitude[1]/vy)
-    bz=int(amplitude[2]/vz)
-    bounding_box = [bx+1, by+1, bz+1]
-    
-    return max(1/vx,1/vy,1/vz), mesh_min, bounding_box
+    amplitude = mesh_max - mesh_min
+    # Standard Unit of STL is mm
+    vx = discretization[0] * 1000
+    vy = discretization[1] * 1000
+    vz = discretization[2] * 1000
+
+    bx = int(amplitude[0] / vx)
+    by = int(amplitude[1] / vy)
+    bz = int(amplitude[2] / vz)
+    bounding_box = [bx + 1, by + 1, bz + 1]
+
+    return max(1 / vx, 1 / vy, 1 / vz), mesh_min, bounding_box
 
 
 def scale_and_shift_mesh(mesh, scale, shift):
@@ -140,7 +140,7 @@ def generate_tri_events(mesh):
     events = []
     for i, tri in enumerate(mesh):
         bottom, middle, top = sorted(tri, key=lambda pt: pt[2])
-        events.append((bottom[2], 'start', i))
-        events.append((top[2], 'end', i))
-    
+        events.append((bottom[2], "start", i))
+        events.append((top[2], "end", i))
+
     return sorted(events, key=lambda tup: tup[0])

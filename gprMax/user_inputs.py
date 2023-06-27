@@ -63,17 +63,15 @@ class UserInput:
         try:
             self.grid.within_bounds(p)
         except ValueError as err:
-            v = ['x', 'y', 'z']
+            v = ["x", "y", "z"]
             # Discretisation
-            dl = getattr(self.grid, f'd{err.args[0]}')
+            dl = getattr(self.grid, f"d{err.args[0]}")
             # Incorrect index
             i = p[v.index(err.args[0])]
             if name:
-                s = (f"\n'{cmd_str}' {err.args[0]} {name}-coordinate {i * dl:g} " +
-                     "is not within the model domain")
+                s = f"\n'{cmd_str}' {err.args[0]} {name}-coordinate {i * dl:g} " + "is not within the model domain"
             else:
-                s = (f"\n'{cmd_str}' {err.args[0]}-coordinate {i * dl:g} is not " +
-                     "within the model domain")
+                s = f"\n'{cmd_str}' {err.args[0]}-coordinate {i * dl:g} is not " + "within the model domain"
             logger.exception(s)
             raise
 
@@ -84,10 +82,10 @@ class UserInput:
 
     def round_to_grid(self, p):
         """Gets the nearest continuous point on the grid from a continuous point
-             in space.
+        in space.
         """
         return self.discretise_point(p) * self.grid.dl
-    
+
     def descretised_to_continuous(self, p):
         """Returns a point given as indices to a continuous point in the real space."""
         return p * self.grid.dl
@@ -99,68 +97,63 @@ class MainGridUserInput(UserInput):
     def __init__(self, grid):
         super().__init__(grid)
 
-    def check_point(self, p, cmd_str, name=''):
+    def check_point(self, p, cmd_str, name=""):
         """Discretises point and check its within the domain"""
         p = self.discretise_point(p)
         self.point_within_bounds(p, cmd_str, name)
         return p
 
-    def check_src_rx_point(self, p, cmd_str, name=''):
+    def check_src_rx_point(self, p, cmd_str, name=""):
         p = self.check_point(p, cmd_str, name)
 
         if self.grid.within_pml(p):
-            logger.warning(f"'{cmd_str}' sources and receivers should not " +
-                           "normally be positioned within the PML.")
+            logger.warning(f"'{cmd_str}' sources and receivers should not " + "normally be positioned within the PML.")
 
         return p
 
     def check_box_points(self, p1, p2, cmd_str):
-        p1 = self.check_point(p1, cmd_str, name='lower')
-        p2 = self.check_point(p2, cmd_str, name='upper')
+        p1 = self.check_point(p1, cmd_str, name="lower")
+        p2 = self.check_point(p2, cmd_str, name="upper")
 
         if np.greater(p1, p2).any():
-            logger.exception(f"'{cmd_str}' the lower coordinates should be less " +
-                             "than the upper coordinates.")
+            logger.exception(f"'{cmd_str}' the lower coordinates should be less " + "than the upper coordinates.")
             raise ValueError
 
         return p1, p2
 
     def check_tri_points(self, p1, p2, p3, cmd_str):
-        p1 = self.check_point(p1, cmd_str, name='vertex_1')
-        p2 = self.check_point(p2, cmd_str, name='vertex_2')
-        p3 = self.check_point(p3, cmd_str, name='vertex_3')
+        p1 = self.check_point(p1, cmd_str, name="vertex_1")
+        p2 = self.check_point(p2, cmd_str, name="vertex_2")
+        p3 = self.check_point(p3, cmd_str, name="vertex_3")
 
         return p1, p2, p3
 
     def discretise_static_point(self, p):
-        """Gets the index of a continuous point regardless of the point of 
-            origin of the grid.
+        """Gets the index of a continuous point regardless of the point of
+        origin of the grid.
         """
         return super().discretise_point(p)
 
     def round_to_grid_static_point(self, p):
-        """Gets the index of a continuous point regardless of the point of 
-            origin of the grid.
+        """Gets the index of a continuous point regardless of the point of
+        origin of the grid.
         """
         return super().discretise_point(p) * self.grid.dl
 
 
 class SubgridUserInput(MainGridUserInput):
     """Handles (x, y, z) points supplied by the user in the subgrid.
-        This class autotranslates points from main grid to subgrid equivalent
-        (within IS). Useful if material traverse is not required.
+    This class autotranslates points from main grid to subgrid equivalent
+    (within IS). Useful if material traverse is not required.
     """
 
     def __init__(self, grid):
         super().__init__(grid)
 
         # Defines the region exposed to the user
-        self.inner_bound = np.array([grid.n_boundary_cells_x,
-                                     grid.n_boundary_cells_y,
-                                     grid.n_boundary_cells_z])
+        self.inner_bound = np.array([grid.n_boundary_cells_x, grid.n_boundary_cells_y, grid.n_boundary_cells_z])
 
-        self.outer_bound = np.subtract([grid.nx, grid.ny, grid.nz],
-                                       self.inner_bound)
+        self.outer_bound = np.subtract([grid.nx, grid.ny, grid.nz], self.inner_bound)
 
     def translate_to_gap(self, p):
         """Translates the user input point to the real point in the subgrid."""
@@ -172,9 +165,9 @@ class SubgridUserInput(MainGridUserInput):
         return np.array([p1, p2, p3])
 
     def discretise_point(self, p):
-        """Discretises a point. Does not provide any checks. The user enters 
-            coordinates relative to self.inner_bound. This function translate 
-            the user point to the correct index for building objects.
+        """Discretises a point. Does not provide any checks. The user enters
+        coordinates relative to self.inner_bound. This function translate
+        the user point to the correct index for building objects.
         """
 
         p = super().discretise_point(p)
@@ -186,25 +179,21 @@ class SubgridUserInput(MainGridUserInput):
         p_m = p_t * self.grid.dl
         return p_m
 
-    def check_point(self, p, cmd_str, name=''):
+    def check_point(self, p, cmd_str, name=""):
         p_t = super().check_point(p, cmd_str, name)
 
         # Provide user within a warning if they have placed objects within
         # the OS non-working region.
-        if (np.less(p_t, self.inner_bound).any() or
-            np.greater(p_t, self.outer_bound).any()):
-                logger.warning(f"'{cmd_str}' this object traverses the Outer " +
-                               "Surface. This is an advanced feature.")
+        if np.less(p_t, self.inner_bound).any() or np.greater(p_t, self.outer_bound).any():
+            logger.warning(f"'{cmd_str}' this object traverses the Outer " + "Surface. This is an advanced feature.")
         return p_t
-    
+
     def discretise_static_point(self, p):
-        """Gets the index of a continuous point regardless of the point of 
-            origin of the grid."""
+        """Gets the index of a continuous point regardless of the point of
+        origin of the grid."""
         return super().discretise_point(p)
-    
+
     def round_to_grid_static_point(self, p):
-        """Gets the index of a continuous point regardless of the point of 
-            origin of the grid."""
+        """Gets the index of a continuous point regardless of the point of
+        origin of the grid."""
         return super().discretise_point(p) * self.grid.dl
-
-

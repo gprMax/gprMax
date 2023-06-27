@@ -28,16 +28,16 @@ logger = logging.getLogger(__name__)
 
 
 class Triangle(UserObjectGeometry):
-    """Introduces a triangular patch or a triangular prism with specific 
+    """Introduces a triangular patch or a triangular prism with specific
         properties into the model.
 
     Attributes:
         p1: list of the coordinates (x,y,z) of the first apex of the triangle.
         p2: list of the coordinates (x,y,z) of the second apex of the triangle.
         p3: list of the coordinates (x,y,z) of the third apex of the triangle.
-        thickness: float for the thickness of the triangular prism. If the 
+        thickness: float for the thickness of the triangular prism. If the
                     thickness is zero then a triangular patch is created.
-        material_id: string for the material identifier that must correspond 
+        material_id: string for the material identifier that must correspond
                         to material that has already been defined.
         material_ids: list of material identifiers in the x, y, z directions.
         averaging: string (y or n) used to switch on and off dielectric smoothing.
@@ -45,7 +45,7 @@ class Triangle(UserObjectGeometry):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.hash = '#triangle'
+        self.hash = "#triangle"
 
     def rotate(self, axis, angle, origin=None):
         """Sets parameters for rotation."""
@@ -56,30 +56,30 @@ class Triangle(UserObjectGeometry):
 
     def _do_rotate(self):
         """Performs rotation."""
-        p1 = rotate_point(self.kwargs['p1'], self.axis, self.angle, self.origin)
-        p2 = rotate_point(self.kwargs['p2'], self.axis, self.angle, self.origin)
-        p3 = rotate_point(self.kwargs['p3'], self.axis, self.angle, self.origin)
-        self.kwargs['p1'] = tuple(p1)
-        self.kwargs['p2'] = tuple(p2)
-        self.kwargs['p3'] = tuple(p3)
+        p1 = rotate_point(self.kwargs["p1"], self.axis, self.angle, self.origin)
+        p2 = rotate_point(self.kwargs["p2"], self.axis, self.angle, self.origin)
+        p3 = rotate_point(self.kwargs["p3"], self.axis, self.angle, self.origin)
+        self.kwargs["p1"] = tuple(p1)
+        self.kwargs["p2"] = tuple(p2)
+        self.kwargs["p3"] = tuple(p3)
 
     def create(self, grid, uip):
         try:
-            up1 = self.kwargs['p1']
-            up2 = self.kwargs['p2']
-            up3 = self.kwargs['p3']
-            thickness = self.kwargs['thickness']
+            up1 = self.kwargs["p1"]
+            up2 = self.kwargs["p2"]
+            up3 = self.kwargs["p3"]
+            thickness = self.kwargs["thickness"]
         except KeyError:
-            logger.exception(f'{self.__str__()} specify 3 points and a thickness')
+            logger.exception(f"{self.__str__()} specify 3 points and a thickness")
             raise
-        
+
         if self.do_rotate:
             self._do_rotate()
 
         # Check averaging
         try:
             # Try user-specified averaging
-            averagetriangularprism = self.kwargs['averaging'] 
+            averagetriangularprism = self.kwargs["averaging"]
         except KeyError:
             # Otherwise go with the grid default
             averagetriangularprism = grid.averagevolumeobjects
@@ -87,13 +87,13 @@ class Triangle(UserObjectGeometry):
         # Check materials have been specified
         # Isotropic case
         try:
-            materialsrequested = [self.kwargs['material_id']]
+            materialsrequested = [self.kwargs["material_id"]]
         except KeyError:
             # Anisotropic case
             try:
-                materialsrequested = self.kwargs['material_ids']
+                materialsrequested = self.kwargs["material_ids"]
             except KeyError:
-                logger.exception(f'{self.__str__()} no materials have been specified')
+                logger.exception(f"{self.__str__()} no materials have been specified")
                 raise
 
         p4 = uip.round_to_grid_static_point(up1)
@@ -106,23 +106,23 @@ class Triangle(UserObjectGeometry):
         x1, y1, z1 = uip.round_to_grid(up1)
         x2, y2, z2 = uip.round_to_grid(up2)
         x3, y3, z3 = uip.round_to_grid(up3)
-        
+
         if thickness < 0:
-            logger.exception(f'{self.__str__()} requires a positive value for thickness')
+            logger.exception(f"{self.__str__()} requires a positive value for thickness")
             raise ValueError
 
         # Check for valid orientations
         # yz-plane triangle
         if x1 == x2 == x3:
-            normal = 'x'
+            normal = "x"
         # xz-plane triangle
         elif y1 == y2 == y3:
-            normal = 'y'
+            normal = "y"
         # xy-plane triangle
         elif z1 == z2 == z3:
-            normal = 'z'
+            normal = "z"
         else:
-            logger.exception(f'{self.__str__()} the triangle is not specified correctly')
+            logger.exception(f"{self.__str__()} the triangle is not specified correctly")
             raise ValueError
 
         # Look up requested materials in existing list of material instances
@@ -130,7 +130,7 @@ class Triangle(UserObjectGeometry):
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
-            logger.exception(f'{self.__str__()} material(s) {notfound} do not exist')
+            logger.exception(f"{self.__str__()} material(s) {notfound} do not exist")
             raise ValueError
 
         if thickness > 0:
@@ -145,23 +145,19 @@ class Triangle(UserObjectGeometry):
                 numIDx = materials[0].numID
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
-                requiredID = materials[0].ID + '+' + materials[1].ID + '+' + materials[2].ID
+                requiredID = materials[0].ID + "+" + materials[1].ID + "+" + materials[2].ID
                 averagedmaterial = [x for x in grid.materials if x.ID == requiredID]
                 if averagedmaterial:
                     numID = averagedmaterial.numID
                 else:
                     numID = len(grid.materials)
                     m = Material(numID, requiredID)
-                    m.type = 'dielectric-smoothed'
+                    m.type = "dielectric-smoothed"
                     # Create dielectric-smoothed constituents for material
-                    m.er = np.mean((materials[0].er, materials[1].er, 
-                                    materials[2].er), axis=0)
-                    m.se = np.mean((materials[0].se, materials[1].se, 
-                                    materials[2].se), axis=0)
-                    m.mr = np.mean((materials[0].mr, materials[1].mr, 
-                                    materials[2].mr), axis=0)
-                    m.sm = np.mean((materials[0].sm, materials[1].sm, 
-                                    materials[2].sm), axis=0)
+                    m.er = np.mean((materials[0].er, materials[1].er, materials[2].er), axis=0)
+                    m.se = np.mean((materials[0].se, materials[1].se, materials[2].se), axis=0)
+                    m.mr = np.mean((materials[0].mr, materials[1].mr, materials[2].mr), axis=0)
+                    m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
 
                     # Append the new material object to the materials list
                     grid.materials.append(m)
@@ -179,19 +175,45 @@ class Triangle(UserObjectGeometry):
                 numIDy = materials[1].numID
                 numIDz = materials[2].numID
 
-        build_triangle(x1, y1, z1, x2, y2, z2, x3, y3, z3, normal, thickness, 
-                       grid.dx, grid.dy, grid.dz, numID, numIDx, numIDy, numIDz, 
-                       averaging, grid.solid, grid.rigidE, grid.rigidH, grid.ID)
+        build_triangle(
+            x1,
+            y1,
+            z1,
+            x2,
+            y2,
+            z2,
+            x3,
+            y3,
+            z3,
+            normal,
+            thickness,
+            grid.dx,
+            grid.dy,
+            grid.dz,
+            numID,
+            numIDx,
+            numIDy,
+            numIDz,
+            averaging,
+            grid.solid,
+            grid.rigidE,
+            grid.rigidH,
+            grid.ID,
+        )
 
         if thickness > 0:
-            dielectricsmoothing = 'on' if averaging else 'off'
-            logger.info(f"{self.grid_name(grid)}Triangle with coordinates " +
-                        f"{p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m " +
-                        f"{p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m and thickness " +
-                        f"{thickness:g}m of material(s) {', '.join(materialsrequested)} " +
-                        f"created, dielectric smoothing is {dielectricsmoothing}.")
+            dielectricsmoothing = "on" if averaging else "off"
+            logger.info(
+                f"{self.grid_name(grid)}Triangle with coordinates "
+                + f"{p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m "
+                + f"{p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m and thickness "
+                + f"{thickness:g}m of material(s) {', '.join(materialsrequested)} "
+                + f"created, dielectric smoothing is {dielectricsmoothing}."
+            )
         else:
-            logger.info(f"{self.grid_name(grid)}Triangle with coordinates " +
-                        f"{p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m " +
-                        f"{p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m of material(s) " +
-                        f"{', '.join(materialsrequested)} created.")
+            logger.info(
+                f"{self.grid_name(grid)}Triangle with coordinates "
+                + f"{p4[0]:g}m {p4[1]:g}m {p4[2]:g}m, {p5[0]:g}m {p5[1]:g}m "
+                + f"{p5[2]:g}m, {p6[0]:g}m {p6[1]:g}m {p6[2]:g}m of material(s) "
+                + f"{', '.join(materialsrequested)} created."
+            )
