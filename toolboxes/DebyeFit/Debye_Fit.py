@@ -119,9 +119,7 @@ class Relaxation(object):
         print(f"Approximating {self.name}"
               f" using {self.number_of_debye_poles} Debye poles")
         print(f"{self.name} parameters: ")
-        s = ''
-        for k, v in self.params.items():
-            s += f"{k:10s} = {v}\n"
+        s = ''.join(f"{k:10s} = {v}\n" for k, v in self.params.items())
         print(s)
         return f'{self.name}:\n{s}'
 
@@ -237,10 +235,10 @@ class Relaxation(object):
                                                                   self.mu_sigma,
                                                                   self.material_name))
         print(material_prop[0], end="")
-        dispersion_prop = "#add_dispersion_debye: {}".format(len(tau))
+        dispersion_prop = f"#add_dispersion_debye: {len(tau)}"
         for i in range(len(tau)):
-            dispersion_prop += " {} {}".format(weights[i], 10**tau[i])
-        dispersion_prop += " {}".format(self.material_name)
+            dispersion_prop += f" {weights[i]} {10**tau[i]}"
+        dispersion_prop += f" {self.material_name}"
         print(dispersion_prop)
         material_prop.append(dispersion_prop + '\n')
         return material_prop
@@ -327,11 +325,10 @@ class Relaxation(object):
         else:
             sys.exit("Cannot save material properties "
                      f"in {os.path.join(fdir, 'my_materials.txt')}!")
-        fileH = open(file_path, "a")
-        fileH.write(f"## {output[0].split(' ')[-1]}")
-        fileH.writelines(output)
-        fileH.write("\n")
-        fileH.close()
+        with open(file_path, "a") as fileH:
+            fileH.write(f"## {output[0].split(' ')[-1]}")
+            fileH.writelines(output)
+            fileH.write("\n")
         print(f"Material properties save at: {file_path}")
 
 
@@ -562,7 +559,7 @@ class Crim(Relaxation):
               f" using {self.number_of_debye_poles} Debye poles")
         print("CRIM parameters: ")
         for i in range(len(self.volumetric_fractions)):
-            print("Material {}.:".format(i+1))
+            print(f"Material {i + 1}.:")
             print("---------------------------------")
             print(f"{'Vol. fraction':>27s} = {self.volumetric_fractions[i]}")
             print(f"{'e_inf':>27s} = {self.materials[i][0]}")

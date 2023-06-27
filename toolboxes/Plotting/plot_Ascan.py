@@ -79,11 +79,10 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
         time = np.linspace(0, (iterations - 1) * dt, num=iterations)
 
         # Check for single output component when doing a FFT
-        if fft:
-            if not len(outputs) == 1:
-                logger.exception('A single output must be specified when using ' +
-                                 'the -fft option')
-                raise ValueError
+        if fft and not len(outputs) == 1:
+            logger.exception('A single output must be specified when using ' +
+                             'the -fft option')
+            raise ValueError
 
         # New plot for each receiver
         for rx in range(1, nrx + 1):

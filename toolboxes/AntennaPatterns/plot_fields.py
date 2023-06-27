@@ -58,9 +58,9 @@ if epsr:
     wavelength = v1 / f
 
 # Print some useful information
-logger.info('Centre frequency: {} GHz'.format(f / 1e9))
+logger.info(f'Centre frequency: {f / 1000000000.0} GHz')
 if epsr:
-    logger.info('Critical angle for Er {} is {} degrees'.format(epsr, thetac))
+    logger.info(f'Critical angle for Er {epsr} is {thetac} degrees')
     logger.info('Wavelength: {:.3f} m'.format(wavelength))
     logger.info('Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)'.format(radii[0], radii[0] / wavelength, radii[-1], radii[-1] / wavelength))
     logger.info('Theoretical boundary between reactive & radiating near-field (0.62*sqrt((D^3/wavelength): {:.3f} m'.format(0.62 * np.sqrt((D**3) / wavelength)))

@@ -140,12 +140,11 @@ class FractalBox(UserObjectGeometry):
                 logger.exception(f'{self.__str__()} must be used with more than ' +
                                  'one material from the mixing model.')
                 raise ValueError
-            if isinstance(mixingmodel, ListMaterial):
-                if nbins > len(mixingmodel.mat):
-                    logger.exception(f'{self.__str__()} too many materials/bins ' +
-                                        'requested compared to materials in ' +
-                                        'mixing model.')
-                    raise ValueError
+            if isinstance(mixingmodel, ListMaterial) and nbins > len(mixingmodel.mat):
+                logger.exception(f'{self.__str__()} too many materials/bins ' +
+                                    'requested compared to materials in ' +
+                                    'mixing model.')
+                raise ValueError
             # Create materials from mixing model as number of bins now known 
             # from fractal_box command.
             mixingmodel.calculate_properties(nbins, grid)

@@ -414,7 +414,7 @@ def dispersion_analysis(G):
     # Find maximum significant frequency
     if G.waveforms:
         for waveform in G.waveforms:
-            if waveform.type == 'sine' or waveform.type == 'contsine':
+            if waveform.type in ['sine', 'contsine']:
                 results['maxfreq'].append(4 * waveform.freq)
 
             elif waveform.type == 'impulse':

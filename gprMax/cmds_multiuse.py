@@ -391,7 +391,7 @@ class HertzianDipole(UserObjectMulti):
 
 
         # Check if there is a waveformID in the waveforms list
-        if not any(x.ID == waveform_id for x in grid.waveforms):
+        if all(x.ID == waveform_id for x in grid.waveforms):
             logger.exception(f'{self.params_str()} there is no waveform ' + 
                              f'with the identifier {waveform_id}.')
             raise ValueError
@@ -527,7 +527,7 @@ class MagneticDipole(UserObjectMulti):
 
 
         # Check if there is a waveformID in the waveforms list
-        if not any(x.ID == waveform_id for x in grid.waveforms):
+        if all(x.ID == waveform_id for x in grid.waveforms):
             logger.exception(f'{self.params_str()} there is no waveform ' + 
                              f'with the identifier {waveform_id}.')
             raise ValueError
