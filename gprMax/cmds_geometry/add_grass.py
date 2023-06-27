@@ -235,7 +235,7 @@ class AddGrass(UserObjectGeometry):
         surface.grass.append(g)
 
         # Check to see if grass has been already defined as a material
-        if all(x.ID == "grass" for x in grid.materials):
+        if not any(x.ID == "grass" for x in grid.materials):
             create_grass(grid)
 
         # Check if time step for model is suitable for using grass
