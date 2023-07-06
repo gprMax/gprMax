@@ -68,8 +68,7 @@ testmodels = [
 # testmodels = ['pml_x0', 'pml_y0', 'pml_z0', 'pml_xmax', 'pml_ymax', 'pml_zmax', 'pml_3D_pec_plate']
 
 # Select a specific model if desired
-# testmodels = testmodels[:-1]
-# testmodels = [testmodels[6]]
+# testmodels = [testmodels[0]]
 testresults = dict.fromkeys(testmodels)
 path = "/rxs/rx1/"
 
