@@ -753,7 +753,7 @@ Allows you to specify waveforms to use with sources in the model. The syntax of 
 * ``f2`` is the centre frequency of the waveform (Hertz). In the case of the Gaussian waveform it is related to the pulse width.
 * ``str2`` is an identifier for the waveform used to assign it to a source.
 
-For example, to specify the normalised first derivate of a Gaussian waveform with an amplitude of one and a centre frequency of 1.2GHz, use: ``#waveform: gaussiandotnorm 1 1.2e9 my_gauss_pulse``.
+For example, to specify the normalised first derivative of a Gaussian waveform with an amplitude of one and a centre frequency of 1.2GHz, use: ``#waveform: gaussiandotnorm 1 1.2e9 my_gauss_pulse``.
 
 .. note::
 
