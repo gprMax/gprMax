@@ -30,30 +30,29 @@ How to use the package
 
 The main script is ``stltovoxel.py`` which should be run at the command line and takes three arguments:
 
-* ``stlfilename`` is name of STL file to convert including the path.
-* ``-matindex`` is an integer which represents the index of the material to be used from the materials file which will accompany the generated geometry file (HDF5 format).
-* ``-dxdyz`` is the spatial discretisation of the generated voxelised mesh. It should be given as three floating point numbers.
+* ``path`` is base path to the folder containing the STL file(s) to convert.
+* ``-dxdyz`` is the spatial discretisation of the generated voxelised mesh. It should be given as a floating point number.
 
 The physical dimensions of the voxelised object will depend on the size of the object in the original STL file and the spatial discretisation chosen.
 
 Example
 -------
 
-To create a voxelised mesh (HDF5 geometry file) from the ubiquitous `Stanford bunny <https://en.wikipedia.org/wiki/Stanford_bunny>`_ STL file, using a spatial discretisation of 1mm and selecting material index 2 from a materials file:
+To create a voxelised mesh (HDF5 geometry file) from the ubiquitous `Stanford bunny <https://en.wikipedia.org/wiki/Stanford_bunny>`_ STL file, using a spatial discretisation of 1mm:
 
 .. code-block:: none
 
-    python -m toolboxes.STLtoVoxel.stltovoxel toolboxes/STLtoVoxel/examples/stl/Stanford_Bunny.stl -matindex 2 -dxdydz 0.001 0.001 0.001
+    python -m toolboxes.STLtoVoxel.stltovoxel toolboxes/STLtoVoxel/examples/stl/Stanford_Bunny.stl -dxdydz 0.001
 
 Since the number of voxels are 108 x 88 x 108 and the spatial discretisation chosen is 1mm, the physical dimensions of the Stanford bunny when imported into gprMax will be 0.108 x 0.088 x 0.108mm.
 
-The following is an example of a ``materials.txt`` file that can be used with the generated geometry file (HDF5 format) when importing into gprMax. Since ``-matindex`` is set to 2 the material with name ``hdpe``, i.e. a plastic, will be used.
+The following is an example of a ``materials.txt`` file that can be used with the generated geometry file (HDF5 format) when importing into gprMax. The material index used in the HDF5 geometry file corresponds to the number of STL files converted, e.g. it will be zero if only a single STL file is converted.
 
 .. literalinclude:: ../../toolboxes/STLtoVoxel/examples/materials.txt
     :language: none
     :linenos:
 
-The following Python script (using our Python API) can be used to import the generated geometry file ``Stanford_Bunny.h5`` and materials file ``materials.txt`` into a gprMax model:
+The following Python script (using our Python API) can be used to import the generated geometry file ``Stanford_Bunny.h5`` and materials file ``materials.txt`` into a gprMax model. The bunny material will be sand, i.e. index zero in the materials file.
 
 .. literalinclude:: ../../toolboxes/STLtoVoxel/examples/bunny.py
     :language: python
