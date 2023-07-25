@@ -28,7 +28,7 @@ Package contents
 How to use the package
 ======================
 
-The main script is ``stltovoxel.py`` which should be run at the command line and takes three arguments:
+The main script is ``stltovoxel.py`` which should be run at the command line and takes two arguments:
 
 * ``path`` is base path to the folder containing the STL file(s) to convert.
 * ``-dxdyz`` is the spatial discretisation of the generated voxelised mesh. It should be given as a floating point number.
