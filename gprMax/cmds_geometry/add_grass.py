@@ -111,7 +111,7 @@ class AddGrass(UserObjectGeometry):
             if ys == yf or zs == zf:
                 logger.exception(f"{self.__str__()} dimensions are not specified correctly")
                 raise ValueError
-            if xs not in [volume.xs and volume.xf]:
+            if xs not in [volume.xs, volume.xf]:
                 logger.exception(f"{self.__str__()} must specify external surfaces on a fractal box")
                 raise ValueError
             fractalrange = (round_value(limits[0] / grid.dx), round_value(limits[1] / grid.dx))
@@ -136,7 +136,7 @@ class AddGrass(UserObjectGeometry):
             if zs == zf:
                 logger.exception(f"{self.__str__()} dimensions are not specified correctly")
                 raise ValueError
-            if ys not in [volume.ys and volume.yf]:
+            if ys not in [volume.ys, volume.yf]:
                 logger.exception(f"{self.__str__()} must specify external surfaces on a fractal box")
                 raise ValueError
             fractalrange = (round_value(limits[0] / grid.dy), round_value(limits[1] / grid.dy))
@@ -158,7 +158,7 @@ class AddGrass(UserObjectGeometry):
                 requestedsurface = "yplus"
 
         elif zs == zf:
-            if zs not in [volume.zs and volume.zf]:
+            if zs not in [volume.zs, volume.zf]:
                 logger.exception(f"{self.__str__()} must specify external surfaces on a fractal box")
                 raise ValueError
             fractalrange = (round_value(limits[0] / grid.dz), round_value(limits[1] / grid.dz))
