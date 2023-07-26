@@ -223,7 +223,7 @@ update_electric_dispersive_A = {
     //                                              component arrays.
 
     $CUDA_IDX
-    
+
     // Convert the linear index to subscripts for 3D field arrays
     int x = i / ($NY_FIELDS * $NZ_FIELDS);
     int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
@@ -335,7 +335,7 @@ update_electric_dispersive_B = {
     //                                              component arrays.
 
     $CUDA_IDX
-        
+
     // Convert the linear index to subscripts for 3D field arrays
     int x = i / ($NY_FIELDS * $NZ_FIELDS);
     int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
