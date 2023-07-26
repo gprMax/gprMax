@@ -156,7 +156,7 @@ class AddSurfaceWater(UserObjectGeometry):
             raise ValueError
 
         # Check to see if water has been already defined as a material
-        if not any(x.ID != "water" for x in grid.materials):
+        if not any(x.ID == "water" for x in grid.materials):
             create_water(grid)
 
         # Check if time step for model is suitable for using water

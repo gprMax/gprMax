@@ -222,7 +222,8 @@ update_electric_dispersive_A = {
     //                                              dispersive, ID and field
     //                                              component arrays.
 
-
+    $CUDA_IDX
+    
     // Convert the linear index to subscripts for 3D field arrays
     int x = i / ($NY_FIELDS * $NZ_FIELDS);
     int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
@@ -238,7 +239,6 @@ update_electric_dispersive_A = {
     int y_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) / $NZ_T;
     int z_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) % $NZ_T;
 
-    $CUDA_IDX
 
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
@@ -334,7 +334,8 @@ update_electric_dispersive_B = {
     //                                              dispersive, ID and field
     //                                              component arrays.
 
-
+    $CUDA_IDX
+        
     // Convert the linear index to subscripts for 3D field arrays
     int x = i / ($NY_FIELDS * $NZ_FIELDS);
     int y = (i % ($NY_FIELDS * $NZ_FIELDS)) / $NZ_FIELDS;
@@ -350,7 +351,6 @@ update_electric_dispersive_B = {
     int y_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) / $NZ_T;
     int z_T = ((i % ($NX_T * $NY_T * $NZ_T)) % ($NY_T * $NZ_T)) % $NZ_T;
 
-    $CUDA_IDX
 
     // Ex component
     if ((NY != 1 || NZ != 1) && x >= 0 && x < NX && y > 0 && y < NY && z > 0 && z < NZ) {
