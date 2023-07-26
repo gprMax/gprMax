@@ -24,6 +24,7 @@ import h5py
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
+
 from gprMax.receivers import Rx
 from gprMax.utilities.utilities import fft_power
 

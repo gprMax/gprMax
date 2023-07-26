@@ -3,8 +3,9 @@ import multiprocessing as mp
 import sys
 
 import numpy as np
-from gprMax.utilities.utilities import get_terminal_width
 from tqdm import tqdm
+
+from gprMax.utilities.utilities import get_terminal_width
 
 from . import perimeter
 

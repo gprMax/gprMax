@@ -2,7 +2,8 @@
 # "Incorporating dispersive electrical properties in FDTD GPR models
 # using a general Cole-Cole dispersion function,"
 # 2012 14th International Conference on Ground Penetrating Radar (GPR), 2012, pp. 232-236
-import os, sys
+import os
+import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from Debye_Fit import HavriliakNegami

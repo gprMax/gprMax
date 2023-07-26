@@ -17,8 +17,8 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import h5py
 import numpy as np

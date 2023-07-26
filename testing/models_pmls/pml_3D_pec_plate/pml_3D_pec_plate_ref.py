@@ -1,7 +1,8 @@
 from pathlib import Path
 
-import gprMax
 import numpy as np
+
+import gprMax
 
 # File path for output
 fn = Path(__file__)

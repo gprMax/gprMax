@@ -22,6 +22,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+
 from gprMax.utilities.utilities import fft_power, round_value
 from gprMax.waveforms import Waveform
 

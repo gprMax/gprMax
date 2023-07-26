@@ -18,8 +18,9 @@
 
 import logging
 
-import gprMax.config as config
 import numpy as np
+
+import gprMax.config as config
 
 from .subgrids.grid import SubGridBaseGrid
 from .utilities.utilities import round_value

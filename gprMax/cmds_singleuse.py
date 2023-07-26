@@ -20,9 +20,10 @@ import inspect
 import logging
 from pathlib import Path
 
-import gprMax.config as config
 import numpy as np
 from scipy import interpolate
+
+import gprMax.config as config
 
 from .pml import PML
 from .utilities.host_info import set_omp_threads

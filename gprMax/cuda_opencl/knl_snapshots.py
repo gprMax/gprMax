@@ -18,7 +18,6 @@
 
 from string import Template
 
-
 store_snapshot = {
     "args_cuda": Template(
         """

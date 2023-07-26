@@ -19,8 +19,9 @@
 import logging
 from pathlib import Path
 
-import gprMax.config as config
 import h5py
+
+import gprMax.config as config
 
 from ..cython.geometry_primitives import build_voxels_from_array
 from ..hash_cmds_file import get_user_objects
