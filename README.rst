@@ -157,7 +157,7 @@ When the simulation is complete you can plot the A-scan using:
 
 .. code-block:: bash
 
-    (gprMax)$ python -m toolboxes/Plotting.plot_Ascan examples/cylinder_Ascan_2D.h5
+    (gprMax)$ python -m toolboxes.Plotting.plot_Ascan examples/cylinder_Ascan_2D.h5
 
 Your results should be like those from the A-scan from the metal cylinder example in `introductory/basic 2D models section <http://docs.gprmax.com/en/latest/examples_simple_2D.html#view-the-results>`_
 
