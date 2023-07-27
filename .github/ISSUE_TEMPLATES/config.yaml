@@ -1,0 +1,7 @@
+blank_issues_enabled: false
+contact_links:
+  - name: gprMax support
+    url: https://groups.google.com/g/gprmax
+    about: |
+      Please only file issues here that you believe represent actual bugs or feature requests for the gprMax software.
+      If you're having general trouble with using gprMax, please visit our help center to get support.
