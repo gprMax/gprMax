@@ -18,7 +18,6 @@
 
 from string import Template
 
-
 store_outputs = {
     "args_cuda": Template(
         """

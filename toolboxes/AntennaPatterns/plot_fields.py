@@ -9,9 +9,10 @@ import argparse
 import logging
 import os
 
-import gprMax.config as config
 import matplotlib.pyplot as plt
 import numpy as np
+
+import gprMax.config as config
 
 logger = logging.getLogger(__name__)
 

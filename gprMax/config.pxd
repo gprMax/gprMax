@@ -17,8 +17,8 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-cimport numpy as np
 
+cimport numpy as np
 
 ctypedef fused float_or_double:
     float

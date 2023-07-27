@@ -18,8 +18,9 @@
 
 import logging
 
-import gprMax.config as config
 import numpy as np
+
+import gprMax.config as config
 
 from ..cython.geometry_primitives import build_voxels_from_array, build_voxels_from_array_mask
 from .cmds_geometry import UserObjectGeometry

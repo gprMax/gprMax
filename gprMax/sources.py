@@ -18,8 +18,9 @@
 
 from copy import deepcopy
 
-import gprMax.config as config
 import numpy as np
+
+import gprMax.config as config
 
 from .fields_outputs import Ix, Iy, Iz
 from .utilities.utilities import round_value

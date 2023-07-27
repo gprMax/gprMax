@@ -18,9 +18,10 @@
 
 import logging
 
-import gprMax.config as config
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+
+import gprMax.config as config
 
 logger = logging.getLogger(__name__)
 

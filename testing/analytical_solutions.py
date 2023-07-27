@@ -24,7 +24,7 @@ from gprMax.waveforms import Waveform
 
 def hertzian_dipole_fs(iterations, dt, dxdydz, rx):
     """Analytical solution of a z-directed Hertzian dipole in free space with a
-        current waveform of the form of the first derivative of a Gaussian 
+        current waveform of the form of the first derivative of a Gaussian
         (http://dx.doi.org/10.1016/0021-9991(83)90103-1).
 
     Args:

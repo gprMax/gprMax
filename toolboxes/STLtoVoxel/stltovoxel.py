@@ -16,10 +16,10 @@ if __name__ == "__main__":
         description="Allows the user to convert a STL files to voxelized mesh.",
         usage="cd gprMax; python -m toolboxes.STLtoVoxel.stltovoxel stlfilename -matindex -dxdydz",
     )
-    parser.add_argument("stlfiles", help="can be the filename of a single STL file, or the path to folder containing multiple STL files")
     parser.add_argument(
-        "-dxdydz", type=float, required=True, help="discretisation to use in voxelisation process"
+        "stlfiles", help="can be the filename of a single STL file, or the path to folder containing multiple STL files"
     )
+    parser.add_argument("-dxdydz", type=float, required=True, help="discretisation to use in voxelisation process")
     args = parser.parse_args()
 
     if os.path.isdir(args.stlfiles):
