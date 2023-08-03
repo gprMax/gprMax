@@ -133,7 +133,7 @@ class Sphere(UserObjectGeometry):
         dielectricsmoothing = "on" if averaging else "off"
         logger.info(
             f"{self.grid_name(grid)}Sphere with centre {p2[0]:g}m, "
-            + f"{p2[1]:g}m, {p2[2]:g}m, radius {r:g}m, of material(s) "
-            + f"{', '.join(materialsrequested)} created, dielectric "
-            + f"smoothing is {dielectricsmoothing}."
+            f"{p2[1]:g}m, {p2[2]:g}m, radius {r:g}m, of material(s) "
+            f"{', '.join(materialsrequested)} created, dielectric "
+            f"smoothing is {dielectricsmoothing}."
         )

@@ -148,6 +148,6 @@ class Plate(UserObjectGeometry):
 
         logger.info(
             f"{self.grid_name(grid)}Plate from {p3[0]:g}m, {p3[1]:g}m, "
-            + f"{p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of "
-            + f"material(s) {', '.join(materialsrequested)} created."
+            f"{p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of "
+            f"material(s) {', '.join(materialsrequested)} created."
         )

@@ -108,8 +108,8 @@ class GeometryObjectsRead(UserObjectGeometry):
         ):
             logger.exception(
                 f"{self.__str__()} requires the spatial resolution "
-                + "of the geometry objects file to match the spatial "
-                + "resolution of the model"
+                "of the geometry objects file to match the spatial "
+                "resolution of the model"
             )
             raise ValueError
 
@@ -134,9 +134,9 @@ class GeometryObjectsRead(UserObjectGeometry):
             grid.ID[:, xs : xs + ID.shape[1], ys : ys + ID.shape[2], zs : zs + ID.shape[3]] = ID + numexistmaterials
             logger.info(
                 f"{self.grid_name(grid)}Geometry objects from file {geofile} "
-                + f"inserted at {xs * grid.dx:g}m, {ys * grid.dy:g}m, "
-                + f"{zs * grid.dz:g}m, with corresponding materials file "
-                + f"{matfile}."
+                f"inserted at {xs * grid.dx:g}m, {ys * grid.dy:g}m, "
+                f"{zs * grid.dz:g}m, with corresponding materials file "
+                f"{matfile}."
             )
         except KeyError:
             averaging = False
@@ -155,7 +155,7 @@ class GeometryObjectsRead(UserObjectGeometry):
             )
             logger.info(
                 f"{self.grid_name(grid)}Geometry objects from file "
-                + f"(voxels only){geofile} inserted at {xs * grid.dx:g}m, "
-                + f"{ys * grid.dy:g}m, {zs * grid.dz:g}m, with corresponding "
-                + f"materials file {matfile}."
+                f"(voxels only){geofile} inserted at {xs * grid.dx:g}m, "
+                f"{ys * grid.dy:g}m, {zs * grid.dz:g}m, with corresponding "
+                f"materials file {matfile}."
             )

@@ -53,7 +53,7 @@ class Ellipsoid(UserObjectGeometry):
             zr = self.kwargs["zr"]
 
         except KeyError:
-            logger.exception(f"{self.__str__()} please specify a point and " + f"the three semiaxes.")
+            logger.exception(f"{self.__str__()} please specify a point and the three semiaxes.")
             raise
 
         # Check averaging
@@ -140,8 +140,8 @@ class Ellipsoid(UserObjectGeometry):
         dielectricsmoothing = "on" if averaging else "off"
         logger.info(
             f"{self.grid_name(grid)}Ellipsoid with centre {p2[0]:g}m, "
-            + f"{p2[1]:g}m, {p2[2]:g}m, x-semiaxis {xr:g}m, "
-            + f"y-semiaxis {yr:g}m and z-semiaxis {zr:g}m of material(s) "
-            + f"{', '.join(materialsrequested)} created, dielectric "
-            + f"smoothing is {dielectricsmoothing}."
+            f"{p2[1]:g}m, {p2[2]:g}m, x-semiaxis {xr:g}m, "
+            f"y-semiaxis {yr:g}m and z-semiaxis {zr:g}m of material(s) "
+            f"{', '.join(materialsrequested)} created, dielectric "
+            f"smoothing is {dielectricsmoothing}."
         )
