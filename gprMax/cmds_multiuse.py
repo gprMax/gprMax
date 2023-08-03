@@ -437,18 +437,14 @@ class HertzianDipole(UserObjectMulti):
         if config.get_model_config().mode == "2D":
             logger.info(
                 f"{self.grid_name(grid)}Hertzian dipole is a line "
-                + f"source in 2D with polarity {h.polarisation} at "
-                + f"{p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,"
-                + startstop
-                + f"using waveform {h.waveformID} created."
+                f"source in 2D with polarity {h.polarisation} at "
+                f"{p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m," + startstop + f"using waveform {h.waveformID} created."
             )
         else:
             logger.info(
                 f"{self.grid_name(grid)}Hertzian dipole with "
-                + f"polarity {h.polarisation} at {p2[0]:g}m, "
-                + f"{p2[1]:g}m, {p2[2]:g}m,"
-                + startstop
-                + f"using waveform {h.waveformID} created."
+                f"polarity {h.polarisation} at {p2[0]:g}m, "
+                f"{p2[1]:g}m, {p2[2]:g}m," + startstop + f"using waveform {h.waveformID} created."
             )
 
         grid.hertziandipoles.append(h)
@@ -568,7 +564,7 @@ class MagneticDipole(UserObjectMulti):
 
         logger.info(
             f"{self.grid_name(grid)}Magnetic dipole with polarity "
-            + f"{m.polarisation} at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,"
+            f"{m.polarisation} at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,"
             + startstop
             + f"using waveform {m.waveformID} created."
         )
@@ -661,8 +657,8 @@ class TransmissionLine(UserObjectMulti):
         if resistance <= 0 or resistance >= config.sim_config.em_consts["z0"]:
             logger.exception(
                 f"{self.params_str()} requires a resistance "
-                + "greater than zero and less than the impedance "
-                + "of free space, i.e. 376.73 Ohms."
+                "greater than zero and less than the impedance "
+                "of free space, i.e. 376.73 Ohms."
             )
             raise ValueError
 
@@ -708,10 +704,8 @@ class TransmissionLine(UserObjectMulti):
 
         logger.info(
             f"{self.grid_name(grid)}Transmission line with polarity "
-            + f"{t.polarisation} at {p2[0]:g}m, {p2[1]:g}m, "
-            + f"{p2[2]:g}m, resistance {t.resistance:.1f} Ohms,"
-            + startstop
-            + f"using waveform {t.waveformID} created."
+            f"{t.polarisation} at {p2[0]:g}m, {p2[1]:g}m, "
+            f"{p2[2]:g}m, resistance {t.resistance:.1f} Ohms," + startstop + f"using waveform {t.waveformID} created."
         )
 
         grid.transmissionlines.append(t)
@@ -1254,9 +1248,9 @@ class AddLorentzDispersion(UserObjectMulti):
 
             logger.info(
                 f"{self.grid_name(grid)}Lorentz disperion added to {disp_material.ID} "
-                + f"with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, "
-                + f"omega={', '.join('%4.3e' % omega for omega in disp_material.tau)} secs, "
-                + f"and gamma={', '.join('%4.3e' % delta for delta in disp_material.alpha)} created."
+                f"with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, "
+                f"omega={', '.join('%4.3e' % omega for omega in disp_material.tau)} secs, "
+                f"and gamma={', '.join('%4.3e' % delta for delta in disp_material.alpha)} created."
             )
 
 
@@ -1403,10 +1397,10 @@ class SoilPeplinski(UserObjectMulti):
 
         logger.info(
             f"{self.grid_name(grid)}Mixing model (Peplinski) used to "
-            + f"create {s.ID} with sand fraction {s.S:g}, clay fraction "
-            + f"{s.C:g}, bulk density {s.rb:g}g/cm3, sand particle "
-            + f"density {s.rs:g}g/cm3, and water volumetric fraction "
-            + f"{s.mu[0]:g} to {s.mu[1]:g} created."
+            f"create {s.ID} with sand fraction {s.S:g}, clay fraction "
+            f"{s.C:g}, bulk density {s.rb:g}g/cm3, sand particle "
+            f"density {s.rs:g}g/cm3, and water volumetric fraction "
+            f"{s.mu[0]:g} to {s.mu[1]:g} created."
         )
 
         grid.mixingmodels.append(s)
@@ -1495,9 +1489,9 @@ class MaterialRange(UserObjectMulti):
 
         logger.info(
             f"{self.grid_name(grid)}Material properties used to "
-            + f"create {s.ID} with range(s) {s.er[0]:g} to {s.er[1]:g}, relative permittivity "
-            + f"{s.sig[0]:g} to {s.sig[1]:g}, S/m conductivity, {s.mu[0]:g} to {s.mu[1]:g} relative magnetic permeability "
-            + f"{s.ro[0]:g} to {s.ro[1]:g} Ohm/m magnetic loss, created"
+            f"create {s.ID} with range(s) {s.er[0]:g} to {s.er[1]:g}, relative permittivity "
+            f"{s.sig[0]:g} to {s.sig[1]:g}, S/m conductivity, {s.mu[0]:g} to {s.mu[1]:g} relative magnetic permeability "
+            f"{s.ro[0]:g} to {s.ro[1]:g} Ohm/m magnetic loss, created"
         )
 
         grid.mixingmodels.append(s)
@@ -1613,9 +1607,9 @@ class GeometryView(UserObjectMulti):
         if output_type == "f" and (dx * grid.dx != grid.dx or dy * grid.dy != grid.dy or dz * grid.dz != grid.dz):
             logger.exception(
                 f"{self.params_str()} requires the spatial "
-                + "discretisation for the geometry view to be the "
-                + "same as the model for geometry view of "
-                + "type f (fine)"
+                "discretisation for the geometry view to be the "
+                "same as the model for geometry view of "
+                "type f (fine)"
             )
             raise ValueError
 
@@ -1623,10 +1617,10 @@ class GeometryView(UserObjectMulti):
 
         logger.info(
             f"{self.grid_name(grid)}Geometry view from {p3[0]:g}m, "
-            + f"{p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, "
-            + f"{p4[2]:g}m, discretisation {dx * grid.dx:g}m, "
-            + f"{dy * grid.dy:g}m, {dz * grid.dz:g}m, with filename "
-            + f"base {g.filename} created."
+            f"{p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, "
+            f"{p4[2]:g}m, discretisation {dx * grid.dx:g}m, "
+            f"{dy * grid.dy:g}m, {dz * grid.dz:g}m, with filename "
+            f"base {g.filename} created."
         )
 
         grid.geometryviews.append(g)
