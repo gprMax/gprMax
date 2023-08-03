@@ -208,7 +208,7 @@ class Snapshot:
             G: FDTDGrid class describing a grid in a model.
         """
 
-        celldata = {k: self.snapfields[k] for k, v in self.outputs.items() if v}
+        celldata = {k: self.snapfields[k] for k in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"] if self.outputs.get(k)}
 
         imageToVTK(
             str(self.filename.with_suffix("")),
@@ -240,10 +240,10 @@ class Snapshot:
         f.attrs["dx_dy_dz"] = (self.dx * G.dx, self.dy * G.dy, self.dz * G.dz)
         f.attrs["time"] = self.time * G.dt
 
-        for field, output in self.outputs.items():
-            if output:
-                f[field] = self.snapfields[field]
-                pbar.update(n=self.snapfields[field].nbytes)
+        for key in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]:
+            if self.outputs[key]:
+                f[key] = self.snapfields[key]
+                pbar.update(n=self.snapfields[key].nbytes)
 
         f.close()
 
