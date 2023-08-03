@@ -331,6 +331,10 @@ class SimulationConfig:
                 "C_float_or_double": "float",
                 "C_complex": None,
             }
+            if self.general["solver"] == "cuda":
+                self.dtypes["C_complex"] = "pycuda::complex<float>"
+            elif self.general["solver"] == "opencl":
+                self.dtypes["C_complex"] = "cfloat"
 
         elif self.general["precision"] == "double":
             self.dtypes = {
@@ -341,11 +345,10 @@ class SimulationConfig:
                 "C_float_or_double": "double",
                 "C_complex": None,
             }
-
-        if self.general["solver"] == "cuda":
-            self.dtypes["C_complex"] = "pycuda::complex<double>"
-        elif self.general["solver"] == "opencl":
-            self.dtypes["C_complex"] = "cdouble"
+            if self.general["solver"] == "cuda":
+                self.dtypes["C_complex"] = "pycuda::complex<double>"
+            elif self.general["solver"] == "opencl":
+                self.dtypes["C_complex"] = "cdouble"
 
     def _set_model_start_end(self):
         """Sets range for number of models to run (internally 0 index)."""
