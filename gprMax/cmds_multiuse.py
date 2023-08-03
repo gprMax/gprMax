@@ -437,14 +437,18 @@ class HertzianDipole(UserObjectMulti):
         if config.get_model_config().mode == "2D":
             logger.info(
                 f"{self.grid_name(grid)}Hertzian dipole is a line "
-                f"source in 2D with polarity {h.polarisation} at "
-                f"{p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m," + startstop + f"using waveform {h.waveformID} created."
+                + f"source in 2D with polarity {h.polarisation} at "
+                + f"{p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,"
+                + startstop
+                + f"using waveform {h.waveformID} created."
             )
         else:
             logger.info(
                 f"{self.grid_name(grid)}Hertzian dipole with "
-                f"polarity {h.polarisation} at {p2[0]:g}m, "
-                f"{p2[1]:g}m, {p2[2]:g}m," + startstop + f"using waveform {h.waveformID} created."
+                + f"polarity {h.polarisation} at {p2[0]:g}m, "
+                + f"{p2[1]:g}m, {p2[2]:g}m,"
+                + startstop
+                + f"using waveform {h.waveformID} created."
             )
 
         grid.hertziandipoles.append(h)
@@ -704,8 +708,10 @@ class TransmissionLine(UserObjectMulti):
 
         logger.info(
             f"{self.grid_name(grid)}Transmission line with polarity "
-            f"{t.polarisation} at {p2[0]:g}m, {p2[1]:g}m, "
-            f"{p2[2]:g}m, resistance {t.resistance:.1f} Ohms," + startstop + f"using waveform {t.waveformID} created."
+            + f"{t.polarisation} at {p2[0]:g}m, {p2[1]:g}m, "
+            + f"{p2[2]:g}m, resistance {t.resistance:.1f} Ohms,"
+            + startstop
+            + f"using waveform {t.waveformID} created."
         )
 
         grid.transmissionlines.append(t)
