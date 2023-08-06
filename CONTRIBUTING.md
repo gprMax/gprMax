@@ -5,7 +5,7 @@ Thank you for your interest in contributing to gprMax, we really appreciate your
 ## How can you help us?
 
 * Report a bug
-* Improve documentation
+* Improve our [documentation](https://docs.gprmax.com/en/devel/)
 * Submit a bug fix
 * Propose new features
 * Discuss the code implementation
