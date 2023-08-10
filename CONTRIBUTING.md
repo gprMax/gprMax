@@ -2,6 +2,12 @@
 
 Thank you for your interest in contributing to gprMax, we really appreciate your time and effort!
 
+If you’re unsure where to start or how your skills fit in, reach out! You can ask us here on GitHub, by leaving a comment on a relevant issue that is already open.
+
+Small improvements or fixes are always appreciated.
+
+If you are new to contributing to [open source](https://opensource.guide/how-to-contribute/), this guide helps explain why, what, and how to get involved.
+
 ## How can you help us?
 
 * Report a bug
