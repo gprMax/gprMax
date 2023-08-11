@@ -18,6 +18,7 @@
 
 import inspect
 import logging
+import time
 
 import numpy as np
 from scipy import interpolate
@@ -38,6 +39,8 @@ from .sources import HertzianDipole as HertzianDipoleUser
 from .sources import MagneticDipole as MagneticDipoleUser
 from .sources import TransmissionLine as TransmissionLineUser
 from .sources import VoltageSource as VoltageSourceUser
+from .sources import DiscretePlaneWave as DiscretePlaneWaveUser
+from .sources import TFSFBox as TFSFBoxUser
 from .subgrids.grid import SubGridBaseGrid
 from .utilities.utilities import round_value
 from .waveforms import Waveform as WaveformUser
@@ -715,6 +718,65 @@ class TransmissionLine(UserObjectMulti):
         )
 
         grid.transmissionlines.append(t)
+
+"""
+------------------------------------------------------------------------------
+Add the User MultiObject Class for the Discrete Plane Wave Implementation
+------------------------------------------------------------------------------
+"""
+class PlaneWaves(UserObjectMulti):
+    """Specifies a current density term at an electric field location.
+
+    The simplest excitation, often referred to as an additive or soft source.
+
+    Attributes:
+        polarisation: string required for polarisation of the source x, y, z.
+        p1: tuple required for position of source x, y, z.
+        waveform_id: string required for identifier of waveform used with source.
+        start: float optional to delay start time (secs) of source.
+        stop: float optional to time (secs) to remove source.
+    """
+
+    def __init__(self, dictOfParams, **kwargs):
+        super().__init__(**kwargs)
+        self.x_length = dictOfParams['x_domain']
+        self.y_length = dictOfParams['y_domain']
+        self.z_length = dictOfParams['z_domain']
+        self.time_duration = dictOfParams['t_domain']
+        self.dx = dictOfParams['x_discretization']
+        self.dy = dictOfParams['y_discretization']
+        self.dz = dictOfParams['z_discretization']
+        self.dt = dictOfParams['t_discretization']
+        self.corners = dictOfParams['box_corners']
+        self.noOfWaves  = dictOfParams['number_of_waves']
+        self.snapshot = dictOfParams['snapshot_frequency']
+        self.ppw = dictOfParams['ppw']
+
+    def create(self):
+        number_x = self.x_length//self.dx
+        number_y = self.y_length//self.dy
+        number_z = self.z_length//self.dz
+        number = max(number_x, number_y, number_z)
+        angles = np.array([[-np.pi/2, 180+63.4, 2, 180-36.7, 1],
+                   [np.pi/2, 63.4, 2, 36.7, 1]])
+        print("Starting run...")
+
+        start = time.time()
+        DPW1 = DiscretePlaneWaveUser(self.time_duration, 3, number_x, number_y, number_z)
+        DPW2 = DiscretePlaneWaveUser(self.time_duration, 3, number_x, number_y, number_z)
+
+        SpaceGrid = TFSFBoxUser(number_x, number_y, number_z, self.corners, self.time_duration,
+									3, self.noOfWaves)
+        SpaceGrid.getFields([DPW1, DPW2], self.snapshot, angles, number, 
+									self.dx, self.dy, self.dz, self.dt, self.ppw)
+        end = time.time()
+
+        print("Elapsed (with compilation) = %s sec" % (end - start))
+"""
+------------------------------------------------------------------------------
+End of the User MultiObject Class for the Discrete Plane Wave Implementation
+------------------------------------------------------------------------------
+"""
 
 
 class Rx(UserObjectMulti):
