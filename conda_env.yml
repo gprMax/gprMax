@@ -1,7 +1,7 @@
 # This file may be used to create a conda environment using:
 # $ conda env create -f <this file>
 
-name: gprMax-devel
+name: gprMax-devel_PW
 dependencies:
 - python>3.7
 - colorama
