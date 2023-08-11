@@ -10,6 +10,7 @@ source is used with a waveform shaped as the first derivative of a gaussian.
 """
 
 from pathlib import Path
+
 import gprMax
 from gprMax.materials import calculate_water_properties
 

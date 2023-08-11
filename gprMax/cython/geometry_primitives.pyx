@@ -17,20 +17,25 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
+
 cimport numpy as np
+
 np.seterr(divide='raise')
 from cython.parallel import prange
 
-from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_Ex
-from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_Ey
-from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_Ez
-from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_Hx
-from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_Hy
-from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_Hz
-from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_E
-from gprMax.cython.yee_cell_setget_rigid cimport unset_rigid_E
-from gprMax.cython.yee_cell_setget_rigid cimport set_rigid_H
-from gprMax.cython.yee_cell_setget_rigid cimport unset_rigid_H
+from gprMax.cython.yee_cell_setget_rigid cimport (
+    set_rigid_E,
+    set_rigid_Ex,
+    set_rigid_Ey,
+    set_rigid_Ez,
+    set_rigid_H,
+    set_rigid_Hx,
+    set_rigid_Hy,
+    set_rigid_Hz,
+    unset_rigid_E,
+    unset_rigid_H,
+)
+
 from gprMax.utilities.utilities import round_value
 
 

@@ -29,7 +29,6 @@ from Cython.Build import cythonize
 from jinja2 import Environment, FileSystemLoader
 from setuptools import Extension, find_packages, setup
 
-
 # Check Python version
 MIN_PYTHON_VERSION = (3, 7)
 if sys.version_info[:2] < MIN_PYTHON_VERSION:

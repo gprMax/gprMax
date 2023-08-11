@@ -20,11 +20,11 @@ import logging
 import sys
 from pathlib import Path
 
-import gprMax
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 
+import gprMax
 from testing.analytical_solutions import hertzian_dipole_fs
 
 logger = logging.getLogger(__name__)

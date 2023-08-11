@@ -7,12 +7,12 @@ from . import slice
 def convert_meshes(meshes, discretization, parallel=True):
     scale, shift, shape = slice.calculate_scale_shift(meshes, discretization)
     vol = np.zeros(shape[::-1], dtype=np.int8)
-    vol.fill(-1) # Fill array with -1 to indicate background in gprMax
+    vol.fill(-1)  # Fill array with -1 to indicate background in gprMax
 
     for mesh_ind, org_mesh in enumerate(meshes):
         slice.scale_and_shift_mesh(org_mesh, scale, shift)
         cur_vol = slice.mesh_to_plane(org_mesh, shape, parallel)
-        vol[cur_vol] = mesh_ind # Removed plus 1 to work with gprMax material indexing
+        vol[cur_vol] = mesh_ind  # Removed plus 1 to work with gprMax material indexing
 
     return vol, scale, shift
 

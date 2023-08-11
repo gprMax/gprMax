@@ -17,14 +17,18 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
+
 cimport numpy as np
 
-from gprMax.cython.yee_cell_setget_rigid cimport get_rigid_Ex
-from gprMax.cython.yee_cell_setget_rigid cimport get_rigid_Ey
-from gprMax.cython.yee_cell_setget_rigid cimport get_rigid_Ez
-from gprMax.cython.yee_cell_setget_rigid cimport get_rigid_Hx
-from gprMax.cython.yee_cell_setget_rigid cimport get_rigid_Hy
-from gprMax.cython.yee_cell_setget_rigid cimport get_rigid_Hz
+from gprMax.cython.yee_cell_setget_rigid cimport (
+    get_rigid_Ex,
+    get_rigid_Ey,
+    get_rigid_Ez,
+    get_rigid_Hx,
+    get_rigid_Hy,
+    get_rigid_Hz,
+)
+
 from gprMax.materials import Material
 
 

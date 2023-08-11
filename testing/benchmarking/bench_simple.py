@@ -4,10 +4,10 @@
 """
 
 
-from pathlib import Path
-import gprMax
-
 import itertools
+from pathlib import Path
+
+import gprMax
 
 # File path for output
 fn = Path(__file__)
