@@ -753,10 +753,10 @@ class PlaneWaves(UserObjectMulti):
         self.ppw = dictOfParams['ppw']
 
     def create(self):
-        number_x = self.x_length//self.dx
-        number_y = self.y_length//self.dy
-        number_z = self.z_length//self.dz
-        number = max(number_x, number_y, number_z)
+        number_x = (int)(self.x_length//self.dx)
+        number_y = (int)(self.y_length//self.dy)
+        number_z = (int)(self.z_length//self.dz)
+        number = (int)(max(number_x, number_y, number_z))
         angles = np.array([[-np.pi/2, 180+63.4, 2, 180-36.7, 1],
                    [np.pi/2, 63.4, 2, 36.7, 1]])
         print("Starting run...")
