@@ -719,26 +719,36 @@ class TransmissionLine(UserObjectMulti):
 
         grid.transmissionlines.append(t)
 
+
 """
 ------------------------------------------------------------------------------
-Add the User MultiObject Class for the Discrete Plane Wave Implementation
+Add the UserMultiObject Class for the Discrete Plane Wave Implementation
 ------------------------------------------------------------------------------
 """
-class PlaneWaves(UserObjectMulti):
-    """Specifies a current density term at an electric field location.
+class PlaneWaves():#UserObjectMulti):
+    """
+    Specifies a plane wave implemented using the discrete plane wave formulation.
 
-    The simplest excitation, often referred to as an additive or soft source.
-
-    Attributes:
-        polarisation: string required for polarisation of the source x, y, z.
-        p1: tuple required for position of source x, y, z.
-        waveform_id: string required for identifier of waveform used with source.
-        start: float optional to delay start time (secs) of source.
-        stop: float optional to time (secs) to remove source.
+    __________________________
+    
+    Instance variables:
+    --------------------------
+        x_length, double    : stores the length along the x axis of the TFSF box
+        y_length, double    : stores the length along the y axis of the TFSF box
+        z_length, double    : stores the length along the z axis of the TFSF box
+        time_duration, int  : stores the number of time steps over which the FDTD simulation is run
+        dx, double          : stores the discretization of the x component of the TFSF box
+        dy, double          : stores the discretixation of the y component of the TFSF box
+        dz, double          : stores the discretization of the z component of the TFSF box
+        dt, double          : stores the time step discretization for the FDTD simulation
+        corners, int array  : stores the coordinates of the cornets of the total field/scattered field boundaries
+        noOfWaves, int      : store the number of waves in the TFSF box in case there are multiple plane waves incident
+        snapshot, int       : stores the interval after which a snapshot of the request fields is recorded
+        ppw, double         : stores the number of points per wavelength for the requested source
     """
 
     def __init__(self, dictOfParams, **kwargs):
-        super().__init__(**kwargs)
+        #super().__init__(**kwargs)
         self.x_length = dictOfParams['x_domain']
         self.y_length = dictOfParams['y_domain']
         self.z_length = dictOfParams['z_domain']
@@ -759,7 +769,7 @@ class PlaneWaves(UserObjectMulti):
         number = (int)(max(number_x, number_y, number_z))
         angles = np.array([[-np.pi/2, 180+63.4, 2, 180-36.7, 1],
                    [np.pi/2, 63.4, 2, 36.7, 1]])
-        print("Starting run...")
+        print("Starting the FDTD run...")
 
         start = time.time()
         DPW1 = DiscretePlaneWaveUser(self.time_duration, 3, number_x, number_y, number_z)
@@ -767,6 +777,13 @@ class PlaneWaves(UserObjectMulti):
 
         SpaceGrid = TFSFBoxUser(number_x, number_y, number_z, self.corners, self.time_duration,
 									3, self.noOfWaves)
+        """
+        DPW1 = DiscretePlaneWave(self.time_duration, 3, number_x, number_y, number_z)
+        DPW2 = DiscretePlaneWave(self.time_duration, 3, number_x, number_y, number_z)
+
+        SpaceGrid = TFSFBox(number_x, number_y, number_z, self.corners, self.time_duration,
+									3, self.noOfWaves)
+        """
         SpaceGrid.getFields([DPW1, DPW2], self.snapshot, angles, number, 
 									self.dx, self.dy, self.dz, self.dt, self.ppw)
         end = time.time()
@@ -774,7 +791,7 @@ class PlaneWaves(UserObjectMulti):
         print("Elapsed (with compilation) = %s sec" % (end - start))
 """
 ------------------------------------------------------------------------------
-End of the User MultiObject Class for the Discrete Plane Wave Implementation
+End of the UserMultiObject Class for the Discrete Plane Wave Implementation
 ------------------------------------------------------------------------------
 """
 

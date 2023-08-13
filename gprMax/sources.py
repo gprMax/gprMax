@@ -491,7 +491,7 @@ class TransmissionLine(Source):
             self.update_current(iteration, G)
 
 
-class DiscretePlaneWave():
+class DiscretePlaneWave(Source):
     '''
     Class to implement the discrete plane wave (DPW) formulation as described in
     Tan, T.; Potter, M. (2010). 
@@ -521,6 +521,8 @@ class DiscretePlaneWave():
             time_dimension, int : local variable to store the time length over which the simulation is run 
             dimensions, int     : local variable to store the number of dimensions in which the simulation is run
         '''
+        super().__init__()
+        self.waveformID = "ricker".encode('UTF-8')
         self.m = np.zeros(dimensions+1, dtype=np.int32)          #+1 to store the max(m_x, m_y, m_z)
         self.directions = np.zeros(dimensions, dtype=np.int32)
         self.dimensions = dimensions
@@ -530,6 +532,7 @@ class DiscretePlaneWave():
         self.ds = 0
         self.E_fields = []   
         self.H_fields = []
+        self.dt = 0
         
     def initializeGrid(self, dl, dt):
         '''
@@ -605,8 +608,10 @@ class DiscretePlaneWave():
         self.directions, self.m = getIntegerForAngles(phi, Delta_phi, theta, Delta_theta,
                                           np.array([dx, dy, dz]))   #get the integers for the nearest rational angle
         #store max(m_x, m_y, m_z) in the last element of the array
-        print(self.m)
-        print(self.directions)
+        print("[m_x, m_y, m_z] :", self.m[:-1])
+        print("Approximated Phi : ", "{:.3f}".format(np.arctan2(self.m[1]/dy, self.m[0]/dx)*180/np.pi))
+        print("Approximated Theta : ", "{:.3f}".format(np.arctan2(np.sqrt((self.m[0]/dx)*(self.m[0]/dx)+
+(self.m[1]/dy)*(self.m[1]/dy)), self.m[2]/dz)*180/np.pi))
         self.length = int(2*np.sum(self.m[:-1])*number)                  #set an appropriate length fo the one dimensional arrays
         #the 1D grid has no ABC to terminate it, sufficiently long array prevents reflections from the back 
         #self.m = np.abs(self.m.astype(np.int32, copy=False))        #typecast to positive integers
@@ -617,7 +622,7 @@ class DiscretePlaneWave():
         if self.m[0] == 0:       #calculate dr that is needed for sourcing the 1D array
             if self.m[1] == 0:
                 if self.m[2] == 0:
-                    raise ValueError("not all M values can be zero")
+                    raise ValueError("not all m_i values can be zero")
                 else:
                     self.ds = P[2]*dz/self.m[2]
             else:
@@ -686,9 +691,11 @@ class TFSFBox():
     def getFields(self, planeWaves, snapshot, angles, number, dx, dy, dz, dt, ppw):
         face_fields, abccoef = self.initializeABC()
         for i in range(self.noOfWaves):
+            print(f"Plane Wave {i+1} :")
             planeWaves[i].runDiscretePlaneWave(angles[i, 0], angles[i, 1], angles[i, 2], angles[i, 3],
                                                angles[i, 4], number, dx, dy, dz)
             C, D = planeWaves[i].initializeGrid(np.array([dx, dy, dz]), dt)  #initialize the one dimensional arrays and coefficients
-        getGridFields(planeWaves, C, D, snapshot, self.n_x, self.n_y, self.n_z, self.fields,
-                      self.corners, self.time_duration, face_fields, abccoef, dt, self.noOfWaves,
-                      constants.c, ppw, self.dimensions)   
+        getGridFields(planeWaves, C, D, snapshot, self.n_x, self.n_y, self.n_z, self.fields, self.corners,
+                     self.time_duration, face_fields, abccoef, dt, self.noOfWaves, constants.c, ppw,
+                     self.dimensions, './snapshots/electric', [0], []) 
+
