@@ -185,8 +185,7 @@ def write_processed_file(processedlines):
             f.write(f"{item}")
 
     logger.info(
-        f"Written input commands, after processing any Python "
-        + f"code and include commands, to file: {processedfile}\n"
+        f"Written input commands, after processing any Python code and include commands, to file: {processedfile}\n"
     )
 
 

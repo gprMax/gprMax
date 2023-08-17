@@ -317,9 +317,8 @@ class PeplinskiSoil:
             # Check to see if the material already exists before creating a new one
             requiredID = "|{:.4f}|".format(float(muiter[0]))
             material = next((x for x in G.materials if x.ID == requiredID), None)
-            if muiter.index == 0:
-                if material:
-                    self.matID.append(material.numID)
+            if muiter.index == 0 and material:
+                self.matID.append(material.numID)
             if not material:
                 m = DispersiveMaterial(len(G.materials), requiredID)
                 m.type = "debye"
@@ -412,9 +411,8 @@ class RangeMaterial:
             # Check to see if the material already exists before creating a new one
             requiredID = f"|{float(er):.4f}+{float(se):.4f}+{float(mr):.4f}+{float(sm):.4f}|"
             material = next((x for x in G.materials if x.ID == requiredID), None)
-            if iter == 0:
-                if material:
-                    self.matID.append(material.numID)
+            if iter == 0 and material:
+                self.matID.append(material.numID)
             if not material:
                 m = Material(len(G.materials), requiredID)
                 m.type = ""

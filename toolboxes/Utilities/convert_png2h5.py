@@ -55,11 +55,7 @@ class Cursor(object):
                 )  # Convert pixel values from float (0-1) to integer (0-255)
                 match = pixel_match(materials, pixel)
                 if match is False:
-                    logger.info(
-                        "x, y: {} {} px; RGB: {}; material ID: {}".format(
-                            int(x), int(y), pixel[:-1], len(self.materials)
-                        )
-                    )
+                    logger.info(f"x, y: {int(x)} {int(y)} px; RGB: {pixel[:-1]}; material ID: {len(self.materials)}")
                     materials.append(pixel)
 
 
@@ -103,7 +99,7 @@ if __name__ == "__main__":
     imdata = np.rot90(im, k=3)  # Rotate 90CW
     imdata = np.floor(imdata * 255).astype(np.int16)  # Convert pixel values from float (0-1) to integer (0-255)
 
-    logger.info("Reading PNG image file: {}".format(os.path.split(args.imagefile)[1]))
+    logger.info(f"Reading PNG image file: {os.path.split(args.imagefile)[1]}")
     logger.info(
         " 1. Select discrete material colours by clicking on parts of the image.\n 2. When all materials have been selected close the image."
     )
@@ -122,7 +118,7 @@ if __name__ == "__main__":
     dx_dy_dz = (args.dxdydz[0][0], args.dxdydz[0][1], args.dxdydz[0][2])
 
     # Filename for geometry (HDF5) file
-    hdf5file = os.path.splitext(args.imagefile)[0] + ".h5"
+    hdf5file = f"{os.path.splitext(args.imagefile)[0]}.h5"
 
     # Array to store geometry data (initialised as background, i.e. -1)
     data = np.ones((imdata.shape[0], imdata.shape[1], args.zcells), dtype=np.int16) * -1
@@ -140,4 +136,4 @@ if __name__ == "__main__":
         # Write data to file
         fout.create_dataset("data", data=data)
 
-    logger.info("Written HDF5 file: {}".format(os.path.split(hdf5file)[1]))
+    logger.info(f"Written HDF5 file: {os.path.split(hdf5file)[1]}")

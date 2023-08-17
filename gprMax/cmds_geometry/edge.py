@@ -103,6 +103,6 @@ class Edge(UserObjectGeometry):
 
         logger.info(
             f"{self.grid_name(grid)}Edge from {p3[0]:g}m, {p3[1]:g}m, "
-            + f"{p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of "
-            + f"material {material_id} created."
+            f"{p3[2]:g}m, to {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m of "
+            f"material {material_id} created."
         )

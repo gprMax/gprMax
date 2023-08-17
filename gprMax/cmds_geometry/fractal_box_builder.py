@@ -388,8 +388,8 @@ class FractalBoxBuilder(UserObjectGeometry):
                 if volume.nbins == 1:
                     logger.exception(
                         f"{self.__str__()} is being used with a "
-                        + "single material and no modifications, "
-                        + "therefore please use a #box command instead."
+                        "single material and no modifications, "
+                        "therefore please use a #box command instead."
                     )
                     raise ValueError
                 else:
