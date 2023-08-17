@@ -314,24 +314,21 @@ class PeplinskiSoil:
             # Effective conductivity
             sig = muiter[0] ** (b2 / a) * ((sigf * (self.rs - self.rb)) / (self.rs * muiter[0]))
 
-            # Check to see if the material already exists before creating a new one
-            requiredID = "|{:.4f}|".format(float(muiter[0]))
-            material = next((x for x in G.materials if x.ID == requiredID), None)
-            if muiter.index == 0 and material:
-                self.matID.append(material.numID)
-            if not material:
-                m = DispersiveMaterial(len(G.materials), requiredID)
-                m.type = "debye"
-                m.averagable = False
-                m.poles = 1
-                if m.poles > config.get_model_config().materials["maxpoles"]:
-                    config.get_model_config().materials["maxpoles"] = m.poles
-                m.er = eri
-                m.se = sig
-                m.deltaer.append(er - eri)
-                m.tau.append(DispersiveMaterial.watertau)
-                G.materials.append(m)
-                self.matID.append(m.numID)
+            # Create individual materials
+            m = DispersiveMaterial(len(G.materials), None)
+            m.type = "debye"
+            m.averagable = False
+            m.poles = 1
+            if m.poles > config.get_model_config().materials["maxpoles"]:
+                config.get_model_config().materials["maxpoles"] = m.poles
+            m.er = eri
+            m.se = sig
+            m.deltaer.append(er - eri)
+            m.tau.append(DispersiveMaterial.watertau)
+            matID = m.er * m.se
+            m.ID = f"|{float(m.er):.4f}+{float(m.se):.4f}+{float(m.mr):.4f}+{float(m.sm):.4f}|"
+            G.materials.append(m)
+            self.matID.append(m.numID)
 
             muiter.iternext()
 
