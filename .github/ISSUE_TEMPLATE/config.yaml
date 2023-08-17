@@ -1,6 +1,9 @@
 blank_issues_enabled: false
 contact_links:
-  - name: gprMax support
+  - name: "📚 Read docs"
+    url: https://docs.gprmax.com/en/devel/
+    about: Find your solution from our documenations
+  - name: "😊 gprMax support"
     url: https://groups.google.com/g/gprmax
     about: |
       Please only file issues here that you believe represent actual bugs or feature requests for the gprMax software.
