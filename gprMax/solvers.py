@@ -112,6 +112,7 @@ class Solver:
             self.updates.update_magnetic()
             self.updates.update_magnetic_pml()
             self.updates.update_magnetic_sources()
+            self.updates.update_plane_waves()
             if self.hsg:
                 self.updates.hsg_2()
             self.updates.update_electric_a()

@@ -97,6 +97,18 @@ class CPUUpdates:
                 self.grid,
             )
 
+    def update_plane_waves(self):
+        """Updates the magnetic and electric field components for the discrete plane wave."""
+        for source in self.grid.planewaves:
+            source.update_magnetic_field_1D()
+            self.grid.Hx, self.grid.Hy, self.grid.Hz = source.apply_TFSF_conditions_magnetic(self.grid.Hx,
+                                                                                             self.grid.Hy,
+                                                                                             self.grid.Hz)
+            self.grid.Ex, self.grid.Ey, self.grid.Ez = source.apply_TFSF_conditions_electric(self.grid.Ex,
+                                                                                             self.grid.Ey,
+                                                                                             self.grid.Ez)
+            source.update_electric_field_1D()
+
     def update_electric_a(self):
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.

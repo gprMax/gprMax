@@ -725,7 +725,7 @@ class TransmissionLine(UserObjectMulti):
 Add the UserMultiObject Class for the Discrete Plane Wave Implementation
 ------------------------------------------------------------------------------
 """
-class PlaneWaves():#UserObjectMulti):
+class PlaneWaves(UserObjectMulti):
     """
     Specifies a plane wave implemented using the discrete plane wave formulation.
 
@@ -748,7 +748,8 @@ class PlaneWaves():#UserObjectMulti):
     """
 
     def __init__(self, dictOfParams, **kwargs):
-        #super().__init__(**kwargs)
+        super().__init__(**kwargs)
+        self.dimensions = 3
         self.x_length = dictOfParams['x_domain']
         self.y_length = dictOfParams['y_domain']
         self.z_length = dictOfParams['z_domain']
@@ -762,33 +763,31 @@ class PlaneWaves():#UserObjectMulti):
         self.snapshot = dictOfParams['snapshot_frequency']
         self.ppw = dictOfParams['ppw']
 
-    def create(self):
-        number_x = (int)(self.x_length//self.dx)
-        number_y = (int)(self.y_length//self.dy)
-        number_z = (int)(self.z_length//self.dz)
-        number = (int)(max(number_x, number_y, number_z))
+    def create(self, number_x, number_y, number_z):
         angles = np.array([[-np.pi/2, 180+63.4, 2, 180-36.7, 1],
                    [np.pi/2, 63.4, 2, 36.7, 1]])
         print("Starting the FDTD run...")
-
         start = time.time()
-        DPW1 = DiscretePlaneWaveUser(self.time_duration, 3, number_x, number_y, number_z)
-        DPW2 = DiscretePlaneWaveUser(self.time_duration, 3, number_x, number_y, number_z)
+        '''
+        DPW = []
+        start = time.time()
+        for i in range(self.noOfWaves):
+            DPW.append(DiscretePlaneWaveUser(self.time_duration, self.dimensions, number_x, number_y, number_z))
+        '''
 
-        SpaceGrid = TFSFBoxUser(number_x, number_y, number_z, self.corners, self.time_duration,
-									3, self.noOfWaves)
-        """
-        DPW1 = DiscretePlaneWave(self.time_duration, 3, number_x, number_y, number_z)
-        DPW2 = DiscretePlaneWave(self.time_duration, 3, number_x, number_y, number_z)
-
-        SpaceGrid = TFSFBox(number_x, number_y, number_z, self.corners, self.time_duration,
-									3, self.noOfWaves)
-        """
-        SpaceGrid.getFields([DPW1, DPW2], self.snapshot, angles, number, 
-									self.dx, self.dy, self.dz, self.dt, self.ppw)
+        DPW = DiscretePlaneWaveUser(self.time_duration, self.dimensions, number_x, number_y, number_z)
+        DPW.initializeGrid(np.array([self.dx, self.dy, self.dz]), self.dt)
+        DPW.runDiscretePlaneWave(np.pi/2, 63.4, 2, 36.7, 1, 25, self.dx, self.dy, self.dz)
+        
+        '''
+        SpaceGrid = TFSFBoxUser(number_x, number_y, number_z, self.corners, self.time_duration,	self.dimensions, self.noOfWaves)
+        SpaceGrid.getFields(DPW, self.snapshot, angles, number, self.dx, self.dy, self.dz, self.dt, self.ppw)
+        '''
+        
         end = time.time()
 
         print("Elapsed (with compilation) = %s sec" % (end - start))
+
 """
 ------------------------------------------------------------------------------
 End of the UserMultiObject Class for the Discrete Plane Wave Implementation

@@ -529,10 +529,14 @@ class DiscretePlaneWave(Source):
         self.time_dimension = time_dimension
         self.length = 0
         self.projections = np.zeros(dimensions)
+        self.corners = np.array([5, 5, 5, 20, 20, 20])
         self.ds = 0
         self.E_fields = []   
         self.H_fields = []
+        self.E_coefficients = []
+        self.H_coefficients = []
         self.dt = 0
+        self.ppw = 10
         
     def initializeGrid(self, dl, dt):
         '''
@@ -563,20 +567,19 @@ class DiscretePlaneWave(Source):
         self.E_fields = np.zeros((self.dimensions, self.length), order='C')
         self.H_fields = np.zeros((self.dimensions, self.length), order='C')
     
-        E_coefficients = np.zeros(3*self.dimensions)     #coefficients in the update equations of the electric field
-        H_coefficients = np.zeros(3*self.dimensions)     #coefficients in the update equations of the magnetic field
+        self.E_coefficients = np.zeros(3*self.dimensions)     #coefficients in the update equations of the electric field
+        self.H_coefficients = np.zeros(3*self.dimensions)     #coefficients in the update equations of the magnetic field
         impedance = constants.c*constants.mu_0   #calculate the impedance of free space 
     
         for i in range(self.dimensions): #loop to calculate the coefficients for each dimension
-            E_coefficients[3*i] = 1.0
-            E_coefficients[3*i+1] = dt/(constants.epsilon_0*dl[(i+1)%self.dimensions])
-            E_coefficients[3*i+2] = dt/(constants.epsilon_0*dl[(i+2)%self.dimensions])        
+            self.E_coefficients[3*i] = 1.0
+            self.E_coefficients[3*i+1] = dt/(constants.epsilon_0*dl[(i+1)%self.dimensions])
+            self.E_coefficients[3*i+2] = dt/(constants.epsilon_0*dl[(i+2)%self.dimensions])        
             
-            H_coefficients[3*i] = 1.0
-            H_coefficients[3*i+1] = dt/(constants.mu_0*dl[(i+2)%self.dimensions])
-            H_coefficients[3*i+2] = dt/(constants.mu_0*dl[(i+1)%self.dimensions])
+            self.H_coefficients[3*i] = 1.0
+            self.H_coefficients[3*i+1] = dt/(constants.mu_0*dl[(i+2)%self.dimensions])
+            self.H_coefficients[3*i+2] = dt/(constants.mu_0*dl[(i+1)%self.dimensions])
         
-        return E_coefficients, H_coefficients
     
     def runDiscretePlaneWave(self, psi, phi, Delta_phi, theta, Delta_theta, number, dx, dy, dz):
         '''
@@ -629,7 +632,253 @@ class DiscretePlaneWave(Source):
                 self.ds = P[1]*dy/self.m[1]
         else:
             self.ds = P[0]*dx/self.m[0]
-       
+
+    def getSource(self, time):
+        '''
+        Method to get the magnitude of the source field in the direction perpendicular to the propagation of the plane wave
+        __________________________
+
+        Input parameters:
+        --------------------------
+            time, float : time at which the magnitude of the source is calculated
+            ppw, int    : points per wavelength for the wave source
+
+        __________________________
+
+        Returns:
+        --------------------------
+            sourceMagnitude, double array : magnitude of the source for the requested indices at the current time
+        '''
+        sourceMagnitude = 0
+        if time >= 0: 
+            arg = np.pi*((time) / self.ppw - 1.0)
+            arg = arg * arg
+            sourceMagnitude = (1.0-2.0*arg)*np.exp(-arg)  # define a Ricker wave source
+        return sourceMagnitude
+
+
+    def initialize_magnetic_fields_1D():
+        for k in range(self.dimensions):
+            for l in range(self.m[self.dimensions]):      #loop to assign the source values of magnetic field to the first few gridpoints
+                self.H_fields[k, l] = self.projections[k]*self.getSource(real_time - (l+(
+                                self.m[(k+1)%dimensions]+self.m[(k+2)%dimensions]
+                                                        )*0.5)*self.ds/c)#, self.waveformID, self.dt)
+
+
+    def update_magnetic_field_1D(self):
+        '''
+        Method to update the magnetic fields for the next time step using
+        Equation 8 of DOI: 10.1109/LAWP.2009.2016851
+        __________________________
+
+        Input parameters:
+        --------------------------
+            n , int                      : stores the spatial length of the DPW array so that each length grid cell is updated when the method updateMagneticFields() is called
+            H_coefficients, double array : stores the coefficients of the fields in the update equation for the magnetic field
+            H_fields, double array       : stores the magnetic fields of the DPW till temporal index time
+            E_fields, double array       : stores the electric fields of the DPW till temporal index time
+            time, int                    : time index storing the current axis number which would be updated for the H_fields
+        __________________________
+
+        Returns:
+        --------------------------
+            H_fields, double array       : magnetic field array with the axis entry for the current time added
+
+        '''
+        self.initialize_magnetic_fields_1D()
+
+        for i in range(self.dimensions):  #loop to update each component of the magnetic field
+            for j in range(self.m[-1], self.length-self.m[-1]):  #loop to update the magnetic field at each spatial index
+                self.H_fields[i, j] = self.H_coefficients[3*i] * self.H_fields[i, j] + self.H_coefficients[3*i+1] * (
+                    self.E_fields[(i+1)%self.dimensions, j+self.m[(i+2)%self.dimensions]] 
+                    - self.E_fields[(i+1)%self.dimensions, j]) \
+                - self.H_coefficients[3*i+2] * (
+                    self.E_fields[(i+2)%self.dimensions, j+self.m[(i+1)%self.dimensions]] 
+                    - self.E_fields[(i+2)%self.dimensions, j])     #equation 8 of Tan, Potter paper
+    
+    def update_electric_field_1D(self, E_coefficients):
+        '''
+        Method to update the electric fields for the next time step using
+        Equation 9 of DOI: 10.1109/LAWP.2009.2016851
+        __________________________
+
+        Input parameters:
+        --------------------------
+            n , int                      : stores the spatial length of the DPW array so that each length grid cell is updated when the method updateMagneticFields() is called
+            E_coefficients, double array : stores the coefficients of the fields in the update equation for the electric field
+            H_fields, double array       : stores the magnetic fields of the DPW till temporal index time
+            E_fields, double array       : stores the electric fields of the DPW till temporal index time
+            time, int                    : time index storing the current axis number which would be updated for the H_fields
+        __________________________
+
+        Returns:
+        --------------------------
+            E_fields, double array       : electric field array with the axis entry for the current time added
+
+        '''
+        for i in range (self.dimensions):  #loop to update each component of the electric field
+            for j in range(self.m[-1], self.length-self.m[-1]):   #loop to update the electric field at each spatial index 
+                self.E_fields[i, j] = self.E_coefficients[3*i] * self.E_fields[i, j] + self.E_coefficients[3*i+1] * (
+                    self.H_fields[(i+2)%self.dimensions, j] 
+                    - self.H_fields[(i+2)%self.dimensions, j-self.m[(i+1)%self.dimensions]]) \
+                - self.E_coefficients[3*i+2] * ( 
+                    self.H_fields[(i+1)%self.dimensions, j] 
+                    - self.H_fields[(i+1)%self.dimensions, j-self.m[(i+2)%self.dimensions]])  #equation 9 of Tan, Potter paper
+
+    
+    def getField(i, j, k, array, m, component):
+        buffer = 10
+        return array[component, np.dot(m[:-1], np.array([i, j, k]))]
+
+
+    def applyTFSFMagnetic(self, h_x, h_y, h_z):
+
+        #**** constant x faces -- scattered-field nodes ****
+        i = self.corners[0]
+        for j in range(self.corners[1], self.corners[4]+1):
+            for k in range(self.corners[2], self.corners[5]):
+                #correct Hy at firstX-1/2 by subtracting Ez_inc
+                h_y[i-1, j, k] -= self.E_coefficients[5] * getField(i, j, k, self.E_fields, self.m, 2) 
+
+        for j in range(self.corners[1], self.corners[4]):
+            for k in range(self.corners[2], self.corners[5]+1):
+                #correct Hz at firstX-1/2 by adding Ey_inc
+                h_z[i-1, j, k] += self.E_coefficients[8] * getField(i, j, k, self.E_fields, self.m, 1)
+
+        i = self.corners[3]
+        for j in range(self.corners[1], self.corners[4]+1):
+            for k in range(self.corners[2], self.corners[5]):
+                #correct Hy at lastX+1/2 by adding Ez_inc
+                h_y[i, j, k] += self.E_coefficients[5] * getField(i, j, k, self.E_fields, self.m, 2)    
+
+        for j in range(self.corners[1], self.corners[4]):
+            for k in range(self.corners[2], self.corners[5]+1):
+                #correct Hz at lastX+1/2 by subtractinging Ey_inc
+                h_z[i, j, k] -= self.E_coefficients[8] * getField(i, j, k, self.E_fields, self.m, 1)            
+
+        #**** constant y faces -- scattered-field nodes ****
+        j = self.corners[1]
+        for i in range(self.corners[0], self.corners[3]+1):
+            for k in range(self.corners[2], self.corners[5]):
+                #correct Hx at firstY-1/2 by adding Ez_inc
+                h_x[i, j-1, k] += self.E_coefficients[2] * getField(i, j, k, self.E_fields, self.m, 2)
+
+        for i in range(self.corners[0], self.corners[3]):
+            for k in range(self.corners[2], self.corners[5]+1):
+                #correct Hz at firstY-1/2 by subtracting Ex_inc
+                h_z[i, j-1, k] -= self.E_coefficients[7] * getField(i, j, k, self.E_fields, self.m, 0)
+
+        j = self.corners[4]
+        for i in range(self.corners[0], self.corners[3]+1):
+            for k in range(self.corners[2], self.corners[5]):
+                #correct Hx at lastY+1/2 by subtracting Ez_inc
+                h_x[i, j, k] -= self.E_coefficients[2] * getField(i, j, k, self.E_fields, self.m, 2)
+
+        for i in range(self.corners[0], self.corners[3]):
+            for k in range(self.corners[2], self.corners[5]+1):
+                #correct Hz at lastY-1/2 by adding Ex_inc
+                h_z[i, j, k] += self.E_coefficients[7] * getField(i, j, k, self.E_fields, self.m, 0)
+
+        #**** constant z faces -- scattered-field nodes ****
+        k = self.corners[2]
+        for i in range(self.corners[0], self.corners[3]):
+            for j in range(self.corners[1], self.corners[4]+1):
+                #correct Hy at firstZ-1/2 by adding Ex_inc
+                h_y[i, j, k-1] += self.E_coefficients[5] * getField(i, j, k, self.E_fields, self.m, 0)
+
+        for i in range(self.corners[0], self.corners[3]+1):
+            for j in range(self.corners[1], self.corners[4]):
+                #correct Hx at firstZ-1/2 by subtracting Ey_inc
+                h_x[i, j, k-1] -= self.E_coefficients[1] * getField(i, j, k, self.E_fields, self.m, 1)
+
+        k = self.corners[5]
+        for i in range(self.corners[0], self.corners[3]):
+            for j in range(self.corners[1], self.corners[4]+1):
+                #correct Hy at firstZ-1/2 by subtracting Ex_inc
+                h_y[i, j, k] -= self.E_coefficients[5] * getField(i, j, k, self.E_fields, self.m, 0)
+
+        for i in range(self.corners[0], self.corners[3]+1):
+            for j in range(self.corners[1], self.corners[4]):
+                #correct Hx at lastZ+1/2 by adding Ey_inc
+                h_x[i, j, k] += self.E_coefficients[1] * getField(i, j, k, self.E_fields, self.m, 1)
+         
+        return h_x, h_y, h_z 
+    
+
+
+    def applyTFSFElectric(self, e_x, e_y, e_z):
+        #**** constant x faces -- total-field nodes ****/
+        i = self.corners[0]
+        for j in range(self.corners[1], self.corners[4]+1):
+            for k in range(self.corners[2], self.corners[5]):
+                #correct Ez at firstX face by subtracting Hy_inc
+                e_z[i, j, k] -= self.H_coefficients[7] * getField(i-1, j, k, self.H_fields, self.m, 1)
+
+        for j in range(self.corners[1], self.corners[4]):
+            for k in range(self.corners[2], self.corners[5]+1):
+                #correct Ey at firstX face by adding Hz_inc
+                e_y[i, j, k] += self.H_coefficients[4] * getField(i-1, j, k, self.H_fields, self.m, 2)
+
+        i = self.corners[3]
+        for j in range(self.corners[1], self.corners[4]+1):
+            for k in range(self.corners[2], self.corners[5]):
+                #correct Ez at lastX face by adding Hy_inc
+                e_z[i, j, k] += self.H_coefficients[7] * getField(i, j, k, self.H_fields, self.m, 1)
+
+        i = self.corners[3]
+        for j in range(self.corners[1], self.corners[4]):
+            for k in range(self.corners[2], self.corners[5]+1):
+                #correct Ey at lastX face by subtracting Hz_inc
+                e_y[i, j, k] -= self.H_coefficients[4] * getField(i, j, k, self.H_fields, self.m, 2)
+
+        #**** constant y faces -- total-field nodes ****/
+        j = self.corners[1]
+        for i in range(self.corners[0], self.corners[3]+1):
+            for k in range(self.corners[2], self.corners[5]):
+                #correct Ez at firstY face by adding Hx_inc
+                e_z[i, j, k] += self.H_coefficients[8] * getField(i, j-1, k, self.H_fields, self.m, 0)
+
+        for i in range(self.corners[0], self.corners[3]):
+            for k in range(self.corners[2], self.corners[5]+1):
+                #correct Ex at firstY face by subtracting Hz_inc
+                e_x[i, j, k] -= self.H_coefficients[1] * getField(i, j-1, k, self.H_fields, self.m, 2)
+
+        j = self.corners[4]
+        for i in range(self.corners[0], self.corners[3]+1):
+            for k in range(self.corners[2], self.corners[5]):
+                #correct Ez at lastY face by subtracting Hx_inc
+                e_z[i, j, k] -= self.H_coefficients[8] * getField(i, j, k, self.H_fields, self.m, 0)
+
+        for i in range(self.corners[0], self.corners[3]):
+            for k in range(self.corners[2], self.corners[5]+1):
+                #correct Ex at lastY face by adding Hz_inc
+                e_x[i, j, k] += self.H_coefficients[1] * getField(i, j, k, self.H_fields, self.m, 2)
+
+        #**** constant z faces -- total-field nodes ****/
+        k = self.corners[2]
+        for i in range(self.corners[0], self.corners[3]+1):
+            for j in range(self.corners[1], self.corners[4]):
+                #correct Ey at firstZ face by subtracting Hx_inc
+                e_y[i, j, k] -= self.H_coefficients[4] * getField(i, j, k-1, self.H_fields, self.m, 0)
+
+        for i in range(self.corners[0], self.corners[3]):
+            for j in range(self.corners[1], self.corners[4]+1):
+                #correct Ex at firstZ face by adding Hy_inc
+                e_x[i, j, k] += self.H_coefficients[2] * getField(i, j, k-1, self.H_fields, self.m, 1)
+
+        k = self.corners[5]
+        for i in range(self.corners[0], self.corners[3]+1):
+            for j in range(self.corners[1], self.corners[4]):
+                #correct Ey at lastZ face by adding Hx_inc
+                e_y[i, j, k] += self.H_coefficients[4] * getField(i, j, k, self.H_fields, self.m, 0)
+
+        for i in range(self.corners[0], self.corners[3]):
+            for j in range(self.corners[1], self.corners[4]+1):
+                #correct Ex at lastZ face by subtracting Hy_inc
+                e_x[i, j, k] -= self.H_coefficients[2] * getField(i, j, k, self.H_fields, self.m, 1)
+
+        return e_x, e_y, e_z 
+           
 
 
 class TFSFBox():
@@ -692,8 +941,7 @@ class TFSFBox():
         face_fields, abccoef = self.initializeABC()
         for i in range(self.noOfWaves):
             print(f"Plane Wave {i+1} :")
-            planeWaves[i].runDiscretePlaneWave(angles[i, 0], angles[i, 1], angles[i, 2], angles[i, 3],
-                                               angles[i, 4], number, dx, dy, dz)
+            s
             C, D = planeWaves[i].initializeGrid(np.array([dx, dy, dz]), dt)  #initialize the one dimensional arrays and coefficients
         getGridFields(planeWaves, C, D, snapshot, self.n_x, self.n_y, self.n_z, self.fields, self.corners,
                      self.time_duration, face_fields, abccoef, dt, self.noOfWaves, constants.c, ppw,
