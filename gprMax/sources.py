@@ -511,7 +511,7 @@ class DiscretePlaneWave(Source):
     '''
     
     
-    def __init__(self, time_dimension, dimensions, n_x, n_y, n_z):     
+    def __init__(self, G):     
         '''
         Defines the instance variables of class DiscretePlaneWave()
         __________________________
@@ -522,23 +522,21 @@ class DiscretePlaneWave(Source):
             dimensions, int     : local variable to store the number of dimensions in which the simulation is run
         '''
         super().__init__()
-        self.waveformID = "ricker".encode('UTF-8')
-        self.m = np.zeros(dimensions+1, dtype=np.int32)          #+1 to store the max(m_x, m_y, m_z)
-        self.directions = np.zeros(dimensions, dtype=np.int32)
-        self.dimensions = dimensions
-        self.time_dimension = time_dimension
+        self.m = np.zeros(3+1, dtype=np.int32)          #+1 to store the max(m_x, m_y, m_z)
+        self.directions = np.zeros(3, dtype=np.int32)
+        self.time_dimension = G.iterations
         self.length = 0
-        self.projections = np.zeros(dimensions)
-        self.corners = np.array([5, 5, 5, 20, 20, 20])
+        self.projections = np.zeros(3)
+        self.corners = None
         self.ds = 0
-        self.E_fields = []   
-        self.H_fields = []
-        self.E_coefficients = []
-        self.H_coefficients = []
-        self.dt = 0
-        self.ppw = 10
+        self.E_fields = None  
+        self.H_fields = None
+        self.E_coefficients = None
+        self.H_coefficients = None
+        self.dt = G.dt
+        self.ppw = 10.0*G.dt
         
-    def initializeGrid(self, dl, dt):
+    def initialize1DGrid(self, G):
         '''
         Method to initialize the one dimensions grids for the DPW
         __________________________
@@ -564,24 +562,24 @@ class DiscretePlaneWave(Source):
             H_coefficients, double array : stores the coefficients of the fields in the equation to update magnetic fields
 
         '''
-        self.E_fields = np.zeros((self.dimensions, self.length), order='C')
-        self.H_fields = np.zeros((self.dimensions, self.length), order='C')
+        self.E_fields = np.zeros((3, self.length), order='C')
+        self.H_fields = np.zeros((3, self.length), order='C')
     
-        self.E_coefficients = np.zeros(3*self.dimensions)     #coefficients in the update equations of the electric field
-        self.H_coefficients = np.zeros(3*self.dimensions)     #coefficients in the update equations of the magnetic field
+        self.E_coefficients = np.zeros(9)     #coefficients in the update equations of the electric field
+        self.H_coefficients = np.zeros(9)     #coefficients in the update equations of the magnetic field
         impedance = constants.c*constants.mu_0   #calculate the impedance of free space 
     
-        for i in range(self.dimensions): #loop to calculate the coefficients for each dimension
+        for i in range(3): #loop to calculate the coefficients for each dimension
             self.E_coefficients[3*i] = 1.0
-            self.E_coefficients[3*i+1] = dt/(constants.epsilon_0*dl[(i+1)%self.dimensions])
-            self.E_coefficients[3*i+2] = dt/(constants.epsilon_0*dl[(i+2)%self.dimensions])        
+            self.E_coefficients[3*i+1] = G.dt/(constants.epsilon_0*G.dx)
+            self.E_coefficients[3*i+2] = G.dt/(constants.epsilon_0*G.dx)        
             
             self.H_coefficients[3*i] = 1.0
-            self.H_coefficients[3*i+1] = dt/(constants.mu_0*dl[(i+2)%self.dimensions])
-            self.H_coefficients[3*i+2] = dt/(constants.mu_0*dl[(i+1)%self.dimensions])
+            self.H_coefficients[3*i+1] = G.dt/(constants.mu_0*G.dx)
+            self.H_coefficients[3*i+2] = G.dt/(constants.mu_0*G.dx)
         
     
-    def runDiscretePlaneWave(self, psi, phi, Delta_phi, theta, Delta_theta, number, dx, dy, dz):
+    def initDiscretePlaneWave(self, psi, phi, Delta_phi, theta, Delta_theta, G):
         '''
         Method to create a DPW, assign memory to the grids and get field values at different time and space indices
         __________________________
@@ -609,13 +607,13 @@ class DiscretePlaneWave(Source):
 
         '''
         self.directions, self.m = getIntegerForAngles(phi, Delta_phi, theta, Delta_theta,
-                                          np.array([dx, dy, dz]))   #get the integers for the nearest rational angle
+                                          np.array([G.dx, G.dy, G.dz]))   #get the integers for the nearest rational angle
         #store max(m_x, m_y, m_z) in the last element of the array
         print("[m_x, m_y, m_z] :", self.m[:-1])
-        print("Approximated Phi : ", "{:.3f}".format(np.arctan2(self.m[1]/dy, self.m[0]/dx)*180/np.pi))
-        print("Approximated Theta : ", "{:.3f}".format(np.arctan2(np.sqrt((self.m[0]/dx)*(self.m[0]/dx)+
-(self.m[1]/dy)*(self.m[1]/dy)), self.m[2]/dz)*180/np.pi))
-        self.length = int(2*np.sum(self.m[:-1])*number)                  #set an appropriate length fo the one dimensional arrays
+        print("Approximated Phi : ", "{:.3f}".format(np.arctan2(self.m[1]/G.dy, self.m[0]/G.dx)*180/np.pi))
+        print("Approximated Theta : ", "{:.3f}".format(np.arctan2(np.sqrt((self.m[0]/G.dx)*(self.m[0]/G.dx)+
+(self.m[1]/G.dy)*(self.m[1]/G.dy)), self.m[2]/G.dz)*180/np.pi))
+        self.length = int(2*np.sum(self.m[:-1])*max(G.nx, G.ny, G.nz))                  #set an appropriate length fo the one dimensional arrays
         #the 1D grid has no ABC to terminate it, sufficiently long array prevents reflections from the back 
         #self.m = np.abs(self.m.astype(np.int32, copy=False))        #typecast to positive integers
         # Projections for field components
@@ -627,11 +625,11 @@ class DiscretePlaneWave(Source):
                 if self.m[2] == 0:
                     raise ValueError("not all m_i values can be zero")
                 else:
-                    self.ds = P[2]*dz/self.m[2]
+                    self.ds = P[2]*G.dz/self.m[2]
             else:
-                self.ds = P[1]*dy/self.m[1]
+                self.ds = P[1]*G.dy/self.m[1]
         else:
-            self.ds = P[0]*dx/self.m[0]
+            self.ds = P[0]*G.dx/self.m[0]
 
     def getSource(self, time):
         '''

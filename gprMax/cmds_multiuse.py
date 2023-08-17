@@ -725,7 +725,7 @@ class TransmissionLine(UserObjectMulti):
 Add the UserMultiObject Class for the Discrete Plane Wave Implementation
 ------------------------------------------------------------------------------
 """
-class PlaneWaves(UserObjectMulti):
+class DiscretePlaneWave(UserObjectMulti):
     """
     Specifies a plane wave implemented using the discrete plane wave formulation.
 
@@ -747,47 +747,55 @@ class PlaneWaves(UserObjectMulti):
         ppw, double         : stores the number of points per wavelength for the requested source
     """
 
-    def __init__(self, dictOfParams, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.dimensions = 3
-        self.x_length = dictOfParams['x_domain']
-        self.y_length = dictOfParams['y_domain']
-        self.z_length = dictOfParams['z_domain']
-        self.time_duration = dictOfParams['t_domain']
-        self.dx = dictOfParams['x_discretization']
-        self.dy = dictOfParams['y_discretization']
-        self.dz = dictOfParams['z_discretization']
-        self.dt = dictOfParams['t_discretization']
-        self.corners = dictOfParams['box_corners']
-        self.noOfWaves  = dictOfParams['number_of_waves']
-        self.snapshot = dictOfParams['snapshot_frequency']
-        self.ppw = dictOfParams['ppw']
+        self.order = 6
+        self.hash = "#discrete_plane_wave"
 
-    def create(self, number_x, number_y, number_z):
-        angles = np.array([[-np.pi/2, 180+63.4, 2, 180-36.7, 1],
-                   [np.pi/2, 63.4, 2, 36.7, 1]])
-        print("Starting the FDTD run...")
-        start = time.time()
+    def create(self, grid, uip):
+        try:
+            theta = self.kwargs["theta"]
+            dtheta = self.kwargs["delta_theta"]
+            phi = self.kwargs["phi"]
+            dphi = self.kwargs["delta_phi"]
+            psi = self.kwargs["psi"]
+            p1 = self.kwargs["p1"]
+            p2 = self.kwargs["p2"]
+            waveform_id = self.kwargs["waveform_id"]
+        except KeyError:
+            logger.exception(f"{self.params_str()} requires at least eight parameters.")
+            raise
+        
+        # Warn about using a discrete plane wave on GPU
+        if config.sim_config.general["solver"] in ["cuda", "opencl"]:
+            logger.exception(
+                f"{self.params_str()} cannot currently be used "
+                + "with the CUDA or OpenCL-based solver. Consider "
+                + "using a #voltage_source instead."
+            )
+            raise ValueError
+
+        # Check if there is a waveformID in the waveforms list
+        if not any(x.ID == waveform_id for x in grid.waveforms):
+            logger.exception(f"{self.params_str()} there is no waveform " + f"with the identifier {waveform_id}.")
+            raise ValueError
+
+
+        DPW = DiscretePlaneWaveUser(grid)
+        DPW.corners = np.array([p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]])
+        DPW.initDiscretePlaneWave(psi, phi, dphi, theta, dtheta, grid)
+        DPW.initialize1DGrid(grid)
+
+        grid.discreteplanewaves.append(DPW)
         '''
         DPW = []
         start = time.time()
         for i in range(self.noOfWaves):
             DPW.append(DiscretePlaneWaveUser(self.time_duration, self.dimensions, number_x, number_y, number_z))
-        '''
-
-        DPW = DiscretePlaneWaveUser(self.time_duration, self.dimensions, number_x, number_y, number_z)
-        DPW.initializeGrid(np.array([self.dx, self.dy, self.dz]), self.dt)
-        DPW.runDiscretePlaneWave(np.pi/2, 63.4, 2, 36.7, 1, 25, self.dx, self.dy, self.dz)
         
-        '''
         SpaceGrid = TFSFBoxUser(number_x, number_y, number_z, self.corners, self.time_duration,	self.dimensions, self.noOfWaves)
         SpaceGrid.getFields(DPW, self.snapshot, angles, number, self.dx, self.dy, self.dz, self.dt, self.ppw)
         '''
-        
-        end = time.time()
-
-        print("Elapsed (with compilation) = %s sec" % (end - start))
-
 """
 ------------------------------------------------------------------------------
 End of the UserMultiObject Class for the Discrete Plane Wave Implementation
