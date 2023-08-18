@@ -100,10 +100,10 @@ class CPUUpdates:
     def update_plane_waves(self):
         """Updates the magnetic and electric field components for the discrete plane wave."""
         for source in self.grid.discreteplanewaves:
-            source.update_magnetic_field_1D()
+            source.update_magnetic_field_1D(self.grid)
             source.apply_TFSF_conditions_magnetic(self.grid)
             source.apply_TFSF_conditions_electric(self.grid)
-            source.update_electric_field_1D()
+            source.update_electric_field_1D(self.grid)
             source.real_time += self.grid.dt
 
     def update_electric_a(self):

@@ -73,6 +73,7 @@ class FDTDGrid:
         self.hertziandipoles = []
         self.magneticdipoles = []
         self.transmissionlines = []
+        self.discreteplanewaves = []
         self.rxs = []
         self.srcsteps = [0, 0, 0]
         self.rxsteps = [0, 0, 0]

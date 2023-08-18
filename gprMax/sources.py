@@ -619,15 +619,10 @@ class DiscretePlaneWave(Source):
         self.directions, self.m = getIntegerForAngles(phi, Delta_phi, theta, Delta_theta,
                                           np.array([G.dx, G.dy, G.dz]))   #get the integers for the nearest rational angle
         #store max(m_x, m_y, m_z) in the last element of the array
-        print("[m_x, m_y, m_z] :", self.m[:-1])
-        print("Approximated Phi : ", "{:.3f}".format(np.arctan2(self.m[1]/G.dy, self.m[0]/G.dx)*180/np.pi))
-        print("Approximated Theta : ", "{:.3f}".format(np.arctan2(np.sqrt((self.m[0]/G.dx)*(self.m[0]/G.dx)+
-(self.m[1]/G.dy)*(self.m[1]/G.dy)), self.m[2]/G.dz)*180/np.pi))
         self.length = int(2*np.sum(self.m[:-1])*max(G.nx, G.ny, G.nz))                  #set an appropriate length fo the one dimensional arrays
         #the 1D grid has no ABC to terminate it, sufficiently long array prevents reflections from the back 
-        #self.m = np.abs(self.m.astype(np.int32, copy=False))        #typecast to positive integers
         # Projections for field components
-        projections_h, P = getProjections(psi, self.m)  #get the projection vertors for different fields
+        projections_h, P = getProjections(psi*180/np.pi, self.m)  #get the projection vertors for different fields
         self.projections = projections_h / np.sqrt(config.m0/config.e0) #scale the projection vector for the mangetic field
         
         if self.m[0] == 0:       #calculate dr that is needed for sourcing the 1D array
@@ -641,6 +636,55 @@ class DiscretePlaneWave(Source):
         else:
             self.ds = P[0]*G.dx/self.m[0]
 
+    """
+    def getSource(self, time, wavetype, dt=0.0):
+    '''
+    Method to get the magnitude of the source field in the direction perpendicular to the propagation of the plane wave
+        __________________________
+
+        Input parameters:
+        --------------------------
+            time, float      : time at which the magnitude of the source is calculated
+            ppw, int         : points per wavelength for the wave source
+            wavetype, string : stores the type of waveform whose magnitude should be returned
+            dt, double       : the time upto which the wave should exist in a impulse delta pulse
+
+        __________________________
+
+        Returns:
+        --------------------------
+            sourceMagnitude, double : magnitude of the source for the requested indices at the current time
+    '''
+    # Waveforms
+    if (wavetype is "gaussian"):
+        return np.exp(-(np.pi*(time/self.ppw - 1.0))**2)
+
+    elif (wavetype in ["gaussiandot", "gaussianprime"]):
+        return 4 * np.pi/self.ppw * (np.pi*(time/self.ppw - 1.0)) * np.exp(-(np.pi*(time/self.ppw - 1.0))**2))
+
+    elif (wavetype is "gaussiandotnorm"):
+        return 2 * (np.pi*(time/self.ppw - 1.0)) * np.exp(-(np.pi*(time/self.ppw - 1.0))**2))
+
+    elif (wavetype in ["gaussiandotdot", "gaussiandoubleprime"]):
+        return 2 * np.pi*np.pi/(self.ppw*self.ppw) * (1.0-2.0*(np.pi*(time/self.ppw - 1.0))*(M_PI*(time/ppw - 1.0))
+                ) * exp(-(M_PI*(time/<double>ppw - 1.0)) * (M_PI*(time/<double>ppw - 1.0)))
+    
+    elif (strcmp(wavetype, "gaussiandotdotnorm") == 0 or strcmp(wavetype, "ricker") == 0):
+        return (1.0 - 2.0*(M_PI*(time/<double>ppw - 1.0)) * (M_PI*(time/<double>ppw - 1.0))
+                ) * exp(-(M_PI*(time/<double>ppw - 1.0)) * (M_PI*(time/<double>ppw - 1.0)))  # define a Ricker wave source
+
+    elif (strcmp(wavetype, "sine") == 0):
+        return sin(2 * M_PI * time/<double>ppw)
+
+    elif (strcmp(wavetype, "contsine") == 0):
+        return min(0.25 * time/<double>ppw, 1) * sin(2 * M_PI * time/<double>ppw)
+
+    elif (strcmp(wavetype, "impulse") == 0):
+        if (time < dt):                         # time < dt condition required to do impulsive magnetic dipole
+            return 1
+        else:
+            return 0
+    """
     def getSource(self, time):
         '''
         Method to get the magnitude of the source field in the direction perpendicular to the propagation of the plane wave
@@ -672,7 +716,7 @@ class DiscretePlaneWave(Source):
                                 self.m[(k+1)%3]+self.m[(k+2)%3])*0.5)*self.ds/config.c)#, self.waveformID, self.dt)
 
 
-    def update_magnetic_field_1D(self):
+    def update_magnetic_field_1D(self, G):
         '''
         Method to update the magnetic fields for the next time step using
         Equation 8 of DOI: 10.1109/LAWP.2009.2016851
@@ -700,7 +744,7 @@ class DiscretePlaneWave(Source):
                     self.E_fields[(i+1)%3, j+self.m[(i+2)%3]] - self.E_fields[(i+1)%3, j]) - self.H_coefficients[3*i+2] * (
                     self.E_fields[(i+2)%3, j+self.m[(i+1)%3]] - self.E_fields[(i+2)%3, j])     #equation 8 of Tan, Potter paper
     
-    def update_electric_field_1D(self):
+    def update_electric_field_1D(self, G):
         '''
         Method to update the electric fields for the next time step using
         Equation 9 of DOI: 10.1109/LAWP.2009.2016851
@@ -726,6 +770,9 @@ class DiscretePlaneWave(Source):
                     self.H_fields[(i+2)%3, j] - self.H_fields[(i+2)%3, j-self.m[(i+1)%3]]) - self.E_coefficients[3*i+2] * ( 
                     self.H_fields[(i+1)%3, j] - self.H_fields[(i+1)%3, j-self.m[(i+2)%3]])  #equation 9 of Tan, Potter paper
 
+        if(G.iteration % 10 == 0):
+            np.save('./snapshots/electric_z_{}.npy'.format(G.iteration), G.Ex)
+
     
     def getField(self, i, j, k, array, m, component):
         buffer = 10
@@ -739,71 +786,70 @@ class DiscretePlaneWave(Source):
         for j in range(self.corners[1], self.corners[4]+1):
             for k in range(self.corners[2], self.corners[5]):
                 #correct Hy at firstX-1/2 by subtracting Ez_inc
-                G.Hy[i-1, j, k] -= self.E_coefficients[5] * self.getField(i, j, k, self.E_fields, self.m, 2) 
+                G.Hy[i-1, j, k] -= self.H_coefficients[5] * self.getField(i, j, k, self.E_fields, self.m, 2) 
 
         for j in range(self.corners[1], self.corners[4]):
             for k in range(self.corners[2], self.corners[5]+1):
                 #correct Hz at firstX-1/2 by adding Ey_inc
-                G.Hz[i-1, j, k] += self.E_coefficients[8] * self.getField(i, j, k, self.E_fields, self.m, 1)
+                G.Hz[i-1, j, k] += self.H_coefficients[8] * self.getField(i, j, k, self.E_fields, self.m, 1)
 
         i = self.corners[3]
         for j in range(self.corners[1], self.corners[4]+1):
             for k in range(self.corners[2], self.corners[5]):
                 #correct Hy at lastX+1/2 by adding Ez_inc
-                G.Hy[i, j, k] += self.E_coefficients[5] * self.getField(i, j, k, self.E_fields, self.m, 2)    
+                G.Hy[i, j, k] += self.H_coefficients[5] * self.getField(i, j, k, self.E_fields, self.m, 2)    
 
         for j in range(self.corners[1], self.corners[4]):
             for k in range(self.corners[2], self.corners[5]+1):
                 #correct Hz at lastX+1/2 by subtractinging Ey_inc
-                G.Hz[i, j, k] -= self.E_coefficients[8] * self.getField(i, j, k, self.E_fields, self.m, 1)            
+                G.Hz[i, j, k] -= self.H_coefficients[8] * self.getField(i, j, k, self.E_fields, self.m, 1)            
 
         #**** constant y faces -- scattered-field nodes ****
         j = self.corners[1]
         for i in range(self.corners[0], self.corners[3]+1):
             for k in range(self.corners[2], self.corners[5]):
                 #correct Hx at firstY-1/2 by adding Ez_inc
-                G.Hx[i, j-1, k] += self.E_coefficients[2] * self.getField(i, j, k, self.E_fields, self.m, 2)
+                G.Hx[i, j-1, k] += self.H_coefficients[2] * self.getField(i, j, k, self.E_fields, self.m, 2)
 
         for i in range(self.corners[0], self.corners[3]):
             for k in range(self.corners[2], self.corners[5]+1):
                 #correct Hz at firstY-1/2 by subtracting Ex_inc
-                G.Hz[i, j-1, k] -= self.E_coefficients[7] * self.getField(i, j, k, self.E_fields, self.m, 0)
+                G.Hz[i, j-1, k] -= self.H_coefficients[7] * self.getField(i, j, k, self.E_fields, self.m, 0)
 
         j = self.corners[4]
         for i in range(self.corners[0], self.corners[3]+1):
             for k in range(self.corners[2], self.corners[5]):
                 #correct Hx at lastY+1/2 by subtracting Ez_inc
-                G.Hx[i, j, k] -= self.E_coefficients[2] * self.getField(i, j, k, self.E_fields, self.m, 2)
+                G.Hx[i, j, k] -= self.H_coefficients[2] * self.getField(i, j, k, self.E_fields, self.m, 2)
 
         for i in range(self.corners[0], self.corners[3]):
             for k in range(self.corners[2], self.corners[5]+1):
                 #correct Hz at lastY-1/2 by adding Ex_inc
-                G.Hz[i, j, k] += self.E_coefficients[7] * self.getField(i, j, k, self.E_fields, self.m, 0)
+                G.Hz[i, j, k] += self.H_coefficients[7] * self.getField(i, j, k, self.E_fields, self.m, 0)
 
         #**** constant z faces -- scattered-field nodes ****
         k = self.corners[2]
         for i in range(self.corners[0], self.corners[3]):
             for j in range(self.corners[1], self.corners[4]+1):
                 #correct Hy at firstZ-1/2 by adding Ex_inc
-                G.Hy[i, j, k-1] += self.E_coefficients[5] * self.getField(i, j, k, self.E_fields, self.m, 0)
+                G.Hy[i, j, k-1] += self.H_coefficients[5] * self.getField(i, j, k, self.E_fields, self.m, 0)
 
         for i in range(self.corners[0], self.corners[3]+1):
             for j in range(self.corners[1], self.corners[4]):
                 #correct Hx at firstZ-1/2 by subtracting Ey_inc
-                G.Hx[i, j, k-1] -= self.E_coefficients[1] * self.getField(i, j, k, self.E_fields, self.m, 1)
+                G.Hx[i, j, k-1] -= self.H_coefficients[1] * self.getField(i, j, k, self.E_fields, self.m, 1)
 
         k = self.corners[5]
         for i in range(self.corners[0], self.corners[3]):
             for j in range(self.corners[1], self.corners[4]+1):
                 #correct Hy at firstZ-1/2 by subtracting Ex_inc
-                G.Hy[i, j, k] -= self.E_coefficients[5] * self.getField(i, j, k, self.E_fields, self.m, 0)
+                G.Hy[i, j, k] -= self.H_coefficients[5] * self.getField(i, j, k, self.E_fields, self.m, 0)
 
         for i in range(self.corners[0], self.corners[3]+1):
             for j in range(self.corners[1], self.corners[4]):
                 #correct Hx at lastZ+1/2 by adding Ey_inc
-                G.Hx[i, j, k] += self.E_coefficients[1] * self.getField(i, j, k, self.E_fields, self.m, 1)
-         
-        #return h_x, h_y, h_z 
+                G.Hx[i, j, k] += self.H_coefficients[1] * self.getField(i, j, k, self.E_fields, self.m, 1)
+
     
 
 
@@ -813,72 +859,71 @@ class DiscretePlaneWave(Source):
         for j in range(self.corners[1], self.corners[4]+1):
             for k in range(self.corners[2], self.corners[5]):
                 #correct Ez at firstX face by subtracting Hy_inc
-                G.Ez[i, j, k] -= self.H_coefficients[7] * self.getField(i-1, j, k, self.H_fields, self.m, 1)
+                G.Ez[i, j, k] -= self.E_coefficients[7] * self.getField(i-1, j, k, self.H_fields, self.m, 1)
 
         for j in range(self.corners[1], self.corners[4]):
             for k in range(self.corners[2], self.corners[5]+1):
                 #correct Ey at firstX face by adding Hz_inc
-                G.Ey[i, j, k] += self.H_coefficients[4] * self.getField(i-1, j, k, self.H_fields, self.m, 2)
+                G.Ey[i, j, k] += self.E_coefficients[4] * self.getField(i-1, j, k, self.H_fields, self.m, 2)
 
         i = self.corners[3]
         for j in range(self.corners[1], self.corners[4]+1):
             for k in range(self.corners[2], self.corners[5]):
                 #correct Ez at lastX face by adding Hy_inc
-                G.Ez[i, j, k] += self.H_coefficients[7] * self.getField(i, j, k, self.H_fields, self.m, 1)
+                G.Ez[i, j, k] += self.E_coefficients[7] * self.getField(i, j, k, self.H_fields, self.m, 1)
 
         i = self.corners[3]
         for j in range(self.corners[1], self.corners[4]):
             for k in range(self.corners[2], self.corners[5]+1):
                 #correct Ey at lastX face by subtracting Hz_inc
-                G.Ey[i, j, k] -= self.H_coefficients[4] * self.getField(i, j, k, self.H_fields, self.m, 2)
+                G.Ey[i, j, k] -= self.E_coefficients[4] * self.getField(i, j, k, self.H_fields, self.m, 2)
 
         #**** constant y faces -- total-field nodes ****/
         j = self.corners[1]
         for i in range(self.corners[0], self.corners[3]+1):
             for k in range(self.corners[2], self.corners[5]):
                 #correct Ez at firstY face by adding Hx_inc
-                G.Ez[i, j, k] += self.H_coefficients[8] * self.getField(i, j-1, k, self.H_fields, self.m, 0)
+                G.Ez[i, j, k] += self.E_coefficients[8] * self.getField(i, j-1, k, self.H_fields, self.m, 0)
 
         for i in range(self.corners[0], self.corners[3]):
             for k in range(self.corners[2], self.corners[5]+1):
                 #correct Ex at firstY face by subtracting Hz_inc
-                G.Ex[i, j, k] -= self.H_coefficients[1] * self.getField(i, j-1, k, self.H_fields, self.m, 2)
+                G.Ex[i, j, k] -= self.E_coefficients[1] * self.getField(i, j-1, k, self.H_fields, self.m, 2)
 
         j = self.corners[4]
         for i in range(self.corners[0], self.corners[3]+1):
             for k in range(self.corners[2], self.corners[5]):
                 #correct Ez at lastY face by subtracting Hx_inc
-                G.Ez[i, j, k] -= self.H_coefficients[8] * self.getField(i, j, k, self.H_fields, self.m, 0)
+                G.Ez[i, j, k] -= self.E_coefficients[8] * self.getField(i, j, k, self.H_fields, self.m, 0)
 
         for i in range(self.corners[0], self.corners[3]):
             for k in range(self.corners[2], self.corners[5]+1):
                 #correct Ex at lastY face by adding Hz_inc
-                G.Ex[i, j, k] += self.H_coefficients[1] * self.getField(i, j, k, self.H_fields, self.m, 2)
+                G.Ex[i, j, k] += self.E_coefficients[1] * self.getField(i, j, k, self.H_fields, self.m, 2)
 
         #**** constant z faces -- total-field nodes ****/
         k = self.corners[2]
         for i in range(self.corners[0], self.corners[3]+1):
             for j in range(self.corners[1], self.corners[4]):
                 #correct Ey at firstZ face by subtracting Hx_inc
-                G.Ey[i, j, k] -= self.H_coefficients[4] * self.getField(i, j, k-1, self.H_fields, self.m, 0)
+                G.Ey[i, j, k] -= self.E_coefficients[4] * self.getField(i, j, k-1, self.H_fields, self.m, 0)
 
         for i in range(self.corners[0], self.corners[3]):
             for j in range(self.corners[1], self.corners[4]+1):
                 #correct Ex at firstZ face by adding Hy_inc
-                G.Ex[i, j, k] += self.H_coefficients[2] * self.getField(i, j, k-1, self.H_fields, self.m, 1)
+                G.Ex[i, j, k] += self.E_coefficients[2] * self.getField(i, j, k-1, self.H_fields, self.m, 1)
 
         k = self.corners[5]
         for i in range(self.corners[0], self.corners[3]+1):
             for j in range(self.corners[1], self.corners[4]):
                 #correct Ey at lastZ face by adding Hx_inc
-                G.Ey[i, j, k] += self.H_coefficients[4] * self.getField(i, j, k, self.H_fields, self.m, 0)
+                G.Ey[i, j, k] += self.E_coefficients[4] * self.getField(i, j, k, self.H_fields, self.m, 0)
 
         for i in range(self.corners[0], self.corners[3]):
             for j in range(self.corners[1], self.corners[4]+1):
                 #correct Ex at lastZ face by subtracting Hy_inc
-                G.Ex[i, j, k] -= self.H_coefficients[2] * self.getField(i, j, k, self.H_fields, self.m, 1)
-
-        #return e_x, e_y, e_z 
+                G.Ex[i, j, k] -= self.E_coefficients[2] * self.getField(i, j, k, self.H_fields, self.m, 1)
+        
            
 
 

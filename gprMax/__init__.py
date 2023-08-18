@@ -42,7 +42,7 @@ from .cmds_multiuse import (
     VoltageSource,
     Waveform,
 )
-from .cmds_multiuse import PlaneWaves
+from .cmds_multiuse import DiscretePlaneWave
 
 from .cmds_singleuse import (
     Discretisation,
