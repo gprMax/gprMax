@@ -40,7 +40,6 @@ from .sources import MagneticDipole as MagneticDipoleUser
 from .sources import TransmissionLine as TransmissionLineUser
 from .sources import VoltageSource as VoltageSourceUser
 from .sources import DiscretePlaneWave as DiscretePlaneWaveUser
-from .sources import TFSFBox as TFSFBoxUser
 from .subgrids.grid import SubGridBaseGrid
 from .utilities.utilities import round_value
 from .waveforms import Waveform as WaveformUser
@@ -777,9 +776,8 @@ class DiscretePlaneWave(UserObjectMulti):
 
         DPW = DiscretePlaneWaveUser(grid)
         DPW.corners = np.array([x_start, y_start, z_start, x_stop, y_stop, z_stop])
-        DPW.initDiscretePlaneWave(psi, phi, dphi, theta, dtheta, grid)
-        DPW.initialize1DGrid(grid)
-        print(DPW.corners)
+        DPW.waveformID = waveform_id
+        DPW.initializeDiscretePlaneWave(psi, phi, dphi, theta, dtheta, grid)
         
         try:
             # Check source start & source remove time parameters
@@ -795,16 +793,16 @@ class DiscretePlaneWave(UserObjectMulti):
             if stop - start <= 0:
                 logger.exception(self.params_str() + (" duration of the source " "should not be zero or " "less."))
                 raise ValueError
-            #t.start = start
-            #t.stop = min(stop, grid.timewindow)
+            DPW.start = start
+            DPW.stop = min(stop, grid.timewindow)
             startstop = f" start time {t.start:g} secs, finish time " + f"{t.stop:g} secs "
         except KeyError:
-            start = 0
-            stop = grid.timewindow
-            #t.start = 0
-            #t.stop = grid.timewindow
+            DPW.start = 0
+            DPW.stop = grid.timewindow
             startstop = " "
 
+        DPW.calculate_waveform_values(grid)
+        
         logger.info(
             f"{self.grid_name(grid)} Discrete Plane Wave within the TFSF Box " 
             + f"spanning from {p1} m to {p2} m, incident in the direction "
