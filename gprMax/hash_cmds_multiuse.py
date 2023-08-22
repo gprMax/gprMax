@@ -34,6 +34,7 @@ from .cmds_multiuse import (
     Snapshot,
     SoilPeplinski,
     TransmissionLine,
+    DiscretePlaneWave,
     VoltageSource,
     Waveform,
 )
@@ -170,6 +171,89 @@ def process_multicmds(multicmds):
                 raise ValueError
 
             scene_objects.append(tl)
+
+    cmdname = "#discrete_plane_wave"
+    if multicmds[cmdname] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if len(tmp) < 10:
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires at least ten parameters")
+                raise ValueError
+
+            if len(tmp) == 10:
+                plWave = gprMax.DiscretePlaneWave(
+                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                    psi = float(tmp[6]),
+                    phi = float(tmp[7]),
+                    theta = float(tmp[8]), 
+                    waveform_id = tmp[9],
+                )
+            elif len(tmp) == 11:
+                plWave = gprMax.DiscretePlaneWave(
+                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                    psi = float(tmp[6]),
+                    phi = float(tmp[7]),
+                    theta = float(tmp[9]),
+                    waveform_id = tmp[11],
+                    material_ID = int(tmp[12]),
+                )
+            elif len(tmp) == 12:
+                plWave = gprMax.DiscretePlaneWave(
+                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                    psi = float(tmp[6]),
+                    phi = float(tmp[7]),
+                    delta_phi = float(tmp[8]),
+                    theta = float(tmp[9]), 
+                    delta_theta = float(tmp[10]),
+                    waveform_id = tmp[11],
+                )
+            elif len(tmp) == 13:
+                plWave = gprMax.DiscretePlaneWave(
+                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                    psi = float(tmp[6]),
+                    phi = float(tmp[7]),
+                    delta_phi = float(tmp[8]),
+                    theta = float(tmp[9]), 
+                    delta_theta = float(tmp[10]),
+                    waveform_id = tmp[11],
+                    material_ID = int(tmp[12]),
+                )
+            elif len(tmp) == 14:
+                plWave = gprMax.DiscretePlaneWave(
+                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                    psi = float(tmp[6]),
+                    phi = float(tmp[7]),
+                    delta_phi = float(tmp[8]),
+                    theta = float(tmp[9]), 
+                    delta_theta = float(tmp[10]),
+                    waveform_id = tmp[11],
+                    start = float(tmp[12]),
+                    stop = float(tmp[13]),
+                )
+            elif len(tmp) == 15:
+                plWave = gprMax.DiscretePlaneWave(
+                    p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
+                    p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
+                    psi = float(tmp[6]),
+                    phi = float(tmp[7]),
+                    delta_phi = float(tmp[8]),
+                    theta = float(tmp[9]), 
+                    delta_theta = float(tmp[10]),
+                    waveform_id = tmp[11],
+                    material_ID = int(tmp[12]),
+                    start = float(tmp[13]),
+                    stop = float(tmp[14]),
+                )
+            else:
+                logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " too many parameters")
+                raise ValueError
+
+            scene_objects.append(plWave)
 
     cmdname = "#rx"
     if multicmds[cmdname] is not None:

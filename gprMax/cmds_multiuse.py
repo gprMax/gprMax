@@ -775,10 +775,15 @@ class DiscretePlaneWave(UserObjectMulti):
         x_stop, y_stop, z_stop = uip.check_src_rx_point(p2, self.params_str())
 
         DPW = DiscretePlaneWaveUser(grid)
-        DPW.corners = np.array([x_start, y_start, z_start, x_stop, y_stop, z_stop])
+        DPW.corners = np.array([x_start, y_start, z_start, x_stop, y_stop, z_stop], dtype=np.int32)
         DPW.waveformID = waveform_id
         DPW.initializeDiscretePlaneWave(psi, phi, dphi, theta, dtheta, grid)
-        
+
+        try:
+            DPW.material_ID = self.kwargs["material_id"]
+        except KeyError:
+            DPW.material_ID = 1
+
         try:
             # Check source start & source remove time parameters
             start = self.kwargs["start"]

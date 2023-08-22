@@ -26,7 +26,7 @@ from .fields_outputs import Ix, Iy, Iz
 from .utilities.utilities import round_value
 
 import scipy.constants as constants
-from .cython.planeWaveModules import getIntegerForAngles, getProjections, getGridFields
+from .cython.planeWaveModules import getIntegerForAngles, getProjections, calculate1DWaveformValues, updatePlaneWave
 
 class Source:
     """Super-class which describes a generic source."""
@@ -492,7 +492,7 @@ class TransmissionLine(Source):
 
 
 class DiscretePlaneWave(Source):
-    '''
+    """
     Class to implement the discrete plane wave (DPW) formulation as described in
     Tan, T.; Potter, M. (2010). 
     FDTD Discrete Planewave (FDTD-DPW) Formulation for a Perfectly Matched Source in TFSF Simulations. ,
@@ -508,11 +508,11 @@ class DiscretePlaneWave(Source):
         time_dimension, int    : stores the time length over which the simulation is run
         E_fileds, double array : stores the electric flieds associated with the 1D DPW
         H_fields, double array : stores the magnetic fields associated with the 1D DPW
-    '''
+    """
     
     
     def __init__(self, G):     
-        '''
+        """
         Defines the instance variables of class DiscretePlaneWave()
         __________________________
 
@@ -520,17 +520,18 @@ class DiscretePlaneWave(Source):
         --------------------------
             time_dimension, int : local variable to store the time length over which the simulation is run 
             dimensions, int     : local variable to store the number of dimensions in which the simulation is run
-        '''
+        """
         super().__init__()
         self.m = np.zeros(3+1, dtype=np.int32)          #+1 to store the max(m_x, m_y, m_z)
         self.directions = np.zeros(3, dtype=np.int32)
         self.length = 0
-        self.projections = np.zeros(3)
+        self.projections = np.zeros(3, dtype=config.sim_config.dtypes["float_or_double"])
         self.corners = None
+        self.materialID = 1
         self.ds = 0                
     
     def initializeDiscretePlaneWave(self, psi, phi, Delta_phi, theta, Delta_theta, G):
-        '''
+        """
         Method to create a DPW, assign memory to the grids and get field values at different time and space indices
         __________________________
 
@@ -555,7 +556,7 @@ class DiscretePlaneWave(Source):
             C, double array          : stores the coefficients of the fields for the update equation of the electric fields
             D, double array          : stores the coefficients of the fields for the update equation of the magnetic fields
 
-        '''
+        """
         self.directions, self.m = getIntegerForAngles(phi, Delta_phi, theta, Delta_theta,
                                           np.array([G.dx, G.dy, G.dz]))   #get the integers for the nearest rational angle
         #store max(m_x, m_y, m_z) in the last element of the array
@@ -587,13 +588,15 @@ class DiscretePlaneWave(Source):
                 G: FDTDGrid class describing a grid in a model.
         """
         # Waveform values for sources that need to be calculated on whole timesteps
-        self.waveformvalues_wholedt = np.zeros((3, G.iterations, self.m[3]), dtype=config.sim_config.dtypes["float_or_double"])
+        self.waveformvalues_wholedt = np.zeros((G.iterations, 3, self.m[3]), dtype=config.sim_config.dtypes["float_or_double"])
 
         # Waveform values for sources that need to be calculated on half timesteps
         #self.waveformvalues_halfdt = np.zeros((G.iterations), dtype=config.sim_config.dtypes["float_or_double"])
 
         waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-
+        calculate1DWaveformValues(self.waveformvalues_wholedt, G.iterations, self.m, G.dt, self.ds, config.c, 
+                                  self.start, self.stop, waveform.freq, waveform.type.encode('UTF-8'))
+        '''
         for dimension in range(3):
             for iteration in range(G.iterations):            
                 for r in range(self.m[3]):
@@ -602,9 +605,15 @@ class DiscretePlaneWave(Source):
                         # Set the time of the waveform evaluation to account for any
                         # delay in the start
                         time -= self.start
-                        self.waveformvalues_wholedt[dimension, iteration, r] = waveform.calculate_value(time, G.dt)
+                        self.waveformvalues_wholedt[iteration, dimension, r] = waveform.calculate_value(time, G.dt)
                         #self.waveformvalues_halfdt[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
+        '''
 
+    def update_plane_wave(self, nthreads, updatecoeffsE, updatecoeffsH, Ex, Ey, Ez, Hx, Hy, Hz, iteration):
+        updatePlaneWave(self.length, nthreads, self.H_fields, self.E_fields, 
+                          updatecoeffsE[self.material_ID, :], updatecoeffsH[self.material_ID, :],
+                          Ex, Ey, Ez, Hx, Hy, Hz, self.projections, self.waveformvalues_wholedt[iteration, :, :],
+                          self.m, self.corners)
 
     def initialize_magnetic_fields_1D(self, G):
         for dimension in range(3):
@@ -614,7 +623,7 @@ class DiscretePlaneWave(Source):
 
 
     def update_magnetic_field_1D(self, G):
-        '''
+        """
         Method to update the magnetic fields for the next time step using
         Equation 8 of DOI: 10.1109/LAWP.2009.2016851
         __________________________
@@ -632,7 +641,8 @@ class DiscretePlaneWave(Source):
         --------------------------
             H_fields, double array       : magnetic field array with the axis entry for the current time added
 
-        '''
+        """
+
         self.initialize_magnetic_fields_1D(G)
         
         for i in range(3):          #loop to update each component of the magnetic field
@@ -643,9 +653,10 @@ class DiscretePlaneWave(Source):
                 self.H_fields[i, j] = G.updatecoeffsH[materialH, 0] * self.H_fields[i, j] + G.updatecoeffsH[materialH, (i+2)%3+1] * (
                     self.E_fields[(i+1)%3, j+self.m[(i+2)%3]] - self.E_fields[(i+1)%3, j]) - G.updatecoeffsH[materialH, (i+1)%3+1] * (
                     self.E_fields[(i+2)%3, j+self.m[(i+1)%3]] - self.E_fields[(i+2)%3, j])     #equation 8 of Tan, Potter paper
+        
     
     def update_electric_field_1D(self, G):
-        '''
+        """
         Method to update the electric fields for the next time step using
         Equation 9 of DOI: 10.1109/LAWP.2009.2016851
         __________________________
@@ -663,7 +674,8 @@ class DiscretePlaneWave(Source):
         --------------------------
             E_fields, double array       : electric field array with the axis entry for the current time added
 
-        '''
+        """
+        
         for i in range(3):  #loop to update each component of the electric field
             materialE = G.ID[i, (self.corners[0]+self.corners[3])//2,
                                 (self.corners[1]+self.corners[4])//2,
@@ -672,14 +684,11 @@ class DiscretePlaneWave(Source):
                 self.E_fields[i, j] = G.updatecoeffsE[materialE, 0] * self.E_fields[i, j] + G.updatecoeffsE[materialE, (i+2)%3+1] * (
                     self.H_fields[(i+2)%3, j] - self.H_fields[(i+2)%3, j-self.m[(i+1)%3]]) - G.updatecoeffsE[materialE, (i+1)%3+1] * ( 
                     self.H_fields[(i+1)%3, j] - self.H_fields[(i+1)%3, j-self.m[(i+2)%3]])  #equation 9 of Tan, Potter paper
-
-        if(G.iteration % 10 == 0):
-            np.save('./snapshots/electric_z_{}.npy'.format(G.iteration), G.Ex)
+        
 
     
     def getField(self, i, j, k, array, m, component):
-        buffer = 50
-        return array[component, buffer+np.dot(m[:-1], np.array([i, j, k]))]
+        return array[component, np.dot(m[:-1], np.array([i, j, k]))]
 
 
     def apply_TFSF_conditions_magnetic(self, G):
