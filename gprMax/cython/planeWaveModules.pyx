@@ -5,6 +5,7 @@ from libc.math cimport floor, ceil, round, sqrt, tan, cos, sin, atan2, abs, pow,
 from libc.stdio cimport FILE, fopen, fwrite, fclose
 from libc.string cimport strcmp
 from cython.parallel import prange
+from gprMax.config cimport float_or_double
 
 @cython.cdivision(True)
 @cython.wraparound(False)
@@ -224,216 +225,12 @@ def getIntegerForAngles(double phi, double Delta_phi, double theta, double Delta
     return quadrants, np.array([m_x, m_y, m_z, max(m_x, m_y, m_z)], dtype=np.int32)
 
 
-@cython.wraparound(False)
-@cython.boundscheck(False)
-cdef double[:, :, :, :, ::1] updateHFields(double[:] coefficients, int n_x, int n_y, int n_z, 
-                                        double[:, :, :, :, ::1] fields, int waveID):
-    '''
-    Method to update the magnetic fields in the TFSF grid uding the electric fields from the previous update.
-    __________________________
-    
-    Input parameters:
-    --------------------------
-        coefficients, float  : stores the coefficients of the fields in the update equation for the magnetic field
-        n_x, int             : stores the number of grid cells along the x axis of the TFSF box
-        n_y, int             : stores the number of grid cells along the y axis of the TFSF box
-        n_z, int             : stores the number of grid cells along the z axis of the TFSF box
-        fields, double array : stores the fields for the grid cells over the TFSF box at particular indices in the order
-                               E_x, E_y, E_z, H_x, H_y, H_z
-        waveID, int          : stores the index number of the field in case of multiple plane waves
-    __________________________
-    
-    Returns:
-    --------------------------
-        fields, double array : returns the updated magnetic fields for the grid cells over the TFSF box at particular indices
-    '''
-    cdef Py_ssize_t i, j, k = 0
-    
-    cdef double c0 = coefficients[0]
-    cdef double c1 = coefficients[1]
-    cdef double c2 = coefficients[2]
-    cdef double c3 = coefficients[3]
-    cdef double c4 = coefficients[4]
-    cdef double c5 = coefficients[5]
-    cdef double c6 = coefficients[6]
-    cdef double c7 = coefficients[7]
-    cdef double c8 = coefficients[8]
-    
-    cdef double[:, :, ::1] e_x = fields[waveID, 0, :, :, :]
-    cdef double[:, :, ::1] e_y = fields[waveID, 1, :, :, :]
-    cdef double[:, :, ::1] e_z = fields[waveID, 2, :, :, :]
-    cdef double[:, :, ::1] h_x = fields[waveID, 3, :, :, :]
-    cdef double[:, :, ::1] h_y = fields[waveID, 4, :, :, :]
-    cdef double[:, :, ::1] h_z = fields[waveID, 5, :, :, :]
-    
-    for i in prange(n_x, nogil=True, schedule='static'):
-        for j in range(n_y):
-            for k in range(n_z):
-                h_x[i, j, k] = c0 * h_x[i, j, k] + c1 * (e_y[i, j, k+1] - e_y[i, j, k]
-                                               ) - c2 * (e_z[i, j+1, k] - e_z[i, j, k])
-                h_y[i, j, k] = c3 * h_y[i, j, k] + c4 * (e_z[i+1, j, k] - e_z[i, j, k]
-                                               ) - c5 * (e_x[i, j, k+1] - e_x[i, j, k])
-                h_z[i, j, k] = c6 * h_z[i, j, k] + c7 * (e_x[i, j+1, k] - e_x[i, j, k]
-                                               ) - c8 * (e_y[i+1, j, k] - e_y[i, j, k])
-    
-    return fields
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef double[:, :, :, :, ::1] updateEFields(double[:] coefficients, int n_x, int n_y, int n_z, 
-                                        double[:, :, :, :, ::1] fields, int waveID):
-    '''
-    Method to update the electric fields in the TFSF grid uding the electric fields from the previous update.
-    __________________________
-    
-    Input parameters:
-    --------------------------
-        coefficients, float  : stores the coefficients of the fields in the update equation for the electric field
-        n_x, int             : stores the number of grid cells along the x axis of the TFSF box
-        n_y, int             : stores the number of grid cells along the y axis of the TFSF box
-        n_z, int             : stores the number of grid cells along the z axis of the TFSF box
-        fields, double array : stores the fields for the grid cells over the TFSF box at particular indices in the order
-                               E_x, E_y, E_z, H_x, H_y, H_z
-        waveID, int          : stores the index number of the field in case of multiple plane waves
-    __________________________
-    
-    Returns:
-    --------------------------
-        fields, double array : returns the updated electric fields for the grid cells over the TFSF box at particular indices
-    '''
-    cdef Py_ssize_t i, j, k = 0
-    
-    cdef double c0 = coefficients[0]
-    cdef double c1 = coefficients[1]
-    cdef double c2 = coefficients[2]
-    cdef double c3 = coefficients[3]
-    cdef double c4 = coefficients[4]
-    cdef double c5 = coefficients[5]
-    cdef double c6 = coefficients[6]
-    cdef double c7 = coefficients[7]
-    cdef double c8 = coefficients[8]
-    
-    cdef double[:, :, ::1] e_x = fields[waveID, 0, :, :, :]
-    cdef double[:, :, ::1] e_y = fields[waveID, 1, :, :, :]
-    cdef double[:, :, ::1] e_z = fields[waveID, 2, :, :, :]
-    cdef double[:, :, ::1] h_x = fields[waveID, 3, :, :, :]
-    cdef double[:, :, ::1] h_y = fields[waveID, 4, :, :, :]
-    cdef double[:, :, ::1] h_z = fields[waveID, 5, :, :, :]
-    
-    for i in prange(n_x, nogil=True, schedule='static'):
-        for j in range(1, n_y):
-            for k in range(1, n_z):
-                e_x[i, j, k] = c0 * e_x[i, j, k] + c1 * (h_z[i, j, k] - h_z[i, j-1, k]
-                                               ) - c2 * (h_y[i, j, k] - h_y[i, j, k-1])
-    for i in prange(1, n_x, nogil=True, schedule='static'):
-        for j in range(n_y):
-            for k in range(1, n_z):
-                e_y[i, j, k] = c3 * e_y[i, j, k] + c4 * (h_x[i, j, k] - h_x[i, j, k-1]
-                                               ) - c5 * (h_z[i, j, k] - h_z[i-1, j, k])
-    for i in prange(1, n_x, nogil=True, schedule='static'):
-        for j in range(1, n_y):
-            for k in range(n_z):
-                e_z[i, j, k] = c6 * e_z[i, j, k] + c7 * (h_y[i, j, k] - h_y[i-1, j, k]
-                                               ) - c8 * (h_x[i, j, k] - h_x[i, j-1, k])
-    return fields
-
-@cython.wraparound(False)
-@cython.boundscheck(False)
-cdef double[:, :, :, ::1] implementABC(double[:, :, :, ::1] face_fields, double abccoef, 
-                                  int n_x, int n_y, int n_z, double[:, :, :, :, ::1] fields, int waveID):
-    '''
-    Method to implement the absorbing boundary conditions to the FDTD grid.
-    __________________________
-    
-    Input parameters:
-    --------------------------
-        face_fields, double array : stores the fields on the six faces of the FDTD Box
-        abccoef, double           : stores the absorbing boundary coefficient so that there are no reflection from the edge of the grid
-        n_x, int                  : stores the number of grid cells along the x axis of the TFSF box
-        n_y, int                  : stores the number of grid cells along the y axis of the TFSF box
-        n_z, int                  : stores the number of grid cells along the z axis of the TFSF box
-        fields, double array      : stores the fields for the grid cells over the TFSF box at particular indices in the order
-                                      E_x, E_y, E_z, H_x, H_y, H_z
-        waveID, int          : stores the index number of the field in case of multiple plane waves
-    __________________________
-    
-    Returns:
-    --------------------------
-        face_fields, double array : returns the updated fields on the surfaces of the FDTD Box
-    
-    '''
-    cdef Py_ssize_t i, j, k = 0
-    
-    cdef double[:, :, ::1] e_x = fields[waveID, 0, :, :, :]
-    cdef double[:, :, ::1] e_y = fields[waveID, 1, :, :, :]
-    cdef double[:, :, ::1] e_z = fields[waveID, 2, :, :, :]
-    
-    #implement ABC at x0
-    for j in prange(n_y-1, nogil=True, schedule='static'):
-        for k in range(n_z):
-            e_y[0, j, k] = face_fields[waveID, 0, j, k] + abccoef*(e_y[1, j, k] - e_y[0, j, k])
-            face_fields[waveID, 0, j, k] = e_y[1, j, k]
-    for j in prange(n_y, nogil=True, schedule='static'):
-        for k in range(n_z-1):
-            e_z[0, j, k] = face_fields[waveID, 1, j, k] + abccoef*(e_z[1, j, k] - e_z[0, j, k])
-            face_fields[waveID, 1, j, k] = e_z[1, j ,k]
-    
-    #implement ABC at x1
-    for j in prange(n_y-1, nogil=True, schedule='static'):
-        for k in range(n_z):
-            e_y[n_x, j, k] = face_fields[waveID, 2, j, k] + abccoef*(e_y[n_x-1, j, k] - e_y[n_x, j, k])
-            face_fields[waveID, 2, j, k] = e_y[n_x-1, j, k]
-    for j in prange(n_y, nogil=True, schedule='static'):
-        for k in range(n_z-1):
-            e_z[n_x, j, k] = face_fields[waveID, 3, j, k] + abccoef*(e_z[n_x-1, j, k] - e_z[n_x, j, k])
-            face_fields[waveID, 3, j, k] = e_z[n_x-1, j, k]
-    
-    #implement ABC at y0
-    for i in prange(n_x-1, nogil=True, schedule='static'):
-        for k in range(n_z):
-            e_x[i, 0, k] = face_fields[waveID, 4, i, k] + abccoef*(e_x[i, 1, k] - e_x[i, 0, k])
-            face_fields[waveID, 4, i, k] = e_x[i, 1, k]
-    for i in prange(n_x, nogil=True, schedule='static'):
-        for k in range(n_z-1):
-            e_z[i, 0, k] = face_fields[waveID, 5, i, k] + abccoef*(e_z[i, 1, k] - e_z[i, 0, k])
-            face_fields[waveID, 5, i, k] = e_z[i, 1, k]
-    
-    #implement ABC at y1
-    for i in prange(n_x-1, nogil=True, schedule='static'):
-        for k in range(n_z):
-            e_x[i, n_y, k] = face_fields[waveID, 6, i, k] + abccoef*(e_x[i, n_y-1, k] - e_x[i, n_y, k])
-            face_fields[waveID, 6, i, k] = e_x[i, n_y-1, k]
-    for i in prange(n_x, nogil=True, schedule='static'):
-        for k in range(n_z-1):
-            e_z[i, n_y, k] = face_fields[waveID, 7, i, k] + abccoef*(e_z[i, n_y-1, k] - e_z[i, n_y, k])
-            face_fields[waveID, 7, i, k] = e_z[i, n_y-1, k]
-    
-    #implement ABC at z0
-    for i in prange(n_x-1, nogil=True, schedule='static'):
-        for j in range(n_y):
-            e_x[i, j, 0] = face_fields[waveID, 8, i, j] + abccoef*(e_x[i, j, 1] - e_x[i, j, 0])
-            face_fields[waveID, 8, i, j] = e_x[i, j, 1]
-    for i in prange(n_x, nogil=True, schedule='static'):
-        for j in range(n_y-1):
-            e_y[i, j, 0] = face_fields[waveID, 9, i, j] + abccoef*(e_y[i, j, 1] - e_y[i, j, 0])
-            face_fields[waveID, 9, i, j] = e_y[i, j, 1]
-    
-    #implement ABC at z1
-    for i in prange(n_x-1, nogil=True, schedule='static'):
-        for j in range(n_y):
-            e_x[i, j, n_z] = face_fields[waveID, 10, i, j] + abccoef*(e_x[i, j, n_z-1] - e_x[i, j, n_z])
-            face_fields[waveID, 10, i, j] = e_x[i, j, n_z-1]
-    for i in prange(n_x, nogil=True, schedule='static'):
-        for j in range(n_y-1):
-            e_y[i, j, n_z] = face_fields[waveID, 11, i, j] + abccoef*(e_y[i, j, n_z-1] - e_y[i, j, n_z])
-            face_fields[waveID, 11, i, j] = e_y[i, j, n_z-1]
-
-    return face_fields
-
-@cython.wraparound(False)
-@cython.boundscheck(False)
-cdef double[:, :, :, :, ::1] applyTFSFMagnetic(double[:] coefficients, double[:, :] e1D, int[:] m,
-                                          double[:, :, :, :, ::1]fields, int[:, :] corners, int waveID):
+cdef void applyTFSFMagnetic(int nthreads, float_or_double[:, :, ::1] Hx, float_or_double[:, :, ::1] Hy,
+    float_or_double[:, :, ::1] Hz, float_or_double[:, ::1] E_fields, float_or_double[:] updatecoeffsH,
+    int[:] m, int[:] corners):
     '''
     Method to implement the total field-scattered field formulation for the magnetic field on the edge of the TF/SF region of the TFSF Box.
     __________________________
@@ -455,110 +252,121 @@ cdef double[:, :, :, :, ::1] applyTFSFMagnetic(double[:] coefficients, double[:,
         fields, double array : returns the updated fields atre applying the TF/Sf formulation at the boundary of the TF/SF surface
     
     '''
-
     cdef Py_ssize_t i, j, k = 0
-    cdef int x_start = corners[0, 0]
-    cdef int y_start = corners[0, 1]
-    cdef int z_start = corners[0, 2]
-    cdef int x_stop = corners[1, 0]
-    cdef int y_stop = corners[1, 1]
-    cdef int z_stop = corners[1, 2]
+
     # Precompute index values
     cdef int index = 0
     cdef int m_x = m[0]
     cdef int m_y = m[1]
     cdef int m_z = m[2]
-    
-    cdef double[:, :, ::1] h_x = fields[waveID, 3, :, :, :]
-    cdef double[:, :, ::1] h_y = fields[waveID, 4, :, :, :]
-    cdef double[:, :, ::1] h_z = fields[waveID, 5, :, :, :]
-    
+
+    cdef int x_start = corners[0]
+    cdef int y_start = corners[1]
+    cdef int z_start = corners[2]
+    cdef int x_stop = corners[3]
+    cdef int y_stop = corners[4]
+    cdef int z_stop = corners[5]
+
+    cdef float_or_double[:] E_x = E_fields[0, :]
+    cdef float_or_double[:] E_y = E_fields[1, :]
+    cdef float_or_double[:] E_z = E_fields[2, :]
+
+    cdef float_or_double coef_H_xy = updatecoeffsH[2]
+    cdef float_or_double coef_H_xz = updatecoeffsH[3]
+    cdef float_or_double coef_H_yz = updatecoeffsH[3]
+    cdef float_or_double coef_H_yx = updatecoeffsH[1]
+    cdef float_or_double coef_H_zx = updatecoeffsH[1]    
+    cdef float_or_double coef_H_zy = updatecoeffsH[2]
+
     #**** constant x faces -- scattered-field nodes ****
     i = x_start
-    for j in prange(y_start, y_stop+1, nogil=True, schedule='static'):
+    for j in range(y_start, y_stop+1):
         for k in range(z_start, z_stop):
-            index = m_x * i + m_y * j + m_z * k
             #correct Hy at firstX-1/2 by subtracting Ez_inc
-            h_y[i-1, j, k] -= coefficients[5] * e1D[2, index] 
-    
-    for j in prange(y_start, y_stop, nogil=True, schedule='static'):
-        for k in range(z_start, z_stop+1):
             index = m_x * i + m_y * j + m_z * k
+            Hy[i-1, j, k] -= coef_H_yx * E_z[index] 
+
+    for j in range(y_start, y_stop):
+        for k in range(z_start, z_stop+1):
             #correct Hz at firstX-1/2 by adding Ey_inc
-            h_z[i-1, j, k] += coefficients[8] * e1D[1, index]
+            index = m_x * i + m_y * j + m_z * k
+            Hz[i-1, j, k] += coef_H_zx * E_y[index]
 
     i = x_stop
-    for j in prange(y_start, y_stop+1, nogil=True, schedule='static'):
+    for j in range(y_start, y_stop+1):
         for k in range(z_start, z_stop):
-            index = m_x * i + m_y * j + m_z * k
             #correct Hy at lastX+1/2 by adding Ez_inc
-            h_y[i, j, k] += coefficients[5] * e1D[2, index]    
-    
-    for j in prange(y_start, y_stop, nogil=True, schedule='static'):
-        for k in range(z_start, z_stop+1):
             index = m_x * i + m_y * j + m_z * k
+            Hy[i, j, k] += coef_H_yx * E_z[index]    
+
+    for j in range(y_start, y_stop):
+        for k in range(z_start, z_stop+1):
             #correct Hz at lastX+1/2 by subtractinging Ey_inc
-            h_z[i, j, k] -= coefficients[8] * e1D[1, index]            
-    
+            index = m_x * i + m_y * j + m_z * k
+            Hz[i, j, k] -= coef_H_zx * E_y[index]            
+
     #**** constant y faces -- scattered-field nodes ****
     j = y_start
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static'):
+    for i in range(x_start, x_stop+1):
         for k in range(z_start, z_stop):
-            index = m_x * i + m_y * j + m_z * k
             #correct Hx at firstY-1/2 by adding Ez_inc
-            h_x[i, j-1, k] += coefficients[2] * e1D[2, index]
-    
-    for i in prange(x_start, x_stop, nogil=True, schedule='static'):
-        for k in range(z_start, z_stop+1):
             index = m_x * i + m_y * j + m_z * k
+            Hx[i, j-1, k] += coef_H_xy * E_z[index]
+
+    for i in range(x_start, x_stop):
+        for k in range(z_start, z_stop+1):
             #correct Hz at firstY-1/2 by subtracting Ex_inc
-            h_z[i, j-1, k] -= coefficients[7] * e1D[0, index]
+            index = m_x * i + m_y * j + m_z * k
+            Hz[i, j-1, k] -= coef_H_zy * E_x[index]
 
     j = y_stop
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static'):
+    for i in range(x_start, x_stop+1):
         for k in range(z_start, z_stop):
-            index = m_x * i + m_y * j + m_z * k
             #correct Hx at lastY+1/2 by subtracting Ez_inc
-            h_x[i, j, k] -= coefficients[2] * e1D[2, index]
-    
-    for i in prange(x_start, x_stop, nogil=True, schedule='static'):
-        for k in range(z_start, z_stop+1):
             index = m_x * i + m_y * j + m_z * k
+            Hx[i, j, k] -= coef_H_xy * E_z[index]
+
+    for i in range(x_start, x_stop):
+        for k in range(z_start, z_stop+1):
             #correct Hz at lastY-1/2 by adding Ex_inc
-            h_z[i, j, k] += coefficients[7] * e1D[0,  index]
+            index = m_x * i + m_y * j + m_z * k
+            Hz[i, j, k] += coef_H_zy * E_x[index]
 
     #**** constant z faces -- scattered-field nodes ****
     k = z_start
-    for i in prange(x_start, x_stop, nogil=True, schedule='static'):
+    for i in range(x_start, x_stop):
         for j in range(y_start, y_stop+1):
-            index = m_x * i + m_y * j + m_z * k
             #correct Hy at firstZ-1/2 by adding Ex_inc
-            h_y[i, j, k-1] += coefficients[5] * e1D[0,  index]
-    
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static'):
-        for j in range(y_start, y_stop):
             index = m_x * i + m_y * j + m_z * k
+            Hy[i, j, k-1] += coef_H_yz * E_x[index]
+
+    for i in range(x_start, x_stop+1):
+        for j in range(y_start, y_stop):
             #correct Hx at firstZ-1/2 by subtracting Ey_inc
-            h_x[i, j, k-1] -= coefficients[1] * e1D[1, index]
+            index = m_x * i + m_y * j + m_z * k
+            Hx[i, j, k-1] -= coef_H_xz * E_y[index]
 
     k = z_stop
-    for i in prange(x_start, x_stop, nogil=True, schedule='static'):
+    for i in range(x_start, x_stop):
         for j in range(y_start, y_stop+1):
-            index = m_x * i + m_y * j + m_z * k
             #correct Hy at firstZ-1/2 by subtracting Ex_inc
-            h_y[i, j, k] -= coefficients[5] * e1D[0, index]
-    
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static'):
-        for j in range(y_start, y_stop):
             index = m_x * i + m_y * j + m_z * k
+            Hy[i, j, k] -= coef_H_yz * E_x[index]
+
+    for i in range(x_start, x_stop+1):
+        for j in range(y_start, y_stop):
             #correct Hx at lastZ+1/2 by adding Ey_inc
-            h_x[i, j, k] += coefficients[1] * e1D[1,  index]
-    return fields
+            index = m_x * i + m_y * j + m_z * k
+            Hx[i, j, k] += coef_H_xz * E_y[index]
+
+
+
 
 @cython.wraparound(False)
 @cython.boundscheck(False)    
-cdef double[:, :, :, :, ::1] applyTFSFElectric(double[:] coefficients, double[:, :] h1D, int[:] m,
-                                          double[:, :, :, :, ::1] fields, int[:, :] corners, int waveID):
+cdef void applyTFSFElectric(int nthreads, float_or_double[:, :, ::1] Ex, float_or_double[:, :, ::1] Ey,
+    float_or_double[:, :, ::1] Ez, float_or_double[:, ::1] H_fields, float_or_double[:] updatecoeffsE,
+    int[:] m, int[:] corners):
     
     '''
     Method to implement the total field-scattered field formulation for the electric field on the edge of the TF/SF region of the TFSF Box.
@@ -582,110 +390,130 @@ cdef double[:, :, :, :, ::1] applyTFSFElectric(double[:] coefficients, double[:,
     
     '''
     cdef Py_ssize_t i, j, k = 0
-    cdef int x_start = corners[0, 0]
-    cdef int y_start = corners[0, 1]
-    cdef int z_start = corners[0, 2]
-    cdef int x_stop = corners[1, 0]
-    cdef int y_stop = corners[1, 1]
-    cdef int z_stop = corners[1, 2]
+
     # Precompute index values
     cdef int index = 0
     cdef int m_x = m[0]
     cdef int m_y = m[1]
     cdef int m_z = m[2]
-    
-    cdef double[:, :, ::1] e_x = fields[waveID, 0, :, :, :]
-    cdef double[:, :, ::1] e_y = fields[waveID, 1, :, :, :]
-    cdef double[:, :, ::1] e_z = fields[waveID, 2, :, :, :]
-    
+
+    cdef int x_start = corners[0]
+    cdef int y_start = corners[1]
+    cdef int z_start = corners[2]
+    cdef int x_stop = corners[3]
+    cdef int y_stop = corners[4]
+    cdef int z_stop = corners[5]
+
+    cdef float_or_double[:] H_x = H_fields[0, :]
+    cdef float_or_double[:] H_y = H_fields[1, :]
+    cdef float_or_double[:] H_z = H_fields[2, :]
+
+    cdef float_or_double coef_E_xy = updatecoeffsE[2]
+    cdef float_or_double coef_E_xz = updatecoeffsE[3]
+    cdef float_or_double coef_E_yz = updatecoeffsE[3]
+    cdef float_or_double coef_E_yx = updatecoeffsE[1]
+    cdef float_or_double coef_E_zx = updatecoeffsE[1]    
+    cdef float_or_double coef_E_zy = updatecoeffsE[2]
+
     #**** constant x faces -- total-field nodes ****/
     i = x_start
-    for j in prange(y_start, y_stop+1, nogil=True, schedule='static'):
+    for j in range(y_start, y_stop+1):
         for k in range(z_start, z_stop):
-            index = m_x * (i-1) + m_y * j + m_z * k
             #correct Ez at firstX face by subtracting Hy_inc
-            e_z[i, j, k] -= coefficients[7] * h1D[1, index]
-    
-    for j in prange(y_start, y_stop, nogil=True, schedule='static'):
-        for k in range(z_start, z_stop+1):
             index = m_x * (i-1) + m_y * j + m_z * k
-            #correct Ey at firstX face by adding Hz_inc
-            e_y[i, j, k] += coefficients[4] * h1D[2, index]
-    
-    i = x_stop
-    for j in prange(y_start, y_stop+1, nogil=True, schedule='static'):
-        for k in range(z_start, z_stop):
-            index = m_x * i + m_y * j + m_z * k
-            #correct Ez at lastX face by adding Hy_inc
-            e_z[i, j, k] += coefficients[7] * h1D[1, index]
-    
-    for j in prange(y_start, y_stop, nogil=True, schedule='static'):
+            Ez[i, j, k] -= coef_E_zx * H_y[index]
+
+    for j in range(y_start, y_stop):
         for k in range(z_start, z_stop+1):
+            #correct Ey at firstX face by adding Hz_inc
+            index = m_x * (i-1) + m_y * j + m_z * k
+            Ey[i, j, k] += coef_E_yx * H_z[index]
+
+    i = x_stop
+    for j in range(y_start, y_stop+1):
+        for k in range(z_start, z_stop):
+            #correct Ez at lastX face by adding Hy_inc
             index = m_x * i + m_y * j + m_z * k
+            Ez[i, j, k] += coef_E_zx * H_y[index]
+
+    i = x_stop
+    for j in range(y_start, y_stop):
+        for k in range(z_start, z_stop+1):
             #correct Ey at lastX face by subtracting Hz_inc
-            e_y[i, j, k] -= coefficients[4] * h1D[2, index]
+            index = m_x * i + m_y * j + m_z * k
+            Ey[i, j, k] -= coef_E_yx * H_z[index]
 
     #**** constant y faces -- total-field nodes ****/
     j = y_start
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static'):
+    for i in range(x_start, x_stop+1):
         for k in range(z_start, z_stop):
-            index = m_x * i + m_y * (j-1) + m_z * k
             #correct Ez at firstY face by adding Hx_inc
-            e_z[i, j, k] += coefficients[8] * h1D[0, index]
-    
-    for i in prange(x_start, x_stop, nogil=True, schedule='static'):
-        for k in range(z_start, z_stop+1):
             index = m_x * i + m_y * (j-1) + m_z * k
-            #correct Ex at firstY face by subtracting Hz_inc
-            e_x[i, j, k] -= coefficients[1] * h1D[2,  index]
-    
-    j = y_stop
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static'):
-        for k in range(z_start, z_stop):
-            index = m_x * i + m_y * j + m_z * k
-            #correct Ez at lastY face by subtracting Hx_inc
-            e_z[i, j, k] -= coefficients[8] * h1D[0,  index]
-    
-    for i in prange(x_start, x_stop, nogil=True, schedule='static'):
+            Ez[i, j, k] += coef_E_zy * H_x[index]
+
+    for i in range(x_start, x_stop):
         for k in range(z_start, z_stop+1):
+            #correct Ex at firstY face by subtracting Hz_inc
+            index = m_x * i + m_y * (j-1) + m_z * k
+            Ex[i, j, k] -= coef_E_xy * H_z[index]
+
+    j = y_stop
+    for i in range(x_start, x_stop+1):
+        for k in range(z_start, z_stop):
+            #correct Ez at lastY face by subtracting Hx_inc
             index = m_x * i + m_y * j + m_z * k
+            Ez[i, j, k] -= coef_E_zy * H_x[index]
+
+    for i in range(x_start, x_stop):
+        for k in range(z_start, z_stop+1):
             #correct Ex at lastY face by adding Hz_inc
-            e_x[i, j, k] += coefficients[1] * h1D[2,  index]
+            index = m_x * i + m_y * j + m_z * k
+            Ex[i, j, k] += coef_E_xy * H_z[index]
 
     #**** constant z faces -- total-field nodes ****/
     k = z_start
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static'):
+    for i in range(x_start, x_stop+1):
         for j in range(y_start, y_stop):
-            index = m_x * i + m_y * j + m_z * (k-1)
             #correct Ey at firstZ face by subtracting Hx_inc
-            e_y[i, j, k] -= coefficients[4] * h1D[0,  index]
-    
-    for i in prange(x_start, x_stop, nogil=True, schedule='static'):
-        for j in range(y_start, y_stop+1):
             index = m_x * i + m_y * j + m_z * (k-1)
-            #correct Ex at firstZ face by adding Hy_inc
-            e_x[i, j, k] += coefficients[2] * h1D[1, index]
-    
-    k = z_stop
-    for i in prange(x_start, x_stop+1, nogil=True, schedule='static'):
-        for j in range(y_start, y_stop):
-            index = m_x * i + m_y * j + m_z * k
-            #correct Ey at lastZ face by adding Hx_inc
-            e_y[i, j, k] += coefficients[4] * h1D[0, index]
-    
-    for i in prange(x_start, x_stop, nogil=True, schedule='static'):
-        for j in range(y_start, y_stop+1):
-            index = m_x * i + m_y * j + m_z * k
-            #correct Ex at lastZ face by subtracting Hy_inc
-            e_x[i, j, k] -= coefficients[2] * h1D[1, index]
-    return fields
+            Ey[i, j, k] -= coef_E_yz * H_x[index]
 
+    for i in range(x_start, x_stop):
+        for j in range(y_start, y_stop+1):
+            #correct Ex at firstZ face by adding Hy_inc
+            index = m_x * i + m_y * j + m_z * (k-1)
+            Ex[i, j, k] += coef_E_xz * H_y[index]
+
+    k = z_stop
+    for i in range(x_start, x_stop+1):
+        for j in range(y_start, y_stop):
+            #correct Ey at lastZ face by adding Hx_inc
+            index = m_x * i + m_y * j + m_z * k
+            Ey[i, j, k] += coef_E_yz * H_x[index]
+
+    for i in range(x_start, x_stop):
+        for j in range(y_start, y_stop+1):
+            #correct Ex at lastZ face by subtracting Hy_inc
+            index = m_x * i + m_y * j + m_z * k
+            Ex[i, j, k] -= coef_E_xz * H_y[index]
+        
+
+cdef initializeMagneticFields(int m,
+    float_or_double[:, ::1] H_fields, 
+    float_or_double[:] projections, 
+    float_or_double[:, ::1] waveformvalues_wholedt):
+
+    cdef Py_ssize_t r = 0
+    for r in range(m):      #loop to assign the source values of magnetic field to the first few gridpoints
+        H_fields[0, r] = projections[0] * waveformvalues_wholedt[0, r]
+        H_fields[1, r] = projections[1] * waveformvalues_wholedt[1, r]
+        H_fields[2, r] = projections[2] * waveformvalues_wholedt[2, r]
 
 @cython.cdivision(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef double[:, ::1] updateMagneticFields(int n, double[:] H_coefficients, double[:, ::1] H_fields, 
-                                         double[:, ::1] E_fields, int dimensions, int[:] m):
+cdef void updateMagneticFields(int n, float_or_double[:, ::1] H_fields, float_or_double[:, ::1] E_fields, 
+                              float_or_double[:] updatecoeffsH, int[:] m):
     '''
     Method to update the magnetic fields for the next time step using
     Equation 8 of DOI: 10.1109/LAWP.2009.2016851
@@ -707,23 +535,45 @@ cdef double[:, ::1] updateMagneticFields(int n, double[:] H_coefficients, double
         --------------------------
             H_fields, double array       : magnetic field array with the axis entry for the current time added
 
-    '''    
-    cdef Py_ssize_t i, j = 0
-    cdef int dim_mod1, dim_mod2 = 0
-    for i in prange(dimensions, nogil=True, schedule='static'):  #loop to update each component of the magnetic field
-        dim_mod1 = (i+1) % dimensions
-        dim_mod2 = (i+2) % dimensions
-        for j in range(m[dimensions], n-m[dimensions]):  #loop to update the magnetic field at each spatial index
-            H_fields[i, j] = H_coefficients[3*i] * H_fields[i, j] + H_coefficients[3*i+1] * (
-                    E_fields[dim_mod1, j+m[dim_mod2]] - E_fields[dim_mod1, j]) - H_coefficients[3*i+2] * (
-                    E_fields[dim_mod2, j+m[dim_mod1]] - E_fields[dim_mod2, j])     #equation 8 of Tan, Potter paper
-    return H_fields
+    '''  
+    cdef Py_ssize_t j = 0
+
+    cdef float_or_double[:] E_x = E_fields[0, :]
+    cdef float_or_double[:] E_y = E_fields[1, :]
+    cdef float_or_double[:] E_z = E_fields[2, :]
+    cdef float_or_double[:] H_x = H_fields[0, :]
+    cdef float_or_double[:] H_y = H_fields[1, :]
+    cdef float_or_double[:] H_z = H_fields[2, :]
+
+    cdef float_or_double coef_H_xt = updatecoeffsH[0]
+    cdef float_or_double coef_H_xy = updatecoeffsH[2]
+    cdef float_or_double coef_H_xz = updatecoeffsH[3]
+
+    cdef float_or_double coef_H_yt = updatecoeffsH[0]
+    cdef float_or_double coef_H_yz = updatecoeffsH[3]
+    cdef float_or_double coef_H_yx = updatecoeffsH[1]
+
+    cdef float_or_double coef_H_zt = updatecoeffsH[0]
+    cdef float_or_double coef_H_zx = updatecoeffsH[1]    
+    cdef float_or_double coef_H_zy = updatecoeffsH[2]
+
+    cdef int m_x = m[0]
+    cdef int m_y = m[1]
+    cdef int m_z = m[2]
+
+    for j in range(m[3], n-m[3]):  #loop to update the magnetic field at each spatial index
+        H_x[j] = coef_H_xt * H_x[j] + coef_H_xz * ( E_y[j+m_z] - E_y[j] ) - coef_H_xy * ( E_z[j+m_y] - E_z[j] )     #equation 8 of Tan, Potter paper
+        H_y[j] = coef_H_yt * H_y[j] + coef_H_yx * ( E_z[j+m_x] - E_z[j] ) - coef_H_yz * ( E_x[j+m_z] - E_x[j] )     #equation 8 of Tan, Potter paper
+        H_z[j] = coef_H_zt * H_z[j] + coef_H_zy * ( E_x[j+m_y] - E_x[j] ) - coef_H_zx * ( E_y[j+m_x] - E_y[j] )     #equation 8 of Tan, Potter paper
+    
+
+    
 
 @cython.cdivision(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef double[:, ::1] updateElectricFields(int n, double[:] E_coefficients, double[:, ::1] H_fields, 
-                                         double[:, ::1] E_fields, int dimensions, int[:] m):
+cdef void updateElectricFields(int n, float_or_double[:, ::1] H_fields, float_or_double[:, ::1] E_fields, 
+                              float_or_double[:] updatecoeffsE, int[:] m):
     '''
     Method to update the electric fields for the next time step using
     Equation 9 of DOI: 10.1109/LAWP.2009.2016851
@@ -746,19 +596,41 @@ cdef double[:, ::1] updateElectricFields(int n, double[:] E_coefficients, double
             E_fields, double array       : electric field array with the axis entry for the current time added
 
     '''
-    cdef Py_ssize_t i, j = 0
-    cdef int dim_mod1, dim_mod2 = 0
-    for i in prange(dimensions, nogil=True, schedule='static'):  #loop to update each component of the electric field
-        dim_mod1 = (i+1) % dimensions
-        dim_mod2 = (i+2) % dimensions
-        for j in range(m[dimensions], n-m[dimensions]):   #loop to update the electric field at each spatial index 
-            E_fields[i, j] = E_coefficients[3*i] * E_fields[i, j] + E_coefficients[3*i+1] * (
-                    H_fields[dim_mod2, j] - H_fields[dim_mod2, j-m[dim_mod1]]) - E_coefficients[3*i+2] * ( 
-                    H_fields[dim_mod1, j] - H_fields[dim_mod1, j-m[dim_mod2]])  #equation 9 of Tan, Potter paper
-    return E_fields
+    cdef Py_ssize_t j = 0
+
+    cdef float_or_double[:] E_x = E_fields[0, :]
+    cdef float_or_double[:] E_y = E_fields[1, :]
+    cdef float_or_double[:] E_z = E_fields[2, :]
+    cdef float_or_double[:] H_x = H_fields[0, :]
+    cdef float_or_double[:] H_y = H_fields[1, :]
+    cdef float_or_double[:] H_z = H_fields[2, :]
+
+    cdef float_or_double coef_E_xt = updatecoeffsE[0]
+    cdef float_or_double coef_E_xy = updatecoeffsE[2]
+    cdef float_or_double coef_E_xz = updatecoeffsE[3]
+
+    cdef float_or_double coef_E_yt = updatecoeffsE[0]
+    cdef float_or_double coef_E_yz = updatecoeffsE[3]
+    cdef float_or_double coef_E_yx = updatecoeffsE[1]
+
+    cdef float_or_double coef_E_zt = updatecoeffsE[0]
+    cdef float_or_double coef_E_zx = updatecoeffsE[1]    
+    cdef float_or_double coef_E_zy = updatecoeffsE[2]
+
+    cdef int m_x = m[0]
+    cdef int m_y = m[1]
+    cdef int m_z = m[2]
+
+    for j in range(m[3], n-m[3]):   #loop to update the electric field at each spatial index 
+        E_x[j] = coef_E_xt * E_x[j] + coef_E_xz * ( H_z[j] - H_z[j-m_y] ) - coef_E_xy * ( H_y[j] - H_y[j-m_z] )  #equation 9 of Tan, Potter paper
+        E_y[j] = coef_E_yt * E_y[j] + coef_E_yx * ( H_x[j] - H_x[j-m_z] ) - coef_E_yz * ( H_z[j] - H_z[j-m_x] )  #equation 9 of Tan, Potter paper
+        E_z[j] = coef_E_zt * E_z[j] + coef_E_zy * ( H_y[j] - H_y[j-m_x] ) - coef_E_zx * ( H_x[j] - H_x[j-m_y] )  #equation 9 of Tan, Potter paper
+    
+
+
 
 @cython.cdivision(True)
-cdef double getSource(double time, double ppw, char* wavetype, double dt):
+cdef double getSource(double time, double freq, char* wavetype, double dt):
     '''
     Method to get the magnitude of the source field in the direction perpendicular to the propagation of the plane wave
         __________________________
@@ -778,80 +650,86 @@ cdef double getSource(double time, double ppw, char* wavetype, double dt):
     '''
     # Waveforms
     if (strcmp(wavetype, "gaussian") == 0):
-        return exp(-(M_PI*(time/<double>ppw - 1.0)) * (M_PI*(time/<double>ppw - 1.0)))
+        return exp(-2.0 * (M_PI * (time * freq - 1.0)) * (M_PI * (time * freq - 1.0)))
 
     elif (strcmp(wavetype, "gaussiandot") == 0 or strcmp(wavetype, "gaussianprime") == 0):
-        return 4 * M_PI/ppw * (M_PI*(time/<double>ppw - 1.0)
-                ) * exp(-(M_PI*(time/<double>ppw - 1.0)) * (M_PI*(time/<double>ppw - 1.0)))
-
+        return -4.0 * M_PI * M_PI * freq * (time * freq - 1.0
+                ) * exp(-2.0 * (M_PI * (time * freq - 1.0)) * (M_PI * (time * freq - 1.0)))
+    
     elif (strcmp(wavetype, "gaussiandotnorm") == 0):
-        return 2 * (M_PI*(time/<double>ppw - 1.0)
-                ) * exp(-(M_PI*(time/<double>ppw - 1.0)) * (M_PI*(time/<double>ppw - 1.0)))
+        return -2.0 * M_PI * (time * freq - 1.0
+                ) * exp(-2.0 * (M_PI * (time * freq - 1.0)) * (M_PI * (time * freq - 1.0))) * exp(0.5)
 
     elif (strcmp(wavetype, "gaussiandotdot") == 0 or strcmp(wavetype, "gaussiandoubleprime") == 0):
-        return 2 * M_PI*M_PI/(ppw*ppw) * (1.0-2.0*(M_PI*(time/ppw - 1.0))*(M_PI*(time/ppw - 1.0))
-                ) * exp(-(M_PI*(time/<double>ppw - 1.0)) * (M_PI*(time/<double>ppw - 1.0)))
+        return (2.0 * M_PI * freq) * (2.0 * M_PI * freq) * (2.0 * (M_PI * (time * freq - 1.0)) * (M_PI * (time * freq - 1.0)) - 1.0
+                ) * exp(-2.0 * (M_PI * (time * freq - 1.0)) * (M_PI * (time * freq - 1.0)))
     
-    elif (strcmp(wavetype, "gaussiandotdotnorm") == 0 or strcmp(wavetype, "ricker") == 0):
-        return (1.0 - 2.0*(M_PI*(time/<double>ppw - 1.0)) * (M_PI*(time/<double>ppw - 1.0))
-                ) * exp(-(M_PI*(time/<double>ppw - 1.0)) * (M_PI*(time/<double>ppw - 1.0)))  # define a Ricker wave source
-
+    elif (strcmp(wavetype, "gaussiandotdotnorm") == 0):
+        return (2.0 * (M_PI *(time * freq - 1.0)) * (M_PI * (time * freq - 1.0)) - 1.0
+                ) * exp(-2.0 * (M_PI * (time * freq - 1.0)) * (M_PI * (time * freq - 1.0)))
+    
+    elif (strcmp(wavetype, "ricker") == 0):
+        return (1.0 - 2.0 * (M_PI *(time * freq - 1.0)) * (M_PI * (time * freq - 1.0))
+                ) * exp(-2.0 * (M_PI * (time * freq - 1.0)) * (M_PI * (time * freq - 1.0)))  # define a Ricker wave source
+        
     elif (strcmp(wavetype, "sine") == 0):
-        return sin(2 * M_PI * time/<double>ppw)
+        if (time * freq <= 1):
+            return sin(2.0 * M_PI * freq * time)
+        else:
+            return 0.0
 
     elif (strcmp(wavetype, "contsine") == 0):
-        return min(0.25 * time/<double>ppw, 1) * sin(2 * M_PI * time/<double>ppw)
+        return min(0.25 * time* freq, 1) * sin(2 * M_PI * time* freq)
 
     elif (strcmp(wavetype, "impulse") == 0):
         if (time < dt):                         # time < dt condition required to do impulsive magnetic dipole
-            return 1
+            return 1.0
         else:
-            return 0
+            return 0.0
 
+@cython.cdivision(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
-cdef double[:, :, :, :, ::1] superImposeFields(planeWaves, int n_x, int n_y, int n_z, int dimensions,
-                                               double[:, :, :, :, ::1] fields, int iterate):
-    '''
-    Method to superimpose multiple plane waves if the user requires multiple plane wave incidences.
-    __________________________
+cpdef void calculate1DWaveformValues(float_or_double[:, :, ::1] waveformvalues_wholedt, int iterations, int[:] m, double dt, double ds, double c,
+                                    double start, double stop, double freq, char* wavetype):
     
-    Input parameters:
-    --------------------------
-        planeWaves, list     : list of class DiscretePlaneWave() objects, each representing a particular plane wave
-        n_x, int             : stores the number of grid cells along the x axis of the TFSF box
-        n_y, int             : stores the number of grid cells along the y axis of the TFSF box
-        n_z, int             : stores the number of grid cells along the z axis of the TFSF box
-        dimensions, int      : stores the number of dimensions in which the simulation is run
-        fields, double array : stores the fields for the grid cells over the TFSF box at particular indices in the order
-                                      E_x, E_y, E_z, H_x, H_y, H_z
-        iterate, int         : stores the number of incident plane waves in case of multiple plane waves
-    __________________________
+    cdef double time_x, time_y, time_z = 0.0
+    cdef Py_ssize_t dimensions, iteration, r = 0
     
-    Returns:
-    --------------------------
-        fields, double array : returns the superimposed fields in the TFSF box as the fields in the last index.
-    
-    '''
-    cdef Py_ssize_t i, j, k, l, n = 0
-    cdef int x_start, y_start, z_start
-    for n in range(iterate):
-        x_start = 0
-        y_start = 0
-        z_start = 0
-        if(planeWaves[n].directions[0]==-1):
-            x_start = n_x
-        if(planeWaves[n].directions[1]==-1):
-            y_start = n_y
-        if(planeWaves[n].directions[2]==-1):
-            z_start = n_z
-        for i in range(n_x+1):
-            for j in range(n_y+1):
-                for k in range(n_z+1):
-                    for l in range(dimensions):
-                        fields[iterate, l, i, j, k] += fields[n, l, abs(x_start-i), abs(y_start-j), abs(z_start-k)]
-                    
-    return fields
+    for iteration in range(iterations):            
+        for r in range(m[3]):
+            time_x = dt * iteration - (r+ (m[1]+m[2])*0.5) * ds/c
+            time_y = dt * iteration - (r+ (m[2]+m[0])*0.5) * ds/c
+            time_z = dt * iteration - (r+ (m[0]+m[1])*0.5) * ds/c
+            if (dt * iteration >= start and dt * iteration <= stop):
+            # Set the time of the waveform evaluation to account for any delay in the start
+                waveformvalues_wholedt[iteration, 0, r] = getSource(time_x-start, freq, wavetype, dt)
+                waveformvalues_wholedt[iteration, 1, r] = getSource(time_y-start, freq, wavetype, dt)
+                waveformvalues_wholedt[iteration, 2, r] = getSource(time_z-start, freq, wavetype, dt)
+
+cpdef void updatePlaneWave(    
+    int n, 
+    int nthreads,
+    float_or_double[:, ::1] H_fields, 
+    float_or_double[:, ::1] E_fields, 
+    float_or_double[:] updatecoeffsE,
+    float_or_double[:] updatecoeffsH,
+    float_or_double[:, :, ::1] Ex,
+    float_or_double[:, :, ::1] Ey,
+    float_or_double[:, :, ::1] Ez,
+    float_or_double[:, :, ::1] Hx,
+    float_or_double[:, :, ::1] Hy,
+    float_or_double[:, :, ::1] Hz, 
+    float_or_double[:] projections,
+    float_or_double[:, ::1] waveformvalues_wholedt,
+    int[:] m,
+    int[:] corners
+    ):
+    initializeMagneticFields(m[3], H_fields, projections, waveformvalues_wholedt)
+    updateMagneticFields(n, H_fields, E_fields, updatecoeffsH, m)
+    applyTFSFMagnetic(nthreads, Hx, Hy, Hz, E_fields, updatecoeffsH, m, corners)
+    applyTFSFElectric(nthreads, Ex, Ey, Ez, H_fields, updatecoeffsE, m, corners)
+    updateElectricFields(n, H_fields, E_fields, updatecoeffsE, m)
 
 
 @cython.wraparound(False)
@@ -871,72 +749,4 @@ cdef void takeSnapshot3D(double[:, :, ::1] field, char* filename):
     cdef FILE *fptr = fopen(filename, "wb")
     fwrite(&field[0, 0, 0], sizeof(double), field.size, fptr)
     fclose(fptr)
-
-    
-def getGridFields(planeWave, double[:] C, double[:] D, int snapshot, 
-                  int n_x, int n_y, int n_z, double[:, :, :, :, ::1] fields, int[:, ::1] corners,
-                  int time_duration, double[:, :, :, ::1] face_fields,
-                  double abccoef, double dt, int noOfWaves, double c, double ppw,
-                  int dimensions, filepath, snapFieldNumber, snapFieldSteps):
-    '''
-        Method to implement the time stepping loop of the FDTD simulation
-        __________________________
-
-        Input parameters:
-        --------------------------
-            planeWave, list      : list of class DiscretePlaneWave() objects, each representing a particular plane wave
-            C, double array      : stores the coefficients of the fields for the update equation of the electric fields
-            D, double array      : stores the coefficients of the fields for the update equation of the magnetic fields
-            snapshot, int        : stores the interval at which a snapshot of the fields is stored
-            n_x, int             : stores the number of grid cells along the x axis of the TFSF box
-            n_y, int             : stores the number of grid cells along the y axis of the TFSF box
-            n_z, int             : stores the number of grid cells along the z axis of the TFSF box
-            fields, double array : stores the fields for the grid cells over the TFSF box at particular indices in the order
-                                      E_x, E_y, E_z, H_x, H_y, H_z
-            corners, int array   : stores the coordinates of the cornets of the total field/scattered field boundaries
-            time_dimension, int  : stores the number of time steps over which the FDTD simulation is run
-            face_fields, double array : stores the fields on the six faces of the FDTD Box
-            abccoef, double           : stores the absorbing boundary coefficient so that there are no reflection from the edge of the grid
-            noOfWaves, int            : stores the number of plane waves to be incident on the TFSF Box
-            c, double                 : speed of light
-            ppw, double          : stores the number of points per wavelength for the requested source
-            dimensions, int      : stores the number of dimensions in which the simulation is run
-            filepath, string     : specifies the file location where the fields are to be written
-            snapFieldNumber, list: list to store which fields are to be written in the file
-            snapFieldSteps, list : list to store any specific time steps at which snapshots are to be taken.
-            
-    '''
-    cdef double real_time = 0.0   # initialize the real time to zero
-    # Py_ssize_t is the proper C type for Python array indices
-    cdef Py_ssize_t i, j, k, l, m = 0      #E and H are the one-dimensional waves
-    for i in range(time_duration):
-        for j in range(noOfWaves):
-            for k in range(dimensions):
-                for l in range(planeWave[j].m[dimensions]):                        #loop to assign the source values of magnetic field to the first few gridpoints
-                    planeWave[j].H_fields[k, l] = planeWave[j].projections[k]*getSource(real_time - (l+(
-                                planeWave[j].m[(k+1)%dimensions]+planeWave[j].m[(k+2)%dimensions]
-                                                        )*0.5)*planeWave[j].ds/c, ppw,
-                                                        planeWave[j].waveformID, planeWave[j].dt)
-                
-            planeWave[j].H_fields = updateMagneticFields(planeWave[j].length, D, planeWave[j].H_fields, 
-                                                planeWave[j].E_fields, dimensions, planeWave[j].m)  #update the magnetic fields in the rest of the DPW grid
-        
-            fields = updateHFields(D, n_x, n_y, n_z, fields, j)
-            fields = applyTFSFMagnetic(D, planeWave[j].E_fields, planeWave[j].m, fields, corners, j)
-            fields = applyTFSFElectric(C, planeWave[j].H_fields, planeWave[j].m, fields, corners, j)
-            fields = updateEFields(C, n_x, n_y, n_z, fields, j)    
-                  
-            planeWave[j].E_fields = updateElectricFields(planeWave[j].length, C, planeWave[j].H_fields, 
-                                                planeWave[j].E_fields, dimensions, planeWave[j].m)   #update the electric fields in the rest of the DPW grid
-
-            face_fields = implementABC(face_fields, abccoef, n_x, n_y, n_z, fields, j)
-        
-        real_time += dt  #take a half time step because the magnetic field and electric field grids are staggered in time
-          
-        if (i % snapshot == 0 or i in snapFieldSteps):
-            fields = superImposeFields(planeWave, n_x, n_y, n_z, dimensions, np.asarray(fields), noOfWaves)
-            for m in snapFieldNumber:
-                takeSnapshot3D(fields[noOfWaves, m, :, :, :], (f'{filepath}_{m}{i}.dat').encode('UTF-8'))
-            
-            fields[noOfWaves, :, :, :, :] = 0   #erase the cells bearing the last index so that it does not interfere with the superimposiion fields at some other time instance
 
