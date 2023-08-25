@@ -1,4 +1,4 @@
-name: Bug report
+name: "\U0001F41E Bug report"
 description: Create a report to help us improve
 labels: ["bug"]
 body:

@@ -348,8 +348,8 @@ class SrcSteps(UserObjectSingle):
 
         logger.info(
             f"Simple sources will step {G.srcsteps[0] * G.dx:g}m, "
-            + f"{G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m "
-            + "for each model run."
+            f"{G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m "
+            "for each model run."
         )
 
 
@@ -373,8 +373,8 @@ class RxSteps(UserObjectSingle):
 
         logger.info(
             f"All receivers will step {G.rxsteps[0] * G.dx:g}m, "
-            + f"{G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m "
-            + "for each model run."
+            f"{G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m "
+            "for each model run."
         )
 
 
@@ -418,8 +418,7 @@ class ExcitationFile(UserObjectSingle):
         logger.info(f"Excitation file: {excitationfile}")
 
         # Get waveform names
-        with open(excitationfile, "r") as f:
-            waveformIDs = f.readline().split()
+        waveformIDs = np.loadtxt(excitationfile, max_rows=1, dtype=str)
 
         # Read all waveform values into an array
         waveformvalues = np.loadtxt(excitationfile, skiprows=1, dtype=config.sim_config.dtypes["float_or_double"])
@@ -434,12 +433,12 @@ class ExcitationFile(UserObjectSingle):
             waveformtime = np.arange(0, G.timewindow + G.dt, G.dt)
             timestr = "simulation time array"
 
-        for waveform in range(len(waveformIDs)):
-            if any(x.ID == waveformIDs[waveform] for x in G.waveforms):
-                logger.exception(f"Waveform with ID {waveformIDs[waveform]} already exists")
+        for waveformID in waveformIDs:
+            if any(x.ID == waveformID for x in G.waveforms):
+                logger.exception(f"Waveform with ID {waveformID} already exists")
                 raise ValueError
             w = Waveform()
-            w.ID = waveformIDs[waveform]
+            w.ID = waveformID
             w.type = "user"
 
             # Select correct column of waveform values depending on array shape
@@ -462,8 +461,8 @@ class ExcitationFile(UserObjectSingle):
 
             logger.info(
                 f"User waveform {w.ID} created using {timestr} and, if "
-                + f"required, interpolation parameters (kind: {kwargs['kind']}, "
-                + f"fill value: {kwargs['fill_value']})."
+                f"required, interpolation parameters (kind: {kwargs['kind']}, "
+                f"fill value: {kwargs['fill_value']})."
             )
 
             G.waveforms.append(w)

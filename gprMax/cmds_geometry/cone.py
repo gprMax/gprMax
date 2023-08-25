@@ -85,11 +85,11 @@ class Cone(UserObjectGeometry):
         x2, y2, z2 = uip.round_to_grid(p2)
 
         if r1 < 0:
-            logger.exception(f"{self.__str__()} the radius of the first face " + f"{r1:g} should be a positive value.")
+            logger.exception(f"{self.__str__()} the radius of the first face {r1:g} should be a positive value.")
             raise ValueError
 
         if r2 < 0:
-            logger.exception(f"{self.__str__()} the radius of the second face " + f"{r2:g} should be a positive value.")
+            logger.exception(f"{self.__str__()} the radius of the second face {r2:g} should be a positive value.")
             raise ValueError
 
         if r1 == 0 and r2 == 0:
@@ -158,7 +158,7 @@ class Cone(UserObjectGeometry):
         dielectricsmoothing = "on" if averaging else "off"
         logger.info(
             f"{self.grid_name(grid)}Cone with face centres {p3[0]:g}m, "
-            + f"{p3[1]:g}m, {p3[2]:g}m and {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, "
-            + f"with radii {r1:g}m and {r2:g}, of material(s) {', '.join(materialsrequested)} "
-            + f"created, dielectric smoothing is {dielectricsmoothing}."
+            f"{p3[1]:g}m, {p3[2]:g}m and {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, "
+            f"with radii {r1:g}m and {r2:g}, of material(s) {', '.join(materialsrequested)} "
+            f"created, dielectric smoothing is {dielectricsmoothing}."
         )

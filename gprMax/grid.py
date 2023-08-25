@@ -427,19 +427,11 @@ def dispersion_analysis(G):
                 results["error"] = "user waveform detected."
 
             else:
-                # User-defined waveform
-                if waveform.type == "user":
-                    iterations = G.iterations
-
-                # Built-in waveform
-                else:
-                    # Time to analyse waveform - 4*pulse_width as using entire
-                    # time window can result in demanding FFT
-                    waveform.calculate_coefficients()
-                    iterations = round_value(4 * waveform.chi / G.dt)
-                    if iterations > G.iterations:
-                        iterations = G.iterations
-
+                # Time to analyse waveform - 4*pulse_width as using entire
+                # time window can result in demanding FFT
+                waveform.calculate_coefficients()
+                iterations = round_value(4 * waveform.chi / G.dt)
+                iterations = min(iterations, G.iterations)
                 waveformvalues = np.zeros(G.iterations)
                 for iteration in range(G.iterations):
                     waveformvalues[iteration] = waveform.calculate_value(iteration * G.dt, G.dt)

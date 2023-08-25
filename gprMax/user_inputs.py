@@ -70,9 +70,9 @@ class UserInput:
             # Incorrect index
             i = p[v.index(err.args[0])]
             if name:
-                s = f"\n'{cmd_str}' {err.args[0]} {name}-coordinate {i * dl:g} " + "is not within the model domain"
+                s = f"\n'{cmd_str}' {err.args[0]} {name}-coordinate {i * dl:g} is not within the model domain"
             else:
-                s = f"\n'{cmd_str}' {err.args[0]}-coordinate {i * dl:g} is not " + "within the model domain"
+                s = f"\n'{cmd_str}' {err.args[0]}-coordinate {i * dl:g} is not within the model domain"
             logger.exception(s)
             raise
 
@@ -108,7 +108,7 @@ class MainGridUserInput(UserInput):
         p = self.check_point(p, cmd_str, name)
 
         if self.grid.within_pml(p):
-            logger.warning(f"'{cmd_str}' sources and receivers should not " + "normally be positioned within the PML.")
+            logger.warning(f"'{cmd_str}' sources and receivers should not normally be positioned within the PML.")
 
         return p
 
@@ -117,7 +117,7 @@ class MainGridUserInput(UserInput):
         p2 = self.check_point(p2, cmd_str, name="upper")
 
         if np.greater(p1, p2).any():
-            logger.exception(f"'{cmd_str}' the lower coordinates should be less " + "than the upper coordinates.")
+            logger.exception(f"'{cmd_str}' the lower coordinates should be less than the upper coordinates.")
             raise ValueError
 
         return p1, p2
@@ -186,7 +186,7 @@ class SubgridUserInput(MainGridUserInput):
         # Provide user within a warning if they have placed objects within
         # the OS non-working region.
         if np.less(p_t, self.inner_bound).any() or np.greater(p_t, self.outer_bound).any():
-            logger.warning(f"'{cmd_str}' this object traverses the Outer " + "Surface. This is an advanced feature.")
+            logger.warning(f"'{cmd_str}' this object traverses the Outer Surface. This is an advanced feature.")
         return p_t
 
     def discretise_static_point(self, p):

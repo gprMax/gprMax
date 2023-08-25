@@ -169,10 +169,10 @@ if __name__ == "__main__":
 
     # Check waveform parameters
     if args.type.lower() not in Waveform.types:
-        logging.exception(f"The waveform must have one of the following types " + f"{', '.join(Waveform.types)}")
+        logging.exception(f"The waveform must have one of the following types {', '.join(Waveform.types)}")
         raise ValueError
     if args.freq <= 0:
-        logging.exception("The waveform requires an excitation frequency value of " + "greater than zero")
+        logging.exception("The waveform requires an excitation frequency value of greater than zero")
         raise ValueError
 
     # Create waveform instance

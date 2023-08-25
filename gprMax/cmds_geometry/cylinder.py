@@ -146,7 +146,7 @@ class Cylinder(UserObjectGeometry):
         dielectricsmoothing = "on" if averaging else "off"
         logger.info(
             f"{self.grid_name(grid)}Cylinder with face centres {p3[0]:g}m, "
-            + f"{p3[1]:g}m, {p3[2]:g}m and {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, "
-            + f"with radius {r:g}m, of material(s) {', '.join(materialsrequested)} "
-            + f"created, dielectric smoothing is {dielectricsmoothing}."
+            f"{p3[1]:g}m, {p3[2]:g}m and {p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m, "
+            f"with radius {r:g}m, of material(s) {', '.join(materialsrequested)} "
+            f"created, dielectric smoothing is {dielectricsmoothing}."
         )

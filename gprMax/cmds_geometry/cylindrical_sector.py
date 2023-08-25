@@ -94,17 +94,15 @@ class CylindricalSector(UserObjectGeometry):
         sectorangle = 2 * np.pi * (end / 360)
 
         if normal not in ["x", "y", "z"]:
-            logger.exception(f"{self.__str__()} the normal direction must be either " + f"x, y or z.")
+            logger.exception(f"{self.__str__()} the normal direction must be either x, y or z.")
             raise ValueError
         if r <= 0:
             logger.exception(f"{self.__str__()} the radius {r:g} should be a positive value.")
         if sectorstartangle < 0 or sectorangle <= 0:
-            logger.exception(f"{self.__str__()} the starting angle and sector angle should be " + f"a positive values.")
+            logger.exception(f"{self.__str__()} the starting angle and sector angle should be a positive values.")
             raise ValueError
         if sectorstartangle >= 2 * np.pi or sectorangle >= 2 * np.pi:
-            logger.exception(
-                f"{self.__str__()} the starting angle and sector angle must be " + f"less than 360 degrees."
-            )
+            logger.exception(f"{self.__str__()} the starting angle and sector angle must be less than 360 degrees.")
             raise ValueError
 
         # Look up requested materials in existing list of material instances
@@ -195,18 +193,18 @@ class CylindricalSector(UserObjectGeometry):
             dielectricsmoothing = "on" if averaging else "off"
             logger.info(
                 f"{self.grid_name(grid)}Cylindrical sector with centre "
-                + f"{ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle "
-                + f"{(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, "
-                + f"sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} degrees, "
-                + f"thickness {thickness:g}m, of material(s) {', '.join(materialsrequested)} "
-                + f"created, dielectric smoothing is {dielectricsmoothing}."
+                f"{ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle "
+                f"{(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, "
+                f"sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} degrees, "
+                f"thickness {thickness:g}m, of material(s) {', '.join(materialsrequested)} "
+                f"created, dielectric smoothing is {dielectricsmoothing}."
             )
         else:
             logger.info(
                 f"{self.grid_name(grid)}Cylindrical sector with centre "
-                + f"{ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle "
-                + f"{(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, "
-                + f"sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} "
-                + f"degrees, of material(s) {', '.join(materialsrequested)} "
-                + f"created."
+                f"{ctr1:g}m, {ctr2:g}m, radius {r:g}m, starting angle "
+                f"{(sectorstartangle / (2 * np.pi)) * 360:.1f} degrees, "
+                f"sector angle {(sectorangle / (2 * np.pi)) * 360:.1f} "
+                f"degrees, of material(s) {', '.join(materialsrequested)} "
+                f"created."
             )

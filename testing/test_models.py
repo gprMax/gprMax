@@ -137,8 +137,8 @@ for i, model in enumerate(testmodels):
         if filetest[path + outputstest[0]].dtype != fileref[path + outputsref[0]].dtype:
             logger.warning(
                 f"Type of floating point number in test model "
-                + f"({filetest[path + outputstest[0]].dtype}) does not "
-                + f"match type in reference solution ({fileref[path + outputsref[0]].dtype})\n"
+                f"({filetest[path + outputstest[0]].dtype}) does not "
+                f"match type in reference solution ({fileref[path + outputsref[0]].dtype})\n"
             )
         float_or_doubleref = fileref[path + outputsref[0]].dtype
         float_or_doubletest = filetest[path + outputstest[0]].dtype
@@ -271,11 +271,11 @@ for name, data in sorted(testresults.items()):
     if "analytical" in name:
         logger.info(
             f"Test '{name}.in' using v.{data['Test version']} compared "
-            + f"to analytical solution. Max difference {data['Max diff']:.2f}dB."
+            f"to analytical solution. Max difference {data['Max diff']:.2f}dB."
         )
     else:
         logger.info(
             f"Test '{name}.in' using v.{data['Test version']} compared to "
-            + f"reference solution using v.{data['Ref version']}. Max difference "
-            + f"{data['Max diff']:.2f}dB."
+            f"reference solution using v.{data['Ref version']}. Max difference "
+            f"{data['Max diff']:.2f}dB."
         )

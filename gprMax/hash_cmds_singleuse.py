@@ -64,9 +64,7 @@ def process_singlecmds(singlecmds):
     if singlecmds[cmd] is not None:
         tmp = tuple(int(x) for x in singlecmds[cmd].split())
         if len(tmp) != 1:
-            logger.exception(
-                f"{cmd} requires exactly one parameter to specify " + f"the number of CPU OpenMP threads to use"
-            )
+            logger.exception(f"{cmd} requires exactly one parameter to specify the number of CPU OpenMP threads to use")
             raise ValueError
 
         omp_threads = OMPThreads(n=tmp[0])
@@ -106,7 +104,7 @@ def process_singlecmds(singlecmds):
         if len(tmp) != 1:
             logger.exception(
                 f"{cmd} requires exactly one parameter to specify the "
-                + f"time window. Either in seconds or number of iterations."
+                f"time window. Either in seconds or number of iterations."
             )
             raise ValueError
         tmp = tmp[0].lower()
