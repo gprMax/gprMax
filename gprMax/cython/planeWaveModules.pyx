@@ -4,15 +4,16 @@ cimport cython
 from libc.math cimport floor, ceil, round, sqrt, tan, cos, sin, atan2, abs, pow, exp, M_PI
 from libc.stdio cimport FILE, fopen, fwrite, fclose
 from libc.string cimport strcmp
+
 from cython.parallel import prange
 from gprMax.config cimport float_or_double
 
 @cython.cdivision(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def getProjections(double psi, int[:] m):
+cpdef double[:, ::1] getProjections(double psi, int[:] m):
     cdef double phi, theta, cos_phi, sin_phi, cos_psi, sin_psi, cos_theta, sin_theta
-    cdef double[:, :] projections = np.zeros((2, 3), dtype=np.float64, order='C')
+    cdef double[:, ::1] projections = np.zeros((2, 3), order='C')
 
     if m[0] == 0:
         phi = M_PI / 2
@@ -171,7 +172,7 @@ cdef int[:] getTheta(int m_x, int m_y, double theta, double Delta_theta, double[
 @cython.cdivision(True)
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def getIntegerForAngles(double phi, double Delta_phi, double theta, double Delta_theta, double[:] Delta_r):
+cpdef int[:, ::1] getIntegerForAngles(double phi, double Delta_phi, double theta, double Delta_theta, double[:] Delta_r):
     '''
     Method to get [m_x, m_y, m_z] to determine the rational angles given phi and theta along with the permissible tolerances 
     __________________________
@@ -192,19 +193,19 @@ def getIntegerForAngles(double phi, double Delta_phi, double theta, double Delta
     '''
     cdef double required_ratio_phi, tolerance_phi = 0.0
     cdef int m_x, m_y, m_z = 0
-    quadrants = np.ones(3, dtype=np.int32)
+    cdef int[:, ::1] quadrants = np.ones((2, 3), dtype=np.int32)
     if(theta>=90):
-        quadrants[2] = -1
+        quadrants[0, 2] = -1
         theta = 180-theta
     if(phi>=90 and phi<180):
-        quadrants[0] = -1
+        quadrants[0, 0] = -1
         phi = 180-phi
     elif(phi>=180 and phi<270):
-        quadrants[0] = -1
-        quadrants[1] = -1
+        quadrants[0, 0] = -1
+        quadrants[0, 1] = -1
         phi = phi-180
     elif(phi>=270 and phi<360):
-        quadrants[1] = -1
+        quadrants[0, 1] = -1
         phi = 360-phi
            
     
@@ -222,7 +223,10 @@ def getIntegerForAngles(double phi, double Delta_phi, double theta, double Delta
         m_x, m_y, m_z = getTheta(m_x, m_y, M_PI/180*theta, M_PI/180*Delta_theta, Delta_r)   #get the integers [m_x, m_y, m_z] for rational angle approximation to theta
     else:                               #handle the case of theta=90 degrees separately
         m_z = 0                         #to avoid division by zero exception
-    return quadrants, np.array([m_x, m_y, m_z, max(m_x, m_y, m_z)], dtype=np.int32)
+    quadrants[1, 0] = m_x
+    quadrants[1, 1] = m_y
+    quadrants[1, 2] = m_z
+    return quadrants
 
 
 
@@ -498,16 +502,38 @@ cdef void applyTFSFElectric(int nthreads, float_or_double[:, :, ::1] Ex, float_o
             Ex[i, j, k] -= coef_E_xz * H_y[index]
         
 
-cdef initializeMagneticFields(int m,
+cdef void initializeMagneticFields(int[:] m,
     float_or_double[:, ::1] H_fields, 
-    float_or_double[:] projections, 
-    float_or_double[:, ::1] waveformvalues_wholedt):
+    double[:] projections, 
+    float_or_double[:, ::1] waveformvalues_wholedt,
+    bint precompute,
+    int iteration,
+    double dt,
+    double ds,
+    double c,
+    double start, 
+    double stop, 
+    double freq,
+    char* wavetype):
 
     cdef Py_ssize_t r = 0
-    for r in range(m):      #loop to assign the source values of magnetic field to the first few gridpoints
-        H_fields[0, r] = projections[0] * waveformvalues_wholedt[0, r]
-        H_fields[1, r] = projections[1] * waveformvalues_wholedt[1, r]
-        H_fields[2, r] = projections[2] * waveformvalues_wholedt[2, r]
+    cdef double time_x, time_y, time_z = 0.0
+    if (precompute == True):
+        for r in range(m[3]):      #loop to assign the source values of magnetic field to the first few gridpoints
+            H_fields[0, r] = projections[0] * waveformvalues_wholedt[0, r]
+            H_fields[1, r] = projections[1] * waveformvalues_wholedt[1, r]
+            H_fields[2, r] = projections[2] * waveformvalues_wholedt[2, r]
+    else:
+        for r in range(m[3]):      #loop to assign the source values of magnetic field to the first few gridpoints
+            time_x = dt * iteration - (r+ (m[1]+m[2])*0.5) * ds/c
+            time_y = dt * iteration - (r+ (m[2]+m[0])*0.5) * ds/c
+            time_z = dt * iteration - (r+ (m[0]+m[1])*0.5) * ds/c
+            if (dt * iteration >= start and dt * iteration <= stop):
+            # Set the time of the waveform evaluation to account for any delay in the start
+                H_fields[0, r] = projections[0] * getSource(time_x-start, freq, wavetype, dt)
+                H_fields[1, r] = projections[1] * getSource(time_y-start, freq, wavetype, dt)
+                H_fields[2, r] = projections[2] * getSource(time_z-start, freq, wavetype, dt)
+    
 
 @cython.cdivision(True)
 @cython.wraparound(False)
@@ -630,7 +656,7 @@ cdef void updateElectricFields(int n, float_or_double[:, ::1] H_fields, float_or
 
 
 @cython.cdivision(True)
-cdef double getSource(double time, double freq, char* wavetype, double dt):
+cpdef double getSource(double time, double freq, char* wavetype, double dt):
     '''
     Method to get the magnitude of the source field in the direction perpendicular to the propagation of the plane wave
         __________________________
@@ -694,7 +720,7 @@ cpdef void calculate1DWaveformValues(float_or_double[:, :, ::1] waveformvalues_w
                                     double start, double stop, double freq, char* wavetype):
     
     cdef double time_x, time_y, time_z = 0.0
-    cdef Py_ssize_t dimensions, iteration, r = 0
+    cdef Py_ssize_t iteration, r = 0
     
     for iteration in range(iterations):            
         for r in range(m[3]):
@@ -720,12 +746,21 @@ cpdef void updatePlaneWave(
     float_or_double[:, :, ::1] Hx,
     float_or_double[:, :, ::1] Hy,
     float_or_double[:, :, ::1] Hz, 
-    float_or_double[:] projections,
+    double[:] projections,
     float_or_double[:, ::1] waveformvalues_wholedt,
     int[:] m,
-    int[:] corners
+    int[:] corners,
+    bint precompute,
+    int iteration,
+    double dt,
+    double ds,
+    double c,
+    double start, 
+    double stop, 
+    double freq,
+    char* wavetype
     ):
-    initializeMagneticFields(m[3], H_fields, projections, waveformvalues_wholedt)
+    initializeMagneticFields(m, H_fields, projections, waveformvalues_wholedt, precompute, iteration, dt, ds, c, start, stop, freq, wavetype)
     updateMagneticFields(n, H_fields, E_fields, updatecoeffsH, m)
     applyTFSFMagnetic(nthreads, Hx, Hy, Hz, E_fields, updatecoeffsH, m, corners)
     applyTFSFElectric(nthreads, Ex, Ey, Ez, H_fields, updatecoeffsE, m, corners)
