@@ -181,7 +181,7 @@ def process_multicmds(multicmds):
                 raise ValueError
 
             if len(tmp) == 10:
-                plWave = gprMax.DiscretePlaneWave(
+                plWave = DiscretePlaneWave(
                     p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
                     p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
                     psi = float(tmp[6]),
@@ -190,7 +190,7 @@ def process_multicmds(multicmds):
                     waveform_id = tmp[9],
                 )
             elif len(tmp) == 11:
-                plWave = gprMax.DiscretePlaneWave(
+                plWave = DiscretePlaneWave(
                     p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
                     p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
                     psi = float(tmp[6]),
@@ -200,7 +200,7 @@ def process_multicmds(multicmds):
                     material_ID = int(tmp[12]),
                 )
             elif len(tmp) == 12:
-                plWave = gprMax.DiscretePlaneWave(
+                plWave = DiscretePlaneWave(
                     p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
                     p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
                     psi = float(tmp[6]),
@@ -211,7 +211,7 @@ def process_multicmds(multicmds):
                     waveform_id = tmp[11],
                 )
             elif len(tmp) == 13:
-                plWave = gprMax.DiscretePlaneWave(
+                plWave = DiscretePlaneWave(
                     p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
                     p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
                     psi = float(tmp[6]),
@@ -223,7 +223,7 @@ def process_multicmds(multicmds):
                     material_ID = int(tmp[12]),
                 )
             elif len(tmp) == 14:
-                plWave = gprMax.DiscretePlaneWave(
+                plWave = DiscretePlaneWave(
                     p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
                     p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
                     psi = float(tmp[6]),
@@ -236,7 +236,7 @@ def process_multicmds(multicmds):
                     stop = float(tmp[13]),
                 )
             elif len(tmp) == 15:
-                plWave = gprMax.DiscretePlaneWave(
+                plWave = DiscretePlaneWave(
                     p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])),
                     p2=(float(tmp[3]), float(tmp[4]), float(tmp[5])),
                     psi = float(tmp[6]),

@@ -806,7 +806,9 @@ class DiscretePlaneWave(UserObjectMulti):
             DPW.stop = grid.timewindow
             startstop = " "
 
-        DPW.calculate_waveform_values(grid)
+        precompute = True
+        if(precompute == True):
+            DPW.calculate_waveform_values(grid)
         
         logger.info(
             f"{self.grid_name(grid)} Discrete Plane Wave within the TFSF Box " 
@@ -822,7 +824,7 @@ class DiscretePlaneWave(UserObjectMulti):
             f"Since {self.grid_name(grid)} Discrete Plane Wave has been discretized "
             + f"the angles have been approzimated to the nearest rational angles "
             + f"with some small tolerance levels. The chosen rational integers are "
-            + f"[m_x, m_y, m_z] : {DPW.m[-1]}. The approximated angles are : \n"
+            + f"[m_x, m_y, m_z] : {DPW.m[:3]}. The approximated angles are : \n"
             + "Approximated Phi : {:.3f}".format(phi_approx) + "\nApproximated Theta : {:.3f} .".format(theta_approx)
         )
 

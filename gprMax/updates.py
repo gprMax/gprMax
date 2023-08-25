@@ -109,11 +109,11 @@ class CPUUpdates:
                 self.grid.Hy,
                 self.grid.Hz,
                 self.grid.iteration,
+                self.grid,
+                cythonize = True,
+                precompute = False,
             )
-            #source.update_magnetic_field_1D(self.grid)
-            #source.apply_TFSF_conditions_magnetic(self.grid)
-            #source.apply_TFSF_conditions_electric(self.grid)
-            #source.update_electric_field_1D(self.grid)
+            
             if(self.grid.iteration % 10 == 0):
                 np.save('./snapshots/electric_z_{}.npy'.format(self.grid.iteration), self.grid.Ex)
 

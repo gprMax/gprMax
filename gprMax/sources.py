@@ -26,7 +26,7 @@ from .fields_outputs import Ix, Iy, Iz
 from .utilities.utilities import round_value
 
 import scipy.constants as constants
-from .cython.planeWaveModules import getIntegerForAngles, getProjections, calculate1DWaveformValues, updatePlaneWave
+from .cython.planeWaveModules import getIntegerForAngles, getProjections, calculate1DWaveformValues, updatePlaneWave, getSource
 
 class Source:
     """Super-class which describes a generic source."""
@@ -557,9 +557,9 @@ class DiscretePlaneWave(Source):
             D, double array          : stores the coefficients of the fields for the update equation of the magnetic fields
 
         """
-        self.directions, self.m = getIntegerForAngles(phi, Delta_phi, theta, Delta_theta,
+        self.directions, self.m[:3] = getIntegerForAngles(phi, Delta_phi, theta, Delta_theta,
                                           np.array([G.dx, G.dy, G.dz]))   #get the integers for the nearest rational angle
-        #store max(m_x, m_y, m_z) in the last element of the array
+        self.m[3] = max(self.m) #store max(m_x, m_y, m_z) in the last element of the array
         self.length = int( 2 * max(self.m[:-1]) * G.iterations)                  #set an appropriate length fo the one dimensional arrays
         self.E_fields = np.zeros((3, self.length), order='C', dtype=config.sim_config.dtypes["float_or_double"])
         self.H_fields = np.zeros((3, self.length), order='C', dtype=config.sim_config.dtypes["float_or_double"])
@@ -580,7 +580,7 @@ class DiscretePlaneWave(Source):
             self.ds = P[0]*G.dx/self.m[0]
 
     
-    def calculate_waveform_values(self, G):
+    def calculate_waveform_values(self, G, cythonize=True):
         """
             Calculates all waveform values for source for duration of simulation.
 
@@ -592,37 +592,52 @@ class DiscretePlaneWave(Source):
 
         # Waveform values for sources that need to be calculated on half timesteps
         #self.waveformvalues_halfdt = np.zeros((G.iterations), dtype=config.sim_config.dtypes["float_or_double"])
-
         waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-        calculate1DWaveformValues(self.waveformvalues_wholedt, G.iterations, self.m, G.dt, self.ds, config.c, 
+        if(cythonize == True):
+            calculate1DWaveformValues(self.waveformvalues_wholedt, G.iterations, self.m, G.dt, self.ds, config.c, 
                                   self.start, self.stop, waveform.freq, waveform.type.encode('UTF-8'))
-        '''
-        for dimension in range(3):
-            for iteration in range(G.iterations):            
-                for r in range(self.m[3]):
-                    time = G.dt * iteration - (r+ (self.m[(dimension+1)%3]+self.m[(dimension+2)%3])*0.5) * self.ds/config.c
-                    if time >= self.start and time <= self.stop:
-                        # Set the time of the waveform evaluation to account for any
-                        # delay in the start
-                        time -= self.start
-                        self.waveformvalues_wholedt[iteration, dimension, r] = waveform.calculate_value(time, G.dt)
-                        #self.waveformvalues_halfdt[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
-        '''
-
-    def update_plane_wave(self, nthreads, updatecoeffsE, updatecoeffsH, Ex, Ey, Ez, Hx, Hy, Hz, iteration):
-        updatePlaneWave(self.length, nthreads, self.H_fields, self.E_fields, 
-                          updatecoeffsE[self.material_ID, :], updatecoeffsH[self.material_ID, :],
-                          Ex, Ey, Ez, Hx, Hy, Hz, self.projections, self.waveformvalues_wholedt[iteration, :, :],
-                          self.m, self.corners)
-
-    def initialize_magnetic_fields_1D(self, G):
-        for dimension in range(3):
-            for r in range(self.m[3]):      #loop to assign the source values of magnetic field to the first few gridpoints
-                self.H_fields[dimension, r] = self.projections[dimension] * self.waveformvalues_wholedt[dimension, G.iteration, r]
-                #self.getSource(self.real_time - (j+(self.m[(i+1)%3]+self.m[(i+2)%3])*0.5)*self.ds/config.c)#, self.waveformID, G.dt)
+        else:
+            for dimension in range(3):
+                for iteration in range(G.iterations):            
+                    for r in range(self.m[3]):
+                        time = G.dt * iteration - (r+ (self.m[(dimension+1)%3]+self.m[(dimension+2)%3])*0.5) * self.ds/config.c
+                        if time >= self.start and time <= self.stop:
+                            # Set the time of the waveform evaluation to account for any
+                            # delay in the start
+                            time -= self.start
+                            self.waveformvalues_wholedt[iteration, dimension, r] = waveform.calculate_value(time, G.dt)
+                            #self.waveformvalues_halfdt[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
 
 
-    def update_magnetic_field_1D(self, G):
+    def update_plane_wave(self, nthreads, updatecoeffsE, updatecoeffsH, Ex, Ey, Ez, Hx, Hy, Hz, iteration, G, cythonize=True, precompute=True):
+        if(cythonize == True):
+            waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
+            updatePlaneWave(self.length, nthreads, self.H_fields, self.E_fields, 
+                            updatecoeffsE[self.material_ID, :], updatecoeffsH[self.material_ID, :],
+                            Ex, Ey, Ez, Hx, Hy, Hz, self.projections, self.waveformvalues_wholedt[iteration, :, :],
+                            self.m, self.corners, precompute, iteration, G.dt, self.ds, config.c, self.start, self.stop,
+                            waveform.freq, waveform.type.encode('UTF-8'))
+        else:
+            self.update_magnetic_field_1D(G, precompute)
+            self.apply_TFSF_conditions_magnetic(G)
+            self.apply_TFSF_conditions_electric(G)
+            self.update_electric_field_1D(G)
+        
+
+    def initialize_magnetic_fields_1D(self, G, precompute):
+        if(precompute == True):
+            for dimension in range(3):
+                for r in range(self.m[3]):      #loop to assign the source values of magnetic field to the first few gridpoints
+                    self.H_fields[dimension, r] = self.projections[dimension] * self.waveformvalues_wholedt[G.iteration, dimension, r]
+                    #self.getSource(self.real_time - (j+(self.m[(i+1)%3]+self.m[(i+2)%3])*0.5)*self.ds/config.c)#, self.waveformID, G.dt)
+        else:
+            waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
+            for dimension in range(3):
+                for r in range(self.m[3]):      #loop to assign the source values of magnetic field to the first few gridpoints
+                    self.H_fields[dimension, r] = self.projections[dimension] * getSource(G.iteration*G.dt - (r+(self.m[(dimension+1)%3]+self.m[(dimension+2)%3])*0.5)*self.ds/config.c, waveform.freq, waveform.type.encode('UTF-8'), G.dt)
+
+
+    def update_magnetic_field_1D(self, G, precompute=True):
         """
         Method to update the magnetic fields for the next time step using
         Equation 8 of DOI: 10.1109/LAWP.2009.2016851
@@ -643,7 +658,7 @@ class DiscretePlaneWave(Source):
 
         """
 
-        self.initialize_magnetic_fields_1D(G)
+        self.initialize_magnetic_fields_1D(G, precompute)
         
         for i in range(3):          #loop to update each component of the magnetic field
             materialH = G.ID[3+i, (self.corners[0]+self.corners[3])//2,
