@@ -1,6 +1,6 @@
 # Automated Python Script to installl gprMax
 
-# To test the script on different operating systems, you can follow these steps:
+# To Install gprMax on different operating systems, you can follow these steps:
 
 # Windows:
 
