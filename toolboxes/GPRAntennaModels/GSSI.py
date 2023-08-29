@@ -391,10 +391,10 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
     elif optstate == "GiannakisPaper":
         # Optimised custom pulse
         exc1 = gprMax.ExcitationFile(
-            filepath="user_libs/GPRAntennaModels/GSSI1p5optpulse.txt", kind="linear", fill_value="extrapolate"
+            filepath="toolboxes/GPRAntennaModels/GSSI_1500MHz_pulse.txt", kind="linear", fill_value="extrapolate"
         )
         vs1 = gprMax.VoltageSource(
-            polarisation="y", p1=(tx[0], tx[1], tx[2]), resistance=sourceresistance, waveform_id="GSSI1p5optpulse"
+            polarisation="y", p1=(tx[0], tx[1], tx[2]), resistance=sourceresistance, waveform_id="my_pulse"
         )
         scene_objects.extend((exc1, vs1))
 
@@ -422,6 +422,9 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
 
 def antenna_like_GSSI_400(x, y, z, resolution=0.001, **kwargs):
     """Inserts a description of an antenna similar to the GSSI 400MHz antenna.
+        This model represents an update to the previous model of the GSSI 400MHz 
+        antenna and was created and optimised by Stadler et al. (2022) 
+        in: https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=9686638. 
         Can be used with 0.5mm, 1mm (default) or 2mm spatial resolution.
         The external dimensions of the antenna are 300x300x178mm.
         One output point is defined between the arms of the receiver bowtie.
@@ -457,9 +460,9 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001, **kwargs):
     metalmiddleplateheight = 0.11
 
     smooth_dec = "yes"  # choose to use dielectric smoothing or not
-    src_type = "voltage_source"  # source type. "voltage_source" or "transmission_line"
-    pcber = 2.35
-    hdper = 2.35
+    src_type = "GSSI_400MHz_pulse" # (or voltage_source)
+    pcber = 6.401200848809589
+    hdper = 1.0
     skidthickness = 0.01
 
     # If using parameters from an optimisation
@@ -473,11 +476,11 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001, **kwargs):
 
     # Otherwise choose pre-set optimised parameters
     except:
-        excitationfreq = 0.39239891e9  # GHz
-        sourceresistance = 111.59927  # Ohms
-        receiverresistance = sourceresistance  # Ohms
-        absorberEr = 1.1
-        absorbersig = 0.062034689  # S/m
+        excitationfreq = 3.5e8  # Hz, only used with voltage_source
+        sourceresistance = 257.97407389585214  # Ohms
+        receiverresistance = 288.92728542970417  # Ohms
+        absorberEr = 2.42966922703319
+        absorbersig = 0.03839822151712033  # S/m
 
     x = x - (casesize[0] / 2)
     y = y - (casesize[1] / 2)
@@ -500,7 +503,7 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001, **kwargs):
         dz = 0.002
         foamsurroundthickness = 0.002
         metalboxheight = 0.088
-        tx = x + 0.01 + 0.004 + 0.056, y + casethickness + 0.005 + 0.143 - 0.002, z + skidthickness
+        tx = x + 0.01 + 0.004 + 0.056, y + casethickness + 0.005 + 0.143 - 0.002, z + skidthickness - 0.002
     else:
         logger.exception("This antenna module can only be used with a spatial discretisation of 0.5mm, 1mm, 2mm")
         raise ValueError
@@ -606,20 +609,20 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001, **kwargs):
 
         elif resolution == 0.002:
             b6 = gprMax.Box(
-                p1=(x + 0.01 + 0.005 + 0.017, y + casethickness + 0.005 + 0.021, z + skidthickness),
+                p1=(x + 0.01 + 0.005 + 0.017, y + casethickness + 0.005 + 0.021, z + skidthickness - 0.002),
                 p2=(
                     x + 0.01 + 0.005 + 0.033 + bowtiebase,
                     y + casethickness + 0.006 + 0.202 + patchheight,
-                    z + skidthickness + pcbthickness,
+                    z + skidthickness + pcbthickness - 0.002,
                 ),
                 material_id="pcb",
             )
             b7 = gprMax.Box(
-                p1=(x + 0.01 + 0.005 + 0.179, y + casethickness + 0.005 + 0.021, z + skidthickness),
+                p1=(x + 0.01 + 0.005 + 0.179, y + casethickness + 0.005 + 0.021, z + skidthickness - 0.002),
                 p2=(
                     x + 0.01 + 0.005 + 0.195 + bowtiebase,
                     y + casethickness + 0.006 + 0.202 + patchheight,
-                    z + skidthickness + pcbthickness,
+                    z + skidthickness + pcbthickness - 0.002,
                 ),
                 material_id="pcb",
             )
@@ -727,11 +730,11 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001, **kwargs):
 
         elif resolution == 0.002:
             b13 = gprMax.Box(
-                p1=(x + 0.01 + 0.005 + 0.017, y + casethickness + 0.005 + 0.021, z + skidthickness),
+                p1=(x + 0.01 + 0.005 + 0.017, y + casethickness + 0.005 + 0.021, z + skidthickness - 0.002),
                 p2=(
                     x + 0.01 + 0.005 + 0.033 + bowtiebase,
                     y + casethickness + 0.006 + 0.202 + patchheight,
-                    z + skidthickness + pcbthickness,
+                    z + skidthickness + pcbthickness - 0.002,
                 ),
                 material_id="pcb",
                 averaging="n",
@@ -948,84 +951,84 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001, **kwargs):
         # "left" side
         # extension plates
         p1 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.021, z + skidthickness),
+            p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.021, z + skidthickness - 0.002),
             p2=(
                 x + 0.01 + 0.005 + 0.025 + bowtiebase,
                 y + casethickness + 0.005 + 0.021 + patchheight,
-                z + skidthickness,
+                z + skidthickness - 0.002,
             ),
             material_id="pec",
         )
         p2 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness),
+            p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
             p2=(
                 x + 0.01 + 0.005 + 0.025 + bowtiebase,
                 y + casethickness + 0.005 + 0.203 + patchheight,
-                z + skidthickness,
+                z + skidthickness - 0.002,
             ),
             material_id="pec",
         )
         # triangles
         t1 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.081, z + skidthickness),
-            p2=(x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness),
+            p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.081, z + skidthickness - 0.002),
+            p2=(x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness - 0.002),
             p3=(
                 x + 0.01 + 0.005 + 0.025 + (bowtiebase / 2),
                 y + casethickness + 0.005 + 0.081 + bowtieheight,
-                z + skidthickness,
+                z + skidthickness - 0.002,
             ),
             thickness=0,
             material_id="pec",
         )
         t2 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness),
-            p2=(x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness),
+            p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
+            p2=(x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
             p3=(
                 x + 0.01 + 0.005 + 0.025 + (bowtiebase / 2),
                 y + casethickness + 0.005 + 0.203 - bowtieheight,
-                z + skidthickness,
+                z + skidthickness - 0.002,
             ),
             thickness=0,
             material_id="pec",
         )
         # "right" side
         p3 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.021, z + skidthickness),
+            p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.021, z + skidthickness - 0.002),
             p2=(
                 x + 0.01 + 0.005 + 0.187 + bowtiebase,
                 y + casethickness + 0.005 + 0.021 + patchheight,
-                z + skidthickness,
+                z + skidthickness - 0.002,
             ),
             material_id="pec",
         )
         p4 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness),
+            p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
             p2=(
                 x + 0.01 + 0.005 + 0.187 + bowtiebase,
                 y + casethickness + 0.005 + 0.203 + patchheight,
-                z + skidthickness,
+                z + skidthickness - 0.002,
             ),
             material_id="pec",
         )
         # triangles
         t3 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.081, z + skidthickness),
-            p2=(x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness),
+            p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.081, z + skidthickness - 0.002),
+            p2=(x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness - 0.002),
             p3=(
                 x + 0.01 + 0.005 + 0.187 + (bowtiebase / 2),
                 y + casethickness + 0.005 + 0.081 + bowtieheight,
-                z + skidthickness,
+                z + skidthickness - 0.002,
             ),
             thickness=0,
             material_id="pec",
         )
         t4 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness),
-            p2=(x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness),
+            p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
+            p2=(x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
             p3=(
                 x + 0.01 + 0.005 + 0.187 + (bowtiebase / 2),
                 y + casethickness + 0.005 + 0.203 - bowtieheight,
-                z + skidthickness,
+                z + skidthickness - 0.002,
             ),
             thickness=0,
             material_id="pec",
@@ -1080,6 +1083,15 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001, **kwargs):
             polarisation="y", p1=(tx[0], tx[1], tx[2]), resistance=sourceresistance, waveform_id="my_gaussian"
         )
         scene_objects.append(tl1)
+    else:
+        # Optimised custom pulse
+        exc1 = gprMax.ExcitationFile(
+            filepath="toolboxes/GPRAntennaModels/GSSI_400MHz_pulse.txt", kind="linear", fill_value="extrapolate"
+        )
+        vs1 = gprMax.VoltageSource(
+            polarisation="y", p1=(tx[0], tx[1], tx[2]), resistance=sourceresistance, waveform_id="my_pulse"
+        )
+        scene_objects.extend((exc1, vs1))
 
     # Receiver
     # Zero waveform to use with transmission line at receiver output

@@ -1,4 +1,4 @@
-GSSI1p5GHzoptpulse
+my_pulse
 7.8514850e-06
 9.7512211e-06
 1.1482613e-05
