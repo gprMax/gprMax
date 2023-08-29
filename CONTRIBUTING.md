@@ -23,16 +23,47 @@ In general, we follow the "fork-and-pull" Git workflow.
 
 1. Fork the gprMax repository
 2. Clone the repository
-3. Make the changes you want to make
-4. Run the following command before you commit your changes to ensure that your code is formatted correctly:
+   ```bash
+   git clone https://github.com/Your-Username/gprMax.git
+   ```
+3. Navigate to the project directory.
+    ```bash
+    cd gprMax
+    ```
+4.  Add a reference(remote) to the original repository.
+    ```bash
+    git remote add upstream https://github.com/gprMax/gprMax.git
+    ```
+5.  Check the remotes for this repository.
+    ```bash
+    git remote -v
+    ```
+6. Always take a pull from the upstream repository to your devel branch to keep it at par with the main project (updated repository).
+   ```bash
+   git pull upstream devel
+   ```
+7. Create a new branch.
+   ```bash
+   git checkout -b <your_branch_name>
+   ```
+8. Run the following command before you commit your changes to ensure that your code is formatted correctly:
 
-```
-pre-commit run --all-files
-```
-
-5. Commit your changes locally as you progress
-6. Push your local branch to your fork
-7. Submit a Pull request so that we can review your changes
+    ```bash
+    pre-commit run --all-files
+    ```
+9. Make the changes you want to make and then add
+   ```bash
+   git add .
+   ```
+10. Commit your changes. To contribute to this project
+    ```bash
+    git commit  -m "<commit subject>"
+    ```
+11. Push your local branch to your fork
+     ```bash
+     git push -u origin <your_branch_name>
+     ```
+12. Submit a Pull request so that we can review your changes
 
 > NOTE: Be sure to merge the latest from "upstream" before making a pull request!
 
