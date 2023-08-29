@@ -1,0 +1,8 @@
+#title: Magnetic dipole in free-space
+#domain: 0.100 0.100 0.100
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 3e-9
+
+#waveform: gaussiandot 1 1e9 myWave
+#magnetic_dipole: z 0.050 0.050 0.050 myWave
+#rx: 0.070 0.070 0.070
