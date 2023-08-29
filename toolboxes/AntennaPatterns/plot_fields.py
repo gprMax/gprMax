@@ -65,7 +65,7 @@ if epsr:
 logger.info(f"Centre frequency: {f / 1000000000.0} GHz")
 if epsr:
     logger.info(f"Critical angle for Er {epsr} is {thetac} degrees")
-    logger.info("Wavelength: {:.3f} m".format(wavelength))
+    logger.info(f"Wavelength: {wavelength:.3f} m")
     logger.info(
         "Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)".format(
             radii[0], radii[0] / wavelength, radii[-1], radii[-1] / wavelength
@@ -107,7 +107,7 @@ for patt in range(0, len(radii)):
     # Replace any NaNs or Infs from zero division
     power[np.invert(np.isfinite(power))] = 0
 
-    ax.plot(theta, power, label="{:.2f}m".format(radii[patt]), marker=".", ms=6, lw=1.5)
+    ax.plot(theta, power, label=f"{radii[patt]:.2f}m", marker=".", ms=6, lw=1.5)
 
 # Add Hertzian dipole plot
 # hertzplot1 = np.append(hertzian[0, :], hertzian[0, 0]) # Append start value to close circle

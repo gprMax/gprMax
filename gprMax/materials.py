@@ -632,20 +632,20 @@ def process_materials(G):
         ]
         if config.get_model_config().materials["maxpoles"] > 0:
             if "debye" in material.type:
-                materialtext.append("\n".join("{:g}".format(deltaer) for deltaer in material.deltaer))
-                materialtext.append("\n".join("{:g}".format(tau) for tau in material.tau))
+                materialtext.append("\n".join(f"{deltaer:g}" for deltaer in material.deltaer))
+                materialtext.append("\n".join(f"{tau:g}" for tau in material.tau))
                 materialtext.extend(["", "", ""])
             elif "lorentz" in material.type:
-                materialtext.append(", ".join("{:g}".format(deltaer) for deltaer in material.deltaer))
+                materialtext.append(", ".join(f"{deltaer:g}" for deltaer in material.deltaer))
                 materialtext.append("")
-                materialtext.append(", ".join("{:g}".format(tau) for tau in material.tau))
-                materialtext.append(", ".join("{:g}".format(alpha) for alpha in material.alpha))
+                materialtext.append(", ".join(f"{tau:g}" for tau in material.tau))
+                materialtext.append(", ".join(f"{alpha:g}" for alpha in material.alpha))
                 materialtext.append("")
             elif "drude" in material.type:
                 materialtext.extend(["", ""])
-                materialtext.append(", ".join("{:g}".format(tau) for tau in material.tau))
+                materialtext.append(", ".join(f"{tau:g}" for tau in material.tau))
                 materialtext.append("")
-                materialtext.append(", ".join("{:g}".format(alpha) for alpha in material.alpha))
+                materialtext.append(", ".join(f"{alpha:g}" for alpha in material.alpha))
             else:
                 materialtext.extend(["", "", "", "", ""])
 

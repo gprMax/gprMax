@@ -1169,8 +1169,8 @@ class AddDebyeDispersion(UserObjectMulti):
 
             logger.info(
                 f"{self.grid_name(grid)}Debye disperion added to {disp_material.ID} "
-                f"with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, "
-                f"and tau={', '.join('%4.3e' % tau for tau in disp_material.tau)} secs created."
+                f"with delta_eps_r={', '.join(f'{deltaer:4.2f}' for deltaer in disp_material.deltaer)}, "
+                f"and tau={', '.join(f'{tau:4.3e}' for tau in disp_material.tau)} secs created."
             )
 
 
@@ -1248,9 +1248,9 @@ class AddLorentzDispersion(UserObjectMulti):
 
             logger.info(
                 f"{self.grid_name(grid)}Lorentz disperion added to {disp_material.ID} "
-                f"with delta_eps_r={', '.join('%4.2f' % deltaer for deltaer in disp_material.deltaer)}, "
-                f"omega={', '.join('%4.3e' % omega for omega in disp_material.tau)} secs, "
-                f"and gamma={', '.join('%4.3e' % delta for delta in disp_material.alpha)} created."
+                f"with delta_eps_r={', '.join(f'{deltaer:4.2f}' for deltaer in disp_material.deltaer)}, "
+                f"omega={', '.join(f'{omega:4.3e}' for omega in disp_material.tau)} secs, "
+                f"and gamma={', '.join(f'{delta:4.3e}' for delta in disp_material.alpha)} created."
             )
 
 
@@ -1322,8 +1322,8 @@ class AddDrudeDispersion(UserObjectMulti):
 
             logger.info(
                 f"{self.grid_name(grid)}Drude disperion added to {disp_material.ID} "
-                f"with omega={', '.join('%4.3e' % omega for omega in disp_material.tau)} secs, "
-                f"and gamma={', '.join('%4.3e' % alpha for alpha in disp_material.alpha)} secs created."
+                f"with omega={', '.join(f'{omega:4.3e}' for omega in disp_material.tau)} secs, "
+                f"and gamma={', '.join(f'{alpha:4.3e}' for alpha in disp_material.alpha)} secs created."
             )
 
 
