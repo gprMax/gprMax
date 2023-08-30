@@ -433,7 +433,7 @@ class ExcitationFile(UserObjectSingle):
             waveformtime = np.arange(0, G.timewindow + G.dt, G.dt)
             timestr = "simulation time array"
 
-        for waveformID in waveformIDs:
+        for i, waveformID in enumerate(waveformIDs):
             if any(x.ID == waveformID for x in G.waveforms):
                 logger.exception(f"Waveform with ID {waveformID} already exists")
                 raise ValueError
@@ -442,7 +442,7 @@ class ExcitationFile(UserObjectSingle):
             w.type = "user"
 
             # Select correct column of waveform values depending on array shape
-            singlewaveformvalues = waveformvalues[:] if len(waveformvalues.shape) == 1 else waveformvalues[:, waveform]
+            singlewaveformvalues = waveformvalues[:] if len(waveformvalues.shape) == 1 else waveformvalues[:, i]
 
             # Truncate waveform array if it is longer than time array
             if len(singlewaveformvalues) > len(waveformtime):
