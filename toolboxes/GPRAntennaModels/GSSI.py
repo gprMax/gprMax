@@ -770,20 +770,18 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
     scene_objects.extend((b15, b16))
 
     # Source
-    # Excitation - Gaussian pulse
-    w1 = gprMax.Waveform(wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian")
-    scene_objects.append(w1)
-
     if src_type == "voltage_source":
+        w1 = gprMax.Waveform(wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian")
         vs1 = gprMax.VoltageSource(
             polarisation="y", p1=(tx[0], tx[1], tx[2]), resistance=sourceresistance, waveform_id="my_gaussian"
         )
-        scene_objects.append(vs1)
+        scene_objects.extend((w1, vs1))
     elif src_type == "transmission_line":
+        w1 = gprMax.Waveform(wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian")
         tl1 = gprMax.TransmissionLine(
             polarisation="y", p1=(tx[0], tx[1], tx[2]), resistance=sourceresistance, waveform_id="my_gaussian"
         )
-        scene_objects.append(tl1)
+        scene_objects.extend((w1, tl1))
     else:
         # Optimised custom pulse
         exc1 = gprMax.ExcitationFile(
@@ -795,19 +793,17 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
         scene_objects.extend((exc1, vs1))
 
     # Receiver
-    # Zero waveform to use with transmission line at receiver output
-    w2 = gprMax.Waveform(wave_type="gaussian", amp=0, freq=excitationfreq, id="my_zero_wave")
-    scene_objects.append(w2)
-
     if src_type == "transmission_line":
+        # Zero waveform to use with transmission line at receiver output
+        w2 = gprMax.Waveform(wave_type="gaussian", amp=0, freq=excitationfreq, id="my_zero_wave")
         tl2 = gprMax.TransmissionLine(
             polarisation="y",
             p1=(tx[0] + 0.162, tx[1], tx[2]),
             resistance=receiverresistance,
             waveform_id="my_zero_wave",
         )
-        scene_objects.append(tl2)
-    elif src_type == "voltage_source":
+        scene_objects.extend((w2, tl2))
+    else:
         r1 = gprMax.Rx(p1=(tx[0] + 0.162, tx[1], tx[2]), id="rxbowtie", outputs="Ey")
         scene_objects.append(r1)
 
