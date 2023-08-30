@@ -18,6 +18,7 @@
 
 import glob
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -187,35 +188,25 @@ else:
         )
         cpuID = " ".join(cpuID.split())
         if "Apple" in cpuID:
-            gccpath = glob.glob("/opt/homebrew/bin/gcc-[4-9]*")
-            gccpath += glob.glob("/opt/homebrew/bin/gcc-[10-11]*")
-            if gccpath:
-                # Use newest gcc found
-                os.environ["CC"] = gccpath[-1].split(os.sep)[-1]
-                rpath = "/opt/homebrew/opt/gcc/lib/gcc/" + gccpath[-1].split(os.sep)[-1][-1] + "/"
-            else:
-                raise (
-                    "Cannot find gcc in /opt/homebrew/bin. gprMax requires gcc "
-                    + "to be installed - easily done through the Homebrew package "
-                    + "manager (http://brew.sh). Note: gcc with OpenMP support "
-                    + "is required."
-                )
+            gccbasepath = "/opt/homebrew/bin/"
         else:
-            gccpath = glob.glob("/usr/local/bin/gcc-[4-9]*")
-            gccpath += glob.glob("/usr/local/bin/gcc-[10-11]*")
-            if gccpath:
-                # Use newest gcc found
-                os.environ["CC"] = gccpath[-1].split(os.sep)[-1]
-            else:
-                raise (
-                    "Cannot find gcc in /usr/local/bin. gprMax requires gcc "
-                    + "to be installed - easily done through the Homebrew package "
-                    + "manager (http://brew.sh). Note: gcc with OpenMP support "
-                    + "is required."
-                )
+            gccbasepath = "/usr/local/bin/"
+        gccpath = glob.glob(gccbasepath + "gcc-[0-9][0-9]")
+        if gccpath:
+            # Use newest gcc found
+            os.environ["CC"] = gccpath[-1].split(os.sep)[-1]
+            if "Apple" in cpuID:
+                rpath = "/opt/homebrew/opt/gcc/lib/gcc/" + gccpath[-1].split(os.sep)[-1][-1] + "/"
+        else:
+            raise (
+                f"Cannot find gcc in {gccbasepath}. gprMax requires gcc "
+                + "to be installed - easily done through the Homebrew package "
+                + "manager (http://brew.sh). Note: gcc with OpenMP support "
+                + "is required."
+            )
 
-        # Minimum supported macOS deployment target
-        MIN_MACOS_VERSION = "10.13"
+        # Set minimum supported macOS deployment target to installed macOS version
+        MIN_MACOS_VERSION = platform.mac_ver()[0]
         try:
             os.environ["MACOSX_DEPLOYMENT_TARGET"]
             del os.environ["MACOSX_DEPLOYMENT_TARGET"]
