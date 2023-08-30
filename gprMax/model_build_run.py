@@ -260,7 +260,7 @@ class ModelBuildRun:
         # If there is no scene, process the hash commands
         if not scene:
             scene = Scene()
-            config.sim_config.scenes.append(scene)
+            #config.sim_config.scenes.append(scene)
             # Parse the input file into user objects and add them to the scene
             scene = parse_hash_commands(scene)
 

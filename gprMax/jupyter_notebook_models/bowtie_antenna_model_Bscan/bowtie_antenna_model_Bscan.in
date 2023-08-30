@@ -1,0 +1,16 @@
+#title: B-scan from a metal cylinder buried in a dielectric half-space with a GSSI 1.5GHz 'like' antenna
+#domain: 0.480 0.148 0.235
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 6e-9
+
+#material: 6 0 1 0 half_space
+
+#box: 0 0 0 0.480 0.148 0.170 half_space
+#cylinder: 0.240 0 0.080 0.240 0.148 0.080 0.010 pec
+
+#python:
+from toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_1500
+antenna_like_GSSI_1500(0.105 + current_model_run * 0.005, 0.074, 0.170, 0.001)
+#end_python:
+
+#geometry_view: 0 0 0 0.480 0.148 0.235 0.001 0.001 0.001 cylinder_GSSI_1500 n

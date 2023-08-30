@@ -23,8 +23,10 @@ from pathlib import Path
 
 import h5py
 import numpy as np
-from evtk.hl import imageToVTK, linesToVTK
-from evtk.vtk import VtkGroup, VtkImageData, VtkUnstructuredGrid
+from evtk import hl
+from evtk import vtk
+#from evtk.hl import imageToVTK, linesToVTK
+#from evtk.vtk import VtkGroup, VtkImageData, VtkUnstructuredGrid
 from tqdm import tqdm
 
 import gprMax.config as config
@@ -103,7 +105,7 @@ class GeometryViewLines(GeometryView):
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.vtkfiletype = VtkUnstructuredGrid
+        self.vtkfiletype = vtk.VtkUnstructuredGrid
 
     def prep_vtk(self):
         """Prepares data for writing to VTK file.
@@ -171,7 +173,7 @@ class GeometryViewLines(GeometryView):
         """
 
         # Write the VTK file .vtu
-        linesToVTK(
+        hl.linesToVTK(
             str(self.filename),
             vtk_data["x"],
             vtk_data["y"],
@@ -186,7 +188,7 @@ class GeometryViewVoxels(GeometryView):
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.vtkfiletype = VtkImageData
+        self.vtkfiletype = vtk.VtkImageData
 
     def prep_vtk(self):
         """Prepares data for writing to VTK file.
@@ -238,7 +240,7 @@ class GeometryViewVoxels(GeometryView):
             origin = ((self.xs * self.grid.dx), (self.ys * self.grid.dy), (self.zs * self.grid.dz))
 
         # Write the VTK file .vti
-        imageToVTK(
+        hl.imageToVTK(
             str(self.filename),
             origin=origin,
             spacing=((self.dx * self.grid.dx), (self.dy * self.grid.dy), (self.dz * self.grid.dz)),

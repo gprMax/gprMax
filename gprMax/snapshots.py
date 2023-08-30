@@ -22,7 +22,8 @@ from pathlib import Path
 
 import h5py
 import numpy as np
-from evtk.hl import imageToVTK
+from evtk import hl
+#from evtk.hl import imageToVTK
 from tqdm import tqdm
 
 import gprMax.config as config
@@ -208,9 +209,24 @@ class Snapshot:
             G: FDTDGrid class describing a grid in a model.
         """
 
-        celldata = {k: self.snapfields[k] for k in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"] if self.outputs.get(k)}
+        celldata = {}
 
-        imageToVTK(
+        for k, v in self.outputs.items():
+            if v:
+                if k == "Ex":
+                    celldata[k] = self.snapfields["Ex"]
+                if k == "Ey":
+                    celldata[k] = self.snapfields["Ey"]
+                if k == "Ez":
+                    celldata[k] = self.snapfields["Ez"]
+                if k == "Hx":
+                    celldata[k] = self.snapfields["Hx"]
+                if k == "Hy":
+                    celldata[k] = self.snapfields["Hy"]
+                if k == "Hz":
+                    celldata[k] = self.snapfields["Hz"]
+
+        hl.imageToVTK(
             str(self.filename.with_suffix("")),
             origin=((self.xs * self.dx * G.dx), (self.ys * self.dy * G.dy), (self.zs * self.dz * G.dz)),
             spacing=((self.dx * G.dx), (self.dy * G.dy), (self.dz * G.dz)),
@@ -240,10 +256,24 @@ class Snapshot:
         f.attrs["dx_dy_dz"] = (self.dx * G.dx, self.dy * G.dy, self.dz * G.dz)
         f.attrs["time"] = self.time * G.dt
 
-        for key in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]:
-            if self.outputs[key]:
-                f[key] = self.snapfields[key]
-                pbar.update(n=self.snapfields[key].nbytes)
+        if self.outputs["Ex"]:
+            f["Ex"] = self.snapfields["Ex"]
+            pbar.update(n=self.snapfields["Ex"].nbytes)
+        if self.outputs["Ey"]:
+            f["Ey"] = self.snapfields["Ey"]
+            pbar.update(n=self.snapfields["Ey"].nbytes)
+        if self.outputs["Ez"]:
+            f["Ez"] = self.snapfields["Ez"]
+            pbar.update(n=self.snapfields["Ez"].nbytes)
+        if self.outputs["Hx"]:
+            f["Hx"] = self.snapfields["Hx"]
+            pbar.update(n=self.snapfields["Hx"].nbytes)
+        if self.outputs["Hy"]:
+            f["Hy"] = self.snapfields["Hy"]
+            pbar.update(n=self.snapfields["Hy"].nbytes)
+        if self.outputs["Hz"]:
+            f["Hz"] = self.snapfields["Hz"]
+            pbar.update(n=self.snapfields["Hz"].nbytes)
 
         f.close()
 
