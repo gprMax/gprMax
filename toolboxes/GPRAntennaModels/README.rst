@@ -14,7 +14,7 @@ Manufacturer/Model       Dimensions    Resolution(s) Author/Contact             
 ======================== ============= ============= ========================================================================================================================================================================================================================= ================
 GSSI 1.5GHz (Model 5100) 170x108x45mm  1, 2mm        Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                                                                                                                                                 1,2
 MALA 1.2GHz              184x109x46mm  1, 2mm        Craig Warren (craig.warren@northumbria.ac.uk), Northumbria University, UK                                                                                                                                                 1
-GSSI 400MHz              300x300x170mm 0.5, 1, 2mm   Sam Stadler (Sam.Stadler@liag-hannover.de), `Leibniz Institute for Applied Geophysics <https://www.leibniz-liag.de/en/research/methods/electromagnetic-methods/ground-penetrating-radar/guided-gpr-waves.html>`_, Germany 3
+GSSI 400MHz              300x300x170mm 2mm           Sam Stadler (sam.stadler@leibniz-liag.de), `Leibniz Institute for Applied Geophysics <https://www.leibniz-liag.de/en/research/methods/electromagnetic-methods/ground-penetrating-radar.html>`_, Germany 3
 ======================== ============= ============= ========================================================================================================================================================================================================================= ================
 
 **License**: `Creative Commons Attribution-ShareAlike 4.0 International License <http://creativecommons.org/licenses/by-sa/4.0/>`_
@@ -36,7 +36,7 @@ Descriptions of how the models were created can be found in the aforementioned a
 How to use the package
 ======================
 
-The antenna models can be accessed from within a block of Python code in an input file. The models are inserted at location x,y,z. The coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction. The models must be used with cubic spatial resolutions of either 0.5mm (GSSI 400MHz antenna only), 1mm (default), or 2mm by setting the keyword argument, e.g. ``resolution=0.002``.
+The antenna models can be accessed from within a block of Python code in an input file. The models are inserted at location x,y,z. The coordinates are relative to the geometric centre of the antenna in the x-y plane and the bottom of the antenna skid in the z direction. The models must be used with cubic spatial resolutions of either 1mm or 2mm by setting the keyword argument, e.g. ``resolution=0.002``.
 
 .. note::
 
