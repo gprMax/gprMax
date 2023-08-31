@@ -129,7 +129,7 @@ update_magnetic_dipole = {
                                             __global const int* restrict rcinfo1,
                                             __global const $REAL* restrict rcinfo2,
                                             __global const $REAL* restrict rcwaveforms,
-                                            __global const unsigned int* estrict ID,
+                                            __global const unsigned int* restrict ID,
                                             __global $REAL *Hx,
                                             __global $REAL *Hy,
                                             __global $REAL *Hz
@@ -211,7 +211,7 @@ update_voltage_source = {
                                             __global const int* restrict rcinfo1,
                                             __global const $REAL* restrict rcinfo2,
                                             __global const $REAL* restrict rcwaveforms,
-                                            __global const unsigned int* estrict ID,
+                                            __global const unsigned int* restrict ID,
                                             __global $REAL *Ex,
                                             __global $REAL *Ey,
                                             __global $REAL *Ez
