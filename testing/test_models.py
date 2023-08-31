@@ -40,13 +40,11 @@ if sys.platform == "linux":
         python -m testing.test_models
 """
 
-# Specify directoty with set of models to test
+# Specify directory with set of models to test
 modelset = "models_basic"
 # modelset += 'models_advanced'
-# modelset += 'models_pmls'
 
 basepath = Path(__file__).parents[0] / modelset
-
 
 # List of available basic test models
 testmodels = [
@@ -63,9 +61,6 @@ testmodels = [
 
 # List of available advanced test models
 # testmodels = ['antenna_GSSI_1500_fs', 'antenna_MALA_1200_fs']
-
-# List of available PML models
-# testmodels = ['pml_x0', 'pml_y0', 'pml_z0', 'pml_xmax', 'pml_ymax', 'pml_zmax', 'pml_3D_pec_plate']
 
 # Select a specific model if desired
 # testmodels = [testmodels[0]]
