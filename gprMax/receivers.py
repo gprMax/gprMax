@@ -26,9 +26,7 @@ class Rx:
 
     allowableoutputs = ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz", "Ix", "Iy", "Iz"]
     defaultoutputs = allowableoutputs[:-3]
-
     allowableoutputs_dev = allowableoutputs[:-3]
-    maxnumoutputs_dev = 0
 
     def __init__(self):
         self.ID = None
@@ -61,9 +59,6 @@ def htod_rx_arrays(G, queue=None):
         rxcoords[i, 0] = rx.xcoord
         rxcoords[i, 1] = rx.ycoord
         rxcoords[i, 2] = rx.zcoord
-        # Store maximum number of output components
-        if len(rx.outputs) > Rx.maxnumoutputs_dev:
-            Rx.maxnumoutputs_dev = len(rx.outputs)
 
     # Array to store field components for receivers on compute device -
     #   rows are field components; columns are iterations; pages are receivers
