@@ -211,9 +211,7 @@ def run_main(args):
     """
 
     results = {}
-
     logging_config(level=args.log_level, log_file=args.log_file)
-
     config.sim_config = config.SimulationConfig(args)
 
     # MPI running with (OpenMP/CUDA/OpenCL)
@@ -224,4 +222,5 @@ def run_main(args):
         context = Context()
 
     results = context.run()
+    
     return results
