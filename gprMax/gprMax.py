@@ -25,7 +25,7 @@ from .utilities.logging import logging_config
 
 # Arguments (used for API) and their default values (used for API and CLI)
 args_defaults = {
-    "scenes": None,
+    "scenes": [],
     "inputfile": None,
     "outputfile": None,
     "n": 1,
@@ -44,37 +44,39 @@ args_defaults = {
 
 # Argument help messages (used for CLI argparse)
 help_msg = {
-    "scenes": "(list, req): Scenes to run the model. "
-    "Multiple scene objects can given in order to run multiple "
-    "simulation runs. Each scene must contain the essential "
-    "simulation objects",
-    "inputfile": "(str, opt): Input file path. Can also run simulation " "by providing an input file.",
+    "scenes": "(list, req): Scenes to run the model. Multiple scene objects "
+              "can given in order to run multiple simulation runs. Each scene "
+              "must contain the essential simulation objects",
+    "inputfile": "(str, opt): Input file path. Can also run simulation by "
+                 "providing an input file.",
     "outputfile": "(str, req): File path to the output data file.",
     "n": "(int, req): Number of required simulation runs.",
-    "i": "(int, opt): Model number to start/restart simulation "
-    "from. It would typically be used to restart a series of "
-    "models from a specific model number, with the n argument, "
-    "e.g. to restart from A-scan 45 when creating a B-scan "
-    "with 60 traces.",
-    "mpi": "(bool, opt): Flag to use Message Passing Interface (MPI) "
-    "task farm. This option is most usefully combined with n to "
-    "allow individual models to be farmed out using a MPI task "
-    "farm, e.g. to create a B-scan with 60 traces and use MPI to "
-    "farm out each trace. For further details see the parallel "
-    "performance section of the User Guide.",
-    "gpu": "(list/bool, opt): Flag to use NVIDIA GPU or list of NVIDIA " "GPU device ID(s) for specific GPU card(s).",
-    "opencl": "(list/bool, opt): Flag to use OpenCL or list of OpenCL " "device ID(s) for specific compute device(s).",
+    "i": "(int, opt): Model number to start/restart simulation from. It would "
+         "typically be used to restart a series of models from a specific "
+         "model number, with the n argument, e.g. to restart from A-scan 45 "
+         "when creating a B-scan with 60 traces.",
+    "mpi": "(bool, opt): Flag to use Message Passing Interface (MPI) task farm. "
+           "This option is most usefully combined with n to allow individual "
+           "models to be farmed out using a MPI task farm, e.g. to create a "
+           "B-scan with 60 traces and use MPI to farm out each trace. For "
+           "further details see the performance section of the User Guide.",
+    "gpu": "(list/bool, opt): Flag to use NVIDIA GPU or list of NVIDIA GPU "
+           "device ID(s) for specific GPU card(s).",
+    "opencl": "(list/bool, opt): Flag to use OpenCL or list of OpenCL device "
+              "ID(s) for specific compute device(s).",
     "subgrid": "(bool, opt): Flag to use sub-gridding.",
-    "autotranslate": "(bool, opt): For sub-gridding - auto translate "
-    "objects with main grid coordinates to their "
-    "equivalent local grid coordinate within the "
-    "subgrid. If this option is off users must specify "
-    "sub-grid object point within the global subgrid space.",
-    "geometry_only": "(bool, opt): Build a model and produce any " "geometry views but do not run the simulation.",
-    "geometry_fixed": "(bool, opt): Run a series of models where the " "geometry does not change between models.",
-    "write_processed": "(bool, opt): Writes another input file after "
-    "any Python code (#python blocks) and in the "
-    "original input file has been processed.",
+    "autotranslate": "(bool, opt): For sub-gridding - auto translate objects "
+                     "with main grid coordinates to their equivalent local "
+                     "grid coordinate within the subgrid. If this option is "
+                     "off users must specify sub-grid object point within the "
+                     "global subgrid space.",
+    "geometry_only": "(bool, opt): Build a model and produce any geometry "
+                     "views but do not run the simulation.",
+    "geometry_fixed": "(bool, opt): Run a series of models where the geometry "
+                      "does not change between models.",
+    "write_processed": "(bool, opt): Writes another input file after any "
+                       "Python code (#python blocks) and in the original input "
+                       "file has been processed.",
     "log_level": "(int, opt): Level of logging to use.",
     "log_file": "(bool, opt): Write logging information to file.",
 }
