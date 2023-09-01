@@ -209,33 +209,29 @@ class SimulationConfig:
 
         self.args = args
 
-        if args.mpi and args.geometry_fixed:
+        if self.args.mpi and self.args.geometry_fixed:
             logger.exception("The geometry fixed option cannot be used with MPI.")
             raise ValueError
 
-        if args.gpu and args.opencl:
+        if self.args.gpu and self.args.opencl:
             logger.exception("You cannot use both CUDA and OpenCl simultaneously.")
             raise ValueError
 
         # General settings for the simulation
-        #   inputfilepath: path to inputfile location.
-        #   outputfilepath: path to outputfile location.
-        #   progressbars: whether to show progress bars on stdoout or not.
         #   solver: cpu, cuda, opencl.
-        #   subgrid: whether the simulation uses sub-grids.
         #   precision: data type for electromagnetic field output (single/double).
         #   progressbars: progress bars on stdoout or not - switch off
         #                   progressbars when logging level is greater than
         #                   info (20)
 
-        self.general = {"solver": "cpu", "subgrid": False, "precision": "single", "progressbars": args.log_level <= 20}
+        self.general = {"solver": "cpu", "precision": "single", "progressbars": args.log_level <= 20}
 
         self.em_consts = {
             "c": c,  # Speed of light in free space (m/s)
             "e0": e0,  # Permittivity of free space (F/m)
             "m0": m0,  # Permeability of free space (H/m)
-            "z0": np.sqrt(m0 / e0),
-        }  # Impedance of free space (Ohms)
+            "z0": np.sqrt(m0 / e0), # Impedance of free space (Ohms)
+        }  
 
         # Store information about host machine
         self.hostinfo = get_host_info()
@@ -266,9 +262,8 @@ class SimulationConfig:
             # Add pyopencl available device(s)
             self.devices["devs"] = detect_opencl()
 
-        # Subgrid parameter may not exist if user enters via CLI
-        try:
-            self.general["subgrid"] = self.args.subgrid
+        self.general["subgrid"] = self.args.subgrid
+        if self.args.subgrid:
             # Double precision should be used with subgrid for best accuracy
             self.general["precision"] = "double"
             if (self.general["subgrid"] and self.general["solver"] == "cuda") or (
@@ -278,8 +273,6 @@ class SimulationConfig:
                     "You cannot currently use CUDA or OpenCL-based " "solvers with models that contain sub-grids."
                 )
                 raise ValueError
-        except AttributeError:
-            self.general["subgrid"] = False
 
         # Scenes parameter may not exist if user enters via CLI
         try:
