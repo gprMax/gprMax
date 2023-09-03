@@ -15,7 +15,7 @@ Package contents
 visualization_toolbox
 ---------------------
 
-This sub-package contains the module ``plot_3D_model.py`` which uses PyVista to plot the geometry of the model in a Jupyter Notebook. This module can only be used in a Jupyter Notebook with the `gprMax kernel` Instructions for installation of Jupyter Notebook dependenceies can be found under :ref: . 
+This sub-package contains the module ``plot_3D_model.py`` which uses PyVista to plot the geometry of the model in a Jupyter Notebook. This module can only be used in a Jupyter Notebook with the `gprMax kernel` Instructions for installation of Jupyter Notebook dependenceies can be found under :ref: `../../toolboxes/gprMaxOnJupyter/README.rst` . 
 Usage (from inside a Jupyter Notebook) is: 
 
 .. code-block:: python
