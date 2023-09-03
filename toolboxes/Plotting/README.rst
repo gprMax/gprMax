@@ -12,6 +12,37 @@ This package is intended to provide some basic scripts to get started with plott
 Package contents
 ================
 
+visualization_toolbox
+---------------------
+
+This sub-package contains the module ``plot_3D_model.py`` which uses PyVista to plot the geometry of the model in a Jupyter Notebook. This module can only be used in a Jupyter Notebook with the `gprMax kernel` Instructions for installation of Jupyter Notebook dependenceies can be found under :ref: . 
+Usage (from inside a Jupyter Notebook) is: 
+
+.. code-block:: python
+
+    #installation of PyVista python library
+    !pip install pyvista -qq
+
+.. code-block:: python
+
+    import gprMax
+    from toolboxes.Plotting.visualization_toolbox.plot_3D_model import visualize_vti_output
+    visualize_vti_output(filename,orientation,opacity,backend)
+
+where the arguments are:
+
+*  ``filename`` is the name of the ``.vti`` file including the path.
+*  ``orientation`` is the orientation of the 3D model, i.e ``xy``, ``yz``, ``zx``. 
+
+The optional arguments are: 
+
+*  ``opacity`` is a float value like ``0.5`` that determines the transparency of the 3D model.
+*  ``backend`` is a string i.e ``static`` or ``dynamic`` which determines how the model is viewed, as an image or as an interactive model.
+
+An example Jupyter Notebook, ``test_3D_output_notebook`` is present in this sub-package which contains the 3D output of the ``simplebscan.vti`` model.  
+
+For using this package in a Google Colab notebook, an example notebook is also present, named ``colab_notebook``. This notebook installs gprMax within a `conda environment` in a Colab notebook and uses it's modules to plot ``cylinder_Ascan_2D`` and also it's 3D model. 
+
 plot_Ascan.py
 -------------
 
