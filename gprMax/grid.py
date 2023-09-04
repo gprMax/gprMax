@@ -354,6 +354,7 @@ class CUDAGrid(FDTDGrid):
             self.Hx_dev = gpuarray.to_gpu(self.Hx)
             self.Hy_dev = gpuarray.to_gpu(self.Hy)
             self.Hz_dev = gpuarray.to_gpu(self.Hz)
+            
         elif config.sim_config.general["solver"] == "opencl":
             import pyopencl.array as clarray
 
