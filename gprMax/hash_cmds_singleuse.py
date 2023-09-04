@@ -120,17 +120,32 @@ def process_singlecmds(singlecmds):
 
         scene_objects.append(tw)
 
+    cmd = "#pml_formulation"
+    if singlecmds[cmd] is not None:
+        tmp = singlecmds[cmd].split()
+        if len(tmp) != 1:
+            logger.exception(f"{cmd} requires one parameter")
+            raise ValueError
+        else:
+            pml_formulation = tmp[0]
+
     cmd = "#pml_cells"
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) not in [1, 6]:
             logger.exception(f"{cmd} requires either one or six parameter(s)")
             raise ValueError
+        if pml_formulation:
+            formulation = pml_formulation
+        else:
+            formulation = None
         if len(tmp) == 1:
-            pml_cells = PMLProps(thickness=int(tmp[0]))
+            pml_cells = PMLProps(formulation=formulation, thickness=int(tmp[0]))
         else:
             pml_cells = PMLProps(
-                x0=int(tmp[0]), y0=int(tmp[1]), z0=int(tmp[2]), xmax=int(tmp[3]), ymax=int(tmp[4]), zmax=int(tmp[5])
+                formulation=formulation, 
+                x0=int(tmp[0]), y0=int(tmp[1]), z0=int(tmp[2]), 
+                xmax=int(tmp[3]), ymax=int(tmp[4]), zmax=int(tmp[5])
             )
 
         scene_objects.append(pml_cells)

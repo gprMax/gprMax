@@ -1737,11 +1737,6 @@ class PMLCFS(UserObjectMulti):
         ):
             logger.exception(f"{self.params_str()} minimum and maximum scaling values must be greater than zero.")
             raise ValueError
-        # TODO: Fix handling of kappa for 2nd order PMLs
-        # if float(kappamin) < 1:
-        #     logger.exception(f'{self.params_str()} minimum scaling value for '
-        #                      'kappa must be greater than or equal to one.')
-        #     raise ValueError
 
         cfsalpha = CFSParameter()
         cfsalpha.ID = "alpha"
