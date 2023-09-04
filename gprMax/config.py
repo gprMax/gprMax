@@ -263,7 +263,7 @@ class SimulationConfig:
             self.devices["devs"] = detect_opencl()
 
         # Subgrids
-        try:
+        if hasattr(self.args, "subgrid") and self.args.subgrid:
             self.general["subgrid"] = self.args.subgrid
             # Double precision should be used with subgrid for best accuracy
             self.general["precision"] = "double"
@@ -274,7 +274,7 @@ class SimulationConfig:
                     "You cannot currently use CUDA or OpenCL-based " "solvers with models that contain sub-grids."
                 )
                 raise ValueError
-        except AttributeError:
+        else:
             self.general["subgrid"] = False
 
         # Scenes parameter may not exist if user enters via CLI
