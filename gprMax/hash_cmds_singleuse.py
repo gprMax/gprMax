@@ -136,7 +136,7 @@ def process_singlecmds(singlecmds):
             logger.exception(f"{cmd} requires either one or six parameter(s)")
             raise ValueError
         
-        if pml_formulation in locals():
+        if 'pml_formulation' in locals():
             if len(tmp) == 1:
                 pml_props = PMLProps(formulation=pml_formulation, thickness=int(tmp[0]))
             else:
