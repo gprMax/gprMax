@@ -1755,8 +1755,11 @@ class PMLCFS(UserObjectMulti):
         cfssigma.scalingprofile = sigmascalingprofile
         cfssigma.scalingdirection = sigmascalingdirection
         cfssigma.min = float(sigmamin)
+        if sigmamax == "None":
+            sigmamax = None
         if sigmamax is not None:
-            cfssigma.max = float(sigmamax)
+            sigmamax = float(sigmamax)
+        cfssigma.max = sigmamax
         cfs = CFS()
         cfs.alpha = cfsalpha
         cfs.kappa = cfskappa
@@ -1770,7 +1773,7 @@ class PMLCFS(UserObjectMulti):
             f"{cfskappa.scalingdirection}, min: {cfskappa.min:g}, max: "
             f"{cfskappa.max:g}), sigma (scaling: {cfssigma.scalingprofile}, "
             f"scaling direction: {cfssigma.scalingdirection}, min: "
-            f"{cfssigma.min:g}, max: {cfssigma.max:g}) created."
+            f"{cfssigma.min:g}, max: {cfssigma.max}) created."
         )
 
         grid.pmls["cfs"].append(cfs)
