@@ -433,19 +433,6 @@ class CUDAPML(PML):
             1,
         )
 
-    def get_update_funcs(self, kernelselectric, kernelsmagnetic):
-        """Gets update functions from PML kernels.
-
-        Args:
-            kernelselectric: pycuda SourceModule containing PML kernels for
-                                electric updates.
-            kernelsmagnetic: pycuda SourceModule containing PML kernels for
-                                magnetic updates.
-        """
-
-        self.update_electric_dev = kernelselectric.get_function("order" + str(len(self.CFS)) + "_" + self.direction)
-        self.update_magnetic_dev = kernelsmagnetic.get_function("order" + str(len(self.CFS)) + "_" + self.direction)
-
     def update_electric(self):
         """Updates electric field components with the PML correction on the GPU."""
         self.update_electric_dev(
@@ -548,12 +535,6 @@ class OpenCLPML(PML):
         self.EPhi2_dev = clarray.to_device(self.queue, self.EPhi2)
         self.HPhi1_dev = clarray.to_device(self.queue, self.HPhi1)
         self.HPhi2_dev = clarray.to_device(self.queue, self.HPhi2)
-
-    def set_blocks_per_grid():
-        pass
-
-    def get_update_funcs():
-        pass
 
     def update_electric(self):
         """Updates electric field components with the PML correction on the
