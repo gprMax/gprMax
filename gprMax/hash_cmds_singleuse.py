@@ -121,7 +121,6 @@ def process_singlecmds(singlecmds):
         scene_objects.append(tw)
 
     cmd = "#pml_formulation"
-    pml_formulation = None
     if singlecmds[cmd] is not None:
         tmp = singlecmds[cmd].split()
         if len(tmp) != 1:
@@ -137,16 +136,24 @@ def process_singlecmds(singlecmds):
             logger.exception(f"{cmd} requires either one or six parameter(s)")
             raise ValueError
         
-        if len(tmp) == 1:
-            pml_cells = PMLProps(formulation=pml_formulation, thickness=int(tmp[0]))
+        if pml_formulation in locals():
+            if len(tmp) == 1:
+                pml_props = PMLProps(formulation=pml_formulation, thickness=int(tmp[0]))
+            else:
+                pml_props = PMLProps(
+                    formulation=pml_formulation, 
+                    x0=int(tmp[0]), y0=int(tmp[1]), z0=int(tmp[2]), 
+                    xmax=int(tmp[3]), ymax=int(tmp[4]), zmax=int(tmp[5])
+                )
         else:
-            pml_cells = PMLProps(
-                formulation=pml_formulation, 
-                x0=int(tmp[0]), y0=int(tmp[1]), z0=int(tmp[2]), 
-                xmax=int(tmp[3]), ymax=int(tmp[4]), zmax=int(tmp[5])
-            )
+            if len(tmp) == 1:
+                pml_props = PMLProps(thickness=int(tmp[0]))
+            else:
+                pml_props = PMLProps(
+                    x0=int(tmp[0]), y0=int(tmp[1]), z0=int(tmp[2]), xmax=int(tmp[3]), ymax=int(tmp[4]), zmax=int(tmp[5])
+                )
             
-        scene_objects.append(pml_cells)
+        scene_objects.append(pml_props)
 
     cmd = "#src_steps"
     if singlecmds[cmd] is not None:
