@@ -595,6 +595,11 @@ class CUDAUpdates:
             grid=self.grid.bpg,
         )
 
+    def update_magnetic_pml(self):
+        """Updates magnetic field components with the PML correction."""
+        for pml in self.grid.pmls["slabs"]:
+            pml.update_magnetic()
+
     def update_magnetic_sources(self):
         """Updates magnetic field components from sources."""
         if self.grid.magneticdipoles:
@@ -656,6 +661,11 @@ class CUDAUpdates:
                 block=self.grid.tpb,
                 grid=self.grid.bpg,
             )
+
+    def update_electric_pml(self):
+        """Updates electric field components with the PML correction."""
+        for pml in self.grid.pmls["slabs"]:
+            pml.update_electric()
 
     def update_electric_sources(self):
         """Updates electric field components from sources -
@@ -1159,6 +1169,11 @@ class OpenCLUpdates:
         )
         event.wait()
 
+    def update_magnetic_pml(self):
+        """Updates magnetic field components with the PML correction."""
+        for pml in self.grid.pmls["slabs"]:
+            pml.update_magnetic()
+
     def update_magnetic_sources(self):
         """Updates magnetic field components from sources."""
         if self.grid.magneticdipoles:
@@ -1217,6 +1232,11 @@ class OpenCLUpdates:
             )
 
         event.wait()
+
+    def update_electric_pml(self):
+        """Updates electric field components with the PML correction."""
+        for pml in self.grid.pmls["slabs"]:
+            pml.update_electric()
 
     def update_electric_sources(self):
         """Updates electric field components from sources -
