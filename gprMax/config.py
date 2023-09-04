@@ -242,7 +242,7 @@ class SimulationConfig:
             # Both single and double precision are possible on GPUs, but single
             # provides best performance.
             self.general["precision"] = "single"
-            self.devices = {"devs": [], "nvcc_opts": None}  # pycuda device objects  # nvcc compiler options
+            self.devices = {"devs": [], "nvcc_opts": None}  # pycuda device objects; nvcc compiler options
             # Suppress nvcc warnings on Microsoft Windows
             if sys.platform == "win32":
                 self.devices["nvcc_opts"] = ["-w"]
@@ -254,7 +254,7 @@ class SimulationConfig:
         if self.args.opencl is not None:
             self.general["solver"] = "opencl"
             self.general["precision"] = "single"
-            self.devices = {"devs": [], "compiler_opts": None}  # pyopencl available device(s)
+            self.devices = {"devs": [], "compiler_opts": None}  # pyopencl device device(s); compiler options
 
             # Suppress unused variable warnings on gcc
             # if sys.platform != 'win32': self.devices['compiler_opts'] = ['-w']
