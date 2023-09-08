@@ -56,10 +56,11 @@ class FDTDGrid:
         self.pmls["formulation"] = "HORIPML"
         self.pmls["cfs"] = []
         self.pmls["slabs"] = []
-        # Ordered dictionary required so that PMLs are always updated in the
-        # same order. The order itself does not matter, however, if must be the
-        # same from model to model otherwise the numerical precision from adding
-        # the PML corrections will be different.
+        # Ordered dictionary required so *updating* the PMLs always follows the
+        # same order (the order for *building* PMLs does not matter). The order 
+        # itself does not matter, however, if must be the same from model to 
+        # model otherwise the numerical precision from adding the PML 
+        # corrections will be different.
         self.pmls["thickness"] = OrderedDict((key, 10) for key in PML.boundaryIDs)
 
         self.materials = []
@@ -353,6 +354,7 @@ class CUDAGrid(FDTDGrid):
             self.Hx_dev = gpuarray.to_gpu(self.Hx)
             self.Hy_dev = gpuarray.to_gpu(self.Hy)
             self.Hz_dev = gpuarray.to_gpu(self.Hz)
+            
         elif config.sim_config.general["solver"] == "opencl":
             import pyopencl.array as clarray
 

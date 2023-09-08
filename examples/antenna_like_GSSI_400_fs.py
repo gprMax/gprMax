@@ -30,7 +30,7 @@ scene = gprMax.Scene()
 title = gprMax.Title(name=fn.with_suffix("").name)
 domain = gprMax.Domain(p1=(x, y, z))
 dxdydz = gprMax.Discretisation(p1=(dl, dl, dl))
-time_window = gprMax.TimeWindow(time=6e-9)
+time_window = gprMax.TimeWindow(time=15e-9)
 
 scene.add(title)
 scene.add(domain)
@@ -44,17 +44,20 @@ for obj in gssi_objects:
     scene.add(obj)
 
 gv1 = gprMax.GeometryView(
-    p1=(0, 0, 0), p2=(x, y, z), dl=(dl, dl, dl), filename="antenna_like_GSSI_400", output_type="n"
+    p1=(0, 0, 0), 
+    p2=(x, y, z), 
+    dl=(dl, dl, dl), 
+    filename="antenna_like_GSSI_400", output_type="n"
 )
 gv2 = gprMax.GeometryView(
-    p1=(ant_pos[0] - 0.150 / 2, ant_pos[1] - 0.150 / 2, ant_pos[2] - 0.050),
-    p2=(ant_pos[0] + 0.150 / 2, ant_pos[1] + 0.150 / 2, ant_pos[2] + 0.010),
+    p1=(ant_pos[0] - 0.150, ant_pos[1] - 0.150, ant_pos[2]),
+    p2=(ant_pos[0] + 0.150, ant_pos[1] + 0.150, ant_pos[2] + 0.050),
     dl=(dl, dl, dl),
     filename="antenna_like_GSSI_400_pcb",
     output_type="f",
 )
-scene.add(gv1)
-scene.add(gv2)
+#scene.add(gv1)
+#scene.add(gv2)
 
 # Run model
 gprMax.run(scenes=[scene], geometry_only=False, outputfile=fn, gpu=None)

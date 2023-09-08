@@ -14,9 +14,11 @@ from .cmds_geometry.add_grass import AddGrass
 from .cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from .cmds_geometry.add_surface_water import AddSurfaceWater
 from .cmds_geometry.box import Box
+from .cmds_geometry.cone import Cone
 from .cmds_geometry.cylinder import Cylinder
 from .cmds_geometry.cylindrical_sector import CylindricalSector
 from .cmds_geometry.edge import Edge
+from .cmds_geometry.ellipsoid import Ellipsoid
 from .cmds_geometry.fractal_box import FractalBox
 from .cmds_geometry.geometry_objects_read import GeometryObjectsRead
 from .cmds_geometry.plate import Plate
@@ -38,6 +40,7 @@ from .cmds_multiuse import (
     RxArray,
     Snapshot,
     SoilPeplinski,
+    Subgrid,
     TransmissionLine,
     VoltageSource,
     Waveform,
@@ -47,6 +50,7 @@ from .cmds_singleuse import (
     Domain,
     ExcitationFile,
     OMPThreads,
+    OutputDir,
     PMLProps,
     RxSteps,
     SrcSteps,

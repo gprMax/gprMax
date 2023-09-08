@@ -965,7 +965,7 @@ For example to save a snapshot of the electromagnetic fields in the model at a s
 PML commands
 ============
 
-The default behaviour for the absorbing boundary conditions (ABC) is first order Complex Frequency Shifted (CFS) Perfectly Matched Layers (PML), with thicknesses of 10 cells on each of the six sides of the model domain. The thickness of the PML can be altered by using the following command (further customisation of the PML is possible using our Python API):
+The default behaviour for the absorbing boundary conditions (ABC) is first order Complex Frequency Shifted (CFS) Perfectly Matched Layers (PML), with thicknesses of 10 cells on each of the six sides of the model domain.
 
 #pml_cells:
 ------------
@@ -989,3 +989,47 @@ For example to use a PML with 20 cells (thicker than the default 10 cells) on on
 .. code-block:: none
 
     #pml_cells: 10 10 20 10 10 20
+
+#pml_formulation:
+-----------------
+
+Allows you to alter the formulation used for the PML. The current options are to use the Higher Order RIPML (HORIPML) - https://doi.org/10.1109/TAP.2011.2180344, or Multipole RIPML (MRIPML) - https://doi.org/10.1109/TAP.2018.2823864. The syntax of the command is:
+
+.. code-block:: none
+
+    #pml_formulation: str
+
+* ``str`` can be either 'HORIPML' or 'MRIPML'
+
+For example to use the Multipole RIPML:
+
+.. code-block:: none
+
+    #pml_formulation: MRIPML
+
+#pml_cfs:
+---------
+
+Allows you (advanced) control of the parameters that are used to build each order of the PML. Up to a second order PML can currently be specified, i.e. by using two ``#pml_cfs`` commands. The syntax of the command is:
+
+.. code-block:: none
+
+    #pml_cfs: str1 str2 f1 f2 str3 str4 f3 f4 str5 str6 f5 f6
+
+* ``str1`` is the type of scaling to use for the CFS :math:`\alpha` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, ``quartic``, ``quintic`` and ``sextic``.
+* ``str2`` is the direction of the scaling to use for the CFS :math:`\alpha` parameter. It can be ``forward`` or ``reverse``.
+* ``f1 f2`` are the minimum and maximum values for the CFS :math:`\alpha` parameter.
+* ``str3`` is the type of scaling to use for the CFS :math:`\kappa` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, ``quartic``, ``quintic`` and ``sextic``.
+* ``str4`` is the direction of the scaling to use for the CFS :math:`\kappa` parameter. It can be ``forward`` or ``reverse``.
+* ``f3 f4`` are the minimum and maximum values for the CFS :math:`\kappa` parameter. The minimum value for the CFS :math:`\kappa` parameter is one.
+* ``str5`` is the type of scaling to use for the CFS :math:`\sigma` parameter. It can be ``constant``, ``linear``, ``quadratic``, ``cubic``, ``quartic``, ``quintic`` and ``sextic``.
+* ``str6`` is the direction of the scaling to use for the CFS :math:`\sigma` parameter. It can be ``forward`` or ``reverse``.
+* ``f5 f6`` are the minimum and maximum values for the CFS :math:`\sigma` parameter.
+
+The CFS values (which are internally specified) used for the default standard first order PML are: ``#pml_cfs: constant forward 0 0 constant forward 1 1 quartic forward 0 None``. Specifying 'None' for the maximum value of :math:`\sigma` forces gprMax to calculate it internally based on the relative permittivity and permeability of the underlying materials in the model.
+
+The parameters will be applied to all slabs of the PML that are switched on.
+
+.. tip::
+    
+    ``forward`` direction implies minimum parameter value at the inner boundary of the PML and maximum parameter value at the edge of computational domain, ``reverse`` is the opposite.

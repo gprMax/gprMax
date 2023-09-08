@@ -217,6 +217,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#title",
             "#omp_threads",
             "#time_step_stability_factor",
+            "#pml_formulation",
             "#pml_cells",
             "#excitation_file",
             "#src_steps",
@@ -248,6 +249,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#rx",
             "#rx_array",
             "#snapshot",
+            "#pml_cfs",
             "#include_file",
         ]
     }

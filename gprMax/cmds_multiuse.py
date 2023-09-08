@@ -1737,11 +1737,6 @@ class PMLCFS(UserObjectMulti):
         ):
             logger.exception(f"{self.params_str()} minimum and maximum scaling values must be greater than zero.")
             raise ValueError
-        # TODO: Fix handling of kappa for 2nd order PMLs
-        # if float(kappamin) < 1:
-        #     logger.exception(f'{self.params_str()} minimum scaling value for '
-        #                      'kappa must be greater than or equal to one.')
-        #     raise ValueError
 
         cfsalpha = CFSParameter()
         cfsalpha.ID = "alpha"
@@ -1760,8 +1755,11 @@ class PMLCFS(UserObjectMulti):
         cfssigma.scalingprofile = sigmascalingprofile
         cfssigma.scalingdirection = sigmascalingdirection
         cfssigma.min = float(sigmamin)
+        if sigmamax == "None":
+            sigmamax = None
         if sigmamax is not None:
-            cfssigma.max = float(sigmamax)
+            sigmamax = float(sigmamax)
+        cfssigma.max = sigmamax
         cfs = CFS()
         cfs.alpha = cfsalpha
         cfs.kappa = cfskappa
@@ -1775,7 +1773,7 @@ class PMLCFS(UserObjectMulti):
             f"{cfskappa.scalingdirection}, min: {cfskappa.min:g}, max: "
             f"{cfskappa.max:g}), sigma (scaling: {cfssigma.scalingprofile}, "
             f"scaling direction: {cfssigma.scalingdirection}, min: "
-            f"{cfssigma.min:g}, max: {cfssigma.max:g}) created."
+            f"{cfssigma.min:g}, max: {cfssigma.max}) created."
         )
 
         grid.pmls["cfs"].append(cfs)

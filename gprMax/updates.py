@@ -407,7 +407,9 @@ class CUDAUpdates:
             knlH = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
             pml.update_magnetic_dev = knlH.get_function(knl_name)
 
-        self._copy_mat_coeffs(knlE, knlH)
+            # Copy material coefficient arrays to constant memory of GPU - must
+            # be done for each kernel
+            self._copy_mat_coeffs(knlE, knlH)
 
     def _set_rx_knl(self):
         """Receivers - initialises arrays on GPU, prepares kernel and gets kernel

@@ -420,12 +420,12 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
     return scene_objects
 
 
-def antenna_like_GSSI_400(x, y, z, resolution=0.001, **kwargs):
+def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
     """Inserts a description of an antenna similar to the GSSI 400MHz antenna.
         This model represents an update to the previous model of the GSSI 400MHz 
         antenna and was created and optimised by Stadler et al. (2022) 
         in: https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=9686638. 
-        Can be used with 0.5mm, 1mm (default) or 2mm spatial resolution.
+        Can be used with 2mm spatial resolution.
         The external dimensions of the antenna are 300x300x178mm.
         One output point is defined between the arms of the receiver bowtie.
         The bowties are aligned with the y axis so the output is the y component
@@ -451,7 +451,6 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001, **kwargs):
     casesize = (0.3, 0.3, 0.178)  # original
     casethickness = 0.002
     shieldthickness = 0.002
-    foamsurroundthickness = 0.003
     pcbthickness = 0.002
     bowtiebase = 0.06
     bowtieheight = 0.06  # original 0.056
@@ -488,25 +487,12 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001, **kwargs):
     # Coordinates of source excitation point in antenna
     tx = x + 0.01 + 0.005 + 0.056, y + casethickness + 0.005 + 0.143, z + skidthickness
 
-    if resolution == 0.0005:
-        dx = 0.0005
-        dy = 0.0005
-        dz = 0.0005
-        tx = x + 0.01 + 0.005 + 0.056, y + casethickness + 0.005 + 0.1435, z + skidthickness
-    elif resolution == 0.001:
-        dx = 0.001
-        dy = 0.001
-        dz = 0.001
-    elif resolution == 0.002:
-        dx = 0.002
-        dy = 0.002
-        dz = 0.002
-        foamsurroundthickness = 0.002
-        metalboxheight = 0.088
-        tx = x + 0.01 + 0.004 + 0.056, y + casethickness + 0.005 + 0.143 - 0.002, z + skidthickness - 0.002
-    else:
-        logger.exception("This antenna module can only be used with a spatial discretisation of 0.5mm, 1mm, 2mm")
-        raise ValueError
+    dx = 0.002
+    dy = 0.002
+    dz = 0.002
+    foamsurroundthickness = 0.002
+    metalboxheight = 0.088
+    tx = x + 0.01 + 0.004 + 0.056, y + casethickness + 0.005 + 0.143 - 0.002, z + skidthickness - 0.002
 
     # Material definitions
     absorber = gprMax.Material(er=absorberEr, se=absorbersig, mr=1, sm=0, id="absorber")
@@ -565,68 +551,25 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001, **kwargs):
         scene_objects.extend((b1, b2, b3, b4, b5))
 
         # PCB
-        if resolution == 0.0005:
-            b6 = gprMax.Box(
-                p1=(x + 0.01 + 0.005 + 0.018, y + casethickness + 0.005 + 0.0235, z + skidthickness),
-                p2=(
-                    x + 0.01 + 0.005 + 0.034 + bowtiebase,
-                    y + casethickness + 0.005 + 0.204 + patchheight,
-                    z + skidthickness + pcbthickness,
-                ),
-                material_id="pcb",
-            )
-            b7 = gprMax.Box(
-                p1=(x + 0.01 + 0.005 + 0.178, y + casethickness + 0.005 + 0.0235, z + skidthickness),
-                p2=(
-                    x + 0.01 + 0.005 + 0.194 + bowtiebase,
-                    y + casethickness + 0.005 + 0.204 + patchheight,
-                    z + skidthickness + pcbthickness,
-                ),
-                material_id="pcb",
-            )
-            scene_objects.extend((b6, b7))
-
-        elif resolution == 0.001:
-            b6 = gprMax.Box(
-                p1=(x + 0.01 + 0.005 + 0.018, y + casethickness + 0.005 + 0.023, z + skidthickness),
-                p2=(
-                    x + 0.01 + 0.005 + 0.034 + bowtiebase,
-                    y + casethickness + 0.005 + 0.204 + patchheight,
-                    z + skidthickness + pcbthickness,
-                ),
-                material_id="pcb",
-            )
-            b7 = gprMax.Box(
-                p1=(x + 0.01 + 0.005 + 0.178, y + casethickness + 0.005 + 0.023, z + skidthickness),
-                p2=(
-                    x + 0.01 + 0.005 + 0.194 + bowtiebase,
-                    y + casethickness + 0.005 + 0.204 + patchheight,
-                    z + skidthickness + pcbthickness,
-                ),
-                material_id="pcb",
-            )
-            scene_objects.extend((b6, b7))
-
-        elif resolution == 0.002:
-            b6 = gprMax.Box(
-                p1=(x + 0.01 + 0.005 + 0.017, y + casethickness + 0.005 + 0.021, z + skidthickness - 0.002),
-                p2=(
-                    x + 0.01 + 0.005 + 0.033 + bowtiebase,
-                    y + casethickness + 0.006 + 0.202 + patchheight,
-                    z + skidthickness + pcbthickness - 0.002,
-                ),
-                material_id="pcb",
-            )
-            b7 = gprMax.Box(
-                p1=(x + 0.01 + 0.005 + 0.179, y + casethickness + 0.005 + 0.021, z + skidthickness - 0.002),
-                p2=(
-                    x + 0.01 + 0.005 + 0.195 + bowtiebase,
-                    y + casethickness + 0.006 + 0.202 + patchheight,
-                    z + skidthickness + pcbthickness - 0.002,
-                ),
-                material_id="pcb",
-            )
-            scene_objects.extend((b6, b7))
+        b6 = gprMax.Box(
+            p1=(x + 0.01 + 0.005 + 0.017, y + casethickness + 0.005 + 0.021, z + skidthickness - 0.002),
+            p2=(
+                x + 0.01 + 0.005 + 0.033 + bowtiebase,
+                y + casethickness + 0.006 + 0.202 + patchheight,
+                z + skidthickness + pcbthickness - 0.002,
+            ),
+            material_id="pcb",
+        )
+        b7 = gprMax.Box(
+            p1=(x + 0.01 + 0.005 + 0.179, y + casethickness + 0.005 + 0.021, z + skidthickness - 0.002),
+            p2=(
+                x + 0.01 + 0.005 + 0.195 + bowtiebase,
+                y + casethickness + 0.006 + 0.202 + patchheight,
+                z + skidthickness + pcbthickness - 0.002,
+            ),
+            material_id="pcb",
+        )
+        scene_objects.extend((b6, b7))
 
     elif smooth_dec == "no":
         # Plastic case
@@ -682,366 +625,124 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001, **kwargs):
         scene_objects.extend((b8, b9, b10, b11, b12))
 
         # PCB
-        if resolution == 0.0005:
-            b13 = gprMax.Box(
-                p1=(x + 0.01 + 0.005 + 0.018, y + casethickness + 0.005 + 0.0235, z + skidthickness),
-                p2=(
-                    x + 0.01 + 0.005 + 0.034 + bowtiebase,
-                    y + casethickness + 0.005 + 0.204 + patchheight,
-                    z + skidthickness + pcbthickness,
-                ),
-                material_id="pcb",
-                averaging="n",
-            )
-            b14 = gprMax.Box(
-                p1=(x + 0.01 + 0.005 + 0.178, y + casethickness + 0.005 + 0.0235, z + skidthickness),
-                p2=(
-                    x + 0.01 + 0.005 + 0.194 + bowtiebase,
-                    y + casethickness + 0.005 + 0.204 + patchheight,
-                    z + skidthickness + pcbthickness,
-                ),
-                material_id="pcb",
-                averaging="n",
-            )
-            scene_objects.extend((b13, b14))
-
-        elif resolution == 0.001:
-            b13 = gprMax.Box(
-                p1=(x + 0.01 + 0.005 + 0.018, y + casethickness + 0.005 + 0.023, z + skidthickness),
-                p2=(
-                    x + 0.01 + 0.005 + 0.034 + bowtiebase,
-                    y + casethickness + 0.005 + 0.204 + patchheight,
-                    z + skidthickness + pcbthickness,
-                ),
-                material_id="pcb",
-                averaging="n",
-            )
-            b14 = gprMax.Box(
-                p1=(x + 0.01 + 0.005 + 0.178, y + casethickness + 0.005 + 0.023, z + skidthickness),
-                p2=(
-                    x + 0.01 + 0.005 + 0.194 + bowtiebase,
-                    y + casethickness + 0.005 + 0.204 + patchheight,
-                    z + skidthickness + pcbthickness,
-                ),
-                material_id="pcb",
-                averaging="n",
-            )
-            scene_objects.extend((b13, b14))
-
-        elif resolution == 0.002:
-            b13 = gprMax.Box(
-                p1=(x + 0.01 + 0.005 + 0.017, y + casethickness + 0.005 + 0.021, z + skidthickness - 0.002),
-                p2=(
-                    x + 0.01 + 0.005 + 0.033 + bowtiebase,
-                    y + casethickness + 0.006 + 0.202 + patchheight,
-                    z + skidthickness + pcbthickness - 0.002,
-                ),
-                material_id="pcb",
-                averaging="n",
-            )
-            b14 = gprMax.Box(
-                p1=(x + 0.01 + 0.005 + 0.179, y + casethickness + 0.005 + 0.021, z + skidthickness),
-                p2=(
-                    x + 0.01 + 0.005 + 0.195 + bowtiebase,
-                    y + casethickness + 0.006 + 0.202 + patchheight,
-                    z + skidthickness + pcbthickness,
-                ),
-                material_id="pcb",
-                averaging="n",
-            )
-            scene_objects.extend((b13, b14))
+        b13 = gprMax.Box(
+            p1=(x + 0.01 + 0.005 + 0.017, y + casethickness + 0.005 + 0.021, z + skidthickness - 0.002),
+            p2=(
+                x + 0.01 + 0.005 + 0.033 + bowtiebase,
+                y + casethickness + 0.006 + 0.202 + patchheight,
+                z + skidthickness + pcbthickness - 0.002,
+            ),
+            material_id="pcb",
+            averaging="n",
+        )
+        b14 = gprMax.Box(
+            p1=(x + 0.01 + 0.005 + 0.179, y + casethickness + 0.005 + 0.021, z + skidthickness),
+            p2=(
+                x + 0.01 + 0.005 + 0.195 + bowtiebase,
+                y + casethickness + 0.006 + 0.202 + patchheight,
+                z + skidthickness + pcbthickness,
+            ),
+            material_id="pcb",
+            averaging="n",
+        )
+        scene_objects.extend((b13, b14))
 
     # PCB components
     # My own bowties with triangle commands
-    if resolution == 0.0005:
-        # "left" side
-        # extension plates
-        p1 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.0235, z + skidthickness),
-            p2=(
-                x + 0.01 + 0.005 + 0.026 + bowtiebase,
-                y + casethickness + 0.005 + 0.0235 + patchheight,
-                z + skidthickness,
-            ),
-            material_id="pec",
-        )
-        p2 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.204, z + skidthickness),
-            p2=(
-                x + 0.01 + 0.005 + 0.026 + bowtiebase,
-                y + casethickness + 0.005 + 0.204 + patchheight,
-                z + skidthickness,
-            ),
-            material_id="pec",
-        )
-        # triangles
-        t1 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.0835, z + skidthickness),
-            p2=(x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.0835, z + skidthickness),
-            p3=(
-                x + 0.01 + 0.005 + 0.026 + (bowtiebase / 2),
-                y + casethickness + 0.005 + 0.0835 + bowtieheight,
-                z + skidthickness,
-            ),
-            thickness=0,
-            material_id="pec",
-        )
-        t2 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.204, z + skidthickness),
-            p2=(x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.204, z + skidthickness),
-            p3=(
-                x + 0.01 + 0.005 + 0.026 + (bowtiebase / 2),
-                y + casethickness + 0.005 + 0.204 - bowtieheight,
-                z + skidthickness,
-            ),
-            thickness=0,
-            material_id="pec",
-        )
+    # "left" side
+    # extension plates
+    p1 = gprMax.Plate(
+        p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.021, z + skidthickness - 0.002),
+        p2=(
+            x + 0.01 + 0.005 + 0.025 + bowtiebase,
+            y + casethickness + 0.005 + 0.021 + patchheight,
+            z + skidthickness - 0.002,
+        ),
+        material_id="pec",
+    )
+    p2 = gprMax.Plate(
+        p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
+        p2=(
+            x + 0.01 + 0.005 + 0.025 + bowtiebase,
+            y + casethickness + 0.005 + 0.203 + patchheight,
+            z + skidthickness - 0.002,
+        ),
+        material_id="pec",
+    )
+    # triangles
+    t1 = gprMax.Triangle(
+        p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.081, z + skidthickness - 0.002),
+        p2=(x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness - 0.002),
+        p3=(
+            x + 0.01 + 0.005 + 0.025 + (bowtiebase / 2),
+            y + casethickness + 0.005 + 0.081 + bowtieheight,
+            z + skidthickness - 0.002,
+        ),
+        thickness=0,
+        material_id="pec",
+    )
+    t2 = gprMax.Triangle(
+        p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
+        p2=(x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
+        p3=(
+            x + 0.01 + 0.005 + 0.025 + (bowtiebase / 2),
+            y + casethickness + 0.005 + 0.203 - bowtieheight,
+            z + skidthickness - 0.002,
+        ),
+        thickness=0,
+        material_id="pec",
+    )
+    # "right" side
+    p3 = gprMax.Plate(
+        p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.021, z + skidthickness - 0.002),
+        p2=(
+            x + 0.01 + 0.005 + 0.187 + bowtiebase,
+            y + casethickness + 0.005 + 0.021 + patchheight,
+            z + skidthickness - 0.002,
+        ),
+        material_id="pec",
+    )
+    p4 = gprMax.Plate(
+        p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
+        p2=(
+            x + 0.01 + 0.005 + 0.187 + bowtiebase,
+            y + casethickness + 0.005 + 0.203 + patchheight,
+            z + skidthickness - 0.002,
+        ),
+        material_id="pec",
+    )
+    # triangles
+    t3 = gprMax.Triangle(
+        p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.081, z + skidthickness - 0.002),
+        p2=(x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness - 0.002),
+        p3=(
+            x + 0.01 + 0.005 + 0.187 + (bowtiebase / 2),
+            y + casethickness + 0.005 + 0.081 + bowtieheight,
+            z + skidthickness - 0.002,
+        ),
+        thickness=0,
+        material_id="pec",
+    )
+    t4 = gprMax.Triangle(
+        p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
+        p2=(x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
+        p3=(
+            x + 0.01 + 0.005 + 0.187 + (bowtiebase / 2),
+            y + casethickness + 0.005 + 0.203 - bowtieheight,
+            z + skidthickness - 0.002,
+        ),
+        thickness=0,
+        material_id="pec",
+    )
 
-        # "right" side
-        p3 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.0235, z + skidthickness),
-            p2=(
-                x + 0.01 + 0.005 + 0.186 + bowtiebase,
-                y + casethickness + 0.005 + 0.0235 + patchheight,
-                z + skidthickness,
-            ),
-            material_id="pec",
-        )
-        p4 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.204, z + skidthickness),
-            p2=(
-                x + 0.01 + 0.005 + 0.186 + bowtiebase,
-                y + casethickness + 0.005 + 0.204 + patchheight,
-                z + skidthickness,
-            ),
-            material_id="pec",
-        )
-        # triangles
-        t3 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.0835, z + skidthickness),
-            p2=(x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.0835, z + skidthickness),
-            p3=(
-                x + 0.01 + 0.005 + 0.186 + (bowtiebase / 2),
-                y + casethickness + 0.005 + 0.0835 + bowtieheight,
-                z + skidthickness,
-            ),
-            thickness=0,
-            material_ID="pec",
-        )
-        t4 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.204, z + skidthickness),
-            p2=(x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.204, z + skidthickness),
-            p3=(
-                x + 0.01 + 0.005 + 0.186 + (bowtiebase / 2),
-                y + casethickness + 0.005 + 0.204 - bowtieheight,
-                z + skidthickness,
-            ),
-            thickness=0,
-            material_id="pec",
-        )
-
-        # Edges that represent wire between bowtie halves in 1mm model
-        e1 = gprMax.Edge(p1=(tx[0] + 0.16, tx[1] - dy, tx[2]), p2=(tx[0] + 0.16, tx[1], tx[2]), material_id="pec")
-        e2 = gprMax.Edge(
-            p1=(tx[0] + 0.16, tx[1] + dy, tx[2]), p2=(tx[0] + 0.16, tx[1] + 2 * dy, tx[2]), material_id="pec"
-        )
-        e3 = gprMax.Edge(p1=(tx[0], tx[1] - dy, tx[2]), p2=(tx[0], tx[1], tx[2]), material_id="pec")
-        e4 = gprMax.Edge(p1=(tx[0], tx[1] + dy, tx[2]), p2=(tx[0], tx[1] + 2 * dy, tx[2]), material_id="pec")
-        scene_objects.extend((p1, p2, t1, t2, p3, p4, t3, t4, e1, e2, e3, e4))
-
-    elif resolution == 0.001:
-        # "left" side
-        # extension plates
-        p1 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.023, z + skidthickness),
-            p2=(
-                x + 0.01 + 0.005 + 0.026 + bowtiebase,
-                y + casethickness + 0.005 + 0.023 + patchheight,
-                z + skidthickness,
-            ),
-            material_id="pec",
-        )
-        p2 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.204, z + skidthickness),
-            p2=(
-                x + 0.01 + 0.005 + 0.026 + bowtiebase,
-                y + casethickness + 0.005 + 0.204 + patchheight,
-                z + skidthickness,
-            ),
-            material_id="pec",
-        )
-        # triangles
-        t1 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.083, z + skidthickness),
-            p2=(x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.083, z + skidthickness),
-            p3=(
-                x + 0.01 + 0.005 + 0.026 + (bowtiebase / 2),
-                y + casethickness + 0.005 + 0.083 + bowtieheight,
-                z + skidthickness,
-            ),
-            thickness=0,
-            material_id="pec",
-        )
-        t2 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.026, y + casethickness + 0.005 + 0.204, z + skidthickness),
-            p2=(x + 0.01 + 0.005 + 0.026 + bowtiebase, y + casethickness + 0.005 + 0.204, z + skidthickness),
-            p3=(
-                x + 0.01 + 0.005 + 0.026 + (bowtiebase / 2),
-                y + casethickness + 0.005 + 0.204 - bowtieheight,
-                z + skidthickness,
-            ),
-            thickness=0,
-            material_id="pec",
-        )
-
-        # "right" side
-        p3 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.023, z + skidthickness),
-            p2=(
-                x + 0.01 + 0.005 + 0.186 + bowtiebase,
-                y + casethickness + 0.005 + 0.023 + patchheight,
-                z + skidthickness,
-            ),
-            material_id="pec",
-        )
-        p4 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.204, z + skidthickness),
-            p2=(
-                x + 0.01 + 0.005 + 0.186 + bowtiebase,
-                y + casethickness + 0.005 + 0.204 + patchheight,
-                z + skidthickness,
-            ),
-            material_id="pec",
-        )
-        # triangles
-        t3 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.083, z + skidthickness),
-            p2=(x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.083, z + skidthickness),
-            p3=(
-                x + 0.01 + 0.005 + 0.186 + (bowtiebase / 2),
-                y + casethickness + 0.005 + 0.083 + bowtieheight,
-                z + skidthickness,
-            ),
-            thickness=0,
-            material_id="pec",
-        )
-        t4 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.186, y + casethickness + 0.005 + 0.204, z + skidthickness),
-            p2=(x + 0.01 + 0.005 + 0.186 + bowtiebase, y + casethickness + 0.005 + 0.204, z + skidthickness),
-            p3=(
-                x + 0.01 + 0.005 + 0.186 + (bowtiebase / 2),
-                y + casethickness + 0.005 + 0.204 - bowtieheight,
-                z + skidthickness,
-            ),
-            thickness=0,
-            material_id="pec",
-        )
-
-        # Edges that represent wire between bowtie halves in 1mm model
-        e1 = gprMax.Edge(p1=(tx[0] + 0.16, tx[1] - dy, tx[2]), p2=(tx[0] + 0.16, tx[1], tx[2]), material_id="pec")
-        e2 = gprMax.Edge(
-            p1=(tx[0] + 0.16, tx[1] + dy, tx[2]), p2=(tx[0] + 0.16, tx[1] + 2 * dy, tx[2]), material_id="pec"
-        )
-        e3 = gprMax.Edge(p1=(tx[0], tx[1] - dy, tx[2]), p2=(tx[0], tx[1], tx[2]), material_id="pec")
-        e4 = gprMax.Edge(p1=(tx[0], tx[1] + dy, tx[2]), p2=(tx[0], tx[1] + 2 * dy, tx[2]), material_id="pec")
-        scene_objects.extend((p1, p2, t1, t2, p3, p4, t3, t4, e1, e2, e3, e4))
-
-    elif resolution == 0.002:
-        # "left" side
-        # extension plates
-        p1 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.021, z + skidthickness - 0.002),
-            p2=(
-                x + 0.01 + 0.005 + 0.025 + bowtiebase,
-                y + casethickness + 0.005 + 0.021 + patchheight,
-                z + skidthickness - 0.002,
-            ),
-            material_id="pec",
-        )
-        p2 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
-            p2=(
-                x + 0.01 + 0.005 + 0.025 + bowtiebase,
-                y + casethickness + 0.005 + 0.203 + patchheight,
-                z + skidthickness - 0.002,
-            ),
-            material_id="pec",
-        )
-        # triangles
-        t1 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.081, z + skidthickness - 0.002),
-            p2=(x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness - 0.002),
-            p3=(
-                x + 0.01 + 0.005 + 0.025 + (bowtiebase / 2),
-                y + casethickness + 0.005 + 0.081 + bowtieheight,
-                z + skidthickness - 0.002,
-            ),
-            thickness=0,
-            material_id="pec",
-        )
-        t2 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.025, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
-            p2=(x + 0.01 + 0.005 + 0.025 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
-            p3=(
-                x + 0.01 + 0.005 + 0.025 + (bowtiebase / 2),
-                y + casethickness + 0.005 + 0.203 - bowtieheight,
-                z + skidthickness - 0.002,
-            ),
-            thickness=0,
-            material_id="pec",
-        )
-        # "right" side
-        p3 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.021, z + skidthickness - 0.002),
-            p2=(
-                x + 0.01 + 0.005 + 0.187 + bowtiebase,
-                y + casethickness + 0.005 + 0.021 + patchheight,
-                z + skidthickness - 0.002,
-            ),
-            material_id="pec",
-        )
-        p4 = gprMax.Plate(
-            p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
-            p2=(
-                x + 0.01 + 0.005 + 0.187 + bowtiebase,
-                y + casethickness + 0.005 + 0.203 + patchheight,
-                z + skidthickness - 0.002,
-            ),
-            material_id="pec",
-        )
-        # triangles
-        t3 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.081, z + skidthickness - 0.002),
-            p2=(x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.081, z + skidthickness - 0.002),
-            p3=(
-                x + 0.01 + 0.005 + 0.187 + (bowtiebase / 2),
-                y + casethickness + 0.005 + 0.081 + bowtieheight,
-                z + skidthickness - 0.002,
-            ),
-            thickness=0,
-            material_id="pec",
-        )
-        t4 = gprMax.Triangle(
-            p1=(x + 0.01 + 0.005 + 0.187, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
-            p2=(x + 0.01 + 0.005 + 0.187 + bowtiebase, y + casethickness + 0.005 + 0.203, z + skidthickness - 0.002),
-            p3=(
-                x + 0.01 + 0.005 + 0.187 + (bowtiebase / 2),
-                y + casethickness + 0.005 + 0.203 - bowtieheight,
-                z + skidthickness - 0.002,
-            ),
-            thickness=0,
-            material_id="pec",
-        )
-
-        # Edges that represent wire between bowtie halves in 2mm model
-        e1 = gprMax.Edge(p1=(tx[0] + 0.162, tx[1] - dy, tx[2]), p2=(tx[0] + 0.162, tx[1], tx[2]), material_id="pec")
-        e2 = gprMax.Edge(
-            p1=(tx[0] + 0.162, tx[1] + dy, tx[2]), p2=(tx[0] + 0.162, tx[1] + 2 * dy, tx[2]), material_id="pec"
-        )
-        e3 = gprMax.Edge(p1=(tx[0], tx[1] - dy, tx[2]), p2=(tx[0], tx[1], tx[2]), material_id="pec")
-        e4 = gprMax.Edge(p1=(tx[0], tx[1] + dy, tx[2]), p2=(tx[0], tx[1] + 2 * dy, tx[2]), material_id="pec")
-        scene_objects.extend((p1, p2, t1, t2, p3, p4, t3, t4, e1, e2, e3, e4))
+    # Edges that represent wire between bowtie halves in 2mm model
+    e1 = gprMax.Edge(p1=(tx[0] + 0.162, tx[1] - dy, tx[2]), p2=(tx[0] + 0.162, tx[1], tx[2]), material_id="pec")
+    e2 = gprMax.Edge(
+        p1=(tx[0] + 0.162, tx[1] + dy, tx[2]), p2=(tx[0] + 0.162, tx[1] + 2 * dy, tx[2]), material_id="pec"
+    )
+    e3 = gprMax.Edge(p1=(tx[0], tx[1] - dy, tx[2]), p2=(tx[0], tx[1], tx[2]), material_id="pec")
+    e4 = gprMax.Edge(p1=(tx[0], tx[1] + dy, tx[2]), p2=(tx[0], tx[1] + 2 * dy, tx[2]), material_id="pec")
+    scene_objects.extend((p1, p2, t1, t2, p3, p4, t3, t4, e1, e2, e3, e4))
 
     # Metallic plate extension
     b15 = gprMax.Box(
@@ -1069,20 +770,18 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001, **kwargs):
     scene_objects.extend((b15, b16))
 
     # Source
-    # Excitation - Gaussian pulse
-    w1 = gprMax.Waveform(wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian")
-    scene_objects.append(w1)
-
     if src_type == "voltage_source":
+        w1 = gprMax.Waveform(wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian")
         vs1 = gprMax.VoltageSource(
             polarisation="y", p1=(tx[0], tx[1], tx[2]), resistance=sourceresistance, waveform_id="my_gaussian"
         )
-        scene_objects.append(vs1)
+        scene_objects.extend((w1, vs1))
     elif src_type == "transmission_line":
+        w1 = gprMax.Waveform(wave_type="gaussian", amp=1, freq=excitationfreq, id="my_gaussian")
         tl1 = gprMax.TransmissionLine(
             polarisation="y", p1=(tx[0], tx[1], tx[2]), resistance=sourceresistance, waveform_id="my_gaussian"
         )
-        scene_objects.append(tl1)
+        scene_objects.extend((w1, tl1))
     else:
         # Optimised custom pulse
         exc1 = gprMax.ExcitationFile(
@@ -1094,35 +793,19 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.001, **kwargs):
         scene_objects.extend((exc1, vs1))
 
     # Receiver
-    # Zero waveform to use with transmission line at receiver output
-    w2 = gprMax.Waveform(wave_type="gaussian", amp=0, freq=excitationfreq, id="my_zero_wave")
-    scene_objects.append(w2)
-
-    if resolution == 0.001 or resolution == 0.0005:
-        if src_type == "transmission_line":
-            tl2 = gprMax.TransmissionLine(
-                polarisation="y",
-                p1=(tx[0] + 0.16, tx[1], tx[2]),
-                resistance=receiverresistance,
-                waveform_id="my_zero_wave",
-            )
-            scene_objects.append(tl2)
-        elif src_type == "voltage_source":
-            r1 = gprMax.Rx(p1=(tx[0] + 0.16, tx[1], tx[2]), id="rxbowtie", outputs="Ey")
-            scene_objects.append(r1)
-
-    elif resolution == 0.002:
-        if src_type == "transmission_line":
-            tl2 = gprMax.TransmissionLine(
-                polarisation="y",
-                p1=(tx[0] + 0.162, tx[1], tx[2]),
-                resistance=receiverresistance,
-                waveform_id="my_zero_wave",
-            )
-            scene_objects.append(tl2)
-        elif src_type == "voltage_source":
-            r1 = gprMax.Rx(p1=(tx[0] + 0.162, tx[1], tx[2]), id="rxbowtie", outputs="Ey")
-            scene_objects.append(r1)
+    if src_type == "transmission_line":
+        # Zero waveform to use with transmission line at receiver output
+        w2 = gprMax.Waveform(wave_type="gaussian", amp=0, freq=excitationfreq, id="my_zero_wave")
+        tl2 = gprMax.TransmissionLine(
+            polarisation="y",
+            p1=(tx[0] + 0.162, tx[1], tx[2]),
+            resistance=receiverresistance,
+            waveform_id="my_zero_wave",
+        )
+        scene_objects.extend((w2, tl2))
+    else:
+        r1 = gprMax.Rx(p1=(tx[0] + 0.162, tx[1], tx[2]), id="rxbowtie", outputs="Ey")
+        scene_objects.append(r1)
 
     # Geometry views
     gv1 = gprMax.GeometryView(

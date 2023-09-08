@@ -40,13 +40,11 @@ if sys.platform == "linux":
         python -m testing.test_models
 """
 
-# Specify directoty with set of models to test
+# Specify directory with set of models to test
 modelset = "models_basic"
 # modelset += 'models_advanced'
-# modelset += 'models_pmls'
 
 basepath = Path(__file__).parents[0] / modelset
-
 
 # List of available basic test models
 testmodels = [
@@ -64,9 +62,6 @@ testmodels = [
 # List of available advanced test models
 # testmodels = ['antenna_GSSI_1500_fs', 'antenna_MALA_1200_fs']
 
-# List of available PML models
-# testmodels = ['pml_x0', 'pml_y0', 'pml_z0', 'pml_xmax', 'pml_ymax', 'pml_zmax', 'pml_3D_pec_plate']
-
 # Select a specific model if desired
 # testmodels = [testmodels[0]]
 testresults = dict.fromkeys(testmodels)
@@ -80,7 +75,7 @@ for i, model in enumerate(testmodels):
 
     # Run model
     file = basepath / model / model
-    gprMax.run(inputfile=file.with_suffix(".in"), gpu=None)
+    gprMax.run(inputfile=file.with_suffix(".in"), gpu=None, opencl=None)
 
     # Special case for analytical comparison
     if model == "hertzian_dipole_fs_analytical":
@@ -116,6 +111,7 @@ for i, model in enumerate(testmodels):
         dataref = hertzian_dipole_fs(
             filetest.attrs["Iterations"], filetest.attrs["dt"], filetest.attrs["dx_dy_dz"], rxposrelative
         )
+        filetest.close()
 
     else:
         # Get output for model and reference files
@@ -134,15 +130,15 @@ for i, model in enumerate(testmodels):
             raise ValueError
 
         # Check that type of float used to store fields matches
-        if filetest[path + outputstest[0]].dtype != fileref[path + outputsref[0]].dtype:
-            logger.warning(
-                f"Type of floating point number in test model "
-                f"({filetest[path + outputstest[0]].dtype}) does not "
-                f"match type in reference solution ({fileref[path + outputsref[0]].dtype})\n"
-            )
         float_or_doubleref = fileref[path + outputsref[0]].dtype
         float_or_doubletest = filetest[path + outputstest[0]].dtype
-
+        if float_or_doubleref != float_or_doubletest:
+            logger.warning(
+                f"Type of floating point number in test model "
+                f"({float_or_doubletest}) does not "
+                f"match type in reference solution ({float_or_doubleref})\n"
+            )
+        
         # Arrays for storing time
         timeref = np.zeros((fileref.attrs["Iterations"]), dtype=float_or_doubleref)
         timeref = (
@@ -166,7 +162,7 @@ for i, model in enumerate(testmodels):
                 raise ValueError
 
         fileref.close()
-    filetest.close()
+        filetest.close()
 
     # Diffs
     datadiffs = np.zeros(datatest.shape, dtype=np.float64)
