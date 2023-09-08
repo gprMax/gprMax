@@ -1031,5 +1031,5 @@ The CFS values (which are internally specified) used for the default standard fi
 The parameters will be applied to all slabs of the PML that are switched on.
 
 .. tip::
-    
+
     ``forward`` direction implies minimum parameter value at the inner boundary of the PML and maximum parameter value at the edge of computational domain, ``reverse`` is the opposite.

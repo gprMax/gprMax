@@ -44,10 +44,7 @@ for obj in gssi_objects:
     scene.add(obj)
 
 gv1 = gprMax.GeometryView(
-    p1=(0, 0, 0), 
-    p2=(x, y, z), 
-    dl=(dl, dl, dl), 
-    filename="antenna_like_GSSI_400", output_type="n"
+    p1=(0, 0, 0), p2=(x, y, z), dl=(dl, dl, dl), filename="antenna_like_GSSI_400", output_type="n"
 )
 gv2 = gprMax.GeometryView(
     p1=(ant_pos[0] - 0.150, ant_pos[1] - 0.150, ant_pos[2]),
@@ -56,8 +53,8 @@ gv2 = gprMax.GeometryView(
     filename="antenna_like_GSSI_400_pcb",
     output_type="f",
 )
-#scene.add(gv1)
-#scene.add(gv2)
+# scene.add(gv1)
+# scene.add(gv2)
 
 # Run model
 gprMax.run(scenes=[scene], geometry_only=False, outputfile=fn, gpu=None)

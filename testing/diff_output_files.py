@@ -24,6 +24,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+
 def diff_output_files(filename1, filename2):
     """Calculates differences between two output files.
 
@@ -56,7 +57,7 @@ def diff_output_files(filename1, filename2):
             f"Type of floating point number in test model ({file1[path + outputs1[0]].dtype}) "
             f"does not match type in reference solution ({file2[path + outputs2[0]].dtype})\n"
         )
-    
+
     # Arrays for storing time
     time1 = np.zeros((file1.attrs["Iterations"]), dtype=floattype1)
     time1 = np.linspace(0, (file1.attrs["Iterations"] - 1), num=file1.attrs["Iterations"])

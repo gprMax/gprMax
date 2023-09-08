@@ -230,8 +230,8 @@ class SimulationConfig:
             "c": c,  # Speed of light in free space (m/s)
             "e0": e0,  # Permittivity of free space (F/m)
             "m0": m0,  # Permeability of free space (H/m)
-            "z0": np.sqrt(m0 / e0), # Impedance of free space (Ohms)
-        }  
+            "z0": np.sqrt(m0 / e0),  # Impedance of free space (Ohms)
+        }
 
         # Store information about host machine
         self.hostinfo = get_host_info()
