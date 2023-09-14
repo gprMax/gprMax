@@ -126,7 +126,7 @@ Alternatively, if you are using Windows 10/11 you can install the `Windows Subsy
 
 Once you have installed the aforementioned tools follow these steps to build and install gprMax:
 
-* Open a Terminal (Linux/macOS) or Command Prompt (Windows), navigate into the directory above the gprMax package, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`. Run the following commands:
+* Open a Terminal (Linux/macOS) or Command Prompt (Windows), **navigate into the directory above the gprMax package**, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`. Run the following commands:
 
 .. code-block:: bash
 
