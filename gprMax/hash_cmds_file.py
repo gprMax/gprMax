@@ -246,6 +246,7 @@ def check_cmd_names(processedlines, checkessential=True):
             "#hertzian_dipole",
             "#magnetic_dipole",
             "#transmission_line",
+            "#discrete_plane_wave",
             "#rx",
             "#rx_array",
             "#snapshot",
