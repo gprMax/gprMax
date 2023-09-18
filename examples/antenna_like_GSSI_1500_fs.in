@@ -1,0 +1,11 @@
+#title: GSSI 1.5GHz 'like' antenna in free-space
+#domain: 0.250 0.188 0.220
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 6e-9
+
+#python:
+from toolboxes.GPRAntennaModels.GSSI import antenna_like_GSSI_1500
+gssi_objects = antenna_like_GSSI_1500(0.125, 0.094, 0.100, resolution=0.001)
+for obj in gssi_objects:
+    print(obj.__str__())
+#end_python:
