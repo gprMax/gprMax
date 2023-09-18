@@ -18,6 +18,7 @@
 
 import inspect
 import logging
+from pathlib import Path
 
 import numpy as np
 from scipy import interpolate
@@ -88,6 +89,97 @@ class UserObjectMulti:
             return ""
 
 
+class ExcitationFile(UserObjectMulti):
+    """An ASCII file that contains columns of amplitude values that specify
+        custom waveform shapes that can be used with sources in the model.
+
+    Attributes:
+        filepath: string of excitation file path.
+        kind: string or int specifying interpolation kind passed to
+                scipy.interpolate.interp1d.
+        fill_value: float or 'extrapolate' passed to scipy.interpolate.interp1d.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.order = 1
+        self.hash = "#excitation_file"
+
+    def create(self, grid, uip):
+        try:
+            kwargs = {}
+            excitationfile = self.kwargs["filepath"]
+            kwargs["kind"] = self.kwargs["kind"]
+            kwargs["fill_value"] = self.kwargs["fill_value"]
+
+        except KeyError:
+            try:
+                excitationfile = self.kwargs["filepath"]
+                fullargspec = inspect.getfullargspec(interpolate.interp1d)
+                kwargs = dict(zip(reversed(fullargspec.args), reversed(fullargspec.defaults)))
+            except KeyError:
+                logger.exception(f"{self.__str__()} requires either one or three parameter(s)")
+                raise
+
+        # See if file exists at specified path and if not try input file directory
+        excitationfile = Path(excitationfile)
+        # excitationfile = excitationfile.resolve()
+        if not excitationfile.exists():
+            excitationfile = Path(config.sim_config.input_file_path.parent, excitationfile)
+
+        logger.info(self.grid_name(grid) + f"Excitation file: {excitationfile}")
+
+        # Get waveform names
+        waveformIDs = np.loadtxt(excitationfile, max_rows=1, dtype=str)
+
+        # Read all waveform values into an array
+        waveformvalues = np.loadtxt(excitationfile, skiprows=1, dtype=config.sim_config.dtypes["float_or_double"])
+
+        # Time array (if specified) for interpolation, otherwise use simulation time
+        if waveformIDs[0].lower() == "time":
+            waveformIDs = waveformIDs[1:]
+            waveformtime = waveformvalues[:, 0]
+            waveformvalues = waveformvalues[:, 1:]
+            timestr = "user-defined time array"
+        else:
+            waveformtime = np.arange(0, grid.timewindow + grid.dt, grid.dt)
+            timestr = "simulation time array"
+
+        for i, waveformID in enumerate(waveformIDs):
+            if any(x.ID == waveformID for x in grid.waveforms):
+                logger.exception(f"Waveform with ID {waveformID} already exists")
+                raise ValueError
+            w = WaveformUser()
+            w.ID = waveformID
+            w.type = "user"
+
+            # Select correct column of waveform values depending on array shape
+            singlewaveformvalues = waveformvalues[:] if len(waveformvalues.shape) == 1 else waveformvalues[:, i]
+
+            # Truncate waveform array if it is longer than time array
+            if len(singlewaveformvalues) > len(waveformtime):
+                singlewaveformvalues = singlewaveformvalues[: len(waveformtime)]
+            # Zero-pad end of waveform array if it is shorter than time array
+            elif len(singlewaveformvalues) < len(waveformtime):
+                singlewaveformvalues = np.pad(
+                    singlewaveformvalues,
+                    (0, len(waveformtime) - len(singlewaveformvalues)),
+                    "constant",
+                    constant_values=0,
+                )
+
+            # Interpolate waveform values
+            w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues, **kwargs)
+
+            logger.info(self.grid_name(grid) +
+                f"User waveform {w.ID} created using {timestr} and, if "
+                f"required, interpolation parameters (kind: {kwargs['kind']}, "
+                f"fill value: {kwargs['fill_value']})."
+            )
+
+            grid.waveforms.append(w)
+
+
 class Waveform(UserObjectMulti):
     """Specifies waveforms to use with sources in the model.
 
@@ -105,7 +197,7 @@ class Waveform(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 1
+        self.order = 2
         self.hash = "#waveform"
 
     def create(self, grid, uip):
@@ -204,7 +296,7 @@ class VoltageSource(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 2
+        self.order = 3
         self.hash = "#voltage_source"
 
     def rotate(self, axis, angle, origin=None):
@@ -328,7 +420,7 @@ class HertzianDipole(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 3
+        self.order = 4
         self.hash = "#hertzian_dipole"
 
     def rotate(self, axis, angle, origin=None):
@@ -469,7 +561,7 @@ class MagneticDipole(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 4
+        self.order = 5
         self.hash = "#magnetic_dipole"
 
     def rotate(self, axis, angle, origin=None):
@@ -592,7 +684,7 @@ class TransmissionLine(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 5
+        self.order = 6
         self.hash = "#transmission_line"
 
     def rotate(self, axis, angle, origin=None):
@@ -732,7 +824,7 @@ class Rx(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 6
+        self.order = 7
         self.hash = "#rx"
         self.constructor = RxUser
 
@@ -743,9 +835,11 @@ class Rx(UserObjectMulti):
         self.origin = origin
         self.do_rotate = True
 
-    def _do_rotate(self, G):
+    def _do_rotate(self, grid):
         """Performs rotation."""
-        new_pt = (self.kwargs["p1"][0] + G.dx, self.kwargs["p1"][1] + G.dy, self.kwargs["p1"][2] + G.dz)
+        new_pt = (self.kwargs["p1"][0] + grid.dx, 
+                  self.kwargs["p1"][1] + grid.dy, 
+                  self.kwargs["p1"][2] + grid.dz)
         pts = np.array([self.kwargs["p1"], new_pt])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
@@ -827,7 +921,7 @@ class RxArray(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 7
+        self.order = 8
         self.hash = "#rx_array"
 
     def create(self, grid, uip):
@@ -931,7 +1025,7 @@ class Snapshot(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 8
+        self.order = 9
         self.hash = "#snapshot"
 
     def create(self, grid, uip):
@@ -1044,7 +1138,7 @@ class Material(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 9
+        self.order = 10
         self.hash = "#material"
 
     def create(self, grid, uip):
@@ -1119,7 +1213,7 @@ class AddDebyeDispersion(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 10
+        self.order = 11
         self.hash = "#add_dispersion_debye"
 
     def create(self, grid, uip):
@@ -1191,7 +1285,7 @@ class AddLorentzDispersion(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 11
+        self.order = 12
         self.hash = "#add_dispersion_lorentz"
 
     def create(self, grid, uip):
@@ -1268,7 +1362,7 @@ class AddDrudeDispersion(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 12
+        self.order = 13
         self.hash = "#add_dispersion_drude"
 
     def create(self, grid, uip):
@@ -1345,7 +1439,7 @@ class SoilPeplinski(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 13
+        self.order = 14
         self.hash = "#soil_peplinski"
 
     def create(self, grid, uip):
@@ -1423,7 +1517,7 @@ class MaterialRange(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 17
+        self.order = 15
         self.hash = "#material_range"
 
     def create(self, grid, uip):
@@ -1505,7 +1599,7 @@ class MaterialList(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 18
+        self.order = 16
         self.hash = "#material_list"
 
     def create(self, grid, uip):
@@ -1546,7 +1640,7 @@ class GeometryView(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 14
+        self.order = 17
         self.hash = "#geometry_view"
 
     def geometry_view_constructor(self, grid, output_type):
@@ -1635,7 +1729,7 @@ class GeometryObjectsWrite(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 15
+        self.order = 18
         self.hash = "#geometry_objects_write"
 
     def create(self, grid, uip):
@@ -1692,7 +1786,7 @@ class PMLCFS(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 16
+        self.order = 19
 
     def create(self, grid, uip):
         try:

@@ -22,6 +22,7 @@ from .cmds_multiuse import (
     AddDebyeDispersion,
     AddDrudeDispersion,
     AddLorentzDispersion,
+    ExcitationFile,
     GeometryObjectsWrite,
     GeometryView,
     HertzianDipole,
@@ -171,6 +172,21 @@ def process_multicmds(multicmds):
                 raise ValueError
 
             scene_objects.append(tl)
+
+    cmd = "#excitation_file"
+    if multicmds[cmd] is not None:
+        for cmdinstance in multicmds[cmdname]:
+            tmp = cmdinstance.split()
+            if len(tmp) not in [1, 3]:
+                logger.exception(f"{cmd} requires either one or three parameter(s)")
+                raise ValueError
+
+            if len(tmp) > 1:
+                ex_file = ExcitationFile(filepath=tmp[0], kind=tmp[1], fill_value=tmp[2])
+            else:
+                ex_file = ExcitationFile(filepath=tmp[0])
+
+            scene_objects.append(ex_file)
 
     cmdname = "#rx"
     if multicmds[cmdname] is not None:

@@ -29,6 +29,7 @@ from .cmds_multiuse import (
     AddDebyeDispersion,
     AddDrudeDispersion,
     AddLorentzDispersion,
+    ExcitationFile,
     GeometryObjectsWrite,
     GeometryView,
     HertzianDipole,
@@ -48,7 +49,6 @@ from .cmds_multiuse import (
 from .cmds_singleuse import (
     Discretisation,
     Domain,
-    ExcitationFile,
     OMPThreads,
     OutputDir,
     PMLProps,

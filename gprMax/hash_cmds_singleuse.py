@@ -21,7 +21,6 @@ import logging
 from .cmds_singleuse import (
     Discretisation,
     Domain,
-    ExcitationFile,
     OMPThreads,
     OutputDir,
     PMLProps,
@@ -176,20 +175,5 @@ def process_singlecmds(singlecmds):
         p1 = (float(tmp[0]), float(tmp[1]), float(tmp[2]))
         rx_steps = RxSteps(p1=p1)
         scene_objects.append(rx_steps)
-
-    # Excitation file for user-defined source waveforms
-    cmd = "#excitation_file"
-    if singlecmds[cmd] is not None:
-        tmp = singlecmds[cmd].split()
-        if len(tmp) not in [1, 3]:
-            logger.exception(f"{cmd} requires either one or three parameter(s)")
-            raise ValueError
-
-        if len(tmp) > 1:
-            ex_file = ExcitationFile(filepath=tmp[0], kind=tmp[1], fill_value=tmp[2])
-        else:
-            ex_file = ExcitationFile(filepath=tmp[0])
-
-        scene_objects.append(ex_file)
 
     return scene_objects

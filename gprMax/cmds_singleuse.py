@@ -16,18 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import inspect
 import logging
-from pathlib import Path
 
 import numpy as np
-from scipy import interpolate
 
 import gprMax.config as config
 
 from .pml import PML
 from .utilities.host_info import set_omp_threads
-from .waveforms import Waveform
 
 logger = logging.getLogger(__name__)
 
@@ -378,96 +374,6 @@ class RxSteps(UserObjectSingle):
         )
 
 
-class ExcitationFile(UserObjectSingle):
-    """An ASCII file that contains columns of amplitude values that specify
-        custom waveform shapes that can be used with sources in the model.
-
-    Attributes:
-        filepath: string of excitation file path.
-        kind: string or int specifying interpolation kind passed to
-                scipy.interpolate.interp1d.
-        fill_value: float or 'extrapolate' passed to scipy.interpolate.interp1d.
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 10
-
-    def create(self, G, uip):
-        try:
-            kwargs = {}
-            excitationfile = self.kwargs["filepath"]
-            kwargs["kind"] = self.kwargs["kind"]
-            kwargs["fill_value"] = self.kwargs["fill_value"]
-
-        except KeyError:
-            try:
-                excitationfile = self.kwargs["filepath"]
-                fullargspec = inspect.getfullargspec(interpolate.interp1d)
-                kwargs = dict(zip(reversed(fullargspec.args), reversed(fullargspec.defaults)))
-            except KeyError:
-                logger.exception(f"{self.__str__()} requires either one or three parameter(s)")
-                raise
-
-        # See if file exists at specified path and if not try input file directory
-        excitationfile = Path(excitationfile)
-        # excitationfile = excitationfile.resolve()
-        if not excitationfile.exists():
-            excitationfile = Path(config.sim_config.input_file_path.parent, excitationfile)
-
-        logger.info(f"Excitation file: {excitationfile}")
-
-        # Get waveform names
-        waveformIDs = np.loadtxt(excitationfile, max_rows=1, dtype=str)
-
-        # Read all waveform values into an array
-        waveformvalues = np.loadtxt(excitationfile, skiprows=1, dtype=config.sim_config.dtypes["float_or_double"])
-
-        # Time array (if specified) for interpolation, otherwise use simulation time
-        if waveformIDs[0].lower() == "time":
-            waveformIDs = waveformIDs[1:]
-            waveformtime = waveformvalues[:, 0]
-            waveformvalues = waveformvalues[:, 1:]
-            timestr = "user-defined time array"
-        else:
-            waveformtime = np.arange(0, G.timewindow + G.dt, G.dt)
-            timestr = "simulation time array"
-
-        for i, waveformID in enumerate(waveformIDs):
-            if any(x.ID == waveformID for x in G.waveforms):
-                logger.exception(f"Waveform with ID {waveformID} already exists")
-                raise ValueError
-            w = Waveform()
-            w.ID = waveformID
-            w.type = "user"
-
-            # Select correct column of waveform values depending on array shape
-            singlewaveformvalues = waveformvalues[:] if len(waveformvalues.shape) == 1 else waveformvalues[:, i]
-
-            # Truncate waveform array if it is longer than time array
-            if len(singlewaveformvalues) > len(waveformtime):
-                singlewaveformvalues = singlewaveformvalues[: len(waveformtime)]
-            # Zero-pad end of waveform array if it is shorter than time array
-            elif len(singlewaveformvalues) < len(waveformtime):
-                singlewaveformvalues = np.pad(
-                    singlewaveformvalues,
-                    (0, len(waveformtime) - len(singlewaveformvalues)),
-                    "constant",
-                    constant_values=0,
-                )
-
-            # Interpolate waveform values
-            w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues, **kwargs)
-
-            logger.info(
-                f"User waveform {w.ID} created using {timestr} and, if "
-                f"required, interpolation parameters (kind: {kwargs['kind']}, "
-                f"fill value: {kwargs['fill_value']})."
-            )
-
-            G.waveforms.append(w)
-
-
 class OutputDir(UserObjectSingle):
     """Controls the directory where output file(s) will be stored.
 
@@ -477,7 +383,7 @@ class OutputDir(UserObjectSingle):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.order = 11
+        self.order = 10
 
     def create(self, grid, uip):
         config.get_model_config().set_output_file_path(self.kwargs["dir"])
