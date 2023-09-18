@@ -65,10 +65,10 @@ if epsr:
     wavelength = v1 / f
 
 # Print some useful information
-logger.info("Centre frequency: {} GHz".format(f / 1e9))
+logger.info(f"Centre frequency: {f / 1000000000.0} GHz")
 if epsr:
-    logger.info("Critical angle for Er {} is {} degrees".format(epsr, thetac))
-    logger.info("Wavelength: {:.3f} m".format(wavelength))
+    logger.info(f"Critical angle for Er {epsr} is {thetac} degrees")
+    logger.info(f"Wavelength: {wavelength:.3f} m")
     logger.info(
         "Observation distance(s) from {:.3f} m ({:.1f} wavelengths) to {:.3f} m ({:.1f} wavelengths)".format(
             radii[0], radii[0] / wavelength, radii[-1], radii[-1] / wavelength
@@ -204,4 +204,4 @@ for radius in range(0, len(radii)):
 
 # Save pattern to numpy file
 np.save(os.path.splitext(outputfile)[0], patternsave)
-logger.info("Written Numpy file: {}.npy".format(os.path.splitext(outputfile)[0]))
+logger.info(f"Written Numpy file: {os.path.splitext(outputfile)[0]}.npy")

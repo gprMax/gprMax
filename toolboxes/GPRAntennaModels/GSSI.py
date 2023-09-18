@@ -422,9 +422,9 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
 
 def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
     """Inserts a description of an antenna similar to the GSSI 400MHz antenna.
-        This model represents an update to the previous model of the GSSI 400MHz 
-        antenna and was created and optimised by Stadler et al. (2022) 
-        in: https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=9686638. 
+        This model represents an update to the previous model of the GSSI 400MHz
+        antenna and was created and optimised by Stadler et al. (2022)
+        in: https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=9686638.
         Can be used with 2mm spatial resolution.
         The external dimensions of the antenna are 300x300x178mm.
         One output point is defined between the arms of the receiver bowtie.
@@ -459,7 +459,7 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
     metalmiddleplateheight = 0.11
 
     smooth_dec = "yes"  # choose to use dielectric smoothing or not
-    src_type = "GSSI_400MHz_pulse" # (or voltage_source)
+    src_type = "GSSI_400MHz_pulse"  # (or voltage_source)
     pcber = 6.401200848809589
     hdper = 1.0
     skidthickness = 0.01

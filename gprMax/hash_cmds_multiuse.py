@@ -19,6 +19,7 @@
 import logging
 
 from .cmds_multiuse import (
+    PMLCFS,
     AddDebyeDispersion,
     AddDrudeDispersion,
     AddLorentzDispersion,
@@ -30,7 +31,6 @@ from .cmds_multiuse import (
     Material,
     MaterialList,
     MaterialRange,
-    PMLCFS,
     Rx,
     RxArray,
     Snapshot,
@@ -403,27 +403,29 @@ def process_multicmds(multicmds):
             material_list = MaterialList(list_of_materials=lmats, id=tmp[tokens - 1])
             scene_objects.append(material_list)
 
-    cmdname = '#pml_cfs'
-    if multicmds[cmdname] is not None:        
+    cmdname = "#pml_cfs"
+    if multicmds[cmdname] is not None:
         for cmdinstance in multicmds[cmdname]:
             tmp = cmdinstance.split()
-            
+
             if len(tmp) != 12:
                 logger.exception("'" + cmdname + ": " + " ".join(tmp) + "'" + " requires exactly twelve parameters")
                 raise ValueError
 
-            pml_cfs = PMLCFS(alphascalingprofile=tmp[0],
-                             alphascalingdirection=tmp[1],
-                             alphamin=tmp[2],
-                             alphamax=tmp[3],
-                             kappascalingprofile=tmp[4],
-                             kappascalingdirection=tmp[5],
-                             kappamin=tmp[6],
-                             kappamax=tmp[7],
-                             sigmascalingprofile=tmp[8],
-                             sigmascalingdirection=tmp[9],
-                             sigmamin=tmp[10],
-                             sigmamax=tmp[11])
+            pml_cfs = PMLCFS(
+                alphascalingprofile=tmp[0],
+                alphascalingdirection=tmp[1],
+                alphamin=tmp[2],
+                alphamax=tmp[3],
+                kappascalingprofile=tmp[4],
+                kappascalingdirection=tmp[5],
+                kappamin=tmp[6],
+                kappamax=tmp[7],
+                sigmascalingprofile=tmp[8],
+                sigmascalingdirection=tmp[9],
+                sigmamin=tmp[10],
+                sigmamax=tmp[11],
+            )
 
             scene_objects.append(pml_cfs)
 

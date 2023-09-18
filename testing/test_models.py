@@ -138,7 +138,7 @@ for i, model in enumerate(testmodels):
                 f"({float_or_doubletest}) does not "
                 f"match type in reference solution ({float_or_doubleref})\n"
             )
-        
+
         # Arrays for storing time
         timeref = np.zeros((fileref.attrs["Iterations"]), dtype=float_or_doubleref)
         timeref = (

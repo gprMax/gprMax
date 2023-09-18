@@ -134,15 +134,19 @@ def process_singlecmds(singlecmds):
         if len(tmp) not in [1, 6]:
             logger.exception(f"{cmd} requires either one or six parameter(s)")
             raise ValueError
-        
-        if 'pml_formulation' in locals():
+
+        if "pml_formulation" in locals():
             if len(tmp) == 1:
                 pml_props = PMLProps(formulation=pml_formulation, thickness=int(tmp[0]))
             else:
                 pml_props = PMLProps(
-                    formulation=pml_formulation, 
-                    x0=int(tmp[0]), y0=int(tmp[1]), z0=int(tmp[2]), 
-                    xmax=int(tmp[3]), ymax=int(tmp[4]), zmax=int(tmp[5])
+                    formulation=pml_formulation,
+                    x0=int(tmp[0]),
+                    y0=int(tmp[1]),
+                    z0=int(tmp[2]),
+                    xmax=int(tmp[3]),
+                    ymax=int(tmp[4]),
+                    zmax=int(tmp[5]),
                 )
         else:
             if len(tmp) == 1:
@@ -151,7 +155,7 @@ def process_singlecmds(singlecmds):
                 pml_props = PMLProps(
                     x0=int(tmp[0]), y0=int(tmp[1]), z0=int(tmp[2]), xmax=int(tmp[3]), ymax=int(tmp[4]), zmax=int(tmp[5])
                 )
-            
+
         scene_objects.append(pml_props)
 
     cmd = "#src_steps"

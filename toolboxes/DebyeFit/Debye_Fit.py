@@ -220,14 +220,12 @@ class Relaxation(object):
         print(f"       |{'e_inf':^14s}|{'De':^14s}|{'log(tau_0)':^25s}|")
         print("_" * 65)
         for i in range(0, len(tau)):
-            print("Debye {0:}|{1:^14.5f}|{2:^14.5f}|{3:^25.5f}|".format(i + 1, ee / len(tau), weights[i], tau[i]))
+            print(f"Debye {i + 1}|{ee / len(tau):^14.5f}|{weights[i]:^14.5f}|{tau[i]:^25.5f}|")
             print("_" * 65)
 
         # Print the Debye expnasion in a gprMax format
         material_prop = []
-        material_prop.append(
-            "#material: {} {} {} {} {}\n".format(ee, self.sigma, self.mu, self.mu_sigma, self.material_name)
-        )
+        material_prop.append(f"#material: {ee} {self.sigma} {self.mu} {self.mu_sigma} {self.material_name}\n")
         print(material_prop[0], end="")
         dispersion_prop = f"#add_dispersion_debye: {len(tau)}"
         for i in range(len(tau)):

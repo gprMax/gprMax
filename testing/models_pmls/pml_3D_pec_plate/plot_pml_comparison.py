@@ -50,8 +50,9 @@ fig, ax = plt.subplots(
 )
 
 for x, model in enumerate(testmodels):
-    time, datadiffs = diff_output_files(fn.parent.joinpath(basename + "_ref.h5"), 
-                                        fn.parent.joinpath(basename + str(x + 1) + ".h5"))
+    time, datadiffs = diff_output_files(
+        fn.parent.joinpath(basename + "_ref.h5"), fn.parent.joinpath(basename + str(x + 1) + ".h5")
+    )
 
     # Print maximum error value
     start = 210
