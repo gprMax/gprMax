@@ -20,6 +20,10 @@ The Python API in gprMax allows users to access to gprMax functions directly fro
 
 The syntax of the API is generally more verbose than the input file (hash) command syntax. However, for input file commands where there are an undefined number of parameters, such as adding dispersive properties, the user may find the API more manageable.
 
+.. note::
+
+    In prior versions of gprMax (<4) the input file could be scripted using Python inserted between two commands (`#python:` and `#end_python:`). This feature is now deprecated and will be removed entirely in later versions. Users are encouraged to move to the new Python API. Antenna models can still be inserted between `#python:` and `#end_python:` commands but will need to make a small change to their input file. An example of this is provided in `examples/antenna_like_GSSI_1500_fs.in`. Alternatively a switch to the Python API can be made using the example in `examples/antenna_like_GSSI_1500_fs.py`.
+
 Example
 =======
 
