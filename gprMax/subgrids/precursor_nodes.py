@@ -268,7 +268,7 @@ class PrecursorNodesBase:
             # interpolate over a fine grid
             f_i = self.interpolate_to_sub_grid(f_t, obj[1])
 
-            if f_i == f_t:
+            if np.array_equal(f_i, f_t):
                 raise ValueError
 
             # discard the outer nodes only required for interpolation
