@@ -155,4 +155,4 @@ gv1 = gprMax.GeometryView(
 )
 scene.add(gv1)
 
-gprMax.run(scenes=[scene], n=1, geometry_only=True, outputfile=fn, subgrid=True, autotranslate=True)
+gprMax.run(scenes=[scene], n=1, geometry_only=False, outputfile=fn, subgrid=True, autotranslate=True)
