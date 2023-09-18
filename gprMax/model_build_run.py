@@ -274,8 +274,12 @@ class ModelBuildRun:
         file(s).
         """
 
-        write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.G)
+        # Write output data to file if they are any receivers in any grids
+        sg_rxs = [True for sg in self.G.subgrids if sg.rxs]
+        if self.G.rxs or sg_rxs:
+            write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.G)
 
+        # Write any snapshots to file for each grid
         for grid in [self.G] + self.G.subgrids:
             if grid.snapshots:
                 save_snapshots(grid)
