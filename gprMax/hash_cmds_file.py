@@ -396,32 +396,3 @@ def parse_hash_commands(scene):
             scene.add(user_obj)
 
         return scene
-
-
-class Capturing(list):
-    """Context manager to capture standard output stream."""
-
-    # https://stackoverflow.com/questions/16571150/how-to-capture-stdout-output-from-a-python-function-call
-
-    def __enter__(self):
-        self._stdout = sys.stdout
-        sys.stdout = self._stringio = StringIO()
-        return self
-
-    def __exit__(self, *args):
-        self.extend(self._stringio.getvalue().splitlines())
-        del self._stringio  # free up some memory
-        sys.stdout = self._stdout
-
-
-def user_libs_fn_to_scene_obj(f, *args, **kwargs):
-    """Function to convert library functions in the toolboxes directory
-    into geometry objects which can be added to the scene.
-    """
-
-    with Capturing() as str_cmds:
-        f(*args, **kwargs)
-
-    user_objects = get_user_objects(str_cmds, checkessential=False)
-
-    return user_objects
