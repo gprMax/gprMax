@@ -19,7 +19,6 @@
 import datetime
 import decimal as d
 import logging
-import re
 import textwrap
 from shutil import get_terminal_size
 
@@ -33,13 +32,8 @@ logger = logging.getLogger(__name__)
 try:
     from time import thread_time as timer_fn
 except ImportError:
-    from time import perf_counter as timer_fn
-
-    logger.debug(
-        '"thread_time" not currently available in macOS and bug'
-        ' (https://bugs.python.org/issue36205) with "process_time", '
-        'so use "perf_counter".'
-    )
+    # thread_time not always available in macOS
+    from time import process_time as timer_fn
 
 
 def get_terminal_width():
@@ -179,16 +173,6 @@ def fft_power(waveform, dt):
 def timer():
     """Time in fractional seconds."""
     return timer_fn()
-
-
-def atoi(text):
-    """Converts a string into an integer."""
-    return int(text) if text.isdigit() else text
-
-
-def natural_keys(text):
-    """Human sorting of a string."""
-    return [atoi(c) for c in re.split(r"(\d+)", text)]
 
 
 def numeric_list_to_int_list(l):
