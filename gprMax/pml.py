@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
 from importlib import import_module
 
 import numpy as np
@@ -23,6 +24,8 @@ import numpy as np
 import gprMax.config as config
 
 from .cython.pml_build import pml_average_er_mr
+
+logger = logging.getLogger(__name__)
 
 
 class CFSParameter:
@@ -223,8 +226,21 @@ class PML:
             self.thickness = self.nz
 
         self.CFS = self.G.pmls["cfs"]
+        self.check_kappamin()
 
         self.initialise_field_arrays()
+
+    def check_kappamin(self):
+        """Checks that kappamin value for PMLCFS is not less than one. 
+            It is the sum of all kappamin values, i.e. when a multi-pole PML is
+            used, that must not be less than one.
+        """
+
+        kappamin = 0
+        kappamin = sum(cfs.kappa.min for cfs in self.CFS)
+        if kappamin < 1:
+            logger.exception(f"PML kappamin value(s) must sum to less than one.")
+            raise ValueError
 
     def initialise_field_arrays(self):
         """Initialise arrays to store fields in PML."""
@@ -684,6 +700,5 @@ def build_pml(G, pml_ID, thickness):
             G.nx, G.ny, config.get_model_config().ompthreads, G.solid[:, :, pml.zs], ers, mrs
         )
 
-    pml.CFS = G.pmls["cfs"]
     pml.calculate_update_coeffs(averageer, averagemr)
     G.pmls["slabs"].append(pml)
