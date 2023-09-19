@@ -231,15 +231,14 @@ class PML:
         self.initialise_field_arrays()
 
     def check_kappamin(self):
-        """Checks that kappamin value for PMLCFS is not less than one. 
-            It is the sum of all kappamin values, i.e. when a multi-pole PML is
-            used, that must not be less than one.
+        """Checks that the sum of all kappamin values, i.e. when a multi-pole 
+            PML is used, is not less than one.
         """
 
-        kappamin = 0
         kappamin = sum(cfs.kappa.min for cfs in self.CFS)
         if kappamin < 1:
-            logger.exception(f"PML kappamin value(s) must sum to less than one.")
+            logger.exception(f"Sum of kappamin value(s) for PML is {kappamin} "
+                             "and must be greater than one.")
             raise ValueError
 
     def initialise_field_arrays(self):
