@@ -132,9 +132,9 @@ class ModelConfig:
         }
 
     def get_scene(self):
-        if sim_config.scenes:
+        try:
             return sim_config.scenes[model_num]
-        else:
+        except:
             return None
 
     def get_usernamespace(self):
