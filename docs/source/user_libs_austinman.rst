@@ -15,7 +15,7 @@ Information
 
 **Attribution/cite**: Please follow the instructions at http://web.corral.tacc.utexas.edu/AustinManEMVoxels/AustinMan/citing_the_model/index.html
 
-`AustinMan and AustinWoman <http://bit.ly/AustinMan>`_ are open source electromagnetic voxel models of the human body, which are developed by the `Computational Electromagnetics Group <http://www.ece.utexas.edu/research/areas/electromagnetics-acoustics>`_ at `The University of Texas at Austin <http://www.utexas.edu>`_. The models are based on data from the `National Library of Medicine’s Visible Human Project <https://www.nlm.nih.gov/research/visible/visible_human.html>`_.
+`AustinMan and AustinWoman <https://web.corral.tacc.utexas.edu/AustinManEMVoxels/AustinMan/index.html>`_ are open source electromagnetic voxel models of the human body, which are developed by the `Computational Electromagnetics Group <http://www.ece.utexas.edu/research/areas/electromagnetics-acoustics>`_ at `The University of Texas at Austin <http://www.utexas.edu>`_. The models are based on data from the `National Library of Medicine’s Visible Human Project <https://www.nlm.nih.gov/research/visible/visible_human.html>`_.
 
 .. figure:: images/user_libs/AustinMan_head.png
     :width: 600 px
@@ -61,7 +61,7 @@ How to use the models
 
 The AustinMan and AustinWoman models themselves are not included in the user libraries sub-package.
 
-* `Download a HDF5 file (.h5) of AustinMan or AustinWoman <http://bit.ly/AustinMan>`_ at the resolution you wish to use
+* `Download a HDF5 file (.h5) of AustinMan or AustinWoman <https://web.corral.tacc.utexas.edu/AustinManEMVoxels/AustinMan/download/index.html>`_ at the resolution you wish to use
 
 To insert either AustinMan or AustinWoman models into a simulation use the ``#geometry_objects_read``.
 
