@@ -69,7 +69,8 @@ def write_hdf5_outputfile(outputfile, G):
 
     # Write meta data and data for any subgrids
     sg_rxs = [True for sg in G.subgrids if sg.rxs]
-    if sg_rxs:
+    sg_tls = [True for sg in G.subgrids if sg.transmissionlines]
+    if sg_rxs or sg_tls:
         for sg in G.subgrids:
             grp = f.create_group(f"/subgrids/{sg.name}")
             write_hd5_data(grp, sg, is_subgrid=True)

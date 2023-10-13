@@ -171,8 +171,8 @@ class ExcitationFile(UserObjectMulti):
             # Interpolate waveform values
             w.userfunc = interpolate.interp1d(waveformtime, singlewaveformvalues, **kwargs)
 
-            logger.info(self.grid_name(grid) +
-                f"User waveform {w.ID} created using {timestr} and, if "
+            logger.info(
+                self.grid_name(grid) + f"User waveform {w.ID} created using {timestr} and, if "
                 f"required, interpolation parameters (kind: {kwargs['kind']}, "
                 f"fill value: {kwargs['fill_value']})."
             )
@@ -837,9 +837,7 @@ class Rx(UserObjectMulti):
 
     def _do_rotate(self, grid):
         """Performs rotation."""
-        new_pt = (self.kwargs["p1"][0] + grid.dx, 
-                  self.kwargs["p1"][1] + grid.dy, 
-                  self.kwargs["p1"][2] + grid.dz)
+        new_pt = (self.kwargs["p1"][0] + grid.dx, self.kwargs["p1"][1] + grid.dy, self.kwargs["p1"][2] + grid.dz)
         pts = np.array([self.kwargs["p1"], new_pt])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
