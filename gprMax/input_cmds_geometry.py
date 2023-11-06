@@ -871,11 +871,10 @@ def process_geometrycmds(geometry, G):
             elif not material:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' mixing model or material with ID {} does not exist'.format(tmp[12]))
 
-            volume = FractalVolume(xs, xf, ys, yf, zs, zf, float(tmp[7]))
+            volume = FractalVolume(xs, xf, ys, yf, zs, zf, float(tmp[7]), seed)
             volume.ID = tmp[13]
             volume.operatingonID = tmp[12]
             volume.nbins = nbins
-            volume.seed = seed
             volume.weighting = np.array([float(tmp[8]), float(tmp[9]), float(tmp[10])])
             volume.averaging = averagefractalbox
 
@@ -987,11 +986,10 @@ def process_geometrycmds(geometry, G):
                         else:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
 
-                        surface = FractalSurface(xs, xf, ys, yf, zs, zf, float(tmp[7]))
+                        surface = FractalSurface(xs, xf, ys, yf, zs, zf, float(tmp[7]), seed)
                         surface.surfaceID = requestedsurface
                         surface.fractalrange = fractalrange
                         surface.operatingonID = volume.ID
-                        surface.seed = seed
                         surface.weighting = np.array([float(tmp[8]), float(tmp[9])])
 
                         # List of existing surfaces IDs
@@ -1201,10 +1199,9 @@ def process_geometrycmds(geometry, G):
                         else:
                             raise CmdInputError("'" + ' '.join(tmp) + "'" + ' dimensions are not specified correctly')
 
-                        surface = FractalSurface(xs, xf, ys, yf, zs, zf, float(tmp[7]))
+                        surface = FractalSurface(xs, xf, ys, yf, zs, zf, float(tmp[7]), seed)
                         surface.ID = 'grass'
                         surface.surfaceID = requestedsurface
-                        surface.seed = seed
 
                         # Set the fractal range to scale the fractal distribution between zero and one
                         surface.fractalrange = (0, 1)
@@ -1236,8 +1233,8 @@ def process_geometrycmds(geometry, G):
                             surface.fractalsurface[bladesindex[0][i], bladesindex[1][i]] = R.randint(surface.fractalrange[0], surface.fractalrange[1], size=1)
 
                         # Create grass geometry parameters
-                        g = Grass(numblades)
-                        g.seed = surface.seed
+                        g = Grass(numblades, surface.seed)
+                        g.set_geometry_parameters()
                         surface.grass.append(g)
 
                         # Check to see if grass has been already defined as a material
