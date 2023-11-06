@@ -78,7 +78,7 @@ class AddSurfaceRoughness(UserObjectGeometry):
             raise
 
         try:
-            seed = self.kwargs["seed"]
+            seed = int(self.kwargs["seed"])
         except KeyError:
             logger.warning(
                 f"{self.__str__()} no value for seed detected. This "
@@ -213,14 +213,10 @@ class AddSurfaceRoughness(UserObjectGeometry):
             logger.exception(f"{self.__str__()} dimensions are not specified correctly")
             raise ValueError
 
-        surface = FractalSurface(xs, xf, ys, yf, zs, zf, frac_dim)
+        surface = FractalSurface(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         surface.surfaceID = requestedsurface
         surface.fractalrange = fractalrange
         surface.operatingonID = volume.ID
-        if seed is not None:
-            surface.seed = int(seed)
-        else:
-            surface.seed = seed
         surface.weighting = weighting
 
         # List of existing surfaces IDs

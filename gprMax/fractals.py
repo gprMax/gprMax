@@ -32,7 +32,7 @@ class FractalSurface:
 
     surfaceIDs = ["xminus", "xplus", "yminus", "yplus", "zminus", "zplus"]
 
-    def __init__(self, xs, xf, ys, yf, zs, zf, dimension):
+    def __init__(self, xs, xf, ys, yf, zs, zf, dimension, seed):
         """
         Args:
             xs, xf, ys, yf, zs, zf: floats for the extent of the fractal surface
@@ -40,6 +40,7 @@ class FractalSurface:
                                         to correctly define a surface).
             dimension: float for the fractal dimension that controls the fractal
                         distribution.
+            seed: int for seed value for random number generator.
         """
 
         self.ID = None
@@ -54,7 +55,7 @@ class FractalSurface:
         self.ny = yf - ys
         self.nz = zf - zs
         self.dtype = np.dtype(np.complex128)
-        self.seed = None
+        self.seed = seed
         self.dimension = dimension
         # Constant related to fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
         self.b = -(2 * self.dimension - 7) / 2
@@ -129,12 +130,13 @@ class FractalSurface:
 class FractalVolume:
     """Fractal volumes."""
 
-    def __init__(self, xs, xf, ys, yf, zs, zf, dimension):
+    def __init__(self, xs, xf, ys, yf, zs, zf, dimension, seed):
         """
         Args:
             xs, xf, ys, yf, zs, zf: floats for the extent of the fractal volume.
             dimension: float for the fractal dimension that controls the fractal
                         distribution.
+            seed: int for seed value for random number generator.
         """
 
         self.ID = None
@@ -156,7 +158,7 @@ class FractalVolume:
         self.originalzf = zf
         self.averaging = False
         self.dtype = np.dtype(np.complex128)
-        self.seed = None
+        self.seed = seed
         self.dimension = dimension
         # Constant related to fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
         self.b = -(2 * self.dimension - 7) / 2
@@ -248,17 +250,22 @@ class FractalVolume:
 class Grass:
     """Geometry information for blades of grass."""
 
-    def __init__(self, numblades):
+    def __init__(self, numblades, seed):
         """
         Args:
             numblades: int for the number of blades of grass.
+            seed: int for seed value for random number generator.
         """
 
         self.numblades = numblades
         self.geometryparams = np.zeros((self.numblades, 6), dtype=config.sim_config.dtypes["float_or_double"])
-        self.seed = None
+        self.seed = seed
 
-        # Randomly defined parameters that will be used to calculate geometry
+    def set_geometry_parameters(self):
+        """Sets randomly defined parameters that will be used to calculate 
+            blade and root geometries.
+        """
+
         self.R1 = np.random.default_rng(seed=self.seed)
         self.R2 = np.random.default_rng(seed=self.seed)
         self.R3 = np.random.default_rng(seed=self.seed)

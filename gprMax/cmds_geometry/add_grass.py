@@ -78,8 +78,13 @@ class AddGrass(UserObjectGeometry):
             raise
 
         try:
-            seed = self.kwargs["seed"]
+            seed = int(self.kwargs["seed"])
         except KeyError:
+            logger.warning(
+                f"{self.__str__()} no value for seed detected. This "
+                "means you will get a different fractal distribution "
+                "every time the model runs."
+            )
             seed = None
 
         if self.do_rotate:
@@ -183,10 +188,9 @@ class AddGrass(UserObjectGeometry):
             logger.exception(f"{self.__str__()} dimensions are not specified correctly")
             raise ValueError
 
-        surface = FractalSurface(xs, xf, ys, yf, zs, zf, frac_dim)
+        surface = FractalSurface(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         surface.ID = "grass"
         surface.surfaceID = requestedsurface
-        surface.seed = seed
 
         # Set the fractal range to scale the fractal distribution between zero and one
         surface.fractalrange = (0, 1)
@@ -230,8 +234,7 @@ class AddGrass(UserObjectGeometry):
             )
 
         # Create grass geometry parameters
-        g = Grass(n_blades)
-        g.seed = surface.seed
+        g = Grass(n_blades, surface.seed)
         surface.grass.append(g)
 
         # Check to see if grass has been already defined as a material

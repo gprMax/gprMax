@@ -83,7 +83,7 @@ class FractalBox(UserObjectGeometry):
             raise
 
         try:
-            seed = self.kwargs["seed"]
+            seed = int(self.kwargs["seed"])
         except KeyError:
             logger.warning(
                 f"{self.__str__()} no value for seed detected. This "
@@ -148,14 +148,10 @@ class FractalBox(UserObjectGeometry):
             logger.exception(f"{self.__str__()} mixing model or material with " + "ID {mixing_model_id} does not exist")
             raise ValueError
 
-        volume = FractalVolume(xs, xf, ys, yf, zs, zf, frac_dim)
+        volume = FractalVolume(xs, xf, ys, yf, zs, zf, frac_dim, seed)
         volume.ID = ID
         volume.operatingonID = mixing_model_id
         volume.nbins = nbins
-        if seed is not None:
-            volume.seed = int(seed)
-        else:
-            volume.seed = seed
         volume.weighting = weighting
         volume.averaging = averagefractalbox
         volume.mixingmodel = mixingmodel
