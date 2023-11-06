@@ -731,7 +731,7 @@ Source and output commands
 #waveform:
 ----------
 
-Allows you to specify waveforms to use with sources in the model. The syntax of the command is:
+Allows you to specify common waveform shapes to use with sources in the model. The syntax of the command is:
 
 .. code-block:: none
 
@@ -757,7 +757,7 @@ For example, to specify the normalised first derivative of a Gaussian waveform w
 
 .. note::
 
-    * The functions used to create the waveforms can be found in the in ``toolboxes/Plotting`` package.
+    * The functions used to create the waveforms can be found in the ``toolboxes/Plotting`` package.
     * ``gaussiandot``, ``gaussiandotnorm``, ``gaussiandotdot``, ``gaussiandotdotnorm``, ``ricker`` waveforms have their centre frequencies specified by the user, i.e. they are not derived to the 'base' ``gaussian``
     * ``gaussianprime`` and ``gaussiandoubleprime`` waveforms are the first derivative and second derivative of the 'base' ``gaussian`` waveform, i.e. the centre frequencies of the waveforms will rise for the first and second derivatives.
 
