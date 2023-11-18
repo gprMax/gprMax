@@ -262,8 +262,8 @@ class Grass:
         self.seed = seed
 
     def set_geometry_parameters(self):
-        """Sets randomly defined parameters that will be used to calculate 
-            blade and root geometries.
+        """Sets randomly defined parameters that will be used to calculate
+        blade and root geometries.
         """
 
         self.R1 = np.random.default_rng(seed=self.seed)
