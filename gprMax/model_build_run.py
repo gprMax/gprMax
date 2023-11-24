@@ -399,7 +399,7 @@ def run_model(args, currentmodelrun, modelend, numbermodelruns, inputfile, usern
 
     # If geometry information to be reused between model runs then FDTDGrid
     # class instance must be global so that it persists
-    if not args.geometry_fixed:
+    if not args.geometry_fixed or currentmodelrun == modelend:
         del G
 
     return tsolve
