@@ -18,13 +18,16 @@
 
 import logging
 
-from .cmds_geometry.cmds_geometry import UserObjectGeometry
-from .cmds_geometry.fractal_box_builder import FractalBoxBuilder
-from .cmds_multiuse import UserObjectMulti
-from .cmds_singleuse import Discretisation, Domain, TimeWindow, UserObjectSingle
-from .materials import create_built_in_materials
-from .subgrids.user_objects import SubGridBase as SubGridUserBase
-from .user_inputs import create_user_input_points
+from gprMax.cmds_geometry.cmds_geometry import UserObjectGeometry
+from gprMax.cmds_geometry.fractal_box import FractalBox
+from gprMax.cmds_geometry.add_grass import AddGrass
+from gprMax.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
+from gprMax.cmds_geometry.add_surface_water import AddSurfaceWater
+from gprMax.cmds_multiuse import UserObjectMulti
+from gprMax.cmds_singleuse import Discretisation, Domain, TimeWindow, UserObjectSingle
+from gprMax.materials import create_built_in_materials
+from gprMax.subgrids.user_objects import SubGridBase as SubGridUserBase
+from gprMax.user_inputs import create_user_input_points
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +57,23 @@ class Scene:
         else:
             logger.exception("This object is unknown to gprMax")
             raise ValueError
-
-    def process_subgrid_commands(self):
-        # Check for subgrid user objects
+        
+    def build_obj(self, obj, grid):
+        """Builds objects.
+        
+        Args:
+            obj: user object
+            grid: FDTDGrid class describing a grid in a model.
+        """
+        uip = create_user_input_points(grid, obj)
+        try:
+            obj.build(grid, uip)
+        except ValueError:
+            logger.exception("Error creating user input object")
+            raise
+        
+    def process_subgrid_cmds(self):
+        """Process all commands in any sub-grids."""
         def func(obj):
             if isinstance(obj, SubGridUserBase):
                 return True
@@ -73,25 +90,31 @@ class Scene:
             # to build in the correct subgrid.
             sg = sg_cmd.subgrid
             self.process_cmds(sg_cmd.children_multiple, sg)
-            self.process_cmds(sg_cmd.children_geometry, sg, sort=False)
+            self.process_geocmds(sg_cmd.children_geometry, sg)
 
-    def process_cmds(self, commands, grid, sort=True):
-        if sort:
-            cmds_sorted = sorted(commands, key=lambda cmd: cmd.order)
-        else:
-            cmds_sorted = commands
-
+    def process_cmds(self, commands, grid):
+        """Process list of commands."""
+        cmds_sorted = sorted(commands, key=lambda cmd: cmd.order)
         for obj in cmds_sorted:
-            # in the first level all objects belong to the main grid
-            uip = create_user_input_points(grid, obj)
-            # Create an instance to check the geometry points provided by the
-            # user. The way the point are checked depends on which grid the
-            # points belong to.
-            try:
-                obj.create(grid, uip)
-            except ValueError:
-                logger.exception("Error creating user input object")
-                raise
+            self.build_obj(obj, grid)
+
+        return self
+    
+    def process_geocmds(self, commands, grid):
+        # Check for fractal boxes and modifications and pre-process them first
+        proc_cmds = []
+        for obj in commands:
+            if isinstance(obj, (FractalBox, AddGrass, 
+                                AddSurfaceRoughness, AddSurfaceWater)):
+                self.build_obj(obj, grid)
+                if isinstance(obj, (FractalBox)):
+                    proc_cmds.append(obj)
+            else:
+                proc_cmds.append(obj)
+
+        # Process all geometry commands
+        for obj in proc_cmds:
+            self.build_obj(obj, grid)
 
         return self
 
@@ -116,15 +139,10 @@ class Scene:
         self.process_cmds(cmds_unique, G)
 
     def create_internal_objects(self, G):
-        """Calls the UserObject.create() function in the correct way - API
+        """Calls the UserObject.build() function in the correct way - API
         presents the user with UserObjects in order to build the internal
         Rx(), Cylinder() etc... objects.
         """
-
-        # Fractal box commands have an additional nonuser object which
-        # processes modifications
-        fbb = FractalBoxBuilder()
-        self.add(fbb)
 
         # Create pre-defined (built-in) materials
         create_built_in_materials(G)
@@ -140,7 +158,7 @@ class Scene:
             grid.initialise_geometry_arrays()
 
         # Process the main grid geometry commands
-        self.process_cmds(self.geometry_cmds, G, sort=False)
+        self.process_geocmds(self.geometry_cmds, G)
 
         # Process all the commands for subgrids
-        self.process_subgrid_commands()
+        self.process_subgrid_cmds()
