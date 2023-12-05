@@ -32,7 +32,7 @@ import gprMax.config as config
 from ._version import __version__
 from .cython.geometry_outputs import write_lines
 from .subgrids.grid import SubGridBaseGrid
-from .utilities.utilities import get_terminal_width, numeric_list_to_float_list, numeric_list_to_int_list
+from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
 
@@ -319,7 +319,7 @@ class Comments:
         sc = []
         for src in srcs:
             p = (src.xcoord * self.grid.dx, src.ycoord * self.grid.dy, src.zcoord * self.grid.dz)
-            p = numeric_list_to_float_list(p)
+            p = list(map(float, p))
 
             s = {"name": src.ID, "position": p}
             sc.append(s)
