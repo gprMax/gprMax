@@ -19,6 +19,7 @@
 import datetime
 import decimal as d
 import logging
+import re
 import textwrap
 from shutil import get_terminal_size
 
@@ -48,6 +49,16 @@ def get_terminal_width():
         terminalwidth = 100
 
     return terminalwidth
+
+
+def atoi(text):
+    """Converts a string into an integer."""
+    return int(text) if text.isdigit() else text
+
+
+def natural_keys(text):
+    """Human sorting of a string."""
+    return [atoi(c) for c in re.split(r"(\d+)", text)]
 
 
 def logo(version):
@@ -173,13 +184,3 @@ def fft_power(waveform, dt):
 def timer():
     """Time in fractional seconds."""
     return timer_fn()
-
-
-def numeric_list_to_int_list(l):
-    """List of int from a numerical list."""
-    return list(map(int, l))
-
-
-def numeric_list_to_float_list(l):
-    """List of float from a numerical list."""
-    return list(map(float, l))
