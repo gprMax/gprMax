@@ -60,7 +60,7 @@ class AddSurfaceWater(UserObjectGeometry):
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         """ "Create surface water on fractal box."""
         try:
             p1 = self.kwargs["p1"]

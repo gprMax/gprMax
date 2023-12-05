@@ -55,7 +55,7 @@ class CylindricalSector(UserObjectGeometry):
         super().__init__(**kwargs)
         self.hash = "#cylindrical_sector"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             normal = self.kwargs["normal"].lower()
             ctr1 = self.kwargs["ctr1"]

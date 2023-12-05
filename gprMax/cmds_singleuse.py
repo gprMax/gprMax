@@ -47,7 +47,7 @@ class UserObjectSingle:
         for k, v in kwargs.items():
             setattr(self.props, k, v)
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         pass
 
     def rotate(self, axis, angle, origin=None):
@@ -65,7 +65,7 @@ class Title(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 1
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             title = self.kwargs["name"]
             G.title = title
@@ -85,7 +85,7 @@ class Discretisation(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 2
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             G.dl = np.array(self.kwargs["p1"])
             G.dx, G.dy, G.dz = self.kwargs["p1"]
@@ -123,7 +123,7 @@ class Domain(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 3
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             G.nx, G.ny, G.nz = uip.discretise_point(self.kwargs["p1"])
         except KeyError:
@@ -179,7 +179,7 @@ class TimeStepStabilityFactor(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 4
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             f = self.kwargs["f"]
         except KeyError:
@@ -210,7 +210,7 @@ class TimeWindow(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 5
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         # If number of iterations given
         # The +/- 1 used in calculating the number of iterations is to account for
         # the fact that the solver (iterations) loop runs from 0 to < G.iterations
@@ -251,7 +251,7 @@ class OMPThreads(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 6
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             n = self.kwargs["n"]
         except KeyError:
@@ -285,7 +285,7 @@ class PMLProps(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 7
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             G.pmls["formulation"] = self.kwargs["formulation"]
             if G.pmls["formulation"] not in PML.formulations:
@@ -335,7 +335,7 @@ class SrcSteps(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 8
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             G.srcsteps = uip.discretise_point(self.kwargs["p1"])
         except KeyError:
@@ -360,7 +360,7 @@ class RxSteps(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 9
 
-    def create(self, G, uip):
+    def build(self, G, uip):
         try:
             G.rxsteps = uip.discretise_point(self.kwargs["p1"])
         except KeyError:
@@ -385,5 +385,5 @@ class OutputDir(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 10
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         config.get_model_config().set_output_file_path(self.kwargs["dir"])

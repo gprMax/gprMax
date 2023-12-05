@@ -45,7 +45,7 @@ class Ellipsoid(UserObjectGeometry):
         super().__init__(**kwargs)
         self.hash = "#ellipsoid"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
             xr = self.kwargs["xr"]

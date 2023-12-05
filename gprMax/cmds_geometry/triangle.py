@@ -63,7 +63,7 @@ class Triangle(UserObjectGeometry):
         self.kwargs["p2"] = tuple(p2)
         self.kwargs["p3"] = tuple(p3)
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             up1 = self.kwargs["p1"]
             up2 = self.kwargs["p2"]
