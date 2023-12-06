@@ -765,11 +765,17 @@ For example, to specify the normalised first derivative of a Gaussian waveform w
 #excitation_file:
 -----------------
 
-Allows you to specify an ASCII file that contains columns of amplitude values that specify custom waveform shapes that can be used with sources in the model.
+Allows you to specify an ASCII file that contains amplitude values that specify custom waveform(s) that can be used with sources in the model.
 
-The first row of each column must begin with a identifier string that will be used as the name of each waveform. Optionally, the first column of the file may contain a time vector of values (which must use the identifier ``time``) to interpolate the amplitude values of the waveform. If a time vector is not given, a vector of time values corresponding to the simulation time step and number of iterations will be used.
+The first row of each column must begin with a identifier string that will be used as the name of each waveform. Subsequent rows should contain amplitude values for the custom waveform you want to use. You can import multiple different waveforms (as columns of amplitude data) in a single file. 
 
-If there are less amplitude values than the number of iterations that are going to be performed, the end of the sequence of amplitude values will be padded with zero values up to the number of iterations. If extra amplitude values are specified than needed then they are ignored. The syntax of the command is:
+Ideally, there should be the same number of amplitude values as number of iterations in your model. If there are less amplitude values than the number of iterations in the model, the end of the sequence of amplitude values will be padded with zero values up to the number of iterations. If extra amplitude values are specified than needed then they are ignored.
+
+Optionally, in the first column of the file you may specify your own time vector of values (which must use the identifier ``time``) to use with the amplitude values of the waveform. 
+
+The amplitude values will be interpolated using either the aforementioned user specified time vector, or if none was supplied, a vector of time values corresponding to the simulation time step and number of iterations will be used. Key parameters used for the interpolation can be specified in the command.
+
+ The syntax of the command is:
 
 .. code-block:: none
 

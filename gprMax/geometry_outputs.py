@@ -32,7 +32,7 @@ import gprMax.config as config
 from ._version import __version__
 from .cython.geometry_outputs import write_lines
 from .subgrids.grid import SubGridBaseGrid
-from .utilities.utilities import get_terminal_width, numeric_list_to_float_list, numeric_list_to_int_list
+from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
 
@@ -89,13 +89,16 @@ class GeometryView:
         self.dy = dy
         self.dz = dz
         self.filename = filename
+        self.filenamebase = filename
         self.grid = grid
         self.nbytes = None
 
     def set_filename(self):
         """Constructs filename from user-supplied name and model run number."""
         parts = config.get_model_config().output_file_path.parts
-        self.filename = Path(*parts[:-1], self.filename + config.get_model_config().appendmodelnumber)
+        self.filename = Path(*parts[:-1], 
+                             self.filenamebase + 
+                             config.get_model_config().appendmodelnumber)
 
 
 class GeometryViewLines(GeometryView):
@@ -316,7 +319,7 @@ class Comments:
         sc = []
         for src in srcs:
             p = (src.xcoord * self.grid.dx, src.ycoord * self.grid.dy, src.zcoord * self.grid.dz)
-            p = numeric_list_to_float_list(p)
+            p = list(map(float, p))
 
             s = {"name": src.ID, "position": p}
             sc.append(s)
@@ -324,10 +327,10 @@ class Comments:
         return sc
 
     def dx_dy_dz_comment(self):
-        return numeric_list_to_float_list([self.grid.dx, self.grid.dy, self.grid.dz])
+        return list(map(float, [self.grid.dx, self.grid.dy, self.grid.dz]))
 
     def nx_ny_nz_comment(self):
-        return numeric_list_to_int_list([self.grid.nx, self.grid.ny, self.grid.nz])
+        return list(map(int, [self.grid.nx, self.grid.ny, self.grid.nz]))
 
     def materials_comment(self):
         if not self.averaged_materials:

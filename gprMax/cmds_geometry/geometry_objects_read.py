@@ -39,7 +39,7 @@ class GeometryObjectsRead(UserObjectGeometry):
     def rotate(self, axis, angle, origin=None):
         pass
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         """Creates the object and adds it to the grid."""
         try:
             p1 = self.kwargs["p1"]

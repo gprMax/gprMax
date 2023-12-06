@@ -43,7 +43,7 @@ class Sphere(UserObjectGeometry):
         super().__init__(**kwargs)
         self.hash = "#sphere"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
             r = self.kwargs["r"]

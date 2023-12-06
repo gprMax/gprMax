@@ -66,7 +66,7 @@ class UserObjectMulti:
 
         return f"{self.hash}: {s[:-1]}"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         """Creates object and adds it to grid."""
         pass
 
@@ -105,7 +105,7 @@ class ExcitationFile(UserObjectMulti):
         self.order = 1
         self.hash = "#excitation_file"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             kwargs = {}
             excitationfile = self.kwargs["filepath"]
@@ -200,7 +200,7 @@ class Waveform(UserObjectMulti):
         self.order = 2
         self.hash = "#waveform"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             wavetype = self.kwargs["wave_type"].lower()
         except KeyError:
@@ -314,7 +314,7 @@ class VoltageSource(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
             polarisation = self.kwargs["polarisation"].lower()
@@ -438,7 +438,7 @@ class HertzianDipole(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             polarisation = self.kwargs["polarisation"].lower()
             p1 = self.kwargs["p1"]
@@ -579,7 +579,7 @@ class MagneticDipole(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             polarisation = self.kwargs["polarisation"].lower()
             p1 = self.kwargs["p1"]
@@ -702,7 +702,7 @@ class TransmissionLine(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             polarisation = self.kwargs["polarisation"].lower()
             p1 = self.kwargs["p1"]
@@ -852,7 +852,7 @@ class Rx(UserObjectMulti):
         except KeyError:
             pass
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
         except KeyError:
@@ -922,7 +922,7 @@ class RxArray(UserObjectMulti):
         self.order = 8
         self.hash = "#rx_array"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -1026,7 +1026,7 @@ class Snapshot(UserObjectMulti):
         self.order = 9
         self.hash = "#snapshot"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         if isinstance(grid, SubGridBaseGrid):
             logger.exception(f"{self.params_str()} do not add snapshots to subgrids.")
             raise ValueError
@@ -1139,7 +1139,7 @@ class Material(UserObjectMulti):
         self.order = 10
         self.hash = "#material"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             er = self.kwargs["er"]
             se = self.kwargs["se"]
@@ -1214,7 +1214,7 @@ class AddDebyeDispersion(UserObjectMulti):
         self.order = 11
         self.hash = "#add_dispersion_debye"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             poles = self.kwargs["poles"]
             er_delta = self.kwargs["er_delta"]
@@ -1286,7 +1286,7 @@ class AddLorentzDispersion(UserObjectMulti):
         self.order = 12
         self.hash = "#add_dispersion_lorentz"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             poles = self.kwargs["poles"]
             er_delta = self.kwargs["er_delta"]
@@ -1363,7 +1363,7 @@ class AddDrudeDispersion(UserObjectMulti):
         self.order = 13
         self.hash = "#add_dispersion_drude"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             poles = self.kwargs["poles"]
             omega = self.kwargs["omega"]
@@ -1440,7 +1440,7 @@ class SoilPeplinski(UserObjectMulti):
         self.order = 14
         self.hash = "#soil_peplinski"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             sand_fraction = self.kwargs["sand_fraction"]
             clay_fraction = self.kwargs["clay_fraction"]
@@ -1518,7 +1518,7 @@ class MaterialRange(UserObjectMulti):
         self.order = 15
         self.hash = "#material_range"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             er_lower = self.kwargs["er_lower"]
             er_upper = self.kwargs["er_upper"]
@@ -1600,7 +1600,7 @@ class MaterialList(UserObjectMulti):
         self.order = 16
         self.hash = "#material_list"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             list_of_materials = self.kwargs["list_of_materials"]
             ID = self.kwargs["id"]
@@ -1641,7 +1641,7 @@ class GeometryView(UserObjectMulti):
         self.order = 17
         self.hash = "#geometry_view"
 
-    def geometry_view_constructor(self, grid, output_type):
+    def geometry_view_constructor(self, output_type):
         """Selects appropriate class for geometry view dependent on geometry
         view type, i.e. normal or fine.
         """
@@ -1653,7 +1653,7 @@ class GeometryView(UserObjectMulti):
 
         return GeometryViewUser
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -1664,7 +1664,7 @@ class GeometryView(UserObjectMulti):
             logger.exception(f"{self.params_str()} requires exactly eleven parameters.")
             raise
 
-        GeometryViewUser = self.geometry_view_constructor(grid, output_type)
+        GeometryViewUser = self.geometry_view_constructor(output_type)
 
         try:
             p3 = uip.round_to_grid_static_point(p1)
@@ -1730,7 +1730,7 @@ class GeometryObjectsWrite(UserObjectMulti):
         self.order = 18
         self.hash = "#geometry_objects_write"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -1786,7 +1786,7 @@ class PMLCFS(UserObjectMulti):
         super().__init__(**kwargs)
         self.order = 19
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         try:
             alphascalingprofile = self.kwargs["alphascalingprofile"]
             alphascalingdirection = self.kwargs["alphascalingdirection"]

@@ -121,7 +121,7 @@ class SubGridBase(UserObjectMulti):
 
         sg.timewindow = grid.timewindow
 
-        # Copy a subgrid reference to self so that children.create(grid, uip)
+        # Copy a subgrid reference to self so that children.build(grid, uip)
         # can access the correct grid.
         self.subgrid = sg
 
@@ -192,7 +192,7 @@ class SubGridHSG(SubGridBase):
         self.order = 18
         self.hash = "#subgrid_hsg"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         sg = SubGridHSGUser(**self.kwargs)
         self.setup(sg, grid, uip)
         return sg

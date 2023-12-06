@@ -45,7 +45,7 @@ class UserObjectGeometry:
 
         return f"{self.hash}: {s[:-1]}"
 
-    def create(self, grid, uip):
+    def build(self, grid, uip):
         """Creates object and adds it to the grid."""
         pass
 
