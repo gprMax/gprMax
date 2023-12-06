@@ -1096,6 +1096,7 @@ def process_geometrycmds(geometry, G):
                             m.averagable = False
                             m.type = 'builtin, debye'
                             m.er = Material.watereri
+                            m.poles = 1
                             m.deltaer.append(Material.waterdeltaer)
                             m.tau.append(Material.watertau)
                             G.materials.append(m)
@@ -1243,6 +1244,7 @@ def process_geometrycmds(geometry, G):
                             m.averagable = False
                             m.type = 'builtin, debye'
                             m.er = Material.grasseri
+                            m.poles = 1
                             m.deltaer.append(Material.grassdeltaer)
                             m.tau.append(Material.grasstau)
                             G.materials.append(m)
