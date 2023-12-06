@@ -1,0 +1,21 @@
+# This file may be used to pip install dependencies using:
+# $ pip install -r requirements.txt
+
+colorama
+cython
+h5py
+jinja2
+jupyter
+matplotlib
+numpy
+pip
+psutil
+scipy
+humanize
+# mpi4py
+numpy-stl
+# pycuda
+# pyopencl
+terminaltables
+tqdm
+git+https://github.com/craig-warren/PyEVTK.git
