@@ -91,6 +91,7 @@ class ModelConfig:
                 deviceID = 0
 
             self.device = {"dev": sim_config.set_model_device(deviceID), "snapsgpu2cpu": False}
+            self.device["deviceID"] = deviceID
 
         # Total memory usage for all grids in the model. Starts with 50MB overhead.
         self.mem_overhead = 65e6
