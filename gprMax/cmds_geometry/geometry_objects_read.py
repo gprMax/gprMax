@@ -82,7 +82,7 @@ class GeometryObjectsRead(UserObjectGeometry):
             scene.add(material_obj)
 
         # Creates the internal simulation objects
-        scene.process_cmds(material_objs, grid, sort=False)
+        scene.process_cmds(material_objs, grid)
 
         # Update material type
         for material in grid.materials:
