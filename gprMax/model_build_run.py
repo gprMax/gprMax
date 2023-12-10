@@ -318,7 +318,7 @@ class ModelBuildRun:
                           f'{" ".join(config.get_model_config().device["dev"].name().split())}')
             logger.basic(
                 f"\nModel {config.model_num + 1}/{config.sim_config.model_end} "
-                f"on {config.sim_config.hostinfo['hostname']} "
+                f"solving on {config.sim_config.hostinfo['hostname']} "
                 f"with {solvername} backend using {devicename}{platformname}"
             )
 
