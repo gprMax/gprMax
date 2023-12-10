@@ -149,6 +149,11 @@ class MPIContext(Context):
             solver = create_solver(G)
             model.solve(solver)
 
+        del model
+        del solver
+        del G
+        gc.collect()
+
     def run(self):
         """Specialise how the models are run.
 
