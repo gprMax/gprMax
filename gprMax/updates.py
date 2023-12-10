@@ -235,6 +235,8 @@ class CUDAUpdates:
 
         # Import PyCUDA modules
         self.drv = import_module("pycuda.driver")
+        self.clear_context_caches = getattr(import_module("pycuda.tools"), 
+                                            "clear_context_caches")
         self.source_module = getattr(import_module("pycuda.compiler"), "SourceModule")
         self.drv.init()
 
@@ -786,7 +788,9 @@ class CUDAUpdates:
         """Cleanup GPU context."""
         # Remove context from top of stack and delete
         self.ctx.pop()
-        del self.ctx
+        self.ctx = None
+        self.clear_context_caches()
+
 
 
 class OpenCLUpdates:
