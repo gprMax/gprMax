@@ -83,9 +83,6 @@ class Context:
                 solver = create_solver(G)
                 model.solve(solver)
 
-            del model
-            del solver
-            del G
             gc.collect()
 
         self.tsimend = timer()
@@ -149,9 +146,6 @@ class MPIContext(Context):
             solver = create_solver(G)
             model.solve(solver)
 
-        del model
-        del solver
-        del G
         gc.collect()
 
     def run(self):
