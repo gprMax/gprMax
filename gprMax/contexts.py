@@ -146,7 +146,7 @@ class MPIContext(Context):
             solver = create_solver(G)
             model.solve(solver)
 
-        del G
+        del solver
         gc.collect()
 
     def run(self):
