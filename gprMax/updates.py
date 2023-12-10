@@ -754,11 +754,8 @@ class CUDAUpdates:
             Memory (RAM) used on GPU.
         """
         if iteration == self.grid.iterations - 1:
-            mem_used = subprocess.check_output(["nvidia-smi", "--query-gpu=memory.used"], 
-                                               shell=False, stderr=subprocess.STDOUT)
-            return mem_used
-            # # Total minus free memory in current context
-            # return self.drv.mem_get_info()[1] - self.drv.mem_get_info()[0]
+            # Total minus free memory in current context
+            return self.drv.mem_get_info()[1] - self.drv.mem_get_info()[0]
 
     def calculate_solve_time(self):
         """Calculates solving time for model."""
