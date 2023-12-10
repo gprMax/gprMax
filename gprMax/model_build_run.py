@@ -352,7 +352,7 @@ class ModelBuildRun:
         logger.info(
             f"Time taken: " + f"{humanize.precisedelta(datetime.timedelta(seconds=solver.solvetime), format='%0.4f')}"
         )
-        logger.info(subprocess.check_output(["nvidia-smi"], shell=False, stderr=subprocess.STDOUT))
+        logger.basic(subprocess.check_output(["nvidia-smi"], shell=False, stderr=subprocess.STDOUT))
 
 
 class GridBuilder:

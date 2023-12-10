@@ -82,6 +82,9 @@ class Context:
                 solver = create_solver(G)
                 model.solve(solver)
 
+            del model
+            del G
+
         self.tsimend = timer()
         self.print_sim_time_taken()
 
