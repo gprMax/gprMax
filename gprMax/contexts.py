@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
+import gc
 import logging
 import sys
 
@@ -82,9 +83,7 @@ class Context:
                 solver = create_solver(G)
                 model.solve(solver)
 
-            del model
-            del solver
-            del G
+            gc.collect()
 
         self.tsimend = timer()
         self.print_sim_time_taken()
