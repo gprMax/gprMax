@@ -82,10 +82,14 @@ class Context:
             if not config.sim_config.args.geometry_only:
                 solver = create_solver(G)
                 model.solve(solver)
+                del solver, model
 
             if not config.sim_config.args.geometry_fixed:
-                del solver, model, G
-                gc.collect()
+                # Manual garbage collection required to stop memory leak on GPUs 
+                # when using pycuda
+                del G
+            
+            gc.collect()
 
         self.tsimend = timer()
         self.print_sim_time_taken()
@@ -147,8 +151,11 @@ class MPIContext(Context):
         if not config.sim_config.args.geometry_only:
             solver = create_solver(G)
             model.solve(solver)
+            del solver, model
 
-        del solver, model, G
+        # Manual garbage collection required to stop memory leak on GPUs when
+        # using pycuda
+        del G
         gc.collect()
 
     def run(self):
