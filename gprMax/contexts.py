@@ -83,6 +83,7 @@ class Context:
                 model.solve(solver)
 
             del model
+            del solver
             del G
 
         self.tsimend = timer()
