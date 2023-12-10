@@ -313,7 +313,7 @@ class ModelBuildRun:
                 solvername = "CUDA"
                 platformname = ""
             
-            devicename = (f'[{config.get_model_config().device["deviceID"]}]'
+            devicename = (f'[{config.get_model_config().device["deviceID"]}] '
                           f'{" ".join(config.get_model_config().device["dev"].name().split())}')
             logger.basic(
                 f"\nModel {config.model_num + 1}/{config.sim_config.model_end} "
