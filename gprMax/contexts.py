@@ -83,7 +83,9 @@ class Context:
                 solver = create_solver(G)
                 model.solve(solver)
 
-            gc.collect()
+            if not config.sim_config.args.geometry_fixed:
+                del solver, model, G
+                gc.collect()
 
         self.tsimend = timer()
         self.print_sim_time_taken()
@@ -146,7 +148,7 @@ class MPIContext(Context):
             solver = create_solver(G)
             model.solve(solver)
 
-        del solver
+        del solver, model, G
         gc.collect()
 
     def run(self):
