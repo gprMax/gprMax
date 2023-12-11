@@ -18,4 +18,5 @@ numpy-stl
 # pyopencl
 terminaltables
 tqdm
+wheel
 git+https://github.com/craig-warren/PyEVTK.git
