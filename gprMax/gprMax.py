@@ -25,7 +25,7 @@ from .utilities.logging import logging_config
 
 # Arguments (used for API) and their default values (used for API and CLI)
 args_defaults = {
-    "scenes": [],
+    "scenes": None,
     "inputfile": None,
     "outputfile": None,
     "n": 1,

@@ -279,7 +279,7 @@ class SimulationConfig:
 
         # Scenes parameter may not exist if user enters via CLI
         try:
-            self.scenes = args.scenes
+            self.scenes = args.scenes if args.scenes is not None else []
         except AttributeError:
             self.scenes = []
 
