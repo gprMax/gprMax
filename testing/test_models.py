@@ -19,6 +19,7 @@
 import logging
 import sys
 from pathlib import Path
+from colorama import Fore, Style
 
 import h5py
 import matplotlib.pyplot as plt
@@ -27,7 +28,10 @@ import numpy as np
 import gprMax
 from testing.analytical_solutions import hertzian_dipole_fs
 
+from gprMax.utilities.logging import logging_config
+
 logger = logging.getLogger(__name__)
+logging_config(name=__name__)
 
 if sys.platform == "linux":
     plt.switch_backend("agg")
@@ -266,12 +270,12 @@ for i, model in enumerate(testmodels):
 for name, data in sorted(testresults.items()):
     if "analytical" in name:
         logger.info(
-            f"Test '{name}.in' using v.{data['Test version']} compared "
-            f"to analytical solution. Max difference {data['Max diff']:.2f}dB."
+            Fore.CYAN + f"Test '{name}.in' using v.{data['Test version']} compared "
+            f"to analytical solution. Max difference {data['Max diff']:.2f}dB." + Style.RESET_ALL
         )
     else:
         logger.info(
-            f"Test '{name}.in' using v.{data['Test version']} compared to "
+            Fore.CYAN + f"Test '{name}.in' using v.{data['Test version']} compared to "
             f"reference solution using v.{data['Ref version']}. Max difference "
-            f"{data['Max diff']:.2f}dB."
+            f"{data['Max diff']:.2f}dB." + Style.RESET_ALL
         )
