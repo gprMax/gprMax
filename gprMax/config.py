@@ -123,14 +123,14 @@ class ModelConfig:
         #   dispersivedtype: Data type for dispersive materials.
         #   dispersiveCdtype: Data type for dispersive materials in Cython.
         #   drudelorentz: True/False model contains Drude or Lorentz materials.
-        #   cudarealfunc: String to substitute into CUDA kernels for fields
+        #   crealfunc: String to substitute into CUDA kernels for fields
         #                   dependent on dispersive material type.
         self.materials = {
             "maxpoles": 0,
             "dispersivedtype": None,
             "dispersiveCdtype": None,
             "drudelorentz": None,
-            "cudarealfunc": "",
+            "crealfunc": None,
         }
 
     def get_scene(self):
