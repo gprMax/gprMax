@@ -19,7 +19,6 @@
 import datetime
 import itertools
 import logging
-import subprocess
 import sys
 
 import humanize
@@ -315,7 +314,7 @@ class ModelBuildRun:
                 platformname = ""
             
             devicename = (f'Device {config.get_model_config().device["deviceID"]}: '
-                          f'{" ".join(config.get_model_config().device["dev"].name().split())}')
+                          f'{" ".join(config.get_model_config().device["dev"].name.split())}')
             logger.basic(
                 f"\nModel {config.model_num + 1}/{config.sim_config.model_end} "
                 f"solving on {config.sim_config.hostinfo['hostname']} "
