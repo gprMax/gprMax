@@ -360,7 +360,7 @@ class CUDAUpdates:
             self.subs_func.update(
                 {
                     "REAL": config.sim_config.dtypes["C_float_or_double"],
-                    "REALFUNC": config.get_model_config().materials["cudarealfunc"],
+                    "REALFUNC": config.get_model_config().materials["crealfunc"],
                     "NX_T": self.grid.Tx.shape[1],
                     "NY_T": self.grid.Tx.shape[2],
                     "NZ_T": self.grid.Tx.shape[3],
@@ -368,10 +368,12 @@ class CUDAUpdates:
             )
 
             bld = self._build_knl(knl_fields_updates.update_electric_dispersive_A, self.subs_name_args, self.subs_func)
+            print(bld)
             knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
             self.dispersive_update_a = knl.get_function("update_electric_dispersive_A")
 
             bld = self._build_knl(knl_fields_updates.update_electric_dispersive_B, self.subs_name_args, self.subs_func)
+            print(bld)
             knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
             self.dispersive_update_b = knl.get_function("update_electric_dispersive_B")
 
