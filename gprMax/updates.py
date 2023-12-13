@@ -17,9 +17,9 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-import subprocess
 from importlib import import_module
 
+import humanize
 import numpy as np
 from jinja2 import Environment, PackageLoader
 
@@ -370,10 +370,12 @@ class CUDAUpdates:
             bld = self._build_knl(knl_fields_updates.update_electric_dispersive_A, self.subs_name_args, self.subs_func)
             knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
             self.dispersive_update_a = knl.get_function("update_electric_dispersive_A")
+            self._copy_mat_coeffs(knl, knl)
 
             bld = self._build_knl(knl_fields_updates.update_electric_dispersive_B, self.subs_name_args, self.subs_func)
             knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
             self.dispersive_update_b = knl.get_function("update_electric_dispersive_B")
+            self._copy_mat_coeffs(knl, knl)
 
         # Set blocks per grid and initialise field arrays on GPU
         self.grid.set_blocks_per_grid()
