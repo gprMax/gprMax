@@ -58,8 +58,8 @@ class ModelBuildRun:
 
         # Set number of OpenMP threads to physical threads at this point to be
         # used with threaded model building methods, e.g. fractals. Can be
-        # changed by #num_threads command in input file or via API later for
-        # use with CPU solver.
+        # changed by the user via #num_threads command in input file or via API 
+        # later for use with CPU solver.
         config.get_model_config().ompthreads = set_omp_threads(config.get_model_config().ompthreads)
 
     def build(self):
