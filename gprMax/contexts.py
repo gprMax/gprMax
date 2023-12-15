@@ -22,6 +22,8 @@ import logging
 import sys
 
 import humanize
+from colorama import Fore, Style, init
+init()
 
 import gprMax.config as config
 
@@ -173,6 +175,10 @@ class MPIContext(Context):
                 print_cuda_info(config.sim_config.devices["devs"])
             elif config.sim_config.general["solver"] == "opencl":
                 print_opencl_info(config.sim_config.devices["devs"])
+
+            s = f"\n--- Input file: {config.sim_config.input_file_path}"
+            logger.basic(Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL)
+            
             sys.stdout.flush()
 
         # Contruct MPIExecutor
