@@ -21,11 +21,11 @@ import logging
 import numpy as np
 
 import gprMax.config as config
-
+from gprMax.cmds_geometry.cmds_geometry import UserObjectGeometry, rotate_2point_object
 from gprMax.fractals import FractalVolume
 from gprMax.materials import ListMaterial
+
 from ..cython.geometry_primitives import build_voxels_from_array, build_voxels_from_array_mask
-from gprMax.cmds_geometry.cmds_geometry import UserObjectGeometry, rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +172,7 @@ class FractalBox(UserObjectGeometry):
             f"is {dielectricsmoothing}."
         )
         grid.fractalvolumes.append(self.volume)
-            
+
     def build(self, grid, uip):
         if self.do_pre_build:
             self.pre_build(grid, uip)
@@ -218,7 +218,8 @@ class FractalBox(UserObjectGeometry):
                 # otherwise a mixing model
                 if self.volume.nbins == 1:
                     self.volume.fractalvolume = np.ones(
-                        (self.volume.nx, self.volume.ny, self.volume.nz), dtype=config.sim_config.dtypes["float_or_double"]
+                        (self.volume.nx, self.volume.ny, self.volume.nz),
+                        dtype=config.sim_config.dtypes["float_or_double"],
                     )
                     materialnumID = next(x.numID for x in grid.materials if x.ID == self.volume.operatingonID)
                     self.volume.fractalvolume *= materialnumID
@@ -253,11 +254,17 @@ class FractalBox(UserObjectGeometry):
                                 for j in range(surface.ys, surface.yf):
                                     for k in range(surface.zs, surface.zf):
                                         if i < surface.fractalsurface[j - surface.ys, k - surface.zs]:
-                                            self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 1
+                                            self.volume.mask[
+                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                            ] = 1
                                         elif surface.filldepth > 0 and i < surface.filldepth:
-                                            self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 2
+                                            self.volume.mask[
+                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                            ] = 2
                                         else:
-                                            self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 0
+                                            self.volume.mask[
+                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                            ] = 0
                         elif surface.ID == "grass":
                             g = surface.grass[0]
                             # Build the blades of the grass
@@ -269,7 +276,10 @@ class FractalBox(UserObjectGeometry):
                                         for i in range(self.volume.xs, surface.fractalrange[1]):
                                             if (
                                                 i < surface.fractalsurface[j - surface.ys, k - surface.zs]
-                                                and self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] != 1
+                                                and self.volume.mask[
+                                                    i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                ]
+                                                != 1
                                             ):
                                                 y, z = g.calculate_blade_geometry(blade, height)
                                                 # Add y, z coordinates to existing location
@@ -304,7 +314,10 @@ class FractalBox(UserObjectGeometry):
                                                     surface.fractalsurface[j - surface.ys, k - surface.zs]
                                                     - self.volume.originalxf
                                                 )
-                                                and self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] == 1
+                                                and self.volume.mask[
+                                                    i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                ]
+                                                == 1
                                             ):
                                                 y, z = g.calculate_root_geometry(root, depth)
                                                 # Add y, z coordinates to existing location
@@ -342,11 +355,17 @@ class FractalBox(UserObjectGeometry):
                                 for j in range(surface.fractalrange[0], surface.fractalrange[1]):
                                     for k in range(surface.zs, surface.zf):
                                         if j < surface.fractalsurface[i - surface.xs, k - surface.zs]:
-                                            self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 1
+                                            self.volume.mask[
+                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                            ] = 1
                                         elif surface.filldepth > 0 and j < surface.filldepth:
-                                            self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 2
+                                            self.volume.mask[
+                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                            ] = 2
                                         else:
-                                            self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 0
+                                            self.volume.mask[
+                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                            ] = 0
                         elif surface.ID == "grass":
                             g = surface.grass[0]
                             # Build the blades of the grass
@@ -358,7 +377,10 @@ class FractalBox(UserObjectGeometry):
                                         for j in range(self.volume.ys, surface.fractalrange[1]):
                                             if (
                                                 j < surface.fractalsurface[i - surface.xs, k - surface.zs]
-                                                and self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] != 1
+                                                and self.volume.mask[
+                                                    i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                ]
+                                                != 1
                                             ):
                                                 x, z = g.calculate_blade_geometry(blade, height)
                                                 # Add x, z coordinates to existing location
@@ -393,7 +415,10 @@ class FractalBox(UserObjectGeometry):
                                                     surface.fractalsurface[i - surface.xs, k - surface.zs]
                                                     - self.volume.originalyf
                                                 )
-                                                and self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] == 1
+                                                and self.volume.mask[
+                                                    i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                ]
+                                                == 1
                                             ):
                                                 x, z = g.calculate_root_geometry(root, depth)
                                                 # Add x, z coordinates to existing location
@@ -431,11 +456,17 @@ class FractalBox(UserObjectGeometry):
                                 for j in range(surface.ys, surface.yf):
                                     for k in range(surface.fractalrange[0], surface.fractalrange[1]):
                                         if k < surface.fractalsurface[i - surface.xs, j - surface.ys]:
-                                            self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 1
+                                            self.volume.mask[
+                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                            ] = 1
                                         elif surface.filldepth > 0 and k < surface.filldepth:
-                                            self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 2
+                                            self.volume.mask[
+                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                            ] = 2
                                         else:
-                                            self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 0
+                                            self.volume.mask[
+                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                            ] = 0
                         elif surface.ID == "grass":
                             g = surface.grass[0]
                             # Build the blades of the grass
@@ -447,7 +478,10 @@ class FractalBox(UserObjectGeometry):
                                         for k in range(self.volume.zs, surface.fractalrange[1]):
                                             if (
                                                 k < surface.fractalsurface[i - surface.xs, j - surface.ys]
-                                                and self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] != 1
+                                                and self.volume.mask[
+                                                    i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                ]
+                                                != 1
                                             ):
                                                 x, y = g.calculate_blade_geometry(blade, height)
                                                 # Add x, y coordinates to existing location
@@ -482,7 +516,10 @@ class FractalBox(UserObjectGeometry):
                                                     surface.fractalsurface[i - surface.xs, j - surface.ys]
                                                     - self.volume.originalzf
                                                 )
-                                                and self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] == 1
+                                                and self.volume.mask[
+                                                    i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                ]
+                                                == 1
                                             ):
                                                 x, y = g.calculate_root_geometry(root, depth)
                                                 # Add x, y coordinates to existing location

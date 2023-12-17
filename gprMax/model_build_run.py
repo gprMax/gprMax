@@ -58,7 +58,7 @@ class ModelBuildRun:
 
         # Set number of OpenMP threads to physical threads at this point to be
         # used with threaded model building methods, e.g. fractals. Can be
-        # changed by the user via #num_threads command in input file or via API 
+        # changed by the user via #num_threads command in input file or via API
         # later for use with CPU solver.
         config.get_model_config().ompthreads = set_omp_threads(config.get_model_config().ompthreads)
 
@@ -309,14 +309,18 @@ class ModelBuildRun:
             if config.sim_config.general["solver"] == "opencl":
                 solvername = "OpenCL"
                 platformname = " on " + " ".join(config.get_model_config().device["dev"].platform.name.split())
-                devicename = (f'Device {config.get_model_config().device["deviceID"]}: '
-                              f'{" ".join(config.get_model_config().device["dev"].name.split())}')
+                devicename = (
+                    f'Device {config.get_model_config().device["deviceID"]}: '
+                    f'{" ".join(config.get_model_config().device["dev"].name.split())}'
+                )
             else:
                 solvername = "CUDA"
                 platformname = ""
-                devicename = (f'Device {config.get_model_config().device["deviceID"]}: '
-                              f'{" ".join(config.get_model_config().device["dev"].name().split())}')
-            
+                devicename = (
+                    f'Device {config.get_model_config().device["deviceID"]}: '
+                    f'{" ".join(config.get_model_config().device["dev"].name().split())}'
+                )
+
             logger.basic(
                 f"\nModel {config.model_num + 1}/{config.sim_config.model_end} "
                 f"solving on {config.sim_config.hostinfo['hostname']} "
