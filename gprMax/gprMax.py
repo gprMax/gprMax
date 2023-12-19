@@ -165,6 +165,7 @@ def cli():
     # Parse command line arguments
     parser = argparse.ArgumentParser(prog="gprMax", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("inputfile", help=help_msg["inputfile"])
+    parser.add_argument("-outputfile", "-o", help=help_msg["outputfile"])
     parser.add_argument("-n", default=args_defaults["n"], type=int, help=help_msg["n"])
     parser.add_argument("-i", type=int, help=help_msg["i"])
     parser.add_argument("-mpi", action="store_true", default=args_defaults["mpi"], help=help_msg["mpi"])
