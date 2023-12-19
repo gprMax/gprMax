@@ -182,17 +182,13 @@ class ModelConfig:
             outputdir: string of output file directory given by input file command.
         """
 
-        if not outputdir:
-            try:
-                self.output_file_path = Path(self.args.outputfile)
-            except AttributeError:
-                self.output_file_path = sim_config.input_file_path.with_suffix("")
+        if outputdir is not None:
+            Path(outputdir).mkdir(exist_ok=True)
+            self.output_file_path = Path(outputdir, sim_config.input_file_path.stem)
+        elif sim_config.args.outputfile is not None:
+            self.output_file_path = Path(sim_config.args.outputfile).with_suffix("")
         else:
-            try:
-                Path(outputdir).mkdir(exist_ok=True)
-                self.output_file_path = Path(outputdir, sim_config.input_file_path.stem)
-            except AttributeError:
-                self.output_file_path = sim_config.input_file_path.with_suffix("")
+            self.output_file_path = sim_config.input_file_path.with_suffix("")
 
         parts = self.output_file_path.parts
         self.output_file_path = Path(*parts[:-1], parts[-1] + self.appendmodelnumber)
