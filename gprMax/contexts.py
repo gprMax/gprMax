@@ -23,6 +23,7 @@ import sys
 
 import humanize
 from colorama import Fore, Style, init
+
 init()
 
 import gprMax.config as config
@@ -87,10 +88,10 @@ class Context:
                 del solver, model
 
             if not config.sim_config.args.geometry_fixed:
-                # Manual garbage collection required to stop memory leak on GPUs 
+                # Manual garbage collection required to stop memory leak on GPUs
                 # when using pycuda
                 del G
-            
+
             gc.collect()
 
         self.tsimend = timer()
@@ -141,9 +142,11 @@ class MPIContext(Context):
         model_config = config.ModelConfig()
         # Set GPU deviceID according to worker rank
         if config.sim_config.general["solver"] == "cuda":
-            model_config.device = {"dev": config.sim_config.devices["devs"][self.rank - 1], 
-                                   "deviceID": self.rank - 1,
-                                   "snapsgpu2cpu": False}
+            model_config.device = {
+                "dev": config.sim_config.devices["devs"][self.rank - 1],
+                "deviceID": self.rank - 1,
+                "snapsgpu2cpu": False,
+            }
         config.model_configs = model_config
 
         G = create_G()
@@ -156,7 +159,7 @@ class MPIContext(Context):
             del solver, model
 
         # Manual garbage collection required to stop memory leak on GPUs when
-        # using pycuda
+        # using pycuda
         del G
         gc.collect()
 
@@ -178,7 +181,7 @@ class MPIContext(Context):
 
             s = f"\n--- Input file: {config.sim_config.input_file_path}"
             logger.basic(Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL)
-            
+
             sys.stdout.flush()
 
         # Contruct MPIExecutor

@@ -18,11 +18,11 @@
 
 import logging
 
-from gprMax.cmds_geometry.cmds_geometry import UserObjectGeometry
-from gprMax.cmds_geometry.fractal_box import FractalBox
 from gprMax.cmds_geometry.add_grass import AddGrass
 from gprMax.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from gprMax.cmds_geometry.add_surface_water import AddSurfaceWater
+from gprMax.cmds_geometry.cmds_geometry import UserObjectGeometry
+from gprMax.cmds_geometry.fractal_box import FractalBox
 from gprMax.cmds_multiuse import UserObjectMulti
 from gprMax.cmds_singleuse import Discretisation, Domain, TimeWindow, UserObjectSingle
 from gprMax.materials import create_built_in_materials
@@ -57,10 +57,10 @@ class Scene:
         else:
             logger.exception("This object is unknown to gprMax")
             raise ValueError
-        
+
     def build_obj(self, obj, grid):
         """Builds objects.
-        
+
         Args:
             obj: user object
             grid: FDTDGrid class describing a grid in a model.
@@ -71,9 +71,10 @@ class Scene:
         except ValueError:
             logger.exception("Error creating user input object")
             raise
-        
+
     def process_subgrid_cmds(self):
         """Process all commands in any sub-grids."""
+
         def func(obj):
             if isinstance(obj, SubGridUserBase):
                 return True
@@ -99,13 +100,12 @@ class Scene:
             self.build_obj(obj, grid)
 
         return self
-    
+
     def process_geocmds(self, commands, grid):
         # Check for fractal boxes and modifications and pre-process them first
         proc_cmds = []
         for obj in commands:
-            if isinstance(obj, (FractalBox, AddGrass, 
-                                AddSurfaceRoughness, AddSurfaceWater)):
+            if isinstance(obj, (FractalBox, AddGrass, AddSurfaceRoughness, AddSurfaceWater)):
                 self.build_obj(obj, grid)
                 if isinstance(obj, (FractalBox)):
                     proc_cmds.append(obj)
