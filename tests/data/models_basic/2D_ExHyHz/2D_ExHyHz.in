@@ -1,0 +1,8 @@
+#title: 2D test Ex, Hy, Hz components
+#domain: 0.001 0.100 0.100
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 3e-9
+
+#waveform: gaussiandot 1 1e9 myWave
+#hertzian_dipole: x 0 0.050 0.050 myWave
+#rx: 0 0.070 0.070
