@@ -87,6 +87,9 @@ def create_ascan_comparison_plots(test_time, test_data, ref_time, ref_data, mode
 
     logger.info(f"Output data folder: {output_base.parent}")
 
+    plt.close(fig1)
+    plt.close(fig2)
+
 
 
 def run_test(model_name, input_base, data_directory, analytical_func=None, gpu=None, opencl=None):
