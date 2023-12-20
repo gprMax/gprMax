@@ -325,7 +325,6 @@ class PeplinskiSoil:
             m.se = sig
             m.deltaer.append(er - eri)
             m.tau.append(DispersiveMaterial.watertau)
-            matID = m.er * m.se
             m.ID = f"|{float(m.er):.4f}+{float(m.se):.4f}+{float(m.mr):.4f}+{float(m.sm):.4f}|"
             G.materials.append(m)
             self.matID.append(m.numID)

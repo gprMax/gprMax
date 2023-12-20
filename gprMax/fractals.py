@@ -260,6 +260,7 @@ class Grass:
         self.numblades = numblades
         self.geometryparams = np.zeros((self.numblades, 6), dtype=config.sim_config.dtypes["float_or_double"])
         self.seed = seed
+        self.set_geometry_parameters()
 
     def set_geometry_parameters(self):
         """Sets randomly defined parameters that will be used to calculate

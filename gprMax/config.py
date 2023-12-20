@@ -90,7 +90,7 @@ class ModelConfig:
             except:
                 deviceID = 0
 
-            self.device = {"dev": sim_config.set_model_device(deviceID), "snapsgpu2cpu": False}
+            self.device = {"dev": sim_config.set_model_device(deviceID), "deviceID": deviceID, "snapsgpu2cpu": False}
 
         # Total memory usage for all grids in the model. Starts with 50MB overhead.
         self.mem_overhead = 65e6
@@ -121,14 +121,14 @@ class ModelConfig:
         #   dispersivedtype: Data type for dispersive materials.
         #   dispersiveCdtype: Data type for dispersive materials in Cython.
         #   drudelorentz: True/False model contains Drude or Lorentz materials.
-        #   cudarealfunc: String to substitute into CUDA kernels for fields
+        #   crealfunc: String to substitute into CUDA/OpenCL kernels for fields
         #                   dependent on dispersive material type.
         self.materials = {
             "maxpoles": 0,
             "dispersivedtype": None,
             "dispersiveCdtype": None,
             "drudelorentz": None,
-            "cudarealfunc": "",
+            "crealfunc": None,
         }
 
     def get_scene(self):

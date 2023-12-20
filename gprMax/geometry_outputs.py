@@ -96,9 +96,7 @@ class GeometryView:
     def set_filename(self):
         """Constructs filename from user-supplied name and model run number."""
         parts = config.get_model_config().output_file_path.parts
-        self.filename = Path(*parts[:-1], 
-                             self.filenamebase + 
-                             config.get_model_config().appendmodelnumber)
+        self.filename = Path(*parts[:-1], self.filenamebase + config.get_model_config().appendmodelnumber)
 
 
 class GeometryViewLines(GeometryView):
