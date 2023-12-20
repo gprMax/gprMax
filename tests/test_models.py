@@ -120,11 +120,13 @@ def run_test(model_name, input_base, data_directory, analytical_func=None, gpu=N
 def run_regression_test(request, ndarrays_regression, model_name, input_base, data_directory, gpu=None, opencl=None):
     input_filepath = input_base.with_suffix(".in")
     
-    output_dir = data_directory / request.node.name
-    output_dir.mkdir(exist_ok=True)
+    output_dir = Path(os.path.dirname(request.fspath), "tmp", request.node.name)
+    os.makedirs(output_dir, exist_ok=True)
     output_base = output_dir / model_name
     output_filepath = output_base.with_suffix(".h5")
-    reference_filepath = output_base.with_suffix(".npz")
+
+    data_base = data_directory / request.node.name
+    reference_filepath = data_base.with_suffix(".npz")
 
     # Run model
     gprMax.run(inputfile=input_filepath, outputfile=output_filepath, gpu=gpu, opencl=opencl)
@@ -140,7 +142,7 @@ def run_regression_test(request, ndarrays_regression, model_name, input_base, da
 
         create_ascan_comparison_plots(test_time, test_data, ref_time, ref_data, model_name, output_base)
 
-    ndarrays_regression.check({"time": test_time, "data": test_data}, basename=os.path.relpath(output_base, data_directory))
+    ndarrays_regression.check({"time": test_time, "data": test_data}, basename=os.path.relpath(data_base, data_directory))
 
 
 def calc_hertzian_dipole_fs_analytical_solution(filepath):
