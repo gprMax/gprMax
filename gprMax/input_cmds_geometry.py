@@ -867,7 +867,7 @@ def process_geometrycmds(geometry, G):
                 if nbins == 1:
                     raise CmdInputError("'" + ' '.join(tmp) + "'" + ' must be used with more than one material from the mixing model.')
                 # Create materials from mixing model as number of bins now known from fractal_box command
-                mixingmodel.calculate_debye_properties(nbins, G)
+                mixingmodel.calculate_debye_properties(nbins, G, tmp[13])
             elif not material:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' mixing model or material with ID {} does not exist'.format(tmp[12]))
 

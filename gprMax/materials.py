@@ -266,7 +266,7 @@ class PeplinskiSoil(object):
         self.mu = watervolfraction
         self.startmaterialnum = 0
 
-    def calculate_debye_properties(self, nbins, G):
+    def calculate_debye_properties(self, nbins, G, fractalboxname):
         """
         Calculates the real and imaginery part of a Debye model for the soil as
         well as a conductivity. It uses an approximation to a semi-empirical model (http://dx.doi.org/10.1109/36.387598).
@@ -274,7 +274,9 @@ class PeplinskiSoil(object):
         Args:
             nbins (int): Number of bins to use to create the different materials.
             G (class): Grid class instance - holds essential parameters describing the model.
+            fractalboxname (str): Name of the fractal box for which the materials are being created.
         """
+        self.startmaterialnum = len(G.materials)
 
         # Debye model properties of water
         f = 1.3e9
@@ -311,24 +313,17 @@ class PeplinskiSoil(object):
             sig = muiter[0]**(b2 / a) * ((sigf * (self.rs - self.rb)) / (self.rs * muiter[0]))
 
             # Check to see if the material already exists before creating a new one
-            requiredID = '|{:.4f}|'.format(float(muiter[0]))
-            material = next((x for x in G.materials if x.ID == requiredID), None)
-            if muiter.index == 0:
-                if material:
-                    self.startmaterialnum = material.numID
-                else:
-                    self.startmaterialnum = len(G.materials)
-            if not material:
-                m = Material(len(G.materials), requiredID)
-                m.type = 'debye'
-                m.averagable = False
-                m.poles = 1
-                if m.poles > Material.maxpoles:
-                    Material.maxpoles = m.poles
-                m.er = eri
-                m.se = sig
-                m.deltaer.append(er - eri)
-                m.tau.append(Material.watertau)
-                G.materials.append(m)
+            materialID = '|{:.4f}_{}|'.format(float(muiter[0]), fractalboxname)
+            m = Material(len(G.materials), materialID)
+            m.type = 'debye'
+            m.averagable = False
+            m.poles = 1
+            if m.poles > Material.maxpoles:
+                Material.maxpoles = m.poles
+            m.er = eri
+            m.se = sig
+            m.deltaer.append(er - eri)
+            m.tau.append(Material.watertau)
+            G.materials.append(m)
 
             muiter.iternext()
