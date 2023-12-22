@@ -9,6 +9,9 @@ build:
   os: ubuntu-22.04
   tools:
     python: "mambaforge-22.9"
+  jobs:
+    post_create_environment:
+      - python -m pip install sphinx_rtd_theme
 
 conda:
   environment: conda_env.yml
