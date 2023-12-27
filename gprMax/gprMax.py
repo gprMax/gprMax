@@ -20,12 +20,12 @@
 
 import argparse
 import datetime
+import gc
 import os
 import platform
 import sys
 
 from enum import Enum
-from io import StringIO
 
 import h5py
 import numpy as np
@@ -230,6 +230,7 @@ def run_std_sim(args, inputfile, usernamespace, optparams=None):
         else:
             modelusernamespace = usernamespace
         run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
+        gc.collect()
     tsimend = timer()
     simcompletestr = '\n=== Simulation completed in [HH:MM:SS]: {}'.format(datetime.timedelta(seconds=tsimend - tsimstart))
     print('{} {}\n'.format(simcompletestr, '=' * (get_terminal_width() - 1 - len(simcompletestr))))
@@ -314,6 +315,7 @@ def run_benchmark_sim(args, inputfile, usernamespace):
             f = h5py.File(outputfile, 'r')
             iterations = f.attrs['Iterations']
             numcells = f.attrs['nx_ny_nz']
+        gc.collect()
 
     # Save number of threads and benchmarking times to NumPy archive
     np.savez(os.path.splitext(inputfile.name)[0], machineID=machineIDlong, gpuIDs=gpuIDs, cputhreads=cputhreads, cputimes=cputimes, gputimes=gputimes, iterations=iterations, numcells=numcells, version=__version__)
@@ -463,6 +465,7 @@ def run_mpi_sim(args, inputfile, usernamespace, optparams=None):
             print('Starting MPI spawned worker (parent: {}, rank: {}) on {} with model {}/{}{}\n'.format(work['mpicommname'], rank, hostname, currentmodelrun, numbermodelruns, gpuinfo))
             tsolve = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
             print('Completed MPI spawned worker (parent: {}, rank: {}) on {} with model {}/{}{} in [HH:MM:SS]: {}\n'.format(work['mpicommname'], rank, hostname, currentmodelrun, numbermodelruns, gpuinfo, datetime.timedelta(seconds=tsolve)))
+            gc.collect()
 
         # Shutdown
         comm.Disconnect()
@@ -576,6 +579,7 @@ def run_mpi_no_spawn_sim(args, inputfile, usernamespace, optparams=None):
                 tsolve = run_model(args, currentmodelrun, modelend - 1, numbermodelruns, inputfile, modelusernamespace)
                 comm.send(None, dest=0, tag=tags.DONE.value)
                 print('Completed MPI worker (parent: {}, rank: {}) on {} with model {}/{}{} in [HH:MM:SS]: {}\n'.format(comm.name, rank, hostname, currentmodelrun, numbermodelruns, gpuinfo, datetime.timedelta(seconds=tsolve)))
+                gc.collect()
 
             # Break out of loop when work receives exit message
             elif tag == tags.EXIT.value:
