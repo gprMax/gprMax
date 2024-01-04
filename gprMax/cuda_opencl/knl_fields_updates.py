@@ -42,9 +42,9 @@ update_electric = {
                         __global $REAL *Ex,
                         __global $REAL *Ey,
                         __global $REAL *Ez,
-                        __global const $REAL * restrict Hx,
-                        __global const $REAL * restrict Hy,
-                        __global const $REAL * restrict Hz
+                        __global const $REAL* restrict Hx,
+                        __global const $REAL* restrict Hy,
+                        __global const $REAL* restrict Hz
                     """
     ),
     "func": Template(
@@ -118,9 +118,9 @@ update_magnetic = {
                         __global $REAL *Hx,
                         __global $REAL *Hy,
                         __global $REAL *Hz,
-                        __global const $REAL * restrict Ex,
-                        __global const $REAL * restrict Ey,
-                        __global const $REAL * restrict Ez
+                        __global const $REAL* restrict Ex,
+                        __global const $REAL* restrict Ey,
+                        __global const $REAL* restrict Ez
                     """
     ),
     "func": Template(
