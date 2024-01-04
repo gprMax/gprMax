@@ -308,7 +308,7 @@ class ModelBuildRun:
         elif config.sim_config.general["solver"] in ["cuda", "opencl"]:
             if config.sim_config.general["solver"] == "opencl":
                 solvername = "OpenCL"
-                platformname = " on " + " ".join(config.get_model_config().device["dev"].platform.name.split())
+                platformname = " ".join(config.get_model_config().device["dev"].platform.name.split()) + " with "
                 devicename = (
                     f'Device {config.get_model_config().device["deviceID"]}: '
                     f'{" ".join(config.get_model_config().device["dev"].name.split())}'
@@ -324,7 +324,7 @@ class ModelBuildRun:
             logger.basic(
                 f"\nModel {config.model_num + 1}/{config.sim_config.model_end} "
                 f"solving on {config.sim_config.hostinfo['hostname']} "
-                f"with {solvername} backend using {devicename}{platformname}"
+                f"with {solvername} backend using {platformname}{devicename}"
             )
 
         # Prepare iterator
