@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023, Craig Warren
+# Copyright (C) 2015-2024, Craig Warren
 #
 # This module is licensed under the Creative Commons Attribution-ShareAlike 4.0 International License.
 # To view a copy of this license, visit http://creativecommons.org/licenses/by-sa/4.0/.
