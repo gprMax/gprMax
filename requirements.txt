@@ -22,6 +22,7 @@ wheel
 pytest
 pytest-benchmark
 pytest-benchmark[histogram]
-pytest-mpi
+git+https://github.com/NMannall/pytest-easyMPI.git
+# pytest-mpi
 pytest-regressions
 git+https://github.com/craig-warren/PyEVTK.git
