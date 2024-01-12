@@ -12,7 +12,7 @@ import pytest
 import gprMax
 
 # Cube side lengths (in cells) for different domains
-DOMAINS = [0.10] # [0.10, 0.15, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80]
+DOMAINS = [0.10, 0.15, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80]
 
 # Number of OpenMP threads to benchmark each domain size
 OMP_THREADS = [1, 2, 4, 8, 16, 32, 64, 128]
@@ -58,7 +58,7 @@ def test_simple_benchmarks(request, benchmark, domain, omp_threads):
     scenes.append(scene)
 
     # Run benchmark once (i.e. 1 round)
-    # benchmark.pedantic(gprMax.run, kwargs={'scenes': scenes, 'n': len(scenes), 'geometry_only': False, 'outputfile': output_filepath, 'gpu': None})
+    benchmark.pedantic(gprMax.run, kwargs={'scenes': scenes, 'n': len(scenes), 'geometry_only': False, 'outputfile': output_filepath, 'gpu': None})
     
     # Automatically choose number of rounds.
-    benchmark(gprMax.run, scenes=scenes, n=len(scenes), geometry_only=False, outputfile=output_filepath, gpu=None)
+    # benchmark(gprMax.run, scenes=scenes, n=len(scenes), geometry_only=False, outputfile=output_filepath, gpu=None)

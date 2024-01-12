@@ -19,10 +19,9 @@ numpy-stl
 terminaltables
 tqdm
 wheel
+reframe-hpcs
 pytest
 pytest-benchmark
 pytest-benchmark[histogram]
-git+https://github.com/NMannall/pytest-easyMPI.git
-# pytest-mpi
 pytest-regressions
 git+https://github.com/craig-warren/PyEVTK.git

@@ -1,1 +1,5 @@
-tmp/
+output/
+stage/
+reframe.log
+reframe.out
+reframe_perf.out
