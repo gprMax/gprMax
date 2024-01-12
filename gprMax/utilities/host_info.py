@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -301,12 +301,11 @@ def mem_check_host(mem):
         mem: int for memory required (bytes).
     """
     if mem > config.sim_config.hostinfo["ram"]:
-        logger.exception(
-            f"Memory (RAM) required ~{humanize.naturalsize(mem)} exceeds "
-            f"{humanize.naturalsize(config.sim_config.hostinfo['ram'], True)} "
-            "detected!\n"
+        logger.warning(
+            f"Memory (RAM) required (~{humanize.naturalsize(mem)}) exceeds "
+            f"({humanize.naturalsize(config.sim_config.hostinfo['ram'], True)}) "
+            " physical memory detected!\n"
         )
-        raise ValueError
 
 
 def mem_check_device_snaps(total_mem, snaps_mem):
@@ -324,12 +323,11 @@ def mem_check_device_snaps(total_mem, snaps_mem):
         device_mem = config.get_model_config().device["dev"].global_mem_size
 
     if total_mem - snaps_mem > device_mem:
-        logger.exception(
-            f"Memory (RAM) required ~{humanize.naturalsize(total_mem)} exceeds "
-            f"{humanize.naturalsize(device_mem, True)} "
-            f"detected on specified {' '.join(config.get_model_config().device['dev'].name.split())} device!\n"
+        logger.warning(
+            f"Memory (RAM) required (~{humanize.naturalsize(total_mem)}) exceeds "
+            f"({humanize.naturalsize(device_mem, True)}) physical memory detected "
+            f"on specified {' '.join(config.get_model_config().device['dev'].name.split())} device!\n"
         )
-        raise ValueError
 
     # If the required memory without the snapshots will fit on the GPU then
     # transfer and store snaphots on host

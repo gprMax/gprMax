@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -278,7 +278,8 @@ class PeplinskiSoil:
         watereri, waterer, watertau, watersig = calculate_water_properties(T, S)
         f = 1.3e9
         w = 2 * np.pi * f
-        erealw = watereri + ((waterer - watereri) / (1 + (w * watertau) ** 2))
+        waterdeltaer = waterer - watereri
+        erealw = watereri + (waterdeltaer / (1 + (w * watertau) ** 2))
 
         a = 0.65  # Experimentally derived constant
         es = (1.01 + 0.44 * self.rs) ** 2 - 0.062  #  Relative permittivity of sand particles
@@ -309,7 +310,7 @@ class PeplinskiSoil:
             er = 1.15 * er - 0.68
 
             # Permittivity at infinite frequency
-            eri = er - (muiter[0] ** (b2 / a) * DispersiveMaterial.waterdeltaer)
+            eri = er - (muiter[0] ** (b2 / a) * waterdeltaer)
 
             # Effective conductivity
             sig = muiter[0] ** (b2 / a) * ((sigf * (self.rs - self.rb)) / (self.rs * muiter[0]))
@@ -324,7 +325,7 @@ class PeplinskiSoil:
             m.er = eri
             m.se = sig
             m.deltaer.append(er - eri)
-            m.tau.append(DispersiveMaterial.watertau)
+            m.tau.append(watertau)
             m.ID = f"|{float(m.er):.4f}+{float(m.se):.4f}+{float(m.mr):.4f}+{float(m.sm):.4f}|"
             G.materials.append(m)
             self.matID.append(m.numID)
@@ -481,7 +482,7 @@ def calculate_water_properties(T=25, S=0):
     """Get extended Debye model properties for water.
 
     Args:
-        T: float for emperature of water (degrees centigrade).
+        T: float for temperature of water (degrees centigrade).
         S: float for salinity of water (part per thousand).
 
     Returns:

@@ -1,4 +1,4 @@
-# Copyright (C) 2015-2023: The University of Edinburgh, United Kingdom
+# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
 #                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
 #
 # This file is part of gprMax.
@@ -27,7 +27,7 @@ cpdef void generate_fractal2D(
     int nx,
     int ny,
     int nthreads,
-    int b,
+    float D,
     np.float64_t[:] weighting,
     np.float64_t[:] v1,
     np.complex128_t[:, ::1] A,
@@ -38,7 +38,7 @@ cpdef void generate_fractal2D(
     Args:
         nx, ny: int for fractal surface size in cells.
         nthreads: int for number of threads to use
-        b: int for constant related to fractal dimension.
+        D: float for fractal dimension.
         weighting: memoryview for access to weighting vector.
         v1: memoryview for access to positional vector at centre of array,
             scaled by weighting.
@@ -59,7 +59,7 @@ cpdef void generate_fractal2D(
 
                 # Calulate norm of v2 - v1
                 rr = ((v2x - v1[0])**2 + (v2y - v1[1])**2)**(1/2)
-                B = rr**b
+                B = rr**D
                 if B == 0:
                     B = 0.9
 
@@ -71,7 +71,7 @@ cpdef void generate_fractal3D(
     int ny,
     int nz,
     int nthreads,
-    int b,
+    float D,
     np.float64_t[:] weighting,
     np.float64_t[:] v1,
     np.complex128_t[:, :, ::1] A,
@@ -82,7 +82,7 @@ cpdef void generate_fractal3D(
     Args:
         nx, ny, nz: int for fractal volume size in cells.
         nthreads: int for number of threads to use
-        b: int for constant related to fractal dimension.
+        D: float for fractal dimension.
         weighting: memoryview for access to weighting vector.
         v1: memoryview for access to positional vector at centre of array,
             scaled by weighting.
@@ -105,7 +105,7 @@ cpdef void generate_fractal3D(
 
                 # Calulate norm of v2 - v1
                 rr = ((v2x - v1[0])**2 + (v2y - v1[1])**2 + (v2z - v1[2])**2)**(1/2)
-                B = rr**b
+                B = rr**D
                 if B == 0:
                     B = 0.9
 
