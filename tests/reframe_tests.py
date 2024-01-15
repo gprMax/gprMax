@@ -4,6 +4,7 @@ import reframe as rfm
 from reframe.core.builtins import parameter
 
 from base_tests import GprmaxBaseTest
+from utilities.data import get_data_from_h5_file
 
 
 """ReFrame tests for taskfarm functionality
@@ -27,7 +28,7 @@ class BasicModelsTest(GprmaxBaseTest):
 
     # List of available basic test models
     model = parameter([
-        "2D_ExHyHz"
+        "2D_ExHyHz",
         "2D_EyHxHz",
         "2D_EzHxHy",
         "cylinder_Ascan_2D",
@@ -39,6 +40,10 @@ class BasicModelsTest(GprmaxBaseTest):
     num_cpus_per_task = 16
 
     @run_after("init")
-    def set_model(self):
-        self.executable_opts = f"{self.model}.in -o {self.model}.h5".split()
-        self.keep_files = [f"{self.model}.in", f"{self.model}.h5"]
+    def set_filenames(self):
+        input_file = f"{self.model}.in"
+        output_file = f"{self.model}.h5"
+        self.executable_opts = [input_file, "-o", output_file]
+        self.postrun_cmds = [f"python -m toolboxes.Plotting.plot_Ascan -save {output_file}"]
+        self.keep_files = [input_file, output_file, f"{self.model}.pdf"]
+

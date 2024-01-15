@@ -3,3 +3,5 @@ stage/
 reframe.log
 reframe.out
 reframe_perf.out
+
+configuration/user_config.py
