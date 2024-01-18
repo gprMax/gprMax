@@ -81,7 +81,8 @@ site_configuration = {
                     'type': 'file',
                     'name': 'reframe_perf.out',
                     'level': 'info',
-                    'format': '[%(asctime)s] %(check_info)s: %(check_perf_var)s=%(check_perf_value)s (ref=%(check_perf_ref)s;l=%(check_perf_lower_thres)s;u=%(check_perf_upper_thres)s)) %(check_perf_unit)s', 
+                    'format': '[%(asctime)s] %(check_info)s %(check_perfvalues)s', 
+                    'format_perfvars': '| %(check_perf_var)s: %(check_perf_value)s %(check_perf_unit)s (r: %(check_perf_ref)s l: %(check_perf_lower_thres)s u: %(check_perf_upper_thres)s) ',
                     'append': True
                 },
                 {
@@ -91,12 +92,9 @@ site_configuration = {
                     'format': (
                         '%(check_job_completion_time)s|reframe %(version)s|'
                         '%(check_info)s|jobid=%(check_jobid)s|'
-                        '%(check_perf_var)s=%(check_perf_value)s|'
-                        'ref=%(check_perf_ref)s '
-                        '(l=%(check_perf_lower_thres)s, '
-                        'u=%(check_perf_upper_thres)s)|'
-                        '%(check_perf_unit)s'
+                        '%(check_perfvalues)s'
                     ),
+                    'format_perfvars': '%(check_perf_var)s|%(check_perf_value)s|%(check_perf_unit)s|',
                     'append': True
                 }
             ]

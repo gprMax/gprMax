@@ -19,7 +19,7 @@ numpy-stl
 terminaltables
 tqdm
 wheel
-reframe-hpcs
+reframe-hpc
 pytest
 pytest-benchmark
 pytest-benchmark[histogram]

@@ -1,4 +1,5 @@
 output/
+perflogs/
 stage/
 reframe.log
 reframe.out
