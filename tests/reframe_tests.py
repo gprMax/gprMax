@@ -60,12 +60,9 @@ class BenchmarkTest(GprmaxBaseTest):
         
     @run_after("init")
     def create_model_file(self):
-        input_file = "benchmark_model.in"
-        new_input_file = f"benchmark_model_{self.domain}.in"
-
-        self.prerun_cmds.append(f"sed -e 's/\$domain/{self.domain}/g' -e 's/\$src/{self.domain/2}/g' {input_file} > {new_input_file}")
-        self.executable_opts = [new_input_file]
-        self.keep_files = [new_input_file]
+        input_file = f"benchmark_model_{self.domain}.in"
+        self.executable_opts = [input_file]
+        self.keep_files = [input_file]
 
     @run_after("init")
     def set_cpu_freq(self):

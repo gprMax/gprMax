@@ -90,11 +90,66 @@ site_configuration = {
                     'prefix': '%(check_system)s/%(check_partition)s',
                     'level': 'info',
                     'format': (
-                        '%(check_job_completion_time)s|reframe %(version)s|'
-                        '%(check_info)s|jobid=%(check_jobid)s|'
-                        '%(check_perfvalues)s'
+                        '%(check_result)s, %(check_job_completion_time)s, '
+                        '%(check_name)s, %(check_short_name)s, %(check_jobid)s, '
+                        '%(check_num_tasks)s, %(check_num_cpus_per_task)s, %(check_num_tasks_per_node)s, '
+                        '%(check_#ALL)s'  # Any remaining loggable test attributes should be test parameters
                     ),
-                    'format_perfvars': '%(check_perf_var)s|%(check_perf_value)s|%(check_perf_unit)s|',
+                    'ignore_keys': [
+                        'check_build_locally',
+                        'check_build_time_limit',
+                        'check_descr',
+                        'check_display_name',
+                        'check_env_vars',
+                        'check_exclusive_access',
+                        'check_executable',
+                        'check_executable_opts',
+                        'check_extra_resources',
+                        'check_hashcode',
+                        'check_job_completion_time_unix',
+                        'check_job_exitcode',
+                        'check_job_nodelist',
+                        'check_job_submit_time',
+                        'check_jobid',
+                        'check_keep_files',
+                        'check_local',
+                        'check_maintainers',
+                        'check_max_pending_time',
+                        'check_modules',
+                        'check_name',
+                        'check_num_cpus_per_task',
+                        'check_num_gpus_per_node',
+                        'check_num_tasks',
+                        'check_num_tasks_per_core',
+                        'check_num_tasks_per_node',
+                        'check_num_tasks_per_socket',
+                        'check_outputdir',
+                        'check_partition',
+                        'check_prebuild_cmds',
+                        'check_prefix',
+                        'check_prerun_cmds',
+                        'check_postbuild_cmds',
+                        'check_postrun_cmds',
+                        'check_readonly_files',
+                        'check_short_name',
+                        'check_sourcepath',
+                        'check_sourcesdir',
+                        'check_stagedir',
+                        'check_strict_check',
+                        'check_system',
+                        'check_tags',
+                        'check_time_limit',
+                        'check_unique_name',
+                        'check_use_multithreading',
+                        'check_valid_prog_environs',
+                        'check_valid_systems',
+                        'check_variables'
+                    ],
+                    'format_perfvars': (
+                        '%(check_perf_value)s|%(check_perf_unit)s|'
+                        '%(check_perf_ref)s|%(check_perf_lower_thres)s|'
+                        '%(check_perf_upper_thres)s|'
+                    ),
                     'append': True
                 }
             ]
