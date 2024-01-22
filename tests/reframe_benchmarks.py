@@ -1,8 +1,6 @@
 import reframe as rfm
-from reframe.core.builtins import parameter, run_after
-
 from base_tests import GprmaxBaseTest
-
+from reframe.core.builtins import parameter, run_after
 
 """ReFrame tests for performance benchmarking
 
@@ -13,20 +11,20 @@ from base_tests import GprmaxBaseTest
 
 
 @rfm.simple_test
-class BenchmarkTest(GprmaxBaseTest):
-
+class SingleNodeBenchmark(GprmaxBaseTest):
     tags = {"benchmark", "single node", "openmp"}
 
     num_tasks = 1
     omp_threads = parameter([1, 2, 4, 8, 16, 32, 64, 128])
     domain = parameter([0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
+    cpu_freq = parameter([2250000])
     time_limit = "4h"
 
     @run_after("init")
     def setup_omp(self):
         self.num_cpus_per_task = self.omp_threads
         super().setup_omp()
-        
+
     @run_after("init")
     def create_model_file(self):
         input_file = f"benchmark_model_{self.domain}.in"
@@ -35,4 +33,4 @@ class BenchmarkTest(GprmaxBaseTest):
 
     @run_after("init")
     def set_cpu_freq(self):
-        self.env_vars["SLURM_CPU_FREQ_REQ"] = 2250000        
+        self.env_vars["SLURM_CPU_FREQ_REQ"] = self.cpu_freq
