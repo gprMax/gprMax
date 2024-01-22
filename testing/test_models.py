@@ -19,16 +19,15 @@
 import logging
 import sys
 from pathlib import Path
-from colorama import Fore, Style
 
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
+from colorama import Fore, Style
 
 import gprMax
-from testing.analytical_solutions import hertzian_dipole_fs
-
 from gprMax.utilities.logging import logging_config
+from testing.analytical_solutions import hertzian_dipole_fs
 
 logger = logging.getLogger(__name__)
 logging_config(name=__name__)

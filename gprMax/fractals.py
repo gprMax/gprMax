@@ -56,7 +56,7 @@ class FractalSurface:
         self.nz = zf - zs
         self.dtype = np.dtype(np.complex128)
         self.seed = seed
-        self.dimension = dimension # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
+        self.dimension = dimension  # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
         self.weighting = np.array([1, 1], dtype=np.float64)
         self.fractalrange = (0, 0)
         self.filldepth = 0
@@ -157,7 +157,7 @@ class FractalVolume:
         self.averaging = False
         self.dtype = np.dtype(np.complex128)
         self.seed = seed
-        self.dimension = dimension # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
+        self.dimension = dimension  # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
         self.weighting = np.array([1, 1, 1], dtype=np.float64)
         self.nbins = 0
         self.fractalsurfaces = []

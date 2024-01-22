@@ -1,5 +1,5 @@
-from matplotlib import pyplot as plt
 import numpy as np
+from matplotlib import pyplot as plt
 
 
 def _plot_data(subplots, time, data, label=None, colour="r", line_style="-"):
@@ -46,8 +46,8 @@ def plot_diffs(time, diffs, plot_min=-160):
     """Plots ...
 
     Args:
-        time: 
-        diffs: 
+        time:
+        diffs:
         plot_min: minimum value of difference to plot (dB). Default: -160
 
     Returns:

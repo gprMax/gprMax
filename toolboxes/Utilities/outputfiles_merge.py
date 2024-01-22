@@ -71,7 +71,7 @@ def get_output_data(filename, rxnumber, rxcomponent):
     return outputdata, dt
 
 
-def merge_files(outputfiles,  merged_outputfile=None, removefiles=False):
+def merge_files(outputfiles, merged_outputfile=None, removefiles=False):
     """Merges traces (A-scans) from multiple output files into one new file,
         then optionally removes the series of output files.
 
@@ -138,7 +138,9 @@ if __name__ == "__main__":
         usage="cd gprMax; python -m tools.outputfiles_merge basefilename",
     )
     parser.add_argument("basefilename", help="base name of output file series including path")
-    parser.add_argument("-o", "--output-file", default=None, type=str, required=False, help="location to save merged file")
+    parser.add_argument(
+        "-o", "--output-file", default=None, type=str, required=False, help="location to save merged file"
+    )
     parser.add_argument(
         "--remove-files", action="store_true", default=False, help="flag to remove individual output files after merge"
     )
