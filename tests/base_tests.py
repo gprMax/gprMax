@@ -1,12 +1,13 @@
 """ReFrame base classes for GprMax tests"""
 import os
+import pathlib
+
 import reframe as rfm
 import reframe.utility.sanity as sn
+from reframe.core.builtins import performance_function, require_deps, run_after, sanity_function
 from reframe.utility import udeps
 
-from configuration.user_config import GPRMAX_ROOT_DIR
-
-
+GPRMAX_ROOT_DIR = pathlib.Path(__file__).parent.parent.resolve()
 PATH_TO_PYENV = os.path.join(".venv", "bin", "activate")
 
 
@@ -19,7 +20,7 @@ class CreatePyenvTest(rfm.RunOnlyRegressionTest):
     prerun_cmds = [
         "python -m venv --system-site-packages --prompt gprMax .venv",
         f"source {PATH_TO_PYENV}",
-        f"pip install -r {os.path.join(GPRMAX_ROOT_DIR, 'requirements.txt')}"
+        f"pip install -r {os.path.join(GPRMAX_ROOT_DIR, 'requirements.txt')}",
     ]
     executable = f"pip install -e {GPRMAX_ROOT_DIR}"
 
@@ -29,11 +30,13 @@ class CreatePyenvTest(rfm.RunOnlyRegressionTest):
         Check packages successfully installed from requirements.txt
         Check gprMax installed successfully and no other errors thrown
         """
-        return sn.assert_found(r"Successfully installed (?!gprMax)", self.stdout, "Failed to install requirements") \
-        and sn.assert_found(r"Successfully installed gprMax", self.stdout, "Failed to install gprMax") \
-        and sn.assert_not_found(r"finished with status 'error'", self.stdout) \
-        and sn.assert_not_found(r"ERROR:", self.stderr)
-    
+        return (
+            sn.assert_found(r"Successfully installed (?!gprMax)", self.stdout, "Failed to install requirements")
+            and sn.assert_found(r"Successfully installed gprMax", self.stdout, "Failed to install gprMax")
+            and sn.assert_not_found(r"finished with status 'error'", self.stdout)
+            and sn.assert_not_found(r"ERROR:", self.stderr)
+        )
+
 
 class GprmaxBaseTest(rfm.RunOnlyRegressionTest):
     valid_systems = ["archer2:compute"]
@@ -56,44 +59,39 @@ class GprmaxBaseTest(rfm.RunOnlyRegressionTest):
         """Add prerun command to load the built Python environment"""
         path_to_pyenv = os.path.join(CreatePyenvTest(part="login").stagedir, PATH_TO_PYENV)
         self.prerun_cmds.append(f"source {path_to_pyenv}")
-    
+
     @sanity_function
     def test_simulation_complete(self):
         """Check simulation completed successfully"""
         # TODO: Check for correctness/regression rather than just completing
         return sn.assert_found(r"=== Simulation completed in ", self.stdout)
-    
-    @performance_function('s', perf_key='run_time')
+
+    @performance_function("s", perf_key="run_time")
     def extract_run_time(self):
         """Extract total runtime"""
-        return sn.extractsingle(
-            r'real\s+(?P<run_time>\S+)',
-            self.stderr,
-            "run_time",
-            float
-        )
-    
-    @performance_function('s', perf_key='simulation_time')
+        return sn.extractsingle(r"real\s+(?P<run_time>\S+)", self.stderr, "run_time", float)
+
+    @performance_function("s", perf_key="simulation_time")
     def extract_simulation_time(self):
         """Extract simulation time reported by gprMax"""
 
         # sn.extractall throws an error if a group has value None.
         # Therefore have to handle the < 1 min and >= 1 min cases separately.
-        if sn.extractsingle(r"=== Simulation completed in \S+ (?P<case>minute|seconds)", self.stdout, "case") == "minute":
+        if (
+            sn.extractsingle(r"=== Simulation completed in \S+ (?P<case>minute|seconds)", self.stdout, "case")
+            == "minute"
+        ):
             simulation_time = sn.extractall(
                 r"=== Simulation completed in (?P<minutes>\S+) minutes? and (?P<seconds>\S+) seconds =*",
                 self.stdout,
                 ["minutes", "seconds"],
-                float
+                float,
             )
             minutes = simulation_time[0][0]
             seconds = simulation_time[0][1]
         else:
             minutes = 0
             seconds = sn.extractsingle(
-                r"=== Simulation completed in (?P<seconds>\S+) seconds =*",
-                self.stdout,
-                "seconds",
-                float
+                r"=== Simulation completed in (?P<seconds>\S+) seconds =*", self.stdout, "seconds", float
             )
         return minutes * 60 + seconds
