@@ -83,13 +83,24 @@ class GprmaxBaseTest(rfm.RunOnlyRegressionTest):
         """Extract simulation time reported by gprMax"""
 
         # sn.extractall throws an error if a group has value None.
-        # Therefore have to handle the < 1 min and >= 1 min cases separately.
-        if (
-            sn.extractsingle(r"=== Simulation completed in \S+ (?P<case>minute|seconds)", self.stdout, "case")
-            == "minute"
-        ):
+        # Therefore have to handle the < 1 min, >= 1 min and >= 1 hour cases separately.
+        timeframe = sn.extractsingle(
+            r"=== Simulation completed in \S+ (?P<timeframe>hour|minute|second)", self.stdout, "timeframe"
+        )
+        if timeframe == "hour":
             simulation_time = sn.extractall(
-                r"=== Simulation completed in (?P<minutes>\S+) minutes? and (?P<seconds>\S+) seconds =*",
+                r"=== Simulation completed in (?P<hours>\S+) hours?, (?P<minutes>\S+) minutes? and (?P<seconds>\S+) seconds? =*",
+                self.stdout,
+                ["hours", "minutes", "seconds"],
+                float,
+            )
+            hours = simulation_time[0][0]
+            minutes = simulation_time[0][1]
+            seconds = simulation_time[0][2]
+        elif timeframe == "minute":
+            hours = 0
+            simulation_time = sn.extractall(
+                r"=== Simulation completed in (?P<minutes>\S+) minutes? and (?P<seconds>\S+) seconds? =*",
                 self.stdout,
                 ["minutes", "seconds"],
                 float,
@@ -97,8 +108,9 @@ class GprmaxBaseTest(rfm.RunOnlyRegressionTest):
             minutes = simulation_time[0][0]
             seconds = simulation_time[0][1]
         else:
+            hours = 0
             minutes = 0
             seconds = sn.extractsingle(
-                r"=== Simulation completed in (?P<seconds>\S+) seconds =*", self.stdout, "seconds", float
+                r"=== Simulation completed in (?P<seconds>\S+) seconds? =*", self.stdout, "seconds", float
             )
-        return minutes * 60 + seconds
+        return hours * 3600 + minutes * 60 + seconds
