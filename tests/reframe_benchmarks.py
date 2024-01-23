@@ -17,20 +17,17 @@ class SingleNodeBenchmark(GprmaxBaseTest):
     num_tasks = 1
     omp_threads = parameter([1, 2, 4, 8, 16, 32, 64, 128])
     domain = parameter([0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
-    cpu_freq = parameter([2250000])
+    cpu_freq = parameter([2000000, 2250000])
     time_limit = "4h"
 
     @run_after("init")
-    def setup_omp(self):
+    def setup_env_vars(self):
         self.num_cpus_per_task = self.omp_threads
-        super().setup_omp()
+        self.env_vars["SLURM_CPU_FREQ_REQ"] = self.cpu_freq
+        super().setup_env_vars()
 
     @run_after("init")
-    def create_model_file(self):
+    def set_model_file(self):
         input_file = f"benchmark_model_{self.domain}.in"
         self.executable_opts = [input_file]
         self.keep_files = [input_file]
-
-    @run_after("init")
-    def set_cpu_freq(self):
-        self.env_vars["SLURM_CPU_FREQ_REQ"] = self.cpu_freq

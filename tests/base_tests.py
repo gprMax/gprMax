@@ -42,12 +42,19 @@ class GprmaxBaseTest(rfm.RunOnlyRegressionTest):
     valid_systems = ["archer2:compute"]
     valid_prog_environs = ["PrgEnv-cray"]
     executable = "time -p python -m gprMax --log-level 25"
+    postrun_cmds = [
+        "sacct --format=JobID,State,Submit,Start,End,Elapsed,NodeList,ReqMem,MaxRSS,MaxVMSize --units=M -j $SLURM_JOBID"
+    ]
     exclusive_access = True
 
     @run_after("init")
-    def setup_omp(self):
+    def setup_env_vars(self):
         """Set OMP_NUM_THREADS environment variable from num_cpus_per_task"""
         self.env_vars["OMP_NUM_THREADS"] = self.num_cpus_per_task
+
+        # Avoid inheriting slurm memory environment variables from any previous slurm job (i.e. the reframe job)
+        self.prerun_cmds.append("unset SLURM_MEM_PER_NODE")
+        self.prerun_cmds.append("unset SLURM_MEM_PER_CPU")
 
     @run_after("init")
     def inject_dependencies(self):
