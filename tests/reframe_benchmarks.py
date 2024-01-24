@@ -18,7 +18,7 @@ class SingleNodeBenchmark(GprmaxBaseTest):
     omp_threads = parameter([1, 2, 4, 8, 16, 32, 64, 128])
     domain = parameter([0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
     cpu_freq = parameter([2000000, 2250000])
-    time_limit = "4h"
+    time_limit = "8h"
 
     @run_after("init")
     def setup_env_vars(self):
