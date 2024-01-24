@@ -4,25 +4,25 @@
 colorama
 cython
 h5py
+humanize
 jinja2
 jupyter
 matplotlib
-numpy
-pip
-psutil
-scipy
-humanize
 # mpi4py
+numpy
 numpy-stl
+pip
 pre-commit
+psutil
 # pycuda
 # pyopencl
+scipy
 terminaltables
 tqdm
 wheel
 reframe-hpc
-pytest
-pytest-benchmark
-pytest-benchmark[histogram]
-pytest-regressions
+# pytest
+# pytest-benchmark
+# pytest-benchmark[histogram]
+# pytest-regressions
 git+https://github.com/craig-warren/PyEVTK.git
