@@ -11,6 +11,7 @@ matplotlib
 # mpi4py
 numpy
 numpy-stl
+pandas
 pip
 pre-commit
 psutil
