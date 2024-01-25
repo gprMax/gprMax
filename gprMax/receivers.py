@@ -87,9 +87,9 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
         objects.
 
     Args:
-        rxcoords_dev: int array of receiver coordinates on compute device.
         rxs_dev: float array of receiver data on compute device - rows are field
                     components; columns are iterations; pages are receivers.
+        rxcoords_dev: int array of receiver coordinates on compute device.
         G: FDTDGrid class describing a grid in a model.
 
     """
