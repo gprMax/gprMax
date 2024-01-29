@@ -1308,7 +1308,7 @@ class OpenCLUpdates:
         self.event_marker1.wait()
 
     def calculate_memory_used(self, iteration):
-        """Calculates memory used on last iteration.
+        """Calculates memory used on last iteration. 
 
         Args:
             iteration: int for iteration number.
@@ -1316,9 +1316,8 @@ class OpenCLUpdates:
         Returns:
             Memory (RAM) used on compute device.
         """
-        # if iteration == self.grid.iterations - 1:
-        #     return self.drv.mem_get_info()[1] - self.drv.mem_get_info()[0]
-        logger.debug("Look at memory estimate for pyopencl")
+        # No clear way to determine memory used from PyOpenCL unlike PyCUDA.
+        pass
 
     def calculate_solve_time(self):
         """Calculates solving time for model."""

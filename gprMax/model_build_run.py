@@ -346,12 +346,12 @@ class ModelBuildRun:
         self.write_output_data()
 
         # Print information about memory usage and solving time for a model
-        # Add a string on GPU memory usage if applicable
-        mem_str = (
-            f" host + ~{humanize.naturalsize(solver.memused)} GPU"
-            if config.sim_config.general["solver"] == "cuda"
-            else ""
-        )
+        # Add a string on device (GPU) memory usage if applicable
+        mem_str = ""
+        if config.sim_config.general["solver"] == "cuda":
+            mem_str = f" host + ~{humanize.naturalsize(solver.memused)} device"
+        elif config.sim_config.general["solver"] == "opencl":
+            mem_str = f" host + unknown for device"      
 
         logger.info(f"\nMemory used (estimated): " + f"~{humanize.naturalsize(self.p.memory_full_info().uss)}{mem_str}")
         logger.info(
