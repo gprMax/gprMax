@@ -45,9 +45,8 @@ class CPUUpdates:
         Args:
             G: FDTDGrid class describing a grid in a model.
         """
+
         self.grid = G
-        self.dispersive_update_a = None
-        self.dispersive_update_b = None
 
     def store_outputs(self):
         """Stores field component values for every receiver and transmission line."""
@@ -168,7 +167,7 @@ class CPUUpdates:
         updated after the electric field has been updated by the PML and
         source updates.
         """
-        if config.get_model_config().materials["maxpoles"] != 0:
+        if config.get_model_config().materials["maxpoles"] > 0:
             self.dispersive_update_b(
                 self.grid.nx,
                 self.grid.ny,
@@ -231,8 +230,6 @@ class CUDAUpdates:
         """
 
         self.grid = G
-        self.dispersive_update_a = None
-        self.dispersive_update_b = None
 
         # Import PyCUDA modules
         self.drv = import_module("pycuda.driver")
@@ -802,12 +799,10 @@ class OpenCLUpdates:
         """
 
         self.grid = G
-        self.dispersive_update_a = None
-        self.dispersive_update_b = None
 
         # Import pyopencl module
         self.cl = import_module("pyopencl")
-        self.elwise = getattr(import_module("pyopencl.elementwise"), "ElementwiseKernel")
+        self.elwiseknl = getattr(import_module("pyopencl.elementwise"), "ElementwiseKernel")
 
         # Select device, create context and command queue
         self.dev = config.get_model_config().device["dev"]
@@ -818,6 +813,7 @@ class OpenCLUpdates:
         self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl"))
 
         # Initialise arrays on device, prepare kernels, and get kernel functions
+        self._set_macros()
         self._set_field_knls()
         if self.grid.pmls["slabs"]:
             self._set_pml_knls()
@@ -828,10 +824,10 @@ class OpenCLUpdates:
         if self.grid.snapshots:
             self._set_snapshot_knl()
 
-    def _set_field_knls(self):
-        """Electric and magnetic field updates - prepares kernels, and
-        gets kernel functions.
-        """
+    def _set_macros(self):
+        """Common macros to be used in kernels."""
+
+        # Set specific values for any dispersive materials
         if config.get_model_config().materials["maxpoles"] > 0:
             NY_MATDISPCOEFFS = self.grid.updatecoeffsdispersive.shape[1]
             NX_T = self.grid.Tx.shape[1]
@@ -871,6 +867,11 @@ class OpenCLUpdates:
             NZ_SNAPS=Snapshot.nz_max,
         )
 
+    def _set_field_knls(self):
+        """Electric and magnetic field updates - prepares kernels, and
+            gets kernel functions.
+        """
+
         subs = {
             "CUDA_IDX": "",
             "NX_FIELDS": self.grid.nx + 1,
@@ -880,8 +881,8 @@ class OpenCLUpdates:
             "NY_ID": self.grid.ID.shape[2],
             "NZ_ID": self.grid.ID.shape[3],
         }
-
-        self.update_electric_dev = self.elwise(
+        
+        self.update_electric_dev = self.elwiseknl(
             self.ctx,
             knl_fields_updates.update_electric["args_opencl"].substitute(
                 {"REAL": config.sim_config.dtypes["C_float_or_double"]}
@@ -892,7 +893,7 @@ class OpenCLUpdates:
             options=config.sim_config.devices["compiler_opts"],
         )
 
-        self.update_magnetic_dev = self.elwise(
+        self.update_magnetic_dev = self.elwiseknl(
             self.ctx,
             knl_fields_updates.update_magnetic["args_opencl"].substitute(
                 {"REAL": config.sim_config.dtypes["C_float_or_double"]}
@@ -916,11 +917,12 @@ class OpenCLUpdates:
                 "NX_ID": self.grid.ID.shape[1],
                 "NY_ID": self.grid.ID.shape[2],
                 "NZ_ID": self.grid.ID.shape[3],
-                "NX_T": NX_T,
-                "NY_T": NY_T,
-                "NZ_T": NZ_T,
+                "NX_T": self.grid.Tx.shape[1],
+                "NY_T": self.grid.Tx.shape[2],
+                "NZ_T": self.grid.Tx.shape[3],
             }
-            self.dispersive_update_a = self.elwise(
+            
+            self.dispersive_update_a = self.elwiseknl(
                 self.ctx,
                 knl_fields_updates.update_electric_dispersive_A["args_opencl"].substitute(
                     {
@@ -933,7 +935,8 @@ class OpenCLUpdates:
                 preamble=self.knl_common,
                 options=config.sim_config.devices["compiler_opts"],
             )
-            self.dispersive_update_b = self.elwise(
+            
+            self.dispersive_update_b = self.elwiseknl(
                 self.ctx,
                 knl_fields_updates.update_electric_dispersive_B["args_opencl"].substitute(
                     {
@@ -982,7 +985,7 @@ class OpenCLUpdates:
             knl_electric_name = getattr(knl_pml_updates_electric, knl_name)
             knl_magnetic_name = getattr(knl_pml_updates_magnetic, knl_name)
 
-            pml.update_electric_dev = self.elwise(
+            pml.update_electric_dev = self.elwiseknl(
                 self.ctx,
                 knl_electric_name["args_opencl"].substitute({"REAL": config.sim_config.dtypes["C_float_or_double"]}),
                 knl_electric_name["func"].substitute(subs),
@@ -991,7 +994,7 @@ class OpenCLUpdates:
                 options=config.sim_config.devices["compiler_opts"],
             )
 
-            pml.update_magnetic_dev = self.elwise(
+            pml.update_magnetic_dev = self.elwiseknl(
                 self.ctx,
                 knl_magnetic_name["args_opencl"].substitute({"REAL": config.sim_config.dtypes["C_float_or_double"]}),
                 knl_magnetic_name["func"].substitute(subs),
@@ -1005,7 +1008,7 @@ class OpenCLUpdates:
         gets kernel function.
         """
         self.rxcoords_dev, self.rxs_dev = htod_rx_arrays(self.grid, self.queue)
-        self.store_outputs_dev = self.elwise(
+        self.store_outputs_dev = self.elwiseknl(
             self.ctx,
             knl_store_outputs.store_outputs["args_opencl"].substitute(
                 {"REAL": config.sim_config.dtypes["C_float_or_double"]}
@@ -1024,7 +1027,7 @@ class OpenCLUpdates:
             self.srcinfo1_hertzian_dev, self.srcinfo2_hertzian_dev, self.srcwaves_hertzian_dev = htod_src_arrays(
                 self.grid.hertziandipoles, self.grid, self.queue
             )
-            self.update_hertzian_dipole_dev = self.elwise(
+            self.update_hertzian_dipole_dev = self.elwiseknl(
                 self.ctx,
                 knl_source_updates.update_hertzian_dipole["args_opencl"].substitute(
                     {"REAL": config.sim_config.dtypes["C_float_or_double"]}
@@ -1040,7 +1043,7 @@ class OpenCLUpdates:
             self.srcinfo1_magnetic_dev, self.srcinfo2_magnetic_dev, self.srcwaves_magnetic_dev = htod_src_arrays(
                 self.grid.magneticdipoles, self.grid, self.queue
             )
-            self.update_magnetic_dipole_dev = self.elwise(
+            self.update_magnetic_dipole_dev = self.elwiseknl(
                 self.ctx,
                 knl_source_updates.update_magnetic_dipole["args_opencl"].substitute(
                     {"REAL": config.sim_config.dtypes["C_float_or_double"]}
@@ -1056,7 +1059,7 @@ class OpenCLUpdates:
             self.srcinfo1_voltage_dev, self.srcinfo2_voltage_dev, self.srcwaves_voltage_dev = htod_src_arrays(
                 self.grid.voltagesources, self.grid, self.queue
             )
-            self.update_voltage_source_dev = self.elwise(
+            self.update_voltage_source_dev = self.elwiseknl(
                 self.ctx,
                 knl_source_updates.update_voltage_source["args_opencl"].substitute(
                     {"REAL": config.sim_config.dtypes["C_float_or_double"]}
@@ -1081,7 +1084,7 @@ class OpenCLUpdates:
             self.snapHy_dev,
             self.snapHz_dev,
         ) = htod_snapshot_array(self.grid, self.queue)
-        self.store_snapshot_dev = self.elwise(
+        self.store_snapshot_dev = self.elwiseknl(
             self.ctx,
             knl_snapshots.store_snapshot["args_opencl"].substitute(
                 {"REAL": config.sim_config.dtypes["C_float_or_double"]}
@@ -1097,7 +1100,7 @@ class OpenCLUpdates:
     def store_outputs(self):
         """Stores field component values for every receiver."""
         if self.grid.rxs:
-            event = self.store_outputs_dev(
+            self.store_outputs_dev(
                 np.int32(len(self.grid.rxs)),
                 np.int32(self.grid.iteration),
                 self.rxcoords_dev,
@@ -1109,7 +1112,6 @@ class OpenCLUpdates:
                 self.grid.Hy_dev,
                 self.grid.Hz_dev,
             )
-            event.wait()
 
     def store_snapshots(self, iteration):
         """Stores any snapshots.
@@ -1121,7 +1123,7 @@ class OpenCLUpdates:
         for i, snap in enumerate(self.grid.snapshots):
             if snap.time == iteration + 1:
                 snapno = 0 if config.get_model_config().device["snapsgpu2cpu"] else i
-                event = self.store_snapshot_dev(
+                self.store_snapshot_dev(
                     np.int32(snapno),
                     np.int32(snap.xs),
                     np.int32(snap.xf),
@@ -1145,7 +1147,7 @@ class OpenCLUpdates:
                     self.snapHy_dev,
                     self.snapHz_dev,
                 )
-                event.wait()
+
                 if config.get_model_config().device["snapsgpu2cpu"]:
                     dtoh_snapshot_array(
                         self.snapEx_dev.get(),
@@ -1160,7 +1162,7 @@ class OpenCLUpdates:
 
     def update_magnetic(self):
         """Updates magnetic field components."""
-        event = self.update_magnetic_dev(
+        self.update_magnetic_dev(
             np.int32(self.grid.nx),
             np.int32(self.grid.ny),
             np.int32(self.grid.nz),
@@ -1172,7 +1174,6 @@ class OpenCLUpdates:
             self.grid.Ey_dev,
             self.grid.Ez_dev,
         )
-        event.wait()
 
     def update_magnetic_pml(self):
         """Updates magnetic field components with the PML correction."""
@@ -1182,7 +1183,7 @@ class OpenCLUpdates:
     def update_magnetic_sources(self):
         """Updates magnetic field components from sources."""
         if self.grid.magneticdipoles:
-            event = self.update_magnetic_dipole_dev(
+            self.update_magnetic_dipole_dev(
                 np.int32(len(self.grid.magneticdipoles)),
                 np.int32(self.grid.iteration),
                 config.sim_config.dtypes["float_or_double"](self.grid.dx),
@@ -1196,13 +1197,12 @@ class OpenCLUpdates:
                 self.grid.Hy_dev,
                 self.grid.Hz_dev,
             )
-            event.wait()
 
     def update_electric_a(self):
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
         if config.get_model_config().materials["maxpoles"] == 0:
-            event = self.update_electric_dev(
+            self.update_electric_dev(
                 np.int32(self.grid.nx),
                 np.int32(self.grid.ny),
                 np.int32(self.grid.nz),
@@ -1218,15 +1218,11 @@ class OpenCLUpdates:
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).
         else:
-            event = self.dispersive_update_a(
+            self.dispersive_update_a(
                 np.int32(self.grid.nx),
                 np.int32(self.grid.ny),
                 np.int32(self.grid.nz),
                 np.int32(config.get_model_config().materials["maxpoles"]),
-                self.grid.updatecoeffsdispersive_dev,
-                self.grid.Tx_dev,
-                self.grid.Ty_dev,
-                self.grid.Tz_dev,
                 self.grid.ID_dev,
                 self.grid.Ex_dev,
                 self.grid.Ey_dev,
@@ -1234,10 +1230,12 @@ class OpenCLUpdates:
                 self.grid.Hx_dev,
                 self.grid.Hy_dev,
                 self.grid.Hz_dev,
+                self.grid.updatecoeffsdispersive_dev,
+                self.grid.Tx_dev,
+                self.grid.Ty_dev,
+                self.grid.Tz_dev,
             )
-
-        event.wait()
-
+        
     def update_electric_pml(self):
         """Updates electric field components with the PML correction."""
         for pml in self.grid.pmls["slabs"]:
@@ -1248,7 +1246,7 @@ class OpenCLUpdates:
         update any Hertzian dipole sources last.
         """
         if self.grid.voltagesources:
-            event = self.update_voltage_source_dev(
+            self.update_voltage_source_dev(
                 np.int32(len(self.grid.voltagesources)),
                 np.int32(self.grid.iteration),
                 config.sim_config.dtypes["float_or_double"](self.grid.dx),
@@ -1262,10 +1260,9 @@ class OpenCLUpdates:
                 self.grid.Ey_dev,
                 self.grid.Ez_dev,
             )
-            event.wait()
 
         if self.grid.hertziandipoles:
-            event = self.update_hertzian_dipole_dev(
+            self.update_hertzian_dipole_dev(
                 np.int32(len(self.grid.hertziandipoles)),
                 np.int32(self.grid.iteration),
                 config.sim_config.dtypes["float_or_double"](self.grid.dx),
@@ -1279,7 +1276,6 @@ class OpenCLUpdates:
                 self.grid.Ey_dev,
                 self.grid.Ez_dev,
             )
-            event.wait()
 
         self.grid.iteration += 1
 
@@ -1291,21 +1287,20 @@ class OpenCLUpdates:
         source updates.
         """
         if config.get_model_config().materials["maxpoles"] > 0:
-            event = self.dispersive_update_b(
+            self.dispersive_update_b(
                 np.int32(self.grid.nx),
                 np.int32(self.grid.ny),
                 np.int32(self.grid.nz),
                 np.int32(config.get_model_config().materials["maxpoles"]),
-                self.grid.updatecoeffsdispersive_dev,
-                self.grid.Tx_dev,
-                self.grid.Ty_dev,
-                self.grid.Tz_dev,
                 self.grid.ID_dev,
                 self.grid.Ex_dev,
                 self.grid.Ey_dev,
                 self.grid.Ez_dev,
+                self.grid.updatecoeffsdispersive_dev,
+                self.grid.Tx_dev,
+                self.grid.Ty_dev,
+                self.grid.Tz_dev,
             )
-            event.wait()
 
     def time_start(self):
         """Starts event timers used to calculate solving time for model."""
