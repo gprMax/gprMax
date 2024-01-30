@@ -143,7 +143,7 @@ def mpl_plot(filename, outputs=Rx.defaultoutputs, fft=False, save=False):
 
                     # Plot frequency spectra
                     markerline, stemlines, baseline = ax2.stem(
-                        freqs[pltrange], power[pltrange], "-.", use_line_collection=True
+                        freqs[pltrange], power[pltrange], "-."
                     )
                     plt.setp(baseline, "linewidth", 0)
                     plt.setp(stemlines, "color", "r")
