@@ -40,17 +40,17 @@ EXIT
 Tags = IntEnum("Tags", "READY START DONE EXIT")
 
 
-class MPIExecutor(object):
-    """A generic parallel executor based on MPI.
+class TaskfarmExecutor(object):
+    """A generic parallel executor (taskfarm) based on MPI.
     This executor can be used to run generic jobs on multiple
     processes based on a master/worker pattern with MPI being used for
     communication between the master and the workers.
     Examples
     --------
-    A basic example of how to use the `MPIExecutor` to run
+    A basic example of how to use the `TaskfarmExecutor` to run
     `gprMax` models in parallel is given below.
     >>> from mpi4py import MPI
-    >>> from gprMax.mpi import MPIExecutor
+    >>> from gprMax.taskfarm import TaskfarmExecutor
     >>> from gprMax.model_build_run import run_model
     >>> # choose an MPI.Intracomm for communication (MPI.COMM_WORLD by default)
     >>> comm = MPI.COMM_WORLD
@@ -68,7 +68,7 @@ class MPIExecutor(object):
     >>>        'modelend': n_traces,
     >>>        'numbermodelruns': n_traces
     >>>    })
-    >>> gpr = MPIExecutor(func, comm=comm)
+    >>> gpr = TaskfarmExecutor(func, comm=comm)
     >>> # send the workers to their work loop
     >>> gpr.start()
     >>> if gpr.is_master():
@@ -78,10 +78,10 @@ class MPIExecutor(object):
     >>> # and join the main loop again
     >>> gpr.join()
     A slightly more concise way is to use the context manager
-    interface of `MPIExecutor` that automatically takes care
+    interface of `TaskfarmExecutor` that automatically takes care
     of calling `start()` and `join()` at the beginning and end
     of the execution, respectively.
-    >>> with MPIExecutor(func, comm=comm) as executor:
+    >>> with TaskfarmExecutor(func, comm=comm) as executor:
     >>>    # executor will be None on all ranks except for the master
     >>>    if executor is not None:
     >>>        results = executor.submit(jobs)
@@ -89,7 +89,7 @@ class MPIExecutor(object):
     Limitations
     -----------
     Because some popular MPI implementations (especially on HPC machines) do not
-    support concurrent MPI calls from multiple threads yet, the `MPIExecutor` does
+    support concurrent MPI calls from multiple threads yet, the `TaskfarmExecutor` does
     not use a separate thread in the master to do the communication between the
     master and the workers. Hence, the lowest thread level of MPI_THREAD_SINGLE
     (no multi-threading) is enough.
@@ -143,7 +143,7 @@ class MPIExecutor(object):
         self.rank = self.comm.rank
         self.size = self.comm.size
         if self.size < 2:
-            raise RuntimeError("MPIExecutor must run with at least 2 processes")
+            raise RuntimeError("TaskfarmExecutor must run with at least 2 processes")
 
         self._up = False
 
@@ -214,7 +214,7 @@ class MPIExecutor(object):
                 raise RuntimeError("Start has already been called")
             self._up = True
 
-        logger.debug(f"({self.comm.name}) - Starting up MPIExecutor master/workers...")
+        logger.debug(f"({self.comm.name}) - Starting up TaskfarmExecutor master/workers...")
         if self.is_worker():
             self.__wait()
 

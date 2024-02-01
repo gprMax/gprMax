@@ -20,7 +20,7 @@ import argparse
 
 import gprMax.config as config
 
-from .contexts import Context, MPIContext
+from .contexts import Context, TaskfarmContext
 from .utilities.logging import logging_config
 
 # Arguments (used for API) and their default values (used for API and CLI)
@@ -212,7 +212,7 @@ def run_main(args):
 
     # MPI running with (OpenMP/CUDA/OpenCL)
     if config.sim_config.args.mpi:
-        context = MPIContext()
+        context = TaskfarmContext()
     # Standard running (OpenMP/CUDA/OpenCL)
     else:
         context = Context()

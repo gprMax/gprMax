@@ -113,7 +113,7 @@ class Context:
         logger.basic(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")
 
 
-class MPIContext(Context):
+class TaskfarmContext(Context):
     """Mixed mode MPI/OpenMP/CUDA context - MPI task farm is used to distribute
     models, and each model parallelised using either OpenMP (CPU),
     CUDA (GPU), or OpenCL (CPU/GPU).
@@ -123,11 +123,11 @@ class MPIContext(Context):
         super().__init__()
         from mpi4py import MPI
 
-        from gprMax.mpi import MPIExecutor
+        from gprMax.taskfarm import TaskfarmExecutor
 
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.rank
-        self.MPIExecutor = MPIExecutor
+        self.TaskfarmExecutor = TaskfarmExecutor
 
     def _run_model(self, **work):
         """Process for running a single model.
@@ -184,8 +184,8 @@ class MPIContext(Context):
 
             sys.stdout.flush()
 
-        # Contruct MPIExecutor
-        executor = self.MPIExecutor(self._run_model, comm=self.comm)
+        # Contruct TaskfarmExecutor
+        executor = self.TaskfarmExecutor(self._run_model, comm=self.comm)
 
         # Check GPU resources versus number of MPI tasks
         if (
