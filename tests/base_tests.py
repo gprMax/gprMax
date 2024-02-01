@@ -76,7 +76,9 @@ class GprMaxBaseTest(rfm.RunOnlyRegressionTest):
     def test_simulation_complete(self):
         """Check simulation completed successfully"""
         # TODO: Check for correctness/regression rather than just completing
-        return sn.assert_found(r"=== Simulation completed in ", self.stdout)
+        return sn.assert_not_found(
+            r"(?i)error", self.stderr, f"An error occured. See '{path_join(self.stagedir, self.stderr)}' for details."
+        ) and sn.assert_found(r"=== Simulation completed in ", self.stdout, "Simulation did not complete")
 
     @performance_function("s", perf_key="run_time")
     def extract_run_time(self):
@@ -146,13 +148,17 @@ class GprMaxRegressionTest(GprMaxBaseTest):
         """
         if sn.path_exists(self.reference_file):
             h5diff_output = sn.extractsingle(f"{self.h5diff_header}\n(?P<h5diff>[\S\s]*)", self.stdout, "h5diff")
-            return sn.assert_found(self.h5diff_header, self.stdout, "Failed to find h5diff header") and sn.assert_false(
-                h5diff_output,
-                (
-                    f"Found h5diff output (see '{path_join(self.stagedir, self.stdout)}')\n"
-                    f"For more details run: 'h5diff {os.path.abspath(self.output_file)} {self.reference_file}'\n"
-                    f"To re-create regression file, delete '{self.reference_file}' and rerun the test."
-                ),
+            return (
+                self.test_simulation_complete()
+                and sn.assert_found(self.h5diff_header, self.stdout, "Failed to find h5diff header")
+                and sn.assert_false(
+                    h5diff_output,
+                    (
+                        f"Found h5diff output (see '{path_join(self.stagedir, self.stdout)}')\n"
+                        f"For more details run: 'h5diff {os.path.abspath(self.output_file)} {self.reference_file}'\n"
+                        f"To re-create regression file, delete '{self.reference_file}' and rerun the test."
+                    ),
+                )
             )
         else:
             copyfile(self.output_file, self.reference_file)
