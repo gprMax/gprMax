@@ -51,7 +51,7 @@ model_num = 0
 
 def get_model_config():
     """Return ModelConfig instace for specific model."""
-    if sim_config.args.mpi:
+    if sim_config.args.taskfarm:
         return model_configs
     else:
         return model_configs[model_num]
@@ -205,8 +205,8 @@ class SimulationConfig:
 
         self.args = args
 
-        if self.args.mpi and self.args.geometry_fixed:
-            logger.exception("The geometry fixed option cannot be used with MPI.")
+        if self.args.taskfarm and self.args.geometry_fixed:
+            logger.exception("The geometry fixed option cannot be used with MPI taskfarm.")
             raise ValueError
 
         if self.args.gpu and self.args.opencl:

@@ -28,7 +28,7 @@ class TaskfarmTest(GprMaxRegressionTest):
     def set_filenames(self):
         self.input_file = f"{self.model}.in"
         self.output_file = f"{self.model}_merged.h5"
-        self.executable_opts = [self.input_file, "-n", "64", "-mpi"]
+        self.executable_opts = [self.input_file, "-n", "64", "-taskfarm"]
         self.postrun_cmds = [
             f"python -m toolboxes.Utilities.outputfiles_merge {self.model}",
             f"python -m toolboxes.Plotting.plot_Bscan -save {self.output_file} Ez",

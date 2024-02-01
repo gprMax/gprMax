@@ -30,7 +30,7 @@ args_defaults = {
     "outputfile": None,
     "n": 1,
     "i": None,
-    "mpi": False,
+    "taskfarm": False,
     "gpu": None,
     "opencl": None,
     "subgrid": False,
@@ -54,7 +54,7 @@ help_msg = {
     "typically be used to restart a series of models from a specific "
     "model number, with the n argument, e.g. to restart from A-scan 45 "
     "when creating a B-scan with 60 traces.",
-    "mpi": "(bool, opt): Flag to use Message Passing Interface (MPI) task farm. "
+    "taskfarm": "(bool, opt): Flag to use Message Passing Interface (MPI) task farm. "
     "This option is most usefully combined with n to allow individual "
     "models to be farmed out using a MPI task farm, e.g. to create a "
     "B-scan with 60 traces and use MPI to farm out each trace. For "
@@ -83,7 +83,7 @@ def run(
     outputfile=args_defaults["outputfile"],
     n=args_defaults["n"],
     i=args_defaults["i"],
-    mpi=args_defaults["mpi"],
+    taskfarm=args_defaults["taskfarm"],
     gpu=args_defaults["gpu"],
     opencl=args_defaults["opencl"],
     subgrid=args_defaults["subgrid"],
@@ -109,7 +109,7 @@ def run(
             It would typically be used to restart a series of models from a
             specific model number, with the n argument, e.g. to restart from
             A-scan 45 when creating a B-scan with 60 traces.
-        mpi: optional boolean flag to use Message Passing Interface (MPI) task
+        taskfarm: optional boolean flag to use Message Passing Interface (MPI) task
                 farm. This option is most usefully combined with n to allow
                 individual models to be farmed out using a MPI task farm,
                 e.g. to create a B-scan with 60 traces and use MPI to farm out
@@ -143,7 +143,7 @@ def run(
             "outputfile": outputfile,
             "n": n,
             "i": i,
-            "mpi": mpi,
+            "taskfarm": taskfarm,
             "gpu": gpu,
             "opencl": opencl,
             "subgrid": subgrid,
@@ -168,7 +168,7 @@ def cli():
     parser.add_argument("-outputfile", "-o", help=help_msg["outputfile"])
     parser.add_argument("-n", default=args_defaults["n"], type=int, help=help_msg["n"])
     parser.add_argument("-i", type=int, help=help_msg["i"])
-    parser.add_argument("-mpi", action="store_true", default=args_defaults["mpi"], help=help_msg["mpi"])
+    parser.add_argument("-taskfarm", action="store_true", default=args_defaults["taskfarm"], help=help_msg["taskfarm"])
     parser.add_argument("-gpu", type=int, action="append", nargs="*", help=help_msg["gpu"])
     parser.add_argument("-opencl", type=int, action="append", nargs="*", help=help_msg["opencl"])
     parser.add_argument(
@@ -210,8 +210,8 @@ def run_main(args):
     logging_config(level=args.log_level, log_file=args.log_file)
     config.sim_config = config.SimulationConfig(args)
 
-    # MPI running with (OpenMP/CUDA/OpenCL)
-    if config.sim_config.args.mpi:
+    # MPI taskfarm running with (OpenMP/CUDA/OpenCL)
+    if config.sim_config.args.taskfarm:
         context = TaskfarmContext()
     # Standard running (OpenMP/CUDA/OpenCL)
     else:
