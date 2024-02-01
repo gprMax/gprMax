@@ -1,4 +1,10 @@
 site_configuration = {
+    "general": [
+        {
+            # Necessary if using the --restore-session flag
+            "keep_stage_files": True
+        }
+    ],
     "systems": [
         {
             "name": "archer2",

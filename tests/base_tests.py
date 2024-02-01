@@ -1,13 +1,16 @@
 """ReFrame base classes for GprMax tests"""
 import os
-import pathlib
+from pathlib import Path
+from shutil import copyfile
 
 import reframe as rfm
 import reframe.utility.sanity as sn
-from reframe.core.builtins import performance_function, require_deps, run_after, sanity_function
+from reframe.core.builtins import performance_function, require_deps, run_after, run_before, sanity_function, variable
 from reframe.utility import udeps
 
-GPRMAX_ROOT_DIR = pathlib.Path(__file__).parent.parent.resolve()
+from tests.utilities.deferrable import path_join
+
+GPRMAX_ROOT_DIR = Path(__file__).parent.parent.resolve()
 PATH_TO_PYENV = os.path.join(".venv", "bin", "activate")
 
 
@@ -38,13 +41,10 @@ class CreatePyenvTest(rfm.RunOnlyRegressionTest):
         )
 
 
-class GprmaxBaseTest(rfm.RunOnlyRegressionTest):
+class GprMaxBaseTest(rfm.RunOnlyRegressionTest):
     valid_systems = ["archer2:compute"]
     valid_prog_environs = ["PrgEnv-cray"]
     executable = "time -p python -m gprMax --log-level 25"
-    postrun_cmds = [
-        "sacct --format=JobID,State,Submit,Start,End,Elapsed,NodeList,ReqMem,MaxRSS,MaxVMSize --units=M -j $SLURM_JOBID"
-    ]
     exclusive_access = True
 
     @run_after("init")
@@ -52,10 +52,15 @@ class GprmaxBaseTest(rfm.RunOnlyRegressionTest):
         """Set OMP_NUM_THREADS environment variable from num_cpus_per_task"""
         self.env_vars["OMP_NUM_THREADS"] = self.num_cpus_per_task
 
-        # Avoid inheriting slurm memory environment variables from any previous slurm job (i.e. the reframe job)
-        self.prerun_cmds.append("unset SLURM_MEM_PER_NODE")
-        self.prerun_cmds.append("unset SLURM_MEM_PER_CPU")
+        if self.current_system.name == "archer2":
+            # Avoid inheriting slurm memory environment variables from any previous slurm job (i.e. the reframe job)
+            self.prerun_cmds.append("unset SLURM_MEM_PER_NODE")
+            self.prerun_cmds.append("unset SLURM_MEM_PER_CPU")
 
+            # Set HOME environment variable to the work filesystem
+            self.env_vars["HOME"] = "${HOME/home/work}"
+
+    # TODO: Change CreatePyenvTest to a fixture instead of a test dependency
     @run_after("init")
     def inject_dependencies(self):
         """Test depends on the Python virtual environment building correctly"""
@@ -75,8 +80,8 @@ class GprmaxBaseTest(rfm.RunOnlyRegressionTest):
 
     @performance_function("s", perf_key="run_time")
     def extract_run_time(self):
-        """Extract total runtime"""
-        return sn.extractsingle(r"real\s+(?P<run_time>\S+)", self.stderr, "run_time", float)
+        """Extract total runtime from the last task to complete"""
+        return sn.extractsingle(r"real\s+(?P<run_time>\S+)", self.stderr, "run_time", float, self.num_tasks - 1)
 
     @performance_function("s", perf_key="simulation_time")
     def extract_simulation_time(self):
@@ -114,3 +119,45 @@ class GprmaxBaseTest(rfm.RunOnlyRegressionTest):
                 r"=== Simulation completed in (?P<seconds>\S+) seconds? =*", self.stdout, "seconds", float
             )
         return hours * 3600 + minutes * 60 + seconds
+
+
+class GprMaxRegressionTest(GprMaxBaseTest):
+    modules = ["cray-hdf5"]
+
+    input_file = variable(str)
+    output_file = variable(str)
+
+    h5diff_header = f"{'=' * 10} h5diff output {'=' * 10}"
+
+    @run_before("run", always_last=True)
+    def setup_regression_check(self):
+        """Build reference file path and add h5diff command to run after the test"""
+        self.reference_file = Path("regression_checks", self.unique_name).with_suffix(".h5")
+        self.reference_file = os.path.abspath(self.reference_file)
+        if os.path.exists(self.reference_file):
+            self.postrun_cmds.append(f"echo {self.h5diff_header}")
+            self.postrun_cmds.append(f"h5diff {self.output_file} {self.reference_file}")
+
+    @sanity_function
+    def regression_check(self):
+        """
+        Perform regression check by checking for the h5diff output.
+        Create reference file from the test output if it does not exist.
+        """
+        if sn.path_exists(self.reference_file):
+            h5diff_output = sn.extractsingle(f"{self.h5diff_header}\n(?P<h5diff>[\S\s]*)", self.stdout, "h5diff")
+            return sn.assert_found(self.h5diff_header, self.stdout, "Failed to find h5diff header") and sn.assert_false(
+                h5diff_output,
+                (
+                    f"Found h5diff output (see '{path_join(self.stagedir, self.stdout)}')\n"
+                    f"For more details run: 'h5diff {os.path.abspath(self.output_file)} {self.reference_file}'\n"
+                    f"To re-create regression file, delete '{self.reference_file}' and rerun the test."
+                ),
+            )
+        else:
+            copyfile(self.output_file, self.reference_file)
+            return sn.assert_true(False, f"No reference file exists. Creating... '{self.reference_file}'")
+
+
+class GprMaxMpiTest(GprMaxBaseTest):
+    pass

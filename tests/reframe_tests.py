@@ -1,5 +1,5 @@
 import reframe as rfm
-from base_tests import GprmaxBaseTest
+from base_tests import GprMaxRegressionTest
 from reframe.core.builtins import parameter, run_after
 
 """ReFrame tests for basic functionality
@@ -11,17 +11,34 @@ from reframe.core.builtins import parameter, run_after
 
 
 @rfm.simple_test
-class BScanTest(GprmaxBaseTest):
+class TaskfarmTest(GprMaxRegressionTest):
     tags = {"test", "mpi", "taskfarm"}
 
-    executable_opts = "cylinder_Bscan_2D.in -n 64 -mpi".split()
-    num_tasks = 8
+    model = parameter(["cylinder_Bscan_2D"])
+
+    num_mpi_tasks = parameter([8, 16])
     num_cpus_per_task = 16
+
+    @run_after("init")
+    def setup_env_vars(self):
+        self.num_tasks = self.num_mpi_tasks
+        super().setup_env_vars()
+
+    @run_after("init")
+    def set_filenames(self):
+        self.input_file = f"{self.model}.in"
+        self.output_file = f"{self.model}_merged.h5"
+        self.executable_opts = [self.input_file, "-n", "64", "-mpi"]
+        self.postrun_cmds = [
+            f"python -m toolboxes.Utilities.outputfiles_merge {self.model}",
+            f"python -m toolboxes.Plotting.plot_Bscan -save {self.output_file} Ez",
+        ]
+        self.keep_files = [self.input_file, self.output_file, "{self.model}_merged.pdf"]
 
 
 @rfm.simple_test
-class BasicModelsTest(GprmaxBaseTest):
-    tags = {"test", "serial"}
+class BasicModelsTest(GprMaxRegressionTest):
+    tags = {"test", "serial", "regression"}
 
     # List of available basic test models
     model = parameter(
@@ -40,8 +57,8 @@ class BasicModelsTest(GprmaxBaseTest):
 
     @run_after("init")
     def set_filenames(self):
-        input_file = f"{self.model}.in"
-        output_file = f"{self.model}.h5"
-        self.executable_opts = [input_file, "-o", output_file]
-        self.postrun_cmds = [f"python -m toolboxes.Plotting.plot_Ascan -save {output_file}"]
-        self.keep_files = [input_file, output_file, f"{self.model}.pdf"]
+        self.input_file = f"{self.model}.in"
+        self.output_file = f"{self.model}.h5"
+        self.executable_opts = [self.input_file, "-o", self.output_file]
+        self.postrun_cmds = [f"python -m toolboxes.Plotting.plot_Ascan -save {self.output_file}"]
+        self.keep_files = [self.input_file, self.output_file, f"{self.model}.pdf"]

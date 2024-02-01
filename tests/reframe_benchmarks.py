@@ -1,5 +1,5 @@
 import reframe as rfm
-from base_tests import GprmaxBaseTest
+from base_tests import GprMaxBaseTest
 from reframe.core.builtins import parameter, run_after
 
 """ReFrame tests for performance benchmarking
@@ -11,7 +11,7 @@ from reframe.core.builtins import parameter, run_after
 
 
 @rfm.simple_test
-class SingleNodeBenchmark(GprmaxBaseTest):
+class SingleNodeBenchmark(GprMaxBaseTest):
     tags = {"benchmark", "single node", "openmp"}
 
     num_tasks = 1
