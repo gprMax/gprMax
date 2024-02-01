@@ -29,7 +29,7 @@ By default, gprMax will try to determine and use the maximum number of OpenMP th
 MPI
 ===
 
-By default, the MPI task farm functionality is turned off. It can be used with the ``-mpi`` command line option, which specifies the total number of MPI tasks, i.e. master + workers, for the MPI task farm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using an MPI task farm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 -mpi 61``.
+By default, the MPI task farm functionality is turned off. It can be used with the ``-taskfarm`` command line option, which specifies the total number of MPI tasks, i.e. master + workers, for the MPI task farm. This option is most usefully combined with ``-n`` to allow individual models to be farmed out using an MPI task farm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace: ``(gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 -taskfarm 61``.
 
 Software required
 -----------------
@@ -117,8 +117,8 @@ For example, to run a B-scan that contains 60 A-scans (traces) on a system with 
 
 .. code-block:: none
 
-    (gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 -mpi 5 -gpu 0 1 2 3
+    (gprMax)$ python -m gprMax examples/cylinder_Bscan_2D.in -n 60 -taskfarm 5 -gpu 0 1 2 3
 
 .. note::
 
-    The argument given with ``-mpi`` is the number of MPI tasks, i.e. master + workers, for the MPI task farm. So in this case, 1 master (CPU) and 4 workers (GPU cards). The integers given with the ``-gpu`` argument are the NVIDIA CUDA device IDs for the specific GPU cards to be used.
+    The argument given with ``-taskfarm`` is the number of MPI tasks, i.e. master + workers, for the MPI task farm. So in this case, 1 master (CPU) and 4 workers (GPU cards). The integers given with the ``-gpu`` argument are the NVIDIA CUDA device IDs for the specific GPU cards to be used.
