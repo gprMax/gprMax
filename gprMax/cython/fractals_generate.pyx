@@ -88,7 +88,7 @@ cpdef void generate_fractal3D(
             scaled by weighting.
         A: memoryview for access to array containing random numbers
             (to be convolved with fractal function).
-        fractalsurface: memoryview for access to array containing fractal
+        fractalvolume: memoryview for access to array containing fractal
                         volume data.
     """
 

@@ -21,9 +21,6 @@ import sys
 import warnings
 from pathlib import Path
 
-# Used to suppress CompilerWarning (sub-class of UserWarning) from pyopencl
-warnings.filterwarnings("ignore", category=UserWarning)
-
 import cython
 import numpy as np
 from colorama import Fore, Style, init
@@ -252,6 +249,9 @@ class SimulationConfig:
             self.general["precision"] = "single"
             self.devices = {"devs": [], "compiler_opts": None}  # pyopencl device device(s); compiler options
 
+            # Suppress CompilerWarning (sub-class of UserWarning)
+            warnings.filterwarnings("ignore", category=UserWarning)
+            
             # Suppress unused variable warnings on gcc
             # if sys.platform != 'win32': self.devices['compiler_opts'] = ['-w']
 

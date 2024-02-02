@@ -308,7 +308,7 @@ class ModelBuildRun:
         elif config.sim_config.general["solver"] in ["cuda", "opencl"]:
             if config.sim_config.general["solver"] == "opencl":
                 solvername = "OpenCL"
-                platformname = " on " + " ".join(config.get_model_config().device["dev"].platform.name.split())
+                platformname = " ".join(config.get_model_config().device["dev"].platform.name.split()) + " with "
                 devicename = (
                     f'Device {config.get_model_config().device["deviceID"]}: '
                     f'{" ".join(config.get_model_config().device["dev"].name.split())}'
@@ -324,7 +324,7 @@ class ModelBuildRun:
             logger.basic(
                 f"\nModel {config.model_num + 1}/{config.sim_config.model_end} "
                 f"solving on {config.sim_config.hostinfo['hostname']} "
-                f"with {solvername} backend using {devicename}{platformname}"
+                f"with {solvername} backend using {platformname}{devicename}"
             )
 
         # Prepare iterator
@@ -346,12 +346,12 @@ class ModelBuildRun:
         self.write_output_data()
 
         # Print information about memory usage and solving time for a model
-        # Add a string on GPU memory usage if applicable
-        mem_str = (
-            f" host + ~{humanize.naturalsize(solver.memused)} GPU"
-            if config.sim_config.general["solver"] == "cuda"
-            else ""
-        )
+        # Add a string on device (GPU) memory usage if applicable
+        mem_str = ""
+        if config.sim_config.general["solver"] == "cuda":
+            mem_str = f" host + ~{humanize.naturalsize(solver.memused)} device"
+        elif config.sim_config.general["solver"] == "opencl":
+            mem_str = f" host + unknown for device"      
 
         logger.info(f"\nMemory used (estimated): " + f"~{humanize.naturalsize(self.p.memory_full_info().uss)}{mem_str}")
         logger.info(
