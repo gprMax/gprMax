@@ -53,9 +53,7 @@ class FractalSurface(object):
         self.ny = yf - ys
         self.nz = zf - zs
         self.seed = seed
-        self.dimension = dimension
-        # Constant related to fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
-        self.b = -(2 * self.dimension - 7) / 2
+        self.dimension = dimension # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
         self.weighting = np.array([1, 1], dtype=np.float64)
         self.fractalrange = (0, 0)
         self.filldepth = 0
@@ -90,7 +88,7 @@ class FractalSurface(object):
         A = fftpack.fftshift(A)
 
         # Generate fractal
-        generate_fractal2D(surfacedims[0], surfacedims[1], G.nthreads, self.b, self.weighting, v1, A, self.fractalsurface)
+        generate_fractal2D(surfacedims[0], surfacedims[1], G.nthreads, self.dimension, self.weighting, v1, A, self.fractalsurface)
 
         # Shift the zero frequency component to start of the array
         self.fractalsurface = fftpack.ifftshift(self.fractalsurface)
@@ -178,7 +176,7 @@ class FractalVolume(object):
         A = fftpack.fftshift(A)
 
         # Generate fractal
-        generate_fractal3D(self.nx, self.ny, self.nz, G.nthreads, self.b, self.weighting, v1, A, self.fractalvolume)
+        generate_fractal3D(self.nx, self.ny, self.nz, G.nthreads, self.dimension, self.weighting, v1, A, self.fractalvolume)
 
         # Shift the zero frequency component to the start of the array
         self.fractalvolume = fftpack.ifftshift(self.fractalvolume)
