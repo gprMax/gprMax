@@ -1,6 +1,4 @@
 import argparse
-from types import FunctionType
-from typing import Callable
 
 import numpy as np
 import pytest
