@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from gprMax import config
 from gprMax.grid import FDTDGrid
@@ -13,23 +14,33 @@ class MockModelConfig:
     ompthreads = 1
 
 
-def test_update_magnetic_cpu(monkeypatch):
+@pytest.fixture
+def config_mock(monkeypatch):
     monkeypatch.setattr(config, "sim_config", MockSimulationConfig)
     monkeypatch.setattr(config, "get_model_config", MockModelConfig)
 
-    # TODO: Move building the grid into a fixture
-    grid = FDTDGrid()
-    grid.nx = 100
-    grid.ny = 100
-    grid.nz = 100
-    grid.initialise_geometry_arrays()
-    grid.initialise_field_arrays()
-    grid.initialise_std_update_coeff_arrays()
 
-    cpu_updates = CPUUpdates(grid)
+@pytest.fixture
+def build_grid():
+    def _build_grid(nx, ny, nz):
+        grid = FDTDGrid()
+        grid.nx = nx
+        grid.ny = ny
+        grid.nz = nz
+        grid.initialise_geometry_arrays()
+        grid.initialise_field_arrays()
+        grid.initialise_std_update_coeff_arrays()
+        return grid
+
+    return _build_grid
+
+
+def test_update_magnetic_cpu(config_mock, build_grid):
+    grid = build_grid(100, 100, 100)
 
     expected_value = grid.Ex.copy()
 
+    cpu_updates = CPUUpdates(grid)
     cpu_updates.update_magnetic()
 
     assert np.equal(grid.Ex, expected_value).all()
