@@ -312,8 +312,9 @@ class PeplinskiSoil(object):
             # Effective conductivity
             sig = muiter[0]**(b2 / a) * ((sigf * (self.rs - self.rb)) / (self.rs * muiter[0]))
 
-            # Check to see if the material already exists before creating a new one
-            materialID = '|{:.4f}_{}|'.format(float(muiter[0]), fractalboxname)
+            # Add enough zeroes to the material name so that they have the same length
+            digitscount =  len(str(int(nbins)))
+            materialID = '|{}_{}|'.format(fractalboxname, str(muiter.index + 1).zfill(digitscount))
             m = Material(len(G.materials), materialID)
             m.type = 'debye'
             m.averagable = False
