@@ -22,7 +22,8 @@ terminaltables
 tqdm
 wheel
 reframe-hpc
-# pytest
+pytest
+pytest-cov
 # pytest-benchmark
 # pytest-benchmark[histogram]
 # pytest-regressions
