@@ -5,7 +5,7 @@ from reframe.core.builtins import parameter, run_after
 """ReFrame tests for basic functionality
 
     Usage:
-        cd gprMax/tests
+        cd gprMax/reframe_tests
         reframe -C configuraiton/{CONFIG_FILE} -c reframe_tests.py -c base_tests.py -r
 """
 

@@ -7,8 +7,7 @@ import reframe as rfm
 import reframe.utility.sanity as sn
 from reframe.core.builtins import performance_function, require_deps, run_after, run_before, sanity_function, variable
 from reframe.utility import udeps
-
-from tests.utilities.deferrable import path_join
+from utilities.deferrable import path_join
 
 GPRMAX_ROOT_DIR = Path(__file__).parent.parent.resolve()
 PATH_TO_PYENV = os.path.join(".venv", "bin", "activate")

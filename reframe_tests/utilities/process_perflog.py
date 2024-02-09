@@ -3,7 +3,6 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import pandas as pd
 
 
@@ -21,7 +20,7 @@ columns_to_keep = ["num_tasks", "num_cpus_per_task", "num_tasks_per_node", "run_
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(
-        usage="cd gprMax/tests; python -m utilities.process_perflog inputfile [-o OUTPUT]",
+        usage="cd gprMax/reframe_tests; python -m utilities.process_perflog inputfile [-o OUTPUT]",
         description="Extract perfvars from reframe perflog file.",
     )
     parser.add_argument("inputfile", help="name of input file including path")
