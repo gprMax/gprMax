@@ -8,7 +8,7 @@ from gprMax.grid import FDTDGrid
 from gprMax.materials import create_built_in_materials
 from gprMax.model_build_run import GridBuilder
 from gprMax.pml import CFS
-from gprMax.updates import CPUUpdates
+from gprMax.updates.updates import CPUUpdates
 
 
 def build_grid(nx, ny, nz, dl=0.001, dt=3e-9):
@@ -94,7 +94,7 @@ def test_update_magnetic_pml_cpu(config_mock):
         assert np.equal(pml.EPhi2, 0).all()
 
 
-def test_update_magnetic_pml_cpu(config_mock, build_grid):
+def test_update_electric_pml_cpu(config_mock):
     grid = build_grid(100, 100, 100)
 
     grid_expected_value = np.zeros((101, 101, 101))

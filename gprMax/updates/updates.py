@@ -25,14 +25,14 @@ from jinja2 import Environment, PackageLoader
 
 import gprMax.config as config
 
-from .cuda_opencl import knl_fields_updates, knl_snapshots, knl_source_updates, knl_store_outputs
-from .cython.fields_updates_normal import update_electric as update_electric_cpu
-from .cython.fields_updates_normal import update_magnetic as update_magnetic_cpu
-from .fields_outputs import store_outputs as store_outputs_cpu
-from .receivers import dtoh_rx_array, htod_rx_arrays
-from .snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
-from .sources import htod_src_arrays
-from .utilities.utilities import round32, timer
+from ..cuda_opencl import knl_fields_updates, knl_snapshots, knl_source_updates, knl_store_outputs
+from ..cython.fields_updates_normal import update_electric as update_electric_cpu
+from ..cython.fields_updates_normal import update_magnetic as update_magnetic_cpu
+from ..fields_outputs import store_outputs as store_outputs_cpu
+from ..receivers import dtoh_rx_array, htod_rx_arrays
+from ..snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
+from ..sources import htod_src_arrays
+from ..utilities.utilities import round32, timer
 
 logger = logging.getLogger(__name__)
 
@@ -869,7 +869,7 @@ class OpenCLUpdates:
 
     def _set_field_knls(self):
         """Electric and magnetic field updates - prepares kernels, and
-            gets kernel functions.
+        gets kernel functions.
         """
 
         subs = {
@@ -881,7 +881,7 @@ class OpenCLUpdates:
             "NY_ID": self.grid.ID.shape[2],
             "NZ_ID": self.grid.ID.shape[3],
         }
-        
+
         self.update_electric_dev = self.elwiseknl(
             self.ctx,
             knl_fields_updates.update_electric["args_opencl"].substitute(
@@ -921,7 +921,7 @@ class OpenCLUpdates:
                 "NY_T": self.grid.Tx.shape[2],
                 "NZ_T": self.grid.Tx.shape[3],
             }
-            
+
             self.dispersive_update_a = self.elwiseknl(
                 self.ctx,
                 knl_fields_updates.update_electric_dispersive_A["args_opencl"].substitute(
@@ -935,7 +935,7 @@ class OpenCLUpdates:
                 preamble=self.knl_common,
                 options=config.sim_config.devices["compiler_opts"],
             )
-            
+
             self.dispersive_update_b = self.elwiseknl(
                 self.ctx,
                 knl_fields_updates.update_electric_dispersive_B["args_opencl"].substitute(
@@ -1235,7 +1235,7 @@ class OpenCLUpdates:
                 self.grid.Ty_dev,
                 self.grid.Tz_dev,
             )
-        
+
     def update_electric_pml(self):
         """Updates electric field components with the PML correction."""
         for pml in self.grid.pmls["slabs"]:
@@ -1308,7 +1308,7 @@ class OpenCLUpdates:
         self.event_marker1.wait()
 
     def calculate_memory_used(self, iteration):
-        """Calculates memory used on last iteration. 
+        """Calculates memory used on last iteration.
 
         Args:
             iteration: int for iteration number.

@@ -20,7 +20,7 @@ import gprMax.config as config
 
 from .grid import CUDAGrid, FDTDGrid, OpenCLGrid
 from .subgrids.updates import create_updates as create_subgrid_updates
-from .updates import CPUUpdates, CUDAUpdates, OpenCLUpdates
+from .updates.updates import CPUUpdates, CUDAUpdates, OpenCLUpdates
 
 
 def create_G():
