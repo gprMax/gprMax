@@ -104,6 +104,14 @@ def test_update_electric_b_non_dispersive(config_mock):
     assert np.equal(grid.Hz, expected_value).all()
 
 
+def test_update_electric_a_dispersive(config_mock):
+    assert False
+
+
+def test_update_electric_b_dispersive(config_mock):
+    assert False
+
+
 def test_update_magnetic_pml(config_mock):
     grid = build_grid(100, 100, 100)
 
@@ -146,3 +154,19 @@ def test_update_electric_pml(config_mock):
         assert np.equal(pml.HPhi2, 0).all()
         assert np.equal(pml.EPhi1, 0).all()
         assert np.equal(pml.EPhi2, 0).all()
+
+
+def test_update_magnetic_sources(config_mock):
+    assert False
+
+
+def test_update_electric_sources(config_mock):
+    assert False
+
+
+def test_dispersive_update_a(config_mock):
+    assert False
+
+
+def test_dispersive_update_b(config_mock):
+    assert False
