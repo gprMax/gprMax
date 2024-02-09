@@ -18,7 +18,7 @@
 
 import logging
 
-from ..updates.updates import CPUUpdates
+from ..updates.cpu_updates import CPUUpdates
 from .precursor_nodes import PrecursorNodes, PrecursorNodesFiltered
 from .subgrid_hsg import SubGridHSG
 
