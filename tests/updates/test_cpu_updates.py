@@ -72,6 +72,38 @@ def test_update_magnetic(config_mock):
         assert np.equal(pml.EPhi2, 0).all()
 
 
+def test_update_electric_a_non_dispersive(config_mock):
+    grid = build_grid(100, 100, 100)
+
+    expected_value = np.zeros((101, 101, 101))
+
+    cpu_updates = CPUUpdates(grid)
+    cpu_updates.update_electric_a()
+
+    assert np.equal(grid.Ex, expected_value).all()
+    assert np.equal(grid.Ey, expected_value).all()
+    assert np.equal(grid.Ez, expected_value).all()
+    assert np.equal(grid.Hx, expected_value).all()
+    assert np.equal(grid.Hy, expected_value).all()
+    assert np.equal(grid.Hz, expected_value).all()
+
+
+def test_update_electric_b_non_dispersive(config_mock):
+    grid = build_grid(100, 100, 100)
+
+    expected_value = np.zeros((101, 101, 101))
+
+    cpu_updates = CPUUpdates(grid)
+    cpu_updates.update_electric_b()
+
+    assert np.equal(grid.Ex, expected_value).all()
+    assert np.equal(grid.Ey, expected_value).all()
+    assert np.equal(grid.Ez, expected_value).all()
+    assert np.equal(grid.Hx, expected_value).all()
+    assert np.equal(grid.Hy, expected_value).all()
+    assert np.equal(grid.Hz, expected_value).all()
+
+
 def test_update_magnetic_pml(config_mock):
     grid = build_grid(100, 100, 100)
 
