@@ -1,11 +1,10 @@
 from importlib import import_module
 
 from gprMax import config
-
-from ..cython.fields_updates_normal import update_electric as update_electric_cpu
-from ..cython.fields_updates_normal import update_magnetic as update_magnetic_cpu
-from ..fields_outputs import store_outputs as store_outputs_cpu
-from ..utilities.utilities import timer
+from gprMax.cython.fields_updates_normal import update_electric as update_electric_cpu
+from gprMax.cython.fields_updates_normal import update_magnetic as update_magnetic_cpu
+from gprMax.fields_outputs import store_outputs as store_outputs_cpu
+from gprMax.utilities.utilities import timer
 
 
 class CPUUpdates:
