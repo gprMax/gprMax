@@ -76,7 +76,6 @@ def test_update_magnetic_zero_grid(config_mock):
 def test_update_magnetic(config_mock):
     grid = build_grid(11, 11, 11)
 
-    # Why does fields_updates_normal use i+1, j+1 and k+1 everywhere?
     grid.updatecoeffsH[1] = 1
 
     grid.Ex = np.tile(np.array([[[1, 2], [2, 1]], [[2, 1], [1, 2]]], dtype=np.float32), (6, 6, 6))
@@ -96,6 +95,7 @@ def test_update_magnetic(config_mock):
     expected_Hy[:-1, 1:, :-1] = np.tile(np.array([[[3]]], dtype=np.float32), (11, 11, 11))
     expected_Hz[:-1, :-1, 1:] = np.tile(np.array([[[4]]], dtype=np.float32), (11, 11, 11))
 
+    # Why does fields_updates_normal use i+1, j+1 and k+1 everywhere?
     cpu_updates = CPUUpdates(grid)
     cpu_updates.update_magnetic()
 
@@ -107,7 +107,7 @@ def test_update_magnetic(config_mock):
     assert np.equal(grid.Hz, expected_Hz).all()
 
 
-def test_update_electric_a_non_dispersive(config_mock):
+def test_update_electric_a_non_dispersive_zero_grid(config_mock):
     grid = build_grid(100, 100, 100)
 
     expected_value = np.zeros((101, 101, 101))
@@ -121,6 +121,43 @@ def test_update_electric_a_non_dispersive(config_mock):
     assert np.equal(grid.Hx, expected_value).all()
     assert np.equal(grid.Hy, expected_value).all()
     assert np.equal(grid.Hz, expected_value).all()
+
+
+def test_update_electric_a_non_dispersive(config_mock):
+    grid = build_grid(11, 11, 11)
+
+    print(grid.updatecoeffsE)
+    print(grid.updatecoeffsE[1])
+    grid.updatecoeffsE[1] = 1
+    print(grid.updatecoeffsE[1])
+
+    grid.Ex = np.tile(np.array([[[3, 1], [1, 3]], [[1, 3], [3, 1]]], dtype=np.float32), (6, 6, 6))
+    grid.Ey = np.tile(np.array([[[1, 5], [5, 1]], [[5, 1], [1, 5]]], dtype=np.float32), (6, 6, 6))
+    grid.Ez = np.tile(np.array([[[5, 3], [3, 5]], [[3, 5], [5, 3]]], dtype=np.float32), (6, 6, 6))
+    grid.Hx = np.tile(np.array([[[1, 2], [2, 1]], [[2, 1], [1, 2]]], dtype=np.float32), (6, 6, 6))
+    grid.Hy = np.tile(np.array([[[1, 3], [3, 1]], [[3, 1], [1, 3]]], dtype=np.float32), (6, 6, 6))
+    grid.Hz = np.tile(np.array([[[1, 4], [4, 1]], [[4, 1], [1, 4]]], dtype=np.float32), (6, 6, 6))
+
+    expected_Ex = grid.Ex.copy()
+    expected_Ey = grid.Ey.copy()
+    expected_Ez = grid.Ez.copy()
+    expected_Hx = grid.Hx.copy()
+    expected_Hy = grid.Hy.copy()
+    expected_Hz = grid.Hz.copy()
+    # Why is there not a full (11x11x11) section of the frid being updated?
+    expected_Ex[:-1, 1:-1, 1:-1] = np.tile(np.array([[[2]]], dtype=np.float32), (11, 10, 10))
+    expected_Ey[1:-1, :-1, 1:-1] = np.tile(np.array([[[3]]], dtype=np.float32), (10, 11, 10))
+    expected_Ez[1:-1, 1:-1, :-1] = np.tile(np.array([[[4]]], dtype=np.float32), (10, 10, 11))
+
+    cpu_updates = CPUUpdates(grid)
+    cpu_updates.update_electric_a()
+
+    assert np.equal(grid.Ex, expected_Ex).all()
+    assert np.equal(grid.Ey, expected_Ey).all()
+    assert np.equal(grid.Ez, expected_Ez).all()
+    assert np.equal(grid.Hx, expected_Hx).all()
+    assert np.equal(grid.Hy, expected_Hy).all()
+    assert np.equal(grid.Hz, expected_Hz).all()
 
 
 def test_update_electric_b_non_dispersive(config_mock):
