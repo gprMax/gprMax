@@ -31,6 +31,7 @@ args_defaults = {
     "n": 1,
     "i": None,
     "taskfarm": False,
+    "mpi": False,
     "gpu": None,
     "opencl": None,
     "subgrid": False,
@@ -61,6 +62,10 @@ help_msg = {
         " usefully combined with n to allow individual models to be farmed out using a MPI task"
         " farm, e.g. to create a B-scan with 60 traces and use MPI to farm out each trace. For"
         " further details see the performance section of the User Guide."
+    ),
+    "mpi": (
+        "(bool, opt): Flag to use Message Passing Interface (MPI) to divide the model between MPI"
+        "ranks."
     ),
     "gpu": (
         "(list/bool, opt): Flag to use NVIDIA GPU or list of NVIDIA GPU device ID(s) for specific"
@@ -98,6 +103,7 @@ def run(
     n=args_defaults["n"],
     i=args_defaults["i"],
     taskfarm=args_defaults["taskfarm"],
+    mpi=args_defaults["mpi"],
     gpu=args_defaults["gpu"],
     opencl=args_defaults["opencl"],
     subgrid=args_defaults["subgrid"],
@@ -131,7 +137,9 @@ def run(
             n to allow individual models to be farmed out using a MPI
             task farm, e.g. to create a B-scan with 60 traces and use
             MPI to farm out each trace. For further details see the
-            performance section of the User Guide
+            performance section of the User Guide.
+        mpi: optional boolean flag to use Message Passing Interface
+            (MPI) to divide the model between MPI ranks.
         gpu: optional list/boolean to use NVIDIA GPU or list of NVIDIA
             GPU device ID(s) for specific GPU card(s).
         opencl: optional list/boolean to use OpenCL or list of OpenCL
@@ -161,6 +169,7 @@ def run(
             "n": n,
             "i": i,
             "taskfarm": taskfarm,
+            "mpi": mpi,
             "gpu": gpu,
             "opencl": opencl,
             "subgrid": subgrid,
@@ -192,6 +201,9 @@ def cli():
         action="store_true",
         default=args_defaults["taskfarm"],
         help=help_msg["taskfarm"],
+    )
+    parser.add_argument(
+        "-mpi", action="store_true", default=args_defaults["mpi"], help=help_msg["mpi"]
     )
     parser.add_argument("-gpu", type=int, action="append", nargs="*", help=help_msg["gpu"])
     parser.add_argument("-opencl", type=int, action="append", nargs="*", help=help_msg["opencl"])
