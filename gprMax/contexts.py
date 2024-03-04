@@ -38,15 +38,17 @@ logger = logging.getLogger(__name__)
 
 
 class Context:
-    """Standard context - models are run one after another and each model
-    can exploit parallelisation using either OpenMP (CPU), CUDA (GPU), or
-    OpenCL (CPU/GPU).
+    """Standard context for building and running models.
+
+    Models are run one after another and each model can exploit
+    parallelisation using either OpenMP (CPU), CUDA (GPU), or OpenCL
+    (CPU/GPU).
     """
 
     def __init__(self):
         self.model_range = range(config.sim_config.model_start, config.sim_config.model_end)
-        self.tsimend = 0
-        self.tsimstart = 0
+        self.sim_start_time = 0
+        self.sim_end_time = 0
 
     def run(self):
         """Run the simulation in the correct context.
@@ -55,7 +57,7 @@ class Context:
             results: dict that can contain useful results/data from simulation.
         """
 
-        self.tsimstart = timer()
+        self.sim_start_time = timer()
         self.print_logo_copyright()
         print_host_info(config.sim_config.hostinfo)
         if config.sim_config.general["solver"] == "cuda":
@@ -94,7 +96,7 @@ class Context:
 
             gc.collect()
 
-        self.tsimend = timer()
+        self.sim_end_time = timer()
         self.print_sim_time_taken()
 
         return {}
@@ -108,9 +110,25 @@ class Context:
         """Prints the total simulation time based on context."""
         s = (
             f"\n=== Simulation completed in "
-            f"{humanize.precisedelta(datetime.timedelta(seconds=self.tsimend - self.tsimstart), format='%0.4f')}"
+            f"{humanize.precisedelta(datetime.timedelta(seconds=self.sim_end_time - self.sim_start_time), format='%0.4f')}"
         )
         logger.basic(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")
+
+
+class MPIContext(Context):
+    def __init__(self):
+        super().__init__()
+        from mpi4py import MPI
+
+        self.comm = MPI.COMM_WORLD
+        self.rank = self.comm.rank
+
+    def run(self):
+        if self.rank == 0:
+            super().run()
+        else:
+            grid = create_G()
+            solver = create_solver(grid)
 
 
 class TaskfarmContext(Context):
@@ -180,7 +198,9 @@ class TaskfarmContext(Context):
                 print_opencl_info(config.sim_config.devices["devs"])
 
             s = f"\n--- Input file: {config.sim_config.input_file_path}"
-            logger.basic(Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL)
+            logger.basic(
+                Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
+            )
 
             sys.stdout.flush()
 
