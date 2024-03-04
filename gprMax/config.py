@@ -20,6 +20,7 @@ import logging
 import sys
 import warnings
 from pathlib import Path
+from typing import List, Union
 
 import cython
 import numpy as np
@@ -34,24 +35,6 @@ from .utilities.host_info import detect_cuda_gpus, detect_opencl, get_host_info
 from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
-
-# Single instance of SimConfig to hold simulation configuration parameters.
-sim_config = None
-
-# Instances of ModelConfig that hold model configuration parameters.
-model_configs = []
-
-# Each model in a simulation is given a unique number when the instance of
-# ModelConfig is created
-model_num = 0
-
-
-def get_model_config():
-    """Return ModelConfig instace for specific model."""
-    if sim_config.args.taskfarm:
-        return model_configs
-    else:
-        return model_configs[model_num]
 
 
 class ModelConfig:
@@ -73,7 +56,7 @@ class ModelConfig:
         if sim_config.general["solver"] in ["cuda", "opencl"]:
             if sim_config.general["solver"] == "cuda":
                 devs = sim_config.args.gpu
-            elif sim_config.general["solver"] == "opencl":
+            else:  # opencl
                 devs = sim_config.args.opencl
 
             # If a list of lists of deviceIDs is found, flatten it
@@ -251,7 +234,7 @@ class SimulationConfig:
 
             # Suppress CompilerWarning (sub-class of UserWarning)
             warnings.filterwarnings("ignore", category=UserWarning)
-            
+
             # Suppress unused variable warnings on gcc
             # if sys.platform != 'win32': self.devices['compiler_opts'] = ['-w']
 
@@ -362,3 +345,22 @@ class SimulationConfig:
         # API/CLI
         else:
             self.input_file_path = Path(self.args.inputfile)
+
+
+# Single instance of SimConfig to hold simulation configuration parameters.
+sim_config: SimulationConfig = None
+
+# Instances of ModelConfig that hold model configuration parameters.
+model_configs: Union[ModelConfig, List[ModelConfig]] = []
+
+# Each model in a simulation is given a unique number when the instance of
+# ModelConfig is created
+model_num: int = 0
+
+
+def get_model_config() -> ModelConfig:
+    """Return ModelConfig instace for specific model."""
+    if isinstance(model_configs, ModelConfig):
+        return model_configs
+    else:
+        return model_configs[model_num]

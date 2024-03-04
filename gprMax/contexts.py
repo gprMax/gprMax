@@ -45,8 +45,8 @@ class Context:
 
     def __init__(self):
         self.model_range = range(config.sim_config.model_start, config.sim_config.model_end)
-        self.tsimend = None
-        self.tsimstart = None
+        self.tsimend = 0
+        self.tsimstart = 0
 
     def run(self):
         """Run the simulation in the correct context.
