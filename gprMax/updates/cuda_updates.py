@@ -24,7 +24,13 @@ import numpy as np
 from jinja2 import Environment, PackageLoader
 
 from gprMax import config
-from gprMax.cuda_opencl import knl_fields_updates, knl_snapshots, knl_source_updates, knl_store_outputs
+from gprMax.cuda_opencl import (
+    knl_fields_updates,
+    knl_snapshots,
+    knl_source_updates,
+    knl_store_outputs,
+)
+from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
 from gprMax.snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
 from gprMax.sources import htod_src_arrays
@@ -37,7 +43,7 @@ logger = logging.getLogger(__name__)
 class CUDAUpdates(Updates):
     """Defines update functions for GPU-based (CUDA) solver."""
 
-    def __init__(self, G):
+    def __init__(self, G: CUDAGrid):
         """
         Args:
             G: CUDAGrid class describing a grid in a model.
@@ -155,11 +161,15 @@ class CUDAUpdates(Updates):
         gets kernel functions.
         """
 
-        bld = self._build_knl(knl_fields_updates.update_electric, self.subs_name_args, self.subs_func)
+        bld = self._build_knl(
+            knl_fields_updates.update_electric, self.subs_name_args, self.subs_func
+        )
         knlE = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
         self.update_electric_dev = knlE.get_function("update_electric")
 
-        bld = self._build_knl(knl_fields_updates.update_magnetic, self.subs_name_args, self.subs_func)
+        bld = self._build_knl(
+            knl_fields_updates.update_magnetic, self.subs_name_args, self.subs_func
+        )
         knlH = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
         self.update_magnetic_dev = knlH.get_function("update_magnetic")
 
@@ -178,12 +188,16 @@ class CUDAUpdates(Updates):
                 }
             )
 
-            bld = self._build_knl(knl_fields_updates.update_electric_dispersive_A, self.subs_name_args, self.subs_func)
+            bld = self._build_knl(
+                knl_fields_updates.update_electric_dispersive_A, self.subs_name_args, self.subs_func
+            )
             knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
             self.dispersive_update_a = knl.get_function("update_electric_dispersive_A")
             self._copy_mat_coeffs(knl, knl)
 
-            bld = self._build_knl(knl_fields_updates.update_electric_dispersive_B, self.subs_name_args, self.subs_func)
+            bld = self._build_knl(
+                knl_fields_updates.update_electric_dispersive_B, self.subs_name_args, self.subs_func
+            )
             knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
             self.dispersive_update_b = knl.get_function("update_electric_dispersive_B")
             self._copy_mat_coeffs(knl, knl)
@@ -252,24 +266,36 @@ class CUDAUpdates(Updates):
         self.subs_func.update({"NY_SRCINFO": 4, "NY_SRCWAVES": self.grid.iteration})
 
         if self.grid.hertziandipoles:
-            self.srcinfo1_hertzian_dev, self.srcinfo2_hertzian_dev, self.srcwaves_hertzian_dev = htod_src_arrays(
-                self.grid.hertziandipoles, self.grid
+            (
+                self.srcinfo1_hertzian_dev,
+                self.srcinfo2_hertzian_dev,
+                self.srcwaves_hertzian_dev,
+            ) = htod_src_arrays(self.grid.hertziandipoles, self.grid)
+            bld = self._build_knl(
+                knl_source_updates.update_hertzian_dipole, self.subs_name_args, self.subs_func
             )
-            bld = self._build_knl(knl_source_updates.update_hertzian_dipole, self.subs_name_args, self.subs_func)
             knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
             self.update_hertzian_dipole_dev = knl.get_function("update_hertzian_dipole")
         if self.grid.magneticdipoles:
-            self.srcinfo1_magnetic_dev, self.srcinfo2_magnetic_dev, self.srcwaves_magnetic_dev = htod_src_arrays(
-                self.grid.magneticdipoles, self.grid
+            (
+                self.srcinfo1_magnetic_dev,
+                self.srcinfo2_magnetic_dev,
+                self.srcwaves_magnetic_dev,
+            ) = htod_src_arrays(self.grid.magneticdipoles, self.grid)
+            bld = self._build_knl(
+                knl_source_updates.update_magnetic_dipole, self.subs_name_args, self.subs_func
             )
-            bld = self._build_knl(knl_source_updates.update_magnetic_dipole, self.subs_name_args, self.subs_func)
             knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
             self.update_magnetic_dipole_dev = knl.get_function("update_magnetic_dipole")
         if self.grid.voltagesources:
-            self.srcinfo1_voltage_dev, self.srcinfo2_voltage_dev, self.srcwaves_voltage_dev = htod_src_arrays(
-                self.grid.voltagesources, self.grid
+            (
+                self.srcinfo1_voltage_dev,
+                self.srcinfo2_voltage_dev,
+                self.srcwaves_voltage_dev,
+            ) = htod_src_arrays(self.grid.voltagesources, self.grid)
+            bld = self._build_knl(
+                knl_source_updates.update_voltage_source, self.subs_name_args, self.subs_func
             )
-            bld = self._build_knl(knl_source_updates.update_voltage_source, self.subs_name_args, self.subs_func)
             knl = self.source_module(bld, options=config.sim_config.devices["nvcc_opts"])
             self.update_voltage_source_dev = knl.get_function("update_voltage_source")
 

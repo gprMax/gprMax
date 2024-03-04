@@ -22,6 +22,7 @@ from gprMax import config
 from gprMax.cython.fields_updates_normal import update_electric as update_electric_cpu
 from gprMax.cython.fields_updates_normal import update_magnetic as update_magnetic_cpu
 from gprMax.fields_outputs import store_outputs as store_outputs_cpu
+from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.updates.updates import Updates
 from gprMax.utilities.utilities import timer
 
@@ -29,7 +30,7 @@ from gprMax.utilities.utilities import timer
 class CPUUpdates(Updates):
     """Defines update functions for CPU-based solver."""
 
-    def __init__(self, G):
+    def __init__(self, G: FDTDGrid):
         """
         Args:
             G: FDTDGrid class describing a grid in a model.
@@ -137,7 +138,9 @@ class CPUUpdates(Updates):
         """Updates electric field components from sources -
         update any Hertzian dipole sources last.
         """
-        for source in self.grid.voltagesources + self.grid.transmissionlines + self.grid.hertziandipoles:
+        for source in (
+            self.grid.voltagesources + self.grid.transmissionlines + self.grid.hertziandipoles
+        ):
             source.update_electric(
                 self.grid.iteration,
                 self.grid.updatecoeffsE,
@@ -180,7 +183,8 @@ class CPUUpdates(Updates):
         precision = "float" if config.sim_config.general["precision"] == "single" else "double"
         dispersion = (
             "complex"
-            if config.get_model_config().materials["dispersivedtype"] == config.sim_config.dtypes["complex"]
+            if config.get_model_config().materials["dispersivedtype"]
+            == config.sim_config.dtypes["complex"]
             else "real"
         )
 

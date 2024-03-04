@@ -95,13 +95,13 @@ class Solver:
 def create_solver(G: FDTDGrid) -> Solver:
     """Create configured solver object.
 
-    N.B. A large range of different functions exist to advance the time step for
-            dispersive materials. The correct function is set by the
-            set_dispersive_updates method, based on the required numerical
-            precision and dispersive material type.
-            This is done for solvers running on CPU, i.e. where Cython is used.
-            CUDA and OpenCL dispersive material functions are handled through
-            templating and substitution at runtime.
+    N.B. A large range of different functions exist to advance the time
+    step for dispersive materials. The correct function is set by the
+    set_dispersive_updates method, based on the required numerical
+    precision and dispersive material type. This is done for solvers
+    running on CPU, i.e. where Cython is used. CUDA and OpenCL
+    dispersive material functions are handled through templating and
+    substitution at runtime.
 
     Args:
         G: FDTDGrid class describing a grid in a model.
@@ -119,15 +119,15 @@ def create_solver(G: FDTDGrid) -> Solver:
             for u in updates.updaters:
                 u.set_dispersive_updates()
         solver = Solver(updates, hsg=True)
-    elif config.sim_config.general["solver"] == "cpu":
+    elif type(G) is FDTDGrid:
         updates = CPUUpdates(G)
         if config.get_model_config().materials["maxpoles"] != 0:
             updates.set_dispersive_updates()
         solver = Solver(updates)
-    elif config.sim_config.general["solver"] == "cuda":
+    elif type(G) is CUDAGrid:
         updates = CUDAUpdates(G)
         solver = Solver(updates)
-    elif config.sim_config.general["solver"] == "opencl":
+    elif type(G) is OpenCLGrid:
         updates = OpenCLUpdates(G)
         solver = Solver(updates)
 

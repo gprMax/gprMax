@@ -23,7 +23,13 @@ import numpy as np
 from jinja2 import Environment, PackageLoader
 
 from gprMax import config
-from gprMax.cuda_opencl import knl_fields_updates, knl_snapshots, knl_source_updates, knl_store_outputs
+from gprMax.cuda_opencl import (
+    knl_fields_updates,
+    knl_snapshots,
+    knl_source_updates,
+    knl_store_outputs,
+)
+from gprMax.grid.opencl_grid import OpenCLGrid
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
 from gprMax.snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
 from gprMax.sources import htod_src_arrays
@@ -35,7 +41,7 @@ logger = logging.getLogger(__name__)
 class OpenCLUpdates(Updates):
     """Defines update functions for OpenCL-based solver."""
 
-    def __init__(self, G):
+    def __init__(self, G: OpenCLGrid):
         """
         Args:
             G: OpenCLGrid class describing a grid in a model.
@@ -50,7 +56,9 @@ class OpenCLUpdates(Updates):
         # Select device, create context and command queue
         self.dev = config.get_model_config().device["dev"]
         self.ctx = self.cl.Context(devices=[self.dev])
-        self.queue = self.cl.CommandQueue(self.ctx, properties=self.cl.command_queue_properties.PROFILING_ENABLE)
+        self.queue = self.cl.CommandQueue(
+            self.ctx, properties=self.cl.command_queue_properties.PROFILING_ENABLE
+        )
 
         # Enviroment for templating kernels
         self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl"))
@@ -230,7 +238,9 @@ class OpenCLUpdates(Updates):
 
             pml.update_electric_dev = self.elwiseknl(
                 self.ctx,
-                knl_electric_name["args_opencl"].substitute({"REAL": config.sim_config.dtypes["C_float_or_double"]}),
+                knl_electric_name["args_opencl"].substitute(
+                    {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                ),
                 knl_electric_name["func"].substitute(subs),
                 f"pml_updates_electric_{knl_name}",
                 preamble=self.knl_common,
@@ -239,7 +249,9 @@ class OpenCLUpdates(Updates):
 
             pml.update_magnetic_dev = self.elwiseknl(
                 self.ctx,
-                knl_magnetic_name["args_opencl"].substitute({"REAL": config.sim_config.dtypes["C_float_or_double"]}),
+                knl_magnetic_name["args_opencl"].substitute(
+                    {"REAL": config.sim_config.dtypes["C_float_or_double"]}
+                ),
                 knl_magnetic_name["func"].substitute(subs),
                 f"pml_updates_magnetic_{knl_name}",
                 preamble=self.knl_common,
@@ -267,9 +279,11 @@ class OpenCLUpdates(Updates):
         gets kernel function.
         """
         if self.grid.hertziandipoles:
-            self.srcinfo1_hertzian_dev, self.srcinfo2_hertzian_dev, self.srcwaves_hertzian_dev = htod_src_arrays(
-                self.grid.hertziandipoles, self.grid, self.queue
-            )
+            (
+                self.srcinfo1_hertzian_dev,
+                self.srcinfo2_hertzian_dev,
+                self.srcwaves_hertzian_dev,
+            ) = htod_src_arrays(self.grid.hertziandipoles, self.grid, self.queue)
             self.update_hertzian_dipole_dev = self.elwiseknl(
                 self.ctx,
                 knl_source_updates.update_hertzian_dipole["args_opencl"].substitute(
@@ -283,9 +297,11 @@ class OpenCLUpdates(Updates):
                 options=config.sim_config.devices["compiler_opts"],
             )
         if self.grid.magneticdipoles:
-            self.srcinfo1_magnetic_dev, self.srcinfo2_magnetic_dev, self.srcwaves_magnetic_dev = htod_src_arrays(
-                self.grid.magneticdipoles, self.grid, self.queue
-            )
+            (
+                self.srcinfo1_magnetic_dev,
+                self.srcinfo2_magnetic_dev,
+                self.srcwaves_magnetic_dev,
+            ) = htod_src_arrays(self.grid.magneticdipoles, self.grid, self.queue)
             self.update_magnetic_dipole_dev = self.elwiseknl(
                 self.ctx,
                 knl_source_updates.update_magnetic_dipole["args_opencl"].substitute(
@@ -299,9 +315,11 @@ class OpenCLUpdates(Updates):
                 options=config.sim_config.devices["compiler_opts"],
             )
         if self.grid.voltagesources:
-            self.srcinfo1_voltage_dev, self.srcinfo2_voltage_dev, self.srcwaves_voltage_dev = htod_src_arrays(
-                self.grid.voltagesources, self.grid, self.queue
-            )
+            (
+                self.srcinfo1_voltage_dev,
+                self.srcinfo2_voltage_dev,
+                self.srcwaves_voltage_dev,
+            ) = htod_src_arrays(self.grid.voltagesources, self.grid, self.queue)
             self.update_voltage_source_dev = self.elwiseknl(
                 self.ctx,
                 knl_source_updates.update_voltage_source["args_opencl"].substitute(
@@ -333,7 +351,12 @@ class OpenCLUpdates(Updates):
                 {"REAL": config.sim_config.dtypes["C_float_or_double"]}
             ),
             knl_snapshots.store_snapshot["func"].substitute(
-                {"CUDA_IDX": "", "NX_SNAPS": Snapshot.nx_max, "NY_SNAPS": Snapshot.ny_max, "NZ_SNAPS": Snapshot.nz_max}
+                {
+                    "CUDA_IDX": "",
+                    "NX_SNAPS": Snapshot.nx_max,
+                    "NY_SNAPS": Snapshot.ny_max,
+                    "NZ_SNAPS": Snapshot.nz_max,
+                }
             ),
             "store_snapshot",
             preamble=self.knl_common,
