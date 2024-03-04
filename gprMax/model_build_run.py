@@ -36,7 +36,7 @@ import gprMax.config as config
 from .cython.yee_cell_build import build_electric_components, build_magnetic_components
 from .fields_outputs import write_hdf5_outputfile
 from .geometry_outputs import save_geometry_views
-from .grid import dispersion_analysis
+from .grid.fdtd_grid import dispersion_analysis
 from .hash_cmds_file import parse_hash_commands
 from .materials import process_materials
 from .pml import CFS, build_pml, print_pml_info
@@ -351,7 +351,7 @@ class ModelBuildRun:
         if config.sim_config.general["solver"] == "cuda":
             mem_str = f" host + ~{humanize.naturalsize(solver.memused)} device"
         elif config.sim_config.general["solver"] == "opencl":
-            mem_str = f" host + unknown for device"      
+            mem_str = f" host + unknown for device"
 
         logger.info(f"\nMemory used (estimated): " + f"~{humanize.naturalsize(self.p.memory_full_info().uss)}{mem_str}")
         logger.info(

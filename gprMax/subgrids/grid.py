@@ -18,7 +18,7 @@
 
 import logging
 
-from ..grid import FDTDGrid
+from gprMax.grid.fdtd_grid import FDTDGrid
 
 logger = logging.getLogger(__name__)
 

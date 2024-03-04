@@ -1,10 +1,24 @@
+# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
+#
+# This file is part of gprMax.
+#
+# gprMax is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# gprMax is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+
 from importlib import import_module
 
-import numpy as np
-
-from gprMax import config
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.utilities.utilities import fft_power, round_value
 
 
 class OpenCLGrid(FDTDGrid):
@@ -50,134 +64,3 @@ class OpenCLGrid(FDTDGrid):
         self.Tx_dev = self.clarray.to_device(queue, self.Tx)
         self.Ty_dev = self.clarray.to_device(queue, self.Ty)
         self.Tz_dev = self.clarray.to_device(queue, self.Tz)
-
-
-def dispersion_analysis(G):
-    """Analysis of numerical dispersion (Taflove et al, 2005, p112) -
-        worse case of maximum frequency and minimum wavelength
-
-    Args:
-        G: FDTDGrid class describing a grid in a model.
-
-    Returns:
-        results: dict of results from dispersion analysis.
-    """
-
-    # deltavp: physical phase velocity error (percentage)
-    # N: grid sampling density
-    # material: material with maximum permittivity
-    # maxfreq: maximum significant frequency
-    # error: error message
-    results = {"deltavp": None, "N": None, "material": None, "maxfreq": [], "error": ""}
-
-    # Find maximum significant frequency
-    if G.waveforms:
-        for waveform in G.waveforms:
-            if waveform.type in ["sine", "contsine"]:
-                results["maxfreq"].append(4 * waveform.freq)
-
-            elif waveform.type == "impulse":
-                results["error"] = "impulse waveform used."
-
-            elif waveform.type == "user":
-                results["error"] = "user waveform detected."
-
-            else:
-                # Time to analyse waveform - 4*pulse_width as using entire
-                # time window can result in demanding FFT
-                waveform.calculate_coefficients()
-                iterations = round_value(4 * waveform.chi / G.dt)
-                iterations = min(iterations, G.iterations)
-                waveformvalues = np.zeros(G.iterations)
-                for iteration in range(G.iterations):
-                    waveformvalues[iteration] = waveform.calculate_value(iteration * G.dt, G.dt)
-
-                # Ensure source waveform is not being overly truncated before attempting any FFT
-                if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:
-                    # FFT
-                    freqs, power = fft_power(waveformvalues, G.dt)
-                    # Get frequency for max power
-                    freqmaxpower = np.where(np.isclose(power, 0))[0][0]
-
-                    # Set maximum frequency to a threshold drop from maximum power, ignoring DC value
-                    try:
-                        freqthres = (
-                            np.where(
-                                power[freqmaxpower:] < -config.get_model_config().numdispersion["highestfreqthres"]
-                            )[0][0]
-                            + freqmaxpower
-                        )
-                        results["maxfreq"].append(freqs[freqthres])
-                    except ValueError:
-                        results["error"] = (
-                            "unable to calculate maximum power "
-                            + "from waveform, most likely due to "
-                            + "undersampling."
-                        )
-
-                # Ignore case where someone is using a waveform with zero amplitude, i.e. on a receiver
-                elif waveform.amp == 0:
-                    pass
-
-                # If waveform is truncated don't do any further analysis
-                else:
-                    results["error"] = (
-                        "waveform does not fit within specified " + "time window and is therefore being truncated."
-                    )
-    else:
-        results["error"] = "no waveform detected."
-
-    if results["maxfreq"]:
-        results["maxfreq"] = max(results["maxfreq"])
-
-        # Find minimum wavelength (material with maximum permittivity)
-        maxer = 0
-        matmaxer = ""
-        for x in G.materials:
-            if x.se != float("inf"):
-                er = x.er
-                # If there are dispersive materials calculate the complex
-                # relative permittivity at maximum frequency and take the real part
-                if x.__class__.__name__ == "DispersiveMaterial":
-                    er = x.calculate_er(results["maxfreq"])
-                    er = er.real
-                if er > maxer:
-                    maxer = er
-                    matmaxer = x.ID
-        results["material"] = next(x for x in G.materials if x.ID == matmaxer)
-
-        # Minimum velocity
-        minvelocity = config.c / np.sqrt(maxer)
-
-        # Minimum wavelength
-        minwavelength = minvelocity / results["maxfreq"]
-
-        # Maximum spatial step
-        if "3D" in config.get_model_config().mode:
-            delta = max(G.dx, G.dy, G.dz)
-        elif "2D" in config.get_model_config().mode:
-            if G.nx == 1:
-                delta = max(G.dy, G.dz)
-            elif G.ny == 1:
-                delta = max(G.dx, G.dz)
-            elif G.nz == 1:
-                delta = max(G.dx, G.dy)
-
-        # Courant stability factor
-        S = (config.c * G.dt) / delta
-
-        # Grid sampling density
-        results["N"] = minwavelength / delta
-
-        # Check grid sampling will result in physical wave propagation
-        if int(np.floor(results["N"])) >= config.get_model_config().numdispersion["mingridsampling"]:
-            # Numerical phase velocity
-            vp = np.pi / (results["N"] * np.arcsin((1 / S) * np.sin((np.pi * S) / results["N"])))
-
-            # Physical phase velocity error (percentage)
-            results["deltavp"] = (((vp * config.c) - config.c) / config.c) * 100
-
-        # Store rounded down value of grid sampling density
-        results["N"] = int(np.floor(results["N"]))
-
-    return results

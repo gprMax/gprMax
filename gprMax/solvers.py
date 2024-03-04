@@ -17,6 +17,9 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import gprMax.config as config
+from gprMax.grid.cuda_grid import CUDAGrid
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.grid.opencl_grid import OpenCLGrid
 
 from .grid import CUDAGrid, FDTDGrid, OpenCLGrid
 from .subgrids.updates import create_updates as create_subgrid_updates

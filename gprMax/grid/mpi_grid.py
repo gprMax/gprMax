@@ -1,3 +1,21 @@
+# Copyright (C) 2015-2024: The University of Edinburgh, United Kingdom
+#                 Authors: Craig Warren, Antonis Giannopoulos, and John Hartley
+#
+# This file is part of gprMax.
+#
+# gprMax is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# gprMax is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+
 from typing import Optional
 
 from mpi4py import MPI
@@ -13,6 +31,8 @@ class MPIGrid(FDTDGrid):
     ymax: int
     zmax: int
 
+    comm: MPI.Intracomm
+
     def __init__(self, mpi_tasks_x: int, mpi_tasks_y: int, mpi_tasks_z: int, comm: Optional[MPI.Intracomm] = None):
         super().__init__()
 
@@ -21,7 +41,7 @@ class MPIGrid(FDTDGrid):
         else:
             self.comm = comm
 
-        if mpi_tasks_x * mpi_tasks_y * mpi_tasks_z > self.size:
+        if mpi_tasks_x * mpi_tasks_y * mpi_tasks_z > self.comm.size:
             # TODO: Raise expection - insufficient MPI tasks to create the grid as requested
             pass
 

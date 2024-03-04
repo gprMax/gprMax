@@ -5,7 +5,7 @@ import pytest
 from pytest import MonkeyPatch
 
 from gprMax import config, gprMax
-from gprMax.grid import FDTDGrid
+from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_built_in_materials
 from gprMax.model_build_run import GridBuilder
 from gprMax.pml import CFS
