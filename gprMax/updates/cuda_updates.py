@@ -28,12 +28,13 @@ from gprMax.cuda_opencl import knl_fields_updates, knl_snapshots, knl_source_upd
 from gprMax.receivers import dtoh_rx_array, htod_rx_arrays
 from gprMax.snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array
 from gprMax.sources import htod_src_arrays
+from gprMax.updates.updates import Updates
 from gprMax.utilities.utilities import round32
 
 logger = logging.getLogger(__name__)
 
 
-class CUDAUpdates:
+class CUDAUpdates(Updates):
     """Defines update functions for GPU-based (CUDA) solver."""
 
     def __init__(self, G):

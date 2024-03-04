@@ -22,10 +22,11 @@ from gprMax import config
 from gprMax.cython.fields_updates_normal import update_electric as update_electric_cpu
 from gprMax.cython.fields_updates_normal import update_magnetic as update_magnetic_cpu
 from gprMax.fields_outputs import store_outputs as store_outputs_cpu
+from gprMax.updates.updates import Updates
 from gprMax.utilities.utilities import timer
 
 
-class CPUUpdates:
+class CPUUpdates(Updates):
     """Defines update functions for CPU-based solver."""
 
     def __init__(self, G):
