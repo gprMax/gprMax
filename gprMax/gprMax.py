@@ -31,7 +31,7 @@ args_defaults = {
     "n": 1,
     "i": None,
     "taskfarm": False,
-    "mpi": False,
+    "mpi": None,
     "gpu": None,
     "opencl": None,
     "subgrid": False,
@@ -64,8 +64,9 @@ help_msg = {
         " further details see the performance section of the User Guide."
     ),
     "mpi": (
-        "(bool, opt): Flag to use Message Passing Interface (MPI) to divide the model between MPI"
-        "ranks."
+        "(list, opt): Flag to use Message Passing Interface (MPI) to divide the model between MPI"
+        " ranks. Three integers should be provided to define the number of MPI processes (min 1) in"
+        " the x, y, and z dimensions."
     ),
     "gpu": (
         "(list/bool, opt): Flag to use NVIDIA GPU or list of NVIDIA GPU device ID(s) for specific"
@@ -138,8 +139,10 @@ def run(
             task farm, e.g. to create a B-scan with 60 traces and use
             MPI to farm out each trace. For further details see the
             performance section of the User Guide.
-        mpi: optional boolean flag to use Message Passing Interface
-            (MPI) to divide the model between MPI ranks.
+        mpi: optional flag to use Message Passing Interface (MPI) to
+            divide the model between MPI ranks. Three integers should be
+            provided to define the number of MPI processes (min 1) in
+            the x, y, and z dimensions.
         gpu: optional list/boolean to use NVIDIA GPU or list of NVIDIA
             GPU device ID(s) for specific GPU card(s).
         opencl: optional list/boolean to use OpenCL or list of OpenCL
@@ -203,7 +206,12 @@ def cli():
         help=help_msg["taskfarm"],
     )
     parser.add_argument(
-        "-mpi", action="store_true", default=args_defaults["mpi"], help=help_msg["mpi"]
+        "-mpi",
+        type=int,
+        action="store",
+        nargs=3,
+        default=args_defaults["mpi"],
+        help=help_msg["mpi"],
     )
     parser.add_argument("-gpu", type=int, action="append", nargs="*", help=help_msg["gpu"])
     parser.add_argument("-opencl", type=int, action="append", nargs="*", help=help_msg["opencl"])
@@ -261,8 +269,11 @@ def run_main(args):
     if config.sim_config.args.taskfarm:
         context = TaskfarmContext()
     # MPI running to divide model between ranks
-    elif config.sim_config.args.mpi:
-        context = MPIContext()
+    elif config.sim_config.args.mpi is not None:
+        x = config.sim_config.args.mpi[0]
+        y = config.sim_config.args.mpi[1]
+        z = config.sim_config.args.mpi[2]
+        context = MPIContext(x, y, z)
     # Standard running (OpenMP/CUDA/OpenCL)
     else:
         context = Context()

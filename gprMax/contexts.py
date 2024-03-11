@@ -116,19 +116,37 @@ class Context:
 
 
 class MPIContext(Context):
-    def __init__(self):
+    def __init__(self, x_dim: int, y_dim: int, z_dim: int):
         super().__init__()
         from mpi4py import MPI
 
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.rank
 
-    def run(self):
-        if self.rank == 0:
-            super().run()
+        if self.rank >= x_dim * y_dim * z_dim:
+            logger.warn(
+                (
+                    f"Rank {self.rank}: Only {x_dim * y_dim * z_dim} MPI ranks required for the"
+                    " dimensions specified. Either increase your MPI dimension size, or request"
+                    " fewer MPI tasks."
+                )
+            )
+            self.x = -1
+            self.y = -1
+            self.z = -1
         else:
-            grid = create_G()
-            solver = create_solver(grid)
+            self.x = self.rank % x_dim
+            self.y = (self.rank // x_dim) % y_dim
+            self.z = (self.rank // (x_dim * y_dim)) % z_dim
+
+    def run(self):
+        print(f"I am rank {self.rank} and I will run at grid position {self.x}, {self.y}, {self.z}")
+
+        if self.rank == 0:
+            print("Rank 0 is running the simulation")
+            return super().run()
+        else:
+            pass
 
 
 class TaskfarmContext(Context):
