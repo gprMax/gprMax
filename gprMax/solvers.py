@@ -49,7 +49,7 @@ def create_G() -> FDTDGrid:
 class Solver:
     """Generic solver for Update objects"""
 
-    def __init__(self, updates: Updates, hsg=False):
+    def __init__(self, updates: Updates):
         """
         Args:
             updates: Updates contains methods to run FDTD algorithm.
@@ -57,7 +57,6 @@ class Solver:
         """
 
         self.updates = updates
-        self.hsg = hsg
         self.solvetime = 0
         self.memused = 0
 
@@ -92,7 +91,7 @@ class Solver:
         self.updates.cleanup()
 
 
-def create_solver(G: FDTDGrid) -> Solver:
+def create_solver(grid: FDTDGrid) -> Solver:
     """Create configured solver object.
 
     N.B. A large range of different functions exist to advance the time
@@ -111,24 +110,22 @@ def create_solver(G: FDTDGrid) -> Solver:
     """
 
     if config.sim_config.general["subgrid"]:
-        updates = create_subgrid_updates(G)
+        updates = create_subgrid_updates(grid)
         if config.get_model_config().materials["maxpoles"] != 0:
             # Set dispersive update functions for both SubgridUpdates and
             # SubgridUpdaters subclasses
             updates.set_dispersive_updates()
             for u in updates.updaters:
                 u.set_dispersive_updates()
-        solver = Solver(updates, hsg=True)
-    elif type(G) is FDTDGrid:
-        updates = CPUUpdates(G)
+    elif type(grid) is FDTDGrid:
+        updates = CPUUpdates(grid)
         if config.get_model_config().materials["maxpoles"] != 0:
             updates.set_dispersive_updates()
-        solver = Solver(updates)
-    elif type(G) is CUDAGrid:
-        updates = CUDAUpdates(G)
-        solver = Solver(updates)
-    elif type(G) is OpenCLGrid:
-        updates = OpenCLUpdates(G)
-        solver = Solver(updates)
+    elif type(grid) is CUDAGrid:
+        updates = CUDAUpdates(grid)
+    elif type(grid) is OpenCLGrid:
+        updates = OpenCLUpdates(grid)
+
+    solver = Solver(updates)
 
     return solver
