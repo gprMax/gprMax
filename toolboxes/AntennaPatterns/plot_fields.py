@@ -12,10 +12,16 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-import gprMax.config as config
+from scipy.constants import c
+from scipy.constants import epsilon_0 as e0
+from scipy.constants import mu_0 as m0
+
 
 logger = logging.getLogger(__name__)
 
+
+# Impedance of free space (Ohms)
+z0 = np.sqrt(m0 / e0)
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(
@@ -56,9 +62,9 @@ step = 12
 # Critical angle and velocity
 if epsr:
     mr = 1
-    z1 = np.sqrt(mr / epsr) * config.sim_config.em_consts["z0"]
-    v1 = config.sim_config.em_consts["c"] / np.sqrt(epsr)
-    thetac = np.round(np.rad2deg(np.arcsin(v1 / config.sim_config.em_consts["c"])))
+    z1 = np.sqrt(mr / epsr) * z0
+    v1 = c / np.sqrt(epsr)
+    thetac = np.round(np.rad2deg(np.arcsin(v1 / c)))
     wavelength = v1 / f
 
 # Print some useful information
