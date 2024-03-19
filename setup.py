@@ -48,7 +48,7 @@ with open('gprMax/__init__.py', 'r') as fd:
 packages = [packagename, 'tests', 'tools', 'user_libs']
 
 # Parse long_description from README.rst file.
-with open('README.rst','r') as fd:
+with open('README.rst', 'r', encoding='utf-8') as fd:
     long_description = fd.read()
 
 # Python version
@@ -180,9 +180,6 @@ if USE_CYTHON:
                                'language_level': 3
                            },
                            annotate=False)
-
-# SetupTools Required to make package
-import setuptools
 
 setup(name=packagename,
       version=version,
