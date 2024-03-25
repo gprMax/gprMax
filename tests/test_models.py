@@ -40,22 +40,22 @@ from tests.analytical_solutions import hertzian_dipole_fs
 """
 
 basepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models_')
-# basepath += 'basic'
+basepath += 'basic'
 # basepath += 'advanced'
-basepath += 'pmls'
+# basepath += 'pmls'
 
 # List of available basic test models
-# testmodels = ['hertzian_dipole_fs_analytical', '2D_ExHyHz', '2D_EyHxHz', '2D_EzHxHy', 'cylinder_Ascan_2D', 'hertzian_dipole_fs', 'hertzian_dipole_hs', 'hertzian_dipole_dispersive', 'magnetic_dipole_fs', 'pmls']
+testmodels = ['hertzian_dipole_fs_analytical', '2D_ExHyHz', '2D_EyHxHz', '2D_EzHxHy', 'cylinder_Ascan_2D', 'hertzian_dipole_fs', 'hertzian_dipole_hs', 'hertzian_dipole_dispersive', 'magnetic_dipole_fs']
 
 # List of available advanced test models
 # testmodels = ['antenna_GSSI_1500_fs', 'antenna_MALA_1200_fs']
 
 # List of available PML models
-testmodels = ['pml_x0', 'pml_y0', 'pml_z0', 'pml_xmax', 'pml_ymax', 'pml_zmax', 'pml_3D_pec_plate']
+# testmodels = ['pml_x0', 'pml_y0', 'pml_z0', 'pml_xmax', 'pml_ymax', 'pml_zmax', 'pml_3D_pec_plate']
 
 # Select a specific model if desired
 # testmodels = testmodels[:-1]
-testmodels = [testmodels[6]]
+# testmodels = [testmodels[6]]
 testresults = dict.fromkeys(testmodels)
 path = '/rxs/rx1/'
 
@@ -68,7 +68,7 @@ for i, model in enumerate(testmodels):
 
     # Run model
     inputfile = os.path.join(basepath, model + os.path.sep + model + '.in')
-    api(inputfile, gpu=[None])
+    api(inputfile, gpu=None)
 
     # Special case for analytical comparison
     if model == 'hertzian_dipole_fs_analytical':
