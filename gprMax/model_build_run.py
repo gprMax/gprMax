@@ -71,7 +71,7 @@ class ModelBuildRun:
         self.p = psutil.Process()
 
         # Normal model reading/building process; bypassed if geometry information to be reused
-        self.reuse_geometry() if config.get_model_config().reuse_geometry else self.build_geometry()
+        self.reuse_geometry() if config.get_model_config().reuse_geometry() else self.build_geometry()
 
         logger.info(
             f"\nOutput directory: {config.get_model_config().output_file_path.parent.resolve()}"
@@ -145,9 +145,6 @@ class ModelBuildRun:
         G = self.G
 
         logger.info(config.get_model_config().inputfilestr)
-
-        # Build objects in the scene and check memory for building
-        self.build_scene()
 
         # Print info on any subgrids
         for sg in G.subgrids:
@@ -262,22 +259,6 @@ class ModelBuildRun:
         for grid in [self.G] + self.G.subgrids:
             grid.iteration = 0  # Reset current iteration number
             grid.reset_fields()
-
-    def build_scene(self):
-        # API for multiple scenes / model runs
-        scene = config.get_model_config().get_scene()
-
-        # If there is no scene, process the hash commands
-        if not scene:
-            scene = Scene()
-            config.sim_config.scenes.append(scene)
-            # Parse the input file into user objects and add them to the scene
-            scene = parse_hash_commands(scene)
-
-        # Creates the internal simulation objects
-        scene.create_internal_objects(self.G)
-
-        return scene
 
     def write_output_data(self):
         """Writes output data, i.e. field data for receivers and snapshots to

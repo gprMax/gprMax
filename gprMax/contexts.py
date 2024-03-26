@@ -25,6 +25,9 @@ from typing import Any, Dict, List, Optional
 import humanize
 from colorama import Fore, Style, init
 
+from gprMax.hash_cmds_file import parse_hash_commands
+from gprMax.scene import Scene
+
 init()
 
 import gprMax.config as config
@@ -100,31 +103,45 @@ class Context:
         model_config = self._create_model_config(model_num)
         config.sim_config.set_model_config(model_config)
 
-        # Always create a grid for the first model. The next model to run
-        # only gets a new grid if the geometry is not re-used.
-        if model_num != 0 and config.sim_config.args.geometry_fixed:
-            config.get_model_config().reuse_geometry = True
-        else:
-            G = create_G()
+        if not model_config.reuse_geometry():
+            scene = self._get_scene(model_num)
+            model = self._create_model()
+            scene.create_internal_objects(model.G)
 
-        model = ModelBuildRun(G)
         model.build()
 
-        if not config.sim_config.args.geometry_only:
-            solver = create_solver(G)
+        if not config.sim_config.geometry_only:
+            solver = create_solver(model.G)
             model.solve(solver)
-            del solver, model
+            del solver
 
-        if not config.sim_config.args.geometry_fixed:
+        if not config.sim_config.geometry_fixed:
             # Manual garbage collection required to stop memory leak on GPUs
             # when using pycuda
-            del G
+            del model.G, model
 
         gc.collect()
 
     def _create_model_config(self, model_num: int) -> ModelConfig:
         """Create model config and save to global config."""
         return ModelConfig(model_num)
+
+    def _get_scene(self, model_num: int) -> Scene:
+        # API for multiple scenes / model runs
+        scene = config.sim_config.get_scene(model_num)
+
+        # If there is no scene, process the hash commands
+        if scene is None:
+            scene = Scene()
+            config.sim_config.set_scene(scene, model_num)
+            # Parse the input file into user objects and add them to the scene
+            scene = parse_hash_commands(scene)
+
+        return scene
+
+    def _create_model(self) -> ModelBuildRun:
+        grid = create_G()
+        return ModelBuildRun(grid)
 
     def print_logo_copyright(self) -> None:
         """Prints gprMax logo, version, and copyright/licencing information."""

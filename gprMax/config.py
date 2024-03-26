@@ -26,6 +26,8 @@ import cython
 import numpy as np
 from colorama import Fore, Style, init
 
+from gprMax.scene import Scene
+
 init()
 from scipy.constants import c
 from scipy.constants import epsilon_0 as e0
@@ -81,8 +83,6 @@ class ModelConfig:
         self.mem_overhead = 65e6
         self.mem_use = self.mem_overhead
 
-        self.reuse_geometry = False
-
         # String to print at start of each model run
         s = (
             f"\n--- Model {model_num + 1}/{sim_config.model_end}, "
@@ -127,10 +127,7 @@ class ModelConfig:
         return self.model_num != 0 and sim_config.args.geometry_fixed
 
     def get_scene(self):
-        try:
-            return sim_config.scenes[self.model_num]
-        except:
-            return None
+        return sim_config.get_scene(self.model_num)
 
     def get_usernamespace(self):
         """Namespace only used with #python blocks which are deprecated."""
@@ -307,14 +304,15 @@ class SimulationConfig:
             self.general["subgrid"] = False
 
         self.autotranslate_subgrid_coordinates = True
-        if hasattr(self.args, "autotranslate"):
+        if hasattr(args, "autotranslate"):
             self.autotranslate_subgrid_coordinates: bool = args.autotranslate
 
         # Scenes parameter may not exist if user enters via CLI
-        try:
-            self.scenes = args.scenes if args.scenes is not None else []
-        except AttributeError:
-            self.scenes = []
+        self.scenes: List[Optional[Scene]]
+        if hasattr(args, "scenes") and args.scenes is not None:
+            self.scenes = args.scenes
+        else:
+            self.scenes = [None] * self.number_of_models
 
         # Set more complex parameters
         self._set_precision()
@@ -437,6 +435,31 @@ class SimulationConfig:
             model_num: unique identifier for the current model
         """
         self.current_model = model_num
+
+    def get_scene(self, model_num: Optional[int] = None) -> Optional[Scene]:
+        """Return Scene instance for specific model.
+
+        Args:
+            model_num: number of the model. If None, returns the scene for the current model
+
+        Returns:
+            scene: requested scene
+        """
+        if model_num is None:
+            model_num = self.current_model
+
+        return self.scenes[model_num]
+
+    def set_scene(self, scene: Scene, model_num: Optional[int] = None) -> None:
+        """Set Scene instace for specific model.
+
+        Args:
+            model_num: number of the model. If None, sets the scene for the current model
+        """
+        if model_num is None:
+            model_num = self.current_model
+
+        self.scenes[model_num] = scene
 
 
 # Single instance of SimConfig to hold simulation configuration parameters.
