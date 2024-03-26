@@ -37,6 +37,26 @@ class TaskfarmTest(GprMaxRegressionTest):
 
 
 @rfm.simple_test
+class BScanTest(GprMaxRegressionTest):
+    tags = {"test", "bscan"}
+
+    model = parameter(["cylinder_Bscan_2D"])
+
+    num_cpus_per_task = 16
+
+    @run_after("init")
+    def set_filenames(self):
+        self.input_file = f"{self.model}.in"
+        self.output_file = f"{self.model}_merged.h5"
+        self.executable_opts = [self.input_file, "-n", "64"]
+        self.postrun_cmds = [
+            f"python -m toolboxes.Utilities.outputfiles_merge {self.model}",
+            f"python -m toolboxes.Plotting.plot_Bscan -save {self.output_file} Ez",
+        ]
+        self.keep_files = [self.input_file, self.output_file, "{self.model}_merged.pdf"]
+
+
+@rfm.simple_test
 class BasicModelsTest(GprMaxRegressionTest):
     tags = {"test", "serial", "regression"}
 
