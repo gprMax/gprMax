@@ -20,7 +20,7 @@ import logging
 import sys
 import warnings
 from pathlib import Path
-from typing import List, Union
+from typing import List, Optional, Union
 
 import cython
 import numpy as np
@@ -42,10 +42,11 @@ class ModelConfig:
     N.B. Multiple models can exist within a simulation
     """
 
-    def __init__(self):
+    def __init__(self, model_num):
         self.mode = "3D"
         self.grids = []
         self.ompthreads = None
+        self.model_num = model_num
 
         # Store information for CUDA or OpenCL solver
         #   dev: compute device object.
@@ -70,7 +71,11 @@ class ModelConfig:
             except:
                 deviceID = 0
 
-            self.device = {"dev": sim_config.set_model_device(deviceID), "deviceID": deviceID, "snapsgpu2cpu": False}
+            self.device = {
+                "dev": sim_config.get_model_device(deviceID),
+                "deviceID": deviceID,
+                "snapsgpu2cpu": False,
+            }
 
         # Total memory usage for all grids in the model. Starts with 50MB overhead.
         self.mem_overhead = 65e6
@@ -79,11 +84,18 @@ class ModelConfig:
         self.reuse_geometry = False
 
         # String to print at start of each model run
-        s = f"\n--- Model {model_num + 1}/{sim_config.model_end}, " f"input file: {sim_config.input_file_path}"
-        self.inputfilestr = Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
+        s = (
+            f"\n--- Model {model_num + 1}/{sim_config.model_end}, "
+            f"input file: {sim_config.input_file_path}"
+        )
+        self.inputfilestr = (
+            Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
+        )
 
         # Output file path and name for specific model
-        self.appendmodelnumber = "" if sim_config.args.n == 1 else str(model_num + 1)  # Indexed from 1
+        self.appendmodelnumber = (
+            "" if sim_config.args.n == 1 else str(model_num + 1)
+        )  # Indexed from 1
         self.set_output_file_path()
 
         # Numerical dispersion analysis parameters
@@ -111,9 +123,12 @@ class ModelConfig:
             "crealfunc": None,
         }
 
+    def reuse_geometry(self):
+        return self.model_num != 0 and sim_config.args.geometry_fixed
+
     def get_scene(self):
         try:
-            return sim_config.scenes[model_num]
+            return sim_config.scenes[self.model_num]
         except:
             return None
 
@@ -121,7 +136,7 @@ class ModelConfig:
         """Namespace only used with #python blocks which are deprecated."""
         tmp = {
             "number_model_runs": sim_config.model_end,
-            "current_model_run": model_num + 1,
+            "current_model_run": self.model_num + 1,
             "inputfile": sim_config.input_file_path.resolve(),
         }
         return dict(**sim_config.em_consts, **tmp)
@@ -177,6 +192,14 @@ class SimulationConfig:
     N.B. A simulation can consist of multiple models.
     """
 
+    # TODO: Make this an enum
+    em_consts = {
+        "c": c,  # Speed of light in free space (m/s)
+        "e0": e0,  # Permittivity of free space (F/m)
+        "m0": m0,  # Permeability of free space (H/m)
+        "z0": np.sqrt(m0 / e0),  # Impedance of free space (Ohms)
+    }
+
     def __init__(self, args):
         """
         Args:
@@ -185,13 +208,37 @@ class SimulationConfig:
 
         self.args = args
 
-        if self.args.taskfarm and self.args.geometry_fixed:
+        self.geometry_fixed: bool = args.geometry_fixed
+        self.geometry_only: bool = args.geometry_only
+        self.gpu: Union[List[str], bool] = args.gpu
+        self.mpi: List[int] = args.mpi
+        self.number_of_models: int = args.n
+        self.opencl: Union[List[str], bool] = args.opencl
+        self.output_file_path: str = args.outputfile
+        self.taskfarm: bool = args.taskfarm
+        self.write_processed_input_file: bool = (
+            args.write_processed
+        )  # For depreciated Python blocks
+
+        if self.taskfarm and self.geometry_fixed:
             logger.exception("The geometry fixed option cannot be used with MPI taskfarm.")
             raise ValueError
 
-        if self.args.gpu and self.args.opencl:
+        if self.gpu and self.opencl:
             logger.exception("You cannot use both CUDA and OpenCl simultaneously.")
             raise ValueError
+
+        if self.mpi and self.args.subgrid:
+            logger.exception("You cannot use subgrids with MPI.")
+            raise ValueError
+
+        # Each model in a simulation is given a unique number when the instance of ModelConfig is created
+        self.current_model = 0
+
+        # Instances of ModelConfig that hold model configuration parameters.
+        # TODO: Consider if this would be better as a dictionary.
+        # Or maybe a non fixed length list (i.e. append each config)
+        self.model_configs: List[Optional[ModelConfig]] = [None] * self.number_of_models
 
         # General settings for the simulation
         #   solver: cpu, cuda, opencl.
@@ -200,25 +247,25 @@ class SimulationConfig:
         #                   progressbars when logging level is greater than
         #                   info (20)
 
-        self.general = {"solver": "cpu", "precision": "single", "progressbars": args.log_level <= 20}
-
-        self.em_consts = {
-            "c": c,  # Speed of light in free space (m/s)
-            "e0": e0,  # Permittivity of free space (F/m)
-            "m0": m0,  # Permeability of free space (H/m)
-            "z0": np.sqrt(m0 / e0),  # Impedance of free space (Ohms)
+        self.general = {
+            "solver": "cpu",
+            "precision": "single",
+            "progressbars": args.log_level <= 20,
         }
 
         # Store information about host machine
         self.hostinfo = get_host_info()
 
         # CUDA
-        if self.args.gpu is not None:
+        if self.gpu is not None:
             self.general["solver"] = "cuda"
             # Both single and double precision are possible on GPUs, but single
             # provides best performance.
             self.general["precision"] = "single"
-            self.devices = {"devs": [], "nvcc_opts": None}  # pycuda device objects; nvcc compiler options
+            self.devices = {
+                "devs": [],
+                "nvcc_opts": None,
+            }  # pycuda device objects; nvcc compiler options
             # Suppress nvcc warnings on Microsoft Windows
             if sys.platform == "win32":
                 self.devices["nvcc_opts"] = ["-w"]
@@ -227,10 +274,13 @@ class SimulationConfig:
             self.devices["devs"] = detect_cuda_gpus()
 
         # OpenCL
-        if self.args.opencl is not None:
+        if self.opencl is not None:
             self.general["solver"] = "opencl"
             self.general["precision"] = "single"
-            self.devices = {"devs": [], "compiler_opts": None}  # pyopencl device device(s); compiler options
+            self.devices = {
+                "devs": [],
+                "compiler_opts": None,
+            }  # pyopencl device device(s); compiler options
 
             # Suppress CompilerWarning (sub-class of UserWarning)
             warnings.filterwarnings("ignore", category=UserWarning)
@@ -250,11 +300,15 @@ class SimulationConfig:
                 self.general["subgrid"] and self.general["solver"] == "opencl"
             ):
                 logger.exception(
-                    "You cannot currently use CUDA or OpenCL-based " "solvers with models that contain sub-grids."
+                    "You cannot currently use CUDA or OpenCL-based solvers with models that contain sub-grids."
                 )
                 raise ValueError
         else:
             self.general["subgrid"] = False
+
+        self.autotranslate_subgrid_coordinates = True
+        if hasattr(self.args, "autotranslate"):
+            self.autotranslate_subgrid_coordinates: bool = args.autotranslate
 
         # Scenes parameter may not exist if user enters via CLI
         try:
@@ -266,26 +320,6 @@ class SimulationConfig:
         self._set_precision()
         self._set_input_file_path()
         self._set_model_start_end()
-
-    def set_model_device(self, deviceID):
-        """Specify pycuda/pyopencl object for model.
-
-        Args:
-            deviceID: int of requested deviceID of compute device.
-
-        Returns:
-            dev: requested pycuda/pyopencl device object.
-        """
-
-        found = False
-        for ID, dev in self.devices["devs"].items():
-            if ID == deviceID:
-                found = True
-                return dev
-
-        if not found:
-            logger.exception(f"Compute device with device ID {deviceID} does " "not exist.")
-            raise ValueError
 
     def _set_precision(self):
         """Data type (precision) for electromagnetic field output.
@@ -325,6 +359,15 @@ class SimulationConfig:
             elif self.general["solver"] == "opencl":
                 self.dtypes["C_complex"] = "cdouble"
 
+    def _set_input_file_path(self):
+        """Sets input file path for CLI or API."""
+        # API
+        if self.args.inputfile is None:
+            self.input_file_path = Path(self.args.outputfile)
+        # API/CLI
+        else:
+            self.input_file_path = Path(self.args.inputfile)
+
     def _set_model_start_end(self):
         """Sets range for number of models to run (internally 0 index)."""
         if self.args.i:
@@ -337,30 +380,69 @@ class SimulationConfig:
         self.model_start = modelstart
         self.model_end = modelend
 
-    def _set_input_file_path(self):
-        """Sets input file path for CLI or API."""
-        # API
-        if self.args.inputfile is None:
-            self.input_file_path = Path(self.args.outputfile)
-        # API/CLI
-        else:
-            self.input_file_path = Path(self.args.inputfile)
+    def get_model_device(self, deviceID):
+        """Specify pycuda/pyopencl object for model.
+
+        Args:
+            deviceID: int of requested deviceID of compute device.
+
+        Returns:
+            dev: requested pycuda/pyopencl device object.
+        """
+
+        found = False
+        for ID, dev in self.devices["devs"].items():
+            if ID == deviceID:
+                found = True
+                return dev
+
+        if not found:
+            logger.exception(f"Compute device with device ID {deviceID} does " "not exist.")
+            raise ValueError
+
+    def get_model_config(self, model_num: Optional[int] = None) -> ModelConfig:
+        """Return ModelConfig instance for specific model.
+
+        Args:
+            model_num: number of the model. If None, returns the config for the current model
+
+        Returns:
+            model_config: requested model config
+        """
+        if model_num is None:
+            model_num = self.current_model
+
+        model_config = self.model_configs[model_num]
+        if model_config is None:
+            logger.exception(f"Cannot get ModelConfig for model {model_num}. It has not been set.")
+            raise ValueError
+
+        return model_config
+
+    def set_model_config(self, model_config: ModelConfig, model_num: Optional[int] = None) -> None:
+        """Set ModelConfig instace for specific model.
+
+        Args:
+            model_num: number of the model. If None, sets the config for the current model
+        """
+        if model_num is None:
+            model_num = self.current_model
+
+        self.model_configs[model_num] = model_config
+
+    def set_current_model(self, model_num: int) -> None:
+        """Set the current model by it's unique identifier
+
+        Args:
+            model_num: unique identifier for the current model
+        """
+        self.current_model = model_num
 
 
 # Single instance of SimConfig to hold simulation configuration parameters.
 sim_config: SimulationConfig = None
 
-# Instances of ModelConfig that hold model configuration parameters.
-model_configs: Union[ModelConfig, List[ModelConfig]] = []
-
-# Each model in a simulation is given a unique number when the instance of
-# ModelConfig is created
-model_num: int = 0
-
 
 def get_model_config() -> ModelConfig:
-    """Return ModelConfig instace for specific model."""
-    if isinstance(model_configs, ModelConfig):
-        return model_configs
-    else:
-        return model_configs[model_num]
+    """Return ModelConfig instance for specific model."""
+    return sim_config.get_model_config()

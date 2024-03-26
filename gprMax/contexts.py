@@ -28,6 +28,7 @@ from colorama import Fore, Style, init
 init()
 
 import gprMax.config as config
+from gprMax.config import ModelConfig
 
 from ._version import __version__, codename
 from .model_build_run import ModelBuildRun
@@ -81,10 +82,6 @@ class Context:
 
         self._start_simulation()
 
-        # Clear list of model configs. It can be retained when gprMax is
-        # called in a loop, and want to avoid this.
-        config.model_configs = []
-
         for i in self.model_range:
             self._run_model(i)
 
@@ -99,8 +96,9 @@ class Context:
             model_num: index of model to be run
         """
 
-        config.model_num = model_num
-        self._set_model_config()
+        config.sim_config.set_current_model(model_num)
+        model_config = self._create_model_config(model_num)
+        config.sim_config.set_model_config(model_config)
 
         # Always create a grid for the first model. The next model to run
         # only gets a new grid if the geometry is not re-used.
@@ -124,10 +122,9 @@ class Context:
 
         gc.collect()
 
-    def _set_model_config(self) -> None:
+    def _create_model_config(self, model_num: int) -> ModelConfig:
         """Create model config and save to global config."""
-        model_config = config.ModelConfig()
-        config.model_configs.append(model_config)
+        return ModelConfig(model_num)
 
     def print_logo_copyright(self) -> None:
         """Prints gprMax logo, version, and copyright/licencing information."""
@@ -193,12 +190,12 @@ class TaskfarmContext(Context):
         self.rank = self.comm.rank
         self.TaskfarmExecutor = TaskfarmExecutor
 
-    def _set_model_config(self) -> None:
+    def _create_model_config(self, model_num: int) -> ModelConfig:
         """Create model config and save to global config.
 
         Set device in model config according to MPI rank.
         """
-        model_config = config.ModelConfig()
+        model_config = super()._create_model_config(model_num)
         # Set GPU deviceID according to worker rank
         if config.sim_config.general["solver"] == "cuda":
             model_config.device = {
@@ -206,7 +203,7 @@ class TaskfarmContext(Context):
                 "deviceID": self.rank - 1,
                 "snapsgpu2cpu": False,
             }
-        config.model_configs = model_config
+        return model_config
 
     def _run_model(self, **work) -> None:
         """Process for running a single model.

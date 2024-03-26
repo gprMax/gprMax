@@ -73,12 +73,15 @@ class ModelBuildRun:
         # Normal model reading/building process; bypassed if geometry information to be reused
         self.reuse_geometry() if config.get_model_config().reuse_geometry else self.build_geometry()
 
-        logger.info(f"\nOutput directory: {config.get_model_config().output_file_path.parent.resolve()}")
+        logger.info(
+            f"\nOutput directory: {config.get_model_config().output_file_path.parent.resolve()}"
+        )
 
         # Adjust position of simple sources and receivers if required
         if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
+            model_num = config.sim_config.current_model
             for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
-                if config.model_num == 0:
+                if model_num == 0:
                     if (
                         source.xcoord + G.srcsteps[0] * config.sim_config.model_end < 0
                         or source.xcoord + G.srcsteps[0] * config.sim_config.model_end > G.nx
@@ -87,14 +90,17 @@ class ModelBuildRun:
                         or source.zcoord + G.srcsteps[2] * config.sim_config.model_end < 0
                         or source.zcoord + G.srcsteps[2] * config.sim_config.model_end > G.nz
                     ):
-                        logger.exception("Source(s) will be stepped to a position outside the domain.")
+                        logger.exception(
+                            "Source(s) will be stepped to a position outside the domain."
+                        )
                         raise ValueError
-                source.xcoord = source.xcoordorigin + config.model_num * G.srcsteps[0]
-                source.ycoord = source.ycoordorigin + config.model_num * G.srcsteps[1]
-                source.zcoord = source.zcoordorigin + config.model_num * G.srcsteps[2]
+                source.xcoord = source.xcoordorigin + model_num * G.srcsteps[0]
+                source.ycoord = source.ycoordorigin + model_num * G.srcsteps[1]
+                source.zcoord = source.zcoordorigin + model_num * G.srcsteps[2]
         if G.rxsteps[0] != 0 or G.rxsteps[1] != 0 or G.rxsteps[2] != 0:
+            model_num = config.sim_config.current_model
             for receiver in G.rxs:
-                if config.model_num == 0:
+                if model_num == 0:
                     if (
                         receiver.xcoord + G.rxsteps[0] * config.sim_config.model_end < 0
                         or receiver.xcoord + G.rxsteps[0] * config.sim_config.model_end > G.nx
@@ -103,11 +109,13 @@ class ModelBuildRun:
                         or receiver.zcoord + G.rxsteps[2] * config.sim_config.model_end < 0
                         or receiver.zcoord + G.rxsteps[2] * config.sim_config.model_end > G.nz
                     ):
-                        logger.exception("Receiver(s) will be stepped to a position outside the domain.")
+                        logger.exception(
+                            "Receiver(s) will be stepped to a position outside the domain."
+                        )
                         raise ValueError
-                receiver.xcoord = receiver.xcoordorigin + config.model_num * G.rxsteps[0]
-                receiver.ycoord = receiver.ycoordorigin + config.model_num * G.rxsteps[1]
-                receiver.zcoord = receiver.zcoordorigin + config.model_num * G.rxsteps[2]
+                receiver.xcoord = receiver.xcoordorigin + model_num * G.rxsteps[0]
+                receiver.ycoord = receiver.ycoordorigin + model_num * G.rxsteps[1]
+                receiver.zcoord = receiver.zcoordorigin + model_num * G.rxsteps[2]
 
         # Write files for any geometry views and geometry object outputs
         gvs = G.geometryviews + [gv for sg in G.subgrids for gv in sg.geometryviews]
@@ -204,7 +212,8 @@ class ModelBuildRun:
             results = dispersion_analysis(gb.grid)
             if results["error"]:
                 logger.warning(
-                    f"\nNumerical dispersion analysis [{gb.grid.name}] " f"not carried out as {results['error']}"
+                    f"\nNumerical dispersion analysis [{gb.grid.name}] "
+                    f"not carried out as {results['error']}"
                 )
             elif results["N"] < config.get_model_config().numdispersion["mingridsampling"]:
                 logger.exception(
@@ -218,7 +227,8 @@ class ModelBuildRun:
                 raise ValueError
             elif (
                 results["deltavp"]
-                and np.abs(results["deltavp"]) > config.get_model_config().numdispersion["maxnumericaldisp"]
+                and np.abs(results["deltavp"])
+                > config.get_model_config().numdispersion["maxnumericaldisp"]
             ):
                 logger.warning(
                     f"\n[{gb.grid.name}] has potentially significant "
@@ -295,7 +305,7 @@ class ModelBuildRun:
         # Print information about and check OpenMP threads
         if config.sim_config.general["solver"] == "cpu":
             logger.basic(
-                f"\nModel {config.model_num + 1}/{config.sim_config.model_end} "
+                f"\nModel {config.sim_config.current_model + 1}/{config.sim_config.model_end} "
                 f"on {config.sim_config.hostinfo['hostname']} "
                 f"with OpenMP backend using {config.get_model_config().ompthreads} thread(s)"
             )
@@ -308,7 +318,10 @@ class ModelBuildRun:
         elif config.sim_config.general["solver"] in ["cuda", "opencl"]:
             if config.sim_config.general["solver"] == "opencl":
                 solvername = "OpenCL"
-                platformname = " ".join(config.get_model_config().device["dev"].platform.name.split()) + " with "
+                platformname = (
+                    " ".join(config.get_model_config().device["dev"].platform.name.split())
+                    + " with "
+                )
                 devicename = (
                     f'Device {config.get_model_config().device["deviceID"]}: '
                     f'{" ".join(config.get_model_config().device["dev"].name.split())}'
@@ -322,7 +335,7 @@ class ModelBuildRun:
                 )
 
             logger.basic(
-                f"\nModel {config.model_num + 1}/{config.sim_config.model_end} "
+                f"\nModel {config.sim_config.current_model + 1}/{config.sim_config.model_end} "
                 f"solving on {config.sim_config.hostinfo['hostname']} "
                 f"with {solvername} backend using {platformname}{devicename}"
             )
@@ -353,9 +366,13 @@ class ModelBuildRun:
         elif config.sim_config.general["solver"] == "opencl":
             mem_str = f" host + unknown for device"
 
-        logger.info(f"\nMemory used (estimated): " + f"~{humanize.naturalsize(self.p.memory_full_info().uss)}{mem_str}")
         logger.info(
-            f"Time taken: " + f"{humanize.precisedelta(datetime.timedelta(seconds=solver.solvetime), format='%0.4f')}"
+            f"\nMemory used (estimated): "
+            + f"~{humanize.naturalsize(self.p.memory_full_info().uss)}{mem_str}"
+        )
+        logger.info(
+            f"Time taken: "
+            + f"{humanize.precisedelta(datetime.timedelta(seconds=solver.solvetime), format='%0.4f')}"
         )
 
 
