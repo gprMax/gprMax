@@ -29,23 +29,6 @@ from .updates.opencl_updates import OpenCLUpdates
 from .updates.updates import Updates
 
 
-def create_G() -> FDTDGrid:
-    """Create grid object according to solver.
-
-    Returns:
-        G: FDTDGrid class describing a grid in a model.
-    """
-
-    if config.sim_config.general["solver"] == "cpu":
-        G = FDTDGrid()
-    elif config.sim_config.general["solver"] == "cuda":
-        G = CUDAGrid()
-    elif config.sim_config.general["solver"] == "opencl":
-        G = OpenCLGrid()
-
-    return G
-
-
 class Solver:
     """Generic solver for Update objects"""
 

@@ -26,6 +26,9 @@ import numpy as np
 import psutil
 from colorama import Fore, Style, init
 
+from gprMax.grid.cuda_grid import CUDAGrid
+from gprMax.grid.opencl_grid import OpenCLGrid
+
 init()
 
 from terminaltables import SingleTable
@@ -36,7 +39,7 @@ import gprMax.config as config
 from .cython.yee_cell_build import build_electric_components, build_magnetic_components
 from .fields_outputs import write_hdf5_outputfile
 from .geometry_outputs import save_geometry_views
-from .grid.fdtd_grid import dispersion_analysis
+from .grid.fdtd_grid import FDTDGrid, dispersion_analysis
 from .materials import process_materials
 from .pml import CFS, build_pml, print_pml_info
 from .snapshots import save_snapshots
@@ -49,8 +52,8 @@ logger = logging.getLogger(__name__)
 class Model:
     """Builds and runs (solves) a model."""
 
-    def __init__(self, G):
-        self.G = G
+    def __init__(self):
+        self.G = self._create_grid()
         # Monitor memory usage
         self.p = None
 
@@ -59,6 +62,21 @@ class Model:
         # changed by the user via #num_threads command in input file or via API
         # later for use with CPU solver.
         config.get_model_config().ompthreads = set_omp_threads(config.get_model_config().ompthreads)
+
+    def _create_grid(self) -> FDTDGrid:
+        """Create grid object according to solver.
+
+        Returns:
+            grid: FDTDGrid class describing a grid in a model.
+        """
+        if config.sim_config.general["solver"] == "cpu":
+            grid = FDTDGrid()
+        elif config.sim_config.general["solver"] == "cuda":
+            grid = CUDAGrid()
+        elif config.sim_config.general["solver"] == "opencl":
+            grid = OpenCLGrid()
+
+        return grid
 
     def build(self):
         """Builds the Yee cells for a model."""
