@@ -13,10 +13,15 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 
-import gprMax.config as config
+from scipy.constants import c
+from scipy.constants import epsilon_0 as e0
+from scipy.constants import mu_0 as m0
+
 
 logger = logging.getLogger(__name__)
 
+# Impedance of free space (Ohms)
+z0 = np.sqrt(m0 / e0) 
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(
@@ -59,9 +64,9 @@ traceno = np.s_[:]  # All traces
 # Critical angle and velocity
 if epsr:
     mr = 1
-    z1 = np.sqrt(mr / epsr) * config.sim_config.em_consts["z0"]
-    v1 = config.sim_config.em_consts["c"] / np.sqrt(epsr)
-    thetac = np.round(np.arcsin(v1 / config.sim_config.em_consts["c"]) * (180 / np.pi))
+    z1 = np.sqrt(mr / epsr) * z0
+    v1 = c / np.sqrt(epsr)
+    thetac = np.round(np.arcsin(v1 / c * (180 / np.pi))
     wavelength = v1 / f
 
 # Print some useful information
@@ -189,8 +194,8 @@ for radius in range(0, len(radii)):
             Ethetasum[index] = np.sum(Etheta[:, index] ** 2) / z1
             Hthetasum[index] = np.sum(Htheta[:, index] ** 2) / z1
         else:
-            Ethetasum[index] = np.sum(Etheta[:, index] ** 2) / config.sim_config.em_consts["z0"]
-            Hthetasum[index] = np.sum(Htheta[:, index] ** 2) / config.sim_config.em_consts["z0"]
+            Ethetasum[index] = np.sum(Etheta[:, index] ** 2) / z0
+            Hthetasum[index] = np.sum(Htheta[:, index] ** 2) / z0
 
         index += 1
 
