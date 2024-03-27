@@ -11,6 +11,8 @@
 #   using threading.
 export OMP_NUM_THREADS=1
 
+module load cray-python
+
 source ../.venv/bin/activate
 
 reframe -C configuration/archer2_settings.py -c reframe_tests.py -c base_tests.py -r "$@"
