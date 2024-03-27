@@ -34,7 +34,7 @@ import gprMax.config as config
 from gprMax.config import ModelConfig
 
 from ._version import __version__, codename
-from .model_build_run import ModelBuildRun
+from .model import Model
 from .solvers import create_G, create_solver
 from .utilities.host_info import print_cuda_info, print_host_info, print_opencl_info
 from .utilities.utilities import get_terminal_width, logo, timer
@@ -139,9 +139,9 @@ class Context:
 
         return scene
 
-    def _create_model(self) -> ModelBuildRun:
+    def _create_model(self) -> Model:
         grid = create_G()
-        return ModelBuildRun(grid)
+        return Model(grid)
 
     def print_logo_copyright(self) -> None:
         """Prints gprMax logo, version, and copyright/licencing information."""

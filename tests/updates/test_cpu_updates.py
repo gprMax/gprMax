@@ -7,7 +7,7 @@ from pytest import MonkeyPatch
 from gprMax import config, gprMax
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_built_in_materials
-from gprMax.model_build_run import GridBuilder
+from gprMax.model import GridBuilder
 from gprMax.pml import CFS
 from gprMax.updates.cpu_updates import CPUUpdates
 
@@ -43,7 +43,7 @@ def config_mock(monkeypatch: MonkeyPatch):
         return config.SimulationConfig(args)
 
     def _mock_model_config() -> config.ModelConfig:
-        model_config = config.ModelConfig()
+        model_config = config.ModelConfig(1)
         model_config.ompthreads = 1
         return model_config
 

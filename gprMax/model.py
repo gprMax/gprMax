@@ -37,10 +37,8 @@ from .cython.yee_cell_build import build_electric_components, build_magnetic_com
 from .fields_outputs import write_hdf5_outputfile
 from .geometry_outputs import save_geometry_views
 from .grid.fdtd_grid import dispersion_analysis
-from .hash_cmds_file import parse_hash_commands
 from .materials import process_materials
 from .pml import CFS, build_pml, print_pml_info
-from .scene import Scene
 from .snapshots import save_snapshots
 from .utilities.host_info import mem_check_build_all, mem_check_run_all, set_omp_threads
 from .utilities.utilities import get_terminal_width
@@ -48,7 +46,7 @@ from .utilities.utilities import get_terminal_width
 logger = logging.getLogger(__name__)
 
 
-class ModelBuildRun:
+class Model:
     """Builds and runs (solves) a model."""
 
     def __init__(self, G):

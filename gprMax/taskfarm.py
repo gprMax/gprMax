@@ -51,7 +51,7 @@ class TaskfarmExecutor(object):
     `gprMax` models in parallel is given below.
     >>> from mpi4py import MPI
     >>> from gprMax.taskfarm import TaskfarmExecutor
-    >>> from gprMax.model_build_run import run_model
+    >>> from gprMax.model import run_model
     >>> # choose an MPI.Intracomm for communication (MPI.COMM_WORLD by default)
     >>> comm = MPI.COMM_WORLD
     >>> # choose a target function
@@ -269,7 +269,9 @@ class TaskfarmExecutor(object):
             for i, worker in enumerate(self.workers):
                 if self.comm.Iprobe(source=worker, tag=Tags.DONE):
                     job_idx, result = self.comm.recv(source=worker, tag=Tags.DONE)
-                    logger.debug(f"({self.comm.name}) - Received finished job {job_idx} from worker {worker:d}.")
+                    logger.debug(
+                        f"({self.comm.name}) - Received finished job {job_idx} from worker {worker:d}."
+                    )
                     results[job_idx] = result
                     self.busy[i] = False
                 elif self.comm.Iprobe(source=worker, tag=Tags.READY):
@@ -277,7 +279,9 @@ class TaskfarmExecutor(object):
                         self.comm.recv(source=worker, tag=Tags.READY)
                         self.busy[i] = True
                         job_idx = num_jobs - len(my_jobs)
-                        logger.debug(f"({self.comm.name}) - Sending job {job_idx} to worker {worker:d}.")
+                        logger.debug(
+                            f"({self.comm.name}) - Sending job {job_idx} to worker {worker:d}."
+                        )
                         self.comm.send((job_idx, my_jobs.pop(0)), dest=worker, tag=Tags.START)
                 elif self.comm.Iprobe(source=worker, tag=Tags.EXIT):
                     logger.debug(f"({self.comm.name}) - Worker on rank {worker:d} has terminated.")
