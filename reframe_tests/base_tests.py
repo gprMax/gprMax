@@ -29,7 +29,7 @@ class CreatePyenvTest(rfm.RunOnlyRegressionTest):
     prerun_cmds = [
         "python -m venv --system-site-packages --prompt gprMax .venv",
         f"source {PATH_TO_PYENV}",
-        f"CC=cc CXX=CC FC=ftn python -m pip install --upgrade pip')",
+        "CC=cc CXX=CC FC=ftn python -m pip install --upgrade pip",
         f"CC=cc CXX=CC FC=ftn python -m pip install -r {os.path.join(GPRMAX_ROOT_DIR, 'requirements.txt')}",
     ]
     executable = f"CC=cc CXX=CC FC=ftn python -m pip install -e {GPRMAX_ROOT_DIR}"
@@ -42,13 +42,20 @@ class CreatePyenvTest(rfm.RunOnlyRegressionTest):
         """
         return (
             sn.assert_found(
-                r"Successfully installed (?!gprMax)", self.stdout, "Failed to install requirements"
+                r"(Successfully installed pip)|(Requirement already satisfied: pip.*\n(?!Collecting pip))",
+                self.stdout,
+                "Failed to update pip",
+            )
+            and sn.assert_found(
+                r"Successfully installed (?!(gprMax)|(pip))",
+                self.stdout,
+                "Failed to install requirements",
             )
             and sn.assert_found(
                 r"Successfully installed gprMax", self.stdout, "Failed to install gprMax"
             )
             and sn.assert_not_found(r"finished with status 'error'", self.stdout)
-            and sn.assert_not_found(r"ERROR:", self.stderr)
+            and sn.assert_not_found(r"(ERROR|error):", self.stderr)
         )
 
 
@@ -69,8 +76,8 @@ class GprMaxBaseTest(rfm.RunOnlyRegressionTest):
             self.prerun_cmds.append("unset SLURM_MEM_PER_NODE")
             self.prerun_cmds.append("unset SLURM_MEM_PER_CPU")
 
-            # Set HOME environment variable to the work filesystem
-            self.env_vars["HOME"] = "${HOME/home/work}"
+            # Set the matplotlib cache to the work filesystem
+            self.env_vars["MPLCONFIGDIR"] = "${HOME/home/work}/.config/matplotlib"
 
     # TODO: Change CreatePyenvTest to a fixture instead of a test dependency
     @run_after("init")
@@ -147,8 +154,6 @@ class GprMaxBaseTest(rfm.RunOnlyRegressionTest):
 
 
 class GprMaxRegressionTest(GprMaxBaseTest):
-    modules = ["cray-hdf5"]
-
     input_file = variable(str)
     output_file = variable(str)
 
@@ -157,6 +162,7 @@ class GprMaxRegressionTest(GprMaxBaseTest):
     @run_before("run", always_last=True)
     def setup_regression_check(self):
         """Build reference file path and add h5diff command to run after the test"""
+        self.modules.append("cray-hdf5")
         self.reference_file = Path("regression_checks", self.unique_name).with_suffix(".h5")
         self.reference_file = os.path.abspath(self.reference_file)
         if os.path.exists(self.reference_file):
