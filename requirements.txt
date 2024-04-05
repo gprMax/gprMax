@@ -65,7 +65,7 @@ packaging==24.0
 pandocfilters==1.5.1
 parso==0.8.3
 pexpect==4.9.0
-pillow==10.2.0
+pillow==10.3.0
 pip==24.0
 platformdirs==4.2.0
 ply==3.11
