@@ -26,7 +26,7 @@ executing==2.0.1
 fastjsonschema==2.19.1
 fonttools==4.50.0
 h5py==3.10.0
-idna==3.6
+idna==3.7
 ipykernel==6.29.3
 ipython==8.22.2
 ipywidgets==8.1.2
