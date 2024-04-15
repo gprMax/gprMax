@@ -649,7 +649,7 @@ def antenna_like_MALA_1200(x, y, z, resolution=0.001, **kwargs):
     scene_objects.append(vs1)
 
     # Output point - receiver bowtie
-    r1 = gprMax.Rx(p1=(tx[0] + 0.076, tx[1], tx[2]), id="rxbowtie", outputs="Ey")
+    r1 = gprMax.Rx(p1=(tx[0] + 0.076, tx[1], tx[2]), id="rxbowtie", outputs=["Ey"])
     scene_objects.append(r1)
 
     # Geometry views

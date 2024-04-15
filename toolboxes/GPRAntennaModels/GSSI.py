@@ -405,7 +405,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
                 p1=(tx[0] - 0.059, tx[1], tx[2]), p2=(tx[0] - 0.059, tx[1] + dy, tx[2]), material_id="rxres"
             )
             scene_objects.append(e1)
-        r1 = gprMax.Rx(p1=(tx[0] - 0.059, tx[1], tx[2]), id="rxbowtie", outputs="Ey")
+        r1 = gprMax.Rx(p1=(tx[0] - 0.059, tx[1], tx[2]), id="rxbowtie", outputs=["Ey"])
         scene_objects.append(r1)
 
     elif resolution == 0.002:
@@ -414,7 +414,7 @@ def antenna_like_GSSI_1500(x, y, z, resolution=0.001, **kwargs):
                 p1=(tx[0] - 0.060, tx[1], tx[2]), p2=(tx[0] - 0.060, tx[1] + dy, tx[2]), material_id="rxres"
             )
             scene_objects.append(e1)
-        r1 = gprMax.Rx(p1=(tx[0] - 0.060, tx[1], tx[2]), id="rxbowtie", outputs="Ey")
+        r1 = gprMax.Rx(p1=(tx[0] - 0.060, tx[1], tx[2]), id="rxbowtie", outputs=["Ey"])
         scene_objects.append(r1)
 
     return scene_objects
@@ -804,7 +804,7 @@ def antenna_like_GSSI_400(x, y, z, resolution=0.002, **kwargs):
         )
         scene_objects.extend((w2, tl2))
     else:
-        r1 = gprMax.Rx(p1=(tx[0] + 0.162, tx[1], tx[2]), id="rxbowtie", outputs="Ey")
+        r1 = gprMax.Rx(p1=(tx[0] + 0.162, tx[1], tx[2]), id="rxbowtie", outputs=["Ey"])
         scene_objects.append(r1)
 
     # Geometry views
