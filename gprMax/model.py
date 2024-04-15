@@ -94,44 +94,9 @@ class Model:
         )
 
         # Adjust position of simple sources and receivers if required
-        if G.srcsteps[0] != 0 or G.srcsteps[1] != 0 or G.srcsteps[2] != 0:
-            model_num = config.sim_config.current_model
-            for source in itertools.chain(G.hertziandipoles, G.magneticdipoles):
-                if model_num == 0:
-                    if (
-                        source.xcoord + G.srcsteps[0] * config.sim_config.model_end < 0
-                        or source.xcoord + G.srcsteps[0] * config.sim_config.model_end > G.nx
-                        or source.ycoord + G.srcsteps[1] * config.sim_config.model_end < 0
-                        or source.ycoord + G.srcsteps[1] * config.sim_config.model_end > G.ny
-                        or source.zcoord + G.srcsteps[2] * config.sim_config.model_end < 0
-                        or source.zcoord + G.srcsteps[2] * config.sim_config.model_end > G.nz
-                    ):
-                        logger.exception(
-                            "Source(s) will be stepped to a position outside the domain."
-                        )
-                        raise ValueError
-                source.xcoord = source.xcoordorigin + model_num * G.srcsteps[0]
-                source.ycoord = source.ycoordorigin + model_num * G.srcsteps[1]
-                source.zcoord = source.zcoordorigin + model_num * G.srcsteps[2]
-        if G.rxsteps[0] != 0 or G.rxsteps[1] != 0 or G.rxsteps[2] != 0:
-            model_num = config.sim_config.current_model
-            for receiver in G.rxs:
-                if model_num == 0:
-                    if (
-                        receiver.xcoord + G.rxsteps[0] * config.sim_config.model_end < 0
-                        or receiver.xcoord + G.rxsteps[0] * config.sim_config.model_end > G.nx
-                        or receiver.ycoord + G.rxsteps[1] * config.sim_config.model_end < 0
-                        or receiver.ycoord + G.rxsteps[1] * config.sim_config.model_end > G.ny
-                        or receiver.zcoord + G.rxsteps[2] * config.sim_config.model_end < 0
-                        or receiver.zcoord + G.rxsteps[2] * config.sim_config.model_end > G.nz
-                    ):
-                        logger.exception(
-                            "Receiver(s) will be stepped to a position outside the domain."
-                        )
-                        raise ValueError
-                receiver.xcoord = receiver.xcoordorigin + model_num * G.rxsteps[0]
-                receiver.ycoord = receiver.ycoordorigin + model_num * G.rxsteps[1]
-                receiver.zcoord = receiver.zcoordorigin + model_num * G.rxsteps[2]
+        model_num = config.sim_config.current_model
+        G.update_simple_source_positions(step=model_num)
+        G.update_receiver_positions(step=model_num)
 
         # Write files for any geometry views and geometry object outputs
         gvs = G.geometryviews + [gv for sg in G.subgrids for gv in sg.geometryviews]
@@ -158,109 +123,8 @@ class Model:
             logger.info("")
 
     def build_geometry(self):
-        G = self.G
-
         logger.info(config.get_model_config().inputfilestr)
-
-        # Print info on any subgrids
-        for sg in G.subgrids:
-            sg.print_info()
-
-        # Combine available grids
-        grids = [G] + G.subgrids
-
-        # Check for dispersive materials (and specific type)
-        for grid in grids:
-            if config.get_model_config().materials["maxpoles"] != 0:
-                config.get_model_config().materials["drudelorentz"] = any(
-                    [m for m in grid.materials if "drude" in m.type or "lorentz" in m.type]
-                )
-
-        # Set data type if any dispersive materials (must be done before memory checks)
-        if config.get_model_config().materials["maxpoles"] != 0:
-            config.get_model_config().set_dispersive_material_types()
-
-        # Check memory requirements to build model/scene (different to memory
-        # requirements to run model when FractalVolumes/FractalSurfaces are
-        # used as these can require significant additional memory)
-        total_mem_build, mem_strs_build = mem_check_build_all(grids)
-
-        # Check memory requirements to run model
-        total_mem_run, mem_strs_run = mem_check_run_all(grids)
-
-        if total_mem_build > total_mem_run:
-            logger.info(
-                f'\nMemory required (estimated): {" + ".join(mem_strs_build)} + '
-                f"~{humanize.naturalsize(config.get_model_config().mem_overhead)} "
-                f"overhead = {humanize.naturalsize(total_mem_build)}"
-            )
-        else:
-            logger.info(
-                f'\nMemory required (estimated): {" + ".join(mem_strs_run)} + '
-                f"~{humanize.naturalsize(config.get_model_config().mem_overhead)} "
-                f"overhead = {humanize.naturalsize(total_mem_run)}"
-            )
-
-        # Build grids
-        gridbuilders = [GridBuilder(grid) for grid in grids]
-        for gb in gridbuilders:
-            # Set default CFS parameter for PMLs if not user provided
-            if not gb.grid.pmls["cfs"]:
-                gb.grid.pmls["cfs"] = [CFS()]
-            logger.info(print_pml_info(gb.grid))
-            if not all(value == 0 for value in gb.grid.pmls["thickness"].values()):
-                gb.build_pmls()
-            if gb.grid.averagevolumeobjects:
-                gb.build_components()
-            gb.tm_grid_update()
-            gb.update_voltage_source_materials()
-            gb.grid.initialise_field_arrays()
-            gb.grid.initialise_std_update_coeff_arrays()
-            if config.get_model_config().materials["maxpoles"] > 0:
-                gb.grid.initialise_dispersive_arrays()
-                gb.grid.initialise_dispersive_update_coeff_array()
-            gb.build_materials()
-
-            # Check to see if numerical dispersion might be a problem
-            results = dispersion_analysis(gb.grid)
-            if results["error"]:
-                logger.warning(
-                    f"\nNumerical dispersion analysis [{gb.grid.name}] "
-                    f"not carried out as {results['error']}"
-                )
-            elif results["N"] < config.get_model_config().numdispersion["mingridsampling"]:
-                logger.exception(
-                    f"\nNon-physical wave propagation in [{gb.grid.name}] "
-                    f"detected. Material '{results['material'].ID}' "
-                    f"has wavelength sampled by {results['N']} cells, "
-                    f"less than required minimum for physical wave "
-                    f"propagation. Maximum significant frequency "
-                    f"estimated as {results['maxfreq']:g}Hz"
-                )
-                raise ValueError
-            elif (
-                results["deltavp"]
-                and np.abs(results["deltavp"])
-                > config.get_model_config().numdispersion["maxnumericaldisp"]
-            ):
-                logger.warning(
-                    f"\n[{gb.grid.name}] has potentially significant "
-                    f"numerical dispersion. Estimated largest physical "
-                    f"phase-velocity error is {results['deltavp']:.2f}% "
-                    f"in material '{results['material'].ID}' whose "
-                    f"wavelength sampled by {results['N']} cells. "
-                    f"Maximum significant frequency estimated as "
-                    f"{results['maxfreq']:g}Hz"
-                )
-            elif results["deltavp"]:
-                logger.info(
-                    f"\nNumerical dispersion analysis [{gb.grid.name}]: "
-                    f"estimated largest physical phase-velocity error is "
-                    f"{results['deltavp']:.2f}% in material '{results['material'].ID}' "
-                    f"whose wavelength sampled by {results['N']} cells. "
-                    f"Maximum significant frequency estimated as "
-                    f"{results['maxfreq']:g}Hz"
-                )
+        self.G.build()
 
     def reuse_geometry(self):
         s = (
@@ -371,64 +235,3 @@ class Model:
             f"Time taken: "
             + f"{humanize.precisedelta(datetime.timedelta(seconds=solver.solvetime), format='%0.4f')}"
         )
-
-
-class GridBuilder:
-    def __init__(self, grid):
-        self.grid = grid
-
-    def build_pmls(self):
-        pbar = tqdm(
-            total=sum(1 for value in self.grid.pmls["thickness"].values() if value > 0),
-            desc=f"Building PML boundaries [{self.grid.name}]",
-            ncols=get_terminal_width() - 1,
-            file=sys.stdout,
-            disable=not config.sim_config.general["progressbars"],
-        )
-        for pml_id, thickness in self.grid.pmls["thickness"].items():
-            if thickness > 0:
-                build_pml(self.grid, pml_id, thickness)
-                pbar.update()
-        pbar.close()
-
-    def build_components(self):
-        # Build the model, i.e. set the material properties (ID) for every edge
-        # of every Yee cell
-        logger.info("")
-        pbar = tqdm(
-            total=2,
-            desc=f"Building Yee cells [{self.grid.name}]",
-            ncols=get_terminal_width() - 1,
-            file=sys.stdout,
-            disable=not config.sim_config.general["progressbars"],
-        )
-        build_electric_components(self.grid.solid, self.grid.rigidE, self.grid.ID, self.grid)
-        pbar.update()
-        build_magnetic_components(self.grid.solid, self.grid.rigidH, self.grid.ID, self.grid)
-        pbar.update()
-        pbar.close()
-
-    def tm_grid_update(self):
-        if config.get_model_config().mode == "2D TMx":
-            self.grid.tmx()
-        elif config.get_model_config().mode == "2D TMy":
-            self.grid.tmy()
-        elif config.get_model_config().mode == "2D TMz":
-            self.grid.tmz()
-
-    def update_voltage_source_materials(self):
-        # Process any voltage sources (that have resistance) to create a new
-        # material at the source location
-        for voltagesource in self.grid.voltagesources:
-            voltagesource.create_material(self.grid)
-
-    def build_materials(self):
-        # Process complete list of materials - calculate update coefficients,
-        # store in arrays, and build text list of materials/properties
-        materialsdata = process_materials(self.grid)
-        materialstable = SingleTable(materialsdata)
-        materialstable.outer_border = False
-        materialstable.justify_columns[0] = "right"
-
-        logger.info(f"\nMaterials [{self.grid.name}]:")
-        logger.info(materialstable.table)
