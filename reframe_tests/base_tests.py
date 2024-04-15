@@ -34,6 +34,20 @@ class CreatePyenvTest(rfm.RunOnlyRegressionTest):
     ]
     executable = f"CC=cc CXX=CC FC=ftn python -m pip install -e {GPRMAX_ROOT_DIR}"
 
+    @run_after("init")
+    def install_system_specific_dependencies(self):
+        """Install additional dependencies for specific systems"""
+        if self.current_system.name == "archer2":
+            """
+            Needed to prevent a pip install error.
+            dask 2022.2.1 (installed) requires cloudpickle>=1.1.1, which
+            is not installed and is missed by the pip dependency checks.
+
+            Not necessary for gprMax, but any error message is picked up
+            by the sanity checks.
+            """
+            self.prerun_cmds.insert(3, "CC=cc CXX=CC FC=ftn python -m pip install cloudpickle")
+
     @sanity_function
     def check_requirements_installed(self):
         """
