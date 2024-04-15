@@ -5,7 +5,14 @@ from shutil import copyfile
 
 import reframe as rfm
 import reframe.utility.sanity as sn
-from reframe.core.builtins import performance_function, require_deps, run_after, run_before, sanity_function, variable
+from reframe.core.builtins import (
+    performance_function,
+    require_deps,
+    run_after,
+    run_before,
+    sanity_function,
+    variable,
+)
 from reframe.utility import udeps
 from utilities.deferrable import path_join
 
@@ -16,15 +23,30 @@ PATH_TO_PYENV = os.path.join(".venv", "bin", "activate")
 @rfm.simple_test
 class CreatePyenvTest(rfm.RunOnlyRegressionTest):
     valid_systems = ["generic", "archer2:login"]
-    valid_prog_environs = ["builtin", "PrgEnv-cray"]
+    valid_prog_environs = ["builtin", "PrgEnv-gnu"]
     modules = ["cray-python"]
 
     prerun_cmds = [
         "python -m venv --system-site-packages --prompt gprMax .venv",
         f"source {PATH_TO_PYENV}",
-        f"pip install -r {os.path.join(GPRMAX_ROOT_DIR, 'requirements.txt')}",
+        "CC=cc CXX=CC FC=ftn python -m pip install --upgrade pip",
+        f"CC=cc CXX=CC FC=ftn python -m pip install -r {os.path.join(GPRMAX_ROOT_DIR, 'requirements.txt')}",
     ]
-    executable = f"pip install -e {GPRMAX_ROOT_DIR}"
+    executable = f"CC=cc CXX=CC FC=ftn python -m pip install -e {GPRMAX_ROOT_DIR}"
+
+    @run_after("init")
+    def install_system_specific_dependencies(self):
+        """Install additional dependencies for specific systems"""
+        if self.current_system.name == "archer2":
+            """
+            Needed to prevent a pip install error.
+            dask 2022.2.1 (installed) requires cloudpickle>=1.1.1, which
+            is not installed and is missed by the pip dependency checks.
+
+            Not necessary for gprMax, but any error message is picked up
+            by the sanity checks.
+            """
+            self.prerun_cmds.insert(3, "CC=cc CXX=CC FC=ftn python -m pip install cloudpickle")
 
     @sanity_function
     def check_requirements_installed(self):
@@ -33,16 +55,28 @@ class CreatePyenvTest(rfm.RunOnlyRegressionTest):
         Check gprMax installed successfully and no other errors thrown
         """
         return (
-            sn.assert_found(r"Successfully installed (?!gprMax)", self.stdout, "Failed to install requirements")
-            and sn.assert_found(r"Successfully installed gprMax", self.stdout, "Failed to install gprMax")
+            sn.assert_found(
+                r"(Successfully installed pip)|(Requirement already satisfied: pip.*\n(?!Collecting pip))",
+                self.stdout,
+                "Failed to update pip",
+            )
+            and sn.assert_found(
+                r"Successfully installed (?!(gprMax)|(pip))",
+                self.stdout,
+                "Failed to install requirements",
+            )
+            and sn.assert_found(
+                r"Successfully installed gprMax", self.stdout, "Failed to install gprMax"
+            )
             and sn.assert_not_found(r"finished with status 'error'", self.stdout)
-            and sn.assert_not_found(r"ERROR:", self.stderr)
+            and sn.assert_not_found(r"(ERROR|error):", self.stderr)
         )
 
 
 class GprMaxBaseTest(rfm.RunOnlyRegressionTest):
     valid_systems = ["archer2:compute"]
-    valid_prog_environs = ["PrgEnv-cray"]
+    valid_prog_environs = ["PrgEnv-gnu"]
+    modules = ["cray-python"]
     executable = "time -p python -m gprMax --log-level 25"
     exclusive_access = True
 
@@ -56,8 +90,8 @@ class GprMaxBaseTest(rfm.RunOnlyRegressionTest):
             self.prerun_cmds.append("unset SLURM_MEM_PER_NODE")
             self.prerun_cmds.append("unset SLURM_MEM_PER_CPU")
 
-            # Set HOME environment variable to the work filesystem
-            self.env_vars["HOME"] = "${HOME/home/work}"
+            # Set the matplotlib cache to the work filesystem
+            self.env_vars["MPLCONFIGDIR"] = "${HOME/home/work}/.config/matplotlib"
 
     # TODO: Change CreatePyenvTest to a fixture instead of a test dependency
     @run_after("init")
@@ -76,13 +110,19 @@ class GprMaxBaseTest(rfm.RunOnlyRegressionTest):
         """Check simulation completed successfully"""
         # TODO: Check for correctness/regression rather than just completing
         return sn.assert_not_found(
-            r"(?i)error", self.stderr, f"An error occured. See '{path_join(self.stagedir, self.stderr)}' for details."
-        ) and sn.assert_found(r"=== Simulation completed in ", self.stdout, "Simulation did not complete")
+            r"(?i)error",
+            self.stderr,
+            f"An error occured. See '{path_join(self.stagedir, self.stderr)}' for details.",
+        ) and sn.assert_found(
+            r"=== Simulation completed in ", self.stdout, "Simulation did not complete"
+        )
 
     @performance_function("s", perf_key="run_time")
     def extract_run_time(self):
         """Extract total runtime from the last task to complete"""
-        return sn.extractsingle(r"real\s+(?P<run_time>\S+)", self.stderr, "run_time", float, self.num_tasks - 1)
+        return sn.extractsingle(
+            r"real\s+(?P<run_time>\S+)", self.stderr, "run_time", float, self.num_tasks - 1
+        )
 
     @performance_function("s", perf_key="simulation_time")
     def extract_simulation_time(self):
@@ -91,7 +131,9 @@ class GprMaxBaseTest(rfm.RunOnlyRegressionTest):
         # sn.extractall throws an error if a group has value None.
         # Therefore have to handle the < 1 min, >= 1 min and >= 1 hour cases separately.
         timeframe = sn.extractsingle(
-            r"=== Simulation completed in \S+ (?P<timeframe>hour|minute|second)", self.stdout, "timeframe"
+            r"=== Simulation completed in \S+ (?P<timeframe>hour|minute|second)",
+            self.stdout,
+            "timeframe",
         )
         if timeframe == "hour":
             simulation_time = sn.extractall(
@@ -117,14 +159,15 @@ class GprMaxBaseTest(rfm.RunOnlyRegressionTest):
             hours = 0
             minutes = 0
             seconds = sn.extractsingle(
-                r"=== Simulation completed in (?P<seconds>\S+) seconds? =*", self.stdout, "seconds", float
+                r"=== Simulation completed in (?P<seconds>\S+) seconds? =*",
+                self.stdout,
+                "seconds",
+                float,
             )
         return hours * 3600 + minutes * 60 + seconds
 
 
 class GprMaxRegressionTest(GprMaxBaseTest):
-    modules = ["cray-hdf5"]
-
     input_file = variable(str)
     output_file = variable(str)
 
@@ -133,6 +176,7 @@ class GprMaxRegressionTest(GprMaxBaseTest):
     @run_before("run", always_last=True)
     def setup_regression_check(self):
         """Build reference file path and add h5diff command to run after the test"""
+        self.modules.append("cray-hdf5")
         self.reference_file = Path("regression_checks", self.unique_name).with_suffix(".h5")
         self.reference_file = os.path.abspath(self.reference_file)
         if os.path.exists(self.reference_file):
@@ -146,7 +190,9 @@ class GprMaxRegressionTest(GprMaxBaseTest):
         Create reference file from the test output if it does not exist.
         """
         if sn.path_exists(self.reference_file):
-            h5diff_output = sn.extractsingle(f"{self.h5diff_header}\n(?P<h5diff>[\S\s]*)", self.stdout, "h5diff")
+            h5diff_output = sn.extractsingle(
+                f"{self.h5diff_header}\n(?P<h5diff>[\S\s]*)", self.stdout, "h5diff"
+            )
             return (
                 self.test_simulation_complete()
                 and sn.assert_found(self.h5diff_header, self.stdout, "Failed to find h5diff header")
@@ -161,7 +207,9 @@ class GprMaxRegressionTest(GprMaxBaseTest):
             )
         else:
             copyfile(self.output_file, self.reference_file)
-            return sn.assert_true(False, f"No reference file exists. Creating... '{self.reference_file}'")
+            return sn.assert_true(
+                False, f"No reference file exists. Creating... '{self.reference_file}'"
+            )
 
 
 class GprMaxMpiTest(GprMaxBaseTest):
