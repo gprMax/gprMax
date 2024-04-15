@@ -220,7 +220,7 @@ Transmission Line
 
 Excitation File
 ---------------
-.. autoclass:: gprMax.cmds_singleuse.ExcitationFile
+.. autoclass:: gprMax.cmds_multiuse.ExcitationFile
 
 Receiver
 --------
