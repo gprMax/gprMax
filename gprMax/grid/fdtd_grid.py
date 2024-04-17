@@ -16,18 +16,32 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import decimal as d
+import decimal
+import itertools
+import logging
+import sys
 from collections import OrderedDict
-from importlib import import_module
+from typing import Iterable, List, Union
 
+import humanize
 import numpy as np
+from terminaltables import SingleTable
+from tqdm import tqdm
 
-import gprMax.config as config
+from gprMax import config
+from gprMax.cython.yee_cell_build import build_electric_components, build_magnetic_components
 
-from .pml import PML
-from .utilities.utilities import fft_power, round_value
+# from gprMax.geometry_outputs import GeometryObjects, GeometryView
+from gprMax.materials import Material, process_materials
+from gprMax.pml import CFS, PML, build_pml, print_pml_info
+from gprMax.receivers import Rx
+from gprMax.sources import HertzianDipole, MagneticDipole, Source, VoltageSource
 
-np.seterr(invalid="raise")
+# from gprMax.subgrids.grid import SubGridBaseGrid
+from gprMax.utilities.host_info import mem_check_build_all, mem_check_run_all
+from gprMax.utilities.utilities import fft_power, get_terminal_width, round_value
+
+logger = logging.getLogger(__name__)
 
 
 class FDTDGrid:
@@ -64,22 +78,217 @@ class FDTDGrid:
         # corrections will be different.
         self.pmls["thickness"] = OrderedDict((key, 10) for key in PML.boundaryIDs)
 
-        self.materials = []
+        # TODO: Add type information.
+        # Currently importing GeometryObjects, GeometryView, and
+        # SubGridBaseGrid cause cyclic dependencies
+        self.materials: List[Material] = []
         self.mixingmodels = []
         self.averagevolumeobjects = True
         self.fractalvolumes = []
         self.geometryviews = []
         self.geometryobjectswrite = []
         self.waveforms = []
-        self.voltagesources = []
-        self.hertziandipoles = []
-        self.magneticdipoles = []
+        self.voltagesources: List[VoltageSource] = []
+        self.hertziandipoles: List[HertzianDipole] = []
+        self.magneticdipoles: List[MagneticDipole] = []
         self.transmissionlines = []
-        self.rxs = []
-        self.srcsteps = [0, 0, 0]
-        self.rxsteps = [0, 0, 0]
+        self.rxs: List[Rx] = []
+        self.srcsteps: List[float] = [0, 0, 0]
+        self.rxsteps: List[float] = [0, 0, 0]
         self.snapshots = []
         self.subgrids = []
+
+    def build(self) -> None:
+        # Print info on any subgrids
+        for subgrid in self.subgrids:
+            subgrid.print_info()
+
+        # Combine available grids
+        grids = [self] + self.subgrids
+
+        # Check for dispersive materials (and specific type)
+        if config.get_model_config().materials["maxpoles"] != 0:
+            # TODO: This sets materials["drudelorentz"] based only the
+            # last grid/subgrid. Is that correct?
+            for grid in grids:
+                config.get_model_config().materials["drudelorentz"] = any(
+                    [m for m in grid.materials if "drude" in m.type or "lorentz" in m.type]
+                )
+
+            # Set data type if any dispersive materials (must be done before memory checks)
+            config.get_model_config().set_dispersive_material_types()
+
+        # Check memory requirements to build model/scene (different to memory
+        # requirements to run model when FractalVolumes/FractalSurfaces are
+        # used as these can require significant additional memory)
+        total_mem_build, mem_strs_build = mem_check_build_all(grids)
+
+        # Check memory requirements to run model
+        total_mem_run, mem_strs_run = mem_check_run_all(grids)
+
+        if total_mem_build > total_mem_run:
+            logger.info(
+                f'\nMemory required (estimated): {" + ".join(mem_strs_build)} + '
+                f"~{humanize.naturalsize(config.get_model_config().mem_overhead)} "
+                f"overhead = {humanize.naturalsize(total_mem_build)}"
+            )
+        else:
+            logger.info(
+                f'\nMemory required (estimated): {" + ".join(mem_strs_run)} + '
+                f"~{humanize.naturalsize(config.get_model_config().mem_overhead)} "
+                f"overhead = {humanize.naturalsize(total_mem_run)}"
+            )
+
+        # Build grids
+        for grid in grids:
+            # Set default CFS parameter for PMLs if not user provided
+            if not grid.pmls["cfs"]:
+                grid.pmls["cfs"] = [CFS()]
+            logger.info(print_pml_info(grid))
+            if not all(value == 0 for value in grid.pmls["thickness"].values()):
+                grid._build_pmls()
+            if grid.averagevolumeobjects:
+                grid._build_components()
+            grid._tm_grid_update()
+            grid._update_voltage_source_materials()
+            grid.initialise_field_arrays()
+            grid.initialise_std_update_coeff_arrays()
+            if config.get_model_config().materials["maxpoles"] > 0:
+                grid.initialise_dispersive_arrays()
+                grid.initialise_dispersive_update_coeff_array()
+            grid._build_materials()
+
+            # Check to see if numerical dispersion might be a problem
+            results = dispersion_analysis(grid)
+            if results["error"]:
+                logger.warning(
+                    f"\nNumerical dispersion analysis [{grid.name}] "
+                    f"not carried out as {results['error']}"
+                )
+            elif results["N"] < config.get_model_config().numdispersion["mingridsampling"]:
+                logger.exception(
+                    f"\nNon-physical wave propagation in [{grid.name}] "
+                    f"detected. Material '{results['material'].ID}' "
+                    f"has wavelength sampled by {results['N']} cells, "
+                    f"less than required minimum for physical wave "
+                    f"propagation. Maximum significant frequency "
+                    f"estimated as {results['maxfreq']:g}Hz"
+                )
+                raise ValueError
+            elif (
+                results["deltavp"]
+                and np.abs(results["deltavp"])
+                > config.get_model_config().numdispersion["maxnumericaldisp"]
+            ):
+                logger.warning(
+                    f"\n[{grid.name}] has potentially significant "
+                    f"numerical dispersion. Estimated largest physical "
+                    f"phase-velocity error is {results['deltavp']:.2f}% "
+                    f"in material '{results['material'].ID}' whose "
+                    f"wavelength sampled by {results['N']} cells. "
+                    f"Maximum significant frequency estimated as "
+                    f"{results['maxfreq']:g}Hz"
+                )
+            elif results["deltavp"]:
+                logger.info(
+                    f"\nNumerical dispersion analysis [{grid.name}]: "
+                    f"estimated largest physical phase-velocity error is "
+                    f"{results['deltavp']:.2f}% in material '{results['material'].ID}' "
+                    f"whose wavelength sampled by {results['N']} cells. "
+                    f"Maximum significant frequency estimated as "
+                    f"{results['maxfreq']:g}Hz"
+                )
+
+    def _build_pmls(self) -> None:
+        pbar = tqdm(
+            total=sum(1 for value in self.pmls["thickness"].values() if value > 0),
+            desc=f"Building PML boundaries [{self.name}]",
+            ncols=get_terminal_width() - 1,
+            file=sys.stdout,
+            disable=not config.sim_config.general["progressbars"],
+        )
+        for pml_id, thickness in self.pmls["thickness"].items():
+            if thickness > 0:
+                build_pml(self, pml_id, thickness)
+                pbar.update()
+        pbar.close()
+
+    def _build_components(self) -> None:
+        # Build the model, i.e. set the material properties (ID) for every edge
+        # of every Yee cell
+        logger.info("")
+        pbar = tqdm(
+            total=2,
+            desc=f"Building Yee cells [{self.name}]",
+            ncols=get_terminal_width() - 1,
+            file=sys.stdout,
+            disable=not config.sim_config.general["progressbars"],
+        )
+        build_electric_components(self.solid, self.rigidE, self.ID, self)
+        pbar.update()
+        build_magnetic_components(self.solid, self.rigidH, self.ID, self)
+        pbar.update()
+        pbar.close()
+
+    def _tm_grid_update(self) -> None:
+        if config.get_model_config().mode == "2D TMx":
+            self.tmx()
+        elif config.get_model_config().mode == "2D TMy":
+            self.tmy()
+        elif config.get_model_config().mode == "2D TMz":
+            self.tmz()
+
+    def _update_voltage_source_materials(self):
+        # Process any voltage sources (that have resistance) to create a new
+        # material at the source location
+        for voltagesource in self.voltagesources:
+            voltagesource.create_material(self)
+
+    def _build_materials(self) -> None:
+        # Process complete list of materials - calculate update coefficients,
+        # store in arrays, and build text list of materials/properties
+        materialsdata = process_materials(self)
+        materialstable = SingleTable(materialsdata)
+        materialstable.outer_border = False
+        materialstable.justify_columns[0] = "right"
+
+        logger.info(f"\nMaterials [{self.name}]:")
+        logger.info(materialstable.table)
+
+    def _update_positions(
+        self, items: Iterable[Union[Source, Rx]], step_size: List[float], step_number: int
+    ) -> None:
+        if step_size[0] != 0 or step_size[1] != 0 or step_size[2] != 0:
+            for item in items:
+                if step_number == 0:
+                    if (
+                        item.xcoord + self.srcsteps[0] * config.sim_config.model_end < 0
+                        or item.xcoord + self.srcsteps[0] * config.sim_config.model_end > self.nx
+                        or item.ycoord + self.srcsteps[1] * config.sim_config.model_end < 0
+                        or item.ycoord + self.srcsteps[1] * config.sim_config.model_end > self.ny
+                        or item.zcoord + self.srcsteps[2] * config.sim_config.model_end < 0
+                        or item.zcoord + self.srcsteps[2] * config.sim_config.model_end > self.nz
+                    ):
+                        raise ValueError
+                item.xcoord = item.xcoordorigin + step_number * step_size[0]
+                item.ycoord = item.ycoordorigin + step_number * step_size[1]
+                item.zcoord = item.zcoordorigin + step_number * step_size[2]
+
+    def update_simple_source_positions(self, step: int = 0) -> None:
+        try:
+            self._update_positions(
+                itertools.chain(self.hertziandipoles, self.magneticdipoles), self.srcsteps, step
+            )
+        except ValueError as e:
+            logger.exception("Source(s) will be stepped to a position outside the domain.")
+            raise ValueError from e
+
+    def update_receiver_positions(self, step: int = 0) -> None:
+        try:
+            self._update_positions(self.rxs, self.rxsteps, step)
+        except ValueError as e:
+            logger.exception("Receiver(s) will be stepped to a position outside the domain.")
+            raise ValueError from e
 
     def within_bounds(self, p):
         if p[0] < 0 or p[0] > self.nx:
@@ -128,30 +337,67 @@ class FDTDGrid:
 
     def initialise_field_arrays(self):
         """Initialise arrays for the electric and magnetic field components."""
-        self.Ex = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"])
-        self.Ey = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"])
-        self.Ez = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"])
-        self.Hx = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"])
-        self.Hy = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"])
-        self.Hz = np.zeros((self.nx + 1, self.ny + 1, self.nz + 1), dtype=config.sim_config.dtypes["float_or_double"])
+        self.Ex = np.zeros(
+            (self.nx + 1, self.ny + 1, self.nz + 1),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.Ey = np.zeros(
+            (self.nx + 1, self.ny + 1, self.nz + 1),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.Ez = np.zeros(
+            (self.nx + 1, self.ny + 1, self.nz + 1),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.Hx = np.zeros(
+            (self.nx + 1, self.ny + 1, self.nz + 1),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.Hy = np.zeros(
+            (self.nx + 1, self.ny + 1, self.nz + 1),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
+        self.Hz = np.zeros(
+            (self.nx + 1, self.ny + 1, self.nz + 1),
+            dtype=config.sim_config.dtypes["float_or_double"],
+        )
 
     def initialise_std_update_coeff_arrays(self):
         """Initialise arrays for storing update coefficients."""
-        self.updatecoeffsE = np.zeros((len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"])
-        self.updatecoeffsH = np.zeros((len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"])
+        self.updatecoeffsE = np.zeros(
+            (len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"]
+        )
+        self.updatecoeffsH = np.zeros(
+            (len(self.materials), 5), dtype=config.sim_config.dtypes["float_or_double"]
+        )
 
     def initialise_dispersive_arrays(self):
         """Initialise field arrays when there are dispersive materials present."""
         self.Tx = np.zeros(
-            (config.get_model_config().materials["maxpoles"], self.nx + 1, self.ny + 1, self.nz + 1),
+            (
+                config.get_model_config().materials["maxpoles"],
+                self.nx + 1,
+                self.ny + 1,
+                self.nz + 1,
+            ),
             dtype=config.get_model_config().materials["dispersivedtype"],
         )
         self.Ty = np.zeros(
-            (config.get_model_config().materials["maxpoles"], self.nx + 1, self.ny + 1, self.nz + 1),
+            (
+                config.get_model_config().materials["maxpoles"],
+                self.nx + 1,
+                self.ny + 1,
+                self.nz + 1,
+            ),
             dtype=config.get_model_config().materials["dispersivedtype"],
         )
         self.Tz = np.zeros(
-            (config.get_model_config().materials["maxpoles"], self.nx + 1, self.ny + 1, self.nz + 1),
+            (
+                config.get_model_config().materials["maxpoles"],
+                self.nx + 1,
+                self.ny + 1,
+                self.nz + 1,
+            ),
             dtype=config.get_model_config().materials["dispersivedtype"],
         )
 
@@ -288,110 +534,28 @@ class FDTDGrid:
     def calculate_dt(self):
         """Calculate time step at the CFL limit."""
         if config.get_model_config().mode == "2D TMx":
-            self.dt = 1 / (config.sim_config.em_consts["c"] * np.sqrt((1 / self.dy**2) + (1 / self.dz**2)))
+            self.dt = 1 / (
+                config.sim_config.em_consts["c"] * np.sqrt((1 / self.dy**2) + (1 / self.dz**2))
+            )
         elif config.get_model_config().mode == "2D TMy":
-            self.dt = 1 / (config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dz**2)))
+            self.dt = 1 / (
+                config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dz**2))
+            )
         elif config.get_model_config().mode == "2D TMz":
-            self.dt = 1 / (config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dy**2)))
+            self.dt = 1 / (
+                config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dy**2))
+            )
         else:
             self.dt = 1 / (
-                config.sim_config.em_consts["c"] * np.sqrt((1 / self.dx**2) + (1 / self.dy**2) + (1 / self.dz**2))
+                config.sim_config.em_consts["c"]
+                * np.sqrt((1 / self.dx**2) + (1 / self.dy**2) + (1 / self.dz**2))
             )
 
         # Round down time step to nearest float with precision one less than
         # hardware maximum. Avoids inadvertently exceeding the CFL due to
         # binary representation of floating point number.
-        self.dt = round_value(self.dt, decimalplaces=d.getcontext().prec - 1)
+        self.dt = round_value(self.dt, decimalplaces=decimal.getcontext().prec - 1)
 
-
-class CUDAGrid(FDTDGrid):
-    """Additional grid methods for solving on GPU using CUDA."""
-
-    def __init__(self):
-        super().__init__()
-
-        self.gpuarray = import_module("pycuda.gpuarray")
-
-        # Threads per block - used for main electric/magnetic field updates
-        self.tpb = (128, 1, 1)
-        # Blocks per grid - used for main electric/magnetic field updates
-        self.bpg = None
-
-    def set_blocks_per_grid(self):
-        """Set the blocks per grid size used for updating the electric and
-            magnetic field arrays on a GPU.
-        """
-
-        self.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / self.tpb[0])), 1, 1)
-
-    def htod_geometry_arrays(self):
-        """Initialise an array for cell edge IDs (ID) on compute device."""
-
-        self.ID_dev = self.gpuarray.to_gpu(self.ID)
-
-    def htod_field_arrays(self):
-        """Initialise field arrays on compute device."""
-
-        self.Ex_dev = self.gpuarray.to_gpu(self.Ex)
-        self.Ey_dev = self.gpuarray.to_gpu(self.Ey)
-        self.Ez_dev = self.gpuarray.to_gpu(self.Ez)
-        self.Hx_dev = self.gpuarray.to_gpu(self.Hx)
-        self.Hy_dev = self.gpuarray.to_gpu(self.Hy)
-        self.Hz_dev = self.gpuarray.to_gpu(self.Hz)
-
-    def htod_dispersive_arrays(self):
-        """Initialise dispersive material coefficient arrays on compute device."""
-
-        self.updatecoeffsdispersive_dev = self.gpuarray.to_gpu(self.updatecoeffsdispersive)
-        self.Tx_dev = self.gpuarray.to_gpu(self.Tx)
-        self.Ty_dev = self.gpuarray.to_gpu(self.Ty)
-        self.Tz_dev = self.gpuarray.to_gpu(self.Tz)
-        
-
-class OpenCLGrid(FDTDGrid):
-    """Additional grid methods for solving on compute device using OpenCL."""
-
-    def __init__(self):
-        super().__init__()
-
-        self.clarray = import_module("pyopencl.array")
-
-    def htod_geometry_arrays(self, queue):
-        """Initialise an array for cell edge IDs (ID) on compute device.
-
-        Args:
-            queue: pyopencl queue.
-        """
-
-        self.ID_dev = self.clarray.to_device(queue, self.ID)
-
-    def htod_field_arrays(self, queue):
-        """Initialise field arrays on compute device.
-
-        Args:
-            queue: pyopencl queue.
-        """
-
-        self.Ex_dev = self.clarray.to_device(queue, self.Ex)
-        self.Ey_dev = self.clarray.to_device(queue, self.Ey)
-        self.Ez_dev = self.clarray.to_device(queue, self.Ez)
-        self.Hx_dev = self.clarray.to_device(queue, self.Hx)
-        self.Hy_dev = self.clarray.to_device(queue, self.Hy)
-        self.Hz_dev = self.clarray.to_device(queue, self.Hz)
-
-    def htod_dispersive_arrays(self, queue):
-        """Initialise dispersive material coefficient arrays on compute device.
-
-        Args:
-            queue: pyopencl queue.
-        """
-                 
-        self.updatecoeffsdispersive_dev = self.clarray.to_device(queue, self.updatecoeffsdispersive)
-        # self.updatecoeffsdispersive_dev = self.clarray.to_device(queue, np.ones((95,95,95), dtype=np.float32))
-        self.Tx_dev = self.clarray.to_device(queue, self.Tx)
-        self.Ty_dev = self.clarray.to_device(queue, self.Ty)
-        self.Tz_dev = self.clarray.to_device(queue, self.Tz)
-        
 
 def dispersion_analysis(G):
     """Analysis of numerical dispersion (Taflove et al, 2005, p112) -
@@ -444,7 +608,8 @@ def dispersion_analysis(G):
                     try:
                         freqthres = (
                             np.where(
-                                power[freqmaxpower:] < -config.get_model_config().numdispersion["highestfreqthres"]
+                                power[freqmaxpower:]
+                                < -config.get_model_config().numdispersion["highestfreqthres"]
                             )[0][0]
                             + freqmaxpower
                         )
@@ -463,7 +628,8 @@ def dispersion_analysis(G):
                 # If waveform is truncated don't do any further analysis
                 else:
                     results["error"] = (
-                        "waveform does not fit within specified " + "time window and is therefore being truncated."
+                        "waveform does not fit within specified "
+                        + "time window and is therefore being truncated."
                     )
     else:
         results["error"] = "no waveform detected."
@@ -511,7 +677,10 @@ def dispersion_analysis(G):
         results["N"] = minwavelength / delta
 
         # Check grid sampling will result in physical wave propagation
-        if int(np.floor(results["N"])) >= config.get_model_config().numdispersion["mingridsampling"]:
+        if (
+            int(np.floor(results["N"]))
+            >= config.get_model_config().numdispersion["mingridsampling"]
+        ):
             # Numerical phase velocity
             vp = np.pi / (results["N"] * np.arcsin((1 / S) * np.sin((np.pi * S) / results["N"])))
 

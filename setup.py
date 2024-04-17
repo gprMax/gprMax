@@ -253,7 +253,7 @@ else:
     )
 
     # Parse long_description from README.rst file.
-    with open("README.rst", "r") as fd:
+    with open("README.rst", "r", encoding="utf-8") as fd:
         long_description = fd.read()
 
     setup(

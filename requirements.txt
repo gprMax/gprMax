@@ -12,7 +12,6 @@ matplotlib
 numpy
 numpy-stl
 pandas
-pip
 pre-commit
 psutil
 # pycuda
