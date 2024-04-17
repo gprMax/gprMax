@@ -1,5 +1,5 @@
 import reframe as rfm
-from base_tests import GprMaxRegressionTest
+from base_tests import GprMaxAPIRegressionTest, GprMaxRegressionTest
 from reframe.core.builtins import parameter, run_after
 
 """ReFrame tests for basic functionality
@@ -82,3 +82,71 @@ class BasicModelsTest(GprMaxRegressionTest):
         self.executable_opts = [self.input_file, "-o", self.output_file]
         self.postrun_cmds = [f"python -m toolboxes.Plotting.plot_Ascan -save {self.output_file}"]
         self.keep_files = [self.input_file, self.output_file, f"{self.model}.pdf"]
+
+
+@rfm.simple_test
+class AntennaModelsTest(GprMaxRegressionTest):
+    tags = {"test", "serial", "regression", "antenna"}
+
+    # List of available antenna test models
+    model = parameter(
+        [
+            "antenna_wire_dipole_fs",
+        ]
+    )
+    num_cpus_per_task = 16
+
+    @run_after("init")
+    def set_filenames(self):
+        self.input_file = f"{self.model}.in"
+        self.output_file = f"{self.model}.h5"
+        self.executable_opts = [self.input_file, "-o", self.output_file]
+        self.postrun_cmds = [f"python -m toolboxes.Plotting.plot_Ascan -save {self.output_file}"]
+        self.postrun_cmds = [
+            f"python -m toolboxes.Plotting.plot_antenna_params -save {self.output_file}"
+        ]
+
+        antenna_t1_params = f"{self.model}_t1_params.pdf"
+        antenna_ant_params = f"{self.model}_ant_params.pdf"
+        plot_ascan_output = f"{self.model}.pdf"
+        geometry_view = f"{self.model}.vtu"
+        self.keep_files = [
+            self.input_file,
+            self.output_file,
+            antenna_t1_params,
+            antenna_ant_params,
+            plot_ascan_output,
+            geometry_view,
+        ]
+
+
+@rfm.simple_test
+class SubgridTest(GprMaxAPIRegressionTest):
+    tags = {"test", "api", "serial", "regression", "subgrid"}
+
+    # List of available subgrid test models
+    model = parameter(
+        [
+            "cylinder_fs",
+            # "gssi_400_over_fractal_subsurface",  # Takes ~1hr 30m on ARCHER2
+        ]
+    )
+    num_cpus_per_task = 16
+
+    @run_after("init")
+    def set_filenames(self):
+        self.input_file = f"{self.model}.py"
+        self.output_file = f"{self.model}.h5"
+        self.executable_opts = [self.input_file, "-o", self.output_file]
+        self.postrun_cmds = [f"python -m toolboxes.Plotting.plot_Ascan -save {self.output_file}"]
+
+        geometry_view = f"{self.model}.vti"
+        subgrid_geometry_view = f"{self.model}_sg.vti"
+        plot_ascan_output = f"{self.model}.pdf"
+        self.keep_files = [
+            self.input_file,
+            self.output_file,
+            geometry_view,
+            subgrid_geometry_view,
+            plot_ascan_output,
+        ]
