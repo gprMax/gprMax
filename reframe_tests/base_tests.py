@@ -212,5 +212,9 @@ class GprMaxRegressionTest(GprMaxBaseTest):
             )
 
 
+class GprMaxAPIRegressionTest(GprMaxRegressionTest):
+    executable = "time -p python"
+
+
 class GprMaxMpiTest(GprMaxBaseTest):
     pass

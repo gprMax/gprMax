@@ -1,0 +1,15 @@
+#title: Wire antenna - half-wavelength dipole in free-space
+#domain: 0.050 0.050 0.200
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 60e-9
+
+#waveform: gaussian 1 1e9 mypulse
+#transmission_line: z 0.025 0.025 0.100 73 mypulse
+
+## 150mm length
+#edge: 0.025 0.025 0.025 0.025 0.025 0.175 pec
+
+## 1mm gap at centre of dipole
+#edge: 0.025 0.025 0.100 0.025 0.025 0.101 free_space
+
+#geometry_view: 0.020 0.020 0.020 0.030 0.030 0.180 0.001 0.001 0.001 antenna_wire_dipole_fs f
