@@ -871,7 +871,7 @@ class Rx(UserObjectMulti):
 
         try:
             r.ID = self.kwargs["id"]
-            outputs = list(self.kwargs["outputs"])
+            outputs = self.kwargs["outputs"]
         except KeyError:
             # If no ID or outputs are specified, use default
             r.ID = f"{r.__class__.__name__}({str(r.xcoord)},{str(r.ycoord)},{str(r.zcoord)})"
