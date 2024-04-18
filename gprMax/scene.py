@@ -138,11 +138,13 @@ class Scene:
 
         self.process_cmds(cmds_unique, G)
 
-    def create_internal_objects(self, G):
+    def create_internal_objects(self, model: Model):
         """Calls the UserObject.build() function in the correct way - API
         presents the user with UserObjects in order to build the internal
         Rx(), Cylinder() etc... objects.
         """
+
+        G = model.G
 
         # Create pre-defined (built-in) materials
         create_built_in_materials(G)

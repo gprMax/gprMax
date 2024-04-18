@@ -106,7 +106,7 @@ class Context:
         if not model_config.reuse_geometry():
             scene = self._get_scene(model_num)
             model = self._create_model()
-            scene.create_internal_objects(model.G)
+            scene.create_internal_objects(model)
 
         model.build()
 
