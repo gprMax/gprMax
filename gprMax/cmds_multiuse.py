@@ -18,14 +18,21 @@
 
 import inspect
 import logging
+from abc import ABC, abstractmethod
 from pathlib import Path
 
 import numpy as np
 from scipy import interpolate
 
 import gprMax.config as config
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.user_inputs import UserInput
 
-from .cmds_geometry.cmds_geometry import UserObjectGeometry, rotate_2point_object, rotate_polarisation
+from .cmds_geometry.cmds_geometry import (
+    UserObjectGeometry,
+    rotate_2point_object,
+    rotate_polarisation,
+)
 from .geometry_outputs import GeometryObjects as GeometryObjectsUser
 from .materials import DispersiveMaterial as DispersiveMaterialUser
 from .materials import ListMaterial as ListMaterialUser
@@ -46,12 +53,12 @@ from .waveforms import Waveform as WaveformUser
 logger = logging.getLogger(__name__)
 
 
-class UserObjectMulti:
+class UserObjectMulti(ABC):
     """Object that can occur multiple times in a model."""
 
     def __init__(self, **kwargs):
         self.kwargs = kwargs
-        self.order = None
+        self.order = 0
         self.hash = None
         self.autotranslate = True
         self.do_rotate = False
@@ -66,10 +73,12 @@ class UserObjectMulti:
 
         return f"{self.hash}: {s[:-1]}"
 
-    def build(self, grid, uip):
+    @abstractmethod
+    def build(self, grid: FDTDGrid, uip: UserInput):
         """Creates object and adds it to grid."""
         pass
 
+    @abstractmethod
     def rotate(self, axis, angle, origin=None):
         """Rotates object (specialised for each object)."""
         pass
@@ -133,7 +142,9 @@ class ExcitationFile(UserObjectMulti):
         waveformIDs = np.loadtxt(excitationfile, max_rows=1, dtype=str)
 
         # Read all waveform values into an array
-        waveformvalues = np.loadtxt(excitationfile, skiprows=1, dtype=config.sim_config.dtypes["float_or_double"])
+        waveformvalues = np.loadtxt(
+            excitationfile, skiprows=1, dtype=config.sim_config.dtypes["float_or_double"]
+        )
 
         # Time array (if specified) for interpolation, otherwise use simulation time
         if waveformIDs[0].lower() == "time":
@@ -154,7 +165,9 @@ class ExcitationFile(UserObjectMulti):
             w.type = "user"
 
             # Select correct column of waveform values depending on array shape
-            singlewaveformvalues = waveformvalues[:] if len(waveformvalues.shape) == 1 else waveformvalues[:, i]
+            singlewaveformvalues = (
+                waveformvalues[:] if len(waveformvalues.shape) == 1 else waveformvalues[:, i]
+            )
 
             # Truncate waveform array if it is longer than time array
             if len(singlewaveformvalues) > len(waveformtime):
@@ -220,11 +233,14 @@ class Waveform(UserObjectMulti):
                 freq = self.kwargs["freq"]
                 ID = self.kwargs["id"]
             except KeyError:
-                logger.exception(self.params_str() + (" builtin waveforms " "require exactly four parameters."))
+                logger.exception(
+                    self.params_str() + (" builtin waveforms " "require exactly four parameters.")
+                )
                 raise
             if freq <= 0:
                 logger.exception(
-                    self.params_str() + (" requires an excitation " "frequency value of greater than zero.")
+                    self.params_str()
+                    + (" requires an excitation " "frequency value of greater than zero.")
                 )
                 raise ValueError
             if any(x.ID == ID for x in grid.waveforms):
@@ -253,7 +269,10 @@ class Waveform(UserObjectMulti):
                 fullargspec = inspect.getfullargspec(interpolate.interp1d)
                 kwargs = dict(zip(reversed(fullargspec.args), reversed(fullargspec.defaults)))
             except KeyError:
-                logger.exception(self.params_str() + (" a user-defined " "waveform requires at least two parameters."))
+                logger.exception(
+                    self.params_str()
+                    + (" a user-defined " "waveform requires at least two parameters.")
+                )
                 raise
 
             if "user_time" in self.kwargs:
@@ -276,7 +295,9 @@ class Waveform(UserObjectMulti):
             w.type = wavetype
             w.userfunc = interpolate.interp1d(waveformtime, uservalues, **kwargs)
 
-            logger.info(self.grid_name(grid) + (f"Waveform {w.ID} that is " "user-defined created."))
+            logger.info(
+                self.grid_name(grid) + (f"Waveform {w.ID} that is " "user-defined created.")
+            )
 
         grid.waveforms.append(w)
 
@@ -354,12 +375,16 @@ class VoltageSource(UserObjectMulti):
         p2 = uip.round_to_grid_static_point(p1)
 
         if resistance < 0:
-            logger.exception(self.params_str() + (" requires a source " "resistance of zero " "or greater."))
+            logger.exception(
+                self.params_str() + (" requires a source " "resistance of zero " "or greater.")
+            )
             raise ValueError
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            logger.exception(self.params_str() + (" there is no waveform with " "the identifier {waveform_id}."))
+            logger.exception(
+                self.params_str() + (" there is no waveform with " "the identifier {waveform_id}.")
+            )
             raise ValueError
 
         v = VoltageSourceUser()
@@ -367,7 +392,16 @@ class VoltageSource(UserObjectMulti):
         v.xcoord = xcoord
         v.ycoord = ycoord
         v.zcoord = zcoord
-        v.ID = v.__class__.__name__ + "(" + str(v.xcoord) + "," + str(v.ycoord) + "," + str(v.zcoord) + ")"
+        v.ID = (
+            v.__class__.__name__
+            + "("
+            + str(v.xcoord)
+            + ","
+            + str(v.ycoord)
+            + ","
+            + str(v.zcoord)
+            + ")"
+        )
         v.resistance = resistance
         v.waveformID = waveform_id
 
@@ -377,14 +411,21 @@ class VoltageSource(UserObjectMulti):
             # Check source start & source remove time parameters
             if start < 0:
                 logger.exception(
-                    self.params_str() + (" delay of the initiation " "of the source should not " "be less than zero.")
+                    self.params_str()
+                    + (" delay of the initiation " "of the source should not " "be less than zero.")
                 )
                 raise ValueError
             if stop < 0:
-                logger.exception(self.params_str() + (" time to remove the " "source should not be " "less than zero."))
+                logger.exception(
+                    self.params_str()
+                    + (" time to remove the " "source should not be " "less than zero.")
+                )
                 raise ValueError
             if stop - start <= 0:
-                logger.exception(self.params_str() + (" duration of the source " "should not be zero or " "less."))
+                logger.exception(
+                    self.params_str()
+                    + (" duration of the source " "should not be zero or " "less.")
+                )
                 raise ValueError
             v.start = start
             v.stop = min(stop, grid.timewindow)
@@ -399,7 +440,9 @@ class VoltageSource(UserObjectMulti):
         logger.info(
             f"{self.grid_name(grid)}Voltage source with polarity "
             f"{v.polarisation} at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m, "
-            f"resistance {v.resistance:.1f} Ohms," + startstop + f"using waveform {v.waveformID} created."
+            f"resistance {v.resistance:.1f} Ohms,"
+            + startstop
+            + f"using waveform {v.waveformID} created."
         )
 
         grid.voltagesources.append(v)
@@ -478,7 +521,9 @@ class HertzianDipole(UserObjectMulti):
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            logger.exception(f"{self.params_str()} there is no waveform with the identifier {waveform_id}.")
+            logger.exception(
+                f"{self.params_str()} there is no waveform with the identifier {waveform_id}."
+            )
             raise ValueError
 
         h = HertzianDipoleUser()
@@ -511,10 +556,14 @@ class HertzianDipole(UserObjectMulti):
                 )
                 raise ValueError
             if stop < 0:
-                logger.exception(f"{self.params_str()} time to remove the source should not be less than zero.")
+                logger.exception(
+                    f"{self.params_str()} time to remove the source should not be less than zero."
+                )
                 raise ValueError
             if stop - start <= 0:
-                logger.exception(f"{self.params_str()} duration of the source should not be zero or less.")
+                logger.exception(
+                    f"{self.params_str()} duration of the source should not be zero or less."
+                )
                 raise ValueError
             h.start = start
             h.stop = min(stop, grid.timewindow)
@@ -619,7 +668,9 @@ class MagneticDipole(UserObjectMulti):
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            logger.exception(f"{self.params_str()} there is no waveform with the identifier {waveform_id}.")
+            logger.exception(
+                f"{self.params_str()} there is no waveform with the identifier {waveform_id}."
+            )
             raise ValueError
 
         m = MagneticDipoleUser()
@@ -630,7 +681,16 @@ class MagneticDipole(UserObjectMulti):
         m.xcoordorigin = xcoord
         m.ycoordorigin = ycoord
         m.zcoordorigin = zcoord
-        m.ID = m.__class__.__name__ + "(" + str(m.xcoord) + "," + str(m.ycoord) + "," + str(m.zcoord) + ")"
+        m.ID = (
+            m.__class__.__name__
+            + "("
+            + str(m.xcoord)
+            + ","
+            + str(m.ycoord)
+            + ","
+            + str(m.zcoord)
+            + ")"
+        )
         m.waveformID = waveform_id
 
         try:
@@ -639,14 +699,21 @@ class MagneticDipole(UserObjectMulti):
             stop = self.kwargs["stop"]
             if start < 0:
                 logger.exception(
-                    self.params_str() + (" delay of the initiation " "of the source should not " "be less than zero.")
+                    self.params_str()
+                    + (" delay of the initiation " "of the source should not " "be less than zero.")
                 )
                 raise ValueError
             if stop < 0:
-                logger.exception(self.params_str() + (" time to remove the " "source should not be " "less than zero."))
+                logger.exception(
+                    self.params_str()
+                    + (" time to remove the " "source should not be " "less than zero.")
+                )
                 raise ValueError
             if stop - start <= 0:
-                logger.exception(self.params_str() + (" duration of the source " "should not be zero or " "less."))
+                logger.exception(
+                    self.params_str()
+                    + (" duration of the source " "should not be zero or " "less.")
+                )
                 raise ValueError
             m.start = start
             m.stop = min(stop, grid.timewindow)
@@ -760,7 +827,9 @@ class TransmissionLine(UserObjectMulti):
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
-            logger.exception(f"{self.params_str()} there is no waveform with the identifier {waveform_id}.")
+            logger.exception(
+                f"{self.params_str()} there is no waveform with the identifier {waveform_id}."
+            )
             raise ValueError
 
         t = TransmissionLineUser(grid)
@@ -768,7 +837,16 @@ class TransmissionLine(UserObjectMulti):
         t.xcoord = xcoord
         t.ycoord = ycoord
         t.zcoord = zcoord
-        t.ID = t.__class__.__name__ + "(" + str(t.xcoord) + "," + str(t.ycoord) + "," + str(t.zcoord) + ")"
+        t.ID = (
+            t.__class__.__name__
+            + "("
+            + str(t.xcoord)
+            + ","
+            + str(t.ycoord)
+            + ","
+            + str(t.zcoord)
+            + ")"
+        )
         t.resistance = resistance
         t.waveformID = waveform_id
 
@@ -778,14 +856,21 @@ class TransmissionLine(UserObjectMulti):
             stop = self.kwargs["stop"]
             if start < 0:
                 logger.exception(
-                    self.params_str() + (" delay of the initiation " "of the source should not " "be less than zero.")
+                    self.params_str()
+                    + (" delay of the initiation " "of the source should not " "be less than zero.")
                 )
                 raise ValueError
             if stop < 0:
-                logger.exception(self.params_str() + (" time to remove the " "source should not be " "less than zero."))
+                logger.exception(
+                    self.params_str()
+                    + (" time to remove the " "source should not be " "less than zero.")
+                )
                 raise ValueError
             if stop - start <= 0:
-                logger.exception(self.params_str() + (" duration of the source " "should not be zero or " "less."))
+                logger.exception(
+                    self.params_str()
+                    + (" duration of the source " "should not be zero or " "less.")
+                )
                 raise ValueError
             t.start = start
             t.stop = min(stop, grid.timewindow)
@@ -837,7 +922,11 @@ class Rx(UserObjectMulti):
 
     def _do_rotate(self, grid):
         """Performs rotation."""
-        new_pt = (self.kwargs["p1"][0] + grid.dx, self.kwargs["p1"][1] + grid.dy, self.kwargs["p1"][2] + grid.dz)
+        new_pt = (
+            self.kwargs["p1"][0] + grid.dx,
+            self.kwargs["p1"][1] + grid.dy,
+            self.kwargs["p1"][2] + grid.dz,
+        )
         pts = np.array([self.kwargs["p1"], new_pt])
         rot_pts = rotate_2point_object(pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
@@ -876,7 +965,9 @@ class Rx(UserObjectMulti):
             # If no ID or outputs are specified, use default
             r.ID = f"{r.__class__.__name__}({str(r.xcoord)},{str(r.ycoord)},{str(r.zcoord)})"
             for key in RxUser.defaultoutputs:
-                r.outputs[key] = np.zeros(grid.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+                r.outputs[key] = np.zeros(
+                    grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                )
         else:
             outputs.sort()
             # Get allowable outputs
@@ -887,7 +978,9 @@ class Rx(UserObjectMulti):
             # Check and add field output names
             for field in outputs:
                 if field in allowableoutputs:
-                    r.outputs[field] = np.zeros(grid.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+                    r.outputs[field] = np.zeros(
+                        grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                    )
                 else:
                     logger.exception(
                         f"{self.params_str()} contains an output "
@@ -938,7 +1031,9 @@ class RxArray(UserObjectMulti):
         dx, dy, dz = uip.discretise_point(dl)
 
         if xs > xf or ys > yf or zs > zf:
-            logger.exception(f"{self.params_str()} the lower coordinates should be less than the upper coordinates.")
+            logger.exception(
+                f"{self.params_str()} the lower coordinates should be less than the upper coordinates."
+            )
             raise ValueError
         if dx < 0 or dy < 0 or dz < 0:
             logger.exception(f"{self.params_str()} the step size should not be less than zero.")
@@ -991,7 +1086,9 @@ class RxArray(UserObjectMulti):
                     p5 = uip.round_to_grid_static_point(p5)
                     r.ID = f"{r.__class__.__name__}({str(x)},{str(y)},{str(z)})"
                     for key in RxUser.defaultoutputs:
-                        r.outputs[key] = np.zeros(grid.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+                        r.outputs[key] = np.zeros(
+                            grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                        )
                     logger.info(
                         f"  Receiver at {p5[0]:g}m, {p5[1]:g}m, "
                         f"{p5[2]:g}m with output component(s) "
@@ -1102,13 +1199,29 @@ class Snapshot(UserObjectMulti):
             logger.exception(f"{self.params_str()} the step size should not be less than zero.")
             raise ValueError
         if dx < 1 or dy < 1 or dz < 1:
-            logger.exception(f"{self.params_str()} the step size should not be less than the spatial discretisation.")
+            logger.exception(
+                f"{self.params_str()} the step size should not be less than the spatial discretisation."
+            )
             raise ValueError
         if iterations <= 0 or iterations > grid.iterations:
             logger.exception(f"{self.params_str()} time value is not valid.")
             raise ValueError
 
-        s = SnapshotUser(xs, ys, zs, xf, yf, zf, dx, dy, dz, iterations, filename, fileext=fileext, outputs=outputs)
+        s = SnapshotUser(
+            xs,
+            ys,
+            zs,
+            xf,
+            yf,
+            zf,
+            dx,
+            dy,
+            dz,
+            iterations,
+            filename,
+            fileext=fileext,
+            outputs=outputs,
+        )
 
         logger.info(
             f"Snapshot from {p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to "
@@ -1158,7 +1271,9 @@ class Material(UserObjectMulti):
         if se != "inf":
             se = float(se)
             if se < 0:
-                logger.exception(f"{self.params_str()} requires a positive value for electric conductivity.")
+                logger.exception(
+                    f"{self.params_str()} requires a positive value for electric conductivity."
+                )
                 raise ValueError
         else:
             se = float("inf")
@@ -1251,13 +1366,17 @@ class AddDebyeDispersion(UserObjectMulti):
                     disp_material.deltaer.append(er_delta[i])
                     disp_material.tau.append(tau[i])
                 else:
-                    logger.exception(f"{self.params_str()} requires positive values for the permittivity difference.")
+                    logger.exception(
+                        f"{self.params_str()} requires positive values for the permittivity difference."
+                    )
                     raise ValueError
             if disp_material.poles > config.get_model_config().materials["maxpoles"]:
                 config.get_model_config().materials["maxpoles"] = disp_material.poles
 
             # Replace original material with newly created DispersiveMaterial
-            grid.materials = [disp_material if mat.numID == material.numID else mat for mat in grid.materials]
+            grid.materials = [
+                disp_material if mat.numID == material.numID else mat for mat in grid.materials
+            ]
 
             logger.info(
                 f"{self.grid_name(grid)}Debye disperion added to {disp_material.ID} "
@@ -1336,7 +1455,9 @@ class AddLorentzDispersion(UserObjectMulti):
                 config.get_model_config().materials["maxpoles"] = disp_material.poles
 
             # Replace original material with newly created DispersiveMaterial
-            grid.materials = [disp_material if mat.numID == material.numID else mat for mat in grid.materials]
+            grid.materials = [
+                disp_material if mat.numID == material.numID else mat for mat in grid.materials
+            ]
 
             logger.info(
                 f"{self.grid_name(grid)}Lorentz disperion added to {disp_material.ID} "
@@ -1410,7 +1531,9 @@ class AddDrudeDispersion(UserObjectMulti):
                 config.get_model_config().materials["maxpoles"] = disp_material.poles
 
             # Replace original material with newly created DispersiveMaterial
-            grid.materials = [disp_material if mat.numID == material.numID else mat for mat in grid.materials]
+            grid.materials = [
+                disp_material if mat.numID == material.numID else mat for mat in grid.materials
+            ]
 
             logger.info(
                 f"{self.grid_name(grid)}Drude disperion added to {disp_material.ID} "
@@ -1454,16 +1577,22 @@ class SoilPeplinski(UserObjectMulti):
             raise
 
         if sand_fraction < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for the sand fraction.")
+            logger.exception(
+                f"{self.params_str()} requires a positive value for the sand fraction."
+            )
             raise ValueError
         if clay_fraction < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for the clay fraction.")
+            logger.exception(
+                f"{self.params_str()} requires a positive value for the clay fraction."
+            )
             raise ValueError
         if bulk_density < 0:
             logger.exception(f"{self.params_str()} requires a positive value for the bulk density.")
             raise ValueError
         if sand_density < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for the sand particle density.")
+            logger.exception(
+                f"{self.params_str()} requires a positive value for the sand particle density."
+            )
             raise ValueError
         if water_fraction_lower < 0:
             logger.exception(
@@ -1484,7 +1613,12 @@ class SoilPeplinski(UserObjectMulti):
         # Create a new instance of the Material class material
         # (start index after pec & free_space)
         s = PeplinskiSoilUser(
-            ID, sand_fraction, clay_fraction, bulk_density, sand_density, (water_fraction_lower, water_fraction_upper)
+            ID,
+            sand_fraction,
+            clay_fraction,
+            bulk_density,
+            sand_density,
+            (water_fraction_lower, water_fraction_upper),
         )
 
         logger.info(
@@ -1546,10 +1680,14 @@ class MaterialRange(UserObjectMulti):
             )
             raise ValueError
         if sigma_lower < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for the lower limit of conductivity.")
+            logger.exception(
+                f"{self.params_str()} requires a positive value for the lower limit of conductivity."
+            )
             raise ValueError
         if ro_lower < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for the lower range magnetic loss.")
+            logger.exception(
+                f"{self.params_str()} requires a positive value for the lower range magnetic loss."
+            )
             raise ValueError
         if er_upper < 1:
             logger.exception(
@@ -1564,17 +1702,25 @@ class MaterialRange(UserObjectMulti):
             )
             raise ValueError
         if sigma_upper < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for the upper range of conductivity.")
+            logger.exception(
+                f"{self.params_str()} requires a positive value for the upper range of conductivity."
+            )
             raise ValueError
         if ro_upper < 0:
-            logger.exception(f"{self.params_str()} requires a positive value for the upper range of magnetic loss.")
+            logger.exception(
+                f"{self.params_str()} requires a positive value for the upper range of magnetic loss."
+            )
 
         if any(x.ID == ID for x in grid.mixingmodels):
             logger.exception(f"{self.params_str()} with ID {ID} already exists")
             raise ValueError
 
         s = RangeMaterialUser(
-            ID, (er_lower, er_upper), (sigma_lower, sigma_upper), (mr_lower, mr_upper), (ro_lower, ro_upper)
+            ID,
+            (er_lower, er_upper),
+            (sigma_lower, sigma_upper),
+            (mr_lower, mr_upper),
+            (ro_lower, ro_upper),
         )
 
         logger.info(
@@ -1614,7 +1760,9 @@ class MaterialList(UserObjectMulti):
 
         s = ListMaterialUser(ID, list_of_materials)
 
-        logger.info(f"{self.grid_name(grid)}A list of materials used to create {s.ID} that includes {s.mat}, created")
+        logger.info(
+            f"{self.grid_name(grid)}A list of materials used to create {s.ID} that includes {s.mat}, created"
+        )
 
         grid.mixingmodels.append(s)
 
@@ -1682,15 +1830,23 @@ class GeometryView(UserObjectMulti):
             logger.exception(f"{self.params_str()} the step size should not be less than zero.")
             raise ValueError
         if dx > grid.nx or dy > grid.ny or dz > grid.nz:
-            logger.exception(f"{self.params_str()} the step size should be less than the domain size.")
+            logger.exception(
+                f"{self.params_str()} the step size should be less than the domain size."
+            )
             raise ValueError
         if dx < 1 or dy < 1 or dz < 1:
-            logger.exception(f"{self.params_str()} the step size should not be less than the spatial discretisation.")
+            logger.exception(
+                f"{self.params_str()} the step size should not be less than the spatial discretisation."
+            )
             raise ValueError
         if output_type not in ["n", "f"]:
-            logger.exception(f"{self.params_str()} requires type to be either n (normal) or f (fine).")
+            logger.exception(
+                f"{self.params_str()} requires type to be either n (normal) or f (fine)."
+            )
             raise ValueError
-        if output_type == "f" and (dx * grid.dx != grid.dx or dy * grid.dy != grid.dy or dz * grid.dz != grid.dz):
+        if output_type == "f" and (
+            dx * grid.dx != grid.dx or dy * grid.dy != grid.dy or dz * grid.dz != grid.dz
+        ):
             logger.exception(
                 f"{self.params_str()} requires the spatial "
                 "discretisation for the geometry view to be the "
@@ -1818,7 +1974,9 @@ class PMLCFS(UserObjectMulti):
             or kappascalingdirection not in CFSParameter.scalingdirections
             or sigmascalingdirection not in CFSParameter.scalingdirections
         ):
-            logger.exception(f"{self.params_str()} must have scaling type {','.join(CFSParameter.scalingdirections)}")
+            logger.exception(
+                f"{self.params_str()} must have scaling type {','.join(CFSParameter.scalingdirections)}"
+            )
             raise ValueError
         if (
             float(alphamin) < 0
@@ -1827,7 +1985,9 @@ class PMLCFS(UserObjectMulti):
             or float(kappamax) < 0
             or float(sigmamin) < 0
         ):
-            logger.exception(f"{self.params_str()} minimum and maximum scaling values must be greater than zero.")
+            logger.exception(
+                f"{self.params_str()} minimum and maximum scaling values must be greater than zero."
+            )
             raise ValueError
 
         cfsalpha = CFSParameter()
@@ -1871,7 +2031,9 @@ class PMLCFS(UserObjectMulti):
         grid.pmls["cfs"].append(cfs)
 
         if len(grid.pmls["cfs"]) > 2:
-            logger.exception(f"{self.params_str()} can only be used up to two times, for up to a 2nd order PML.")
+            logger.exception(
+                f"{self.params_str()} can only be used up to two times, for up to a 2nd order PML."
+            )
             raise ValueError
 
 

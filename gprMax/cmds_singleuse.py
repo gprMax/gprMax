@@ -17,10 +17,13 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+from abc import ABC, abstractmethod
 
 import numpy as np
 
 import gprMax.config as config
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.user_inputs import UserInput
 
 from .pml import PML
 from .utilities.host_info import set_omp_threads
@@ -32,14 +35,14 @@ class Properties:
     pass
 
 
-class UserObjectSingle:
+class UserObjectSingle(ABC):
     """Object that can only occur a single time in a model."""
 
     def __init__(self, **kwargs):
         # Each single command has an order to specify the order in which
         # the commands are constructed, e.g. discretisation must be
         # created before the domain
-        self.order = None
+        self.order = 0
         self.kwargs = kwargs
         self.props = Properties()
         self.autotranslate = True
@@ -47,9 +50,11 @@ class UserObjectSingle:
         for k, v in kwargs.items():
             setattr(self.props, k, v)
 
-    def build(self, grid, uip):
+    @abstractmethod
+    def build(self, grid: FDTDGrid, uip: UserInput):
         pass
 
+    @abstractmethod
     def rotate(self, axis, angle, origin=None):
         pass
 
@@ -95,17 +100,20 @@ class Discretisation(UserObjectSingle):
 
         if G.dl[0] <= 0:
             logger.exception(
-                f"{self.__str__()} discretisation requires the " f"x-direction spatial step to be greater than zero"
+                f"{self.__str__()} discretisation requires the "
+                f"x-direction spatial step to be greater than zero"
             )
             raise ValueError
         if G.dl[1] <= 0:
             logger.exception(
-                f"{self.__str__()} discretisation requires the " f"y-direction spatial step to be greater than zero"
+                f"{self.__str__()} discretisation requires the "
+                f"y-direction spatial step to be greater than zero"
             )
             raise ValueError
         if G.dl[2] <= 0:
             logger.exception(
-                f"{self.__str__()} discretisation requires the " f"z-direction spatial step to be greater than zero"
+                f"{self.__str__()} discretisation requires the "
+                f"z-direction spatial step to be greater than zero"
             )
             raise ValueError
 
@@ -188,7 +196,8 @@ class TimeStepStabilityFactor(UserObjectSingle):
 
         if f <= 0 or f > 1:
             logger.exception(
-                f"{self.__str__()} requires the value of the time " f"step stability factor to be between zero and one"
+                f"{self.__str__()} requires the value of the time "
+                f"step stability factor to be between zero and one"
             )
             raise ValueError
 
@@ -261,7 +270,9 @@ class OMPThreads(UserObjectSingle):
             )
             raise
         if n < 1:
-            logger.exception(f"{self.__str__()} requires the value to be an " f"integer not less than one")
+            logger.exception(
+                f"{self.__str__()} requires the value to be an " f"integer not less than one"
+            )
             raise ValueError
 
         config.get_model_config().ompthreads = set_omp_threads(n)
@@ -290,7 +301,9 @@ class PMLProps(UserObjectSingle):
             G.pmls["formulation"] = self.kwargs["formulation"]
             if G.pmls["formulation"] not in PML.formulations:
                 logger.exception(
-                    self.__str__() + f" requires the value to be " + f"one of {' '.join(PML.formulations)}"
+                    self.__str__()
+                    + f" requires the value to be "
+                    + f"one of {' '.join(PML.formulations)}"
                 )
         except KeyError:
             pass
