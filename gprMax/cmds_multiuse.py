@@ -78,7 +78,7 @@ class UserObjectMulti(ABC):
         """Creates object and adds it to grid."""
         pass
 
-    @abstractmethod
+    # TODO: Check if this is actually needed
     def rotate(self, axis, angle, origin=None):
         """Rotates object (specialised for each object)."""
         pass
