@@ -54,7 +54,7 @@ class UserObjectSingle(ABC):
     def build(self, grid: FDTDGrid, uip: UserInput):
         pass
 
-    @abstractmethod
+    # TODO: Check if this is actually needed
     def rotate(self, axis, angle, origin=None):
         pass
 
