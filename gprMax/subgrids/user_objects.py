@@ -18,8 +18,14 @@
 
 import logging
 from copy import copy
+from typing import List, Tuple, Union
 
 import numpy as np
+
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.model import Model
+from gprMax.subgrids.grid import SubGridBaseGrid
+from gprMax.user_inputs import MainGridUserInput
 
 from ..cmds_geometry.cmds_geometry import UserObjectGeometry
 from ..cmds_multiuse import UserObjectMulti
@@ -35,10 +41,10 @@ class SubGridBase(UserObjectMulti):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.children_multiple = []
-        self.children_geometry = []
+        self.children_multiple: List[UserObjectMulti] = []
+        self.children_geometry: List[UserObjectGeometry] = []
 
-    def add(self, node):
+    def add(self, node: Union[UserObjectMulti, UserObjectGeometry]):
         """Adds other user objects. Geometry and multi only."""
         if isinstance(node, UserObjectMulti):
             self.children_multiple.append(node)
@@ -48,13 +54,15 @@ class SubGridBase(UserObjectMulti):
             logger.exception(f"{str(node)} this Object can not be added to a sub grid")
             raise ValueError
 
-    def set_discretisation(self, sg, grid):
+    def set_discretisation(self, sg: SubGridBaseGrid, grid: FDTDGrid):
         sg.dx = grid.dx / sg.ratio
         sg.dy = grid.dy / sg.ratio
         sg.dz = grid.dz / sg.ratio
         sg.dl = np.array([sg.dx, sg.dy, sg.dz])
 
-    def set_main_grid_indices(self, sg, uip, p1, p2):
+    def set_main_grid_indices(
+        self, sg: SubGridBaseGrid, uip: MainGridUserInput, p1: Tuple[int], p2: Tuple[int]
+    ):
         """Sets subgrid indices related to main grid placement."""
         # Location of the IS
         sg.i0, sg.j0, sg.k0 = p1
@@ -63,26 +71,26 @@ class SubGridBase(UserObjectMulti):
         sg.x1, sg.y1, sg.z1 = uip.round_to_grid(p1)
         sg.x2, sg.y2, sg.z2 = uip.round_to_grid(p2)
 
-    def set_name(self, sg):
+    def set_name(self, sg: SubGridBaseGrid):
         sg.name = self.kwargs["id"]
 
-    def set_working_region_cells(self, sg):
+    def set_working_region_cells(self, sg: SubGridBaseGrid):
         """Number of cells in each dimension for the working region."""
         sg.nwx = (sg.i1 - sg.i0) * sg.ratio
         sg.nwy = (sg.j1 - sg.j0) * sg.ratio
         sg.nwz = (sg.k1 - sg.k0) * sg.ratio
 
-    def set_total_cells(self, sg):
+    def set_total_cells(self, sg: SubGridBaseGrid):
         """Number of cells in each dimension for the whole region."""
         sg.nx = 2 * sg.n_boundary_cells_x + sg.nwx
         sg.ny = 2 * sg.n_boundary_cells_y + sg.nwy
         sg.nz = 2 * sg.n_boundary_cells_z + sg.nwz
 
-    def set_iterations(self, sg, main):
+    def set_iterations(self, sg: SubGridBaseGrid, main: FDTDGrid):
         """Sets number of iterations that will take place in the subgrid."""
         sg.iterations = main.iterations * sg.ratio
 
-    def setup(self, sg, grid, uip):
+    def setup(self, sg: SubGridBaseGrid, grid: FDTDGrid, uip: MainGridUserInput):
         """ "Common setup to both all subgrid types."""
         p1 = self.kwargs["p1"]
         p2 = self.kwargs["p2"]
@@ -192,7 +200,7 @@ class SubGridHSG(SubGridBase):
         self.order = 18
         self.hash = "#subgrid_hsg"
 
-    def build(self, grid, uip):
+    def build(self, grid: FDTDGrid, uip: MainGridUserInput) -> SubGridHSGUser:
         sg = SubGridHSGUser(**self.kwargs)
         self.setup(sg, grid, uip)
         return sg
