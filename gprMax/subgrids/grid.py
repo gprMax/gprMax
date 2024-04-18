@@ -17,14 +17,14 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 from gprMax.grid.fdtd_grid import FDTDGrid
 
 logger = logging.getLogger(__name__)
 
 
-class SubGridBaseGrid(FDTDGrid):
+class SubGridBaseGrid(FDTDGrid, ABC):
     def __init__(self, *args, **kwargs):
         super().__init__()
 
