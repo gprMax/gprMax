@@ -26,6 +26,7 @@ from gprMax.cmds_geometry.cmds_geometry import UserObjectGeometry
 from gprMax.cmds_geometry.fractal_box import FractalBox
 from gprMax.cmds_multiuse import UserObjectMulti
 from gprMax.cmds_singleuse import Discretisation, Domain, TimeWindow, UserObjectSingle
+from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_built_in_materials
 from gprMax.model import Model
 from gprMax.subgrids.grid import SubGridBaseGrid
@@ -61,8 +62,8 @@ class Scene:
             logger.exception("This object is unknown to gprMax")
             raise ValueError
 
-    def build_obj(self, obj, grid):
-        """Builds objects.
+    def build_grid_obj(self, obj: Union[UserObjectMulti, UserObjectGeometry], grid: FDTDGrid):
+        """Builds objects in FDTDGrids.
 
         Args:
             obj: user object
@@ -71,6 +72,20 @@ class Scene:
         uip = create_user_input_points(grid, obj)
         try:
             obj.build(grid, uip)
+        except ValueError:
+            logger.exception("Error creating user input object")
+            raise
+
+    def build_model_obj(self, obj: UserObjectSingle, model: Model):
+        """Builds objects in models.
+
+        Args:
+            obj: user object
+            model: Model being built
+        """
+        uip = create_user_input_points(model.G, obj)
+        try:
+            obj.build(model, uip)
         except ValueError:
             logger.exception("Error creating user input object")
             raise
@@ -102,7 +117,10 @@ class Scene:
         grid = model.G if subgrid is None else subgrid
         cmds_sorted = sorted(commands, key=lambda cmd: cmd.order)
         for obj in cmds_sorted:
-            self.build_obj(obj, grid)
+            if isinstance(obj, UserObjectSingle):
+                self.build_model_obj(obj, model)
+            else:
+                self.build_grid_obj(obj, grid)
 
         return self
 
@@ -111,7 +129,7 @@ class Scene:
         proc_cmds = []
         for obj in commands:
             if isinstance(obj, (FractalBox, AddGrass, AddSurfaceRoughness, AddSurfaceWater)):
-                self.build_obj(obj, grid)
+                self.build_grid_obj(obj, grid)
                 if isinstance(obj, (FractalBox)):
                     proc_cmds.append(obj)
             else:
@@ -119,7 +137,7 @@ class Scene:
 
         # Process all geometry commands
         for obj in proc_cmds:
-            self.build_obj(obj, grid)
+            self.build_grid_obj(obj, grid)
 
         return self
 
