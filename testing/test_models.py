@@ -56,6 +56,7 @@ testmodels = [
     "hertzian_dipole_fs",
     "hertzian_dipole_hs",
     "hertzian_dipole_dispersive",
+    "antenna_wire_dipole_fs",
     "magnetic_dipole_fs",
 ]
 
