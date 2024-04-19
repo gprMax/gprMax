@@ -23,7 +23,7 @@ import numpy as np
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.user_inputs import UserInput
+from gprMax.user_inputs import MainGridUserInput
 
 from .pml import PML
 from .utilities.host_info import set_omp_threads
@@ -51,7 +51,7 @@ class UserObjectSingle(ABC):
             setattr(self.props, k, v)
 
     @abstractmethod
-    def build(self, grid: FDTDGrid, uip: UserInput):
+    def build(self, grid: FDTDGrid, uip: MainGridUserInput):
         pass
 
     # TODO: Check if this is actually needed

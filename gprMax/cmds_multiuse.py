@@ -26,7 +26,7 @@ from scipy import interpolate
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.user_inputs import UserInput
+from gprMax.user_inputs import MainGridUserInput
 
 from .cmds_geometry.cmds_geometry import (
     UserObjectGeometry,
@@ -74,7 +74,7 @@ class UserObjectMulti(ABC):
         return f"{self.hash}: {s[:-1]}"
 
     @abstractmethod
-    def build(self, grid: FDTDGrid, uip: UserInput):
+    def build(self, grid: FDTDGrid, uip: MainGridUserInput):
         """Creates object and adds it to grid."""
         pass
 
