@@ -106,7 +106,7 @@ terminado==0.18.1
 terminaltables==3.1.10
 tinycss2==1.2.1
 tornado==6.4
-tqdm==4.66.2
+tqdm==4.66.3
 traitlets==5.14.2
 typing_extensions==4.10.0
 urllib3==2.2.1
