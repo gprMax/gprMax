@@ -31,14 +31,14 @@ class Source:
     def __init__(self):
         self.ID = None
         self.polarisation = None
-        self.xcoord = 0
-        self.ycoord = 0
-        self.zcoord = 0
+        self.xcoord = None
+        self.ycoord = None
+        self.zcoord = None
         self.xcoordorigin = None
         self.ycoordorigin = None
         self.zcoordorigin = None
-        self.start = 0
-        self.stop = 0
+        self.start = None
+        self.stop = None
         self.waveformID = None
 
     def calculate_waveform_values(self, G):
