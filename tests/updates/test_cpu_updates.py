@@ -7,7 +7,6 @@ from pytest import MonkeyPatch
 from gprMax import config, gprMax
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_built_in_materials
-from gprMax.model import GridBuilder
 from gprMax.pml import CFS
 from gprMax.updates.cpu_updates import CPUUpdates
 
@@ -23,14 +22,9 @@ def build_grid(nx: int, ny: int, nz: int, dl: float = 0.001, dt: float = 3e-9) -
     grid.dt = dt
     create_built_in_materials(grid)
     grid.initialise_geometry_arrays()
-    grid.initialise_field_arrays()
-    grid.initialise_std_update_coeff_arrays()
     grid.pmls["cfs"] = [CFS()]
 
-    grid_builder = GridBuilder(grid)
-    grid_builder.build_pmls()
-    grid_builder.build_components()
-    grid_builder.build_materials()
+    grid.build()
 
     return grid
 
@@ -176,10 +170,12 @@ def test_update_electric_b_non_dispersive(config_mock):
     assert np.equal(grid.Hz, expected_value).all()
 
 
+@pytest.mark.skip("test not implemented")
 def test_update_electric_a_dispersive(config_mock):
     assert False
 
 
+@pytest.mark.skip("test not implemented")
 def test_update_electric_b_dispersive(config_mock):
     assert False
 
@@ -228,17 +224,21 @@ def test_update_electric_pml(config_mock):
         assert np.equal(pml.EPhi2, 0).all()
 
 
+@pytest.mark.skip("test not implemented")
 def test_update_magnetic_sources(config_mock):
     assert False
 
 
+@pytest.mark.skip("test not implemented")
 def test_update_electric_sources(config_mock):
     assert False
 
 
+@pytest.mark.skip("test not implemented")
 def test_dispersive_update_a(config_mock):
     assert False
 
 
+@pytest.mark.skip("test not implemented")
 def test_dispersive_update_b(config_mock):
     assert False
