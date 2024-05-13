@@ -15,10 +15,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-
 import logging
 from typing import List, Optional, Union
 
+from gprMax import config
 from gprMax.cmds_geometry.add_grass import AddGrass
 from gprMax.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from gprMax.cmds_geometry.add_surface_water import AddSurfaceWater
@@ -31,7 +31,7 @@ from gprMax.materials import create_built_in_materials
 from gprMax.model import Model
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.subgrids.user_objects import SubGridBase as SubGridUserBase
-from gprMax.user_inputs import create_user_input_points
+from gprMax.user_inputs import MainGridUserInput, SubgridUserInput
 
 logger = logging.getLogger(__name__)
 
@@ -187,3 +187,22 @@ class Scene:
 
         # Process all the commands for subgrids
         self.process_subgrid_cmds(model)
+
+
+def create_user_input_points(
+    grid: FDTDGrid, user_obj: Union[UserObjectSingle, UserObjectMulti, UserObjectGeometry]
+) -> Union[MainGridUserInput, SubgridUserInput]:
+    """Returns a point checker class based on the grid supplied."""
+
+    if isinstance(grid, SubGridBaseGrid):
+        # Local object configuration trumps. User can turn off autotranslate for
+        # specific objects.
+        if not user_obj.autotranslate and config.sim_config.args.autotranslate:
+            return MainGridUserInput(grid)
+
+        if config.sim_config.args.autotranslate:
+            return SubgridUserInput(grid)
+        else:
+            return MainGridUserInput(grid)
+    else:
+        return MainGridUserInput(grid)

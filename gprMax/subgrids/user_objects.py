@@ -23,7 +23,6 @@ from typing import List, Tuple, Union
 import numpy as np
 
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.model import Model
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.user_inputs import MainGridUserInput
 

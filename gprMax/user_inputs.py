@@ -18,17 +18,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Union
 
 import numpy as np
 
-import gprMax.config as config
-from gprMax.cmds_geometry.cmds_geometry import UserObjectGeometry
-from gprMax.cmds_multiuse import UserObjectMulti
-from gprMax.cmds_singleuse import UserObjectSingle
-from gprMax.grid.fdtd_grid import FDTDGrid
-
-from .subgrids.grid import SubGridBaseGrid
 from .utilities.utilities import round_value
 
 logger = logging.getLogger(__name__)
@@ -41,25 +33,6 @@ logger = logging.getLogger(__name__)
     the grid. Additionally all logic related to rounding points etc is
     encapulsated here.
 """
-
-
-def create_user_input_points(
-    grid: FDTDGrid, user_obj: Union[UserObjectSingle, UserObjectMulti, UserObjectGeometry]
-) -> Union[MainGridUserInput, SubgridUserInput]:
-    """Returns a point checker class based on the grid supplied."""
-
-    if isinstance(grid, SubGridBaseGrid):
-        # Local object configuration trumps. User can turn off autotranslate for
-        # specific objects.
-        if not user_obj.autotranslate and config.sim_config.args.autotranslate:
-            return MainGridUserInput(grid)
-
-        if config.sim_config.args.autotranslate:
-            return SubgridUserInput(grid)
-        else:
-            return MainGridUserInput(grid)
-    else:
-        return MainGridUserInput(grid)
 
 
 class UserInput:
