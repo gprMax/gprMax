@@ -59,6 +59,7 @@ class FDTDGrid:
         self.dx = 0.0
         self.dy = 0.0
         self.dz = 0.0
+        self.dl: np.ndarray
         self.dt = 0.0
         self.dt_mod = None  # Time step stability factor
         self.iteration = 0  # Current iteration number

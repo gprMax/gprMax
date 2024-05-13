@@ -20,6 +20,7 @@ import datetime
 import itertools
 import logging
 import sys
+from typing import Tuple
 
 import humanize
 import numpy as np
@@ -159,6 +160,10 @@ class Model:
         for grid in [self.G] + self.G.subgrids:
             if grid.snapshots:
                 save_snapshots(grid)
+
+    def set_grid_discretisation(self, point: Tuple[float, float, float]):
+        self.G.dl = np.array(point)
+        self.G.dx, self.G.dy, self.G.dz = point
 
     def solve(self, solver):
         """Solve using FDTD method.

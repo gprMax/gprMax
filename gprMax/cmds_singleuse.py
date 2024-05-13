@@ -90,14 +90,14 @@ class Discretisation(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 2
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         try:
-            G.dl = np.array(self.kwargs["p1"])
-            G.dx, G.dy, G.dz = self.kwargs["p1"]
+            model.set_grid_discretisation(self.kwargs["p1"])
         except KeyError:
             logger.exception(f"{self.__str__()} discretisation requires a point")
             raise
 
+        G = model.G
         if G.dl[0] <= 0:
             logger.exception(
                 f"{self.__str__()} discretisation requires the "
