@@ -63,9 +63,8 @@ class Context:
         elif config.sim_config.general["solver"] == "opencl":
             print_opencl_info(config.sim_config.devices["devs"])
 
-        # Clear list of scenes and model configs, which can be retained when 
-        # gprMax is called in a loop, and want to avoid this.
-        config.sim_config.scenes = []
+        # Clear list of model configs, which can be retained when gprMax is 
+        # called in a loop, and want to avoid this.
         config.model_configs = []
 
         for i in self.model_range:
