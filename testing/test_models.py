@@ -59,6 +59,7 @@ testmodels = [
     "hertzian_dipole_fs",
     "hertzian_dipole_hs",
     "hertzian_dipole_dispersive",
+    "antenna_wire_dipole_fs",
     "magnetic_dipole_fs",
 ]
 
@@ -92,7 +93,11 @@ for i, model in enumerate(testmodels):
         # Arrays for storing time
         float_or_double = filetest[path + outputstest[0]].dtype
         timetest = (
-            np.linspace(0, (filetest.attrs["Iterations"] - 1) * filetest.attrs["dt"], num=filetest.attrs["Iterations"])
+            np.linspace(
+                0,
+                (filetest.attrs["Iterations"] - 1) * filetest.attrs["dt"],
+                num=filetest.attrs["Iterations"],
+            )
             / 1e-9
         )
         timeref = timetest
@@ -112,7 +117,10 @@ for i, model in enumerate(testmodels):
 
         # Analytical solution of a dipole in free space
         dataref = hertzian_dipole_fs(
-            filetest.attrs["Iterations"], filetest.attrs["dt"], filetest.attrs["dx_dy_dz"], rxposrelative
+            filetest.attrs["Iterations"],
+            filetest.attrs["dt"],
+            filetest.attrs["dx_dy_dz"],
+            rxposrelative,
         )
         filetest.close()
 
@@ -145,18 +153,28 @@ for i, model in enumerate(testmodels):
         # Arrays for storing time
         timeref = np.zeros((fileref.attrs["Iterations"]), dtype=float_or_doubleref)
         timeref = (
-            np.linspace(0, (fileref.attrs["Iterations"] - 1) * fileref.attrs["dt"], num=fileref.attrs["Iterations"])
+            np.linspace(
+                0,
+                (fileref.attrs["Iterations"] - 1) * fileref.attrs["dt"],
+                num=fileref.attrs["Iterations"],
+            )
             / 1e-9
         )
         timetest = np.zeros((filetest.attrs["Iterations"]), dtype=float_or_doubletest)
         timetest = (
-            np.linspace(0, (filetest.attrs["Iterations"] - 1) * filetest.attrs["dt"], num=filetest.attrs["Iterations"])
+            np.linspace(
+                0,
+                (filetest.attrs["Iterations"] - 1) * filetest.attrs["dt"],
+                num=filetest.attrs["Iterations"],
+            )
             / 1e-9
         )
 
         # Arrays for storing field data
         dataref = np.zeros((fileref.attrs["Iterations"], len(outputsref)), dtype=float_or_doubleref)
-        datatest = np.zeros((filetest.attrs["Iterations"], len(outputstest)), dtype=float_or_doubletest)
+        datatest = np.zeros(
+            (filetest.attrs["Iterations"], len(outputstest)), dtype=float_or_doubletest
+        )
         for ID, name in enumerate(outputsref):
             dataref[:, ID] = fileref[path + str(name)][:]
             datatest[:, ID] = filetest[path + str(name)][:]
@@ -172,7 +190,10 @@ for i, model in enumerate(testmodels):
     for i in range(len(outputstest)):
         maxi = np.amax(np.abs(dataref[:, i]))
         datadiffs[:, i] = np.divide(
-            np.abs(dataref[:, i] - datatest[:, i]), maxi, out=np.zeros_like(dataref[:, i]), where=maxi != 0
+            np.abs(dataref[:, i] - datatest[:, i]),
+            maxi,
+            out=np.zeros_like(dataref[:, i]),
+            where=maxi != 0,
         )  # Replace any division by zero with zero
 
         # Calculate power (ignore warning from taking a log of any zero values)
@@ -262,8 +283,12 @@ for i, model in enumerate(testmodels):
     #              bbox_inches='tight', pad_inches=0.1)
     # fig2.savefig(savediffs.with_suffix('.pdf'), dpi=None, format='pdf',
     #              bbox_inches='tight', pad_inches=0.1)
-    fig1.savefig(file.with_suffix(".png"), dpi=150, format="png", bbox_inches="tight", pad_inches=0.1)
-    fig2.savefig(filediffs.with_suffix(".png"), dpi=150, format="png", bbox_inches="tight", pad_inches=0.1)
+    fig1.savefig(
+        file.with_suffix(".png"), dpi=150, format="png", bbox_inches="tight", pad_inches=0.1
+    )
+    fig2.savefig(
+        filediffs.with_suffix(".png"), dpi=150, format="png", bbox_inches="tight", pad_inches=0.1
+    )
 
 # Summary of results
 for name, data in sorted(testresults.items()):
