@@ -31,12 +31,12 @@ class Source:
     def __init__(self):
         self.ID = None
         self.polarisation = None
-        self.xcoord = None
-        self.ycoord = None
-        self.zcoord = None
-        self.xcoordorigin = None
-        self.ycoordorigin = None
-        self.zcoordorigin = None
+        self.xcoord: int
+        self.ycoord: int
+        self.zcoord: int
+        self.xcoordorigin: int
+        self.ycoordorigin: int
+        self.zcoordorigin: int
         self.start = None
         self.stop = None
         self.waveformID = None

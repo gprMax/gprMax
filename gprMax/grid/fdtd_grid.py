@@ -93,8 +93,8 @@ class FDTDGrid:
         self.magneticdipoles: List[MagneticDipole] = []
         self.transmissionlines = []
         self.rxs: List[Rx] = []
-        self.srcsteps: List[float] = [0, 0, 0]
-        self.rxsteps: List[float] = [0, 0, 0]
+        self.srcsteps: List[int] = [0, 0, 0]
+        self.rxsteps: List[int] = [0, 0, 0]
         self.snapshots = []
         self.subgrids = []
 
@@ -256,7 +256,7 @@ class FDTDGrid:
         logger.info(materialstable.table)
 
     def _update_positions(
-        self, items: Iterable[Union[Source, Rx]], step_size: List[float], step_number: int
+        self, items: Iterable[Union[Source, Rx]], step_size: List[int], step_number: int
     ) -> None:
         if step_size[0] != 0 or step_size[1] != 0 or step_size[2] != 0:
             for item in items:
