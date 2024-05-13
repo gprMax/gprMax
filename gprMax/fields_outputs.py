@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+from pathlib import Path
 
 import h5py
 
@@ -52,19 +53,19 @@ def store_outputs(G):
         tl.Itotal[iteration] = tl.current[tl.antpos]
 
 
-def write_hdf5_outputfile(outputfile, G):
+# TODO: Add type information for grid (without a circular dependency)
+def write_hdf5_outputfile(outputfile: Path, title: str, G):
     """Writes an output file in HDF5 (.h5) format.
 
     Args:
         outputfile: string of the name of the output file.
         G: FDTDGrid class describing a grid in a model.
     """
-
     # Create output file and write top-level meta data, meta data for main grid,
     # and any outputs in the main grid
     f = h5py.File(outputfile, "w")
     f.attrs["gprMax"] = __version__
-    f.attrs["Title"] = G.title
+    f.attrs["Title"] = title
     write_hd5_data(f, G)
 
     # Write meta data and data for any subgrids
@@ -92,7 +93,9 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
     basegrp.attrs["nx_ny_nz"] = (grid.nx, grid.ny, grid.nz)
     basegrp.attrs["dx_dy_dz"] = (grid.dx, grid.dy, grid.dz)
     basegrp.attrs["dt"] = grid.dt
-    nsrc = len(grid.voltagesources + grid.hertziandipoles + grid.magneticdipoles + grid.transmissionlines)
+    nsrc = len(
+        grid.voltagesources + grid.hertziandipoles + grid.magneticdipoles + grid.transmissionlines
+    )
     basegrp.attrs["nsrc"] = nsrc
     basegrp.attrs["nrx"] = len(grid.rxs)
     basegrp.attrs["srcsteps"] = grid.srcsteps

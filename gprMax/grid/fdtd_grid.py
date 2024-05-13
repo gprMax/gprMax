@@ -50,17 +50,16 @@ class FDTDGrid:
     """
 
     def __init__(self):
-        self.title = ""
         self.name = "main_grid"
         self.mem_use = 0
 
         self.nx = 0
         self.ny = 0
         self.nz = 0
-        self.dx = 0
-        self.dy = 0
-        self.dz = 0
-        self.dt = 0
+        self.dx = 0.0
+        self.dy = 0.0
+        self.dz = 0.0
+        self.dt = 0.0
         self.dt_mod = None  # Time step stability factor
         self.iteration = 0  # Current iteration number
         self.iterations = 0  # Total number of iterations

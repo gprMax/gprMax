@@ -53,6 +53,8 @@ class Model:
     """Builds and runs (solves) a model."""
 
     def __init__(self):
+        self.title = ""
+
         self.G = self._create_grid()
         # Monitor memory usage
         self.p = None
@@ -118,7 +120,7 @@ class Model:
                     file=sys.stdout,
                     disable=not config.sim_config.general["progressbars"],
                 )
-                go.write_hdf5(G, pbar)
+                go.write_hdf5(self.title, self.G, pbar)
                 pbar.close()
             logger.info("")
 
@@ -149,7 +151,9 @@ class Model:
         sg_rxs = [True for sg in self.G.subgrids if sg.rxs]
         sg_tls = [True for sg in self.G.subgrids if sg.transmissionlines]
         if self.G.rxs or sg_rxs or self.G.transmissionlines or sg_tls:
-            write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.G)
+            write_hdf5_outputfile(
+                config.get_model_config().output_file_path_ext, self.title, self.G
+            )
 
         # Write any snapshots to file for each grid
         for grid in [self.G] + self.G.subgrids:

@@ -15,7 +15,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-
 import logging
 from abc import ABC, abstractmethod
 
@@ -71,11 +70,11 @@ class Title(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 1
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         try:
             title = self.kwargs["name"]
-            G.title = title
-            logger.info(f"Model title: {G.title}")
+            model.title = title
+            logger.info(f"Model title: {model.title}")
         except KeyError:
             pass
 
