@@ -46,6 +46,7 @@ def store_outputs(G):
             # Store current component
             else:
                 func = globals()[output]
+                # TODO: Test this still works - likely broken by removing 'Ix' etc functions
                 rx.outputs[output][iteration] = func(rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hy, Hz, G)
 
     for tl in G.transmissionlines:
