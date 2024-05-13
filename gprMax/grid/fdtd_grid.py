@@ -555,6 +555,60 @@ class FDTDGrid:
         # binary representation of floating point number.
         self.dt = round_value(self.dt, decimalplaces=decimal.getcontext().prec - 1)
 
+    def calculate_Ix(self, x: int, y: int, z: int) -> float:
+        """Calculates the x-component of current at a grid position.
+
+        Args:
+            x: x coordinate of position in grid
+            y: y coordinate of position in grid
+            z: z coordinate of position in grid
+        """
+
+        if y == 0 or z == 0:
+            Ix = 0
+        else:
+            Ix = self.dy * (self.Hy[x, y, z - 1] - self.Hy[x, y, z]) + self.dz * (
+                self.Hz[x, y, z] - self.Hz[x, y - 1, z]
+            )
+
+        return Ix
+
+    def calculate_Iy(self, x: int, y: int, z: int) -> float:
+        """Calculates the y-component of current at a grid position.
+
+        Args:
+            x: x coordinate of position in grid
+            y: y coordinate of position in grid
+            z: z coordinate of position in grid
+        """
+
+        if x == 0 or z == 0:
+            Iy = 0
+        else:
+            Iy = self.dx * (self.Hx[x, y, z] - self.Hx[x, y, z - 1]) + self.dz * (
+                self.Hz[x - 1, y, z] - self.Hz[x, y, z]
+            )
+
+        return Iy
+
+    def calculate_Iz(self, x: int, y: int, z: int) -> float:
+        """Calculates the y-component of current at a grid position.
+
+        Args:
+            x: x coordinate of position in grid
+            y: y coordinate of position in grid
+            z: z coordinate of position in grid
+        """
+
+        if x == 0 or y == 0:
+            Iz = 0
+        else:
+            Iz = self.dx * (self.Hx[x, y - 1, z] - self.Hx[x, y, z]) + self.dy * (
+                self.Hy[x, y, z] - self.Hy[x - 1, y, z]
+            )
+
+        return Iz
+
 
 def dispersion_analysis(G):
     """Analysis of numerical dispersion (Taflove et al, 2005, p112) -

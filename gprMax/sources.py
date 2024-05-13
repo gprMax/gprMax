@@ -22,7 +22,6 @@ import numpy as np
 
 import gprMax.config as config
 
-from .fields_outputs import Ix, Iy, Iz
 from .utilities.utilities import round_value
 
 
@@ -32,14 +31,14 @@ class Source:
     def __init__(self):
         self.ID = None
         self.polarisation = None
-        self.xcoord = None
-        self.ycoord = None
-        self.zcoord = None
+        self.xcoord = 0
+        self.ycoord = 0
+        self.zcoord = 0
         self.xcoordorigin = None
         self.ycoordorigin = None
         self.zcoordorigin = None
-        self.start = None
-        self.stop = None
+        self.start = 0
+        self.stop = 0
         self.waveformID = None
 
     def calculate_waveform_values(self, G):
@@ -49,10 +48,14 @@ class Source:
             G: FDTDGrid class describing a grid in a model.
         """
         # Waveform values for sources that need to be calculated on whole timesteps
-        self.waveformvalues_wholedt = np.zeros((G.iterations), dtype=config.sim_config.dtypes["float_or_double"])
+        self.waveformvalues_wholedt = np.zeros(
+            (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+        )
 
         # Waveform values for sources that need to be calculated on half timesteps
-        self.waveformvalues_halfdt = np.zeros((G.iterations), dtype=config.sim_config.dtypes["float_or_double"])
+        self.waveformvalues_halfdt = np.zeros(
+            (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+        )
 
         waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
 
@@ -63,7 +66,9 @@ class Source:
                 # delay in the start
                 time -= self.start
                 self.waveformvalues_wholedt[iteration] = waveform.calculate_value(time, G.dt)
-                self.waveformvalues_halfdt[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
+                self.waveformvalues_halfdt[iteration] = waveform.calculate_value(
+                    time + 0.5 * G.dt, G.dt
+                )
 
 
 class VoltageSource(Source):
@@ -274,7 +279,9 @@ def htod_src_arrays(sources, G, queue=None):
 
     srcinfo1 = np.zeros((len(sources), 4), dtype=np.int32)
     srcinfo2 = np.zeros((len(sources)), dtype=config.sim_config.dtypes["float_or_double"])
-    srcwaves = np.zeros((len(sources), G.iterations), dtype=config.sim_config.dtypes["float_or_double"])
+    srcwaves = np.zeros(
+        (len(sources), G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+    )
     for i, src in enumerate(sources):
         srcinfo1[i, 0] = src.xcoord
         srcinfo1[i, 1] = src.ycoord
@@ -399,11 +406,15 @@ class TransmissionLine(Source):
 
         # Update all the voltage values along the line
         self.voltage[1 : self.nl] -= (
-            self.resistance * (config.c * G.dt / self.dl) * (self.current[1 : self.nl] - self.current[0 : self.nl - 1])
+            self.resistance
+            * (config.c * G.dt / self.dl)
+            * (self.current[1 : self.nl] - self.current[0 : self.nl - 1])
         )
 
         # Update the voltage at the position of the one-way injector excitation
-        self.voltage[self.srcpos] += (config.c * G.dt / self.dl) * self.waveformvalues_halfdt[iteration]
+        self.voltage[self.srcpos] += (config.c * G.dt / self.dl) * self.waveformvalues_halfdt[
+            iteration
+        ]
 
         # Update ABC before updating current
         self.update_abc(G)
@@ -425,7 +436,9 @@ class TransmissionLine(Source):
 
         # Update the current one cell before the position of the one-way injector excitation
         self.current[self.srcpos - 1] += (
-            (1 / self.resistance) * (config.c * G.dt / self.dl) * self.waveformvalues_wholedt[iteration]
+            (1 / self.resistance)
+            * (config.c * G.dt / self.dl)
+            * self.waveformvalues_wholedt[iteration]
         )
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
@@ -458,6 +471,7 @@ class TransmissionLine(Source):
             elif self.polarisation == "z":
                 Ez[i, j, k] = -self.voltage[self.antpos] / G.dz
 
+    # TODO: Add type information (if can avoid circular dependency)
     def update_magnetic(self, iteration, updatecoeffsH, ID, Hx, Hy, Hz, G):
         """Updates current value in transmission line from magnetic field values
             in the main grid.
@@ -478,12 +492,12 @@ class TransmissionLine(Source):
             k = self.zcoord
 
             if self.polarisation == "x":
-                self.current[self.antpos] = Ix(i, j, k, G.Hx, G.Hy, G.Hz, G)
+                self.current[self.antpos] = G.calculate_Ix(i, j, k)
 
             elif self.polarisation == "y":
-                self.current[self.antpos] = Iy(i, j, k, G.Hx, G.Hy, G.Hz, G)
+                self.current[self.antpos] = G.calculate_Iy(i, j, k)
 
             elif self.polarisation == "z":
-                self.current[self.antpos] = Iz(i, j, k, G.Hx, G.Hy, G.Hz, G)
+                self.current[self.antpos] = G.calculate_Iz(i, j, k)
 
             self.update_current(iteration, G)
