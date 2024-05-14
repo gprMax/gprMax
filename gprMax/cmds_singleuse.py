@@ -188,7 +188,7 @@ class TimeStepStabilityFactor(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 4
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         try:
             f = self.kwargs["f"]
         except KeyError:
@@ -202,6 +202,7 @@ class TimeStepStabilityFactor(UserObjectSingle):
             )
             raise ValueError
 
+        G = model.G
         G.dt_mod = f
         G.dt = G.dt * G.dt_mod
 
@@ -220,7 +221,7 @@ class TimeWindow(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 5
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         # If number of iterations given
         # The +/- 1 used in calculating the number of iterations is to account for
         # the fact that the solver (iterations) loop runs from 0 to < G.iterations
