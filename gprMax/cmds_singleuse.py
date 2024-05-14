@@ -131,33 +131,34 @@ class Domain(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 3
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         try:
-            G.nx, G.ny, G.nz = uip.discretise_point(self.kwargs["p1"])
+            model.nx, model.ny, model.nz = uip.discretise_point(self.kwargs["p1"])
         except KeyError:
             logger.exception(f"{self.__str__()} please specify a point")
             raise
 
-        if G.nx == 0 or G.ny == 0 or G.nz == 0:
-            logger.exception(f"{self.__str__()} requires at least one cell in " f"every dimension")
+        if model.nx == 0 or model.ny == 0 or model.nz == 0:
+            logger.exception(f"{self.__str__()} requires at least one cell in every dimension")
             raise ValueError
 
         logger.info(
             f"Domain size: {self.kwargs['p1'][0]:g} x {self.kwargs['p1'][1]:g} x "
-            + f"{self.kwargs['p1'][2]:g}m ({G.nx:d} x {G.ny:d} x {G.nz:d} = "
-            + f"{(G.nx * G.ny * G.nz):g} cells)"
+            + f"{self.kwargs['p1'][2]:g}m ({model.nx:d} x {model.ny:d} x {model.nz:d} = "
+            + f"{(model.nx * model.ny * model.nz):g} cells)"
         )
 
         # Calculate time step at CFL limit; switch off appropriate PMLs for 2D
-        if G.nx == 1:
+        G = model.G
+        if model.nx == 1:
             config.get_model_config().mode = "2D TMx"
             G.pmls["thickness"]["x0"] = 0
             G.pmls["thickness"]["xmax"] = 0
-        elif G.ny == 1:
+        elif model.ny == 1:
             config.get_model_config().mode = "2D TMy"
             G.pmls["thickness"]["y0"] = 0
             G.pmls["thickness"]["ymax"] = 0
-        elif G.nz == 1:
+        elif model.nz == 1:
             config.get_model_config().mode = "2D TMz"
             G.pmls["thickness"]["z0"] = 0
             G.pmls["thickness"]["zmax"] = 0

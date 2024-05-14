@@ -56,6 +56,10 @@ class Model:
     def __init__(self):
         self.title = ""
 
+        self.nx = 0
+        self.ny = 0
+        self.nz = 0
+
         self.G = self._create_grid()
         # Monitor memory usage
         self.p = None
@@ -127,6 +131,10 @@ class Model:
 
     def build_geometry(self):
         logger.info(config.get_model_config().inputfilestr)
+        # TODO: Make this correctly set local nx, ny and nz when using MPI
+        self.G.nx = self.nx
+        self.G.ny = self.ny
+        self.G.nz = self.nz
         self.G.build()
 
     def reuse_geometry(self):
