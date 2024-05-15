@@ -261,7 +261,7 @@ class OMPThreads(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 6
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         try:
             n = self.kwargs["n"]
         except KeyError:
