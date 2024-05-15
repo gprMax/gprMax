@@ -60,6 +60,8 @@ class Model:
         self.gny = 0
         self.gnz = 0
 
+        self.dt_mod = 1.0  # Time step stability factor
+
         self.G = self._create_grid()
         # Monitor memory usage
         self.p = None
@@ -125,6 +127,14 @@ class Model:
     @dl.setter
     def dl(self, value: np.ndarray[Any, np.dtype[np.single]]):
         self.G.dl = value
+
+    @property
+    def dt(self) -> float:
+        return self.G.dt
+
+    @dt.setter
+    def dt(self, value: float):
+        self.G.dt = value
 
     def _create_grid(self) -> FDTDGrid:
         """Create grid object according to solver.

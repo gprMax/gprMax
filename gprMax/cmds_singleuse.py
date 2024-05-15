@@ -202,11 +202,10 @@ class TimeStepStabilityFactor(UserObjectSingle):
             )
             raise ValueError
 
-        G = model.G
-        G.dt_mod = f
-        G.dt = G.dt * G.dt_mod
+        model.dt_mod = f
+        model.G.dt *= model.dt_mod
 
-        logger.info(f"Time step (modified): {G.dt:g} secs")
+        logger.info(f"Time step (modified): {model.G.dt:g} secs")
 
 
 class TimeWindow(UserObjectSingle):
