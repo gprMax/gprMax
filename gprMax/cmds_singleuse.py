@@ -226,27 +226,27 @@ class TimeWindow(UserObjectSingle):
         # the fact that the solver (iterations) loop runs from 0 to < G.iterations
         try:
             iterations = int(self.kwargs["iterations"])
-            G.timewindow = (iterations - 1) * G.dt
-            G.iterations = iterations
+            model.timewindow = (iterations - 1) * model.G.dt
+            model.iterations = iterations
         except KeyError:
             pass
 
         try:
             tmp = float(self.kwargs["time"])
             if tmp > 0:
-                G.timewindow = tmp
-                G.iterations = int(np.ceil(tmp / G.dt)) + 1
+                model.timewindow = tmp
+                model.iterations = int(np.ceil(tmp / model.G.dt)) + 1
             else:
                 logger.exception(self.__str__() + " must have a value greater than zero")
                 raise ValueError
         except KeyError:
             pass
 
-        if not G.timewindow:
+        if not model.timewindow:
             logger.exception(self.__str__() + " specify a time or number of iterations")
             raise ValueError
 
-        logger.info(f"Time window: {G.timewindow:g} secs ({G.iterations} iterations)")
+        logger.info(f"Time window: {model.timewindow:g} secs ({model.iterations} iterations)")
 
 
 class OMPThreads(UserObjectSingle):

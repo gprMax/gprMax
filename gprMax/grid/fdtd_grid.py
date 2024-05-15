@@ -59,10 +59,6 @@ class FDTDGrid:
         self.dl: np.ndarray[Any, np.dtype[np.single]]
         self.dt = 0.0
 
-        self.iteration = 0  # Current iteration number
-        self.iterations = 0  # Total number of iterations
-        self.timewindow = 0
-
         # PML parameters - set some defaults to use if not user provided
         self.pmls = {}
         self.pmls["formulation"] = "HORIPML"

@@ -62,6 +62,10 @@ class Model:
 
         self.dt_mod = 1.0  # Time step stability factor
 
+        self.iteration = 0  # Current iteration number
+        self.iterations = 0  # Total number of iterations
+        self.timewindow = 0.0
+
         self.G = self._create_grid()
         # Monitor memory usage
         self.p = None
