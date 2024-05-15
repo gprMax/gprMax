@@ -89,7 +89,6 @@ class FDTDGrid:
         self.srcsteps: List[int] = [0, 0, 0]
         self.rxsteps: List[int] = [0, 0, 0]
         self.snapshots = []
-        self.subgrids = []
 
     @property
     def dx(self) -> float:

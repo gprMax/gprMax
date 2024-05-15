@@ -17,10 +17,9 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
-import itertools
 import logging
 import sys
-from typing import Any, Tuple
+from typing import List
 
 import humanize
 import numpy as np
@@ -29,22 +28,19 @@ from colorama import Fore, Style, init
 
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.grid.opencl_grid import OpenCLGrid
+from gprMax.subgrids.grid import SubGridBaseGrid
 
 init()
 
-from terminaltables import SingleTable
 from tqdm import tqdm
 
 import gprMax.config as config
 
-from .cython.yee_cell_build import build_electric_components, build_magnetic_components
 from .fields_outputs import write_hdf5_outputfile
 from .geometry_outputs import save_geometry_views
-from .grid.fdtd_grid import FDTDGrid, dispersion_analysis
-from .materials import process_materials
-from .pml import CFS, build_pml, print_pml_info
+from .grid.fdtd_grid import FDTDGrid
 from .snapshots import save_snapshots
-from .utilities.host_info import mem_check_build_all, mem_check_run_all, set_omp_threads
+from .utilities.host_info import set_omp_threads
 from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
@@ -67,6 +63,8 @@ class Model:
         self.timewindow = 0.0
 
         self.G = self._create_grid()
+        self.subgrids: List[SubGridBaseGrid] = []
+
         # Monitor memory usage
         self.p = None
 
