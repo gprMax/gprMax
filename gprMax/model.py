@@ -20,7 +20,7 @@ import datetime
 import itertools
 import logging
 import sys
-from typing import Tuple
+from typing import Any, Tuple
 
 import humanize
 import numpy as np
@@ -69,6 +69,38 @@ class Model:
         # changed by the user via #num_threads command in input file or via API
         # later for use with CPU solver.
         config.get_model_config().ompthreads = set_omp_threads(config.get_model_config().ompthreads)
+
+    @property
+    def dx(self) -> float:
+        return self.G.dl[0]
+
+    @dx.setter
+    def dx(self, value: float):
+        self.G.dl[0] = value
+
+    @property
+    def dy(self) -> float:
+        return self.G.dl[0]
+
+    @dy.setter
+    def dy(self, value: float):
+        self.G.dl[1] = value
+
+    @property
+    def dz(self) -> float:
+        return self.G.dl[0]
+
+    @dz.setter
+    def dz(self, value: float):
+        self.G.dl[2] = value
+
+    @property
+    def dl(self) -> np.ndarray[Any, np.dtype[np.single]]:
+        return self.G.dl
+
+    @dl.setter
+    def dl(self, value: np.ndarray[Any, np.dtype[np.single]]):
+        self.G.dl = value
 
     def _create_grid(self) -> FDTDGrid:
         """Create grid object according to solver.
@@ -168,10 +200,6 @@ class Model:
         for grid in [self.G] + self.G.subgrids:
             if grid.snapshots:
                 save_snapshots(grid)
-
-    def set_grid_discretisation(self, point: Tuple[float, float, float]):
-        self.G.dl = np.array(point)
-        self.G.dx, self.G.dy, self.G.dz = point
 
     def solve(self, solver):
         """Solve using FDTD method.

@@ -21,7 +21,7 @@ import itertools
 import logging
 import sys
 from collections import OrderedDict
-from typing import Iterable, List, Union
+from typing import Any, Iterable, List, Union
 
 import humanize
 import numpy as np
@@ -56,10 +56,7 @@ class FDTDGrid:
         self.nx = 0
         self.ny = 0
         self.nz = 0
-        self.dx = 0.0
-        self.dy = 0.0
-        self.dz = 0.0
-        self.dl: np.ndarray
+        self.dl: np.ndarray[Any, np.dtype[np.single]]
         self.dt = 0.0
 
         self.dt_mod = 1.0  # Time step stability factor
@@ -98,6 +95,30 @@ class FDTDGrid:
         self.rxsteps: List[int] = [0, 0, 0]
         self.snapshots = []
         self.subgrids = []
+
+    @property
+    def dx(self) -> float:
+        return self.dl[0]
+
+    @dx.setter
+    def dx(self, value: float):
+        self.dl[0] = value
+
+    @property
+    def dy(self) -> float:
+        return self.dl[1]
+
+    @dy.setter
+    def dy(self, value: float):
+        self.dl[1] = value
+
+    @property
+    def dz(self) -> float:
+        return self.dl[2]
+
+    @dz.setter
+    def dz(self, value: float):
+        self.dl[2] = value
 
     def build(self) -> None:
         # Print info on any subgrids
