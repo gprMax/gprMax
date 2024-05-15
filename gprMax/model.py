@@ -56,9 +56,9 @@ class Model:
     def __init__(self):
         self.title = ""
 
-        self.nx = 0
-        self.ny = 0
-        self.nz = 0
+        self.gnx = 0
+        self.gny = 0
+        self.gnz = 0
 
         self.G = self._create_grid()
         # Monitor memory usage
@@ -69,6 +69,30 @@ class Model:
         # changed by the user via #num_threads command in input file or via API
         # later for use with CPU solver.
         config.get_model_config().ompthreads = set_omp_threads(config.get_model_config().ompthreads)
+
+    @property
+    def nx(self) -> int:
+        return self.G.nx
+
+    @nx.setter
+    def nx(self, value: int):
+        self.G.nx = value
+
+    @property
+    def ny(self) -> int:
+        return self.G.ny
+
+    @ny.setter
+    def ny(self, value: int):
+        self.G.ny = value
+
+    @property
+    def nz(self) -> int:
+        return self.G.nz
+
+    @nz.setter
+    def nz(self, value: int):
+        self.G.nz = value
 
     @property
     def dx(self) -> float:
@@ -163,10 +187,10 @@ class Model:
 
     def build_geometry(self):
         logger.info(config.get_model_config().inputfilestr)
-        # TODO: Make this correctly set local nx, ny and nz when using MPI
-        self.G.nx = self.nx
-        self.G.ny = self.ny
-        self.G.nz = self.nz
+        # TODO: Make this correctly sets local nx, ny and nz when using MPI (likely use a function inside FDTDGrid/MPIGrid)
+        self.G.nx = self.gnx
+        self.G.ny = self.gny
+        self.G.nz = self.gnz
         self.G.build()
 
     def reuse_geometry(self):
