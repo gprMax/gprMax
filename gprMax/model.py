@@ -125,11 +125,11 @@ class Model:
         self.G.dl[2] = value
 
     @property
-    def dl(self) -> np.ndarray[Any, np.dtype[np.single]]:
+    def dl(self) -> np.ndarray:
         return self.G.dl
 
     @dl.setter
-    def dl(self, value: np.ndarray[Any, np.dtype[np.single]]):
+    def dl(self, value: np.ndarray):
         self.G.dl = value
 
     @property
