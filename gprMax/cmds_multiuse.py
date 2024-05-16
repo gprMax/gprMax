@@ -215,7 +215,7 @@ class Waveform(UserObjectMulti):
         self.order = 2
         self.hash = "#waveform"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             wavetype = self.kwargs["wave_type"].lower()
         except KeyError:
@@ -229,6 +229,7 @@ class Waveform(UserObjectMulti):
             )
             raise ValueError
 
+        grid = uip.grid
         if wavetype != "user":
             try:
                 amp = self.kwargs["amp"]
@@ -236,7 +237,7 @@ class Waveform(UserObjectMulti):
                 ID = self.kwargs["id"]
             except KeyError:
                 logger.exception(
-                    self.params_str() + (" builtin waveforms " "require exactly four parameters.")
+                    self.params_str() + (" builtin waveforms require exactly four parameters.")
                 )
                 raise
             if freq <= 0:
@@ -246,7 +247,7 @@ class Waveform(UserObjectMulti):
                 )
                 raise ValueError
             if any(x.ID == ID for x in grid.waveforms):
-                logger.exception(self.params_str() + (f" with ID {ID} already " "exists."))
+                logger.exception(self.params_str() + (f" with ID {ID} already exists."))
                 raise ValueError
 
             w = WaveformUser()
@@ -273,14 +274,14 @@ class Waveform(UserObjectMulti):
             except KeyError:
                 logger.exception(
                     self.params_str()
-                    + (" a user-defined " "waveform requires at least two parameters.")
+                    + (" a user-defined waveform requires at least two parameters.")
                 )
                 raise
 
             if "user_time" in self.kwargs:
                 waveformtime = self.kwargs["user_time"]
             else:
-                waveformtime = np.arange(0, grid.timewindow + grid.dt, grid.dt)
+                waveformtime = np.arange(0, model.timewindow + grid.dt, grid.dt)
 
             # Set args for interpolation if given by user
             if "kind" in self.kwargs:
@@ -289,7 +290,7 @@ class Waveform(UserObjectMulti):
                 kwargs["fill_value"] = self.kwargs["fill_value"]
 
             if any(x.ID == ID for x in grid.waveforms):
-                logger.exception(self.params_str() + (f" with ID {ID} already " "exists."))
+                logger.exception(self.params_str() + (f" with ID {ID} already exists."))
                 raise ValueError
 
             w = WaveformUser()
@@ -297,9 +298,7 @@ class Waveform(UserObjectMulti):
             w.type = wavetype
             w.userfunc = interpolate.interp1d(waveformtime, uservalues, **kwargs)
 
-            logger.info(
-                self.grid_name(grid) + (f"Waveform {w.ID} that is " "user-defined created.")
-            )
+            logger.info(self.grid_name(grid) + (f"Waveform {w.ID} that is user-defined created."))
 
         grid.waveforms.append(w)
 
