@@ -21,6 +21,7 @@ import logging
 import numpy as np
 
 from ..cython.geometry_primitives import build_cylinder
+from ..hash_cmds_geometry import check_averaging
 from ..materials import Material
 from .cmds_geometry import UserObjectGeometry
 
@@ -59,6 +60,7 @@ class Cylinder(UserObjectGeometry):
         try:
             # Try user-specified averaging
             averagecylinder = self.kwargs["averaging"]
+            averagecylinder = check_averaging(averagecylinder)
         except KeyError:
             # Otherwise go with the grid default
             averagecylinder = grid.averagevolumeobjects
