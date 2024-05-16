@@ -26,6 +26,7 @@ from scipy import interpolate
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.model import Model
 from gprMax.user_inputs import MainGridUserInput
 
 from .cmds_geometry.cmds_geometry import (
@@ -74,8 +75,8 @@ class UserObjectMulti(ABC):
         return f"{self.hash}: {s[:-1]}"
 
     @abstractmethod
-    def build(self, grid: FDTDGrid, uip: MainGridUserInput):
-        """Creates object and adds it to grid."""
+    def build(self, model: Model, uip: MainGridUserInput):
+        """Creates object and adds it to model."""
         pass
 
     # TODO: Check if this is actually needed
@@ -114,7 +115,7 @@ class ExcitationFile(UserObjectMulti):
         self.order = 1
         self.hash = "#excitation_file"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             kwargs = {}
             excitationfile = self.kwargs["filepath"]
@@ -136,6 +137,7 @@ class ExcitationFile(UserObjectMulti):
         if not excitationfile.exists():
             excitationfile = Path(config.sim_config.input_file_path.parent, excitationfile)
 
+        grid = uip.grid
         logger.info(self.grid_name(grid) + f"Excitation file: {excitationfile}")
 
         # Get waveform names
@@ -153,7 +155,7 @@ class ExcitationFile(UserObjectMulti):
             waveformvalues = waveformvalues[:, 1:]
             timestr = "user-defined time array"
         else:
-            waveformtime = np.arange(0, grid.timewindow + grid.dt, grid.dt)
+            waveformtime = np.arange(0, model.timewindow + grid.dt, grid.dt)
             timestr = "simulation time array"
 
         for i, waveformID in enumerate(waveformIDs):
