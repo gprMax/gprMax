@@ -29,7 +29,7 @@ class Rx:
     allowableoutputs_dev = allowableoutputs[:-3]
 
     def __init__(self):
-        self.ID = None
+        self.ID: str
         self.outputs = {}
         self.xcoord: int
         self.ycoord: int

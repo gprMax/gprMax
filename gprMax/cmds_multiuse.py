@@ -79,7 +79,7 @@ class UserObjectMulti(ABC):
         """Creates object and adds it to model."""
         pass
 
-    # TODO: Check if this is actually needed
+    # TODO: Make _do_rotate not use a grid object
     def rotate(self, axis, angle, origin=None):
         """Rotates object (specialised for each object)."""
         pass
@@ -942,13 +942,14 @@ class Rx(UserObjectMulti):
         except KeyError:
             pass
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             p1 = self.kwargs["p1"]
         except KeyError:
             logger.exception(self.params_str())
             raise
 
+        grid = uip.grid
         if self.do_rotate:
             self._do_rotate(grid)
 
@@ -967,7 +968,7 @@ class Rx(UserObjectMulti):
             r.ID = f"{r.__class__.__name__}({str(r.xcoord)},{str(r.ycoord)},{str(r.zcoord)})"
             for key in RxUser.defaultoutputs:
                 r.outputs[key] = np.zeros(
-                    grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                    model.iterations, dtype=config.sim_config.dtypes["float_or_double"]
                 )
         else:
             outputs.sort()
@@ -980,7 +981,7 @@ class Rx(UserObjectMulti):
             for field in outputs:
                 if field in allowableoutputs:
                     r.outputs[field] = np.zeros(
-                        grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                        model.iterations, dtype=config.sim_config.dtypes["float_or_double"]
                     )
                 else:
                     logger.exception(
