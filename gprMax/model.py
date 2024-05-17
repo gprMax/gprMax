@@ -66,9 +66,11 @@ class Model:
 
         self.G = self._create_grid()
         self.subgrids: List[SubGridBaseGrid] = []
+
         self.materials: List[Material] = []
         self.mixingmodels: List[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = []
         self.fractalvolumes: List[FractalVolume] = []
+        self.averagevolumeobjects = True
 
         self.geometryviews: List[GeometryView] = []
         self.geometryobjects: List[GeometryObjects] = []

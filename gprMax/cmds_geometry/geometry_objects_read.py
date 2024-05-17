@@ -39,7 +39,7 @@ class GeometryObjectsRead(UserObjectGeometry):
     def rotate(self, axis, angle, origin=None):
         pass
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         """Creates the object and adds it to the grid."""
         try:
             p1 = self.kwargs["p1"]
@@ -62,7 +62,7 @@ class GeometryObjectsRead(UserObjectGeometry):
             matfile = Path(config.sim_config.input_file_path.parent, matfile)
 
         matstr = matfile.with_suffix("").name
-        numexistmaterials = len(grid.materials)
+        numexistmaterials = len(model.materials)
 
         # Read materials from file
         with open(matfile, "r") as f:
@@ -82,10 +82,10 @@ class GeometryObjectsRead(UserObjectGeometry):
             scene.add(material_obj)
 
         # Creates the internal simulation objects
-        scene.process_cmds(material_objs, grid)
+        scene.process_cmds(material_objs, model)
 
         # Update material type
-        for material in grid.materials:
+        for material in model.materials:
             if material.numID >= numexistmaterials:
                 if material.type:
                     material.type += ",\nimported"
@@ -101,6 +101,7 @@ class GeometryObjectsRead(UserObjectGeometry):
         # Open geometry object file and read/check spatial resolution attribute
         f = h5py.File(geofile, "r")
         dx_dy_dz = f.attrs["dx_dy_dz"]
+        grid = uip.grid
         if round_value(
             (dx_dy_dz[0] / grid.dx) != 1
             or round_value(dx_dy_dz[1] / grid.dy) != 1
@@ -126,12 +127,18 @@ class GeometryObjectsRead(UserObjectGeometry):
             rigidE = f["/rigidE"][:]
             rigidH = f["/rigidH"][:]
             ID = f["/ID"][:]
-            grid.solid[xs : xs + data.shape[0], ys : ys + data.shape[1], zs : zs + data.shape[2]] = (
-                data + numexistmaterials
+            grid.solid[
+                xs : xs + data.shape[0], ys : ys + data.shape[1], zs : zs + data.shape[2]
+            ] = (data + numexistmaterials)
+            grid.rigidE[
+                :, xs : xs + rigidE.shape[1], ys : ys + rigidE.shape[2], zs : zs + rigidE.shape[3]
+            ] = rigidE
+            grid.rigidH[
+                :, xs : xs + rigidH.shape[1], ys : ys + rigidH.shape[2], zs : zs + rigidH.shape[3]
+            ] = rigidH
+            grid.ID[:, xs : xs + ID.shape[1], ys : ys + ID.shape[2], zs : zs + ID.shape[3]] = (
+                ID + numexistmaterials
             )
-            grid.rigidE[:, xs : xs + rigidE.shape[1], ys : ys + rigidE.shape[2], zs : zs + rigidE.shape[3]] = rigidE
-            grid.rigidH[:, xs : xs + rigidH.shape[1], ys : ys + rigidH.shape[2], zs : zs + rigidH.shape[3]] = rigidH
-            grid.ID[:, xs : xs + ID.shape[1], ys : ys + ID.shape[2], zs : zs + ID.shape[3]] = ID + numexistmaterials
             logger.info(
                 f"{self.grid_name(grid)}Geometry objects from file {geofile} "
                 f"inserted at {xs * grid.dx:g}m, {ys * grid.dy:g}m, "

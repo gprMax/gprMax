@@ -60,7 +60,7 @@ class Box(UserObjectGeometry):
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -89,7 +89,7 @@ class Box(UserObjectGeometry):
             averagebox = self.kwargs["averaging"]
         except KeyError:
             # Otherwise go with the grid default
-            averagebox = grid.averagevolumeobjects
+            averagebox = model.averagevolumeobjects
 
         p3, p4 = uip.check_box_points(p1, p2, self.__str__())
         # Find nearest point on grid without translation
@@ -99,7 +99,7 @@ class Box(UserObjectGeometry):
         xf, yf, zf = p4
 
         # Look up requested materials in existing list of material instances
-        materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
+        materials = [y for x in materialsrequested for y in model.materials if y.ID == x]
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
@@ -118,11 +118,11 @@ class Box(UserObjectGeometry):
             numIDy = materials[1].numID
             numIDz = materials[2].numID
             requiredID = materials[0].ID + "+" + materials[1].ID + "+" + materials[2].ID
-            averagedmaterial = [x for x in grid.materials if x.ID == requiredID]
+            averagedmaterial = [x for x in model.materials if x.ID == requiredID]
             if averagedmaterial:
                 numID = averagedmaterial.numID
             else:
-                numID = len(grid.materials)
+                numID = len(model.materials)
                 m = Material(numID, requiredID)
                 m.type = "dielectric-smoothed"
                 # Create dielectric-smoothed constituents for material
@@ -132,8 +132,9 @@ class Box(UserObjectGeometry):
                 m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
 
                 # Append the new material object to the materials list
-                grid.materials.append(m)
+                model.materials.append(m)
 
+        grid = uip.grid
         build_box(
             xs,
             xf,

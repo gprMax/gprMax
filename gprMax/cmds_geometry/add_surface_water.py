@@ -60,7 +60,7 @@ class AddSurfaceWater(UserObjectGeometry):
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         """ "Create surface water on fractal box."""
         try:
             p1 = self.kwargs["p1"]
@@ -74,7 +74,7 @@ class AddSurfaceWater(UserObjectGeometry):
         if self.do_rotate:
             self._do_rotate()
 
-        if volumes := [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]:
+        if volumes := [volume for volume in model.fractalvolumes if volume.ID == fractal_box_id]:
             volume = volumes[0]
         else:
             logger.exception(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
@@ -89,12 +89,15 @@ class AddSurfaceWater(UserObjectGeometry):
             raise ValueError
 
         # Check for valid orientations
+        grid = uip.grid
         if xs == xf:
             if ys == yf or zs == zf:
                 logger.exception(f"{self.__str__()} dimensions are not specified correctly")
                 raise ValueError
             if xs not in [volume.xs, volume.xf]:
-                logger.exception(f"{self.__str__()} can only be used on the external surfaces of a fractal box")
+                logger.exception(
+                    f"{self.__str__()} can only be used on the external surfaces of a fractal box"
+                )
                 raise ValueError
             # xminus surface
             if xs == volume.xs:
@@ -110,7 +113,9 @@ class AddSurfaceWater(UserObjectGeometry):
                 logger.exception(f"{self.__str__()} dimensions are not specified correctly")
                 raise ValueError
             if ys not in [volume.ys, volume.yf]:
-                logger.exception(f"{self.__str__()} can only be used on the external surfaces of a fractal box")
+                logger.exception(
+                    f"{self.__str__()} can only be used on the external surfaces of a fractal box"
+                )
                 raise ValueError
             # yminus surface
             if ys == volume.ys:
@@ -123,7 +128,9 @@ class AddSurfaceWater(UserObjectGeometry):
 
         elif zs == zf:
             if zs not in [volume.zs, volume.zf]:
-                logger.exception(f"{self.__str__()} can only be used on the external surfaces of a fractal box")
+                logger.exception(
+                    f"{self.__str__()} can only be used on the external surfaces of a fractal box"
+                )
                 raise ValueError
             # zminus surface
             if zs == volume.zs:
@@ -148,7 +155,10 @@ class AddSurfaceWater(UserObjectGeometry):
         surface.filldepth = filldepthcells
 
         # Check that requested fill depth falls within range of surface roughness
-        if surface.filldepth < surface.fractalrange[0] or surface.filldepth > surface.fractalrange[1]:
+        if (
+            surface.filldepth < surface.fractalrange[0]
+            or surface.filldepth > surface.fractalrange[1]
+        ):
             logger.exception(
                 f"{self.__str__()} requires a value for the depth of water that lies with the "
                 f"range of the requested surface roughness"
@@ -156,11 +166,11 @@ class AddSurfaceWater(UserObjectGeometry):
             raise ValueError
 
         # Check to see if water has been already defined as a material
-        if not any(x.ID == "water" for x in grid.materials):
-            create_water(grid)
+        if not any(x.ID == "water" for x in model.materials):
+            create_water(model)
 
         # Check if time step for model is suitable for using water
-        water = next((x for x in grid.materials if x.ID == "water"))
+        water = next((x for x in model.materials if x.ID == "water"))
         if testwater := next((x for x in water.tau if x < grid.dt), None):
             logger.exception(
                 f"{self.__str__()} requires the time step for the model "

@@ -73,7 +73,6 @@ class FDTDGrid:
         # corrections will be different.
         self.pmls["thickness"] = OrderedDict((key, 10) for key in PML.boundaryIDs)
 
-        self.averagevolumeobjects = True
         self.waveforms: List[Waveform] = []
         self.voltagesources: List[VoltageSource] = []
         self.hertziandipoles: List[HertzianDipole] = []

@@ -55,7 +55,7 @@ class Plate(UserObjectGeometry):
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -94,13 +94,14 @@ class Plate(UserObjectGeometry):
             raise ValueError
 
         # Look up requested materials in existing list of material instances
-        materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
+        materials = [y for x in materialsrequested for y in model.materials if y.ID == x]
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
             logger.exception(f"{self.__str__()} material(s) {notfound} do not exist")
             raise ValueError
 
+        grid = uip.grid
         # yz-plane plate
         if xs == xf:
             # Isotropic case
