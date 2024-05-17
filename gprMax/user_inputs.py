@@ -39,13 +39,13 @@ logger = logging.getLogger(__name__)
     encapulsated here.
 """
 
-GT = TypeVar("GT", bound=FDTDGrid, default=FDTDGrid)
+GridType = TypeVar("GridType", bound=FDTDGrid, default=FDTDGrid)
 
 
-class UserInput(Generic[GT]):
+class UserInput(Generic[GridType]):
     """Handles (x, y, z) points supplied by the user."""
 
-    def __init__(self, grid: GT):
+    def __init__(self, grid: GridType):
         self.grid = grid
 
     def point_within_bounds(self, p, cmd_str, name):
@@ -80,7 +80,7 @@ class UserInput(Generic[GT]):
         return p * self.grid.dl
 
 
-class MainGridUserInput(UserInput[GT]):
+class MainGridUserInput(UserInput[GridType]):
     """Handles (x, y, z) points supplied by the user in the main grid."""
 
     def __init__(self, grid):

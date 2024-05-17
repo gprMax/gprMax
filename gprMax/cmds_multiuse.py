@@ -336,40 +336,41 @@ class VoltageSource(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             p1 = self.kwargs["p1"]
             polarisation = self.kwargs["polarisation"].lower()
             resistance = self.kwargs["resistance"]
             waveform_id = self.kwargs["waveform_id"]
         except KeyError:
-            logger.exception(self.params_str() + (" requires at least six " "parameters."))
+            logger.exception(self.params_str() + (" requires at least six parameters."))
             raise
 
+        grid = uip.grid
         if self.do_rotate:
             self._do_rotate(grid)
 
         # Check polarity & position parameters
         if polarisation not in ("x", "y", "z"):
-            logger.exception(self.params_str() + (" polarisation must be " "x, y, or z."))
+            logger.exception(self.params_str() + (" polarisation must be x, y, or z."))
             raise ValueError
         if "2D TMx" in config.get_model_config().mode and polarisation in [
             "y",
             "z",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be x in " "2D TMx mode."))
+            logger.exception(self.params_str() + (" polarisation must be x in 2D TMx mode."))
             raise ValueError
         elif "2D TMy" in config.get_model_config().mode and polarisation in [
             "x",
             "z",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be y in " "2D TMy mode."))
+            logger.exception(self.params_str() + (" polarisation must be y in 2D TMy mode."))
             raise ValueError
         elif "2D TMz" in config.get_model_config().mode and polarisation in [
             "x",
             "y",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be z in " "2D TMz mode."))
+            logger.exception(self.params_str() + (" polarisation must be z in 2D TMz mode."))
             raise ValueError
 
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
@@ -377,14 +378,14 @@ class VoltageSource(UserObjectMulti):
 
         if resistance < 0:
             logger.exception(
-                self.params_str() + (" requires a source " "resistance of zero " "or greater.")
+                self.params_str() + (" requires a source resistance of zero or greater.")
             )
             raise ValueError
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
             logger.exception(
-                self.params_str() + (" there is no waveform with " "the identifier {waveform_id}.")
+                self.params_str() + (" there is no waveform with the identifier {waveform_id}.")
             )
             raise ValueError
 
@@ -404,7 +405,7 @@ class VoltageSource(UserObjectMulti):
             + ")"
         )
         v.resistance = resistance
-        v.waveformID = waveform_id
+        v.waveform = grid.get_waveform_by_id(waveform_id)
 
         try:
             start = self.kwargs["start"]
@@ -413,37 +414,35 @@ class VoltageSource(UserObjectMulti):
             if start < 0:
                 logger.exception(
                     self.params_str()
-                    + (" delay of the initiation " "of the source should not " "be less than zero.")
+                    + (" delay of the initiation of the source should not be less than zero.")
                 )
                 raise ValueError
             if stop < 0:
                 logger.exception(
-                    self.params_str()
-                    + (" time to remove the " "source should not be " "less than zero.")
+                    self.params_str() + (" time to remove the source should not be less than zero.")
                 )
                 raise ValueError
             if stop - start <= 0:
                 logger.exception(
-                    self.params_str()
-                    + (" duration of the source " "should not be zero or " "less.")
+                    self.params_str() + (" duration of the source should not be zero or less.")
                 )
                 raise ValueError
             v.start = start
-            v.stop = min(stop, grid.timewindow)
+            v.stop = min(stop, model.timewindow)
             startstop = f" start time {v.start:g} secs, finish time {v.stop:g} secs "
         except KeyError:
             v.start = 0
-            v.stop = grid.timewindow
+            v.stop = model.timewindow
             startstop = " "
 
-        v.calculate_waveform_values(grid)
+        v.calculate_waveform_values(model.iterations, grid.dt)
 
         logger.info(
             f"{self.grid_name(grid)}Voltage source with polarity "
             f"{v.polarisation} at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m, "
             f"resistance {v.resistance:.1f} Ohms,"
             + startstop
-            + f"using waveform {v.waveformID} created."
+            + f"using waveform {v.waveform.ID} created."
         )
 
         grid.voltagesources.append(v)

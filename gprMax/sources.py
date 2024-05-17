@@ -21,6 +21,7 @@ from copy import deepcopy
 import numpy as np
 
 import gprMax.config as config
+from gprMax.waveforms import Waveform
 
 from .utilities.utilities import round_value
 
@@ -29,7 +30,7 @@ class Source:
     """Super-class which describes a generic source."""
 
     def __init__(self):
-        self.ID = None
+        self.ID: str
         self.polarisation = None
         self.xcoord: int
         self.ycoord: int
@@ -37,11 +38,11 @@ class Source:
         self.xcoordorigin: int
         self.ycoordorigin: int
         self.zcoordorigin: int
-        self.start = None
-        self.stop = None
-        self.waveformID = None
+        self.start = 0.0
+        self.stop = 0.0
+        self.waveform: Waveform
 
-    def calculate_waveform_values(self, G):
+    def calculate_waveform_values(self, iterations: int, dt: float):
         """Calculates all waveform values for source for duration of simulation.
 
         Args:
@@ -49,25 +50,23 @@ class Source:
         """
         # Waveform values for sources that need to be calculated on whole timesteps
         self.waveformvalues_wholedt = np.zeros(
-            (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+            iterations, dtype=config.sim_config.dtypes["float_or_double"]
         )
 
         # Waveform values for sources that need to be calculated on half timesteps
         self.waveformvalues_halfdt = np.zeros(
-            (G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+            iterations, dtype=config.sim_config.dtypes["float_or_double"]
         )
 
-        waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-
-        for iteration in range(G.iterations):
-            time = G.dt * iteration
+        for iteration in range(iterations):
+            time = dt * iteration
             if time >= self.start and time <= self.stop:
                 # Set the time of the waveform evaluation to account for any
                 # delay in the start
                 time -= self.start
-                self.waveformvalues_wholedt[iteration] = waveform.calculate_value(time, G.dt)
-                self.waveformvalues_halfdt[iteration] = waveform.calculate_value(
-                    time + 0.5 * G.dt, G.dt
+                self.waveformvalues_wholedt[iteration] = self.waveform.calculate_value(time, dt)
+                self.waveformvalues_halfdt[iteration] = self.waveform.calculate_value(
+                    time + 0.5 * dt, dt
                 )
 
 

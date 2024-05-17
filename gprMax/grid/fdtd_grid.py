@@ -40,6 +40,7 @@ from gprMax.sources import HertzianDipole, MagneticDipole, Source, VoltageSource
 # from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.utilities.host_info import mem_check_build_all, mem_check_run_all
 from gprMax.utilities.utilities import fft_power, get_terminal_width, round_value
+from gprMax.waveforms import Waveform
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +81,7 @@ class FDTDGrid:
         self.fractalvolumes = []
         self.geometryviews = []
         self.geometryobjectswrite = []
-        self.waveforms = []
+        self.waveforms: List[Waveform] = []
         self.voltagesources: List[VoltageSource] = []
         self.hertziandipoles: List[HertzianDipole] = []
         self.magneticdipoles: List[MagneticDipole] = []
@@ -337,6 +338,9 @@ class FDTDGrid:
             return True
         else:
             return False
+
+    def get_waveform_by_id(self, waveform_id: str) -> Waveform:
+        return next(waveform for waveform in self.waveforms if waveform.ID == waveform_id)
 
     def initialise_geometry_arrays(self):
         """Initialise an array for volumetric material IDs (solid);
