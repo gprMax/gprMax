@@ -176,7 +176,7 @@ class Model:
         G.update_receiver_positions(step=model_num)
 
         # Write files for any geometry views and geometry object outputs
-        gvs = G.geometryviews + [gv for sg in G.subgrids for gv in sg.geometryviews]
+        gvs = G.geometryviews + [gv for sg in self.subgrids for gv in sg.geometryviews]
         if not gvs and not G.geometryobjectswrite and config.sim_config.args.geometry_only:
             logger.exception("\nNo geometry views or geometry objects found.")
             raise ValueError
@@ -217,8 +217,8 @@ class Model:
             Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
         )
         logger.basic(config.get_model_config().inputfilestr)
-        for grid in [self.G] + self.G.subgrids:
-            grid.iteration = 0  # Reset current iteration number
+        self.iteration = 0  # Reset current iteration number
+        for grid in [self.G] + self.subgrids:
             grid.reset_fields()
 
     def write_output_data(self):
@@ -227,15 +227,15 @@ class Model:
         """
 
         # Write output data to file if they are any receivers in any grids
-        sg_rxs = [True for sg in self.G.subgrids if sg.rxs]
-        sg_tls = [True for sg in self.G.subgrids if sg.transmissionlines]
+        sg_rxs = [True for sg in self.subgrids if sg.rxs]
+        sg_tls = [True for sg in self.subgrids if sg.transmissionlines]
         if self.G.rxs or sg_rxs or self.G.transmissionlines or sg_tls:
             write_hdf5_outputfile(
                 config.get_model_config().output_file_path_ext, self.title, self.G
             )
 
         # Write any snapshots to file for each grid
-        for grid in [self.G] + self.G.subgrids:
+        for grid in [self.G] + self.subgrids:
             if grid.snapshots:
                 save_snapshots(grid)
 
@@ -287,14 +287,14 @@ class Model:
         # Prepare iterator
         if config.sim_config.general["progressbars"]:
             iterator = tqdm(
-                range(self.G.iterations),
+                range(self.iterations),
                 desc="|--->",
                 ncols=get_terminal_width() - 1,
                 file=sys.stdout,
                 disable=not config.sim_config.general["progressbars"],
             )
         else:
-            iterator = range(self.G.iterations)
+            iterator = range(self.iterations)
 
         # Run solver
         solver.solve(iterator)
