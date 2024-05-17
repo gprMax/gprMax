@@ -769,7 +769,7 @@ class TransmissionLine(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             polarisation = self.kwargs["polarisation"].lower()
             p1 = self.kwargs["p1"]
@@ -779,6 +779,7 @@ class TransmissionLine(UserObjectMulti):
             logger.exception(f"{self.params_str()} requires at least six parameters.")
             raise
 
+        grid = uip.grid
         if self.do_rotate:
             self._do_rotate(grid)
 
@@ -848,7 +849,7 @@ class TransmissionLine(UserObjectMulti):
             + ")"
         )
         t.resistance = resistance
-        t.waveformID = waveform_id
+        t.waveform = grid.get_waveform_by_id(waveform_id)
 
         try:
             # Check source start & source remove time parameters
@@ -873,14 +874,14 @@ class TransmissionLine(UserObjectMulti):
                 )
                 raise ValueError
             t.start = start
-            t.stop = min(stop, grid.timewindow)
+            t.stop = min(stop, model.timewindow)
             startstop = f" start time {t.start:g} secs, finish time {t.stop:g} secs "
         except KeyError:
             t.start = 0
-            t.stop = grid.timewindow
+            t.stop = model.timewindow
             startstop = " "
 
-        t.calculate_waveform_values(grid)
+        t.calculate_waveform_values(model.iterations, grid.dt)
         t.calculate_incident_V_I(grid)
 
         logger.info(
@@ -888,7 +889,7 @@ class TransmissionLine(UserObjectMulti):
             + f"{t.polarisation} at {p2[0]:g}m, {p2[1]:g}m, "
             + f"{p2[2]:g}m, resistance {t.resistance:.1f} Ohms,"
             + startstop
-            + f"using waveform {t.waveformID} created."
+            + f"using waveform {t.waveform.ID} created."
         )
 
         grid.transmissionlines.append(t)
