@@ -19,7 +19,7 @@
 import datetime
 import logging
 import sys
-from typing import List
+from typing import List, Union
 
 import humanize
 import numpy as np
@@ -28,7 +28,7 @@ from colorama import Fore, Style, init
 
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.grid.opencl_grid import OpenCLGrid
-from gprMax.materials import Material, PeplinskiSoil
+from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial
 from gprMax.subgrids.grid import SubGridBaseGrid
 
 init()
@@ -66,7 +66,7 @@ class Model:
         self.G = self._create_grid()
         self.subgrids: List[SubGridBaseGrid] = []
         self.materials: List[Material] = []
-        self.mixingmodels: List[PeplinskiSoil] = []
+        self.mixingmodels: List[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = []
 
         # Monitor memory usage
         self.p = None

@@ -1661,7 +1661,7 @@ class MaterialRange(UserObjectMulti):
         self.order = 15
         self.hash = "#material_range"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             er_lower = self.kwargs["er_lower"]
             er_upper = self.kwargs["er_upper"]
@@ -1720,7 +1720,7 @@ class MaterialRange(UserObjectMulti):
                 f"{self.params_str()} requires a positive value for the upper range of magnetic loss."
             )
 
-        if any(x.ID == ID for x in grid.mixingmodels):
+        if any(x.ID == ID for x in model.mixingmodels):
             logger.exception(f"{self.params_str()} with ID {ID} already exists")
             raise ValueError
 
@@ -1733,13 +1733,13 @@ class MaterialRange(UserObjectMulti):
         )
 
         logger.info(
-            f"{self.grid_name(grid)}Material properties used to "
+            f"{self.model_name(model)}Material properties used to "
             f"create {s.ID} with range(s) {s.er[0]:g} to {s.er[1]:g}, relative permittivity "
             f"{s.sig[0]:g} to {s.sig[1]:g}, S/m conductivity, {s.mu[0]:g} to {s.mu[1]:g} relative magnetic permeability "
             f"{s.ro[0]:g} to {s.ro[1]:g} Ohm/m magnetic loss, created"
         )
 
-        grid.mixingmodels.append(s)
+        model.mixingmodels.append(s)
 
 
 class MaterialList(UserObjectMulti):
@@ -1755,7 +1755,7 @@ class MaterialList(UserObjectMulti):
         self.order = 16
         self.hash = "#material_list"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             list_of_materials = self.kwargs["list_of_materials"]
             ID = self.kwargs["id"]
@@ -1763,17 +1763,17 @@ class MaterialList(UserObjectMulti):
             logger.exception(f"{self.params_str()} requires at at least 2 parameters.")
             raise
 
-        if any(x.ID == ID for x in grid.mixingmodels):
+        if any(x.ID == ID for x in model.mixingmodels):
             logger.exception(f"{self.params_str()} with ID {ID} already exists")
             raise ValueError
 
         s = ListMaterialUser(ID, list_of_materials)
 
         logger.info(
-            f"{self.grid_name(grid)}A list of materials used to create {s.ID} that includes {s.mat}, created"
+            f"{self.model_name(model)}A list of materials used to create {s.ID} that includes {s.mat}, created"
         )
 
-        grid.mixingmodels.append(s)
+        model.mixingmodels.append(s)
 
 
 class GeometryView(UserObjectMulti):
