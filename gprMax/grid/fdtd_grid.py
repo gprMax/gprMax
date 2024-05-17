@@ -51,6 +51,8 @@ class FDTDGrid:
     accessing regularly used parameters.
     """
 
+    IDlookup = {"Ex": 0, "Ey": 1, "Ez": 2, "Hx": 3, "Hy": 4, "Hz": 5}
+
     def __init__(self):
         self.name = "main_grid"
         self.mem_use = 0
@@ -60,6 +62,25 @@ class FDTDGrid:
         self.nz = 0
         self.dl: np.ndarray[Any, np.dtype[np.single]]
         self.dt = 0.0
+
+        # Field Arrays
+        self.Ex: np.ndarray[Any, np.dtype[np.single]]
+        self.Ey: np.ndarray[Any, np.dtype[np.single]]
+        self.Ez: np.ndarray[Any, np.dtype[np.single]]
+        self.Hx: np.ndarray[Any, np.dtype[np.single]]
+        self.Hy: np.ndarray[Any, np.dtype[np.single]]
+        self.Hz: np.ndarray[Any, np.dtype[np.single]]
+
+        # Dispersive Arrays
+        self.Tx: np.ndarray[Any, np.dtype[np.single]]
+        self.Ty: np.ndarray[Any, np.dtype[np.single]]
+        self.Tz: np.ndarray[Any, np.dtype[np.single]]
+
+        # Geometry Arrays
+        self.solid: np.ndarray[Any, np.dtype[np.uint32]]
+        self.rigidE: np.ndarray[Any, np.dtype[np.int8]]
+        self.rigidH: np.ndarray[Any, np.dtype[np.int8]]
+        self.ID: np.ndarray[Any, np.dtype[np.uint32]]
 
         # PML parameters - set some defaults to use if not user provided
         self.pmls = {}
@@ -345,7 +366,6 @@ class FDTDGrid:
         self.rigidE = np.zeros((12, self.nx, self.ny, self.nz), dtype=np.int8)
         self.rigidH = np.zeros((6, self.nx, self.ny, self.nz), dtype=np.int8)
         self.ID = np.ones((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
-        self.IDlookup = {"Ex": 0, "Ey": 1, "Ez": 2, "Hx": 3, "Hy": 4, "Hz": 5}
 
     def initialise_field_arrays(self):
         """Initialise arrays for the electric and magnetic field components."""
