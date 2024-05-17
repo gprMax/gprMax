@@ -26,6 +26,7 @@ import numpy as np
 import psutil
 from colorama import Fore, Style, init
 
+from gprMax.fractals import FractalVolume
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.grid.opencl_grid import OpenCLGrid
 from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial
@@ -67,6 +68,7 @@ class Model:
         self.subgrids: List[SubGridBaseGrid] = []
         self.materials: List[Material] = []
         self.mixingmodels: List[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = []
+        self.fractalvolumes: List[FractalVolume] = []
 
         self.geometryviews: List[GeometryView] = []
         self.geometryobjects: List[GeometryObjects] = []
