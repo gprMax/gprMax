@@ -271,12 +271,12 @@ class FDTDGrid:
             for item in items:
                 if step_number == 0:
                     if (
-                        item.xcoord + self.srcsteps[0] * config.sim_config.model_end < 0
-                        or item.xcoord + self.srcsteps[0] * config.sim_config.model_end > self.nx
-                        or item.ycoord + self.srcsteps[1] * config.sim_config.model_end < 0
-                        or item.ycoord + self.srcsteps[1] * config.sim_config.model_end > self.ny
-                        or item.zcoord + self.srcsteps[2] * config.sim_config.model_end < 0
-                        or item.zcoord + self.srcsteps[2] * config.sim_config.model_end > self.nz
+                        item.xcoord + step_size[0] * config.sim_config.model_end < 0
+                        or item.xcoord + step_size[0] * config.sim_config.model_end > self.nx
+                        or item.ycoord + step_size[1] * config.sim_config.model_end < 0
+                        or item.ycoord + step_size[1] * config.sim_config.model_end > self.ny
+                        or item.zcoord + step_size[2] * config.sim_config.model_end < 0
+                        or item.zcoord + step_size[2] * config.sim_config.model_end > self.nz
                     ):
                         raise ValueError
                 item.xcoord = item.xcoordorigin + step_number * step_size[0]
