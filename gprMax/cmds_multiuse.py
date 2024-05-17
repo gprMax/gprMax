@@ -1017,7 +1017,7 @@ class RxArray(UserObjectMulti):
         self.order = 8
         self.hash = "#rx_array"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -1065,6 +1065,7 @@ class RxArray(UserObjectMulti):
                 )
                 raise ValueError
 
+        grid = uip.grid
         logger.info(
             f"{self.grid_name(grid)}Receiver array "
             f"{p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to "
@@ -1089,7 +1090,7 @@ class RxArray(UserObjectMulti):
                     r.ID = f"{r.__class__.__name__}({str(x)},{str(y)},{str(z)})"
                     for key in RxUser.defaultoutputs:
                         r.outputs[key] = np.zeros(
-                            grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                            model.iterations, dtype=config.sim_config.dtypes["float_or_double"]
                         )
                     logger.info(
                         f"  Receiver at {p5[0]:g}m, {p5[1]:g}m, "
