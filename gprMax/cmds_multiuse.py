@@ -629,7 +629,7 @@ class MagneticDipole(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             polarisation = self.kwargs["polarisation"].lower()
             p1 = self.kwargs["p1"]
@@ -638,30 +638,31 @@ class MagneticDipole(UserObjectMulti):
             logger.exception(f"{self.params_str()} requires at least five parameters.")
             raise
 
+        grid = uip.grid
         if self.do_rotate:
             self._do_rotate(grid)
 
         # Check polarity & position parameters
         if polarisation not in ("x", "y", "z"):
-            logger.exception(self.params_str() + (" polarisation must be " "x, y, or z."))
+            logger.exception(self.params_str() + " polarisation must be x, y, or z.")
             raise ValueError
         if "2D TMx" in config.get_model_config().mode and polarisation in [
             "y",
             "z",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be x in " "2D TMx mode."))
+            logger.exception(self.params_str() + " polarisation must be x in 2D TMx mode.")
             raise ValueError
         elif "2D TMy" in config.get_model_config().mode and polarisation in [
             "x",
             "z",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be y in " "2D TMy mode."))
+            logger.exception(self.params_str() + " polarisation must be y in 2D TMy mode.")
             raise ValueError
         elif "2D TMz" in config.get_model_config().mode and polarisation in [
             "x",
             "y",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be z in " "2D TMz mode."))
+            logger.exception(self.params_str() + " polarisation must be z in 2D TMz mode.")
             raise ValueError
 
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
@@ -692,7 +693,7 @@ class MagneticDipole(UserObjectMulti):
             + str(m.zcoord)
             + ")"
         )
-        m.waveformID = waveform_id
+        m.waveform = grid.get_waveform_by_id(waveform_id)
 
         try:
             # Check source start & source remove time parameters
@@ -701,36 +702,34 @@ class MagneticDipole(UserObjectMulti):
             if start < 0:
                 logger.exception(
                     self.params_str()
-                    + (" delay of the initiation " "of the source should not " "be less than zero.")
+                    + " delay of the initiation of the source should not be less than zero."
                 )
                 raise ValueError
             if stop < 0:
                 logger.exception(
-                    self.params_str()
-                    + (" time to remove the " "source should not be " "less than zero.")
+                    self.params_str() + " time to remove the source should not be less than zero."
                 )
                 raise ValueError
             if stop - start <= 0:
                 logger.exception(
-                    self.params_str()
-                    + (" duration of the source " "should not be zero or " "less.")
+                    self.params_str() + " duration of the source should not be zero or less."
                 )
                 raise ValueError
             m.start = start
-            m.stop = min(stop, grid.timewindow)
+            m.stop = min(stop, model.timewindow)
             startstop = f" start time {m.start:g} secs, finish time {m.stop:g} secs "
         except KeyError:
             m.start = 0
-            m.stop = grid.timewindow
+            m.stop = model.timewindow
             startstop = " "
 
-        m.calculate_waveform_values(grid)
+        m.calculate_waveform_values(model.iteration, grid.dt)
 
         logger.info(
             f"{self.grid_name(grid)}Magnetic dipole with polarity "
             f"{m.polarisation} at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,"
             + startstop
-            + f"using waveform {m.waveformID} created."
+            + f"using waveform {m.waveform.ID} created."
         )
 
         grid.magneticdipoles.append(m)
