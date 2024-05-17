@@ -28,6 +28,7 @@ from colorama import Fore, Style, init
 
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.grid.opencl_grid import OpenCLGrid
+from gprMax.materials import Material
 from gprMax.subgrids.grid import SubGridBaseGrid
 
 init()
@@ -64,6 +65,7 @@ class Model:
 
         self.G = self._create_grid()
         self.subgrids: List[SubGridBaseGrid] = []
+        self.materials: List[Material] = []
 
         # Monitor memory usage
         self.p = None

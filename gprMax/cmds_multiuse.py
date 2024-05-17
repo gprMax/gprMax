@@ -1256,7 +1256,7 @@ class Material(UserObjectMulti):
         self.order = 10
         self.hash = "#material"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             er = self.kwargs["er"]
             se = self.kwargs["se"]
@@ -1289,13 +1289,13 @@ class Material(UserObjectMulti):
         if sm < 0:
             logger.exception(f"{self.params_str()} requires a positive value for magnetic loss.")
             raise ValueError
-        if any(x.ID == material_id for x in grid.materials):
+        if any(x.ID == material_id for x in model.materials):
             logger.exception(f"{self.params_str()} with ID {material_id} already exists")
             raise ValueError
 
         # Create a new instance of the Material class material
         # (start index after pec & free_space)
-        m = MaterialUser(len(grid.materials), material_id)
+        m = MaterialUser(len(model.materials), material_id)
         m.se = se
         m.mr = mr
         m.sm = sm
@@ -1306,12 +1306,12 @@ class Material(UserObjectMulti):
 
         m.er = er
         logger.info(
-            f"{self.grid_name(grid)}Material {m.ID} with eps_r={m.er:g}, "
+            f"{[model.title]} Material {m.ID} with eps_r={m.er:g}, "
             f"sigma={m.se:g} S/m; mu_r={m.mr:g}, sigma*={m.sm:g} Ohm/m "
             f"created."
         )
 
-        grid.materials.append(m)
+        model.materials.append(m)
 
 
 class AddDebyeDispersion(UserObjectMulti):

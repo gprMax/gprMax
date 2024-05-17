@@ -76,7 +76,6 @@ class FDTDGrid:
         # TODO: Add type information.
         # Currently importing GeometryObjects, GeometryView, and
         # SubGridBaseGrid cause cyclic dependencies
-        self.materials: List[Material] = []
         self.mixingmodels = []
         self.averagevolumeobjects = True
         self.fractalvolumes = []
