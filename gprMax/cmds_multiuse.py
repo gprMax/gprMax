@@ -1956,7 +1956,7 @@ class PMLCFS(UserObjectMulti):
         super().__init__(**kwargs)
         self.order = 19
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             alphascalingprofile = self.kwargs["alphascalingprofile"]
             alphascalingdirection = self.kwargs["alphascalingdirection"]
@@ -2042,6 +2042,7 @@ class PMLCFS(UserObjectMulti):
             f"{cfssigma.min:g}, max: {cfssigma.max}) created."
         )
 
+        grid = uip.grid
         grid.pmls["cfs"].append(cfs)
 
         if len(grid.pmls["cfs"]) > 2:
