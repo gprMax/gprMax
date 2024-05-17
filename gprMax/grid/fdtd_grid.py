@@ -35,7 +35,8 @@ from gprMax.cython.yee_cell_build import build_electric_components, build_magnet
 from gprMax.materials import Material, process_materials
 from gprMax.pml import CFS, PML, build_pml, print_pml_info
 from gprMax.receivers import Rx
-from gprMax.sources import HertzianDipole, MagneticDipole, Source, VoltageSource
+from gprMax.snapshots import Snapshot
+from gprMax.sources import HertzianDipole, MagneticDipole, Source, TransmissionLine, VoltageSource
 
 # from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.utilities.host_info import mem_check_build_all, mem_check_run_all
@@ -85,11 +86,11 @@ class FDTDGrid:
         self.voltagesources: List[VoltageSource] = []
         self.hertziandipoles: List[HertzianDipole] = []
         self.magneticdipoles: List[MagneticDipole] = []
-        self.transmissionlines = []
+        self.transmissionlines: List[TransmissionLine] = []
         self.rxs: List[Rx] = []
         self.srcsteps: List[int] = [0, 0, 0]
         self.rxsteps: List[int] = [0, 0, 0]
-        self.snapshots = []
+        self.snapshots: List[Snapshot] = []
 
     @property
     def dx(self) -> float:

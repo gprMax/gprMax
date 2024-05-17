@@ -19,6 +19,7 @@
 import logging
 import sys
 from pathlib import Path
+from typing import Dict
 
 import h5py
 import numpy as np
@@ -26,7 +27,6 @@ from evtk.hl import imageToVTK
 from tqdm import tqdm
 
 import gprMax.config as config
-from gprMax.grid.fdtd_grid import FDTDGrid
 
 from ._version import __version__
 from .cython.snapshots import calculate_snapshot_fields
@@ -35,7 +35,7 @@ from .utilities.utilities import get_terminal_width, round_value
 logger = logging.getLogger(__name__)
 
 
-def save_snapshots(grid: FDTDGrid):
+def save_snapshots(grid):
     """Saves snapshots to file(s).
 
     Args:
@@ -89,19 +89,19 @@ class Snapshot:
 
     def __init__(
         self,
-        xs=None,
-        ys=None,
-        zs=None,
-        xf=None,
-        yf=None,
-        zf=None,
-        dx=None,
-        dy=None,
-        dz=None,
-        time=None,
-        filename=None,
-        fileext=None,
-        outputs=None,
+        xs: int,
+        ys: int,
+        zs: int,
+        xf: int,
+        yf: int,
+        zf: int,
+        dx: int,
+        dy: int,
+        dz: int,
+        time: int,
+        filename: str,
+        fileext: str,
+        outputs: Dict[str, bool],
     ):
         """
         Args:
@@ -149,7 +149,7 @@ class Snapshot:
                     (1, 1, 1), dtype=config.sim_config.dtypes["float_or_double"]
                 )
 
-    def store(self, G: FDTDGrid):
+    def store(self, G):
         """Store (in memory) electric and magnetic field values for snapshot.
 
         Args:
@@ -191,7 +191,7 @@ class Snapshot:
             self.snapfields["Hz"],
         )
 
-    def write_file(self, pbar: tqdm, G: FDTDGrid):
+    def write_file(self, pbar: tqdm, G):
         """Writes snapshot file either as VTK ImageData (.vti) format
             or HDF5 format (.h5) files
 
@@ -205,7 +205,7 @@ class Snapshot:
         elif self.fileext == ".h5":
             self.write_hdf5(pbar, G)
 
-    def write_vtk(self, pbar: tqdm, G: FDTDGrid):
+    def write_vtk(self, pbar: tqdm, G):
         """Writes snapshot file in VTK ImageData (.vti) format.
 
         Args:
@@ -238,7 +238,7 @@ class Snapshot:
             * np.dtype(config.sim_config.dtypes["float_or_double"]).itemsize
         )
 
-    def write_hdf5(self, pbar: tqdm, G: FDTDGrid):
+    def write_hdf5(self, pbar: tqdm, G):
         """Writes snapshot file in HDF5 (.h5) format.
 
         Args:

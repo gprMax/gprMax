@@ -1126,7 +1126,8 @@ class Snapshot(UserObjectMulti):
         self.order = 9
         self.hash = "#snapshot"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
+        grid = uip.grid
         if isinstance(grid, SubGridBaseGrid):
             logger.exception(f"{self.params_str()} do not add snapshots to subgrids.")
             raise ValueError
@@ -1206,7 +1207,7 @@ class Snapshot(UserObjectMulti):
                 f"{self.params_str()} the step size should not be less than the spatial discretisation."
             )
             raise ValueError
-        if iterations <= 0 or iterations > grid.iterations:
+        if iterations <= 0 or iterations > model.iterations:
             logger.exception(f"{self.params_str()} time value is not valid.")
             raise ValueError
 
