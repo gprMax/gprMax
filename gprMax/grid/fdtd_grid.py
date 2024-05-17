@@ -78,7 +78,6 @@ class FDTDGrid:
         # SubGridBaseGrid cause cyclic dependencies
         self.averagevolumeobjects = True
         self.fractalvolumes = []
-        self.geometryviews = []
         self.geometryobjectswrite = []
         self.waveforms: List[Waveform] = []
         self.voltagesources: List[VoltageSource] = []

@@ -38,7 +38,7 @@ from tqdm import tqdm
 import gprMax.config as config
 
 from .fields_outputs import write_hdf5_outputfile
-from .geometry_outputs import save_geometry_views
+from .geometry_outputs import GeometryView, save_geometry_views
 from .grid.fdtd_grid import FDTDGrid
 from .snapshots import save_snapshots
 from .utilities.host_info import set_omp_threads
@@ -67,6 +67,8 @@ class Model:
         self.subgrids: List[SubGridBaseGrid] = []
         self.materials: List[Material] = []
         self.mixingmodels: List[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = []
+
+        self.geometryviews: List[GeometryView] = []
 
         # Monitor memory usage
         self.p = None
@@ -177,11 +179,14 @@ class Model:
         G.update_receiver_positions(step=model_num)
 
         # Write files for any geometry views and geometry object outputs
-        gvs = G.geometryviews + [gv for sg in self.subgrids for gv in sg.geometryviews]
-        if not gvs and not G.geometryobjectswrite and config.sim_config.args.geometry_only:
+        if (
+            not self.geometryviews
+            and not G.geometryobjectswrite
+            and config.sim_config.args.geometry_only
+        ):
             logger.exception("\nNo geometry views or geometry objects found.")
             raise ValueError
-        save_geometry_views(gvs)
+        save_geometry_views(self.geometryviews)
 
         if G.geometryobjectswrite:
             logger.info("")

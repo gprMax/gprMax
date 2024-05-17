@@ -1810,7 +1810,7 @@ class GeometryView(UserObjectMulti):
 
         return GeometryViewUser
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -1833,6 +1833,7 @@ class GeometryView(UserObjectMulti):
         xs, ys, zs = p1
         xf, yf, zf = p2
 
+        grid = uip.grid
         dx, dy, dz = uip.discretise_static_point(dl)
 
         if dx < 0 or dy < 0 or dz < 0:
@@ -1874,7 +1875,7 @@ class GeometryView(UserObjectMulti):
             f"base {g.filename} created."
         )
 
-        grid.geometryviews.append(g)
+        model.geometryviews.append(g)
 
 
 class GeometryObjectsWrite(UserObjectMulti):
