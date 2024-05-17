@@ -74,11 +74,8 @@ class FDTDGrid:
         self.pmls["thickness"] = OrderedDict((key, 10) for key in PML.boundaryIDs)
 
         # TODO: Add type information.
-        # Currently importing GeometryObjects, GeometryView, and
-        # SubGridBaseGrid cause cyclic dependencies
         self.averagevolumeobjects = True
         self.fractalvolumes = []
-        self.geometryobjectswrite = []
         self.waveforms: List[Waveform] = []
         self.voltagesources: List[VoltageSource] = []
         self.hertziandipoles: List[HertzianDipole] = []

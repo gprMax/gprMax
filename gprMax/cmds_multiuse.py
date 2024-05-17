@@ -1896,7 +1896,11 @@ class GeometryObjectsWrite(UserObjectMulti):
         self.order = 18
         self.hash = "#geometry_objects_write"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
+        grid = uip.grid
+        if isinstance(grid, SubGridBaseGrid):
+            logger.exception(f"{self.params_str()} do not add geometry objects to subgrids.")
+            raise ValueError
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -1920,7 +1924,7 @@ class GeometryObjectsWrite(UserObjectMulti):
             f"{g.filename_materials}"
         )
 
-        grid.geometryobjectswrite.append(g)
+        model.geometryobjects.append(g)
 
 
 class PMLCFS(UserObjectMulti):

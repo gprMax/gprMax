@@ -38,7 +38,7 @@ from tqdm import tqdm
 import gprMax.config as config
 
 from .fields_outputs import write_hdf5_outputfile
-from .geometry_outputs import GeometryView, save_geometry_views
+from .geometry_outputs import GeometryObjects, GeometryView, save_geometry_views
 from .grid.fdtd_grid import FDTDGrid
 from .snapshots import save_snapshots
 from .utilities.host_info import set_omp_threads
@@ -69,6 +69,7 @@ class Model:
         self.mixingmodels: List[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = []
 
         self.geometryviews: List[GeometryView] = []
+        self.geometryobjects: List[GeometryObjects] = []
 
         # Monitor memory usage
         self.p = None
@@ -181,21 +182,21 @@ class Model:
         # Write files for any geometry views and geometry object outputs
         if (
             not self.geometryviews
-            and not G.geometryobjectswrite
+            and not self.geometryobjects
             and config.sim_config.args.geometry_only
         ):
             logger.exception("\nNo geometry views or geometry objects found.")
             raise ValueError
         save_geometry_views(self.geometryviews)
 
-        if G.geometryobjectswrite:
+        if self.geometryobjects:
             logger.info("")
-            for i, go in enumerate(G.geometryobjectswrite):
+            for i, go in enumerate(self.geometryobjects):
                 pbar = tqdm(
                     total=go.datawritesize,
                     unit="byte",
                     unit_scale=True,
-                    desc=f"Writing geometry object file {i + 1}/{len(G.geometryobjectswrite)}, "
+                    desc=f"Writing geometry object file {i + 1}/{len(self.geometryobjects)}, "
                     + f"{go.filename_hdf5.name}",
                     ncols=get_terminal_width() - 1,
                     file=sys.stdout,
