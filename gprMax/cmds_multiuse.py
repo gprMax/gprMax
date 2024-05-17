@@ -481,7 +481,7 @@ class HertzianDipole(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             polarisation = self.kwargs["polarisation"].lower()
             p1 = self.kwargs["p1"]
@@ -490,30 +490,31 @@ class HertzianDipole(UserObjectMulti):
             logger.exception(f"{self.params_str()} requires at least 3 parameters.")
             raise
 
+        grid = uip.grid
         if self.do_rotate:
             self._do_rotate(grid)
 
         # Check polarity & position parameters
         if polarisation not in ("x", "y", "z"):
-            logger.exception(self.params_str() + (" polarisation must be " "x, y, or z."))
+            logger.exception(self.params_str() + " polarisation must be x, y, or z.")
             raise ValueError
         if "2D TMx" in config.get_model_config().mode and polarisation in [
             "y",
             "z",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be x in " "2D TMx mode."))
+            logger.exception(self.params_str() + " polarisation must be x in 2D TMx mode.")
             raise ValueError
         elif "2D TMy" in config.get_model_config().mode and polarisation in [
             "x",
             "z",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be y in " "2D TMy mode."))
+            logger.exception(self.params_str() + " polarisation must be y in 2D TMy mode.")
             raise ValueError
         elif "2D TMz" in config.get_model_config().mode and polarisation in [
             "x",
             "y",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be z in " "2D TMz mode."))
+            logger.exception(self.params_str() + " polarisation must be z in 2D TMz mode.")
             raise ValueError
 
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
@@ -544,7 +545,7 @@ class HertzianDipole(UserObjectMulti):
         h.ycoordorigin = ycoord
         h.zcoordorigin = zcoord
         h.ID = f"{h.__class__.__name__}({str(h.xcoord)},{str(h.ycoord)},{str(h.zcoord)})"
-        h.waveformID = waveform_id
+        h.waveform = grid.get_waveform_by_id(waveform_id)
 
         try:
             # Check source start & source remove time parameters
@@ -566,14 +567,14 @@ class HertzianDipole(UserObjectMulti):
                 )
                 raise ValueError
             h.start = start
-            h.stop = min(stop, grid.timewindow)
+            h.stop = min(stop, model.timewindow)
             startstop = f" start time {h.start:g} secs, finish time {h.stop:g} secs "
         except KeyError:
             h.start = 0
-            h.stop = grid.timewindow
+            h.stop = model.timewindow
             startstop = " "
 
-        h.calculate_waveform_values(grid)
+        h.calculate_waveform_values(model.iterations, grid.dt)
 
         if config.get_model_config().mode == "2D":
             logger.info(
@@ -581,7 +582,7 @@ class HertzianDipole(UserObjectMulti):
                 + f"source in 2D with polarity {h.polarisation} at "
                 + f"{p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,"
                 + startstop
-                + f"using waveform {h.waveformID} created."
+                + f"using waveform {h.waveform.ID} created."
             )
         else:
             logger.info(
@@ -589,7 +590,7 @@ class HertzianDipole(UserObjectMulti):
                 + f"polarity {h.polarisation} at {p2[0]:g}m, "
                 + f"{p2[1]:g}m, {p2[2]:g}m,"
                 + startstop
-                + f"using waveform {h.waveformID} created."
+                + f"using waveform {h.waveform.ID} created."
             )
 
         grid.hertziandipoles.append(h)

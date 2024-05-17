@@ -170,7 +170,7 @@ class HertzianDipole(Source):
 
     def __init__(self):
         super().__init__()
-        self.dl = None
+        self.dl = 0.0
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a Hertzian dipole.
