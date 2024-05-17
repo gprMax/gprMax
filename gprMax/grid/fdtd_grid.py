@@ -32,7 +32,7 @@ from gprMax import config
 from gprMax.cython.yee_cell_build import build_electric_components, build_magnetic_components
 
 # from gprMax.geometry_outputs import GeometryObjects, GeometryView
-from gprMax.materials import Material, process_materials
+from gprMax.materials import process_materials
 from gprMax.pml import CFS, PML, build_pml, print_pml_info
 from gprMax.receivers import Rx
 from gprMax.snapshots import Snapshot
@@ -76,7 +76,6 @@ class FDTDGrid:
         # TODO: Add type information.
         # Currently importing GeometryObjects, GeometryView, and
         # SubGridBaseGrid cause cyclic dependencies
-        self.mixingmodels = []
         self.averagevolumeobjects = True
         self.fractalvolumes = []
         self.geometryviews = []

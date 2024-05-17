@@ -1572,7 +1572,7 @@ class SoilPeplinski(UserObjectMulti):
         self.order = 14
         self.hash = "#soil_peplinski"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             sand_fraction = self.kwargs["sand_fraction"]
             clay_fraction = self.kwargs["clay_fraction"]
@@ -1615,7 +1615,7 @@ class SoilPeplinski(UserObjectMulti):
                 "fraction."
             )
             raise ValueError
-        if any(x.ID == ID for x in grid.mixingmodels):
+        if any(x.ID == ID for x in model.mixingmodels):
             logger.exception(f"{self.params_str()} with ID {ID} already exists")
             raise ValueError
 
@@ -1631,14 +1631,14 @@ class SoilPeplinski(UserObjectMulti):
         )
 
         logger.info(
-            f"{self.grid_name(grid)}Mixing model (Peplinski) used to "
+            f"{self.model_name(model)}Mixing model (Peplinski) used to "
             f"create {s.ID} with sand fraction {s.S:g}, clay fraction "
             f"{s.C:g}, bulk density {s.rb:g}g/cm3, sand particle "
             f"density {s.rs:g}g/cm3, and water volumetric fraction "
             f"{s.mu[0]:g} to {s.mu[1]:g} created."
         )
 
-        grid.mixingmodels.append(s)
+        model.mixingmodels.append(s)
 
 
 class MaterialRange(UserObjectMulti):
