@@ -88,15 +88,18 @@ class UserObjectMulti(ABC):
         """Readable string of parameters given to object."""
         return f"{self.hash}: {str(self.kwargs)}"
 
-    def grid_name(self, grid):
+    def grid_name(self, grid: FDTDGrid) -> str:
         """Returns subgrid name for use with logging info. Returns an empty
         string if the grid is the main grid.
         """
-
         if isinstance(grid, SubGridBaseGrid):
             return f"[{grid.name}] "
         else:
             return ""
+
+    def model_name(self, model: Model) -> str:
+        """Returns model name for use with logging info."""
+        return f"[{model.title}] "
 
 
 class ExcitationFile(UserObjectMulti):
@@ -1306,7 +1309,7 @@ class Material(UserObjectMulti):
 
         m.er = er
         logger.info(
-            f"{[model.title]} Material {m.ID} with eps_r={m.er:g}, "
+            f"{self.model_name(model)}Material {m.ID} with eps_r={m.er:g}, "
             f"sigma={m.se:g} S/m; mu_r={m.mr:g}, sigma*={m.sm:g} Ohm/m "
             f"created."
         )
@@ -1333,7 +1336,7 @@ class AddDebyeDispersion(UserObjectMulti):
         self.order = 11
         self.hash = "#add_dispersion_debye"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             poles = self.kwargs["poles"]
             er_delta = self.kwargs["er_delta"]
@@ -1348,7 +1351,7 @@ class AddDebyeDispersion(UserObjectMulti):
             raise ValueError
 
         # Look up requested materials in existing list of material instances
-        materials = [y for x in material_ids for y in grid.materials if y.ID == x]
+        materials = [y for x in material_ids for y in model.materials if y.ID == x]
 
         if len(materials) != len(material_ids):
             notfound = [x for x in material_ids if x not in materials]
@@ -1378,12 +1381,12 @@ class AddDebyeDispersion(UserObjectMulti):
                 config.get_model_config().materials["maxpoles"] = disp_material.poles
 
             # Replace original material with newly created DispersiveMaterial
-            grid.materials = [
-                disp_material if mat.numID == material.numID else mat for mat in grid.materials
+            model.materials = [
+                disp_material if mat.numID == material.numID else mat for mat in model.materials
             ]
 
             logger.info(
-                f"{self.grid_name(grid)}Debye disperion added to {disp_material.ID} "
+                f"{self.model_name(model)}Debye disperion added to {disp_material.ID} "
                 f"with delta_eps_r={', '.join(f'{deltaer:4.2f}' for deltaer in disp_material.deltaer)}, "
                 f"and tau={', '.join(f'{tau:4.3e}' for tau in disp_material.tau)} secs created."
             )
@@ -1409,7 +1412,7 @@ class AddLorentzDispersion(UserObjectMulti):
         self.order = 12
         self.hash = "#add_dispersion_lorentz"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             poles = self.kwargs["poles"]
             er_delta = self.kwargs["er_delta"]
@@ -1425,13 +1428,14 @@ class AddLorentzDispersion(UserObjectMulti):
             raise ValueError
 
         # Look up requested materials in existing list of material instances
-        materials = [y for x in material_ids for y in grid.materials if y.ID == x]
+        materials = [y for x in material_ids for y in model.materials if y.ID == x]
 
         if len(materials) != len(material_ids):
             notfound = [x for x in material_ids if x not in materials]
             logger.exception(f"{self.params_str()} material(s) {notfound} do not exist")
             raise ValueError
 
+        grid = uip.grid
         for material in materials:
             disp_material = DispersiveMaterialUser(material.numID, material.ID)
             disp_material.er = material.er
@@ -1459,12 +1463,12 @@ class AddLorentzDispersion(UserObjectMulti):
                 config.get_model_config().materials["maxpoles"] = disp_material.poles
 
             # Replace original material with newly created DispersiveMaterial
-            grid.materials = [
-                disp_material if mat.numID == material.numID else mat for mat in grid.materials
+            model.materials = [
+                disp_material if mat.numID == material.numID else mat for mat in model.materials
             ]
 
             logger.info(
-                f"{self.grid_name(grid)}Lorentz disperion added to {disp_material.ID} "
+                f"{self.model_name(model)}{self.grid_name(grid)}Lorentz disperion added to {disp_material.ID} "
                 f"with delta_eps_r={', '.join(f'{deltaer:4.2f}' for deltaer in disp_material.deltaer)}, "
                 f"omega={', '.join(f'{omega:4.3e}' for omega in disp_material.tau)} secs, "
                 f"and gamma={', '.join(f'{delta:4.3e}' for delta in disp_material.alpha)} created."
@@ -1488,7 +1492,7 @@ class AddDrudeDispersion(UserObjectMulti):
         self.order = 13
         self.hash = "#add_dispersion_drude"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             poles = self.kwargs["poles"]
             omega = self.kwargs["omega"]
@@ -1503,13 +1507,14 @@ class AddDrudeDispersion(UserObjectMulti):
             raise ValueError
 
         # Look up requested materials in existing list of material instances
-        materials = [y for x in material_ids for y in grid.materials if y.ID == x]
+        materials = [y for x in material_ids for y in model.materials if y.ID == x]
 
         if len(materials) != len(material_ids):
             notfound = [x for x in material_ids if x not in materials]
             logger.exception(f"{self.params_str()} material(s) {notfound} do not exist.")
             raise ValueError
 
+        grid = uip.grid
         for material in materials:
             disp_material = DispersiveMaterialUser(material.numID, material.ID)
             disp_material.er = material.er
@@ -1535,12 +1540,12 @@ class AddDrudeDispersion(UserObjectMulti):
                 config.get_model_config().materials["maxpoles"] = disp_material.poles
 
             # Replace original material with newly created DispersiveMaterial
-            grid.materials = [
-                disp_material if mat.numID == material.numID else mat for mat in grid.materials
+            model.materials = [
+                disp_material if mat.numID == material.numID else mat for mat in model.materials
             ]
 
             logger.info(
-                f"{self.grid_name(grid)}Drude disperion added to {disp_material.ID} "
+                f"{self.model_name(model)}{self.grid_name(grid)}Drude disperion added to {disp_material.ID} "
                 f"with omega={', '.join(f'{omega:4.3e}' for omega in disp_material.tau)} secs, "
                 f"and gamma={', '.join(f'{alpha:4.3e}' for alpha in disp_material.alpha)} secs created."
             )
