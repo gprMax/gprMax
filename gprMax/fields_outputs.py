@@ -21,12 +21,14 @@ from pathlib import Path
 
 import h5py
 
+from gprMax.grid.fdtd_grid import FDTDGrid
+
 from ._version import __version__
 
 logger = logging.getLogger(__name__)
 
 
-def store_outputs(G):
+def store_outputs(G: FDTDGrid, iteration: int):
     """Stores field component values for every receiver and transmission line.
 
     Args:
@@ -34,7 +36,6 @@ def store_outputs(G):
     """
 
     # Assign iteration and fields to local variables
-    iteration = G.iteration
     Ex, Ey, Ez, Hx, Hy, Hz = G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz
 
     for rx in G.rxs:

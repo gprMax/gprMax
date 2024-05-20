@@ -38,9 +38,9 @@ class CPUUpdates(Updates):
 
         self.grid = G
 
-    def store_outputs(self):
+    def store_outputs(self, iteration):
         """Stores field component values for every receiver and transmission line."""
-        store_outputs_cpu(self.grid)
+        store_outputs_cpu(self.grid, iteration)
 
     def store_snapshots(self, iteration):
         """Stores any snapshots.
@@ -134,7 +134,7 @@ class CPUUpdates(Updates):
         for pml in self.grid.pmls["slabs"]:
             pml.update_electric()
 
-    def update_electric_sources(self):
+    def update_electric_sources(self, iteration):
         """Updates electric field components from sources -
         update any Hertzian dipole sources last.
         """
@@ -142,7 +142,7 @@ class CPUUpdates(Updates):
             self.grid.voltagesources + self.grid.transmissionlines + self.grid.hertziandipoles
         ):
             source.update_electric(
-                self.grid.iteration,
+                iteration,
                 self.grid.updatecoeffsE,
                 self.grid.ID,
                 self.grid.Ex,
@@ -150,7 +150,6 @@ class CPUUpdates(Updates):
                 self.grid.Ez,
                 self.grid,
             )
-        self.grid.iteration += 1
 
     def update_electric_b(self):
         """If there are any dispersive materials do 2nd part of dispersive

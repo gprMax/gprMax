@@ -24,7 +24,7 @@ class Updates(ABC):
     """Defines update functions for a solver."""
 
     @abstractmethod
-    def store_outputs(self) -> None:
+    def store_outputs(self, iteration: int) -> None:
         """Stores field component values for every receiver and transmission line."""
         pass
 
@@ -63,7 +63,7 @@ class Updates(ABC):
         pass
 
     @abstractmethod
-    def update_electric_sources(self) -> None:
+    def update_electric_sources(self, iteration: int) -> None:
         """Updates electric field components from sources -
         update any Hertzian dipole sources last.
         """

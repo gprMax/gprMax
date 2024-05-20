@@ -53,7 +53,7 @@ class Solver:
         self.updates.time_start()
 
         for iteration in iterator:
-            self.updates.store_outputs()
+            self.updates.store_outputs(iteration)
             self.updates.store_snapshots(iteration)
             self.updates.update_magnetic()
             self.updates.update_magnetic_pml()
@@ -62,7 +62,8 @@ class Solver:
                 self.updates.hsg_2()
             self.updates.update_electric_a()
             self.updates.update_electric_pml()
-            self.updates.update_electric_sources()
+            self.updates.update_electric_sources(iteration)
+            # TODO: Increment iteration here if add Model to Solver
             if isinstance(self.updates, SubgridUpdates):
                 self.updates.hsg_1()
             self.updates.update_electric_b()
