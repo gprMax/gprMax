@@ -62,7 +62,7 @@ class Scene:
             logger.exception("This object is unknown to gprMax")
             raise ValueError
 
-    def build_grid_obj(self, obj: Union[UserObjectMulti, UserObjectGeometry], grid: FDTDGrid):
+    def build_grid_obj(self, obj: UserObjectGeometry, grid: FDTDGrid):
         """Builds objects in FDTDGrids.
 
         Args:
@@ -76,14 +76,22 @@ class Scene:
             logger.exception("Error creating user input object")
             raise
 
-    def build_model_obj(self, obj: UserObjectSingle, model: Model):
+    def build_model_obj(
+        self,
+        obj: Union[UserObjectSingle, UserObjectMulti],
+        model: Model,
+        subgrid: Optional[FDTDGrid] = None,
+    ):
         """Builds objects in models.
 
         Args:
             obj: user object
             model: Model being built
         """
-        uip = create_user_input_points(model.G, obj)
+
+        grid = model.G if subgrid is None else subgrid
+        uip = create_user_input_points(grid, obj)
+
         try:
             obj.build(model, uip)
         except ValueError:
@@ -114,13 +122,9 @@ class Scene:
         subgrid: Optional[SubGridBaseGrid] = None,
     ):
         """Process list of commands."""
-        grid = model.G if subgrid is None else subgrid
         cmds_sorted = sorted(commands, key=lambda cmd: cmd.order)
         for obj in cmds_sorted:
-            if isinstance(obj, UserObjectSingle):
-                self.build_model_obj(obj, model)
-            else:
-                self.build_grid_obj(obj, grid)
+            self.build_model_obj(obj, model, subgrid)
 
         return self
 
@@ -167,10 +171,8 @@ class Scene:
         Rx(), Cylinder() etc... objects.
         """
 
-        G = model.G
-
         # Create pre-defined (built-in) materials
-        create_built_in_materials(G)
+        create_built_in_materials(model.G)
 
         # Process commands that can only have a single instance
         self.process_singlecmds(model)
@@ -179,11 +181,11 @@ class Scene:
         self.process_cmds(self.multiple_cmds, model)
 
         # Initialise geometry arrays for main and subgrids
-        for grid in [G] + G.subgrids:
+        for grid in [model.G] + model.subgrids:
             grid.initialise_geometry_arrays()
 
         # Process the main grid geometry commands
-        self.process_geocmds(self.geometry_cmds, G)
+        self.process_geocmds(self.geometry_cmds, model.G)
 
         # Process all the commands for subgrids
         self.process_subgrid_cmds(model)

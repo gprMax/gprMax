@@ -95,9 +95,12 @@ class FDTDGrid:
         # corrections will be different.
         self.pmls["thickness"] = OrderedDict((key, 10) for key in PML.boundaryIDs)
 
+        # Materials used by this grid
         self.materials: List[Material] = []
         self.mixingmodels: List[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = []
         self.fractalvolumes: List[FractalVolume] = []
+
+        # Sources and receivers contained inside this grid
         self.waveforms: List[Waveform] = []
         self.voltagesources: List[VoltageSource] = []
         self.hertziandipoles: List[HertzianDipole] = []
