@@ -17,21 +17,16 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-from abc import ABC, abstractmethod
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 import gprMax.config as config
-from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.model import Model
-from gprMax.subgrids.grid import SubGridBaseGrid
-from gprMax.user_inputs import MainGridUserInput
 
 logger = logging.getLogger(__name__)
 
 
-class UserObjectGeometry(ABC):
+class UserObjectGeometry:
     """Specific Geometry object."""
 
     def __init__(self, **kwargs):
@@ -50,8 +45,7 @@ class UserObjectGeometry(ABC):
 
         return f"{self.hash}: {s[:-1]}"
 
-    @abstractmethod
-    def build(self, model: Model, uip: MainGridUserInput):
+    def build(self, grid, uip):
         """Creates object and adds it to the grid."""
         pass
 
@@ -59,19 +53,15 @@ class UserObjectGeometry(ABC):
         """Rotates object - specialised for each object."""
         pass
 
-    def grid_name(self, grid: FDTDGrid) -> str:
+    def grid_name(self, grid):
         """Returns subgrid name for use with logging info. Returns an empty
         string if the grid is the main grid.
         """
 
-        if isinstance(grid, SubGridBaseGrid):
+        if config.sim_config.general["subgrid"] and grid.name != "main_grid":
             return f"[{grid.name}] "
         else:
             return ""
-
-    def model_name(self, model: Model) -> str:
-        """Returns model name for use with logging info."""
-        return f"[{model.title}] "
 
 
 def rotate_point(p, axis, angle, origin=(0, 0, 0)):
