@@ -726,7 +726,7 @@ class MagneticDipole(UserObjectMulti):
             m.stop = model.timewindow
             startstop = " "
 
-        m.calculate_waveform_values(model.iteration, grid.dt)
+        m.calculate_waveform_values(model.iterations, grid.dt)
 
         logger.info(
             f"{self.grid_name(grid)}Magnetic dipole with polarity "
