@@ -64,7 +64,7 @@ class AddGrass(UserObjectGeometry):
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def build(self, model, uip):
+    def build(self, grid, uip):
         """Add Grass to fractal box."""
         try:
             p1 = self.kwargs["p1"]
@@ -91,7 +91,7 @@ class AddGrass(UserObjectGeometry):
             self._do_rotate()
 
         # Get the correct fractal volume
-        volumes = [volume for volume in model.fractalvolumes if volume.ID == fractal_box_id]
+        volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
         try:
             volume = volumes[0]
         except NameError:
@@ -114,7 +114,6 @@ class AddGrass(UserObjectGeometry):
             raise ValueError
 
         # Check for valid orientations
-        grid = uip.grid
         if xs == xf:
             if ys == yf or zs == zf:
                 logger.exception(f"{self.__str__()} dimensions are not specified correctly")
@@ -250,11 +249,11 @@ class AddGrass(UserObjectGeometry):
         surface.grass.append(g)
 
         # Check to see if grass has been already defined as a material
-        if not any(x.ID == "grass" for x in model.materials):
-            create_grass(model)
+        if not any(x.ID == "grass" for x in grid.materials):
+            create_grass(grid)
 
         # Check if time step for model is suitable for using grass
-        grass = next((x for x in model.materials if x.ID == "grass"))
+        grass = next((x for x in grid.materials if x.ID == "grass"))
         testgrass = next((x for x in grass.tau if x < grid.dt), None)
         if testgrass:
             logger.exception(

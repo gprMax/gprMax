@@ -16,8 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-from typing import Optional, Tuple
-
 import numpy as np
 from scipy import fftpack
 
@@ -34,17 +32,7 @@ class FractalSurface:
 
     surfaceIDs = ["xminus", "xplus", "yminus", "yplus", "zminus", "zplus"]
 
-    def __init__(
-        self,
-        xs: float,
-        xf: float,
-        ys: float,
-        yf: float,
-        zs: float,
-        zf: float,
-        dimension: float,
-        seed: Optional[int] = None,
-    ):
+    def __init__(self, xs, xf, ys, yf, zs, zf, dimension, seed):
         """
         Args:
             xs, xf, ys, yf, zs, zf: floats for the extent of the fractal surface
@@ -55,9 +43,8 @@ class FractalSurface:
             seed: int for seed value for random number generator.
         """
 
-        self.ID: str
-        self.surfaceID: str
-        self.operatingonID: str
+        self.ID = None
+        self.surfaceID = None
         self.xs = xs
         self.xf = xf
         self.ys = ys
@@ -73,7 +60,7 @@ class FractalSurface:
             dimension  # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
         )
         self.weighting = np.array([1, 1], dtype=np.float64)
-        self.fractalrange: Tuple[int, int] = (0, 0)
+        self.fractalrange = (0, 0)
         self.filldepth = 0
         self.grass = []
 
@@ -154,8 +141,8 @@ class FractalVolume:
             seed: int for seed value for random number generator.
         """
 
-        self.ID: str
-        self.operatingonID: str
+        self.ID = None
+        self.operatingonID = None
         self.xs = xs
         self.xf = xf
         self.ys = ys
