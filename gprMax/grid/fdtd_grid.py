@@ -81,6 +81,11 @@ class FDTDGrid:
         self.rigidH: np.ndarray[Any, np.dtype[np.int8]]
         self.ID: np.ndarray[Any, np.dtype[np.uint32]]
 
+        # Update Coefficient Arrays
+        self.updatecoeffsE: np.ndarray
+        self.updatecoeffsH: np.ndarray
+        self.updatecoeffsdispersive: np.ndarray
+
         # PML parameters - set some defaults to use if not user provided
         self.pmls = {}
         self.pmls["formulation"] = "HORIPML"
@@ -151,7 +156,7 @@ class FDTDGrid:
         if config.get_model_config().materials["maxpoles"] > 0:
             self.initialise_dispersive_arrays()
             self.initialise_dispersive_update_coeff_array()
-            self._build_materials()
+        self._build_materials()
 
     def _build_pmls(self) -> None:
         pbar = tqdm(
