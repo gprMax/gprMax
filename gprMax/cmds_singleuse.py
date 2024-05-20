@@ -93,7 +93,7 @@ class Discretisation(UserObjectSingle):
     def build(self, model, uip):
         G = model.G
         try:
-            G.dl = np.array(self.kwargs["p1"], dtype=np.single)
+            G.dl = np.array(self.kwargs["p1"], dtype=float)
         except KeyError:
             logger.exception(f"{self.__str__()} discretisation requires a point")
             raise
