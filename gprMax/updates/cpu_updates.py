@@ -74,11 +74,11 @@ class CPUUpdates(Updates):
         for pml in self.grid.pmls["slabs"]:
             pml.update_magnetic()
 
-    def update_magnetic_sources(self):
+    def update_magnetic_sources(self, iteration):
         """Updates magnetic field components from sources."""
         for source in self.grid.transmissionlines + self.grid.magneticdipoles:
             source.update_magnetic(
-                self.grid.iteration,
+                iteration,
                 self.grid.updatecoeffsH,
                 self.grid.ID,
                 self.grid.Hx,

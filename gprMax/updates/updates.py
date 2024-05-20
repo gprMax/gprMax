@@ -48,7 +48,7 @@ class Updates(ABC):
         pass
 
     @abstractmethod
-    def update_magnetic_sources(self) -> None:
+    def update_magnetic_sources(self, iteration: int) -> None:
         """Updates magnetic field components from sources."""
         pass
 

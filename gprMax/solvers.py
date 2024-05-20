@@ -57,7 +57,7 @@ class Solver:
             self.updates.store_snapshots(iteration)
             self.updates.update_magnetic()
             self.updates.update_magnetic_pml()
-            self.updates.update_magnetic_sources()
+            self.updates.update_magnetic_sources(iteration)
             if isinstance(self.updates, SubgridUpdates):
                 self.updates.hsg_2()
             self.updates.update_electric_a()
