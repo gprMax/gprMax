@@ -283,9 +283,7 @@ class Model:
         sg_rxs = [True for sg in self.subgrids if sg.rxs]
         sg_tls = [True for sg in self.subgrids if sg.transmissionlines]
         if self.G.rxs or sg_rxs or self.G.transmissionlines or sg_tls:
-            write_hdf5_outputfile(
-                config.get_model_config().output_file_path_ext, self.title, self.G
-            )
+            write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.title, self)
 
         # Write any snapshots to file for each grid
         for grid in [self.G] + self.subgrids:

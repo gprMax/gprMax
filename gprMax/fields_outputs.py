@@ -56,7 +56,7 @@ def store_outputs(G: FDTDGrid, iteration: int):
 
 
 # TODO: Add type information for grid (without a circular dependency)
-def write_hdf5_outputfile(outputfile: Path, title: str, G):
+def write_hdf5_outputfile(outputfile: Path, title: str, model):
     """Writes an output file in HDF5 (.h5) format.
 
     Args:
@@ -68,20 +68,20 @@ def write_hdf5_outputfile(outputfile: Path, title: str, G):
     f = h5py.File(outputfile, "w")
     f.attrs["gprMax"] = __version__
     f.attrs["Title"] = title
-    write_hd5_data(f, G)
+    write_hd5_data(f, model.G, model.iterations)
 
     # Write meta data and data for any subgrids
-    sg_rxs = [True for sg in G.subgrids if sg.rxs]
-    sg_tls = [True for sg in G.subgrids if sg.transmissionlines]
+    sg_rxs = [True for sg in model.subgrids if sg.rxs]
+    sg_tls = [True for sg in model.subgrids if sg.transmissionlines]
     if sg_rxs or sg_tls:
-        for sg in G.subgrids:
+        for sg in model.subgrids:
             grp = f.create_group(f"/subgrids/{sg.name}")
-            write_hd5_data(grp, sg, is_subgrid=True)
+            write_hd5_data(grp, sg, sg.iterations, is_subgrid=True)
 
     logger.basic(f"Written output file: {outputfile.name}")
 
 
-def write_hd5_data(basegrp, grid, is_subgrid=False):
+def write_hd5_data(basegrp, grid, iterations, is_subgrid=False):
     """Writes grid meta data and data to HDF5 group.
 
     Args:
@@ -91,7 +91,7 @@ def write_hd5_data(basegrp, grid, is_subgrid=False):
     """
 
     # Write meta data for grid
-    basegrp.attrs["Iterations"] = grid.iterations
+    basegrp.attrs["Iterations"] = iterations
     basegrp.attrs["nx_ny_nz"] = (grid.nx, grid.ny, grid.nz)
     basegrp.attrs["dx_dy_dz"] = (grid.dx, grid.dy, grid.dz)
     basegrp.attrs["dt"] = grid.dt
