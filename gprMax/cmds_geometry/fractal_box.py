@@ -24,8 +24,6 @@ import gprMax.config as config
 from gprMax.cmds_geometry.cmds_geometry import UserObjectGeometry, rotate_2point_object
 from gprMax.fractals import FractalVolume
 from gprMax.materials import ListMaterial
-from gprMax.model import Model
-from gprMax.user_inputs import MainGridUserInput
 
 from ..cython.geometry_primitives import build_voxels_from_array, build_voxels_from_array_mask
 
@@ -75,7 +73,7 @@ class FractalBox(UserObjectGeometry):
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def pre_build(self, model: Model, uip: MainGridUserInput):
+    def pre_build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -142,8 +140,8 @@ class FractalBox(UserObjectGeometry):
 
         # Find materials to use to build fractal volume, either from mixing
         # models or normal materials.
-        mixingmodel = next((x for x in model.mixingmodels if x.ID == mixing_model_id), None)
-        material = next((x for x in model.materials if x.ID == mixing_model_id), None)
+        mixingmodel = next((x for x in grid.mixingmodels if x.ID == mixing_model_id), None)
+        material = next((x for x in grid.materials if x.ID == mixing_model_id), None)
         nbins = n_materials
 
         if mixingmodel:
@@ -161,7 +159,7 @@ class FractalBox(UserObjectGeometry):
                 raise ValueError
             # Create materials from mixing model as number of bins now known
             # from fractal_box command.
-            mixingmodel.calculate_properties(nbins, model)
+            mixingmodel.calculate_properties(nbins, grid)
         elif not material:
             logger.exception(
                 f"{self.__str__()} mixing model or material with "
@@ -179,7 +177,7 @@ class FractalBox(UserObjectGeometry):
 
         dielectricsmoothing = "on" if self.volume.averaging else "off"
         logger.info(
-            f"{self.grid_name(uip.grid)}Fractal box {self.volume.ID} from "
+            f"{self.grid_name(grid)}Fractal box {self.volume.ID} from "
             f"{p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to {p4[0]:g}m, "
             f"{p4[1]:g}m, {p4[2]:g}m with {self.volume.operatingonID}, "
             f"fractal dimension {self.volume.dimension:g}, fractal weightings "
@@ -188,14 +186,13 @@ class FractalBox(UserObjectGeometry):
             f"with {self.volume.nbins} material(s) created, dielectric smoothing "
             f"is {dielectricsmoothing}."
         )
-        model.fractalvolumes.append(self.volume)
+        grid.fractalvolumes.append(self.volume)
 
-    def build(self, model, uip):
+    def build(self, grid, uip):
         if self.do_pre_build:
-            self.pre_build(model, uip)
+            self.pre_build(grid, uip)
             self.do_pre_build = False
         else:
-            grid = uip.grid
             if self.volume.fractalsurfaces:
                 self.volume.originalxs = self.volume.xs
                 self.volume.originalxf = self.volume.xf
@@ -240,7 +237,7 @@ class FractalBox(UserObjectGeometry):
                         dtype=config.sim_config.dtypes["float_or_double"],
                     )
                     materialnumID = next(
-                        x.numID for x in model.materials if x.ID == self.volume.operatingonID
+                        x.numID for x in grid.materials if x.ID == self.volume.operatingonID
                     )
                     self.volume.fractalvolume *= materialnumID
                 else:
@@ -655,8 +652,8 @@ class FractalBox(UserObjectGeometry):
                                         root += 1
 
                 # Build voxels from any true values of the 3D mask array
-                waternumID = next((x.numID for x in model.materials if x.ID == "water"), 0)
-                grassnumID = next((x.numID for x in model.materials if x.ID == "grass"), 0)
+                waternumID = next((x.numID for x in grid.materials if x.ID == "water"), 0)
+                grassnumID = next((x.numID for x in grid.materials if x.ID == "grass"), 0)
                 data = self.volume.fractalvolume.astype("int16", order="C")
                 mask = self.volume.mask.copy(order="C")
                 build_voxels_from_array_mask(

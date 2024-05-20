@@ -66,8 +66,6 @@ class Model:
         self.G = self._create_grid()
         self.subgrids: List[SubGridBaseGrid] = []
 
-        self.mixingmodels: List[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = []
-
         self.geometryviews: List[GeometryView] = []
         self.geometryobjects: List[GeometryObjects] = []
 

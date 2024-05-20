@@ -32,7 +32,8 @@ from gprMax import config
 from gprMax.cython.yee_cell_build import build_electric_components, build_magnetic_components
 
 # from gprMax.geometry_outputs import GeometryObjects, GeometryView
-from gprMax.materials import Material, process_materials
+from gprMax.fractals import FractalVolume
+from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial, process_materials
 from gprMax.pml import CFS, PML, build_pml, print_pml_info
 from gprMax.receivers import Rx
 from gprMax.snapshots import Snapshot
@@ -95,6 +96,8 @@ class FDTDGrid:
         self.pmls["thickness"] = OrderedDict((key, 10) for key in PML.boundaryIDs)
 
         self.materials: List[Material] = []
+        self.mixingmodels: List[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = []
+        self.fractalvolumes: List[FractalVolume] = []
         self.waveforms: List[Waveform] = []
         self.voltagesources: List[VoltageSource] = []
         self.hertziandipoles: List[HertzianDipole] = []

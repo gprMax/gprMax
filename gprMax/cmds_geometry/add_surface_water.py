@@ -60,7 +60,7 @@ class AddSurfaceWater(UserObjectGeometry):
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def build(self, model, uip):
+    def build(self, grid, uip):
         """ "Create surface water on fractal box."""
         try:
             p1 = self.kwargs["p1"]
@@ -74,7 +74,7 @@ class AddSurfaceWater(UserObjectGeometry):
         if self.do_rotate:
             self._do_rotate()
 
-        if volumes := [volume for volume in model.fractalvolumes if volume.ID == fractal_box_id]:
+        if volumes := [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]:
             volume = volumes[0]
         else:
             logger.exception(f"{self.__str__()} cannot find FractalBox {fractal_box_id}")
@@ -89,7 +89,6 @@ class AddSurfaceWater(UserObjectGeometry):
             raise ValueError
 
         # Check for valid orientations
-        grid = uip.grid
         if xs == xf:
             if ys == yf or zs == zf:
                 logger.exception(f"{self.__str__()} dimensions are not specified correctly")
@@ -166,11 +165,11 @@ class AddSurfaceWater(UserObjectGeometry):
             raise ValueError
 
         # Check to see if water has been already defined as a material
-        if not any(x.ID == "water" for x in model.materials):
-            create_water(model)
+        if not any(x.ID == "water" for x in grid.materials):
+            create_water(grid)
 
         # Check if time step for model is suitable for using water
-        water = next((x for x in model.materials if x.ID == "water"))
+        water = next((x for x in grid.materials if x.ID == "water"))
         if testwater := next((x for x in water.tau if x < grid.dt), None):
             logger.exception(
                 f"{self.__str__()} requires the time step for the model "

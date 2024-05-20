@@ -54,7 +54,7 @@ class Edge(UserObjectGeometry):
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def build(self, model, uip):
+    def build(self, grid, uip):
         """Creates edge and adds it to the grid."""
         try:
             p1 = self.kwargs["p1"]
@@ -74,13 +74,12 @@ class Edge(UserObjectGeometry):
         xs, ys, zs = p1
         xf, yf, zf = p2
 
-        material = next((x for x in model.materials if x.ID == material_id), None)
+        material = next((x for x in grid.materials if x.ID == material_id), None)
 
         if not material:
             logger.exception(f"Material with ID {material_id} does not exist")
             raise ValueError
 
-        grid = uip.grid
         # Check for valid orientations
         # x-orientated edge
         if (

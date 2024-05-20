@@ -65,7 +65,7 @@ class AddSurfaceRoughness(UserObjectGeometry):
         self.kwargs["p1"] = tuple(rot_pts[0, :])
         self.kwargs["p2"] = tuple(rot_pts[1, :])
 
-    def build(self, model, uip):
+    def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -91,7 +91,7 @@ class AddSurfaceRoughness(UserObjectGeometry):
             self._do_rotate()
 
         # Get the correct fractal volume
-        volumes = [volume for volume in model.fractalvolumes if volume.ID == fractal_box_id]
+        volumes = [volume for volume in grid.fractalvolumes if volume.ID == fractal_box_id]
         if volumes:
             volume = volumes[0]
         else:
@@ -121,7 +121,6 @@ class AddSurfaceRoughness(UserObjectGeometry):
             raise ValueError
 
         # Check for valid orientations
-        grid = uip.grid
         if xs == xf:
             if ys == yf or zs == zf:
                 logger.exception(f"{self.__str__()} dimensions are not specified correctly")

@@ -43,7 +43,7 @@ class Sphere(UserObjectGeometry):
         super().__init__(**kwargs)
         self.hash = "#sphere"
 
-    def build(self, model, uip):
+    def build(self, grid, uip):
         try:
             p1 = self.kwargs["p1"]
             r = self.kwargs["r"]
@@ -57,7 +57,7 @@ class Sphere(UserObjectGeometry):
             averagesphere = self.kwargs["averaging"]
         except KeyError:
             # Otherwise go with the grid default
-            averagesphere = model.averagevolumeobjects
+            averagesphere = grid.averagevolumeobjects
 
         # Check materials have been specified
         # Isotropic case
@@ -76,7 +76,7 @@ class Sphere(UserObjectGeometry):
         xc, yc, zc = uip.discretise_point(p1)
 
         # Look up requested materials in existing list of material instances
-        materials = [y for x in materialsrequested for y in model.materials if y.ID == x]
+        materials = [y for x in materialsrequested for y in grid.materials if y.ID == x]
 
         if len(materials) != len(materialsrequested):
             notfound = [x for x in materialsrequested if x not in materials]
@@ -95,11 +95,11 @@ class Sphere(UserObjectGeometry):
             numIDy = materials[1].numID
             numIDz = materials[2].numID
             requiredID = materials[0].ID + "+" + materials[1].ID + "+" + materials[2].ID
-            averagedmaterial = [x for x in model.materials if x.ID == requiredID]
+            averagedmaterial = [x for x in grid.materials if x.ID == requiredID]
             if averagedmaterial:
                 numID = averagedmaterial.numID
             else:
-                numID = len(model.materials)
+                numID = len(grid.materials)
                 m = Material(numID, requiredID)
                 m.type = "dielectric-smoothed"
                 # Create dielectric-smoothed constituents for material
@@ -109,9 +109,8 @@ class Sphere(UserObjectGeometry):
                 m.sm = np.mean((materials[0].sm, materials[1].sm, materials[2].sm), axis=0)
 
                 # Append the new material object to the materials list
-                model.materials.append(m)
+                grid.materials.append(m)
 
-        grid = uip.grid
         build_sphere(
             xc,
             yc,

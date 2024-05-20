@@ -39,7 +39,7 @@ class GeometryObjectsRead(UserObjectGeometry):
     def rotate(self, axis, angle, origin=None):
         pass
 
-    def build(self, model, uip):
+    def build(self, grid, uip):
         """Creates the object and adds it to the grid."""
         try:
             p1 = self.kwargs["p1"]
@@ -62,7 +62,7 @@ class GeometryObjectsRead(UserObjectGeometry):
             matfile = Path(config.sim_config.input_file_path.parent, matfile)
 
         matstr = matfile.with_suffix("").name
-        numexistmaterials = len(model.materials)
+        numexistmaterials = len(grid.materials)
 
         # Read materials from file
         with open(matfile, "r") as f:
@@ -82,10 +82,10 @@ class GeometryObjectsRead(UserObjectGeometry):
             scene.add(material_obj)
 
         # Creates the internal simulation objects
-        scene.process_cmds(material_objs, model)
+        scene.process_cmds(material_objs, grid)
 
         # Update material type
-        for material in model.materials:
+        for material in grid.materials:
             if material.numID >= numexistmaterials:
                 if material.type:
                     material.type += ",\nimported"
@@ -101,7 +101,6 @@ class GeometryObjectsRead(UserObjectGeometry):
         # Open geometry object file and read/check spatial resolution attribute
         f = h5py.File(geofile, "r")
         dx_dy_dz = f.attrs["dx_dy_dz"]
-        grid = uip.grid
         if round_value(
             (dx_dy_dz[0] / grid.dx) != 1
             or round_value(dx_dy_dz[1] / grid.dy) != 1
