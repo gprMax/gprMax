@@ -19,7 +19,7 @@
 import datetime
 import logging
 import sys
-from typing import List, Union
+from typing import List
 
 import humanize
 import numpy as np
@@ -28,7 +28,6 @@ from colorama import Fore, Style, init
 
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.grid.opencl_grid import OpenCLGrid
-from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial
 from gprMax.subgrids.grid import SubGridBaseGrid
 
 init()
@@ -41,7 +40,7 @@ from .fields_outputs import write_hdf5_outputfile
 from .geometry_outputs import GeometryObjects, GeometryView, save_geometry_views
 from .grid.fdtd_grid import FDTDGrid
 from .snapshots import save_snapshots
-from .utilities.host_info import set_omp_threads
+from .utilities.host_info import mem_check_build_all, mem_check_run_all, set_omp_threads
 from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
@@ -206,11 +205,60 @@ class Model:
 
     def build_geometry(self):
         logger.info(config.get_model_config().inputfilestr)
-        # TODO: Make this correctly sets local nx, ny and nz when using MPI (likely use a function inside FDTDGrid/MPIGrid)
+
+        # Print info on any subgrids
+        for subgrid in self.subgrids:
+            subgrid.print_info()
+
+        # Combine available grids
+        grids = [self.G] + self.subgrids
+
+        self._check_for_dispersive_materials(grids)
+        self._check_memory_requirements(grids)
+
+        # TODO: Make this correctly set local nx, ny and nz when using MPI (likely use a function inside FDTDGrid/MPIGrid)
         self.G.nx = self.gnx
         self.G.ny = self.gny
         self.G.nz = self.gnz
-        self.G.build()
+
+        for grid in grids:
+            grid.build()
+            grid.dispersion_analysis(self.iterations)
+
+    def _check_for_dispersive_materials(self, grids: List[FDTDGrid]):
+        # Check for dispersive materials (and specific type)
+        if config.get_model_config().materials["maxpoles"] != 0:
+            # TODO: This sets materials["drudelorentz"] based only the
+            # last grid/subgrid. Is that correct?
+            for grid in grids:
+                config.get_model_config().materials["drudelorentz"] = any(
+                    [m for m in grid.materials if "drude" in m.type or "lorentz" in m.type]
+                )
+
+            # Set data type if any dispersive materials (must be done before memory checks)
+            config.get_model_config().set_dispersive_material_types()
+
+    def _check_memory_requirements(self, grids: List[FDTDGrid]):
+        # Check memory requirements to build model/scene (different to memory
+        # requirements to run model when FractalVolumes/FractalSurfaces are
+        # used as these can require significant additional memory)
+        total_mem_build, mem_strs_build = mem_check_build_all(grids)
+
+        # Check memory requirements to run model
+        total_mem_run, mem_strs_run = mem_check_run_all(grids)
+
+        if total_mem_build > total_mem_run:
+            logger.info(
+                f'\nMemory required (estimated): {" + ".join(mem_strs_build)} + '
+                f"~{humanize.naturalsize(config.get_model_config().mem_overhead)} "
+                f"overhead = {humanize.naturalsize(total_mem_build)}"
+            )
+        else:
+            logger.info(
+                f'\nMemory required (estimated): {" + ".join(mem_strs_run)} + '
+                f"~{humanize.naturalsize(config.get_model_config().mem_overhead)} "
+                f"overhead = {humanize.naturalsize(total_mem_run)}"
+            )
 
     def reuse_geometry(self):
         s = (
