@@ -134,6 +134,9 @@ class Domain(UserObjectSingle):
     def build(self, model, uip):
         try:
             model.gnx, model.gny, model.gnz = uip.discretise_point(self.kwargs["p1"])
+            model.G.nx = model.gnx
+            model.G.ny = model.gny
+            model.G.nz = model.gnz
         except KeyError:
             logger.exception(f"{self.__str__()} please specify a point")
             raise
@@ -297,7 +300,8 @@ class PMLProps(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 7
 
-    def build(self, G, uip):
+    def build(self, model, uip):
+        G = model.G
         try:
             G.pmls["formulation"] = self.kwargs["formulation"]
             if G.pmls["formulation"] not in PML.formulations:
@@ -349,16 +353,16 @@ class SrcSteps(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 8
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         try:
-            G.srcsteps = uip.discretise_point(self.kwargs["p1"])
+            model.srcsteps = uip.discretise_point(self.kwargs["p1"])
         except KeyError:
             logger.exception(f"{self.__str__()} requires exactly three parameters")
             raise
 
         logger.info(
-            f"Simple sources will step {G.srcsteps[0] * G.dx:g}m, "
-            f"{G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m "
+            f"Simple sources will step {model.srcsteps[0] * model.dx:g}m, "
+            f"{model.srcsteps[1] * model.dy:g}m, {model.srcsteps[2] * model.dz:g}m "
             "for each model run."
         )
 
