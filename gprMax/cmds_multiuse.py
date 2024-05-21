@@ -438,7 +438,8 @@ class VoltageSource(UserObjectMulti):
             v.stop = model.timewindow
             startstop = " "
 
-        v.calculate_waveform_values(model.iterations, grid.dt)
+        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
+        v.calculate_waveform_values(iterations, grid.dt)
 
         logger.info(
             f"{self.grid_name(grid)}Voltage source with polarity "
@@ -577,7 +578,8 @@ class HertzianDipole(UserObjectMulti):
             h.stop = model.timewindow
             startstop = " "
 
-        h.calculate_waveform_values(model.iterations, grid.dt)
+        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
+        h.calculate_waveform_values(iterations, grid.dt)
 
         if config.get_model_config().mode == "2D":
             logger.info(
@@ -726,7 +728,8 @@ class MagneticDipole(UserObjectMulti):
             m.stop = model.timewindow
             startstop = " "
 
-        m.calculate_waveform_values(model.iterations, grid.dt)
+        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
+        m.calculate_waveform_values(iterations, grid.dt)
 
         logger.info(
             f"{self.grid_name(grid)}Magnetic dipole with polarity "
@@ -836,7 +839,8 @@ class TransmissionLine(UserObjectMulti):
             )
             raise ValueError
 
-        t = TransmissionLineUser(grid)
+        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
+        t = TransmissionLineUser(iterations, grid.dt)
         t.polarisation = polarisation
         t.xcoord = xcoord
         t.ycoord = ycoord
@@ -884,7 +888,7 @@ class TransmissionLine(UserObjectMulti):
             t.stop = model.timewindow
             startstop = " "
 
-        t.calculate_waveform_values(model.iterations, grid.dt)
+        t.calculate_waveform_values(iterations, grid.dt)
         t.calculate_incident_V_I(grid)
 
         logger.info(
@@ -963,6 +967,8 @@ class Rx(UserObjectMulti):
         r.xcoord, r.ycoord, r.zcoord = p
         r.xcoordorigin, r.ycoordorigin, r.zcoordorigin = p
 
+        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
+
         try:
             r.ID = self.kwargs["id"]
             outputs = self.kwargs["outputs"]
@@ -971,7 +977,7 @@ class Rx(UserObjectMulti):
             r.ID = f"{r.__class__.__name__}({str(r.xcoord)},{str(r.ycoord)},{str(r.zcoord)})"
             for key in RxUser.defaultoutputs:
                 r.outputs[key] = np.zeros(
-                    model.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                    iterations, dtype=config.sim_config.dtypes["float_or_double"]
                 )
         else:
             outputs.sort()
@@ -984,7 +990,7 @@ class Rx(UserObjectMulti):
             for field in outputs:
                 if field in allowableoutputs:
                     r.outputs[field] = np.zeros(
-                        model.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                        iterations, dtype=config.sim_config.dtypes["float_or_double"]
                     )
                 else:
                     logger.exception(
@@ -1076,6 +1082,8 @@ class RxArray(UserObjectMulti):
             f"{dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m"
         )
 
+        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
+
         for x in range(xs, xf + 1, dx):
             for y in range(ys, yf + 1, dy):
                 for z in range(zs, zf + 1, dz):
@@ -1093,7 +1101,7 @@ class RxArray(UserObjectMulti):
                     r.ID = f"{r.__class__.__name__}({str(x)},{str(y)},{str(z)})"
                     for key in RxUser.defaultoutputs:
                         r.outputs[key] = np.zeros(
-                            model.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                            iterations, dtype=config.sim_config.dtypes["float_or_double"]
                         )
                     logger.info(
                         f"  Receiver at {p5[0]:g}m, {p5[1]:g}m, "

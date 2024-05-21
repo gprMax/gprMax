@@ -330,14 +330,16 @@ class TransmissionLine(Source):
     which is attached virtually to a grid cell.
     """
 
-    def __init__(self, G):
+    def __init__(self, iterations: int, dt: float):
         """
         Args:
-            G: FDTDGrid class describing a grid in a model.
+            iterations: number of iterations
+            dt: time step of the grid
         """
 
         super().__init__()
         self.resistance = None
+        self.iterations = iterations
 
         # Coefficients for ABC termination of end of the transmission line
         self.abcv0 = 0
@@ -345,11 +347,11 @@ class TransmissionLine(Source):
 
         # Spatial step of transmission line (N.B if the magic time step is
         # used it results in instabilities for certain impedances)
-        self.dl = np.sqrt(3) * config.c * G.dt
+        self.dl = np.sqrt(3) * config.c * dt
 
         # Number of cells in the transmission line (initially a long line to
         # calculate incident voltage and current); consider putting ABCs/PML at end
-        self.nl = round_value(0.667 * G.iterations)
+        self.nl = round_value(0.667 * self.iterations)
 
         # Cell position of the one-way injector excitation in the transmission line
         self.srcpos = 5
@@ -359,10 +361,10 @@ class TransmissionLine(Source):
 
         self.voltage = np.zeros(self.nl, dtype=config.sim_config.dtypes["float_or_double"])
         self.current = np.zeros(self.nl, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Vinc = np.zeros(G.iterations, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Iinc = np.zeros(G.iterations, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Vtotal = np.zeros(G.iterations, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Itotal = np.zeros(G.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Vinc = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Iinc = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Vtotal = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Itotal = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
 
     def calculate_incident_V_I(self, G):
         """Calculates the incident voltage and current with a long length
@@ -373,7 +375,7 @@ class TransmissionLine(Source):
             G: FDTDGrid class describing a grid in a model.
         """
 
-        for iteration in range(G.iterations):
+        for iteration in range(self.iterations):
             self.Iinc[iteration] = self.current[self.antpos]
             self.Vinc[iteration] = self.voltage[self.antpos]
             self.update_current(iteration, G)
