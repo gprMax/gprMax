@@ -21,7 +21,6 @@ import logging
 import numpy as np
 
 from ..cython.geometry_primitives import build_triangle
-from ..hash_cmds_geometry import check_averaging
 from ..materials import Material
 from .cmds_geometry import UserObjectGeometry, rotate_point
 
@@ -81,7 +80,6 @@ class Triangle(UserObjectGeometry):
         try:
             # Try user-specified averaging
             averagetriangularprism = self.kwargs["averaging"]
-            averagetriangularprism = check_averaging(averagetriangularprism)
         except KeyError:
             # Otherwise go with the grid default
             averagetriangularprism = grid.averagevolumeobjects

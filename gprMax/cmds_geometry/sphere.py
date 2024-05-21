@@ -21,7 +21,6 @@ import logging
 import numpy as np
 
 from ..cython.geometry_primitives import build_sphere
-from ..hash_cmds_geometry import check_averaging
 from ..materials import Material
 from .cmds_geometry import UserObjectGeometry
 
@@ -56,7 +55,6 @@ class Sphere(UserObjectGeometry):
         try:
             # Try user-specified averaging
             averagesphere = self.kwargs["averaging"]
-            averagesphere = check_averaging(averagesphere)
         except KeyError:
             # Otherwise go with the grid default
             averagesphere = grid.averagevolumeobjects

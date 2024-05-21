@@ -21,7 +21,6 @@ import logging
 import numpy as np
 
 from ..cython.geometry_primitives import build_cylindrical_sector
-from ..hash_cmds_geometry import check_averaging
 from ..materials import Material
 from .cmds_geometry import UserObjectGeometry
 
@@ -75,7 +74,6 @@ class CylindricalSector(UserObjectGeometry):
         try:
             # Try user-specified averaging
             averagecylindricalsector = self.kwargs["averaging"]
-            averagecylindricalsector = check_averaging(averagecylindricalsector)
         except KeyError:
             # Otherwise go with the grid default
             averagecylindricalsector = grid.averagevolumeobjects

@@ -21,7 +21,6 @@ import logging
 import numpy as np
 
 from ..cython.geometry_primitives import build_ellipsoid
-from ..hash_cmds_geometry import check_averaging
 from ..materials import Material
 from .cmds_geometry import UserObjectGeometry
 
@@ -61,7 +60,6 @@ class Ellipsoid(UserObjectGeometry):
         try:
             # Try user-specified averaging
             averageellipsoid = self.kwargs["averaging"]
-            averageellipsoid = check_averaging(averageellipsoid)
         except KeyError:
             # Otherwise go with the grid default
             averageellipsoid = grid.averagevolumeobjects
