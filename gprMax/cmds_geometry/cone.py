@@ -61,10 +61,10 @@ class Cone(UserObjectGeometry):
         # Check averaging
         try:
             # Try user-specified averaging
-            averagecylinder = self.kwargs["averaging"]
+            averagecone = self.kwargs["averaging"]
         except KeyError:
             # Otherwise go with the grid default
-            averagecylinder = grid.averagevolumeobjects
+            averagecone = grid.averagevolumeobjects
 
         # Check materials have been specified
         # Isotropic case
@@ -110,7 +110,7 @@ class Cone(UserObjectGeometry):
 
         # Isotropic case
         if len(materials) == 1:
-            averaging = materials[0].averagable and averagecylinder
+            averaging = materials[0].averagable and averagecone
             numID = numIDx = numIDy = numIDz = materials[0].numID
 
         # Uniaxial anisotropic case
