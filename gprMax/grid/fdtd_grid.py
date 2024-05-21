@@ -29,16 +29,12 @@ from tqdm import tqdm
 
 from gprMax import config
 from gprMax.cython.yee_cell_build import build_electric_components, build_magnetic_components
-
-# from gprMax.geometry_outputs import GeometryObjects, GeometryView
 from gprMax.fractals import FractalVolume
 from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial, process_materials
 from gprMax.pml import CFS, PML, build_pml, print_pml_info
 from gprMax.receivers import Rx
 from gprMax.snapshots import Snapshot
 from gprMax.sources import HertzianDipole, MagneticDipole, Source, TransmissionLine, VoltageSource
-
-# from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.utilities.utilities import fft_power, get_terminal_width, round_value
 from gprMax.waveforms import Waveform
 
@@ -59,7 +55,7 @@ class FDTDGrid:
         self.nx = 0
         self.ny = 0
         self.nz = 0
-        self.dl: np.ndarray[Any, np.dtype[np.single]]
+        self.dl = np.ones(3, dtype=float)
         self.dt = 0.0
 
         # Field Arrays
