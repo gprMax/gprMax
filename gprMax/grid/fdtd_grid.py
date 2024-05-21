@@ -110,8 +110,6 @@ class FDTDGrid:
         self.magneticdipoles: List[MagneticDipole] = []
         self.transmissionlines: List[TransmissionLine] = []
         self.rxs: List[Rx] = []
-        self.srcsteps: List[int] = [0, 0, 0]
-        self.rxsteps: List[int] = [0, 0, 0]
         self.snapshots: List[Snapshot] = []
 
         self.averagevolumeobjects = True
@@ -233,18 +231,18 @@ class FDTDGrid:
                 item.ycoord = item.ycoordorigin + step_number * step_size[1]
                 item.zcoord = item.zcoordorigin + step_number * step_size[2]
 
-    def update_simple_source_positions(self, step: int = 0) -> None:
+    def update_simple_source_positions(self, step_size: List[int], step: int = 0) -> None:
         try:
             self._update_positions(
-                itertools.chain(self.hertziandipoles, self.magneticdipoles), self.srcsteps, step
+                itertools.chain(self.hertziandipoles, self.magneticdipoles), step_size, step
             )
         except ValueError as e:
             logger.exception("Source(s) will be stepped to a position outside the domain.")
             raise ValueError from e
 
-    def update_receiver_positions(self, step: int = 0) -> None:
+    def update_receiver_positions(self, step_size: List[int], step: int = 0) -> None:
         try:
-            self._update_positions(self.rxs, self.rxsteps, step)
+            self._update_positions(self.rxs, step_size, step)
         except ValueError as e:
             logger.exception("Receiver(s) will be stepped to a position outside the domain.")
             raise ValueError from e

@@ -62,6 +62,9 @@ class Model:
         self.iterations = 0  # Total number of iterations
         self.timewindow = 0.0
 
+        self.srcsteps: List[int] = [0, 0, 0]
+        self.rxsteps: List[int] = [0, 0, 0]
+
         self.G = self._create_grid()
         self.subgrids: List[SubGridBaseGrid] = []
 
@@ -173,8 +176,8 @@ class Model:
 
         # Adjust position of simple sources and receivers if required
         model_num = config.sim_config.current_model
-        G.update_simple_source_positions(step=model_num)
-        G.update_receiver_positions(step=model_num)
+        G.update_simple_source_positions(self.srcsteps, step=model_num)
+        G.update_receiver_positions(self.rxsteps, step=model_num)
 
         # Write files for any geometry views and geometry object outputs
         if (

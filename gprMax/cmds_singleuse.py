@@ -378,16 +378,16 @@ class RxSteps(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 9
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         try:
-            G.rxsteps = uip.discretise_point(self.kwargs["p1"])
+            model.rxsteps = uip.discretise_point(self.kwargs["p1"])
         except KeyError:
             logger.exception(f"{self.__str__()} requires exactly three parameters")
             raise
 
         logger.info(
-            f"All receivers will step {G.rxsteps[0] * G.dx:g}m, "
-            f"{G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m "
+            f"All receivers will step {model.rxsteps[0] * model.dx:g}m, "
+            f"{model.rxsteps[1] * model.dy:g}m, {model.rxsteps[2] * model.dz:g}m "
             "for each model run."
         )
 

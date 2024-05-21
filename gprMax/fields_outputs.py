@@ -68,7 +68,10 @@ def write_hdf5_outputfile(outputfile: Path, title: str, model):
     f = h5py.File(outputfile, "w")
     f.attrs["gprMax"] = __version__
     f.attrs["Title"] = title
-    write_hd5_data(f, model.G, model.iterations)
+    f.attrs["Iterations"] = model.iterations
+    f.attrs["srcsteps"] = model.srcsteps
+    f.attrs["rxsteps"] = model.rxsteps
+    write_hd5_data(f, model.G)
 
     # Write meta data and data for any subgrids
     sg_rxs = [True for sg in model.subgrids if sg.rxs]
@@ -76,12 +79,12 @@ def write_hdf5_outputfile(outputfile: Path, title: str, model):
     if sg_rxs or sg_tls:
         for sg in model.subgrids:
             grp = f.create_group(f"/subgrids/{sg.name}")
-            write_hd5_data(grp, sg, sg.iterations, is_subgrid=True)
+            write_hd5_data(grp, sg, is_subgrid=True)
 
     logger.basic(f"Written output file: {outputfile.name}")
 
 
-def write_hd5_data(basegrp, grid, iterations, is_subgrid=False):
+def write_hd5_data(basegrp, grid, is_subgrid=False):
     """Writes grid meta data and data to HDF5 group.
 
     Args:
@@ -91,7 +94,6 @@ def write_hd5_data(basegrp, grid, iterations, is_subgrid=False):
     """
 
     # Write meta data for grid
-    basegrp.attrs["Iterations"] = iterations
     basegrp.attrs["nx_ny_nz"] = (grid.nx, grid.ny, grid.nz)
     basegrp.attrs["dx_dy_dz"] = (grid.dx, grid.dy, grid.dz)
     basegrp.attrs["dt"] = grid.dt
@@ -100,11 +102,12 @@ def write_hd5_data(basegrp, grid, iterations, is_subgrid=False):
     )
     basegrp.attrs["nsrc"] = nsrc
     basegrp.attrs["nrx"] = len(grid.rxs)
-    basegrp.attrs["srcsteps"] = grid.srcsteps
-    basegrp.attrs["rxsteps"] = grid.rxsteps
 
     if is_subgrid:
         # Write additional meta data about subgrid
+        basegrp.attrs["Iterations"] = grid.iterations
+        basegrp.attrs["srcsteps"] = grid.srcsteps
+        basegrp.attrs["rxsteps"] = grid.rxsteps
         basegrp.attrs["is_os_sep"] = grid.is_os_sep
         basegrp.attrs["pml_separation"] = grid.pml_separation
         basegrp.attrs["subgrid_pml_thickness"] = grid.pmls["thickness"]["x0"]
