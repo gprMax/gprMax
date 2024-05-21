@@ -91,33 +91,32 @@ class Discretisation(UserObjectSingle):
         self.order = 2
 
     def build(self, model, uip):
-        G = model.G
         try:
-            G.dl = np.array(self.kwargs["p1"], dtype=float)
+            model.dl = np.array(self.kwargs["p1"], dtype=float)
         except KeyError:
             logger.exception(f"{self.__str__()} discretisation requires a point")
             raise
 
-        if G.dl[0] <= 0:
+        if model.dl[0] <= 0:
             logger.exception(
                 f"{self.__str__()} discretisation requires the "
                 f"x-direction spatial step to be greater than zero"
             )
             raise ValueError
-        if G.dl[1] <= 0:
+        if model.dl[1] <= 0:
             logger.exception(
                 f"{self.__str__()} discretisation requires the "
                 f"y-direction spatial step to be greater than zero"
             )
             raise ValueError
-        if G.dl[2] <= 0:
+        if model.dl[2] <= 0:
             logger.exception(
                 f"{self.__str__()} discretisation requires the "
                 f"z-direction spatial step to be greater than zero"
             )
             raise ValueError
 
-        logger.info(f"Spatial discretisation: {G.dl[0]:g} x {G.dl[1]:g} x {G.dl[2]:g}m")
+        logger.info(f"Spatial discretisation: {model.dl[0]:g} x {model.dl[1]:g} x {model.dl[2]:g}m")
 
 
 class Domain(UserObjectSingle):
@@ -206,9 +205,9 @@ class TimeStepStabilityFactor(UserObjectSingle):
             raise ValueError
 
         model.dt_mod = f
-        model.G.dt *= model.dt_mod
+        model.dt *= model.dt_mod
 
-        logger.info(f"Time step (modified): {model.G.dt:g} secs")
+        logger.info(f"Time step (modified): {model.dt:g} secs")
 
 
 class TimeWindow(UserObjectSingle):
@@ -229,7 +228,7 @@ class TimeWindow(UserObjectSingle):
         # the fact that the solver (iterations) loop runs from 0 to < G.iterations
         try:
             iterations = int(self.kwargs["iterations"])
-            model.timewindow = (iterations - 1) * model.G.dt
+            model.timewindow = (iterations - 1) * model.dt
             model.iterations = iterations
         except KeyError:
             pass
@@ -238,7 +237,7 @@ class TimeWindow(UserObjectSingle):
             tmp = float(self.kwargs["time"])
             if tmp > 0:
                 model.timewindow = tmp
-                model.iterations = int(np.ceil(tmp / model.G.dt)) + 1
+                model.iterations = int(np.ceil(tmp / model.dt)) + 1
             else:
                 logger.exception(self.__str__() + " must have a value greater than zero")
                 raise ValueError
