@@ -21,6 +21,7 @@ import logging
 import numpy as np
 
 from ..cython.geometry_primitives import build_cone
+from ..hash_cmds_geometry import check_averaging
 from ..materials import Material
 from .cmds_geometry import UserObjectGeometry
 
@@ -61,10 +62,11 @@ class Cone(UserObjectGeometry):
         # Check averaging
         try:
             # Try user-specified averaging
-            averagecylinder = self.kwargs["averaging"]
+            averagecone = self.kwargs["averaging"]
+            averagecone = check_averaging(averagecone)
         except KeyError:
             # Otherwise go with the grid default
-            averagecylinder = grid.averagevolumeobjects
+            averagecone = grid.averagevolumeobjects
 
         # Check materials have been specified
         # Isotropic case
@@ -106,7 +108,7 @@ class Cone(UserObjectGeometry):
 
         # Isotropic case
         if len(materials) == 1:
-            averaging = materials[0].averagable and averagecylinder
+            averaging = materials[0].averagable and averagecone
             numID = numIDx = numIDy = numIDz = materials[0].numID
 
         # Uniaxial anisotropic case
