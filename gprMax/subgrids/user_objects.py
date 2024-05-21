@@ -43,6 +43,8 @@ class SubGridBase(UserObjectMulti):
         super().__init__(**kwargs)
         self.children_multiple: List[UserObjectMulti] = []
         self.children_geometry: List[UserObjectGeometry] = []
+        self.children_multiple: List[UserObjectMulti] = []
+        self.children_geometry: List[UserObjectGeometry] = []
 
     def add(self, node: Union[UserObjectMulti, UserObjectGeometry]):
         """Adds other user objects. Geometry and multi only."""
@@ -86,24 +88,24 @@ class SubGridBase(UserObjectMulti):
         sg.ny = 2 * sg.n_boundary_cells_y + sg.nwy
         sg.nz = 2 * sg.n_boundary_cells_z + sg.nwz
 
-    def set_iterations(self, sg: SubGridBaseGrid, main: FDTDGrid):
+    def set_iterations(self, sg: SubGridBaseGrid, model: Model):
         """Sets number of iterations that will take place in the subgrid."""
-        sg.iterations = main.iterations * sg.ratio
+        sg.iterations = model.iterations * sg.ratio
 
-    def setup(self, sg: SubGridBaseGrid, grid: FDTDGrid, uip: MainGridUserInput):
+    def setup(self, sg: SubGridBaseGrid, model: Model, uip: MainGridUserInput):
         """ "Common setup to both all subgrid types."""
         p1 = self.kwargs["p1"]
         p2 = self.kwargs["p2"]
 
         p1, p2 = uip.check_box_points(p1, p2, self.__str__())
 
-        self.set_discretisation(sg, grid)
+        self.set_discretisation(sg, model.G)
 
         # Set temporal discretisation including any inherited time step
         # stability factor from the main grid
         sg.calculate_dt()
-        if grid.dt_mod:
-            sg.dt = sg.dt * grid.dt_mod
+        if model.dt_mod:
+            sg.dt = sg.dt * model.dt_mod
 
         # Set the indices related to the subgrids main grid placement
         self.set_main_grid_indices(sg, uip, p1, p2)
@@ -121,29 +123,27 @@ class SubGridBase(UserObjectMulti):
 
         self.set_working_region_cells(sg)
         self.set_total_cells(sg)
-        self.set_iterations(sg, grid)
+        self.set_iterations(sg, model)
         self.set_name(sg)
 
         # Copy a reference for the main grid to the sub grid
-        sg.parent_grid = grid
-
-        sg.timewindow = grid.timewindow
+        sg.parent_grid = model.G
 
         # Copy a subgrid reference to self so that children.build(grid, uip)
         # can access the correct grid.
         self.subgrid = sg
 
         # Copy over built in materials
-        sg.materials = [copy(m) for m in grid.materials if m.type == "builtin"]
+        sg.materials = [copy(m) for m in model.G.materials if m.type == "builtin"]
 
         # Don't mix and match different subgrid types
-        for sg_made in grid.subgrids:
+        for sg_made in model.subgrids:
             if type(sg) != type(sg_made):
                 logger.exception(f"{self.__str__()} please only use one type of subgrid")
                 raise ValueError
 
         # Reference the subgrid under the main grid to which it belongs
-        grid.subgrids.append(sg)
+        model.subgrids.append(sg)
 
 
 class SubGridHSG(SubGridBase):
@@ -200,7 +200,7 @@ class SubGridHSG(SubGridBase):
         self.order = 18
         self.hash = "#subgrid_hsg"
 
-    def build(self, grid: FDTDGrid, uip: MainGridUserInput) -> SubGridHSGUser:
+    def build(self, model: Model, uip: MainGridUserInput) -> SubGridHSGUser:
         sg = SubGridHSGUser(**self.kwargs)
-        self.setup(sg, grid, uip)
+        self.setup(sg, model, uip)
         return sg

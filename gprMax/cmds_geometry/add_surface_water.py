@@ -94,7 +94,9 @@ class AddSurfaceWater(UserObjectGeometry):
                 logger.exception(f"{self.__str__()} dimensions are not specified correctly")
                 raise ValueError
             if xs not in [volume.xs, volume.xf]:
-                logger.exception(f"{self.__str__()} can only be used on the external surfaces of a fractal box")
+                logger.exception(
+                    f"{self.__str__()} can only be used on the external surfaces of a fractal box"
+                )
                 raise ValueError
             # xminus surface
             if xs == volume.xs:
@@ -110,7 +112,9 @@ class AddSurfaceWater(UserObjectGeometry):
                 logger.exception(f"{self.__str__()} dimensions are not specified correctly")
                 raise ValueError
             if ys not in [volume.ys, volume.yf]:
-                logger.exception(f"{self.__str__()} can only be used on the external surfaces of a fractal box")
+                logger.exception(
+                    f"{self.__str__()} can only be used on the external surfaces of a fractal box"
+                )
                 raise ValueError
             # yminus surface
             if ys == volume.ys:
@@ -123,7 +127,9 @@ class AddSurfaceWater(UserObjectGeometry):
 
         elif zs == zf:
             if zs not in [volume.zs, volume.zf]:
-                logger.exception(f"{self.__str__()} can only be used on the external surfaces of a fractal box")
+                logger.exception(
+                    f"{self.__str__()} can only be used on the external surfaces of a fractal box"
+                )
                 raise ValueError
             # zminus surface
             if zs == volume.zs:
@@ -148,7 +154,10 @@ class AddSurfaceWater(UserObjectGeometry):
         surface.filldepth = filldepthcells
 
         # Check that requested fill depth falls within range of surface roughness
-        if surface.filldepth < surface.fractalrange[0] or surface.filldepth > surface.fractalrange[1]:
+        if (
+            surface.filldepth < surface.fractalrange[0]
+            or surface.filldepth > surface.fractalrange[1]
+        ):
             logger.exception(
                 f"{self.__str__()} requires a value for the depth of water that lies with the "
                 f"range of the requested surface roughness"

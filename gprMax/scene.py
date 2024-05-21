@@ -15,10 +15,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-
 import logging
-from typing import List, Union
+from typing import List, Optional, Union
 
+from gprMax import config
 from gprMax.cmds_geometry.add_grass import AddGrass
 from gprMax.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from gprMax.cmds_geometry.add_surface_water import AddSurfaceWater
@@ -28,9 +28,10 @@ from gprMax.cmds_multiuse import UserObjectMulti
 from gprMax.cmds_singleuse import Discretisation, Domain, TimeWindow, UserObjectSingle
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_built_in_materials
+from gprMax.model import Model
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.subgrids.user_objects import SubGridBase as SubGridUserBase
-from gprMax.user_inputs import create_user_input_points
+from gprMax.user_inputs import MainGridUserInput, SubgridUserInput
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,9 @@ class Scene:
     """Scene stores all of the user created objects."""
 
     def __init__(self):
+        self.multiple_cmds: List[UserObjectMulti] = []
+        self.single_cmds: List[UserObjectSingle] = []
+        self.geometry_cmds: List[UserObjectGeometry] = []
         self.multiple_cmds: List[UserObjectMulti] = []
         self.single_cmds: List[UserObjectSingle] = []
         self.geometry_cmds: List[UserObjectGeometry] = []
@@ -61,8 +65,8 @@ class Scene:
             logger.exception("This object is unknown to gprMax")
             raise ValueError
 
-    def build_obj(self, obj, grid):
-        """Builds objects.
+    def build_grid_obj(self, obj: UserObjectGeometry, grid: FDTDGrid):
+        """Builds objects in FDTDGrids.
 
         Args:
             obj: user object
@@ -75,10 +79,35 @@ class Scene:
             logger.exception("Error creating user input object")
             raise
 
-    def process_subgrid_cmds(self):
+    def build_model_obj(
+        self,
+        obj: Union[UserObjectSingle, UserObjectMulti],
+        model: Model,
+        subgrid: Optional[FDTDGrid] = None,
+    ):
+        """Builds objects in models.
+
+        Args:
+            obj: user object
+            model: Model being built
+        """
+
+        grid = model.G if subgrid is None else subgrid
+        uip = create_user_input_points(grid, obj)
+
+        try:
+            obj.build(model, uip)
+        except ValueError:
+            logger.exception("Error creating user input object")
+            raise
+
+    def process_subgrid_cmds(self, model: Model):
         """Process all commands in any sub-grids."""
 
         # Subgrid user objects
+        subgrid_cmds = [
+            sg_cmd for sg_cmd in self.multiple_cmds if isinstance(sg_cmd, SubGridUserBase)
+        ]
         subgrid_cmds = [
             sg_cmd for sg_cmd in self.multiple_cmds if isinstance(sg_cmd, SubGridUserBase)
         ]
@@ -89,16 +118,19 @@ class Scene:
             # object. This reference allows the multi and geo user objects
             # to build in the correct subgrid.
             sg = sg_cmd.subgrid
-            self.process_cmds(sg_cmd.children_multiple, sg)
+            self.process_cmds(sg_cmd.children_multiple, model, sg)
             self.process_geocmds(sg_cmd.children_geometry, sg)
 
     def process_cmds(
-        self, commands: Union[List[UserObjectMulti], List[UserObjectSingle]], grid: FDTDGrid
+        self,
+        commands: Union[List[UserObjectMulti], List[UserObjectSingle]],
+        model: Model,
+        subgrid: Optional[SubGridBaseGrid] = None,
     ):
         """Process list of commands."""
         cmds_sorted = sorted(commands, key=lambda cmd: cmd.order)
         for obj in cmds_sorted:
-            self.build_obj(obj, grid)
+            self.build_model_obj(obj, model, subgrid)
 
         return self
 
@@ -107,7 +139,7 @@ class Scene:
         proc_cmds = []
         for obj in commands:
             if isinstance(obj, (FractalBox, AddGrass, AddSurfaceRoughness, AddSurfaceWater)):
-                self.build_obj(obj, grid)
+                self.build_grid_obj(obj, grid)
                 if isinstance(obj, (FractalBox)):
                     proc_cmds.append(obj)
             else:
@@ -115,11 +147,11 @@ class Scene:
 
         # Process all geometry commands
         for obj in proc_cmds:
-            self.build_obj(obj, grid)
+            self.build_grid_obj(obj, grid)
 
         return self
 
-    def process_singlecmds(self, G: FDTDGrid):
+    def process_singlecmds(self, model: Model):
         # Check for duplicate commands and warn user if they exist
         cmds_unique = list(set(self.single_cmds))
         if len(cmds_unique) != len(self.single_cmds):
@@ -137,29 +169,48 @@ class Scene:
                 )
                 raise ValueError
 
-        self.process_cmds(cmds_unique, G)
+        self.process_cmds(cmds_unique, model)
 
-    def create_internal_objects(self, G):
+    def create_internal_objects(self, model: Model):
         """Calls the UserObject.build() function in the correct way - API
         presents the user with UserObjects in order to build the internal
         Rx(), Cylinder() etc... objects.
         """
 
         # Create pre-defined (built-in) materials
-        create_built_in_materials(G)
+        create_built_in_materials(model.G)
 
         # Process commands that can only have a single instance
-        self.process_singlecmds(G)
+        self.process_singlecmds(model)
 
         # Process main grid multiple commands
-        self.process_cmds(self.multiple_cmds, G)
+        self.process_cmds(self.multiple_cmds, model)
 
         # Initialise geometry arrays for main and subgrids
-        for grid in [G] + G.subgrids:
+        for grid in [model.G] + model.subgrids:
             grid.initialise_geometry_arrays()
 
         # Process the main grid geometry commands
-        self.process_geocmds(self.geometry_cmds, G)
+        self.process_geocmds(self.geometry_cmds, model.G)
 
         # Process all the commands for subgrids
-        self.process_subgrid_cmds()
+        self.process_subgrid_cmds(model)
+
+
+def create_user_input_points(
+    grid: FDTDGrid, user_obj: Union[UserObjectSingle, UserObjectMulti, UserObjectGeometry]
+) -> Union[MainGridUserInput, SubgridUserInput]:
+    """Returns a point checker class based on the grid supplied."""
+
+    if isinstance(grid, SubGridBaseGrid):
+        # Local object configuration trumps. User can turn off autotranslate for
+        # specific objects.
+        if not user_obj.autotranslate and config.sim_config.args.autotranslate:
+            return MainGridUserInput(grid)
+
+        if config.sim_config.args.autotranslate:
+            return SubgridUserInput(grid)
+        else:
+            return MainGridUserInput(grid)
+    else:
+        return MainGridUserInput(grid)

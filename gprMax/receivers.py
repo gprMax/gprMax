@@ -29,14 +29,14 @@ class Rx:
     allowableoutputs_dev = allowableoutputs[:-3]
 
     def __init__(self):
-        self.ID = None
+        self.ID: str
         self.outputs = {}
-        self.xcoord = None
-        self.ycoord = None
-        self.zcoord = None
-        self.xcoordorigin = None
-        self.ycoordorigin = None
-        self.zcoordorigin = None
+        self.xcoord: int
+        self.ycoord: int
+        self.zcoord: int
+        self.xcoordorigin: int
+        self.ycoordorigin: int
+        self.zcoordorigin: int
 
 
 def htod_rx_arrays(G, queue=None):
@@ -63,7 +63,8 @@ def htod_rx_arrays(G, queue=None):
     # Array to store field components for receivers on compute device -
     #   rows are field components; columns are iterations; pages are receivers
     rxs = np.zeros(
-        (len(Rx.allowableoutputs_dev), G.iterations, len(G.rxs)), dtype=config.sim_config.dtypes["float_or_double"]
+        (len(Rx.allowableoutputs_dev), G.iterations, len(G.rxs)),
+        dtype=config.sim_config.dtypes["float_or_double"],
     )
 
     # Copy arrays to compute device

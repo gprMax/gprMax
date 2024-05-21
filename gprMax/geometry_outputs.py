@@ -28,6 +28,7 @@ from evtk.vtk import VtkGroup, VtkImageData, VtkUnstructuredGrid
 from tqdm import tqdm
 
 import gprMax.config as config
+from gprMax.grid.fdtd_grid import FDTDGrid
 
 from ._version import __version__
 from .cython.geometry_outputs import write_lines
@@ -52,7 +53,8 @@ def save_geometry_views(gvs):
             total=gv.nbytes,
             unit="byte",
             unit_scale=True,
-            desc=f"Writing geometry view file {i + 1}/{len(gvs)}, " f"{gv.filename.name}{gv.vtkfiletype.ext}",
+            desc=f"Writing geometry view file {i + 1}/{len(gvs)}, "
+            f"{gv.filename.name}{gv.vtkfiletype.ext}",
             ncols=get_terminal_width() - 1,
             file=sys.stdout,
             disable=not config.sim_config.general["progressbars"],
@@ -96,7 +98,9 @@ class GeometryView:
     def set_filename(self):
         """Constructs filename from user-supplied name and model run number."""
         parts = config.get_model_config().output_file_path.parts
-        self.filename = Path(*parts[:-1], self.filenamebase + config.get_model_config().appendmodelnumber)
+        self.filename = Path(
+            *parts[:-1], self.filenamebase + config.get_model_config().appendmodelnumber
+        )
 
 
 class GeometryViewLines(GeometryView):
@@ -122,7 +126,12 @@ class GeometryViewLines(GeometryView):
         ):
             # Require contiguous for evtk library
             ID = np.ascontiguousarray(
-                self.grid.ID[:, self.xs : self.xf : self.dx, self.ys : self.yf : self.dy, self.zs : self.zf : self.dz]
+                self.grid.ID[
+                    :,
+                    self.xs : self.xf : self.dx,
+                    self.ys : self.yf : self.dy,
+                    self.zs : self.zf : self.dz,
+                ]
             )
         else:
             # This array is contiguous by design
@@ -158,7 +167,15 @@ class GeometryViewLines(GeometryView):
         offsets_size = np.arange(start=2, step=2, stop=len(x) + 1, dtype="int32").nbytes
         connect_size = len(x) * np.dtype("int32").itemsize
         cell_type_size = len(x) * np.dtype("uint8").itemsize
-        self.nbytes = x.nbytes + y.nbytes + z.nbytes + lines.nbytes + offsets_size + connect_size + cell_type_size
+        self.nbytes = (
+            x.nbytes
+            + y.nbytes
+            + z.nbytes
+            + lines.nbytes
+            + offsets_size
+            + connect_size
+            + cell_type_size
+        )
 
         vtk_data = {"x": x, "y": y, "z": z, "data": lines, "comments": comments}
 
@@ -205,7 +222,11 @@ class GeometryViewVoxels(GeometryView):
         ):
             # Require contiguous for evtk library
             solid = np.ascontiguousarray(
-                self.grid.solid[self.xs : self.xf : self.dx, self.ys : self.yf : self.dy, self.zs : self.zf : self.dz]
+                self.grid.solid[
+                    self.xs : self.xf : self.dx,
+                    self.ys : self.yf : self.dy,
+                    self.zs : self.zf : self.dz,
+                ]
             )
         else:
             # This array is contiguous by design
@@ -366,12 +387,18 @@ class GeometryObjects:
         self.filename_materials = self.filename_materials.with_suffix(".txt")
 
         # Sizes of arrays to write necessary to update progress bar
-        self.solidsize = (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(np.uint32).itemsize
-        self.rigidsize = 18 * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(np.int8).itemsize
-        self.IDsize = 6 * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(np.uint32).itemsize
+        self.solidsize = (
+            (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(np.uint32).itemsize
+        )
+        self.rigidsize = (
+            18 * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(np.int8).itemsize
+        )
+        self.IDsize = (
+            6 * (self.nx + 1) * (self.ny + 1) * (self.nz + 1) * np.dtype(np.uint32).itemsize
+        )
         self.datawritesize = self.solidsize + self.rigidsize + self.IDsize
 
-    def write_hdf5(self, G, pbar):
+    def write_hdf5(self, title: str, G: FDTDGrid, pbar: tqdm):
         """Writes a geometry objects file in HDF5 format.
 
         Args:
@@ -381,20 +408,34 @@ class GeometryObjects:
 
         with h5py.File(self.filename_hdf5, "w") as fdata:
             fdata.attrs["gprMax"] = __version__
-            fdata.attrs["Title"] = G.title
+            fdata.attrs["Title"] = title
             fdata.attrs["dx_dy_dz"] = (G.dx, G.dy, G.dz)
 
             # Get minimum and maximum integers of materials in geometry objects volume
-            minmat = np.amin(G.ID[:, self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1])
-            maxmat = np.amax(G.ID[:, self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1])
+            minmat = np.amin(
+                G.ID[:, self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1]
+            )
+            maxmat = np.amax(
+                G.ID[:, self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1]
+            )
             fdata["/data"] = (
-                G.solid[self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1].astype("int16") - minmat
+                G.solid[self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1].astype(
+                    "int16"
+                )
+                - minmat
             )
             pbar.update(self.solidsize)
-            fdata["/rigidE"] = G.rigidE[:, self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1]
-            fdata["/rigidH"] = G.rigidH[:, self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1]
+            fdata["/rigidE"] = G.rigidE[
+                :, self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1
+            ]
+            fdata["/rigidH"] = G.rigidH[
+                :, self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1
+            ]
             pbar.update(self.rigidsize)
-            fdata["/ID"] = G.ID[:, self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1] - minmat
+            fdata["/ID"] = (
+                G.ID[:, self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1]
+                - minmat
+            )
             pbar.update(self.IDsize)
 
         # Write materials list to a text file
@@ -411,7 +452,9 @@ class GeometryObjects:
                             if "debye" in material.type:
                                 dispersionstr = "#add_dispersion_debye: " f"{material.poles:g} "
                                 for pole in range(material.poles):
-                                    dispersionstr += f"{material.deltaer[pole]:g} " f"{material.tau[pole]:g} "
+                                    dispersionstr += (
+                                        f"{material.deltaer[pole]:g} " f"{material.tau[pole]:g} "
+                                    )
                             elif "lorenz" in material.type:
                                 dispersionstr = f"#add_dispersion_lorenz: " f"{material.poles:g} "
                                 for pole in range(material.poles):
@@ -423,6 +466,8 @@ class GeometryObjects:
                             elif "drude" in material.type:
                                 dispersionstr = f"#add_dispersion_drude: " f"{material.poles:g} "
                                 for pole in range(material.poles):
-                                    dispersionstr += f"{material.tau[pole]:g} " f"{material.alpha[pole]:g} "
+                                    dispersionstr += (
+                                        f"{material.tau[pole]:g} " f"{material.alpha[pole]:g} "
+                                    )
                             dispersionstr += material.ID
                             fmaterials.write(dispersionstr + "\n")

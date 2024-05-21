@@ -17,9 +17,9 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
-import itertools
 import logging
 import sys
+from typing import List
 
 import humanize
 import numpy as np
@@ -28,20 +28,17 @@ from colorama import Fore, Style, init
 
 from gprMax.grid.cuda_grid import CUDAGrid
 from gprMax.grid.opencl_grid import OpenCLGrid
+from gprMax.subgrids.grid import SubGridBaseGrid
 
 init()
 
-from terminaltables import SingleTable
 from tqdm import tqdm
 
 import gprMax.config as config
 
-from .cython.yee_cell_build import build_electric_components, build_magnetic_components
 from .fields_outputs import write_hdf5_outputfile
-from .geometry_outputs import save_geometry_views
-from .grid.fdtd_grid import FDTDGrid, dispersion_analysis
-from .materials import process_materials
-from .pml import CFS, build_pml, print_pml_info
+from .geometry_outputs import GeometryObjects, GeometryView, save_geometry_views
+from .grid.fdtd_grid import FDTDGrid
 from .snapshots import save_snapshots
 from .utilities.host_info import mem_check_build_all, mem_check_run_all, set_omp_threads
 from .utilities.utilities import get_terminal_width
@@ -53,7 +50,27 @@ class Model:
     """Builds and runs (solves) a model."""
 
     def __init__(self):
+        self.title = ""
+
+        self.gnx = 0
+        self.gny = 0
+        self.gnz = 0
+
+        self.dt_mod = 1.0  # Time step stability factor
+
+        self.iteration = 0  # Current iteration number
+        self.iterations = 0  # Total number of iterations
+        self.timewindow = 0.0
+
+        self.srcsteps: List[int] = [0, 0, 0]
+        self.rxsteps: List[int] = [0, 0, 0]
+
         self.G = self._create_grid()
+        self.subgrids: List[SubGridBaseGrid] = []
+
+        self.geometryviews: List[GeometryView] = []
+        self.geometryobjects: List[GeometryObjects] = []
+
         # Monitor memory usage
         self.p = None
 
@@ -62,6 +79,70 @@ class Model:
         # changed by the user via #num_threads command in input file or via API
         # later for use with CPU solver.
         config.get_model_config().ompthreads = set_omp_threads(config.get_model_config().ompthreads)
+
+    @property
+    def nx(self) -> int:
+        return self.G.nx
+
+    @nx.setter
+    def nx(self, value: int):
+        self.G.nx = value
+
+    @property
+    def ny(self) -> int:
+        return self.G.ny
+
+    @ny.setter
+    def ny(self, value: int):
+        self.G.ny = value
+
+    @property
+    def nz(self) -> int:
+        return self.G.nz
+
+    @nz.setter
+    def nz(self, value: int):
+        self.G.nz = value
+
+    @property
+    def dx(self) -> float:
+        return self.G.dl[0]
+
+    @dx.setter
+    def dx(self, value: float):
+        self.G.dl[0] = value
+
+    @property
+    def dy(self) -> float:
+        return self.G.dl[0]
+
+    @dy.setter
+    def dy(self, value: float):
+        self.G.dl[1] = value
+
+    @property
+    def dz(self) -> float:
+        return self.G.dl[0]
+
+    @dz.setter
+    def dz(self, value: float):
+        self.G.dl[2] = value
+
+    @property
+    def dl(self) -> np.ndarray:
+        return self.G.dl
+
+    @dl.setter
+    def dl(self, value: np.ndarray):
+        self.G.dl = value
+
+    @property
+    def dt(self) -> float:
+        return self.G.dt
+
+    @dt.setter
+    def dt(self, value: float):
+        self.G.dt = value
 
     def _create_grid(self) -> FDTDGrid:
         """Create grid object according to solver.
@@ -95,36 +176,92 @@ class Model:
 
         # Adjust position of simple sources and receivers if required
         model_num = config.sim_config.current_model
-        G.update_simple_source_positions(step=model_num)
-        G.update_receiver_positions(step=model_num)
+        G.update_simple_source_positions(self.srcsteps, step=model_num)
+        G.update_receiver_positions(self.rxsteps, step=model_num)
 
         # Write files for any geometry views and geometry object outputs
-        gvs = G.geometryviews + [gv for sg in G.subgrids for gv in sg.geometryviews]
-        if not gvs and not G.geometryobjectswrite and config.sim_config.args.geometry_only:
+        if (
+            not self.geometryviews
+            and not self.geometryobjects
+            and config.sim_config.args.geometry_only
+        ):
             logger.exception("\nNo geometry views or geometry objects found.")
             raise ValueError
-        save_geometry_views(gvs)
+        save_geometry_views(self.geometryviews)
 
-        if G.geometryobjectswrite:
+        if self.geometryobjects:
             logger.info("")
-            for i, go in enumerate(G.geometryobjectswrite):
+            for i, go in enumerate(self.geometryobjects):
                 pbar = tqdm(
                     total=go.datawritesize,
                     unit="byte",
                     unit_scale=True,
-                    desc=f"Writing geometry object file {i + 1}/{len(G.geometryobjectswrite)}, "
+                    desc=f"Writing geometry object file {i + 1}/{len(self.geometryobjects)}, "
                     + f"{go.filename_hdf5.name}",
                     ncols=get_terminal_width() - 1,
                     file=sys.stdout,
                     disable=not config.sim_config.general["progressbars"],
                 )
-                go.write_hdf5(G, pbar)
+                go.write_hdf5(self.title, self.G, pbar)
                 pbar.close()
             logger.info("")
 
     def build_geometry(self):
         logger.info(config.get_model_config().inputfilestr)
-        self.G.build()
+
+        # Print info on any subgrids
+        for subgrid in self.subgrids:
+            subgrid.print_info()
+
+        # Combine available grids
+        grids = [self.G] + self.subgrids
+
+        self._check_for_dispersive_materials(grids)
+        self._check_memory_requirements(grids)
+
+        # TODO: Make this correctly set local nx, ny and nz when using MPI (likely use a function inside FDTDGrid/MPIGrid)
+        self.G.nx = self.gnx
+        self.G.ny = self.gny
+        self.G.nz = self.gnz
+
+        for grid in grids:
+            grid.build()
+            grid.dispersion_analysis(self.iterations)
+
+    def _check_for_dispersive_materials(self, grids: List[FDTDGrid]):
+        # Check for dispersive materials (and specific type)
+        if config.get_model_config().materials["maxpoles"] != 0:
+            # TODO: This sets materials["drudelorentz"] based only the
+            # last grid/subgrid. Is that correct?
+            for grid in grids:
+                config.get_model_config().materials["drudelorentz"] = any(
+                    [m for m in grid.materials if "drude" in m.type or "lorentz" in m.type]
+                )
+
+            # Set data type if any dispersive materials (must be done before memory checks)
+            config.get_model_config().set_dispersive_material_types()
+
+    def _check_memory_requirements(self, grids: List[FDTDGrid]):
+        # Check memory requirements to build model/scene (different to memory
+        # requirements to run model when FractalVolumes/FractalSurfaces are
+        # used as these can require significant additional memory)
+        total_mem_build, mem_strs_build = mem_check_build_all(grids)
+
+        # Check memory requirements to run model
+        total_mem_run, mem_strs_run = mem_check_run_all(grids)
+
+        if total_mem_build > total_mem_run:
+            logger.info(
+                f'\nMemory required (estimated): {" + ".join(mem_strs_build)} + '
+                f"~{humanize.naturalsize(config.get_model_config().mem_overhead)} "
+                f"overhead = {humanize.naturalsize(total_mem_build)}"
+            )
+        else:
+            logger.info(
+                f'\nMemory required (estimated): {" + ".join(mem_strs_run)} + '
+                f"~{humanize.naturalsize(config.get_model_config().mem_overhead)} "
+                f"overhead = {humanize.naturalsize(total_mem_run)}"
+            )
 
     def reuse_geometry(self):
         s = (
@@ -136,8 +273,8 @@ class Model:
             Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
         )
         logger.basic(config.get_model_config().inputfilestr)
-        for grid in [self.G] + self.G.subgrids:
-            grid.iteration = 0  # Reset current iteration number
+        self.iteration = 0  # Reset current iteration number
+        for grid in [self.G] + self.subgrids:
             grid.reset_fields()
 
     def write_output_data(self):
@@ -146,13 +283,13 @@ class Model:
         """
 
         # Write output data to file if they are any receivers in any grids
-        sg_rxs = [True for sg in self.G.subgrids if sg.rxs]
-        sg_tls = [True for sg in self.G.subgrids if sg.transmissionlines]
+        sg_rxs = [True for sg in self.subgrids if sg.rxs]
+        sg_tls = [True for sg in self.subgrids if sg.transmissionlines]
         if self.G.rxs or sg_rxs or self.G.transmissionlines or sg_tls:
-            write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.G)
+            write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.title, self)
 
         # Write any snapshots to file for each grid
-        for grid in [self.G] + self.G.subgrids:
+        for grid in [self.G] + self.subgrids:
             if grid.snapshots:
                 save_snapshots(grid)
 
@@ -204,14 +341,14 @@ class Model:
         # Prepare iterator
         if config.sim_config.general["progressbars"]:
             iterator = tqdm(
-                range(self.G.iterations),
+                range(self.iterations),
                 desc="|--->",
                 ncols=get_terminal_width() - 1,
                 file=sys.stdout,
                 disable=not config.sim_config.general["progressbars"],
             )
         else:
-            iterator = range(self.G.iterations)
+            iterator = range(self.iterations)
 
         # Run solver
         solver.solve(iterator)

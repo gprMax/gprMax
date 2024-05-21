@@ -56,7 +56,9 @@ class FractalSurface:
         self.nz = zf - zs
         self.dtype = np.dtype(np.complex128)
         self.seed = seed
-        self.dimension = dimension  # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
+        self.dimension = (
+            dimension  # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
+        )
         self.weighting = np.array([1, 1], dtype=np.float64)
         self.fractalrange = (0, 0)
         self.filldepth = 0
@@ -82,7 +84,9 @@ class FractalSurface:
         self.fractalsurface = np.zeros(surfacedims, dtype=self.dtype)
 
         # Positional vector at centre of array, scaled by weighting
-        v1 = np.array([self.weighting[0] * (surfacedims[0]) / 2, self.weighting[1] * (surfacedims[1]) / 2])
+        v1 = np.array(
+            [self.weighting[0] * (surfacedims[0]) / 2, self.weighting[1] * (surfacedims[1]) / 2]
+        )
 
         # 2D array of random numbers to be convolved with the fractal function
         rng = np.random.default_rng(seed=self.seed)
@@ -157,7 +161,9 @@ class FractalVolume:
         self.averaging = False
         self.dtype = np.dtype(np.complex128)
         self.seed = seed
-        self.dimension = dimension  # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
+        self.dimension = (
+            dimension  # Fractal dimension from: http://dx.doi.org/10.1017/CBO9781139174695
+        )
         self.weighting = np.array([1, 1, 1], dtype=np.float64)
         self.nbins = 0
         self.fractalsurfaces = []
@@ -176,7 +182,9 @@ class FractalVolume:
             filterscaling = np.amin(np.array([self.nx, self.ny])) / np.array([self.nx, self.ny])
             filterscaling = np.insert(filterscaling, 2, 1)
         else:
-            filterscaling = np.amin(np.array([self.nx, self.ny, self.nz])) / np.array([self.nx, self.ny, self.nz])
+            filterscaling = np.amin(np.array([self.nx, self.ny, self.nz])) / np.array(
+                [self.nx, self.ny, self.nz]
+            )
 
         # Adjust weighting to account for filter scaling
         self.weighting = np.multiply(self.weighting, filterscaling)
@@ -185,7 +193,11 @@ class FractalVolume:
 
         # Positional vector at centre of array, scaled by weighting
         v1 = np.array(
-            [self.weighting[0] * self.nx / 2, self.weighting[1] * self.ny / 2, self.weighting[2] * self.nz / 2]
+            [
+                self.weighting[0] * self.nx / 2,
+                self.weighting[1] * self.ny / 2,
+                self.weighting[2] * self.nz / 2,
+            ]
         )
 
         # 3D array of random numbers to be convolved with the fractal function
@@ -225,7 +237,9 @@ class FractalVolume:
         bins = np.linspace(np.amin(self.fractalvolume), np.amax(self.fractalvolume), self.nbins)
         for j in range(self.ny):
             for k in range(self.nz):
-                self.fractalvolume[:, j, k] = np.digitize(self.fractalvolume[:, j, k], bins, right=True)
+                self.fractalvolume[:, j, k] = np.digitize(
+                    self.fractalvolume[:, j, k], bins, right=True
+                )
 
     def generate_volume_mask(self):
         """Generate a 3D volume to use as a mask for adding rough surfaces,
@@ -254,7 +268,9 @@ class Grass:
         """
 
         self.numblades = numblades
-        self.geometryparams = np.zeros((self.numblades, 6), dtype=config.sim_config.dtypes["float_or_double"])
+        self.geometryparams = np.zeros(
+            (self.numblades, 6), dtype=config.sim_config.dtypes["float_or_double"]
+        )
         self.seed = seed
         self.set_geometry_parameters()
 

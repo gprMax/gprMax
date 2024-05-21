@@ -17,6 +17,9 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from importlib import import_module
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 from gprMax import config
 from gprMax.cython.fields_updates_normal import update_electric as update_electric_cpu
@@ -26,11 +29,13 @@ from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.updates.updates import Updates
 from gprMax.utilities.utilities import timer
 
+GridType = TypeVar("GridType", bound=FDTDGrid, default=FDTDGrid)
 
-class CPUUpdates(Updates):
+
+class CPUUpdates(Generic[GridType], Updates):
     """Defines update functions for CPU-based solver."""
 
-    def __init__(self, G: FDTDGrid):
+    def __init__(self, G: GridType):
         """
         Args:
             G: FDTDGrid class describing a grid in a model.
@@ -38,9 +43,9 @@ class CPUUpdates(Updates):
 
         self.grid = G
 
-    def store_outputs(self):
+    def store_outputs(self, iteration):
         """Stores field component values for every receiver and transmission line."""
-        store_outputs_cpu(self.grid)
+        store_outputs_cpu(self.grid, iteration)
 
     def store_snapshots(self, iteration):
         """Stores any snapshots.
@@ -74,11 +79,11 @@ class CPUUpdates(Updates):
         for pml in self.grid.pmls["slabs"]:
             pml.update_magnetic()
 
-    def update_magnetic_sources(self):
+    def update_magnetic_sources(self, iteration):
         """Updates magnetic field components from sources."""
         for source in self.grid.transmissionlines + self.grid.magneticdipoles:
             source.update_magnetic(
-                self.grid.iteration,
+                iteration,
                 self.grid.updatecoeffsH,
                 self.grid.ID,
                 self.grid.Hx,
@@ -134,7 +139,7 @@ class CPUUpdates(Updates):
         for pml in self.grid.pmls["slabs"]:
             pml.update_electric()
 
-    def update_electric_sources(self):
+    def update_electric_sources(self, iteration):
         """Updates electric field components from sources -
         update any Hertzian dipole sources last.
         """
@@ -142,7 +147,7 @@ class CPUUpdates(Updates):
             self.grid.voltagesources + self.grid.transmissionlines + self.grid.hertziandipoles
         ):
             source.update_electric(
-                self.grid.iteration,
+                iteration,
                 self.grid.updatecoeffsE,
                 self.grid.ID,
                 self.grid.Ex,
@@ -150,7 +155,6 @@ class CPUUpdates(Updates):
                 self.grid.Ez,
                 self.grid,
             )
-        self.grid.iteration += 1
 
     def update_electric_b(self):
         """If there are any dispersive materials do 2nd part of dispersive

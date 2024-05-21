@@ -21,25 +21,22 @@ import itertools
 import logging
 import sys
 from collections import OrderedDict
-from typing import Iterable, List, Union
+from typing import Any, Iterable, List, Union
 
-import humanize
 import numpy as np
 from terminaltables import SingleTable
 from tqdm import tqdm
 
 from gprMax import config
 from gprMax.cython.yee_cell_build import build_electric_components, build_magnetic_components
-
-# from gprMax.geometry_outputs import GeometryObjects, GeometryView
-from gprMax.materials import Material, process_materials
+from gprMax.fractals import FractalVolume
+from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial, process_materials
 from gprMax.pml import CFS, PML, build_pml, print_pml_info
 from gprMax.receivers import Rx
-from gprMax.sources import HertzianDipole, MagneticDipole, Source, VoltageSource
-
-# from gprMax.subgrids.grid import SubGridBaseGrid
-from gprMax.utilities.host_info import mem_check_build_all, mem_check_run_all
+from gprMax.snapshots import Snapshot
+from gprMax.sources import HertzianDipole, MagneticDipole, Source, TransmissionLine, VoltageSource
 from gprMax.utilities.utilities import fft_power, get_terminal_width, round_value
+from gprMax.waveforms import Waveform
 
 logger = logging.getLogger(__name__)
 
@@ -49,22 +46,41 @@ class FDTDGrid:
     accessing regularly used parameters.
     """
 
+    IDlookup = {"Ex": 0, "Ey": 1, "Ez": 2, "Hx": 3, "Hy": 4, "Hz": 5}
+
     def __init__(self):
-        self.title = ""
         self.name = "main_grid"
         self.mem_use = 0
 
         self.nx = 0
         self.ny = 0
         self.nz = 0
-        self.dx = 0
-        self.dy = 0
-        self.dz = 0
-        self.dt = 0
-        self.dt_mod = None  # Time step stability factor
-        self.iteration = 0  # Current iteration number
-        self.iterations = 0  # Total number of iterations
-        self.timewindow = 0
+        self.dl = np.ones(3, dtype=float)
+        self.dt = 0.0
+
+        # Field Arrays
+        self.Ex: np.ndarray[Any, np.dtype[np.single]]
+        self.Ey: np.ndarray[Any, np.dtype[np.single]]
+        self.Ez: np.ndarray[Any, np.dtype[np.single]]
+        self.Hx: np.ndarray[Any, np.dtype[np.single]]
+        self.Hy: np.ndarray[Any, np.dtype[np.single]]
+        self.Hz: np.ndarray[Any, np.dtype[np.single]]
+
+        # Dispersive Arrays
+        self.Tx: np.ndarray[Any, np.dtype[np.single]]
+        self.Ty: np.ndarray[Any, np.dtype[np.single]]
+        self.Tz: np.ndarray[Any, np.dtype[np.single]]
+
+        # Geometry Arrays
+        self.solid: np.ndarray[Any, np.dtype[np.uint32]]
+        self.rigidE: np.ndarray[Any, np.dtype[np.int8]]
+        self.rigidH: np.ndarray[Any, np.dtype[np.int8]]
+        self.ID: np.ndarray[Any, np.dtype[np.uint32]]
+
+        # Update Coefficient Arrays
+        self.updatecoeffsE: np.ndarray
+        self.updatecoeffsH: np.ndarray
+        self.updatecoeffsdispersive: np.ndarray
 
         # PML parameters - set some defaults to use if not user provided
         self.pmls = {}
@@ -78,126 +94,63 @@ class FDTDGrid:
         # corrections will be different.
         self.pmls["thickness"] = OrderedDict((key, 10) for key in PML.boundaryIDs)
 
-        # TODO: Add type information.
-        # Currently importing GeometryObjects, GeometryView, and
-        # SubGridBaseGrid cause cyclic dependencies
+        # Materials used by this grid
         self.materials: List[Material] = []
-        self.mixingmodels = []
-        self.averagevolumeobjects = True
-        self.fractalvolumes = []
-        self.geometryviews = []
-        self.geometryobjectswrite = []
-        self.waveforms = []
+        self.mixingmodels: List[Union[PeplinskiSoil, RangeMaterial, ListMaterial]] = []
+        self.fractalvolumes: List[FractalVolume] = []
+
+        # Sources and receivers contained inside this grid
+        self.waveforms: List[Waveform] = []
         self.voltagesources: List[VoltageSource] = []
         self.hertziandipoles: List[HertzianDipole] = []
         self.magneticdipoles: List[MagneticDipole] = []
-        self.transmissionlines = []
+        self.transmissionlines: List[TransmissionLine] = []
         self.rxs: List[Rx] = []
-        self.srcsteps: List[float] = [0, 0, 0]
-        self.rxsteps: List[float] = [0, 0, 0]
-        self.snapshots = []
-        self.subgrids = []
+        self.snapshots: List[Snapshot] = []
+
+        self.averagevolumeobjects = True
+
+    @property
+    def dx(self) -> float:
+        return self.dl[0]
+
+    @dx.setter
+    def dx(self, value: float):
+        self.dl[0] = value
+
+    @property
+    def dy(self) -> float:
+        return self.dl[1]
+
+    @dy.setter
+    def dy(self, value: float):
+        self.dl[1] = value
+
+    @property
+    def dz(self) -> float:
+        return self.dl[2]
+
+    @dz.setter
+    def dz(self, value: float):
+        self.dl[2] = value
 
     def build(self) -> None:
-        # Print info on any subgrids
-        for subgrid in self.subgrids:
-            subgrid.print_info()
-
-        # Combine available grids
-        grids = [self] + self.subgrids
-
-        # Check for dispersive materials (and specific type)
-        if config.get_model_config().materials["maxpoles"] != 0:
-            # TODO: This sets materials["drudelorentz"] based only the
-            # last grid/subgrid. Is that correct?
-            for grid in grids:
-                config.get_model_config().materials["drudelorentz"] = any(
-                    [m for m in grid.materials if "drude" in m.type or "lorentz" in m.type]
-                )
-
-            # Set data type if any dispersive materials (must be done before memory checks)
-            config.get_model_config().set_dispersive_material_types()
-
-        # Check memory requirements to build model/scene (different to memory
-        # requirements to run model when FractalVolumes/FractalSurfaces are
-        # used as these can require significant additional memory)
-        total_mem_build, mem_strs_build = mem_check_build_all(grids)
-
-        # Check memory requirements to run model
-        total_mem_run, mem_strs_run = mem_check_run_all(grids)
-
-        if total_mem_build > total_mem_run:
-            logger.info(
-                f'\nMemory required (estimated): {" + ".join(mem_strs_build)} + '
-                f"~{humanize.naturalsize(config.get_model_config().mem_overhead)} "
-                f"overhead = {humanize.naturalsize(total_mem_build)}"
-            )
-        else:
-            logger.info(
-                f'\nMemory required (estimated): {" + ".join(mem_strs_run)} + '
-                f"~{humanize.naturalsize(config.get_model_config().mem_overhead)} "
-                f"overhead = {humanize.naturalsize(total_mem_run)}"
-            )
-
-        # Build grids
-        for grid in grids:
-            # Set default CFS parameter for PMLs if not user provided
-            if not grid.pmls["cfs"]:
-                grid.pmls["cfs"] = [CFS()]
-            logger.info(print_pml_info(grid))
-            if not all(value == 0 for value in grid.pmls["thickness"].values()):
-                grid._build_pmls()
-            if grid.averagevolumeobjects:
-                grid._build_components()
-            grid._tm_grid_update()
-            grid._update_voltage_source_materials()
-            grid.initialise_field_arrays()
-            grid.initialise_std_update_coeff_arrays()
-            if config.get_model_config().materials["maxpoles"] > 0:
-                grid.initialise_dispersive_arrays()
-                grid.initialise_dispersive_update_coeff_array()
-            grid._build_materials()
-
-            # Check to see if numerical dispersion might be a problem
-            results = dispersion_analysis(grid)
-            if results["error"]:
-                logger.warning(
-                    f"\nNumerical dispersion analysis [{grid.name}] "
-                    f"not carried out as {results['error']}"
-                )
-            elif results["N"] < config.get_model_config().numdispersion["mingridsampling"]:
-                logger.exception(
-                    f"\nNon-physical wave propagation in [{grid.name}] "
-                    f"detected. Material '{results['material'].ID}' "
-                    f"has wavelength sampled by {results['N']} cells, "
-                    f"less than required minimum for physical wave "
-                    f"propagation. Maximum significant frequency "
-                    f"estimated as {results['maxfreq']:g}Hz"
-                )
-                raise ValueError
-            elif (
-                results["deltavp"]
-                and np.abs(results["deltavp"])
-                > config.get_model_config().numdispersion["maxnumericaldisp"]
-            ):
-                logger.warning(
-                    f"\n[{grid.name}] has potentially significant "
-                    f"numerical dispersion. Estimated largest physical "
-                    f"phase-velocity error is {results['deltavp']:.2f}% "
-                    f"in material '{results['material'].ID}' whose "
-                    f"wavelength sampled by {results['N']} cells. "
-                    f"Maximum significant frequency estimated as "
-                    f"{results['maxfreq']:g}Hz"
-                )
-            elif results["deltavp"]:
-                logger.info(
-                    f"\nNumerical dispersion analysis [{grid.name}]: "
-                    f"estimated largest physical phase-velocity error is "
-                    f"{results['deltavp']:.2f}% in material '{results['material'].ID}' "
-                    f"whose wavelength sampled by {results['N']} cells. "
-                    f"Maximum significant frequency estimated as "
-                    f"{results['maxfreq']:g}Hz"
-                )
+        # Set default CFS parameter for PMLs if not user provided
+        if not self.pmls["cfs"]:
+            self.pmls["cfs"] = [CFS()]
+        logger.info(print_pml_info(self))
+        if not all(value == 0 for value in self.pmls["thickness"].values()):
+            self._build_pmls()
+        if self.averagevolumeobjects:
+            self._build_components()
+        self._tm_grid_update()
+        self._create_voltage_source_materials()
+        self.initialise_field_arrays()
+        self.initialise_std_update_coeff_arrays()
+        if config.get_model_config().materials["maxpoles"] > 0:
+            self.initialise_dispersive_arrays()
+            self.initialise_dispersive_update_coeff_array()
+        self._build_materials()
 
     def _build_pmls(self) -> None:
         pbar = tqdm(
@@ -238,7 +191,7 @@ class FDTDGrid:
         elif config.get_model_config().mode == "2D TMz":
             self.tmz()
 
-    def _update_voltage_source_materials(self):
+    def _create_voltage_source_materials(self):
         # Process any voltage sources (that have resistance) to create a new
         # material at the source location
         for voltagesource in self.voltagesources:
@@ -256,36 +209,36 @@ class FDTDGrid:
         logger.info(materialstable.table)
 
     def _update_positions(
-        self, items: Iterable[Union[Source, Rx]], step_size: List[float], step_number: int
+        self, items: Iterable[Union[Source, Rx]], step_size: List[int], step_number: int
     ) -> None:
         if step_size[0] != 0 or step_size[1] != 0 or step_size[2] != 0:
             for item in items:
                 if step_number == 0:
                     if (
-                        item.xcoord + self.srcsteps[0] * config.sim_config.model_end < 0
-                        or item.xcoord + self.srcsteps[0] * config.sim_config.model_end > self.nx
-                        or item.ycoord + self.srcsteps[1] * config.sim_config.model_end < 0
-                        or item.ycoord + self.srcsteps[1] * config.sim_config.model_end > self.ny
-                        or item.zcoord + self.srcsteps[2] * config.sim_config.model_end < 0
-                        or item.zcoord + self.srcsteps[2] * config.sim_config.model_end > self.nz
+                        item.xcoord + step_size[0] * config.sim_config.model_end < 0
+                        or item.xcoord + step_size[0] * config.sim_config.model_end > self.nx
+                        or item.ycoord + step_size[1] * config.sim_config.model_end < 0
+                        or item.ycoord + step_size[1] * config.sim_config.model_end > self.ny
+                        or item.zcoord + step_size[2] * config.sim_config.model_end < 0
+                        or item.zcoord + step_size[2] * config.sim_config.model_end > self.nz
                     ):
                         raise ValueError
                 item.xcoord = item.xcoordorigin + step_number * step_size[0]
                 item.ycoord = item.ycoordorigin + step_number * step_size[1]
                 item.zcoord = item.zcoordorigin + step_number * step_size[2]
 
-    def update_simple_source_positions(self, step: int = 0) -> None:
+    def update_simple_source_positions(self, step_size: List[int], step: int = 0) -> None:
         try:
             self._update_positions(
-                itertools.chain(self.hertziandipoles, self.magneticdipoles), self.srcsteps, step
+                itertools.chain(self.hertziandipoles, self.magneticdipoles), step_size, step
             )
         except ValueError as e:
             logger.exception("Source(s) will be stepped to a position outside the domain.")
             raise ValueError from e
 
-    def update_receiver_positions(self, step: int = 0) -> None:
+    def update_receiver_positions(self, step_size: List[int], step: int = 0) -> None:
         try:
-            self._update_positions(self.rxs, self.rxsteps, step)
+            self._update_positions(self.rxs, step_size, step)
         except ValueError as e:
             logger.exception("Receiver(s) will be stepped to a position outside the domain.")
             raise ValueError from e
@@ -322,6 +275,9 @@ class FDTDGrid:
         else:
             return False
 
+    def get_waveform_by_id(self, waveform_id: str) -> Waveform:
+        return next(waveform for waveform in self.waveforms if waveform.ID == waveform_id)
+
     def initialise_geometry_arrays(self):
         """Initialise an array for volumetric material IDs (solid);
             boolean arrays for specifying whether materials can have dielectric
@@ -333,7 +289,6 @@ class FDTDGrid:
         self.rigidE = np.zeros((12, self.nx, self.ny, self.nz), dtype=np.int8)
         self.rigidH = np.zeros((6, self.nx, self.ny, self.nz), dtype=np.int8)
         self.ID = np.ones((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
-        self.IDlookup = {"Ex": 0, "Ey": 1, "Ez": 2, "Hx": 3, "Hy": 4, "Hz": 5}
 
     def initialise_field_arrays(self):
         """Initialise arrays for the electric and magnetic field components."""
@@ -556,138 +511,237 @@ class FDTDGrid:
         # binary representation of floating point number.
         self.dt = round_value(self.dt, decimalplaces=decimal.getcontext().prec - 1)
 
+    def calculate_Ix(self, x: int, y: int, z: int) -> float:
+        """Calculates the x-component of current at a grid position.
 
-def dispersion_analysis(G):
-    """Analysis of numerical dispersion (Taflove et al, 2005, p112) -
-        worse case of maximum frequency and minimum wavelength
+        Args:
+            x: x coordinate of position in grid
+            y: y coordinate of position in grid
+            z: z coordinate of position in grid
+        """
 
-    Args:
-        G: FDTDGrid class describing a grid in a model.
+        if y == 0 or z == 0:
+            Ix = 0
+        else:
+            Ix = self.dy * (self.Hy[x, y, z - 1] - self.Hy[x, y, z]) + self.dz * (
+                self.Hz[x, y, z] - self.Hz[x, y - 1, z]
+            )
 
-    Returns:
-        results: dict of results from dispersion analysis.
-    """
+        return Ix
 
-    # deltavp: physical phase velocity error (percentage)
-    # N: grid sampling density
-    # material: material with maximum permittivity
-    # maxfreq: maximum significant frequency
-    # error: error message
-    results = {"deltavp": None, "N": None, "material": None, "maxfreq": [], "error": ""}
+    def calculate_Iy(self, x: int, y: int, z: int) -> float:
+        """Calculates the y-component of current at a grid position.
 
-    # Find maximum significant frequency
-    if G.waveforms:
-        for waveform in G.waveforms:
-            if waveform.type in ["sine", "contsine"]:
-                results["maxfreq"].append(4 * waveform.freq)
+        Args:
+            x: x coordinate of position in grid
+            y: y coordinate of position in grid
+            z: z coordinate of position in grid
+        """
 
-            elif waveform.type == "impulse":
-                results["error"] = "impulse waveform used."
+        if x == 0 or z == 0:
+            Iy = 0
+        else:
+            Iy = self.dx * (self.Hx[x, y, z] - self.Hx[x, y, z - 1]) + self.dz * (
+                self.Hz[x - 1, y, z] - self.Hz[x, y, z]
+            )
 
-            elif waveform.type == "user":
-                results["error"] = "user waveform detected."
+        return Iy
 
-            else:
-                # Time to analyse waveform - 4*pulse_width as using entire
-                # time window can result in demanding FFT
-                waveform.calculate_coefficients()
-                iterations = round_value(4 * waveform.chi / G.dt)
-                iterations = min(iterations, G.iterations)
-                waveformvalues = np.zeros(G.iterations)
-                for iteration in range(G.iterations):
-                    waveformvalues[iteration] = waveform.calculate_value(iteration * G.dt, G.dt)
+    def calculate_Iz(self, x: int, y: int, z: int) -> float:
+        """Calculates the y-component of current at a grid position.
 
-                # Ensure source waveform is not being overly truncated before attempting any FFT
-                if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:
-                    # FFT
-                    freqs, power = fft_power(waveformvalues, G.dt)
-                    # Get frequency for max power
-                    freqmaxpower = np.where(np.isclose(power, 0))[0][0]
+        Args:
+            x: x coordinate of position in grid
+            y: y coordinate of position in grid
+            z: z coordinate of position in grid
+        """
 
-                    # Set maximum frequency to a threshold drop from maximum power, ignoring DC value
-                    try:
-                        freqthres = (
-                            np.where(
-                                power[freqmaxpower:]
-                                < -config.get_model_config().numdispersion["highestfreqthres"]
-                            )[0][0]
-                            + freqmaxpower
-                        )
-                        results["maxfreq"].append(freqs[freqthres])
-                    except ValueError:
-                        results["error"] = (
-                            "unable to calculate maximum power "
-                            + "from waveform, most likely due to "
-                            + "undersampling."
-                        )
+        if x == 0 or y == 0:
+            Iz = 0
+        else:
+            Iz = self.dx * (self.Hx[x, y - 1, z] - self.Hx[x, y, z]) + self.dy * (
+                self.Hy[x, y, z] - self.Hy[x - 1, y, z]
+            )
 
-                # Ignore case where someone is using a waveform with zero amplitude, i.e. on a receiver
-                elif waveform.amp == 0:
-                    pass
+        return Iz
 
-                # If waveform is truncated don't do any further analysis
-                else:
-                    results["error"] = (
-                        "waveform does not fit within specified "
-                        + "time window and is therefore being truncated."
-                    )
-    else:
-        results["error"] = "no waveform detected."
-
-    if results["maxfreq"]:
-        results["maxfreq"] = max(results["maxfreq"])
-
-        # Find minimum wavelength (material with maximum permittivity)
-        maxer = 0
-        matmaxer = ""
-        for x in G.materials:
-            if x.se != float("inf"):
-                er = x.er
-                # If there are dispersive materials calculate the complex
-                # relative permittivity at maximum frequency and take the real part
-                if x.__class__.__name__ == "DispersiveMaterial":
-                    er = x.calculate_er(results["maxfreq"])
-                    er = er.real
-                if er > maxer:
-                    maxer = er
-                    matmaxer = x.ID
-        results["material"] = next(x for x in G.materials if x.ID == matmaxer)
-
-        # Minimum velocity
-        minvelocity = config.c / np.sqrt(maxer)
-
-        # Minimum wavelength
-        minwavelength = minvelocity / results["maxfreq"]
-
-        # Maximum spatial step
-        if "3D" in config.get_model_config().mode:
-            delta = max(G.dx, G.dy, G.dz)
-        elif "2D" in config.get_model_config().mode:
-            if G.nx == 1:
-                delta = max(G.dy, G.dz)
-            elif G.ny == 1:
-                delta = max(G.dx, G.dz)
-            elif G.nz == 1:
-                delta = max(G.dx, G.dy)
-
-        # Courant stability factor
-        S = (config.c * G.dt) / delta
-
-        # Grid sampling density
-        results["N"] = minwavelength / delta
-
-        # Check grid sampling will result in physical wave propagation
-        if (
-            int(np.floor(results["N"]))
-            >= config.get_model_config().numdispersion["mingridsampling"]
+    def dispersion_analysis(self, iterations: int):
+        # Check to see if numerical dispersion might be a problem
+        results = self._dispersion_analysis(iterations)
+        if results["error"]:
+            logger.warning(
+                f"\nNumerical dispersion analysis [{self.name}] "
+                f"not carried out as {results['error']}"
+            )
+        elif results["N"] < config.get_model_config().numdispersion["mingridsampling"]:
+            logger.exception(
+                f"\nNon-physical wave propagation in [{self.name}] "
+                f"detected. Material '{results['material'].ID}' "
+                f"has wavelength sampled by {results['N']} cells, "
+                f"less than required minimum for physical wave "
+                f"propagation. Maximum significant frequency "
+                f"estimated as {results['maxfreq']:g}Hz"
+            )
+            raise ValueError
+        elif (
+            results["deltavp"]
+            and np.abs(results["deltavp"])
+            > config.get_model_config().numdispersion["maxnumericaldisp"]
         ):
-            # Numerical phase velocity
-            vp = np.pi / (results["N"] * np.arcsin((1 / S) * np.sin((np.pi * S) / results["N"])))
+            logger.warning(
+                f"\n[{self.name}] has potentially significant "
+                f"numerical dispersion. Estimated largest physical "
+                f"phase-velocity error is {results['deltavp']:.2f}% "
+                f"in material '{results['material'].ID}' whose "
+                f"wavelength sampled by {results['N']} cells. "
+                f"Maximum significant frequency estimated as "
+                f"{results['maxfreq']:g}Hz"
+            )
+        elif results["deltavp"]:
+            logger.info(
+                f"\nNumerical dispersion analysis [{self.name}]: "
+                f"estimated largest physical phase-velocity error is "
+                f"{results['deltavp']:.2f}% in material '{results['material'].ID}' "
+                f"whose wavelength sampled by {results['N']} cells. "
+                f"Maximum significant frequency estimated as "
+                f"{results['maxfreq']:g}Hz"
+            )
 
-            # Physical phase velocity error (percentage)
-            results["deltavp"] = (((vp * config.c) - config.c) / config.c) * 100
+    def _dispersion_analysis(self, iterations: int):
+        """Analysis of numerical dispersion (Taflove et al, 2005, p112) -
+            worse case of maximum frequency and minimum wavelength
 
-        # Store rounded down value of grid sampling density
-        results["N"] = int(np.floor(results["N"]))
+        Args:
+            G: FDTDGrid class describing a grid in a model.
 
-    return results
+        Returns:
+            results: dict of results from dispersion analysis.
+        """
+
+        # deltavp: physical phase velocity error (percentage)
+        # N: grid sampling density
+        # material: material with maximum permittivity
+        # maxfreq: maximum significant frequency
+        # error: error message
+        results = {"deltavp": None, "N": None, "material": None, "maxfreq": [], "error": ""}
+
+        # Find maximum significant frequency
+        if self.waveforms:
+            for waveform in self.waveforms:
+                if waveform.type in ["sine", "contsine"]:
+                    results["maxfreq"].append(4 * waveform.freq)
+
+                elif waveform.type == "impulse":
+                    results["error"] = "impulse waveform used."
+
+                elif waveform.type == "user":
+                    results["error"] = "user waveform detected."
+
+                else:
+                    # Time to analyse waveform - 4*pulse_width as using entire
+                    # time window can result in demanding FFT
+                    waveform.calculate_coefficients()
+                    iterations = round_value(4 * waveform.chi / self.dt)
+                    iterations = min(iterations, iterations)
+                    waveformvalues = np.zeros(iterations)
+                    for iteration in range(iterations):
+                        waveformvalues[iteration] = waveform.calculate_value(
+                            iteration * self.dt, self.dt
+                        )
+
+                    # Ensure source waveform is not being overly truncated before attempting any FFT
+                    if np.abs(waveformvalues[-1]) < np.abs(np.amax(waveformvalues)) / 100:
+                        # FFT
+                        freqs, power = fft_power(waveformvalues, self.dt)
+                        # Get frequency for max power
+                        freqmaxpower = np.where(np.isclose(power, 0))[0][0]
+
+                        # Set maximum frequency to a threshold drop from maximum power, ignoring DC value
+                        try:
+                            freqthres = (
+                                np.where(
+                                    power[freqmaxpower:]
+                                    < -config.get_model_config().numdispersion["highestfreqthres"]
+                                )[0][0]
+                                + freqmaxpower
+                            )
+                            results["maxfreq"].append(freqs[freqthres])
+                        except ValueError:
+                            results["error"] = (
+                                "unable to calculate maximum power "
+                                + "from waveform, most likely due to "
+                                + "undersampling."
+                            )
+
+                    # Ignore case where someone is using a waveform with zero amplitude, i.e. on a receiver
+                    elif waveform.amp == 0:
+                        pass
+
+                    # If waveform is truncated don't do any further analysis
+                    else:
+                        results["error"] = (
+                            "waveform does not fit within specified "
+                            + "time window and is therefore being truncated."
+                        )
+        else:
+            results["error"] = "no waveform detected."
+
+        if results["maxfreq"]:
+            results["maxfreq"] = max(results["maxfreq"])
+
+            # Find minimum wavelength (material with maximum permittivity)
+            maxer = 0
+            matmaxer = ""
+            for x in self.materials:
+                if x.se != float("inf"):
+                    er = x.er
+                    # If there are dispersive materials calculate the complex
+                    # relative permittivity at maximum frequency and take the real part
+                    if x.__class__.__name__ == "DispersiveMaterial":
+                        er = x.calculate_er(results["maxfreq"])
+                        er = er.real
+                    if er > maxer:
+                        maxer = er
+                        matmaxer = x.ID
+            results["material"] = next(x for x in self.materials if x.ID == matmaxer)
+
+            # Minimum velocity
+            minvelocity = config.c / np.sqrt(maxer)
+
+            # Minimum wavelength
+            minwavelength = minvelocity / results["maxfreq"]
+
+            # Maximum spatial step
+            if "3D" in config.get_model_config().mode:
+                delta = max(self.dx, self.dy, self.dz)
+            elif "2D" in config.get_model_config().mode:
+                if self.nx == 1:
+                    delta = max(self.dy, self.dz)
+                elif self.ny == 1:
+                    delta = max(self.dx, self.dz)
+                elif self.nz == 1:
+                    delta = max(self.dx, self.dy)
+
+            # Courant stability factor
+            S = (config.c * self.dt) / delta
+
+            # Grid sampling density
+            results["N"] = minwavelength / delta
+
+            # Check grid sampling will result in physical wave propagation
+            if (
+                int(np.floor(results["N"]))
+                >= config.get_model_config().numdispersion["mingridsampling"]
+            ):
+                # Numerical phase velocity
+                vp = np.pi / (
+                    results["N"] * np.arcsin((1 / S) * np.sin((np.pi * S) / results["N"]))
+                )
+
+                # Physical phase velocity error (percentage)
+                results["deltavp"] = (((vp * config.c) - config.c) / config.c) * 100
+
+            # Store rounded down value of grid sampling density
+            results["N"] = int(np.floor(results["N"]))
+
+        return results

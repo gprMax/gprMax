@@ -21,7 +21,6 @@ import logging
 import numpy as np
 
 from ..cython.geometry_primitives import build_cylindrical_sector
-from ..hash_cmds_geometry import check_averaging
 from ..materials import Material
 from .cmds_geometry import UserObjectGeometry
 
@@ -75,7 +74,6 @@ class CylindricalSector(UserObjectGeometry):
         try:
             # Try user-specified averaging
             averagecylindricalsector = self.kwargs["averaging"]
-            averagecylindricalsector = check_averaging(averagecylindricalsector)
         except KeyError:
             # Otherwise go with the grid default
             averagecylindricalsector = grid.averagevolumeobjects
@@ -101,10 +99,14 @@ class CylindricalSector(UserObjectGeometry):
         if r <= 0:
             logger.exception(f"{self.__str__()} the radius {r:g} should be a positive value.")
         if sectorstartangle < 0 or sectorangle <= 0:
-            logger.exception(f"{self.__str__()} the starting angle and sector angle should be a positive values.")
+            logger.exception(
+                f"{self.__str__()} the starting angle and sector angle should be a positive values."
+            )
             raise ValueError
         if sectorstartangle >= 2 * np.pi or sectorangle >= 2 * np.pi:
-            logger.exception(f"{self.__str__()} the starting angle and sector angle must be less than 360 degrees.")
+            logger.exception(
+                f"{self.__str__()} the starting angle and sector angle must be less than 360 degrees."
+            )
             raise ValueError
 
         # Look up requested materials in existing list of material instances

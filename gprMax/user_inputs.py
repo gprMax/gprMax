@@ -15,14 +15,17 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
+from __future__ import annotations
 
 import logging
+from typing import Generic
 
 import numpy as np
+from typing_extensions import TypeVar
 
-import gprMax.config as config
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.subgrids.grid import SubGridBaseGrid
 
-from .subgrids.grid import SubGridBaseGrid
 from .utilities.utilities import round_value
 
 logger = logging.getLogger(__name__)
@@ -36,28 +39,13 @@ logger = logging.getLogger(__name__)
     encapulsated here.
 """
 
-
-def create_user_input_points(grid, user_obj):
-    """Returns a point checker class based on the grid supplied."""
-
-    if isinstance(grid, SubGridBaseGrid):
-        # Local object configuration trumps. User can turn off autotranslate for
-        # specific objects.
-        if not user_obj.autotranslate and config.sim_config.args.autotranslate:
-            return MainGridUserInput(grid)
-
-        if config.sim_config.args.autotranslate:
-            return SubgridUserInput(grid)
-        else:
-            return MainGridUserInput(grid)
-    else:
-        return MainGridUserInput(grid)
+GridType = TypeVar("GridType", bound=FDTDGrid, default=FDTDGrid)
 
 
-class UserInput:
+class UserInput(Generic[GridType]):
     """Handles (x, y, z) points supplied by the user."""
 
-    def __init__(self, grid):
+    def __init__(self, grid: GridType):
         self.grid = grid
 
     def point_within_bounds(self, p, cmd_str, name):
@@ -92,7 +80,7 @@ class UserInput:
         return p * self.grid.dl
 
 
-class MainGridUserInput(UserInput):
+class MainGridUserInput(UserInput[GridType]):
     """Handles (x, y, z) points supplied by the user in the main grid."""
 
     def __init__(self, grid):
@@ -108,7 +96,9 @@ class MainGridUserInput(UserInput):
         p = self.check_point(p, cmd_str, name)
 
         if self.grid.within_pml(p):
-            logger.warning(f"'{cmd_str}' sources and receivers should not normally be positioned within the PML.")
+            logger.warning(
+                f"'{cmd_str}' sources and receivers should not normally be positioned within the PML."
+            )
 
         return p
 
@@ -117,7 +107,9 @@ class MainGridUserInput(UserInput):
         p2 = self.check_point(p2, cmd_str, name="upper")
 
         if np.greater(p1, p2).any():
-            logger.exception(f"'{cmd_str}' the lower coordinates should be less than the upper coordinates.")
+            logger.exception(
+                f"'{cmd_str}' the lower coordinates should be less than the upper coordinates."
+            )
             raise ValueError
 
         return p1, p2
@@ -142,7 +134,7 @@ class MainGridUserInput(UserInput):
         return super().discretise_point(p) * self.grid.dl
 
 
-class SubgridUserInput(MainGridUserInput):
+class SubgridUserInput(MainGridUserInput[SubGridBaseGrid]):
     """Handles (x, y, z) points supplied by the user in the subgrid.
     This class autotranslates points from main grid to subgrid equivalent
     (within IS). Useful if material traverse is not required.
@@ -152,7 +144,9 @@ class SubgridUserInput(MainGridUserInput):
         super().__init__(grid)
 
         # Defines the region exposed to the user
-        self.inner_bound = np.array([grid.n_boundary_cells_x, grid.n_boundary_cells_y, grid.n_boundary_cells_z])
+        self.inner_bound = np.array(
+            [grid.n_boundary_cells_x, grid.n_boundary_cells_y, grid.n_boundary_cells_z]
+        )
 
         self.outer_bound = np.subtract([grid.nx, grid.ny, grid.nz], self.inner_bound)
 
@@ -186,7 +180,9 @@ class SubgridUserInput(MainGridUserInput):
         # Provide user within a warning if they have placed objects within
         # the OS non-working region.
         if np.less(p_t, self.inner_bound).any() or np.greater(p_t, self.outer_bound).any():
-            logger.warning(f"'{cmd_str}' this object traverses the Outer Surface. This is an advanced feature.")
+            logger.warning(
+                f"'{cmd_str}' this object traverses the Outer Surface. This is an advanced feature."
+            )
         return p_t
 
     def discretise_static_point(self, p):

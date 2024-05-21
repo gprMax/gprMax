@@ -21,8 +21,8 @@ from copy import deepcopy
 import numpy as np
 
 import gprMax.config as config
+from gprMax.waveforms import Waveform
 
-from .fields_outputs import Ix, Iy, Iz
 from .utilities.utilities import round_value
 
 
@@ -30,40 +30,44 @@ class Source:
     """Super-class which describes a generic source."""
 
     def __init__(self):
-        self.ID = None
+        self.ID: str
         self.polarisation = None
-        self.xcoord = None
-        self.ycoord = None
-        self.zcoord = None
-        self.xcoordorigin = None
-        self.ycoordorigin = None
-        self.zcoordorigin = None
-        self.start = None
-        self.stop = None
-        self.waveformID = None
+        self.xcoord: int
+        self.ycoord: int
+        self.zcoord: int
+        self.xcoordorigin: int
+        self.ycoordorigin: int
+        self.zcoordorigin: int
+        self.start = 0.0
+        self.stop = 0.0
+        self.waveform: Waveform
 
-    def calculate_waveform_values(self, G):
+    def calculate_waveform_values(self, iterations: int, dt: float):
         """Calculates all waveform values for source for duration of simulation.
 
         Args:
             G: FDTDGrid class describing a grid in a model.
         """
         # Waveform values for sources that need to be calculated on whole timesteps
-        self.waveformvalues_wholedt = np.zeros((G.iterations), dtype=config.sim_config.dtypes["float_or_double"])
+        self.waveformvalues_wholedt = np.zeros(
+            iterations, dtype=config.sim_config.dtypes["float_or_double"]
+        )
 
         # Waveform values for sources that need to be calculated on half timesteps
-        self.waveformvalues_halfdt = np.zeros((G.iterations), dtype=config.sim_config.dtypes["float_or_double"])
+        self.waveformvalues_halfdt = np.zeros(
+            iterations, dtype=config.sim_config.dtypes["float_or_double"]
+        )
 
-        waveform = next(x for x in G.waveforms if x.ID == self.waveformID)
-
-        for iteration in range(G.iterations):
-            time = G.dt * iteration
+        for iteration in range(iterations):
+            time = dt * iteration
             if time >= self.start and time <= self.stop:
                 # Set the time of the waveform evaluation to account for any
                 # delay in the start
                 time -= self.start
-                self.waveformvalues_wholedt[iteration] = waveform.calculate_value(time, G.dt)
-                self.waveformvalues_halfdt[iteration] = waveform.calculate_value(time + 0.5 * G.dt, G.dt)
+                self.waveformvalues_wholedt[iteration] = self.waveform.calculate_value(time, dt)
+                self.waveformvalues_halfdt[iteration] = self.waveform.calculate_value(
+                    time + 0.5 * dt, dt
+                )
 
 
 class VoltageSource(Source):
@@ -166,7 +170,7 @@ class HertzianDipole(Source):
 
     def __init__(self):
         super().__init__()
-        self.dl = None
+        self.dl = 0.0
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
         """Updates electric field values for a Hertzian dipole.
@@ -274,7 +278,9 @@ def htod_src_arrays(sources, G, queue=None):
 
     srcinfo1 = np.zeros((len(sources), 4), dtype=np.int32)
     srcinfo2 = np.zeros((len(sources)), dtype=config.sim_config.dtypes["float_or_double"])
-    srcwaves = np.zeros((len(sources), G.iterations), dtype=config.sim_config.dtypes["float_or_double"])
+    srcwaves = np.zeros(
+        (len(sources), G.iterations), dtype=config.sim_config.dtypes["float_or_double"]
+    )
     for i, src in enumerate(sources):
         srcinfo1[i, 0] = src.xcoord
         srcinfo1[i, 1] = src.ycoord
@@ -324,14 +330,16 @@ class TransmissionLine(Source):
     which is attached virtually to a grid cell.
     """
 
-    def __init__(self, G):
+    def __init__(self, iterations: int, dt: float):
         """
         Args:
-            G: FDTDGrid class describing a grid in a model.
+            iterations: number of iterations
+            dt: time step of the grid
         """
 
         super().__init__()
         self.resistance = None
+        self.iterations = iterations
 
         # Coefficients for ABC termination of end of the transmission line
         self.abcv0 = 0
@@ -339,11 +347,11 @@ class TransmissionLine(Source):
 
         # Spatial step of transmission line (N.B if the magic time step is
         # used it results in instabilities for certain impedances)
-        self.dl = np.sqrt(3) * config.c * G.dt
+        self.dl = np.sqrt(3) * config.c * dt
 
         # Number of cells in the transmission line (initially a long line to
         # calculate incident voltage and current); consider putting ABCs/PML at end
-        self.nl = round_value(0.667 * G.iterations)
+        self.nl = round_value(0.667 * self.iterations)
 
         # Cell position of the one-way injector excitation in the transmission line
         self.srcpos = 5
@@ -353,10 +361,10 @@ class TransmissionLine(Source):
 
         self.voltage = np.zeros(self.nl, dtype=config.sim_config.dtypes["float_or_double"])
         self.current = np.zeros(self.nl, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Vinc = np.zeros(G.iterations, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Iinc = np.zeros(G.iterations, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Vtotal = np.zeros(G.iterations, dtype=config.sim_config.dtypes["float_or_double"])
-        self.Itotal = np.zeros(G.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Vinc = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Iinc = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Vtotal = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
+        self.Itotal = np.zeros(self.iterations, dtype=config.sim_config.dtypes["float_or_double"])
 
     def calculate_incident_V_I(self, G):
         """Calculates the incident voltage and current with a long length
@@ -367,7 +375,7 @@ class TransmissionLine(Source):
             G: FDTDGrid class describing a grid in a model.
         """
 
-        for iteration in range(G.iterations):
+        for iteration in range(self.iterations):
             self.Iinc[iteration] = self.current[self.antpos]
             self.Vinc[iteration] = self.voltage[self.antpos]
             self.update_current(iteration, G)
@@ -399,11 +407,15 @@ class TransmissionLine(Source):
 
         # Update all the voltage values along the line
         self.voltage[1 : self.nl] -= (
-            self.resistance * (config.c * G.dt / self.dl) * (self.current[1 : self.nl] - self.current[0 : self.nl - 1])
+            self.resistance
+            * (config.c * G.dt / self.dl)
+            * (self.current[1 : self.nl] - self.current[0 : self.nl - 1])
         )
 
         # Update the voltage at the position of the one-way injector excitation
-        self.voltage[self.srcpos] += (config.c * G.dt / self.dl) * self.waveformvalues_halfdt[iteration]
+        self.voltage[self.srcpos] += (config.c * G.dt / self.dl) * self.waveformvalues_halfdt[
+            iteration
+        ]
 
         # Update ABC before updating current
         self.update_abc(G)
@@ -425,7 +437,9 @@ class TransmissionLine(Source):
 
         # Update the current one cell before the position of the one-way injector excitation
         self.current[self.srcpos - 1] += (
-            (1 / self.resistance) * (config.c * G.dt / self.dl) * self.waveformvalues_wholedt[iteration]
+            (1 / self.resistance)
+            * (config.c * G.dt / self.dl)
+            * self.waveformvalues_wholedt[iteration]
         )
 
     def update_electric(self, iteration, updatecoeffsE, ID, Ex, Ey, Ez, G):
@@ -458,6 +472,7 @@ class TransmissionLine(Source):
             elif self.polarisation == "z":
                 Ez[i, j, k] = -self.voltage[self.antpos] / G.dz
 
+    # TODO: Add type information (if can avoid circular dependency)
     def update_magnetic(self, iteration, updatecoeffsH, ID, Hx, Hy, Hz, G):
         """Updates current value in transmission line from magnetic field values
             in the main grid.
@@ -478,12 +493,12 @@ class TransmissionLine(Source):
             k = self.zcoord
 
             if self.polarisation == "x":
-                self.current[self.antpos] = Ix(i, j, k, G.Hx, G.Hy, G.Hz, G)
+                self.current[self.antpos] = G.calculate_Ix(i, j, k)
 
             elif self.polarisation == "y":
-                self.current[self.antpos] = Iy(i, j, k, G.Hx, G.Hy, G.Hz, G)
+                self.current[self.antpos] = G.calculate_Iy(i, j, k)
 
             elif self.polarisation == "z":
-                self.current[self.antpos] = Iz(i, j, k, G.Hx, G.Hy, G.Hz, G)
+                self.current[self.antpos] = G.calculate_Iz(i, j, k)
 
             self.update_current(iteration, G)

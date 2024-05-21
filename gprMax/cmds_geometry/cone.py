@@ -21,7 +21,6 @@ import logging
 import numpy as np
 
 from ..cython.geometry_primitives import build_cone
-from ..hash_cmds_geometry import check_averaging
 from ..materials import Material
 from .cmds_geometry import UserObjectGeometry
 
@@ -63,7 +62,6 @@ class Cone(UserObjectGeometry):
         try:
             # Try user-specified averaging
             averagecone = self.kwargs["averaging"]
-            averagecone = check_averaging(averagecone)
         except KeyError:
             # Otherwise go with the grid default
             averagecone = grid.averagevolumeobjects
@@ -87,11 +85,15 @@ class Cone(UserObjectGeometry):
         x2, y2, z2 = uip.round_to_grid(p2)
 
         if r1 < 0:
-            logger.exception(f"{self.__str__()} the radius of the first face {r1:g} should be a positive value.")
+            logger.exception(
+                f"{self.__str__()} the radius of the first face {r1:g} should be a positive value."
+            )
             raise ValueError
 
         if r2 < 0:
-            logger.exception(f"{self.__str__()} the radius of the second face {r2:g} should be a positive value.")
+            logger.exception(
+                f"{self.__str__()} the radius of the second face {r2:g} should be a positive value."
+            )
             raise ValueError
 
         if r1 == 0 and r2 == 0:

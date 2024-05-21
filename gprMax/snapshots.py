@@ -19,6 +19,7 @@
 import logging
 import sys
 from pathlib import Path
+from typing import Dict
 
 import h5py
 import numpy as np
@@ -55,7 +56,9 @@ def save_snapshots(grid):
             leave=True,
             unit="byte",
             unit_scale=True,
-            desc=f"Writing snapshot file {i + 1} " f"of {len(grid.snapshots)}, " f"{snap.filename.name}",
+            desc=f"Writing snapshot file {i + 1} "
+            f"of {len(grid.snapshots)}, "
+            f"{snap.filename.name}",
             ncols=get_terminal_width() - 1,
             file=sys.stdout,
             disable=not config.sim_config.general["progressbars"],
@@ -86,19 +89,19 @@ class Snapshot:
 
     def __init__(
         self,
-        xs=None,
-        ys=None,
-        zs=None,
-        xf=None,
-        yf=None,
-        zf=None,
-        dx=None,
-        dy=None,
-        dz=None,
-        time=None,
-        filename=None,
-        fileext=None,
-        outputs=None,
+        xs: int,
+        ys: int,
+        zs: int,
+        xf: int,
+        yf: int,
+        zf: int,
+        dx: int,
+        dy: int,
+        dz: int,
+        time: int,
+        filename: str,
+        fileext: str,
+        outputs: Dict[str, bool],
     ):
         """
         Args:
@@ -142,7 +145,9 @@ class Snapshot:
             else:
                 # If output is not required for snapshot just use a mimimal
                 # size of array - still required to pass to Cython function
-                self.snapfields[k] = np.zeros((1, 1, 1), dtype=config.sim_config.dtypes["float_or_double"])
+                self.snapfields[k] = np.zeros(
+                    (1, 1, 1), dtype=config.sim_config.dtypes["float_or_double"]
+                )
 
     def store(self, G):
         """Store (in memory) electric and magnetic field values for snapshot.
@@ -186,7 +191,7 @@ class Snapshot:
             self.snapfields["Hz"],
         )
 
-    def write_file(self, pbar, G):
+    def write_file(self, pbar: tqdm, G):
         """Writes snapshot file either as VTK ImageData (.vti) format
             or HDF5 format (.h5) files
 
@@ -200,7 +205,7 @@ class Snapshot:
         elif self.fileext == ".h5":
             self.write_hdf5(pbar, G)
 
-    def write_vtk(self, pbar, G):
+    def write_vtk(self, pbar: tqdm, G):
         """Writes snapshot file in VTK ImageData (.vti) format.
 
         Args:
@@ -208,11 +213,19 @@ class Snapshot:
             G: FDTDGrid class describing a grid in a model.
         """
 
-        celldata = {k: self.snapfields[k] for k in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"] if self.outputs.get(k)}
+        celldata = {
+            k: self.snapfields[k]
+            for k in ["Ex", "Ey", "Ez", "Hx", "Hy", "Hz"]
+            if self.outputs.get(k)
+        }
 
         imageToVTK(
             str(self.filename.with_suffix("")),
-            origin=((self.xs * self.dx * G.dx), (self.ys * self.dy * G.dy), (self.zs * self.dz * G.dz)),
+            origin=(
+                (self.xs * self.dx * G.dx),
+                (self.ys * self.dy * G.dy),
+                (self.zs * self.dz * G.dz),
+            ),
             spacing=((self.dx * G.dx), (self.dy * G.dy), (self.dz * G.dz)),
             cellData=celldata,
         )
@@ -225,7 +238,7 @@ class Snapshot:
             * np.dtype(config.sim_config.dtypes["float_or_double"]).itemsize
         )
 
-    def write_hdf5(self, pbar, G):
+    def write_hdf5(self, pbar: tqdm, G):
         """Writes snapshot file in HDF5 (.h5) format.
 
         Args:
@@ -235,7 +248,8 @@ class Snapshot:
 
         f = h5py.File(self.filename, "w")
         f.attrs["gprMax"] = __version__
-        f.attrs["Title"] = G.title
+        # TODO: Output model name (title) and grid name? in snapshot output
+        # f.attrs["Title"] = G.title
         f.attrs["nx_ny_nz"] = (self.nx, self.ny, self.nz)
         f.attrs["dx_dy_dz"] = (self.dx * G.dx, self.dy * G.dy, self.dz * G.dz)
         f.attrs["time"] = self.time * G.dt
@@ -271,35 +285,49 @@ def htod_snapshot_array(G, queue=None):
     if config.sim_config.general["solver"] == "cuda":
         # Blocks per grid - according to largest requested snapshot
         Snapshot.bpg = (
-            int(np.ceil(((Snapshot.nx_max) * (Snapshot.ny_max) * (Snapshot.nz_max)) / Snapshot.tpb[0])),
+            int(
+                np.ceil(
+                    ((Snapshot.nx_max) * (Snapshot.ny_max) * (Snapshot.nz_max)) / Snapshot.tpb[0]
+                )
+            ),
             1,
             1,
         )
     elif config.sim_config.general["solver"] == "opencl":
         # Workgroup size - according to largest requested snapshot
-        Snapshot.wgs = (int(np.ceil(((Snapshot.nx_max) * (Snapshot.ny_max) * (Snapshot.nz_max)))), 1, 1)
+        Snapshot.wgs = (
+            int(np.ceil(((Snapshot.nx_max) * (Snapshot.ny_max) * (Snapshot.nz_max)))),
+            1,
+            1,
+        )
 
     # 4D arrays to store snapshots on GPU, e.g. snapEx(time, x, y, z);
     # if snapshots are not being stored on the GPU during the simulation then
     # they are copied back to the host after each iteration, hence numsnaps = 1
     numsnaps = 1 if config.get_model_config().device["snapsgpu2cpu"] else len(G.snapshots)
     snapEx = np.zeros(
-        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=config.sim_config.dtypes["float_or_double"]
+        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+        dtype=config.sim_config.dtypes["float_or_double"],
     )
     snapEy = np.zeros(
-        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=config.sim_config.dtypes["float_or_double"]
+        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+        dtype=config.sim_config.dtypes["float_or_double"],
     )
     snapEz = np.zeros(
-        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=config.sim_config.dtypes["float_or_double"]
+        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+        dtype=config.sim_config.dtypes["float_or_double"],
     )
     snapHx = np.zeros(
-        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=config.sim_config.dtypes["float_or_double"]
+        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+        dtype=config.sim_config.dtypes["float_or_double"],
     )
     snapHy = np.zeros(
-        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=config.sim_config.dtypes["float_or_double"]
+        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+        dtype=config.sim_config.dtypes["float_or_double"],
     )
     snapHz = np.zeros(
-        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max), dtype=config.sim_config.dtypes["float_or_double"]
+        (numsnaps, Snapshot.nx_max, Snapshot.ny_max, Snapshot.nz_max),
+        dtype=config.sim_config.dtypes["float_or_double"],
     )
 
     # Copy arrays to compute device
@@ -326,7 +354,9 @@ def htod_snapshot_array(G, queue=None):
     return snapEx_dev, snapEy_dev, snapEz_dev, snapHx_dev, snapHy_dev, snapHz_dev
 
 
-def dtoh_snapshot_array(snapEx_dev, snapEy_dev, snapEz_dev, snapHx_dev, snapHy_dev, snapHz_dev, i, snap):
+def dtoh_snapshot_array(
+    snapEx_dev, snapEy_dev, snapEz_dev, snapHx_dev, snapHy_dev, snapHz_dev, i, snap
+):
     """Copies snapshot array used on compute device back to snapshot objects and
         store in format for Paraview.
 

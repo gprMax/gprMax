@@ -116,16 +116,24 @@ class FractalBox(UserObjectGeometry):
         xf, yf, zf = p2
 
         if frac_dim < 0:
-            logger.exception(f"{self.__str__()} requires a positive value for the fractal dimension")
+            logger.exception(
+                f"{self.__str__()} requires a positive value for the fractal dimension"
+            )
             raise ValueError
         if weighting[0] < 0:
-            logger.exception(f"{self.__str__()} requires a positive value for the fractal weighting in the x direction")
+            logger.exception(
+                f"{self.__str__()} requires a positive value for the fractal weighting in the x direction"
+            )
             raise ValueError
         if weighting[1] < 0:
-            logger.exception(f"{self.__str__()} requires a positive value for the fractal weighting in the y direction")
+            logger.exception(
+                f"{self.__str__()} requires a positive value for the fractal weighting in the y direction"
+            )
             raise ValueError
         if weighting[2] < 0:
-            logger.exception(f"{self.__str__()} requires a positive value for the fractal weighting in the z direction")
+            logger.exception(
+                f"{self.__str__()} requires a positive value for the fractal weighting in the z direction"
+            )
         if n_materials < 0:
             logger.exception(f"{self.__str__()} requires a positive value for the number of bins")
             raise ValueError
@@ -138,18 +146,25 @@ class FractalBox(UserObjectGeometry):
 
         if mixingmodel:
             if nbins == 1:
-                logger.exception(f"{self.__str__()} must be used with more than one material from the mixing model.")
+                logger.exception(
+                    f"{self.__str__()} must be used with more than one material from the mixing model."
+                )
                 raise ValueError
             if isinstance(mixingmodel, ListMaterial) and nbins > len(mixingmodel.mat):
                 logger.exception(
-                    f"{self.__str__()} too many materials/bins " "requested compared to materials in " "mixing model."
+                    f"{self.__str__()} too many materials/bins "
+                    "requested compared to materials in "
+                    "mixing model."
                 )
                 raise ValueError
             # Create materials from mixing model as number of bins now known
             # from fractal_box command.
             mixingmodel.calculate_properties(nbins, grid)
         elif not material:
-            logger.exception(f"{self.__str__()} mixing model or material with " + "ID {mixing_model_id} does not exist")
+            logger.exception(
+                f"{self.__str__()} mixing model or material with "
+                + "ID {mixing_model_id} does not exist"
+            )
             raise ValueError
 
         self.volume = FractalVolume(xs, xf, ys, yf, zs, zf, frac_dim, seed)
@@ -221,7 +236,9 @@ class FractalBox(UserObjectGeometry):
                         (self.volume.nx, self.volume.ny, self.volume.nz),
                         dtype=config.sim_config.dtypes["float_or_double"],
                     )
-                    materialnumID = next(x.numID for x in grid.materials if x.ID == self.volume.operatingonID)
+                    materialnumID = next(
+                        x.numID for x in grid.materials if x.ID == self.volume.operatingonID
+                    )
                     self.volume.fractalvolume *= materialnumID
                 else:
                     self.volume.generate_fractal_volume()
@@ -229,7 +246,9 @@ class FractalBox(UserObjectGeometry):
                         for j in range(0, self.volume.ny):
                             for k in range(0, self.volume.nz):
                                 numberinbin = self.volume.fractalvolume[i, j, k]
-                                self.volume.fractalvolume[i, j, k] = self.volume.mixingmodel.matID[int(numberinbin)]
+                                self.volume.fractalvolume[i, j, k] = self.volume.mixingmodel.matID[
+                                    int(numberinbin)
+                                ]
 
                 self.volume.generate_volume_mask()
 
@@ -242,28 +261,49 @@ class FractalBox(UserObjectGeometry):
                             for j in range(surface.ys, surface.yf):
                                 for k in range(surface.zs, surface.zf):
                                     if i > surface.fractalsurface[j - surface.ys, k - surface.zs]:
-                                        self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 1
+                                        self.volume.mask[
+                                            i - self.volume.xs,
+                                            j - self.volume.ys,
+                                            k - self.volume.zs,
+                                        ] = 1
                                     elif surface.filldepth > 0 and i > surface.filldepth:
-                                        self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 2
+                                        self.volume.mask[
+                                            i - self.volume.xs,
+                                            j - self.volume.ys,
+                                            k - self.volume.zs,
+                                        ] = 2
                                     else:
-                                        self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 0
+                                        self.volume.mask[
+                                            i - self.volume.xs,
+                                            j - self.volume.ys,
+                                            k - self.volume.zs,
+                                        ] = 0
 
                     elif surface.surfaceID == "xplus":
                         if not surface.ID:
                             for i in range(surface.fractalrange[0], surface.fractalrange[1]):
                                 for j in range(surface.ys, surface.yf):
                                     for k in range(surface.zs, surface.zf):
-                                        if i < surface.fractalsurface[j - surface.ys, k - surface.zs]:
+                                        if (
+                                            i
+                                            < surface.fractalsurface[j - surface.ys, k - surface.zs]
+                                        ):
                                             self.volume.mask[
-                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                i - self.volume.xs,
+                                                j - self.volume.ys,
+                                                k - self.volume.zs,
                                             ] = 1
                                         elif surface.filldepth > 0 and i < surface.filldepth:
                                             self.volume.mask[
-                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                i - self.volume.xs,
+                                                j - self.volume.ys,
+                                                k - self.volume.zs,
                                             ] = 2
                                         else:
                                             self.volume.mask[
-                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                i - self.volume.xs,
+                                                j - self.volume.ys,
+                                                k - self.volume.zs,
                                             ] = 0
                         elif surface.ID == "grass":
                             g = surface.grass[0]
@@ -275,9 +315,14 @@ class FractalBox(UserObjectGeometry):
                                         height = 0
                                         for i in range(self.volume.xs, surface.fractalrange[1]):
                                             if (
-                                                i < surface.fractalsurface[j - surface.ys, k - surface.zs]
+                                                i
+                                                < surface.fractalsurface[
+                                                    j - surface.ys, k - surface.zs
+                                                ]
                                                 and self.volume.mask[
-                                                    i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                    i - self.volume.xs,
+                                                    j - self.volume.ys,
+                                                    k - self.volume.zs,
                                                 ]
                                                 != 1
                                             ):
@@ -311,11 +356,15 @@ class FractalBox(UserObjectGeometry):
                                                 i
                                                 > self.volume.originalxf
                                                 - (
-                                                    surface.fractalsurface[j - surface.ys, k - surface.zs]
+                                                    surface.fractalsurface[
+                                                        j - surface.ys, k - surface.zs
+                                                    ]
                                                     - self.volume.originalxf
                                                 )
                                                 and self.volume.mask[
-                                                    i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                    i - self.volume.xs,
+                                                    j - self.volume.ys,
+                                                    k - self.volume.zs,
                                                 ]
                                                 == 1
                                             ):
@@ -343,28 +392,49 @@ class FractalBox(UserObjectGeometry):
                             for j in range(surface.fractalrange[0], surface.fractalrange[1]):
                                 for k in range(surface.zs, surface.zf):
                                     if j > surface.fractalsurface[i - surface.xs, k - surface.zs]:
-                                        self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 1
+                                        self.volume.mask[
+                                            i - self.volume.xs,
+                                            j - self.volume.ys,
+                                            k - self.volume.zs,
+                                        ] = 1
                                     elif surface.filldepth > 0 and j > surface.filldepth:
-                                        self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 2
+                                        self.volume.mask[
+                                            i - self.volume.xs,
+                                            j - self.volume.ys,
+                                            k - self.volume.zs,
+                                        ] = 2
                                     else:
-                                        self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 0
+                                        self.volume.mask[
+                                            i - self.volume.xs,
+                                            j - self.volume.ys,
+                                            k - self.volume.zs,
+                                        ] = 0
 
                     elif surface.surfaceID == "yplus":
                         if not surface.ID:
                             for i in range(surface.xs, surface.xf):
                                 for j in range(surface.fractalrange[0], surface.fractalrange[1]):
                                     for k in range(surface.zs, surface.zf):
-                                        if j < surface.fractalsurface[i - surface.xs, k - surface.zs]:
+                                        if (
+                                            j
+                                            < surface.fractalsurface[i - surface.xs, k - surface.zs]
+                                        ):
                                             self.volume.mask[
-                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                i - self.volume.xs,
+                                                j - self.volume.ys,
+                                                k - self.volume.zs,
                                             ] = 1
                                         elif surface.filldepth > 0 and j < surface.filldepth:
                                             self.volume.mask[
-                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                i - self.volume.xs,
+                                                j - self.volume.ys,
+                                                k - self.volume.zs,
                                             ] = 2
                                         else:
                                             self.volume.mask[
-                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                i - self.volume.xs,
+                                                j - self.volume.ys,
+                                                k - self.volume.zs,
                                             ] = 0
                         elif surface.ID == "grass":
                             g = surface.grass[0]
@@ -376,9 +446,14 @@ class FractalBox(UserObjectGeometry):
                                         height = 0
                                         for j in range(self.volume.ys, surface.fractalrange[1]):
                                             if (
-                                                j < surface.fractalsurface[i - surface.xs, k - surface.zs]
+                                                j
+                                                < surface.fractalsurface[
+                                                    i - surface.xs, k - surface.zs
+                                                ]
                                                 and self.volume.mask[
-                                                    i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                    i - self.volume.xs,
+                                                    j - self.volume.ys,
+                                                    k - self.volume.zs,
                                                 ]
                                                 != 1
                                             ):
@@ -412,11 +487,15 @@ class FractalBox(UserObjectGeometry):
                                                 j
                                                 > self.volume.originalyf
                                                 - (
-                                                    surface.fractalsurface[i - surface.xs, k - surface.zs]
+                                                    surface.fractalsurface[
+                                                        i - surface.xs, k - surface.zs
+                                                    ]
                                                     - self.volume.originalyf
                                                 )
                                                 and self.volume.mask[
-                                                    i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                    i - self.volume.xs,
+                                                    j - self.volume.ys,
+                                                    k - self.volume.zs,
                                                 ]
                                                 == 1
                                             ):
@@ -444,28 +523,51 @@ class FractalBox(UserObjectGeometry):
                             for j in range(surface.ys, surface.yf):
                                 for k in range(surface.fractalrange[0], surface.fractalrange[1]):
                                     if k > surface.fractalsurface[i - surface.xs, j - surface.ys]:
-                                        self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 1
+                                        self.volume.mask[
+                                            i - self.volume.xs,
+                                            j - self.volume.ys,
+                                            k - self.volume.zs,
+                                        ] = 1
                                     elif surface.filldepth > 0 and k > surface.filldepth:
-                                        self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 2
+                                        self.volume.mask[
+                                            i - self.volume.xs,
+                                            j - self.volume.ys,
+                                            k - self.volume.zs,
+                                        ] = 2
                                     else:
-                                        self.volume.mask[i - self.volume.xs, j - self.volume.ys, k - self.volume.zs] = 0
+                                        self.volume.mask[
+                                            i - self.volume.xs,
+                                            j - self.volume.ys,
+                                            k - self.volume.zs,
+                                        ] = 0
 
                     elif surface.surfaceID == "zplus":
                         if not surface.ID:
                             for i in range(surface.xs, surface.xf):
                                 for j in range(surface.ys, surface.yf):
-                                    for k in range(surface.fractalrange[0], surface.fractalrange[1]):
-                                        if k < surface.fractalsurface[i - surface.xs, j - surface.ys]:
+                                    for k in range(
+                                        surface.fractalrange[0], surface.fractalrange[1]
+                                    ):
+                                        if (
+                                            k
+                                            < surface.fractalsurface[i - surface.xs, j - surface.ys]
+                                        ):
                                             self.volume.mask[
-                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                i - self.volume.xs,
+                                                j - self.volume.ys,
+                                                k - self.volume.zs,
                                             ] = 1
                                         elif surface.filldepth > 0 and k < surface.filldepth:
                                             self.volume.mask[
-                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                i - self.volume.xs,
+                                                j - self.volume.ys,
+                                                k - self.volume.zs,
                                             ] = 2
                                         else:
                                             self.volume.mask[
-                                                i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                i - self.volume.xs,
+                                                j - self.volume.ys,
+                                                k - self.volume.zs,
                                             ] = 0
                         elif surface.ID == "grass":
                             g = surface.grass[0]
@@ -477,9 +579,14 @@ class FractalBox(UserObjectGeometry):
                                         height = 0
                                         for k in range(self.volume.zs, surface.fractalrange[1]):
                                             if (
-                                                k < surface.fractalsurface[i - surface.xs, j - surface.ys]
+                                                k
+                                                < surface.fractalsurface[
+                                                    i - surface.xs, j - surface.ys
+                                                ]
                                                 and self.volume.mask[
-                                                    i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                    i - self.volume.xs,
+                                                    j - self.volume.ys,
+                                                    k - self.volume.zs,
                                                 ]
                                                 != 1
                                             ):
@@ -513,11 +620,15 @@ class FractalBox(UserObjectGeometry):
                                                 k
                                                 > self.volume.originalzf
                                                 - (
-                                                    surface.fractalsurface[i - surface.xs, j - surface.ys]
+                                                    surface.fractalsurface[
+                                                        i - surface.xs, j - surface.ys
+                                                    ]
                                                     - self.volume.originalzf
                                                 )
                                                 and self.volume.mask[
-                                                    i - self.volume.xs, j - self.volume.ys, k - self.volume.zs
+                                                    i - self.volume.xs,
+                                                    j - self.volume.ys,
+                                                    k - self.volume.zs,
                                                 ]
                                                 == 1
                                             ):
@@ -575,7 +686,9 @@ class FractalBox(UserObjectGeometry):
                         for j in range(0, self.volume.ny):
                             for k in range(0, self.volume.nz):
                                 numberinbin = self.volume.fractalvolume[i, j, k]
-                                self.volume.fractalvolume[i, j, k] = self.volume.mixingmodel.matID[int(numberinbin)]
+                                self.volume.fractalvolume[i, j, k] = self.volume.mixingmodel.matID[
+                                    int(numberinbin)
+                                ]
 
                 data = self.volume.fractalvolume.astype("int16", order="C")
                 build_voxels_from_array(

@@ -15,7 +15,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
-
 import logging
 from abc import ABC, abstractmethod
 
@@ -23,6 +22,7 @@ import numpy as np
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.model import Model
 from gprMax.user_inputs import MainGridUserInput
 
 from .pml import PML
@@ -51,7 +51,7 @@ class UserObjectSingle(ABC):
             setattr(self.props, k, v)
 
     @abstractmethod
-    def build(self, grid: FDTDGrid, uip: MainGridUserInput):
+    def build(self, model: Model, uip: MainGridUserInput):
         pass
 
     # TODO: Check if this is actually needed
@@ -70,11 +70,11 @@ class Title(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 1
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         try:
             title = self.kwargs["name"]
-            G.title = title
-            logger.info(f"Model title: {G.title}")
+            model.title = title
+            logger.info(f"Model title: {model.title}")
         except KeyError:
             pass
 
@@ -90,34 +90,33 @@ class Discretisation(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 2
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         try:
-            G.dl = np.array(self.kwargs["p1"])
-            G.dx, G.dy, G.dz = self.kwargs["p1"]
+            model.dl = np.array(self.kwargs["p1"], dtype=float)
         except KeyError:
             logger.exception(f"{self.__str__()} discretisation requires a point")
             raise
 
-        if G.dl[0] <= 0:
+        if model.dl[0] <= 0:
             logger.exception(
                 f"{self.__str__()} discretisation requires the "
                 f"x-direction spatial step to be greater than zero"
             )
             raise ValueError
-        if G.dl[1] <= 0:
+        if model.dl[1] <= 0:
             logger.exception(
                 f"{self.__str__()} discretisation requires the "
                 f"y-direction spatial step to be greater than zero"
             )
             raise ValueError
-        if G.dl[2] <= 0:
+        if model.dl[2] <= 0:
             logger.exception(
                 f"{self.__str__()} discretisation requires the "
                 f"z-direction spatial step to be greater than zero"
             )
             raise ValueError
 
-        logger.info(f"Spatial discretisation: {G.dl[0]:g} x {G.dl[1]:g} x {G.dl[2]:g}m")
+        logger.info(f"Spatial discretisation: {model.dl[0]:g} x {model.dl[1]:g} x {model.dl[2]:g}m")
 
 
 class Domain(UserObjectSingle):
@@ -131,33 +130,37 @@ class Domain(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 3
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         try:
-            G.nx, G.ny, G.nz = uip.discretise_point(self.kwargs["p1"])
+            model.gnx, model.gny, model.gnz = uip.discretise_point(self.kwargs["p1"])
+            model.G.nx = model.gnx
+            model.G.ny = model.gny
+            model.G.nz = model.gnz
         except KeyError:
             logger.exception(f"{self.__str__()} please specify a point")
             raise
 
-        if G.nx == 0 or G.ny == 0 or G.nz == 0:
-            logger.exception(f"{self.__str__()} requires at least one cell in " f"every dimension")
+        if model.gnx == 0 or model.gny == 0 or model.gnz == 0:
+            logger.exception(f"{self.__str__()} requires at least one cell in every dimension")
             raise ValueError
 
         logger.info(
             f"Domain size: {self.kwargs['p1'][0]:g} x {self.kwargs['p1'][1]:g} x "
-            + f"{self.kwargs['p1'][2]:g}m ({G.nx:d} x {G.ny:d} x {G.nz:d} = "
-            + f"{(G.nx * G.ny * G.nz):g} cells)"
+            + f"{self.kwargs['p1'][2]:g}m ({model.gnx:d} x {model.gny:d} x {model.gnz:d} = "
+            + f"{(model.gnx * model.gny * model.gnz):g} cells)"
         )
 
         # Calculate time step at CFL limit; switch off appropriate PMLs for 2D
-        if G.nx == 1:
+        G = model.G
+        if model.gnx == 1:
             config.get_model_config().mode = "2D TMx"
             G.pmls["thickness"]["x0"] = 0
             G.pmls["thickness"]["xmax"] = 0
-        elif G.ny == 1:
+        elif model.gny == 1:
             config.get_model_config().mode = "2D TMy"
             G.pmls["thickness"]["y0"] = 0
             G.pmls["thickness"]["ymax"] = 0
-        elif G.nz == 1:
+        elif model.gnz == 1:
             config.get_model_config().mode = "2D TMz"
             G.pmls["thickness"]["z0"] = 0
             G.pmls["thickness"]["zmax"] = 0
@@ -187,7 +190,7 @@ class TimeStepStabilityFactor(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 4
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         try:
             f = self.kwargs["f"]
         except KeyError:
@@ -201,10 +204,10 @@ class TimeStepStabilityFactor(UserObjectSingle):
             )
             raise ValueError
 
-        G.dt_mod = f
-        G.dt = G.dt * G.dt_mod
+        model.dt_mod = f
+        model.dt *= model.dt_mod
 
-        logger.info(f"Time step (modified): {G.dt:g} secs")
+        logger.info(f"Time step (modified): {model.dt:g} secs")
 
 
 class TimeWindow(UserObjectSingle):
@@ -219,33 +222,33 @@ class TimeWindow(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 5
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         # If number of iterations given
         # The +/- 1 used in calculating the number of iterations is to account for
         # the fact that the solver (iterations) loop runs from 0 to < G.iterations
         try:
             iterations = int(self.kwargs["iterations"])
-            G.timewindow = (iterations - 1) * G.dt
-            G.iterations = iterations
+            model.timewindow = (iterations - 1) * model.dt
+            model.iterations = iterations
         except KeyError:
             pass
 
         try:
             tmp = float(self.kwargs["time"])
             if tmp > 0:
-                G.timewindow = tmp
-                G.iterations = int(np.ceil(tmp / G.dt)) + 1
+                model.timewindow = tmp
+                model.iterations = int(np.ceil(tmp / model.dt)) + 1
             else:
                 logger.exception(self.__str__() + " must have a value greater than zero")
                 raise ValueError
         except KeyError:
             pass
 
-        if not G.timewindow:
+        if not model.timewindow:
             logger.exception(self.__str__() + " specify a time or number of iterations")
             raise ValueError
 
-        logger.info(f"Time window: {G.timewindow:g} secs ({G.iterations} iterations)")
+        logger.info(f"Time window: {model.timewindow:g} secs ({model.iterations} iterations)")
 
 
 class OMPThreads(UserObjectSingle):
@@ -260,7 +263,7 @@ class OMPThreads(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 6
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         try:
             n = self.kwargs["n"]
         except KeyError:
@@ -296,7 +299,8 @@ class PMLProps(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 7
 
-    def build(self, G, uip):
+    def build(self, model, uip):
+        G = model.G
         try:
             G.pmls["formulation"] = self.kwargs["formulation"]
             if G.pmls["formulation"] not in PML.formulations:
@@ -348,16 +352,16 @@ class SrcSteps(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 8
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         try:
-            G.srcsteps = uip.discretise_point(self.kwargs["p1"])
+            model.srcsteps = uip.discretise_point(self.kwargs["p1"])
         except KeyError:
             logger.exception(f"{self.__str__()} requires exactly three parameters")
             raise
 
         logger.info(
-            f"Simple sources will step {G.srcsteps[0] * G.dx:g}m, "
-            f"{G.srcsteps[1] * G.dy:g}m, {G.srcsteps[2] * G.dz:g}m "
+            f"Simple sources will step {model.srcsteps[0] * model.dx:g}m, "
+            f"{model.srcsteps[1] * model.dy:g}m, {model.srcsteps[2] * model.dz:g}m "
             "for each model run."
         )
 
@@ -373,16 +377,16 @@ class RxSteps(UserObjectSingle):
         super().__init__(**kwargs)
         self.order = 9
 
-    def build(self, G, uip):
+    def build(self, model, uip):
         try:
-            G.rxsteps = uip.discretise_point(self.kwargs["p1"])
+            model.rxsteps = uip.discretise_point(self.kwargs["p1"])
         except KeyError:
             logger.exception(f"{self.__str__()} requires exactly three parameters")
             raise
 
         logger.info(
-            f"All receivers will step {G.rxsteps[0] * G.dx:g}m, "
-            f"{G.rxsteps[1] * G.dy:g}m, {G.rxsteps[2] * G.dz:g}m "
+            f"All receivers will step {model.rxsteps[0] * model.dx:g}m, "
+            f"{model.rxsteps[1] * model.dy:g}m, {model.rxsteps[2] * model.dz:g}m "
             "for each model run."
         )
 

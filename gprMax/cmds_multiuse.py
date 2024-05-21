@@ -26,6 +26,7 @@ from scipy import interpolate
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.model import Model
 from gprMax.user_inputs import MainGridUserInput
 
 from .cmds_geometry.cmds_geometry import (
@@ -74,11 +75,11 @@ class UserObjectMulti(ABC):
         return f"{self.hash}: {s[:-1]}"
 
     @abstractmethod
-    def build(self, grid: FDTDGrid, uip: MainGridUserInput):
-        """Creates object and adds it to grid."""
+    def build(self, model: Model, uip: MainGridUserInput):
+        """Creates object and adds it to model."""
         pass
 
-    # TODO: Check if this is actually needed
+    # TODO: Make _do_rotate not use a grid object
     def rotate(self, axis, angle, origin=None):
         """Rotates object (specialised for each object)."""
         pass
@@ -87,15 +88,18 @@ class UserObjectMulti(ABC):
         """Readable string of parameters given to object."""
         return f"{self.hash}: {str(self.kwargs)}"
 
-    def grid_name(self, grid):
+    def grid_name(self, grid: FDTDGrid) -> str:
         """Returns subgrid name for use with logging info. Returns an empty
         string if the grid is the main grid.
         """
-
         if isinstance(grid, SubGridBaseGrid):
             return f"[{grid.name}] "
         else:
             return ""
+
+    def model_name(self, model: Model) -> str:
+        """Returns model name for use with logging info."""
+        return f"[{model.title}] "
 
 
 class ExcitationFile(UserObjectMulti):
@@ -114,7 +118,7 @@ class ExcitationFile(UserObjectMulti):
         self.order = 1
         self.hash = "#excitation_file"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             kwargs = {}
             excitationfile = self.kwargs["filepath"]
@@ -136,6 +140,7 @@ class ExcitationFile(UserObjectMulti):
         if not excitationfile.exists():
             excitationfile = Path(config.sim_config.input_file_path.parent, excitationfile)
 
+        grid = uip.grid
         logger.info(self.grid_name(grid) + f"Excitation file: {excitationfile}")
 
         # Get waveform names
@@ -153,7 +158,7 @@ class ExcitationFile(UserObjectMulti):
             waveformvalues = waveformvalues[:, 1:]
             timestr = "user-defined time array"
         else:
-            waveformtime = np.arange(0, grid.timewindow + grid.dt, grid.dt)
+            waveformtime = np.arange(0, model.timewindow + grid.dt, grid.dt)
             timestr = "simulation time array"
 
         for i, waveformID in enumerate(waveformIDs):
@@ -213,7 +218,7 @@ class Waveform(UserObjectMulti):
         self.order = 2
         self.hash = "#waveform"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             wavetype = self.kwargs["wave_type"].lower()
         except KeyError:
@@ -227,6 +232,7 @@ class Waveform(UserObjectMulti):
             )
             raise ValueError
 
+        grid = uip.grid
         if wavetype != "user":
             try:
                 amp = self.kwargs["amp"]
@@ -234,7 +240,7 @@ class Waveform(UserObjectMulti):
                 ID = self.kwargs["id"]
             except KeyError:
                 logger.exception(
-                    self.params_str() + (" builtin waveforms " "require exactly four parameters.")
+                    self.params_str() + (" builtin waveforms require exactly four parameters.")
                 )
                 raise
             if freq <= 0:
@@ -244,7 +250,7 @@ class Waveform(UserObjectMulti):
                 )
                 raise ValueError
             if any(x.ID == ID for x in grid.waveforms):
-                logger.exception(self.params_str() + (f" with ID {ID} already " "exists."))
+                logger.exception(self.params_str() + (f" with ID {ID} already exists."))
                 raise ValueError
 
             w = WaveformUser()
@@ -271,14 +277,14 @@ class Waveform(UserObjectMulti):
             except KeyError:
                 logger.exception(
                     self.params_str()
-                    + (" a user-defined " "waveform requires at least two parameters.")
+                    + (" a user-defined waveform requires at least two parameters.")
                 )
                 raise
 
             if "user_time" in self.kwargs:
                 waveformtime = self.kwargs["user_time"]
             else:
-                waveformtime = np.arange(0, grid.timewindow + grid.dt, grid.dt)
+                waveformtime = np.arange(0, model.timewindow + grid.dt, grid.dt)
 
             # Set args for interpolation if given by user
             if "kind" in self.kwargs:
@@ -287,7 +293,7 @@ class Waveform(UserObjectMulti):
                 kwargs["fill_value"] = self.kwargs["fill_value"]
 
             if any(x.ID == ID for x in grid.waveforms):
-                logger.exception(self.params_str() + (f" with ID {ID} already " "exists."))
+                logger.exception(self.params_str() + (f" with ID {ID} already exists."))
                 raise ValueError
 
             w = WaveformUser()
@@ -295,9 +301,7 @@ class Waveform(UserObjectMulti):
             w.type = wavetype
             w.userfunc = interpolate.interp1d(waveformtime, uservalues, **kwargs)
 
-            logger.info(
-                self.grid_name(grid) + (f"Waveform {w.ID} that is " "user-defined created.")
-            )
+            logger.info(self.grid_name(grid) + (f"Waveform {w.ID} that is user-defined created."))
 
         grid.waveforms.append(w)
 
@@ -335,40 +339,41 @@ class VoltageSource(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             p1 = self.kwargs["p1"]
             polarisation = self.kwargs["polarisation"].lower()
             resistance = self.kwargs["resistance"]
             waveform_id = self.kwargs["waveform_id"]
         except KeyError:
-            logger.exception(self.params_str() + (" requires at least six " "parameters."))
+            logger.exception(self.params_str() + (" requires at least six parameters."))
             raise
 
+        grid = uip.grid
         if self.do_rotate:
             self._do_rotate(grid)
 
         # Check polarity & position parameters
         if polarisation not in ("x", "y", "z"):
-            logger.exception(self.params_str() + (" polarisation must be " "x, y, or z."))
+            logger.exception(self.params_str() + (" polarisation must be x, y, or z."))
             raise ValueError
         if "2D TMx" in config.get_model_config().mode and polarisation in [
             "y",
             "z",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be x in " "2D TMx mode."))
+            logger.exception(self.params_str() + (" polarisation must be x in 2D TMx mode."))
             raise ValueError
         elif "2D TMy" in config.get_model_config().mode and polarisation in [
             "x",
             "z",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be y in " "2D TMy mode."))
+            logger.exception(self.params_str() + (" polarisation must be y in 2D TMy mode."))
             raise ValueError
         elif "2D TMz" in config.get_model_config().mode and polarisation in [
             "x",
             "y",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be z in " "2D TMz mode."))
+            logger.exception(self.params_str() + (" polarisation must be z in 2D TMz mode."))
             raise ValueError
 
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
@@ -376,14 +381,14 @@ class VoltageSource(UserObjectMulti):
 
         if resistance < 0:
             logger.exception(
-                self.params_str() + (" requires a source " "resistance of zero " "or greater.")
+                self.params_str() + (" requires a source resistance of zero or greater.")
             )
             raise ValueError
 
         # Check if there is a waveformID in the waveforms list
         if not any(x.ID == waveform_id for x in grid.waveforms):
             logger.exception(
-                self.params_str() + (" there is no waveform with " "the identifier {waveform_id}.")
+                self.params_str() + (" there is no waveform with the identifier {waveform_id}.")
             )
             raise ValueError
 
@@ -403,7 +408,7 @@ class VoltageSource(UserObjectMulti):
             + ")"
         )
         v.resistance = resistance
-        v.waveformID = waveform_id
+        v.waveform = grid.get_waveform_by_id(waveform_id)
 
         try:
             start = self.kwargs["start"]
@@ -412,37 +417,36 @@ class VoltageSource(UserObjectMulti):
             if start < 0:
                 logger.exception(
                     self.params_str()
-                    + (" delay of the initiation " "of the source should not " "be less than zero.")
+                    + (" delay of the initiation of the source should not be less than zero.")
                 )
                 raise ValueError
             if stop < 0:
                 logger.exception(
-                    self.params_str()
-                    + (" time to remove the " "source should not be " "less than zero.")
+                    self.params_str() + (" time to remove the source should not be less than zero.")
                 )
                 raise ValueError
             if stop - start <= 0:
                 logger.exception(
-                    self.params_str()
-                    + (" duration of the source " "should not be zero or " "less.")
+                    self.params_str() + (" duration of the source should not be zero or less.")
                 )
                 raise ValueError
             v.start = start
-            v.stop = min(stop, grid.timewindow)
+            v.stop = min(stop, model.timewindow)
             startstop = f" start time {v.start:g} secs, finish time {v.stop:g} secs "
         except KeyError:
             v.start = 0
-            v.stop = grid.timewindow
+            v.stop = model.timewindow
             startstop = " "
 
-        v.calculate_waveform_values(grid)
+        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
+        v.calculate_waveform_values(iterations, grid.dt)
 
         logger.info(
             f"{self.grid_name(grid)}Voltage source with polarity "
             f"{v.polarisation} at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m, "
             f"resistance {v.resistance:.1f} Ohms,"
             + startstop
-            + f"using waveform {v.waveformID} created."
+            + f"using waveform {v.waveform.ID} created."
         )
 
         grid.voltagesources.append(v)
@@ -481,7 +485,7 @@ class HertzianDipole(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             polarisation = self.kwargs["polarisation"].lower()
             p1 = self.kwargs["p1"]
@@ -490,30 +494,31 @@ class HertzianDipole(UserObjectMulti):
             logger.exception(f"{self.params_str()} requires at least 3 parameters.")
             raise
 
+        grid = uip.grid
         if self.do_rotate:
             self._do_rotate(grid)
 
         # Check polarity & position parameters
         if polarisation not in ("x", "y", "z"):
-            logger.exception(self.params_str() + (" polarisation must be " "x, y, or z."))
+            logger.exception(self.params_str() + " polarisation must be x, y, or z.")
             raise ValueError
         if "2D TMx" in config.get_model_config().mode and polarisation in [
             "y",
             "z",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be x in " "2D TMx mode."))
+            logger.exception(self.params_str() + " polarisation must be x in 2D TMx mode.")
             raise ValueError
         elif "2D TMy" in config.get_model_config().mode and polarisation in [
             "x",
             "z",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be y in " "2D TMy mode."))
+            logger.exception(self.params_str() + " polarisation must be y in 2D TMy mode.")
             raise ValueError
         elif "2D TMz" in config.get_model_config().mode and polarisation in [
             "x",
             "y",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be z in " "2D TMz mode."))
+            logger.exception(self.params_str() + " polarisation must be z in 2D TMz mode.")
             raise ValueError
 
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
@@ -544,7 +549,7 @@ class HertzianDipole(UserObjectMulti):
         h.ycoordorigin = ycoord
         h.zcoordorigin = zcoord
         h.ID = f"{h.__class__.__name__}({str(h.xcoord)},{str(h.ycoord)},{str(h.zcoord)})"
-        h.waveformID = waveform_id
+        h.waveform = grid.get_waveform_by_id(waveform_id)
 
         try:
             # Check source start & source remove time parameters
@@ -566,14 +571,15 @@ class HertzianDipole(UserObjectMulti):
                 )
                 raise ValueError
             h.start = start
-            h.stop = min(stop, grid.timewindow)
+            h.stop = min(stop, model.timewindow)
             startstop = f" start time {h.start:g} secs, finish time {h.stop:g} secs "
         except KeyError:
             h.start = 0
-            h.stop = grid.timewindow
+            h.stop = model.timewindow
             startstop = " "
 
-        h.calculate_waveform_values(grid)
+        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
+        h.calculate_waveform_values(iterations, grid.dt)
 
         if config.get_model_config().mode == "2D":
             logger.info(
@@ -581,7 +587,7 @@ class HertzianDipole(UserObjectMulti):
                 + f"source in 2D with polarity {h.polarisation} at "
                 + f"{p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,"
                 + startstop
-                + f"using waveform {h.waveformID} created."
+                + f"using waveform {h.waveform.ID} created."
             )
         else:
             logger.info(
@@ -589,7 +595,7 @@ class HertzianDipole(UserObjectMulti):
                 + f"polarity {h.polarisation} at {p2[0]:g}m, "
                 + f"{p2[1]:g}m, {p2[2]:g}m,"
                 + startstop
-                + f"using waveform {h.waveformID} created."
+                + f"using waveform {h.waveform.ID} created."
             )
 
         grid.hertziandipoles.append(h)
@@ -628,7 +634,7 @@ class MagneticDipole(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             polarisation = self.kwargs["polarisation"].lower()
             p1 = self.kwargs["p1"]
@@ -637,30 +643,31 @@ class MagneticDipole(UserObjectMulti):
             logger.exception(f"{self.params_str()} requires at least five parameters.")
             raise
 
+        grid = uip.grid
         if self.do_rotate:
             self._do_rotate(grid)
 
         # Check polarity & position parameters
         if polarisation not in ("x", "y", "z"):
-            logger.exception(self.params_str() + (" polarisation must be " "x, y, or z."))
+            logger.exception(self.params_str() + " polarisation must be x, y, or z.")
             raise ValueError
         if "2D TMx" in config.get_model_config().mode and polarisation in [
             "y",
             "z",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be x in " "2D TMx mode."))
+            logger.exception(self.params_str() + " polarisation must be x in 2D TMx mode.")
             raise ValueError
         elif "2D TMy" in config.get_model_config().mode and polarisation in [
             "x",
             "z",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be y in " "2D TMy mode."))
+            logger.exception(self.params_str() + " polarisation must be y in 2D TMy mode.")
             raise ValueError
         elif "2D TMz" in config.get_model_config().mode and polarisation in [
             "x",
             "y",
         ]:
-            logger.exception(self.params_str() + (" polarisation must be z in " "2D TMz mode."))
+            logger.exception(self.params_str() + " polarisation must be z in 2D TMz mode.")
             raise ValueError
 
         xcoord, ycoord, zcoord = uip.check_src_rx_point(p1, self.params_str())
@@ -691,7 +698,7 @@ class MagneticDipole(UserObjectMulti):
             + str(m.zcoord)
             + ")"
         )
-        m.waveformID = waveform_id
+        m.waveform = grid.get_waveform_by_id(waveform_id)
 
         try:
             # Check source start & source remove time parameters
@@ -700,36 +707,35 @@ class MagneticDipole(UserObjectMulti):
             if start < 0:
                 logger.exception(
                     self.params_str()
-                    + (" delay of the initiation " "of the source should not " "be less than zero.")
+                    + " delay of the initiation of the source should not be less than zero."
                 )
                 raise ValueError
             if stop < 0:
                 logger.exception(
-                    self.params_str()
-                    + (" time to remove the " "source should not be " "less than zero.")
+                    self.params_str() + " time to remove the source should not be less than zero."
                 )
                 raise ValueError
             if stop - start <= 0:
                 logger.exception(
-                    self.params_str()
-                    + (" duration of the source " "should not be zero or " "less.")
+                    self.params_str() + " duration of the source should not be zero or less."
                 )
                 raise ValueError
             m.start = start
-            m.stop = min(stop, grid.timewindow)
+            m.stop = min(stop, model.timewindow)
             startstop = f" start time {m.start:g} secs, finish time {m.stop:g} secs "
         except KeyError:
             m.start = 0
-            m.stop = grid.timewindow
+            m.stop = model.timewindow
             startstop = " "
 
-        m.calculate_waveform_values(grid)
+        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
+        m.calculate_waveform_values(iterations, grid.dt)
 
         logger.info(
             f"{self.grid_name(grid)}Magnetic dipole with polarity "
             f"{m.polarisation} at {p2[0]:g}m, {p2[1]:g}m, {p2[2]:g}m,"
             + startstop
-            + f"using waveform {m.waveformID} created."
+            + f"using waveform {m.waveform.ID} created."
         )
 
         grid.magneticdipoles.append(m)
@@ -769,7 +775,7 @@ class TransmissionLine(UserObjectMulti):
         rot_pts = rotate_2point_object(rot_pol_pts, self.axis, self.angle, self.origin)
         self.kwargs["p1"] = tuple(rot_pts[0, :])
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             polarisation = self.kwargs["polarisation"].lower()
             p1 = self.kwargs["p1"]
@@ -779,6 +785,7 @@ class TransmissionLine(UserObjectMulti):
             logger.exception(f"{self.params_str()} requires at least six parameters.")
             raise
 
+        grid = uip.grid
         if self.do_rotate:
             self._do_rotate(grid)
 
@@ -832,7 +839,8 @@ class TransmissionLine(UserObjectMulti):
             )
             raise ValueError
 
-        t = TransmissionLineUser(grid)
+        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
+        t = TransmissionLineUser(iterations, grid.dt)
         t.polarisation = polarisation
         t.xcoord = xcoord
         t.ycoord = ycoord
@@ -848,7 +856,7 @@ class TransmissionLine(UserObjectMulti):
             + ")"
         )
         t.resistance = resistance
-        t.waveformID = waveform_id
+        t.waveform = grid.get_waveform_by_id(waveform_id)
 
         try:
             # Check source start & source remove time parameters
@@ -873,14 +881,14 @@ class TransmissionLine(UserObjectMulti):
                 )
                 raise ValueError
             t.start = start
-            t.stop = min(stop, grid.timewindow)
+            t.stop = min(stop, model.timewindow)
             startstop = f" start time {t.start:g} secs, finish time {t.stop:g} secs "
         except KeyError:
             t.start = 0
-            t.stop = grid.timewindow
+            t.stop = model.timewindow
             startstop = " "
 
-        t.calculate_waveform_values(grid)
+        t.calculate_waveform_values(iterations, grid.dt)
         t.calculate_incident_V_I(grid)
 
         logger.info(
@@ -888,7 +896,7 @@ class TransmissionLine(UserObjectMulti):
             + f"{t.polarisation} at {p2[0]:g}m, {p2[1]:g}m, "
             + f"{p2[2]:g}m, resistance {t.resistance:.1f} Ohms,"
             + startstop
-            + f"using waveform {t.waveformID} created."
+            + f"using waveform {t.waveform.ID} created."
         )
 
         grid.transmissionlines.append(t)
@@ -941,13 +949,14 @@ class Rx(UserObjectMulti):
         except KeyError:
             pass
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             p1 = self.kwargs["p1"]
         except KeyError:
             logger.exception(self.params_str())
             raise
 
+        grid = uip.grid
         if self.do_rotate:
             self._do_rotate(grid)
 
@@ -958,6 +967,8 @@ class Rx(UserObjectMulti):
         r.xcoord, r.ycoord, r.zcoord = p
         r.xcoordorigin, r.ycoordorigin, r.zcoordorigin = p
 
+        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
+
         try:
             r.ID = self.kwargs["id"]
             outputs = self.kwargs["outputs"]
@@ -966,7 +977,7 @@ class Rx(UserObjectMulti):
             r.ID = f"{r.__class__.__name__}({str(r.xcoord)},{str(r.ycoord)},{str(r.zcoord)})"
             for key in RxUser.defaultoutputs:
                 r.outputs[key] = np.zeros(
-                    grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                    iterations, dtype=config.sim_config.dtypes["float_or_double"]
                 )
         else:
             outputs.sort()
@@ -979,7 +990,7 @@ class Rx(UserObjectMulti):
             for field in outputs:
                 if field in allowableoutputs:
                     r.outputs[field] = np.zeros(
-                        grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                        iterations, dtype=config.sim_config.dtypes["float_or_double"]
                     )
                 else:
                     logger.exception(
@@ -1015,7 +1026,7 @@ class RxArray(UserObjectMulti):
         self.order = 8
         self.hash = "#rx_array"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -1063,12 +1074,15 @@ class RxArray(UserObjectMulti):
                 )
                 raise ValueError
 
+        grid = uip.grid
         logger.info(
             f"{self.grid_name(grid)}Receiver array "
             f"{p3[0]:g}m, {p3[1]:g}m, {p3[2]:g}m, to "
             f"{p4[0]:g}m, {p4[1]:g}m, {p4[2]:g}m with steps "
             f"{dx * grid.dx:g}m, {dy * grid.dy:g}m, {dz * grid.dz:g}m"
         )
+
+        iterations = grid.iterations if isinstance(grid, SubGridBaseGrid) else model.iterations
 
         for x in range(xs, xf + 1, dx):
             for y in range(ys, yf + 1, dy):
@@ -1087,7 +1101,7 @@ class RxArray(UserObjectMulti):
                     r.ID = f"{r.__class__.__name__}({str(x)},{str(y)},{str(z)})"
                     for key in RxUser.defaultoutputs:
                         r.outputs[key] = np.zeros(
-                            grid.iterations, dtype=config.sim_config.dtypes["float_or_double"]
+                            iterations, dtype=config.sim_config.dtypes["float_or_double"]
                         )
                     logger.info(
                         f"  Receiver at {p5[0]:g}m, {p5[1]:g}m, "
@@ -1123,7 +1137,8 @@ class Snapshot(UserObjectMulti):
         self.order = 9
         self.hash = "#snapshot"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
+        grid = uip.grid
         if isinstance(grid, SubGridBaseGrid):
             logger.exception(f"{self.params_str()} do not add snapshots to subgrids.")
             raise ValueError
@@ -1203,7 +1218,7 @@ class Snapshot(UserObjectMulti):
                 f"{self.params_str()} the step size should not be less than the spatial discretisation."
             )
             raise ValueError
-        if iterations <= 0 or iterations > grid.iterations:
+        if iterations <= 0 or iterations > model.iterations:
             logger.exception(f"{self.params_str()} time value is not valid.")
             raise ValueError
 
@@ -1252,7 +1267,7 @@ class Material(UserObjectMulti):
         self.order = 10
         self.hash = "#material"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             er = self.kwargs["er"]
             se = self.kwargs["se"]
@@ -1285,6 +1300,8 @@ class Material(UserObjectMulti):
         if sm < 0:
             logger.exception(f"{self.params_str()} requires a positive value for magnetic loss.")
             raise ValueError
+
+        grid = uip.grid
         if any(x.ID == material_id for x in grid.materials):
             logger.exception(f"{self.params_str()} with ID {material_id} already exists")
             raise ValueError
@@ -1302,7 +1319,7 @@ class Material(UserObjectMulti):
 
         m.er = er
         logger.info(
-            f"{self.grid_name(grid)}Material {m.ID} with eps_r={m.er:g}, "
+            f"{self.model_name(model)}Material {m.ID} with eps_r={m.er:g}, "
             f"sigma={m.se:g} S/m; mu_r={m.mr:g}, sigma*={m.sm:g} Ohm/m "
             f"created."
         )
@@ -1329,7 +1346,7 @@ class AddDebyeDispersion(UserObjectMulti):
         self.order = 11
         self.hash = "#add_dispersion_debye"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             poles = self.kwargs["poles"]
             er_delta = self.kwargs["er_delta"]
@@ -1344,6 +1361,7 @@ class AddDebyeDispersion(UserObjectMulti):
             raise ValueError
 
         # Look up requested materials in existing list of material instances
+        grid = uip.grid
         materials = [y for x in material_ids for y in grid.materials if y.ID == x]
 
         if len(materials) != len(material_ids):
@@ -1405,7 +1423,7 @@ class AddLorentzDispersion(UserObjectMulti):
         self.order = 12
         self.hash = "#add_dispersion_lorentz"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             poles = self.kwargs["poles"]
             er_delta = self.kwargs["er_delta"]
@@ -1421,6 +1439,7 @@ class AddLorentzDispersion(UserObjectMulti):
             raise ValueError
 
         # Look up requested materials in existing list of material instances
+        grid = uip.grid
         materials = [y for x in material_ids for y in grid.materials if y.ID == x]
 
         if len(materials) != len(material_ids):
@@ -1484,7 +1503,7 @@ class AddDrudeDispersion(UserObjectMulti):
         self.order = 13
         self.hash = "#add_dispersion_drude"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             poles = self.kwargs["poles"]
             omega = self.kwargs["omega"]
@@ -1499,6 +1518,7 @@ class AddDrudeDispersion(UserObjectMulti):
             raise ValueError
 
         # Look up requested materials in existing list of material instances
+        grid = uip.grid
         materials = [y for x in material_ids for y in grid.materials if y.ID == x]
 
         if len(materials) != len(material_ids):
@@ -1563,7 +1583,7 @@ class SoilPeplinski(UserObjectMulti):
         self.order = 14
         self.hash = "#soil_peplinski"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             sand_fraction = self.kwargs["sand_fraction"]
             clay_fraction = self.kwargs["clay_fraction"]
@@ -1606,6 +1626,7 @@ class SoilPeplinski(UserObjectMulti):
                 "fraction."
             )
             raise ValueError
+        grid = uip.grid
         if any(x.ID == ID for x in grid.mixingmodels):
             logger.exception(f"{self.params_str()} with ID {ID} already exists")
             raise ValueError
@@ -1652,7 +1673,7 @@ class MaterialRange(UserObjectMulti):
         self.order = 15
         self.hash = "#material_range"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             er_lower = self.kwargs["er_lower"]
             er_upper = self.kwargs["er_upper"]
@@ -1710,7 +1731,7 @@ class MaterialRange(UserObjectMulti):
             logger.exception(
                 f"{self.params_str()} requires a positive value for the upper range of magnetic loss."
             )
-
+        grid = uip.grid
         if any(x.ID == ID for x in grid.mixingmodels):
             logger.exception(f"{self.params_str()} with ID {ID} already exists")
             raise ValueError
@@ -1746,14 +1767,14 @@ class MaterialList(UserObjectMulti):
         self.order = 16
         self.hash = "#material_list"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             list_of_materials = self.kwargs["list_of_materials"]
             ID = self.kwargs["id"]
         except KeyError:
             logger.exception(f"{self.params_str()} requires at at least 2 parameters.")
             raise
-
+        grid = uip.grid
         if any(x.ID == ID for x in grid.mixingmodels):
             logger.exception(f"{self.params_str()} with ID {ID} already exists")
             raise ValueError
@@ -1801,7 +1822,7 @@ class GeometryView(UserObjectMulti):
 
         return GeometryViewUser
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -1824,6 +1845,7 @@ class GeometryView(UserObjectMulti):
         xs, ys, zs = p1
         xf, yf, zf = p2
 
+        grid = uip.grid
         dx, dy, dz = uip.discretise_static_point(dl)
 
         if dx < 0 or dy < 0 or dz < 0:
@@ -1865,7 +1887,7 @@ class GeometryView(UserObjectMulti):
             f"base {g.filename} created."
         )
 
-        grid.geometryviews.append(g)
+        model.geometryviews.append(g)
 
 
 class GeometryObjectsWrite(UserObjectMulti):
@@ -1886,7 +1908,11 @@ class GeometryObjectsWrite(UserObjectMulti):
         self.order = 18
         self.hash = "#geometry_objects_write"
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
+        grid = uip.grid
+        if isinstance(grid, SubGridBaseGrid):
+            logger.exception(f"{self.params_str()} do not add geometry objects to subgrids.")
+            raise ValueError
         try:
             p1 = self.kwargs["p1"]
             p2 = self.kwargs["p2"]
@@ -1910,7 +1936,7 @@ class GeometryObjectsWrite(UserObjectMulti):
             f"{g.filename_materials}"
         )
 
-        grid.geometryobjectswrite.append(g)
+        model.geometryobjects.append(g)
 
 
 class PMLCFS(UserObjectMulti):
@@ -1942,7 +1968,7 @@ class PMLCFS(UserObjectMulti):
         super().__init__(**kwargs)
         self.order = 19
 
-    def build(self, grid, uip):
+    def build(self, model, uip):
         try:
             alphascalingprofile = self.kwargs["alphascalingprofile"]
             alphascalingdirection = self.kwargs["alphascalingdirection"]
@@ -2028,6 +2054,7 @@ class PMLCFS(UserObjectMulti):
             f"{cfssigma.min:g}, max: {cfssigma.max}) created."
         )
 
+        grid = uip.grid
         grid.pmls["cfs"].append(cfs)
 
         if len(grid.pmls["cfs"]) > 2:

@@ -23,7 +23,6 @@ import numpy as np
 import gprMax.config as config
 
 from ..cython.geometry_primitives import build_box
-from ..hash_cmds_geometry import check_averaging
 from ..materials import Material
 from .cmds_geometry import UserObjectGeometry, rotate_2point_object
 
@@ -88,7 +87,6 @@ class Box(UserObjectGeometry):
         try:
             # Try user-specified averaging
             averagebox = self.kwargs["averaging"]
-            averagebox = check_averaging(averagebox)
         except KeyError:
             # Otherwise go with the grid default
             averagebox = grid.averagevolumeobjects

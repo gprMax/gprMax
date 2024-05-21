@@ -36,6 +36,8 @@ class SubGridBaseGrid(FDTDGrid, ABC):
 
         # Name of the grid
         self.name = kwargs["id"]
+        self.parent_grid: FDTDGrid
+        self.iterations = 0
 
         self.filter = kwargs["filter"]
 
