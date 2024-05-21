@@ -43,6 +43,9 @@ class Scene:
         self.multiple_cmds: List[UserObjectMulti] = []
         self.single_cmds: List[UserObjectSingle] = []
         self.geometry_cmds: List[UserObjectGeometry] = []
+        self.multiple_cmds: List[UserObjectMulti] = []
+        self.single_cmds: List[UserObjectSingle] = []
+        self.geometry_cmds: List[UserObjectGeometry] = []
         self.essential_cmds = [Domain, TimeWindow, Discretisation]
 
     def add(self, user_object):
@@ -102,6 +105,9 @@ class Scene:
         """Process all commands in any sub-grids."""
 
         # Subgrid user objects
+        subgrid_cmds = [
+            sg_cmd for sg_cmd in self.multiple_cmds if isinstance(sg_cmd, SubGridUserBase)
+        ]
         subgrid_cmds = [
             sg_cmd for sg_cmd in self.multiple_cmds if isinstance(sg_cmd, SubGridUserBase)
         ]

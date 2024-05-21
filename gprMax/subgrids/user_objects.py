@@ -43,6 +43,8 @@ class SubGridBase(UserObjectMulti):
         super().__init__(**kwargs)
         self.children_multiple: List[UserObjectMulti] = []
         self.children_geometry: List[UserObjectGeometry] = []
+        self.children_multiple: List[UserObjectMulti] = []
+        self.children_geometry: List[UserObjectGeometry] = []
 
     def add(self, node: Union[UserObjectMulti, UserObjectGeometry]):
         """Adds other user objects. Geometry and multi only."""
