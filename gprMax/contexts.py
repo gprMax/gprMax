@@ -111,7 +111,7 @@ class Context:
         model.build()
 
         if not config.sim_config.geometry_only:
-            solver = create_solver(model.G)
+            solver = create_solver(model)
             model.solve(solver)
             del solver
 

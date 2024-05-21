@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import gprMax.config as config
+from gprMax.model import Model
 
 from .grid.cuda_grid import CUDAGrid
 from .grid.fdtd_grid import FDTDGrid
@@ -75,7 +76,7 @@ class Solver:
         self.updates.cleanup()
 
 
-def create_solver(grid: FDTDGrid) -> Solver:
+def create_solver(model: Model) -> Solver:
     """Create configured solver object.
 
     N.B. A large range of different functions exist to advance the time
@@ -87,14 +88,14 @@ def create_solver(grid: FDTDGrid) -> Solver:
     substitution at runtime.
 
     Args:
-        G: FDTDGrid class describing a grid in a model.
+        model: model containing the main grid and subgrids.
 
     Returns:
         solver: Solver object.
     """
-
+    grid = model.G
     if config.sim_config.general["subgrid"]:
-        updates = create_subgrid_updates(grid)
+        updates = create_subgrid_updates(model)
         if config.get_model_config().materials["maxpoles"] != 0:
             # Set dispersive update functions for both SubgridUpdates and
             # SubgridUpdaters subclasses

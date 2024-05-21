@@ -17,6 +17,9 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 from importlib import import_module
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 from gprMax import config
 from gprMax.cython.fields_updates_normal import update_electric as update_electric_cpu
@@ -26,11 +29,13 @@ from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.updates.updates import Updates
 from gprMax.utilities.utilities import timer
 
+GridType = TypeVar("GridType", bound=FDTDGrid, default=FDTDGrid)
 
-class CPUUpdates(Updates):
+
+class CPUUpdates(Generic[GridType], Updates):
     """Defines update functions for CPU-based solver."""
 
-    def __init__(self, G: FDTDGrid):
+    def __init__(self, G: GridType):
         """
         Args:
             G: FDTDGrid class describing a grid in a model.
