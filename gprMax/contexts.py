@@ -23,9 +23,11 @@ import sys
 from typing import Any, Dict, List, Optional
 
 import humanize
+import numpy as np
 from colorama import Fore, Style, init
 
 from gprMax.hash_cmds_file import parse_hash_commands
+from gprMax.mpi_model import MPIModel
 from gprMax.scene import Scene
 
 init()
@@ -157,37 +159,71 @@ class Context:
 
 
 class MPIContext(Context):
-    def __init__(self, x_dim: int, y_dim: int, z_dim: int):
+    def __init__(self):
         super().__init__()
         from mpi4py import MPI
 
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.rank
 
-        if self.rank >= x_dim * y_dim * z_dim:
+        requested_mpi_size = np.product(config.sim_config.mpi)
+        if self.comm.size < requested_mpi_size:
+            logger.exception(
+                (
+                    "MPI_COMM_WORLD size of {self.comm.size} is too small for requested dimensions of"
+                    f" {config.sim_config.mpi}. {requested_mpi_size} ranks are required."
+                )
+            )
+            raise ValueError
+
+        if self.rank >= requested_mpi_size:
             logger.warn(
                 (
-                    f"Rank {self.rank}: Only {x_dim * y_dim * z_dim} MPI ranks required for the"
+                    f"Rank {self.rank}: Only {requested_mpi_size} MPI ranks required for the"
                     " dimensions specified. Either increase your MPI dimension size, or request"
                     " fewer MPI tasks."
                 )
             )
-            self.x = -1
-            self.y = -1
-            self.z = -1
-        else:
-            self.x = self.rank % x_dim
-            self.y = (self.rank // x_dim) % y_dim
-            self.z = (self.rank // (x_dim * y_dim)) % z_dim
+            exit()
+
+    def _create_model(self) -> MPIModel:
+        return MPIModel()
 
     def run(self) -> Dict:
-        print(f"I am rank {self.rank} and I will run at grid position {self.x}, {self.y}, {self.z}")
+        return super().run()
 
-        if self.rank == 0:
-            print("Rank 0 is running the simulation")
-            return super().run()
-        else:
-            return {}
+    def _run_model(self, model_num: int) -> None:
+        """Process for running a single model.
+
+        Args:
+            model_num: index of model to be run
+        """
+
+        config.sim_config.set_current_model(model_num)
+        model_config = self._create_model_config(model_num)
+        config.sim_config.set_model_config(model_config)
+
+        if not model_config.reuse_geometry():
+            model = self._create_model()
+            if model.is_coordinator():
+                scene = self._get_scene(model_num)
+                scene.create_internal_objects(model)
+
+        model.build()
+
+        return
+
+        if not config.sim_config.geometry_only:
+            solver = create_solver(model)
+            model.solve(solver)
+            del solver
+
+        if not config.sim_config.geometry_fixed:
+            # Manual garbage collection required to stop memory leak on GPUs
+            # when using pycuda
+            del model.G, model
+
+        gc.collect()
 
 
 class TaskfarmContext(Context):

@@ -269,10 +269,7 @@ def run_main(args):
         context = TaskfarmContext()
     # MPI running to divide model between ranks
     elif config.sim_config.args.mpi is not None:
-        x = config.sim_config.args.mpi[0]
-        y = config.sim_config.args.mpi[1]
-        z = config.sim_config.args.mpi[2]
-        context = MPIContext(x, y, z)
+        context = MPIContext()
     # Standard running (OpenMP/CUDA/OpenCL)
     else:
         context = Context()
