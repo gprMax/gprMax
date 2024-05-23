@@ -225,7 +225,7 @@ class SimulationConfig:
             logger.exception("You cannot use both CUDA and OpenCl simultaneously.")
             raise ValueError
 
-        if self.mpi and self.args.subgrid:
+        if self.mpi and hasattr(self.args, "subgrid") and self.args.subgrid:
             logger.exception("You cannot use subgrids with MPI.")
             raise ValueError
 
