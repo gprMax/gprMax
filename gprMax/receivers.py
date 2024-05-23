@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
+import numpy.typing as npt
 
 import gprMax.config as config
 
@@ -31,12 +32,56 @@ class Rx:
     def __init__(self):
         self.ID: str
         self.outputs = {}
-        self.xcoord: int
-        self.ycoord: int
-        self.zcoord: int
-        self.xcoordorigin: int
-        self.ycoordorigin: int
-        self.zcoordorigin: int
+        self.coord: npt.NDArray[np.int_] = np.zeros(3, dtype=int)
+        self.coordorigin: npt.NDArray[np.int_] = np.zeros(3, dtype=int)
+
+    @property
+    def xcoord(self) -> int:
+        return self.coord[0]
+
+    @xcoord.setter
+    def xcoord(self, value: int):
+        self.coord[0] = value
+
+    @property
+    def ycoord(self) -> int:
+        return self.coord[1]
+
+    @ycoord.setter
+    def ycoord(self, value: int):
+        self.coord[1] = value
+
+    @property
+    def zcoord(self) -> int:
+        return self.coord[2]
+
+    @zcoord.setter
+    def zcoord(self, value: int):
+        self.coord[2] = value
+
+    @property
+    def xcoordorigin(self) -> int:
+        return self.coordorigin[0]
+
+    @xcoordorigin.setter
+    def xcoordorigin(self, value: int):
+        self.coordorigin[0] = value
+
+    @property
+    def ycoordorigin(self) -> int:
+        return self.coordorigin[1]
+
+    @ycoordorigin.setter
+    def ycoordorigin(self, value: int):
+        self.coordorigin[1] = value
+
+    @property
+    def zcoordorigin(self) -> int:
+        return self.coordorigin[2]
+
+    @zcoordorigin.setter
+    def zcoordorigin(self, value: int):
+        self.coordorigin[2] = value
 
 
 def htod_rx_arrays(G, queue=None):
