@@ -1,6 +1,9 @@
+import os
+
 import reframe as rfm
 from base_tests import GprMaxAPIRegressionTest, GprMaxRegressionTest
-from reframe.core.builtins import parameter, run_after
+from reframe.core.builtins import parameter, require_deps, run_after, run_before
+from reframe.utility import udeps
 
 """ReFrame tests for basic functionality
 
@@ -150,3 +153,47 @@ class SubgridTest(GprMaxAPIRegressionTest):
             subgrid_geometry_view,
             plot_ascan_output,
         ]
+
+
+@rfm.simple_test
+class MPIBasicModelsTest(GprMaxRegressionTest):
+    tags = {"test", "mpi", "regression"}
+
+    # List of available basic test models
+    model = parameter(
+        [
+            "2D_ExHyHz",
+            "2D_EyHxHz",
+            "2D_EzHxHy",
+            "cylinder_Ascan_2D",
+            "hertzian_dipole_fs",
+            "hertzian_dipole_hs",
+            "hertzian_dipole_dispersive",
+            "magnetic_dipole_fs",
+        ]
+    )
+    num_cpus_per_task = 16
+    num_tasks = 4
+    num_tasks_per_node = 4
+
+    @run_after("init")
+    def inject_dependencies(self):
+        """Test depends on the Python virtual environment building correctly"""
+        variant = BasicModelsTest.get_variant_nums(model=lambda m: m == self.model)
+        self.depends_on(BasicModelsTest.variant_name(variant[0]), udeps.by_env)
+        super().inject_dependencies()
+
+    @run_after("init")
+    def set_filenames(self):
+        self.input_file = f"{self.model}.in"
+        self.output_file = f"{self.model}.h5"
+        self.executable_opts = ["-mpi 2 2 1", self.input_file, "-o", self.output_file]
+        self.postrun_cmds = [f"python -m toolboxes.Plotting.plot_Ascan -save {self.output_file}"]
+        self.keep_files = [self.input_file, self.output_file, f"{self.model}.pdf"]
+
+    @run_before("run")
+    def setup_reference_file(self):
+        """Add prerun command to load the built Python environment"""
+        variant = BasicModelsTest.get_variant_nums(model=lambda m: m == self.model)
+        target = self.getdep(BasicModelsTest.variant_name(variant[0]))
+        self.reference_file = os.path.join(target.stagedir, str(self.output_file))

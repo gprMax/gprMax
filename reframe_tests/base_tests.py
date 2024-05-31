@@ -173,12 +173,16 @@ class GprMaxRegressionTest(GprMaxBaseTest):
 
     h5diff_header = f"{'=' * 10} h5diff output {'=' * 10}"
 
-    @run_before("run", always_last=True)
-    def setup_regression_check(self):
-        """Build reference file path and add h5diff command to run after the test"""
-        self.modules.append("cray-hdf5")
+    @run_before("run")
+    def setup_reference_file(self):
+        """Build reference file path"""
         self.reference_file = Path("regression_checks", self.unique_name).with_suffix(".h5")
         self.reference_file = os.path.abspath(self.reference_file)
+
+    @run_before("run", always_last=True)
+    def setup_regression_check(self):
+        """Add h5diff command to run after the test"""
+        self.modules.append("cray-hdf5")
         if os.path.exists(self.reference_file):
             self.postrun_cmds.append(f"echo {self.h5diff_header}")
             self.postrun_cmds.append(f"h5diff {self.output_file} {self.reference_file}")
@@ -214,7 +218,3 @@ class GprMaxRegressionTest(GprMaxBaseTest):
 
 class GprMaxAPIRegressionTest(GprMaxRegressionTest):
     executable = "time -p python"
-
-
-class GprMaxMpiTest(GprMaxBaseTest):
-    pass
