@@ -354,12 +354,12 @@ class CUDAUpdates(Updates):
         self.drv.memcpy_htod(updatecoeffsE, self.grid.updatecoeffsE)
         self.drv.memcpy_htod(updatecoeffsH, self.grid.updatecoeffsH)
 
-    def store_outputs(self):
+    def store_outputs(self, iteration):
         """Stores field component values for every receiver."""
         if self.grid.rxs:
             self.store_outputs_dev(
                 np.int32(len(self.grid.rxs)),
-                np.int32(self.grid.iteration),
+                np.int32(iteration),
                 self.rxcoords_dev.gpudata,
                 self.rxs_dev.gpudata,
                 self.grid.Ex_dev.gpudata,
@@ -442,12 +442,12 @@ class CUDAUpdates(Updates):
         for pml in self.grid.pmls["slabs"]:
             pml.update_magnetic()
 
-    def update_magnetic_sources(self):
+    def update_magnetic_sources(self, iteration):
         """Updates magnetic field components from sources."""
         if self.grid.magneticdipoles:
             self.update_magnetic_dipole_dev(
                 np.int32(len(self.grid.magneticdipoles)),
-                np.int32(self.grid.iteration),
+                np.int32(iteration),
                 config.sim_config.dtypes["float_or_double"](self.grid.dx),
                 config.sim_config.dtypes["float_or_double"](self.grid.dy),
                 config.sim_config.dtypes["float_or_double"](self.grid.dz),
@@ -509,14 +509,14 @@ class CUDAUpdates(Updates):
         for pml in self.grid.pmls["slabs"]:
             pml.update_electric()
 
-    def update_electric_sources(self):
+    def update_electric_sources(self, iteration):
         """Updates electric field components from sources -
         update any Hertzian dipole sources last.
         """
         if self.grid.voltagesources:
             self.update_voltage_source_dev(
                 np.int32(len(self.grid.voltagesources)),
-                np.int32(self.grid.iteration),
+                np.int32(iteration),
                 config.sim_config.dtypes["float_or_double"](self.grid.dx),
                 config.sim_config.dtypes["float_or_double"](self.grid.dy),
                 config.sim_config.dtypes["float_or_double"](self.grid.dz),
