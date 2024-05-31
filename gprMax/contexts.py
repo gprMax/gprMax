@@ -170,7 +170,7 @@ class MPIContext(Context):
         if self.comm.size < requested_mpi_size:
             logger.exception(
                 (
-                    "MPI_COMM_WORLD size of {self.comm.size} is too small for requested dimensions of"
+                    f"MPI_COMM_WORLD size of {self.comm.size} is too small for requested dimensions of"
                     f" {config.sim_config.mpi}. {requested_mpi_size} ranks are required."
                 )
             )
@@ -210,8 +210,6 @@ class MPIContext(Context):
                 scene.create_internal_objects(model)
 
         model.build()
-
-        return
 
         if not config.sim_config.geometry_only:
             solver = create_solver(model)

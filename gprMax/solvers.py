@@ -17,7 +17,9 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import gprMax.config as config
+from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
+from gprMax.updates.mpi_updates import MPIUpdates
 
 from .grid.cuda_grid import CUDAGrid
 from .grid.fdtd_grid import FDTDGrid
@@ -59,6 +61,8 @@ class Solver:
             self.updates.update_magnetic()
             self.updates.update_magnetic_pml()
             self.updates.update_magnetic_sources(iteration)
+            if isinstance(self.updates, MPIUpdates):
+                self.updates.halo_swap_magnetic()
             if isinstance(self.updates, SubgridUpdates):
                 self.updates.hsg_2()
             self.updates.update_electric_a()
@@ -68,6 +72,8 @@ class Solver:
             if isinstance(self.updates, SubgridUpdates):
                 self.updates.hsg_1()
             self.updates.update_electric_b()
+            if isinstance(self.updates, MPIUpdates):
+                self.updates.halo_swap_electric()
             if isinstance(self.updates, CUDAUpdates):
                 self.memused = self.updates.calculate_memory_used(iteration)
 
@@ -104,6 +110,10 @@ def create_solver(model: Model) -> Solver:
                 u.set_dispersive_updates()
     elif type(grid) is FDTDGrid:
         updates = CPUUpdates(grid)
+        if config.get_model_config().materials["maxpoles"] != 0:
+            updates.set_dispersive_updates()
+    elif type(grid) is MPIGrid:
+        updates = MPIUpdates(grid)
         if config.get_model_config().materials["maxpoles"] != 0:
             updates.set_dispersive_updates()
     elif type(grid) is CUDAGrid:

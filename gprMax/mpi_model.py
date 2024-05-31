@@ -28,11 +28,6 @@ class MPIModel(Model):
     def is_coordinator(self):
         return self.rank == 0
 
-    def build(self):
-        self.build_geometry()
-        return
-        return super().build()
-
     def build_geometry(self):
         if self.is_coordinator():
             self._check_for_dispersive_materials([self.G])
@@ -41,9 +36,7 @@ class MPIModel(Model):
 
         self.G.global_size = np.array([self.gnx, self.gny, self.gnz], dtype=int)
 
-        self.G.build()
-        return
-        self.G.dispersion_analysis(self.iterations)
+        return super().build_geometry()
 
     def _broadcast_model(self):
         self.gnx = self.comm.bcast(self.gnx)
@@ -57,6 +50,12 @@ class MPIModel(Model):
 
         self.srcsteps = self.comm.bcast(self.srcsteps)
         self.rxsteps = self.comm.bcast(self.rxsteps)
+
+    def write_output_data(self):
+        self.G.gather_grid_objects()
+        if self.is_coordinator():
+            self.G.size = self.G.global_size
+            super().write_output_data()
 
     def _output_geometry(self):
         if self.is_coordinator():

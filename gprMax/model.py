@@ -19,7 +19,7 @@
 import datetime
 import logging
 import sys
-from typing import List
+from typing import List, Sequence
 
 import humanize
 import numpy as np
@@ -52,6 +52,7 @@ class Model:
     def __init__(self):
         self.title = ""
 
+        # TODO: Remove these in favour of properties below (only needed in MPI Grid)
         self.gnx = 0
         self.gny = 0
         self.gnz = 0
@@ -179,6 +180,9 @@ class Model:
         G.update_simple_source_positions(self.srcsteps, step=model_num)
         G.update_receiver_positions(self.rxsteps, step=model_num)
 
+        self._output_geometry()
+
+    def _output_geometry(self):
         # Write files for any geometry views and geometry object outputs
         if (
             not self.geometryviews
@@ -219,16 +223,11 @@ class Model:
         self._check_for_dispersive_materials(grids)
         self._check_memory_requirements(grids)
 
-        # TODO: Make this correctly set local nx, ny and nz when using MPI (likely use a function inside FDTDGrid/MPIGrid)
-        self.G.nx = self.gnx
-        self.G.ny = self.gny
-        self.G.nz = self.gnz
-
         for grid in grids:
             grid.build()
             grid.dispersion_analysis(self.iterations)
 
-    def _check_for_dispersive_materials(self, grids: List[FDTDGrid]):
+    def _check_for_dispersive_materials(self, grids: Sequence[FDTDGrid]):
         # Check for dispersive materials (and specific type)
         if config.get_model_config().materials["maxpoles"] != 0:
             # TODO: This sets materials["drudelorentz"] based only the
@@ -241,7 +240,7 @@ class Model:
             # Set data type if any dispersive materials (must be done before memory checks)
             config.get_model_config().set_dispersive_material_types()
 
-    def _check_memory_requirements(self, grids: List[FDTDGrid]):
+    def _check_memory_requirements(self, grids: Sequence[FDTDGrid]):
         # Check memory requirements to build model/scene (different to memory
         # requirements to run model when FractalVolumes/FractalSurfaces are
         # used as these can require significant additional memory)

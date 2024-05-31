@@ -26,6 +26,7 @@ from scipy import interpolate
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
 from gprMax.user_inputs import MainGridUserInput
 
@@ -1139,6 +1140,11 @@ class Snapshot(UserObjectMulti):
 
     def build(self, model, uip):
         grid = uip.grid
+        if isinstance(grid, MPIGrid):
+            logger.exception(
+                f"{self.params_str()} Snapshots are not currently compatible with MPI."
+            )
+            raise ValueError
         if isinstance(grid, SubGridBaseGrid):
             logger.exception(f"{self.params_str()} do not add snapshots to subgrids.")
             raise ValueError
