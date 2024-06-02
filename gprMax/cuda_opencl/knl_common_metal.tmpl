@@ -1,0 +1,14 @@
+{% extends "knl_common_base.tmpl" %}
+
+{% block complex_header %}
+#include <pymetal-complex.hpp>
+{% endblock complex_header %}
+
+
+{% block constmem %}
+struct Constants {
+    var updatecoeffsE: [{{REAL}}]
+    var updatecoeffsH: [{{REAL}}]
+}
+let constants = Constants(updatecoeffsE: [{{N_updatecoeffsE}}], updatecoeffsH: [{{N_updatecoeffsH}}])
+{% endblock constmem %}
