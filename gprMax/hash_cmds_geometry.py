@@ -33,30 +33,10 @@ from .cmds_geometry.fractal_box import FractalBox
 from .cmds_geometry.plate import Plate
 from .cmds_geometry.sphere import Sphere
 from .cmds_geometry.triangle import Triangle
+from .cmds_geometry.cmds_geometry import check_averaging
 from .utilities.utilities import round_value
 
 logger = logging.getLogger(__name__)
-
-
-def check_averaging(averaging):
-    """Check and set material averaging value.
-
-    Args:
-        averaging: string for input value from hash command - should be 'y'
-                    or 'n'.
-
-    Returns:
-        averaging: boolean for geometry object material averaging.
-    """
-
-    if averaging == "y":
-        averaging = True
-    elif averaging == "n":
-        averaging = False
-    else:
-        logger.exception("Averaging should be either y or n")
-
-    return averaging
 
 
 def process_geometrycmds(geometry):

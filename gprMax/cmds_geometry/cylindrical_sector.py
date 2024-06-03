@@ -21,9 +21,8 @@ import logging
 import numpy as np
 
 from ..cython.geometry_primitives import build_cylindrical_sector
-from ..hash_cmds_geometry import check_averaging
 from ..materials import Material
-from .cmds_geometry import UserObjectGeometry
+from .cmds_geometry import UserObjectGeometry, check_averaging
 
 logger = logging.getLogger(__name__)
 

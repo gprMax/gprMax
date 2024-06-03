@@ -64,6 +64,27 @@ class UserObjectGeometry:
             return ""
 
 
+def check_averaging(averaging):
+    """Check and set material averaging value.
+
+    Args:
+        averaging: string for input value from hash command - should be 'y'
+                    or 'n'.
+
+    Returns:
+        averaging: boolean for geometry object material averaging.
+    """
+
+    if averaging == "y":
+        averaging = True
+    elif averaging == "n":
+        averaging = False
+    else:
+        logger.exception("Averaging should be either y or n")
+
+    return averaging
+
+
 def rotate_point(p, axis, angle, origin=(0, 0, 0)):
     """Rotates a point.
 
