@@ -25,9 +25,12 @@ from jinja2 import Environment, PackageLoader
 
 import gprMax.config as config
 
-from .cuda_opencl import knl_fields_updates, knl_snapshots, knl_source_updates, knl_store_outputs
-from .cython.fields_updates_normal import update_electric as update_electric_cpu
-from .cython.fields_updates_normal import update_magnetic as update_magnetic_cpu
+from .cuda_opencl import (knl_fields_updates, knl_snapshots,
+                          knl_source_updates, knl_store_outputs)
+from .cython.fields_updates_normal import \
+    update_electric as update_electric_cpu
+from .cython.fields_updates_normal import \
+    update_magnetic as update_magnetic_cpu
 from .fields_outputs import store_outputs as store_outputs_cpu
 from .receivers import dtoh_rx_array, htod_rx_arrays
 from .snapshots import Snapshot, dtoh_snapshot_array, htod_snapshot_array

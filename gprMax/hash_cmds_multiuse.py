@@ -18,27 +18,13 @@
 
 import logging
 
-from .cmds_multiuse import (
-    PMLCFS,
-    AddDebyeDispersion,
-    AddDrudeDispersion,
-    AddLorentzDispersion,
-    ExcitationFile,
-    GeometryObjectsWrite,
-    GeometryView,
-    HertzianDipole,
-    MagneticDipole,
-    Material,
-    MaterialList,
-    MaterialRange,
-    Rx,
-    RxArray,
-    Snapshot,
-    SoilPeplinski,
-    TransmissionLine,
-    VoltageSource,
-    Waveform,
-)
+from .cmds_multiuse import (PMLCFS, AddDebyeDispersion, AddDrudeDispersion,
+                            AddLorentzDispersion, ExcitationFile,
+                            GeometryObjectsWrite, GeometryView, HertzianDipole,
+                            MagneticDipole, Material, MaterialList,
+                            MaterialRange, Rx, RxArray, Snapshot,
+                            SoilPeplinski, TransmissionLine, VoltageSource,
+                            Waveform)
 
 logger = logging.getLogger(__name__)
 

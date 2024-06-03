@@ -31,7 +31,8 @@ import gprMax.config as config
 from ._version import __version__, codename
 from .model_build_run import ModelBuildRun
 from .solvers import create_G, create_solver
-from .utilities.host_info import print_cuda_info, print_host_info, print_opencl_info
+from .utilities.host_info import (print_cuda_info, print_host_info,
+                                  print_opencl_info)
 from .utilities.utilities import get_terminal_width, logo, timer
 
 logger = logging.getLogger(__name__)

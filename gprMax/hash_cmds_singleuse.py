@@ -18,18 +18,9 @@
 
 import logging
 
-from .cmds_singleuse import (
-    Discretisation,
-    Domain,
-    OMPThreads,
-    OutputDir,
-    PMLProps,
-    RxSteps,
-    SrcSteps,
-    TimeStepStabilityFactor,
-    TimeWindow,
-    Title,
-)
+from .cmds_singleuse import (Discretisation, Domain, OMPThreads, OutputDir,
+                             PMLProps, RxSteps, SrcSteps,
+                             TimeStepStabilityFactor, TimeWindow, Title)
 
 logger = logging.getLogger(__name__)
 

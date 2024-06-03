@@ -25,7 +25,9 @@ from scipy import interpolate
 
 import gprMax.config as config
 
-from .cmds_geometry.cmds_geometry import UserObjectGeometry, rotate_2point_object, rotate_polarisation
+from .cmds_geometry.cmds_geometry import (UserObjectGeometry,
+                                          rotate_2point_object,
+                                          rotate_polarisation)
 from .geometry_outputs import GeometryObjects as GeometryObjectsUser
 from .materials import DispersiveMaterial as DispersiveMaterialUser
 from .materials import ListMaterial as ListMaterialUser
@@ -1647,7 +1649,8 @@ class GeometryView(UserObjectMulti):
         """
 
         if output_type == "n":
-            from .geometry_outputs import GeometryViewVoxels as GeometryViewUser
+            from .geometry_outputs import \
+                GeometryViewVoxels as GeometryViewUser
         else:
             from .geometry_outputs import GeometryViewLines as GeometryViewUser
 

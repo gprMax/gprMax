@@ -33,7 +33,8 @@ from tqdm import tqdm
 
 import gprMax.config as config
 
-from .cython.yee_cell_build import build_electric_components, build_magnetic_components
+from .cython.yee_cell_build import (build_electric_components,
+                                    build_magnetic_components)
 from .fields_outputs import write_hdf5_outputfile
 from .geometry_outputs import save_geometry_views
 from .grid import dispersion_analysis
@@ -42,7 +43,8 @@ from .materials import process_materials
 from .pml import CFS, build_pml, print_pml_info
 from .scene import Scene
 from .snapshots import save_snapshots
-from .utilities.host_info import mem_check_build_all, mem_check_run_all, set_omp_threads
+from .utilities.host_info import (mem_check_build_all, mem_check_run_all,
+                                  set_omp_threads)
 from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)

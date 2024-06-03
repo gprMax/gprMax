@@ -24,7 +24,8 @@ from gprMax.cmds_geometry.add_surface_water import AddSurfaceWater
 from gprMax.cmds_geometry.cmds_geometry import UserObjectGeometry
 from gprMax.cmds_geometry.fractal_box import FractalBox
 from gprMax.cmds_multiuse import UserObjectMulti
-from gprMax.cmds_singleuse import Discretisation, Domain, TimeWindow, UserObjectSingle
+from gprMax.cmds_singleuse import (Discretisation, Domain, TimeWindow,
+                                   UserObjectSingle)
 from gprMax.materials import create_built_in_materials
 from gprMax.subgrids.user_objects import SubGridBase as SubGridUserBase
 from gprMax.user_inputs import create_user_input_points
