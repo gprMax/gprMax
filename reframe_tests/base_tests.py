@@ -176,7 +176,7 @@ class GprMaxRegressionTest(GprMaxBaseTest):
     @run_before("run")
     def setup_reference_file(self):
         """Build reference file path"""
-        self.reference_file = Path("regression_checks", self.unique_name).with_suffix(".h5")
+        self.reference_file = Path("regression_checks", self.short_name).with_suffix(".h5")
         self.reference_file = os.path.abspath(self.reference_file)
 
     @run_before("run", always_last=True)
