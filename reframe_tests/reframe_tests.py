@@ -69,11 +69,13 @@ class BasicModelsTest(GprMaxRegressionTest):
             "2D_ExHyHz",
             "2D_EyHxHz",
             "2D_EzHxHy",
+            "2D_ExHyHz_hs",
             "cylinder_Ascan_2D",
             "hertzian_dipole_fs",
             "hertzian_dipole_hs",
             "hertzian_dipole_dispersive",
             "magnetic_dipole_fs",
+            "magnetic_dipole_hs",
         ]
     )
     num_cpus_per_task = 16
@@ -165,11 +167,13 @@ class MPIBasicModelsTest(GprMaxRegressionTest):
             "2D_ExHyHz",
             "2D_EyHxHz",
             "2D_EzHxHy",
+            "2D_ExHyHz_hs",
             "cylinder_Ascan_2D",
             "hertzian_dipole_fs",
             "hertzian_dipole_hs",
             "hertzian_dipole_dispersive",
             "magnetic_dipole_fs",
+            "magnetic_dipole_hs",
         ]
     )
     num_cpus_per_task = 16
