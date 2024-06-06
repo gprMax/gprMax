@@ -82,7 +82,7 @@ We recommend using Miniconda to install Python and the required Python packages 
 * Open a Terminal (Linux/macOS) or Command Prompt (Windows) and run the following commands:
 
 .. code-block:: bash
-
+    $ exec bash -l      
     $ conda update conda
     $ conda install git
     $ git clone https://github.com/gprMax/gprMax.git
@@ -126,6 +126,7 @@ Alternatively, if you are using Windows 10/11 you can install the `Windows Subsy
 
 Once you have installed the aforementioned tools follow these steps to build and install gprMax:
 
+* Make sure you're in conda environment and the correct directory, which can be recognized by the following prefixes in your directory: :code:`(.conda)(base)`.
 * Open a Terminal (Linux/macOS) or Command Prompt (Windows), **navigate into the directory above the gprMax package**, and if it is not already active, activate the gprMax conda environment :code:`conda activate gprMax`. Run the following commands:
 
 .. code-block:: bash
@@ -133,6 +134,7 @@ Once you have installed the aforementioned tools follow these steps to build and
     (gprMax)$ pip install -e gprMax
 
 **You are now ready to proceed to running gprMax.**
+
 
 Running gprMax
 ==============
