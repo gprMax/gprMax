@@ -177,8 +177,10 @@ class MPIBasicModelsTest(GprMaxRegressionTest):
         ]
     )
     num_cpus_per_task = 16
-    num_tasks = 4
+    num_tasks = 8
     num_tasks_per_node = 4
+
+    mpi_layout = "2 2 2"
 
     @run_after("init")
     def inject_dependencies(self):
@@ -191,7 +193,7 @@ class MPIBasicModelsTest(GprMaxRegressionTest):
     def set_filenames(self):
         self.input_file = f"{self.model}.in"
         self.output_file = f"{self.model}.h5"
-        self.executable_opts = ["-mpi 2 2 1", self.input_file, "-o", self.output_file]
+        self.executable_opts = ["-mpi", self.mpi_layout, self.input_file, "-o", self.output_file]
         self.postrun_cmds = [f"python -m toolboxes.Plotting.plot_Ascan -save {self.output_file}"]
         self.keep_files = [self.input_file, self.output_file, f"{self.model}.pdf"]
 
