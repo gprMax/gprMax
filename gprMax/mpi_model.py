@@ -1,5 +1,4 @@
 import logging
-from re import L
 from typing import Optional
 
 import numpy as np
@@ -25,6 +24,30 @@ class MPIModel(Model):
 
         return super().__init__()
 
+    @property
+    def nx(self) -> float:
+        return self.G.global_size[0]
+
+    @nx.setter
+    def nx(self, value: float):
+        self.G.global_size[0] = value
+
+    @property
+    def ny(self) -> float:
+        return self.G.global_size[1]
+
+    @ny.setter
+    def ny(self, value: float):
+        self.G.global_size[1] = value
+
+    @property
+    def nz(self) -> float:
+        return self.G.global_size[2]
+
+    @nz.setter
+    def nz(self, value: float):
+        self.G.global_size[2] = value
+
     def is_coordinator(self):
         return self.rank == 0
 
@@ -34,14 +57,12 @@ class MPIModel(Model):
             self._check_memory_requirements([self.G])
         self._broadcast_model()
 
-        self.G.global_size = np.array([self.gnx, self.gny, self.gnz], dtype=int)
-
         return super().build_geometry()
 
     def _broadcast_model(self):
-        self.gnx = self.comm.bcast(self.gnx)
-        self.gny = self.comm.bcast(self.gny)
-        self.gnz = self.comm.bcast(self.gnz)
+        self.nx = self.comm.bcast(self.nx)
+        self.ny = self.comm.bcast(self.ny)
+        self.nz = self.comm.bcast(self.nz)
 
         self.comm.Bcast(self.dl)
         self.dt = self.comm.bcast(self.dt)
@@ -50,6 +71,10 @@ class MPIModel(Model):
 
         self.srcsteps = self.comm.bcast(self.srcsteps)
         self.rxsteps = self.comm.bcast(self.rxsteps)
+
+        model_config = config.get_model_config()
+        model_config.materials["maxpoles"] = self.comm.bcast(model_config.materials["maxpoles"])
+        model_config.ompthreads = self.comm.bcast(model_config.ompthreads)
 
     def write_output_data(self):
         self.G.gather_grid_objects()

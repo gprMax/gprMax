@@ -21,7 +21,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 import gprMax.config as config
-from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
 from gprMax.user_inputs import MainGridUserInput
 
@@ -132,35 +132,38 @@ class Domain(UserObjectSingle):
 
     def build(self, model, uip):
         try:
-            model.gnx, model.gny, model.gnz = uip.discretise_point(self.kwargs["p1"])
-            model.G.nx = model.gnx
-            model.G.ny = model.gny
-            model.G.nz = model.gnz
+            model.nx, model.ny, model.nz = uip.discretise_point(self.kwargs["p1"])
+            # TODO: Remove when distribute full build for MPI
+            if isinstance(model.G, MPIGrid):
+                model.G.nx = model.nx
+                model.G.ny = model.ny
+                model.G.nz = model.nz
+
         except KeyError:
             logger.exception(f"{self.__str__()} please specify a point")
             raise
 
-        if model.gnx == 0 or model.gny == 0 or model.gnz == 0:
+        if model.nx == 0 or model.ny == 0 or model.nz == 0:
             logger.exception(f"{self.__str__()} requires at least one cell in every dimension")
             raise ValueError
 
         logger.info(
             f"Domain size: {self.kwargs['p1'][0]:g} x {self.kwargs['p1'][1]:g} x "
-            + f"{self.kwargs['p1'][2]:g}m ({model.gnx:d} x {model.gny:d} x {model.gnz:d} = "
-            + f"{(model.gnx * model.gny * model.gnz):g} cells)"
+            + f"{self.kwargs['p1'][2]:g}m ({model.nx:d} x {model.ny:d} x {model.nz:d} = "
+            + f"{(model.nx * model.ny * model.nz):g} cells)"
         )
 
         # Calculate time step at CFL limit; switch off appropriate PMLs for 2D
         G = model.G
-        if model.gnx == 1:
+        if model.nx == 1:
             config.get_model_config().mode = "2D TMx"
             G.pmls["thickness"]["x0"] = 0
             G.pmls["thickness"]["xmax"] = 0
-        elif model.gny == 1:
+        elif model.ny == 1:
             config.get_model_config().mode = "2D TMy"
             G.pmls["thickness"]["y0"] = 0
             G.pmls["thickness"]["ymax"] = 0
-        elif model.gnz == 1:
+        elif model.nz == 1:
             config.get_model_config().mode = "2D TMz"
             G.pmls["thickness"]["z0"] = 0
             G.pmls["thickness"]["zmax"] = 0

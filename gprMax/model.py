@@ -52,11 +52,6 @@ class Model:
     def __init__(self):
         self.title = ""
 
-        # TODO: Remove these in favour of properties below (only needed in MPI Grid)
-        self.gnx = 0
-        self.gny = 0
-        self.gnz = 0
-
         self.dt_mod = 1.0  # Time step stability factor
 
         self.iteration = 0  # Current iteration number

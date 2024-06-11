@@ -189,11 +189,14 @@ class MPIGrid(FDTDGrid):
         if self.coords[Dim.Z] != self.mpi_tasks[Dim.Z] - 1:
             self.pmls["thickness"]["zmax"] = 0
 
-        old_size = self.size
-        self.size = self.global_size
         if not self.is_coordinator():
-            self.initialise_geometry_arrays()
-        self.size = old_size
+            # TODO: Replace with self.initialise_geometry_arrays() when change distributing these to scatter
+            self.solid = np.ones(self.global_size, dtype=np.uint32)
+            self.rigidE = np.zeros((12, *self.global_size), dtype=np.int8)
+            self.rigidH = np.zeros((6, *self.global_size), dtype=np.int8)
+
+        # TODO: When fix geometry objects for MPI this may need distributing
+        self.ID = np.ones((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
 
         self.solid = self.scatter_3d_array(self.solid)
         self.rigidE = self.scatter_4d_array(self.rigidE)
@@ -205,6 +208,15 @@ class MPIGrid(FDTDGrid):
         self.magneticdipoles = self.gather_coord_objects(self.magneticdipoles)
         self.hertziandipoles = self.gather_coord_objects(self.hertziandipoles)
         self.transmissionlines = self.gather_coord_objects(self.transmissionlines)
+
+    def initialise_geometry_arrays(self, use_local_size=False):
+        if use_local_size:
+            super().initialise_geometry_arrays()
+        else:
+            self.solid = np.ones(self.global_size, dtype=np.uint32)
+            self.rigidE = np.zeros((12, *self.global_size), dtype=np.int8)
+            self.rigidH = np.zeros((6, *self.global_size), dtype=np.int8)
+            self.ID = np.ones((6, *(self.global_size + 1)), dtype=np.uint32)
 
     def _halo_swap(self, array: ndarray, dim: Dim, dir: Dir):
         neighbour = self.neighbours[dim][dir]
