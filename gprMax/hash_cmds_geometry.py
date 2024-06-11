@@ -24,6 +24,7 @@ from .cmds_geometry.add_grass import AddGrass
 from .cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from .cmds_geometry.add_surface_water import AddSurfaceWater
 from .cmds_geometry.box import Box
+from .cmds_geometry.cmds_geometry import check_averaging
 from .cmds_geometry.cone import Cone
 from .cmds_geometry.cylinder import Cylinder
 from .cmds_geometry.cylindrical_sector import CylindricalSector
@@ -36,27 +37,6 @@ from .cmds_geometry.triangle import Triangle
 from .utilities.utilities import round_value
 
 logger = logging.getLogger(__name__)
-
-
-def check_averaging(averaging):
-    """Check and set material averaging value.
-
-    Args:
-        averaging: string for input value from hash command - should be 'y'
-                    or 'n'.
-
-    Returns:
-        averaging: boolean for geometry object material averaging.
-    """
-
-    if averaging == "y":
-        averaging = True
-    elif averaging == "n":
-        averaging = False
-    else:
-        logger.exception("Averaging should be either y or n")
-
-    return averaging
 
 
 def process_geometrycmds(geometry):
@@ -77,7 +57,8 @@ def process_geometrycmds(geometry):
         tmp = object.split()
 
         if tmp[0] == "#geometry_objects_read:":
-            from .cmds_geometry.geometry_objects_read import GeometryObjectsRead
+            from .cmds_geometry.geometry_objects_read import \
+                GeometryObjectsRead
 
             if len(tmp) != 6:
                 logger.exception("'" + " ".join(tmp) + "'" + " requires exactly five parameters")

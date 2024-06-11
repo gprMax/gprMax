@@ -24,7 +24,7 @@ import gprMax.config as config
 
 from ..cython.geometry_primitives import build_box
 from ..materials import Material
-from .cmds_geometry import UserObjectGeometry, rotate_2point_object
+from .cmds_geometry import UserObjectGeometry, check_averaging, rotate_2point_object
 
 logger = logging.getLogger(__name__)
 
