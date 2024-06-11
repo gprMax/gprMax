@@ -17,6 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import itertools
+import logging
 from enum import IntEnum, unique
 from typing import List, Optional, TypeVar, Union
 
@@ -28,6 +29,8 @@ from numpy import ndarray
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.receivers import Rx
 from gprMax.sources import Source
+
+logger = logging.getLogger(__name__)
 
 CoordType = TypeVar("CoordType", bound=Union[Rx, Source])
 
@@ -255,9 +258,16 @@ class MPIGrid(FDTDGrid):
         self._halo_swap_array(self.Hz)
 
     def build(self):
+        if any(self.global_size + 1 < self.mpi_tasks):
+            logger.error(
+                f"Too many MPI tasks requested ({self.mpi_tasks}) for grid of size {self.global_size + 1}. Make sure the number of MPI tasks in each dimension is less than the size of the grid."
+            )
+            raise ValueError
+
         self.calculate_local_extents()
         self.set_halo_map()
         self.scatter_grid()
+
         super().build()
 
     def has_neighbour(self, dim: Dim, dir: Dir) -> bool:
