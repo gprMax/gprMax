@@ -112,9 +112,9 @@ class MPIGrid(FDTDGrid):
         step_size = self.global_size // self.mpi_tasks
         overflow = self.global_size % self.mpi_tasks
         grid_coord = np.where(
-            (step_size + 1) * overflow > coord,
+            (step_size + 1) * overflow >= coord,
             coord // (step_size + 1),
-            (coord - overflow) // step_size,
+            (coord - overflow) // np.maximum(step_size, 1),
         )
         return self.comm.Get_cart_rank(grid_coord.tolist())
 
@@ -313,22 +313,13 @@ class MPIGrid(FDTDGrid):
                 self.recv_halo_map[dim][Dir.POS].Commit()
 
     def calculate_local_extents(self):
-        print(f"[Rank {self.rank}] Global size = {self.global_size}")
         self.size = self.global_size // self.mpi_tasks
-        print(f"[Rank {self.rank}] Initial size = {self.size}")
 
         self.lower_extent = self.size * self.coords + np.minimum(
             self.coords, self.global_size % self.mpi_tasks
         )
 
-        print(f"[Rank {self.rank}] Lower extent = {self.lower_extent}")
-
-        self.size += self.coords < self.global_size % self.mpi_tasks
-
-        print(f"[Rank {self.rank}] Expanded size = {self.size}")
-
-        # at_end = (self.mpi_tasks - self.coords) <= 1
-        # self.size += at_end * self.global_size % self.mpi_tasks
+        self.size += self.coords < (self.global_size % self.mpi_tasks)
 
         # Account for negative halo
         # Field arrays are created with dimensions size + 1 so space for
@@ -338,5 +329,3 @@ class MPIGrid(FDTDGrid):
         self.size += self.neighbours[:, 0] >= 0
         self.lower_extent -= self.neighbours[:, 0] >= 0
         self.upper_extent = self.lower_extent + self.size
-
-        print(f"[Rank {self.rank}] With positive halo size = {self.size}")
