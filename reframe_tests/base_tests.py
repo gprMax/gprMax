@@ -5,9 +5,14 @@ from shutil import copyfile
 
 import reframe as rfm
 import reframe.utility.sanity as sn
+import reframe.utility.typecheck as typ
+from matplotlib.tri import TriContourSet
+from numpy import product
 from reframe.core.builtins import (
+    parameter,
     performance_function,
     require_deps,
+    required,
     run_after,
     run_before,
     sanity_function,
@@ -73,12 +78,20 @@ class CreatePyenvTest(rfm.RunOnlyRegressionTest):
         )
 
 
-class GprMaxBaseTest(rfm.RunOnlyRegressionTest):
+class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
     valid_systems = ["archer2:compute"]
     valid_prog_environs = ["PrgEnv-gnu"]
     modules = ["cray-python"]
-    executable = "time -p python -m gprMax --log-level 25"
+
+    num_cpus_per_task = 16
     exclusive_access = True
+
+    model = variable(str)
+    # sourcesdir = required
+    extra_executable_opts = variable(typ.List[str], value=[])
+    executable = "time -p python -m gprMax --log-level 25"
+
+    h5diff_header = f"{'=' * 10} h5diff output {'=' * 10}"
 
     @run_after("init")
     def setup_env_vars(self):
@@ -105,10 +118,37 @@ class GprMaxBaseTest(rfm.RunOnlyRegressionTest):
         path_to_pyenv = os.path.join(CreatePyenvTest(part="login").stagedir, PATH_TO_PYENV)
         self.prerun_cmds.append(f"source {path_to_pyenv}")
 
-    @sanity_function
+    @run_after("init", always_last=True)
+    def configure_test_run(self, input_file_ext: str = ".in"):
+        self.input_file = f"{self.model}{input_file_ext}"
+        self.skip_if(
+            not os.path.exists(self.input_file),
+            f"Input file '{self.input_file}' not present in src directory '{self.sourcesdir}'",
+        )
+        self.output_file = f"{self.model}.h5"
+        self.executable_opts = [self.input_file, "-o", self.output_file]
+        self.executable_opts += self.extra_executable_opts
+        self.postrun_cmds = [f"python -m toolboxes.Plotting.plot_Ascan -save {self.output_file}"]
+        self.keep_files = [self.input_file, self.output_file, f"{self.model}.pdf"]
+
+    @run_before("run")
+    def setup_reference_file(self):
+        """Build reference file path"""
+        self.reference_file = Path("regression_checks", self.short_name).with_suffix(".h5")
+        self.reference_file = os.path.abspath(self.reference_file)
+
+    @run_before("run", always_last=True)
+    def setup_regression_check(self):
+        """Add h5diff command to run after the test"""
+        if self.current_system.name == "archer2":
+            self.modules.append("cray-hdf5")
+
+        if os.path.exists(self.reference_file):
+            self.postrun_cmds.append(f"echo {self.h5diff_header}")
+            self.postrun_cmds.append(f"h5diff {self.output_file} {self.reference_file}")
+
     def test_simulation_complete(self):
         """Check simulation completed successfully"""
-        # TODO: Check for correctness/regression rather than just completing
         return sn.assert_not_found(
             r"(?i)error",
             self.stderr,
@@ -116,6 +156,34 @@ class GprMaxBaseTest(rfm.RunOnlyRegressionTest):
         ) and sn.assert_found(
             r"=== Simulation completed in ", self.stdout, "Simulation did not complete"
         )
+
+    @sanity_function
+    def regression_check(self):
+        """
+        Perform regression check by checking for the h5diff output.
+        Create reference file from the test output if it does not exist.
+        """
+        if sn.path_exists(self.reference_file):
+            h5diff_output = sn.extractsingle(
+                f"{self.h5diff_header}\n(?P<h5diff>[\S\s]*)", self.stdout, "h5diff"
+            )
+            return (
+                self.test_simulation_complete()
+                and sn.assert_found(self.h5diff_header, self.stdout, "Failed to find h5diff header")
+                and sn.assert_false(
+                    h5diff_output,
+                    (
+                        f"Found h5diff output (see '{path_join(self.stagedir, self.stdout)}')\n"
+                        f"For more details run: 'h5diff {os.path.abspath(self.output_file)} {self.reference_file}'\n"
+                        f"To re-create regression file, delete '{self.reference_file}' and rerun the test."
+                    ),
+                )
+            )
+        else:
+            copyfile(self.output_file, self.reference_file)
+            return sn.assert_true(
+                False, f"No reference file exists. Creating... '{self.reference_file}'"
+            )
 
     @performance_function("s", perf_key="run_time")
     def extract_run_time(self):
@@ -167,54 +235,74 @@ class GprMaxBaseTest(rfm.RunOnlyRegressionTest):
         return hours * 3600 + minutes * 60 + seconds
 
 
-class GprMaxRegressionTest(GprMaxBaseTest):
-    input_file = variable(str)
-    output_file = variable(str)
+class GprMaxAPIRegressionTest(GprMaxRegressionTest):
+    executable = "time -p python"
 
-    h5diff_header = f"{'=' * 10} h5diff output {'=' * 10}"
+    @run_after("init", always_last=True)
+    def configure_test_run(self):
+        super().configure_test_run(input_file_ext=".py")
+
+
+class GprMaxBScanRegressionTest(GprMaxRegressionTest):
+    num_models = variable(int)
+
+    @run_after("init", always_last=True)
+    def configure_test_run(self):
+        self.input_file = f"{self.model}.in"
+        self.output_file = f"{self.model}_merged.h5"
+        self.executable_opts = [self.input_file, "-n", str(self.num_models)]
+        self.postrun_cmds = [
+            f"python -m toolboxes.Utilities.outputfiles_merge {self.model}",
+            f"python -m toolboxes.Plotting.plot_Bscan -save {self.output_file} Ez",
+        ]
+        self.keep_files = [self.input_file, self.output_file, "{self.model}_merged.pdf"]
+
+
+class GprMaxTaskfarmRegressionTest(GprMaxBScanRegressionTest):
+    serial_dependecy = variable(type[GprMaxRegressionTest])
+    extra_executable_opts = ["-taskfarm"]
+
+    num_tasks = required
+
+    @run_after("init")
+    def inject_dependencies(self):
+        """Test depends on the Python virtual environment building correctly"""
+        variant = self.serial_dependecy.get_variant_nums(
+            model=lambda m: m == self.model, num_models=lambda n: n == self.num_models
+        )
+        self.depends_on(self.serial_dependecy.variant_name(variant[0]), udeps.by_env)
+        super().inject_dependencies()
 
     @run_before("run")
     def setup_reference_file(self):
-        """Build reference file path"""
-        self.reference_file = Path("regression_checks", self.short_name).with_suffix(".h5")
-        self.reference_file = os.path.abspath(self.reference_file)
-
-    @run_before("run", always_last=True)
-    def setup_regression_check(self):
-        """Add h5diff command to run after the test"""
-        self.modules.append("cray-hdf5")
-        if os.path.exists(self.reference_file):
-            self.postrun_cmds.append(f"echo {self.h5diff_header}")
-            self.postrun_cmds.append(f"h5diff {self.output_file} {self.reference_file}")
-
-    @sanity_function
-    def regression_check(self):
-        """
-        Perform regression check by checking for the h5diff output.
-        Create reference file from the test output if it does not exist.
-        """
-        if sn.path_exists(self.reference_file):
-            h5diff_output = sn.extractsingle(
-                f"{self.h5diff_header}\n(?P<h5diff>[\S\s]*)", self.stdout, "h5diff"
-            )
-            return (
-                self.test_simulation_complete()
-                and sn.assert_found(self.h5diff_header, self.stdout, "Failed to find h5diff header")
-                and sn.assert_false(
-                    h5diff_output,
-                    (
-                        f"Found h5diff output (see '{path_join(self.stagedir, self.stdout)}')\n"
-                        f"For more details run: 'h5diff {os.path.abspath(self.output_file)} {self.reference_file}'\n"
-                        f"To re-create regression file, delete '{self.reference_file}' and rerun the test."
-                    ),
-                )
-            )
-        else:
-            copyfile(self.output_file, self.reference_file)
-            return sn.assert_true(
-                False, f"No reference file exists. Creating... '{self.reference_file}'"
-            )
+        """Add prerun command to load the built Python environment"""
+        variant = self.serial_dependecy.get_variant_nums(
+            model=lambda m: m == self.model, num_models=lambda n: n == self.num_models
+        )
+        target = self.getdep(self.serial_dependecy.variant_name(variant[0]))
+        self.reference_file = os.path.join(target.stagedir, str(self.output_file))
 
 
-class GprMaxAPIRegressionTest(GprMaxRegressionTest):
-    executable = "time -p python"
+class GprMaxMPIRegressionTest(GprMaxRegressionTest):
+    mpi_layout = variable(typ.List[int])
+    serial_dependecy = variable(type[GprMaxRegressionTest])
+
+    @run_after("init", always_last=True)
+    def configure_test_run(self):
+        self.num_tasks = product(self.mpi_layout, dtype=int)
+        self.extra_executable_opts = ["-mpi", " ".join(self.mpi_layout)]
+        super().configure_test_run()
+
+    @run_after("init")
+    def inject_dependencies(self):
+        """Test depends on the Python virtual environment building correctly"""
+        variant = self.serial_dependecy.get_variant_nums(model=lambda m: m == self.model)
+        self.depends_on(self.serial_dependecy.variant_name(variant[0]), udeps.by_env)
+        super().inject_dependencies()
+
+    @run_before("run")
+    def setup_reference_file(self):
+        """Add prerun command to load the built Python environment"""
+        variant = self.serial_dependecy.get_variant_nums(model=lambda m: m == self.model)
+        target = self.getdep(self.serial_dependecy.variant_name(variant[0]))
+        self.reference_file = os.path.join(target.stagedir, str(self.output_file))
