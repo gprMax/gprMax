@@ -118,6 +118,11 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
         path_to_pyenv = os.path.join(CreatePyenvTest(part="login").stagedir, PATH_TO_PYENV)
         self.prerun_cmds.append(f"source {path_to_pyenv}")
 
+    @run_after("init")
+    def set_model(self):
+        if hasattr(self, "models") and self.models is not None:
+            self.model = self.models
+
     @run_after("init", always_last=True)
     def configure_test_run(self, input_file_ext: str = ".in"):
         self.input_file = f"{self.model}{input_file_ext}"
@@ -259,7 +264,7 @@ class GprMaxBScanRegressionTest(GprMaxRegressionTest):
 
 
 class GprMaxTaskfarmRegressionTest(GprMaxBScanRegressionTest):
-    serial_dependecy = variable(type[GprMaxRegressionTest])
+    serial_dependency = variable(type[GprMaxRegressionTest])
     extra_executable_opts = ["-taskfarm"]
 
     num_tasks = required
@@ -267,25 +272,25 @@ class GprMaxTaskfarmRegressionTest(GprMaxBScanRegressionTest):
     @run_after("init")
     def inject_dependencies(self):
         """Test depends on the Python virtual environment building correctly"""
-        variant = self.serial_dependecy.get_variant_nums(
+        variant = self.serial_dependency.get_variant_nums(
             model=lambda m: m == self.model, num_models=lambda n: n == self.num_models
         )
-        self.depends_on(self.serial_dependecy.variant_name(variant[0]), udeps.by_env)
+        self.depends_on(self.serial_dependency.variant_name(variant[0]), udeps.by_env)
         super().inject_dependencies()
 
     @run_before("run")
     def setup_reference_file(self):
         """Add prerun command to load the built Python environment"""
-        variant = self.serial_dependecy.get_variant_nums(
+        variant = self.serial_dependency.get_variant_nums(
             model=lambda m: m == self.model, num_models=lambda n: n == self.num_models
         )
-        target = self.getdep(self.serial_dependecy.variant_name(variant[0]))
+        target = self.getdep(self.serial_dependency.variant_name(variant[0]))
         self.reference_file = os.path.join(target.stagedir, str(self.output_file))
 
 
 class GprMaxMPIRegressionTest(GprMaxRegressionTest):
     mpi_layout = variable(typ.List[int])
-    serial_dependecy = variable(type[GprMaxRegressionTest])
+    serial_dependency = variable(type[GprMaxRegressionTest])
 
     @run_after("init", always_last=True)
     def configure_test_run(self):
@@ -296,13 +301,13 @@ class GprMaxMPIRegressionTest(GprMaxRegressionTest):
     @run_after("init")
     def inject_dependencies(self):
         """Test depends on the Python virtual environment building correctly"""
-        variant = self.serial_dependecy.get_variant_nums(model=lambda m: m == self.model)
-        self.depends_on(self.serial_dependecy.variant_name(variant[0]), udeps.by_env)
+        variant = self.serial_dependency.get_variant_nums(model=lambda m: m == self.model)
+        self.depends_on(self.serial_dependency.variant_name(variant[0]), udeps.by_env)
         super().inject_dependencies()
 
     @run_before("run")
     def setup_reference_file(self):
         """Add prerun command to load the built Python environment"""
-        variant = self.serial_dependecy.get_variant_nums(model=lambda m: m == self.model)
-        target = self.getdep(self.serial_dependecy.variant_name(variant[0]))
+        variant = self.serial_dependency.get_variant_nums(model=lambda m: m == self.model)
+        target = self.getdep(self.serial_dependency.variant_name(variant[0]))
         self.reference_file = os.path.join(target.stagedir, str(self.output_file))
