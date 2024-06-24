@@ -6,7 +6,7 @@ from base_tests import (
     GprMaxRegressionTest,
     GprMaxTaskfarmRegressionTest,
 )
-from reframe.core.builtins import parameter, run_after, skip
+from reframe.core.builtins import parameter, run_after, run_before
 
 """ReFrame tests for basic functionality
 
@@ -16,6 +16,7 @@ from reframe.core.builtins import parameter, run_after, skip
 """
 
 
+@rfm.simple_test
 class TestAscan(GprMaxRegressionTest):
     tags = {
         "test",
@@ -28,7 +29,7 @@ class TestAscan(GprMaxRegressionTest):
         "box",
         "cylinder",
     }
-    model = "cylinder_Ascan_2D"
+    model = parameter(["cylinder_Ascan_2D"])
 
 
 @rfm.simple_test
@@ -44,8 +45,8 @@ class TestBscan(GprMaxBScanRegressionTest):
         "box",
         "cylinder",
     }
-    model = "cylinder_Bscan_2D"
-    num_models = 64
+    model = parameter(["cylinder_Bscan_2D"])
+    num_models = parameter([64])
 
 
 @rfm.simple_test
@@ -61,11 +62,11 @@ class TestSingleNodeTaskfarm(GprMaxTaskfarmRegressionTest):
         "box",
         "cylinder",
     }
-    model = "cylinder_Bscan_2D"
     num_tasks = 8
     num_tasks_per_node = 8
-    num_models = 64
     serial_dependency = TestBscan
+    model = serial_dependency.model
+    num_models = serial_dependency.num_models
 
 
 @rfm.simple_test
@@ -81,59 +82,60 @@ class TestMultiNodeTaskfarm(GprMaxTaskfarmRegressionTest):
         "box",
         "cylinder",
     }
-    model = "cylinder_Bscan_2D"
     num_tasks = 32
     num_tasks_per_node = 8
-    num_models = 64
     serial_dependency = TestBscan
+    model = serial_dependency.model
+    num_models = serial_dependency.num_models
 
 
 @rfm.simple_test
 class Test2DModelXY(GprMaxRegressionTest):
     tags = {"test", "serial", "2d", "waveform", "hertzian_dipole"}
-    model = "2D_EzHxHy"
+    model = parameter(["2D_EzHxHy"])
 
 
 @rfm.simple_test
 class Test2DModelXZ(GprMaxRegressionTest):
     tags = {"test", "serial", "2d", "waveform", "hertzian_dipole"}
-    model = "2D_EyzHxHz"
+    model = parameter(["2D_EyHxHz"])
 
 
 @rfm.simple_test
 class Test2DModelYZ(GprMaxRegressionTest):
     tags = {"test", "serial", "2d", "waveform", "hertzian_dipole"}
-    model = "2D_ExzHyHz"
+    model = parameter(["2D_ExHyHz"])
 
 
 @rfm.simple_test
 class TestHertzianDipoleSource(GprMaxRegressionTest):
     tags = {"test", "serial", "hertzian_dipole", "waveform"}
-    model = "hertzian_dipole_fs"
+    model = parameter(["hertzian_dipole_fs"])
 
 
 @rfm.simple_test
 class TestMagneticDipoleSource(GprMaxRegressionTest):
     tags = {"test", "serial", "magnetic_dipole", "waveform"}
-    model = "magnetic_dipole_fs"
+    model = parameter(["magnetic_dipole_fs"])
 
 
 @rfm.simple_test
 class TestDispersiveMaterials(GprMaxRegressionTest):
     tags = {"test", "serial", "hertzian_dipole", "waveform", "material", "dispersive", "box"}
-    model = "hertizian_dipole_dispersive"
+    model = parameter(["hertzian_dipole_dispersive"])
 
 
 @rfm.simple_test
 class TestTransmissionLineSource(GprMaxRegressionTest):
     tags = {"test", "serial", "transmission_line", "waveform"}
-    model = "transmission_line_fs"
+    model = parameter(["transmission_line_fs"])
 
 
 @rfm.simple_test
 class TestEdgeGeometry(GprMaxRegressionTest):
     tags = {"test", "serial", "geometry", "edge", "transmission_line", "waveform", "antenna"}
-    model = "antenna_wire_dipole_fs"
+    model = parameter(["antenna_wire_dipole_fs"])
+    is_antenna_model = True
 
 
 @rfm.simple_test
@@ -149,11 +151,10 @@ class TestSubgrids(GprMaxAPIRegressionTest):
         "dispersive",
         "cylinder",
     }
-    model = "cylinder_fs"
+    model = parameter(["cylinder_fs"])
 
 
 @rfm.simple_test
-@skip("Takes ~1hr 30m on ARCHER2")
 class TestSubgridsWithAntennaModel(GprMaxAPIRegressionTest):
     tags = {
         "test",
@@ -166,80 +167,86 @@ class TestSubgridsWithAntennaModel(GprMaxAPIRegressionTest):
         "fractal_box",
         "add_surface_roughness",
     }
-    model = "gssi_400_over_fractal_subsurface"
+    model = parameter(["gssi_400_over_fractal_subsurface"])
+    is_antenna_model = True
+
+    @run_after("init")
+    def skip_test(self):
+        self.skip_if(self.current_system.name == "archer2", "Takes ~1hr 30m on ARCHER2")
 
 
 @rfm.simple_test
 class Test2DModelXYMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole"}
-    model = "2D_EzHxHy"
     mpi_layout = [4, 4, 1]
     serial_dependency = Test2DModelXY
+    model = serial_dependency.model
 
 
 @rfm.simple_test
 class Test2DModelXZMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole"}
-    model = "2D_EyzHxHz"
     mpi_layout = [4, 1, 4]
     serial_dependency = Test2DModelXZ
+    model = serial_dependency.model
 
 
 @rfm.simple_test
 class Test2DModelYZMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole"}
-    model = "2D_ExzHyHz"
     mpi_layout = [1, 4, 4]
     serial_dependency = Test2DModelYZ
+    model = serial_dependency.model
 
 
 @rfm.simple_test
 class TestHertzianDipoleSourceMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "hertzian_dipole", "waveform"}
-    model = "hertzian_dipole_fs"
     mpi_layout = [3, 3, 3]
     serial_dependency = TestHertzianDipoleSource
+    model = serial_dependency.model
 
 
 @rfm.simple_test
 class TestMagneticDipoleSourceMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "magnetic_dipole", "waveform"}
-    model = "magnetic_dipole_fs"
     mpi_layout = [3, 3, 3]
     serial_dependency = TestMagneticDipoleSource
+    model = serial_dependency.model
 
 
 @rfm.simple_test
 class TestDispersiveMaterialsMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "hertzian_dipole", "waveform", "material", "dispersive", "box"}
-    model = "hertizian_dipole_dispersive"
     mpi_layout = [3, 3, 3]
     serial_dependency = TestDispersiveMaterials
+    model = serial_dependency.model
 
 
 @rfm.simple_test
 class TestTransmissionLineSourceMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "transmission_line", "waveform"}
-    model = "transmission_line_fs"
     mpi_layout = [3, 3, 3]
     serial_dependency = TestTransmissionLineSource
+    model = serial_dependency.model
 
 
 @rfm.simple_test
 class TestEdgeGeometryMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "geometry", "edge", "transmission_line", "waveform", "antenna"}
-    model = "antenna_wire_dipole_fs"
     mpi_layout = [3, 3, 3]
     serial_dependency = TestEdgeGeometry
+    model = serial_dependency.model
+    is_antenna_model = True
 
 
 @rfm.simple_test
 class TestBoxGeometryNoPml(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "box"}
     sourcesdir = "src/box_geometry_tests"
-    models = parameter(["box_full_model", "box_half_model"])
+    model = parameter(["box_full_model", "box_half_model"])
 
-    @run_after("init", always_last=True)
+    @run_before("run")
     def add_gprmax_commands(self):
         self.prerun_cmds.append(f"echo '#pml_cells: 0' >> {self.input_file}")
 
@@ -248,17 +255,17 @@ class TestBoxGeometryNoPml(GprMaxRegressionTest):
 class TestBoxGeometryDefaultPml(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "box"}
     sourcesdir = "src/box_geometry_tests"
-    models = parameter(["box_full_model", "box_half_model"])
+    model = parameter(["box_full_model", "box_half_model"])
 
 
 @rfm.simple_test
 class TestBoxGeometryNoPmlMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "geometery", "box"}
-    models = TestBoxGeometryNoPml.models
     mpi_layout = [2, 2, 2]
     serial_dependency = TestBoxGeometryNoPml
+    model = serial_dependency.model
 
-    @run_after("init", always_last=True)
+    @run_before("run")
     def add_gprmax_commands(self):
         self.prerun_cmds.append(f"echo '#pml_cells: 0' >> {self.input_file}")
 
@@ -266,6 +273,6 @@ class TestBoxGeometryNoPmlMpi(GprMaxMPIRegressionTest):
 @rfm.simple_test
 class TestBoxGeometryDefaultPmlMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "geometery", "box"}
-    models = TestBoxGeometryDefaultPml.models
     mpi_layout = [2, 2, 2]
     serial_dependency = TestBoxGeometryDefaultPml
+    model = serial_dependency.model

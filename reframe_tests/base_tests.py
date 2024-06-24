@@ -6,7 +6,6 @@ from shutil import copyfile
 import reframe as rfm
 import reframe.utility.sanity as sn
 import reframe.utility.typecheck as typ
-from matplotlib.tri import TriContourSet
 from numpy import product
 from reframe.core.builtins import (
     parameter,
@@ -86,7 +85,8 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
     num_cpus_per_task = 16
     exclusive_access = True
 
-    model = variable(str)
+    model = parameter()
+    is_antenna_model = variable(bool, value=False)
     # sourcesdir = required
     extra_executable_opts = variable(typ.List[str], value=[])
     executable = "time -p python -m gprMax --log-level 25"
@@ -118,23 +118,33 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
         path_to_pyenv = os.path.join(CreatePyenvTest(part="login").stagedir, PATH_TO_PYENV)
         self.prerun_cmds.append(f"source {path_to_pyenv}")
 
-    @run_after("init")
-    def set_model(self):
-        if hasattr(self, "models") and self.models is not None:
-            self.model = self.models
-
-    @run_after("init", always_last=True)
+    @run_after("setup", always_last=True)
     def configure_test_run(self, input_file_ext: str = ".in"):
         self.input_file = f"{self.model}{input_file_ext}"
-        self.skip_if(
-            not os.path.exists(self.input_file),
-            f"Input file '{self.input_file}' not present in src directory '{self.sourcesdir}'",
-        )
         self.output_file = f"{self.model}.h5"
         self.executable_opts = [self.input_file, "-o", self.output_file]
         self.executable_opts += self.extra_executable_opts
         self.postrun_cmds = [f"python -m toolboxes.Plotting.plot_Ascan -save {self.output_file}"]
         self.keep_files = [self.input_file, self.output_file, f"{self.model}.pdf"]
+
+        if self.is_antenna_model:
+            self.postrun_cmds = [
+                f"python -m toolboxes.Plotting.plot_antenna_params -save {self.output_file}"
+            ]
+
+            antenna_t1_params = f"{self.model}_t1_params.pdf"
+            antenna_ant_params = f"{self.model}_ant_params.pdf"
+            self.keep_files += [
+                antenna_t1_params,
+                antenna_ant_params,
+            ]
+
+    @run_before("run")
+    def check_input_file_exists(self):
+        self.skip_if(
+            not os.path.exists(os.path.join(self.sourcesdir, self.input_file)),
+            f"Input file '{self.input_file}' not present in src directory '{self.sourcesdir}'",
+        )
 
     @run_before("run")
     def setup_reference_file(self):
@@ -249,65 +259,68 @@ class GprMaxAPIRegressionTest(GprMaxRegressionTest):
 
 
 class GprMaxBScanRegressionTest(GprMaxRegressionTest):
-    num_models = variable(int)
+    num_models = parameter()
 
-    @run_after("init", always_last=True)
+    @run_after("setup", always_last=True)
     def configure_test_run(self):
-        self.input_file = f"{self.model}.in"
-        self.output_file = f"{self.model}_merged.h5"
-        self.executable_opts = [self.input_file, "-n", str(self.num_models)]
+        self.extra_executable_opts += ["-n", str(self.num_models)]
+        super().configure_test_run()
+
         self.postrun_cmds = [
             f"python -m toolboxes.Utilities.outputfiles_merge {self.model}",
+            f"mv {self.model}_merged.h5 {self.output_file}",
             f"python -m toolboxes.Plotting.plot_Bscan -save {self.output_file} Ez",
         ]
-        self.keep_files = [self.input_file, self.output_file, "{self.model}_merged.pdf"]
 
 
 class GprMaxTaskfarmRegressionTest(GprMaxBScanRegressionTest):
-    serial_dependency = variable(type[GprMaxRegressionTest])
+    serial_dependency: type[GprMaxRegressionTest]
     extra_executable_opts = ["-taskfarm"]
 
     num_tasks = required
 
-    @run_after("init")
-    def inject_dependencies(self):
-        """Test depends on the Python virtual environment building correctly"""
+    def _get_variant(self) -> str:
         variant = self.serial_dependency.get_variant_nums(
             model=lambda m: m == self.model, num_models=lambda n: n == self.num_models
         )
-        self.depends_on(self.serial_dependency.variant_name(variant[0]), udeps.by_env)
+        return self.serial_dependency.variant_name(variant[0])
+
+    @run_after("init")
+    def inject_dependencies(self):
+        """Test depends on the Python virtual environment building correctly"""
+        self.depends_on(self._get_variant(), udeps.by_env)
         super().inject_dependencies()
 
     @run_before("run")
     def setup_reference_file(self):
         """Add prerun command to load the built Python environment"""
-        variant = self.serial_dependency.get_variant_nums(
-            model=lambda m: m == self.model, num_models=lambda n: n == self.num_models
-        )
-        target = self.getdep(self.serial_dependency.variant_name(variant[0]))
+        target = self.getdep(self._get_variant())
         self.reference_file = os.path.join(target.stagedir, str(self.output_file))
 
 
 class GprMaxMPIRegressionTest(GprMaxRegressionTest):
+    # TODO: Make this a variable
+    serial_dependency: type[GprMaxRegressionTest]
     mpi_layout = variable(typ.List[int])
-    serial_dependency = variable(type[GprMaxRegressionTest])
 
-    @run_after("init", always_last=True)
+    @run_after("setup", always_last=True)
     def configure_test_run(self):
-        self.num_tasks = product(self.mpi_layout, dtype=int)
-        self.extra_executable_opts = ["-mpi", " ".join(self.mpi_layout)]
+        self.num_tasks = int(product(self.mpi_layout))
+        self.extra_executable_opts = ["-mpi", " ".join(map(str, self.mpi_layout))]
         super().configure_test_run()
+
+    def _get_variant(self) -> str:
+        variant = self.serial_dependency.get_variant_nums(model=lambda m: m == self.model)
+        return self.serial_dependency.variant_name(variant[0])
 
     @run_after("init")
     def inject_dependencies(self):
         """Test depends on the Python virtual environment building correctly"""
-        variant = self.serial_dependency.get_variant_nums(model=lambda m: m == self.model)
-        self.depends_on(self.serial_dependency.variant_name(variant[0]), udeps.by_env)
+        self.depends_on(self._get_variant(), udeps.by_env)
         super().inject_dependencies()
 
     @run_before("run")
     def setup_reference_file(self):
         """Add prerun command to load the built Python environment"""
-        variant = self.serial_dependency.get_variant_nums(model=lambda m: m == self.model)
-        target = self.getdep(self.serial_dependency.variant_name(variant[0]))
+        target = self.getdep(self._get_variant())
         self.reference_file = os.path.join(target.stagedir, str(self.output_file))
