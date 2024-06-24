@@ -264,7 +264,7 @@ class TestBoxGeometryNoPmlMpi(GprMaxMPIRegressionTest):
     mpi_layout = [2, 2, 2]
     serial_dependency = TestBoxGeometryNoPml
     model = serial_dependency.model
-    sourcesdir = serial_dependency.sourcesdir
+    sourcesdir = "src/box_geometry_tests"
 
     @run_before("run")
     def add_gprmax_commands(self):
@@ -277,4 +277,4 @@ class TestBoxGeometryDefaultPmlMpi(GprMaxMPIRegressionTest):
     mpi_layout = [2, 2, 2]
     serial_dependency = TestBoxGeometryDefaultPml
     model = serial_dependency.model
-    sourcesdir = serial_dependency.sourcesdir
+    sourcesdir = "src/box_geometry_tests"
