@@ -4,4 +4,5 @@
 #time_window: 3e-9
 
 #waveform: gaussian 1 1e9 mypulse
-#transmission_line: x 0.025 0.040 0.040 35 mypulse
+#transmission_line: x 0.050 0.050 0.050 35 mypulse
+#rx: 0.070 0.070 0.070
