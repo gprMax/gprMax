@@ -58,6 +58,9 @@ class MPIGrid(FDTDGrid):
         super().__init__()
 
         self.comm = comm
+        self.x_comm = comm.Sub([False, True, True])
+        self.y_comm = comm.Sub([True, False, True])
+        self.z_comm = comm.Sub([True, True, False])
 
         self.mpi_tasks = np.array(self.comm.dims)
 
