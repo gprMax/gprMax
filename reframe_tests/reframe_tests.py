@@ -178,7 +178,7 @@ class TestSubgridsWithAntennaModel(GprMaxAPIRegressionTest):
 @rfm.simple_test
 class Test2DModelXYMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole"}
-    mpi_layout = [4, 4, 1]
+    mpi_layout = parameter([[4, 4, 1]])
     serial_dependency = Test2DModelXY
     model = serial_dependency.model
 
@@ -186,7 +186,7 @@ class Test2DModelXYMpi(GprMaxMPIRegressionTest):
 @rfm.simple_test
 class Test2DModelXZMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole"}
-    mpi_layout = [4, 1, 4]
+    mpi_layout = parameter([[4, 1, 4]])
     serial_dependency = Test2DModelXZ
     model = serial_dependency.model
 
@@ -194,7 +194,7 @@ class Test2DModelXZMpi(GprMaxMPIRegressionTest):
 @rfm.simple_test
 class Test2DModelYZMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole"}
-    mpi_layout = [1, 4, 4]
+    mpi_layout = parameter([[1, 4, 4]])
     serial_dependency = Test2DModelYZ
     model = serial_dependency.model
 
@@ -202,7 +202,7 @@ class Test2DModelYZMpi(GprMaxMPIRegressionTest):
 @rfm.simple_test
 class TestHertzianDipoleSourceMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "hertzian_dipole", "waveform"}
-    mpi_layout = [3, 3, 3]
+    mpi_layout = parameter([[3, 3, 3]])
     serial_dependency = TestHertzianDipoleSource
     model = serial_dependency.model
 
@@ -210,7 +210,7 @@ class TestHertzianDipoleSourceMpi(GprMaxMPIRegressionTest):
 @rfm.simple_test
 class TestMagneticDipoleSourceMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "magnetic_dipole", "waveform"}
-    mpi_layout = [3, 3, 3]
+    mpi_layout = parameter([[3, 3, 3]])
     serial_dependency = TestMagneticDipoleSource
     model = serial_dependency.model
 
@@ -218,7 +218,7 @@ class TestMagneticDipoleSourceMpi(GprMaxMPIRegressionTest):
 @rfm.simple_test
 class TestDispersiveMaterialsMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "hertzian_dipole", "waveform", "material", "dispersive", "box"}
-    mpi_layout = [3, 3, 3]
+    mpi_layout = parameter([[3, 3, 3]])
     serial_dependency = TestDispersiveMaterials
     model = serial_dependency.model
 
@@ -226,7 +226,7 @@ class TestDispersiveMaterialsMpi(GprMaxMPIRegressionTest):
 @rfm.simple_test
 class TestTransmissionLineSourceMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "transmission_line", "waveform"}
-    mpi_layout = [3, 3, 3]
+    mpi_layout = parameter([[3, 3, 3]])
     serial_dependency = TestTransmissionLineSource
     model = serial_dependency.model
 
@@ -234,7 +234,7 @@ class TestTransmissionLineSourceMpi(GprMaxMPIRegressionTest):
 @rfm.simple_test
 class TestEdgeGeometryMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "geometry", "edge", "transmission_line", "waveform", "antenna"}
-    mpi_layout = [3, 3, 3]
+    mpi_layout = parameter([[3, 3, 3]])
     serial_dependency = TestEdgeGeometry
     model = serial_dependency.model
     is_antenna_model = True
@@ -261,7 +261,7 @@ class TestBoxGeometryDefaultPml(GprMaxRegressionTest):
 @rfm.simple_test
 class TestBoxGeometryNoPmlMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "geometery", "box"}
-    mpi_layout = [2, 2, 2]
+    mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
     serial_dependency = TestBoxGeometryNoPml
     model = serial_dependency.model
     sourcesdir = "src/box_geometry_tests"
@@ -274,7 +274,7 @@ class TestBoxGeometryNoPmlMpi(GprMaxMPIRegressionTest):
 @rfm.simple_test
 class TestBoxGeometryDefaultPmlMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "geometery", "box"}
-    mpi_layout = [2, 2, 2]
+    mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
     serial_dependency = TestBoxGeometryDefaultPml
     model = serial_dependency.model
     sourcesdir = "src/box_geometry_tests"

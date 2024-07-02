@@ -301,7 +301,7 @@ class GprMaxTaskfarmRegressionTest(GprMaxBScanRegressionTest):
 class GprMaxMPIRegressionTest(GprMaxRegressionTest):
     # TODO: Make this a variable
     serial_dependency: type[GprMaxRegressionTest]
-    mpi_layout = variable(typ.List[int])
+    mpi_layout = parameter()
 
     @run_after("setup", always_last=True)
     def configure_test_run(self):
