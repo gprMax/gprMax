@@ -24,7 +24,7 @@ from mpi4py import MPI
 
 import gprMax.config as config
 
-from .cython.pml_build import pml_average_er_mr
+from .cython.pml_build import pml_average_er_mr, pml_sum_er_mr
 
 logger = logging.getLogger(__name__)
 
@@ -795,22 +795,115 @@ def build_pml(G, pml_ID, thickness):
             G.nx, G.ny, config.get_model_config().ompthreads, G.solid[:, :, pml.zs], ers, mrs
         )
 
-    # TODO: Use Grid type (currently will cause a circular dependency)
-    if config.sim_config.mpi:
-        if pml_ID[0] == "x":
-            comm = G.x_comm
-        elif pml_ID[0] == "y":
-            comm = G.y_comm
-        elif pml_ID[0] == "z":
-            comm = G.z_comm
+    pml.calculate_update_coeffs(averageer, averagemr)
+    G.pmls["slabs"].append(pml)
 
-        comm.barrier()
-        print(f"[Rank {G.rank}] pml_ID: {pml_ID}, er: {averageer}, mr: {averagemr}")
-        averageer = comm.allreduce(averageer, MPI.SUM) / comm.size
-        averagemr = comm.allreduce(averagemr, MPI.SUM) / comm.size
-        print(f"[Rank {G.rank}] NEW pml_ID: {pml_ID}, er: {averageer}, mr {averagemr}")
-    else:
-        print(f"pml_ID: {pml_ID}, er: {averageer}, mr {averagemr}")
+
+def build_pml_mpi(G, pml_ID, thickness):
+    """Builds instances of the PML and calculates the initial parameters and
+        coefficients including setting profile (based on underlying material
+        er and mr from solid array).
+
+    Args:
+        G: FDTDGrid class describing a grid in a model.
+        pml_ID: string identifier of PML slab.
+        thickness: int with thickness of PML slab in cells.
+    """
+
+    # Arrays to hold values of permittivity and permeability (avoids accessing
+    # Material class in Cython.)
+    ers = np.zeros(len(G.materials))
+    mrs = np.zeros(len(G.materials))
+
+    for i, m in enumerate(G.materials):
+        ers[i] = m.er
+        mrs[i] = m.mr
+
+    if config.sim_config.general["solver"] == "cpu":
+        pml_type = PML
+    elif config.sim_config.general["solver"] == "cuda":
+        pml_type = CUDAPML
+    elif config.sim_config.general["solver"] == "opencl":
+        pml_type = OpenCLPML
+
+    if pml_ID == "x0":
+        pml = pml_type(
+            G, ID=pml_ID, direction="xminus", xs=0, xf=thickness, ys=0, yf=G.ny, zs=0, zf=G.nz
+        )
+    elif pml_ID == "xmax":
+        pml = pml_type(
+            G,
+            ID=pml_ID,
+            direction="xplus",
+            xs=G.nx - thickness,
+            xf=G.nx,
+            ys=0,
+            yf=G.ny,
+            zs=0,
+            zf=G.nz,
+        )
+    elif pml_ID == "y0":
+        pml = pml_type(
+            G, ID=pml_ID, direction="yminus", xs=0, xf=G.nx, ys=0, yf=thickness, zs=0, zf=G.nz
+        )
+    elif pml_ID == "ymax":
+        pml = pml_type(
+            G,
+            ID=pml_ID,
+            direction="yplus",
+            xs=0,
+            xf=G.nx,
+            ys=G.ny - thickness,
+            yf=G.ny,
+            zs=0,
+            zf=G.nz,
+        )
+    elif pml_ID == "z0":
+        pml = pml_type(
+            G, ID=pml_ID, direction="zminus", xs=0, xf=G.nx, ys=0, yf=G.ny, zs=0, zf=thickness
+        )
+    elif pml_ID == "zmax":
+        pml = pml_type(
+            G,
+            ID=pml_ID,
+            direction="zplus",
+            xs=0,
+            xf=G.nx,
+            ys=0,
+            yf=G.ny,
+            zs=G.nz - thickness,
+            zf=G.nz,
+        )
+
+    # Need to account for the negative halo (remove it) to avoid double
+    # counting. The solid array does not have a positive halo so we
+    # don't need to consider that.
+    if pml_ID[0] == "x":
+        o1 = G.negative_halo_offset[1]
+        o2 = G.negative_halo_offset[2]
+        n1 = G.ny - o1
+        n2 = G.nz - o2
+        solid = G.solid[pml.xs, o1:, o2:]
+        comm = G.x_comm
+    elif pml_ID[0] == "y":
+        o1 = G.negative_halo_offset[0]
+        o2 = G.negative_halo_offset[2]
+        n1 = G.nx - o1
+        n2 = G.nz - o2
+        solid = G.solid[o1:, pml.ys, o2:]
+        comm = G.y_comm
+    elif pml_ID[0] == "z":
+        o1 = G.negative_halo_offset[0]
+        o2 = G.negative_halo_offset[1]
+        n1 = G.nx - o1
+        n2 = G.ny - o2
+        solid = G.solid[o1:, o2:, pml.zs]
+        comm = G.z_comm
+
+    sumer, summr = pml_sum_er_mr(n1, n2, config.get_model_config().ompthreads, solid, ers, mrs)
+    n = comm.allreduce(n1 * n2, MPI.SUM)
+    averageer = comm.allreduce(sumer, MPI.SUM) / n
+    averagemr = comm.allreduce(summr, MPI.SUM) / n
 
     pml.calculate_update_coeffs(averageer, averagemr)
     G.pmls["slabs"].append(pml)

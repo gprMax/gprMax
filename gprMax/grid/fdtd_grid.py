@@ -152,7 +152,7 @@ class FDTDGrid:
             self.initialise_dispersive_update_coeff_array()
         self._build_materials()
 
-    def _build_pmls(self) -> None:
+    def _build_pmls(self, build_pml_func=build_pml) -> None:
         pbar = tqdm(
             total=sum(1 for value in self.pmls["thickness"].values() if value > 0),
             desc=f"Building PML boundaries [{self.name}]",
@@ -162,7 +162,9 @@ class FDTDGrid:
         )
         for pml_id, thickness in self.pmls["thickness"].items():
             if thickness > 0:
-                build_pml(self, pml_id, thickness)
+                # TODO: Consider making this a method of FDTDGrid (that
+                # can be overriden in MPIGrid)
+                build_pml_func(self, pml_id, thickness)
                 pbar.update()
         pbar.close()
 

@@ -60,3 +60,39 @@ cpdef pml_average_er_mr(
     averagemr = summr / (n1 * n2)
 
     return averageer, averagemr
+
+cpdef pml_sum_er_mr(
+    int n1,
+    int n2,
+    int nthreads,
+    np.uint32_t[:, :] solid,
+    float_or_double[::1] ers,
+    float_or_double[::1] mrs
+):
+    """Calculates average permittivity and permeability in PML slab (based on
+        underlying material er and mr from solid array). Used to build PML.
+
+    Args:
+        n1, n2: ints for PML size in cells perpendicular to thickness direction.
+        nthreads: int for number of threads to use.
+        solid: memoryviews to access solid array.
+        ers, mrs: memoryviews to access arrays containing permittivity and
+                    permeability.
+
+    Returns:
+        averageer, averagemr: floats for average permittivity and permeability
+                                in PML slab.
+    """
+
+    cdef Py_ssize_t m, n
+    cdef int numID
+    # Sum and average of relative permittivities and permeabilities in PML slab
+    cdef float sumer, summr, averageer, averagemr
+
+    for m in prange(n1, nogil=True, schedule='static', num_threads=nthreads):
+        for n in range(n2):
+            numID = solid[m ,n]
+            sumer += ers[numID]
+            summr += mrs[numID]
+
+    return sumer, summr

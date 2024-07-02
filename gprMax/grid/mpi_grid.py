@@ -27,6 +27,7 @@ from mpi4py import MPI
 from numpy import ndarray
 
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.pml import build_pml_mpi
 from gprMax.receivers import Rx
 from gprMax.sources import Source
 
@@ -66,6 +67,7 @@ class MPIGrid(FDTDGrid):
 
         self.lower_extent: npt.NDArray[np.intc] = np.zeros(3, dtype=int)
         self.upper_extent: npt.NDArray[np.intc] = np.zeros(3, dtype=int)
+        self.negative_halo_offset: npt.NDArray[np.intc] = np.zeros(3, dtype=int)
         self.global_size: npt.NDArray[np.intc] = np.zeros(3, dtype=int)
 
         self.neighbours = np.full((3, 2), -1, dtype=int)
@@ -260,6 +262,9 @@ class MPIGrid(FDTDGrid):
         self._halo_swap_array(self.Hy)
         self._halo_swap_array(self.Hz)
 
+    def _build_pmls(self):
+        super()._build_pmls(build_pml_func=build_pml_mpi)
+
     def build(self):
         if any(self.global_size + 1 < self.mpi_tasks):
             logger.error(
@@ -329,6 +334,7 @@ class MPIGrid(FDTDGrid):
         # a positive halo will always exist. Grids not needing a
         # positive halo, still need the extra size as that makes the
         # global grid on the whole one larger than the user dimensions.
-        self.size += self.neighbours[:, 0] >= 0
-        self.lower_extent -= self.neighbours[:, 0] >= 0
+        self.negative_halo_offset = self.neighbours[:, 0] >= 0
+        self.size += self.negative_halo_offset
+        self.lower_extent -= self.negative_halo_offset
         self.upper_extent = self.lower_extent + self.size
