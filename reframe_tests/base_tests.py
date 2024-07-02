@@ -20,6 +20,8 @@ from reframe.core.builtins import (
 from reframe.utility import udeps
 from utilities.deferrable import path_join
 
+from gprMax.receivers import Rx
+
 GPRMAX_ROOT_DIR = Path(__file__).parent.parent.resolve()
 PATH_TO_PYENV = os.path.join(".venv", "bin", "activate")
 
@@ -91,6 +93,7 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
     extra_executable_opts = variable(typ.List[str], value=[])
     executable = "time -p python -m gprMax --log-level 25"
 
+    rx_outputs = variable(typ.List[str], value=Rx.defaultoutputs)
     h5diff_header = f"{'=' * 10} h5diff output {'=' * 10}"
 
     @run_after("init")
@@ -124,7 +127,9 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
         self.output_file = f"{self.model}.h5"
         self.executable_opts = [self.input_file, "-o", self.output_file]
         self.executable_opts += self.extra_executable_opts
-        self.postrun_cmds = [f"python -m toolboxes.Plotting.plot_Ascan -save {self.output_file}"]
+        self.postrun_cmds = [
+            f"python -m toolboxes.Plotting.plot_Ascan -save {self.output_file} --outputs {' '.join(self.rx_outputs)}"
+        ]
         self.keep_files = [self.input_file, self.output_file, f"{self.model}.pdf"]
 
         if self.is_antenna_model:
