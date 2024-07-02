@@ -255,7 +255,15 @@ class TestBoxGeometryNoPml(GprMaxRegressionTest):
 class TestBoxGeometryDefaultPml(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "box"}
     sourcesdir = "src/box_geometry_tests"
-    model = parameter(["box_full_model", "box_half_model"])
+    model = parameter(
+        [
+            "box_full_model",
+            "box_half_model",
+            "box_single_rank",
+            "box_outside_pml",
+            "box_single_rank_outside_pml",
+        ]
+    )
 
 
 @rfm.simple_test
@@ -278,3 +286,19 @@ class TestBoxGeometryDefaultPmlMpi(GprMaxMPIRegressionTest):
     serial_dependency = TestBoxGeometryDefaultPml
     model = serial_dependency.model
     sourcesdir = "src/box_geometry_tests"
+
+
+@rfm.simple_test
+class TestSingleCellPml(GprMaxRegressionTest):
+    tags = {"test", "serial", "geometery", "box", "pml"}
+    sourcesdir = "src/pml_tests"
+    model = parameter(["single_cell_pml_2d"])
+
+
+@rfm.simple_test
+class TestSingleCellPmlMpi(GprMaxMPIRegressionTest):
+    tags = {"test", "mpi", "geometery", "box", "pml"}
+    sourcesdir = "src/pml_tests"
+    mpi_layout = parameter([[2, 2, 1], [3, 3, 1]])
+    serial_dependency = TestSingleCellPml
+    model = serial_dependency.model
