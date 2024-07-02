@@ -18,10 +18,25 @@
 
 
 from abc import ABC, abstractmethod
+from typing import Generic
+
+from typing_extensions import TypeVar
+
+from gprMax.grid.fdtd_grid import FDTDGrid
+
+GridType = TypeVar("GridType", bound=FDTDGrid, default=FDTDGrid)
 
 
-class Updates(ABC):
+class Updates(Generic[GridType], ABC):
     """Defines update functions for a solver."""
+
+    def __init__(self, G: GridType):
+        """
+        Args:
+            G: FDTDGrid class describing a grid in a model.
+        """
+
+        self.grid = G
 
     @abstractmethod
     def store_outputs(self, iteration: int) -> None:

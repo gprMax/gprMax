@@ -40,7 +40,7 @@ from gprMax.utilities.utilities import round32
 logger = logging.getLogger(__name__)
 
 
-class CUDAUpdates(Updates):
+class CUDAUpdates(Updates[CUDAGrid]):
     """Defines update functions for GPU-based (CUDA) solver."""
 
     def __init__(self, G: CUDAGrid):
@@ -48,8 +48,7 @@ class CUDAUpdates(Updates):
         Args:
             G: CUDAGrid class describing a grid in a model.
         """
-
-        self.grid = G
+        super().__init__(G)
 
         # Import PyCUDA modules
         self.drv = import_module("pycuda.driver")

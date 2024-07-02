@@ -38,7 +38,7 @@ from gprMax.updates.updates import Updates
 logger = logging.getLogger(__name__)
 
 
-class OpenCLUpdates(Updates):
+class OpenCLUpdates(Updates[OpenCLGrid]):
     """Defines update functions for OpenCL-based solver."""
 
     def __init__(self, G: OpenCLGrid):
@@ -46,8 +46,7 @@ class OpenCLUpdates(Updates):
         Args:
             G: OpenCLGrid class describing a grid in a model.
         """
-
-        self.grid = G
+        super().__init__(G)
 
         # Import pyopencl module
         self.cl = import_module("pyopencl")
