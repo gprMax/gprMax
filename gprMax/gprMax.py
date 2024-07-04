@@ -38,45 +38,69 @@ args_defaults = {
     "geometry_only": False,
     "geometry_fixed": False,
     "write_processed": False,
+    "show_progress_bars": False,
+    "hide_progress_bars": False,
     "log_level": 20,  # Level DEBUG = 10; INFO = 20; BASIC = 25
     "log_file": False,
 }
 
 # Argument help messages (used for CLI argparse)
 help_msg = {
-    "scenes": "(list, req): Scenes to run the model. Multiple scene objects "
-    "can given in order to run multiple simulation runs. Each scene "
-    "must contain the essential simulation objects",
-    "inputfile": "(str, opt): Input file path. Can also run simulation by "
-    "providing an input file.",
+    "scenes": (
+        "(list, req): Scenes to run the model. Multiple scene objects "
+        "can given in order to run multiple simulation runs. Each scene "
+        "must contain the essential simulation objects"
+    ),
+    "inputfile": (
+        "(str, opt): Input file path. Can also run simulation by " "providing an input file."
+    ),
     "outputfile": "(str, req): File path to the output data file.",
     "n": "(int, req): Number of required simulation runs.",
-    "i": "(int, opt): Model number to start/restart simulation from. It would "
-    "typically be used to restart a series of models from a specific "
-    "model number, with the n argument, e.g. to restart from A-scan 45 "
-    "when creating a B-scan with 60 traces.",
-    "mpi": "(bool, opt): Flag to use Message Passing Interface (MPI) task farm. "
-    "This option is most usefully combined with n to allow individual "
-    "models to be farmed out using a MPI task farm, e.g. to create a "
-    "B-scan with 60 traces and use MPI to farm out each trace. For "
-    "further details see the performance section of the User Guide.",
-    "gpu": "(list/bool, opt): Flag to use NVIDIA GPU or list of NVIDIA GPU "
-    "device ID(s) for specific GPU card(s).",
-    "opencl": "(list/bool, opt): Flag to use OpenCL or list of OpenCL device "
-    "ID(s) for specific compute device(s).",
+    "i": (
+        "(int, opt): Model number to start/restart simulation from. It would "
+        "typically be used to restart a series of models from a specific "
+        "model number, with the n argument, e.g. to restart from A-scan 45 "
+        "when creating a B-scan with 60 traces."
+    ),
+    "mpi": (
+        "(bool, opt): Flag to use Message Passing Interface (MPI) task farm. "
+        "This option is most usefully combined with n to allow individual "
+        "models to be farmed out using a MPI task farm, e.g. to create a "
+        "B-scan with 60 traces and use MPI to farm out each trace. For "
+        "further details see the performance section of the User Guide."
+    ),
+    "gpu": (
+        "(list/bool, opt): Flag to use NVIDIA GPU or list of NVIDIA GPU "
+        "device ID(s) for specific GPU card(s)."
+    ),
+    "opencl": (
+        "(list/bool, opt): Flag to use OpenCL or list of OpenCL device "
+        "ID(s) for specific compute device(s)."
+    ),
     "subgrid": "(bool, opt): Flag to use sub-gridding.",
-    "autotranslate": "(bool, opt): For sub-gridding - auto translate objects "
-    "with main grid coordinates to their equivalent local "
-    "grid coordinate within the subgrid. If this option is "
-    "off users must specify sub-grid object point within the "
-    "global subgrid space.",
-    "geometry_only": "(bool, opt): Build a model and produce any geometry "
-    "views but do not run the simulation.",
-    "geometry_fixed": "(bool, opt): Run a series of models where the geometry "
-    "does not change between models.",
-    "write_processed": "(bool, opt): Writes another input file after any "
-    "Python code (#python blocks) and in the original input "
-    "file has been processed.",
+    "autotranslate": (
+        "(bool, opt): For sub-gridding - auto translate objects with main grid coordinates to their"
+        " equivalent local grid coordinate within the subgrid. If this option is off users must"
+        " specify sub-grid object point within the global subgrid space."
+    ),
+    "geometry_only": (
+        "(bool, opt): Build a model and produce any geometry views but do not run the simulation."
+    ),
+    "geometry_fixed": (
+        "(bool, opt): Run a series of models where the geometry does not change between models."
+    ),
+    "write_processed": (
+        "(bool, opt): Writes another input file after any Python code (#python blocks) and in the"
+        " original input file has been processed."
+    ),
+    "show_progress_bars": (
+        "(bool, opt): Forces progress bars to be displayed - by default, progress bars are"
+        " displayed when the log level is info (20) or less."
+    ),
+    "hide_progress_bars": (
+        "(bool, opt): Forces progress bars to be hidden - by default, progress bars are hidden when"
+        " the log level is greater than info (20)."
+    ),
     "log_level": "(int, opt): Level of logging to use.",
     "log_file": "(bool, opt): Write logging information to file.",
 }
@@ -96,6 +120,8 @@ def run(
     geometry_only=args_defaults["geometry_only"],
     geometry_fixed=args_defaults["geometry_fixed"],
     write_processed=args_defaults["write_processed"],
+    show_progress_bars=args_defaults["show_progress_bars"],
+    hide_progress_bars=args_defaults["hide_progress_bars"],
     log_level=args_defaults["log_level"],
     log_file=args_defaults["log_file"],
 ):
@@ -131,12 +157,18 @@ def run(
                         is off users must specify sub-grid object point within
                         the global subgrid space.
         geometry_only: optional boolean to build a model and produce any
-                        geometry views but do not run the simulation.
-        geometry_fixed: optional boolean to run a series of models where the
-                        geometry does not change between models.
-        write_processed: optional boolean to write another input file after any
-                            #python blocks (which are deprecated) in the
-                            original input file has been processed.
+            geometry views but do not run the simulation.
+        geometry_fixed: optional boolean to run a series of models where
+            the geometry does not change between models.
+        write_processed: optional boolean to write another input file
+            after any #python blocks (which are deprecated) in the
+            original input file has been processed.
+        show_progress_bars: optional boolean to force progress bars to
+            be displayed - by default, progress bars are displayed when
+            the log level is info (20) or less.
+        hide_progress_bars: optional boolean to force progress bars to
+            be hidden - by default, progress bars are hidden when the
+            log level is greater than info (20).
         log_level: optional int for level of logging to use.
         log_file: optional boolean to write logging information to file.
     """
@@ -156,6 +188,8 @@ def run(
             "geometry_only": geometry_only,
             "geometry_fixed": geometry_fixed,
             "write_processed": write_processed,
+            "show_progress_bars": show_progress_bars,
+            "hide_progress_bars": hide_progress_bars,
             "log_level": log_level,
             "log_file": log_file,
         }
@@ -178,12 +212,8 @@ def cli():
     parser.add_argument(
         "-mpi", action="store_true", default=args_defaults["mpi"], help=help_msg["mpi"]
     )
-    parser.add_argument(
-        "-gpu", type=int, action="append", nargs="*", help=help_msg["gpu"]
-    )
-    parser.add_argument(
-        "-opencl", type=int, action="append", nargs="*", help=help_msg["opencl"]
-    )
+    parser.add_argument("-gpu", type=int, action="append", nargs="*", help=help_msg["gpu"])
+    parser.add_argument("-opencl", type=int, action="append", nargs="*", help=help_msg["opencl"])
     parser.add_argument(
         "--geometry-only",
         action="store_true",
@@ -203,10 +233,19 @@ def cli():
         help=help_msg["write_processed"],
     )
     parser.add_argument(
-        "--log-level",
-        type=int,
-        default=args_defaults["log_level"],
-        help=help_msg["log_level"],
+        "--show-progress-bars",
+        action="store_true",
+        default=args_defaults["show_progress_bars"],
+        help=help_msg["show_progress_bars"],
+    )
+    parser.add_argument(
+        "--hide-progress-bars",
+        action="store_true",
+        default=args_defaults["hide_progress_bars"],
+        help=help_msg["hide_progress_bars"],
+    )
+    parser.add_argument(
+        "--log-level", type=int, default=args_defaults["log_level"], help=help_msg["log_level"]
     )
     parser.add_argument(
         "--log-file",

@@ -105,9 +105,7 @@ class ModelConfig:
             f"input file: {sim_config.input_file_path}"
         )
         self.inputfilestr = (
-            Fore.GREEN
-            + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n"
-            + Style.RESET_ALL
+            Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
         )
 
         # Output file path and name for specific model
@@ -231,13 +229,19 @@ class SimulationConfig:
         #   solver: cpu, cuda, opencl.
         #   precision: data type for electromagnetic field output (single/double).
         #   progressbars: progress bars on stdoout or not - switch off
-        #                   progressbars when logging level is greater than
-        #                   info (20)
+        #     progressbars when logging level is greater than info (20)
+        #     or when specified by the user.
+
+        if args.show_progress_bars and args.hide_progress_bars:
+            logger.exception("You cannot both show and hide progress bars.")
+            raise ValueError
 
         self.general = {
             "solver": "cpu",
             "precision": "single",
-            "progressbars": args.log_level <= 20,
+            "progressbars": (
+                args.show_progress_bars or (args.log_level <= 20 and not args.hide_progress_bars)
+            ),
         }
 
         self.em_consts = {
@@ -329,9 +333,7 @@ class SimulationConfig:
                 return dev
 
         if not found:
-            logger.exception(
-                f"Compute device with device ID {deviceID} does not exist."
-            )
+            logger.exception(f"Compute device with device ID {deviceID} does not exist.")
             raise ValueError
 
     def _set_precision(self):
