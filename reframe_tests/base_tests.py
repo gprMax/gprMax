@@ -91,7 +91,7 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
     is_antenna_model = variable(bool, value=False)
     # sourcesdir = required
     extra_executable_opts = variable(typ.List[str], value=[])
-    executable = "time -p python -m gprMax --log-level 25"
+    executable = "time -p python -m gprMax --log-level 10 --hide-progress-bars"
 
     rx_outputs = variable(typ.List[str], value=Rx.defaultoutputs)
     h5diff_header = f"{'=' * 10} h5diff output {'=' * 10}"
@@ -307,11 +307,13 @@ class GprMaxMPIRegressionTest(GprMaxRegressionTest):
     # TODO: Make this a variable
     serial_dependency: type[GprMaxRegressionTest]
     mpi_layout = parameter()
+    _stdout = "rfm_job-%t.out"
+    _stderr = "rfm_job-%t.err"
 
     @run_after("setup", always_last=True)
     def configure_test_run(self):
         self.num_tasks = int(product(self.mpi_layout))
-        self.extra_executable_opts = ["-mpi", " ".join(map(str, self.mpi_layout))]
+        self.extra_executable_opts = ["-mpi", " ".join([str(i) for i in self.mpi_layout])]
         super().configure_test_run()
 
     def _get_variant(self) -> str:

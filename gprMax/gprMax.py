@@ -38,6 +38,8 @@ args_defaults = {
     "geometry_only": False,
     "geometry_fixed": False,
     "write_processed": False,
+    "show_progress_bars": False,
+    "hide_progress_bars": False,
     "log_level": 20,  # Level DEBUG = 10; INFO = 20; BASIC = 25
     "log_file": False,
 }
@@ -91,6 +93,14 @@ help_msg = {
         "(bool, opt): Writes another input file after any Python code (#python blocks) and in the"
         " original input file has been processed."
     ),
+    "show_progress_bars": (
+        "(bool, opt): Forces progress bars to be displayed - by default, progress bars are"
+        " displayed when the log level is info (20) or less."
+    ),
+    "hide_progress_bars": (
+        "(bool, opt): Forces progress bars to be hidden - by default, progress bars are hidden when"
+        " the log level is greater than info (20)."
+    ),
     "log_level": "(int, opt): Level of logging to use.",
     "log_file": "(bool, opt): Write logging information to file.",
 }
@@ -111,6 +121,8 @@ def run(
     geometry_only=args_defaults["geometry_only"],
     geometry_fixed=args_defaults["geometry_fixed"],
     write_processed=args_defaults["write_processed"],
+    show_progress_bars=args_defaults["show_progress_bars"],
+    hide_progress_bars=args_defaults["hide_progress_bars"],
     log_level=args_defaults["log_level"],
     log_file=args_defaults["log_file"],
 ):
@@ -159,6 +171,12 @@ def run(
         write_processed: optional boolean to write another input file
             after any #python blocks (which are deprecated) in the
             original input file has been processed.
+        show_progress_bars: optional boolean to force progress bars to
+            be displayed - by default, progress bars are displayed when
+            the log level is info (20) or less.
+        hide_progress_bars: optional boolean to force progress bars to
+            be hidden - by default, progress bars are hidden when the
+            log level is greater than info (20).
         log_level: optional int for level of logging to use.
         log_file: optional boolean to write logging information to file.
     """
@@ -179,6 +197,8 @@ def run(
             "geometry_only": geometry_only,
             "geometry_fixed": geometry_fixed,
             "write_processed": write_processed,
+            "show_progress_bars": show_progress_bars,
+            "hide_progress_bars": hide_progress_bars,
             "log_level": log_level,
             "log_file": log_file,
         }
@@ -231,6 +251,18 @@ def cli():
         action="store_true",
         default=args_defaults["write_processed"],
         help=help_msg["write_processed"],
+    )
+    parser.add_argument(
+        "--show-progress-bars",
+        action="store_true",
+        default=args_defaults["show_progress_bars"],
+        help=help_msg["show_progress_bars"],
+    )
+    parser.add_argument(
+        "--hide-progress-bars",
+        action="store_true",
+        default=args_defaults["hide_progress_bars"],
+        help=help_msg["hide_progress_bars"],
     )
     parser.add_argument(
         "--log-level", type=int, default=args_defaults["log_level"], help=help_msg["log_level"]

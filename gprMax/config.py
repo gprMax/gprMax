@@ -241,13 +241,19 @@ class SimulationConfig:
         #   solver: cpu, cuda, opencl.
         #   precision: data type for electromagnetic field output (single/double).
         #   progressbars: progress bars on stdoout or not - switch off
-        #                   progressbars when logging level is greater than
-        #                   info (20)
+        #     progressbars when logging level is greater than info (20)
+        #     or when specified by the user.
+
+        if args.show_progress_bars and args.hide_progress_bars:
+            logger.exception("You cannot both show and hide progress bars.")
+            raise ValueError
 
         self.general = {
             "solver": "cpu",
             "precision": "single",
-            "progressbars": args.log_level <= 20,
+            "progressbars": (
+                args.show_progress_bars or (args.log_level <= 20 and not args.hide_progress_bars)
+            ),
         }
 
         # Store information about host machine
