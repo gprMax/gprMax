@@ -19,15 +19,17 @@
 import itertools
 import logging
 from enum import IntEnum, unique
-from typing import List, Optional, TypeVar, Union
+from typing import List, Optional, Tuple, TypeVar, Union
 
 import numpy as np
 import numpy.typing as npt
 from mpi4py import MPI
 from numpy import ndarray
 
+from gprMax import config
+from gprMax.cython.pml_build import pml_sum_er_mr
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.pml import build_pml_mpi
+from gprMax.pml import MPIPML, PML
 from gprMax.receivers import Rx
 from gprMax.sources import Source
 
@@ -62,12 +64,13 @@ class MPIGrid(FDTDGrid):
         self.x_comm = comm.Sub([False, True, True])
         self.y_comm = comm.Sub([True, False, True])
         self.z_comm = comm.Sub([True, True, False])
+        self.pml_comm = MPI.COMM_NULL
 
         self.mpi_tasks = np.array(self.comm.dims)
 
         self.lower_extent: npt.NDArray[np.intc] = np.zeros(3, dtype=int)
         self.upper_extent: npt.NDArray[np.intc] = np.zeros(3, dtype=int)
-        self.negative_halo_offset: npt.NDArray[np.intc] = np.zeros(3, dtype=int)
+        self.negative_halo_offset: npt.NDArray[np.bool_] = np.zeros(3, dtype=int)
         self.global_size: npt.NDArray[np.intc] = np.zeros(3, dtype=int)
 
         self.neighbours = np.full((3, 2), -1, dtype=int)
@@ -262,8 +265,58 @@ class MPIGrid(FDTDGrid):
         self._halo_swap_array(self.Hy)
         self._halo_swap_array(self.Hz)
 
-    def _build_pmls(self):
-        super()._build_pmls(build_pml_func=build_pml_mpi)
+    def _construct_pml(self, pml_ID: str, thickness: int) -> MPIPML:
+        pml = super()._construct_pml(pml_ID, thickness, MPIPML)
+        if pml.ID[0] == "x":
+            pml.comm = self.x_comm
+        elif pml.ID[0] == "y":
+            pml.comm = self.y_comm
+        elif pml.ID[0] == "z":
+            pml.comm = self.z_comm
+        pml.global_comm = self.pml_comm
+
+        return pml
+
+    def _calculate_average_pml_material_properties(self, pml: MPIPML) -> Tuple[float, float]:
+        # Arrays to hold values of permittivity and permeability (avoids
+        # accessing Material class in Cython.)
+        ers = np.zeros(len(self.materials))
+        mrs = np.zeros(len(self.materials))
+
+        for i, m in enumerate(self.materials):
+            ers[i] = m.er
+            mrs[i] = m.mr
+
+        # Need to account for the negative halo (remove it) to avoid
+        # double counting. The solid array does not have a positive halo
+        # so we don't need to consider that.
+        if pml.ID[0] == "x":
+            o1 = self.negative_halo_offset[1]
+            o2 = self.negative_halo_offset[2]
+            n1 = self.ny - o1
+            n2 = self.nz - o2
+            solid = self.solid[pml.xs, o1:, o2:]
+        elif pml.ID[0] == "y":
+            o1 = self.negative_halo_offset[0]
+            o2 = self.negative_halo_offset[2]
+            n1 = self.nx - o1
+            n2 = self.nz - o2
+            solid = self.solid[o1:, pml.ys, o2:]
+        elif pml.ID[0] == "z":
+            o1 = self.negative_halo_offset[0]
+            o2 = self.negative_halo_offset[1]
+            n1 = self.nx - o1
+            n2 = self.ny - o2
+            solid = self.solid[o1:, o2:, pml.zs]
+        else:
+            raise ValueError(f"Unknown PML ID '{pml.ID}'")
+
+        sumer, summr = pml_sum_er_mr(n1, n2, config.get_model_config().ompthreads, solid, ers, mrs)
+        n = pml.comm.allreduce(n1 * n2, MPI.SUM)
+        averageer = pml.comm.allreduce(sumer, MPI.SUM) / n
+        averagemr = pml.comm.allreduce(summr, MPI.SUM) / n
+
+        return averageer, averagemr
 
     def build(self):
         if any(self.global_size + 1 < self.mpi_tasks):
@@ -275,6 +328,20 @@ class MPIGrid(FDTDGrid):
         self.calculate_local_extents()
         self.set_halo_map()
         self.scatter_grid()
+
+        # TODO: Check PML is not thicker than the grid size
+
+        # Get PMLs present in this grid
+        pmls = [
+            PML.boundaryIDs.index(key) for key, value in self.pmls["thickness"].items() if value > 0
+        ]
+        if len(pmls) > 0:
+            # Use PML ID as the key to ensure rank 0 is always the same
+            # PML. This is needed to ensure the CFS sigma.max parameter
+            # is calculated using the first PML present.
+            self.pml_comm = self.comm.Split(0, pmls[0])
+        else:
+            self.pml_comm = self.comm.Split(MPI.UNDEFINED)
 
         super().build()
 

@@ -91,7 +91,7 @@ class CFS:
         self.kappa = CFSParameter(ID="kappa", scalingprofile="constant", min=1, max=1)
         self.sigma = CFSParameter(ID="sigma", scalingprofile="quartic", min=0, max=None)
 
-    def calculate_sigmamax(self, d, er, mr, G):
+    def calculate_sigmamax(self, d, er, mr):
         """Calculates an optimum value for sigma max based on underlying
             material properties.
 
@@ -205,7 +205,7 @@ class PML:
     #                       x-axis, y-axis, or z-axis
     directions = ["xminus", "yminus", "zminus", "xplus", "yplus", "zplus"]
 
-    def __init__(self, G, ID=None, direction=None, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0):
+    def __init__(self, G, ID: str, direction: str, xs=0, xf=0, ys=0, yf=0, zs=0, zf=0):
         """
         Args:
             G: FDTDGrid class describing a grid in a model.
@@ -345,7 +345,7 @@ class PML:
 
         for x, cfs in enumerate(self.CFS):
             if not cfs.sigma.max:
-                cfs.calculate_sigmamax(self.d, er, mr, self.G)
+                cfs.calculate_sigmamax(self.d, er, mr)
             Ealpha, Halpha = cfs.calculate_values(self.thickness, cfs.alpha)
             Ekappa, Hkappa = cfs.calculate_values(self.thickness, cfs.kappa)
             Esigma, Hsigma = cfs.calculate_values(self.thickness, cfs.sigma)
@@ -680,6 +680,39 @@ class OpenCLPML(PML):
             config.sim_config.dtypes["float_or_double"](self.d),
         )
         event.wait()
+
+
+class MPIPML(PML):
+    comm: MPI.Cartcomm
+    global_comm: MPI.Comm
+
+    COORDINATOR_RANK = 0
+
+    def calculate_update_coeffs(self, er: float, mr: float):
+        """Calculates electric and magnetic update coefficients for the PML.
+
+        Args:
+            er: float of average permittivity of underlying material
+            mr: float of average permeability of underlying material
+        """
+        for cfs in self.CFS:
+            if not cfs.sigma.max:
+                if self.global_comm.rank == self.COORDINATOR_RANK:
+                    cfs.calculate_sigmamax(self.d, er, mr)
+                    buffer = np.array([cfs.sigma.max])
+                else:
+                    buffer = np.empty(1)
+
+                # Needs to be non-blocking because some ranks will
+                # contain multiple PMLs, but the material properties for
+                # a PML cannot be calculated until all ranks have
+                # completed that stage. Therefore a blocking broadcast
+                # would wait for ranks that are stuck calculating the
+                # material properties of the PML.
+                self.global_comm.Ibcast(buffer, self.COORDINATOR_RANK).Wait()
+                cfs.sigma.max = buffer[0]
+
+        super().calculate_update_coeffs(er, mr)
 
 
 def print_pml_info(G):

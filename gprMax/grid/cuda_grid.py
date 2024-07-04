@@ -21,6 +21,7 @@ from importlib import import_module
 import numpy as np
 
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.pml import CUDAPML
 
 
 class CUDAGrid(FDTDGrid):
@@ -36,12 +37,19 @@ class CUDAGrid(FDTDGrid):
         # Blocks per grid - used for main electric/magnetic field updates
         self.bpg = None
 
+    def _construct_pml(self, pml_ID: str, thickness: int) -> CUDAPML:
+        return super()._construct_pml(pml_ID, thickness, CUDAPML)
+
     def set_blocks_per_grid(self):
         """Set the blocks per grid size used for updating the electric and
         magnetic field arrays on a GPU.
         """
 
-        self.bpg = (int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / self.tpb[0])), 1, 1)
+        self.bpg = (
+            int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)) / self.tpb[0])),
+            1,
+            1,
+        )
 
     def htod_geometry_arrays(self):
         """Initialise an array for cell edge IDs (ID) on compute device."""

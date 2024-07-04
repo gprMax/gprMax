@@ -21,17 +21,19 @@ import itertools
 import logging
 import sys
 from collections import OrderedDict
-from typing import Any, Iterable, List, Union
+from typing import Any, Iterable, List, Tuple, Union
 
 import numpy as np
 from terminaltables import SingleTable
 from tqdm import tqdm
+from typing_extensions import TypeVar
 
 from gprMax import config
+from gprMax.cython.pml_build import pml_average_er_mr
 from gprMax.cython.yee_cell_build import build_electric_components, build_magnetic_components
 from gprMax.fractals import FractalVolume
 from gprMax.materials import ListMaterial, Material, PeplinskiSoil, RangeMaterial, process_materials
-from gprMax.pml import CFS, PML, build_pml, print_pml_info
+from gprMax.pml import CFS, PML, print_pml_info
 from gprMax.receivers import Rx
 from gprMax.snapshots import Snapshot
 from gprMax.sources import HertzianDipole, MagneticDipole, Source, TransmissionLine, VoltageSource
@@ -152,7 +154,7 @@ class FDTDGrid:
             self.initialise_dispersive_update_coeff_array()
         self._build_materials()
 
-    def _build_pmls(self, build_pml_func=build_pml) -> None:
+    def _build_pmls(self) -> None:
         pbar = tqdm(
             total=sum(1 for value in self.pmls["thickness"].values() if value > 0),
             desc=f"Building PML boundaries [{self.name}]",
@@ -162,11 +164,126 @@ class FDTDGrid:
         )
         for pml_id, thickness in self.pmls["thickness"].items():
             if thickness > 0:
-                # TODO: Consider making this a method of FDTDGrid (that
-                # can be overriden in MPIGrid)
-                build_pml_func(self, pml_id, thickness)
+                pml = self._construct_pml(pml_id, thickness)
+                averageer, averagemr = self._calculate_average_pml_material_properties(pml)
+                pml.calculate_update_coeffs(averageer, averagemr)
+                self.pmls["slabs"].append(pml)
                 pbar.update()
         pbar.close()
+
+    PmlType = TypeVar("PmlType", bound=PML)
+
+    def _construct_pml(self, pml_ID: str, thickness: int, pml_type: type[PmlType] = PML) -> PmlType:
+        """Builds instances of the PML and calculates the initial parameters and
+            coefficients including setting profile (based on underlying material
+            er and mr from solid array).
+
+        Args:
+            G: FDTDGrid class describing a grid in a model.
+            pml_ID: string identifier of PML slab.
+            thickness: int with thickness of PML slab in cells.
+        """
+        if pml_ID == "x0":
+            pml = pml_type(
+                self,
+                ID=pml_ID,
+                direction="xminus",
+                xs=0,
+                xf=thickness,
+                ys=0,
+                yf=self.ny,
+                zs=0,
+                zf=self.nz,
+            )
+        elif pml_ID == "xmax":
+            pml = pml_type(
+                self,
+                ID=pml_ID,
+                direction="xplus",
+                xs=self.nx - thickness,
+                xf=self.nx,
+                ys=0,
+                yf=self.ny,
+                zs=0,
+                zf=self.nz,
+            )
+        elif pml_ID == "y0":
+            pml = pml_type(
+                self,
+                ID=pml_ID,
+                direction="yminus",
+                xs=0,
+                xf=self.nx,
+                ys=0,
+                yf=thickness,
+                zs=0,
+                zf=self.nz,
+            )
+        elif pml_ID == "ymax":
+            pml = pml_type(
+                self,
+                ID=pml_ID,
+                direction="yplus",
+                xs=0,
+                xf=self.nx,
+                ys=self.ny - thickness,
+                yf=self.ny,
+                zs=0,
+                zf=self.nz,
+            )
+        elif pml_ID == "z0":
+            pml = pml_type(
+                self,
+                ID=pml_ID,
+                direction="zminus",
+                xs=0,
+                xf=self.nx,
+                ys=0,
+                yf=self.ny,
+                zs=0,
+                zf=thickness,
+            )
+        elif pml_ID == "zmax":
+            pml = pml_type(
+                self,
+                ID=pml_ID,
+                direction="zplus",
+                xs=0,
+                xf=self.nx,
+                ys=0,
+                yf=self.ny,
+                zs=self.nz - thickness,
+                zf=self.nz,
+            )
+        else:
+            raise ValueError(f"Unknown PML ID '{pml_ID}'")
+
+        return pml
+
+    def _calculate_average_pml_material_properties(self, pml: PML) -> Tuple[float, float]:
+        # Arrays to hold values of permittivity and permeability (avoids accessing
+        # Material class in Cython.)
+        ers = np.zeros(len(self.materials))
+        mrs = np.zeros(len(self.materials))
+
+        for i, m in enumerate(self.materials):
+            ers[i] = m.er
+            mrs[i] = m.mr
+
+        if pml.ID[0] == "x":
+            n1 = self.ny
+            n2 = self.nz
+            solid = self.solid[pml.xs, :, :]
+        elif pml.ID[0] == "y":
+            n1 = self.nx
+            n2 = self.nz
+            solid = self.solid[:, pml.ys, :]
+        elif pml.ID[0] == "z":
+            n1 = self.nx
+            n2 = self.ny
+            solid = self.solid[:, :, pml.zs]
+
+        return pml_average_er_mr(n1, n2, config.get_model_config().ompthreads, solid, ers, mrs)
 
     def _build_components(self) -> None:
         # Build the model, i.e. set the material properties (ID) for every edge
