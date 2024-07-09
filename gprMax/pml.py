@@ -18,6 +18,7 @@
 
 import logging
 from importlib import import_module
+from typing import List
 
 import numpy as np
 from mpi4py import MPI
@@ -238,7 +239,7 @@ class PML:
             self.d = self.G.dz
             self.thickness = self.nz
 
-        self.CFS = self.G.pmls["cfs"]
+        self.CFS: List[CFS] = self.G.pmls["cfs"]
         self.check_kappamin()
 
         self.initialise_field_arrays()
@@ -346,6 +347,9 @@ class PML:
         for x, cfs in enumerate(self.CFS):
             if not cfs.sigma.max:
                 cfs.calculate_sigmamax(self.d, er, mr)
+            logger.debug(
+                f"PML {self.ID}: sigma.max set to {cfs.sigma.max} for {'first' if x == 0 else 'second'} order CFS parameter"
+            )
             Ealpha, Halpha = cfs.calculate_values(self.thickness, cfs.alpha)
             Ekappa, Hkappa = cfs.calculate_values(self.thickness, cfs.kappa)
             Esigma, Hsigma = cfs.calculate_values(self.thickness, cfs.sigma)
@@ -737,206 +741,3 @@ def print_pml_info(G):
         f"\nPML boundaries [{G.name}]: {{formulation: {G.pmls['formulation']}, "
         f"order: {len(G.pmls['cfs'])}, thickness (cells): {pmlinfo}}}"
     )
-
-
-def build_pml(G, pml_ID, thickness):
-    """Builds instances of the PML and calculates the initial parameters and
-        coefficients including setting profile (based on underlying material
-        er and mr from solid array).
-
-    Args:
-        G: FDTDGrid class describing a grid in a model.
-        pml_ID: string identifier of PML slab.
-        thickness: int with thickness of PML slab in cells.
-    """
-
-    # Arrays to hold values of permittivity and permeability (avoids accessing
-    # Material class in Cython.)
-    ers = np.zeros(len(G.materials))
-    mrs = np.zeros(len(G.materials))
-
-    for i, m in enumerate(G.materials):
-        ers[i] = m.er
-        mrs[i] = m.mr
-
-    if config.sim_config.general["solver"] == "cpu":
-        pml_type = PML
-    elif config.sim_config.general["solver"] == "cuda":
-        pml_type = CUDAPML
-    elif config.sim_config.general["solver"] == "opencl":
-        pml_type = OpenCLPML
-
-    if pml_ID == "x0":
-        pml = pml_type(
-            G, ID=pml_ID, direction="xminus", xs=0, xf=thickness, ys=0, yf=G.ny, zs=0, zf=G.nz
-        )
-    elif pml_ID == "xmax":
-        pml = pml_type(
-            G,
-            ID=pml_ID,
-            direction="xplus",
-            xs=G.nx - thickness,
-            xf=G.nx,
-            ys=0,
-            yf=G.ny,
-            zs=0,
-            zf=G.nz,
-        )
-    elif pml_ID == "y0":
-        pml = pml_type(
-            G, ID=pml_ID, direction="yminus", xs=0, xf=G.nx, ys=0, yf=thickness, zs=0, zf=G.nz
-        )
-    elif pml_ID == "ymax":
-        pml = pml_type(
-            G,
-            ID=pml_ID,
-            direction="yplus",
-            xs=0,
-            xf=G.nx,
-            ys=G.ny - thickness,
-            yf=G.ny,
-            zs=0,
-            zf=G.nz,
-        )
-    elif pml_ID == "z0":
-        pml = pml_type(
-            G, ID=pml_ID, direction="zminus", xs=0, xf=G.nx, ys=0, yf=G.ny, zs=0, zf=thickness
-        )
-    elif pml_ID == "zmax":
-        pml = pml_type(
-            G,
-            ID=pml_ID,
-            direction="zplus",
-            xs=0,
-            xf=G.nx,
-            ys=0,
-            yf=G.ny,
-            zs=G.nz - thickness,
-            zf=G.nz,
-        )
-
-    if pml_ID[0] == "x":
-        averageer, averagemr = pml_average_er_mr(
-            G.ny, G.nz, config.get_model_config().ompthreads, G.solid[pml.xs, :, :], ers, mrs
-        )
-    elif pml_ID[0] == "y":
-        averageer, averagemr = pml_average_er_mr(
-            G.nx, G.nz, config.get_model_config().ompthreads, G.solid[:, pml.ys, :], ers, mrs
-        )
-    elif pml_ID[0] == "z":
-        averageer, averagemr = pml_average_er_mr(
-            G.nx, G.ny, config.get_model_config().ompthreads, G.solid[:, :, pml.zs], ers, mrs
-        )
-
-    pml.calculate_update_coeffs(averageer, averagemr)
-    G.pmls["slabs"].append(pml)
-
-
-def build_pml_mpi(G, pml_ID, thickness):
-    """Builds instances of the PML and calculates the initial parameters and
-        coefficients including setting profile (based on underlying material
-        er and mr from solid array).
-
-    Args:
-        G: FDTDGrid class describing a grid in a model.
-        pml_ID: string identifier of PML slab.
-        thickness: int with thickness of PML slab in cells.
-    """
-
-    # Arrays to hold values of permittivity and permeability (avoids accessing
-    # Material class in Cython.)
-    ers = np.zeros(len(G.materials))
-    mrs = np.zeros(len(G.materials))
-
-    for i, m in enumerate(G.materials):
-        ers[i] = m.er
-        mrs[i] = m.mr
-
-    if config.sim_config.general["solver"] == "cpu":
-        pml_type = PML
-    elif config.sim_config.general["solver"] == "cuda":
-        pml_type = CUDAPML
-    elif config.sim_config.general["solver"] == "opencl":
-        pml_type = OpenCLPML
-
-    if pml_ID == "x0":
-        pml = pml_type(
-            G, ID=pml_ID, direction="xminus", xs=0, xf=thickness, ys=0, yf=G.ny, zs=0, zf=G.nz
-        )
-    elif pml_ID == "xmax":
-        pml = pml_type(
-            G,
-            ID=pml_ID,
-            direction="xplus",
-            xs=G.nx - thickness,
-            xf=G.nx,
-            ys=0,
-            yf=G.ny,
-            zs=0,
-            zf=G.nz,
-        )
-    elif pml_ID == "y0":
-        pml = pml_type(
-            G, ID=pml_ID, direction="yminus", xs=0, xf=G.nx, ys=0, yf=thickness, zs=0, zf=G.nz
-        )
-    elif pml_ID == "ymax":
-        pml = pml_type(
-            G,
-            ID=pml_ID,
-            direction="yplus",
-            xs=0,
-            xf=G.nx,
-            ys=G.ny - thickness,
-            yf=G.ny,
-            zs=0,
-            zf=G.nz,
-        )
-    elif pml_ID == "z0":
-        pml = pml_type(
-            G, ID=pml_ID, direction="zminus", xs=0, xf=G.nx, ys=0, yf=G.ny, zs=0, zf=thickness
-        )
-    elif pml_ID == "zmax":
-        pml = pml_type(
-            G,
-            ID=pml_ID,
-            direction="zplus",
-            xs=0,
-            xf=G.nx,
-            ys=0,
-            yf=G.ny,
-            zs=G.nz - thickness,
-            zf=G.nz,
-        )
-
-    # Need to account for the negative halo (remove it) to avoid double
-    # counting. The solid array does not have a positive halo so we
-    # don't need to consider that.
-    if pml_ID[0] == "x":
-        o1 = G.negative_halo_offset[1]
-        o2 = G.negative_halo_offset[2]
-        n1 = G.ny - o1
-        n2 = G.nz - o2
-        solid = G.solid[pml.xs, o1:, o2:]
-        comm = G.x_comm
-    elif pml_ID[0] == "y":
-        o1 = G.negative_halo_offset[0]
-        o2 = G.negative_halo_offset[2]
-        n1 = G.nx - o1
-        n2 = G.nz - o2
-        solid = G.solid[o1:, pml.ys, o2:]
-        comm = G.y_comm
-    elif pml_ID[0] == "z":
-        o1 = G.negative_halo_offset[0]
-        o2 = G.negative_halo_offset[1]
-        n1 = G.nx - o1
-        n2 = G.ny - o2
-        solid = G.solid[o1:, o2:, pml.zs]
-        comm = G.z_comm
-
-    sumer, summr = pml_sum_er_mr(n1, n2, config.get_model_config().ompthreads, solid, ers, mrs)
-    n = comm.allreduce(n1 * n2, MPI.SUM)
-    averageer = comm.allreduce(sumer, MPI.SUM) / n
-    averagemr = comm.allreduce(summr, MPI.SUM) / n
-
-    pml.calculate_update_coeffs(averageer, averagemr)
-    G.pmls["slabs"].append(pml)

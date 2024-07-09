@@ -244,7 +244,7 @@ class TestEdgeGeometryMpi(GprMaxMPIRegressionTest):
 class TestBoxGeometryNoPml(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "box"}
     sourcesdir = "src/box_geometry_tests"
-    model = parameter(["box_full_model", "box_half_model"])
+    model = parameter(["box_full_model", "box_half_model", "box_single_rank"])
 
     @run_before("run")
     def add_gprmax_commands(self):

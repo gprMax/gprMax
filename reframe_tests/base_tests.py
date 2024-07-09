@@ -144,6 +144,13 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
                 antenna_ant_params,
             ]
 
+        if self.num_tasks > 1:
+            stdout = self.stdout.evaluate().split(".")[0]
+            stderr = self.stderr.evaluate().split(".")[0]
+            self.job.launcher.options = [f"--output={stdout}_%t.out", f"--error={stderr}_%t.err"]
+            self.postrun_cmds.append(f"cat {stdout}_*.out >> {self.stdout}")
+            self.postrun_cmds.append(f"cat {stderr}_*.err >> {self.stderr}")
+
     @run_before("run")
     def check_input_file_exists(self):
         self.skip_if(
@@ -258,7 +265,7 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
 class GprMaxAPIRegressionTest(GprMaxRegressionTest):
     executable = "time -p python"
 
-    @run_after("init", always_last=True)
+    @run_after("setup", always_last=True)
     def configure_test_run(self):
         super().configure_test_run(input_file_ext=".py")
 
@@ -307,8 +314,6 @@ class GprMaxMPIRegressionTest(GprMaxRegressionTest):
     # TODO: Make this a variable
     serial_dependency: type[GprMaxRegressionTest]
     mpi_layout = parameter()
-    _stdout = "rfm_job-%t.out"
-    _stderr = "rfm_job-%t.err"
 
     @run_after("setup", always_last=True)
     def configure_test_run(self):

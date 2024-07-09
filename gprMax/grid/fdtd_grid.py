@@ -166,6 +166,9 @@ class FDTDGrid:
             if thickness > 0:
                 pml = self._construct_pml(pml_id, thickness)
                 averageer, averagemr = self._calculate_average_pml_material_properties(pml)
+                logger.debug(
+                    f"PML {pml.ID}: Average permittivity = {averageer}, Average permeability = {averagemr}"
+                )
                 pml.calculate_update_coeffs(averageer, averagemr)
                 self.pmls["slabs"].append(pml)
                 pbar.update()
@@ -282,6 +285,8 @@ class FDTDGrid:
             n1 = self.nx
             n2 = self.ny
             solid = self.solid[:, :, pml.zs]
+        else:
+            raise ValueError(f"Unknown PML ID '{pml.ID}'")
 
         return pml_average_er_mr(n1, n2, config.get_model_config().ompthreads, solid, ers, mrs)
 

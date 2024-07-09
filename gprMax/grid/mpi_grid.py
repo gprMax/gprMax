@@ -313,8 +313,14 @@ class MPIGrid(FDTDGrid):
 
         sumer, summr = pml_sum_er_mr(n1, n2, config.get_model_config().ompthreads, solid, ers, mrs)
         n = pml.comm.allreduce(n1 * n2, MPI.SUM)
-        averageer = pml.comm.allreduce(sumer, MPI.SUM) / n
-        averagemr = pml.comm.allreduce(summr, MPI.SUM) / n
+        sumer = pml.comm.allreduce(sumer, MPI.SUM)
+        summr = pml.comm.allreduce(summr, MPI.SUM)
+        averageer = sumer / n
+        averagemr = summr / n
+
+        logger.debug(
+            f"PML {pml.ID} has size {n}. Permittivity sum = {sumer}, Permeability sum = {summr}"
+        )
 
         return averageer, averagemr
 
@@ -405,3 +411,7 @@ class MPIGrid(FDTDGrid):
         self.size += self.negative_halo_offset
         self.lower_extent -= self.negative_halo_offset
         self.upper_extent = self.lower_extent + self.size
+
+        logger.debug(
+            f"[Rank {self.rank}] Grid size: {self.size}, Lower extent: {self.lower_extent}, Upper extent: {self.upper_extent}"
+        )
