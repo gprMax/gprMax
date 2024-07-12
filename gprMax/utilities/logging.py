@@ -21,6 +21,10 @@ import logging
 import sys
 from copy import copy
 
+from colorama import Back, Fore, Style, init
+
+init()
+
 logger = logging.getLogger(__name__)
 
 
@@ -40,31 +44,29 @@ logging.Logger.basic = basic
 
 # Colour mapping for different log levels
 MAPPING = {
-    "DEBUG": 37,  # white
-    "BASIC": 37,  # white
-    "INFO": 37,  # white
-    "WARNING": 33,  # yellow
-    "ERROR": 31,  # red
-    "CRITICAL": 41,  # white on red bg
+    "DEBUG": Fore.WHITE,
+    "INFO": Fore.WHITE,
+    "BASIC": Fore.WHITE,
+    "WARNING": Fore.YELLOW,
+    "ERROR": Fore.RED,
+    "CRITICAL": Fore.WHITE + Back.RED,  # white on red bg
 }
-PREFIX = "\033["
-SUFFIX = "\033[0m"
 
 
 class CustomFormatter(logging.Formatter):
     """Logging Formatter to add colors and count warning / errors
     (https://stackoverflow.com/a/46482050)."""
 
-    def __init__(self, pattern):
+    def __init__(self, pattern: str):
         logging.Formatter.__init__(self, pattern)
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         colored_record = copy(record)
         levelname = colored_record.levelname
-        seq = MAPPING.get(levelname, 37)  # default white
-        colored_levelname = f"{PREFIX}{seq}m{levelname}{SUFFIX}"
+        colour = MAPPING.get(levelname, Fore.BLUE)  # default white
+        colored_levelname = f"{colour}{levelname}{Style.RESET_ALL}"
         colored_record.levelname = colored_levelname
-        colored_record.msg = f"{PREFIX}{seq}m{colored_record.getMessage()}{SUFFIX}"
+        colored_record.msg = f"{colour}{colored_record.getMessage()}{Style.RESET_ALL}"
         return logging.Formatter.format(self, colored_record)
 
 
