@@ -81,7 +81,8 @@ def write_hdf5_outputfile(outputfile: Path, title: str, model):
             grp = f.create_group(f"/subgrids/{sg.name}")
             write_hd5_data(grp, sg, is_subgrid=True)
 
-    logger.basic(f"Written output file: {outputfile.name}")
+    logger.basic("")
+    logger.basic(f"Written output file: {outputfile.name}\n")
 
 
 def write_hd5_data(basegrp, grid, is_subgrid=False):

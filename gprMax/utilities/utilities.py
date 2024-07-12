@@ -71,7 +71,10 @@ def logo(version):
         str: string containing logo, version, and licencing/copyright info.
     """
 
-    description = "\n=== Electromagnetic modelling software based on the " "Finite-Difference Time-Domain (FDTD) method"
+    description = (
+        "\n=== Electromagnetic modelling software based on the "
+        "Finite-Difference Time-Domain (FDTD) method"
+    )
     current_year = datetime.datetime.now().year
     copyright = f"Copyright (C) 2015-{current_year}: The University of " "Edinburgh, United Kingdom"
     authors = "Authors: Craig Warren, Antonis Giannopoulos, and John Hartley"
@@ -109,15 +112,30 @@ def logo(version):
 
     str = f"{description} {'=' * (get_terminal_width() - len(description) - 1)}\n\n"
     str += f"{Fore.CYAN}{logo}"
-    str += Style.RESET_ALL + textwrap.fill(copyright, width=get_terminal_width() - 1, initial_indent=" ") + "\n"
+    str += (
+        Style.RESET_ALL
+        + textwrap.fill(copyright, width=get_terminal_width() - 1, initial_indent=" ")
+        + "\n"
+    )
     str += textwrap.fill(authors, width=get_terminal_width() - 1, initial_indent=" ") + "\n\n"
     str += (
-        textwrap.fill(licenseinfo1, width=get_terminal_width() - 1, initial_indent=" ", subsequent_indent="  ") + "\n"
+        textwrap.fill(
+            licenseinfo1, width=get_terminal_width() - 1, initial_indent=" ", subsequent_indent="  "
+        )
+        + "\n"
     )
     str += (
-        textwrap.fill(licenseinfo2, width=get_terminal_width() - 1, initial_indent=" ", subsequent_indent="  ") + "\n"
+        textwrap.fill(
+            licenseinfo2, width=get_terminal_width() - 1, initial_indent=" ", subsequent_indent="  "
+        )
+        + "\n"
     )
-    str += textwrap.fill(licenseinfo3, width=get_terminal_width() - 1, initial_indent=" ", subsequent_indent="  ")
+    str += (
+        textwrap.fill(
+            licenseinfo3, width=get_terminal_width() - 1, initial_indent=" ", subsequent_indent="  "
+        )
+        + "\n"
+    )
 
     return str
 

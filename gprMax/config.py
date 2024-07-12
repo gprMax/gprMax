@@ -89,7 +89,7 @@ class ModelConfig:
             f"input file: {sim_config.input_file_path}"
         )
         self.inputfilestr = (
-            Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
+            Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n\n" + Style.RESET_ALL
         )
 
         # Output file path and name for specific model

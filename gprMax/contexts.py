@@ -152,7 +152,7 @@ class Context:
     def print_sim_time_taken(self) -> None:
         """Prints the total simulation time based on context."""
         s = (
-            f"\n=== Simulation completed in "
+            f"=== Simulation completed in "
             f"{humanize.precisedelta(datetime.timedelta(seconds=self.sim_end_time - self.sim_start_time), format='%0.4f')}"
         )
         logger.basic(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")

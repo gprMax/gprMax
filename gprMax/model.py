@@ -167,7 +167,7 @@ class Model:
         self.reuse_geometry() if config.get_model_config().reuse_geometry() else self.build_geometry()
 
         logger.info(
-            f"\nOutput directory: {config.get_model_config().output_file_path.parent.resolve()}"
+            f"Output directory: {config.get_model_config().output_file_path.parent.resolve()}\n"
         )
 
         # Adjust position of simple sources and receivers if required
@@ -246,15 +246,15 @@ class Model:
 
         if total_mem_build > total_mem_run:
             logger.info(
-                f'\nMemory required (estimated): {" + ".join(mem_strs_build)} + '
+                f'Memory required (estimated): {" + ".join(mem_strs_build)} + '
                 f"~{humanize.naturalsize(config.get_model_config().mem_overhead)} "
-                f"overhead = {humanize.naturalsize(total_mem_build)}"
+                f"overhead = {humanize.naturalsize(total_mem_build)}\n"
             )
         else:
             logger.info(
-                f'\nMemory required (estimated): {" + ".join(mem_strs_run)} + '
+                f'Memory required (estimated): {" + ".join(mem_strs_run)} + '
                 f"~{humanize.naturalsize(config.get_model_config().mem_overhead)} "
-                f"overhead = {humanize.naturalsize(total_mem_run)}"
+                f"overhead = {humanize.naturalsize(total_mem_run)}\n"
             )
 
     def reuse_geometry(self):
@@ -264,7 +264,7 @@ class Model:
             f"{config.sim_config.input_file_path}"
         )
         config.get_model_config().inputfilestr = (
-            Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL
+            Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n\n" + Style.RESET_ALL
         )
         logger.basic(config.get_model_config().inputfilestr)
         self.iteration = 0  # Reset current iteration number
@@ -297,7 +297,7 @@ class Model:
         # Print information about and check OpenMP threads
         if config.sim_config.general["solver"] == "cpu":
             logger.basic(
-                f"\nModel {config.sim_config.current_model + 1}/{config.sim_config.model_end} "
+                f"Model {config.sim_config.current_model + 1}/{config.sim_config.model_end} "
                 f"on {config.sim_config.hostinfo['hostname']} "
                 f"with OpenMP backend using {config.get_model_config().ompthreads} thread(s)"
             )
@@ -359,10 +359,10 @@ class Model:
             mem_str = f" host + unknown for device"
 
         logger.info(
-            f"\nMemory used (estimated): "
+            f"Memory used (estimated): "
             + f"~{humanize.naturalsize(self.p.memory_full_info().uss)}{mem_str}"
         )
         logger.info(
             f"Time taken: "
-            + f"{humanize.precisedelta(datetime.timedelta(seconds=solver.solvetime), format='%0.4f')}"
+            + f"{humanize.precisedelta(datetime.timedelta(seconds=solver.solvetime), format='%0.4f')}\n"
         )

@@ -80,8 +80,7 @@ class MPIModel(Model):
             super().write_output_data()
 
     def _output_geometry(self):
-        if self.is_coordinator():
-            logger.info("Geometry views and geometry objects are not currently supported with MPI.")
+        logger.warn("Geometry views and geometry objects are not currently supported with MPI\n")
 
     def _create_grid(self) -> MPIGrid:
         cart_comm = MPI.COMM_WORLD.Create_cart(config.sim_config.mpi)

@@ -48,7 +48,9 @@ def get_host_info():
         # Manufacturer/model
         try:
             manufacturer = (
-                subprocess.check_output(["wmic", "csproduct", "get", "vendor"], shell=False, stderr=subprocess.STDOUT)
+                subprocess.check_output(
+                    ["wmic", "csproduct", "get", "vendor"], shell=False, stderr=subprocess.STDOUT
+                )
                 .decode("utf-8")
                 .strip()
             )
@@ -59,7 +61,9 @@ def get_host_info():
                 manufacturer = manufacturer[0]
             model = (
                 subprocess.check_output(
-                    ["wmic", "computersystem", "get", "model"], shell=False, stderr=subprocess.STDOUT
+                    ["wmic", "computersystem", "get", "model"],
+                    shell=False,
+                    stderr=subprocess.STDOUT,
                 )
                 .decode("utf-8")
                 .strip()
@@ -76,7 +80,9 @@ def get_host_info():
         # CPU information
         try:
             allcpuinfo = (
-                subprocess.check_output(["wmic", "cpu", "get", "Name"], shell=False, stderr=subprocess.STDOUT)
+                subprocess.check_output(
+                    ["wmic", "cpu", "get", "Name"], shell=False, stderr=subprocess.STDOUT
+                )
                 .decode("utf-8")
                 .strip()
             )
@@ -109,7 +115,9 @@ def get_host_info():
         manufacturer = "Apple"
         try:
             model = (
-                subprocess.check_output(["sysctl", "-n", "hw.model"], shell=False, stderr=subprocess.STDOUT)
+                subprocess.check_output(
+                    ["sysctl", "-n", "hw.model"], shell=False, stderr=subprocess.STDOUT
+                )
                 .decode("utf-8")
                 .strip()
             )
@@ -120,14 +128,18 @@ def get_host_info():
         # CPU information
         try:
             sockets = (
-                subprocess.check_output(["sysctl", "-n", "hw.packages"], shell=False, stderr=subprocess.STDOUT)
+                subprocess.check_output(
+                    ["sysctl", "-n", "hw.packages"], shell=False, stderr=subprocess.STDOUT
+                )
                 .decode("utf-8")
                 .strip()
             )
             sockets = int(sockets)
             cpuID = (
                 subprocess.check_output(
-                    ["sysctl", "-n", "machdep.cpu.brand_string"], shell=False, stderr=subprocess.STDOUT
+                    ["sysctl", "-n", "machdep.cpu.brand_string"],
+                    shell=False,
+                    stderr=subprocess.STDOUT,
                 )
                 .decode("utf-8")
                 .strip()
@@ -150,7 +162,9 @@ def get_host_info():
         # Manufacturer/model
         try:
             manufacturer = (
-                subprocess.check_output(["cat", "/sys/class/dmi/id/sys_vendor"], shell=False, stderr=subprocess.STDOUT)
+                subprocess.check_output(
+                    ["cat", "/sys/class/dmi/id/sys_vendor"], shell=False, stderr=subprocess.STDOUT
+                )
                 .decode("utf-8")
                 .strip()
             )
@@ -170,7 +184,9 @@ def get_host_info():
             # Locale to ensure English
             myenv = {**os.environ, "LANG": "en_US.utf8"}
             cpuIDinfo = (
-                subprocess.check_output(["cat", "/proc/cpuinfo"], shell=False, stderr=subprocess.STDOUT, env=myenv)
+                subprocess.check_output(
+                    ["cat", "/proc/cpuinfo"], shell=False, stderr=subprocess.STDOUT, env=myenv
+                )
                 .decode("utf-8")
                 .strip()
             )
@@ -237,7 +253,7 @@ def print_host_info(hostinfo):
         else ""
     )
     logger.basic(
-        f"\n{config.sim_config.hostinfo['hostname']} | "
+        f"{config.sim_config.hostinfo['hostname']} | "
         f"{config.sim_config.hostinfo['machineID']} | "
         f"{hostinfo['sockets']} x {hostinfo['cpuID']} "
         f"({hostinfo['physicalcores']} cores{hyperthreadingstr}) | "

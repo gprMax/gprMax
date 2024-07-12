@@ -355,7 +355,6 @@ class MPIGrid(FDTDGrid):
         return self.neighbours[dim][dir] != -1
 
     def set_halo_map(self):
-        print(f"[Rank {self.rank}] Size = {self.size}")
         size = (self.size + 1).tolist()
 
         for dim in Dim:
@@ -365,14 +364,8 @@ class MPIGrid(FDTDGrid):
 
             if self.has_neighbour(dim, Dir.NEG):
                 start[dim] = 1
-                print(
-                    f"[Rank {self.rank}, Dim {dim}, Dir {Dir.NEG}] Grid of size {size}, creating halo map of size {halo_size} at start {start}"
-                )
                 self.send_halo_map[dim][Dir.NEG] = MPI.FLOAT.Create_subarray(size, halo_size, start)
                 start[dim] = 0
-                print(
-                    f"[Rank {self.rank}, Dim {dim}, Dir {Dir.NEG}] Grid of size {size}, creating halo map of size {halo_size} at start {start}"
-                )
                 self.recv_halo_map[dim][Dir.NEG] = MPI.FLOAT.Create_subarray(size, halo_size, start)
 
                 self.send_halo_map[dim][Dir.NEG].Commit()
@@ -380,14 +373,8 @@ class MPIGrid(FDTDGrid):
 
             if self.has_neighbour(dim, Dir.POS):
                 start[dim] = size[dim] - 2
-                print(
-                    f"[Rank {self.rank}, Dim {dim}, Dir {Dir.POS}] Grid of size {size}, creating halo map of size {halo_size} at start {start}"
-                )
                 self.send_halo_map[dim][Dir.POS] = MPI.FLOAT.Create_subarray(size, halo_size, start)
                 start[dim] = size[dim] - 1
-                print(
-                    f"[Rank {self.rank}, Dim {dim}, Dir {Dir.POS}] Grid of size {size}, creating halo map of size {halo_size} at start {start}"
-                )
                 self.recv_halo_map[dim][Dir.POS] = MPI.FLOAT.Create_subarray(size, halo_size, start)
 
                 self.send_halo_map[dim][Dir.POS].Commit()
@@ -413,5 +400,5 @@ class MPIGrid(FDTDGrid):
         self.upper_extent = self.lower_extent + self.size
 
         logger.debug(
-            f"[Rank {self.rank}] Grid size: {self.size}, Lower extent: {self.lower_extent}, Upper extent: {self.upper_extent}"
+            f"Grid size: {self.size}, Lower extent: {self.lower_extent}, Upper extent: {self.upper_extent}"
         )

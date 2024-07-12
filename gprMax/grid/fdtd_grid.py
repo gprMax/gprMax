@@ -329,8 +329,9 @@ class FDTDGrid:
         materialstable.outer_border = False
         materialstable.justify_columns[0] = "right"
 
-        logger.info(f"\nMaterials [{self.name}]:")
-        logger.info(materialstable.table)
+        logger.info("")
+        logger.info(f"Materials [{self.name}]:")
+        logger.info(f"{materialstable.table}\n")
 
     def _update_positions(
         self, items: Iterable[Union[Source, Rx]], step_size: List[int], step_number: int
@@ -694,7 +695,7 @@ class FDTDGrid:
         results = self._dispersion_analysis(iterations)
         if results["error"]:
             logger.warning(
-                f"\nNumerical dispersion analysis [{self.name}] "
+                f"Numerical dispersion analysis [{self.name}] "
                 f"not carried out as {results['error']}"
             )
         elif results["N"] < config.get_model_config().numdispersion["mingridsampling"]:
@@ -713,22 +714,22 @@ class FDTDGrid:
             > config.get_model_config().numdispersion["maxnumericaldisp"]
         ):
             logger.warning(
-                f"\n[{self.name}] has potentially significant "
+                f"[{self.name}] has potentially significant "
                 f"numerical dispersion. Estimated largest physical "
                 f"phase-velocity error is {results['deltavp']:.2f}% "
                 f"in material '{results['material'].ID}' whose "
                 f"wavelength sampled by {results['N']} cells. "
                 f"Maximum significant frequency estimated as "
-                f"{results['maxfreq']:g}Hz"
+                f"{results['maxfreq']:g}Hz\n"
             )
         elif results["deltavp"]:
             logger.info(
-                f"\nNumerical dispersion analysis [{self.name}]: "
+                f"Numerical dispersion analysis [{self.name}]: "
                 f"estimated largest physical phase-velocity error is "
                 f"{results['deltavp']:.2f}% in material '{results['material'].ID}' "
                 f"whose wavelength sampled by {results['N']} cells. "
                 f"Maximum significant frequency estimated as "
-                f"{results['maxfreq']:g}Hz"
+                f"{results['maxfreq']:g}Hz\n"
             )
 
     def _dispersion_analysis(self, iterations: int):

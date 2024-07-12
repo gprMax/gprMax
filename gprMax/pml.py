@@ -727,7 +727,7 @@ def print_pml_info(G):
     """
     # No PML
     if all(value == 0 for value in G.pmls["thickness"].values()):
-        return f"\nPML boundaries [{G.name}]: switched off"
+        return f"PML boundaries [{G.name}]: switched off\n"
 
     if all(value == G.pmls["thickness"]["x0"] for value in G.pmls["thickness"].values()):
         pmlinfo = str(G.pmls["thickness"]["x0"])
@@ -738,6 +738,6 @@ def print_pml_info(G):
         pmlinfo = pmlinfo[:-2]
 
     return (
-        f"\nPML boundaries [{G.name}]: {{formulation: {G.pmls['formulation']}, "
-        f"order: {len(G.pmls['cfs'])}, thickness (cells): {pmlinfo}}}"
+        f"PML boundaries [{G.name}]: {{formulation: {G.pmls['formulation']}, "
+        f"order: {len(G.pmls['cfs'])}, thickness (cells): {pmlinfo}}}\n"
     )
