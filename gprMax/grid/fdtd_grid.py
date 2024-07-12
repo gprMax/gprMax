@@ -24,7 +24,7 @@ from collections import OrderedDict
 from typing import Any, Iterable, List, Tuple, Union
 
 import numpy as np
-from terminaltables import SingleTable
+from terminaltables import AsciiTable
 from tqdm import tqdm
 from typing_extensions import TypeVar
 
@@ -325,7 +325,8 @@ class FDTDGrid:
         # Process complete list of materials - calculate update coefficients,
         # store in arrays, and build text list of materials/properties
         materialsdata = process_materials(self)
-        materialstable = SingleTable(materialsdata)
+        # materialstable = SingleTable(materialsdata)
+        materialstable = AsciiTable(materialsdata)
         materialstable.outer_border = False
         materialstable.justify_columns[0] = "right"
 
