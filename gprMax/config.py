@@ -256,6 +256,11 @@ class SimulationConfig:
             ),
         }
 
+        if self.mpi and self.general["progressbars"]:
+            from mpi4py import MPI
+
+            self.general["progressbars"] = MPI.COMM_WORLD.rank == 0
+
         # Store information about host machine
         self.hostinfo = get_host_info()
 
