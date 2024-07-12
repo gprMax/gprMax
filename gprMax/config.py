@@ -218,15 +218,15 @@ class SimulationConfig:
         )  # For depreciated Python blocks
 
         if self.taskfarm and self.geometry_fixed:
-            logger.exception("The geometry fixed option cannot be used with MPI taskfarm.")
+            logger.error("The geometry fixed option cannot be used with MPI taskfarm.")
             raise ValueError
 
         if self.gpu and self.opencl:
-            logger.exception("You cannot use both CUDA and OpenCl simultaneously.")
+            logger.error("You cannot use both CUDA and OpenCl simultaneously.")
             raise ValueError
 
         if self.mpi and hasattr(self.args, "subgrid") and self.args.subgrid:
-            logger.exception("You cannot use subgrids with MPI.")
+            logger.error("You cannot use subgrids with MPI.")
             raise ValueError
 
         # Each model in a simulation is given a unique number when the instance of ModelConfig is created
@@ -245,7 +245,7 @@ class SimulationConfig:
         #     or when specified by the user.
 
         if args.show_progress_bars and args.hide_progress_bars:
-            logger.exception("You cannot both show and hide progress bars.")
+            logger.error("You cannot both show and hide progress bars.")
             raise ValueError
 
         self.general = {
@@ -302,7 +302,7 @@ class SimulationConfig:
             if (self.general["subgrid"] and self.general["solver"] == "cuda") or (
                 self.general["subgrid"] and self.general["solver"] == "opencl"
             ):
-                logger.exception(
+                logger.error(
                     "You cannot currently use CUDA or OpenCL-based solvers with models that contain sub-grids."
                 )
                 raise ValueError
@@ -401,7 +401,7 @@ class SimulationConfig:
                 return dev
 
         if not found:
-            logger.exception(f"Compute device with device ID {deviceID} does " "not exist.")
+            logger.error(f"Compute device with device ID {deviceID} does " "not exist.")
             raise ValueError
 
     def get_model_config(self, model_num: Optional[int] = None) -> ModelConfig:
@@ -418,7 +418,7 @@ class SimulationConfig:
 
         model_config = self.model_configs[model_num]
         if model_config is None:
-            logger.exception(f"Cannot get ModelConfig for model {model_num}. It has not been set.")
+            logger.error(f"Cannot get ModelConfig for model {model_num}. It has not been set.")
             raise ValueError
 
         return model_config

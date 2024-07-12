@@ -168,7 +168,7 @@ class MPIContext(Context):
 
         requested_mpi_size = np.product(config.sim_config.mpi)
         if self.comm.size < requested_mpi_size:
-            logger.exception(
+            logger.error(
                 (
                     f"MPI_COMM_WORLD size of {self.comm.size} is too small for requested dimensions of"
                     f" {config.sim_config.mpi}. {requested_mpi_size} ranks are required."
@@ -290,7 +290,7 @@ class TaskfarmContext(Context):
             and config.sim_config.general["solver"] == "cuda"
             and executor.size - 1 > len(config.sim_config.devices["devs"])
         ):
-            logger.exception(
+            logger.error(
                 "Not enough GPU resources for number of "
                 "MPI tasks requested. Number of MPI tasks "
                 "should be equal to number of GPUs + 1."
