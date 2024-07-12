@@ -52,9 +52,6 @@ class MPIModel(Model):
         return self.rank == 0
 
     def build_geometry(self):
-        if self.is_coordinator():
-            self._check_for_dispersive_materials([self.G])
-            self._check_memory_requirements([self.G])
         self._broadcast_model()
 
         return super().build_geometry()
