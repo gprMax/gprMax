@@ -68,7 +68,14 @@ class CustomFormatter(logging.Formatter):
         return logging.Formatter.format(self, colored_record)
 
 
-def logging_config(name="gprMax", level=logging.INFO, format_style="std", log_file=False):
+def logging_config(
+    name="gprMax",
+    level=logging.INFO,
+    format_style="std",
+    log_file=False,
+    mpi_logger=False,
+    log_all_ranks=False,
+):
     """Setup and configure logging.
 
     Args:
@@ -92,17 +99,33 @@ def logging_config(name="gprMax", level=logging.INFO, format_style="std", log_fi
     logger.setLevel(logging.DEBUG)
     logger.propagate = False
 
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
+    # Don't add handlers for non-zero ranks unless logging is turned on
+    # for all ranks
+    if mpi_logger:
+        from mpi4py import MPI
+
+        rank = MPI.COMM_WORLD.rank
+        if not log_all_ranks and not rank == 0:
+            return
+
     # Config for logging to console
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(level)
-    handler.setFormatter(CustomFormatter(format))
-    if logger.hasHandlers():
-        logger.handlers.clear()
+    if mpi_logger and log_all_ranks and format == format_full:
+        handler.setFormatter(CustomFormatter(f"[Rank {rank}] {format}"))
+    else:
+        handler.setFormatter(CustomFormatter(format))
     logger.addHandler(handler)
 
     # Config for logging to file if required
     if log_file:
-        filename = name + "-log-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".txt"
+        if mpi_logger and log_all_ranks:
+            filename = f"{name}-log-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}-{MPI.COMM_WORLD.rank}.txt"
+        else:
+            filename = name + "-log-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + ".txt"
         handler = logging.FileHandler(filename, mode="w")
         formatter = logging.Formatter(format_full)
         handler.setLevel(logging.DEBUG)

@@ -42,6 +42,7 @@ args_defaults = {
     "hide_progress_bars": False,
     "log_level": 20,  # Level DEBUG = 10; INFO = 20; BASIC = 25
     "log_file": False,
+    "log_all_ranks": False,
 }
 
 # Argument help messages (used for CLI argparse)
@@ -103,6 +104,11 @@ help_msg = {
     ),
     "log_level": "(int, opt): Level of logging to use.",
     "log_file": "(bool, opt): Write logging information to file.",
+    "log_all_ranks": (
+        "(bool, opt): Write logging information from all MPI ranks. Default behaviour only provides"
+        " log output from rank 0. When used with --log-file, each rank will write to an individual"
+        " file."
+    ),
 }
 
 
@@ -125,6 +131,7 @@ def run(
     hide_progress_bars=args_defaults["hide_progress_bars"],
     log_level=args_defaults["log_level"],
     log_file=args_defaults["log_file"],
+    log_all_ranks=args_defaults["log_all_ranks"],
 ):
     """Entry point for application programming interface (API).
 
@@ -179,6 +186,10 @@ def run(
             log level is greater than info (20).
         log_level: optional int for level of logging to use.
         log_file: optional boolean to write logging information to file.
+        log_all_ranks: optional boolean to write logging information
+            from all MPI ranks. Default behaviour only provides log
+            output from rank 0. When used with --log-file, each ran
+            will write to an individual file.
     """
 
     args = argparse.Namespace(
@@ -201,6 +212,7 @@ def run(
             "hide_progress_bars": hide_progress_bars,
             "log_level": log_level,
             "log_file": log_file,
+            "log_all_ranks": log_all_ranks,
         }
     )
 
@@ -273,6 +285,12 @@ def cli():
         default=args_defaults["log_file"],
         help=help_msg["log_file"],
     )
+    parser.add_argument(
+        "--log-all-ranks",
+        action="store_true",
+        default=args_defaults["log_all_ranks"],
+        help=help_msg["log_all_ranks"],
+    )
     args = parser.parse_args()
 
     results = run_main(args)
@@ -293,7 +311,12 @@ def run_main(args):
     """
 
     results = {}
-    logging_config(level=args.log_level, log_file=args.log_file)
+    logging_config(
+        level=args.log_level,
+        log_file=args.log_file,
+        mpi_logger=args.mpi is not None,
+        log_all_ranks=args.log_all_ranks,
+    )
     config.sim_config = config.SimulationConfig(args)
 
     # MPI taskfarm running with (OpenMP/CUDA/OpenCL)
