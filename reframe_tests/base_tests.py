@@ -144,12 +144,20 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
                 antenna_ant_params,
             ]
 
+    @run_before("run")
+    def combine_task_outputs(self):
         if self.num_tasks > 1:
             stdout = self.stdout.evaluate().split(".")[0]
             stderr = self.stderr.evaluate().split(".")[0]
-            self.job.launcher.options = [f"--output={stdout}_%t.out", f"--error={stderr}_%t.err"]
-            self.postrun_cmds.append(f"cat {stdout}_*.out >> {self.stdout}")
-            self.postrun_cmds.append(f"cat {stderr}_*.err >> {self.stderr}")
+            self.prerun_cmds.append(f"mkdir out")
+            self.prerun_cmds.append(f"mkdir err")
+            self.job.launcher.options = [
+                f"--output=out/{stdout}_%t.out",
+                f"--error=err/{stderr}_%t.err",
+            ]
+            self.executable_opts += ["--log-all-ranks"]
+            self.postrun_cmds.append(f"cat out/{stdout}_*.out >> {self.stdout}")
+            self.postrun_cmds.append(f"cat err/{stderr}_*.err >> {self.stderr}")
 
     @run_before("run")
     def check_input_file_exists(self):
