@@ -330,8 +330,7 @@ class FDTDGrid:
         materialstable.justify_columns[0] = "right"
 
         logger.info("")
-        logger.info(f"Materials [{self.name}]:")
-        logger.info(f"{materialstable.table}\n")
+        logger.info(f"Materials [{self.name}]:\n{materialstable.table}\n")
 
     def _update_positions(
         self, items: Iterable[Union[Source, Rx]], step_size: List[int], step_number: int
