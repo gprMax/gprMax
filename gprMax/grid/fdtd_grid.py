@@ -293,7 +293,6 @@ class FDTDGrid:
     def _build_components(self) -> None:
         # Build the model, i.e. set the material properties (ID) for every edge
         # of every Yee cell
-        logger.info("")
         pbar = tqdm(
             total=2,
             desc=f"Building Yee cells [{self.name}]",

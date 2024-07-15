@@ -178,6 +178,16 @@ class MPIGrid(FDTDGrid):
             self.lower_extent[Dim.Z] : self.upper_extent[Dim.Z],
         ].copy(order="C")
 
+    def scatter_4d_array_with_positive_halo(self, array: npt.NDArray) -> npt.NDArray:
+        self.comm.Bcast(array, root=self.COORDINATOR_RANK)
+
+        return array[
+            :,
+            self.lower_extent[Dim.X] : self.upper_extent[Dim.X] + 1,
+            self.lower_extent[Dim.Y] : self.upper_extent[Dim.Y] + 1,
+            self.lower_extent[Dim.Z] : self.upper_extent[Dim.Z] + 1,
+        ].copy(order="C")
+
     def scatter_grid(self):
         self.materials = self.comm.bcast(self.materials, root=self.COORDINATOR_RANK)
         self.rxs = self.scatter_coord_objects(self.rxs)
@@ -201,14 +211,10 @@ class MPIGrid(FDTDGrid):
             self.pmls["thickness"]["zmax"] = 0
 
         if not self.is_coordinator():
-            # TODO: Replace with self.initialise_geometry_arrays() when change distributing these to scatter
-            self.solid = np.ones(self.global_size, dtype=np.uint32)
-            self.rigidE = np.zeros((12, *self.global_size), dtype=np.int8)
-            self.rigidH = np.zeros((6, *self.global_size), dtype=np.int8)
+            # TODO: When scatter arrays properly, should initialise these to the local grid size
+            self.initialise_geometry_arrays()
 
-        # TODO: When fix geometry objects for MPI this may need distributing
-        self.ID = np.ones((6, self.nx + 1, self.ny + 1, self.nz + 1), dtype=np.uint32)
-
+        self.ID = self.scatter_4d_array_with_positive_halo(self.ID)
         self.solid = self.scatter_3d_array(self.solid)
         self.rigidE = self.scatter_4d_array(self.rigidE)
         self.rigidH = self.scatter_4d_array(self.rigidH)
@@ -318,10 +324,6 @@ class MPIGrid(FDTDGrid):
         averageer = sumer / n
         averagemr = summr / n
 
-        logger.debug(
-            f"PML {pml.ID} has size {n}. Permittivity sum = {sumer}, Permeability sum = {summr}"
-        )
-
         return averageer, averagemr
 
     def build(self):
@@ -382,14 +384,17 @@ class MPIGrid(FDTDGrid):
 
     def calculate_local_extents(self):
         self.size = self.global_size // self.mpi_tasks
+        overflow = self.global_size % self.mpi_tasks
 
-        self.lower_extent = self.size * self.coords + np.minimum(
-            self.coords, self.global_size % self.mpi_tasks
-        )
+        # Ranks with coordinates less than the overflow have their size
+        # increased by one. Account for this by adding the overflow or
+        # this rank's coordinates, whichever is smaller.
+        self.lower_extent = self.size * self.coords + np.minimum(self.coords, overflow)
 
-        self.size += self.coords < (self.global_size % self.mpi_tasks)
+        # For each coordinate, if it is less than the overflow, add 1
+        self.size += self.coords < overflow
 
-        # Account for negative halo
+        # Account for a negative halo
         # Field arrays are created with dimensions size + 1 so space for
         # a positive halo will always exist. Grids not needing a
         # positive halo, still need the extra size as that makes the
