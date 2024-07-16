@@ -89,7 +89,7 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
 
     model = parameter()
     is_antenna_model = variable(bool, value=False)
-    # sourcesdir = required
+    sourcesdir = required
     extra_executable_opts = variable(typ.List[str], value=[])
     executable = "time -p python -m gprMax --log-level 10 --hide-progress-bars"
 
@@ -296,6 +296,7 @@ class GprMaxBScanRegressionTest(GprMaxRegressionTest):
 class GprMaxTaskfarmRegressionTest(GprMaxBScanRegressionTest):
     serial_dependency: type[GprMaxRegressionTest]
     extra_executable_opts = ["-taskfarm"]
+    sourcesdir = "src"
 
     num_tasks = required
 
@@ -311,6 +312,11 @@ class GprMaxTaskfarmRegressionTest(GprMaxBScanRegressionTest):
         self.depends_on(self._get_variant(), udeps.by_env)
         super().inject_dependencies()
 
+    @run_after("init")
+    def setup_source_directory(self):
+        """Set the source directory to the same as the serial test"""
+        self.sourcesdir = str(self.serial_dependency.sourcesdir)
+
     @run_before("run")
     def setup_reference_file(self):
         """Add prerun command to load the built Python environment"""
@@ -322,11 +328,12 @@ class GprMaxMPIRegressionTest(GprMaxRegressionTest):
     # TODO: Make this a variable
     serial_dependency: type[GprMaxRegressionTest]
     mpi_layout = parameter()
+    sourcesdir = "src"
 
     @run_after("setup", always_last=True)
     def configure_test_run(self):
         self.num_tasks = int(product(self.mpi_layout))
-        self.extra_executable_opts = ["-mpi", " ".join([str(i) for i in self.mpi_layout])]
+        self.extra_executable_opts = ["-mpi", *map(str, self.mpi_layout)]
         super().configure_test_run()
 
     def _get_variant(self) -> str:
@@ -335,12 +342,20 @@ class GprMaxMPIRegressionTest(GprMaxRegressionTest):
 
     @run_after("init")
     def inject_dependencies(self):
-        """Test depends on the Python virtual environment building correctly"""
+        """Test depends on the specified serial test"""
         self.depends_on(self._get_variant(), udeps.by_env)
         super().inject_dependencies()
 
+    @run_after("init")
+    def setup_source_directory(self):
+        """Set the source directory to the same as the serial test"""
+        self.sourcesdir = str(self.serial_dependency.sourcesdir)
+
     @run_before("run")
     def setup_reference_file(self):
-        """Add prerun command to load the built Python environment"""
+        """
+        Set the reference file regression check to the output of the
+        serial test
+        """
         target = self.getdep(self._get_variant())
         self.reference_file = os.path.join(target.stagedir, str(self.output_file))

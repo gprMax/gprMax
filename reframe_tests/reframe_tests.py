@@ -29,6 +29,7 @@ class TestAscan(GprMaxRegressionTest):
         "box",
         "cylinder",
     }
+    sourcesdir = "src/example_models"
     model = parameter(["cylinder_Ascan_2D"])
 
 
@@ -45,6 +46,7 @@ class TestBscan(GprMaxBScanRegressionTest):
         "box",
         "cylinder",
     }
+    sourcesdir = "src/bscan_tests"
     model = parameter(["cylinder_Bscan_2D"])
     num_models = parameter([64])
 
@@ -92,48 +94,56 @@ class TestMultiNodeTaskfarm(GprMaxTaskfarmRegressionTest):
 @rfm.simple_test
 class Test2DModelXY(GprMaxRegressionTest):
     tags = {"test", "serial", "2d", "waveform", "hertzian_dipole"}
+    sourcesdir = "src/2d_tests"
     model = parameter(["2D_EzHxHy"])
 
 
 @rfm.simple_test
 class Test2DModelXZ(GprMaxRegressionTest):
     tags = {"test", "serial", "2d", "waveform", "hertzian_dipole"}
+    sourcesdir = "src/2d_tests"
     model = parameter(["2D_EyHxHz"])
 
 
 @rfm.simple_test
 class Test2DModelYZ(GprMaxRegressionTest):
     tags = {"test", "serial", "2d", "waveform", "hertzian_dipole"}
+    sourcesdir = "src/2d_tests"
     model = parameter(["2D_ExHyHz"])
 
 
 @rfm.simple_test
 class TestHertzianDipoleSource(GprMaxRegressionTest):
     tags = {"test", "serial", "hertzian_dipole", "waveform"}
+    sourcesdir = "src/source_tests"
     model = parameter(["hertzian_dipole_fs"])
 
 
 @rfm.simple_test
 class TestMagneticDipoleSource(GprMaxRegressionTest):
     tags = {"test", "serial", "magnetic_dipole", "waveform"}
+    sourcesdir = "src/source_tests"
     model = parameter(["magnetic_dipole_fs"])
 
 
 @rfm.simple_test
 class TestDispersiveMaterials(GprMaxRegressionTest):
     tags = {"test", "serial", "hertzian_dipole", "waveform", "material", "dispersive", "box"}
+    sourcesdir = "src/material_tests"
     model = parameter(["hertzian_dipole_dispersive"])
 
 
 @rfm.simple_test
 class TestTransmissionLineSource(GprMaxRegressionTest):
     tags = {"test", "serial", "transmission_line", "waveform"}
+    sourcesdir = "src/source_tests"
     model = parameter(["transmission_line_fs"])
 
 
 @rfm.simple_test
 class TestEdgeGeometry(GprMaxRegressionTest):
     tags = {"test", "serial", "geometry", "edge", "transmission_line", "waveform", "antenna"}
+    sourcesdir = "src/geomtry_tests/edge_geometry"
     model = parameter(["antenna_wire_dipole_fs"])
     is_antenna_model = True
 
@@ -151,6 +161,7 @@ class TestSubgrids(GprMaxAPIRegressionTest):
         "dispersive",
         "cylinder",
     }
+    sourcesdir = "src/subgrid_tests"
     model = parameter(["cylinder_fs"])
 
 
@@ -167,6 +178,7 @@ class TestSubgridsWithAntennaModel(GprMaxAPIRegressionTest):
         "fractal_box",
         "add_surface_roughness",
     }
+    sourcesdir = "src/subgrid_tests"
     model = parameter(["gssi_400_over_fractal_subsurface"])
     is_antenna_model = True
 
@@ -243,7 +255,7 @@ class TestEdgeGeometryMpi(GprMaxMPIRegressionTest):
 @rfm.simple_test
 class TestBoxGeometryNoPml(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "box"}
-    sourcesdir = "src/box_geometry_tests"
+    sourcesdir = "src/geometry_tests/box_geometry"
     model = parameter(["box_full_model", "box_half_model", "box_single_rank"])
 
     @run_before("run")
@@ -254,7 +266,7 @@ class TestBoxGeometryNoPml(GprMaxRegressionTest):
 @rfm.simple_test
 class TestBoxGeometryDefaultPml(GprMaxRegressionTest):
     tags = {"test", "serial", "geometery", "box"}
-    sourcesdir = "src/box_geometry_tests"
+    sourcesdir = "src/geometry_tests/box_geometry"
     model = parameter(
         [
             "box_full_model",
@@ -272,7 +284,6 @@ class TestBoxGeometryNoPmlMpi(GprMaxMPIRegressionTest):
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
     serial_dependency = TestBoxGeometryNoPml
     model = serial_dependency.model
-    sourcesdir = "src/box_geometry_tests"
 
     @run_before("run")
     def add_gprmax_commands(self):
@@ -285,7 +296,6 @@ class TestBoxGeometryDefaultPmlMpi(GprMaxMPIRegressionTest):
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
     serial_dependency = TestBoxGeometryDefaultPml
     model = serial_dependency.model
-    sourcesdir = "src/box_geometry_tests"
 
 
 @rfm.simple_test
@@ -299,7 +309,6 @@ class TestSingleCellPml(GprMaxRegressionTest):
 @rfm.simple_test
 class TestSingleCellPmlMpi(GprMaxMPIRegressionTest):
     tags = {"test", "mpi", "geometery", "box", "pml"}
-    sourcesdir = "src/pml_tests"
     mpi_layout = parameter([[2, 2, 1], [3, 3, 1]])
     serial_dependency = TestSingleCellPml
     model = serial_dependency.model
