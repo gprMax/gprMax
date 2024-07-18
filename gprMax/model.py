@@ -285,7 +285,7 @@ class Model:
         # Write any snapshots to file for each grid
         for grid in [self.G] + self.subgrids:
             if grid.snapshots:
-                save_snapshots(grid)
+                save_snapshots(grid.snapshots)
 
     def solve(self, solver):
         """Solve using FDTD method.

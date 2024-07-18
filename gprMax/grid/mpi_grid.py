@@ -31,6 +31,7 @@ from gprMax.cython.pml_build import pml_sum_er_mr
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.pml import MPIPML, PML
 from gprMax.receivers import Rx
+from gprMax.snapshots import MPISnapshot, Snapshot
 from gprMax.sources import Source
 
 logger = logging.getLogger(__name__)
@@ -129,10 +130,20 @@ class MPIGrid(FDTDGrid):
         grid_coord = self.get_grid_coord_from_coordinate(coord)
         return self.comm.Get_cart_rank(grid_coord.tolist())
 
-    def global_to_local_coordinate(self, global_coord: npt.NDArray) -> npt.NDArray:
+    def get_ranks_between_coordinates(
+        self, start_coord: npt.NDArray, stop_coord: npt.NDArray
+    ) -> List[int]:
+        start = self.get_grid_coord_from_coordinate(start_coord)
+        stop = self.get_grid_coord_from_coordinate(stop_coord) + 1
+        coord_to_rank = lambda c: self.comm.Get_cart_rank((start + c).tolist())
+        return [coord_to_rank(coord) for coord in np.ndindex(*(stop - start))]
+
+    def global_to_local_coordinate(
+        self, global_coord: npt.NDArray[np.intc]
+    ) -> npt.NDArray[np.intc]:
         return global_coord - self.lower_extent
 
-    def local_to_global_coordinate(self, local_coord: npt.NDArray) -> npt.NDArray:
+    def local_to_global_coordinate(self, local_coord: npt.NDArray[np.intc]) -> npt.NDArray[np.intc]:
         return local_coord + self.lower_extent
 
     def scatter_coord_objects(self, objects: List[CoordType]) -> List[CoordType]:
@@ -161,6 +172,48 @@ class MPIGrid(FDTDGrid):
             return list(itertools.chain(*gathered_objects))
         else:
             return objects
+
+    def scatter_snapshots(self):
+        if self.is_coordinator():
+            snapshots_by_rank: List[List[Optional[Snapshot]]] = [[] for _ in range(self.comm.size)]
+            for s in self.snapshots:
+                ranks = self.get_ranks_between_coordinates(s.start, s.stop)
+                for rank in range(self.comm.size):
+                    if rank in ranks:
+                        snapshots_by_rank[rank].append(s)
+                    else:
+                        snapshots_by_rank[rank].append(None)
+        else:
+            snapshots_by_rank = None
+
+        snapshots: List[Optional[MPISnapshot]] = self.comm.scatter(
+            snapshots_by_rank, root=self.COORDINATOR_RANK
+        )
+
+        for s in snapshots:
+            if s is None:
+                self.comm.Split(MPI.UNDEFINED)
+            else:
+                comm = self.comm.Split()
+                assert isinstance(comm, MPI.Intracomm)
+                start = self.get_grid_coord_from_coordinate(s.start)
+                stop = self.get_grid_coord_from_coordinate(s.stop) + 1
+                s.comm = comm.Create_cart((stop - start).tolist())
+
+                s.start = self.global_to_local_coordinate(s.start)
+                # Calculate number of steps needed to bring the start
+                # into the local grid (and not in the negative halo)
+                s.offset = np.where(
+                    s.start < self.negative_halo_offset,
+                    np.abs((s.start - self.negative_halo_offset) // s.step),
+                    s.offset,
+                )
+                s.start += s.step * s.offset
+
+                s.stop = self.global_to_local_coordinate(s.stop)
+                s.stop = np.where(s.stop > self.size, self.size, s.stop)
+
+        self.snapshots = [s for s in snapshots if s is not None]
 
     def scatter_3d_array(self, array: npt.NDArray) -> npt.NDArray:
         self.comm.Bcast(array, root=self.COORDINATOR_RANK)
@@ -198,6 +251,8 @@ class MPIGrid(FDTDGrid):
         self.magneticdipoles = self.scatter_coord_objects(self.magneticdipoles)
         self.hertziandipoles = self.scatter_coord_objects(self.hertziandipoles)
         self.transmissionlines = self.scatter_coord_objects(self.transmissionlines)
+
+        self.scatter_snapshots()
 
         self.pmls = self.comm.bcast(self.pmls, root=self.COORDINATOR_RANK)
         if self.coords[Dim.X] != 0:

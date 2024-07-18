@@ -1,12 +1,13 @@
 import logging
 from typing import Optional
 
-import numpy as np
 from mpi4py import MPI
 
 from gprMax import config
+from gprMax.fields_outputs import write_hdf5_outputfile
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
+from gprMax.snapshots import save_snapshots
 
 logger = logging.getLogger(__name__)
 
@@ -74,10 +75,19 @@ class MPIModel(Model):
         model_config.ompthreads = self.comm.bcast(model_config.ompthreads)
 
     def write_output_data(self):
+        """Writes output data, i.e. field data for receivers and snapshots to
+        file(s).
+        """
+        # Write any snapshots to file for each grid
+        if self.G.snapshots:
+            save_snapshots(self.G.snapshots)
+
         self.G.gather_grid_objects()
-        if self.is_coordinator():
+
+        # Write output data to file if they are any receivers in any grids
+        if self.is_coordinator() and (self.G.rxs or self.G.transmissionlines):
             self.G.size = self.G.global_size
-            super().write_output_data()
+            write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.title, self)
 
     def _output_geometry(self):
         logger.warn("Geometry views and geometry objects are not currently supported with MPI\n")

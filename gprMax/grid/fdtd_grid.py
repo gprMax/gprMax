@@ -144,6 +144,8 @@ class FDTDGrid:
         logger.info(print_pml_info(self))
         if not all(value == 0 for value in self.pmls["thickness"].values()):
             self._build_pmls()
+        for snapshot in self.snapshots:  # TODO: Remove if implement parallel build
+            snapshot.initialise_snapfields()
         if self.averagevolumeobjects:
             self._build_components()
         self._tm_grid_update()
