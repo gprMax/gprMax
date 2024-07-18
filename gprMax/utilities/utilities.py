@@ -22,6 +22,7 @@ import logging
 import re
 import textwrap
 from shutil import get_terminal_size
+from typing import Union
 
 import numpy as np
 from colorama import Fore, Style, init
@@ -140,7 +141,7 @@ def logo(version):
     return str
 
 
-def round_value(value, decimalplaces=0):
+def round_value(value: float, decimalplaces: int = 0) -> Union[float, int]:
     """Rounding function.
 
     Args:
