@@ -17,7 +17,6 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-import numpy.typing as npt
 
 import gprMax.config as config
 
@@ -32,8 +31,8 @@ class Rx:
     def __init__(self):
         self.ID: str
         self.outputs = {}
-        self.coord: npt.NDArray[np.int_] = np.zeros(3, dtype=int)
-        self.coordorigin: npt.NDArray[np.int_] = np.zeros(3, dtype=int)
+        self.coord = np.zeros(3, dtype=np.intc)
+        self.coordorigin = np.zeros(3, dtype=np.intc)
 
     @property
     def xcoord(self) -> int:

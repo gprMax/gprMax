@@ -24,6 +24,7 @@ from collections import OrderedDict
 from typing import Any, Iterable, List, Tuple, Union
 
 import numpy as np
+import numpy.typing as npt
 from terminaltables import AsciiTable
 from tqdm import tqdm
 from typing_extensions import TypeVar
@@ -61,28 +62,28 @@ class FDTDGrid:
         self.dt = 0.0
 
         # Field Arrays
-        self.Ex: np.ndarray[Any, np.dtype[np.single]]
-        self.Ey: np.ndarray[Any, np.dtype[np.single]]
-        self.Ez: np.ndarray[Any, np.dtype[np.single]]
-        self.Hx: np.ndarray[Any, np.dtype[np.single]]
-        self.Hy: np.ndarray[Any, np.dtype[np.single]]
-        self.Hz: np.ndarray[Any, np.dtype[np.single]]
+        self.Ex: npt.NDArray[np.single]
+        self.Ey: npt.NDArray[np.single]
+        self.Ez: npt.NDArray[np.single]
+        self.Hx: npt.NDArray[np.single]
+        self.Hy: npt.NDArray[np.single]
+        self.Hz: npt.NDArray[np.single]
 
         # Dispersive Arrays
-        self.Tx: np.ndarray[Any, np.dtype[np.single]]
-        self.Ty: np.ndarray[Any, np.dtype[np.single]]
-        self.Tz: np.ndarray[Any, np.dtype[np.single]]
+        self.Tx: npt.NDArray[np.single]
+        self.Ty: npt.NDArray[np.single]
+        self.Tz: npt.NDArray[np.single]
 
         # Geometry Arrays
-        self.solid: np.ndarray[Any, np.dtype[np.uint32]]
-        self.rigidE: np.ndarray[Any, np.dtype[np.int8]]
-        self.rigidH: np.ndarray[Any, np.dtype[np.int8]]
-        self.ID: np.ndarray[Any, np.dtype[np.uint32]]
+        self.solid: npt.NDArray[np.uint32]
+        self.rigidE: npt.NDArray[np.int8]
+        self.rigidH: npt.NDArray[np.int8]
+        self.ID: npt.NDArray[np.uint32]
 
         # Update Coefficient Arrays
-        self.updatecoeffsE: np.ndarray
-        self.updatecoeffsH: np.ndarray
-        self.updatecoeffsdispersive: np.ndarray
+        self.updatecoeffsE: npt.NDArray
+        self.updatecoeffsH: npt.NDArray
+        self.updatecoeffsdispersive: npt.NDArray
 
         # PML parameters - set some defaults to use if not user provided
         self.pmls = {}

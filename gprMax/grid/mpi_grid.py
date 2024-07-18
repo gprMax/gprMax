@@ -56,7 +56,7 @@ class MPIGrid(FDTDGrid):
     COORDINATOR_RANK = 0
 
     def __init__(self, comm: MPI.Cartcomm):
-        self.size = np.zeros(3, dtype=int)
+        self.size = np.zeros(3, dtype=np.intc)
 
         super().__init__()
 
@@ -66,12 +66,12 @@ class MPIGrid(FDTDGrid):
         self.z_comm = comm.Sub([True, True, False])
         self.pml_comm = MPI.COMM_NULL
 
-        self.mpi_tasks = np.array(self.comm.dims)
+        self.mpi_tasks = np.array(self.comm.dims, dtype=np.intc)
 
-        self.lower_extent: npt.NDArray[np.intc] = np.zeros(3, dtype=int)
-        self.upper_extent: npt.NDArray[np.intc] = np.zeros(3, dtype=int)
-        self.negative_halo_offset: npt.NDArray[np.bool_] = np.zeros(3, dtype=int)
-        self.global_size: npt.NDArray[np.intc] = np.zeros(3, dtype=int)
+        self.lower_extent = np.zeros(3, dtype=np.intc)
+        self.upper_extent = np.zeros(3, dtype=np.intc)
+        self.negative_halo_offset = np.zeros(3, dtype=np.bool_)
+        self.global_size = np.zeros(3, dtype=np.intc)
 
         self.neighbours = np.full((3, 2), -1, dtype=int)
         self.neighbours[Dim.X] = self.comm.Shift(direction=Dim.X, disp=1)

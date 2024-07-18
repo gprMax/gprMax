@@ -33,8 +33,8 @@ class Source:
     def __init__(self):
         self.ID: str
         self.polarisation = None
-        self.coord: npt.NDArray[np.int_] = np.zeros(3, dtype=int)
-        self.coordorigin: npt.NDArray[np.int_] = np.zeros(3, dtype=int)
+        self.coord = np.zeros(3, dtype=np.intc)
+        self.coordorigin = np.zeros(3, dtype=np.intc)
         self.start = 0.0
         self.stop = 0.0
         self.waveform: Waveform
