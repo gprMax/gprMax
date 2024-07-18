@@ -43,6 +43,7 @@ from .materials import PeplinskiSoil as PeplinskiSoilUser
 from .materials import RangeMaterial as RangeMaterialUser
 from .pml import CFS, CFSParameter
 from .receivers import Rx as RxUser
+from .snapshots import MPISnapshot as MPISnapshotUser
 from .snapshots import Snapshot as SnapshotUser
 from .sources import HertzianDipole as HertzianDipoleUser
 from .sources import MagneticDipole as MagneticDipoleUser
@@ -1140,11 +1141,7 @@ class Snapshot(UserObjectMulti):
 
     def build(self, model, uip):
         grid = uip.grid
-        if isinstance(grid, MPIGrid):
-            logger.exception(
-                f"{self.params_str()} Snapshots are not currently compatible with MPI."
-            )
-            raise ValueError
+
         if isinstance(grid, SubGridBaseGrid):
             logger.exception(f"{self.params_str()} do not add snapshots to subgrids.")
             raise ValueError
@@ -1197,6 +1194,12 @@ class Snapshot(UserObjectMulti):
         except KeyError:
             fileext = SnapshotUser.fileexts[0]
 
+        if isinstance(grid, MPIGrid) and fileext != ".h5":
+            logger.exception(
+                f"{self.params_str()} Currently only '.h5' snapshots are compatible with MPI."
+            )
+            raise ValueError
+
         try:
             tmp = self.kwargs["outputs"]
             outputs = dict.fromkeys(SnapshotUser.allowableoutputs, False)
@@ -1228,7 +1231,12 @@ class Snapshot(UserObjectMulti):
             logger.exception(f"{self.params_str()} time value is not valid.")
             raise ValueError
 
-        s = SnapshotUser(
+        if isinstance(grid, MPIGrid):
+            snapshot_type = MPISnapshotUser
+        else:
+            snapshot_type = SnapshotUser
+
+        s = snapshot_type(
             xs,
             ys,
             zs,
@@ -1242,6 +1250,8 @@ class Snapshot(UserObjectMulti):
             filename,
             fileext=fileext,
             outputs=outputs,
+            grid_dl=grid.dl,
+            grid_dt=grid.dt,
         )
 
         logger.info(

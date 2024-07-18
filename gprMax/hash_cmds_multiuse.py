@@ -279,14 +279,19 @@ def process_multicmds(multicmds):
             p2 = (float(tmp[3]), float(tmp[4]), float(tmp[5]))
             dl = (float(tmp[6]), float(tmp[7]), float(tmp[8]))
             filename = tmp[10]
+            fileext = "." + filename.split(".")[-1]
 
             try:
                 iterations = int(tmp[9])
-                snapshot = Snapshot(p1=p1, p2=p2, dl=dl, iterations=iterations, filename=filename)
+                snapshot = Snapshot(
+                    p1=p1, p2=p2, dl=dl, iterations=iterations, filename=filename, fileext=fileext
+                )
 
             except ValueError:
                 time = float(tmp[9])
-                snapshot = Snapshot(p1=p1, p2=p2, dl=dl, time=time, filename=filename)
+                snapshot = Snapshot(
+                    p1=p1, p2=p2, dl=dl, time=time, filename=filename, fileext=fileext
+                )
 
             scene_objects.append(snapshot)
 
