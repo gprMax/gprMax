@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 import gprMax.config as config
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
@@ -30,6 +32,8 @@ from .updates.cpu_updates import CPUUpdates
 from .updates.cuda_updates import CUDAUpdates
 from .updates.opencl_updates import OpenCLUpdates
 from .updates.updates import Updates
+
+logger = logging.getLogger(__name__)
 
 
 class Solver:
@@ -120,6 +124,9 @@ def create_solver(model: Model) -> Solver:
         updates = CUDAUpdates(grid)
     elif type(grid) is OpenCLGrid:
         updates = OpenCLUpdates(grid)
+    else:
+        logger.error("Cannot create Solver: Unknown grid type")
+        raise ValueError
 
     solver = Solver(updates)
 
