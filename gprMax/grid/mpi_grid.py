@@ -116,14 +116,17 @@ class MPIGrid(FDTDGrid):
     def is_coordinator(self) -> bool:
         return self.rank == self.COORDINATOR_RANK
 
-    def get_rank_from_coordinate(self, coord: npt.NDArray) -> int:
+    def get_grid_coord_from_coordinate(self, coord: npt.NDArray) -> npt.NDArray[np.intc]:
         step_size = self.global_size // self.mpi_tasks
         overflow = self.global_size % self.mpi_tasks
-        grid_coord = np.where(
+        return np.where(
             (step_size + 1) * overflow >= coord,
             coord // (step_size + 1),
-            (coord - overflow) // np.maximum(step_size, 1),
+            np.minimum((coord - overflow) // np.maximum(step_size, 1), self.mpi_tasks - 1),
         )
+
+    def get_rank_from_coordinate(self, coord: npt.NDArray) -> int:
+        grid_coord = self.get_grid_coord_from_coordinate(coord)
         return self.comm.Get_cart_rank(grid_coord.tolist())
 
     def global_to_local_coordinate(self, global_coord: npt.NDArray) -> npt.NDArray:
