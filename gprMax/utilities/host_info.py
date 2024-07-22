@@ -572,22 +572,3 @@ def print_opencl_info(devs):
             f"          |--->Device {ID}: {type} | {' '.join(dev.name.split())} | "
             f"{humanize.naturalsize(dev.global_mem_size, True)}"
         )
-
-# def print_metal_info():
-#     """Prints information about Metal devices (GPUs) on macOS."""
-    
-#     try:
-#         # Use sysctl to get information about Metal devices
-#         metal_info = subprocess.check_output(["system_profiler", "SPDisplaysDataType"], stderr=subprocess.STDOUT).decode("utf-8")
-        
-#         # Extract GPU model and memory information
-#         metal_model = " ".join(re.findall(r'Chipset Model:\s*(.*)', metal_info))
-#         metal_vram = " ".join(re.findall(r'VRAM \(Total\):\s*(.*)', metal_info))
-        
-#         # Log Metal GPU information
-#         logger.basic(f"|-->Metal: {metal_model} | {humanize.naturalsize(int(metal_vram) * 1024 * 1024, True)}")
-        
-#     except subprocess.CalledProcessError as e:
-#         logger.warning(f"Error retrieving Metal information: {e}")
-#     except Exception as e:
-#         logger.warning(f"Exception occurred while retrieving Metal information: {e}")

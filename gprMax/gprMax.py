@@ -217,12 +217,8 @@ def run_main(args):
     # MPI running with (OpenMP/CUDA/OpenCL)
     if config.sim_config.args.mpi:
         context = MPIContext()
-    
-    # elif config.sim_config.args.metal:
-    #     # Configure for Metal GPU usage
-    #     context = MetalContext()
 
-    # Standard running (OpenMP/CUDA/OpenCL)
+    # Standard running (OpenMP/CUDA/OpenCL/Metal)
     else:
         context = Context()
 
