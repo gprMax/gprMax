@@ -214,82 +214,82 @@ class MPIContext(Context):
             self.print_sim_time_taken()
             return results
         
-class MetalContext(Context):
+# class MetalContext(Context):
    
-    def __init__(self):
-        super().__init__()
+#     def __init__(self):
+#         super().__init__()
 
-    def _run_model(self, **work):
+#     def _run_model(self, **work):
 
-        # Create configuration for model
-        config.model_num = work["i"]
-        model_config = config.ModelConfig()
-        # Set GPU deviceID according to worker rank
-        if config.sim_config.general["solver"] == "metal":
-            model_config.device = {
-                "dev": config.sim_config.devices["devs"][self.rank - 1],
-                "deviceID": self.rank - 1,
-                "snapsgpu2cpu": False,
-            }
-        config.model_configs = model_config
+#         # Create configuration for model
+#         config.model_num = work["i"]
+#         model_config = config.ModelConfig()
+#         # Set GPU deviceID according to worker rank
+#         if config.sim_config.general["solver"] == "metal":
+#             model_config.device = {
+#                 "dev": config.sim_config.devices["devs"][self.rank - 1],
+#                 "deviceID": self.rank - 1,
+#                 "snapsgpu2cpu": False,
+#             }
+#         config.model_configs = model_config
 
-        G = create_G()
-        model = ModelBuildRun(G)
-        model.build()
+#         G = create_G()
+#         model = ModelBuildRun(G)
+#         model.build()
 
-        if not config.sim_config.args.geometry_only:
-            solver = create_solver(G)
-            model.solve(solver)
-            del solver, model
+#         if not config.sim_config.args.geometry_only:
+#             solver = create_solver(G)
+#             model.solve(solver)
+#             del solver, model
 
-        # Manual garbage collection required to stop memory leak on GPUs when
-        # using pycuda
-        del G
-        gc.collect()
+#         # Manual garbage collection required to stop memory leak on GPUs when
+#         # using pycuda
+#         del G
+#         gc.collect()
 
-    def run(self):
+#     def run(self):
 
-        if self.rank == 0:
-            self.tsimstart = timer()
-            self.print_logo_copyright()
-            print_host_info(config.sim_config.hostinfo)
-            if config.sim_config.general["solver"] == "metal":
-                print_metal_info(config.sim_config.devices["devs"])
+#         if self.rank == 0:
+#             self.tsimstart = timer()
+#             self.print_logo_copyright()
+#             print_host_info(config.sim_config.hostinfo)
+#             if config.sim_config.general["solver"] == "metal":
+#                 print_metal_info(config.sim_config.devices["devs"])
 
-            s = f"\n--- Input file: {config.sim_config.input_file_path}"
-            logger.basic(Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL)
+#             s = f"\n--- Input file: {config.sim_config.input_file_path}"
+#             logger.basic(Fore.GREEN + f"{s} {'-' * (get_terminal_width() - 1 - len(s))}\n" + Style.RESET_ALL)
 
-            sys.stdout.flush()
+#             sys.stdout.flush()
 
-        # Contruct MPIExecutor
-        executor = self.MPIExecutor(self._run_model, comm=self.comm)
+#         # Contruct MPIExecutor
+#         executor = self.MPIExecutor(self._run_model, comm=self.comm)
 
-        # Check GPU resources versus number of MPI tasks
-        if (
-            executor.is_master()
-            and config.sim_config.general["solver"] == "metal"
-            and executor.size - 1 > len(config.sim_config.devices["devs"])
-        ):
-            logger.exception(
-                "Not enough GPU resources for number of "
-                "MPI tasks requested. Number of MPI tasks "
-                "should be equal to number of GPUs + 1."
-            )
-            raise ValueError
+#         # Check GPU resources versus number of MPI tasks
+#         if (
+#             executor.is_master()
+#             and config.sim_config.general["solver"] == "metal"
+#             and executor.size - 1 > len(config.sim_config.devices["devs"])
+#         ):
+#             logger.exception(
+#                 "Not enough GPU resources for number of "
+#                 "MPI tasks requested. Number of MPI tasks "
+#                 "should be equal to number of GPUs + 1."
+#             )
+#             raise ValueError
 
-        jobs = [{"i": i} for i in self.model_range]
-        # Send the workers to their work loop
-        executor.start()
-        if executor.is_master():
-            results = executor.submit(jobs)
+#         jobs = [{"i": i} for i in self.model_range]
+#         # Send the workers to their work loop
+#         executor.start()
+#         if executor.is_master():
+#             results = executor.submit(jobs)
 
-        # Make the workers exit their work loop and join the main loop again
-        executor.join()
+#         # Make the workers exit their work loop and join the main loop again
+#         executor.join()
 
-        if executor.is_master():
-            self.tsimend = timer()
-            self.print_sim_time_taken()
-            return results
+#         if executor.is_master():
+#             self.tsimend = timer()
+#             self.print_sim_time_taken()
+#             return results
 
 
 

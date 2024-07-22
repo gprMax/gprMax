@@ -20,7 +20,7 @@ import argparse
 
 import gprMax.config as config
 
-from .contexts import Context, MPIContext, MetalContext
+from .contexts import Context, MPIContext
 from .utilities.logging import logging_config
 
 # Arguments (used for API) and their default values (used for API and CLI)
@@ -218,9 +218,9 @@ def run_main(args):
     if config.sim_config.args.mpi:
         context = MPIContext()
     
-    elif config.sim_config.args.metal:
-        # Configure for Metal GPU usage
-        context = MetalContext()
+    # elif config.sim_config.args.metal:
+    #     # Configure for Metal GPU usage
+    #     context = MetalContext()
 
     # Standard running (OpenMP/CUDA/OpenCL)
     else:
