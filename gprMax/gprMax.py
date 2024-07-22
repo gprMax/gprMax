@@ -20,7 +20,7 @@ import argparse
 
 import gprMax.config as config
 
-from .contexts import Context, MPIContext
+from .contexts import Context, MPIContext, MetalContext
 from .utilities.logging import logging_config
 
 # Arguments (used for API) and their default values (used for API and CLI)
@@ -33,6 +33,7 @@ args_defaults = {
     "mpi": False,
     "gpu": None,
     "opencl": None,
+    "metal": False,
     "subgrid": False,
     "autotranslate": False,
     "geometry_only": False,
@@ -61,6 +62,7 @@ help_msg = {
     "further details see the performance section of the User Guide.",
     "gpu": "(list/bool, opt): Flag to use NVIDIA GPU or list of NVIDIA GPU " "device ID(s) for specific GPU card(s).",
     "opencl": "(list/bool, opt): Flag to use OpenCL or list of OpenCL device " "ID(s) for specific compute device(s).",
+    "metal": "(bool, opt): Flag to use Metal GPU for simulation.",
     "subgrid": "(bool, opt): Flag to use sub-gridding.",
     "autotranslate": "(bool, opt): For sub-gridding - auto translate objects "
     "with main grid coordinates to their equivalent local "
@@ -93,6 +95,7 @@ def run(
     write_processed=args_defaults["write_processed"],
     log_level=args_defaults["log_level"],
     log_file=args_defaults["log_file"],
+    metal=args_defaults["metal"],
 ):
     """Entry point for application programming interface (API). Runs the
         simulation for the given list of scenes.
@@ -153,6 +156,7 @@ def run(
             "write_processed": write_processed,
             "log_level": log_level,
             "log_file": log_file,
+            "metal": metal,
         }
     )
 
@@ -187,6 +191,7 @@ def cli():
     )
     parser.add_argument("--log-level", type=int, default=args_defaults["log_level"], help=help_msg["log_level"])
     parser.add_argument("--log-file", action="store_true", default=args_defaults["log_file"], help=help_msg["log_file"])
+    parser.add_argument("-metal", action="store_true", default=args_defaults["metal"], help=help_msg["metal"])
     args = parser.parse_args()
 
     results = run_main(args)
@@ -212,6 +217,11 @@ def run_main(args):
     # MPI running with (OpenMP/CUDA/OpenCL)
     if config.sim_config.args.mpi:
         context = MPIContext()
+    
+    elif config.sim_config.args.metal:
+        # Configure for Metal GPU usage
+        context = MetalContext()
+
     # Standard running (OpenMP/CUDA/OpenCL)
     else:
         context = Context()
