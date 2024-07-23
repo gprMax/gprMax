@@ -15,6 +15,6 @@ module load cray-python
 
 source ../.venv/bin/activate
 
-reframe -C configuration/archer2_settings.py -c reframe_tests.py -c base_tests.py -r "$@"
+reframe -C configuration/archer2_settings.py -c tests/ -r "$@"
 
 sacct --format=JobID,State,Submit,Start,End,Elapsed,NodeList --units=M -j $SLURM_JOBID

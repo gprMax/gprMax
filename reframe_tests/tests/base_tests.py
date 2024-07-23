@@ -18,9 +18,9 @@ from reframe.core.builtins import (
     variable,
 )
 from reframe.utility import udeps
-from utilities.deferrable import path_join
 
 from gprMax.receivers import Rx
+from reframe_tests.utilities.deferrable import path_join
 
 GPRMAX_ROOT_DIR = Path(__file__).parent.parent.resolve()
 PATH_TO_PYENV = os.path.join(".venv", "bin", "activate")

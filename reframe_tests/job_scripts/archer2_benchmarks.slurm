@@ -14,6 +14,6 @@ export OMP_NUM_THREADS=1
 source ../.venv/bin/activate
 
 # Any commandline arguments provided will be passed to reframe
-reframe -C configuration/archer2_settings.py -c reframe_benchmarks.py -c base_tests.py -r --performance-report "$@"
+reframe -C configuration/archer2_settings.py -c benchmark_tests/ -c tests/base_tests.py -r --performance-report "$@"
 
 sacct --format=JobID,State,Submit,Start,End,Elapsed,NodeList,ReqMem --units=M -j $SLURM_JOBID
