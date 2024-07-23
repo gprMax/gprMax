@@ -1,4 +1,9 @@
-"""ReFrame base classes for GprMax tests"""
+"""ReFrame base classes for GprMax tests
+
+    Usage (run all tests):
+        cd gprMax/reframe_tests
+        reframe -C configuraiton/{CONFIG_FILE} -c tests/ -r
+"""
 import os
 from pathlib import Path
 from shutil import copyfile
@@ -6,7 +11,7 @@ from shutil import copyfile
 import reframe as rfm
 import reframe.utility.sanity as sn
 import reframe.utility.typecheck as typ
-from numpy import product
+from numpy import prod
 from reframe.core.builtins import (
     parameter,
     performance_function,
@@ -123,6 +128,11 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
 
     @run_after("setup", always_last=True)
     def configure_test_run(self, input_file_ext: str = ".in"):
+        """Configure gprMax commandline arguments and plot outputs
+
+        Set the input and output files and add postrun commands to plot
+        the outputs.
+        """
         self.input_file = f"{self.model}{input_file_ext}"
         self.output_file = f"{self.model}.h5"
         self.executable_opts = [self.input_file, "-o", self.output_file]
@@ -146,6 +156,12 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
 
     @run_before("run")
     def combine_task_outputs(self):
+        """Split output from each MPI rank
+
+        If running with multiple MPI ranks, split the output into
+        seperate files and add postrun commands to combine the files
+        after the simulation has run.
+        """
         if self.num_tasks > 1:
             stdout = self.stdout.evaluate().split(".")[0]
             stderr = self.stderr.evaluate().split(".")[0]
@@ -161,6 +177,7 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
 
     @run_before("run")
     def check_input_file_exists(self):
+        """Skip test if input file does not exist"""
         self.skip_if(
             not os.path.exists(os.path.join(self.sourcesdir, self.input_file)),
             f"Input file '{self.input_file}' not present in src directory '{self.sourcesdir}'",
@@ -275,6 +292,7 @@ class GprMaxAPIRegressionTest(GprMaxRegressionTest):
 
     @run_after("setup", always_last=True)
     def configure_test_run(self):
+        """Input files for API tests will be python files"""
         super().configure_test_run(input_file_ext=".py")
 
 
@@ -283,9 +301,12 @@ class GprMaxBScanRegressionTest(GprMaxRegressionTest):
 
     @run_after("setup", always_last=True)
     def configure_test_run(self):
+        """Add B-Scan specific commandline arguments and postrun cmds"""
         self.extra_executable_opts += ["-n", str(self.num_models)]
         super().configure_test_run()
 
+        # Override postrun_cmds
+        # Merge output files and create B-Scan plot
         self.postrun_cmds = [
             f"python -m toolboxes.Utilities.outputfiles_merge {self.model}",
             f"mv {self.model}_merged.h5 {self.output_file}",
@@ -296,11 +317,11 @@ class GprMaxBScanRegressionTest(GprMaxRegressionTest):
 class GprMaxTaskfarmRegressionTest(GprMaxBScanRegressionTest):
     serial_dependency: type[GprMaxRegressionTest]
     extra_executable_opts = ["-taskfarm"]
-    sourcesdir = "src"
 
     num_tasks = required
 
     def _get_variant(self) -> str:
+        """Get test variant with the same model and number of models"""
         variant = self.serial_dependency.get_variant_nums(
             model=lambda m: m == self.model, num_models=lambda n: n == self.num_models
         )
@@ -308,7 +329,7 @@ class GprMaxTaskfarmRegressionTest(GprMaxBScanRegressionTest):
 
     @run_after("init")
     def inject_dependencies(self):
-        """Test depends on the Python virtual environment building correctly"""
+        """Test depends on the serial version of the test"""
         self.depends_on(self._get_variant(), udeps.by_env)
         super().inject_dependencies()
 
@@ -319,7 +340,10 @@ class GprMaxTaskfarmRegressionTest(GprMaxBScanRegressionTest):
 
     @run_before("run")
     def setup_reference_file(self):
-        """Add prerun command to load the built Python environment"""
+        """
+        Set the reference file regression check to the output of the
+        serial test
+        """
         target = self.getdep(self._get_variant())
         self.reference_file = os.path.join(target.stagedir, str(self.output_file))
 
@@ -328,15 +352,16 @@ class GprMaxMPIRegressionTest(GprMaxRegressionTest):
     # TODO: Make this a variable
     serial_dependency: type[GprMaxRegressionTest]
     mpi_layout = parameter()
-    sourcesdir = "src"
 
     @run_after("setup", always_last=True)
     def configure_test_run(self):
-        self.num_tasks = int(product(self.mpi_layout))
+        """Add MPI specific commandline arguments"""
+        self.num_tasks = int(prod(self.mpi_layout))
         self.extra_executable_opts = ["-mpi", *map(str, self.mpi_layout)]
         super().configure_test_run()
 
     def _get_variant(self) -> str:
+        """Get test variant with the same model"""
         variant = self.serial_dependency.get_variant_nums(model=lambda m: m == self.model)
         return self.serial_dependency.variant_name(variant[0])
 
