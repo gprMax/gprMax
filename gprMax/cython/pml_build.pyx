@@ -49,7 +49,7 @@ cpdef pml_average_er_mr(
     cdef Py_ssize_t m, n
     cdef int numID
     # Sum and average of relative permittivities and permeabilities in PML slab
-    cdef float sumer, summr, averageer, averagemr
+    cdef double sumer, summr, averageer, averagemr
 
     for m in prange(n1, nogil=True, schedule='static', num_threads=nthreads):
         for n in range(n2):
@@ -87,7 +87,7 @@ cpdef pml_sum_er_mr(
     cdef Py_ssize_t m, n
     cdef int numID
     # Sum and average of relative permittivities and permeabilities in PML slab
-    cdef float sumer, summr, averageer, averagemr
+    cdef double sumer, summr
 
     for m in prange(n1, nogil=True, schedule='static', num_threads=nthreads):
         for n in range(n2):
