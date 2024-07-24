@@ -36,7 +36,7 @@ class TestBoxGeometryNoPml(GprMaxRegressionTest):
 @rfm.simple_test
 class TestEdgeGeometry(GprMaxRegressionTest):
     tags = {"test", "serial", "geometry", "edge", "transmission_line", "waveform", "antenna"}
-    sourcesdir = "src/geomtry_tests/edge_geometry"
+    sourcesdir = "src/geometry_tests/edge_geometry"
     model = parameter(["antenna_wire_dipole_fs"])
     is_antenna_model = True
 
