@@ -22,12 +22,13 @@ from reframe.core.builtins import (
     sanity_function,
     variable,
 )
-from reframe.utility import udeps
+from reframe.utility import osext, udeps
 
 from gprMax.receivers import Rx
 from reframe_tests.utilities.deferrable import path_join
 
-GPRMAX_ROOT_DIR = Path(__file__).parent.parent.resolve()
+TESTS_ROOT_DIR = Path(__file__).parent
+GPRMAX_ROOT_DIR = Path(__file__).parent.parent.parent.resolve()
 PATH_TO_PYENV = os.path.join(".venv", "bin", "activate")
 
 
@@ -126,6 +127,12 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
         path_to_pyenv = os.path.join(CreatePyenvTest(part="login").stagedir, PATH_TO_PYENV)
         self.prerun_cmds.append(f"source {path_to_pyenv}")
 
+    @run_after("setup")
+    def setup_reference_file(self):
+        """Build reference file path"""
+        self.reference_file = Path("regression_checks", self.short_name).with_suffix(".h5")
+        self.reference_file = os.path.abspath(self.reference_file)
+
     @run_after("setup", always_last=True)
     def configure_test_run(self, input_file_ext: str = ".in"):
         """Configure gprMax commandline arguments and plot outputs
@@ -138,7 +145,7 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
         self.executable_opts = [self.input_file, "-o", self.output_file]
         self.executable_opts += self.extra_executable_opts
         self.postrun_cmds = [
-            f"python -m toolboxes.Plotting.plot_Ascan -save {self.output_file} --outputs {' '.join(self.rx_outputs)}"
+            f"python -m reframe_tests.utilities.plotting {self.output_file} {self.reference_file} -m {self.model}"
         ]
         self.keep_files = [self.input_file, self.output_file, f"{self.model}.pdf"]
 
@@ -178,16 +185,17 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
     @run_before("run")
     def check_input_file_exists(self):
         """Skip test if input file does not exist"""
-        self.skip_if(
-            not os.path.exists(os.path.join(self.sourcesdir, self.input_file)),
-            f"Input file '{self.input_file}' not present in src directory '{self.sourcesdir}'",
-        )
-
-    @run_before("run")
-    def setup_reference_file(self):
-        """Build reference file path"""
-        self.reference_file = Path("regression_checks", self.short_name).with_suffix(".h5")
-        self.reference_file = os.path.abspath(self.reference_file)
+        # Current working directory will be where the reframe job was launched
+        # However reframe assumes the source directory is relative to the test file
+        with osext.change_dir(TESTS_ROOT_DIR):
+            self.skip_if(
+                not os.path.exists(self.sourcesdir),
+                f"Source directory '{self.sourcesdir}' does not exist. Current working directory: '{os.getcwd()}'",
+            )
+            self.skip_if(
+                not os.path.exists(os.path.join(self.sourcesdir, self.input_file)),
+                f"Input file '{self.input_file}' not present in source directory '{self.sourcesdir}'",
+            )
 
     @run_before("run", always_last=True)
     def setup_regression_check(self):
@@ -317,6 +325,7 @@ class GprMaxBScanRegressionTest(GprMaxRegressionTest):
 class GprMaxTaskfarmRegressionTest(GprMaxBScanRegressionTest):
     serial_dependency: type[GprMaxRegressionTest]
     extra_executable_opts = ["-taskfarm"]
+    sourcesdir = "src"  # Necessary so test is not skipped (set later)
 
     num_tasks = required
 
@@ -338,20 +347,21 @@ class GprMaxTaskfarmRegressionTest(GprMaxBScanRegressionTest):
         """Set the source directory to the same as the serial test"""
         self.sourcesdir = str(self.serial_dependency.sourcesdir)
 
-    @run_before("run")
+    @run_after("setup")
     def setup_reference_file(self):
         """
         Set the reference file regression check to the output of the
         serial test
         """
         target = self.getdep(self._get_variant())
-        self.reference_file = os.path.join(target.stagedir, str(self.output_file))
+        self.reference_file = os.path.join(target.stagedir, target.output_file)
 
 
 class GprMaxMPIRegressionTest(GprMaxRegressionTest):
     # TODO: Make this a variable
     serial_dependency: type[GprMaxRegressionTest]
     mpi_layout = parameter()
+    sourcesdir = "src"  # Necessary so test is not skipped (set later)
 
     @run_after("setup", always_last=True)
     def configure_test_run(self):
@@ -376,11 +386,11 @@ class GprMaxMPIRegressionTest(GprMaxRegressionTest):
         """Set the source directory to the same as the serial test"""
         self.sourcesdir = str(self.serial_dependency.sourcesdir)
 
-    @run_before("run")
+    @run_after("setup")
     def setup_reference_file(self):
         """
         Set the reference file regression check to the output of the
         serial test
         """
         target = self.getdep(self._get_variant())
-        self.reference_file = os.path.join(target.stagedir, str(self.output_file))
+        self.reference_file = os.path.join(target.stagedir, target.output_file)
