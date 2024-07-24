@@ -423,7 +423,7 @@ cpdef void build_triangle(
     """
 
     cdef Py_ssize_t i, j, k
-    cdef int i1, i2, j1, j2, sign, level, thicknesscells
+    cdef int i1, i2, j1, j2, sign, levelcells, thicknesscells
     cdef float area, s, t
 
     # Calculate a bounding box for the triangle
@@ -433,7 +433,7 @@ cpdef void build_triangle(
         i2 = round_value(np.amax([y1, y2, y3]) / dy) + 1
         j1 = round_value(np.amin([z1, z2, z3]) / dz) - 1
         j2 = round_value(np.amax([z1, z2, z3]) / dz) + 1
-        level = round_value(x1 / dx)
+        levelcells = round_value(x1 / dx)
         thicknesscells = round_value(thickness / dx)
     elif normal == 'y':
         area = 0.5 * (-z2 * x3 + z1 * (-x2 + x3) + x1 * (z2 - z3) + x2 * z3)
@@ -441,7 +441,7 @@ cpdef void build_triangle(
         i2 = round_value(np.amax([x1, x2, x3]) / dx) + 1
         j1 = round_value(np.amin([z1, z2, z3]) / dz) - 1
         j2 = round_value(np.amax([z1, z2, z3]) / dz) + 1
-        level = round_value(y1 /dy)
+        levelcells = round_value(y1 /dy)
         thicknesscells = round_value(thickness / dy)
     elif normal == 'z':
         area = 0.5 * (-y2 * x3 + y1 * (-x2 + x3) + x1 * (y2 - y3) + x2 * y3)
@@ -449,7 +449,7 @@ cpdef void build_triangle(
         i2 = round_value(np.amax([x1, x2, x3]) / dx) + 1
         j1 = round_value(np.amin([y1, y2, y3]) / dy) - 1
         j2 = round_value(np.amax([y1, y2, y3]) / dy) + 1
-        level = round_value(z1 / dz)
+        levelcells = round_value(z1 / dz)
         thicknesscells = round_value(thickness / dz)
 
     sign = np.sign(area)
@@ -479,16 +479,16 @@ cpdef void build_triangle(
             if s > 0 and t > 0 and (s + t) < 2 * area * sign:
                 if thicknesscells == 0:
                     if normal == 'x':
-                        build_face_yz(level, i, j, numIDy, numIDz,
+                        build_face_yz(levelcells, i, j, numIDy, numIDz,
                                       rigidE, rigidH, ID)
                     elif normal == 'y':
-                        build_face_xz(i, level, j, numIDx, numIDz,
+                        build_face_xz(i, levelcells, j, numIDx, numIDz,
                                       rigidE, rigidH, ID)
                     elif normal == 'z':
-                        build_face_xy(i, j, level, numIDx, numIDy,
+                        build_face_xy(i, j, levelcells, numIDx, numIDy,
                                       rigidE, rigidH, ID)
                 else:
-                    for k in range(level, level + thicknesscells):
+                    for k in range(levelcells, levelcells + thicknesscells):
                         if normal == 'x':
                             build_voxel(k, i, j, numID, numIDx, numIDy, numIDz,
                                         averaging, solid, rigidE, rigidH, ID)
@@ -503,7 +503,7 @@ cpdef void build_triangle(
 cpdef void build_cylindrical_sector(
     float ctr1,
     float ctr2,
-    int level,
+    float level,
     float sectorstartangle,
     float sectorangle,
     float radius,
@@ -532,7 +532,7 @@ cpdef void build_cylindrical_sector(
 
     Args:
         ctr1, ctr2: floats for coordinates of centre of circle.
-        level: int for the third dimensional coordinate.
+        level: float for the third dimensional coordinate.
         sectorstartangle: float for angle (in radians) of start of sector.
         sectorangle: float for angle (in radians) that sector makes.
         radius: float for radius of the cylindrical sector.
@@ -555,7 +555,8 @@ cpdef void build_cylindrical_sector(
         y2 = round_value((ctr1 + radius)/dy)
         z1 = round_value((ctr2 - radius)/dz)
         z2 = round_value((ctr2 + radius)/dz)
-        thicknesscells = round_value(thickness/dx)
+        levelcells = round_value(level / dx)
+        thicknesscells = round_value(thickness / dx)
 
         # Set bounds to domain if they outside
         if y1 < 0:
@@ -572,10 +573,10 @@ cpdef void build_cylindrical_sector(
                 if is_inside_sector(y * dy + 0.5 * dy, z * dz + 0.5 * dz, ctr1,
                                     ctr2, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
-                        build_face_yz(level, y, z, numIDy, numIDz,
+                        build_face_yz(levelcells, y, z, numIDy, numIDz,
                                       rigidE, rigidH, ID)
                     else:
-                        for x in range(level, level + thicknesscells):
+                        for x in range(levelcells, levelcells + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
                                         averaging, solid, rigidE, rigidH, ID)
 
@@ -586,7 +587,8 @@ cpdef void build_cylindrical_sector(
         x2 = round_value((ctr1 + radius)/dx)
         z1 = round_value((ctr2 - radius)/dz)
         z2 = round_value((ctr2 + radius)/dz)
-        thicknesscells = round_value(thickness/dy)
+        levelcells = round_value(level / dy)
+        thicknesscells = round_value(thickness / dy)
 
         # Set bounds to domain if they outside
         if x1 < 0:
@@ -603,10 +605,10 @@ cpdef void build_cylindrical_sector(
                 if is_inside_sector(x * dx + 0.5 * dx, z * dz + 0.5 * dz, ctr1,
                                     ctr2, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
-                        build_face_xz(x, level, z, numIDx, numIDz,
+                        build_face_xz(x, levelcells, z, numIDx, numIDz,
                                       rigidE, rigidH, ID)
                     else:
-                        for y in range(level, level + thicknesscells):
+                        for y in range(levelcells, levelcells + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
                                         averaging, solid, rigidE, rigidH, ID)
 
@@ -617,7 +619,8 @@ cpdef void build_cylindrical_sector(
         x2 = round_value((ctr1 + radius)/dx)
         y1 = round_value((ctr2 - radius)/dy)
         y2 = round_value((ctr2 + radius)/dy)
-        thicknesscells = round_value(thickness/dz)
+        levelcells = round_value(level / dz)
+        thicknesscells = round_value(thickness / dz)
 
         # Set bounds to domain if they outside
         if x1 < 0:
@@ -634,10 +637,10 @@ cpdef void build_cylindrical_sector(
                 if is_inside_sector(x * dx + 0.5 * dx, y * dy + 0.5 * dy, ctr1,
                                     ctr2, sectorstartangle, sectorangle, radius):
                     if thicknesscells == 0:
-                        build_face_xy(x, y, level, numIDx, numIDy,
+                        build_face_xy(x, y, levelcells, numIDx, numIDy,
                                       rigidE, rigidH, ID)
                     else:
-                        for z in range(level, level + thicknesscells):
+                        for z in range(levelcells, levelcells + thicknesscells):
                             build_voxel(x, y, z, numID, numIDx, numIDy, numIDz,
                                         averaging, solid, rigidE, rigidH, ID)
 
