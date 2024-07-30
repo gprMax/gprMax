@@ -399,43 +399,87 @@ class MetalGrid(FDTDGrid):
     def __init__(self):
         super().__init__()
 
-        self.clarray = import_module("pyopencl.array")
+        self.metal = import_module("Metal")
+        self.storage = self.metal.MTLResourceStorageModeShared
 
-    def htod_geometry_arrays(self, queue):
+        # Threads per thread group - used for main electric/magnetic field updates
+        self.tptg = None
+        # Thread group size - used for main electric/magnetic field updates
+        self.tgs = None
+
+    def set_threads_per_thread_group(self):
+        """Set the threads per thread group used for updating the electric and
+            magnetic field arrays on a GPU.
+        """
+
+        self.tptg = self.metal.MTLSizeMake(int(np.ceil(((self.nx + 1) * (self.ny + 1) * (self.nz + 1)))), 1, 1)
+
+    def set_thread_group_size(self, pso):
+        """Set the thread group size used for updating the electric and magnetic 
+            field arrays on a GPU.
+
+        Args:
+            pso: pipeline state object.
+        """
+
+        self.tgs = self.metal.MTLSizeMake(pso.maxTotalThreadsPerThreadgroup(), 1, 1)
+
+    def htod_geometry_arrays(self, dev):
         """Initialise an array for cell edge IDs (ID) on compute device.
-
+        
         Args:
-            queue: pyopencl queue.
+            dev: device object.
         """
 
-        self.ID_dev = self.clarray.to_device(queue, self.ID)
+        self.ID_dev = dev.newBufferWithBytes_length_options_(self.ID, 
+                                                             self.ID.nbytes, 
+                                                             self.storage)
 
-    def htod_field_arrays(self, queue):
+    def htod_field_arrays(self, dev):
         """Initialise field arrays on compute device.
-
+        
         Args:
-            queue: pyopencl queue.
+            dev: device object.
         """
 
-        self.Ex_dev = self.clarray.to_device(queue, self.Ex)
-        self.Ey_dev = self.clarray.to_device(queue, self.Ey)
-        self.Ez_dev = self.clarray.to_device(queue, self.Ez)
-        self.Hx_dev = self.clarray.to_device(queue, self.Hx)
-        self.Hy_dev = self.clarray.to_device(queue, self.Hy)
-        self.Hz_dev = self.clarray.to_device(queue, self.Hz)
+        self.Ex_dev = dev.newBufferWithBytes_length_options_(self.Ex, 
+                                                             self.Ex.nbytes, 
+                                                             self.storage)
+        self.Ey_dev = dev.newBufferWithBytes_length_options_(self.Ey, 
+                                                             self.Ey.nbytes, 
+                                                             self.storage)
+        self.Ez_dev = dev.newBufferWithBytes_length_options_(self.Ez, 
+                                                             self.Ez.nbytes, 
+                                                             self.storage)
+        self.Hx_dev = dev.newBufferWithBytes_length_options_(self.Hx, 
+                                                             self.Hx.nbytes, 
+                                                             self.storage)
+        self.Hy_dev = dev.newBufferWithBytes_length_options_(self.Hy, 
+                                                             self.Hy.nbytes, 
+                                                             self.storage)
+        self.Hz_dev = dev.newBufferWithBytes_length_options_(self.Hz, 
+                                                             self.Hz.nbytes, 
+                                                             self.storage)
 
-    def htod_dispersive_arrays(self, queue):
+    def htod_dispersive_arrays(self, dev):
         """Initialise dispersive material coefficient arrays on compute device.
 
         Args:
-            queue: pyopencl queue.
+            dev: device object.
         """
                  
-        self.updatecoeffsdispersive_dev = self.clarray.to_device(queue, self.updatecoeffsdispersive)
-        # self.updatecoeffsdispersive_dev = self.clarray.to_device(queue, np.ones((95,95,95), dtype=np.float32))
-        self.Tx_dev = self.clarray.to_device(queue, self.Tx)
-        self.Ty_dev = self.clarray.to_device(queue, self.Ty)
-        self.Tz_dev = self.clarray.to_device(queue, self.Tz)
+        self.updatecoeffsdispersive_dev = dev.newBufferWithBytes_length_options_(self.self.updatecoeffsdispersive, 
+                                                                                 self.self.updatecoeffsdispersive.nbytes, 
+                                                                                 self.storage)
+        self.Tx_dev = dev.newBufferWithBytes_length_options_(self.Tx, 
+                                                             self.Tx.nbytes, 
+                                                             self.storage)
+        self.Ty_dev = dev.newBufferWithBytes_length_options_(self.Ty, 
+                                                             self.Ty.nbytes, 
+                                                             self.storage)
+        self.Tz_dev = dev.newBufferWithBytes_length_options_(self.Tz, 
+                                                             self.Tz.nbytes, 
+                                                             self.storage)
         
 
 def dispersion_analysis(G):

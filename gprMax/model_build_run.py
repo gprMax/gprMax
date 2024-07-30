@@ -305,7 +305,7 @@ class ModelBuildRun:
                     f"than available physical CPU cores ({config.sim_config.hostinfo['physicalcores']}). "
                     f"This may lead to degraded performance."
                 )
-        elif config.sim_config.general["solver"] in ["cuda", "opencl"]:
+        elif config.sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             if config.sim_config.general["solver"] == "opencl":
                 solvername = "OpenCL"
                 platformname = " ".join(config.get_model_config().device["dev"].platform.name.split()) + " with "
@@ -313,8 +313,15 @@ class ModelBuildRun:
                     f'Device {config.get_model_config().device["deviceID"]}: '
                     f'{" ".join(config.get_model_config().device["dev"].name.split())}'
                 )
-            else:
+            elif config.sim_config.general["solver"] == "cuda":
                 solvername = "CUDA"
+                platformname = ""
+                devicename = (
+                    f'Device {config.get_model_config().device["deviceID"]}: '
+                    f'{" ".join(config.get_model_config().device["dev"].name().split())}'
+                )
+            elif config.sim_config.general["solver"] == "metal":
+                solvername = "Apple Metal"
                 platformname = ""
                 devicename = (
                     f'Device {config.get_model_config().device["deviceID"]}: '

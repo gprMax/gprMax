@@ -451,7 +451,7 @@ def has_metal():
     """Checks if Apple Metal module is installed."""
     metal = True
     try:
-        import pyopencl
+        import Metal
     except ImportError:
         metal = False
     return metal
@@ -596,12 +596,12 @@ def detect_metal():
 
     metal_reqs = (
         "To use gprMax with Apple Metal you must:"
-        "\n 1) install pyopencl"
+        "\n 1) install pyobjc"
         "\n 2) have an Apple Metal-capable device"
     )
 
     if has_metal():
-        import pyopencl as cl
+        import Metal
 
         devs[0] = Metal.MTLCreateSystemDefaultDevice()
 
@@ -622,7 +622,4 @@ def print_metal_info(devs):
     logger.basic("|--->Apple Metal:")
 
     for ID, gpu in devs.items():
-        logger.basic(
-            f"     |--->Device {ID}: {' '.join(gpu.name.split())} | "
-            f"{humanize.naturalsize(gpu.currentAllocatedSize, True)}"
-        )
+        logger.basic(f"     |--->Device {ID}: {' '.join(gpu.name().split())}")

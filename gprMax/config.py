@@ -70,7 +70,7 @@ class ModelConfig:
         #     N.B. This will happen if the requested snapshots are too large to
         #           fit on the memory of the GPU. If True this will slow
         #           performance significantly.
-        if sim_config.general["solver"] in ["cuda", "opencl"]:
+        if sim_config.general["solver"] in ["cuda", "opencl", "metal"]:
             if sim_config.general["solver"] == "cuda":
                 devs = sim_config.args.gpu
             elif sim_config.general["solver"] == "opencl":

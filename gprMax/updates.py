@@ -25,7 +25,7 @@ from jinja2 import Environment, PackageLoader
 
 import gprMax.config as config
 
-from .cuda_opencl import knl_fields_updates, knl_snapshots, knl_source_updates, knl_store_outputs
+from .cuda_opencl_metal import knl_fields_updates, knl_snapshots, knl_source_updates, knl_store_outputs
 from .cython.fields_updates_normal import update_electric as update_electric_cpu
 from .cython.fields_updates_normal import update_magnetic as update_magnetic_cpu
 from .fields_outputs import store_outputs as store_outputs_cpu
@@ -259,7 +259,7 @@ class CUDAUpdates:
         }
 
         # Enviroment for templating kernels
-        self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl"))
+        self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl_metal"))
 
         # Initialise arrays on GPU, prepare kernels, and get kernel functions
         self._set_macros()
@@ -384,10 +384,10 @@ class CUDAUpdates:
     def _set_pml_knls(self):
         """PMLS - prepares kernels and gets kernel functions."""
         knl_pml_updates_electric = import_module(
-            "gprMax.cuda_opencl.knl_pml_updates_electric_" + self.grid.pmls["formulation"]
+            "gprMax.cuda_opencl_metal.knl_pml_updates_electric_" + self.grid.pmls["formulation"]
         )
         knl_pml_updates_magnetic = import_module(
-            "gprMax.cuda_opencl.knl_pml_updates_magnetic_" + self.grid.pmls["formulation"]
+            "gprMax.cuda_opencl_metal.knl_pml_updates_magnetic_" + self.grid.pmls["formulation"]
         )
 
         # Initialise arrays on GPU, set block per grid, and get kernel functions
@@ -810,7 +810,7 @@ class OpenCLUpdates:
         self.queue = self.cl.CommandQueue(self.ctx, properties=self.cl.command_queue_properties.PROFILING_ENABLE)
 
         # Enviroment for templating kernels
-        self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl"))
+        self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl_metal"))
 
         # Initialise arrays on device, prepare kernels, and get kernel functions
         self._set_macros()
@@ -959,10 +959,10 @@ class OpenCLUpdates:
     def _set_pml_knls(self):
         """PMLS - prepares kernels and gets kernel functions."""
         knl_pml_updates_electric = import_module(
-            "gprMax.cuda_opencl.knl_pml_updates_electric_" + self.grid.pmls["formulation"]
+            "gprMax.cuda_opencl_metal.knl_pml_updates_electric_" + self.grid.pmls["formulation"]
         )
         knl_pml_updates_magnetic = import_module(
-            "gprMax.cuda_opencl.knl_pml_updates_magnetic_" + self.grid.pmls["formulation"]
+            "gprMax.cuda_opencl_metal.knl_pml_updates_magnetic_" + self.grid.pmls["formulation"]
         )
 
         subs = {
@@ -1360,17 +1360,33 @@ class MetalUpdates:
 
         self.grid = G
 
-        # Import Metal module
-        self.cl = import_module("pyopencl")
-        self.elwiseknl = getattr(import_module("pyopencl.elementwise"), "ElementwiseKernel")
+        self.metal = import_module("Metal")
+        self.opts = self.metal.MTLCompileOptions.new()
 
-        # Select device, create context and command queue
+        # Select device and create command queue
         self.dev = config.get_model_config().device["dev"]
-        self.ctx = self.cl.Context(devices=[self.dev])
-        self.queue = self.cl.CommandQueue(self.ctx, properties=self.cl.command_queue_properties.PROFILING_ENABLE)
+        self.cmdqueue = self.dev.newCommandQueue()
+
+        # Set common substitutions for use in kernels
+        # Substitutions in function arguments
+        self.subs_name_args = {
+            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "COMPLEX": config.get_model_config().materials["dispersiveCdtype"],
+        }
+        # Substitutions in function bodies
+        self.subs_func = {
+            "REAL": config.sim_config.dtypes["C_float_or_double"],
+            "CUDA_IDX": "",
+            "NX_FIELDS": self.grid.nx + 1,
+            "NY_FIELDS": self.grid.ny + 1,
+            "NZ_FIELDS": self.grid.nz + 1,
+            "NX_ID": self.grid.ID.shape[1],
+            "NY_ID": self.grid.ID.shape[2],
+            "NZ_ID": self.grid.ID.shape[3],
+        }
 
         # Enviroment for templating kernels
-        self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl"))
+        self.env = Environment(loader=PackageLoader("gprMax", "cuda_opencl_metal"))
 
         # Initialise arrays on device, prepare kernels, and get kernel functions
         self._set_macros()
@@ -1383,6 +1399,28 @@ class MetalUpdates:
         #     self._set_src_knls()
         # if self.grid.snapshots:
         #     self._set_snapshot_knl()
+
+    def _build_knl(self, knl_func, subs_name_args, subs_func):
+        """Builds an Apple Metal kernel from templates: 1) function name and args;
+            and 2) function (kernel) body.
+
+        Args:
+            knl_func: dict containing templates for function name and args,
+                        and function body.
+            subs_name_args: dict containing substitutions to be used with
+                                function name and args.
+            subs_func: dict containing substitutions to be used with function
+                        (kernel) body.
+
+        Returns:
+            knl: string with complete kernel
+        """
+
+        name_plus_args = knl_func["args_metal"].substitute(subs_name_args)
+        func_body = knl_func["func"].substitute(subs_func)
+        knl = self.knl_common + "\n" + name_plus_args + "{" + func_body + "}"
+
+        return knl
 
     def _set_macros(self):
         """Common macros to be used in kernels."""
@@ -1399,9 +1437,7 @@ class MetalUpdates:
             NY_T = 1
             NZ_T = 1
 
-        self.knl_common = self.env.get_template("knl_common_opencl.tmpl").render(
-            updatecoeffsE=self.grid.updatecoeffsE.ravel(),
-            updatecoeffsH=self.grid.updatecoeffsH.ravel(),
+        self.knl_common = self.env.get_template("knl_common_metal.tmpl").render(
             REAL=config.sim_config.dtypes["C_float_or_double"],
             N_updatecoeffsE=self.grid.updatecoeffsE.size,
             N_updatecoeffsH=self.grid.updatecoeffsH.size,
@@ -1432,37 +1468,34 @@ class MetalUpdates:
             gets kernel functions.
         """
 
-        subs = {
-            "CUDA_IDX": "",
-            "NX_FIELDS": self.grid.nx + 1,
-            "NY_FIELDS": self.grid.ny + 1,
-            "NZ_FIELDS": self.grid.nz + 1,
-            "NX_ID": self.grid.ID.shape[1],
-            "NY_ID": self.grid.ID.shape[2],
-            "NZ_ID": self.grid.ID.shape[3],
-        }
+        bld = self._build_knl(knl_fields_updates.update_electric, self.subs_name_args, self.subs_func)
+        lib, _ = self.dev.newLibraryWithSource_options_error_(bld, self.opts, None)
+        self.update_electric_dev = lib.newFunctionWithName_("update_electric")
+        self.psoE = self.dev.newComputePipelineStateWithFunction_error_(self.update_electric_dev, None)[0]
+        self.cmdbufferE = self.cmdqueue.commandBuffer()
+        self.cmpencoderE = self.cmdbufferE.computeCommandEncoder()
+        self.cmpencoderE.setComputePipelineState_(self.psoE)
         
-        self.update_electric_dev = self.elwiseknl(
-            self.ctx,
-            knl_fields_updates.update_electric["args_opencl"].substitute(
-                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
-            ),
-            knl_fields_updates.update_electric["func"].substitute(subs),
-            "update_electric",
-            preamble=self.knl_common,
-            options=config.sim_config.devices["compiler_opts"],
-        )
+        # Set thread sizes for both electric and magnetic fields
+        self.grid.set_threads_per_thread_group()
+        self.grid.set_thread_group_size(self.psoE)
+        self.cmpencoderE.dispatchThreads_threadsPerThreadgroup_(self.grid.tptg, self.grid.tgs)
 
-        self.update_magnetic_dev = self.elwiseknl(
-            self.ctx,
-            knl_fields_updates.update_magnetic["args_opencl"].substitute(
-                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
-            ),
-            knl_fields_updates.update_magnetic["func"].substitute(subs),
-            "update_magnetic",
-            preamble=self.knl_common,
-            options=config.sim_config.devices["compiler_opts"],
-        )
+        # Initialise field arrays on compute device
+        self.grid.htod_geometry_arrays(self.dev)
+        self.grid.htod_field_arrays(self.dev)
+
+        self.cmpencoderE.endEncoding()
+        
+        bld = self._build_knl(knl_fields_updates.update_magnetic, self.subs_name_args, self.subs_func)
+        lib, _ = self.dev.newLibraryWithSource_options_error_(bld, self.opts, None)
+        self.update_magnetic_dev = lib.newFunctionWithName_("update_magnetic")
+        self.psoH = self.dev.newComputePipelineStateWithFunction_error_(self.update_magnetic_dev, None)[0]
+        self.cmdbufferH = self.cmdqueue.commandBuffer()
+        self.cmpencoderH = self.cmdbufferH.computeCommandEncoder()
+        self.cmpencoderH.setComputePipelineState_(self.psoH)
+        self.cmpencoderH.dispatchThreads_threadsPerThreadgroup_(self.grid.tptg, self.grid.tgs)
+        self.cmpencoderH.endEncoding()
 
         # If there are any dispersive materials (updates are split into two
         # parts as they require present and updated electric field values).
@@ -1510,19 +1543,16 @@ class MetalUpdates:
                 options=config.sim_config.devices["compiler_opts"],
             )
 
-        # Initialise field arrays on compute device
-        self.grid.htod_geometry_arrays(self.queue)
-        self.grid.htod_field_arrays(self.queue)
-        # if config.get_model_config().materials["maxpoles"] > 0:
-        #     self.grid.htod_dispersive_arrays(self.queue)
+        if config.get_model_config().materials["maxpoles"] > 0:
+            self.grid.htod_dispersive_arrays(self.queue)
 
     def _set_pml_knls(self):
         """PMLS - prepares kernels and gets kernel functions."""
         knl_pml_updates_electric = import_module(
-            "gprMax.cuda_opencl.knl_pml_updates_electric_" + self.grid.pmls["formulation"]
+            "gprMax.cuda_opencl_metal.knl_pml_updates_electric_" + self.grid.pmls["formulation"]
         )
         knl_pml_updates_magnetic = import_module(
-            "gprMax.cuda_opencl.knl_pml_updates_magnetic_" + self.grid.pmls["formulation"]
+            "gprMax.cuda_opencl_metal.knl_pml_updates_magnetic_" + self.grid.pmls["formulation"]
         )
 
         subs = {
@@ -1722,18 +1752,8 @@ class MetalUpdates:
 
     def update_magnetic(self):
         """Updates magnetic field components."""
-        self.update_magnetic_dev(
-            np.int32(self.grid.nx),
-            np.int32(self.grid.ny),
-            np.int32(self.grid.nz),
-            self.grid.ID_dev,
-            self.grid.Hx_dev,
-            self.grid.Hy_dev,
-            self.grid.Hz_dev,
-            self.grid.Ex_dev,
-            self.grid.Ey_dev,
-            self.grid.Ez_dev,
-        )
+        self.cmdbufferH.commit()
+        self.cmdbufferH.waitUntilCompleted()
 
     def update_magnetic_pml(self):
         """Updates magnetic field components with the PML correction."""
@@ -1762,18 +1782,8 @@ class MetalUpdates:
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
         if config.get_model_config().materials["maxpoles"] == 0:
-            self.update_electric_dev(
-                np.int32(self.grid.nx),
-                np.int32(self.grid.ny),
-                np.int32(self.grid.nz),
-                self.grid.ID_dev,
-                self.grid.Ex_dev,
-                self.grid.Ey_dev,
-                self.grid.Ez_dev,
-                self.grid.Hx_dev,
-                self.grid.Hy_dev,
-                self.grid.Hz_dev,
-            )
+            self.cmdbufferE.commit()
+            self.cmdbufferE.waitUntilCompleted()
 
         # If there are any dispersive materials do 1st part of dispersive update
         # (it is split into two parts as it requires present and updated electric field values).

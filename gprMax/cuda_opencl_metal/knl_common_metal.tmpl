@@ -1,0 +1,23 @@
+{% extends "knl_common_base.tmpl" %}
+
+{% block header %}
+#include <metal_stdlib>
+using namespace metal;
+{% endblock header %}
+
+
+{% block constmem %}
+constant {{REAL}} updatecoeffsE[{{N_updatecoeffsE}}] =
+{
+    {% for i in updatecoeffsE %}
+    {{i}},
+    {% endfor %}
+};
+
+constant {{REAL}} updatecoeffsH[{{N_updatecoeffsH}}] =
+{
+    {% for i in updatecoeffsH %}
+    {{i}},
+    {% endfor %}
+};
+{% endblock constmem %}

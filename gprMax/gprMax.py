@@ -33,7 +33,7 @@ args_defaults = {
     "mpi": False,
     "gpu": None,
     "opencl": None,
-    "metal": False,
+    "metal": None,
     "subgrid": False,
     "autotranslate": False,
     "geometry_only": False,
@@ -60,9 +60,9 @@ help_msg = {
     "models to be farmed out using a MPI task farm, e.g. to create a "
     "B-scan with 60 traces and use MPI to farm out each trace. For "
     "further details see the performance section of the User Guide.",
-    "gpu": "(list/bool, opt): Flag to use NVIDIA GPU or list of NVIDIA GPU " "device ID(s) for specific GPU card(s).",
-    "opencl": "(list/bool, opt): Flag to use OpenCL or list of OpenCL device " "ID(s) for specific compute device(s).",
-    "metal": "(bool, opt): Flag to use Metal GPU for simulation.",
+    "gpu": "(list/bool, opt): Flag to use NVIDIA GPU or list of NVIDIA GPU device ID(s) for specific GPU card(s).",
+    "opencl": "(list/bool, opt): Flag to use OpenCL or list of OpenCL device ID(s) for specific compute device(s).",
+    "metal": "(list/bool, opt): Flag to use Apple Metal or list of Apple Metal GPU device ID(s) for specific GPU card(s).",
     "subgrid": "(bool, opt): Flag to use sub-gridding.",
     "autotranslate": "(bool, opt): For sub-gridding - auto translate objects "
     "with main grid coordinates to their equivalent local "
@@ -88,14 +88,14 @@ def run(
     mpi=args_defaults["mpi"],
     gpu=args_defaults["gpu"],
     opencl=args_defaults["opencl"],
+    metal=args_defaults["metal"],
     subgrid=args_defaults["subgrid"],
     autotranslate=args_defaults["autotranslate"],
     geometry_only=args_defaults["geometry_only"],
     geometry_fixed=args_defaults["geometry_fixed"],
     write_processed=args_defaults["write_processed"],
     log_level=args_defaults["log_level"],
-    log_file=args_defaults["log_file"],
-    metal=args_defaults["metal"],
+    log_file=args_defaults["log_file"]
 ):
     """Entry point for application programming interface (API). Runs the
         simulation for the given list of scenes.
@@ -122,6 +122,8 @@ def run(
                 ID(s) for specific GPU card(s).
         opencl: optional list/boolean to use OpenCL or list of OpenCL device ID(s)
                 for specific compute device(s).
+        gpu: optional list/boolean to use Apple Metal or list of Apple Metal GPU
+                device ID(s) for specific GPU card(s).
         subgrid: optional boolean to use sub-gridding.
         autotranslate: optional boolean for sub-gridding to auto translate
                         objects with main grid coordinates to their equivalent
@@ -149,14 +151,14 @@ def run(
             "mpi": mpi,
             "gpu": gpu,
             "opencl": opencl,
+            "metal": metal,
             "subgrid": subgrid,
             "autotranslate": autotranslate,
             "geometry_only": geometry_only,
             "geometry_fixed": geometry_fixed,
             "write_processed": write_processed,
             "log_level": log_level,
-            "log_file": log_file,
-            "metal": metal,
+            "log_file": log_file
         }
     )
 
@@ -177,6 +179,7 @@ def cli():
     parser.add_argument(
         "--geometry-only", action="store_true", default=args_defaults["geometry_only"], help=help_msg["geometry_only"]
     )
+    parser.add_argument("-metal", type=int, action="append", nargs="*", help=help_msg["metal"])
     parser.add_argument(
         "--geometry-fixed",
         action="store_true",
@@ -191,7 +194,6 @@ def cli():
     )
     parser.add_argument("--log-level", type=int, default=args_defaults["log_level"], help=help_msg["log_level"])
     parser.add_argument("--log-file", action="store_true", default=args_defaults["log_file"], help=help_msg["log_file"])
-    parser.add_argument("-metal", action="store_true", default=args_defaults["metal"], help=help_msg["metal"])
     args = parser.parse_args()
 
     results = run_main(args)
