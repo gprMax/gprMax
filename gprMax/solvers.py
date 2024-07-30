@@ -18,9 +18,9 @@
 
 import gprMax.config as config
 
-from .grid import CUDAGrid, FDTDGrid, OpenCLGrid
+from .grid import CUDAGrid, FDTDGrid, OpenCLGrid, MetalGrid
 from .subgrids.updates import create_updates as create_subgrid_updates
-from .updates import CPUUpdates, CUDAUpdates, OpenCLUpdates
+from .updates import CPUUpdates, CUDAUpdates, OpenCLUpdates, MetalUpdates
 
 
 def create_G():
@@ -36,6 +36,8 @@ def create_G():
         G = CUDAGrid()
     elif config.sim_config.general["solver"] == "opencl":
         G = OpenCLGrid()
+    elif config.sim_config.general["solver"] == "metal":
+        G = MetalGrid()
 
     return G
 
@@ -77,6 +79,9 @@ def create_solver(G):
         solver = Solver(updates)
     elif config.sim_config.general["solver"] == "opencl":
         updates = OpenCLUpdates(G)
+        solver = Solver(updates)
+    elif config.sim_config.general["solver"] == "metal":
+        updates = MetalUpdates(G)
         solver = Solver(updates)
 
     return solver

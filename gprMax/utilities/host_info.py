@@ -447,6 +447,16 @@ def has_pyopencl():
     return pyopencl
 
 
+def has_metal():
+    """Checks if Apple Metal module is installed."""
+    metal = True
+    try:
+        import pyopencl
+    except ImportError:
+        metal = False
+    return metal
+
+
 def detect_cuda_gpus():
     """Gets information about CUDA-capable GPU(s).
 
@@ -571,4 +581,48 @@ def print_opencl_info(devs):
         logger.basic(
             f"          |--->Device {ID}: {type} | {' '.join(dev.name.split())} | "
             f"{humanize.naturalsize(dev.global_mem_size, True)}"
+        )
+
+
+def detect_metal():
+    """Gets information about Apple Metal devices.
+
+    Returns:
+        devs: dict of detected Apple Metal device object(s) where where device 
+                ID(s) are keys.
+    """
+
+    devs = {}
+
+    metal_reqs = (
+        "To use gprMax with Apple Metal you must:"
+        "\n 1) install pyopencl"
+        "\n 2) have an Apple Metal-capable device"
+    )
+
+    if has_metal():
+        import pyopencl as cl
+
+        devs[0] = Metal.MTLCreateSystemDefaultDevice()
+
+    else:
+        logger.warning("Apple Metal not detected!\n" + metal_reqs)
+
+    return devs
+
+
+def print_metal_info(devs):
+    """"Prints info about detected Apple Metal device(s).
+
+    Args:
+        devs: dict of detected Apple Metal device object(s) where where device 
+                ID(s) are keys.
+    """ ""
+
+    logger.basic("|--->Apple Metal:")
+
+    for ID, gpu in devs.items():
+        logger.basic(
+            f"     |--->Device {ID}: {' '.join(gpu.name.split())} | "
+            f"{humanize.naturalsize(gpu.currentAllocatedSize, True)}"
         )

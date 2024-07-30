@@ -62,6 +62,8 @@ class Context:
             print_cuda_info(config.sim_config.devices["devs"])
         elif config.sim_config.general["solver"] == "opencl":
             print_opencl_info(config.sim_config.devices["devs"])
+        elif config.sim_config.general["solver"] == "metal":
+            print_metal_info(config.sim_config.devices["devs"])
 
         # Clear list of model configs. It can be retained when gprMax is
         # called in a loop, and want to avoid this.

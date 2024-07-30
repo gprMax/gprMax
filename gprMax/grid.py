@@ -391,6 +391,51 @@ class OpenCLGrid(FDTDGrid):
         self.Tx_dev = self.clarray.to_device(queue, self.Tx)
         self.Ty_dev = self.clarray.to_device(queue, self.Ty)
         self.Tz_dev = self.clarray.to_device(queue, self.Tz)
+
+
+class MetalGrid(FDTDGrid):
+    """Additional grid methods for solving on compute device using Apple Metal."""
+
+    def __init__(self):
+        super().__init__()
+
+        self.clarray = import_module("pyopencl.array")
+
+    def htod_geometry_arrays(self, queue):
+        """Initialise an array for cell edge IDs (ID) on compute device.
+
+        Args:
+            queue: pyopencl queue.
+        """
+
+        self.ID_dev = self.clarray.to_device(queue, self.ID)
+
+    def htod_field_arrays(self, queue):
+        """Initialise field arrays on compute device.
+
+        Args:
+            queue: pyopencl queue.
+        """
+
+        self.Ex_dev = self.clarray.to_device(queue, self.Ex)
+        self.Ey_dev = self.clarray.to_device(queue, self.Ey)
+        self.Ez_dev = self.clarray.to_device(queue, self.Ez)
+        self.Hx_dev = self.clarray.to_device(queue, self.Hx)
+        self.Hy_dev = self.clarray.to_device(queue, self.Hy)
+        self.Hz_dev = self.clarray.to_device(queue, self.Hz)
+
+    def htod_dispersive_arrays(self, queue):
+        """Initialise dispersive material coefficient arrays on compute device.
+
+        Args:
+            queue: pyopencl queue.
+        """
+                 
+        self.updatecoeffsdispersive_dev = self.clarray.to_device(queue, self.updatecoeffsdispersive)
+        # self.updatecoeffsdispersive_dev = self.clarray.to_device(queue, np.ones((95,95,95), dtype=np.float32))
+        self.Tx_dev = self.clarray.to_device(queue, self.Tx)
+        self.Ty_dev = self.clarray.to_device(queue, self.Ty)
+        self.Tz_dev = self.clarray.to_device(queue, self.Tz)
         
 
 def dispersion_analysis(G):

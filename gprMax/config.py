@@ -30,7 +30,7 @@ from scipy.constants import c
 from scipy.constants import epsilon_0 as e0
 from scipy.constants import mu_0 as m0
 
-from .utilities.host_info import detect_cuda_gpus, detect_opencl, get_host_info
+from .utilities.host_info import detect_cuda_gpus, detect_opencl, detect_metal, get_host_info
 from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ class ModelConfig:
         self.grids = []
         self.ompthreads = None
 
-        # Store information for CUDA or OpenCL solver
+        # Store information for CUDA, OpenCL or Apple Metal solvers
         #   dev: compute device object.
         #   snapsgpu2cpu: copy snapshot data from GPU to CPU during simulation.
         #     N.B. This will happen if the requested snapshots are too large to
@@ -75,6 +75,8 @@ class ModelConfig:
                 devs = sim_config.args.gpu
             elif sim_config.general["solver"] == "opencl":
                 devs = sim_config.args.opencl
+            elif sim_config.general["solver"] == "metal":
+                devs = sim_config.args.metal
 
             # If a list of lists of deviceIDs is found, flatten it
             if any(isinstance(element, list) for element in devs):
@@ -210,12 +212,14 @@ class SimulationConfig:
             logger.exception("The geometry fixed option cannot be used with MPI.")
             raise ValueError
 
-        if self.args.gpu and self.args.opencl:
-            logger.exception("You cannot use both CUDA and OpenCl simultaneously.")
+        non_cpu_solvers = [self.args.gpu, self.args.opencl, self.args.metal]
+        if non_cpu_solvers.count(True) > 1:
+            logger.exception("You cannot use combinations of CUDA, OpenCl, " + 
+                             "and Apple Metal solvers simultaneously.")
             raise ValueError
 
         # General settings for the simulation
-        #   solver: cpu, cuda, opencl.
+        #   solver: cpu, cuda, opencl, metal.
         #   precision: data type for electromagnetic field output (single/double).
         #   progressbars: progress bars on stdoout or not - switch off
         #                   progressbars when logging level is greater than
@@ -239,7 +243,7 @@ class SimulationConfig:
             # Both single and double precision are possible on GPUs, but single
             # provides best performance.
             self.general["precision"] = "single"
-            self.devices = {"devs": [], "nvcc_opts": None}  # pycuda device objects; nvcc compiler options
+            self.devices = {"devs": [], "nvcc_opts": None}  # pycuda device object(s); nvcc compiler options
             # Suppress nvcc warnings on Microsoft Windows
             if sys.platform == "win32":
                 self.devices["nvcc_opts"] = ["-w"]
@@ -251,7 +255,7 @@ class SimulationConfig:
         if self.args.opencl is not None:
             self.general["solver"] = "opencl"
             self.general["precision"] = "single"
-            self.devices = {"devs": [], "compiler_opts": None}  # pyopencl device device(s); compiler options
+            self.devices = {"devs": [], "compiler_opts": None}  # pyopencl device object(s); compiler options
 
             # Suppress CompilerWarning (sub-class of UserWarning)
             warnings.filterwarnings("ignore", category=UserWarning)
@@ -262,17 +266,27 @@ class SimulationConfig:
             # Add pyopencl available device(s)
             self.devices["devs"] = detect_opencl()
 
+        # Apple Metal
+        if self.args.metal is not None:
+            self.general["solver"] = "metal"
+            self.general["precision"] = "single"
+            self.devices = {"devs": [], "compiler_opts": None}  # Apple Metal device object(s); compiler options
+
+            # Add pyopencl available device(s)
+            self.devices["devs"] = detect_metal()
+
         # Subgrids
         if hasattr(self.args, "subgrid") and self.args.subgrid:
             self.general["subgrid"] = self.args.subgrid
             # Double precision should be used with subgrid for best accuracy
             self.general["precision"] = "double"
             if (self.general["subgrid"] and self.general["solver"] == "cuda") or (
-                self.general["subgrid"] and self.general["solver"] == "opencl"
+                self.general["subgrid"] and self.general["solver"] == "opencl")  or (
+                self.general["subgrid"] and self.general["solver"] == "metal"
             ):
-                logger.exception(
-                    "You cannot currently use CUDA or OpenCL-based " "solvers with models that contain sub-grids."
-                )
+                logger.exception("You cannot currently use CUDA, OpenCL or " + 
+                                 "Apple Metal solvers with models that contain " + 
+                                 "sub-grids.")
                 raise ValueError
         else:
             self.general["subgrid"] = False
@@ -289,13 +303,13 @@ class SimulationConfig:
         self._set_model_start_end()
 
     def set_model_device(self, deviceID):
-        """Specify pycuda/pyopencl object for model.
+        """Specify pycuda/pyopencl/metal object for model.
 
         Args:
             deviceID: int of requested deviceID of compute device.
 
         Returns:
-            dev: requested pycuda/pyopencl device object.
+            dev: requested pycuda/pyopencl/metal device object.
         """
 
         found = False
