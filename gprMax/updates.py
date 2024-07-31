@@ -1393,8 +1393,8 @@ class MetalUpdates:
         self._set_field_knls()
         # if self.grid.pmls["slabs"]:
         #     self._set_pml_knls()
-        # if self.grid.rxs:
-        #     self._set_rx_knl()
+        if self.grid.rxs:
+            self._set_rx_knl()
         # if self.grid.voltagesources + self.grid.hertziandipoles + self.grid.magneticdipoles:
         #     self._set_src_knls()
         # if self.grid.snapshots:
@@ -1472,30 +1472,16 @@ class MetalUpdates:
         lib, _ = self.dev.newLibraryWithSource_options_error_(bld, self.opts, None)
         self.update_electric_dev = lib.newFunctionWithName_("update_electric")
         self.psoE = self.dev.newComputePipelineStateWithFunction_error_(self.update_electric_dev, None)[0]
-        self.cmdbufferE = self.cmdqueue.commandBuffer()
-        self.cmpencoderE = self.cmdbufferE.computeCommandEncoder()
-        self.cmpencoderE.setComputePipelineState_(self.psoE)
         
-        # Set thread sizes for both electric and magnetic fields
+        # Set thread sizes based on electric (same for magnetic)
         self.grid.set_threads_per_thread_group()
         self.grid.set_thread_group_size(self.psoE)
-        self.cmpencoderE.dispatchThreads_threadsPerThreadgroup_(self.grid.tptg, self.grid.tgs)
-
-        # Initialise field arrays on compute device
-        self.grid.htod_geometry_arrays(self.dev)
-        self.grid.htod_field_arrays(self.dev)
-
-        self.cmpencoderE.endEncoding()
         
         bld = self._build_knl(knl_fields_updates.update_magnetic, self.subs_name_args, self.subs_func)
         lib, _ = self.dev.newLibraryWithSource_options_error_(bld, self.opts, None)
         self.update_magnetic_dev = lib.newFunctionWithName_("update_magnetic")
         self.psoH = self.dev.newComputePipelineStateWithFunction_error_(self.update_magnetic_dev, None)[0]
-        self.cmdbufferH = self.cmdqueue.commandBuffer()
-        self.cmpencoderH = self.cmdbufferH.computeCommandEncoder()
-        self.cmpencoderH.setComputePipelineState_(self.psoH)
-        self.cmpencoderH.dispatchThreads_threadsPerThreadgroup_(self.grid.tptg, self.grid.tgs)
-        self.cmpencoderH.endEncoding()
+        
 
         # If there are any dispersive materials (updates are split into two
         # parts as they require present and updated electric field values).
@@ -1597,17 +1583,26 @@ class MetalUpdates:
         """Receivers - initialises arrays on compute device, prepares kernel and
         gets kernel function.
         """
-        self.rxcoords_dev, self.rxs_dev = htod_rx_arrays(self.grid, self.queue)
-        self.store_outputs_dev = self.elwiseknl(
-            self.ctx,
-            knl_store_outputs.store_outputs["args_opencl"].substitute(
-                {"REAL": config.sim_config.dtypes["C_float_or_double"]}
-            ),
-            knl_store_outputs.store_outputs["func"].substitute({"CUDA_IDX": ""}),
-            "store_outputs",
-            preamble=self.knl_common,
-            options=config.sim_config.devices["compiler_opts"],
+        self.rxcoords_dev, self.rxs_dev = htod_rx_arrays(self.grid, None, self.dev)
+        
+        self.subs_func.update(
+            {
+                "REAL": config.sim_config.dtypes["C_float_or_double"],
+                "NY_RXCOORDS": 3,
+                "NX_RXS": 6,
+                "NY_RXS": self.grid.iterations,
+                "NZ_RXS": len(self.grid.rxs),
+            }
         )
+
+        bld = self._build_knl(knl_store_outputs.store_outputs, self.subs_name_args, self.subs_func)
+        lib, _ = self.dev.newLibraryWithSource_options_error_(bld, self.opts, None)
+        self.store_outputs_dev = lib.newFunctionWithName_("store_outputs")
+        self.pso_store_outputs = self.dev.newComputePipelineStateWithFunction_error_(self.store_outputs_dev, None)[0]
+        
+        # Set thread sizes
+        self.grid.set_threads_per_thread_group()
+        self.grid.set_thread_group_size(self.pso_store_outputs)
 
     def _set_src_knls(self):
         """Sources - initialises arrays on compute device, prepares kernel and
@@ -1690,18 +1685,16 @@ class MetalUpdates:
     def store_outputs(self):
         """Stores field component values for every receiver."""
         if self.grid.rxs:
-            self.store_outputs_dev(
-                np.int32(len(self.grid.rxs)),
-                np.int32(self.grid.iteration),
-                self.rxcoords_dev,
-                self.rxs_dev,
-                self.grid.Ex_dev,
-                self.grid.Ey_dev,
-                self.grid.Ez_dev,
-                self.grid.Hx_dev,
-                self.grid.Hy_dev,
-                self.grid.Hz_dev,
-            )
+            self.cmdbuffer_store_outputs = self.cmdqueue.commandBuffer()
+            self.cmpencoder_store_outputs = self.cmdbuffer_store_outputs.computeCommandEncoder()
+            self.cmpencoder_store_outputs.setComputePipelineState_(self.pso_store_outputs)
+            self.cmpencoder_store_outputs.dispatchThreads_threadsPerThreadgroup_(
+                self.metal.MTLSizeMake(round32(len(self.grid.rxs)), 1, 1), 
+                self.metal.MTLSizeMake(self.pso_store_outputs.maxTotalThreadsPerThreadgroup(), 1, 1)
+                )
+            self.cmpencoder_store_outputs.endEncoding()
+            self.cmdbuffer_store_outputs.commit()
+            self.cmdbuffer_store_outputs.waitUntilCompleted()
 
     def store_snapshots(self, iteration):
         """Stores any snapshots.
@@ -1752,6 +1745,11 @@ class MetalUpdates:
 
     def update_magnetic(self):
         """Updates magnetic field components."""
+        self.cmdbufferH = self.cmdqueue.commandBuffer()
+        self.cmpencoderH = self.cmdbufferH.computeCommandEncoder()
+        self.cmpencoderH.setComputePipelineState_(self.psoH)
+        self.cmpencoderH.dispatchThreads_threadsPerThreadgroup_(self.grid.tptg, self.grid.tgs)
+        self.cmpencoderH.endEncoding()
         self.cmdbufferH.commit()
         self.cmdbufferH.waitUntilCompleted()
 
@@ -1782,6 +1780,16 @@ class MetalUpdates:
         """Updates electric field components."""
         # All materials are non-dispersive so do standard update.
         if config.get_model_config().materials["maxpoles"] == 0:
+            self.cmdbufferE = self.cmdqueue.commandBuffer()
+            self.cmpencoderE = self.cmdbufferE.computeCommandEncoder()
+            self.cmpencoderE.setComputePipelineState_(self.psoE)
+            self.cmpencoderE.dispatchThreads_threadsPerThreadgroup_(self.grid.tptg, self.grid.tgs)
+
+            # Initialise field arrays on compute device
+            self.grid.htod_geometry_arrays(self.dev)
+            self.grid.htod_field_arrays(self.dev)
+
+            self.cmpencoderE.endEncoding()
             self.cmdbufferE.commit()
             self.cmdbufferE.waitUntilCompleted()
 
@@ -1885,17 +1893,17 @@ class MetalUpdates:
         Returns:
             Memory (RAM) used on compute device.
         """
-        pass
+        return 0
 
     def calculate_solve_time(self):
         """Calculates solving time for model."""
-        pass
+        return 0
 
     def finalise(self):
         """Copies data from compute device back to CPU to save to file(s)."""
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
-            dtoh_rx_array(self.rxs_dev.get(), self.rxcoords_dev.get(), self.grid)
+            dtoh_rx_array(self.rxs_dev, self.rxcoords_dev, self.grid)
 
         # Copy data from any snapshots back to correct snapshot objects
         if self.grid.snapshots and not config.get_model_config().device["snapsgpu2cpu"]:

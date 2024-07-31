@@ -39,13 +39,14 @@ class Rx:
         self.zcoordorigin = None
 
 
-def htod_rx_arrays(G, queue=None):
+def htod_rx_arrays(G, queue=None, dev=None):
     """Initialise arrays on compute device for receiver coordinates and to store field
         components for receivers.
 
     Args:
         G: FDTDGrid class describing a grid in a model.
         queue: pyopencl queue.
+        dev: Apple Metal device object.
 
     Returns:
         rxcoords_dev: int array of receiver coordinates on compute device.
@@ -79,6 +80,14 @@ def htod_rx_arrays(G, queue=None):
         rxcoords_dev = clarray.to_device(queue, rxcoords)
         rxs_dev = clarray.to_device(queue, rxs)
 
+    elif config.sim_config.general["solver"] == "metal":
+        rxcoords_dev = dev.newBufferWithBytes_length_options_(rxcoords, 
+                                                              rxcoords.nbytes, 
+                                                              G.storage)
+        rxs_dev = dev.newBufferWithBytes_length_options_(rxs, 
+                                                         rxs.nbytes, 
+                                                         G.storage)
+
     return rxcoords_dev, rxs_dev
 
 
@@ -93,6 +102,13 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
         G: FDTDGrid class describing a grid in a model.
 
     """
+
+    if config.sim_config.general["solver"] == "metal":
+        pass
+
+    else:
+        rxs_dev = rxs_dev.get()
+        rxcoords_dev = rxcoords_dev.get()
 
     for rx in G.rxs:
         for rxd in range(len(G.rxs)):
