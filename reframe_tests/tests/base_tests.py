@@ -100,7 +100,6 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
     executable = "time -p python -m gprMax --log-level 10 --hide-progress-bars"
 
     rx_outputs = variable(typ.List[str], value=Rx.defaultoutputs)
-    h5diff_header = f"{'=' * 10} h5diff output {'=' * 10}"
 
     @run_after("init")
     def setup_env_vars(self):
@@ -197,16 +196,6 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
                 f"Input file '{self.input_file}' not present in source directory '{self.sourcesdir}'",
             )
 
-    @run_before("run", always_last=True)
-    def setup_regression_check(self):
-        """Add h5diff command to run after the test"""
-        if self.current_system.name == "archer2":
-            self.modules.append("cray-hdf5")
-
-        if os.path.exists(self.reference_file):
-            self.postrun_cmds.append(f"echo {self.h5diff_header}")
-            self.postrun_cmds.append(f"h5diff {self.output_file} {self.reference_file}")
-
     def test_simulation_complete(self):
         """Check simulation completed successfully"""
         return sn.assert_not_found(
@@ -217,6 +206,21 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
             r"=== Simulation completed in ", self.stdout, "Simulation did not complete"
         )
 
+    def test_output_regression(self):
+        cmd = [f"h5diff {self.output_file} {self.reference_file}"]
+        if self.current_system.name == "archer2":
+            cmd.append("module load cray-hdf5")
+
+        h5diff_output = osext.run_command(cmd, check=True, shell=True)
+        return sn.assert_false(
+            h5diff_output.stdout,
+            (
+                f"Found h5diff output (see '{path_join(self.stagedir, self.stdout)}')\n"
+                f"For more details run: 'h5diff {os.path.abspath(self.output_file)} {self.reference_file}'\n"
+                f"To re-create regression file, delete '{self.reference_file}' and rerun the test."
+            ),
+        )
+
     @sanity_function
     def regression_check(self):
         """
@@ -224,21 +228,7 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
         Create reference file from the test output if it does not exist.
         """
         if sn.path_exists(self.reference_file):
-            h5diff_output = sn.extractsingle(
-                f"{self.h5diff_header}\n(?P<h5diff>[\S\s]*)", self.stdout, "h5diff"
-            )
-            return (
-                self.test_simulation_complete()
-                and sn.assert_found(self.h5diff_header, self.stdout, "Failed to find h5diff header")
-                and sn.assert_false(
-                    h5diff_output,
-                    (
-                        f"Found h5diff output (see '{path_join(self.stagedir, self.stdout)}')\n"
-                        f"For more details run: 'h5diff {os.path.abspath(self.output_file)} {self.reference_file}'\n"
-                        f"To re-create regression file, delete '{self.reference_file}' and rerun the test."
-                    ),
-                )
-            )
+            return self.test_simulation_complete() and self.test_output_regression()
         else:
             copyfile(self.output_file, self.reference_file)
             return sn.assert_true(
