@@ -6,4 +6,4 @@
 #waveform: gaussiandot 1 1e9 myWave
 #hertzian_dipole: z 0.050 0.050 0.050 myWave
 
-#snapshot: 0 0 0 0.100 0.100 0.100 0.01 0.01 0.01 2e-9 snapshot_3.h5
+#snapshot: 0 0 0 0.100 0.100 0.100 0.01 0.01 0.01 2e-9 snapshot.h5
