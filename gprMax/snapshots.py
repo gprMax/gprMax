@@ -432,9 +432,9 @@ class MPISnapshot(Snapshot):
         Eyzhalo = np.empty((shape[Dim.X], shape[Dim.Y], 1), dtype=dtype)
         Ezxhalo = np.empty((1, shape[Dim.Y], shape[Dim.Z]), dtype=dtype)
 
-        x_offset = self.neighbours[Dim.X][Dir.POS] != -1
-        y_offset = self.neighbours[Dim.Y][Dir.POS] != -1
-        z_offset = self.neighbours[Dim.Z][Dir.POS] != -1
+        x_offset = self.has_neighbour(Dim.X, Dir.POS)
+        y_offset = self.has_neighbour(Dim.Y, Dir.POS)
+        z_offset = self.has_neighbour(Dim.Z, Dir.POS)
         Exzhalo = np.empty((shape[Dim.X], shape[Dim.Y] + y_offset, 1), dtype=dtype)
         Eyxhalo = np.empty((1, shape[Dim.Y], shape[Dim.Z] + z_offset), dtype=dtype)
         Ezyhalo = np.empty((shape[Dim.X] + x_offset, 1, shape[Dim.Z]), dtype=dtype)

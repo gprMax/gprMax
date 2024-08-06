@@ -1,0 +1,20 @@
+#title: Hertzian dipole in free-space
+#domain: 0.100 0.100 0.100
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 3e-9
+
+#waveform: gaussiandot 1 1e9 myWave
+#hertzian_dipole: z 0.050 0.050 0.050 myWave
+
+#snapshot: 0.005 0 0 0.006 0.100 0.100 0.01 0.01 0.01 2e-9 snapshot_x_05.h5
+#snapshot: 0.035 0 0 0.036 0.100 0.100 0.01 0.01 0.01 2e-9 snapshot_x_35.h5
+#snapshot: 0.065 0 0 0.066 0.100 0.100 0.01 0.01 0.01 2e-9 snapshot_x_65.h5
+#snapshot: 0.095 0 0 0.096 0.100 0.100 0.01 0.01 0.01 2e-9 snapshot_x_95.h5
+
+#snapshot: 0 0.015 0 0.100 0.016 0.100 0.01 0.01 0.01 2e-9 snapshot_y_15.h5
+#snapshot: 0 0.045 0 0.100 0.046 0.100 0.01 0.01 0.01 2e-9 snapshot_y_45.h5
+#snapshot: 0 0.075 0 0.100 0.076 0.100 0.01 0.01 0.01 2e-9 snapshot_y_75.h5
+
+#snapshot: 0 0 0.025 0.100 0.100 0.026 0.01 0.01 0.01 2e-9 snapshot_z_25.h5
+#snapshot: 0 0 0.055 0.100 0.100 0.056 0.01 0.01 0.01 2e-9 snapshot_z_55.h5
+#snapshot: 0 0 0.055 0.100 0.100 0.086 0.01 0.01 0.01 2e-9 snapshot_z_85.h5
