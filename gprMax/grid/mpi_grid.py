@@ -177,8 +177,10 @@ class MPIGrid(FDTDGrid):
         if self.is_coordinator():
             snapshots_by_rank: List[List[Optional[Snapshot]]] = [[] for _ in range(self.comm.size)]
             for s in self.snapshots:
-                ranks = self.get_ranks_between_coordinates(s.start, s.stop)
-                for rank in range(self.comm.size):
+                ranks = self.get_ranks_between_coordinates(s.start, s.stop + s.step)
+                for rank in range(
+                    self.comm.size
+                ):  # TODO: Loop over ranks in snapshot, not all ranks
                     if rank in ranks:
                         snapshots_by_rank[rank].append(s)
                     else:
@@ -197,7 +199,7 @@ class MPIGrid(FDTDGrid):
                 comm = self.comm.Split()
                 assert isinstance(comm, MPI.Intracomm)
                 start = self.get_grid_coord_from_coordinate(s.start)
-                stop = self.get_grid_coord_from_coordinate(s.stop) + 1
+                stop = self.get_grid_coord_from_coordinate(s.stop + s.step) + 1
                 s.comm = comm.Create_cart((stop - start).tolist())
 
                 s.start = self.global_to_local_coordinate(s.start)
