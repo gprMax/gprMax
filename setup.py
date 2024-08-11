@@ -256,7 +256,10 @@ else:
     pybind11_modules = [
         Pybind11Extension(
             "pybind11_xpu_solver",
-            ["gprMax/pybind11/xpu_solver.cpp"],
+            [
+                "gprMax/pybind11/xpu_solver.cpp",
+                "gprMax/pybind11/xpu_update_normal.cpp",
+            ],
             # Example: passing in the version to the compiled code
             extra_compile_args=['-fopenmp','-g','-O3','-march=native'],
             extra_link_args=['-fopenmp','-g','-O3','-march=native'],
