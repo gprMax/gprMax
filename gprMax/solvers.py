@@ -21,7 +21,7 @@ import gprMax.config as config
 from .grid import CUDAGrid, FDTDGrid, OpenCLGrid
 from .subgrids.updates import create_updates as create_subgrid_updates
 from .updates import CPUUpdates, CUDAUpdates, OpenCLUpdates
-
+import pybind11_xpu_solver
 
 def create_G():
     """Create grid object according to solver.
@@ -178,6 +178,18 @@ class XPUSolver:
         self.x_ntiles=self.GetNumOfTiles(self.tx_tiling_type, self.BLT, self.BLX, self.xmin, self.xmax)
         self.y_ntiles=self.GetNumOfTiles(self.ty_tiling_type, self.BLT, self.BLY, self.ymin, self.ymax)
         self.z_ntiles=self.GetNumOfTiles(self.tz_tiling_type, self.BLT, self.BLZ, self.zmin, self.zmax)
+        self.cpp_solver=pybind11_xpu_solver.xpu_solver()
+        self.cpp_solver.init(
+            self.grid.Ex,
+            self.grid.Ey,
+            self.grid.Ez,
+            self.grid.Hx,
+            self.grid.Hy,
+            self.grid.Hz,
+            self.grid.updatecoeffsE,
+            self.grid.updatecoeffsH,
+            self.grid.ID
+        )
     
     def GetNumOfTiles(self, tiling_type, time_block_size, space_block_size, start, end):
         if(tiling_type=="d"):
@@ -199,6 +211,5 @@ class XPUSolver:
     
     def solve(self, iterator):
         for tt in range(0, iterator.total, self.BLT):
-            import time
-            time.sleep(0.2)
+            self.cpp_solver.update()
             iterator.update(self.BLT)

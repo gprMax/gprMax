@@ -27,6 +27,7 @@ from pathlib import Path
 
 import numpy as np
 from Cython.Build import cythonize
+from pybind11.setup_helpers import Pybind11Extension, build_ext
 from jinja2 import Environment, FileSystemLoader
 from setuptools import Extension, find_packages, setup
 
@@ -252,6 +253,17 @@ else:
         annotate=False,
     )
 
+    pybind11_modules = [
+        Pybind11Extension(
+            "pybind11_xpu_solver",
+            ["gprMax/pybind11/xpu_solver.cpp"],
+            # Example: passing in the version to the compiled code
+            extra_compile_args=['-fopenmp','-g','-O3','-march=native'],
+            extra_link_args=['-fopenmp','-g','-O3','-march=native'],
+        ),
+    ]
+    extensions.extend(pybind11_modules);
+
     # Parse long_description from README.rst file.
     with open("README.rst", "r", encoding="utf-8") as fd:
         long_description = fd.read()
@@ -277,6 +289,7 @@ else:
             "scipy",
             "terminaltables",
             "tqdm",
+            "pybind11",
         ],
         ext_modules=extensions,
         packages=find_packages(),
