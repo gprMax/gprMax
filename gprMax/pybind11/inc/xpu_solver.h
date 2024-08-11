@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "xpu_update.h"
+#include "utils.h"
 
 namespace py = pybind11;
 
@@ -38,43 +39,6 @@ public:
         max_phase(max_phase_),
         tx_tiling_type(tx_tiling_type_), ty_tiling_type(ty_tiling_type_), tz_tiling_type(tz_tiling_type_),
         TX_Tile_Shapes(TX_Tile_Shapes_), TY_Tile_Shapes(TY_Tile_Shapes_), TZ_Tile_Shapes(TZ_Tile_Shapes_) {}
-        
-    // void init(
-    //     py::array_t<float, py::array::c_style | py::array::forcecast> Ex_, 
-    //     py::array_t<float, py::array::c_style | py::array::forcecast> Ey_, 
-    //     py::array_t<float, py::array::c_style | py::array::forcecast> Ez_, 
-    //     py::array_t<float, py::array::c_style | py::array::forcecast> Hx_, 
-    //     py::array_t<float, py::array::c_style | py::array::forcecast> Hy_, 
-    //     py::array_t<float, py::array::c_style | py::array::forcecast> Hz_, 
-    //     py::array_t<float, py::array::c_style | py::array::forcecast> updatecoeffsE_, 
-    //     py::array_t<float, py::array::c_style | py::array::forcecast> updatecoeffsH_,
-    //     py::array_t<uint32_t, py::array::c_style | py::array::forcecast> ID_,
-    //     int BLT_, int BLX_, int BLY_, int BLZ_,
-    //     int x_ntiles_, int y_ntiles_, int z_ntiles_,
-    //     int xmin_, int xmax_, int ymin_, int ymax_, int zmin_, int zmax_, 
-    //     int max_phase_,
-    //     std::string tx_tiling_type_, std::string ty_tiling_type_, std::string tz_tiling_type_, 
-    //     std::vector<std::string> TX_Tile_Shapes_, std::vector<std::string> TY_Tile_Shapes_, std::vector<std::string> TZ_Tile_Shapes_
-    //     ) {
-    //     xpu_update_instance = xpu_update(Ex_, Ey_, Ez_, Hx_, Hy_, Hz_, updatecoeffsE_, updatecoeffsH_, ID_, xmin_, xmax_, ymin_, ymax_, zmin_, zmax_);
-    //     BLT = BLT_, BLX = BLX_, BLY = BLY_, BLZ = BLZ_;
-    //     x_ntiles = x_ntiles_, y_ntiles = y_ntiles_, z_ntiles = z_ntiles_;
-    //     xmin = xmin_, xmax = xmax_, ymin = ymin_, ymax = ymax_, zmin = zmin_, zmax = zmax_;
-    //     max_phase = max_phase_;
-    //     tx_tiling_type = tx_tiling_type_, ty_tiling_type = ty_tiling_type_, tz_tiling_type = tz_tiling_type_;
-    //     TX_Tile_Shapes = TX_Tile_Shapes_, TY_Tile_Shapes = TY_Tile_Shapes_, TZ_Tile_Shapes = TZ_Tile_Shapes_;
-    // }
-
-    std::pair<int, int> GetRange(
-        const std::string& shape, 
-        const std::string& electric_or_magnetic, 
-        int time_block_size, 
-        int space_block_size, 
-        int sub_timestep, 
-        int tile_index, 
-        int start, 
-        int end
-    );
 
     void update(int timestep);
 };
