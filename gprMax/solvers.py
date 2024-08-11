@@ -198,4 +198,7 @@ class XPUSolver:
                     return num
     
     def solve(self, iterator):
-        raise NotImplementedError("XPUSolver is not implemented yet")
+        for tt in range(0, iterator.total, self.BLT):
+            import time
+            time.sleep(0.2)
+            iterator.update(self.BLT)
