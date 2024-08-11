@@ -665,7 +665,7 @@ def build_pml(G, pml_ID, thickness):
         ers[i] = m.er
         mrs[i] = m.mr
 
-    if config.sim_config.general["solver"] == "cpu":
+    if config.sim_config.general["solver"] == "cpu" or config.sim_config.general["solver"] == "xpu":
         pml_type = PML
     elif config.sim_config.general["solver"] == "cuda":
         pml_type = CUDAPML

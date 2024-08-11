@@ -30,7 +30,7 @@ def create_G():
         G: FDTDGrid class describing a grid in a model.
     """
 
-    if config.sim_config.general["solver"] == "cpu":
+    if config.sim_config.general["solver"] == "cpu" or config.sim_config.general["solver"] == "xpu":
         G = FDTDGrid()
     elif config.sim_config.general["solver"] == "cuda":
         G = CUDAGrid()
@@ -72,6 +72,8 @@ def create_solver(G):
         if config.get_model_config().materials["maxpoles"] != 0:
             updates.set_dispersive_updates()
         solver = Solver(updates)
+    elif config.sim_config.general["solver"] == "xpu":
+        raise NotImplementedError("XPU solver not implemented yet.")
     elif config.sim_config.general["solver"] == "cuda":
         updates = CUDAUpdates(G)
         solver = Solver(updates)

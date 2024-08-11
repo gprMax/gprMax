@@ -232,7 +232,12 @@ class SimulationConfig:
 
         # Store information about host machine
         self.hostinfo = get_host_info()
-
+        
+        #XPU
+        if self.args.xpu is not None:
+            self.general["solver"] = "xpu"
+            self.general["precision"] = "single"
+            
         # CUDA
         if self.args.gpu is not None:
             self.general["solver"] = "cuda"
