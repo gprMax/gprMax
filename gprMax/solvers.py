@@ -73,7 +73,7 @@ def create_solver(G):
             updates.set_dispersive_updates()
         solver = Solver(updates)
     elif config.sim_config.general["solver"] == "xpu":
-        raise NotImplementedError("XPU solver not implemented yet.")
+        solver = XPUSolver(G)
     elif config.sim_config.general["solver"] == "cuda":
         updates = CUDAUpdates(G)
         solver = Solver(updates)
@@ -128,3 +128,74 @@ class Solver:
         self.updates.finalise()
         self.solvetime = self.updates.calculate_solve_time()
         self.updates.cleanup()
+
+class XPUSolver:
+    def __init__(self, grid):
+        self.grid=grid
+        self.BLT=2
+        self.BLX=6
+        self.BLY=6
+        self.BLZ=6
+        self.xmin=0
+        self.xmax=self.grid.nx
+        self.ymin=0
+        self.ymax=self.grid.ny
+        self.zmin=0
+        self.zmax=self.grid.nz
+
+        self.tx_tiling_type="p"
+        self.ty_tiling_type="p"
+        self.tz_tiling_type="p"
+        self.max_phase=1
+        self.TX_Tile_Shapes=["p"]
+        self.TY_Tile_Shapes=["p"]
+        self.TZ_Tile_Shapes=["p"]
+
+        # self.tx_tiling_type="d"
+        # self.ty_tiling_type="p"
+        # self.tz_tiling_type="p"
+        # self.max_phase=2
+        # self.TX_Tile_Shapes=["m","v"]
+        # self.TY_Tile_Shapes=["p","p"]
+        # self.TZ_Tile_Shapes=["p","p"]
+
+        # self.tx_tiling_type="d"
+        # self.ty_tiling_type="d"
+        # self.tz_tiling_type="p"
+        # self.max_phase=4
+        # self.TX_Tile_Shapes=["m","v","m","v"]
+        # self.TY_Tile_Shapes=["m","m","v","v"]
+        # self.TZ_Tile_Shapes=["p","p","p","p"]
+
+        # self.tx_tiling_type="d"
+        # self.ty_tiling_type="d"
+        # self.tz_tiling_type="d"
+        # self.max_phase=8
+        # self.TX_Tile_Shapes=["m","v","m","m","v","v","m","v"]
+        # self.TY_Tile_Shapes=["m","m","v","m","v","m","v","v"]
+        # self.TZ_Tile_Shapes=["m","m","m","v","m","v","v","v"]
+
+        self.x_ntiles=self.GetNumOfTiles(self.tx_tiling_type, self.BLT, self.BLX, self.xmin, self.xmax)
+        self.y_ntiles=self.GetNumOfTiles(self.ty_tiling_type, self.BLT, self.BLY, self.ymin, self.ymax)
+        self.z_ntiles=self.GetNumOfTiles(self.tz_tiling_type, self.BLT, self.BLZ, self.zmin, self.zmax)
+    
+    def GetNumOfTiles(self, tiling_type, time_block_size, space_block_size, start, end):
+        if(tiling_type=="d"):
+            num=(end-start)//(2*space_block_size+2*time_block_size-1)
+            num_left=(end-start)%(2*space_block_size+2*time_block_size-1)
+            if(num_left<=2*space_block_size+time_block_size):
+                num+=1
+            else:
+                num+=2
+            return num
+        elif(tiling_type=="p"):
+            num=(end-start)//space_block_size
+            while True:
+                start_idx=space_block_size*num+1
+                if(start_idx-time_block_size<=(end-start)):
+                    num+=1
+                else:
+                    return num
+    
+    def solve(self, iterator):
+        raise NotImplementedError("XPUSolver is not implemented yet")
