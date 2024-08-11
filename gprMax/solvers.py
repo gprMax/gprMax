@@ -188,7 +188,13 @@ class XPUSolver:
             self.grid.Hz,
             self.grid.updatecoeffsE,
             self.grid.updatecoeffsH,
-            self.grid.ID
+            self.grid.ID,
+            self.BLT, self.BLX, self.BLY, self.BLZ,
+            self.x_ntiles, self.y_ntiles, self.z_ntiles,
+            self.xmin, self.xmax, self.ymin, self.ymax, self.zmin, self.zmax,
+            self.max_phase,
+            self.tx_tiling_type, self.ty_tiling_type, self.tz_tiling_type,
+            self.TX_Tile_Shapes, self.TY_Tile_Shapes, self.TZ_Tile_Shapes,
         )
     
     def GetNumOfTiles(self, tiling_type, time_block_size, space_block_size, start, end):
@@ -211,5 +217,6 @@ class XPUSolver:
     
     def solve(self, iterator):
         for tt in range(0, iterator.total, self.BLT):
-            self.cpp_solver.update()
+            self.cpp_solver.update(tt)
             iterator.update(self.BLT)
+
