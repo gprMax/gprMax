@@ -317,6 +317,10 @@ class SimulationConfig:
             if ID == deviceID:
                 found = True
                 return dev
+            
+        # Debugging output
+        logger.debug(f"Available devices: {self.devices['devs']}")
+        logger.debug(f"Requested deviceID: {deviceID}")
 
         if not found:
             logger.exception(f"Compute device with device ID {deviceID} does " "not exist.")
