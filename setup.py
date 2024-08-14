@@ -259,6 +259,7 @@ else:
             [
                 "gprMax/pybind11/xpu_solver.cpp",
                 "gprMax/pybind11/xpu_update_normal.cpp",
+                "gprMax/pybind11/xpu_update_source.cpp",
                 "gprMax/pybind11/utils.cpp",
             ],
             # Example: passing in the version to the compiled code

@@ -42,7 +42,11 @@ PYBIND11_MODULE(pybind11_xpu_solver, m) {
             int, int, int, int, int, int,
             int,
             std::string, std::string, std::string,
-            std::vector<std::string>, std::vector<std::string>, std::vector<std::string>
+            std::vector<std::string>, std::vector<std::string>, std::vector<std::string>,
+            int, int, int, float, float,
+            py::array_t<float, py::array::c_style | py::array::forcecast>,
+            float, int,
+            float, float, float, float
         >())
         .def("update", &xpu_solver::update);
 }

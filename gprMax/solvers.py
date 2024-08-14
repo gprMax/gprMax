@@ -131,6 +131,9 @@ class Solver:
 
 class XPUSolver:
     def __init__(self, grid):
+
+        self.solvetime = 0
+
         self.grid=grid
         self.BLT=2
         self.BLX=6
@@ -178,6 +181,9 @@ class XPUSolver:
         self.x_ntiles=self.GetNumOfTiles(self.tx_tiling_type, self.BLT, self.BLX, self.xmin, self.xmax)
         self.y_ntiles=self.GetNumOfTiles(self.ty_tiling_type, self.BLT, self.BLY, self.ymin, self.ymax)
         self.z_ntiles=self.GetNumOfTiles(self.tz_tiling_type, self.BLT, self.BLZ, self.zmin, self.zmax)
+        source = self.grid.hertziandipoles[0]
+        componentID = f"E{source.polarisation}"
+        source_id = self.grid.IDlookup[componentID]
         self.cpp_solver=pybind11_xpu_solver.xpu_solver(
             self.grid.Ex,
             self.grid.Ey,
@@ -194,6 +200,10 @@ class XPUSolver:
             self.max_phase,
             self.tx_tiling_type, self.ty_tiling_type, self.tz_tiling_type,
             self.TX_Tile_Shapes, self.TY_Tile_Shapes, self.TZ_Tile_Shapes,
+            source.xcoord, source.ycoord, source.zcoord, source.start, source.stop,
+            source.waveformvalues_halfdt,
+            source.dl, source_id,
+            self.grid.dt, self.grid.dx, self.grid.dy, self.grid.dz,
         )
     
     def GetNumOfTiles(self, tiling_type, time_block_size, space_block_size, start, end):

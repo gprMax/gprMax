@@ -31,8 +31,21 @@ public:
         int xmin_, int xmax_, int ymin_, int ymax_, int zmin_, int zmax_,
         int max_phase_,
         std::string tx_tiling_type_, std::string ty_tiling_type_, std::string tz_tiling_type_,
-        std::vector<std::string> TX_Tile_Shapes_, std::vector<std::string> TY_Tile_Shapes_, std::vector<std::string> TZ_Tile_Shapes_
-    ) : xpu_update_instance(Ex_, Ey_, Ez_, Hx_, Hy_, Hz_, updatecoeffsE_, updatecoeffsH_, ID_, xmin_, xmax_, ymin_, ymax_, zmin_, zmax_),
+        std::vector<std::string> TX_Tile_Shapes_, std::vector<std::string> TY_Tile_Shapes_, std::vector<std::string> TZ_Tile_Shapes_,
+        
+        int source_xcoord, int source_ycoord, int source_zcoord, float source_start, float source_stop,
+        py::array_t<float, py::array::c_style | py::array::forcecast> source_waveformvalues_halfdt,
+        float source_dl, int source_id,
+        float grid_dt, float grid_dx, float grid_dy, float grid_dz
+    ) : xpu_update_instance(
+            Ex_, Ey_, Ez_, Hx_, Hy_, Hz_, 
+            updatecoeffsE_, updatecoeffsH_, ID_, 
+            xmin_, xmax_, ymin_, ymax_, zmin_, zmax_,
+            source_xcoord, source_ycoord, source_zcoord, source_start, source_stop,
+            source_waveformvalues_halfdt,
+            source_dl, source_id,
+            grid_dt, grid_dx, grid_dy, grid_dz
+        ),
         BLT(BLT_), BLX(BLX_), BLY(BLY_), BLZ(BLZ_),
         x_ntiles(x_ntiles_), y_ntiles(y_ntiles_), z_ntiles(z_ntiles_),
         xmin(xmin_), xmax(xmax_), ymin(ymin_), ymax(ymax_), zmin(zmin_), zmax(zmax_),
