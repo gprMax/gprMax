@@ -18,18 +18,38 @@ void xpu_update::update_electric_normal(update_range_t update_range){
                     int materialEx = ID_(0, i, j, k);
                     int materialEy = ID_(1, i, j, k);
                     int materialEz = ID_(2, i, j, k);
-                    if(j != 0 && k != 0)
+                    if(j != 0 && k != 0){
                         Ex_(i, j, k) = (updatecoeffsE_(materialEx, 0) * Ex_(i, j, k) +
                                         updatecoeffsE_(materialEx, 2) * (Hz_(i, j, k) - Hz_(i, j - 1, k)) -
                                         updatecoeffsE_(materialEx, 3) * (Hy_(i, j, k) - Hy_(i, j, k - 1)));
-                    if(i != 0 && k != 0)
+                        assert(timestep_Hz[i][j][k] == timestep_Ex[i][j][k]);
+                        assert(timestep_Hz[i][j-1][k] == timestep_Ex[i][j][k]);
+                        assert(timestep_Hy[i][j][k] == timestep_Ex[i][j][k]);
+                        assert(timestep_Hy[i][j][k-1] == timestep_Ex[i][j][k]);
+                    }
+                    timestep_Ex[i][j][k] = timestep_Ex[i][j][k] + 1;
+
+                    if(i != 0 && k != 0){
                         Ey_(i, j, k) = (updatecoeffsE_(materialEy, 0) * Ey_(i, j, k) +
                                         updatecoeffsE_(materialEy, 3) * (Hx_(i, j, k) - Hx_(i, j, k - 1)) -
                                         updatecoeffsE_(materialEy, 1) * (Hz_(i, j, k) - Hz_(i - 1, j, k)));
-                    if(i != 0 && j != 0)
+                        assert(timestep_Hx[i][j][k] == timestep_Ey[i][j][k]);
+                        assert(timestep_Hx[i][j][k-1] == timestep_Ey[i][j][k]);
+                        assert(timestep_Hz[i][j][k] == timestep_Ey[i][j][k]);
+                        assert(timestep_Hz[i-1][j][k] == timestep_Ey[i][j][k]);
+                    }
+                    timestep_Ey[i][j][k] = timestep_Ey[i][j][k] + 1;
+
+                    if(i != 0 && j != 0){
                         Ez_(i, j, k) = (updatecoeffsE_(materialEz, 0) * Ez_(i, j, k) +
                                         updatecoeffsE_(materialEz, 1) * (Hy_(i, j, k) - Hy_(i - 1, j, k)) -
                                         updatecoeffsE_(materialEz, 2) * (Hx_(i, j, k) - Hx_(i, j - 1, k)));
+                        assert(timestep_Hy[i][j][k] == timestep_Ez[i][j][k]);
+                        assert(timestep_Hy[i-1][j][k] == timestep_Ez[i][j][k]);
+                        assert(timestep_Hx[i][j][k] == timestep_Ez[i][j][k]);
+                        assert(timestep_Hx[i][j-1][k] == timestep_Ez[i][j][k]);
+                    }
+                    timestep_Ez[i][j][k] = timestep_Ez[i][j][k] + 1;
             }
         }
     }
@@ -53,18 +73,38 @@ void xpu_update::update_magnetic_normal(update_range_t update_range){
                 int materialHx = ID_(3, i, j, k);
                 int materialHy = ID_(4, i, j, k);
                 int materialHz = ID_(5, i, j, k);
-                if(j < ymax - 1 && k < zmax - 1)
+                if(j < ymax - 1 && k < zmax - 1){
                     Hx_(i, j, k) = (updatecoeffsH_(materialHx, 0) * Hx_(i, j, k) -
                                     updatecoeffsH_(materialHx, 2) * (Ez_(i, j + 1, k) - Ez_(i, j, k)) +
                                     updatecoeffsH_(materialHx, 3) * (Ey_(i, j, k + 1) - Ey_(i, j, k)));
-                if(i < xmax - 1 && k < zmax - 1)
+                    assert(timestep_Ez[i][j+1][k] == timestep_Hx[i][j][k]+1);
+                    assert(timestep_Ez[i][j][k] == timestep_Hx[i][j][k]+1);
+                    assert(timestep_Ey[i][j][k+1] == timestep_Hx[i][j][k]+1);
+                    assert(timestep_Ey[i][j][k] == timestep_Hx[i][j][k]+1);
+                }
+                timestep_Hx[i][j][k] = timestep_Hx[i][j][k] + 1;
+                
+                if(i < xmax - 1 && k < zmax - 1){
                     Hy_(i, j, k) = (updatecoeffsH_(materialHy, 0) * Hy_(i, j, k) -
                                     updatecoeffsH_(materialHy, 3) * (Ex_(i, j, k + 1) - Ex_(i, j, k)) +
                                     updatecoeffsH_(materialHy, 1) * (Ez_(i + 1, j, k) - Ez_(i, j, k)));
-                if(i < xmax - 1 && j < ymax - 1)
+                    assert(timestep_Ex[i][j][k+1] == timestep_Hy[i][j][k]+1);
+                    assert(timestep_Ex[i][j][k] == timestep_Hy[i][j][k]+1);
+                    assert(timestep_Ez[i+1][j][k] == timestep_Hy[i][j][k]+1);
+                    assert(timestep_Ez[i][j][k] == timestep_Hy[i][j][k]+1);
+                }
+                timestep_Hy[i][j][k] = timestep_Hy[i][j][k] + 1;
+
+                if(i < xmax - 1 && j < ymax - 1){
                     Hz_(i, j, k) = (updatecoeffsH_(materialHz, 0) * Hz_(i, j, k) -
                                     updatecoeffsH_(materialHz, 1) * (Ey_(i + 1, j, k) - Ey_(i, j, k)) +
                                     updatecoeffsH_(materialHz, 2) * (Ex_(i, j + 1, k) - Ex_(i, j, k)));
+                    assert(timestep_Ey[i+1][j][k] == timestep_Hz[i][j][k]+1);
+                    assert(timestep_Ey[i][j][k] == timestep_Hz[i][j][k]+1);
+                    assert(timestep_Ex[i][j+1][k] == timestep_Hz[i][j][k]+1);
+                    assert(timestep_Ex[i][j][k] == timestep_Hz[i][j][k]+1);
+                }
+                timestep_Hz[i][j][k] = timestep_Hz[i][j][k] + 1;
             }
         }
     }

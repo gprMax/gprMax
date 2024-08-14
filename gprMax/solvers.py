@@ -135,7 +135,7 @@ class XPUSolver:
         self.solvetime = 0
 
         self.grid=grid
-        self.BLT=2
+        self.BLT=1
         self.BLX=6
         self.BLY=6
         self.BLZ=6
@@ -223,9 +223,49 @@ class XPUSolver:
                     num+=1
                 else:
                     return num
+    def store_rx(self, current_timestep):
+        G = self.grid    
+        # Assign iteration and fields to local variables
+        iteration = current_timestep
+        Ex, Ey, Ez, Hx, Hy, Hz = G.Ex, G.Ey, G.Ez, G.Hx, G.Hy, G.Hz
+
+        for rx in G.rxs:
+            for output in rx.outputs:
+                # Store electric or magnetic field components
+                if "I" not in output:
+                    field = locals()[output]
+                    rx.outputs[output][iteration] = field[rx.xcoord, rx.ycoord, rx.zcoord]
+                # Store current component
+                else:
+                    func = globals()[output]
+                    rx.outputs[output][iteration] = func(rx.xcoord, rx.ycoord, rx.zcoord, Hx, Hy, Hz, G)
+
+        for tl in G.transmissionlines:
+            tl.Vtotal[iteration] = tl.voltage[tl.antpos]
+            tl.Itotal[iteration] = tl.current[tl.antpos]
     
+    def store_grid(self, current_timestep):
+        # store to hdf5
+        import h5py
+        f = h5py.File("grid.h5", "a")
+        # add zeros before the timestep number to make it 5 digits long
+        timestep_str = str(current_timestep).zfill(5)
+        group = f.create_group(timestep_str)
+        group.create_dataset("Ex", data=self.grid.Ex)
+        group.create_dataset("Ey", data=self.grid.Ey)
+        group.create_dataset("Ez", data=self.grid.Ez)
+        group.create_dataset("Hx", data=self.grid.Hx)
+        group.create_dataset("Hy", data=self.grid.Hy)
+        group.create_dataset("Hz", data=self.grid.Hz)
+        f.close()
+
+    def store_outputs(self, current_timestep):
+        self.store_rx(current_timestep)
+        self.store_grid(current_timestep)
+
     def solve(self, iterator):
         for tt in range(0, iterator.total, self.BLT):
+            self.store_outputs(tt)
             self.cpp_solver.update(tt)
             iterator.update(self.BLT)
 

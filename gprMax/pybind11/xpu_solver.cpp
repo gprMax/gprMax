@@ -8,14 +8,14 @@ void xpu_solver::update(int timestep) {
                     for (int t = 0; t < BLT; t++) {
                         int current_timestep = timestep + t;
                         auto x_range_E = GetRange(TX_Tile_Shapes[phase], "E", BLT, BLX, t, xx, xmin, xmax);
-                        auto y_range_E = GetRange(TY_Tile_Shapes[phase], "E", BLT, BLX, t, yy, ymin, ymax);
-                        auto z_range_E = GetRange(TZ_Tile_Shapes[phase], "E", BLT, BLX, t, zz, zmin, zmax);
+                        auto y_range_E = GetRange(TY_Tile_Shapes[phase], "E", BLT, BLY, t, yy, ymin, ymax);
+                        auto z_range_E = GetRange(TZ_Tile_Shapes[phase], "E", BLT, BLZ, t, zz, zmin, zmax);
                         update_range_t update_range_E = std::make_tuple(x_range_E, y_range_E, z_range_E);
                         xpu_update_instance.update_electric_tile(current_timestep, update_range_E);
 
                         auto x_range_H = GetRange(TX_Tile_Shapes[phase], "H", BLT, BLX, t, xx, xmin, xmax);
-                        auto y_range_H = GetRange(TY_Tile_Shapes[phase], "H", BLT, BLX, t, yy, ymin, ymax);
-                        auto z_range_H = GetRange(TZ_Tile_Shapes[phase], "H", BLT, BLX, t, zz, zmin, zmax);
+                        auto y_range_H = GetRange(TY_Tile_Shapes[phase], "H", BLT, BLY, t, yy, ymin, ymax);
+                        auto z_range_H = GetRange(TZ_Tile_Shapes[phase], "H", BLT, BLZ, t, zz, zmin, zmax);
                         update_range_t update_range_H = std::make_tuple(x_range_H, y_range_H, z_range_H);
                         xpu_update_instance.update_magnetic_tile(current_timestep, update_range_H);
                     }

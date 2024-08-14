@@ -13,28 +13,28 @@ void xpu_update::update_electric_source(int current_timestep, update_range_t upd
         {
         if(current_timestep * grid_dt >= source_start && current_timestep * grid_dt <= source_stop){
             auto source_waveformvalues_halfdt_ = source_waveformvalues_halfdt.unchecked<1>();
-            auto updatecoeffsH_ = updatecoeffsH.unchecked<2>();
+            auto updatecoeffsE_ = updatecoeffsE.unchecked<2>();
             auto ID_ = ID.unchecked<4>();
-            auto Hx_ = Hx.mutable_unchecked<3>();
-            auto Hy_ = Hy.mutable_unchecked<3>();
-            auto Hz_ = Hz.mutable_unchecked<3>();
+            auto Ex_ = Hx.mutable_unchecked<3>();
+            auto Ey_ = Hy.mutable_unchecked<3>();
+            auto Ez_ = Hz.mutable_unchecked<3>();
             if (source_polarization == "x"){
-                Hx_(source_xcoord, source_ycoord, source_zcoord) -= (
-                    updatecoeffsH_(ID_(source_id, source_xcoord, source_ycoord, source_zcoord), 4)
+                Ex_(source_xcoord, source_ycoord, source_zcoord) -= (
+                    updatecoeffsE_(ID_(source_id, source_xcoord, source_ycoord, source_zcoord), 4)
                     * source_waveformvalues_halfdt_(current_timestep)
                     * (1 / (grid_dx * grid_dy * grid_dz))
                 );
             }
             else if (source_polarization == "y"){
-                Hy_(source_xcoord, source_ycoord, source_zcoord) -= (
-                    updatecoeffsH_(ID_(source_id, source_xcoord, source_ycoord, source_zcoord), 4)
+                Ey_(source_xcoord, source_ycoord, source_zcoord) -= (
+                    updatecoeffsE_(ID_(source_id, source_xcoord, source_ycoord, source_zcoord), 4)
                     * source_waveformvalues_halfdt_(current_timestep)
                     * (1 / (grid_dx * grid_dy * grid_dz))
                 );
             }
             else if (source_polarization == "z"){
-                Hz_(source_xcoord, source_ycoord, source_zcoord) -= (
-                    updatecoeffsH_(ID_(source_id, source_xcoord, source_ycoord, source_zcoord), 4)
+                Ez_(source_xcoord, source_ycoord, source_zcoord) -= (
+                    updatecoeffsE_(ID_(source_id, source_xcoord, source_ycoord, source_zcoord), 4)
                     * source_waveformvalues_halfdt_(current_timestep)
                     * (1 / (grid_dx * grid_dy * grid_dz))
                 );
