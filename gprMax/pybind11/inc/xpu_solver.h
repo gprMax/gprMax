@@ -35,7 +35,7 @@ public:
         
         int source_xcoord, int source_ycoord, int source_zcoord, float source_start, float source_stop,
         py::array_t<float, py::array::c_style | py::array::forcecast> source_waveformvalues_halfdt,
-        float source_dl, int source_id,
+        float source_dl, int source_id, std::string source_polarization,
         float grid_dt, float grid_dx, float grid_dy, float grid_dz
     ) : xpu_update_instance(
             Ex_, Ey_, Ez_, Hx_, Hy_, Hz_, 
@@ -43,7 +43,7 @@ public:
             xmin_, xmax_, ymin_, ymax_, zmin_, zmax_,
             source_xcoord, source_ycoord, source_zcoord, source_start, source_stop,
             source_waveformvalues_halfdt,
-            source_dl, source_id,
+            source_dl, source_id, source_polarization,
             grid_dt, grid_dx, grid_dy, grid_dz
         ),
         BLT(BLT_), BLX(BLX_), BLY(BLY_), BLZ(BLZ_),

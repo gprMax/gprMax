@@ -14,6 +14,7 @@ public:
     py::array_t<float, py::array::c_style | py::array::forcecast> source_waveformvalues_halfdt;
     float source_dl;
     int source_id;
+    std::string source_polarization;
     float grid_dt, grid_dx, grid_dy, grid_dz;
     xpu_update(
         py::array_t<float, py::array::c_style | py::array::forcecast> Ex_, 
@@ -29,7 +30,7 @@ public:
 
         int source_xcoord, int source_ycoord, int source_zcoord, float source_start, float source_stop,
         py::array_t<float, py::array::c_style | py::array::forcecast> source_waveformvalues_halfdt,
-        float source_dl, int source_id,
+        float source_dl, int source_id, std::string source_polarization,
         float grid_dt, float grid_dx, float grid_dy, float grid_dz
     ) 
         : 
@@ -38,7 +39,7 @@ public:
         xmin(xmin_), xmax(xmax_), ymin(ymin_), ymax(ymax_), zmin(zmin_), zmax(zmax_),
         source_xcoord(source_xcoord), source_ycoord(source_ycoord), source_zcoord(source_zcoord), source_start(source_start), source_stop(source_stop),
         source_waveformvalues_halfdt(source_waveformvalues_halfdt),
-        source_dl(source_dl), source_id(source_id),
+        source_dl(source_dl), source_id(source_id), source_polarization(source_polarization),
         grid_dt(grid_dt), grid_dx(grid_dx), grid_dy(grid_dy), grid_dz(grid_dz)
         {}
     void update_electric_tile(int current_timestep, update_range_t update_range){

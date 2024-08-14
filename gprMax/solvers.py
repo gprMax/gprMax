@@ -202,7 +202,7 @@ class XPUSolver:
             self.TX_Tile_Shapes, self.TY_Tile_Shapes, self.TZ_Tile_Shapes,
             source.xcoord, source.ycoord, source.zcoord, source.start, source.stop,
             source.waveformvalues_halfdt,
-            source.dl, source_id,
+            source.dl, source_id, source.polarisation,
             self.grid.dt, self.grid.dx, self.grid.dy, self.grid.dz,
         )
     
