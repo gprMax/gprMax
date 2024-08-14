@@ -52,13 +52,13 @@ store_outputs = {
                                kernel void store_outputs(device const int& NRX,
                                                     device const int& iteration,
                                                     device const int* rxcoords,
-                                                    device $REAL *rxs,
-                                                    device const $REAL* Ex,
-                                                    device const $REAL* Ey,
-                                                    device const $REAL* Ez,
-                                                    device const $REAL* Hx,
-                                                    device const $REAL* Hy,
-                                                    device const $REAL* Hz,
+                                                    device float* rxs,
+                                                    device const float* Ex,
+                                                    device const float* Ey,
+                                                    device const float* Ez,
+                                                    device const float* Hx,
+                                                    device const float* Hy,
+                                                    device const float* Hz,
                                                     uint i [[thread_position_in_grid]])
                                 """
     ),
@@ -84,6 +84,26 @@ store_outputs = {
         rxs[IDX3D_RXS(3,iteration,i)] = Hx[IDX3D_FIELDS(x,y,z)];
         rxs[IDX3D_RXS(4,iteration,i)] = Hy[IDX3D_FIELDS(x,y,z)];
         rxs[IDX3D_RXS(5,iteration,i)] = Hz[IDX3D_FIELDS(x,y,z)];
+    }
+
+    $METAL_IDX
+
+    if (i < NRX) {
+        int x = rxcoords[i * 3 + 0];
+        int y = rxcoords[i * 3 + 1];
+        int z = rxcoords[i * 3 + 2];
+        
+        // Compute indices for the rxs buffer
+        uint rxsIndex = (i * 6 + 0) * 1000 + iteration;
+        uint fieldsIndex = (x + y * 100 + z * 10000); // Adjust based on dimensions
+
+        // Store values in the rxs buffer
+        rxs[rxsIndex + 0] = Ex[fieldsIndex];
+        rxs[rxsIndex + 1] = Ey[fieldsIndex];
+        rxs[rxsIndex + 2] = Ez[fieldsIndex];
+        rxs[rxsIndex + 3] = Hx[fieldsIndex];
+        rxs[rxsIndex + 4] = Hy[fieldsIndex];
+        rxs[rxsIndex + 5] = Hz[fieldsIndex];
     }
 """
     ),

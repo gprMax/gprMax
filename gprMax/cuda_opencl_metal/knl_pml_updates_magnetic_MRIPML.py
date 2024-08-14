@@ -109,7 +109,8 @@ x_args = {
                                     device const float* RB,      
                                     device const float* RE,     
                                     device const float* RF,      
-                                    device const float& d)
+                                    device const float& d,
+                                    uint i [[thread_position_in_grid]])
                     """
     ),
 }
@@ -205,7 +206,8 @@ y_args = {
                                     device const float* RB,     
                                     device const float* RE,      
                                     device const float* RF,    
-                                    device const float& d)
+                                    device const float& d,
+                                    uint i [[thread_position_in_grid]])
                     """
     ),
 }
@@ -301,7 +303,8 @@ z_args = {
                                     device const float* RB,    
                                     device const float* RE,     
                                     device const float* RF,   
-                                    device const float& d)
+                                    device const float& d,
+                                    uint i [[thread_position_in_grid]])
                     """
     ),
 }

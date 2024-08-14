@@ -51,6 +51,23 @@ update_hertzian_dipole = {
                                             __global $REAL *Ez
                                         """
     ),
+    "args_metal": Template(
+        """
+                                        kernel void update_hertzian_dipole(device const int& NHERTZDIPOLE,
+                                            device const int& iteration,
+                                            device const float& dx,
+                                            device const float& dy,
+                                            device const float& dz,
+                                            device const int* srcinfo1,
+                                            device const float* srcinfo2,    
+                                            device const float* srcwaveforms,    
+                                            device const uint* ID,
+                                            device float* Ex,
+                                            device float* Ey,
+                                            device float* Ez,
+                                            uint i [[thread_position_in_grid]])
+                                        """
+    ),
     "func": Template(
         """
     // Updates electric field values for Hertzian dipole sources.
@@ -135,6 +152,23 @@ update_magnetic_dipole = {
                                             __global $REAL *Hz
                                         """
     ),
+    "args_metal": Template(
+        """
+                                        kernel void update_magnetic_dipole(device const int& NMAGDIPOLE,
+                                            device const int& iteration,
+                                            device const float& dx,
+                                            device const float& dy,
+                                            device const float& dz,  
+                                            device const int* srcinfo1,
+                                            device const float* srcinfo2,    
+                                            device const float* srcwaveforms,    
+                                            device const uint* ID,
+                                            device float* Hx,
+                                            device float* Hy,  
+                                            device float* Hz,
+                                            uint i [[thread_position_in_grid]])
+                                        """
+    ),
     "func": Template(
         """
     // Updates electric field values for Hertzian dipole sources.
@@ -215,6 +249,23 @@ update_voltage_source = {
                                             __global $REAL *Ex,
                                             __global $REAL *Ey,
                                             __global $REAL *Ez
+                                        """
+    ),
+    "args_metal": Template(
+        """
+                                        kernel void update_voltage_source(device const int& NVOLTSRC,
+                                            device const int& iteration,
+                                            device const float& dx,
+                                            device const float& dy,
+                                            device const float& dz,  
+                                            device const int* srcinfo1,    
+                                            device const float* srcinfo2,     
+                                            device const float* srcwaveforms,    
+                                            device const uint* ID,    
+                                            device float* Ex,    
+                                            device float* Ey,   
+                                            device float* Ez,
+                                            uint i [[thread_position_in_grid]])
                                         """
     ),
     "func": Template(
