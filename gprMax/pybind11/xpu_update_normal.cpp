@@ -19,6 +19,22 @@ void xpu_update::update_electric_normal(update_range_t update_range){
                     int materialEy = ID_(1, i, j, k);
                     int materialEz = ID_(2, i, j, k);
                     if(j != 0 && k != 0){
+                        // std::cout << "updatecoeffsE_(materialEx, 0): " << updatecoeffsE_(materialEx, 0) << std::endl;
+                        // std::cout << "updatecoeffsE_(materialEx, 2): " << updatecoeffsE_(materialEx, 2) << std::endl;
+                        // std::cout << "updatecoeffsE_(materialEx, 3): " << updatecoeffsE_(materialEx, 3) << std::endl;
+                        // std::cout << "Ex_(i, j, k): " << Ex_(i, j, k) << std::endl;
+                        // std::cout << "Hz_(i, j, k): " << Hz_(i, j, k) << std::endl;
+                        // std::cout << "Hz_(i, j - 1, k): " << Hz_(i, j - 1, k) << std::endl;
+                        // std::cout << "Hy_(i, j, k): " << Hy_(i, j, k) << std::endl;
+                        // std::cout << "Hy_(i, j, k - 1): " << Hy_(i, j, k - 1) << std::endl;
+                        float updatecoeffsE_materialEx_0 = updatecoeffsE_(materialEx, 0);
+                        float updatecoeffsE_materialEx_2 = updatecoeffsE_(materialEx, 2);
+                        float updatecoeffsE_materialEx_3 = updatecoeffsE_(materialEx, 3);
+                        float Ex_i_j_k = Ex_(i, j, k);
+                        float Hz_i_j_k = Hz_(i, j, k);
+                        float Hz_i_j_minus_1_k = Hz_(i, j - 1, k);
+                        float Hy_i_j_k = Hy_(i, j, k);
+                        float Hy_i_j_k_minus_1 = Hy_(i, j, k - 1);
                         Ex_(i, j, k) = (updatecoeffsE_(materialEx, 0) * Ex_(i, j, k) +
                                         updatecoeffsE_(materialEx, 2) * (Hz_(i, j, k) - Hz_(i, j - 1, k)) -
                                         updatecoeffsE_(materialEx, 3) * (Hy_(i, j, k) - Hy_(i, j, k - 1)));
@@ -26,10 +42,27 @@ void xpu_update::update_electric_normal(update_range_t update_range){
                         assert(timestep_Hz[i][j-1][k] == timestep_Ex[i][j][k]);
                         assert(timestep_Hy[i][j][k] == timestep_Ex[i][j][k]);
                         assert(timestep_Hy[i][j][k-1] == timestep_Ex[i][j][k]);
+                        
                     }
                     timestep_Ex[i][j][k] = timestep_Ex[i][j][k] + 1;
 
                     if(i != 0 && k != 0){
+                        // std::cout << "updatecoeffsE_(materialEy, 0): " << updatecoeffsE_(materialEy, 0) << std::endl;
+                        // std::cout << "updatecoeffsE_(materialEy, 3): " << updatecoeffsE_(materialEy, 3) << std::endl;
+                        // std::cout << "updatecoeffsE_(materialEy, 1): " << updatecoeffsE_(materialEy, 1) << std::endl;
+                        // std::cout << "Ey_(i, j, k): " << Ey_(i, j, k) << std::endl;
+                        // std::cout << "Hx_(i, j, k): " << Hx_(i, j, k) << std::endl;
+                        // std::cout << "Hx_(i, j, k - 1): " << Hx_(i, j, k - 1) << std::endl;
+                        // std::cout << "Hz_(i, j, k): " << Hz_(i, j, k) << std::endl;
+                        // std::cout << "Hz_(i - 1, j, k): " << Hz_(i - 1, j, k) << std::endl;
+                        float updatecoeffsE_materialEy_0 = updatecoeffsE_(materialEy, 0);
+                        float updatecoeffsE_materialEy_3 = updatecoeffsE_(materialEy, 3);
+                        float updatecoeffsE_materialEy_1 = updatecoeffsE_(materialEy, 1);
+                        float Ey_i_j_k = Ey_(i, j, k);
+                        float Hx_i_j_k = Hx_(i, j, k);
+                        float Hx_i_j_k_minus_1 = Hx_(i, j, k - 1);
+                        float Hz_i_j_k = Hz_(i, j, k);
+                        float Hz_i_minus_1_j_k = Hz_(i - 1, j, k);
                         Ey_(i, j, k) = (updatecoeffsE_(materialEy, 0) * Ey_(i, j, k) +
                                         updatecoeffsE_(materialEy, 3) * (Hx_(i, j, k) - Hx_(i, j, k - 1)) -
                                         updatecoeffsE_(materialEy, 1) * (Hz_(i, j, k) - Hz_(i - 1, j, k)));
@@ -41,6 +74,23 @@ void xpu_update::update_electric_normal(update_range_t update_range){
                     timestep_Ey[i][j][k] = timestep_Ey[i][j][k] + 1;
 
                     if(i != 0 && j != 0){
+                        // std::cout << "updatecoeffsE_(materialEz, 0): " << updatecoeffsE_(materialEz, 0) << std::endl;
+                        // std::cout << "updatecoeffsE_(materialEz, 1): " << updatecoeffsE_(materialEz, 1) << std::endl;
+                        // std::cout << "updatecoeffsE_(materialEz, 2): " << updatecoeffsE_(materialEz, 2) << std::endl;
+                        // std::cout << "Ez_(i, j, k): " << Ez_(i, j, k) << std::endl;
+                        // std::cout << "Hy_(i, j, k): " << Hy_(i, j, k) << std::endl;
+                        // std::cout << "Hy_(i - 1, j, k): " << Hy_(i - 1, j, k) << std::endl;
+                        // std::cout << "Hx_(i, j, k): " << Hx_(i, j, k) << std::endl;
+                        // std::cout << "Hx_(i, j - 1, k): " << Hx_(i, j - 1, k) << std::endl;
+                        float updatecoeffsE_materialEz_0 = updatecoeffsE_(materialEz, 0);
+                        float updatecoeffsE_materialEz_1 = updatecoeffsE_(materialEz, 1);
+                        float updatecoeffsE_materialEz_2 = updatecoeffsE_(materialEz, 2);
+                        float Ez_i_j_k = Ez_(i, j, k);
+                        float Hy_i_j_k = Hy_(i, j, k);
+                        float Hy_i_minus_1_j_k = Hy_(i - 1, j, k);
+                        float Hx_i_j_k = Hx_(i, j, k);
+                        float Hx_i_j_minus_1_k = Hx_(i, j - 1, k);
+                        
                         Ez_(i, j, k) = (updatecoeffsE_(materialEz, 0) * Ez_(i, j, k) +
                                         updatecoeffsE_(materialEz, 1) * (Hy_(i, j, k) - Hy_(i - 1, j, k)) -
                                         updatecoeffsE_(materialEz, 2) * (Hx_(i, j, k) - Hx_(i, j - 1, k)));

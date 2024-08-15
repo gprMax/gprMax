@@ -132,6 +132,10 @@ class Solver:
 class XPUSolver:
     def __init__(self, grid):
 
+        import os
+        if os.path.exists("grid.h5"):
+            os.remove("grid.h5")
+
         self.solvetime = 0
 
         self.grid=grid
