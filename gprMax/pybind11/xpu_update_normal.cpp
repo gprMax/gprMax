@@ -1,14 +1,14 @@
 #include "inc/xpu_update.h"
 
 void xpu_update::update_electric_normal(update_range_t update_range){
-    auto updatecoeffsE_ = updatecoeffsE.unchecked<2>();
-    auto ID_ = ID.unchecked<4>();
-    auto Ex_ = Ex.mutable_unchecked<3>();
-    auto Ey_ = Ey.mutable_unchecked<3>();
-    auto Ez_ = Ez.mutable_unchecked<3>();
-    auto Hx_ = Hx.unchecked<3>();
-    auto Hy_ = Hy.unchecked<3>();
-    auto Hz_ = Hz.unchecked<3>();
+    // auto updatecoeffsE_ = updatecoeffsE.unchecked<2>();
+    // auto ID_ = ID.unchecked<4>();
+    // auto Ex_ = Ex.mutable_unchecked<3>();
+    // auto Ey_ = Ey.mutable_unchecked<3>();
+    // auto Ez_ = Ez.mutable_unchecked<3>();
+    // auto Hx_ = Hx.unchecked<3>();
+    // auto Hy_ = Hy.unchecked<3>();
+    // auto Hz_ = Hz.unchecked<3>();
     auto x_range = std::get<0>(update_range);
     auto y_range = std::get<1>(update_range);
     auto z_range = std::get<2>(update_range);
@@ -106,14 +106,14 @@ void xpu_update::update_electric_normal(update_range_t update_range){
 }
 
 void xpu_update::update_magnetic_normal(update_range_t update_range){
-    auto updatecoeffsH_ = updatecoeffsH.unchecked<2>();
-    auto ID_ = ID.unchecked<4>();
-    auto Ex_ = Ex.unchecked<3>();
-    auto Ey_ = Ey.unchecked<3>();
-    auto Ez_ = Ez.unchecked<3>();
-    auto Hx_ = Hx.mutable_unchecked<3>();
-    auto Hy_ = Hy.mutable_unchecked<3>();
-    auto Hz_ = Hz.mutable_unchecked<3>();
+    // auto updatecoeffsH_ = updatecoeffsH.unchecked<2>();
+    // auto ID_ = ID.unchecked<4>();
+    // auto Ex_ = Ex.unchecked<3>();
+    // auto Ey_ = Ey.unchecked<3>();
+    // auto Ez_ = Ez.unchecked<3>();
+    // auto Hx_ = Hx.mutable_unchecked<3>();
+    // auto Hy_ = Hy.mutable_unchecked<3>();
+    // auto Hz_ = Hz.mutable_unchecked<3>();
     auto x_range = std::get<0>(update_range);
     auto y_range = std::get<1>(update_range);
     auto z_range = std::get<2>(update_range);
