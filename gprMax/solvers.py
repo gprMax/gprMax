@@ -265,7 +265,7 @@ class XPUSolver:
 
     def store_outputs(self, current_timestep):
         self.store_rx(current_timestep)
-        self.store_grid(current_timestep)
+        # self.store_grid(current_timestep)
 
     def solve(self, iterator):
         for tt in range(0, iterator.total, self.BLT):
