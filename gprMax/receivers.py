@@ -17,9 +17,7 @@
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-
 import gprMax.config as config
-
 
 class Rx:
     """Receiver output points."""
@@ -38,7 +36,6 @@ class Rx:
         self.ycoordorigin = None
         self.zcoordorigin = None
 
-
 def htod_rx_arrays(G, queue=None, dev=None):
     """Initialise arrays on compute device for receiver coordinates and to store field
         components for receivers.
@@ -49,9 +46,8 @@ def htod_rx_arrays(G, queue=None, dev=None):
         dev: Apple Metal device object.
 
     Returns:
-        rxcoords_dev: int array of receiver coordinates on compute device.
-        rxs_dev: float array of receiver data on compute device - rows are field
-                    components; columns are iterations; pages are receivers.
+        rxcoords_dev: MTLBuffer for receiver coordinates on compute device.
+        rxs_dev: MTLBuffer for receiver data on compute device.
     """
 
     # Array to store receiver coordinates on compute device
@@ -81,31 +77,65 @@ def htod_rx_arrays(G, queue=None, dev=None):
         rxs_dev = clarray.to_device(queue, rxs)
 
     elif config.sim_config.general["solver"] == "metal":
+        # Create Metal buffers for receiver coordinates and field components
         rxcoords_dev = dev.newBufferWithBytes_length_options_(rxcoords, 
                                                               rxcoords.nbytes, 
-                                                              G.storage)
+                                                              0)  # 0 for default options
         rxs_dev = dev.newBufferWithBytes_length_options_(rxs, 
                                                          rxs.nbytes, 
-                                                         G.storage)
+                                                         0)  # 0 for default options
 
     return rxcoords_dev, rxs_dev
 
-
-def dtoh_rx_array(rxs_dev, rxcoords_dev, G):
-    """Copy output from receivers array used on compute device back to receiver
-        objects.
+def dtoh_rx_array(rxs_dev, rxcoords_dev, G, dev):
+    """Copy output from receivers array used on compute device back to receiver objects.
 
     Args:
-        rxs_dev: float array of receiver data on compute device - rows are field
-                    components; columns are iterations; pages are receivers.
-        rxcoords_dev: int array of receiver coordinates on compute device.
+        rxs_dev: MTLBuffer for receiver data on compute device - rows are field components; columns are iterations; pages are receivers.
+        rxcoords_dev: MTLBuffer for receiver coordinates on compute device.
         G: FDTDGrid class describing a grid in a model.
-
+        dev: Apple Metal device object.
     """
 
     if config.sim_config.general["solver"] == "metal":
-        pass
+        # Create NumPy arrays to hold the data
+        rxcoords_np = np.empty_like(np.zeros((len(G.rxs), 3), dtype=np.int32))
+        rxs_np = np.empty_like(np.zeros(
+            (len(Rx.allowableoutputs_dev), G.iterations, len(G.rxs)), dtype=config.sim_config.dtypes["float_or_double"]
+        ))
 
+        # Create a Metal command queue
+        command_queue = dev.newCommandQueue()
+
+        # Create a command buffer
+        command_buffer = command_queue.commandBuffer()
+
+        # Create a blit encoder
+        blit_encoder = command_buffer.blitCommandEncoder()
+
+        # Copy data from Metal buffers to NumPy arrays
+        blit_encoder.copyFromBuffer_sourceOffset_toBuffer_destinationOffset_size_(rxcoords_dev, 
+                                                                                  0, 
+                                                                                  rxcoords_np.data, 
+                                                                                  0, 
+                                                                                  rxcoords_np.nbytes)
+        blit_encoder.copyFromBuffer_sourceOffset_toBuffer_destinationOffset_size_(rxs_dev, 
+                                                                                  0, 
+                                                                                  rxs_np.data, 
+                                                                                  0, 
+                                                                                  rxs_np.nbytes)
+        blit_encoder.endEncoding()
+        command_buffer.commit()
+        command_buffer.waitUntilCompleted()
+
+        # Release Metal resources (make sure these methods exist in your Metal API wrapper)
+        blit_encoder.release()
+        command_buffer.release()
+        command_queue.release()
+
+        # Use the data in NumPy arrays
+        rxcoords_dev = rxcoords_np
+        rxs_dev = rxs_np
     else:
         rxs_dev = rxs_dev.get()
         rxcoords_dev = rxcoords_dev.get()

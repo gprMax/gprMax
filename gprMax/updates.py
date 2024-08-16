@@ -1903,7 +1903,7 @@ class MetalUpdates:
         """Copies data from compute device back to CPU to save to file(s)."""
         # Copy output from receivers array back to correct receiver objects
         if self.grid.rxs:
-            dtoh_rx_array(self.rxs_dev, self.rxcoords_dev, self.grid)
+            dtoh_rx_array(self.rxs_dev, self.rxcoords_dev, self.grid, self.dev)
 
         # Copy data from any snapshots back to correct snapshot objects
         if self.grid.snapshots and not config.get_model_config().device["snapsgpu2cpu"]:
