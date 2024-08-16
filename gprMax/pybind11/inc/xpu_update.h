@@ -20,7 +20,6 @@ public:
     int source_id;
     std::string source_polarization;
     float grid_dt, grid_dx, grid_dy, grid_dz;
-    // std::vector<std::vector<std::vector<int>>> timestep_Ex, timestep_Ey, timestep_Ez, timestep_Hx, timestep_Hy, timestep_Hz;
     xpu_update(
         py::array_t<float, py::array::c_style | py::array::forcecast> Ex, 
         py::array_t<float, py::array::c_style | py::array::forcecast> Ey, 
@@ -51,17 +50,7 @@ public:
         source_dl(source_dl), source_id(source_id), source_polarization(source_polarization),
         source_waveformvalues_halfdt_(source_waveformvalues_halfdt.unchecked<1>()),
         grid_dt(grid_dt), grid_dx(grid_dx), grid_dy(grid_dy), grid_dz(grid_dz)
-        {
-            // timestep_Ex = std::vector<std::vector<std::vector<int>>>(xmax-xmin, std::vector<std::vector<int>>(ymax-ymin, std::vector<int>(zmax-zmin, 0))); 
-            // timestep_Ey = std::vector<std::vector<std::vector<int>>>(xmax-xmin, std::vector<std::vector<int>>(ymax-ymin, std::vector<int>(zmax-zmin, 0)));
-            // timestep_Ez = std::vector<std::vector<std::vector<int>>>(xmax-xmin, std::vector<std::vector<int>>(ymax-ymin, std::vector<int>(zmax-zmin, 0)));
-            // timestep_Hx = std::vector<std::vector<std::vector<int>>>(xmax-xmin, std::vector<std::vector<int>>(ymax-ymin, std::vector<int>(zmax-zmin, 0)));
-            // timestep_Hy = std::vector<std::vector<std::vector<int>>>(xmax-xmin, std::vector<std::vector<int>>(ymax-ymin, std::vector<int>(zmax-zmin, 0)));
-            // timestep_Hz = std::vector<std::vector<std::vector<int>>>(xmax-xmin, std::vector<std::vector<int>>(ymax-ymin, std::vector<int>(zmax-zmin, 0)));
-            // Ex_ = Ex.mutable_unchecked<3>();
-            // Ey_ = Ey.mutable_unchecked<3>();
-            // Ez_ = Ez.mutable_unchecked<3>();
-        }
+        {}
     void update_electric_tile(int current_timestep, update_range_t update_range){
         update_electric_normal(update_range);
         update_electric_source(current_timestep, update_range);
