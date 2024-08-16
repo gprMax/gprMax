@@ -128,7 +128,7 @@ def dtoh_rx_array(rxs_dev, rxcoords_dev, G, dev):
         command_buffer.commit()
         command_buffer.waitUntilCompleted()
 
-        # Release Metal resources (make sure these methods exist in your Metal API wrapper)
+        # Release Metal resources 
         blit_encoder.release()
         command_buffer.release()
         command_queue.release()
