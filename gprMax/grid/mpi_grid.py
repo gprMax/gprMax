@@ -24,7 +24,7 @@ from typing import List, Optional, Tuple, TypeVar, Union
 import numpy as np
 import numpy.typing as npt
 from mpi4py import MPI
-from numpy import ndarray
+from numpy import empty, ndarray
 
 from gprMax import config
 from gprMax.cython.pml_build import pml_sum_er_mr
@@ -115,11 +115,31 @@ class MPIGrid(FDTDGrid):
         self.size[Dim.Z] = value
 
     def is_coordinator(self) -> bool:
+        """Test if the current rank is the coordinator.
+
+        Returns:
+            is_coordinator: True if `self.rank` equals
+                `self.COORDINATOR_RANK`.
+        """
         return self.rank == self.COORDINATOR_RANK
 
-    def get_grid_coord_from_coordinate(self, coord: npt.NDArray) -> npt.NDArray[np.intc]:
+    def get_grid_coord_from_coordinate(self, coord: npt.NDArray[np.intc]) -> npt.NDArray[np.intc]:
+        """Get the MPI grid coordinate for a global grid coordinate.
+
+        Args:
+            coord: Global grid coordinate.
+
+        Returns:
+            grid_coord: Coordinate of the MPI rank containing the global
+                grid coordinate.
+        """
         step_size = self.global_size // self.mpi_tasks
         overflow = self.global_size % self.mpi_tasks
+
+        # The first n MPI ranks where n is the overflow, will have size
+        # step_size + 1. Additionally, step_size may be zero in some
+        # dimensions (e.g. in the 2D case) so we need to avoid division
+        # by zero.
         return np.where(
             (step_size + 1) * overflow >= coord,
             coord // (step_size + 1),
@@ -127,12 +147,36 @@ class MPIGrid(FDTDGrid):
         )
 
     def get_rank_from_coordinate(self, coord: npt.NDArray) -> int:
+        """Get the MPI rank for a global grid coordinate.
+
+        A coordinate only exists on a single rank (halos are ignored).
+
+        Args:
+            coord: Global grid coordinate.
+
+        Returns:
+            rank: MPI rank containing the global grid coordinate.
+        """
         grid_coord = self.get_grid_coord_from_coordinate(coord)
         return self.comm.Get_cart_rank(grid_coord.tolist())
 
     def get_ranks_between_coordinates(
         self, start_coord: npt.NDArray, stop_coord: npt.NDArray
     ) -> List[int]:
+        """Get the MPI ranks for between two global grid coordinates.
+
+        `stop_coord` must not be less than `start_coord` in any
+        dimension, however it can be equal. The returned ranks will
+        contain coordinates inclusive of both `start_coord` and
+        `stop_coord`.
+
+        Args:
+            start_coord: Starting global grid coordinate.
+            stop_coord: End global grid coordinate.
+
+        Returns:
+            ranks: List of MPI ranks
+        """
         start = self.get_grid_coord_from_coordinate(start_coord)
         stop = self.get_grid_coord_from_coordinate(stop_coord) + 1
         coord_to_rank = lambda c: self.comm.Get_cart_rank((start + c).tolist())
@@ -141,12 +185,45 @@ class MPIGrid(FDTDGrid):
     def global_to_local_coordinate(
         self, global_coord: npt.NDArray[np.intc]
     ) -> npt.NDArray[np.intc]:
+        """Convert a global grid coordinate to a local grid coordinate.
+
+        The returned coordinate will be relative to the current MPI
+        rank's local grid. It may be negative, or greater than the size
+        of the local grid if the point lies outside the local grid.
+
+        Args:
+            global_coord: Global grid coordinate.
+
+        Returns:
+            local_coord: Local grid coordinate
+        """
         return global_coord - self.lower_extent
 
     def local_to_global_coordinate(self, local_coord: npt.NDArray[np.intc]) -> npt.NDArray[np.intc]:
+        """Convert a local grid coordinate to a global grid coordinate.
+
+        Args:
+            local_coord: Local grid coordinate
+
+        Returns:
+            global_coord: Global grid coordinate
+        """
         return local_coord + self.lower_extent
 
     def scatter_coord_objects(self, objects: List[CoordType]) -> List[CoordType]:
+        """Scatter coord objects to the correct MPI rank.
+
+        Coord objects (sources and receivers) are scattered to the MPI
+        rank based on their location in the grid. The receiving MPI rank
+        converts the object locations to its own local grid.
+
+        Args:
+            objects: Coord objects to be scattered.
+
+        Returns:
+            scattered_objects: List of Coord objects belonging to the
+                current MPI rank.
+        """
         if self.is_coordinator():
             objects_by_rank: List[List[CoordType]] = [[] for _ in range(self.comm.size)]
             for o in objects:
@@ -162,6 +239,20 @@ class MPIGrid(FDTDGrid):
         return objects
 
     def gather_coord_objects(self, objects: List[CoordType]) -> List[CoordType]:
+        """Scatter coord objects to the correct MPI rank.
+
+        The sending MPI rank converts the object locations to the global
+        grid. The coord objects (sources and receivers) are all sent to
+        the coordinatoor rank.
+
+        Args:
+            objects: Coord objects to be gathered.
+
+        Returns:
+            gathered_objects: List of gathered coord objects if the
+                current rank is the coordinator. Otherwise, the original
+                list of objects is returned.
+        """
         for o in objects:
             o.coord = self.local_to_global_coordinate(o.coord)
         gathered_objects: Optional[List[List[CoordType]]] = self.comm.gather(
@@ -174,6 +265,13 @@ class MPIGrid(FDTDGrid):
             return objects
 
     def scatter_snapshots(self):
+        """Scatter snapshots to the correct MPI rank.
+
+        Each snapshot is sent by the coordinator to the MPI ranks
+        containing the snapshot. A new communicator is created for each
+        snapshot, and each rank bounds the snapshot to within its own
+        local grid.
+        """
         if self.is_coordinator():
             snapshots_by_rank: List[List[Optional[Snapshot]]] = [[] for _ in range(self.comm.size)]
             for s in self.snapshots:
@@ -184,6 +282,10 @@ class MPIGrid(FDTDGrid):
                     if rank in ranks:
                         snapshots_by_rank[rank].append(s)
                     else:
+                        # All ranks need the same number of 'snapshots'
+                        # (which may be None) to ensure snapshot
+                        # communicators are setup correctly and to avoid
+                        # deadlock.
                         snapshots_by_rank[rank].append(None)
         else:
             snapshots_by_rank = None
@@ -218,6 +320,20 @@ class MPIGrid(FDTDGrid):
         self.snapshots = [s for s in snapshots if s is not None]
 
     def scatter_3d_array(self, array: npt.NDArray) -> npt.NDArray:
+        """Scatter a 3D array to each MPI rank
+
+        Use to distribute a 3D array across MPI ranks. Each rank will
+        receive its own segment of the array including a negative halo,
+        but NOT a positive halo.
+
+        Args:
+            array: Array to be scattered
+
+        Returns:
+            scattered_array: Local extent of the array for the current
+                MPI rank.
+        """
+        # TODO: Use Scatter instead of Bcast
         self.comm.Bcast(array, root=self.COORDINATOR_RANK)
 
         return array[
@@ -227,6 +343,21 @@ class MPIGrid(FDTDGrid):
         ].copy(order="C")
 
     def scatter_4d_array(self, array: npt.NDArray) -> npt.NDArray:
+        """Scatter a 4D array to each MPI rank
+
+        Use to distribute a 4D array across MPI ranks. The first
+        dimension is ignored when partitioning the array. Each rank will
+        receive its own segment of the array including a negative halo,
+        but NOT a positive halo.
+
+        Args:
+            array: Array to be scattered
+
+        Returns:
+            scattered_array: Local extent of the array for the current
+                MPI rank.
+        """
+        # TODO: Use Scatter instead of Bcast
         self.comm.Bcast(array, root=self.COORDINATOR_RANK)
 
         return array[
@@ -237,6 +368,21 @@ class MPIGrid(FDTDGrid):
         ].copy(order="C")
 
     def scatter_4d_array_with_positive_halo(self, array: npt.NDArray) -> npt.NDArray:
+        """Scatter a 4D array to each MPI rank
+
+        Use to distribute a 4D array across MPI ranks. The first
+        dimension is ignored when partitioning the array. Each rank will
+        receive its own segment of the array including both a negative
+        and positive halo.
+
+        Args:
+            array: Array to be scattered
+
+        Returns:
+            scattered_array: Local extent of the array for the current
+                MPI rank.
+        """
+        # TODO: Use Scatter instead of Bcast
         self.comm.Bcast(array, root=self.COORDINATOR_RANK)
 
         return array[
@@ -246,7 +392,12 @@ class MPIGrid(FDTDGrid):
             self.lower_extent[Dim.Z] : self.upper_extent[Dim.Z] + 1,
         ].copy(order="C")
 
-    def scatter_grid(self):
+    def distribute_grid(self):
+        """Distribute grid properties and objects to all MPI ranks.
+
+        Global properties/objects are broadcast to all ranks whereas
+        local properties/objects are scattered to the relevant ranks.
+        """
         self.materials = self.comm.bcast(self.materials, root=self.COORDINATOR_RANK)
         self.rxs = self.scatter_coord_objects(self.rxs)
         self.voltagesources = self.scatter_coord_objects(self.voltagesources)
@@ -280,6 +431,8 @@ class MPIGrid(FDTDGrid):
         self.rigidH = self.scatter_4d_array(self.rigidH)
 
     def gather_grid_objects(self):
+        """Gather sources and receivers."""
+
         self.rxs = self.gather_coord_objects(self.rxs)
         self.voltagesources = self.gather_coord_objects(self.voltagesources)
         self.magneticdipoles = self.gather_coord_objects(self.magneticdipoles)
@@ -287,6 +440,7 @@ class MPIGrid(FDTDGrid):
         self.transmissionlines = self.gather_coord_objects(self.transmissionlines)
 
     def initialise_geometry_arrays(self, use_local_size=False):
+        # TODO: Remove this when scatter geometry arrays rather than broadcast
         if use_local_size:
             super().initialise_geometry_arrays()
         else:
@@ -296,6 +450,16 @@ class MPIGrid(FDTDGrid):
             self.ID = np.ones((6, *(self.global_size + 1)), dtype=np.uint32)
 
     def _halo_swap(self, array: ndarray, dim: Dim, dir: Dir):
+        """Perform a halo swap in the specifed dimension and direction.
+
+        If no neighbour exists for the current rank in the specifed
+        dimension and direction, the halo swap is skipped.
+
+        Args:
+            array: Array to perform the halo swap with.
+            dim: Dimension of halo to swap.
+            dir: Direction of halo to swap.
+        """
         neighbour = self.neighbours[dim][dir]
         if neighbour != -1:
             self.comm.Sendrecv(
@@ -309,6 +473,16 @@ class MPIGrid(FDTDGrid):
             )
 
     def _halo_swap_by_dimension(self, array: ndarray, dim: Dim):
+        """Perform halo swaps in the specifed dimension.
+
+        Perform a halo swaps in the positive and negative direction for
+        the specified dimension. The order of the swaps is determined by
+        the current rank's MPI grid coordinate to prevent deadlock.
+
+        Args:
+            array: Array to perform the halo swaps with.
+            dim: Dimension of halos to swap.
+        """
         if self.coords[dim] % 2 == 0:
             self._halo_swap(array, dim, Dir.NEG)
             self._halo_swap(array, dim, Dir.POS)
@@ -317,21 +491,36 @@ class MPIGrid(FDTDGrid):
             self._halo_swap(array, dim, Dir.NEG)
 
     def _halo_swap_array(self, array: ndarray):
+        """Perform halo swaps for the specified array.
+
+        Args:
+            array: Array to perform the halo swaps with.
+        """
         self._halo_swap_by_dimension(array, Dim.X)
         self._halo_swap_by_dimension(array, Dim.Y)
         self._halo_swap_by_dimension(array, Dim.Z)
 
     def halo_swap_electric(self):
+        """Perform halo swaps for electric field arrays."""
+
         self._halo_swap_array(self.Ex)
         self._halo_swap_array(self.Ey)
         self._halo_swap_array(self.Ez)
 
     def halo_swap_magnetic(self):
+        """Perform halo swaps for magnetic field arrays."""
+
         self._halo_swap_array(self.Hx)
         self._halo_swap_array(self.Hy)
         self._halo_swap_array(self.Hz)
 
     def _construct_pml(self, pml_ID: str, thickness: int) -> MPIPML:
+        """Build instance of MPIPML and set the MPI communicator.
+
+        Args:
+            pml_ID: Identifier of PML slab.
+            thickness: Thickness of PML slab in cells.
+        """
         pml = super()._construct_pml(pml_ID, thickness, MPIPML)
         if pml.ID[0] == "x":
             pml.comm = self.x_comm
@@ -344,6 +533,15 @@ class MPIGrid(FDTDGrid):
         return pml
 
     def _calculate_average_pml_material_properties(self, pml: MPIPML) -> Tuple[float, float]:
+        """Calculate average material properties for the provided PML.
+
+        Args:
+            pml: PML to calculate the properties of.
+
+        Returns:
+            averageer, averagemr: Average permittivity and permeability
+                in the PML slab.
+        """
         # Arrays to hold values of permittivity and permeability (avoids
         # accessing Material class in Cython.)
         ers = np.zeros(len(self.materials))
@@ -387,15 +585,19 @@ class MPIGrid(FDTDGrid):
         return averageer, averagemr
 
     def build(self):
+        """Set local properties and objects, then build the grid."""
+
         if any(self.global_size + 1 < self.mpi_tasks):
             logger.error(
-                f"Too many MPI tasks requested ({self.mpi_tasks}) for grid of size {self.global_size + 1}. Make sure the number of MPI tasks in each dimension is less than the size of the grid."
+                f"Too many MPI tasks requested ({self.mpi_tasks}) for grid of size"
+                f" {self.global_size + 1}. Make sure the number of MPI tasks in each dimension is"
+                " less than the size of the grid."
             )
             raise ValueError
 
         self.calculate_local_extents()
         self.set_halo_map()
-        self.scatter_grid()
+        self.distribute_grid()
 
         # TODO: Check PML is not thicker than the grid size
 
@@ -414,9 +616,20 @@ class MPIGrid(FDTDGrid):
         super().build()
 
     def has_neighbour(self, dim: Dim, dir: Dir) -> bool:
+        """Test if the current rank has a specified neighbour.
+
+        Args:
+            dim: Dimension of neighbour.
+            dir: Direction of neighbour.
+        Returns:
+            has_neighbour: True if the current rank has a neighbour in
+                the specified dimension and direction.
+        """
         return self.neighbours[dim][dir] != -1
 
     def set_halo_map(self):
+        """Create MPI DataTypes for field array halo exchanges."""
+
         size = (self.size + 1).tolist()
 
         for dim in Dim:
@@ -443,6 +656,8 @@ class MPIGrid(FDTDGrid):
                 self.recv_halo_map[dim][Dir.POS].Commit()
 
     def calculate_local_extents(self):
+        """Calculate size and extents of the local grid"""
+
         self.size = self.global_size // self.mpi_tasks
         overflow = self.global_size % self.mpi_tasks
 
@@ -465,5 +680,6 @@ class MPIGrid(FDTDGrid):
         self.upper_extent = self.lower_extent + self.size
 
         logger.debug(
-            f"Grid size: {self.size}, Lower extent: {self.lower_extent}, Upper extent: {self.upper_extent}"
+            f"Local grid size: {self.size}, Lower extent: {self.lower_extent}, Upper extent:"
+            f" {self.upper_extent}"
         )

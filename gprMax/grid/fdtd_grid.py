@@ -138,6 +138,8 @@ class FDTDGrid:
         self.dl[2] = value
 
     def build(self) -> None:
+        """Build the grid."""
+
         # Set default CFS parameter for PMLs if not user provided
         if not self.pmls["cfs"]:
             self.pmls["cfs"] = [CFS()]
@@ -158,6 +160,8 @@ class FDTDGrid:
         self._build_materials()
 
     def _build_pmls(self) -> None:
+        """Construct and calculate material properties of the PMLs."""
+
         pbar = tqdm(
             total=sum(1 for value in self.pmls["thickness"].values() if value > 0),
             desc=f"Building PML boundaries [{self.name}]",
@@ -170,7 +174,8 @@ class FDTDGrid:
                 pml = self._construct_pml(pml_id, thickness)
                 averageer, averagemr = self._calculate_average_pml_material_properties(pml)
                 logger.debug(
-                    f"PML {pml.ID}: Average permittivity = {averageer}, Average permeability = {averagemr}"
+                    f"PML {pml.ID}: Average permittivity = {averageer}, Average permeability ="
+                    f" {averagemr}"
                 )
                 pml.calculate_update_coeffs(averageer, averagemr)
                 self.pmls["slabs"].append(pml)
@@ -180,14 +185,15 @@ class FDTDGrid:
     PmlType = TypeVar("PmlType", bound=PML)
 
     def _construct_pml(self, pml_ID: str, thickness: int, pml_type: type[PmlType] = PML) -> PmlType:
-        """Builds instances of the PML and calculates the initial parameters and
-            coefficients including setting profile (based on underlying material
-            er and mr from solid array).
+        """Build PML instance of the specified ID, thickness and type.
+
+        Constructs a PML of the specified type and thickness. Properties
+        of the PML are set based on the provided identifier.
 
         Args:
-            G: FDTDGrid class describing a grid in a model.
-            pml_ID: string identifier of PML slab.
-            thickness: int with thickness of PML slab in cells.
+            pml_ID: Identifier of PML slab.
+            thickness: Thickness of PML slab in cells.
+            pml_type: PML class to construct.
         """
         if pml_ID == "x0":
             pml = pml_type(
@@ -267,6 +273,15 @@ class FDTDGrid:
         return pml
 
     def _calculate_average_pml_material_properties(self, pml: PML) -> Tuple[float, float]:
+        """Calculate average material properties for the provided PML.
+
+        Args:
+            pml: PML to calculate the properties of.
+
+        Returns:
+            averageer, averagemr: Average permittivity and permeability
+                in the PML slab.
+        """
         # Arrays to hold values of permittivity and permeability (avoids accessing
         # Material class in Cython.)
         ers = np.zeros(len(self.materials))
@@ -294,8 +309,11 @@ class FDTDGrid:
         return pml_average_er_mr(n1, n2, config.get_model_config().ompthreads, solid, ers, mrs)
 
     def _build_components(self) -> None:
-        # Build the model, i.e. set the material properties (ID) for every edge
-        # of every Yee cell
+        """Build electric and magnetic components of the grid.
+
+        Set the material properties (stored in the ID array) for every
+        edge of every Yee cell.
+        """
         pbar = tqdm(
             total=2,
             desc=f"Building Yee cells [{self.name}]",
@@ -310,6 +328,7 @@ class FDTDGrid:
         pbar.close()
 
     def _tm_grid_update(self) -> None:
+        """Add PEC boundaries to invariant if in 2D mode."""
         if config.get_model_config().mode == "2D TMx":
             self.tmx()
         elif config.get_model_config().mode == "2D TMy":
@@ -318,14 +337,21 @@ class FDTDGrid:
             self.tmz()
 
     def _create_voltage_source_materials(self):
+        """Create materials for voltage sources.
+
+        Process any voltage sources (that have resistance) to create a
+        new material at the source location.
+        """
         # Process any voltage sources (that have resistance) to create a new
         # material at the source location
         for voltagesource in self.voltagesources:
             voltagesource.create_material(self)
 
     def _build_materials(self) -> None:
-        # Process complete list of materials - calculate update coefficients,
-        # store in arrays, and build text list of materials/properties
+        """Calculate properties of materials in the grid.
+
+        Log a summary of the material properties.
+        """
         materialsdata = process_materials(self)
         # materialstable = SingleTable(materialsdata)
         materialstable = AsciiTable(materialsdata)
@@ -338,6 +364,17 @@ class FDTDGrid:
     def _update_positions(
         self, items: Iterable[Union[Source, Rx]], step_size: List[int], step_number: int
     ) -> None:
+        """Update the grid positions of the provided items.
+
+        Args:
+            items: Sources and receivers to update.
+            step_size: Number of grid cells to move the items each step.
+            step_number: Number of steps to move the items by.
+
+        Raises:
+            ValueError: Raised if any of the items would be stepped
+                outside of the grid.
+        """
         if step_size[0] != 0 or step_size[1] != 0 or step_size[2] != 0:
             for item in items:
                 if step_number == 0:
@@ -355,6 +392,20 @@ class FDTDGrid:
                 item.zcoord = item.zcoordorigin + step_number * step_size[2]
 
     def update_simple_source_positions(self, step_size: List[int], step: int = 0) -> None:
+        """Update the positions of sources in the grid.
+
+        Move hertzian dipole and magnetic dipole sources. Transmission
+        line sources and voltage sources will not be moved.
+
+        Args:
+            step_size: Number of grid cells to move the sources each
+                step.
+            step: Number of steps to move the sources by.
+
+        Raises:
+            ValueError: Raised if any of the sources would be stepped
+                outside of the grid.
+        """
         try:
             self._update_positions(
                 itertools.chain(self.hertziandipoles, self.magneticdipoles), step_size, step
@@ -364,13 +415,35 @@ class FDTDGrid:
             raise ValueError from e
 
     def update_receiver_positions(self, step_size: List[int], step: int = 0) -> None:
+        """Update the positions of receivers in the grid.
+
+        Args:
+            step_size: Number of grid cells to move the receivers each
+                step.
+            step: Number of steps to move the receivers by.
+
+        Raises:
+            ValueError: Raised if any of the receivers would be stepped
+                outside of the grid.
+        """
         try:
             self._update_positions(self.rxs, step_size, step)
         except ValueError as e:
             logger.exception("Receiver(s) will be stepped to a position outside the domain.")
             raise ValueError from e
 
-    def within_bounds(self, p):
+    IntPoint = Tuple[int, int, int]
+    FloatPoint = Tuple[float, float, float]
+
+    def within_bounds(self, p: IntPoint):
+        """Check a point is within the grid.
+
+        Args:
+            p: Point to check.
+
+        Raises:
+            ValueError: Raised if the point is outside the grid.
+        """
         if p[0] < 0 or p[0] > self.nx:
             raise ValueError("x")
         if p[1] < 0 or p[1] > self.ny:
@@ -378,39 +451,71 @@ class FDTDGrid:
         if p[2] < 0 or p[2] > self.nz:
             raise ValueError("z")
 
-    def discretise_point(self, p):
+    def discretise_point(self, p: FloatPoint) -> IntPoint:
+        """Calculate the nearest grid cell to the given point.
+
+        Args:
+            p: Point to discretise.
+
+        Returns:
+            x, y, z: Discretised point.
+        """
         x = round_value(float(p[0]) / self.dx)
         y = round_value(float(p[1]) / self.dy)
         z = round_value(float(p[2]) / self.dz)
         return (x, y, z)
 
-    def round_to_grid(self, p):
+    def round_to_grid(self, p: FloatPoint) -> FloatPoint:
+        """Round the provided point to the nearest grid cell.
+
+        Args:
+            p: Point to round.
+
+        Returns:
+            p_r: Rounded point.
+        """
         p = self.discretise_point(p)
         p_r = (p[0] * self.dx, p[1] * self.dy, p[2] * self.dz)
         return p_r
 
-    def within_pml(self, p):
-        if (
+    def within_pml(self, p: IntPoint) -> bool:
+        """Check if the provided point is within a PML.
+
+        Args:
+            p: Point to check.
+
+        Returns:
+            within_pml: True if the point is within a PML.
+        """
+        return (
             p[0] < self.pmls["thickness"]["x0"]
             or p[0] > self.nx - self.pmls["thickness"]["xmax"]
             or p[1] < self.pmls["thickness"]["y0"]
             or p[1] > self.ny - self.pmls["thickness"]["ymax"]
             or p[2] < self.pmls["thickness"]["z0"]
             or p[2] > self.nz - self.pmls["thickness"]["zmax"]
-        ):
-            return True
-        else:
-            return False
+        )
 
     def get_waveform_by_id(self, waveform_id: str) -> Waveform:
+        """Get waveform with the specified ID.
+
+        Args:
+            waveform_id: ID of the waveform.
+
+        Returns:
+            waveform: Requested waveform
+        """
         return next(waveform for waveform in self.waveforms if waveform.ID == waveform_id)
 
     def initialise_geometry_arrays(self):
-        """Initialise an array for volumetric material IDs (solid);
-            boolean arrays for specifying whether materials can have dielectric
-            smoothing (rigid); and an array for cell edge IDs (ID).
-        Solid and ID arrays are initialised to free_space (one);
-            rigid arrays to allow dielectric smoothing (zero).
+        """Initialise arrays to store geometry properties.
+
+        Initialise an array for volumetric material IDs (solid); boolean
+        arrays for specifying whether materials can have dielectric
+        smoothing (rigid); and an array for cell edge IDs (ID).
+
+        Solid and ID arrays are initialised to free_space (one); rigid
+        arrays to allow dielectric smoothing (zero).
         """
         self.solid = np.ones((self.nx, self.ny, self.nz), dtype=np.uint32)
         self.rigidE = np.zeros((12, self.nx, self.ny, self.nz), dtype=np.int8)
@@ -566,8 +671,10 @@ class FDTDGrid:
         return mem_use
 
     def mem_est_fractals(self):
-        """Estimates the amount of memory (RAM) required to build any objects
-            which use the FractalVolume/FractalSurface classes.
+        """Calculate the memory required to build fractal objects.
+
+        Estimates the amount of memory (RAM) required to build any
+        objects which use the FractalVolume/FractalSurface classes.
 
         Returns:
             mem_use: int of memory (bytes).
@@ -693,20 +800,23 @@ class FDTDGrid:
         return Iz
 
     def dispersion_analysis(self, iterations: int):
-        # Check to see if numerical dispersion might be a problem
+        """Check to see if numerical dispersion might be a problem.
+
+        Raises:
+            ValueError: Raised if a problem is encountered.
+        """
         results = self._dispersion_analysis(iterations)
         if results["error"]:
             logger.warning(
-                f"Numerical dispersion analysis [{self.name}] "
-                f"not carried out as {results['error']}"
+                f"Numerical dispersion analysis [{self.name}] not carried out as {results['error']}"
             )
         elif results["N"] < config.get_model_config().numdispersion["mingridsampling"]:
             logger.exception(
                 f"\nNon-physical wave propagation in [{self.name}] "
                 f"detected. Material '{results['material'].ID}' "
                 f"has wavelength sampled by {results['N']} cells, "
-                f"less than required minimum for physical wave "
-                f"propagation. Maximum significant frequency "
+                "less than required minimum for physical wave "
+                "propagation. Maximum significant frequency "
                 f"estimated as {results['maxfreq']:g}Hz"
             )
             raise ValueError
@@ -717,29 +827,31 @@ class FDTDGrid:
         ):
             logger.warning(
                 f"[{self.name}] has potentially significant "
-                f"numerical dispersion. Estimated largest physical "
+                "numerical dispersion. Estimated largest physical "
                 f"phase-velocity error is {results['deltavp']:.2f}% "
                 f"in material '{results['material'].ID}' whose "
                 f"wavelength sampled by {results['N']} cells. "
-                f"Maximum significant frequency estimated as "
+                "Maximum significant frequency estimated as "
                 f"{results['maxfreq']:g}Hz\n"
             )
         elif results["deltavp"]:
             logger.info(
                 f"Numerical dispersion analysis [{self.name}]: "
-                f"estimated largest physical phase-velocity error is "
+                "estimated largest physical phase-velocity error is "
                 f"{results['deltavp']:.2f}% in material '{results['material'].ID}' "
                 f"whose wavelength sampled by {results['N']} cells. "
-                f"Maximum significant frequency estimated as "
+                "Maximum significant frequency estimated as "
                 f"{results['maxfreq']:g}Hz\n"
             )
 
-    def _dispersion_analysis(self, iterations: int):
-        """Analysis of numerical dispersion (Taflove et al, 2005, p112) -
-            worse case of maximum frequency and minimum wavelength
+    def _dispersion_analysis(self, iterations: int) -> dict[str, Any]:
+        """Run dispersion analysis.
+
+        Analysis of numerical dispersion (Taflove et al, 2005, p112) -
+        worse case of maximum frequency and minimum wavelength.
 
         Args:
-            G: FDTDGrid class describing a grid in a model.
+            iterations: Number of iterations the model will run for.
 
         Returns:
             results: dict of results from dispersion analysis.
@@ -768,8 +880,9 @@ class FDTDGrid:
                     # Time to analyse waveform - 4*pulse_width as using entire
                     # time window can result in demanding FFT
                     waveform.calculate_coefficients()
-                    iterations = round_value(4 * waveform.chi / self.dt)
-                    iterations = min(iterations, iterations)
+                    # TODO: Check max_iterations should be calculated (original code didn't go on to use it)
+                    max_iterations = round_value(4 * waveform.chi / self.dt)
+                    iterations = min(iterations, max_iterations)
                     waveformvalues = np.zeros(iterations)
                     for iteration in range(iterations):
                         waveformvalues[iteration] = waveform.calculate_value(
