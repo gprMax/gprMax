@@ -152,7 +152,7 @@ class Context:
     def print_sim_time_taken(self) -> None:
         """Prints the total simulation time based on context."""
         s = (
-            f"=== Simulation completed in "
+            "=== Simulation completed in "
             f"{humanize.precisedelta(datetime.timedelta(seconds=self.sim_end_time - self.sim_start_time), format='%0.4f')}"
         )
         logger.basic(f"{s} {'=' * (get_terminal_width() - 1 - len(s))}\n")
@@ -169,20 +169,16 @@ class MPIContext(Context):
         requested_mpi_size = np.product(config.sim_config.mpi)
         if self.comm.size < requested_mpi_size:
             logger.error(
-                (
-                    f"MPI_COMM_WORLD size of {self.comm.size} is too small for requested dimensions of"
-                    f" {config.sim_config.mpi}. {requested_mpi_size} ranks are required."
-                )
+                f"MPI_COMM_WORLD size of {self.comm.size} is too small for requested dimensions of"
+                f" {config.sim_config.mpi}. {requested_mpi_size} ranks are required."
             )
             raise ValueError
 
         if self.rank >= requested_mpi_size:
             logger.warn(
-                (
-                    f"Rank {self.rank}: Only {requested_mpi_size} MPI ranks required for the"
-                    " dimensions specified. Either increase your MPI dimension size, or request"
-                    " fewer MPI tasks."
-                )
+                f"Rank {self.rank}: Only {requested_mpi_size} MPI ranks required for the"
+                " dimensions specified. Either increase your MPI dimension size, or request"
+                " fewer MPI tasks."
             )
             exit()
 
