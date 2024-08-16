@@ -451,7 +451,7 @@ class GprMaxMPIRegressionTest(GprMaxRegressionTest):
     def configure_test_run(self):
         """Add MPI specific commandline arguments"""
         self.num_tasks = int(prod(self.mpi_layout))
-        self.extra_executable_opts = ["-mpi", *map(str, self.mpi_layout)]
+        self.extra_executable_opts = ["--mpi", *map(str, self.mpi_layout)]
         super().configure_test_run()
 
     def _get_variant(self) -> str:

@@ -231,13 +231,14 @@ def cli():
     parser.add_argument("-n", default=args_defaults["n"], type=int, help=help_msg["n"])
     parser.add_argument("-i", type=int, help=help_msg["i"])
     parser.add_argument(
-        "-taskfarm",
+        "--taskfarm",
+        "-t",
         action="store_true",
         default=args_defaults["taskfarm"],
         help=help_msg["taskfarm"],
     )
     parser.add_argument(
-        "-mpi",
+        "--mpi",
         type=int,
         action="store",
         nargs=3,
