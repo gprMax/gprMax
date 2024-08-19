@@ -232,6 +232,11 @@ class SimulationConfig:
 
         # Store information about host machine
         self.hostinfo = get_host_info()
+
+        self.xpu_blt = args.blt
+        self.xpu_blx = args.blx
+        self.xpu_bly = args.bly
+        self.xpu_blz = args.blz
         
         #XPU
         if self.args.xpu is not None:

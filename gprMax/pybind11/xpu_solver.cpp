@@ -2,6 +2,7 @@
 
 void xpu_solver::update(int timestep) {
     for (int phase = 0; phase < max_phase; phase++) {
+        // #pragma omp parallel for collapse(2)
         for (int xx = 0; xx < x_ntiles; xx++) {
             for (int yy = 0; yy < y_ntiles; yy++) {
                 for (int zz = 0; zz < z_ntiles; zz++) {
