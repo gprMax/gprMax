@@ -15,7 +15,7 @@ void xpu_update::update_electric_normal(update_range_t update_range){
     }
     for(int i = x_range.first; i < x_range.second; i++){
         for(int j = y_range.first; j < y_range.second; j++){
-            #pragma omp simd
+            // #pragma omp simd
             for(int k = z_range.first; k < z_range.second; k++){
                     int materialEx = ID_(0, i, j, k);
                     int materialEy = ID_(1, i, j, k);
@@ -56,7 +56,7 @@ void xpu_update::update_magnetic_normal(update_range_t update_range){
     }
     for(int i = x_range.first; i < x_range.second; i++){
         for(int j = y_range.first; j < y_range.second; j++){
-            #pragma omp simd
+            // #pragma omp simd
             for(int k = z_range.first; k < z_range.second; k++){
                 int materialHx = ID_(3, i, j, k);
                 int materialHy = ID_(4, i, j, k);
