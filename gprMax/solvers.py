@@ -159,13 +159,13 @@ class XPUSolver:
         self.zmin=0
         self.zmax=self.grid.nz
 
-        self.tx_tiling_type="p"
-        self.ty_tiling_type="p"
-        self.tz_tiling_type="p"
-        self.max_phase=1
-        self.TX_Tile_Shapes=["p"]
-        self.TY_Tile_Shapes=["p"]
-        self.TZ_Tile_Shapes=["p"]
+        # self.tx_tiling_type="p"
+        # self.ty_tiling_type="p"
+        # self.tz_tiling_type="p"
+        # self.max_phase=1
+        # self.TX_Tile_Shapes=["p"]
+        # self.TY_Tile_Shapes=["p"]
+        # self.TZ_Tile_Shapes=["p"]
 
         # self.tx_tiling_type="d"
         # self.ty_tiling_type="p"
@@ -175,13 +175,13 @@ class XPUSolver:
         # self.TY_Tile_Shapes=["p","p"]
         # self.TZ_Tile_Shapes=["p","p"]
 
-        # self.tx_tiling_type="d"
-        # self.ty_tiling_type="d"
-        # self.tz_tiling_type="p"
-        # self.max_phase=4
-        # self.TX_Tile_Shapes=["m","v","m","v"]
-        # self.TY_Tile_Shapes=["m","m","v","v"]
-        # self.TZ_Tile_Shapes=["p","p","p","p"]
+        self.tx_tiling_type="d"
+        self.ty_tiling_type="d"
+        self.tz_tiling_type="p"
+        self.max_phase=4
+        self.TX_Tile_Shapes=["m","v","m","v"]
+        self.TY_Tile_Shapes=["m","m","v","v"]
+        self.TZ_Tile_Shapes=["p","p","p","p"]
 
         # self.tx_tiling_type="d"
         # self.ty_tiling_type="d"
