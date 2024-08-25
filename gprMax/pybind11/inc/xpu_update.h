@@ -3,6 +3,10 @@
 
 #include "common.h"
 
+#define INDEX(i, j, k) ((i) * shape_1 * shape_2 + (j) * shape_2 + (k))
+#define INDEX_ID(n, i, j, k) ((n) * shape_0 * shape_1 * shape_2 + (i) * shape_1 * shape_2 + (j) * shape_2 + (k))
+
+
 class xpu_update {
 public:
     py::array_t<float, py::array::c_style | py::array::forcecast> Ex, Ey, Ez, Hx, Hy, Hz;
@@ -11,6 +15,7 @@ public:
     uint32_t *ID_;
     float *Ex_, *Ey_, *Ez_, *Hx_, *Hy_, *Hz_, *updatecoeffsE_, *updatecoeffsH_;
     std::vector<pybind11::ssize_t> shape;
+    int shape_0, shape_1, shape_2;
     int xmin,xmax,ymin,ymax,zmin,zmax;
     int source_xcoord, source_ycoord, source_zcoord;
     float source_start, source_stop;
@@ -78,6 +83,9 @@ public:
             source_waveformvalues_halfdt_ = static_cast<float *>(source_waveformvalues_halfdt_info.ptr);
 
             shape = ID_info.shape;
+            shape_0 = shape[0];
+            shape_1 = shape[1];
+            shape_2 = shape[2];
         }
     void update_electric_tile(int current_timestep, update_range_t update_range){
         update_electric_normal(update_range);
