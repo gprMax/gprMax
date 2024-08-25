@@ -11,14 +11,11 @@ public:
     uint32_t *ID_;
     float *Ex_, *Ey_, *Ez_, *Hx_, *Hy_, *Hz_, *updatecoeffsE_, *updatecoeffsH_;
     std::vector<pybind11::ssize_t> shape;
-    // py::detail::unchecked_mutable_reference<float, 3L> Ex_, Ey_, Ez_, Hx_, Hy_, Hz_;
-    // py::detail::unchecked_reference<float, 2L> updatecoeffsE_, updatecoeffsH_;
-    // py::detail::unchecked_reference<uint32_t, 4L> ID_;
     int xmin,xmax,ymin,ymax,zmin,zmax;
     int source_xcoord, source_ycoord, source_zcoord;
     float source_start, source_stop;
     py::array_t<float, py::array::c_style | py::array::forcecast> source_waveformvalues_halfdt;
-    py::detail::unchecked_reference<float, 1L> source_waveformvalues_halfdt_;
+    float *source_waveformvalues_halfdt_;
     float source_dl;
     int source_id;
     std::string source_polarization;
@@ -44,15 +41,10 @@ public:
         Ex(Ex), Ey(Ey), Ez(Ez), Hx(Hx), Hy(Hy), Hz(Hz), 
         updatecoeffsE(updatecoeffsE), updatecoeffsH(updatecoeffsH), 
         ID(ID),
-        // Ex_(Ex.mutable_unchecked<3>()), Ey_(Ey.mutable_unchecked<3>()), Ez_(Ez.mutable_unchecked<3>()),
-        // Hx_(Hx.mutable_unchecked<3>()), Hy_(Hy.mutable_unchecked<3>()), Hz_(Hz.mutable_unchecked<3>()),
-        // updatecoeffsE_(updatecoeffsE.unchecked<2>()), updatecoeffsH_(updatecoeffsH.unchecked<2>()),
-        // ID_(ID.unchecked<4>()),
         xmin(xmin_), xmax(xmax_), ymin(ymin_), ymax(ymax_), zmin(zmin_), zmax(zmax_),
         source_xcoord(source_xcoord), source_ycoord(source_ycoord), source_zcoord(source_zcoord), source_start(source_start), source_stop(source_stop),
         source_waveformvalues_halfdt(source_waveformvalues_halfdt),
         source_dl(source_dl), source_id(source_id), source_polarization(source_polarization),
-        source_waveformvalues_halfdt_(source_waveformvalues_halfdt.unchecked<1>()),
         grid_dt(grid_dt), grid_dx(grid_dx), grid_dy(grid_dy), grid_dz(grid_dz)
         {
             auto ID_info = ID.request();
@@ -82,7 +74,10 @@ public:
             auto updatecoeffsH_info = updatecoeffsH.request();
             updatecoeffsH_ = static_cast<float *>(updatecoeffsH_info.ptr);
 
-            shape = Ex_info.shape;
+            auto source_waveformvalues_halfdt_info = source_waveformvalues_halfdt.request();
+            source_waveformvalues_halfdt_ = static_cast<float *>(source_waveformvalues_halfdt_info.ptr);
+
+            shape = ID_info.shape;
         }
     void update_electric_tile(int current_timestep, update_range_t update_range){
         update_electric_normal(update_range);
