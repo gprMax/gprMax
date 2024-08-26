@@ -21,6 +21,7 @@ dependencies:
   - numpy-stl
 #  - pycuda
 #  - pyopencl
+  - pybind11
   - terminaltables
   - tqdm
   - git+https://github.com/craig-warren/PyEVTK.git
