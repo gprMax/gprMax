@@ -1,18 +1,19 @@
 """ReFrame base classes for GprMax tests
 
-    Usage (run all tests):
-        cd gprMax/reframe_tests
-        reframe -C configuraiton/{CONFIG_FILE} -c tests/ -r
+Usage (run all tests):
+    cd gprMax/reframe_tests
+    reframe -C configuraiton/{CONFIG_FILE} -c tests/ -r
 """
+
 import os
 from pathlib import Path
 from shutil import copyfile
 from typing import Literal
 
-import reframe as rfm
 import reframe.utility.sanity as sn
 import reframe.utility.typecheck as typ
 from numpy import prod
+from reframe import RunOnlyRegressionTest, simple_test
 from reframe.core.builtins import (
     parameter,
     performance_function,
@@ -33,8 +34,8 @@ GPRMAX_ROOT_DIR = Path(__file__).parent.parent.parent.resolve()
 PATH_TO_PYENV = os.path.join(".venv", "bin", "activate")
 
 
-@rfm.simple_test
-class CreatePyenvTest(rfm.RunOnlyRegressionTest):
+@simple_test
+class CreatePyenvTest(RunOnlyRegressionTest):
     valid_systems = ["generic", "archer2:login"]
     valid_prog_environs = ["builtin", "PrgEnv-gnu"]
     modules = ["cray-python"]
@@ -96,7 +97,7 @@ class CreatePyenvTest(rfm.RunOnlyRegressionTest):
         )
 
 
-class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
+class GprMaxRegressionTest(RunOnlyRegressionTest):
     valid_systems = ["archer2:compute"]
     valid_prog_environs = ["PrgEnv-gnu"]
     modules = ["cray-python"]
@@ -207,20 +208,20 @@ class GprMaxRegressionTest(rfm.RunOnlyRegressionTest):
             self.postrun_cmds.append(f"cat out/{stdout}_*.out >> {self.stdout}")
             self.postrun_cmds.append(f"cat err/{stderr}_*.err >> {self.stderr}")
 
-    @run_before("run")
-    def check_input_file_exists(self):
-        """Skip test if input file does not exist"""
-        # Current working directory will be where the reframe job was launched
-        # However reframe assumes the source directory is relative to the test file
-        with osext.change_dir(TESTS_ROOT_DIR):
-            self.skip_if(
-                not os.path.exists(self.sourcesdir),
-                f"Source directory '{self.sourcesdir}' does not exist. Current working directory: '{os.getcwd()}'",
-            )
-            self.skip_if(
-                not os.path.exists(os.path.join(self.sourcesdir, self.input_file)),
-                f"Input file '{self.input_file}' not present in source directory '{self.sourcesdir}'",
-            )
+    # @run_before("run")
+    # def check_input_file_exists(self):
+    #     """Skip test if input file does not exist"""
+    #     # Current working directory will be where the reframe job was launched
+    #     # However reframe assumes the source directory is relative to the test file
+    #     with osext.change_dir(TESTS_ROOT_DIR):
+    #         self.skip_if(
+    #             not os.path.exists(self.sourcesdir),
+    #             f"Source directory '{self.sourcesdir}' does not exist. Current working directory: '{os.getcwd()}'",
+    #         )
+    #         self.skip_if(
+    #             not os.path.exists(os.path.join(self.sourcesdir, self.input_file)),
+    #             f"Input file '{self.input_file}' not present in source directory '{self.sourcesdir}'",
+    #         )
 
     def test_simulation_complete(self) -> Literal[True]:
         """Check simulation completed successfully"""
@@ -456,7 +457,12 @@ class GprMaxMPIRegressionTest(GprMaxRegressionTest):
 
     def _get_variant(self) -> str:
         """Get test variant with the same model"""
-        variant = self.serial_dependency.get_variant_nums(model=lambda m: m == self.model)
+        # TODO: Refactor tests to work with benchmarks
+        variant = self.serial_dependency.get_variant_nums(
+            model=lambda m: m == self.model,
+            # cpu_freq=lambda f: f == self.cpu_freq,
+            # omp_threads=lambda o: o == 16,
+        )
         return self.serial_dependency.variant_name(variant[0])
 
     @run_after("init")
