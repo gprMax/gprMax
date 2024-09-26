@@ -32,9 +32,11 @@ class Test2DSliceSnapshot(GprMaxRegressionTest):
         "snapshot_x_05.h5",
         "snapshot_x_35.h5",
         "snapshot_x_65.h5",
-        # "snapshot_x_95.h5",  # Fails due to out-of-bounds error
+        "snapshot_x_95.h5",
         "snapshot_y_15.h5",
+        "snapshot_y_40.h5",
         "snapshot_y_45.h5",
+        "snapshot_y_50.h5",
         "snapshot_y_75.h5",
         "snapshot_z_25.h5",
         "snapshot_z_55.h5",
