@@ -64,6 +64,16 @@ class UserInput(Generic[GridType]):
             logger.exception(s)
             raise
 
+    def check_point_within_bounds(self, p) -> bool:
+        try:
+            self.grid.within_bounds(p)
+            return True
+        except ValueError:
+            return False
+
+    def grid_upper_bound(self) -> list[int]:
+        return [self.grid.nx, self.grid.ny, self.grid.nz]
+
     def discretise_point(self, p):
         """Gets the index of a continuous point with the grid."""
         rv = np.vectorize(round_value)

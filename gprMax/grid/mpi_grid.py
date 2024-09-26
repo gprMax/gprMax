@@ -274,13 +274,13 @@ class MPIGrid(FDTDGrid):
         """
         if self.is_coordinator():
             snapshots_by_rank: List[List[Optional[Snapshot]]] = [[] for _ in range(self.comm.size)]
-            for s in self.snapshots:
-                ranks = self.get_ranks_between_coordinates(s.start, s.stop + s.step)
+            for snapshot in self.snapshots:
+                ranks = self.get_ranks_between_coordinates(snapshot.start, snapshot.stop)
                 for rank in range(
                     self.comm.size
                 ):  # TODO: Loop over ranks in snapshot, not all ranks
                     if rank in ranks:
-                        snapshots_by_rank[rank].append(s)
+                        snapshots_by_rank[rank].append(snapshot)
                     else:
                         # All ranks need the same number of 'snapshots'
                         # (which may be None) to ensure snapshot
@@ -294,28 +294,32 @@ class MPIGrid(FDTDGrid):
             snapshots_by_rank, root=self.COORDINATOR_RANK
         )
 
-        for s in snapshots:
-            if s is None:
+        for snapshot in snapshots:
+            if snapshot is None:
                 self.comm.Split(MPI.UNDEFINED)
             else:
                 comm = self.comm.Split()
                 assert isinstance(comm, MPI.Intracomm)
-                start = self.get_grid_coord_from_coordinate(s.start)
-                stop = self.get_grid_coord_from_coordinate(s.stop + s.step) + 1
-                s.comm = comm.Create_cart((stop - start).tolist())
+                start = self.get_grid_coord_from_coordinate(snapshot.start)
+                stop = self.get_grid_coord_from_coordinate(snapshot.stop) + 1
+                snapshot.comm = comm.Create_cart((stop - start).tolist())
 
-                s.start = self.global_to_local_coordinate(s.start)
+                snapshot.start = self.global_to_local_coordinate(snapshot.start)
                 # Calculate number of steps needed to bring the start
                 # into the local grid (and not in the negative halo)
-                s.offset = np.where(
-                    s.start < self.negative_halo_offset,
-                    np.abs((s.start - self.negative_halo_offset) // s.step),
-                    s.offset,
+                snapshot.offset = np.where(
+                    snapshot.start < self.negative_halo_offset,
+                    np.abs((snapshot.start - self.negative_halo_offset) // snapshot.step),
+                    snapshot.offset,
                 )
-                s.start += s.step * s.offset
+                snapshot.start += snapshot.step * snapshot.offset
 
-                s.stop = self.global_to_local_coordinate(s.stop)
-                s.stop = np.where(s.stop > self.size, self.size, s.stop)
+                snapshot.stop = self.global_to_local_coordinate(snapshot.stop)
+                snapshot.stop = np.where(
+                    snapshot.stop > self.size,
+                    self.size + ((snapshot.stop - self.size) % snapshot.step),
+                    snapshot.stop,
+                )
 
         self.snapshots = [s for s in snapshots if s is not None]
 
