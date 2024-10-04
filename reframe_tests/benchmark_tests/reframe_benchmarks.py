@@ -16,9 +16,23 @@ class SingleNodeBenchmark(GprMaxRegressionTest):
     tags = {"benchmark", "single node", "openmp"}
 
     omp_threads = parameter([1, 2, 4, 8, 16, 32, 64, 128])
-    domain = parameter([0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
+    # domain = parameter([0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
     cpu_freq = parameter([2000000, 2250000])
     time_limit = "8h"
+    sourcesdir = "src"
+    model = parameter(
+        [
+            "benchmark_model_10",
+            "benchmark_model_15",
+            "benchmark_model_20",
+            "benchmark_model_30",
+            "benchmark_model_40",
+            "benchmark_model_50",
+            "benchmark_model_60",
+            "benchmark_model_70",
+            "benchmark_model_80",
+        ]
+    )
 
     @run_after("init")
     def setup_env_vars(self):
