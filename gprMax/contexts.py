@@ -175,7 +175,7 @@ class MPIContext(Context):
             raise ValueError
 
         if self.rank >= requested_mpi_size:
-            logger.warn(
+            logger.warning(
                 f"Rank {self.rank}: Only {requested_mpi_size} MPI ranks required for the"
                 " dimensions specified. Either increase your MPI dimension size, or request"
                 " fewer MPI tasks."
