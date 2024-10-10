@@ -37,6 +37,7 @@ from .cmds_geometry.cmds_geometry import (
     rotate_polarisation,
 )
 from .geometry_outputs import GeometryObjects as GeometryObjectsUser
+from .geometry_outputs import MPIGeometryObjects as MPIGeometryObjectsUser
 from .materials import DispersiveMaterial as DispersiveMaterialUser
 from .materials import ListMaterial as ListMaterialUser
 from .materials import Material as MaterialUser
@@ -1996,7 +1997,12 @@ class GeometryObjectsWrite(UserObjectMulti):
         x0, y0, z0 = p1
         x1, y1, z1 = p2
 
-        g = GeometryObjectsUser(x0, y0, z0, x1, y1, z1, basefilename)
+        if isinstance(grid, MPIGrid):
+            geometry_object_type = MPIGeometryObjectsUser
+        else:
+            geometry_object_type = GeometryObjectsUser
+
+        g = geometry_object_type(x0, y0, z0, x1, y1, z1, basefilename)
 
         logger.info(
             f"Geometry objects in the volume from {p1[0] * grid.dx:g}m, "

@@ -19,16 +19,20 @@
 import json
 import logging
 import sys
+from itertools import chain
 from pathlib import Path
 
 import h5py
 import numpy as np
 from evtk.hl import imageToVTK, linesToVTK
 from evtk.vtk import VtkGroup, VtkImageData, VtkUnstructuredGrid
+from mpi4py import MPI
 from tqdm import tqdm
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.grid.mpi_grid import MPIGrid
+from gprMax.materials import Material
 
 from ._version import __version__
 from .cython.geometry_outputs import write_lines
@@ -471,3 +475,137 @@ class GeometryObjects:
                                     )
                             dispersionstr += material.ID
                             fmaterials.write(dispersionstr + "\n")
+
+
+class MPIGeometryObjects(GeometryObjects):
+    # def __init__(self, start, stop, global_size, comm):
+    # super().__init__(...)
+
+    def write_hdf5(self, title: str, G: MPIGrid, pbar: tqdm):
+        """Writes a geometry objects file in HDF5 format.
+
+        Args:
+            G: FDTDGrid class describing a grid in a model.
+            pbar: Progress bar class instance.
+        """
+
+        # Get neighbours
+        self.neighbours = np.full((3, 2), -1, dtype=int)
+        self.neighbours[0] = self.comm.Shift(direction=0, disp=1)
+        self.neighbours[1] = self.comm.Shift(direction=1, disp=1)
+        self.neighbours[2] = self.comm.Shift(direction=2, disp=1)
+
+        # Make subsection of array one larger if no positive neighbour
+        slice_stop = np.where(
+            self.neighbours[:, 1] == -1,
+            self.stop + 1,
+            self.stop,
+        )
+        array_slice = list(map(slice, self.start, slice_stop))
+
+        ID = G.ID[:, array_slice[0], array_slice[1], array_slice[2]]
+
+        # Get materials present in subset of ID
+        local_material_num_ids, inverse_map = np.unique(ID, return_inverse=True)
+        get_material = np.vectorize(lambda id: G.materials[id])
+        local_materials = get_material(local_material_num_ids)
+
+        # Send all materials to the coordinating rank
+        materials = self.comm.gather(local_materials, root=0)
+
+        if self.comm.rank == 0:
+            # Filter out duplicate materials
+            materials = np.fromiter(chain.from_iterable(materials), dtype=Material)
+            _, indices = np.unique(materials, return_index=True)
+
+            # We want to sort the materials by the order they appear,
+            # not sorted alphabetically by ID (default behaviour using
+            # np.unique). This ensures user defined materials are lower
+            # indexed than compound materials.
+            global_materials = materials[sorted(indices)]
+
+            global_material_ids = [m.ID for m in global_materials]
+        else:
+            global_material_ids = None
+
+        global_material_ids = self.comm.bcast(global_material_ids, root=0)
+
+        # Create map from material ID (str) to global material numID
+        materials_map = {
+            material_id: index for index, material_id in enumerate(global_material_ids)
+        }
+
+        # Remap ID array to the global material numID
+        ID = np.array([materials_map[m.ID] for m in local_materials])[inverse_map].reshape(ID.shape)
+
+        # Other geometry arrays do not have halos, so adjustment to
+        # 'stop' is not necessary
+        array_slice = list(map(slice, self.start, self.stop))
+
+        data = G.solid[array_slice[0], array_slice[1], array_slice[2]]
+        map_local_materials = np.vectorize(lambda id: materials_map[G.materials[id].ID])
+        data = map_local_materials(data)
+
+        rigidE = G.rigidE[:, array_slice[0], array_slice[1], array_slice[2]]
+        rigidH = G.rigidH[:, array_slice[0], array_slice[1], array_slice[2]]
+
+        start = self.offset
+        stop = start + self.size
+
+        with h5py.File(self.filename_hdf5, "w", driver="mpio", comm=self.comm) as fdata:
+            fdata.attrs["gprMax"] = __version__
+            fdata.attrs["Title"] = title
+            fdata.attrs["dx_dy_dz"] = (G.dx, G.dy, G.dz)
+
+            dset = fdata.create_dataset("/data", self.global_size)
+            dset[start[0] : stop[0], start[1] : stop[1], start[2] : stop[2]] = data
+            pbar.update(self.solidsize)
+
+            rigid_E_dataset = fdata.create_dataset("/rigidE", (12, *self.global_size))
+            rigid_E_dataset[:, start[0] : stop[0], start[1] : stop[1], start[2] : stop[2]] = rigidE
+
+            rigid_H_dataset = fdata.create_dataset("/rigidH", (6, *self.global_size))
+            rigid_H_dataset[:, start[0] : stop[0], start[1] : stop[1], start[2] : stop[2]] = rigidH
+            pbar.update(self.rigidsize)
+
+            stop = np.where(
+                self.neighbours[:, 1] == -1,
+                stop + 1,
+                stop,
+            )
+
+            dset = fdata.create_dataset("/ID", (6, *(self.global_size + 1)))
+            dset[:, start[0] : stop[0], start[1] : stop[1], start[2] : stop[2]] = ID
+            pbar.update(self.IDsize)
+
+        # Write materials list to a text file
+        if self.comm.rank == 0:
+            with open(self.filename_materials, "w") as fmaterials:
+                for material in global_materials:
+                    fmaterials.write(
+                        f"#material: {material.er:g} {material.se:g} "
+                        f"{material.mr:g} {material.sm:g} {material.ID}\n"
+                    )
+                    if hasattr(material, "poles"):
+                        if "debye" in material.type:
+                            dispersionstr = "#add_dispersion_debye: " f"{material.poles:g} "
+                            for pole in range(material.poles):
+                                dispersionstr += (
+                                    f"{material.deltaer[pole]:g} " f"{material.tau[pole]:g} "
+                                )
+                        elif "lorenz" in material.type:
+                            dispersionstr = f"#add_dispersion_lorenz: " f"{material.poles:g} "
+                            for pole in range(material.poles):
+                                dispersionstr += (
+                                    f"{material.deltaer[pole]:g} "
+                                    f"{material.tau[pole]:g} "
+                                    f"{material.alpha[pole]:g} "
+                                )
+                        elif "drude" in material.type:
+                            dispersionstr = f"#add_dispersion_drude: " f"{material.poles:g} "
+                            for pole in range(material.poles):
+                                dispersionstr += (
+                                    f"{material.tau[pole]:g} " f"{material.alpha[pole]:g} "
+                                )
+                        dispersionstr += material.ID
+                        fmaterials.write(dispersionstr + "\n")
