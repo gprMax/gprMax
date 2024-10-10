@@ -195,7 +195,7 @@ class MPIGrid(FDTDGrid):
             global_coord: Global grid coordinate.
 
         Returns:
-            local_coord: Local grid coordinate
+            local_coord: Local grid coordinate.
         """
         return global_coord - self.lower_extent
 
@@ -203,12 +203,79 @@ class MPIGrid(FDTDGrid):
         """Convert a local grid coordinate to a global grid coordinate.
 
         Args:
-            local_coord: Local grid coordinate
+            local_coord: Local grid coordinate.
 
         Returns:
-            global_coord: Global grid coordinate
+            global_coord: Global grid coordinate.
         """
         return local_coord + self.lower_extent
+
+    def global_coord_inside_grid(
+        self, global_coord: npt.NDArray[np.intc], allow_inside_halo: bool = False
+    ) -> bool:
+        """Check if a global coordinate falls with in the local grid.
+
+        Args:
+            global_coord: Global grid coordinate.
+            allow_inside_halo: If True, the function returns True when
+                the coordinate is inside the grid halo. Otherwise, it
+                will return False when the coordinate is inside the grid
+                halo. (defaults to False)
+
+        Returns:
+            is_inside_grid: True if the global coordinate falls inside
+                the local grid bounds.
+        """
+        if allow_inside_halo:
+            lower_bound = self.lower_extent
+            upper_bound = self.upper_extent + 1
+        else:
+            lower_bound = self.lower_extent + self.negative_halo_offset
+            upper_bound = self.upper_extent
+
+        return all(global_coord >= lower_bound) and all(global_coord <= upper_bound)
+
+    def global_bounds_overlap_local_grid(
+        self, start: npt.NDArray[np.intc], stop: npt.NDArray[np.intc]
+    ) -> bool:
+        local_start = self.global_to_local_coordinate(start)
+        local_stop = self.global_to_local_coordinate(stop)
+        return all(local_start < self.size) and all(local_stop > self.negative_halo_offset)
+
+    def limit_global_bounds_to_within_local_grid(
+        self,
+        start: npt.NDArray[np.intc],
+        stop: npt.NDArray[np.intc],
+        step: npt.NDArray[np.intc] = np.ones(3, dtype=np.intc),
+    ) -> Tuple[npt.NDArray[np.intc], npt.NDArray[np.intc], npt.NDArray[np.intc]]:
+        local_start = self.global_to_local_coordinate(start)
+
+        # Bring start into the local grid (and not in the negative halo)
+        # local_start must still be aligned with the provided step.
+        local_start = np.where(
+            local_start < self.negative_halo_offset,
+            self.negative_halo_offset + ((local_start - self.negative_halo_offset) % step),
+            local_start,
+        )
+
+        local_stop = self.global_to_local_coordinate(stop)
+
+        # Limit local_stop such that it is at most one step beyond the
+        # max index of the grid. As local_stop is the upper bound, it is
+        # exclusive, meaning when used to slice an array (with the
+        # provided step), the last element accessed will one step below
+        # local_stop.
+        # Note: using self.size as an index in any dimension would fall
+        # in the positive halo (this counts as outside the local grid).
+        local_stop = np.where(
+            local_stop > self.size,
+            self.size + ((local_stop - self.size) % step),
+            local_stop,
+        )
+
+        offset = self.local_to_global_coordinate(local_start) - start
+
+        return local_start, local_stop, offset
 
     def scatter_coord_objects(self, objects: List[CoordType]) -> List[CoordType]:
         """Scatter coord objects to the correct MPI rank.
