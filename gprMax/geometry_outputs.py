@@ -19,6 +19,7 @@
 import json
 import logging
 import sys
+from io import TextIOWrapper
 from itertools import chain
 from pathlib import Path
 
@@ -448,33 +449,32 @@ class GeometryObjects:
             for numID in range(minmat, maxmat + 1):
                 for material in G.materials:
                     if material.numID == numID:
-                        fmaterials.write(
-                            f"#material: {material.er:g} {material.se:g} "
-                            f"{material.mr:g} {material.sm:g} {material.ID}\n"
-                        )
-                        if hasattr(material, "poles"):
-                            if "debye" in material.type:
-                                dispersionstr = "#add_dispersion_debye: " f"{material.poles:g} "
-                                for pole in range(material.poles):
-                                    dispersionstr += (
-                                        f"{material.deltaer[pole]:g} " f"{material.tau[pole]:g} "
-                                    )
-                            elif "lorenz" in material.type:
-                                dispersionstr = f"#add_dispersion_lorenz: " f"{material.poles:g} "
-                                for pole in range(material.poles):
-                                    dispersionstr += (
-                                        f"{material.deltaer[pole]:g} "
-                                        f"{material.tau[pole]:g} "
-                                        f"{material.alpha[pole]:g} "
-                                    )
-                            elif "drude" in material.type:
-                                dispersionstr = f"#add_dispersion_drude: " f"{material.poles:g} "
-                                for pole in range(material.poles):
-                                    dispersionstr += (
-                                        f"{material.tau[pole]:g} " f"{material.alpha[pole]:g} "
-                                    )
-                            dispersionstr += material.ID
-                            fmaterials.write(dispersionstr + "\n")
+                        self.output_material(material, fmaterials)
+
+    def output_material(self, material: Material, file: TextIOWrapper):
+        file.write(
+            f"#material: {material.er:g} {material.se:g} "
+            f"{material.mr:g} {material.sm:g} {material.ID}\n"
+        )
+        if hasattr(material, "poles"):
+            if "debye" in material.type:
+                dispersionstr = "#add_dispersion_debye: " f"{material.poles:g} "
+                for pole in range(material.poles):
+                    dispersionstr += f"{material.deltaer[pole]:g} " f"{material.tau[pole]:g} "
+            elif "lorenz" in material.type:
+                dispersionstr = f"#add_dispersion_lorenz: " f"{material.poles:g} "
+                for pole in range(material.poles):
+                    dispersionstr += (
+                        f"{material.deltaer[pole]:g} "
+                        f"{material.tau[pole]:g} "
+                        f"{material.alpha[pole]:g} "
+                    )
+            elif "drude" in material.type:
+                dispersionstr = f"#add_dispersion_drude: " f"{material.poles:g} "
+                for pole in range(material.poles):
+                    dispersionstr += f"{material.tau[pole]:g} " f"{material.alpha[pole]:g} "
+            dispersionstr += material.ID
+            file.write(dispersionstr + "\n")
 
 
 class MPIGeometryObjects(GeometryObjects):
@@ -580,32 +580,6 @@ class MPIGeometryObjects(GeometryObjects):
 
         # Write materials list to a text file
         if self.comm.rank == 0:
-            with open(self.filename_materials, "w") as fmaterials:
+            with open(self.filename_materials, "w") as materials_file:
                 for material in global_materials:
-                    fmaterials.write(
-                        f"#material: {material.er:g} {material.se:g} "
-                        f"{material.mr:g} {material.sm:g} {material.ID}\n"
-                    )
-                    if hasattr(material, "poles"):
-                        if "debye" in material.type:
-                            dispersionstr = "#add_dispersion_debye: " f"{material.poles:g} "
-                            for pole in range(material.poles):
-                                dispersionstr += (
-                                    f"{material.deltaer[pole]:g} " f"{material.tau[pole]:g} "
-                                )
-                        elif "lorenz" in material.type:
-                            dispersionstr = f"#add_dispersion_lorenz: " f"{material.poles:g} "
-                            for pole in range(material.poles):
-                                dispersionstr += (
-                                    f"{material.deltaer[pole]:g} "
-                                    f"{material.tau[pole]:g} "
-                                    f"{material.alpha[pole]:g} "
-                                )
-                        elif "drude" in material.type:
-                            dispersionstr = f"#add_dispersion_drude: " f"{material.poles:g} "
-                            for pole in range(material.poles):
-                                dispersionstr += (
-                                    f"{material.tau[pole]:g} " f"{material.alpha[pole]:g} "
-                                )
-                        dispersionstr += material.ID
-                        fmaterials.write(dispersionstr + "\n")
+                    self.output_material(material, materials_file)
