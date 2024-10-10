@@ -49,6 +49,28 @@ class Material:
         self.mr = 1.0
         self.sm = 0.0
 
+    def __eq__(self, value: object) -> bool:
+        if isinstance(value, Material):
+            return self.ID == value.ID
+        else:
+            return super().__eq__(value)
+
+    def __lt__(self, value: object) -> bool:
+        if isinstance(value, Material):
+            return self.ID < value.ID
+        else:
+            raise TypeError(
+                f"'<' not supported between instances of 'Material' and '{type(value)}'"
+            )
+
+    def __gt__(self, value: object) -> bool:
+        if isinstance(value, Material):
+            return self.ID > value.ID
+        else:
+            raise TypeError(
+                f"'>' not supported between instances of 'Material' and '{type(value)}'"
+            )
+
     def calculate_update_coeffsH(self, G):
         """Calculates the magnetic update coefficients of the material.
 
@@ -239,7 +261,9 @@ class PeplinskiSoil:
     by Peplinski (http://dx.doi.org/10.1109/36.387598).
     """
 
-    def __init__(self, ID, sandfraction, clayfraction, bulkdensity, sandpartdensity, watervolfraction):
+    def __init__(
+        self, ID, sandfraction, clayfraction, bulkdensity, sandpartdensity, watervolfraction
+    ):
         """
         Args:
             ID: string for name of the soil.
@@ -304,7 +328,12 @@ class PeplinskiSoil:
         muiter = np.nditer(mumaterials, flags=["c_index"])
         while not muiter.finished:
             # Real part for frequencies in the range 1.4GHz to 18GHz
-            er = (1 + (self.rb / self.rs) * ((es**a) - 1) + (muiter[0] ** b1 * erealw**a) - muiter[0]) ** (1 / a)
+            er = (
+                1
+                + (self.rb / self.rs) * ((es**a) - 1)
+                + (muiter[0] ** b1 * erealw**a)
+                - muiter[0]
+            ) ** (1 / a)
             # Real part for frequencies in the range 0.3GHz to 1.3GHz (linear
             # correction to 1.4-18GHz value)
             er = 1.15 * er - 0.68
@@ -499,7 +528,10 @@ def calculate_water_properties(T=25, S=0):
 
     delta = 25 - T
     beta = (
-        2.033e-2 + 1.266e-4 * delta + 2.464e-6 * delta**2 - S * (1.849e-5 - 2.551e-7 * delta + 2.551e-8 * delta**2)
+        2.033e-2
+        + 1.266e-4 * delta
+        + 2.464e-6 * delta**2
+        - S * (1.849e-5 - 2.551e-7 * delta + 2.551e-8 * delta**2)
     )
     sig_25s = S * (0.182521 - 1.46192e-3 * S + 2.09324e-5 * S**2 - 1.28205e-7 * S**3)
     sig = sig_25s * np.exp(-delta * beta)
@@ -608,8 +640,20 @@ def process_materials(G):
         material.calculate_update_coeffsH(G)
 
         # Add update coefficients to overall storage for all materials
-        G.updatecoeffsE[material.numID, :] = material.CA, material.CBx, material.CBy, material.CBz, material.srce
-        G.updatecoeffsH[material.numID, :] = material.DA, material.DBx, material.DBy, material.DBz, material.srcm
+        G.updatecoeffsE[material.numID, :] = (
+            material.CA,
+            material.CBx,
+            material.CBy,
+            material.CBz,
+            material.srce,
+        )
+        G.updatecoeffsH[material.numID, :] = (
+            material.DA,
+            material.DBx,
+            material.DBy,
+            material.DBz,
+            material.srcm,
+        )
 
         # Add update coefficients to overall storage for dispersive materials
         if hasattr(material, "poles"):
