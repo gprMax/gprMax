@@ -557,14 +557,18 @@ class MPIGeometryObjects(GeometryObjects):
             fdata.attrs["Title"] = title
             fdata.attrs["dx_dy_dz"] = (G.dx, G.dy, G.dz)
 
-            dset = fdata.create_dataset("/data", self.global_size)
+            dset = fdata.create_dataset("/data", self.global_size, dtype=data.dtype)
             dset[start[0] : stop[0], start[1] : stop[1], start[2] : stop[2]] = data
             pbar.update(self.solidsize)
 
-            rigid_E_dataset = fdata.create_dataset("/rigidE", (12, *self.global_size))
+            rigid_E_dataset = fdata.create_dataset(
+                "/rigidE", (12, *self.global_size), dtype=rigidE.dtype
+            )
             rigid_E_dataset[:, start[0] : stop[0], start[1] : stop[1], start[2] : stop[2]] = rigidE
 
-            rigid_H_dataset = fdata.create_dataset("/rigidH", (6, *self.global_size))
+            rigid_H_dataset = fdata.create_dataset(
+                "/rigidH", (6, *self.global_size), dtype=rigidH.dtype
+            )
             rigid_H_dataset[:, start[0] : stop[0], start[1] : stop[1], start[2] : stop[2]] = rigidH
             pbar.update(self.rigidsize)
 
@@ -574,7 +578,7 @@ class MPIGeometryObjects(GeometryObjects):
                 stop,
             )
 
-            dset = fdata.create_dataset("/ID", (6, *(self.global_size + 1)))
+            dset = fdata.create_dataset("/ID", (6, *(self.global_size + 1)), dtype=ID.dtype)
             dset[:, start[0] : stop[0], start[1] : stop[1], start[2] : stop[2]] = ID
             pbar.update(self.IDsize)
 
