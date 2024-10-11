@@ -61,6 +61,8 @@ class MPIModel(Model):
         self._filter_geometry_objects()
 
     def _broadcast_model(self):
+        self.title = self.comm.bcast(self.title)
+
         self.nx = self.comm.bcast(self.nx)
         self.ny = self.comm.bcast(self.ny)
         self.nz = self.comm.bcast(self.nz)
