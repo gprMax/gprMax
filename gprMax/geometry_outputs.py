@@ -422,14 +422,12 @@ class GeometryObjects:
         # Remap ID array to the reduced list of materials
         ID = np.array([materials_map[id] for id in material_ids])[inverse_map].reshape(ID.shape)
 
-        data = G.solid[self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1].astype(
-            "int16"
-        )
+        data = G.solid[self.xs : self.xf, self.ys : self.yf, self.zs : self.zf].astype("int16")
         map_materials = np.vectorize(lambda id: materials_map[id])
         data = map_materials(data)
 
-        rigidE = G.rigidE[:, self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1]
-        rigidH = G.rigidH[:, self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1]
+        rigidE = G.rigidE[:, self.xs : self.xf, self.ys : self.yf, self.zs : self.zf]
+        rigidH = G.rigidH[:, self.xs : self.xf, self.ys : self.yf, self.zs : self.zf]
 
         with h5py.File(self.filename_hdf5, "w") as fdata:
             fdata.attrs["gprMax"] = __version__
