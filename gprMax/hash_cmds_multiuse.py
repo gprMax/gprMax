@@ -184,7 +184,7 @@ def process_multicmds(multicmds):
             if len(tmp) == 3:
                 rx = Rx(p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])))
             else:
-                rx = Rx(p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])), id=tmp[3], outputs=" ".join(tmp[4:]))
+                rx = Rx(p1=(float(tmp[0]), float(tmp[1]), float(tmp[2])), id=tmp[3], outputs=[" ".join(tmp[4:])])
 
             scene_objects.append(rx)
 
