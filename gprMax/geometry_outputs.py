@@ -69,7 +69,20 @@ def save_geometry_views(gvs):
 class GeometryView:
     """Base class for Geometry Views."""
 
-    def __init__(self, xs, ys, zs, xf, yf, zf, dx, dy, dz, filename, grid):
+    def __init__(
+        self,
+        xs: int,
+        ys: int,
+        zs: int,
+        xf: int,
+        yf: int,
+        zf: int,
+        dx: int,
+        dy: int,
+        dz: int,
+        filename: str,
+        grid: FDTDGrid,
+    ):
         """
         Args:
             xs, xf, ys, yf, zs, zf: ints for extent of geometry view in cells.
@@ -78,22 +91,64 @@ class GeometryView:
             grid: FDTDGrid class describing a grid in a model.
         """
 
-        self.xs = xs
-        self.ys = ys
-        self.zs = zs
-        self.xf = xf
-        self.yf = yf
-        self.zf = zf
-        self.nx = self.xf - self.xs
-        self.ny = self.yf - self.ys
-        self.nz = self.zf - self.zs
-        self.dx = dx
-        self.dy = dy
-        self.dz = dz
+        self.start = np.array([xs, ys, zs], dtype=np.intc)
+        self.stop = np.array([xf, yf, zf], dtype=np.intc)
+        self.step = np.array([dx, dy, dz], dtype=np.intc)
+        self.size = self.stop - self.start
+
         self.filename = filename
         self.filenamebase = filename
         self.grid = grid
         self.nbytes = None
+
+    # Properties for backwards compatibility
+    @property
+    def xs(self) -> int:
+        return self.start[0]
+
+    @property
+    def ys(self) -> int:
+        return self.start[1]
+
+    @property
+    def zs(self) -> int:
+        return self.start[2]
+
+    @property
+    def xf(self) -> int:
+        return self.stop[0]
+
+    @property
+    def yf(self) -> int:
+        return self.stop[1]
+
+    @property
+    def zf(self) -> int:
+        return self.stop[2]
+
+    @property
+    def dx(self) -> int:
+        return self.step[0]
+
+    @property
+    def dy(self) -> int:
+        return self.step[1]
+
+    @property
+    def dz(self) -> int:
+        return self.step[2]
+
+    @property
+    def nx(self) -> int:
+        return self.size[0]
+
+    @property
+    def ny(self) -> int:
+        return self.size[1]
+
+    @property
+    def nz(self) -> int:
+        return self.size[2]
 
     def set_filename(self):
         """Constructs filename from user-supplied name and model run number."""
