@@ -23,12 +23,13 @@ from pathlib import Path
 
 import h5py
 import numpy as np
-from evtk.hl import imageToVTK, linesToVTK
-from evtk.vtk import VtkGroup, VtkImageData, VtkUnstructuredGrid
+from evtk.hl import linesToVTK
+from evtk.vtk import VtkUnstructuredGrid
 from tqdm import tqdm
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.vtkhdf import VtkImageData
 
 from ._version import __version__
 from .cython.geometry_outputs import write_lines
@@ -53,8 +54,7 @@ def save_geometry_views(gvs):
             total=gv.nbytes,
             unit="byte",
             unit_scale=True,
-            desc=f"Writing geometry view file {i + 1}/{len(gvs)}, "
-            f"{gv.filename.name}{gv.vtkfiletype.ext}",
+            desc=f"Writing geometry view file {i + 1}/{len(gvs)}, {gv.filename.name}.vtkhdf",
             ncols=get_terminal_width() - 1,
             file=sys.stdout,
             disable=not config.sim_config.general["progressbars"],
@@ -255,11 +255,11 @@ class GeometryViewLines(GeometryView):
 
 
 class GeometryViewVoxels(GeometryView):
-    """Imagedata (.vti) for a per-cell geometry view."""
+    """Image data for a per-cell geometry view."""
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.vtkfiletype = VtkImageData
+        self.vtkfiletype = ".vtkhdf"
 
     def prep_vtk(self):
         """Prepares data for writing to VTK file.
@@ -306,22 +306,20 @@ class GeometryViewVoxels(GeometryView):
         """
 
         if isinstance(self.grid, SubGridBaseGrid):
-            origin = (
-                (self.grid.i0 * self.grid.dx * self.grid.ratio),
-                (self.grid.j0 * self.grid.dy * self.grid.ratio),
-                (self.grid.k0 * self.grid.dz * self.grid.ratio),
+            origin = np.array(
+                [
+                    (self.grid.i0 * self.grid.dx * self.grid.ratio),
+                    (self.grid.j0 * self.grid.dy * self.grid.ratio),
+                    (self.grid.k0 * self.grid.dz * self.grid.ratio),
+                ]
             )
         else:
-            origin = ((self.xs * self.grid.dx), (self.ys * self.grid.dy), (self.zs * self.grid.dz))
+            origin = self.start * self.grid.dl
 
-        # Write the VTK file .vti
-        imageToVTK(
-            str(self.filename),
-            origin=origin,
-            spacing=((self.dx * self.grid.dx), (self.dy * self.grid.dy), (self.dz * self.grid.dz)),
-            cellData={"Material": vtk_data["data"]},
-            comments=[vtk_data["comments"]],
-        )
+        spacing = self.step * self.grid.dl
+
+        with VtkImageData(self.filename, self.size, origin=origin, spacing=spacing) as f:
+            f.add_cell_data("Material", vtk_data["data"])
 
 
 class Comments:
