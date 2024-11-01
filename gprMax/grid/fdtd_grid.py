@@ -58,7 +58,7 @@ class FDTDGrid:
         self.nx = 0
         self.ny = 0
         self.nz = 0
-        self.dl = np.ones(3, dtype=float)
+        self.dl = np.ones(3, dtype=np.single)
         self.dt = 0.0
 
         # Field Arrays
