@@ -59,6 +59,7 @@ help_msg = {
     "models to be farmed out using a MPI task farm, e.g. to create a "
     "B-scan with 60 traces and use MPI to farm out each trace. For "
     "further details see the performance section of the User Guide.",
+    "xpu": "(bool, opt): Flag to use XPU algorithm on CPU",
     "gpu": "(list/bool, opt): Flag to use NVIDIA GPU or list of NVIDIA GPU " "device ID(s) for specific GPU card(s).",
     "opencl": "(list/bool, opt): Flag to use OpenCL or list of OpenCL device " "ID(s) for specific compute device(s).",
     "subgrid": "(bool, opt): Flag to use sub-gridding.",
@@ -74,6 +75,10 @@ help_msg = {
     "file has been processed.",
     "log_level": "(int, opt): Level of logging to use.",
     "log_file": "(bool, opt): Write logging information to file.",
+    "blt": "int (optional) - block size on the time axis for xpu",
+    "blx": "int (optional) - block size on the x axis for xpu",
+    "bly": "int (optional) - block size on the y axis for xpu",
+    "blz": "int (optional) - block size on the z axis for xpu",
 }
 
 
@@ -168,7 +173,12 @@ def cli():
     parser.add_argument("-n", default=args_defaults["n"], type=int, help=help_msg["n"])
     parser.add_argument("-i", type=int, help=help_msg["i"])
     parser.add_argument("-mpi", action="store_true", default=args_defaults["mpi"], help=help_msg["mpi"])
+    parser.add_argument("-xpu", type=bool, action="append", nargs="*", help=help_msg["xpu"])
     parser.add_argument("-gpu", type=int, action="append", nargs="*", help=help_msg["gpu"])
+    parser.add_argument("-blt", type=int, help=help_msg["blt"])
+    parser.add_argument("-blx", type=int, help=help_msg["blx"])
+    parser.add_argument("-bly", type=int, help=help_msg["bly"])
+    parser.add_argument("-blz", type=int, help=help_msg["blz"])
     parser.add_argument("-opencl", type=int, action="append", nargs="*", help=help_msg["opencl"])
     parser.add_argument(
         "--geometry-only", action="store_true", default=args_defaults["geometry_only"], help=help_msg["geometry_only"]
