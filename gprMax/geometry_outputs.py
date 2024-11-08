@@ -19,27 +19,27 @@
 import json
 import logging
 import sys
+from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import List
 
 import h5py
 import numpy as np
-from evtk.hl import linesToVTK
-from evtk.vtk import VtkUnstructuredGrid
 from tqdm import tqdm
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.vtkhdf import VtkImageData
+from gprMax.vtkhdf import VtkCellType, VtkImageData, VtkUnstructuredGrid
 
 from ._version import __version__
-from .cython.geometry_outputs import write_lines
+from .cython.geometry_outputs import get_line_properties
 from .subgrids.grid import SubGridBaseGrid
 from .utilities.utilities import get_terminal_width
 
 logger = logging.getLogger(__name__)
 
 
-def save_geometry_views(gvs):
+def save_geometry_views(gvs: "List[GeometryView]"):
     """Creates and saves geometryviews.
 
     Args:
@@ -49,25 +49,27 @@ def save_geometry_views(gvs):
     logger.info("")
     for i, gv in enumerate(gvs):
         gv.set_filename()
-        vtk_data = gv.prep_vtk()
+        gv.prep_vtk()
         pbar = tqdm(
             total=gv.nbytes,
             unit="byte",
             unit_scale=True,
-            desc=f"Writing geometry view file {i + 1}/{len(gvs)}, {gv.filename.name}.vtkhdf",
+            desc=f"Writing geometry view file {i + 1}/{len(gvs)}, {gv.filename.name}",
             ncols=get_terminal_width() - 1,
             file=sys.stdout,
             disable=not config.sim_config.general["progressbars"],
         )
-        gv.write_vtk(vtk_data)
+        gv.write_vtk()
         pbar.update(gv.nbytes)
         pbar.close()
 
     logger.info("")
 
 
-class GeometryView:
+class GeometryView(ABC):
     """Base class for Geometry Views."""
+
+    FILE_EXTENSION = ".vtkhdf"
 
     def __init__(
         self,
@@ -96,10 +98,13 @@ class GeometryView:
         self.step = np.array([dx, dy, dz], dtype=np.intc)
         self.size = self.stop - self.start
 
-        self.filename = filename
+        self.filename = Path(filename)
         self.filenamebase = filename
         self.grid = grid
         self.nbytes = None
+
+        self.material_data = None
+        self.materials = None
 
     # Properties for backwards compatibility
     @property
@@ -151,26 +156,26 @@ class GeometryView:
         return self.size[2]
 
     def set_filename(self):
-        """Constructs filename from user-supplied name and model run number."""
+        """Construct filename from user-supplied name and model number."""
         parts = config.get_model_config().output_file_path.parts
         self.filename = Path(
             *parts[:-1], self.filenamebase + config.get_model_config().appendmodelnumber
-        )
+        ).with_suffix(self.FILE_EXTENSION)
+
+    @abstractmethod
+    def prep_vtk(self):
+        pass
+
+    @abstractmethod
+    def write_vtk(self):
+        pass
 
 
 class GeometryViewLines(GeometryView):
-    """Unstructured grid (.vtu) for a per-cell-edge geometry view."""
-
-    def __init__(self, *args):
-        super().__init__(*args)
-        self.vtkfiletype = VtkUnstructuredGrid
+    """Unstructured grid for a per-cell-edge geometry view."""
 
     def prep_vtk(self):
-        """Prepares data for writing to VTK file.
-
-        Returns:
-            vtk_data: dict of coordinates, data, and comments for VTK file.
-        """
+        """Prepares data for writing to VTKHDF file."""
 
         # Sample ID array according to geometry view spatial discretisation
         # Only create a new array if subsampling is required
@@ -179,7 +184,7 @@ class GeometryViewLines(GeometryView):
             or (self.dx, self.dy, self.dz) != (1, 1, 1)
             or (self.xs, self.ys, self.zs) != (0, 0, 0)
         ):
-            # Require contiguous for evtk library
+            # Require contiguous array
             ID = np.ascontiguousarray(
                 self.grid.ID[
                     :,
@@ -192,24 +197,33 @@ class GeometryViewLines(GeometryView):
             # This array is contiguous by design
             ID = self.grid.ID
 
-        x, y, z, lines = write_lines(
-            (self.xs * self.grid.dx),
-            (self.ys * self.grid.dy),
-            (self.zs * self.grid.dz),
-            self.nx,
-            self.ny,
-            self.nz,
-            (self.dx * self.grid.dx),
-            (self.dy * self.grid.dy),
-            (self.dz * self.grid.dz),
-            ID,
-        )
+        x = np.arange(self.nx + 1, dtype=np.float64)
+        y = np.arange(self.ny + 1, dtype=np.float64)
+        z = np.arange(self.nz + 1, dtype=np.float64)
+        coords = np.meshgrid(x, y, z, indexing="ij")
+        self.points = np.vstack(list(map(np.ravel, coords))).T
+        self.points += self.start
+        self.points *= self.step * self.grid.dl
 
         # Add offset to subgrid geometry to correctly locate within main grid
         if isinstance(self.grid, SubGridBaseGrid):
-            x += self.grid.i0 * self.grid.dx * self.grid.ratio
-            y += self.grid.j0 * self.grid.dy * self.grid.ratio
-            z += self.grid.k0 * self.grid.dz * self.grid.ratio
+            offset = [self.grid.i0, self.grid.j0, self.grid.k0]
+            self.points += offset * self.grid.dl * self.grid.ratio
+
+        # Each point is the 'source' for 3 lines.
+        # NB: Excluding points at the far edge of the geometry as those
+        # are the 'source' for no lines
+        n_lines = 3 * self.nx * self.ny * self.nz
+
+        self.cell_types = np.full(n_lines, VtkCellType.LINE)
+        self.cell_offsets = np.arange(0, 2 * n_lines + 2, 2, dtype=np.intc)
+
+        self.connectivity, self.material_data = get_line_properties(
+            n_lines, self.nx, self.ny, self.nz, ID
+        )
+
+        assert isinstance(self.connectivity, np.ndarray)
+        assert isinstance(self.material_data, np.ndarray)
 
         # Write information about any PMLs, sources, receivers
         comments = Comments(self.grid, self)
@@ -218,55 +232,36 @@ class GeometryViewLines(GeometryView):
         info = comments.get_gprmax_info()
         comments = json.dumps(info)
 
+        self.materials = comments
+
         # Number of bytes of data to be written to file
-        offsets_size = np.arange(start=2, step=2, stop=len(x) + 1, dtype="int32").nbytes
-        connect_size = len(x) * np.dtype("int32").itemsize
-        cell_type_size = len(x) * np.dtype("uint8").itemsize
         self.nbytes = (
-            x.nbytes
-            + y.nbytes
-            + z.nbytes
-            + lines.nbytes
-            + offsets_size
-            + connect_size
-            + cell_type_size
+            self.points.nbytes
+            + self.cell_types.nbytes
+            + self.connectivity.nbytes
+            + self.cell_offsets.nbytes
+            + self.material_data.nbytes
         )
 
-        vtk_data = {"x": x, "y": y, "z": z, "data": lines, "comments": comments}
+    def write_vtk(self):
+        """Writes geometry information to a VTKHDF file."""
 
-        return vtk_data
-
-    def write_vtk(self, vtk_data):
-        """Writes geometry information to a VTK file.
-
-        Args:
-            vtk_data: dict of coordinates, data, and comments for VTK file.
-        """
-
-        # Write the VTK file .vtu
-        linesToVTK(
-            str(self.filename),
-            vtk_data["x"],
-            vtk_data["y"],
-            vtk_data["z"],
-            cellData={"Material": vtk_data["data"]},
-            comments=[vtk_data["comments"]],
-        )
+        # Write the VTK file
+        with VtkUnstructuredGrid(
+            self.filename,
+            self.points,
+            self.cell_types,
+            self.connectivity,
+            self.cell_offsets,
+        ) as f:
+            f.add_cell_data("Material", self.material_data)
 
 
 class GeometryViewVoxels(GeometryView):
     """Image data for a per-cell geometry view."""
 
-    def __init__(self, *args):
-        super().__init__(*args)
-        self.vtkfiletype = ".vtkhdf"
-
     def prep_vtk(self):
-        """Prepares data for writing to VTK file.
-
-        Returns:
-            vtk_data: dict of data and comments for VTK file.
-        """
+        """Prepares data for writing to VTKHDF file."""
 
         # Sample solid array according to geometry view spatial discretisation
         # Only create a new array if subsampling is required
@@ -275,8 +270,8 @@ class GeometryViewVoxels(GeometryView):
             or (self.dx, self.dy, self.dz) != (1, 1, 1)
             or (self.xs, self.ys, self.zs) != (0, 0, 0)
         ):
-            # Require contiguous for evtk library
-            solid = np.ascontiguousarray(
+            # Require contiguous array
+            self.material_data = np.ascontiguousarray(
                 self.grid.solid[
                     self.xs : self.xf : self.dx,
                     self.ys : self.yf : self.dy,
@@ -285,28 +280,10 @@ class GeometryViewVoxels(GeometryView):
             )
         else:
             # This array is contiguous by design
-            solid = self.grid.solid
-
-        # Write information about any PMLs, sources, receivers
-        comments = Comments(self.grid, self)
-        info = comments.get_gprmax_info()
-        comments = json.dumps(info)
-
-        self.nbytes = solid.nbytes
-
-        vtk_data = {"data": solid, "comments": comments}
-
-        return vtk_data
-
-    def write_vtk(self, vtk_data):
-        """Writes geometry information to a VTK file.
-
-        Args:
-            vtk_data: dict of data and comments for VTK file.
-        """
+            self.material_data = self.grid.solid
 
         if isinstance(self.grid, SubGridBaseGrid):
-            origin = np.array(
+            self.origin = np.array(
                 [
                     (self.grid.i0 * self.grid.dx * self.grid.ratio),
                     (self.grid.j0 * self.grid.dy * self.grid.ratio),
@@ -314,12 +291,24 @@ class GeometryViewVoxels(GeometryView):
                 ]
             )
         else:
-            origin = self.start * self.grid.dl
+            self.origin = self.start * self.grid.dl
 
-        spacing = self.step * self.grid.dl
+        self.spacing = self.step * self.grid.dl
 
-        with VtkImageData(self.filename, self.size, origin=origin, spacing=spacing) as f:
-            f.add_cell_data("Material", vtk_data["data"])
+        # Write information about any PMLs, sources, receivers
+        comments = Comments(self.grid, self)
+        info = comments.get_gprmax_info()
+        comments = json.dumps(info)
+
+        self.nbytes = self.material_data.nbytes
+
+        self.materials = comments
+
+    def write_vtk(self):
+        """Writes geometry information to a VTKHDF file."""
+
+        with VtkImageData(self.filename, self.size, self.origin, self.spacing) as f:
+            f.add_cell_data("Material", self.material_data)
 
 
 class Comments:
