@@ -29,7 +29,9 @@ from tqdm import tqdm
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.vtkhdf import VtkCellType, VtkImageData, VtkUnstructuredGrid
+from gprMax.vtkhdf_filehandlers.vtk_image_data import VtkImageData
+from gprMax.vtkhdf_filehandlers.vtk_unstructured_grid import VtkUnstructuredGrid
+from gprMax.vtkhdf_filehandlers.vtkhdf import VtkCellType
 
 from ._version import __version__
 from .cython.geometry_outputs import get_line_properties
