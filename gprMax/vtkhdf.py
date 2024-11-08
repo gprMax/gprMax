@@ -19,10 +19,16 @@ class VtkHdfFile(AbstractContextManager):
     FILE_EXTENSION = ".vtkhdf"
     ROOT_GROUP = "VTKHDF"
 
+    VERSION_ATTR = "Version"
+    TYPE_ATTR = "Type"
+
     @property
     @abstractmethod
     def TYPE(self) -> str:
         pass
+
+    def __enter__(self):
+        return self
 
     def __init__(self, filename: Union[str, PathLike], comm: Optional[MPI.Comm] = None) -> None:
         """Create a new VtkHdfFile.
@@ -60,11 +66,11 @@ class VtkHdfFile(AbstractContextManager):
         self.root_group = self.file_handler.create_group(self.ROOT_GROUP)
 
         # Set required Version and Type root attributes
-        self._set_root_attribute("Version", self.VERSION)
+        self._set_root_attribute(self.VERSION_ATTR, self.VERSION)
 
         type_as_ascii = self.TYPE.encode("ascii")
         self._set_root_attribute(
-            "Type", type_as_ascii, h5py.string_dtype("ascii", len(type_as_ascii))
+            self.TYPE_ATTR, type_as_ascii, h5py.string_dtype("ascii", len(type_as_ascii))
         )
 
     def __exit__(
@@ -98,6 +104,9 @@ class VtkHdfFile(AbstractContextManager):
         Args:
             attribute: Name of the attribute.
 
+        Returns:
+            value: Current value of the attribute if it exists.
+
         Raises:
             KeyError: Raised if the attribute is not present as a key.
         """
@@ -124,17 +133,23 @@ class VtkHdfFile(AbstractContextManager):
 
         Args:
             *path: Components of the required path.
+
+        Returns:
+            path: Path to the dataset.
         """
         return "/".join([self.ROOT_GROUP, *path])
 
     def _write_dataset(
         self,
         path: str,
-        data: npt.NDArray,
+        data: npt.ArrayLike,
         shape: Optional[npt.NDArray[np.intc]] = None,
         offset: Optional[npt.NDArray[np.intc]] = None,
     ):
-        """Write the specified dataset to the file.
+        """Write specified dataset to the VTKHDF file.
+
+        If data has shape (d1, d2, ..., dn), i.e. n dimensions, then, if
+        specified, shape and offset must be of length n.
 
         Args:
             path: Absolute path to the dataset.
@@ -143,7 +158,14 @@ class VtkHdfFile(AbstractContextManager):
                 Can be omitted if data provides the full dataset.
             offset (optional): Offset to store the provided data at. Can
                 be omitted if data provides the full dataset.
+
+        Raises:
+            ValueError: Raised if the combination of data.shape, shape,
+                and offset are invalid.
         """
+
+        if not isinstance(data, np.ndarray):
+            data = np.array([data])
 
         # VTKHDF stores datasets using ZYX ordering rather than XYZ
         data = data.transpose()
@@ -156,10 +178,13 @@ class VtkHdfFile(AbstractContextManager):
 
         if shape is None or all(shape == data.shape):
             self.file_handler.create_dataset(path, data=data)
+        elif offset is None:
+            raise ValueError(
+                "Offset must not be None as the full dataset has not been provided."
+                " I.e. data.shape != shape"
+            )
         else:
             dimensions = len(data.shape)
-            if offset is None:
-                offset = np.zeros(dimensions, dtype=np.intc)
 
             if dimensions != len(shape):
                 raise ValueError(
@@ -195,17 +220,17 @@ class VtkHdfFile(AbstractContextManager):
         shape: Optional[npt.NDArray[np.intc]] = None,
         offset: Optional[npt.NDArray[np.intc]] = None,
     ):
-        dataset_path = self._build_dataset_path("PointData", name)
-        self._write_dataset(dataset_path, data, shape, offset)
+        """Add point data to the VTKHDF file.
 
-    def add_field_data(
-        self,
-        name: str,
-        data: npt.NDArray,
-        shape: Optional[npt.NDArray[np.intc]] = None,
-        offset: Optional[npt.NDArray[np.intc]] = None,
-    ):
-        dataset_path = self._build_dataset_path("FieldData", name)
+        Args:
+            name: Name of the dataset.
+            data: Data to be saved.
+            shape (optional): Size of the full dataset being created.
+                Can be omitted if data provides the full dataset.
+            offset (optional): Offset to store the provided data at. Can
+                be omitted if data provides the full dataset.
+        """
+        dataset_path = self._build_dataset_path("PointData", name)
         self._write_dataset(dataset_path, data, shape, offset)
 
     def add_cell_data(
@@ -215,11 +240,47 @@ class VtkHdfFile(AbstractContextManager):
         shape: Optional[npt.NDArray[np.intc]] = None,
         offset: Optional[npt.NDArray[np.intc]] = None,
     ):
+        """Add cell data to the VTKHDF file.
+
+        Args:
+            name: Name of the dataset.
+            data: Data to be saved.
+            shape (optional): Size of the full dataset being created.
+                Can be omitted if data provides the full dataset.
+            offset (optional): Offset to store the provided data at. Can
+                be omitted if data provides the full dataset.
+        """
         dataset_path = self._build_dataset_path("CellData", name)
+        self._write_dataset(dataset_path, data, shape, offset)
+
+    def add_field_data(
+        self,
+        name: str,
+        data: npt.NDArray,
+        shape: Optional[npt.NDArray[np.intc]] = None,
+        offset: Optional[npt.NDArray[np.intc]] = None,
+    ):
+        """Add field data to the VTKHDF file.
+
+        Args:
+            name: Name of the dataset.
+            data: Data to be saved.
+            shape (optional): Size of the full dataset being created.
+                Can be omitted if data provides the full dataset.
+            offset (optional): Offset to store the provided data at. Can
+                be omitted if data provides the full dataset.
+        """
+        dataset_path = self._build_dataset_path("FieldData", name)
         self._write_dataset(dataset_path, data, shape, offset)
 
 
 class VtkImageData(VtkHdfFile):
+    """File handler for creating a VTKHDF Image Data file.
+
+    File format information is available here:
+    https://docs.vtk.org/en/latest/design_documents/VTKFileFormats.html#image-data
+    """
+
     DIRECTION_ATTR = "Direction"
     ORIGIN_ATTR = "Origin"
     SPACING_ATTR = "Spacing"
@@ -239,7 +300,33 @@ class VtkImageData(VtkHdfFile):
         spacing: Optional[npt.NDArray[np.single]] = None,
         direction: Optional[npt.NDArray[np.single]] = None,
         comm: Optional[MPI.Comm] = None,
-    ) -> None:
+    ):
+        """Create a new VtkImageData file.
+
+        If the file already exists, it will be overriden. Required
+        attributes (Type and Version) will be written to the file.
+
+        The file will be opened using the 'mpio' h5py driver if an MPI
+        communicator is provided.
+
+        Args:
+            filename: Name of the file (can be a file path). The file
+                extension will be set to '.vtkhdf'.
+            shape: Shape of the image data to be stored in the file.
+                This specifies the number of cells. Image data can be
+                1D, 2D, or 3D.
+            origin (optional): Origin of the image data. Default
+                [0, 0, 0].
+            spacing (optional): Discritisation of the image data.
+                Default [1, 1, 1].
+            direction (optional): Array of direction vectors for each
+                dimension of the image data. Can be a flattened array.
+                I.e. [[1, 0, 0], [0, 1, 0], [0, 0, 1]] and
+                [1, 0, 0, 0, 1, 0, 0, 0, 1] are equivalent. Default
+                [[1, 0, 0], [0, 1, 0], [0, 0, 1]].
+            comm (optional): MPI communicator containing all ranks that
+                want to write to the file.
+        """
         super().__init__(filename, comm)
 
         if len(shape) == 0:
@@ -264,7 +351,7 @@ class VtkImageData(VtkHdfFile):
         self.set_spacing(spacing)
 
         if direction is None:
-            direction = np.diag(np.ones(self.DIMENSIONS, dtype=np.single)).flatten()
+            direction = np.diag(np.ones(self.DIMENSIONS, dtype=np.single))
         self.set_direction(direction)
 
     @property
@@ -284,25 +371,55 @@ class VtkImageData(VtkHdfFile):
         return self._get_root_attribute(self.DIRECTION_ATTR)
 
     def set_origin(self, origin: npt.NDArray[np.single]):
+        """Set the origin coordinate of the image data.
+
+        Args:
+            origin: x, y, z coordinates to set as the origin.
+        """
         if len(origin) != self.DIMENSIONS:
             raise ValueError(f"Origin attribute must have {self.DIMENSIONS} dimensions.")
         self._set_root_attribute(self.ORIGIN_ATTR, origin)
 
     def set_spacing(self, spacing: npt.NDArray[np.single]):
+        """Set the discritisation of the image data.
+
+        Args:
+            spacing: Discritisation of the x, y, and z dimensions.
+        """
         if len(spacing) != self.DIMENSIONS:
             raise ValueError(f"Spacing attribute must have {self.DIMENSIONS} dimensions.")
         self._set_root_attribute(self.SPACING_ATTR, spacing)
 
     def set_direction(self, direction: npt.NDArray[np.single]):
+        """Set the coordinate system of the image data.
+
+        Args:
+            direction: Array of direction vectors for each dimension of
+                the image data. Can be a flattened array. I.e.
+                [[1, 0, 0], [0, 1, 0], [0, 0, 1]] and
+                [1, 0, 0, 0, 1, 0, 0, 0, 1] are equivalent.
+        """
+        direction = direction.flatten()
         if len(direction) != self.DIMENSIONS * self.DIMENSIONS:
             raise ValueError(
-                f"Direction attribute must have {self.DIMENSIONS * self.DIMENSIONS} dimensions."
+                f"Direction array must contain {self.DIMENSIONS * self.DIMENSIONS} elements."
             )
         self._set_root_attribute(self.DIRECTION_ATTR, direction)
 
     def add_point_data(
         self, name: str, data: npt.NDArray, offset: Optional[npt.NDArray[np.intc]] = None
     ):
+        """Add point data to the VTKHDF file.
+
+        Args:
+            name: Name of the dataset.
+            data: Data to be saved.
+            offset (optional): Offset to store the provided data at. Can
+                be omitted if data provides the full dataset.
+
+        Raises:
+            ValueError: Raised if data has invalid dimensions.
+        """
         points_shape = self.shape + 1
         if offset is None and any(data.shape != points_shape):  # type: ignore
             raise ValueError(
@@ -314,9 +431,20 @@ class VtkImageData(VtkHdfFile):
     def add_cell_data(
         self, name: str, data: npt.NDArray, offset: Optional[npt.NDArray[np.intc]] = None
     ):
+        """Add cell data to the VTKHDF file.
+
+        Args:
+            name: Name of the dataset.
+            data: Data to be saved.
+            offset (optional): Offset to store the provided data at. Can
+                be omitted if data provides the full dataset.
+
+        Raises:
+            ValueError: Raised if data has invalid dimensions.
+        """
         if offset is None and any(data.shape != self.shape):  # type: ignore
             raise ValueError(
                 "If no offset is specified, data.shape must match the dimensions of this"
-                f" vtkImageData object. {data.shape} != {self.shape}"
+                f" VtkImageData object. {data.shape} != {self.shape}"
             )
         return super().add_cell_data(name, data, self.shape, offset)
