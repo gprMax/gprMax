@@ -203,7 +203,9 @@ class VtkHdfFile(AbstractContextManager):
                 Default True.
         """
         path = self._build_dataset_path(name)
-        self._write_dataset(path, data, shape, offset, xyz_data_ordering)
+        self._write_dataset(
+            path, data, shape=shape, offset=offset, xyz_data_ordering=xyz_data_ordering
+        )
 
     def _write_dataset(
         self,
@@ -211,6 +213,7 @@ class VtkHdfFile(AbstractContextManager):
         data: npt.ArrayLike,
         shape: Optional[npt.NDArray[np.intc]] = None,
         offset: Optional[npt.NDArray[np.intc]] = None,
+        dtype: Optional[npt.DTypeLike] = None,
         xyz_data_ordering=True,
     ):
         """Write specified dataset to the VTKHDF file.
@@ -234,8 +237,18 @@ class VtkHdfFile(AbstractContextManager):
                 and offset are invalid.
         """
 
+        # If dtype is a string, ensure it is ascii encoded and use
+        # variable length strings
+        if dtype is not None and h5py.check_string_dtype(dtype) is not None:
+            dtype = h5py.string_dtype(encoding="ascii", length=None)
+
         if not isinstance(data, np.ndarray):
-            data = np.array([data])
+            data = np.array(data, dtype=dtype)
+            if data.ndim < 1:
+                data = np.expand_dims(data, axis=-1)
+
+        if dtype is None:
+            dtype = data.dtype
 
         # VTKHDF stores datasets using ZYX ordering rather than XYZ
         if xyz_data_ordering:
@@ -248,7 +261,7 @@ class VtkHdfFile(AbstractContextManager):
             offset = np.flip(offset)
 
         if shape is None or all(shape == data.shape):
-            self.file_handler.create_dataset(path, data=data)
+            self.file_handler.create_dataset(path, data=data, dtype=dtype)
         elif offset is None:
             raise ValueError(
                 "Offset must not be None as the full dataset has not been provided."
@@ -275,7 +288,7 @@ class VtkHdfFile(AbstractContextManager):
                     f" {offset} + {data.shape} = {offset + data.shape} > {shape}"
                 )
 
-            dataset = self.file_handler.create_dataset(path, shape, data.dtype)
+            dataset = self.file_handler.create_dataset(path, shape=shape, dtype=dtype)
 
             start = offset
             stop = offset + data.shape
@@ -302,7 +315,7 @@ class VtkHdfFile(AbstractContextManager):
                 be omitted if data provides the full dataset.
         """
         dataset_path = self._build_dataset_path("PointData", name)
-        self._write_dataset(dataset_path, data, shape, offset)
+        self._write_dataset(dataset_path, data, shape=shape, offset=offset)
 
     def add_cell_data(
         self,
@@ -322,14 +335,15 @@ class VtkHdfFile(AbstractContextManager):
                 be omitted if data provides the full dataset.
         """
         dataset_path = self._build_dataset_path("CellData", name)
-        self._write_dataset(dataset_path, data, shape, offset)
+        self._write_dataset(dataset_path, data, shape=shape, offset=offset)
 
     def add_field_data(
         self,
         name: str,
-        data: npt.NDArray,
+        data: npt.ArrayLike,
         shape: Optional[npt.NDArray[np.intc]] = None,
         offset: Optional[npt.NDArray[np.intc]] = None,
+        dtype: Optional[npt.DTypeLike] = None,
     ):
         """Add field data to the VTKHDF file.
 
@@ -342,7 +356,9 @@ class VtkHdfFile(AbstractContextManager):
                 be omitted if data provides the full dataset.
         """
         dataset_path = self._build_dataset_path("FieldData", name)
-        self._write_dataset(dataset_path, data, shape, offset)
+        self._write_dataset(
+            dataset_path, data, shape=shape, offset=offset, dtype=dtype, xyz_data_ordering=False
+        )
 
 
 class VtkCellType(np.uint8, Enum):
