@@ -21,17 +21,20 @@ import logging
 import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Sequence, Tuple, Union
 
 import h5py
 import numpy as np
+import numpy.typing as npt
 from tqdm import tqdm
 
 import gprMax.config as config
 from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.receivers import Rx
+from gprMax.sources import Source
 from gprMax.vtkhdf_filehandlers.vtk_image_data import VtkImageData
 from gprMax.vtkhdf_filehandlers.vtk_unstructured_grid import VtkUnstructuredGrid
-from gprMax.vtkhdf_filehandlers.vtkhdf import VtkCellType
+from gprMax.vtkhdf_filehandlers.vtkhdf import VtkCellType, VtkHdfFile
 
 from ._version import __version__
 from .cython.geometry_outputs import get_line_properties
@@ -228,13 +231,7 @@ class GeometryViewLines(GeometryView):
         assert isinstance(self.material_data, np.ndarray)
 
         # Write information about any PMLs, sources, receivers
-        comments = Comments(self.grid, self)
-        comments.averaged_materials = True
-        comments.materials_only = True
-        info = comments.get_gprmax_info()
-        comments = json.dumps(info)
-
-        self.materials = comments
+        self.metadata = Metadata(self.grid, self, averaged_materials=True, materials_only=True)
 
         # Number of bytes of data to be written to file
         self.nbytes = (
@@ -257,6 +254,7 @@ class GeometryViewLines(GeometryView):
             self.cell_offsets,
         ) as f:
             f.add_cell_data("Material", self.material_data)
+            self.metadata.write_to_vtkhdf(f)
 
 
 class GeometryViewVoxels(GeometryView):
@@ -298,50 +296,48 @@ class GeometryViewVoxels(GeometryView):
         self.spacing = self.step * self.grid.dl
 
         # Write information about any PMLs, sources, receivers
-        comments = Comments(self.grid, self)
-        info = comments.get_gprmax_info()
-        comments = json.dumps(info)
+        self.metadata = Metadata(self.grid, self)
 
         self.nbytes = self.material_data.nbytes
-
-        self.materials = comments
 
     def write_vtk(self):
         """Writes geometry information to a VTKHDF file."""
 
         with VtkImageData(self.filename, self.size, self.origin, self.spacing) as f:
             f.add_cell_data("Material", self.material_data)
+            self.metadata.write_to_vtkhdf(f)
 
 
-class Comments:
+class Metadata:
     """Comments can be strings included in the header of XML VTK file, and are
     used to hold extra (gprMax) information about the VTK data.
     """
 
-    def __init__(self, grid, gv):
+    def __init__(
+        self,
+        grid: FDTDGrid,
+        gv: GeometryView,
+        averaged_materials: bool = False,
+        materials_only: bool = False,
+    ):
         self.grid = grid
         self.gv = gv
-        self.averaged_materials = False
-        self.materials_only = False
+        self.averaged_materials = averaged_materials
+        self.materials_only = materials_only
 
-    def get_gprmax_info(self):
-        """Returns gprMax specific information relating material, source,
-        and receiver names to numeric identifiers.
-        """
+        self.gprmax_version = __version__
+        self.dx_dy_dz = self.grid.dl
+        self.nx_ny_nz = np.array([self.grid.nx, self.grid.ny, self.grid.nz], dtype=np.intc)
 
-        # Comments for Paraview macro
-        comments = {
-            "gprMax_version": __version__,
-            "dx_dy_dz": self.dx_dy_dz_comment(),
-            "nx_ny_nz": self.nx_ny_nz_comment(),
-            "Materials": self.materials_comment(),
-        }  # Write the name and numeric ID for each material
+        self.materials = self.materials_comment()
 
         # Write information on PMLs, sources, and receivers
         if not self.materials_only:
             # Information on PML thickness
             if self.grid.pmls["slabs"]:
-                comments["PMLthickness"] = self.pml_gv_comment()
+                self.pml_thickness = self.pml_gv_comment()
+            else:
+                self.pml_thickness = None
             srcs = (
                 self.grid.hertziandipoles
                 + self.grid.magneticdipoles
@@ -349,53 +345,89 @@ class Comments:
                 + self.grid.transmissionlines
             )
             if srcs:
-                comments["Sources"] = self.srcs_rx_gv_comment(srcs)
+                self.source_ids, self.source_positions = self.srcs_rx_gv_comment(srcs)
+            else:
+                self.source_ids = None
+                self.source_positions = None
             if self.grid.rxs:
-                comments["Receivers"] = self.srcs_rx_gv_comment(self.grid.rxs)
+                self.receiver_ids, self.receiver_positions = self.srcs_rx_gv_comment(self.grid.rxs)
+            else:
+                self.receiver_ids = None
+                self.receiver_positions = None
 
-        return comments
+    def write_to_vtkhdf(self, file_handler: VtkHdfFile):
+        file_handler.add_field_data(
+            "gprMax_version",
+            self.gprmax_version,
+            dtype=h5py.string_dtype(),
+        )
+        file_handler.add_field_data("dx_dy_dz", self.dx_dy_dz)
+        file_handler.add_field_data("nx_ny_nz", self.nx_ny_nz)
 
-    def pml_gv_comment(self):
+        file_handler.add_field_data(
+            "material_ids",
+            self.materials,
+            dtype=h5py.string_dtype(),
+        )
+
+        if not self.materials_only:
+            if self.pml_thickness is not None:
+                file_handler.add_field_data("pml_thickness", self.pml_thickness)
+
+            if self.source_ids is not None and self.source_positions is not None:
+                file_handler.add_field_data(
+                    "source_ids", self.source_ids, dtype=h5py.string_dtype()
+                )
+                file_handler.add_field_data("sources", self.source_positions)
+
+            if self.receiver_ids is not None and self.receiver_positions is not None:
+                file_handler.add_field_data(
+                    "receiver_ids", self.receiver_ids, dtype=h5py.string_dtype()
+                )
+                file_handler.add_field_data("receivers", self.receiver_positions)
+
+    def pml_gv_comment(self) -> List[int]:
         grid = self.grid
 
         # Only render PMLs if they are in the geometry view
-        pmlstorender = dict.fromkeys(grid.pmls["thickness"], 0)
+        thickness: Dict[str, int] = grid.pmls["thickness"]
+        gv_pml_depth = dict.fromkeys(thickness, 0)
 
-        # Casting to int required as json does not handle numpy types
-        if grid.pmls["thickness"]["x0"] - self.gv.xs > 0:
-            pmlstorender["x0"] = int(grid.pmls["thickness"]["x0"] - self.gv.xs)
-        if grid.pmls["thickness"]["y0"] - self.gv.ys > 0:
-            pmlstorender["y0"] = int(grid.pmls["thickness"]["y0"] - self.gv.ys)
-        if grid.pmls["thickness"]["z0"] - self.gv.zs > 0:
-            pmlstorender["z0"] = int(grid.pmls["thickness"]["z0"] - self.gv.zs)
-        if self.gv.xf > grid.nx - grid.pmls["thickness"]["xmax"]:
-            pmlstorender["xmax"] = int(self.gv.xf - (grid.nx - grid.pmls["thickness"]["xmax"]))
-        if self.gv.yf > grid.ny - grid.pmls["thickness"]["ymax"]:
-            pmlstorender["ymax"] = int(self.gv.yf - (grid.ny - grid.pmls["thickness"]["ymax"]))
-        if self.gv.zf > grid.nz - grid.pmls["thickness"]["zmax"]:
-            pmlstorender["zmax"] = int(self.gv.zf - (grid.nz - grid.pmls["thickness"]["zmax"]))
+        if self.gv.xs < thickness["x0"]:
+            gv_pml_depth["x0"] = thickness["x0"] - self.gv.xs
+        if self.gv.ys < thickness["y0"]:
+            gv_pml_depth["y0"] = thickness["y0"] - self.gv.ys
+        if thickness["z0"] - self.gv.zs > 0:
+            gv_pml_depth["z0"] = thickness["z0"] - self.gv.zs
+        if self.gv.xf > grid.nx - thickness["xmax"]:
+            gv_pml_depth["xmax"] = self.gv.xf - (grid.nx - thickness["xmax"])
+        if self.gv.yf > grid.ny - thickness["ymax"]:
+            gv_pml_depth["ymax"] = self.gv.yf - (grid.ny - thickness["ymax"])
+        if self.gv.zf > grid.nz - thickness["zmax"]:
+            gv_pml_depth["zmax"] = self.gv.zf - (grid.nz - thickness["zmax"])
 
-        return list(pmlstorender.values())
+        return list(gv_pml_depth.values())
 
-    def srcs_rx_gv_comment(self, srcs):
+    def srcs_rx_gv_comment(
+        self, srcs: Union[Sequence[Source], List[Rx]]
+    ) -> Tuple[List[str], npt.NDArray[np.single]]:
         """Used to name sources and/or receivers."""
-        sc = []
-        for src in srcs:
-            p = (src.xcoord * self.grid.dx, src.ycoord * self.grid.dy, src.zcoord * self.grid.dz)
-            p = list(map(float, p))
+        names: List[str] = []
+        positions: npt.NDArray[np.single] = np.empty((len(srcs), 3))
+        for index, src in enumerate(srcs):
+            position = src.coord * self.grid.dl
+            names.append(src.ID)
+            positions[index] = position
 
-            s = {"name": src.ID, "position": p}
-            sc.append(s)
+        return names, positions
 
-        return sc
+    def dx_dy_dz_comment(self) -> npt.NDArray[np.single]:
+        return self.grid.dl
 
-    def dx_dy_dz_comment(self):
-        return list(map(float, [self.grid.dx, self.grid.dy, self.grid.dz]))
+    def nx_ny_nz_comment(self) -> npt.NDArray[np.intc]:
+        return np.array([self.grid.nx, self.grid.ny, self.grid.nz], dtype=np.intc)
 
-    def nx_ny_nz_comment(self):
-        return list(map(int, [self.grid.nx, self.grid.ny, self.grid.nz]))
-
-    def materials_comment(self):
+    def materials_comment(self) -> List[str]:
         if not self.averaged_materials:
             return [m.ID for m in self.grid.materials if m.type != "dielectric-smoothed"]
         else:
