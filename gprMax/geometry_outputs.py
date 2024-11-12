@@ -101,7 +101,7 @@ class GeometryView(ABC):
         self.start = np.array([xs, ys, zs], dtype=np.intc)
         self.stop = np.array([xf, yf, zf], dtype=np.intc)
         self.step = np.array([dx, dy, dz], dtype=np.intc)
-        self.size = self.stop - self.start
+        self.size = (self.stop - self.start) // self.step
 
         self.filename = Path(filename)
         self.filenamebase = filename
