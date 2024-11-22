@@ -7,11 +7,9 @@ Usage (run all tests):
 
 import os
 from pathlib import Path
-from shutil import copyfile
-from typing import Literal
+from typing import Literal, Optional, Union
 
 import reframe.utility.sanity as sn
-import reframe.utility.typecheck as typ
 from numpy import prod
 from reframe import RunOnlyRegressionTest, simple_test
 from reframe.core.builtins import (
@@ -22,11 +20,10 @@ from reframe.core.builtins import (
     run_after,
     run_before,
     sanity_function,
-    variable,
 )
-from reframe.utility import osext, udeps
+from reframe.utility import udeps
 
-from gprMax.receivers import Rx
+from reframe_tests.tests.regression_checks import RegressionCheck
 from reframe_tests.utilities.deferrable import path_join
 
 TESTS_ROOT_DIR = Path(__file__).parent
@@ -106,14 +103,30 @@ class GprMaxRegressionTest(RunOnlyRegressionTest):
     exclusive_access = True
 
     model = parameter()
-    is_antenna_model = variable(bool, value=False)
-    has_receiver_output = variable(bool, value=True)
-    snapshots = variable(typ.List[str], value=[])
     sourcesdir = required
-    extra_executable_opts = variable(typ.List[str], value=[])
     executable = "time -p python -m gprMax --log-level 10 --hide-progress-bars"
 
-    rx_outputs = variable(typ.List[str], value=Rx.defaultoutputs)
+    regression_checks: list[RegressionCheck] = []
+
+    test_dependency: Optional[type["GprMaxRegressionTest"]] = None
+
+    def get_test_dependency(self) -> Optional["GprMaxRegressionTest"]:
+        """Get test variant with the same model and number of models"""
+        if self.test_dependency is None:
+            return None
+        else:
+            variant = self.test_dependency.variant_name(self.test_dependency.param_variant)
+            return self.getdep(variant)
+
+    def build_reference_filepath(self, name: Union[str, os.PathLike]) -> Path:
+        target = self.get_test_dependency()
+        if target is None:
+            reference_dir = self.short_name
+        else:
+            reference_dir = target.short_name
+
+        reference_file = Path("regression_checks", reference_dir, name).with_suffix(".h5")
+        return reference_file.absolute()
 
     @run_after("init")
     def setup_env_vars(self):
@@ -133,6 +146,9 @@ class GprMaxRegressionTest(RunOnlyRegressionTest):
     def inject_dependencies(self):
         """Test depends on the Python virtual environment building correctly"""
         self.depends_on("CreatePyenvTest", udeps.by_env)
+        if self.test_dependency is not None:
+            variant = self.test_dependency.variant_name(self.test_dependency.param_variant)
+            self.depends_on(variant, udeps.by_env)
 
     @require_deps
     def get_pyenv_path(self, CreatePyenvTest):
@@ -140,35 +156,19 @@ class GprMaxRegressionTest(RunOnlyRegressionTest):
         path_to_pyenv = os.path.join(CreatePyenvTest(part="login").stagedir, PATH_TO_PYENV)
         self.prerun_cmds.append(f"source {path_to_pyenv}")
 
-    def build_reference_filepath(self, suffix: str = "") -> str:
-        filename = f"{self.short_name}_{suffix}" if len(suffix) > 0 else self.short_name
-        reference_file = Path("regression_checks", filename).with_suffix(".h5")
-        return os.path.abspath(reference_file)
-
-    def build_snapshot_filepath(self, snapshot: str) -> str:
-        return os.path.join(f"{self.model}_snaps", snapshot)
-
-    @run_after("setup")
-    def setup_reference_files(self):
-        """Build reference file paths"""
-        self.reference_file = self.build_reference_filepath()
-        self.snapshot_reference_files = []
-        for snapshot in self.snapshots:
-            self.snapshot_reference_files.append(self.build_reference_filepath(snapshot))
-
-    @run_after("setup", always_last=True)
-    def configure_test_run(self, input_file_ext: str = ".in"):
+    @run_after("init")
+    def configure_test_run(self):
         """Configure gprMax commandline arguments and plot outputs
 
         Set the input and output files and add postrun commands to plot
         the outputs.
         """
-        self.input_file = f"{self.model}{input_file_ext}"
+        self.input_file = f"{self.model}.in"
         self.output_file = f"{self.model}.h5"
         self.executable_opts = [self.input_file, "-o", self.output_file]
-        self.executable_opts += self.extra_executable_opts
-        self.keep_files = [self.input_file, *self.snapshots]
+        self.keep_files = [self.input_file, self.output_file]
 
+        """
         if self.has_receiver_output:
             self.postrun_cmds = [
                 f"python -m reframe_tests.utilities.plotting {self.output_file} {self.reference_file} -m {self.model}"
@@ -186,6 +186,7 @@ class GprMaxRegressionTest(RunOnlyRegressionTest):
                 antenna_t1_params,
                 antenna_ant_params,
             ]
+        """
 
     @run_before("run")
     def combine_task_outputs(self):
@@ -233,99 +234,30 @@ class GprMaxRegressionTest(RunOnlyRegressionTest):
             r"=== Simulation completed in ", self.stdout, "Simulation did not complete"
         )
 
-    def run_regression_check(
-        self, output_file: str, reference_file: str, error_msg: str
-    ) -> Literal[True]:
-        """Compare two provided .h5 files using h5diff
-
-        Args:
-            output_file: Filepath of .h5 file output by the test.
-            reference_file: Filepath of reference .h5 file containing
-                the expected output.
-        """
-        if self.current_system.name == "archer2":
-            h5diff = "/opt/cray/pe/hdf5/default/bin/h5diff"
-        else:
-            h5diff = "h5diff"
-
-        h5diff_output = osext.run_command([h5diff, os.path.abspath(output_file), reference_file])
-
-        return sn.assert_false(
-            h5diff_output.stdout,
-            (
-                f"{error_msg}\n"
-                f"For more details run: 'h5diff {os.path.abspath(output_file)} {reference_file}'\n"
-                f"To re-create regression file, delete '{reference_file}' and rerun the test."
-            ),
-        )
-
-    def test_output_regression(self) -> Literal[True]:
-        """Compare the test output with the reference file.
-
-        If the test contains any receivers, a regression check is run,
-        otherwise it checks the test did not generate an output file.
-        """
-        if self.has_receiver_output:
-            return self.run_regression_check(
-                self.output_file, self.reference_file, "Failed output regresssion check"
-            )
-        else:
-            return sn.assert_false(
-                sn.path_exists(self.output_file),
-                f"Unexpected output file found: '{self.output_file}'",
-            )
-
-    def test_snapshot_regression(self) -> Literal[True]:
-        """Compare the snapshot outputs with reference files.
-
-        Generates a regression check for each snapshot. Each regression
-        check is a deffered expression, so they all need to be returned
-        so that they are each evaluated.
-        """
-        regression_checks = []
-        for index, snapshot in enumerate(self.snapshots):
-            snapshot_path = self.build_snapshot_filepath(snapshot)
-            reference_file = self.snapshot_reference_files[index]
-            regression_checks.append(
-                self.run_regression_check(
-                    snapshot_path, reference_file, f"Failed snapshot regresssion check '{snapshot}'"
-                )
-            )
-
-        # sn.assert_true is not strictly necessary
-        return sn.assert_true(sn.all(regression_checks))
-
     @sanity_function
-    def regression_check(self) -> Literal[True]:
+    def regression_check(self) -> bool:
         """Perform regression check for the test output and snapshots
 
         If not all the reference files exist, then create all the
         missing reference files from the test output and fail the test.
         """
-        if (not self.has_receiver_output or sn.path_exists(self.reference_file)) and sn.all(
-            [sn.path_exists(path) for path in self.snapshot_reference_files]
-        ):
-            return (
-                self.test_simulation_complete()
-                and self.test_output_regression()
-                and self.test_snapshot_regression()
-            )
-        else:
-            error_messages = []
-            if self.has_receiver_output and not sn.path_exists(self.reference_file):
-                copyfile(self.output_file, self.reference_file)
-                error_messages.append(
-                    f"Output reference file does not exist. Creating... '{self.reference_file}'"
-                )
-            for index, snapshot in enumerate(self.snapshots):
-                reference_file = self.snapshot_reference_files[index]
-                if not sn.path_exists(reference_file):
-                    copyfile(self.build_snapshot_filepath(snapshot), reference_file)
+        error_messages = []
+        for check in self.regression_checks:
+            if not check.reference_file_exists():
+                if check.create_reference_file():
                     error_messages.append(
-                        f"Snapshot '{snapshot}' reference file does not exist. Creating... '{reference_file}'"
+                        f"Reference file does not exist. Creating... '{check.reference_file}'"
+                    )
+                else:
+                    error_messages.append(
+                        f"ERROR: Unable to create reference file: '{check.reference_file}'"
                     )
 
-            return sn.assert_true(False, "\n".join(error_messages))
+        return (
+            self.test_simulation_complete()
+            and sn.assert_true(len(error_messages) < 1, "\n".join(error_messages))
+            and sn.all(sn.map(lambda check: check.run(), self.regression_checks))
+        )
 
     @performance_function("s", perf_key="run_time")
     def extract_run_time(self):
