@@ -6,7 +6,7 @@ from reframe import RegressionMixin
 from reframe.core.builtins import parameter, required, run_after, variable
 from typing_extensions import TYPE_CHECKING
 
-from reframe_tests.tests.base_tests import GprMaxRegressionTest
+from reframe_tests.tests.base_tests import GprMaxBaseTest
 from reframe_tests.tests.regression_checks import (
     ReceiverRegressionCheck,
     RegressionCheck,
@@ -14,7 +14,7 @@ from reframe_tests.tests.regression_checks import (
 )
 
 if TYPE_CHECKING:
-    GprMaxMixin = GprMaxRegressionTest
+    GprMaxMixin = GprMaxBaseTest
 else:
     GprMaxMixin = RegressionMixin
 

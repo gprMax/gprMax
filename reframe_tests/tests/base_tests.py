@@ -96,7 +96,7 @@ class CreatePyenvTest(RunOnlyRegressionTest):
         )
 
 
-class GprMaxRegressionTest(RunOnlyRegressionTest):
+class GprMaxBaseTest(RunOnlyRegressionTest):
     valid_systems = ["archer2:compute"]
     valid_prog_environs = ["PrgEnv-gnu"]
     modules = ["cray-python"]
@@ -112,7 +112,7 @@ class GprMaxRegressionTest(RunOnlyRegressionTest):
 
     test_dependency = variable(type(None), type, value=None)
 
-    def get_test_dependency(self) -> Optional["GprMaxRegressionTest"]:
+    def get_test_dependency(self) -> Optional["GprMaxBaseTest"]:
         """Get test variant with the same model and number of models"""
         if self.test_dependency is None:
             return None
@@ -311,16 +311,17 @@ class GprMaxRegressionTest(RunOnlyRegressionTest):
         return hours * 3600 + minutes * 60 + seconds
 
 
-class GprMaxAPIRegressionTest(GprMaxRegressionTest):
+class GprMaxAPIRegressionTest(GprMaxBaseTest):
     executable = "time -p python"
 
     @run_after("setup", always_last=True)
     def configure_test_run(self):
         """Input files for API tests will be python files"""
-        super().configure_test_run(input_file_ext=".py")
+        # super().configure_test_run(input_file_ext=".py")
+        pass
 
 
-class GprMaxBScanRegressionTest(GprMaxRegressionTest):
+class GprMaxBScanRegressionTest(GprMaxBaseTest):
     num_models = parameter()
 
     @run_after("setup", always_last=True)
@@ -339,7 +340,7 @@ class GprMaxBScanRegressionTest(GprMaxRegressionTest):
 
 
 class GprMaxTaskfarmRegressionTest(GprMaxBScanRegressionTest):
-    serial_dependency: type[GprMaxRegressionTest]
+    serial_dependency: type[GprMaxBaseTest]
     extra_executable_opts = ["-taskfarm"]
     sourcesdir = "src"  # Necessary so test is not skipped (set later)
 
@@ -376,9 +377,9 @@ class GprMaxTaskfarmRegressionTest(GprMaxBScanRegressionTest):
         self.snapshot_reference_files = target.snapshot_reference_files
 
 
-class GprMaxMPIRegressionTest(GprMaxRegressionTest):
+class GprMaxMPIRegressionTest(GprMaxBaseTest):
     # TODO: Make this a variable
-    serial_dependency: type[GprMaxRegressionTest]
+    serial_dependency: type[GprMaxBaseTest]
     mpi_layout = parameter()
     sourcesdir = "src"  # Necessary so test is not skipped (set later)
 

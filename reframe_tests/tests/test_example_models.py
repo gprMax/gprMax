@@ -1,15 +1,15 @@
 import reframe as rfm
 from reframe.core.builtins import parameter
 
-from reframe_tests.tests.base_tests import GprMaxBScanRegressionTest, GprMaxRegressionTest
-from reframe_tests.tests.mixins import MpiMixin, ReceiverMixin
+from reframe_tests.tests.mixins import BScanMixin
+from reframe_tests.tests.standard_tests import GprMaxRegressionTest
 
 """Reframe regression tests for example models in gprMax documentation
 """
 
 
 @rfm.simple_test
-class TestAscan(ReceiverMixin, GprMaxRegressionTest):
+class TestAscan(GprMaxRegressionTest):
     tags = {
         "test",
         "serial",
@@ -26,7 +26,7 @@ class TestAscan(ReceiverMixin, GprMaxRegressionTest):
 
 
 @rfm.simple_test
-class TestBscan(GprMaxBScanRegressionTest):
+class TestBscan(BScanMixin, GprMaxRegressionTest):
     tags = {
         "test",
         "serial",
