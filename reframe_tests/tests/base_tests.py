@@ -257,7 +257,7 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
         error_messages = []
         for check in self.regression_checks:
             if not check.reference_file_exists():
-                if check.create_reference_file() and self.test_dependency is None:
+                if self.test_dependency is None and check.create_reference_file():
                     error_messages.append(
                         f"Reference file does not exist. Creating... '{check.reference_file}'"
                     )
