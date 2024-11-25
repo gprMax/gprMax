@@ -110,15 +110,14 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
 
     regression_checks = variable(typ.List[RegressionCheck], value=[])
 
-    test_dependency = variable(type(None), type, value=None)
+    test_dependency = variable(type(None), str, value=None)
 
     def get_test_dependency(self) -> Optional["GprMaxBaseTest"]:
         """Get test variant with the same model and number of models"""
         if self.test_dependency is None:
             return None
         else:
-            variant = self.test_dependency.variant_name(self.test_dependency.param_variant)
-            return self.getdep(variant)
+            return self.getdep(self.test_dependency)
 
     def build_reference_filepath(self, name: Union[str, os.PathLike]) -> Path:
         target = self.get_test_dependency()
@@ -149,8 +148,7 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
         """Test depends on the Python virtual environment building correctly"""
         self.depends_on("CreatePyenvTest", udeps.by_env)
         if self.test_dependency is not None:
-            variant = self.test_dependency.variant_name(self.test_dependency.param_variant)
-            self.depends_on(variant, udeps.by_env)
+            self.depends_on(self.test_dependency, udeps.by_env)
 
     @require_deps
     def get_pyenv_path(self, CreatePyenvTest):
@@ -259,9 +257,13 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
         error_messages = []
         for check in self.regression_checks:
             if not check.reference_file_exists():
-                if check.create_reference_file():
+                if check.create_reference_file() and self.test_dependency is None:
                     error_messages.append(
                         f"Reference file does not exist. Creating... '{check.reference_file}'"
+                    )
+                elif self.test_dependency is not None:
+                    error_messages.append(
+                        f"ERROR: Test dependency did not create reference file: '{check.reference_file}'"
                     )
                 else:
                     error_messages.append(
