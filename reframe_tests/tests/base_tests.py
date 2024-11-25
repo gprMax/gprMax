@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Literal, Optional, Union
 
 import reframe.utility.sanity as sn
+import reframe.utility.typecheck as typ
 from numpy import prod
 from reframe import RunOnlyRegressionTest, simple_test
 from reframe.core.builtins import (
@@ -20,6 +21,7 @@ from reframe.core.builtins import (
     run_after,
     run_before,
     sanity_function,
+    variable,
 )
 from reframe.utility import udeps
 
@@ -106,9 +108,9 @@ class GprMaxRegressionTest(RunOnlyRegressionTest):
     sourcesdir = required
     executable = "time -p python -m gprMax --log-level 10 --hide-progress-bars"
 
-    regression_checks: list[RegressionCheck] = []
+    regression_checks = variable(typ.List[RegressionCheck], value=[])
 
-    test_dependency: Optional[type["GprMaxRegressionTest"]] = None
+    test_dependency = variable(type(None), type, value=None)
 
     def get_test_dependency(self) -> Optional["GprMaxRegressionTest"]:
         """Get test variant with the same model and number of models"""
