@@ -45,24 +45,10 @@ class SnapshotMixin(GprMaxMixin):
 
     @run_after("setup")
     def add_snapshot_regression_checks(self):
-        has_specified_snapshots = len(self.snapshots) > 0
-        valid_test_dependency = self.test_dependency is not None and issubclass(
-            self.test_dependency, SnapshotMixin
-        )
-
         self.skip_if(
-            not valid_test_dependency and not has_specified_snapshots,
-            f"Must provide either a list of snapshots, or a test dependency that inherits from SnapshotMixin.",
+            len(self.snapshots) < 0,
+            f"Must provide a list of snapshots.",
         )
-        self.skip_if(
-            valid_test_dependency and has_specified_snapshots,
-            f"Cannot provide both a list of snapshots, and a test dependency that inherits from SnapshotMixin.",
-        )
-
-        if valid_test_dependency:
-            target = self.get_test_dependency()
-            assert isinstance(target, SnapshotMixin)
-            self.snapshots = target.snapshots
 
         for snapshot in self.snapshots:
             snapshot_file = self.build_snapshot_filepath(snapshot)
@@ -104,8 +90,6 @@ class BScanMixin(GprMaxMixin):
 
 
 class TaskfarmMixin(GprMaxMixin):
-    extra_executable_opts = ["-taskfarm"]
-
     # num_tasks = required
 
     @run_after("setup")
