@@ -106,7 +106,7 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
 
     model = parameter()
     sourcesdir = required
-    executable = "time -p python -m gprMax --log-level 10 --hide-progress-bars"
+    executable = "time -p python -m gprMax"
 
     regression_checks = variable(typ.List[RegressionCheck], value=[])
 
@@ -159,16 +159,29 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
         self.prerun_cmds.append(f"source {path_to_pyenv}")
 
     @run_after("init")
+    def set_file_paths(self):
+        self.input_file = Path(f"{self.model}.in")
+        self.output_file = Path(f"{self.model}.h5")
+
+    @run_before("run")
     def configure_test_run(self):
         """Configure gprMax commandline arguments and plot outputs
 
         Set the input and output files and add postrun commands to plot
         the outputs.
         """
-        self.input_file = f"{self.model}.in"
-        self.output_file = f"{self.model}.h5"
-        self.executable_opts = [self.input_file, "-o", self.output_file]
-        self.keep_files = [self.input_file, self.output_file]
+        input_file = str(self.input_file)
+        output_file = str(self.output_file)
+
+        self.executable_opts += [
+            input_file,
+            "-o",
+            output_file,
+            "--log-level",
+            "10",
+            "--hide-progress-bars",
+        ]
+        self.keep_files += [input_file, output_file]
 
         """
         if self.has_receiver_output:

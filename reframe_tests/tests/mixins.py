@@ -72,11 +72,10 @@ class SnapshotMixin(GprMaxMixin):
 
 
 class PythonApiMixin(GprMaxMixin):
-    executable = "time -p python"
-
     @run_after("setup")
     def set_python_input_file(self):
         """Input files for API tests will be python files"""
+        self.executable = "time -p python"
         self.input_file = self.input_file.with_suffix(".py")
 
 
