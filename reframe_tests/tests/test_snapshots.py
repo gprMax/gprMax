@@ -50,7 +50,7 @@ class Test2DSliceSnapshot(GprMaxSnapshotTest):
 class Test2DSnapshotMpi(MpiMixin, Test2DSnapshot):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole", "snapshot"}
     mpi_layout = parameter([[2, 2, 1], [3, 3, 1], [4, 4, 1]])
-    test_dependency = "Test2DSnapshot"
+    test_dependency = Test2DSnapshot
 
 
 @rfm.simple_test
@@ -69,7 +69,7 @@ class TestSnapshotMpi(MpiMixin, TestSnapshot):
             [4, 4, 4],
         ]
     )
-    test_dependency = "TestSnapshot"
+    test_dependency = TestSnapshot
 
 
 @rfm.simple_test
@@ -88,4 +88,4 @@ class Test2DSliceSnapshotMpi(MpiMixin, Test2DSliceSnapshot):
             [4, 4, 4],
         ]
     )
-    test_dependency = "Test2DSliceSnapshot"
+    test_dependency = Test2DSliceSnapshot

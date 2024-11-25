@@ -23,6 +23,7 @@ from reframe.core.builtins import (
     sanity_function,
     variable,
 )
+from reframe.core.exceptions import DependencyError
 from reframe.utility import udeps
 
 from reframe_tests.tests.regression_checks import RegressionCheck
@@ -110,14 +111,34 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
 
     regression_checks = variable(typ.List[RegressionCheck], value=[])
 
-    test_dependency = variable(type(None), str, value=None)
+    # TODO: Make this a ReFrame variable
+    # Not currently possible as ReFrame does not think an object of type
+    # reframe.core.meta.RegressionTestMeta is copyable, and so ReFrame
+    # test classes cannot be specified in a variable.
+    test_dependency: Optional[type["GprMaxBaseTest"]] = None
+    # test_dependency = variable(type(None), type, value=None)
+
+    def get_test_dependency_variant_name(self, **kwargs) -> Optional[str]:
+        if self.test_dependency is None:
+            return None
+
+        variant_nums = self.test_dependency.get_variant_nums(model=self.model, **kwargs)
+
+        if len(variant_nums) < 1:
+            kwargs.setdefault("model", self.model)
+            raise DependencyError(
+                f"No variant of '{self.test_dependency.__name__}' meets conditions: {kwargs}",
+            )
+
+        return self.test_dependency.variant_name(variant_nums[0])
 
     def get_test_dependency(self) -> Optional["GprMaxBaseTest"]:
         """Get test variant with the same model and number of models"""
-        if self.test_dependency is None:
+        variant = self.get_test_dependency_variant_name()
+        if variant is None:
             return None
         else:
-            return self.getdep(self.test_dependency)
+            return self.getdep(variant)
 
     def build_reference_filepath(self, name: Union[str, os.PathLike]) -> Path:
         target = self.get_test_dependency()
@@ -148,7 +169,9 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
         """Test depends on the Python virtual environment building correctly"""
         self.depends_on("CreatePyenvTest", udeps.by_env)
         if self.test_dependency is not None:
-            self.depends_on(self.test_dependency, udeps.by_env)
+            variant = self.get_test_dependency_variant_name()
+            self.depends_on(variant, udeps.by_env)
+            # self.depends_on(self.test_dependency, udeps.by_env)
 
     @require_deps
     def get_pyenv_path(self, CreatePyenvTest):

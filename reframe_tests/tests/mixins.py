@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 
 import reframe.utility.typecheck as typ
 from numpy import prod
@@ -88,6 +89,9 @@ class BScanMixin(GprMaxMixin):
             f"mv {self.model}_merged.h5 {self.output_file}",
         ]
 
+    def get_test_dependency_variant_name(self) -> Optional[str]:
+        return super().get_test_dependency_variant_name(num_models=self.num_models)
+
 
 class TaskfarmMixin(GprMaxMixin):
     # num_tasks = required
@@ -95,7 +99,7 @@ class TaskfarmMixin(GprMaxMixin):
     @run_after("setup")
     def add_taskfarm_flag(self):
         """Add taskfarm specific commandline arguments"""
-        self.executable_opts += ["-taskfarm"]
+        self.executable_opts += ["--taskfarm"]
 
 
 class AntennaModelMixin(GprMaxMixin):

@@ -23,4 +23,4 @@ class TestDispersiveMaterials(GprMaxRegressionTest):
 class TestDispersiveMaterialsMpi(MpiMixin, TestDispersiveMaterials):
     tags = {"test", "mpi", "hertzian_dipole", "waveform", "material", "dispersive", "box"}
     mpi_layout = parameter([[3, 3, 3]])
-    test_dependency = "TestDispersiveMaterials"
+    test_dependency = TestDispersiveMaterials

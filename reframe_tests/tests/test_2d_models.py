@@ -37,18 +37,18 @@ class Test2DModelYZ(GprMaxRegressionTest):
 class Test2DModelXYMpi(MpiMixin, Test2DModelXY):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole"}
     mpi_layout = parameter([[4, 4, 1]])
-    test_dependency = "Test2DModelXY"
+    test_dependency = Test2DModelXY
 
 
 @rfm.simple_test
 class Test2DModelXZMpi(MpiMixin, Test2DModelXZ):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole"}
     mpi_layout = parameter([[4, 1, 4]])
-    test_dependency = "Test2DModelXZ"
+    test_dependency = Test2DModelXZ
 
 
 @rfm.simple_test
 class Test2DModelYZMpi(MpiMixin, Test2DModelYZ):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole"}
     mpi_layout = parameter([[1, 4, 4]])
-    test_dependency = "Test2DModelYZ"
+    test_dependency = Test2DModelYZ

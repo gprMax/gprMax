@@ -49,18 +49,18 @@ class TestEdgeGeometry(AntennaModelMixin, GprMaxRegressionTest):
 class TestBoxGeometryDefaultPmlMpi(MpiMixin, TestBoxGeometryDefaultPml):
     tags = {"test", "mpi", "geometery", "box"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
-    test_dependency = "TestBoxGeometryDefaultPml"
+    test_dependency = TestBoxGeometryDefaultPml
 
 
 @rfm.simple_test
 class TestBoxGeometryNoPmlMpi(MpiMixin, TestBoxGeometryNoPml):
     tags = {"test", "mpi", "geometery", "box"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
-    test_dependency = "TestBoxGeometryNoPml"
+    test_dependency = TestBoxGeometryNoPml
 
 
 @rfm.simple_test
 class TestEdgeGeometryMpi(MpiMixin, TestEdgeGeometry):
     tags = {"test", "mpi", "geometry", "edge", "transmission_line", "waveform", "antenna"}
     mpi_layout = parameter([[3, 3, 3]])
-    test_dependency = "TestEdgeGeometry"
+    test_dependency = TestEdgeGeometry

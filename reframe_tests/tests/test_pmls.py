@@ -23,4 +23,4 @@ class TestSingleCellPml(GprMaxRegressionTest):
 class TestSingleCellPmlMpi(MpiMixin, TestSingleCellPml):
     tags = {"test", "mpi", "geometery", "box", "pml"}
     mpi_layout = parameter([[2, 2, 1], [3, 3, 1]])
-    test_dependency = "TestSingleCellPml"
+    test_dependency = TestSingleCellPml

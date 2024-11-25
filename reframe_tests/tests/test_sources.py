@@ -37,18 +37,18 @@ class TestTransmissionLineSource(GprMaxRegressionTest):
 class TestHertzianDipoleSourceMpi(MpiMixin, TestHertzianDipoleSource):
     tags = {"test", "mpi", "hertzian_dipole", "waveform"}
     mpi_layout = parameter([[3, 3, 3]])
-    test_dependency = "TestHertzianDipoleSource"
+    test_dependency = TestHertzianDipoleSource
 
 
 @rfm.simple_test
 class TestMagneticDipoleSourceMpi(MpiMixin, TestMagneticDipoleSource):
     tags = {"test", "mpi", "magnetic_dipole", "waveform"}
     mpi_layout = parameter([[3, 3, 3]])
-    test_dependency = "TestMagneticDipoleSource"
+    test_dependency = TestMagneticDipoleSource
 
 
 @rfm.simple_test
 class TestTransmissionLineSourceMpi(MpiMixin, TestTransmissionLineSource):
     tags = {"test", "mpi", "transmission_line", "waveform"}
     mpi_layout = parameter([[3, 3, 3]])
-    test_dependency = "TestTransmissionLineSource"
+    test_dependency = TestTransmissionLineSource
