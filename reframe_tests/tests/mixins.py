@@ -98,11 +98,16 @@ class BScanMixin(GprMaxMixin):
         """Add B-Scan specific commandline arguments and postrun cmds"""
         self.executable_opts += ["-n", str(self.num_models)]
 
+        self.postrun_cmds += [
+            f"python -m toolboxes.Utilities.outputfiles_merge {self.model}",
+            f"mv {self.model}_merged.h5 {self.output_file}",
+        ]
+
 
 class TaskfarmMixin(GprMaxMixin):
     extra_executable_opts = ["-taskfarm"]
 
-    num_tasks = required
+    # num_tasks = required
 
     @run_after("setup")
     def add_taskfarm_flag(self):
