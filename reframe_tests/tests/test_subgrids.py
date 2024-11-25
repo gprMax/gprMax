@@ -1,14 +1,15 @@
 import reframe as rfm
 from reframe.core.builtins import parameter, run_after
 
-from reframe_tests.tests.base_tests import GprMaxAPIRegressionTest
+from reframe_tests.tests.mixins import AntennaModelMixin, PythonApiMixin
+from reframe_tests.tests.standard_tests import GprMaxRegressionTest
 
 """Reframe regression tests for subgrids
 """
 
 
 @rfm.simple_test
-class TestSubgrids(GprMaxAPIRegressionTest):
+class TestSubgrids(PythonApiMixin, GprMaxRegressionTest):
     tags = {
         "test",
         "api",
@@ -25,7 +26,7 @@ class TestSubgrids(GprMaxAPIRegressionTest):
 
 
 @rfm.simple_test
-class TestSubgridsWithAntennaModel(GprMaxAPIRegressionTest):
+class TestSubgridsWithAntennaModel(AntennaModelMixin, PythonApiMixin, GprMaxRegressionTest):
     tags = {
         "test",
         "api",
@@ -39,7 +40,6 @@ class TestSubgridsWithAntennaModel(GprMaxAPIRegressionTest):
     }
     sourcesdir = "src/subgrid_tests"
     model = parameter(["gssi_400_over_fractal_subsurface"])
-    is_antenna_model = True
 
     @run_after("init")
     def skip_test(self):

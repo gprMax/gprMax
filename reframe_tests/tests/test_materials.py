@@ -1,7 +1,8 @@
 import reframe as rfm
 from reframe.core.builtins import parameter
 
-from reframe_tests.tests.base_tests import GprMaxMPIRegressionTest, GprMaxRegressionTest
+from reframe_tests.tests.mixins import MpiMixin
+from reframe_tests.tests.standard_tests import GprMaxRegressionTest
 
 """Reframe regression tests for each gprMax source
 """
@@ -19,8 +20,7 @@ class TestDispersiveMaterials(GprMaxRegressionTest):
 
 
 @rfm.simple_test
-class TestDispersiveMaterialsMpi(GprMaxMPIRegressionTest):
+class TestDispersiveMaterialsMpi(MpiMixin, TestDispersiveMaterials):
     tags = {"test", "mpi", "hertzian_dipole", "waveform", "material", "dispersive", "box"}
     mpi_layout = parameter([[3, 3, 3]])
-    serial_dependency = TestDispersiveMaterials
-    model = serial_dependency.model
+    test_dependency = "TestDispersiveMaterials"

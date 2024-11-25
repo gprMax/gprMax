@@ -1,7 +1,8 @@
 import reframe as rfm
 from reframe.core.builtins import parameter
 
-from reframe_tests.tests.base_tests import GprMaxMPIRegressionTest, GprMaxRegressionTest
+from reframe_tests.tests.mixins import MpiMixin
+from reframe_tests.tests.standard_tests import GprMaxRegressionTest
 
 """Reframe regression tests for each gprMax source
 """
@@ -33,24 +34,21 @@ class TestTransmissionLineSource(GprMaxRegressionTest):
 
 
 @rfm.simple_test
-class TestHertzianDipoleSourceMpi(GprMaxMPIRegressionTest):
+class TestHertzianDipoleSourceMpi(MpiMixin, TestHertzianDipoleSource):
     tags = {"test", "mpi", "hertzian_dipole", "waveform"}
     mpi_layout = parameter([[3, 3, 3]])
-    serial_dependency = TestHertzianDipoleSource
-    model = serial_dependency.model
+    test_dependency = "TestHertzianDipoleSource"
 
 
 @rfm.simple_test
-class TestMagneticDipoleSourceMpi(GprMaxMPIRegressionTest):
+class TestMagneticDipoleSourceMpi(MpiMixin, TestMagneticDipoleSource):
     tags = {"test", "mpi", "magnetic_dipole", "waveform"}
     mpi_layout = parameter([[3, 3, 3]])
-    serial_dependency = TestMagneticDipoleSource
-    model = serial_dependency.model
+    test_dependency = "TestMagneticDipoleSource"
 
 
 @rfm.simple_test
-class TestTransmissionLineSourceMpi(GprMaxMPIRegressionTest):
+class TestTransmissionLineSourceMpi(MpiMixin, TestTransmissionLineSource):
     tags = {"test", "mpi", "transmission_line", "waveform"}
     mpi_layout = parameter([[3, 3, 3]])
-    serial_dependency = TestTransmissionLineSource
-    model = serial_dependency.model
+    test_dependency = "TestTransmissionLineSource"
