@@ -23,6 +23,7 @@ from typing import List, Sequence
 
 import humanize
 import numpy as np
+import numpy.typing as npt
 import psutil
 from colorama import Fore, Style, init
 
@@ -125,11 +126,11 @@ class Model:
         self.G.dl[2] = value
 
     @property
-    def dl(self) -> np.ndarray:
+    def dl(self) -> npt.NDArray[np.float64]:
         return self.G.dl
 
     @dl.setter
-    def dl(self, value: np.ndarray):
+    def dl(self, value: npt.NDArray[np.float64]):
         self.G.dl = value
 
     @property
@@ -164,7 +165,10 @@ class Model:
         self.p = psutil.Process()
 
         # Normal model reading/building process; bypassed if geometry information to be reused
-        self.reuse_geometry() if config.get_model_config().reuse_geometry() else self.build_geometry()
+        if config.get_model_config().reuse_geometry():
+            self.reuse_geometry()
+        else:
+            self.build_geometry()
 
         logger.info(
             f"Output directory: {config.get_model_config().output_file_path.parent.resolve()}\n"

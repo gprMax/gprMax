@@ -58,7 +58,7 @@ class FDTDGrid:
         self.nx = 0
         self.ny = 0
         self.nz = 0
-        self.dl = np.ones(3, dtype=np.float32)
+        self.dl = np.ones(3, dtype=np.float64)
         self.dt = 0.0
 
         # Field Arrays
@@ -81,9 +81,9 @@ class FDTDGrid:
         self.ID: npt.NDArray[np.uint32]
 
         # Update Coefficient Arrays
-        self.updatecoeffsE: npt.NDArray
-        self.updatecoeffsH: npt.NDArray
-        self.updatecoeffsdispersive: npt.NDArray
+        self.updatecoeffsE: npt.NDArray[np.float32]
+        self.updatecoeffsH: npt.NDArray[np.float32]
+        self.updatecoeffsdispersive: npt.NDArray[np.float32]
 
         # PML parameters - set some defaults to use if not user provided
         self.pmls = {}
