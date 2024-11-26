@@ -32,6 +32,11 @@ site_configuration = {
                     ],
                     "environs": ["PrgEnv-gnu", "PrgEnv-cray", "PrgEnv-aocc"],
                     "max_jobs": 16,
+                    "processor": {
+                        "num_cpus": 128,
+                        "num_cpus_per_socket": 64,
+                        "num_sockets": 2,
+                    },
                 },
             ],
         }

@@ -1,7 +1,8 @@
 import reframe as rfm
 from reframe.core.builtins import parameter, run_before
 
-from reframe_tests.tests.base_tests import GprMaxMPIRegressionTest, GprMaxRegressionTest
+from reframe_tests.tests.mixins import AntennaModelMixin, MpiMixin
+from reframe_tests.tests.standard_tests import GprMaxRegressionTest
 
 """Reframe regression tests for models defining geometry
 """
@@ -34,11 +35,10 @@ class TestBoxGeometryNoPml(GprMaxRegressionTest):
 
 
 @rfm.simple_test
-class TestEdgeGeometry(GprMaxRegressionTest):
+class TestEdgeGeometry(AntennaModelMixin, GprMaxRegressionTest):
     tags = {"test", "serial", "geometry", "edge", "transmission_line", "waveform", "antenna"}
     sourcesdir = "src/geometry_tests/edge_geometry"
     model = parameter(["antenna_wire_dipole_fs"])
-    is_antenna_model = True
 
 
 """Test MPI Functionality
@@ -46,29 +46,21 @@ class TestEdgeGeometry(GprMaxRegressionTest):
 
 
 @rfm.simple_test
-class TestBoxGeometryDefaultPmlMpi(GprMaxMPIRegressionTest):
+class TestBoxGeometryDefaultPmlMpi(MpiMixin, TestBoxGeometryDefaultPml):
     tags = {"test", "mpi", "geometery", "box"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
-    serial_dependency = TestBoxGeometryDefaultPml
-    model = serial_dependency.model
+    test_dependency = TestBoxGeometryDefaultPml
 
 
 @rfm.simple_test
-class TestBoxGeometryNoPmlMpi(GprMaxMPIRegressionTest):
+class TestBoxGeometryNoPmlMpi(MpiMixin, TestBoxGeometryNoPml):
     tags = {"test", "mpi", "geometery", "box"}
     mpi_layout = parameter([[2, 2, 2], [3, 3, 3], [4, 4, 4]])
-    serial_dependency = TestBoxGeometryNoPml
-    model = serial_dependency.model
-
-    @run_before("run")
-    def add_gprmax_commands(self):
-        self.prerun_cmds.append(f"echo '#pml_cells: 0' >> {self.input_file}")
+    test_dependency = TestBoxGeometryNoPml
 
 
 @rfm.simple_test
-class TestEdgeGeometryMpi(GprMaxMPIRegressionTest):
+class TestEdgeGeometryMpi(MpiMixin, TestEdgeGeometry):
     tags = {"test", "mpi", "geometry", "edge", "transmission_line", "waveform", "antenna"}
     mpi_layout = parameter([[3, 3, 3]])
-    serial_dependency = TestEdgeGeometry
-    model = serial_dependency.model
-    is_antenna_model = True
+    test_dependency = TestEdgeGeometry
