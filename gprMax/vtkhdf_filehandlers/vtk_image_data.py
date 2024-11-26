@@ -30,9 +30,9 @@ class VtkImageData(VtkHdfFile):
         self,
         filename: Union[str, PathLike],
         shape: npt.NDArray[np.intc],
-        origin: Optional[npt.NDArray[np.single]] = None,
-        spacing: Optional[npt.NDArray[np.single]] = None,
-        direction: Optional[npt.NDArray[np.single]] = None,
+        origin: Optional[npt.NDArray[np.float32]] = None,
+        spacing: Optional[npt.NDArray[np.float32]] = None,
+        direction: Optional[npt.NDArray[np.float32]] = None,
         comm: Optional[MPI.Comm] = None,
     ):
         """Create a new VtkImageData file.
@@ -77,15 +77,15 @@ class VtkImageData(VtkHdfFile):
         self._set_root_attribute(self.WHOLE_EXTENT_ATTR, whole_extent)
 
         if origin is None:
-            origin = np.zeros(self.DIMENSIONS, dtype=np.single)
+            origin = np.zeros(self.DIMENSIONS, dtype=np.float32)
         self.set_origin(origin)
 
         if spacing is None:
-            spacing = np.ones(self.DIMENSIONS, dtype=np.single)
+            spacing = np.ones(self.DIMENSIONS, dtype=np.float32)
         self.set_spacing(spacing)
 
         if direction is None:
-            direction = np.diag(np.ones(self.DIMENSIONS, dtype=np.single))
+            direction = np.diag(np.ones(self.DIMENSIONS, dtype=np.float32))
         self.set_direction(direction)
 
     @property
@@ -93,18 +93,18 @@ class VtkImageData(VtkHdfFile):
         return self._get_root_attribute(self.WHOLE_EXTENT_ATTR)
 
     @property
-    def origin(self) -> npt.NDArray[np.single]:
+    def origin(self) -> npt.NDArray[np.float32]:
         return self._get_root_attribute(self.ORIGIN_ATTR)
 
     @property
-    def spacing(self) -> npt.NDArray[np.single]:
+    def spacing(self) -> npt.NDArray[np.float32]:
         return self._get_root_attribute(self.SPACING_ATTR)
 
     @property
-    def direction(self) -> npt.NDArray[np.single]:
+    def direction(self) -> npt.NDArray[np.float32]:
         return self._get_root_attribute(self.DIRECTION_ATTR)
 
-    def set_origin(self, origin: npt.NDArray[np.single]):
+    def set_origin(self, origin: npt.NDArray[np.float32]):
         """Set the origin coordinate of the image data.
 
         Args:
@@ -114,7 +114,7 @@ class VtkImageData(VtkHdfFile):
             raise ValueError(f"Origin attribute must have {self.DIMENSIONS} dimensions.")
         self._set_root_attribute(self.ORIGIN_ATTR, origin)
 
-    def set_spacing(self, spacing: npt.NDArray[np.single]):
+    def set_spacing(self, spacing: npt.NDArray[np.float32]):
         """Set the discritisation of the image data.
 
         Args:
@@ -124,7 +124,7 @@ class VtkImageData(VtkHdfFile):
             raise ValueError(f"Spacing attribute must have {self.DIMENSIONS} dimensions.")
         self._set_root_attribute(self.SPACING_ATTR, spacing)
 
-    def set_direction(self, direction: npt.NDArray[np.single]):
+    def set_direction(self, direction: npt.NDArray[np.float32]):
         """Set the coordinate system of the image data.
 
         Args:

@@ -410,10 +410,10 @@ class Metadata:
 
     def srcs_rx_gv_comment(
         self, srcs: Union[Sequence[Source], List[Rx]]
-    ) -> Tuple[List[str], npt.NDArray[np.single]]:
+    ) -> Tuple[List[str], npt.NDArray[np.float32]]:
         """Used to name sources and/or receivers."""
         names: List[str] = []
-        positions: npt.NDArray[np.single] = np.empty((len(srcs), 3))
+        positions: npt.NDArray[np.float32] = np.empty((len(srcs), 3))
         for index, src in enumerate(srcs):
             position = src.coord * self.grid.dl
             names.append(src.ID)
@@ -421,7 +421,7 @@ class Metadata:
 
         return names, positions
 
-    def dx_dy_dz_comment(self) -> npt.NDArray[np.single]:
+    def dx_dy_dz_comment(self) -> npt.NDArray[np.float32]:
         return self.grid.dl
 
     def nx_ny_nz_comment(self) -> npt.NDArray[np.intc]:

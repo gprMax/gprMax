@@ -110,7 +110,7 @@ class Snapshot:
         filename: str,
         fileext: str,
         outputs: Dict[str, bool],
-        grid_dl: npt.NDArray[np.single],
+        grid_dl: npt.NDArray[np.float32],
         grid_dt: float,
     ):
         """
@@ -358,7 +358,7 @@ class MPISnapshot(Snapshot):
         filename: str,
         fileext: str,
         outputs: Dict[str, bool],
-        grid_dl: npt.NDArray[np.single],
+        grid_dl: npt.NDArray[np.float32],
         grid_dt: float,
     ):
         super().__init__(
