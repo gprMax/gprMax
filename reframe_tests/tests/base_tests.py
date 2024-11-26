@@ -11,7 +11,6 @@ from typing import Literal, Optional, Union
 
 import reframe.utility.sanity as sn
 import reframe.utility.typecheck as typ
-from numpy import prod
 from reframe import RunOnlyRegressionTest, simple_test
 from reframe.core.builtins import (
     parameter,
@@ -267,7 +266,7 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
             "--hide-progress-bars",
         ]
 
-        regression_output_files = [r.output_file for r in self.regression_checks]
+        regression_output_files = [str(r.output_file) for r in self.regression_checks]
         self.keep_files += [input_file, output_file, *regression_output_files]
 
         """
