@@ -97,7 +97,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("input_file", help="Path to input file")
     parser.add_argument("reference_file", help="Path to reference file")
-    parser.add_argument("-model-name", "-name", "-n", help="Name of the model", default="model")
+    parser.add_argument("--model-name", "--name", "-n", help="Name of the model", default="model")
 
     args = parser.parse_args()
 

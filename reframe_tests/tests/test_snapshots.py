@@ -1,33 +1,31 @@
 import reframe as rfm
 from reframe.core.builtins import parameter
 
-from reframe_tests.tests.base_tests import GprMaxMPIRegressionTest, GprMaxRegressionTest
+from reframe_tests.tests.mixins import MpiMixin
+from reframe_tests.tests.standard_tests import GprMaxSnapshotTest
 
 
 @rfm.simple_test
-class Test2DSnapshot(GprMaxRegressionTest):
+class Test2DSnapshot(GprMaxSnapshotTest):
     tags = {"test", "serial", "2d", "waveform", "hertzian_dipole", "snapshot"}
     sourcesdir = "src/snapshot_tests"
     model = parameter(["whole_domain_2d"])
-    has_receiver_output = False
     snapshots = ["snapshot_0.h5", "snapshot_1.h5", "snapshot_2.h5", "snapshot_3.h5"]
 
 
 @rfm.simple_test
-class TestSnapshot(GprMaxRegressionTest):
+class TestSnapshot(GprMaxSnapshotTest):
     tags = {"test", "serial", "2d", "waveform", "hertzian_dipole", "snapshot"}
     sourcesdir = "src/snapshot_tests"
     model = parameter(["whole_domain"])
-    has_receiver_output = False
     snapshots = ["snapshot_0.h5", "snapshot_1.h5", "snapshot_2.h5", "snapshot_3.h5"]
 
 
 @rfm.simple_test
-class Test2DSliceSnapshot(GprMaxRegressionTest):
+class Test2DSliceSnapshot(GprMaxSnapshotTest):
     tags = {"test", "serial", "2d", "waveform", "hertzian_dipole", "snapshot"}
     sourcesdir = "src/snapshot_tests"
     model = parameter(["2d_slices"])
-    has_receiver_output = False
     snapshots = [
         "snapshot_x_05.h5",
         "snapshot_x_35.h5",
@@ -49,15 +47,14 @@ class Test2DSliceSnapshot(GprMaxRegressionTest):
 
 
 @rfm.simple_test
-class Test2DSnapshotMpi(GprMaxMPIRegressionTest):
+class Test2DSnapshotMpi(MpiMixin, Test2DSnapshot):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole", "snapshot"}
     mpi_layout = parameter([[2, 2, 1], [3, 3, 1], [4, 4, 1]])
-    serial_dependency = Test2DSnapshot
-    model = serial_dependency.model
+    test_dependency = Test2DSnapshot
 
 
 @rfm.simple_test
-class TestSnapshotMpi(GprMaxMPIRegressionTest):
+class TestSnapshotMpi(MpiMixin, TestSnapshot):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole", "snapshot"}
     mpi_layout = parameter(
         [
@@ -72,12 +69,11 @@ class TestSnapshotMpi(GprMaxMPIRegressionTest):
             [4, 4, 4],
         ]
     )
-    serial_dependency = TestSnapshot
-    model = serial_dependency.model
+    test_dependency = TestSnapshot
 
 
 @rfm.simple_test
-class Test2DSliceSnapshotMpi(GprMaxMPIRegressionTest):
+class Test2DSliceSnapshotMpi(MpiMixin, Test2DSliceSnapshot):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole", "snapshot"}
     mpi_layout = parameter(
         [
@@ -92,5 +88,4 @@ class Test2DSliceSnapshotMpi(GprMaxMPIRegressionTest):
             [4, 4, 4],
         ]
     )
-    serial_dependency = Test2DSliceSnapshot
-    model = serial_dependency.model
+    test_dependency = Test2DSliceSnapshot
