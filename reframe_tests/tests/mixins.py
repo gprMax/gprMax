@@ -9,6 +9,7 @@ from typing_extensions import TYPE_CHECKING
 
 from reframe_tests.tests.base_tests import GprMaxBaseTest
 from reframe_tests.tests.regression_checks import (
+    GeometryViewRegressionCheck,
     ReceiverRegressionCheck,
     RegressionCheck,
     SnapshotRegressionCheck,
@@ -74,6 +75,50 @@ class SnapshotMixin(GprMaxMixin):
             snapshot_file = self.build_snapshot_filepath(snapshot)
             reference_file = self.build_reference_filepath(snapshot)
             regression_check = SnapshotRegressionCheck(snapshot_file, reference_file)
+            self.regression_checks.append(regression_check)
+
+
+class GeometryOnlyMixin(GprMaxMixin):
+    """Run test with geometry only flag"""
+
+    @run_after("setup")
+    def add_geometry_only_flag(self):
+        self.executable_opts += ["--geometry-only"]
+
+
+class GeometryViewMixin(GprMaxMixin):
+    """Add regression tests for geometry views.
+
+    Attributes:
+        geometry_views (list[str]): List of geometry views to run
+            regression checks on.
+    """
+
+    geometry_views = variable(typ.List[str], value=[])
+
+    def build_geometry_view_filepath(self, geometry_view: str) -> Path:
+        """Build filepath to the specified geometry view.
+
+        Args:
+            geometry_view: Name of the geometry view.
+        """
+        return Path(geometry_view).with_suffix(".vtkhdf")
+
+    @run_after("setup")
+    def add_geometry_view_regression_checks(self):
+        """Add a regression check for each geometry view.
+
+        The test will be skipped if no geometry views have been specified.
+        """
+        self.skip_if(
+            len(self.geometry_views) < 0,
+            f"Must provide a list of geometry views.",
+        )
+
+        for geometry_view in self.geometry_views:
+            geometry_view_file = self.build_geometry_view_filepath(geometry_view)
+            reference_file = self.build_reference_filepath(geometry_view, ".vtkhdf")
+            regression_check = GeometryViewRegressionCheck(geometry_view_file, reference_file)
             self.regression_checks.append(regression_check)
 
 

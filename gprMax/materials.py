@@ -30,7 +30,7 @@ class Material:
     their properties and update coefficients.
     """
 
-    def __init__(self, numID, ID):
+    def __init__(self, numID: int, ID: str):
         """
         Args:
             numID: int for numeric I of the material.

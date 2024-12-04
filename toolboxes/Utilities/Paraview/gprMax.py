@@ -16,69 +16,103 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 
-import json
-import os
-
+from paraview.servermanager import Proxy, SourceProxy
 from paraview.simple import (
     AppendDatasets,
     Box,
+    ColorBy,
+    FetchData,
     GetActiveSource,
     GetActiveView,
+    GetDisplayProperties,
     GetParaViewVersion,
     Hide,
-    OpenDataFile,
     RenameSource,
     RenderAllViews,
     SetActiveSource,
     Show,
     Threshold,
 )
+from paraview.vtk.numpy_interface import dataset_adapter as dsa
+from vtkmodules.vtkCommonCore import vtkStringArray
+
+COLOUR_SCALARS = ("CELLS", "Material")
 
 
-def threshold_filt(input, lt, ut, scalars):
+def threshold_materials(source: SourceProxy, view: Proxy, material_ids: vtkStringArray):
     """Create threshold filter according to Paraview version.
 
     Args:
-        input (array): input data to threshold filter
-        lt, ut (int): lower and upper bounds of thresholding operation
-        scalars (list/str): name of scalar array to perform thresholding
-
-    Returns:
-        threshold (object): threshold filter
+        source: Input to the threshold filter.
+        view: The view proxy to show the threshold in.
+        material_ids: Array of material ids. A new threshold filter will
+            be created for each material.
     """
 
     # Read Paraview version number to set threshold filter method
     pvv = GetParaViewVersion()
 
-    threshold = Threshold(Input=input)
-    threshold.Scalars = scalars
+    for index in range(material_ids.GetNumberOfValues()):
+        threshold = Threshold(Input=source, Scalars=COLOUR_SCALARS)
 
-    if pvv.major == 5 and pvv.minor < 10:
-        threshold.ThresholdRange = [lt, ut]
-    else:
-        threshold.LowerThreshold = lt
-        threshold.UpperThreshold = ut
+        if pvv.major == 5 and pvv.minor < 10:
+            threshold.ThresholdRange = [index, index]
+        else:
+            threshold.LowerThreshold = index
+            threshold.UpperThreshold = index
 
-    return threshold
+        RenameSource(material_ids.GetValue(index), threshold)
+
+        # Show data in view, except for free_space
+        if index != 1:
+            Show(threshold, view)
+
+        threshold.UpdatePipeline()
 
 
-def display_pmls(pmlthick, dx_dy_dz, nx_ny_nz):
-    """Display PMLs as box sources using PML thickness values.
-        Only suitable for gprMax >= v4
+def create_box_sources(names: vtkStringArray, positions: dsa.VTKArray, dl: dsa.VTKArray):
+    """Create new single cell box sources.
 
     Args:
-        pmlthick (tuple): PML thickness values for each slab (cells)
-        dx_dy_dz (tuple): Spatial resolution (m)
-        nx_ny_dz (tuple): Domain size (cells)
+        names: Array of N names for the new sources.
+        positions: x, y, z coordinates of the new sources. This should
+            have shape (N, 3).
+        dl: x, y, z spatial resolution.
+    """
+    for index in range(names.GetNumberOfValues()):
+        name = names.GetValue(index)
+        pos = positions[index]
+        src = Box(
+            Center=pos + dl / 2,
+            XLength=dl[0],
+            YLength=dl[1],
+            ZLength=dl[2],
+        )
+        RenameSource(name, src)
+        Show(src)
+
+
+def display_pmls(pmlthick: dsa.VTKArray, dx_dy_dz: dsa.VTKArray, nx_ny_nz: dsa.VTKArray):
+    """Display PMLs as box sources using PML thickness values.
+
+    Only suitable for gprMax >= v4.
+
+    Args:
+        pmlthick: PML thickness values for each slab (cells).
+        dx_dy_dz: Spatial resolution (m).
+        nx_ny_dz: Domain size (cells).
     """
 
     pml_names = ["x0", "y0", "z0", "xmax", "ymax", "zmax"]
     pmls = dict.fromkeys(pml_names, None)
-    SetActiveSource(pv_data)
 
     if pmlthick[0] != 0:
         x0 = Box(
-            Center=[pmlthick[0] * dx_dy_dz[0] / 2, nx_ny_nz[1] * dx_dy_dz[1] / 2, nx_ny_nz[2] * dx_dy_dz[2] / 2],
+            Center=[
+                pmlthick[0] * dx_dy_dz[0] / 2,
+                nx_ny_nz[1] * dx_dy_dz[1] / 2,
+                nx_ny_nz[2] * dx_dy_dz[2] / 2,
+            ],
             XLength=pmlthick[0] * dx_dy_dz[0],
             YLength=nx_ny_nz[1] * dx_dy_dz[1],
             ZLength=nx_ny_nz[2] * dx_dy_dz[2],
@@ -100,7 +134,11 @@ def display_pmls(pmlthick, dx_dy_dz, nx_ny_nz):
 
     if pmlthick[1] != 0:
         y0 = Box(
-            Center=[nx_ny_nz[0] * dx_dy_dz[0] / 2, pmlthick[1] * dx_dy_dz[1] / 2, nx_ny_nz[2] * dx_dy_dz[2] / 2],
+            Center=[
+                nx_ny_nz[0] * dx_dy_dz[0] / 2,
+                pmlthick[1] * dx_dy_dz[1] / 2,
+                nx_ny_nz[2] * dx_dy_dz[2] / 2,
+            ],
             XLength=nx_ny_nz[0] * dx_dy_dz[0],
             YLength=pmlthick[1] * dx_dy_dz[1],
             ZLength=nx_ny_nz[2] * dx_dy_dz[2],
@@ -122,7 +160,11 @@ def display_pmls(pmlthick, dx_dy_dz, nx_ny_nz):
 
     if pmlthick[2] != 0:
         z0 = Box(
-            Center=[nx_ny_nz[0] * dx_dy_dz[0] / 2, nx_ny_nz[1] * dx_dy_dz[1] / 2, pmlthick[2] * dx_dy_dz[2] / 2],
+            Center=[
+                nx_ny_nz[0] * dx_dy_dz[0] / 2,
+                nx_ny_nz[1] * dx_dy_dz[1] / 2,
+                pmlthick[2] * dx_dy_dz[2] / 2,
+            ],
             XLength=nx_ny_nz[0] * dx_dy_dz[0],
             YLength=nx_ny_nz[1] * dx_dy_dz[1],
             ZLength=pmlthick[2] * dx_dy_dz[2],
@@ -158,96 +200,122 @@ def display_pmls(pmlthick, dx_dy_dz, nx_ny_nz):
         pml_view.Opacity = 0.5
 
 
-# Get whatever source is loaded - should be loaded file (.vt*) or files (.pvd)
-pv_data = GetActiveSource()
+def is_valid_key(key: str, dictionary: dict) -> bool:
+    """Check key exists and is not an empty array (i.e. VTKNoneArray).
 
-# Hide display of root data
-Hide(pv_data)
+    Args:
+        key: Name of key to check.
+        dictionary: Dictionary like object that should contain the key.
 
-# Single .vti or .vtu file
-file = pv_data.FileName[0]
+    Returns:
+        is_valid_key: True if the key is in the dictionary and is not
+            of type VTKNoneArray. False otherwise.
+    """
+    return key in dictionary.keys() and not isinstance(dictionary[key], dsa.VTKNoneArray)
 
-# Read and display data from file, i.e. materials, sources,  receivers, and PMLs
-with open(file, "rb") as f:
-    # Comments () embedded in line 3 of file
-    f.readline()
-    f.readline()
-    c = f.readline().decode()
-    # Strip comment tags
-    c = c[5:-5]
-    # Model information
-    c = json.loads(c)
-    print("\ngprMax version: " + c["gprMax_version"])
-    print(file)
 
-################
-# Display data #
-################
-pv_view = GetActiveView()
-pv_view.AxesGrid.Visibility = 1  # Show Data Axes Grid
-pv_disp = Show(pv_data, pv_view)
-pv_disp.ColorArrayName = ["CELLS", "Material"]
+class HaltException(Exception):
+    pass
 
-# Discretisation
-dl = c["dx_dy_dz"]
-# Number of voxels
-nl = c["nx_ny_nz"]
 
-# Materials
 try:
-    for i, mat in enumerate(c["Materials"]):
-        threshold = threshold_filt(pv_data, i, i, ["CELLS", "Material"])
-        RenameSource(mat, threshold)
+    print("=============== Running gprMax macro ===============", end="\n\n")
 
-        # Show data in view, except for free_space
-        if i != 1:
-            thresholddisplay = Show(threshold, pv_view)
-            thresholddisplay.ColorArrayName = ["CELLS", "Material"]
-        threshold.UpdatePipeline()
-except KeyError:
-    print("No materials to load")
+    # Get active source - should be loaded file (.vtkhdf)
+    pv_source = GetActiveSource()
 
-# Display any sources
-try:
-    for item in c["Sources"]:
-        pos = item["position"]
-        name = item["name"]
-        src = Box(
-            Center=[pos[0] + dl[0] / 2, pos[1] + dl[1] / 2, pos[2] + dl[2] / 2],
-            XLength=dl[0],
-            YLength=dl[1],
-            ZLength=dl[2],
+    if pv_source is None:
+        raise HaltException("ERROR: No active source.")
+
+    pv_source.UpdatePipeline()
+
+    raw_data = FetchData(pv_source)[0]
+    data = dsa.WrapDataObject(raw_data)
+
+    # Check the necessary metadata is attached to the file
+    metadata_keys = data.FieldData.keys()
+    compulsory_keys = ["gprMax_version", "nx_ny_nz", "dx_dy_dz", "material_ids"]
+    missing_keys = []
+    for key in compulsory_keys:
+        if key not in metadata_keys:
+            missing_keys.append(key)
+
+    if len(missing_keys) > 0:
+        keys = "\n- ".join(missing_keys)
+        print(f"Missing metadata fields: \n- {keys}\n")
+        if len(metadata_keys) > 0:
+            keys = "\n- ".join(metadata_keys)
+            print(f"Found:  \n- {keys}\n")
+        raise HaltException(
+            "ERROR: Missing gprMax metadata information. Do you have the correct source selected?"
         )
-        RenameSource(name, src)
-        Show(src)
-except KeyError:
-    print("No sources to load")
 
-# Display any receivers
-try:
-    for item in c["Receivers"]:
-        pos = item["position"]
-        name = item["name"]
-        rx = Box(
-            Center=[pos[0] + dl[0] / 2, pos[1] + dl[1] / 2, pos[2] + dl[2] / 2],
-            XLength=dl[0],
-            YLength=dl[1],
-            ZLength=dl[2],
-        )
-        RenameSource(name, rx)
-        Show(rx)
-except KeyError:
-    print("No receivers to load")
+    # gprMax version
+    version = data.FieldData["gprMax_version"].GetValue(0)
+    # Number of voxels
+    nl = data.FieldData["nx_ny_nz"]
+    # Discretisation
+    dl = data.FieldData["dx_dy_dz"]
 
-# Display any PMLs
-try:
-    pt = c["PMLthickness"]
-    display_pmls(pt, dl, nl)
-except KeyError:
-    print("No PMLs to load")
+    print("gprMax version:", data.FieldData["gprMax_version"].GetValue(0))
+    print("nx_ny_nz:", nl)
+    print("dx_dy_dz:", dl, end="\n\n")
 
+    ################
+    # Display data #
+    ################
 
-RenderAllViews()
+    # Get active view
+    pv_view = GetActiveView()
+    pv_view.AxesGrid.Visibility = 1  # Show Data Axes Grid
 
-# Reset view to fit data
-pv_view.ResetCamera()
+    # Get display properties
+    pv_disp = GetDisplayProperties(pv_source, view=pv_view)
+
+    # Set scalar colouring
+    ColorBy(pv_disp, COLOUR_SCALARS)
+
+    # Materials
+    print("Loading materials... ", end="\t")
+    if is_valid_key("material_ids", data.FieldData):
+        threshold_materials(pv_source, pv_view, data.FieldData["material_ids"])
+        print("Done.")
+    else:
+        print("No materials to load.")
+
+    # Display any sources
+    print("Loading sources... ", end="\t\t")
+    if is_valid_key("source_ids", data.FieldData) and is_valid_key("sources", data.FieldData):
+        create_box_sources(data.FieldData["source_ids"], data.FieldData["sources"], dl)
+        print("Done.")
+    else:
+        print("No sources to load.")
+
+    # Display any receivers
+    print("Loading receivers... ", end="\t")
+    if is_valid_key("receiver_ids", data.FieldData) and is_valid_key("receivers", data.FieldData):
+        create_box_sources(data.FieldData["receiver_ids"], data.FieldData["receivers"], dl)
+        print("Done.")
+    else:
+        print("No receivers to load.")
+
+    # Display any PMLs
+    print("Loading PMLs... ", end="\t\t")
+    if is_valid_key("pml_thickness", data.FieldData):
+        display_pmls(data.FieldData["pml_thickness"], dl, nl)
+        print("Done.")
+    else:
+        print("No PMLs to load.")
+
+    RenderAllViews()
+
+    SetActiveSource(pv_source)
+    Hide(pv_source)
+
+    # Reset view to fit data
+    pv_view.ResetCamera()
+
+except HaltException as e:
+    print(e)
+
+print()

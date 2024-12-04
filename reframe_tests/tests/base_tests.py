@@ -182,7 +182,7 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
         else:
             return self.getdep(variant)
 
-    def build_reference_filepath(self, name: Union[str, os.PathLike]) -> Path:
+    def build_reference_filepath(self, name: Union[str, os.PathLike], suffix: str = ".h5") -> Path:
         """Build path to the specified reference file.
 
         Reference files are saved in directories per test case. If this
@@ -192,6 +192,7 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
 
         Args:
             name: Name of the file.
+            suffix: File extension. Default ".h5".
 
         Returns:
             filepath: Absolute path to the reference file.
@@ -202,7 +203,7 @@ class GprMaxBaseTest(RunOnlyRegressionTest):
         else:
             reference_dir = target.short_name
 
-        reference_file = Path("regression_checks", reference_dir, name).with_suffix(".h5")
+        reference_file = Path("regression_checks", reference_dir, name).with_suffix(suffix)
         return reference_file.absolute()
 
     # TODO: Change CreatePyenvTest to a fixture instead of a test dependency
