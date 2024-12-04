@@ -74,7 +74,12 @@ class RegressionCheck:
             h5diff = "h5diff"
 
         h5diff_output = osext.run_command(
-            [h5diff, *self.h5diff_options, str(self.output_file), str(self.reference_file)]
+            [
+                h5diff,
+                *self.h5diff_options,
+                str(self.output_file.absolute()),
+                str(self.reference_file),
+            ]
         )
 
         return sn.assert_true(
@@ -135,3 +140,11 @@ class SnapshotRegressionCheck(RegressionCheck):
     @property
     def error_msg(self) -> str:
         return f"Snapshot '{self.output_file.name}' failed regression check "
+
+
+class GeometryViewRegressionCheck(RegressionCheck):
+    """Run regression check on a GprMax GeometryView."""
+
+    @property
+    def error_msg(self) -> str:
+        return f"GeometryView '{self.output_file.name}' failed regression check "

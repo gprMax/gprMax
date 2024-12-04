@@ -1,1 +1,4 @@
 tools/Jupyter_notebooks/* linguist-vendored
+reframe_tests/regression_checks/TestGeometryView_5176823e/partial_volume.vtkhdf filter=lfs diff=lfs merge=lfs -text
+reframe_tests/regression_checks/TestGeometryView_5176823e/full_volume.vtkhdf filter=lfs diff=lfs merge=lfs -text
+reframe_tests/regression_checks/TestGeometryView_77980202/full_volume.vtkhdf filter=lfs diff=lfs merge=lfs -text
