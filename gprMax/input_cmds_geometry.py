@@ -349,11 +349,11 @@ def process_geometrycmds(geometry, G):
             z3 = round_value(float(tmp[9]) / G.dz) * G.dz
             thickness = float(tmp[10])
 
-            if x1 < 0 or x2 < 0 or x3 < 0 or x1 > G.nx or x2 > G.nx or x3 > G.nx:
+            if x1 < 0 or x2 < 0 or x3 < 0 or x1 > G.nx * G.dx or x2 > G.nx * G.dx or x3 > G.nx * G.dx:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the one of the x-coordinates is not within the model domain')
-            if y1 < 0 or y2 < 0 or y3 < 0 or y1 > G.ny or y2 > G.ny or y3 > G.ny:
+            if y1 < 0 or y2 < 0 or y3 < 0 or y1 > G.ny * G.dy or y2 > G.ny * G.dy or y3 > G.ny * G.dy:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the one of the y-coordinates is not within the model domain')
-            if z1 < 0 or z2 < 0 or z3 < 0 or z1 > G.nz or z2 > G.nz or z3 > G.nz:
+            if z1 < 0 or z2 < 0 or z3 < 0 or z1 > G.nz * G.dz or z2 > G.nz * G.dz or z3 > G.nz * G.dz:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' the one of the z-coordinates is not within the model domain')
             if thickness < 0:
                 raise CmdInputError("'" + ' '.join(tmp) + "'" + ' requires a positive value for thickness')
