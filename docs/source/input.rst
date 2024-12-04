@@ -654,7 +654,7 @@ Allows you to write geometry generated in a model to file. The file can be read 
 
 .. note::
 
-    * The structure of the HDF5 file is the same as that described for the ``#geometry_objects_read`` command.
+    * The structure of the HDF5 file is similar to that described for the ``#geometry_objects_read`` command but contains additional arrays used internally by gprMax. Therefore **this HDF5 file should NOT be modified by a user outside of gprMax** - doing so risks corrupting your modelled geometry.
     * Objects are stored using spatial resolution defined in the model.
 
 
