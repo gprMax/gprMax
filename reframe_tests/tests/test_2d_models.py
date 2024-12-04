@@ -1,7 +1,8 @@
 import reframe as rfm
 from reframe.core.builtins import parameter
 
-from reframe_tests.tests.base_tests import GprMaxMPIRegressionTest, GprMaxRegressionTest
+from reframe_tests.tests.mixins import MpiMixin
+from reframe_tests.tests.standard_tests import GprMaxRegressionTest
 
 """Reframe regression tests for 2D models (TMx, TMy, and TMz)
 """
@@ -33,24 +34,21 @@ class Test2DModelYZ(GprMaxRegressionTest):
 
 
 @rfm.simple_test
-class Test2DModelXYMpi(GprMaxMPIRegressionTest):
+class Test2DModelXYMpi(MpiMixin, Test2DModelXY):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole"}
     mpi_layout = parameter([[4, 4, 1]])
-    serial_dependency = Test2DModelXY
-    model = serial_dependency.model
+    test_dependency = Test2DModelXY
 
 
 @rfm.simple_test
-class Test2DModelXZMpi(GprMaxMPIRegressionTest):
+class Test2DModelXZMpi(MpiMixin, Test2DModelXZ):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole"}
     mpi_layout = parameter([[4, 1, 4]])
-    serial_dependency = Test2DModelXZ
-    model = serial_dependency.model
+    test_dependency = Test2DModelXZ
 
 
 @rfm.simple_test
-class Test2DModelYZMpi(GprMaxMPIRegressionTest):
+class Test2DModelYZMpi(MpiMixin, Test2DModelYZ):
     tags = {"test", "mpi", "2d", "waveform", "hertzian_dipole"}
     mpi_layout = parameter([[1, 4, 4]])
-    serial_dependency = Test2DModelYZ
-    model = serial_dependency.model
+    test_dependency = Test2DModelYZ

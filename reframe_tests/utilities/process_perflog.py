@@ -15,7 +15,13 @@ def get_parameter_names(item):
     return re.findall(f"\s%(?P<name>\S+)=\S+", item)
 
 
-columns_to_keep = ["num_tasks", "num_cpus_per_task", "num_tasks_per_node", "run_time_value", "simulation_time_value"]
+columns_to_keep = [
+    "num_tasks",
+    "num_cpus_per_task",
+    "num_tasks_per_node",
+    "run_time_value",
+    "simulation_time_value",
+]
 
 if __name__ == "__main__":
     # Parse command line arguments
@@ -40,13 +46,15 @@ if __name__ == "__main__":
     columns_to_keep.sort()
     perflog = perflog[columns_to_keep].sort_values(columns_to_keep)
     perflog["simulation_time_value"] = perflog["simulation_time_value"].apply(round, args=[2])
-    perflog = perflog.rename(columns={"simulation_time_value": "simulation_time", "run_time_value": "run_time"})
+    perflog = perflog.rename(
+        columns={"simulation_time_value": "simulation_time", "run_time_value": "run_time"}
+    )
 
     # Save output to file
     if args.output:
         outputfile = args.output
     else:
         stem = f"{Path(args.inputfile).stem}_{datetime.today().strftime('%Y-%m-%d_%H-%M-%S')}"
-        outputfile = Path("benchmarks", stem).with_suffix(".csv")
+        outputfile = Path("benchmark_results", stem).with_suffix(".csv")
     perflog.to_csv(outputfile, index=False)
     print(f"Saved benchmark: '{outputfile}'")

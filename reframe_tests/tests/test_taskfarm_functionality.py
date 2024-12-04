@@ -1,6 +1,6 @@
 import reframe as rfm
 
-from reframe_tests.tests.base_tests import GprMaxTaskfarmRegressionTest
+from reframe_tests.tests.mixins import TaskfarmMixin
 from reframe_tests.tests.test_example_models import TestBscan
 
 """Reframe regression tests for taskfarm functionality
@@ -8,7 +8,7 @@ from reframe_tests.tests.test_example_models import TestBscan
 
 
 @rfm.simple_test
-class TestSingleNodeTaskfarm(GprMaxTaskfarmRegressionTest):
+class TestSingleNodeTaskfarm(TaskfarmMixin, TestBscan):
     tags = {
         "test",
         "mpi",
@@ -22,13 +22,11 @@ class TestSingleNodeTaskfarm(GprMaxTaskfarmRegressionTest):
     }
     num_tasks = 8
     num_tasks_per_node = 8
-    serial_dependency = TestBscan
-    model = serial_dependency.model
-    num_models = serial_dependency.num_models
+    test_dependency = TestBscan
 
 
 @rfm.simple_test
-class TestMultiNodeTaskfarm(GprMaxTaskfarmRegressionTest):
+class TestMultiNodeTaskfarm(TaskfarmMixin, TestBscan):
     tags = {
         "test",
         "mpi",
@@ -42,6 +40,4 @@ class TestMultiNodeTaskfarm(GprMaxTaskfarmRegressionTest):
     }
     num_tasks = 32
     num_tasks_per_node = 8
-    serial_dependency = TestBscan
-    model = serial_dependency.model
-    num_models = serial_dependency.num_models
+    test_dependency = TestBscan
