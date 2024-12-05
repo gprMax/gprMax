@@ -9,7 +9,7 @@ from reframe.utility import osext
 
 
 class RegressionCheck:
-    """Compare two hdf5 files using h5diff"""
+    """Compare two files using diff"""
 
     def __init__(
         self, output_file: Union[str, PathLike], reference_file: Union[str, PathLike]
@@ -23,7 +23,8 @@ class RegressionCheck:
         """
         self.output_file = Path(output_file)
         self.reference_file = Path(reference_file)
-        self.h5diff_options: list[str] = []
+        self.cmd = "diff"
+        self.options: list[str] = []
 
     @property
     def error_msg(self) -> str:
@@ -57,26 +58,22 @@ class RegressionCheck:
         return sn.path_isfile(self.reference_file)
 
     def run(self) -> Literal[True]:
-        """Run the regression check using h5diff.
+        """Run the regression check.
 
         Returns:
             check_passed: Returns True if the output file matches the
-                reference file (i.e. no output from h5diff). Otherwise,
+                reference file (i.e. no output from diff). Otherwise,
                 raises a SanityError.
 
         Raises:
             reframe.core.exceptions.SanityError: If the output file does
                 not exist, or the regression check fails.
         """
-        if runtime().system.name == "archer2":
-            h5diff = "/opt/cray/pe/hdf5/default/bin/h5diff"
-        else:
-            h5diff = "h5diff"
 
-        h5diff_output = osext.run_command(
+        completed_process = osext.run_command(
             [
-                h5diff,
-                *self.h5diff_options,
+                self.cmd,
+                *self.options,
                 str(self.output_file.absolute()),
                 str(self.reference_file),
             ]
@@ -86,16 +83,29 @@ class RegressionCheck:
             sn.path_isfile(self.output_file),
             f"Expected output file '{self.output_file}' does not exist",
         ) and sn.assert_false(
-            h5diff_output.stdout,
+            completed_process.stdout,
             (
                 f"{self.error_msg}\n"
-                f"For more details run: '{' '.join(h5diff_output.args)}'\n"
+                f"For more details run: '{' '.join(completed_process.args)}'\n"
                 f"To re-create regression file, delete '{self.reference_file}' and rerun the test."
             ),
         )
 
 
-class ReceiverRegressionCheck(RegressionCheck):
+class H5RegressionCheck(RegressionCheck):
+    """Compare two hdf5 files using h5diff"""
+
+    def __init__(
+        self, output_file: Union[str, PathLike], reference_file: Union[str, PathLike]
+    ) -> None:
+        super().__init__(output_file, reference_file)
+        if runtime().system.name == "archer2":
+            self.cmd = "/opt/cray/pe/hdf5/default/bin/h5diff"
+        else:
+            self.cmd = "h5diff"
+
+
+class ReceiverRegressionCheck(H5RegressionCheck):
     """Run regression check on individual reveivers in output files.
 
     This can include arbitrary receivers in each file, or two receivers
@@ -106,7 +116,7 @@ class ReceiverRegressionCheck(RegressionCheck):
         self,
         output_file: Union[str, PathLike],
         reference_file: Union[str, PathLike],
-        output_receiver: Optional[str],
+        output_receiver: str,
         reference_receiver: Optional[str] = None,
     ) -> None:
         """Create a new receiver regression check.
@@ -125,26 +135,42 @@ class ReceiverRegressionCheck(RegressionCheck):
         self.output_receiver = output_receiver
         self.reference_receiver = reference_receiver
 
-        self.h5diff_options.append(f"rxs/{self.output_receiver}")
+        self.options.append(f"rxs/{self.output_receiver}")
         if self.reference_receiver is not None:
-            self.h5diff_options.append(f"rxs/{self.reference_receiver}")
+            self.options.append(f"rxs/{self.reference_receiver}")
 
     @property
     def error_msg(self) -> str:
         return f"Receiver '{self.output_receiver}' failed regression check"
 
 
-class SnapshotRegressionCheck(RegressionCheck):
+class SnapshotRegressionCheck(H5RegressionCheck):
     """Run regression check on a gprMax Snapshot."""
 
     @property
     def error_msg(self) -> str:
-        return f"Snapshot '{self.output_file.name}' failed regression check "
+        return f"Snapshot '{self.output_file.name}' failed regression check"
 
 
-class GeometryViewRegressionCheck(RegressionCheck):
+class GeometryObjectRegressionCheck(H5RegressionCheck):
+    """Run regression check on a GprMax GeometryObject."""
+
+    @property
+    def error_msg(self) -> str:
+        return f"GeometryObject '{self.output_file.name}' failed regression check"
+
+
+class GeometryObjectMaterialsRegressionCheck(RegressionCheck):
+    """Run regression check on materials output by a GeometryObject."""
+
+    @property
+    def error_msg(self) -> str:
+        return f"GeometryObject materials file '{self.output_file}' failed regression check"
+
+
+class GeometryViewRegressionCheck(H5RegressionCheck):
     """Run regression check on a GprMax GeometryView."""
 
     @property
     def error_msg(self) -> str:
-        return f"GeometryView '{self.output_file.name}' failed regression check "
+        return f"GeometryView '{self.output_file.name}' failed regression check"

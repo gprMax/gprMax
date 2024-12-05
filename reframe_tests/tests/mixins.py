@@ -9,9 +9,11 @@ from typing_extensions import TYPE_CHECKING
 
 from reframe_tests.tests.base_tests import GprMaxBaseTest
 from reframe_tests.tests.regression_checks import (
+    GeometryObjectMaterialsRegressionCheck,
+    GeometryObjectRegressionCheck,
     GeometryViewRegressionCheck,
+    H5RegressionCheck,
     ReceiverRegressionCheck,
-    RegressionCheck,
     SnapshotRegressionCheck,
 )
 
@@ -38,7 +40,7 @@ class ReceiverMixin(GprMaxMixin):
                 )
                 self.regression_checks.append(regression_check)
         else:
-            regression_check = RegressionCheck(self.output_file, reference_file)
+            regression_check = H5RegressionCheck(self.output_file, reference_file)
             self.regression_checks.append(regression_check)
 
 
@@ -84,6 +86,61 @@ class GeometryOnlyMixin(GprMaxMixin):
     @run_after("setup")
     def add_geometry_only_flag(self):
         self.executable_opts += ["--geometry-only"]
+
+
+class GeometryObjectMixin(GprMaxMixin):
+    """Add regression tests for geometry objects.
+
+    Attributes:
+        geometry_objects (list[str]): List of geometry objects to run
+            regression checks on.
+    """
+
+    geometry_objects = variable(typ.List[str], value=[])
+
+    def build_geometry_object_filepath(self, geometry_object: str) -> Path:
+        """Build filepath to the specified geometry object.
+
+        Args:
+            geometry_object: Name of the geometry object.
+        """
+        return Path(geometry_object).with_suffix(".h5")
+
+    def build_materials_filepath(self, geometry_object: str) -> Path:
+        """Build filepath to the materials output by the geometry object.
+
+        Args:
+            geometry_object: Name of the geometry object.
+        """
+        return Path(f"{geometry_object}_materials").with_suffix(".txt")
+
+    @run_after("setup")
+    def add_geometry_object_regression_checks(self):
+        """Add a regression check for each geometry object.
+
+        The test will be skipped if no geometry objects have been specified.
+        """
+        self.skip_if(
+            len(self.geometry_objects) < 0,
+            f"Must provide a list of geometry objects.",
+        )
+
+        for geometry_object in self.geometry_objects:
+            # Add materials regression check first as if this fails,
+            # checking the .h5 file will almost definitely fail.
+            materials_file = self.build_materials_filepath(geometry_object)
+            materials_reference_file = self.build_reference_filepath(
+                materials_file.name, suffix=materials_file.suffix
+            )
+            materials_regression_check = GeometryObjectMaterialsRegressionCheck(
+                materials_file, materials_reference_file
+            )
+            self.regression_checks.append(materials_regression_check)
+
+            geometry_object_file = self.build_geometry_object_filepath(geometry_object)
+            reference_file = self.build_reference_filepath(geometry_object)
+            regression_check = GeometryObjectRegressionCheck(geometry_object_file, reference_file)
+            self.regression_checks.append(regression_check)
 
 
 class GeometryViewMixin(GprMaxMixin):

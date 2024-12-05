@@ -1,5 +1,6 @@
 from reframe_tests.tests.base_tests import GprMaxBaseTest
 from reframe_tests.tests.mixins import (
+    GeometryObjectMixin,
     GeometryOnlyMixin,
     GeometryViewMixin,
     ReceiverMixin,
@@ -16,4 +17,8 @@ class GprMaxSnapshotTest(SnapshotMixin, GprMaxBaseTest):
 
 
 class GprMaxGeometryViewTest(GeometryViewMixin, GeometryOnlyMixin, GprMaxBaseTest):
+    pass
+
+
+class GprMaxGeometryObjectTest(GeometryObjectMixin, GeometryOnlyMixin, GprMaxBaseTest):
     pass
