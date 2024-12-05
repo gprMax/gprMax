@@ -487,17 +487,19 @@ class GeometryObjects:
 
         ID = G.ID[:, self.xs : self.xf + 1, self.ys : self.yf + 1, self.zs : self.zf + 1]
 
-        # Get materials present in subset of ID array
+        # Get materials present in subset of ID array and sort by material ID
         material_ids, inverse_map = np.unique(ID, return_inverse=True)
+        get_material = np.vectorize(lambda id: G.materials[id])
+        materials = sorted(get_material(material_ids))
 
         # Create map from material ID to 0 - number of materials
-        materials_map = {material_id: index for index, material_id in enumerate(material_ids)}
+        materials_map = {material.numID: index for index, material in enumerate(materials)}
+        map_materials = np.vectorize(lambda id: materials_map[id])
 
         # Remap ID array to the reduced list of materials
-        ID = np.array([materials_map[id] for id in material_ids])[inverse_map].reshape(ID.shape)
+        ID = np.array(map_materials(material_ids))[inverse_map].reshape(ID.shape)
 
         data = G.solid[self.xs : self.xf, self.ys : self.yf, self.zs : self.zf].astype("int16")
-        map_materials = np.vectorize(lambda id: materials_map[id])
         data = map_materials(data)
 
         rigidE = G.rigidE[:, self.xs : self.xf, self.ys : self.yf, self.zs : self.zf]
@@ -520,8 +522,8 @@ class GeometryObjects:
 
         # Write materials list to a text file
         with open(self.filename_materials, "w") as fmaterials:
-            for numID in material_ids:
-                self.output_material(G.materials[numID], fmaterials)
+            for material in materials:
+                self.output_material(material, fmaterials)
 
     def output_material(self, material: Material, file: TextIOWrapper):
         file.write(
@@ -586,15 +588,9 @@ class MPIGeometryObjects(GeometryObjects):
         materials = self.comm.gather(local_materials, root=0)
 
         if self.comm.rank == 0:
-            # Filter out duplicate materials
+            # Filter out duplicate materials and sort by material ID
             materials = np.fromiter(chain.from_iterable(materials), dtype=Material)
-            _, indices = np.unique(materials, return_index=True)
-
-            # We want to sort the materials by the order they appear,
-            # not sorted alphabetically by ID (default behaviour using
-            # np.unique). This ensures user defined materials are lower
-            # indexed than compound materials.
-            global_materials = materials[sorted(indices)]
+            global_materials = np.unique(materials)
 
             global_material_ids = [m.ID for m in global_materials]
         else:
