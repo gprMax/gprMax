@@ -53,7 +53,9 @@ class Material:
         if isinstance(value, Material):
             return self.ID == value.ID
         else:
-            return super().__eq__(value)
+            raise TypeError(
+                f"'==' not supported between instances of 'Material' and '{type(value)}'"
+            )
 
     def __lt__(self, value: object) -> bool:
         if isinstance(value, Material):
@@ -70,6 +72,25 @@ class Material:
             raise TypeError(
                 f"'>' not supported between instances of 'Material' and '{type(value)}'"
             )
+
+    @staticmethod
+    def create_compound_id(*materials: "Material") -> str:
+        """Create a compound ID from existing materials.
+
+        The new ID will be the IDs of the existing materials joined by a
+        '+' symbol. The component IDs will be sorted alphabetically and
+        if two materials are provided, the compound ID will contain each
+        material twice.
+
+        Args:
+            *materials: Materials to use to create the compound ID.
+
+        Returns:
+            compound_id: New compound id.
+        """
+        if len(materials) == 2:
+            materials += materials
+        return "+".join(sorted([material.ID for material in materials]))
 
     def calculate_update_coeffsH(self, G):
         """Calculates the magnetic update coefficients of the material.
