@@ -1,8 +1,8 @@
+#material: 1 0 1 0 free_space
+#material: 4.9 0 1 0 myWater
 #material: 3 0 2 0 boxMaterial
 #material: 2 0 1.5 0 boxMaterial+boxMaterial+free_space+free_space
 #material: 1.5 0 1.25 0 boxMaterial+free_space+free_space+free_space
-#material: 1 0 1 0 free_space
 #material: 1.975 0 1 0 free_space+free_space+free_space+myWater
 #material: 2.95 0 1 0 free_space+free_space+myWater+myWater
 #material: 3.925 0 1 0 free_space+myWater+myWater+myWater
-#material: 4.9 0 1 0 myWater

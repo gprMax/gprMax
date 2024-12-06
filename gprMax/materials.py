@@ -57,21 +57,54 @@ class Material:
                 f"'==' not supported between instances of 'Material' and '{type(value)}'"
             )
 
-    def __lt__(self, value: object) -> bool:
-        if isinstance(value, Material):
-            return self.ID < value.ID
-        else:
+    def __lt__(self, value: "Material") -> bool:
+        """Less than comparator for two Materials.
+
+        Only non-compound materials (i.e. default or user added
+        materials) are guaranteed to have the same numID for the same
+        material across MPI ranks. Therefore compound materials are
+        sorted by ID and non-compound materials are always less than
+        compound materials.
+        """
+        if not isinstance(value, Material):
             raise TypeError(
                 f"'<' not supported between instances of 'Material' and '{type(value)}'"
             )
-
-    def __gt__(self, value: object) -> bool:
-        if isinstance(value, Material):
-            return self.ID > value.ID
+        elif self.is_compound_material() and value.is_compound_material():
+            return self.ID < value.ID
         else:
+            return value.is_compound_material() or self.numID < value.numID
+
+    def __gt__(self, value: "Material") -> bool:
+        """Greater than comparator for two Materials.
+
+        Only non-compound materials (i.e. default or user added
+        materials) are guaranteed to have the same numID for the same
+        material across MPI ranks. Therefore compound materials are
+        sorted by ID and are always greater than non-compound materials.
+        """
+        if not isinstance(value, Material):
             raise TypeError(
                 f"'>' not supported between instances of 'Material' and '{type(value)}'"
             )
+        elif self.is_compound_material() and value.is_compound_material():
+            return self.ID > value.ID
+        else:
+            return self.is_compound_material() or self.numID > value.numID
+
+    def is_compound_material(self) -> bool:
+        """Check if a material is a compound material.
+
+        The ID of a compound material comprises of the component
+        material IDs joined by a '+' symbol. Therefore we check for a
+        compound material by looking for a '+' symbol in the material
+        ID.
+
+        Returns:
+            is_compound_material: True if material is a compound
+                material. False otherwise.
+        """
+        return self.ID.count("+") > 0
 
     @staticmethod
     def create_compound_id(*materials: "Material") -> str:
