@@ -119,7 +119,7 @@ class Cone(UserObjectGeometry):
             numIDx = materials[0].numID
             numIDy = materials[1].numID
             numIDz = materials[2].numID
-            requiredID = materials[0].ID + "+" + materials[1].ID + "+" + materials[2].ID
+            requiredID = Material.create_compound_id(materials[0], materials[1], materials[2])
             averagedmaterial = [x for x in grid.materials if x.ID == requiredID]
             if averagedmaterial:
                 numID = averagedmaterial.numID

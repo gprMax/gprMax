@@ -30,7 +30,7 @@ class Material:
     their properties and update coefficients.
     """
 
-    def __init__(self, numID, ID):
+    def __init__(self, numID: int, ID: str):
         """
         Args:
             numID: int for numeric I of the material.
@@ -48,6 +48,82 @@ class Material:
         self.se = 0.0
         self.mr = 1.0
         self.sm = 0.0
+
+    def __eq__(self, value: object) -> bool:
+        if isinstance(value, Material):
+            return self.ID == value.ID
+        else:
+            raise TypeError(
+                f"'==' not supported between instances of 'Material' and '{type(value)}'"
+            )
+
+    def __lt__(self, value: "Material") -> bool:
+        """Less than comparator for two Materials.
+
+        Only non-compound materials (i.e. default or user added
+        materials) are guaranteed to have the same numID for the same
+        material across MPI ranks. Therefore compound materials are
+        sorted by ID and non-compound materials are always less than
+        compound materials.
+        """
+        if not isinstance(value, Material):
+            raise TypeError(
+                f"'<' not supported between instances of 'Material' and '{type(value)}'"
+            )
+        elif self.is_compound_material() and value.is_compound_material():
+            return self.ID < value.ID
+        else:
+            return value.is_compound_material() or self.numID < value.numID
+
+    def __gt__(self, value: "Material") -> bool:
+        """Greater than comparator for two Materials.
+
+        Only non-compound materials (i.e. default or user added
+        materials) are guaranteed to have the same numID for the same
+        material across MPI ranks. Therefore compound materials are
+        sorted by ID and are always greater than non-compound materials.
+        """
+        if not isinstance(value, Material):
+            raise TypeError(
+                f"'>' not supported between instances of 'Material' and '{type(value)}'"
+            )
+        elif self.is_compound_material() and value.is_compound_material():
+            return self.ID > value.ID
+        else:
+            return self.is_compound_material() or self.numID > value.numID
+
+    def is_compound_material(self) -> bool:
+        """Check if a material is a compound material.
+
+        The ID of a compound material comprises of the component
+        material IDs joined by a '+' symbol. Therefore we check for a
+        compound material by looking for a '+' symbol in the material
+        ID.
+
+        Returns:
+            is_compound_material: True if material is a compound
+                material. False otherwise.
+        """
+        return self.ID.count("+") > 0
+
+    @staticmethod
+    def create_compound_id(*materials: "Material") -> str:
+        """Create a compound ID from existing materials.
+
+        The new ID will be the IDs of the existing materials joined by a
+        '+' symbol. The component IDs will be sorted alphabetically and
+        if two materials are provided, the compound ID will contain each
+        material twice.
+
+        Args:
+            *materials: Materials to use to create the compound ID.
+
+        Returns:
+            compound_id: New compound id.
+        """
+        if len(materials) == 2:
+            materials += materials
+        return "+".join(sorted([material.ID for material in materials]))
 
     def calculate_update_coeffsH(self, G):
         """Calculates the magnetic update coefficients of the material.
@@ -239,7 +315,9 @@ class PeplinskiSoil:
     by Peplinski (http://dx.doi.org/10.1109/36.387598).
     """
 
-    def __init__(self, ID, sandfraction, clayfraction, bulkdensity, sandpartdensity, watervolfraction):
+    def __init__(
+        self, ID, sandfraction, clayfraction, bulkdensity, sandpartdensity, watervolfraction
+    ):
         """
         Args:
             ID: string for name of the soil.
@@ -304,7 +382,12 @@ class PeplinskiSoil:
         muiter = np.nditer(mumaterials, flags=["c_index"])
         while not muiter.finished:
             # Real part for frequencies in the range 1.4GHz to 18GHz
-            er = (1 + (self.rb / self.rs) * ((es**a) - 1) + (muiter[0] ** b1 * erealw**a) - muiter[0]) ** (1 / a)
+            er = (
+                1
+                + (self.rb / self.rs) * ((es**a) - 1)
+                + (muiter[0] ** b1 * erealw**a)
+                - muiter[0]
+            ) ** (1 / a)
             # Real part for frequencies in the range 0.3GHz to 1.3GHz (linear
             # correction to 1.4-18GHz value)
             er = 1.15 * er - 0.68
@@ -499,7 +582,10 @@ def calculate_water_properties(T=25, S=0):
 
     delta = 25 - T
     beta = (
-        2.033e-2 + 1.266e-4 * delta + 2.464e-6 * delta**2 - S * (1.849e-5 - 2.551e-7 * delta + 2.551e-8 * delta**2)
+        2.033e-2
+        + 1.266e-4 * delta
+        + 2.464e-6 * delta**2
+        - S * (1.849e-5 - 2.551e-7 * delta + 2.551e-8 * delta**2)
     )
     sig_25s = S * (0.182521 - 1.46192e-3 * S + 2.09324e-5 * S**2 - 1.28205e-7 * S**3)
     sig = sig_25s * np.exp(-delta * beta)
@@ -608,8 +694,20 @@ def process_materials(G):
         material.calculate_update_coeffsH(G)
 
         # Add update coefficients to overall storage for all materials
-        G.updatecoeffsE[material.numID, :] = material.CA, material.CBx, material.CBy, material.CBz, material.srce
-        G.updatecoeffsH[material.numID, :] = material.DA, material.DBx, material.DBy, material.DBz, material.srcm
+        G.updatecoeffsE[material.numID, :] = (
+            material.CA,
+            material.CBx,
+            material.CBy,
+            material.CBz,
+            material.srce,
+        )
+        G.updatecoeffsH[material.numID, :] = (
+            material.DA,
+            material.DBx,
+            material.DBy,
+            material.DBz,
+            material.srcm,
+        )
 
         # Add update coefficients to overall storage for dispersive materials
         if hasattr(material, "poles"):

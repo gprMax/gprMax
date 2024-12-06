@@ -110,7 +110,7 @@ class Snapshot:
         filename: str,
         fileext: str,
         outputs: Dict[str, bool],
-        grid_dl: npt.NDArray[np.single],
+        grid_dl: npt.NDArray[np.float32],
         grid_dt: float,
     ):
         """
@@ -358,7 +358,7 @@ class MPISnapshot(Snapshot):
         filename: str,
         fileext: str,
         outputs: Dict[str, bool],
-        grid_dl: npt.NDArray[np.single],
+        grid_dl: npt.NDArray[np.float32],
         grid_dt: float,
     ):
         super().__init__(
@@ -375,7 +375,7 @@ class MPISnapshot(Snapshot):
         self.size = np.ceil((self.stop - self.start) / self.step).astype(np.intc)
         return super().initialise_snapfields()
 
-    def has_neighbour(self, dimension: Dim, direction: Dir):
+    def has_neighbour(self, dimension: Dim, direction: Dir) -> bool:
         return self.neighbours[dimension][direction] != -1
 
     def store(self, G):
@@ -393,13 +393,13 @@ class MPISnapshot(Snapshot):
         self.neighbours[Dim.Y] = self.comm.Shift(direction=Dim.Y, disp=1)
         self.neighbours[Dim.Z] = self.comm.Shift(direction=Dim.Z, disp=1)
 
-        # If we have a positive neighbour, an extra step may land in our
-        # local halo. The numbers here will be correct (except the top
-        # corner), but using it would require extra checks below.
+        # If we do not have a positive neighbour, add an extra step to
+        # make the upper bound inclusive. Otherwise the additional step
+        # will be provided by the received halo.
         slice_stop = np.where(
-            self.neighbours[:, Dir.POS] != -1,
-            self.stop,
+            self.neighbours[:, Dir.POS] == -1,
             self.stop + self.step,
+            self.stop,
         )
         self.slice = list(map(slice, self.start, slice_stop, self.step))
 

@@ -1,0 +1,17 @@
+#title: Hertzian dipole in free-space
+#domain: 0.100 0.100 0.100
+#dx_dy_dz: 0.001 0.001 0.001
+#time_window: 3e-9
+
+#waveform: gaussiandot 1 1e9 myWave
+#hertzian_dipole: z 0.050 0.050 0.050 myWave
+
+#material: 4.9 0 1 0 myWater
+#material: 2 0 1.4 0 unusedMaterial
+#material: 3 0 2 0 boxMaterial
+
+#sphere: 0.05 0.05 0.05 0.03 myWater y
+#box: 0.01 0.01 0.01 0.09 0.025 0.025 boxMaterial y
+
+#geometry_view: 0.02 0.02 0.02 0.06 0.06 0.06 0.001 0.001 0.001 partial_volume n
+#geometry_view: 0 0 0 0.1 0.1 0.1 0.001 0.001 0.001 full_volume n

@@ -58,21 +58,21 @@ class FDTDGrid:
         self.nx = 0
         self.ny = 0
         self.nz = 0
-        self.dl = np.ones(3, dtype=float)
+        self.dl = np.ones(3, dtype=np.float64)
         self.dt = 0.0
 
         # Field Arrays
-        self.Ex: npt.NDArray[np.single]
-        self.Ey: npt.NDArray[np.single]
-        self.Ez: npt.NDArray[np.single]
-        self.Hx: npt.NDArray[np.single]
-        self.Hy: npt.NDArray[np.single]
-        self.Hz: npt.NDArray[np.single]
+        self.Ex: npt.NDArray[np.float32]
+        self.Ey: npt.NDArray[np.float32]
+        self.Ez: npt.NDArray[np.float32]
+        self.Hx: npt.NDArray[np.float32]
+        self.Hy: npt.NDArray[np.float32]
+        self.Hz: npt.NDArray[np.float32]
 
         # Dispersive Arrays
-        self.Tx: npt.NDArray[np.single]
-        self.Ty: npt.NDArray[np.single]
-        self.Tz: npt.NDArray[np.single]
+        self.Tx: npt.NDArray[np.float32]
+        self.Ty: npt.NDArray[np.float32]
+        self.Tz: npt.NDArray[np.float32]
 
         # Geometry Arrays
         self.solid: npt.NDArray[np.uint32]
@@ -81,9 +81,9 @@ class FDTDGrid:
         self.ID: npt.NDArray[np.uint32]
 
         # Update Coefficient Arrays
-        self.updatecoeffsE: npt.NDArray
-        self.updatecoeffsH: npt.NDArray
-        self.updatecoeffsdispersive: npt.NDArray
+        self.updatecoeffsE: npt.NDArray[np.float32]
+        self.updatecoeffsH: npt.NDArray[np.float32]
+        self.updatecoeffsdispersive: npt.NDArray[np.float32]
 
         # PML parameters - set some defaults to use if not user provided
         self.pmls = {}

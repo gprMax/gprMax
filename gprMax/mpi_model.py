@@ -1,6 +1,7 @@
 import logging
 from typing import Optional
 
+import numpy as np
 from mpi4py import MPI
 
 from gprMax import config
@@ -55,7 +56,9 @@ class MPIModel(Model):
     def build_geometry(self):
         self._broadcast_model()
 
-        return super().build_geometry()
+        super().build_geometry()
+
+        self._filter_geometry_objects()
 
     def _broadcast_model(self):
         self.title = self.comm.bcast(self.title)
@@ -76,6 +79,30 @@ class MPIModel(Model):
         model_config.materials["maxpoles"] = self.comm.bcast(model_config.materials["maxpoles"])
         model_config.ompthreads = self.comm.bcast(model_config.ompthreads)
 
+    def _filter_geometry_objects(self):
+        objects = self.comm.bcast(self.geometryobjects)
+        self.geometryobjects = []
+
+        for go in objects:
+            start = np.array([go.xs, go.ys, go.zs], dtype=np.intc)
+            stop = np.array([go.xf, go.yf, go.zf], dtype=np.intc)
+            if self.G.global_bounds_overlap_local_grid(start, stop):
+                comm = self.comm.Split()
+                assert isinstance(comm, MPI.Intracomm)
+                start_grid_coord = self.G.get_grid_coord_from_coordinate(start)
+                stop_grid_coord = self.G.get_grid_coord_from_coordinate(stop) + 1
+                go.comm = comm.Create_cart((stop_grid_coord - start_grid_coord).tolist())
+
+                go.global_size = np.array([go.nx, go.ny, go.nz], dtype=np.intc)
+                start, stop, offset = self.G.limit_global_bounds_to_within_local_grid(start, stop)
+                go.size = stop - start
+                go.start = start
+                go.stop = stop
+                go.offset = offset
+                self.geometryobjects.append(go)
+            else:
+                self.comm.Split(MPI.UNDEFINED)
+
     def write_output_data(self):
         """Writes output data, i.e. field data for receivers and snapshots to
         file(s).
@@ -90,9 +117,6 @@ class MPIModel(Model):
         if self.is_coordinator() and (self.G.rxs or self.G.transmissionlines):
             self.G.size = self.G.global_size
             write_hdf5_outputfile(config.get_model_config().output_file_path_ext, self.title, self)
-
-    def _output_geometry(self):
-        logger.warn("Geometry views and geometry objects are not currently supported with MPI\n")
 
     def _create_grid(self) -> MPIGrid:
         cart_comm = MPI.COMM_WORLD.Create_cart(config.sim_config.mpi)
