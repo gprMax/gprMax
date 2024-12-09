@@ -100,6 +100,11 @@ class ModelUserObject(UserObject):
 
     @abstractmethod
     def build(self, model: Model):
+        """Build user object and set model properties.
+
+        Args:
+            model: Model to set the properties of.
+        """
         pass
 
 

@@ -59,8 +59,8 @@ class Model:
         self.iterations = 0  # Total number of iterations
         self.timewindow = 0.0
 
-        self.srcsteps: List[int] = [0, 0, 0]
-        self.rxsteps: List[int] = [0, 0, 0]
+        self.srcsteps = np.zeros(3, dtype=np.int32)
+        self.rxsteps = np.zeros(3, dtype=np.int32)
 
         self.G = self._create_grid()
         self.subgrids: List[SubGridBaseGrid] = []

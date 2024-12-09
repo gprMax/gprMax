@@ -16,351 +16,503 @@
 # You should have received a copy of the GNU General Public License
 # along with gprMax.  If not, see <http://www.gnu.org/licenses/>.
 import logging
-from abc import ABC, abstractmethod
+from typing import Optional, Tuple, Union
 
 import numpy as np
+import numpy.typing as npt
 
-import gprMax.config as config
+from gprMax import config
 from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
-from gprMax.user_inputs import MainGridUserInput
-
-from ..pml import PML
-from ..utilities.host_info import set_omp_threads
+from gprMax.pml import PML
+from gprMax.user_objects.user_objects import ModelUserObject
+from gprMax.utilities.host_info import set_omp_threads
 
 logger = logging.getLogger(__name__)
 
 
-class Properties:
-    pass
-
-
-class UserObjectSingle(ABC):
-    """Object that can only occur a single time in a model."""
-
-    def __init__(self, **kwargs):
-        # Each single command has an order to specify the order in which
-        # the commands are constructed, e.g. discretisation must be
-        # created before the domain
-        self.order = 0
-        self.kwargs = kwargs
-        self.props = Properties()
-        self.autotranslate = True
-
-        for k, v in kwargs.items():
-            setattr(self.props, k, v)
-
-    @abstractmethod
-    def build(self, model: Model, uip: MainGridUserInput):
-        pass
-
-    # TODO: Check if this is actually needed
-    def rotate(self, axis, angle, origin=None):
-        pass
-
-
-class Title(UserObjectSingle):
-    """Includes a title for your model.
+class Title(ModelUserObject):
+    """Title of the model.
 
     Attributes:
-        name: string for model title.
+        title (str): Model title.
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 1
+    @property
+    def order(self):
+        return 1
 
-    def build(self, model, uip):
-        try:
-            title = self.kwargs["name"]
-            model.title = title
-            logger.info(f"Model title: {model.title}")
-        except KeyError:
-            pass
+    @property
+    def hash(self):
+        return "#title"
+
+    def __init__(self, name: str):
+        """Create a Title user object.
+
+        Args:
+            name: Title of the model.
+        """
+        super().__init__(name=name)
+        self.title = name
+
+    def build(self, model: Model):
+        model.title = self.title
+        logger.info(f"Model title: {model.title}")
 
 
-class Discretisation(UserObjectSingle):
-    """Specifies the discretization of space in the x, y, and z directions.
+class Discretisation(ModelUserObject):
+    """Spatial discretisation of the model in the x, y, and z dimensions.
 
     Attributes:
-        p1: tuple of floats to specify spatial discretisation in x, y, z direction.
+        discretisation (np.array): Spatial discretisation of the model
+            (x, y, z)
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 2
+    @property
+    def order(self):
+        return 2
 
-    def build(self, model, uip):
-        try:
-            model.dl = np.array(self.kwargs["p1"], dtype=np.float64)
-        except KeyError:
-            logger.exception(f"{self.__str__()} discretisation requires a point")
-            raise
+    @property
+    def hash(self):
+        return "#dx_dy_dz"
 
-        if model.dl[0] <= 0:
-            logger.exception(
-                f"{self.__str__()} discretisation requires the "
-                f"x-direction spatial step to be greater than zero"
-            )
-            raise ValueError
-        if model.dl[1] <= 0:
-            logger.exception(
-                f"{self.__str__()} discretisation requires the "
-                f"y-direction spatial step to be greater than zero"
-            )
-            raise ValueError
-        if model.dl[2] <= 0:
-            logger.exception(
-                f"{self.__str__()} discretisation requires the "
-                f"z-direction spatial step to be greater than zero"
-            )
-            raise ValueError
+    def __init__(self, p1: Tuple[float, float, float]):
+        """Create a Discretisation user object.
 
+        Args:
+            p1: Spatial discretisation in the x, y, and z dimensions.
+        """
+        super().__init__(p1=p1)
+        self.discretisation = p1
+
+    def build(self, model: Model):
+        if any(self.discretisation) <= 0:
+            raise ValueError(
+                f"{self} discretisation requires the spatial step to be"
+                " greater than zero in all dimensions"
+            )
+
+        model.dl = np.array(self.discretisation, dtype=np.float64)
         logger.info(f"Spatial discretisation: {model.dl[0]:g} x {model.dl[1]:g} x {model.dl[2]:g}m")
 
 
-class Domain(UserObjectSingle):
-    """Specifies the size of the model.
+class Domain(ModelUserObject):
+    """Size of the model.
 
     Attributes:
-        p1: tuple of floats specifying extent of model domain (x, y, z).
+        domain_size (tuple): Extent of the model domain (x, y, z).
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 3
+    @property
+    def order(self):
+        return 3
 
-    def build(self, model, uip):
-        try:
-            model.nx, model.ny, model.nz = uip.discretise_point(self.kwargs["p1"])
-            # TODO: Remove when distribute full build for MPI
-            if isinstance(model.G, MPIGrid):
-                model.G.nx = model.nx
-                model.G.ny = model.ny
-                model.G.nz = model.nz
+    @property
+    def hash(self):
+        return "#domain"
 
-        except KeyError:
-            logger.exception(f"{self.__str__()} please specify a point")
-            raise
+    def __init__(self, p1: Tuple[float, float, float]):
+        """Create a Domain user object.
+
+        Args:
+            p1: Model extent in the x, y, and z dimensions.
+        """
+        super().__init__(p1=p1)
+        self.domain_size = p1
+
+    def build(self, model: Model):
+        uip = self._create_uip(model.G)
+        model.nx, model.ny, model.nz = uip.discretise_point(self.domain_size)
+        # TODO: Remove when distribute full build for MPI
+        if isinstance(model.G, MPIGrid):
+            model.G.nx = model.nx
+            model.G.ny = model.ny
+            model.G.nz = model.nz
 
         if model.nx == 0 or model.ny == 0 or model.nz == 0:
-            logger.exception(f"{self.__str__()} requires at least one cell in every dimension")
-            raise ValueError
+            raise ValueError(f"{self} requires at least one cell in every dimension")
 
         logger.info(
-            f"Domain size: {self.kwargs['p1'][0]:g} x {self.kwargs['p1'][1]:g} x "
-            + f"{self.kwargs['p1'][2]:g}m ({model.nx:d} x {model.ny:d} x {model.nz:d} = "
+            f"Domain size: {self.domain_size[0]:g} x {self.domain_size[1]:g} x "
+            + f"{self.domain_size[2]:g}m ({model.nx:d} x {model.ny:d} x {model.nz:d} = "
             + f"{(model.nx * model.ny * model.nz):g} cells)"
         )
 
-        # Calculate time step at CFL limit; switch off appropriate PMLs for 2D
-        G = model.G
+        # Set mode and switch off appropriate PMLs for 2D models
+        grid = model.G
         if model.nx == 1:
             config.get_model_config().mode = "2D TMx"
-            G.pmls["thickness"]["x0"] = 0
-            G.pmls["thickness"]["xmax"] = 0
+            grid.pmls["thickness"]["x0"] = 0
+            grid.pmls["thickness"]["xmax"] = 0
         elif model.ny == 1:
             config.get_model_config().mode = "2D TMy"
-            G.pmls["thickness"]["y0"] = 0
-            G.pmls["thickness"]["ymax"] = 0
+            grid.pmls["thickness"]["y0"] = 0
+            grid.pmls["thickness"]["ymax"] = 0
         elif model.nz == 1:
             config.get_model_config().mode = "2D TMz"
-            G.pmls["thickness"]["z0"] = 0
-            G.pmls["thickness"]["zmax"] = 0
+            grid.pmls["thickness"]["z0"] = 0
+            grid.pmls["thickness"]["zmax"] = 0
         else:
             config.get_model_config().mode = "3D"
-        G.calculate_dt()
 
         logger.info(f"Mode: {config.get_model_config().mode}")
 
         # Sub-grids cannot be used with 2D models. There would typically be
         # minimal performance benefit with sub-gridding and 2D models.
         if "2D" in config.get_model_config().mode and config.sim_config.general["subgrid"]:
-            logger.exception("Sub-gridding cannot be used with 2D models")
-            raise ValueError
+            raise ValueError("Sub-gridding cannot be used with 2D models")
 
-        logger.info(f"Time step (at CFL limit): {G.dt:g} secs")
+        # Calculate time step at CFL limit
+        grid.calculate_dt()
+
+        logger.info(f"Time step (at CFL limit): {grid.dt:g} secs")
 
 
-class TimeStepStabilityFactor(UserObjectSingle):
+class TimeStepStabilityFactor(ModelUserObject):
     """Factor by which to reduce the time step from the CFL limit.
 
     Attributes:
-        f: float for factor to multiply time step.
+        stability_factor (flaot): Factor to multiply time step by.
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 4
+    @property
+    def order(self):
+        return 4
 
-    def build(self, model, uip):
-        try:
-            f = self.kwargs["f"]
-        except KeyError:
-            logger.exception(f"{self.__str__()} requires exactly one parameter")
-            raise
+    @property
+    def hash(self):
+        return "#time_step_stability_factor"
 
-        if f <= 0 or f > 1:
-            logger.exception(
-                f"{self.__str__()} requires the value of the time "
-                f"step stability factor to be between zero and one"
+    def __init__(self, f: float):
+        """Create a TimeStepStabilityFactor user object.
+
+        Args:
+            f: Factor to multiply the model time step by.
+        """
+        super().__init__(f=f)
+        self.stability_factor = f
+
+    def build(self, model: Model):
+        if self.stability_factor <= 0 or self.stability_factor > 1:
+            raise ValueError(
+                f"{self} requires the value of the time step stability"
+                " factor to be between zero and one"
             )
-            raise ValueError
 
-        model.dt_mod = f
+        model.dt_mod = self.stability_factor
         model.dt *= model.dt_mod
 
         logger.info(f"Time step (modified): {model.dt:g} secs")
 
 
-class TimeWindow(UserObjectSingle):
+class TimeWindow(ModelUserObject):
     """Specifies the total required simulated time.
+
+    Either time or iterations must be specified. If both are specified,
+    time takes precedence.
 
     Attributes:
         time: float of required simulated time in seconds.
         iterations: int of required number of iterations.
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 5
+    @property
+    def order(self):
+        return 5
 
-    def build(self, model, uip):
-        # If number of iterations given
-        # The +/- 1 used in calculating the number of iterations is to account for
-        # the fact that the solver (iterations) loop runs from 0 to < G.iterations
-        try:
-            iterations = int(self.kwargs["iterations"])
-            model.timewindow = (iterations - 1) * model.dt
-            model.iterations = iterations
-        except KeyError:
-            pass
+    @property
+    def hash(self):
+        return "#time_window"
 
-        try:
-            tmp = float(self.kwargs["time"])
-            if tmp > 0:
-                model.timewindow = tmp
-                model.iterations = int(np.ceil(tmp / model.dt)) + 1
+    def __init__(self, time: Optional[float] = None, iterations: Optional[int] = None):
+        """Create a TimeWindow user object.
+
+        Args:
+            time: Optional simulation time in seconds. Default None.
+            iterations: Optional number of iterations. Default None.
+        """
+        super().__init__(time=time, iterations=iterations)
+        self.time = time
+        self.iterations = iterations
+
+    def build(self, model: Model):
+        if self.time is not None:
+            if self.time > 0:
+                model.timewindow = self.time
+                model.iterations = np.ceil(self.time / model.dt, dtype=np.int32) + 1
             else:
-                logger.exception(self.__str__() + " must have a value greater than zero")
-                raise ValueError
-        except KeyError:
-            pass
+                raise ValueError(f"{self} must have a value greater than zero")
+        elif self.iterations is not None:
+            # The +/- 1 used in calculating the number of iterations is
+            # to account for the fact that the solver (iterations) loop
+            # runs from 0 to < G.iterations
+            model.timewindow = (self.iterations - 1) * model.dt
+            model.iterations = self.iterations
+        else:
+            raise ValueError(f"{self} specify a time or number of iterations")
 
-        if not model.timewindow:
-            logger.exception(self.__str__() + " specify a time or number of iterations")
-            raise ValueError
+        if self.time is not None and self.iterations is not None:
+            logger.warning(
+                f"{self._params_str()} Time and iterations were both specified, using 'time'"
+            )
 
         logger.info(f"Time window: {model.timewindow:g} secs ({model.iterations} iterations)")
 
 
-class OMPThreads(UserObjectSingle):
-    """Controls how many OpenMP threads (usually the number of physical CPU
-        cores available) are used when running the model.
+class OMPThreads(ModelUserObject):
+    """Set the number of OpenMP threads to use when running the model.
+
+    Usually this should match the number of physical CPU cores
+    available.
 
     Attributes:
-        n: int for number of threads.
+        omp_threads (int): Number of OpenMP threads.
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 6
+    @property
+    def order(self):
+        return 6
 
-    def build(self, model, uip):
-        try:
-            n = self.kwargs["n"]
-        except KeyError:
-            logger.exception(
-                f"{self.__str__()} requires exactly one parameter "
-                f"to specify the number of CPU OpenMP threads to use"
-            )
-            raise
-        if n < 1:
-            logger.exception(
-                f"{self.__str__()} requires the value to be an " f"integer not less than one"
-            )
-            raise ValueError
+    @property
+    def hash(self):
+        return "#num_threads"
 
-        config.get_model_config().ompthreads = set_omp_threads(n)
+    def __init__(self, n: int):
+        """Create an OMPThreads user object.
+
+        Args:
+            n: Number of OpenMP threads.
+        """
+        super().__init__(n=n)
+        self.omp_threads = n
+
+    def build(self, model: Model):
+        if self.omp_threads < 1:
+            raise ValueError(f"{self} requires the value to be an integer not less than one")
+
+        config.get_model_config().ompthreads = set_omp_threads(self.omp_threads)
+
+        logger.info(f"Simulation will use {config.get_model_config().ompthreads} OpenMP threads")
 
 
-class PMLProps(UserObjectSingle):
-    """Specifies the formulation used and thickness (number of cells) of PML
-        that are used on the six sides of the model domain. Current options are
-        to use the Higher Order RIPML (HORIPML) - https://doi.org/10.1109/TAP.2011.2180344,
-        or Multipole RIPML (MRIPML) - https://doi.org/10.1109/TAP.2018.2823864.
+class PMLFormulation(ModelUserObject):
+    """Set the formulation of the PMLs.
+
+    Current options are to use the Higher Order RIPML (HORIPML) -
+    https://doi.org/10.1109/TAP.2011.2180344, or Multipole RIPML
+    (MRIPML) - https://doi.org/10.1109/TAP.2018.2823864.
 
     Attributes:
-        formulation: string specifying formulation to be used for all PMLs
-                        either 'HORIPML' or 'MRIPML'.
-        thickness or x0, y0, z0, xmax, ymax, zmax: ints for thickness of PML
-                                                    on all 6 sides or individual
-                                                    sides of the model domain.
+        formulation (str): Formulation to be used for all PMLs. Either
+            'HORIPML' or 'MRIPML'.
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 7
+    @property
+    def order(self):
+        return 7
 
-    def build(self, model, uip):
-        G = model.G
-        try:
-            G.pmls["formulation"] = self.kwargs["formulation"]
-            if G.pmls["formulation"] not in PML.formulations:
-                logger.exception(
-                    self.__str__()
-                    + f" requires the value to be "
-                    + f"one of {' '.join(PML.formulations)}"
-                )
-        except KeyError:
-            pass
+    @property
+    def hash(self):
+        return "#pml_formulation"
 
-        try:
-            thickness = self.kwargs["thickness"]
-            for key in G.pmls["thickness"].keys():
-                G.pmls["thickness"][key] = int(thickness)
+    def __init__(self, formulation: str):
+        """Create a PMLFormulation user object.
 
-        except KeyError:
-            try:
-                G.pmls["thickness"]["x0"] = int(self.kwargs["x0"])
-                G.pmls["thickness"]["y0"] = int(self.kwargs["y0"])
-                G.pmls["thickness"]["z0"] = int(self.kwargs["z0"])
-                G.pmls["thickness"]["xmax"] = int(self.kwargs["xmax"])
-                G.pmls["thickness"]["ymax"] = int(self.kwargs["ymax"])
-                G.pmls["thickness"]["zmax"] = int(self.kwargs["zmax"])
-            except KeyError:
-                logger.exception(f"{self.__str__()} requires either one or six parameter(s)")
-                raise
+        Args:
+            formulation: Formulation to be used for all PMLs. Either
+                'HORIPML' or 'MRIPML'.
+        """
+        super().__init__(formulation=formulation)
+        self.formulation = formulation
 
+    def build(self, model: Model):
+        if self.formulation not in PML.formulations:
+            logger.exception(f"{self} requires the value to be one of {' '.join(PML.formulations)}")
+
+        model.G.pmls["formulation"] = self.formulation
+
+        logger.info(f"PML formulation set to {model.G.pmls['formulation']}")
+
+
+class PMLThickness(ModelUserObject):
+    """Set the thickness of the PMLs.
+
+    The thickness can be set globally, or individually for each of the
+    six sides of the model domain. Either thickness must be set, or all
+    of x0, y0, z0, xmax, ymax, zmax.
+
+    Attributes:
+        thickness (int | Tuple[int]): Thickness of the PML on all 6
+            sides or individual sides of the model domain.
+    """
+
+    @property
+    def order(self):
+        return 7
+
+    @property
+    def hash(self):
+        return "#pml_cells"
+
+    def __init__(self, thickness: Union[int, Tuple[int, int, int, int, int, int]]):
+        """Create a PMLThickness user object.
+
+        Args:
+            thickness: Thickness of the PML on all 6 sides or individual
+                sides of the model domain.
+        """
+        super().__init__(thickness=thickness)
+        self.thickness = thickness
+
+    def build(self, model: Model):
+        grid = model.G
+
+        if isinstance(self.thickness, int) or len(self.thickness) == 1:
+            for key in grid.pmls["thickness"].keys():
+                grid.pmls["thickness"][key] = int(self.thickness)
+        elif len(self.thickness) == 6:
+            grid.pmls["thickness"]["x0"] = int(self.thickness[0])
+            grid.pmls["thickness"]["y0"] = int(self.thickness[1])
+            grid.pmls["thickness"]["z0"] = int(self.thickness[2])
+            grid.pmls["thickness"]["xmax"] = int(self.thickness[3])
+            grid.pmls["thickness"]["ymax"] = int(self.thickness[4])
+            grid.pmls["thickness"]["zmax"] = int(self.thickness[5])
+        else:
+            raise ValueError(f"{self} requires either one or six parameter(s)")
+
+        # Check each PML does not take up more than half the grid
         if (
-            2 * G.pmls["thickness"]["x0"] >= G.nx
-            or 2 * G.pmls["thickness"]["y0"] >= G.ny
-            or 2 * G.pmls["thickness"]["z0"] >= G.nz
-            or 2 * G.pmls["thickness"]["xmax"] >= G.nx
-            or 2 * G.pmls["thickness"]["ymax"] >= G.ny
-            or 2 * G.pmls["thickness"]["zmax"] >= G.nz
+            2 * grid.pmls["thickness"]["x0"] >= grid.nx
+            or 2 * grid.pmls["thickness"]["y0"] >= grid.ny
+            or 2 * grid.pmls["thickness"]["z0"] >= grid.nz
+            or 2 * grid.pmls["thickness"]["xmax"] >= grid.nx
+            or 2 * grid.pmls["thickness"]["ymax"] >= grid.ny
+            or 2 * grid.pmls["thickness"]["zmax"] >= grid.nz
         ):
-            logger.exception(f"{self.__str__()} has too many cells for the domain size")
-            raise ValueError
+            raise ValueError(f"{self} has too many cells for the domain size")
+
+        logger.info(
+            f"PML thickness: x0={model.G.pmls['x0']}, y0={model.G.pmls['y0']},"
+            f" z0={model.G.pmls['z0']}, xmax={model.G.pmls['xmax']},"
+            f" ymax={model.G.pmls['yxmax']}, zmax={model.G.pmls['zmax']}"
+        )
 
 
-class SrcSteps(UserObjectSingle):
-    """Moves the location of all simple sources.
+class PMLProps(ModelUserObject):
+    """Specify the formulation and thickness of the PMLs.
+
+    A PML can be set on each of the six sides of the model domain.
+    Current options are to use the Higher Order RIPML (HORIPML) -
+    https://doi.org/10.1109/TAP.2011.2180344, or Multipole RIPML
+    (MRIPML) - https://doi.org/10.1109/TAP.2018.2823864.
+
+    Deprecated: PMLProps is deprecated and may be removed in future
+    releases of gprMax. Use the new PMLFormulation and PMLThickness
+    user objects instead.
 
     Attributes:
-        p1: tuple of float increments (x,y,z) to move all simple sources.
+        pml_formulation (PMLFormulation): User object to set the PML
+            formulation.
+        pml_thickness (PMLThickness): User object to set the PML
+            thickness.
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 8
+    @property
+    def order(self):
+        return 7
 
-    def build(self, model, uip):
-        try:
-            model.srcsteps = uip.discretise_point(self.kwargs["p1"])
-        except KeyError:
-            logger.exception(f"{self.__str__()} requires exactly three parameters")
-            raise
+    @property
+    def hash(self):
+        return "#pml_properties"
+
+    def __init__(
+        self,
+        formulation: str,
+        thickness: Optional[int] = None,
+        x0: Optional[int] = None,
+        y0: Optional[int] = None,
+        z0: Optional[int] = None,
+        xmax: Optional[int] = None,
+        ymax: Optional[int] = None,
+        zmax: Optional[int] = None,
+    ):
+        """Create a PMLProps user object.
+
+        If 'thickness' is set, it will take precendence over any
+        individual thicknesses set. Additionally, if 'thickness' is not
+        set, the individual thickness must be set for all six sides of
+        the model domain.
+
+        Deprecated: PMLProps is deprecated and may be removed in future
+        releases of gprMax. Use the new PMLFormulation and PMLThickness
+        user objects instead.
+
+        Args:
+            formulation (str): Formulation to be used for all PMLs. Either
+                'HORIPML' or 'MRIPML'.
+            thickness: Optional thickness of the PML on all 6 sides of
+                the model domain. Default None.
+            x0, y0, z0, xmax, ymax, zmax: Optional thickness of the PML
+                on individual sides of the model domain. Default None.
+        """
+        super().__init__()
+
+        logger.warning(
+            "PMLProps is deprecated and may be removed in future"
+            " releases of gprMax. Use the new PMLFormulation and"
+            " PMLThickness user objects instead."
+        )
+
+        self.pml_formulation = PMLFormulation(formulation)
+
+        if thickness is not None:
+            self.pml_thickness = PMLThickness(thickness)
+        elif (
+            x0 is not None
+            and y0 is not None
+            and z0 is not None
+            and xmax is not None
+            and ymax is not None
+            and zmax is not None
+        ):
+            self.pml_thickness = PMLThickness((x0, y0, z0, xmax, ymax, zmax))
+        else:
+            raise ValueError("Either set thickness, or all of x0, y0, z0, xmax, ymax, zmax.")
+
+    def build(self, model):
+        self.pml_formulation.build(model)
+        self.pml_thickness.build(model)
+
+
+class SrcSteps(ModelUserObject):
+    """Move the location of all simple sources.
+
+    Attributes:
+        step_size (Tuple[float]): Increment (x, y, z) to move all
+            simple sources by for each step.
+    """
+
+    @property
+    def order(self):
+        return 8
+
+    @property
+    def hash(self):
+        return "#src_steps"
+
+    def __init__(self, p1: Tuple[float, float, float]):
+        """Create a SrcSteps user object.
+
+        Args:
+            p1: Increment (x, y, z) to move all simple sources by for
+                each step.
+        """
+        super().__init__(p1=p1)
+        self.step_size = p1
+
+    def build(self, model: Model):
+        uip = self._create_uip(model.G)
+        model.srcsteps = np.array(uip.discretise_point(self.step_size), dtype=np.int32)
 
         logger.info(
             f"Simple sources will step {model.srcsteps[0] * model.dx:g}m, "
@@ -369,41 +521,38 @@ class SrcSteps(UserObjectSingle):
         )
 
 
-class RxSteps(UserObjectSingle):
-    """Moves the location of all receivers.
+class RxSteps(ModelUserObject):
+    """Move the location of all receivers.
 
     Attributes:
-        p1: tuple of float increments (x,y,z) to move all receivers.
+        step_size (Tuple[float]): Increment (x, y, z) to move all
+            receivers by for each step.
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 9
+    @property
+    def order(self):
+        return 9
 
-    def build(self, model, uip):
-        try:
-            model.rxsteps = uip.discretise_point(self.kwargs["p1"])
-        except KeyError:
-            logger.exception(f"{self.__str__()} requires exactly three parameters")
-            raise
+    @property
+    def hash(self):
+        return "#rx_steps"
+
+    def __init__(self, p1: Tuple[float, float, float]):
+        """Create a RxSteps user object.
+
+        Args:
+            p1: Increment (x, y, z) to move all receivers by for each
+                step.
+        """
+        super().__init__(p1=p1)
+        self.step_size = p1
+
+    def build(self, model: Model):
+        uip = self._create_uip(model.G)
+        model.rxsteps = np.array(uip.discretise_point(self.step_size), dtype=np.int32)
 
         logger.info(
             f"All receivers will step {model.rxsteps[0] * model.dx:g}m, "
             f"{model.rxsteps[1] * model.dy:g}m, {model.rxsteps[2] * model.dz:g}m "
             "for each model run."
         )
-
-
-class OutputDir(UserObjectSingle):
-    """Controls the directory where output file(s) will be stored.
-
-    Attributes:
-        dir: string of file path to directory.
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.order = 10
-
-    def build(self, grid, uip):
-        config.get_model_config().set_output_file_path(self.kwargs["dir"])
