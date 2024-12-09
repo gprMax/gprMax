@@ -25,8 +25,8 @@ from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
 from gprMax.user_inputs import MainGridUserInput
 
-from .pml import PML
-from .utilities.host_info import set_omp_threads
+from ..pml import PML
+from ..utilities.host_info import set_omp_threads
 
 logger = logging.getLogger(__name__)
 
