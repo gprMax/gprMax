@@ -134,6 +134,10 @@ class GridUserObject(MultiUserObject):
 class OutputUserObject(MultiUserObject):
     """User defined object that controls the output of data."""
 
+    @abstractmethod
+    def build(self, model: Model, grid: FDTDGrid):
+        pass
+
     def grid_name(self, grid: FDTDGrid) -> str:
         """Format grid name for use with logging info.
 
@@ -149,10 +153,6 @@ class OutputUserObject(MultiUserObject):
             return f"[{grid.name}] "
         else:
             return ""
-
-    @abstractmethod
-    def build(self, model: Model, grid: FDTDGrid):
-        pass
 
 
 class GeometryUserObject(GridUserObject):
