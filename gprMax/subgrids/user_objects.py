@@ -22,14 +22,13 @@ from typing import List, Tuple, Union
 
 import numpy as np
 
+from gprMax.cmds_geometry.cmds_geometry import UserObjectGeometry
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.model import Model
 from gprMax.subgrids.grid import SubGridBaseGrid
+from gprMax.subgrids.subgrid_hsg import SubGridHSG as SubGridHSGUser
 from gprMax.user_inputs import MainGridUserInput
-
-from ..cmds_geometry.cmds_geometry import UserObjectGeometry
-from ..cmds_multiuse import UserObjectMulti
-from .subgrid_hsg import SubGridHSG as SubGridHSGUser
+from gprMax.user_objects.cmds_multiuse import UserObjectMulti
 
 logger = logging.getLogger(__name__)
 

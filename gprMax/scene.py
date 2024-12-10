@@ -24,13 +24,13 @@ from gprMax.cmds_geometry.add_surface_roughness import AddSurfaceRoughness
 from gprMax.cmds_geometry.add_surface_water import AddSurfaceWater
 from gprMax.cmds_geometry.cmds_geometry import UserObjectGeometry
 from gprMax.cmds_geometry.fractal_box import FractalBox
-from gprMax.cmds_multiuse import UserObjectMulti
 from gprMax.grid.fdtd_grid import FDTDGrid
 from gprMax.materials import create_built_in_materials
 from gprMax.model import Model
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.subgrids.user_objects import SubGridBase as SubGridUserBase
 from gprMax.user_inputs import MainGridUserInput, SubgridUserInput
+from gprMax.user_objects.cmds_multiuse import UserObjectMulti
 from gprMax.user_objects.cmds_singleuse import Discretisation, Domain, TimeWindow, UserObjectSingle
 
 logger = logging.getLogger(__name__)

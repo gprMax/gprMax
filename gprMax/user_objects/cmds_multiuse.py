@@ -26,34 +26,33 @@ import numpy.typing as npt
 from scipy import interpolate
 
 import gprMax.config as config
-from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.grid.mpi_grid import MPIGrid
-from gprMax.model import Model
-from gprMax.user_inputs import MainGridUserInput
-
-from .cmds_geometry.cmds_geometry import (
+from gprMax.cmds_geometry.cmds_geometry import (
     UserObjectGeometry,
     rotate_2point_object,
     rotate_polarisation,
 )
-from .geometry_outputs import GeometryObjects as GeometryObjectsUser
-from .geometry_outputs import MPIGeometryObjects as MPIGeometryObjectsUser
-from .materials import DispersiveMaterial as DispersiveMaterialUser
-from .materials import ListMaterial as ListMaterialUser
-from .materials import Material as MaterialUser
-from .materials import PeplinskiSoil as PeplinskiSoilUser
-from .materials import RangeMaterial as RangeMaterialUser
-from .pml import CFS, CFSParameter
-from .receivers import Rx as RxUser
-from .snapshots import MPISnapshot as MPISnapshotUser
-from .snapshots import Snapshot as SnapshotUser
-from .sources import HertzianDipole as HertzianDipoleUser
-from .sources import MagneticDipole as MagneticDipoleUser
-from .sources import TransmissionLine as TransmissionLineUser
-from .sources import VoltageSource as VoltageSourceUser
-from .subgrids.grid import SubGridBaseGrid
-from .utilities.utilities import round_value
-from .waveforms import Waveform as WaveformUser
+from gprMax.geometry_outputs import GeometryObjects as GeometryObjectsUser
+from gprMax.geometry_outputs import MPIGeometryObjects as MPIGeometryObjectsUser
+from gprMax.grid.fdtd_grid import FDTDGrid
+from gprMax.grid.mpi_grid import MPIGrid
+from gprMax.materials import DispersiveMaterial as DispersiveMaterialUser
+from gprMax.materials import ListMaterial as ListMaterialUser
+from gprMax.materials import Material as MaterialUser
+from gprMax.materials import PeplinskiSoil as PeplinskiSoilUser
+from gprMax.materials import RangeMaterial as RangeMaterialUser
+from gprMax.model import Model
+from gprMax.pml import CFS, CFSParameter
+from gprMax.receivers import Rx as RxUser
+from gprMax.snapshots import MPISnapshot as MPISnapshotUser
+from gprMax.snapshots import Snapshot as SnapshotUser
+from gprMax.sources import HertzianDipole as HertzianDipoleUser
+from gprMax.sources import MagneticDipole as MagneticDipoleUser
+from gprMax.sources import TransmissionLine as TransmissionLineUser
+from gprMax.sources import VoltageSource as VoltageSourceUser
+from gprMax.subgrids.grid import SubGridBaseGrid
+from gprMax.user_inputs import MainGridUserInput
+from gprMax.utilities.utilities import round_value
+from gprMax.waveforms import Waveform as WaveformUser
 
 logger = logging.getLogger(__name__)
 
@@ -1888,9 +1887,9 @@ class GeometryView(UserObjectMulti):
         """
 
         if output_type == "n":
-            from .geometry_outputs import GeometryViewVoxels as GeometryViewUser
+            from gprMax.geometry_outputs import GeometryViewVoxels as GeometryViewUser
         else:
-            from .geometry_outputs import GeometryViewLines as GeometryViewUser
+            from gprMax.geometry_outputs import GeometryViewLines as GeometryViewUser
 
         return GeometryViewUser
 

@@ -24,7 +24,10 @@ from .cmds_geometry.geometry_objects_read import GeometryObjectsRead
 from .cmds_geometry.plate import Plate
 from .cmds_geometry.sphere import Sphere
 from .cmds_geometry.triangle import Triangle
-from .cmds_multiuse import (
+from .gprMax import run as run
+from .scene import Scene
+from .subgrids.user_objects import SubGridHSG
+from .user_objects.cmds_multiuse import (
     PMLCFS,
     AddDebyeDispersion,
     AddDrudeDispersion,
@@ -46,9 +49,6 @@ from .cmds_multiuse import (
     VoltageSource,
     Waveform,
 )
-from .gprMax import run as run
-from .scene import Scene
-from .subgrids.user_objects import SubGridHSG
 from .user_objects.cmds_singleuse import (
     Discretisation,
     Domain,
