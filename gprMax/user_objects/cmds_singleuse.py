@@ -253,7 +253,7 @@ class TimeWindow(ModelUserObject):
 
         if self.time is not None and self.iterations is not None:
             logger.warning(
-                f"{self._params_str()} Time and iterations were both specified, using 'time'"
+                f"{self.params_str()} Time and iterations were both specified, using 'time'"
             )
 
         logger.info(f"Time window: {model.timewindow:g} secs ({model.iterations} iterations)")

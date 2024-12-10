@@ -3,7 +3,6 @@ from typing import List, Union
 
 from gprMax import config
 from gprMax.grid.fdtd_grid import FDTDGrid
-from gprMax.grid.mpi_grid import MPIGrid
 from gprMax.model import Model
 from gprMax.subgrids.grid import SubGridBaseGrid
 from gprMax.user_inputs import MainGridUserInput, SubgridUserInput
@@ -60,7 +59,7 @@ class UserObject(ABC):
 
         return f"{self.hash}: {' '.join(args)}"
 
-    def _params_str(self) -> str:
+    def params_str(self) -> str:
         """Readable string of parameters given to object."""
         return f"{self.hash}: {str(self.kwargs)}"
 
@@ -115,9 +114,41 @@ class GridUserObject(MultiUserObject):
     def build(self, grid: FDTDGrid):
         pass
 
+    def grid_name(self, grid: FDTDGrid) -> str:
+        """Format grid name for use with logging info.
+
+        Returns an empty string if the grid is the main grid.
+
+        Args:
+            grid: Grid to get the name of.
+
+        Returns:
+            grid_name: Formatted version of the grid name.
+        """
+        if isinstance(grid, SubGridBaseGrid):
+            return f"[{grid.name}] "
+        else:
+            return ""
+
 
 class OutputUserObject(MultiUserObject):
     """User defined object that controls the output of data."""
+
+    def grid_name(self, grid: FDTDGrid) -> str:
+        """Format grid name for use with logging info.
+
+        Returns an empty string if the grid is the main grid.
+
+        Args:
+            grid: Grid to get the name of.
+
+        Returns:
+            grid_name: Formatted version of the grid name.
+        """
+        if isinstance(grid, SubGridBaseGrid):
+            return f"[{grid.name}] "
+        else:
+            return ""
 
     @abstractmethod
     def build(self, model: Model, grid: FDTDGrid):

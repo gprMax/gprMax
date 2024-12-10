@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple
 
+from gprMax.grid.fdtd_grid import FDTDGrid
+
 
 class Rotatable(ABC):
     """Stores parameters and defines an interface for rotatable objects.
@@ -38,6 +40,6 @@ class Rotatable(ABC):
         self.do_rotate = True
 
     @abstractmethod
-    def _do_rotate(self):
+    def _do_rotate(self, grid: FDTDGrid):
         """Performs the rotation."""
         pass
