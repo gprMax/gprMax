@@ -59,54 +59,6 @@ from gprMax.waveforms import Waveform as WaveformUser
 logger = logging.getLogger(__name__)
 
 
-class UserObjectMulti(ABC):
-    """Object that can occur multiple times in a model."""
-
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
-        self.order = 0
-        self.hash = None
-        self.autotranslate = True
-        self.do_rotate = False
-
-    def __str__(self):
-        """Readable user string as per hash commands."""
-        s = ""
-        for _, v in self.kwargs.items():
-            if isinstance(v, (tuple, list)):
-                v = " ".join([str(el) for el in v])
-            s += f"{str(v)} "
-
-        return f"{self.hash}: {s[:-1]}"
-
-    @abstractmethod
-    def build(self, model: Model, uip: MainGridUserInput):
-        """Creates object and adds it to model."""
-        pass
-
-    # TODO: Make _do_rotate not use a grid object
-    def rotate(self, axis, angle, origin=None):
-        """Rotates object (specialised for each object)."""
-        pass
-
-    def params_str(self):
-        """Readable string of parameters given to object."""
-        return f"{self.hash}: {str(self.kwargs)}"
-
-    def grid_name(self, grid: FDTDGrid) -> str:
-        """Returns subgrid name for use with logging info. Returns an empty
-        string if the grid is the main grid.
-        """
-        if isinstance(grid, SubGridBaseGrid):
-            return f"[{grid.name}] "
-        else:
-            return ""
-
-    def model_name(self, model: Model) -> str:
-        """Returns model name for use with logging info."""
-        return f"[{model.title}] "
-
-
 class ExcitationFile(GridUserObject):
     """Specify file containing amplitude values of custom waveforms.
 
