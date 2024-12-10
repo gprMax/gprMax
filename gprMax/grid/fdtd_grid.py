@@ -61,6 +61,9 @@ class FDTDGrid:
         self.dl = np.ones(3, dtype=np.float64)
         self.dt = 0.0
 
+        self.iterations = 0  # Total number of iterations
+        self.timewindow = 0.0
+
         # Field Arrays
         self.Ex: npt.NDArray[np.float32]
         self.Ey: npt.NDArray[np.float32]

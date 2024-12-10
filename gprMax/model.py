@@ -56,8 +56,6 @@ class Model:
         self.dt_mod = 1.0  # Time step stability factor
 
         self.iteration = 0  # Current iteration number
-        self.iterations = 0  # Total number of iterations
-        self.timewindow = 0.0
 
         self.srcsteps = np.zeros(3, dtype=np.int32)
         self.rxsteps = np.zeros(3, dtype=np.int32)
@@ -140,6 +138,22 @@ class Model:
     @dt.setter
     def dt(self, value: float):
         self.G.dt = value
+
+    @property
+    def iterations(self) -> int:
+        return self.G.iterations
+
+    @iterations.setter
+    def iterations(self, value: int):
+        self.G.iterations = value
+
+    @property
+    def timewindow(self) -> float:
+        return self.G.timewindow
+
+    @timewindow.setter
+    def timewindow(self, value: float):
+        self.G.timewindow = value
 
     def _create_grid(self) -> FDTDGrid:
         """Create grid object according to solver.
